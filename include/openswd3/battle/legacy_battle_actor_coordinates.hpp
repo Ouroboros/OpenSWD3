@@ -178,6 +178,7 @@ struct LegacyBattleActorCoordinateFlags {
     bool zero{};
     bool sign{};
     bool overflow{};
+    bool overflow_defined{true};
 };
 
 struct LegacyBattleActorCoordinateQueryRequest {

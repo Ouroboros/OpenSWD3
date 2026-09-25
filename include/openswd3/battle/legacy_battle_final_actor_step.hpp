@@ -50,7 +50,8 @@ advance_legacy_battle_final_actor_step(
     LegacyBattleAttackOrderRemoveBindings attack_order,
     compat::u32 actor_index,
     compat::u32 actor_group,
-    LegacyBattleStartupState* startup = nullptr
+    LegacyBattleStartupState* startup = nullptr,
+    const LegacyBattleActorFrameCallerBinding* frame_caller = nullptr
 );
 
 }  // namespace openswd3::battle

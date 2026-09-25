@@ -181,6 +181,7 @@ enum class LegacyBattleTransitionStatus : compat::u8 {
     actor_frame_typed_stop,
     attack_order_typed_stop,
     actor_progress_threshold_sync_typed_stop,
+    actor_progress_slot0_typed_stop,
     actor_runtime_reset_typed_stop,
 };
 
@@ -221,6 +222,8 @@ struct LegacyBattleTransitionResult {
     LegacyBattleActorProgressThresholdSyncResult
         actor_progress_threshold_sync{};
     compat::u32 actor_progress_threshold_sync_calls{};
+    LegacyBattleActorProgressResult actor_progress{};
+    compat::u32 actor_progress_calls{};
     LegacyBattleActorRuntimeResetCallTrace actor_runtime_reset{};
     compat::u32 prepared_party_actors{};
     compat::u32 rare_slot_writes{};

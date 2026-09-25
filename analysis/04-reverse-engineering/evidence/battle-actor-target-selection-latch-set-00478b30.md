@@ -37,7 +37,7 @@ ESP 并把 EIP 改为调用点返回地址。
 ## 3. canonical owner
 
 完整字段交叉引用和相邻 getter `sub_478B40` 证明 `actor+0x2AA8` 是 actor-local dword。
-`sub_47D580` 的 runtime reset 会直接把该字段写零，因此它不属于全局
+`sub_47D350` 的 `0x0047D580` 指令会直接把该字段写零，因此它不属于全局
 `action_execution_active`。
 
 实现把原无语义的 `LegacyBattleActorRuntimeResetState::field_2aa8` 收敛为

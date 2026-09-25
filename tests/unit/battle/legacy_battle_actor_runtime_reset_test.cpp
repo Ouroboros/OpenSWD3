@@ -9,7 +9,9 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstring>
 #include <memory>
+#include <span>
 
 namespace {
 
@@ -159,16 +161,488 @@ void test_battle_actor_runtime_reset(openswd3::test::Context& test) {
             a.residual == &(*fixture.startup->group_a_runtime_reset)[3U] &&
                 a.action_execution ==
                     &fixture.action->group_a_action_execution[3U] &&
+                a.shared_action == &fixture.action->group_a_action_shared &&
+                a.particle_source_token_owner ==
+                    &fixture.action->group_a_target_phases[3U]
+                         .decoded_resource_token &&
+                a.particle_phase_owner ==
+                    &fixture.action->group_a_target_phases[3U] &&
                 a.primary_coordinates == &fixture.startup->party[3U] &&
                 a.coordinate_alias ==
                     &fixture.action->group_a_action_execution[3U] &&
+                a.actor_resource_token_owner ==
+                    &fixture.startup->party[3U].configuration.profile_token &&
+                a.actor_resource_bytes ==
+                    reinterpret_cast<const openswd3::compat::u8*>(
+                        fixture.startup->party[3U]
+                            .configuration.profile_record.data()
+                    ) &&
+                a.actor_resource_size == 0xA4U &&
                 b.residual ==
                     &(*fixture.startup->group_b_lifecycle)[5U].runtime_reset &&
                 b.action_execution ==
                     &(*fixture.startup->group_b_lifecycle)[5U]
                          .action_execution &&
+                b.shared_action == &fixture.action->group_a_action_shared &&
+                b.particle_source_token_owner ==
+                    &(*fixture.action->group_b_fixed_particle_phases)[5U]
+                         .decoded_resource_token &&
+                b.particle_phase_owner ==
+                    &(*fixture.action->group_b_fixed_particle_phases)[5U] &&
+                fixture.action->group_b_target_phases[5U][0U] == nullptr &&
+                b.actor_resource_token_owner ==
+                    &(*fixture.startup->group_b_lifecycle)[5U].resource_token &&
+                b.actor_resource_bytes ==
+                    (*fixture.startup->group_b_lifecycle)[5U]
+                        .resource_bytes.data() &&
+                b.actor_resource_size == 0xA4U &&
+                b.live_record_group_b_elements ==
+                    fixture.startup->group_b_lifecycle->data() &&
+                b.live_record_group_b_count ==
+                    fixture.startup->group_b_lifecycle->size() &&
+                b.live_record_group_b_base_token ==
+                    openswd3::battle::
+                        kLegacyBattleActorGroupBExternalSourceBaseToken &&
                 invalid.residual == nullptr,
             "runtime reset resolves only canonical Group-A and Group-B owners"
+        );
+    }
+
+    {
+        Fixture fixture;
+        const auto a =
+            openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                fixture.owners(),
+                openswd3::battle::kLegacyBattleActorGroupABaseToken
+            );
+        const auto b =
+            openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                fixture.owners(),
+                openswd3::battle::kLegacyBattleActorGroupBBaseToken
+            );
+        a.particle_phase_owner->block_0df4[0U] = 0xAABBCCDDU;
+        b.particle_phase_owner->block_0df4[0U] = 0x11223344U;
+        b.particle_phase_owner->block_0df4[7U] = 0x55667788U;
+        openswd3::battle::LegacyBattleActorImage b_image{};
+        openswd3::battle::materialize_legacy_battle_actor_image(b, b_image);
+        u32 first{};
+        u32 last{};
+        std::memcpy(&first, b_image.data() + 0x0DF4U, sizeof(first));
+        std::memcpy(&last, b_image.data() + 0x0E10U, sizeof(last));
+        const u32 second_write = 0xA1B2C3D4U;
+        std::memcpy(
+            b_image.data() + 0x0DF8U, &second_write, sizeof(second_write)
+        );
+        openswd3::battle::synchronize_legacy_battle_actor_image_write(
+            b, b_image, 0x0DF8U, sizeof(second_write)
+        );
+        test.expect_true(
+            first == 0x11223344U && last == 0x55667788U &&
+                b.particle_phase_owner->block_0df4[1U] == second_write &&
+                b.particle_phase_owner->block_0df4[0U] == 0x11223344U &&
+                b.particle_phase_owner->block_0df4[7U] == 0x55667788U &&
+                a.particle_phase_owner->block_0df4[0U] == 0xAABBCCDDU &&
+                fixture.action->group_b_target_phases[0U][0U] == nullptr,
+            "Group-B fixed emitter 32-byte middle region uses its own canonical owner, not target-grid or Group-A memory"
+        );
+    }
+
+    {
+        Fixture fixture;
+        bool resource_mapping_exact = true;
+        for (const u32 token : std::array<u32, 2U>{
+                 openswd3::battle::kLegacyBattleActorGroupABaseToken,
+                 openswd3::battle::kLegacyBattleActorGroupBBaseToken
+             }) {
+            const auto actor =
+                openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                    fixture.owners(), token
+                );
+            *actor.actor_resource_token_owner = 0x00720000U;
+            openswd3::battle::LegacyBattleActorImage image{};
+            openswd3::battle::materialize_legacy_battle_actor_image(
+                actor, image
+            );
+            u32 read_token{};
+            std::memcpy(&read_token, image.data() + 0x0CU, sizeof(read_token));
+            resource_mapping_exact =
+                resource_mapping_exact && read_token == 0x00720000U;
+            const u32 new_token = 0x00730000U;
+            std::memcpy(image.data() + 0x0CU, &new_token, sizeof(new_token));
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, 0x0CU, sizeof(new_token)
+            );
+            resource_mapping_exact = resource_mapping_exact &&
+                *actor.actor_resource_token_owner == new_token;
+        }
+        test.expect_true(
+            resource_mapping_exact,
+            "Group-A and Group-B actor+0x0C resource tokens materialize and commit to independent canonical 0xA4 record owners"
+        );
+    }
+
+    {
+        Fixture fixture;
+        bool frame_source_alias_exact = true;
+        for (const u32 token : std::array<u32, 2U>{
+                 openswd3::battle::kLegacyBattleActorGroupABaseToken,
+                 openswd3::battle::kLegacyBattleActorGroupBBaseToken
+             }) {
+            const auto actor =
+                openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                    fixture.owners(), token
+                );
+            actor.action_execution->render_source_token = 0x00710000U;
+            actor.action_execution->resource.token = 0x00710000U;
+            actor.action_execution->resource.value_00_known = true;
+            actor.action_execution->resource.value_0c_known = true;
+            actor.action_execution->resource.value_0e_known = true;
+            openswd3::battle::LegacyBattleActorImage image{};
+            openswd3::battle::materialize_legacy_battle_actor_image(
+                actor, image
+            );
+            const u32 unchanged = 0x00710000U;
+            std::memcpy(image.data() + 0x2548U, &unchanged, sizeof(unchanged));
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, 0x2548U, sizeof(unchanged)
+            );
+            frame_source_alias_exact = frame_source_alias_exact &&
+                actor.action_execution->resource.value_00_known &&
+                actor.action_execution->resource.value_0c_known &&
+                actor.action_execution->resource.value_0e_known;
+            const u32 changed = 0x00720000U;
+            std::memcpy(image.data() + 0x2548U, &changed, sizeof(changed));
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, 0x2548U, sizeof(changed)
+            );
+            frame_source_alias_exact = frame_source_alias_exact &&
+                actor.action_execution->render_source_token == changed &&
+                actor.action_execution->resource.token == changed &&
+                !actor.action_execution->resource.value_00_known &&
+                !actor.action_execution->resource.value_0c_known &&
+                !actor.action_execution->resource.value_0e_known;
+        }
+        test.expect_true(
+            frame_source_alias_exact,
+            "Group-A and Group-B +0x2548 token writes preserve a matching resource header but invalidate an unrelated first-dword cache"
+        );
+    }
+
+    {
+        Fixture fixture;
+        const u32 token = openswd3::battle::kLegacyBattleActorGroupABaseToken;
+        const auto actor =
+            openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                fixture.owners(), token
+            );
+        auto& phase = *actor.particle_phase_owner;
+        std::array<openswd3::compat::u16, 2U> pixels{1U, 2U};
+        phase.decoded_resource_token = 0x00811000U;
+        phase.emitter.source_pixels = std::span{pixels};
+        phase.emitter.source_width = 19U;
+        phase.emitter.source_height = 23U;
+        phase.emitter.flags = 0x56U;
+        phase.emitter.head_token = 0x00710000U;
+        phase.emitter.tail_token = 0x00720000U;
+        openswd3::battle::LegacyBattleActorImage image{};
+        openswd3::battle::materialize_legacy_battle_actor_image(actor, image);
+        u32 source{};
+        openswd3::compat::u16 width{};
+        openswd3::compat::u16 height{};
+        std::memcpy(&source, image.data() + 0x0E14U, sizeof(source));
+        std::memcpy(&width, image.data() + 0x0E18U, sizeof(width));
+        std::memcpy(&height, image.data() + 0x0E1AU, sizeof(height));
+        bool emitter_mapping_exact = source == 0x00811000U && width == 19U &&
+            height == 23U &&
+            static_cast<unsigned char>(image[0x0E3CU]) == 0x56U;
+        const u32 zero{};
+        std::memcpy(image.data() + 0x0E14U, &zero, sizeof(zero));
+        openswd3::battle::synchronize_legacy_battle_actor_image_write(
+            actor, image, 0x0E14U, sizeof(zero)
+        );
+        std::memcpy(image.data() + 0x0E18U, &zero, sizeof(zero));
+        openswd3::battle::synchronize_legacy_battle_actor_image_write(
+            actor, image, 0x0E18U, sizeof(zero)
+        );
+        std::memcpy(image.data() + 0x0E3CU, &zero, sizeof(zero));
+        openswd3::battle::synchronize_legacy_battle_actor_image_write(
+            actor, image, 0x0E3CU, sizeof(zero)
+        );
+        std::memcpy(image.data() + 0x0E64U, &zero, sizeof(zero));
+        openswd3::battle::synchronize_legacy_battle_actor_image_write(
+            actor, image, 0x0E64U, sizeof(zero)
+        );
+        emitter_mapping_exact = emitter_mapping_exact &&
+            phase.decoded_resource_token == 0U &&
+            phase.emitter.source_pixels.empty() &&
+            phase.emitter.source_width == 0U &&
+            phase.emitter.source_height == 0U && phase.emitter.flags == 0U &&
+            phase.emitter.head_token == 0U &&
+            phase.emitter.tail_token == 0x00720000U;
+        test.expect_true(
+            emitter_mapping_exact,
+            "Group-A target-phase emitter materializes and synchronizes individual +0x0E14..+0x0E6B physical writes without clearing later fields"
+        );
+    }
+
+    {
+        Fixture fixture;
+        bool owner_mapping_exact = true;
+        for (const u32 token : std::array<u32, 2U>{
+                 openswd3::battle::kLegacyBattleActorGroupABaseToken,
+                 openswd3::battle::kLegacyBattleActorGroupBBaseToken
+             }) {
+            const auto actor =
+                openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                    fixture.owners(), token
+                );
+            actor.base_initialization->linked_action_head_token = 0x12345678U;
+            actor.action_execution->early_latch = 0x23456789U;
+            actor.progress->frame_started = 0x3456789AU;
+            openswd3::battle::LegacyBattleActorImage image{};
+            openswd3::battle::materialize_legacy_battle_actor_image(
+                actor, image
+            );
+            const auto read_dword = [&](const std::size_t offset) {
+                u32 value{};
+                std::memcpy(&value, image.data() + offset, sizeof(value));
+                return value;
+            };
+            owner_mapping_exact = owner_mapping_exact &&
+                image.size() == 0x2B24U && read_dword(0x2584U) == 0x12345678U &&
+                read_dword(0x2B1CU) == 0x23456789U &&
+                read_dword(0x2B20U) == 0x3456789AU;
+
+            const u32 new_head = 0x456789ABU;
+            const u32 new_latch = 0x56789ABCU;
+            const u32 new_started = 0x6789ABCDU;
+            std::memcpy(image.data() + 0x2584U, &new_head, sizeof(new_head));
+            std::memcpy(image.data() + 0x2B1CU, &new_latch, sizeof(new_latch));
+            std::memcpy(
+                image.data() + 0x2B20U, &new_started, sizeof(new_started)
+            );
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, 0x2584U, sizeof(new_head)
+            );
+            owner_mapping_exact = owner_mapping_exact &&
+                actor.base_initialization->linked_action_head_token ==
+                    new_head &&
+                actor.action_execution->early_latch == 0x23456789U &&
+                actor.progress->frame_started == 0x3456789AU;
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, 0x2B1CU, sizeof(new_latch)
+            );
+            owner_mapping_exact = owner_mapping_exact &&
+                actor.action_execution->early_latch == new_latch &&
+                actor.progress->frame_started == 0x3456789AU;
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, 0x2B20U, sizeof(new_started)
+            );
+            owner_mapping_exact = owner_mapping_exact &&
+                actor.progress->frame_started == new_started;
+        }
+        test.expect_true(
+            owner_mapping_exact,
+            "Group-A and Group-B actor images borrow linked-list head and adjacent latch/frame-started fields from canonical owners with separately committed writes"
+        );
+    }
+
+    {
+        Fixture fixture;
+        bool owner_mapping_exact = true;
+        for (const u32 token : std::array<u32, 2U>{
+                 openswd3::battle::kLegacyBattleActorGroupABaseToken,
+                 openswd3::battle::kLegacyBattleActorGroupBBaseToken
+             }) {
+            const auto actor =
+                openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                    fixture.owners(), token
+                );
+            actor.action_execution->turn_threshold = 0xA123U;
+            actor.base_initialization->field_2a94 = 0xB4U;
+            actor.residual->field_2a95 = 0x3CU;
+            openswd3::battle::LegacyBattleActorImage image{};
+            openswd3::battle::materialize_legacy_battle_actor_image(
+                actor, image
+            );
+            openswd3::compat::u16 materialized_threshold{};
+            openswd3::compat::u8 materialized_marker{};
+            openswd3::compat::u8 materialized_override{};
+            std::memcpy(
+                &materialized_threshold,
+                image.data() + 0x2958U,
+                sizeof(materialized_threshold)
+            );
+            std::memcpy(
+                &materialized_marker,
+                image.data() + 0x2A94U,
+                sizeof(materialized_marker)
+            );
+            std::memcpy(
+                &materialized_override,
+                image.data() + 0x2A95U,
+                sizeof(materialized_override)
+            );
+            owner_mapping_exact = owner_mapping_exact &&
+                materialized_threshold == 0xA123U &&
+                materialized_marker == 0xB4U && materialized_override == 0x3CU;
+
+            const openswd3::compat::u16 new_threshold = 0xC567U;
+            const openswd3::compat::u8 new_marker = 0xD8U;
+            const openswd3::compat::u8 new_override = 0xE2U;
+            std::memcpy(
+                image.data() + 0x2958U, &new_threshold, sizeof(new_threshold)
+            );
+            std::memcpy(
+                image.data() + 0x2A94U, &new_marker, sizeof(new_marker)
+            );
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, 0x2958U, sizeof(new_threshold)
+            );
+            owner_mapping_exact = owner_mapping_exact &&
+                actor.action_execution->turn_threshold == new_threshold &&
+                actor.base_initialization->field_2a94 == 0xB4U;
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, 0x2A94U, sizeof(new_marker)
+            );
+            owner_mapping_exact = owner_mapping_exact &&
+                actor.base_initialization->field_2a94 == new_marker &&
+                actor.residual->field_2a95 == 0x3CU;
+            std::memcpy(
+                image.data() + 0x2A95U, &new_override, sizeof(new_override)
+            );
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, 0x2A95U, sizeof(new_override)
+            );
+            owner_mapping_exact = owner_mapping_exact &&
+                actor.residual->field_2a95 == new_override;
+        }
+        test.expect_true(
+            owner_mapping_exact,
+            "Group-A and Group-B images project +0x2958 phase, +0x2A94 selector, and +0x2A95 override to distinct owners and commit independently"
+        );
+    }
+
+    {
+        Fixture fixture;
+        bool alias_mapping_exact = true;
+        for (const u32 token : std::array<u32, 2U>{
+                 openswd3::battle::kLegacyBattleActorGroupABaseToken,
+                 openswd3::battle::kLegacyBattleActorGroupBBaseToken
+             }) {
+            const auto actor =
+                openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                    fixture.owners(), token
+                );
+            auto& slot = actor.action_execution->frame_source_action_record;
+            slot.field_24 = 0x10203040U;
+            slot.field_28 = 0x50607080U;
+            actor.progress->cache_x = slot.field_24;
+            actor.progress->cache_y = slot.field_28;
+            openswd3::battle::LegacyBattleActorImage image{};
+            openswd3::battle::materialize_legacy_battle_actor_image(
+                actor, image
+            );
+            u32 materialized_x{};
+            u32 materialized_y{};
+            std::memcpy(&materialized_x, image.data() + 0x02C4U, sizeof(u32));
+            std::memcpy(&materialized_y, image.data() + 0x02C8U, sizeof(u32));
+            alias_mapping_exact = alias_mapping_exact &&
+                materialized_x == slot.field_24 &&
+                materialized_y == slot.field_28;
+
+            const u32 new_x = 0xA1B2C3D4U;
+            const u32 new_y = 0xE5F60718U;
+            std::memcpy(image.data() + 0x02C4U, &new_x, sizeof(new_x));
+            std::memcpy(image.data() + 0x02C8U, &new_y, sizeof(new_y));
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, 0x02C4U, sizeof(new_x)
+            );
+            alias_mapping_exact = alias_mapping_exact &&
+                slot.field_24 == new_x && actor.progress->cache_x == new_x &&
+                slot.field_28 == 0x50607080U &&
+                actor.progress->cache_y == 0x50607080U;
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, 0x02C8U, sizeof(new_y)
+            );
+            alias_mapping_exact = alias_mapping_exact &&
+                slot.field_28 == new_y && actor.progress->cache_y == new_y;
+        }
+        test.expect_true(
+            alias_mapping_exact,
+            "Group-A and Group-B slot0 +0x2C4/+0x2C8 record bytes and progress cache aliases commit in separate physical writes"
+        );
+    }
+
+    {
+        Fixture fixture;
+        bool reverse_prefix_exact = true;
+        for (const u32 token : std::array<u32, 2U>{
+                 openswd3::battle::kLegacyBattleActorGroupABaseToken,
+                 openswd3::battle::kLegacyBattleActorGroupBBaseToken
+             }) {
+            const auto actor =
+                openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                    fixture.owners(), token
+                );
+            auto& execution = *actor.action_execution;
+            execution.primary_value = 0x11223344U;
+            execution.secondary_value = 0x55667788U;
+            execution.primary_action_record.field_24 = 0x11223344U;
+            execution.primary_action_record.field_28 = 0x55667788U;
+            execution.action_flags = 0x5601U;
+            execution.record_mode_flags = 0x56U;
+            execution.secondary_auxiliary_word = 0x9ABCU;
+            execution.auxiliary_word = 0xDEF0U;
+            execution.color_values.fill(7);
+            openswd3::battle::LegacyBattleActorImage image{};
+            openswd3::battle::materialize_legacy_battle_actor_image(
+                actor, image
+            );
+            constexpr u32 zero = 0U;
+            for (u32 index = 0U; index < 29U; ++index) {
+                const u32 offset = 0x03D0U - 4U * index;
+                std::memcpy(image.data() + offset, &zero, sizeof(zero));
+                openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                    actor, image, offset, sizeof(zero)
+                );
+                if (index == 8U) {
+                    reverse_prefix_exact = reverse_prefix_exact &&
+                        execution.auxiliary_word == 0U &&
+                        execution.secondary_auxiliary_word == 0x9ABCU &&
+                        std::all_of(execution.color_values.begin(),
+                                    execution.color_values.end(),
+                                    [](const auto value) {
+                                        return value == 0;
+                                    });
+                }
+                if (index == 9U) {
+                    reverse_prefix_exact = reverse_prefix_exact &&
+                        execution.secondary_auxiliary_word == 0U;
+                }
+                if (index == 16U) {
+                    reverse_prefix_exact = reverse_prefix_exact &&
+                        execution.action_flags == 0U &&
+                        execution.record_mode_flags == 0U;
+                }
+            }
+            reverse_prefix_exact = reverse_prefix_exact &&
+                execution.secondary_value == 0U &&
+                execution.primary_value == 0x11223344U &&
+                execution.primary_action_record.field_28 == 0U &&
+                execution.primary_action_record.field_24 == 0x11223344U;
+            constexpr u32 last_offset = 0x035CU;
+            std::memcpy(image.data() + last_offset, &zero, sizeof(zero));
+            openswd3::battle::synchronize_legacy_battle_actor_image_write(
+                actor, image, last_offset, sizeof(zero)
+            );
+            reverse_prefix_exact = reverse_prefix_exact &&
+                execution.primary_value == 0U &&
+                execution.primary_action_record.field_24 == 0U;
+        }
+        test.expect_true(
+            reverse_prefix_exact,
+            "Group-A and Group-B reverse 38-dword write prefixes synchronize slot1 scalar aliases before the next faultable write"
         );
     }
 

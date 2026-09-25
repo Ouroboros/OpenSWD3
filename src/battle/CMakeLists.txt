@@ -10,6 +10,7 @@ add_library(
         legacy_battle_actor_action_commit.cpp
         legacy_battle_actor_action_cycle.cpp
         legacy_battle_actor_action_presentation.cpp
+        legacy_battle_actor_frame_presentation.cpp
         legacy_battle_actor_action_reverse_cycle.cpp
         legacy_battle_actor_message_percent_refresh.cpp
         legacy_battle_actor_target_preparation.cpp

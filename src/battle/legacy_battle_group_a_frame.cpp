@@ -1037,7 +1037,8 @@ void merge_nested_result(
         },
         actor_index,
         1U,
-        context.startup
+        context.startup,
+        &context.actor_frame_final_group_a
     );
     merge_nested_result(result, nested);
     if (nested.status != LegacyBattleActionDispatchStatus::completed) {
@@ -1595,8 +1596,17 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             actor,
             std::bit_cast<i32>(state.actor_gate_argument),
             state.actor_progress_threshold,
-            actor_token
+            actor_token,
+            &state.action.group_a_action_execution[group_a_index]
+                 .frame_source_action_record,
+            true
         );
+        if (progress.status != LegacyBattleActorProgressStatus::completed) {
+            result.status = LegacyBattleActionDispatchStatus::
+                actor_progress_slot0_typed_stop;
+            result.return_value = progress.return_eax;
+            return result;
+        }
         if (progress.return_eax == 1U) {
             if (context.startup == nullptr) {
                 result.status = LegacyBattleActionDispatchStatus::

@@ -14,8 +14,10 @@ class LegacyBattleBoundedRandomPort;
 struct LegacyBattleActionDispatchState;
 struct LegacyBattleActorBaseInitializationFields;
 struct LegacyBattleActorCoordinatesState;
+struct LegacyBattleActorGroupBElementState;
 struct LegacyBattleActorProgressState;
 struct LegacyBattleGroupAActionExecutionState;
+struct LegacyBattleGroupAActionExecutionSharedState;
 struct LegacyBattleGroupAConfigurationState;
 struct LegacyBattleGroupAFinalProcessingState;
 struct LegacyBattleGroupAItemEffectApplicationState;
@@ -37,7 +39,9 @@ inline constexpr std::size_t kLegacyBattleActorRuntimeResetStackTraceCount =
     11U;
 inline constexpr std::size_t kLegacyBattleActorRuntimeResetMaximumCallTrace =
     32U;
-inline constexpr std::size_t kLegacyBattleActorImageSize = 0x2B1CU;
+inline constexpr std::size_t kLegacyBattleActorImageSize = 0x2B24U;
+inline constexpr compat::u32 kLegacyBattleActorGroupBExternalSourceBaseToken =
+    0x005213A0U;
 using LegacyBattleActorImage =
     std::array<std::byte, kLegacyBattleActorImageSize>;
 
@@ -52,6 +56,7 @@ struct LegacyBattleActorRuntimeResetState {
     compat::u32 field_26cc{};
     compat::u16 field_2a72{};
     compat::u16 field_2a7a{};
+    compat::u8 field_2a95{};
     compat::u32 target_selection_latch{};
     compat::u32 field_2ac8{};
     compat::u32 field_2acc{};
@@ -63,15 +68,22 @@ struct LegacyBattleActorRuntimeResetState {
     compat::u32 field_2b18{};
 };
 
+struct LegacyBattleLevelAdvancementState;
+struct LegacyBattleTargetPhaseState;
+
 struct LegacyBattleActorRuntimeResetOwners {
     LegacyBattleActionDispatchState* action{};
     LegacyBattleStartupState* startup{};
+    LegacyBattleLevelAdvancementState* level_advancement{};
 };
 
 struct LegacyBattleActorRuntimeResetView {
     LegacyBattleActorRuntimeResetState* residual{};
     LegacyBattleActorProgressState* progress{};
     LegacyBattleGroupAActionExecutionState* action_execution{};
+    LegacyBattleGroupAActionExecutionSharedState* shared_action{};
+    compat::u32* particle_source_token_owner{};            // actor + 0x0E14
+    LegacyBattleTargetPhaseState* particle_phase_owner{};  // A: +0x0E14..0x0E6B
     LegacyBattleActorCoordinatesState* primary_coordinates{};
     LegacyBattleActorCoordinatesState* coordinate_alias{};
     LegacyBattleActorBaseInitializationFields* base_initialization{};
@@ -81,9 +93,21 @@ struct LegacyBattleActorRuntimeResetView {
     LegacyBattleGroupAWorkspaceState* group_a_workspace{};
     LegacyBattleGroupBActionConfigurationState* group_b_configuration{};
     LegacyBattleGroupBActionCompositionState* group_b_composition{};
+    compat::u32* actor_resource_token_owner{};  // actor + 0x000C
+    const compat::u8* actor_resource_bytes{};
+    std::size_t actor_resource_size{};
     compat::u32 live_record_token{};
     const std::byte* live_record_bytes{};
+    std::byte* live_record_writable_bytes{};
     std::size_t live_record_size{};
+    // The external 0x005213A0 source records are logically contiguous
+    // 0x20-byte objects, not the host layout of Group-B element structs.
+    LegacyBattleActorGroupBElementState* live_record_group_b_elements{};
+    std::size_t live_record_group_b_count{};
+    compat::u32 live_record_group_b_base_token{};
+    // The byte immediately beyond the eight 0x20-byte Group-B sources at
+    // 0x005214A5 aliases bit 8..15 of 0x005214A4 growth_delta_primary[0].
+    compat::u16* live_record_group_b_tail_growth{};
 };
 
 enum class LegacyBattleActorRuntimeResetAccessKind : compat::u8 {

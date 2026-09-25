@@ -13,7 +13,8 @@
 
 现代实现直接调用两个typed入口，不复制方向表推进或颜色合成，完成callee回收。
 
-唯一直接caller为`0x00479850`。它把共享16位输出surface指针与战斗对象内的图块扫描记录传入，调用后立即清EAX为零，不消费本函数返回值。
+唯一直接caller为`0x00479850`。它把共享16位输出surface指针与战斗对象内的图块扫描记录传入，
+调用后立即清EAX为零，不消费本函数返回值。
 
 ## 2. 输入记录字段
 
@@ -30,7 +31,8 @@
 - `+0x2C/+0x30/+0x34`：调用前发布到三个共享渲染标量的值；
 - `+0x38`：第一条线段的方向索引。
 
-其余字段不在本函数中读取。现代`LegacyBattleDirectionalScanSource`只暴露该函数实际消费的值，并用字节span表达可能非结构化的源图存储。
+其余字段不在本函数中读取。现代`LegacyBattleDirectionalScanSource`只暴露该函数实际消费的值，
+并用字节span表达可能非结构化的源图存储。
 
 ## 3. 共享值发布与源基址 `0x004344E9..0x0043452D`
 
@@ -47,7 +49,8 @@
 (2 * unsigned_height - 2) * unsigned_width
 ```
 
-该结果直接按字节加到`+0x00`源指针，不乘像素字节数。后续源索引才以`index * 2`定位16位像素。现代实现保留这两个不同单位，不把源基址误写成u16数组下标。
+该结果直接按字节加到`+0x00`源指针，不乘像素字节数。后续源索引才以`index * 2`定位16位像素。
+现代实现保留这两个不同单位，不把源基址误写成u16数组下标。
 
 三个共享发布发生在任何除法、循环、源读取或目标写入之前。除零typed-stop仍保留全部三项。
 
@@ -65,7 +68,8 @@ horizontal_fixed_step = (unsigned_width << 10) / horizontal_divisor
 vertical_fixed_step = (unsigned_height << 10) / vertical_divisor
 ```
 
-两次均为x86 signed `idiv`；分子先在32位EAX中形成并符号扩展到EDX:EAX。unsigned 16位尺寸左移10不会超出signed 32位，因此唯一故障域是除数为零。
+两次均为x86 signed `idiv`；分子先在32位EAX中形成并符号扩展到EDX:EAX。
+unsigned 16位尺寸左移10不会超出signed 32位，因此唯一故障域是除数为零。
 
 现代实现：
 
@@ -94,7 +98,8 @@ vertical_fixed_step = (unsigned_height << 10) / vertical_divisor
 
 `direction + 90`先32位回绕，再以signed余数写第二方向；负余数不会修正到正区间。
 
-随后测试`vertical_fixed_step`。商小于等于零时立即退出，EAX仍为刚读入的`start_y`。现代结果显式保留该正常返回残值。
+随后测试`vertical_fixed_step`。商小于等于零时立即退出，EAX仍为刚读入的`start_y`。
+现代结果显式保留该正常返回残值。
 
 ## 6. 外层循环初始化与推进
 
@@ -105,9 +110,11 @@ vertical_fixed_step = (unsigned_height << 10) / vertical_divisor
 - 行表字节偏移=`surface_y << 2`，32位回绕；
 - 垂直固定点累加器和源行偏移均为零。
 
-每轮首先直接调用第一份方向记录的typed推进。合法方向下，把推进后的当前X/Y复制到第二记录，并把第二记录两个误差重新清零。
+每轮首先直接调用第一份方向记录的typed推进。合法方向下，把推进后的当前X/Y复制到第二记录，
+并把第二记录两个误差重新清零。
 
-若第一方向索引不在0..359，typed-stop发生在已关闭callee的原首次水平表读取点。三个共享值保留，但尚无源读取或目标写入。
+若第一方向索引不在0..359，typed-stop发生在已关闭callee的原首次水平表读取点。三个共享值保留，
+但尚无源读取或目标写入。
 
 外层尾部按原顺序：
 
@@ -128,7 +135,8 @@ vertical_fixed_step = (unsigned_height << 10) / vertical_divisor
 - 内层次数=`horizontal_fixed_step`；
 - 水平固定点累加器与源X均从零开始。
 
-每轮先直接调用第二份方向记录的typed推进；该局部记录的坐标不作为目标坐标，原函数只保留其方向误差状态。
+每轮先直接调用第二份方向记录的typed推进；该局部记录的坐标不作为目标坐标，
+原函数只保留其方向误差状态。
 
 无论本轮是否越界、透明或写入，尾部都：
 
@@ -163,7 +171,22 @@ vertical_fixed_step = (unsigned_height << 10) / vertical_divisor
 source_base_byte_offset + wrapping(source_index * 2)
 ```
 
-原代码从该地址读取一个可能仅按字节计算得到的little-endian u16。现代实现只在该两字节读取实际越出源span时返回`source_out_of_range`，保留此前方向推进及已完成像素前缀。
+原代码从该地址读取一个可能仅按字节计算得到的little-endian u16。
+现代实现只在该两字节读取实际越出源span时返回`source_out_of_range`，
+保留此前方向推进及已完成像素前缀。针对Workpack 316 的真实caller回收，
+LST 的水平除零 `0x0043453C idiv ecx`、垂直除零 `0x00434566 idiv esi`，
+以及镜像 `0x00434651 mov si,[ecx+eax*2]`、
+非镜像 `0x004346B7 mov si,[eax+esi*2]`
+短源 typed failure 额外返回各自读点（后两者还返回源字节偏移）；
+行表越界在混色模式先执行`0x004346E4 PUSH 1`再到`0x004346E6 mov edx,[edx+eax]`，
+直写模式是`0x0043470E mov edx,[eax+ecx]`；直写目标像素越界核到`0x00434717 mov [eax+edx*2],si`。
+上述三处附加EIP由LST单独核对并经`proc_914e` core/CTest `199/199` 断言；混色目标像素越界时，
+`sub_4207E0` 先屏蔽三项mask到16位，在`0x00420854`读已backed的局部源word，
+随后于`0x0042085A mov dx,[ebx]`读目标word；
+该条件的EIP/ESP和mask已写前缀经`proc_15be` core/CTest `199/199` 验证。
+行表基址 `surface+0xB44` 与像素参数基址 `arg_0` 若作为独立已知token显式借入，
+分别以行偏移byte或像素index×2报告物理障址；未提供则不推断地址。
+`proc_13b1` core/CTest `199/199` 验证四类读/写障的条件化地址。其他失败仍不臆造内部EIP。
 
 ## 10. 透明色与写入模式
 
@@ -248,10 +271,13 @@ C++到LST：
 - 源短读、行表短读与损坏行偏移目标越界的逐点typed-stop；
 - 既有方向推进和frame-color测试继续通过。
 
-本函数消费运行时图块记录与surface，没有独立物理游戏资产文件。固定状态覆盖全部LST基本块、两个callee路径和内存边界顺序。
+本函数消费运行时图块记录与surface，没有独立物理游戏资产文件。固定状态覆盖全部LST基本块、
+两个callee路径和内存边界顺序。
 
 定向battle聚合测试通过，目标构建零warning。
 
 ## 15. 动态差分
 
-当前没有可用原版战斗图块记录、方向表和surface像素联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。该阻塞不改变完整LST、两个callee直接回收、全部循环与故障前缀、typed实现和固定状态已经闭环的结论。
+当前没有可用原版战斗图块记录、方向表和surface像素联合捕获后端，
+`original_diff_verified`为`blocked_runtime_oracle`。该阻塞不改变完整LST、两个callee直接回收、
+全部循环与故障前缀、typed实现和固定状态已经闭环的结论。

@@ -843,11 +843,28 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                 result.return_value = latest_eax;
                 return result;
             }
-            latest_eax =
-                advance_legacy_battle_actor_progress(
-                    actor_progress, 1, startup.timing.action_threshold, actor
-                )
-                    .return_eax;
+            auto* const frame_source = request.actor_frames == nullptr
+                ? nullptr
+                : &request.actor_frames->state.shared.action
+                       .group_a_action_execution[index]
+                       .frame_source_action_record;
+            result.actor_progress = advance_legacy_battle_actor_progress(
+                actor_progress,
+                1,
+                startup.timing.action_threshold,
+                actor,
+                frame_source,
+                true
+            );
+            ++result.actor_progress_calls;
+            latest_eax = result.actor_progress.return_eax;
+            if (result.actor_progress.status !=
+                LegacyBattleActorProgressStatus::completed) {
+                result.status = LegacyBattleTransitionStatus::
+                    actor_progress_slot0_typed_stop;
+                result.return_value = latest_eax;
+                return result;
+            }
             const auto empty = std::ranges::find(state.rare_actor_slots, 0U);
             if (empty != state.rare_actor_slots.end()) {
                 *empty = index + 8U;

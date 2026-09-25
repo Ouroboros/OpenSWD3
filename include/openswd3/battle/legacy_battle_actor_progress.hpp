@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/battle/legacy_battle_actor_field_26c0.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
 #include "openswd3/battle/legacy_battle_timing.hpp"
@@ -95,7 +96,16 @@ struct LegacyBattleActorProgressWidthResult {
     compat::u32 x87_stack_depth{};
 };
 
+enum class LegacyBattleActorProgressStatus : compat::u8 {
+    completed,
+    slot0_owner_typed_stop,
+};
+
 struct LegacyBattleActorProgressResult {
+    LegacyBattleActorProgressStatus status{
+        LegacyBattleActorProgressStatus::completed
+    };
+    compat::u32 stopped_instruction{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -154,7 +164,9 @@ advance_legacy_battle_actor_progress(
     LegacyBattleActorProgressState& state,
     compat::i32 argument,
     compat::i32 completion_threshold,
-    compat::u32 object_token = 0U
+    compat::u32 object_token = 0U,
+    asset_runtime::LegacyActionRecord* frame_source_action_record = nullptr,
+    bool require_slot0_owner = false
 ) noexcept;
 
 // sub_4755E0.

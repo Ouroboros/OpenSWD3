@@ -2453,7 +2453,8 @@ action_decision_done:
         },
         mapped_actor,
         0U,
-        context.startup
+        context.startup,
+        &context.actor_frame_final_group_b
     );
     merge_nested(result, final);
     if (final.status != LegacyBattleActionDispatchStatus::completed) {

@@ -172,7 +172,9 @@ LegacyBattleActorProgressResult advance_legacy_battle_actor_progress(
     LegacyBattleActorProgressState& state,
     const i32 argument,
     const i32 completion_threshold,
-    const u32 object_token
+    const u32 object_token,
+    asset_runtime::LegacyActionRecord* const frame_source_action_record,
+    const bool require_slot0_owner
 ) noexcept {
     LegacyBattleActorProgressResult result{
         .return_ecx = object_token,
@@ -195,8 +197,21 @@ LegacyBattleActorProgressResult advance_legacy_battle_actor_progress(
                 state.post_action_value = 0U;
             }
         }
+        if (require_slot0_owner && frame_source_action_record == nullptr) {
+            result.status =
+                LegacyBattleActorProgressStatus::slot0_owner_typed_stop;
+            result.stopped_instruction = 0x0046E5ACU;
+            result.return_eax = 1U;
+            return result;
+        }
         state.cache_x = 0U;
+        if (frame_source_action_record != nullptr) {
+            frame_source_action_record->field_24 = 0U;
+        }
         state.cache_y = 0U;
+        if (frame_source_action_record != nullptr) {
+            frame_source_action_record->field_28 = 0U;
+        }
         state.update_ready = 1U;
         result.return_eax = 1U;
         return result;

@@ -2426,6 +2426,43 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
+        state.pending_effect_ids[1U] = 7U;
+        state.pending_effect_argument = 0x66U;
+        state.pending_effect_frame.primary[1U].complete = 1U;
+        state.pending_effect_frame.primary[1U].source_value = 0x77U;
+        state.shared.action.group_a_to_actor[1U] = 5U;
+        Fixture fixture;
+        DispatchPort port;
+        bind_group_b_coordinate_resource(fixture, 5U);
+        auto context = fixture.context();
+        openswd3::battle::LegacyBattleActorFrameEntryRequest snapshot{};
+        snapshot.entry_esp = 0x88120000U;
+        snapshot.call_stack_writable = false;
+        openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};
+        context.actor_frame_final_group_b = {
+            .caller_snapshot = &snapshot,
+            .observed = &observed,
+        };
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 1U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_frame_caller_typed_stop &&
+                observed.status ==
+                    openswd3::battle::LegacyBattleActorFrameCallerRunStatus::
+                        caller_stack_write_typed_stop &&
+                observed.eip == 0x0045ACBFU && !observed.returned &&
+                state.final_actor_state[1U] == 0U &&
+                port.count(0x00479850U) == 0U,
+            "Group-B frame forwards final-actor snapshot and suppresses mapped-slot success suffix on the physical CALL stop"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
         state.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;

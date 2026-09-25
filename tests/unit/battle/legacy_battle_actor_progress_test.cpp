@@ -259,12 +259,17 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
             .mode_gate = 0x40U,
             .progress = 12U,
         };
-        const auto result =
-            advance_legacy_battle_actor_progress(state, 0, 10, 0x005029D0U);
+        openswd3::asset_runtime::LegacyActionRecord frame_source{};
+        frame_source.field_24 = 7U;
+        frame_source.field_28 = 6U;
+        const auto result = advance_legacy_battle_actor_progress(
+            state, 0, 10, 0x005029D0U, &frame_source
+        );
         test.expect_true(
             result.return_eax == 0U && result.return_ecx == 0x005029D0U &&
-                state.progress == 12U,
-            "actor progress status bit exits without modifying the actor"
+                state.progress == 12U && frame_source.field_24 == 7U &&
+                frame_source.field_28 == 6U,
+            "actor progress status bit exits without modifying actor or slot0"
         );
     }
 
@@ -278,14 +283,45 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
             .cache_x = 7U,
             .cache_y = 6U,
         };
-        const auto result =
-            advance_legacy_battle_actor_progress(state, 0, 20, 0x005029D0U);
+        openswd3::asset_runtime::LegacyActionRecord frame_source{};
+        frame_source.field_24 = 7U;
+        frame_source.field_28 = 6U;
+        const auto result = advance_legacy_battle_actor_progress(
+            state, 0, 20, 0x005029D0U, &frame_source
+        );
         test.expect_true(
             result.return_eax == 1U && state.action_complete == 1U &&
                 state.transition_value == 0U && state.frame_started == 0U &&
                 state.post_action_value == 0U && state.cache_x == 0U &&
-                state.cache_y == 0U && state.update_ready == 1U,
-            "actor progress completion publishes all original completion fields"
+                state.cache_y == 0U && frame_source.field_24 == 0U &&
+                frame_source.field_28 == 0U && state.update_ready == 1U,
+            "actor progress completion publishes each cache write to the same slot0 bytes"
+        );
+    }
+
+    {
+        LegacyBattleActorProgressState state{
+            .progress = 20U,
+            .frame_started = 1U,
+            .scene_identity = 0U,
+            .post_action_value = 9U,
+            .transition_value = 8U,
+            .cache_x = 7U,
+            .cache_y = 6U,
+        };
+        const auto stopped = advance_legacy_battle_actor_progress(
+            state, 0, 20, 0x005029D0U, nullptr, true
+        );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleActorProgressStatus::
+                        slot0_owner_typed_stop &&
+                stopped.stopped_instruction == 0x0046E5ACU &&
+                stopped.return_eax == 1U && state.action_complete == 1U &&
+                state.transition_value == 0U && state.frame_started == 0U &&
+                state.post_action_value == 0U && state.cache_x == 7U &&
+                state.cache_y == 6U && state.update_ready == 0U,
+            "missing canonical slot0 owner stops at the first cache write after earlier completion stores"
         );
     }
 

@@ -6,6 +6,7 @@
 #include <array>
 #include <deque>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -220,8 +221,8 @@ struct Fixture {
         startup->group_b_lifecycle = std::make_unique<std::array<
             openswd3::battle::LegacyBattleActorGroupBElementState,
             openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
-        for (std::size_t index = 0U;
-             index < startup->group_b_lifecycle->size(); ++index) {
+        for (std::size_t index = 0U; index < startup->group_b_lifecycle->size();
+             ++index) {
             auto& actor = (*startup->group_b_lifecycle)[index];
             actor.object_token =
                 0x00525508U + static_cast<u32>(index) * 0x2B28U;
@@ -1209,6 +1210,88 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
                 port.count(0x0045EFB0U) == 0U,
             "opponent action seven wraps packed low byte and clears matching active targets"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 7U;
+        openswd3::battle::LegacyBattleActorFrameEntryRequest snapshot{};
+        snapshot.entry_esp = 0x00130000U;
+        openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};
+        auto context = fixture.context();
+        context.actor_frame_opponent_group_a.caller_snapshot = &snapshot;
+        context.actor_frame_opponent_group_a.observed = &observed;
+        const auto returned = dispatch(state, port, context, 0U, 0U);
+        test.expect_true(
+            observed.returned && observed.eip == 0x00456514U &&
+                observed.esp == snapshot.entry_esp && observed.eax == 0U &&
+                returned.status ==
+                    LegacyBattleActionDispatchStatus::completed &&
+                returned.attack_order_remove_calls == 0U &&
+                port.count(0x00479850U) == 0U,
+            "real opponent-seven caller uses Group-A canonical owner and physical child RET before EAX-zero parent suffix"
+        );
+        snapshot.call_stack_writable = false;
+        const auto stopped = dispatch(state, port, context, 0U, 0U);
+        test.expect_true(
+            stopped.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_frame_caller_typed_stop &&
+                observed.status ==
+                    openswd3::battle::LegacyBattleActorFrameCallerRunStatus::
+                        caller_stack_write_typed_stop &&
+                observed.eip == 0x0045650FU &&
+                stopped.attack_order_remove_calls == 0U &&
+                port.count(0x00479850U) == 0U,
+            "real opponent-seven caller suppresses every parent suffix after the physical CALL stack write stop"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.active_target_code = 4U;
+        state.active_effect_target = 4U;
+        state.active_effect_gate = 9U;
+        Fixture fixture;
+        fixture.attack_order_records[0U].value_00 = 4U;
+        fixture.startup->party[0U].progress.presentation_enabled = 1U;
+        fixture.startup->party[0U].configuration.source_runtime_value = 1U;
+        DispatchPort port;
+        port.action = 7U;
+        auto context = fixture.context();
+        openswd3::battle::LegacyBattleActorFrameEntryRequest snapshot{};
+        snapshot.entry_esp = 0x00131000U;
+        openswd3::battle::LegacyBattleActorFrameEntryRoutePorts frame_ports{};
+        frame_ports.random = &context.bounded_random;
+        openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};
+        context.actor_frame_opponent_group_a = {
+            .caller_snapshot = &snapshot,
+            .ports = &frame_ports,
+            .observed = &observed,
+        };
+        const auto result = dispatch(state, port, context, 0U, 0U);
+        test.expect_true(
+            observed.returned && observed.eax == 1U &&
+                observed.eip == 0x00456514U &&
+                observed.esp == snapshot.entry_esp &&
+                fixture.startup->party[0U].progress.presentation_enabled ==
+                    0U &&
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.return_value == 1U &&
+                result.attack_order_remove_calls == 1U &&
+                fixture.attack_order_records[0U].value_00 == 0xFFFFFFFFU &&
+                state.active_target_code == 0U && port.count(0x00479850U) == 0U,
+            std::string{"real opponent-seven typed EAX-one suffix: child="} +
+                std::to_string(static_cast<int>(observed.child.status)) +
+                " eip=" + std::to_string(observed.eip) +
+                " eax=" + std::to_string(observed.eax) +
+                " parent=" + std::to_string(static_cast<int>(result.status)) +
+                " return=" + std::to_string(result.return_value) +
+                " remove=" +
+                std::to_string(result.attack_order_remove_calls)
         );
     }
 

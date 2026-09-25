@@ -1024,6 +1024,57 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
             state.action.frame_effect.primary_suppression = 1U;
+            state.action.group_a_action_execution[0U].start_gate = 1U;
+            state.action.group_a_action_execution[0U].field_26b8 = 0x80000005U;
+            Fixture fixture;
+            fixture.startup.party[0U].progress.special_ready = 1U;
+            DispatchPort port;
+            port.push(0x0047BA80U, {.eax = 1U});
+            auto context = fixture.context();
+            context.actor_start_gate_request.entry_esp = 0x88008000U;
+            context.actor_action_presentation_requests.count = 1U;
+            context.actor_action_presentation_requests.requests[0U].entry_esp =
+                0x88108014U;
+            openswd3::battle::LegacyBattleActorFrameEntryRequest snapshot{};
+            snapshot.entry_esp = 0x88110000U;
+            snapshot.call_stack_writable = false;
+            openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};
+            u32 parent_argument_4 = 0xFFFFFFFFU;
+            openswd3::battle::LegacyBattleActorFrameParentArgumentWord
+                argument_owner{
+                    .token = snapshot.entry_esp + 0x18U,
+                    .word = &parent_argument_4,
+                };
+            context.actor_frame_final_group_a = {
+                .caller_snapshot = &snapshot,
+                .observed = &observed,
+                .final_group_a_argument_4 = &argument_owner,
+            };
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_frame_caller_typed_stop &&
+                    observed.status ==
+                        openswd3::battle::
+                            LegacyBattleActorFrameCallerRunStatus::
+                                caller_stack_write_typed_stop &&
+                    observed.eip == 0x0045AA33U && !observed.returned &&
+                    parent_argument_4 ==
+                        openswd3::battle::kLegacyBattleActorGroupABaseToken &&
+                    port.count(0x00479850U) == 0U,
+                "Group-A frame forwards final-actor parent stack binding and propagates its physical CALL stop without opaque port"
+            );
+        }
+
+        {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.action.frame_effect.primary_suppression = 1U;
             Fixture fixture;
             DispatchPort port;
             port.push(0x00479850U, {.eax = 1U});
@@ -1177,6 +1228,12 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             state.ai_coordination_enabled = 1U;
             state.actor_ai_primary[0] = 1U;
             state.action.group_b_count = 2;
+            state.actors[0].cache_x = 7U;
+            state.actors[0].cache_y = 6U;
+            auto& frame_source = state.action.group_a_action_execution[0U]
+                                     .frame_source_action_record;
+            frame_source.field_24 = 7U;
+            frame_source.field_28 = 6U;
             Fixture fixture;
             DispatchPort port;
             port.push(0x0047CE80U, {.eax = 1U, .edx = 0x11112222U});
@@ -1201,6 +1258,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state.actors[0].special_ready == 1U &&
                     state.actors[0].action_complete == 1U &&
                     state.actors[0].update_ready == 1U &&
+                    state.actors[0].cache_x == 0U &&
+                    state.actors[0].cache_y == 0U &&
+                    frame_source.field_24 == 0U &&
+                    frame_source.field_28 == 0U &&
                     port.count(0x0046E520U) == 0U &&
                     result.actor_availability_block_calls == 1U &&
                     result.actor_availability_block.actor_writes == 1U &&

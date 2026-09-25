@@ -780,8 +780,33 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             return result;
         }
         const u32 target_token = group_a_token(target_index);
-        const auto target_complete =
-            invoke(state, port, result, kCallTargetComplete, {target_token});
+        LegacyBattleActionCallReply target_complete{};
+        if (const auto& binding = context.actor_frame_opponent_group_a;
+            binding.caller_snapshot != nullptr) {
+            const auto caller = advance_legacy_battle_actor_frame_caller(
+                LegacyBattleActorFrameCallerSite::opponent_group_a,
+                target_index,
+                {.action = &state, .startup = context.startup},
+                *binding.caller_snapshot,
+                binding.ports == nullptr
+                    ? LegacyBattleActorFrameEntryRoutePorts{}
+                    : *binding.ports
+            );
+            if (binding.observed != nullptr) {
+                *binding.observed = caller;
+            }
+            if (!caller.returned) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_frame_caller_typed_stop;
+                return result;
+            }
+            target_complete.eax = caller.eax;
+            target_complete.edx = caller.edx;
+        } else {
+            target_complete = invoke(
+                state, port, result, kCallTargetComplete, {target_token}
+            );
+        }
         if (target_complete.eax != 1U) {
             return result;
         }

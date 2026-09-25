@@ -8,6 +8,7 @@
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
+#include "openswd3/battle/legacy_battle_level_advancement.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
 
@@ -128,6 +129,65 @@ void materialize_actor(
         coordinate_destination,
         sizeof(*coordinate_destination)
     );
+    const auto& fifty_one = *actor.action_execution;
+    store_value(image, 0x0DB8U, fifty_one.case_fifty_one_resource_token);
+    store_value(image, 0x0DBCU, fifty_one.case_fifty_one_width);
+    store_value(image, 0x0DBEU, fifty_one.case_fifty_one_height);
+    store_value(image, 0x0DC0U, fifty_one.case_fifty_one_half_width);
+    store_value(image, 0x0DC4U, fifty_one.case_fifty_one_height_dword);
+    store_value(image, 0x0DC8U, fifty_one.case_fifty_one_origin_x);
+    store_value(image, 0x0DCCU, fifty_one.case_fifty_one_origin_y);
+    std::memcpy(
+        image.data() + 0x0DD0U,
+        fifty_one.case_fifty_one_reserved_dd0.data(),
+        sizeof(fifty_one.case_fifty_one_reserved_dd0)
+    );
+    store_value(image, 0x0DD8U, fifty_one.case_fifty_one_scale_x);
+    store_value(image, 0x0DDCU, fifty_one.case_fifty_one_scale_y);
+    store_value(image, 0x0DE0U, fifty_one.case_fifty_one_flags);
+    store_value(image, 0x0DE2U, fifty_one.case_fifty_one_reserved_de2);
+    store_value(image, 0x0DE4U, fifty_one.case_fifty_one_value_de4);
+    store_value(image, 0x0DE8U, fifty_one.case_fifty_one_value_de8);
+    store_value(image, 0x0DECU, fifty_one.case_fifty_one_value_dec);
+    store_value(image, 0x0DF0U, fifty_one.case_fifty_one_value_df0);
+
+    if (actor.particle_source_token_owner != nullptr) {
+        store_value(image, 0x0E14U, *actor.particle_source_token_owner);
+    }
+    if (actor.particle_phase_owner != nullptr) {
+        const auto& phase = *actor.particle_phase_owner;
+        std::memcpy(
+            image.data() + 0x0DF4U,
+            phase.block_0df4.data(),
+            sizeof(phase.block_0df4)
+        );
+        const auto& emitter = phase.emitter;
+        store_value(image, 0x0E14U, phase.decoded_resource_token);
+        store_value(image, 0x0E18U, emitter.source_width);
+        store_value(image, 0x0E1AU, emitter.source_height);
+        store_value(image, 0x0E1CU, emitter.source_origin_x);
+        store_value(image, 0x0E20U, emitter.source_origin_y);
+        store_value(image, 0x0E24U, emitter.target_origin_x);
+        store_value(image, 0x0E28U, emitter.target_width);
+        store_value(image, 0x0E2CU, emitter.target_origin_y);
+        store_value(image, 0x0E30U, emitter.target_height);
+        store_value(image, 0x0E34U, emitter.distance_offset_base);
+        store_value(image, 0x0E36U, emitter.lifetime_divisor);
+        store_value(image, 0x0E38U, emitter.remaining_batches);
+        store_value(image, 0x0E3AU, emitter.spawn_divisor);
+        store_value(image, 0x0E3CU, emitter.flags);
+        store_value(image, 0x0E40U, emitter.published_value_2c);
+        store_value(image, 0x0E44U, emitter.published_value_30);
+        store_value(image, 0x0E48U, emitter.published_value_34);
+        store_value(image, 0x0E4CU, emitter.initialized);
+        store_value(image, 0x0E50U, emitter.source_pixel_count);
+        store_value(image, 0x0E54U, emitter.spawned_count);
+        store_value(image, 0x0E58U, emitter.target_particle_count);
+        store_value(image, 0x0E5CU, emitter.nontransparent_pixel_count);
+        store_value(image, 0x0E60U, emitter.shared_modulus_increment);
+        store_value(image, 0x0E64U, emitter.head_token);
+        store_value(image, 0x0E68U, emitter.tail_token);
+    }
 
     if (actor.group_a_final_processing != nullptr) {
         std::memcpy(
@@ -157,10 +217,16 @@ void materialize_actor(
     }
 
     store_value(image, 0x0004U, actor.live_record_token);
+    if (actor.actor_resource_token_owner != nullptr) {
+        store_value(image, 0x000CU, *actor.actor_resource_token_owner);
+    }
     store_value(image, 0x2548U, actor.action_execution->render_source_token);
     store_value(image, 0x254CU, actor.action_execution->turn_frame_token);
     store_value(
         image, 0x2554U, actor.action_execution->additional_render_source_token
+    );
+    store_value(
+        image, 0x2584U, actor.base_initialization->linked_action_head_token
     );
     store_value(image, 0x2684U, actor.action_execution->action_variant_delta);
     store_value(
@@ -188,7 +254,10 @@ void materialize_actor(
     );
     store_value(image, 0x29ACU, actor.action_execution->source_x_offset);
     store_value(image, 0x29B2U, actor.primary_coordinates->source_y_offset);
+    store_value(image, 0x2958U, actor.action_execution->turn_threshold);
     store_value(image, 0x2A0CU, actor.action_execution->profile_value);
+    store_value(image, 0x2A94U, actor.base_initialization->field_2a94);
+    store_value(image, 0x2A95U, actor.residual->field_2a95);
     store_value(
         image, 0x2A0EU, actor.action_execution->profile_variant_override
     );
@@ -215,6 +284,8 @@ void materialize_actor(
             ? actor.group_a_workspace->special_item_latch
             : actor.residual->field_2b18
     );
+    store_value(image, 0x2B1CU, actor.action_execution->early_latch);
+    store_value(image, 0x2B20U, actor.progress->frame_started);
 
     store_value(image, 0x2A12U, static_cast<u16>(actor.progress->progress));
     store_value(image, 0x2AACU, actor.action_execution->turn_completion_latch);
@@ -348,6 +419,64 @@ void synchronize_actor_write(
         size
     );
 
+    // The reverse 38-dword REP in frame presentation crosses slot 1.
+    // Its scalar aliases must follow each successful physical dword write,
+    // not a transaction over the entire REP.
+    const auto sync_action_alias = [&](auto& value, const u32 field_offset) {
+        copy_overlap_to_owner(
+            reinterpret_cast<std::byte*>(&value),
+            field_offset,
+            sizeof(value),
+            image,
+            offset,
+            size
+        );
+    };
+    sync_action_alias(actor.action_execution->primary_value, 0x035CU);
+    sync_action_alias(actor.action_execution->secondary_value, 0x0360U);
+    sync_action_alias(actor.action_execution->action_flags, 0x0392U);
+    sync_action_alias(actor.action_execution->record_mode_flags, 0x0393U);
+    sync_action_alias(
+        actor.action_execution->secondary_auxiliary_word, 0x03AEU
+    );
+    sync_action_alias(actor.action_execution->auxiliary_word, 0x03B0U);
+    auto& fifty_one = *actor.action_execution;
+    sync_action_alias(fifty_one.case_fifty_one_resource_token, 0x0DB8U);
+    sync_action_alias(fifty_one.case_fifty_one_width, 0x0DBCU);
+    sync_action_alias(fifty_one.case_fifty_one_height, 0x0DBEU);
+    sync_action_alias(fifty_one.case_fifty_one_half_width, 0x0DC0U);
+    sync_action_alias(fifty_one.case_fifty_one_height_dword, 0x0DC4U);
+    sync_action_alias(fifty_one.case_fifty_one_origin_x, 0x0DC8U);
+    sync_action_alias(fifty_one.case_fifty_one_origin_y, 0x0DCCU);
+    copy_overlap_to_owner(
+        reinterpret_cast<std::byte*>(
+            fifty_one.case_fifty_one_reserved_dd0.data()
+        ),
+        0x0DD0U,
+        sizeof(fifty_one.case_fifty_one_reserved_dd0),
+        image,
+        offset,
+        size
+    );
+    sync_action_alias(fifty_one.case_fifty_one_scale_x, 0x0DD8U);
+    sync_action_alias(fifty_one.case_fifty_one_scale_y, 0x0DDCU);
+    sync_action_alias(fifty_one.case_fifty_one_flags, 0x0DE0U);
+    sync_action_alias(fifty_one.case_fifty_one_reserved_de2, 0x0DE2U);
+    sync_action_alias(fifty_one.case_fifty_one_value_de4, 0x0DE4U);
+    sync_action_alias(fifty_one.case_fifty_one_value_de8, 0x0DE8U);
+    sync_action_alias(fifty_one.case_fifty_one_value_dec, 0x0DECU);
+    sync_action_alias(fifty_one.case_fifty_one_value_df0, 0x0DF0U);
+    copy_overlap_to_owner(
+        reinterpret_cast<std::byte*>(
+            actor.action_execution->color_values.data()
+        ),
+        0x03B2U,
+        sizeof(actor.action_execution->color_values),
+        image,
+        offset,
+        size
+    );
+
     const auto synchronize_coordinates =
         [&](LegacyBattleActorCoordinatesState* coordinates) {
             if (coordinates == nullptr) {
@@ -436,8 +565,129 @@ void synchronize_actor_write(
         value = (value & 0xFFFF0000U) | word;
     };
 
+    if (actor.particle_phase_owner != nullptr) {
+        auto& phase = *actor.particle_phase_owner;
+        copy_overlap_to_owner(
+            reinterpret_cast<std::byte*>(phase.block_0df4.data()),
+            0x0DF4U,
+            sizeof(phase.block_0df4),
+            image,
+            offset,
+            size
+        );
+        auto& emitter = phase.emitter;
+        if (changed(0x0E14U, sizeof(u32))) {
+            const u32 next = load_value<u32>(image, 0x0E14U);
+            if (next != phase.decoded_resource_token) {
+                emitter.source_pixels = {};
+            }
+            phase.decoded_resource_token = next;
+        }
+        if (changed(0x0E18U, sizeof(u16))) {
+            emitter.source_width = load_value<u16>(image, 0x0E18U);
+        }
+        if (changed(0x0E1AU, sizeof(u16))) {
+            emitter.source_height = load_value<u16>(image, 0x0E1AU);
+        }
+        if (changed(0x0E1CU, sizeof(u32))) {
+            emitter.source_origin_x = load_value<compat::i32>(image, 0x0E1CU);
+        }
+        if (changed(0x0E20U, sizeof(u32))) {
+            emitter.source_origin_y = load_value<compat::i32>(image, 0x0E20U);
+        }
+        if (changed(0x0E24U, sizeof(u32))) {
+            emitter.target_origin_x = load_value<compat::i32>(image, 0x0E24U);
+        }
+        if (changed(0x0E28U, sizeof(u32))) {
+            emitter.target_width = load_value<compat::i32>(image, 0x0E28U);
+        }
+        if (changed(0x0E2CU, sizeof(u32))) {
+            emitter.target_origin_y = load_value<compat::i32>(image, 0x0E2CU);
+        }
+        if (changed(0x0E30U, sizeof(u32))) {
+            emitter.target_height = load_value<compat::i32>(image, 0x0E30U);
+        }
+        if (changed(0x0E34U, sizeof(u16))) {
+            emitter.distance_offset_base = load_value<u16>(image, 0x0E34U);
+        }
+        if (changed(0x0E36U, sizeof(u16))) {
+            emitter.lifetime_divisor = load_value<u16>(image, 0x0E36U);
+        }
+        if (changed(0x0E38U, sizeof(u16))) {
+            emitter.remaining_batches = load_value<u16>(image, 0x0E38U);
+        }
+        if (changed(0x0E3AU, sizeof(u16))) {
+            emitter.spawn_divisor = load_value<u16>(image, 0x0E3AU);
+        }
+        if (changed(0x0E3CU, sizeof(u16))) {
+            emitter.flags = load_value<u16>(image, 0x0E3CU);
+        }
+        if (changed(0x0E40U, sizeof(u32))) {
+            emitter.published_value_2c =
+                load_value<compat::i32>(image, 0x0E40U);
+        }
+        if (changed(0x0E44U, sizeof(u32))) {
+            emitter.published_value_30 =
+                load_value<compat::i32>(image, 0x0E44U);
+        }
+        if (changed(0x0E48U, sizeof(u32))) {
+            emitter.published_value_34 =
+                load_value<compat::i32>(image, 0x0E48U);
+        }
+        if (changed(0x0E4CU, sizeof(u32))) {
+            emitter.initialized = load_value<compat::i32>(image, 0x0E4CU);
+        }
+        if (changed(0x0E50U, sizeof(u32))) {
+            emitter.source_pixel_count =
+                load_value<compat::i32>(image, 0x0E50U);
+        }
+        if (changed(0x0E54U, sizeof(u32))) {
+            emitter.spawned_count = load_value<compat::i32>(image, 0x0E54U);
+        }
+        if (changed(0x0E58U, sizeof(u32))) {
+            emitter.target_particle_count =
+                load_value<compat::i32>(image, 0x0E58U);
+        }
+        if (changed(0x0E5CU, sizeof(u32))) {
+            emitter.nontransparent_pixel_count =
+                load_value<compat::i32>(image, 0x0E5CU);
+        }
+        if (changed(0x0E60U, sizeof(u32))) {
+            emitter.shared_modulus_increment =
+                load_value<compat::i32>(image, 0x0E60U);
+        }
+        if (changed(0x0E64U, sizeof(u32))) {
+            emitter.head_token = load_value<u32>(image, 0x0E64U);
+        }
+        if (changed(0x0E68U, sizeof(u32))) {
+            emitter.tail_token = load_value<u32>(image, 0x0E68U);
+        }
+    }
+
+    if (actor.particle_source_token_owner != nullptr &&
+        changed(0x0E14U, sizeof(u32))) {
+        *actor.particle_source_token_owner = load_value<u32>(image, 0x0E14U);
+    }
+    if (actor.actor_resource_token_owner != nullptr &&
+        changed(0x000CU, sizeof(u32))) {
+        *actor.actor_resource_token_owner = load_value<u32>(image, 0x000CU);
+    }
+
+    // These bytes also occupy slot 0 of the action-record image. Commit
+    // both typed views after each physical write, including partial writes.
+    if (changed(0x02C4U, sizeof(u32))) {
+        actor.progress->cache_x = load_value<u32>(image, 0x02C4U);
+    }
+    if (changed(0x02C8U, sizeof(u32))) {
+        actor.progress->cache_y = load_value<u32>(image, 0x02C8U);
+    }
     if (changed(0x2548U, sizeof(u32))) {
         const u32 value = load_value<u32>(image, 0x2548U);
+        if (actor.action_execution->resource.token != value) {
+            actor.action_execution->resource.value_00_known = false;
+            actor.action_execution->resource.value_0c_known = false;
+            actor.action_execution->resource.value_0e_known = false;
+        }
         actor.action_execution->render_source_token = value;
         actor.action_execution->resource.token = value;
     }
@@ -450,6 +700,10 @@ void synchronize_actor_write(
         const u32 value = load_value<u32>(image, 0x2554U);
         actor.action_execution->additional_render_source_token = value;
         actor.action_execution->additional_resource.token = value;
+    }
+    if (changed(0x2584U, sizeof(u32))) {
+        actor.base_initialization->linked_action_head_token =
+            load_value<u32>(image, 0x2584U);
     }
     if (changed(0x2684U, sizeof(u32))) {
         actor.action_execution->action_variant_delta =
@@ -512,8 +766,18 @@ void synchronize_actor_write(
             actor.coordinate_alias->source_y_offset = value;
         }
     }
+    if (changed(0x2958U, sizeof(u16))) {
+        actor.action_execution->turn_threshold =
+            load_value<u16>(image, 0x2958U);
+    }
     if (changed(0x2A0CU, sizeof(u16))) {
         actor.action_execution->profile_value = load_value<u16>(image, 0x2A0CU);
+    }
+    if (changed(0x2A94U, sizeof(u8))) {
+        actor.base_initialization->field_2a94 = load_value<u8>(image, 0x2A94U);
+    }
+    if (changed(0x2A95U, sizeof(u8))) {
+        actor.residual->field_2a95 = load_value<u8>(image, 0x2A95U);
     }
     if (changed(0x2A88U, sizeof(u16))) {
         actor.action_execution->selected_action_low_word =
@@ -558,6 +822,12 @@ void synchronize_actor_write(
         if (actor.group_a_workspace != nullptr) {
             actor.group_a_workspace->special_item_latch = value;
         }
+    }
+    if (changed(0x2B1CU, sizeof(u32))) {
+        actor.action_execution->early_latch = load_value<u32>(image, 0x2B1CU);
+    }
+    if (changed(0x2B20U, sizeof(u32))) {
+        actor.progress->frame_started = load_value<u32>(image, 0x2B20U);
     }
 
     if (changed(0x2A12U, sizeof(u16))) {
@@ -874,6 +1144,12 @@ LegacyBattleActorRuntimeResetView resolve_legacy_battle_actor_runtime_reset(
             .residual = &(*owners.startup->group_a_runtime_reset)[index],
             .progress = &party.progress,
             .action_execution = &execution,
+            .shared_action = &owners.action->group_a_action_shared,
+            .particle_source_token_owner =
+                &owners.action->group_a_target_phases[index]
+                     .decoded_resource_token,
+            .particle_phase_owner =
+                &owners.action->group_a_target_phases[index],
             .primary_coordinates = &party,
             .coordinate_alias = &execution,
             .base_initialization = &party.base_initialization,
@@ -881,8 +1157,16 @@ LegacyBattleActorRuntimeResetView resolve_legacy_battle_actor_runtime_reset(
             .group_a_final_processing = &party.final_processing,
             .group_a_item_effect = &party.item_effect_application,
             .group_a_workspace = &party.workspace,
+            .actor_resource_token_owner = &party.configuration.profile_token,
+            .actor_resource_bytes = reinterpret_cast<const u8*>(
+                party.configuration.profile_record.data()
+            ),
+            .actor_resource_size = party.configuration.profile_record.size(),
             .live_record_token = party.configuration.actor_record_token,
             .live_record_bytes = reinterpret_cast<const std::byte*>(
+                party.configuration.actor_record.data()
+            ),
+            .live_record_writable_bytes = reinterpret_cast<std::byte*>(
                 party.configuration.actor_record.data()
             ),
             .live_record_size = sizeof(party.configuration.actor_record),
@@ -903,14 +1187,41 @@ LegacyBattleActorRuntimeResetView resolve_legacy_battle_actor_runtime_reset(
             .residual = &lifecycle.runtime_reset,
             .progress = &owners.startup->enemies[index].progress,
             .action_execution = &lifecycle.action_execution,
+            .shared_action = owners.action != nullptr
+                ? &owners.action->group_a_action_shared
+                : nullptr,
+            .particle_source_token_owner = owners.action != nullptr &&
+                    owners.action->group_b_fixed_particle_phases != nullptr
+                ? &(*owners.action->group_b_fixed_particle_phases)[index]
+                       .decoded_resource_token
+                : nullptr,
+            .particle_phase_owner = owners.action != nullptr &&
+                    owners.action->group_b_fixed_particle_phases != nullptr
+                ? &(*owners.action->group_b_fixed_particle_phases)[index]
+                : nullptr,
             .primary_coordinates = &lifecycle.action_execution,
             .base_initialization = &lifecycle.base_initialization,
             .group_b_configuration = &lifecycle.action_configuration,
             .group_b_composition = &lifecycle.action_composition,
+            .actor_resource_token_owner = &lifecycle.resource_token,
+            .actor_resource_bytes = lifecycle.resource_bytes.data(),
+            .actor_resource_size = lifecycle.resource_bytes.size(),
             .live_record_token = lifecycle.live_record_token,
             .live_record_bytes =
                 reinterpret_cast<const std::byte*>(&lifecycle.action_record),
+            .live_record_writable_bytes =
+                reinterpret_cast<std::byte*>(&lifecycle.action_record),
             .live_record_size = sizeof(lifecycle.action_record),
+            .live_record_group_b_elements =
+                owners.startup->group_b_lifecycle->data(),
+            .live_record_group_b_count =
+                owners.startup->group_b_lifecycle->size(),
+            .live_record_group_b_base_token =
+                kLegacyBattleActorGroupBExternalSourceBaseToken,
+            .live_record_group_b_tail_growth =
+                owners.level_advancement != nullptr
+                ? &owners.level_advancement->growth_delta_primary[0U]
+                : nullptr,
         };
     }
 

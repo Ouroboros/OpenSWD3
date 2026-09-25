@@ -61,6 +61,85 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     return port.invoke({.callee_token = callee, .arguments = arguments});
 }
 
+[[nodiscard]] bool invoke_actor_frame(
+    LegacyBattleActionDispatchState& action,
+    LegacyBattleStartupState* const startup,
+    LegacyBattleActionDispatchPort& port,
+    LegacyBattleActionDispatchResult& result,
+    const LegacyBattleActorFrameCallerBinding* const binding,
+    const LegacyBattleActorFrameCallerSite site,
+    const u32 index,
+    const u32 actor_token,
+    LegacyBattleActionCallReply& reply
+) {
+    if (binding == nullptr || binding->caller_snapshot == nullptr) {
+        reply = invoke(port, result, kCallValidateActor, {actor_token});
+        return true;
+    }
+    const auto caller = advance_legacy_battle_actor_frame_caller(
+        site,
+        index,
+        {.action = &action, .startup = startup},
+        *binding->caller_snapshot,
+        binding->ports == nullptr ? LegacyBattleActorFrameEntryRoutePorts{}
+                                  : *binding->ports,
+        binding->final_group_a_argument_4
+    );
+    if (binding->observed != nullptr) {
+        *binding->observed = caller;
+    }
+    if (!caller.returned) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_frame_caller_typed_stop;
+        return false;
+    }
+    reply.eax = caller.eax;
+    reply.edx = caller.edx;
+    return true;
+}
+
+[[nodiscard]] bool prepare_final_group_b_coordinate_stack(
+    LegacyBattleActionDispatchResult& result,
+    const LegacyBattleActorFrameCallerBinding* const binding,
+    const u32 parent_esp
+) {
+    if (binding == nullptr || binding->caller_snapshot == nullptr) {
+        return true;
+    }
+    if (binding->final_group_b_stack_stop != nullptr) {
+        *binding->final_group_b_stack_stop = {};
+    }
+    const auto stop = [&](const u32 eip, const u32 esp, const u32 token) {
+        result.status = LegacyBattleActionDispatchStatus::
+            actor_frame_parent_stack_typed_stop;
+        if (binding->final_group_b_stack_stop != nullptr) {
+            *binding->final_group_b_stack_stop = {
+                .eip = eip, .esp = esp, .token = token
+            };
+        }
+        return false;
+    };
+    if (!binding->final_group_b_first_push_writable) {
+        return stop(0x0045ACD7U, parent_esp, parent_esp - 4U);
+    }
+    if (!binding->final_group_b_second_push_writable) {
+        return stop(0x0045ACD8U, parent_esp - 4U, parent_esp - 8U);
+    }
+    auto* const first = binding->final_group_b_argument_0;
+    if (first == nullptr || first->word == nullptr || !first->writable ||
+        first->token != parent_esp + 0x14U) {
+        return stop(0x0045ACDBU, parent_esp - 8U, parent_esp + 0x14U);
+    }
+    *first->word = 0U;
+    auto* const second = binding->final_group_b_argument_4;
+    if (second == nullptr || second->word == nullptr || !second->writable ||
+        second->token != parent_esp + 0x18U) {
+        return stop(0x0045ACDFU, parent_esp - 8U, parent_esp + 0x18U);
+    }
+    *second->word = 0U;
+    return true;
+}
+
 [[nodiscard]] bool rebuild_actor_metrics(
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchPort& port,
@@ -152,12 +231,25 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     LegacyBattleActionDispatchPort& port,
     const LegacyBattleAttackOrderRemoveBindings attack_order,
     LegacyBattleStartupState* const startup,
-    const u32 actor_index
+    const u32 actor_index,
+    const LegacyBattleActorFrameCallerBinding* const frame_caller
 ) {
     LegacyBattleActionDispatchResult result;
     const u32 actor_token = kLegacyBattleActionGroupABaseToken +
         actor_index * kLegacyBattleActionGroupAStride;
-    if (invoke(port, result, kCallValidateActor, {actor_token}).eax != 1U) {
+    LegacyBattleActionCallReply validation{};
+    if (!invoke_actor_frame(
+            action,
+            startup,
+            port,
+            result,
+            frame_caller,
+            LegacyBattleActorFrameCallerSite::final_group_a,
+            actor_index,
+            actor_token,
+            validation
+        ) ||
+        validation.eax != 1U) {
         return result;
     }
     if (actor_index >= state.group_a_completion_flags.size()) {
@@ -341,7 +433,8 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     LegacyBattleActionDispatchPort& port,
     const LegacyBattleAttackOrderRemoveBindings attack_order,
     LegacyBattleStartupState* const startup,
-    const u32 actor_index
+    const u32 actor_index,
+    const LegacyBattleActorFrameCallerBinding* const frame_caller
 ) {
     LegacyBattleActionDispatchResult result;
     if (actor_index == 0xFFFFFFFFU) {
@@ -349,7 +442,28 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     }
     const u32 actor_token = kLegacyBattleActionGroupBBaseToken +
         actor_index * kLegacyBattleActionGroupBStride;
-    if (invoke(port, result, kCallValidateActor, {actor_token}).eax != 1U) {
+    const u32 parent_call_esp =
+        frame_caller != nullptr && frame_caller->caller_snapshot != nullptr
+        ? frame_caller->caller_snapshot->entry_esp
+        : 0U;
+    LegacyBattleActionCallReply validation{};
+    if (!invoke_actor_frame(
+            action,
+            startup,
+            port,
+            result,
+            frame_caller,
+            LegacyBattleActorFrameCallerSite::final_group_b,
+            actor_index,
+            actor_token,
+            validation
+        ) ||
+        validation.eax != 1U) {
+        return result;
+    }
+    if (!prepare_final_group_b_coordinate_stack(
+            result, frame_caller, parent_call_esp
+        )) {
         return result;
     }
 
@@ -360,19 +474,130 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     }
     u16 coordinate_x{};
     u16 coordinate_y{};
+    const bool typed_frame_caller =
+        frame_caller != nullptr && frame_caller->caller_snapshot != nullptr;
     const auto coordinates = read_legacy_battle_group_b_coordinate_offsets(
         coordinate_actor,
-        &coordinate_x,
-        &coordinate_y,
+        !typed_frame_caller || frame_caller->final_group_b_first_output_writable
+            ? &coordinate_x
+            : nullptr,
+        !typed_frame_caller ||
+                frame_caller->final_group_b_second_output_writable
+            ? &coordinate_y
+            : nullptr,
         {
             .actor_token = actor_token,
+            .first_output_token =
+                typed_frame_caller ? parent_call_esp + 0x14U : 0U,
+            .second_output_token =
+                typed_frame_caller ? parent_call_esp + 0x18U : 0U,
+            .entry_eax = typed_frame_caller ? parent_call_esp + 0x14U : 0U,
+            .entry_edx = typed_frame_caller ? parent_call_esp + 0x18U : 0U,
         }
     );
+    if (typed_frame_caller) {
+        if (coordinates.outputs_written >= 1U) {
+            *frame_caller->final_group_b_argument_0->word = coordinate_x;
+        }
+        if (coordinates.outputs_written >= 2U) {
+            *frame_caller->final_group_b_argument_4->word = coordinate_y;
+        }
+    }
     if (coordinates.status !=
         LegacyBattleGroupBCoordinateOffsetStatus::completed) {
         result.status = LegacyBattleActionDispatchStatus::
             group_b_coordinate_offset_typed_stop;
+        if (typed_frame_caller &&
+            frame_caller->final_group_b_stack_stop != nullptr) {
+            u32 stop_eip{};
+            u32 stop_token{};
+            switch (coordinates.status) {
+            case LegacyBattleGroupBCoordinateOffsetStatus::
+                actor_state_typed_stop:
+                stop_eip = 0x00475870U;
+                stop_token = actor_token + 0x0CU;
+                break;
+
+            case LegacyBattleGroupBCoordinateOffsetStatus::
+                resource_read_typed_stop:
+                stop_eip = 0x00475873U;
+                stop_token = coordinate_actor->resource_token + 0x62U;
+                break;
+
+            case LegacyBattleGroupBCoordinateOffsetStatus::
+                first_output_typed_stop:
+                stop_eip = 0x0047587BU;
+                stop_token = parent_call_esp + 0x14U;
+                break;
+
+            case LegacyBattleGroupBCoordinateOffsetStatus::
+                second_output_typed_stop:
+                stop_eip = 0x0047588CU;
+                stop_token = parent_call_esp + 0x18U;
+                break;
+
+            case LegacyBattleGroupBCoordinateOffsetStatus::completed:
+                break;
+            }
+            *frame_caller->final_group_b_stack_stop = {
+                .eip = stop_eip,
+                .esp = parent_call_esp - 0x0CU,
+                .token = stop_token,
+                .eax = coordinates.return_eax,
+                .ecx = coordinates.return_ecx,
+                .edx = coordinates.return_edx,
+                .flags =
+                    {
+                        .carry = false,
+                        .parity = true,
+                        .auxiliary_carry = false,
+                        .auxiliary_carry_defined = false,
+                        .zero = true,
+                        .sign = false,
+                        .overflow = false,
+                    },
+                .flags_known = true,
+            };
+        }
         return result;
+    }
+    if (typed_frame_caller) {
+        const auto stop_parent_read =
+            [&](const u32 eip, const u32 token, const u32 ecx) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_frame_parent_stack_typed_stop;
+                if (frame_caller->final_group_b_stack_stop != nullptr) {
+                    *frame_caller->final_group_b_stack_stop = {
+                        .eip = eip,
+                        .esp = parent_call_esp,
+                        .token = token,
+                        .eax = coordinates.return_eax,
+                        .ecx = ecx,
+                        .edx = coordinates.return_edx,
+                        .flags = {.parity = true, .zero = true},
+                        .flags_known = true,
+                    };
+                }
+                return result;
+            };
+        const auto* const first = frame_caller->final_group_b_argument_0;
+        if (first == nullptr || first->word == nullptr || !first->readable ||
+            first->token != parent_call_esp + 0x14U) {
+            return stop_parent_read(
+                0x0045ACE8U, parent_call_esp + 0x14U, coordinates.return_ecx
+            );
+        }
+        coordinate_x = static_cast<u16>(*first->word);
+        const auto* const second = frame_caller->final_group_b_argument_4;
+        if (second == nullptr || second->word == nullptr || !second->readable ||
+            second->token != parent_call_esp + 0x18U) {
+            return stop_parent_read(
+                0x0045ACEDU,
+                parent_call_esp + 0x18U,
+                (coordinates.return_ecx & 0xFFFF0000U) | coordinate_x
+            );
+        }
+        coordinate_y = static_cast<u16>(*second->word);
     }
     state.coordinate_x = static_cast<u16>(state.coordinate_x + coordinate_x);
     state.coordinate_y = static_cast<u16>(state.coordinate_y + coordinate_y);
@@ -465,15 +690,27 @@ LegacyBattleActionDispatchResult advance_legacy_battle_final_actor_step(
     const LegacyBattleAttackOrderRemoveBindings attack_order,
     const compat::u32 actor_index,
     const compat::u32 actor_group,
-    LegacyBattleStartupState* const startup
+    LegacyBattleStartupState* const startup,
+    const LegacyBattleActorFrameCallerBinding* const frame_caller
 ) {
-    return actor_group == 1U
-        ? advance_group_a(
-              state, action, port, attack_order, startup, actor_index
-          )
-        : advance_group_b(
-              state, action, port, attack_order, startup, actor_index
-          );
+    return actor_group == 1U ? advance_group_a(
+                                   state,
+                                   action,
+                                   port,
+                                   attack_order,
+                                   startup,
+                                   actor_index,
+                                   frame_caller
+                               )
+                             : advance_group_b(
+                                   state,
+                                   action,
+                                   port,
+                                   attack_order,
+                                   startup,
+                                   actor_index,
+                                   frame_caller
+                               );
 }
 
 }  // namespace openswd3::battle

@@ -1,0 +1,24809 @@
+#include "openswd3/battle/legacy_battle_actor_frame_presentation.hpp"
+
+#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_actor_progress.hpp"
+#include "openswd3/battle/legacy_battle_directional_scan.hpp"
+#include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
+#include "openswd3/rendering/legacy_framebuffer.hpp"
+#include "openswd3/rendering/legacy_scaled_rle_writer.hpp"
+
+#include <array>
+#include <bit>
+#include <cstdint>
+#include <cstring>
+
+namespace openswd3::battle {
+namespace {
+
+using compat::u8;
+using compat::u16;
+using compat::u32;
+
+[[nodiscard]] constexpr bool even_parity(const u8 value) noexcept {
+    return (std::popcount(value) & 1) == 0;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+logical_zero_flags() noexcept {
+    return {
+        .carry = false,
+        .parity = true,
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = true,
+        .sign = false,
+        .overflow = false,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+add_flags(u32 left, u32 right) noexcept;
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(u32 left, u32 right) noexcept;
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags_16(u16 left, u16 right) noexcept;
+
+[[nodiscard]] bool read_sound_callee_arguments(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult& child,
+    const u32 sample_handle,
+    const u32 sample_id
+) noexcept {
+    const auto stack_read = [&](const u32 ip, const u32 token) {
+        const bool ret =
+            ip == 0x00485CC7U || ip == 0x00485E8AU || ip == 0x00485645U;
+        if (child.accesses_completed == request.stop_before_access ||
+            !(ret ? request.return_address_readable : request.stack_readable)) {
+            child.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            child.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            child.stopped_instruction = ip;
+            child.stopped_token = token;
+            child.eip = ip;
+            return false;
+        }
+        ++child.accesses_completed;
+        return true;
+    };
+    if (!stack_read(0x00485610U, child.esp + 8U)) {
+        return false;
+    }
+    child.ecx = sample_handle << 7U;  // MOV ECX,[arg_4]; SHL ECX,7.
+    const std::int64_t product = static_cast<std::int64_t>(0x2E8BA2E9U) *
+        static_cast<std::int64_t>(std::bit_cast<std::int32_t>(child.ecx));
+    const std::uint64_t bits = std::bit_cast<std::uint64_t>(product);
+    child.eax = static_cast<u32>(bits);
+    child.edx = static_cast<u32>(bits >> 32U);
+    const bool overflow = product !=
+        static_cast<std::int64_t>(std::bit_cast<std::int32_t>(child.eax));
+    child.flags.carry = overflow;
+    child.flags.overflow = overflow;
+    child.flags_known =
+        false;  // IMUL leaves the other arithmetic flags undefined.
+    if (!stack_read(0x0048561EU, child.esp + 4U)) {
+        return false;
+    }
+    child.ecx = sample_id;
+    const auto stack_push = [&](const u32 ip, const u32 value) {
+        const u32 slot = child.esp - 4U;
+        if (child.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            child.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            child.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            child.stopped_instruction = ip;
+            child.stopped_token = slot;
+            child.eip = ip;
+            return false;
+        }
+        ++child.accesses_completed;
+        child.esp = slot;
+        child.last_pushed_value = value;
+        return true;
+    };
+    if (!stack_push(0x00485622U, 0U)) {
+        return false;
+    }
+    const u32 old_high = child.edx;
+    child.edx = (old_high >> 1U) | (old_high & 0x80000000U);
+    child.flags = {
+        .carry = (old_high & 1U) != 0U,
+        .parity = even_parity(static_cast<u8>(child.edx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = child.edx == 0U,
+        .sign = (child.edx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    child.flags_known = true;
+    child.eax = child.edx;
+    if (!stack_push(0x00485628U, 1U)) {
+        return false;
+    }
+    const u32 old_eax = child.eax;
+    child.eax >>= 31U;
+    child.flags.carry = (old_eax & 0x40000000U) != 0U;
+    child.flags.parity = even_parity(static_cast<u8>(child.eax));
+    child.flags.zero = child.eax == 0U;
+    child.flags.sign = false;
+    child.flags_known = false;  // SHR by 31 leaves OF undefined.
+    const u32 old_edx = child.edx;
+    child.edx += child.eax;
+    child.flags = add_flags(old_edx, child.eax);
+    child.flags_known = true;
+    if (!stack_push(0x0048562FU, 0U)) {
+        return false;
+    }
+    child.ecx &= 0xFFFFU;
+    child.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(child.ecx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = child.ecx == 0U,
+        .sign = false,
+        .overflow = false,
+    };
+    if (!stack_push(0x00485637U, child.edx) ||
+        !stack_push(0x00485638U, child.ecx) || !stack_push(0x00485639U, 0U) ||
+        !stack_push(0x00485640U, 0x00485645U)) {
+        return false;
+    }
+    child.ecx = 0x004C8450U;
+    const u32 saved_ebx = child.ebx;
+    const u32 saved_ebp = child.ebp;
+    const u32 saved_esi = child.esi;
+    const u32 saved_edi = child.edi;
+    if (!stack_push(0x00485CE0U, child.ebx) ||
+        !stack_push(0x00485CE1U, child.ebp) ||
+        !stack_push(0x00485CE2U, child.esi) ||
+        !stack_push(0x00485CE3U, child.edi)) {
+        return false;
+    }
+    child.ebp = child.ecx;
+    if (!stack_push(0x00485CE6U, 0x00485CEBU)) {
+        return false;
+    }
+    if (child.accesses_completed == request.stop_before_access ||
+        !request.audio_state_readable ||
+        request.audio_state_mode_owner == nullptr) {
+        child.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        child.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        child.stopped_instruction = 0x00485CC0U;
+        child.stopped_token = 0x004C84A4U;
+        child.eip = 0x00485CC0U;
+        return false;
+    }
+    const u32 mode = *request.audio_state_mode_owner;
+    child.flags = subtract_flags(mode, 1U);
+    child.flags_known = true;
+    ++child.accesses_completed;
+    child.eax = (child.eax & 0xFFFFFF00U) | (mode == 1U ? 1U : 0U);
+    if (!stack_read(0x00485CC7U, child.esp)) {
+        return false;
+    }
+    child.esp += 4U;
+    if (mode == 1U) {
+        child.sample_child.returned = false;
+        return true;  // The deeper audio branch stays behind the narrow port.
+    }
+    // sub_485CC0 returns AL=0; CMP AL,1 branches to the shared early RET.
+    child.flags = {
+        .carry = true,
+        .parity = true,
+        .auxiliary_carry = true,
+        .auxiliary_carry_defined = true,
+        .zero = false,
+        .sign = true,
+        .overflow = false,
+    };
+    const auto stack_pop =
+        [&](const u32 ip, const u32 value, u32& register_out) {
+            if (!stack_read(ip, child.esp)) {
+                return false;
+            }
+            register_out = value;
+            child.esp += 4U;
+            return true;
+        };
+    if (!stack_pop(0x00485E84U, saved_edi, child.edi) ||
+        !stack_pop(0x00485E85U, saved_esi, child.esi) ||
+        !stack_pop(0x00485E86U, saved_ebp, child.ebp)) {
+        return false;
+    }
+    child.eax = 0U;
+    child.flags = logical_zero_flags();
+    if (!stack_pop(0x00485E89U, saved_ebx, child.ebx)) {
+        return false;
+    }
+    if (!stack_read(0x00485E8AU, child.esp)) {
+        return false;
+    }
+    child.esp += 4U + 24U;  // RET 18h, restoring the outer wrapper stack.
+    if (!stack_read(0x00485645U, child.esp)) {
+        return false;
+    }
+    child.esp += 4U;
+    child.sample_child = {
+        .returned = true,
+        .eax = child.eax,
+        .ecx = child.ecx,
+        .edx = child.edx,
+        .flags = child.flags,
+        .flags_known = true,
+    };
+    return true;
+}
+
+[[nodiscard]] bool read_draw_callee_global(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult& child
+) noexcept {
+    if (child.accesses_completed == request.stop_before_access ||
+        !request.global_readable ||
+        request.draw_source_token_owner == nullptr) {
+        child.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        child.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        child.stopped_instruction = 0x004170E0U;
+        child.stopped_token = 0x004CD730U;
+        child.eip = 0x004170E0U;
+        return false;
+    }
+    child.eax = *request.draw_source_token_owner;
+    ++child.accesses_completed;
+    const auto saved_register = [&](const u32 ip, const u32 value) {
+        const u32 slot = child.esp - 4U;
+        if (child.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            child.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            child.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            child.stopped_instruction = ip;
+            child.stopped_token = slot;
+            child.eip = ip;
+            return false;
+        }
+        ++child.accesses_completed;
+        child.esp = slot;
+        child.last_pushed_value = value;
+        return true;
+    };
+    if (!saved_register(0x004170E5U, child.ebx) ||
+        !saved_register(0x004170E6U, child.ebp) ||
+        !saved_register(0x004170E7U, child.esi)) {
+        return false;
+    }
+    if (child.accesses_completed == request.stop_before_access ||
+        !request.draw_source_readable ||
+        request.draw_source_bytes_token != child.eax ||
+        request.draw_source_bytes.size() < 2U) {
+        child.status =
+            LegacyBattleActorFrameEntryStatus::frame_resource_read_typed_stop;
+        child.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read;
+        child.stopped_instruction = 0x004170E8U;
+        child.stopped_token = child.eax;
+        child.eip = 0x004170E8U;
+        return false;
+    }
+    const u16 first_word = static_cast<u16>(
+        static_cast<u16>(request.draw_source_bytes[0U]) |
+        (static_cast<u16>(request.draw_source_bytes[1U]) << 8U)
+    );
+    child.flags = subtract_flags_16(first_word, 0xFFFFU);
+    child.flags_known = true;
+    ++child.accesses_completed;
+    if (!saved_register(0x004170EDU, child.edi)) {
+        return false;
+    }
+    child.ebp = 0U;
+    if (first_word != 0xFFFFU) {
+        child.flags = logical_zero_flags();  // loc_417105 XOR EBP,EBP.
+        return true;
+    }
+    if (child.accesses_completed == request.stop_before_access ||
+        !request.global_readable ||
+        request.draw_palette_token_owner == nullptr) {
+        child.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        child.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        child.stopped_instruction = 0x004170F0U;
+        child.stopped_token = 0x004CD764U;
+        child.eip = 0x004170F0U;
+        return false;
+    }
+    child.eax = *request.draw_palette_token_owner;
+    ++child.accesses_completed;
+    child.flags = subtract_flags(child.eax, 0U);
+    if (child.eax == 0U) {
+        // OR [ESP+0x24],0x80000000 is an RMW on the caller's arg_10.
+        // The captured PUSH value is not writable physical stack backing.
+        child.status = LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        child.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        child.stopped_instruction = 0x004170FBU;
+        child.stopped_token = child.esp + 0x24U;
+        child.eip = 0x004170FBU;
+        return false;
+    }
+    return true;
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags(const u32 left, const u32 right) noexcept {
+    const u32 value = left - right;
+    return {
+        .carry = left < right,
+        .parity = even_parity(static_cast<u8>(value)),
+        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = ((left ^ right) & (left ^ value) & 0x80000000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+subtract_flags_16(const u16 left, const u16 right) noexcept {
+    const u16 value = static_cast<u16>(left - right);
+    return {
+        .carry = left < right,
+        .parity = even_parity(static_cast<u8>(value)),
+        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x8000U) != 0U,
+        .overflow = ((left ^ right) & (left ^ value) & 0x8000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+add_flags_16(const u16 left, const u16 right) noexcept {
+    const u16 value = static_cast<u16>(left + right);
+    return {
+        .carry = static_cast<u32>(left) + right > 0xFFFFU,
+        .parity = even_parity(static_cast<u8>(value)),
+        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x8000U) != 0U,
+        .overflow = ((~(left ^ right) & (left ^ value)) & 0x8000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+add_flags(const u32 left, const u32 right) noexcept {
+    const u32 value = left + right;
+    return {
+        .carry = value < left,
+        .parity = even_parity(static_cast<u8>(value)),
+        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
+        .auxiliary_carry_defined = true,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
+        .overflow = ((~(left ^ right) & (left ^ value)) & 0x80000000U) != 0U,
+    };
+}
+
+}  // namespace
+
+LegacyBattleActorFrameEntryResult enter_legacy_battle_actor_frame_presentation(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request
+) noexcept {
+    LegacyBattleActorFrameEntryResult result{};
+    u32 eax = request.entry_eax;
+    u32 ecx = request.actor_token;
+    u32 ebx = request.entry_ebx;
+    u32 ebp = request.entry_ebp;
+    u32 esi = request.entry_esi;
+    u32 edi = request.entry_edi;
+    u32 esp = request.entry_esp;
+    u32 eip = kLegacyBattleActorFramePresentationAddress;
+    auto flags = request.entry_flags;
+    bool flags_known = request.entry_flags_known;
+
+    const auto finish = [&]() {
+        result.eax = eax;
+        result.ecx = ecx;
+        result.edx = request.entry_edx;
+        result.ebx = ebx;
+        result.ebp = ebp;
+        result.esi = esi;
+        result.edi = edi;
+        result.esp = esp;
+        result.eip = eip;
+        result.flags = flags;
+        result.flags_known = flags_known;
+        result.direction_flag = request.direction_flag;
+        return result;
+    };
+
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool readable = true) {
+        if (result.accesses_completed == request.stop_before_access ||
+            !readable) {
+            result.stopped_access_kind = kind;
+            result.stopped_instruction = instruction;
+            result.stopped_token = token;
+            eip = instruction;
+            switch (kind) {
+            case LegacyBattleActorFrameEntryAccessKind::actor_read:
+                result.status =
+                    LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::actor_write:
+                result.status =
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::nested_record_read:
+                result.status = LegacyBattleActorFrameEntryStatus::
+                    nested_record_read_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::nested_record_write:
+                result.status = LegacyBattleActorFrameEntryStatus::
+                    nested_record_write_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::frame_resource_read:
+                result.status = LegacyBattleActorFrameEntryStatus::
+                    update_frame_resource_read_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::actor_resource_read:
+                result.status = LegacyBattleActorFrameEntryStatus::
+                    actor_resource_read_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::global_read:
+                result.status =
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::global_write:
+                result.status =
+                    LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::
+                selector_byte_table_read:
+            case LegacyBattleActorFrameEntryAccessKind::
+                selector_jump_table_read:
+                result.status = LegacyBattleActorFrameEntryStatus::
+                    selector_table_read_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::linked_node_read:
+                result.status = LegacyBattleActorFrameEntryStatus::
+                    linked_node_read_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::surface_row_read:
+            case LegacyBattleActorFrameEntryAccessKind::surface_pixel_read:
+            case LegacyBattleActorFrameEntryAccessKind::surface_pixel_write:
+                result.status = LegacyBattleActorFrameEntryStatus::
+                    case_fifty_one_spawn_child_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::stack_write:
+                result.status =
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::stack_read:
+                result.status =
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+                break;
+
+            case LegacyBattleActorFrameEntryAccessKind::callee_call:
+                result.status =
+                    LegacyBattleActorFrameEntryStatus::reset_child_typed_stop;
+                break;
+            }
+            return false;
+        }
+
+        ++result.accesses_completed;
+        return true;
+    };
+
+    const auto push = [&](const u32 instruction) {
+        const u32 token = esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                token
+            )) {
+            return false;
+        }
+
+        esp = token;
+        return true;
+    };
+
+    const auto pop = [&](const u32 instruction, u32& reg, const u32 saved) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_read,
+                instruction,
+                esp
+            )) {
+            return false;
+        }
+
+        reg = saved;
+        esp += 4U;
+        return true;
+    };
+
+    // 0x00479850..0x0047985A: the first actor read follows all four
+    // physically distinct saved-register stack writes.
+    flags = subtract_flags(esp, 0x14U);
+    flags_known = true;
+    esp -= 0x14U;
+    if (!push(0x00479853U) || !push(0x00479854U) || !push(0x00479855U)) {
+        return finish();
+    }
+
+    esi = request.actor_token;
+    ebx = 0U;
+    flags = logical_zero_flags();
+    if (!push(0x0047985AU)) {
+        return finish();
+    }
+
+    const u32 actor_field_token = request.actor_token + 0x2ABCU;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            0x0047985BU,
+            actor_field_token,
+            actor.progress != nullptr && request.actor_readable
+        )) {
+        return finish();
+    }
+
+    flags = subtract_flags(actor.progress->presentation_enabled, 0U);
+    if (!flags.zero) {
+        // 0x00479867..0x00479889. Publish each write to canonical owners
+        // immediately; later actor reads and child calls must see that value.
+        ebp = 1U;
+        eax = 0U;
+        flags = logical_zero_flags();
+        const bool full_actor = actor.residual != nullptr &&
+            actor.action_execution != nullptr &&
+            actor.primary_coordinates != nullptr &&
+            actor.base_initialization != nullptr;
+        LegacyBattleActorImage image{};
+        if (full_actor) {
+            materialize_legacy_battle_actor_image(actor, image);
+        }
+        const auto write_value =
+            [&](const u32 instruction, const u32 offset, const auto value) {
+                if (!touch(
+                        LegacyBattleActorFrameEntryAccessKind::actor_write,
+                        instruction,
+                        request.actor_token + offset,
+                        full_actor && request.actor_writable
+                    )) {
+                    return false;
+                }
+                std::memcpy(image.data() + offset, &value, sizeof(value));
+                synchronize_legacy_battle_actor_image_write(
+                    actor, image, offset, sizeof(value)
+                );
+                return true;
+            };
+        if (!write_value(0x0047986EU, 0x2AACU, ebp) ||
+            !write_value(0x00479874U, 0x2AB8U, ebp)) {
+            return finish();
+        }
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                0x0047987AU,
+                request.actor_token + 0x2A0CU,
+                full_actor && request.actor_readable
+            )) {
+            return finish();
+        }
+        compat::u16 profile{};
+        std::memcpy(&profile, image.data() + 0x2A0CU, sizeof(profile));
+        eax = static_cast<u32>(profile);
+        edi = request.actor_token + 0x03D0U;
+        if (!write_value(0x00479887U, 0x03D0U, eax) ||
+            !write_value(0x00479889U, 0x03D8U, 0x24U)) {
+            return finish();
+        }
+        // 0x00479893..0x004798B1: each CMP reads independently; the
+        // +0x2AF8 read is skipped when +0x2AA0 already equals one.
+        const auto read_dword =
+            [&](const u32 instruction, const u32 offset, u32& value) {
+                const bool owner_present = offset != 0x2AA0U ||
+                    actor.group_a_configuration != nullptr ||
+                    actor.group_b_configuration != nullptr;
+                if (!touch(
+                        LegacyBattleActorFrameEntryAccessKind::actor_read,
+                        instruction,
+                        request.actor_token + offset,
+                        full_actor && owner_present && request.actor_readable
+                    )) {
+                    return false;
+                }
+                std::memcpy(&value, image.data() + offset, sizeof(value));
+                return true;
+            };
+        u32 gate{};
+        if (!read_dword(0x00479893U, 0x2AA0U, gate)) {
+            return finish();
+        }
+        flags = subtract_flags(gate, ebp);
+        if (!flags.zero) {
+            if (!read_dword(0x0047989BU, 0x2AF8U, gate)) {
+                return finish();
+            }
+            flags = subtract_flags(gate, ebp);
+            if (!flags.zero) {
+                eip = 0x00479920U;
+                result.status = LegacyBattleActorFrameEntryStatus::update_ready;
+                return finish();
+            }
+        }
+        if (!read_dword(0x004798A3U, 0x2B00U, gate)) {
+            return finish();
+        }
+        flags = subtract_flags(gate, ebx);
+        if (!flags.zero) {
+            eip = 0x00479920U;
+            result.status = LegacyBattleActorFrameEntryStatus::update_ready;
+            return finish();
+        }
+        if (!read_dword(0x004798ABU, 0x2B04U, gate)) {
+            return finish();
+        }
+        flags = subtract_flags(gate, ebx);
+        if (!flags.zero) {
+            eip = 0x00479920U;
+            result.status = LegacyBattleActorFrameEntryStatus::update_ready;
+            return finish();
+        }
+        // 0x004798B3..0x004798C9: both writes commit before a new
+        // physical read of +0x2AA0. The read's CMP flags survive either
+        // branch; the nested OR itself begins only at 0x004798CB.
+        if (!write_value(
+                0x004798B3U, 0x2958U, static_cast<compat::u16>(1000U)
+            ) ||
+            !write_value(0x004798BCU, 0x2A94U, static_cast<u8>(0U)) ||
+            !read_dword(0x004798C3U, 0x2AA0U, gate)) {
+            return finish();
+        }
+        flags = subtract_flags(gate, ebp);
+        if (!flags.zero) {
+            if (!read_dword(0x004798CBU, 0x0004U, eax)) {
+                return finish();
+            }
+            const u32 nested_token = eax + 0x25U;
+            const std::byte* nested_read = nullptr;
+            std::byte* nested_write = nullptr;
+            if (actor.live_record_group_b_elements != nullptr) {
+                // Each 0x20-byte source is embedded in a larger host
+                // element. The original address can cross into the next
+                // source at +5; never index beyond the short local record.
+                const u32 base = actor.live_record_group_b_base_token;
+                const std::size_t pool_size = actor.live_record_group_b_count *
+                    sizeof(LegacyBattleGroupBActionRecord);
+                if (nested_token >= base &&
+                    static_cast<std::size_t>(nested_token - base) < pool_size) {
+                    const std::size_t index = (nested_token - base) /
+                        sizeof(LegacyBattleGroupBActionRecord);
+                    const std::size_t offset = (nested_token - base) %
+                        sizeof(LegacyBattleGroupBActionRecord);
+                    auto* const source = reinterpret_cast<std::byte*>(
+                        &actor.live_record_group_b_elements[index].action_record
+                    );
+                    nested_read = source + offset;
+                    nested_write = source + offset;
+                } else if (
+                    actor.live_record_group_b_tail_growth != nullptr &&
+                    nested_token == base + static_cast<u32>(pool_size) + 5U
+                ) {
+                    // Eight 0x20-byte sources end at 0x005214A0; the
+                    // last source +0x25 is A0+5 = the high byte of the
+                    // 0x005214A4 growth word, not another source record.
+                    auto* const growth = reinterpret_cast<std::byte*>(
+                        actor.live_record_group_b_tail_growth
+                    );
+                    nested_read = growth + 1U;
+                    nested_write = growth + 1U;
+                }
+            } else if (eax != 0U && actor.live_record_size > 0x25U) {
+                if (actor.live_record_bytes != nullptr) {
+                    nested_read = actor.live_record_bytes + 0x25U;
+                }
+                if (actor.live_record_writable_bytes != nullptr) {
+                    nested_write = actor.live_record_writable_bytes + 0x25U;
+                }
+            }
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::nested_record_read,
+                    0x004798CEU,
+                    nested_token,
+                    nested_read != nullptr && request.nested_record_readable
+                )) {
+                return finish();
+            }
+            const u8 old_byte = std::to_integer<u8>(*nested_read);
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::nested_record_write,
+                    0x004798CEU,
+                    nested_token,
+                    nested_write != nullptr && request.nested_record_writable
+                )) {
+                return finish();
+            }
+            const u8 updated = static_cast<u8>(old_byte | 0x80U);
+            *nested_write = static_cast<std::byte>(updated);
+            flags = {
+                .carry = false,
+                .parity = even_parity(updated),
+                .auxiliary_carry = false,
+                .auxiliary_carry_defined = false,
+                .zero = updated == 0U,
+                .sign = (updated & 0x80U) != 0U,
+                .overflow = false,
+            };
+        }
+        if (!write_value(0x004798D2U, 0x02C4U, ebx) ||
+            !write_value(0x004798D8U, 0x02C8U, ebx) ||
+            !write_value(0x004798DEU, 0x2958U, static_cast<compat::u16>(ebx))) {
+            return finish();
+        }
+        ecx = 0x26U;
+        eax = 0U;
+        flags = logical_zero_flags();
+        if (!write_value(0x004798ECU, 0x2A12U, static_cast<compat::u16>(ebx))) {
+            return finish();
+        }
+        // The original has no CLD. Each REP iteration is separately
+        // faultable and committed to all overlapping canonical aliases.
+        while (ecx != 0U) {
+            const u32 offset = edi - request.actor_token;
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_write,
+                    0x004798F3U,
+                    edi,
+                    full_actor && request.actor_writable &&
+                        offset <= image.size() - sizeof(eax)
+                )) {
+                return finish();
+            }
+            std::memcpy(image.data() + offset, &eax, sizeof(eax));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(eax)
+            );
+            --ecx;
+            edi = request.direction_flag ? edi - 4U : edi + 4U;
+        }
+        ecx = esi;
+        eip = 0x004798F7U;
+        result.status = LegacyBattleActorFrameEntryStatus::reset_call_ready;
+        return finish();
+    }
+
+    // The actual default label is 0x0047A80B, not the address encoded in
+    // its symbolic name def_4799D5.
+    if (!pop(0x0047A80BU, edi, request.entry_edi) ||
+        !pop(0x0047A80CU, esi, request.entry_esi) ||
+        !pop(0x0047A80DU, ebp, request.entry_ebp)) {
+        return finish();
+    }
+
+    eax = 0U;
+    flags = logical_zero_flags();
+    if (!pop(0x0047A810U, ebx, request.entry_ebx)) {
+        return finish();
+    }
+
+    flags = add_flags(esp, 0x14U);
+    esp += 0x14U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            0x0047A814U,
+            esp,
+            request.return_address_readable
+        )) {
+        return finish();
+    }
+
+    esp += 4U;
+    eip = request.entry_return_address;
+    result.status = LegacyBattleActorFrameEntryStatus::default_returned;
+    result.returned = true;
+    return finish();
+}
+
+LegacyBattleActorFrameEntryResult advance_legacy_battle_actor_frame_entry_route(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    const LegacyBattleActorFrameEntryRoutePorts& ports
+) {
+    auto prefix = enter_legacy_battle_actor_frame_presentation(actor, request);
+    while (!prefix.returned) {
+        switch (prefix.status) {
+        case LegacyBattleActorFrameEntryStatus::reset_call_ready:
+            if (ports.random == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_reset(
+                actor, *ports.random, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::reset_release_call_ready:
+            prefix = continue_legacy_battle_actor_frame_release(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::linked_node_read_ready:
+            if (ports.linked_nodes == nullptr || ports.release == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_release_node(
+                ports.linked_nodes->resolve_linked_nodes(prefix.eax),
+                *ports.release,
+                request,
+                prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::update_ready:
+            if (ports.updater == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_update(
+                actor, *ports.updater, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::update_frame_read_ready:
+            if (ports.updater == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_lookup(
+                actor, *ports.updater, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::update_post_lookup_ready:
+            prefix = continue_legacy_battle_actor_frame_resource_gate(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::update_resource_byte_read_ready:
+            prefix = continue_legacy_battle_actor_frame_selector_header(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::update_selector_dec_ready:
+            prefix = continue_legacy_battle_actor_frame_selector_dispatch(
+                request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::update_selector_default_ready:
+            prefix = continue_legacy_battle_actor_frame_default_return(
+                request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::update_selector_case_ready:
+            if (prefix.eip == 0x004799DCU) {
+                prefix = continue_legacy_battle_actor_frame_case_one_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x00479B06U) {
+                prefix = continue_legacy_battle_actor_frame_case_two_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047A5FEU) {
+                prefix = continue_legacy_battle_actor_frame_case_eight_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047A752U) {
+                prefix = continue_legacy_battle_actor_frame_case_nine_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047A1A0U) {
+                prefix = continue_legacy_battle_actor_frame_case_six_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047A94DU) {
+                prefix = continue_legacy_battle_actor_frame_case_eleven_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047B2E8U) {
+                prefix = continue_legacy_battle_actor_frame_case_fifteen_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047B747U) {
+                prefix = continue_legacy_battle_actor_frame_case_fifty_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047B409U) {
+                prefix = continue_legacy_battle_actor_frame_case_hundred_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047B83EU) {
+                prefix =
+                    continue_legacy_battle_actor_frame_case_fifty_one_header(
+                        actor, request, prefix
+                    );
+            } else if (prefix.eip == 0x0047A083U || prefix.eip == 0x0047A815U) {
+                prefix = continue_legacy_battle_actor_frame_case_five_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047A935U) {
+                prefix =
+                    continue_legacy_battle_actor_frame_case_five_ten_terminal_writes(
+                        actor, request, prefix
+                    );
+            } else if (prefix.eip == 0x00479CA6U) {
+                prefix = continue_legacy_battle_actor_frame_case_three_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x00479EAAU || prefix.eip == 0x0047ABADU) {
+                prefix = continue_legacy_battle_actor_frame_case_four_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047A266U) {
+                prefix = continue_legacy_battle_actor_frame_case_seven_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047AF24U) {
+                prefix =
+                    continue_legacy_battle_actor_frame_case_fourteen_header(
+                        actor, request, prefix
+                    );
+            } else if (prefix.eip == 0x0047AA7BU) {
+                prefix = continue_legacy_battle_actor_frame_case_twelve_header(
+                    actor, request, prefix
+                );
+            } else if (prefix.eip == 0x0047AB9AU) {
+                prefix =
+                    continue_legacy_battle_actor_frame_case_twelve_terminal_writes(
+                        actor, request, prefix
+                    );
+            } else if (prefix.eip == 0x0047B801U) {
+                prefix = continue_legacy_battle_actor_frame_common_reset_prefix(
+                    actor, request, prefix
+                );
+            } else {
+                return prefix;
+            }
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_progress_reset_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_progress_reset(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_reset_progress_write_ready:
+            prefix = continue_legacy_battle_actor_frame_common_reset_prefix(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_reset_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_hundred_reset_call_ready:
+            if (ports.random == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_common_reset_return(
+                actor, *ports.random, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_one_active_ready:
+        case LegacyBattleActorFrameEntryStatus::case_one_source_token_ready:
+            prefix = continue_legacy_battle_actor_frame_case_one_active_prefix(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_one_audio_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_one_audio(
+                *ports.sound, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_one_source_read_ready:
+            prefix = continue_legacy_battle_actor_frame_case_one_source_read(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_one_global_write_ready:
+            prefix = continue_legacy_battle_actor_frame_case_one_motion_globals(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_one_height_ready:
+            prefix = continue_legacy_battle_actor_frame_case_one_height(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_one_draw_args_ready:
+            prefix = continue_legacy_battle_actor_frame_case_one_draw_arguments(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_one_draw_call_ready:
+            if (ports.draw == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_one_draw_call(
+                *ports.draw, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_one_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_one_phase_increment(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_one_stack_cleanup_ready:
+            prefix = continue_legacy_battle_actor_frame_case_one_return(
+                request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_release_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_release_prefix(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_emitter_clear_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_emitter_clear(
+                prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_release_call_ready:
+            if (ports.release == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_release_call(
+                *ports.release, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_emitter_reset_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_emitter_reset(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_particle_init_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_initial_clear(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_decoder_prepare_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_two_decoder_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_decoder_call_ready:
+            if (ports.decoder == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_decoder_call(
+                *ports.decoder, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_two_decoder_token_write_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_two_decoder_publish(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_two_post_decoder_frame_read_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_dimensions(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_geometry_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_geometry(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_emitter_flags_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_emitter_fields(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_property_call_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_property(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_metrics_iat_read_ready:
+            if (ports.metrics == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_metrics(
+                *ports.metrics, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_rectangle_call_ready:
+            if (ports.rectangle == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_rectangle_call(
+                *ports.rectangle, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_two_sample_code_write_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_two_sample_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_sample_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_sample_call(
+                *ports.sound, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_two_sample_phase_write_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_sample_phase(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_particle_tail_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_two_particle_arguments(
+                    request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_two_particle_call_ready:
+            if (ports.particle == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_particle_call(
+                *ports.particle, actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_two_particle_phase_100_write_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_two_particle_return(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_eight_particle_init_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_initial_clear(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_eight_decoder_prepare_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_two_decoder_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_eight_decoder_call_ready:
+            if (ports.decoder == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_decoder_call(
+                *ports.decoder, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_eight_decoder_token_write_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_two_decoder_publish(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_eight_post_decoder_frame_read_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_dimensions(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_eight_geometry_ready:
+            prefix = continue_legacy_battle_actor_frame_case_eight_geometry(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_eight_geometry_value_ready:
+            prefix = continue_legacy_battle_actor_frame_case_eight_fields(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_eight_property_call_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_property(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_eight_metrics_iat_read_ready:
+            if (ports.metrics == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_metrics(
+                *ports.metrics, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_eight_rectangle_call_ready:
+            if (ports.rectangle == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_rectangle_call(
+                *ports.rectangle, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_eight_sample_handle_read_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_eight_sample_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_eight_sample_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_sample_call(
+                *ports.sound, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_eight_sample_phase_write_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_sample_phase(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_nine_active_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_nine_audio_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_nine_audio_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_nine_audio_call(
+                *ports.sound, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_nine_source_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_nine_source_and_opacity(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_nine_draw_flags_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_nine_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_nine_draw_call_ready:
+            if (ports.draw == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_nine_draw_call(
+                *ports.draw, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_nine_draw_globals_ready:
+            prefix = continue_legacy_battle_actor_frame_case_nine_finish(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_six_active_ready:
+        case LegacyBattleActorFrameEntryStatus::case_eleven_active_ready:
+        case LegacyBattleActorFrameEntryStatus::case_fifteen_active_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_six_audio_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_six_audio_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_eleven_audio_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_fifteen_audio_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_six_audio_call(
+                *ports.sound, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_six_source_ready:
+            prefix = continue_legacy_battle_actor_frame_case_six_source(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_six_draw_parameters_ready:
+            prefix = continue_legacy_battle_actor_frame_case_six_draw_arguments(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_six_draw_call_ready:
+            if (ports.draw == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_six_draw_call(
+                *ports.draw, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_six_phase_decrement_ready:
+            prefix = continue_legacy_battle_actor_frame_case_six_finish(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_eleven_source_ready:
+            prefix = continue_legacy_battle_actor_frame_case_eleven_source(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifteen_source_ready:
+            prefix = continue_legacy_battle_actor_frame_case_fifteen_source(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_eleven_first_draw_arguments_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fifteen_first_draw_arguments_ready:
+            prefix = continue_legacy_battle_actor_frame_case_six_draw_arguments(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_eleven_first_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fifteen_first_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_eleven_second_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fifteen_second_draw_call_ready:
+            if (ports.draw == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_six_draw_call(
+                *ports.draw, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_eleven_first_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_eleven_between_draws(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fifteen_first_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fifteen_between_draws(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_eleven_second_draw_arguments_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_eleven_second_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fifteen_second_draw_arguments_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fifteen_second_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_eleven_phase_decrement_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fifteen_phase_decrement_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fifty_phase_increment_ready:
+            prefix = continue_legacy_battle_actor_frame_case_six_finish(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_active_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fifty_audio_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_audio_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_fifty_audio_call(
+                *ports.sound, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_source_ready:
+            prefix = continue_legacy_battle_actor_frame_case_fifty_source(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_draw_arguments_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fifty_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_draw_call_ready:
+            if (ports.draw == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_fifty_draw_call(
+                *ports.draw, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_count_short_reset_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_short_reset(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_hundred_short_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_short_return(
+                    request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_terminal_reset_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_release_gate(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_hundred_release_call_ready:
+            if (ports.release == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_release_call(
+                    *ports.release, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_hundred_reset_prefix_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_reset_prefix(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_particle_gate_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_particle_gate(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_particle_existing_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_particle_tail_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_particle_phase(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_particle_init_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_initial_clear(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_hundred_audio_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_post_rectangle_sample_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_audio_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_hundred_audio_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_hundred_audio_call(
+                *ports.sound, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_hundred_source_ready:
+            prefix = continue_legacy_battle_actor_frame_case_hundred_source(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_draw_arguments_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_hundred_draw_call_ready:
+            if (ports.draw == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_one_draw_call(
+                *ports.draw, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_hundred_draw_return_ready:
+            prefix = continue_legacy_battle_actor_frame_case_hundred_draw_phase(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_count_increment_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_count_increment(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_increment_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_increment_return(
+                    request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_particle_decoder_arguments_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_decoder_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_hundred_decoder_call_ready:
+            if (ports.decoder == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_decoder_call(
+                *ports.decoder, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_decoder_token_write_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_two_decoder_publish(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_post_decoder_source_ready:
+            prefix = continue_legacy_battle_actor_frame_case_hundred_dimensions(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_hundred_geometry_ready:
+            prefix = continue_legacy_battle_actor_frame_case_hundred_geometry(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_geometry_gate_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_configuration(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_attribute_call_ready:
+            prefix = continue_legacy_battle_actor_frame_case_two_property(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_metrics_iat_read_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_metrics_prepare(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_metrics_first_call_ready:
+            if (ports.metrics == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_metrics_calls(
+                    *ports.metrics, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_rectangle_call_ready:
+            if (ports.rectangle == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_two_rectangle_call(
+                *ports.rectangle, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_hundred_post_rectangle_audio_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_hundred_audio_call(
+                *ports.sound, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_hundred_phase_write_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_hundred_phase_write(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_one_reset_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fifty_one_reset_prefix(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_one_reset_call_ready:
+            if (ports.random == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_fifty_one_reset_return(
+                    actor, *ports.random, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_one_init_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fifty_one_initialize(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_one_geometry_ready:
+            prefix = continue_legacy_battle_actor_frame_case_fifty_one_geometry(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fifty_one_particle_call_ready:
+            prefix = continue_legacy_battle_actor_frame_case_fifty_one_property(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fifty_one_decoder_prepare_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fifty_one_decoder_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fifty_one_decoder_call_ready:
+            if (ports.decoder == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_fifty_one_decoder_call(
+                    *ports.decoder, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fifty_one_decoder_token_write_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fifty_one_audio_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_one_audio_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_fifty_one_audio_call(
+                    *ports.sound, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_one_tail_ready:
+            prefix = continue_legacy_battle_actor_frame_case_fifty_one_tail(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fifty_one_spawn_call_ready:
+            if (ports.directional_scan_owners == nullptr) {
+                prefix =
+                    continue_legacy_battle_actor_frame_case_fifty_one_spawn_entry(
+                        request, prefix
+                    );
+            } else {
+                prefix =
+                    continue_legacy_battle_actor_frame_case_fifty_one_spawn_call(
+                        actor, *ports.directional_scan_owners, request, prefix
+                    );
+            }
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_five_ten_terminal_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_ten_terminal_return(
+                    request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_five_audio_ready:
+        case LegacyBattleActorFrameEntryStatus::case_ten_audio_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_three_audio_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_five_audio_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_ten_audio_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_three_audio_call(
+                *ports.sound, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_five_source_ready:
+        case LegacyBattleActorFrameEntryStatus::case_ten_source_ready:
+            prefix = continue_legacy_battle_actor_frame_case_five_source(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_five_source_base_ready:
+        case LegacyBattleActorFrameEntryStatus::case_ten_source_base_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_five_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_ten_draw_call_ready:
+            if (ports.draw == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_five_draw_call(
+                actor, *ports.draw, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_five_after_first_draw_ready:
+        case LegacyBattleActorFrameEntryStatus::case_ten_after_first_draw_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_after_first_draw(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_five_second_draw_prepare_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_second_draw_globals(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_ten_second_draw_prepare_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_ten_second_draw_globals(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_five_second_draw_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_second_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_ten_second_draw_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_ten_second_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_five_second_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_ten_second_draw_call_ready:
+            if (ports.draw == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_second_draw_call(
+                    *ports.draw, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_five_clip_arguments_ready:
+        case LegacyBattleActorFrameEntryStatus::case_ten_clip_arguments_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_clip_arguments(
+                    request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_five_clip_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_ten_clip_call_ready:
+            prefix = continue_legacy_battle_actor_frame_case_five_clip_entry(
+                request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_five_clip_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::case_ten_clip_child_typed_stop:
+            if (ports.clip_raster == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_ten_clip_callee(
+                    *ports.clip_raster, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_five_ten_clip_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_ten_active_return(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_twelve_audio_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_twelve_audio_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_twelve_audio_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_twelve_audio_call(
+                *ports.sound, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_twelve_globals_ready:
+            prefix = continue_legacy_battle_actor_frame_case_twelve_globals(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_twelve_global_values_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_twelve_source_route(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_twelve_forward_args_ready:
+        case LegacyBattleActorFrameEntryStatus::case_twelve_reverse_args_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_twelve_raster_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_twelve_raster_call_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_twelve_raster_entry(
+                    actor, request, prefix, ports.scaled_rle
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_twelve_raster_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_twelve_active_phase(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_twelve_stack_cleanup_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_twelve_active_return(
+                    request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_twelve_reset_tail_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_twelve_reset_prefix(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_twelve_reset_call_ready:
+            if (ports.random == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_common_reset_return(
+                actor, *ports.random, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_three_audio_ready:
+        case LegacyBattleActorFrameEntryStatus::case_four_audio_ready:
+        case LegacyBattleActorFrameEntryStatus::case_seven_audio_ready:
+        case LegacyBattleActorFrameEntryStatus::case_thirteen_audio_ready:
+        case LegacyBattleActorFrameEntryStatus::case_fourteen_audio_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_three_audio_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_three_audio_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_four_audio_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_seven_audio_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_thirteen_audio_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_fourteen_audio_call_ready:
+            if (ports.sound == nullptr) {
+                return prefix;
+            }
+            prefix = continue_legacy_battle_actor_frame_case_three_audio_call(
+                *ports.sound, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_three_source_ready:
+        case LegacyBattleActorFrameEntryStatus::case_four_source_ready:
+            prefix = continue_legacy_battle_actor_frame_case_three_source(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_seven_source_ready:
+        case LegacyBattleActorFrameEntryStatus::case_thirteen_source_ready:
+            prefix = continue_legacy_battle_actor_frame_case_seven_source(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_fourteen_source_ready:
+            prefix = continue_legacy_battle_actor_frame_case_fourteen_source(
+                actor, request, prefix
+            );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_seven_initial_source_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_geometry_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_early_first_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_geometry_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_late_first_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_three_initial_source_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_three_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_four_initial_source_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_four_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_initial_source_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_thirteen_first_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_three_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_four_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_seven_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_first_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_first_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_first_rectangle_call_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_three_rectangle_entry(
+                    request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_four_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_first_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_first_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_first_rectangle_child_typed_stop:
+            if (ports.clip_raster == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_ten_clip_callee(
+                    *ports.clip_raster, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_four_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_first_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_first_rectangle_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_post_rectangle_globals(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_post_rectangle_globals_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_four_post_rectangle_globals_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_first_post_rectangle_globals_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_first_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_three_four_first_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_first_rectangle_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_early_first_globals(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_first_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_early_first_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_post_rectangle_globals_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_third_post_rectangle_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_first_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_first_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_four_first_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_first_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::case_seven_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_first_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_first_draw_call_ready:
+            if (ports.draw == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_first_draw_call(
+                    *ports.draw, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_first_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_three_second_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_four_first_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_four_second_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_first_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_thirteen_second_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::case_seven_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_second_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_first_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_early_second_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_first_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_late_second_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_second_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_four_second_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_second_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_second_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_second_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_second_rectangle_call_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_three_rectangle_entry(
+                    request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_second_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_four_second_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_second_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_second_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_second_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_second_rectangle_child_typed_stop:
+            if (ports.clip_raster == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_ten_clip_callee(
+                    *ports.clip_raster, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_second_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_four_second_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_second_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_second_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_second_rectangle_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_post_rectangle_globals(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_second_post_rectangle_globals_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_four_second_post_rectangle_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_three_four_second_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_second_post_rectangle_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_thirteen_second_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_second_rectangle_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_early_second_globals(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_second_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_early_second_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_second_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_late_second_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_second_post_rectangle_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_first_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_second_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_four_second_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_second_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_second_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_second_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_second_draw_call_ready:
+            if (ports.draw == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_first_draw_call(
+                    *ports.draw, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_second_draw_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_four_second_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_three_four_shared_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_second_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_thirteen_third_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_second_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_third_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_early_second_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_early_phase_tail(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_late_second_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_late_phase_tail(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_shared_rectangle_arguments_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_fourteen_shared_rectangle_arguments(
+                    request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_four_shared_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_third_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_fourth_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_shared_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_shared_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_third_rectangle_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_fourth_rectangle_call_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_three_rectangle_entry(
+                    request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_four_shared_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_third_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_fourth_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_shared_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_shared_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_third_rectangle_child_typed_stop:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_fourth_rectangle_child_typed_stop:
+            if (ports.clip_raster == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_five_ten_clip_callee(
+                    *ports.clip_raster, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_three_four_shared_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_shared_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_fourteen_shared_rectangle_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_shared_return(
+                    request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_third_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_fourth_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_third_rectangle_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_fourth_rectangle_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_post_rectangle_globals(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_third_post_rectangle_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_thirteen_third_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_fourth_post_rectangle_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_fourth_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_third_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_fourth_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_third_draw_call_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_fourth_draw_call_ready:
+            if (ports.draw == nullptr) {
+                return prefix;
+            }
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_first_draw_call(
+                    *ports.draw, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_third_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_thirteen_fourth_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_fourth_post_rectangle_globals_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_thirteen_fourth_draw_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_thirteen_fourth_draw_return_ready:
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_fourth_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_shared_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        case LegacyBattleActorFrameEntryStatus::
+            case_seven_third_draw_return_ready:
+            prefix =
+                continue_legacy_battle_actor_frame_case_seven_fourth_rectangle_arguments(
+                    actor, request, prefix
+                );
+            break;
+
+        default:
+            return prefix;
+        }
+    }
+    return prefix;
+}
+
+LegacyBattleActorFrameCallerAdmission prepare_legacy_battle_actor_frame_caller(
+    const LegacyBattleActorFrameCallerSite site,
+    const u32 index,
+    const LegacyBattleActorFrameEntryRequest& caller_snapshot
+) noexcept {
+    LegacyBattleActorFrameCallerAdmission admission{};
+    const u32 call_ip = static_cast<u32>(site);
+    admission.eip = call_ip;
+    admission.esp = caller_snapshot.entry_esp;
+    auto child = caller_snapshot;
+    child.entry_return_address = call_ip + 5U;
+    child.entry_esp = caller_snapshot.entry_esp - 4U;
+    child.entry_esi = index;
+    child.entry_flags_known = true;
+
+    switch (site) {
+    case LegacyBattleActorFrameCallerSite::action_group_b:
+    case LegacyBattleActorFrameCallerSite::final_group_b: {
+        if (site == LegacyBattleActorFrameCallerSite::final_group_b &&
+            index == 0xFFFFFFFFU) {
+            admission.status =
+                LegacyBattleActorFrameCallerStatus::sentinel_skip;
+            admission.eip = 0x0045AC9FU;
+            return admission;
+        }
+        child.entry_eax = index * 1381U;
+        child.actor_token = kLegacyBattleActorCoordinatesGroupBBaseToken +
+            index * kLegacyBattleActorCoordinatesGroupBStride;
+        child.entry_edi = child.actor_token;
+        child.entry_flags = subtract_flags(index * 24U, index);
+        if (site == LegacyBattleActorFrameCallerSite::action_group_b) {
+            child.entry_ebx = 1U;
+        }
+        break;
+    }
+
+    case LegacyBattleActorFrameCallerSite::opponent_group_a:
+        child.entry_eax = index * 3021U;
+        child.actor_token = kLegacyBattleActorCoordinatesGroupABaseToken +
+            index * kLegacyBattleActorCoordinatesGroupAStride;
+        child.entry_edi = child.actor_token;
+        child.entry_flags = subtract_flags(index * 1008U, index);
+        break;
+
+    case LegacyBattleActorFrameCallerSite::final_group_a: {
+        child.entry_eax = index * 1007U;
+        const u32 before_shift = index * 3021U;
+        child.entry_esi = before_shift << 2U;
+        child.actor_token =
+            kLegacyBattleActorCoordinatesGroupABaseToken + child.entry_esi;
+        child.entry_edi = index;
+        child.entry_ebp = child.actor_token;
+        // SHL by two leaves AF and OF undefined; retain only defined bits.
+        child.entry_flags = {
+            .carry = (before_shift & 0x40000000U) != 0U,
+            .parity = even_parity(static_cast<u8>(child.entry_esi)),
+            .auxiliary_carry = false,
+            .auxiliary_carry_defined = false,
+            .zero = child.entry_esi == 0U,
+            .sign = (child.entry_esi & 0x80000000U) != 0U,
+            .overflow = false,
+            .overflow_defined = false,
+        };
+        break;
+    }
+    }
+
+    admission.child_request = child;
+    if (!caller_snapshot.call_stack_writable) {
+        admission.status =
+            LegacyBattleActorFrameCallerStatus::call_stack_write_typed_stop;
+        return admission;
+    }
+    admission.status = LegacyBattleActorFrameCallerStatus::call_ready;
+    return admission;
+}
+
+LegacyBattleActorFrameCallerRunResult advance_legacy_battle_actor_frame_caller(
+    const LegacyBattleActorFrameCallerSite site,
+    const u32 index,
+    const LegacyBattleActorRuntimeResetOwners& owners,
+    const LegacyBattleActorFrameEntryRequest& caller_snapshot,
+    const LegacyBattleActorFrameEntryRoutePorts& ports,
+    LegacyBattleActorFrameParentArgumentWord* const final_group_a_argument_4
+) {
+    LegacyBattleActorFrameCallerRunResult result{};
+    const u32 parent_call_esp = caller_snapshot.entry_esp;
+    result.admission =
+        prepare_legacy_battle_actor_frame_caller(site, index, caller_snapshot);
+    result.eip = result.admission.eip;
+    result.esp = result.admission.esp;
+    if (site == LegacyBattleActorFrameCallerSite::final_group_a) {
+        const u32 argument_token = parent_call_esp + 0x18U;
+        if (final_group_a_argument_4 == nullptr ||
+            final_group_a_argument_4->token != argument_token ||
+            final_group_a_argument_4->word == nullptr ||
+            !final_group_a_argument_4->writable) {
+            result.status = LegacyBattleActorFrameCallerRunStatus::
+                parent_argument_write_typed_stop;
+            result.admission.status = LegacyBattleActorFrameCallerStatus::
+                parent_argument_write_typed_stop;
+            result.admission.eip = 0x0045AA2FU;
+            result.eip = 0x0045AA2FU;
+            return result;
+        }
+        *final_group_a_argument_4->word =
+            result.admission.child_request.actor_token;
+    }
+    if (result.admission.status ==
+        LegacyBattleActorFrameCallerStatus::sentinel_skip) {
+        result.status = LegacyBattleActorFrameCallerRunStatus::sentinel_skip;
+        return result;
+    }
+    if (result.admission.status !=
+        LegacyBattleActorFrameCallerStatus::call_ready) {
+        result.status = LegacyBattleActorFrameCallerRunStatus::
+            caller_stack_write_typed_stop;
+        return result;
+    }
+    const auto& request = result.admission.child_request;
+    result.child = advance_legacy_battle_actor_frame_entry_route(
+        resolve_legacy_battle_actor_runtime_reset(owners, request.actor_token),
+        request,
+        ports
+    );
+    result.eip = result.child.eip;
+    result.esp = result.child.esp;
+    result.eax = result.child.eax;
+    result.edx = result.child.edx;
+    if (result.child.returned &&
+        result.child.eip == static_cast<u32>(site) + 5U &&
+        result.child.esp == parent_call_esp) {
+        result.status = LegacyBattleActorFrameCallerRunStatus::returned;
+        result.returned = true;
+    }
+    return result;
+}
+
+LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_reset(
+    const LegacyBattleActorRuntimeResetView& actor,
+    LegacyBattleBoundedRandomPort& random,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status != LegacyBattleActorFrameEntryStatus::reset_call_ready ||
+        prefix.eip != 0x004798F7U) {
+        return prefix;
+    }
+
+    const auto stop = [&](const LegacyBattleActorFrameEntryStatus status,
+                          const LegacyBattleActorFrameEntryAccessKind kind,
+                          const u32 instruction,
+                          const u32 token) {
+        prefix.status = status;
+        prefix.stopped_access_kind = kind;
+        prefix.stopped_instruction = instruction;
+        prefix.stopped_token = token;
+        prefix.eip = instruction;
+    };
+
+    const u32 return_token = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        stop(
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            0x004798F7U,
+            return_token
+        );
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.reset_calls = 1U;
+    prefix.last_pushed_value = 0x004798FCU;
+
+    std::size_t child_stop = std::numeric_limits<std::size_t>::max();
+    if (request.stop_before_access != child_stop &&
+        request.stop_before_access >= prefix.accesses_completed) {
+        child_stop = request.stop_before_access - prefix.accesses_completed;
+    }
+    const LegacyBattleActorRuntimeResetRequest child_request{
+        .actor_token = prefix.esi,
+        .entry_eax = prefix.eax,
+        .entry_edx = prefix.edx,
+        .entry_ebx = prefix.ebx,
+        .entry_ebp = prefix.ebp,
+        .entry_esi = prefix.esi,
+        .entry_edi = prefix.edi,
+        .entry_esp = return_token,
+        .entry_return_address = 0x004798FCU,
+        .entry_flags = prefix.flags,
+        .entry_flags_known = prefix.flags_known,
+        .direction_flag = prefix.direction_flag,
+        .random_callable = request.reset_random_callable,
+        .random_return_ecx = request.reset_random_return_ecx,
+        .stop_before_access = child_stop,
+    };
+    prefix.reset_child =
+        reset_legacy_battle_actor_runtime(actor, random, child_request);
+    const auto& child = prefix.reset_child;
+    prefix.accesses_completed += child.accesses_completed;
+    prefix.eax = child.return_eax;
+    prefix.ecx = child.return_ecx;
+    prefix.edx = child.return_edx;
+    prefix.ebx = child.return_ebx;
+    prefix.ebp = child.return_ebp;
+    prefix.esi = child.return_esi;
+    prefix.edi = child.return_edi;
+    prefix.esp = child.return_esp;
+    prefix.eip = child.return_eip;
+    prefix.flags = child.flags;
+    prefix.flags_known = child.flags_known;
+    prefix.direction_flag = child.direction_flag;
+    if (child.status != LegacyBattleActorRuntimeResetStatus::completed ||
+        !child.returned) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::reset_child_typed_stop;
+        prefix.stopped_instruction = child.stopped_instruction;
+        prefix.stopped_token = child.stopped_token;
+        if (child.status ==
+            LegacyBattleActorRuntimeResetStatus::random_call_typed_stop) {
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::callee_call;
+            prefix.stopped_instruction = child.return_eip;
+            return prefix;
+        }
+        switch (child.stopped_access_kind) {
+        case LegacyBattleActorRuntimeResetAccessKind::actor_read:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_read;
+            break;
+        case LegacyBattleActorRuntimeResetAccessKind::actor_write:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            break;
+        case LegacyBattleActorRuntimeResetAccessKind::stack_read:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            break;
+        case LegacyBattleActorRuntimeResetAccessKind::stack_write:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            break;
+        }
+        return prefix;
+    }
+
+    // The child has synchronized all its writes. Re-materialize its owner
+    // state before any parent suffix write; never reuse the pre-CALL image.
+    LegacyBattleActorImage image{};
+    materialize_legacy_battle_actor_image(actor, image);
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    const auto write_dword =
+        [&](const u32 instruction, const u32 offset, const u32 value) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !full_actor || !request.actor_writable) {
+                stop(
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                    LegacyBattleActorFrameEntryAccessKind::actor_write,
+                    instruction,
+                    request.actor_token + offset
+                );
+                return false;
+            }
+            ++prefix.accesses_completed;
+            std::memcpy(image.data() + offset, &value, sizeof(value));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(value)
+            );
+            return true;
+        };
+
+    if (!write_dword(0x004798FCU, 0x2AACU, prefix.ebx) ||
+        !write_dword(0x00479902U, 0x2ABCU, prefix.ebx)) {
+        return prefix;
+    }
+    const u32 argument_token = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        stop(
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            0x00479908U,
+            argument_token
+        );
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = argument_token;
+    prefix.last_pushed_value = prefix.ebp;
+    prefix.ecx = prefix.esi;
+    if (!write_dword(0x0047990BU, 0x2AB8U, prefix.ebp)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::reset_release_call_ready;
+    prefix.eip = 0x00479911U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_release(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::reset_release_call_ready ||
+        prefix.eip != 0x00479911U) {
+        return prefix;
+    }
+
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible = true) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 token = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                token,
+                request.call_stack_writable
+            )) {
+            return false;
+        }
+        prefix.esp = token;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    const auto pop = [&](const u32 instruction, u32& value, const u32 saved) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_read,
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+                instruction,
+                prefix.esp,
+                request.stack_readable
+            )) {
+            return false;
+        }
+        value = saved;
+        prefix.esp += 4U;
+        return true;
+    };
+
+    const u32 argument = prefix.last_pushed_value;
+    const u32 saved_ebx = prefix.ebx;
+    const u32 saved_ebp = prefix.ebp;
+    const u32 saved_esi = prefix.esi;
+    const u32 saved_edi = prefix.edi;
+    prefix.release_saved_ebx = saved_ebx;
+    prefix.release_saved_ebp = saved_ebp;
+    prefix.release_saved_esi = saved_esi;
+    prefix.release_saved_edi = saved_edi;
+    if (!push(0x00479911U, 0x00479916U)) {
+        return prefix;
+    }
+    prefix.release_calls = 1U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+            0x0047E950U,
+            prefix.esp + 4U,
+            request.stack_readable
+        )) {
+        return prefix;
+    }
+    prefix.eax = argument;
+    if (!push(0x0047E954U, prefix.ebx) || !push(0x0047E955U, prefix.ebp)) {
+        return prefix;
+    }
+    prefix.ebp = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!push(0x0047E958U, prefix.esi)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    if (!push(0x0047E95BU, prefix.edi)) {
+        return prefix;
+    }
+    prefix.esi = prefix.ecx;
+
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto read_actor =
+        [&](const u32 instruction, const u32 offset, auto& value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_read,
+                    LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    full_actor && request.actor_readable
+                )) {
+                return false;
+            }
+            std::memcpy(&value, image.data() + offset, sizeof(value));
+            return true;
+        };
+    const auto write_actor =
+        [&](const u32 instruction, const u32 offset, const auto value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_write,
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    full_actor && request.actor_writable
+                )) {
+                return false;
+            }
+            std::memcpy(image.data() + offset, &value, sizeof(value));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(value)
+            );
+            return true;
+        };
+
+    if (!read_actor(0x0047F0BFU, 0x2584U, prefix.eax)) {
+        return prefix;
+    }
+    u16 flags_word{};
+    if (!read_actor(0x0047F0C5U, 0x26D0U, flags_word)) {
+        return prefix;
+    }
+    flags_word = static_cast<u16>(flags_word & 0xFEBDU);
+    if (!write_actor(0x0047F0C5U, 0x26D0U, flags_word)) {
+        return prefix;
+    }
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(flags_word)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = flags_word == 0U,
+        .sign = (flags_word & 0x8000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    if (!write_actor(0x0047F0D0U, 0x26C0U, prefix.ebp) ||
+        !write_actor(0x0047F0D6U, 0x2584U, prefix.ebp)) {
+        return prefix;
+    }
+    if (prefix.eax != 0U) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::linked_node_read_ready;
+        prefix.eip = 0x0047F0DEU;
+        return prefix;
+    }
+
+    if (!pop(0x0047F0EFU, prefix.edi, saved_edi) ||
+        !pop(0x0047F0F0U, prefix.esi, saved_esi) ||
+        !pop(0x0047F0F1U, prefix.ebp, saved_ebp) ||
+        !pop(0x0047F0F2U, prefix.ebx, saved_ebx)) {
+        return prefix;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+            0x0047F0F3U,
+            prefix.esp,
+            request.stack_readable && request.release_return_address_readable
+        )) {
+        return prefix;
+    }
+    prefix.esp += 8U;  // retn 4: return address and the original EBP argument.
+    prefix.eip = 0x00479916U;
+
+    if (!pop(0x00479916U, prefix.edi, request.entry_edi)) {
+        return prefix;
+    }
+    prefix.eax = prefix.ebp;
+    if (!pop(0x00479919U, prefix.esi, request.entry_esi) ||
+        !pop(0x0047991AU, prefix.ebp, request.entry_ebp) ||
+        !pop(0x0047991BU, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+            0x0047991FU,
+            prefix.esp,
+            request.stack_readable && request.return_address_readable
+        )) {
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status = LegacyBattleActorFrameEntryStatus::reset_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_release_node(
+    const std::span<const LegacyBattleActorFrameLinkedNode> nodes,
+    LegacyBattleActorFrameReleasePort& release,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::linked_node_read_ready ||
+        prefix.eip != 0x0047F0DEU) {
+        return prefix;
+    }
+    const auto stop = [&](const LegacyBattleActorFrameEntryStatus status,
+                          const LegacyBattleActorFrameEntryAccessKind kind,
+                          const u32 instruction,
+                          const u32 token) {
+        prefix.status = status;
+        prefix.stopped_access_kind = kind;
+        prefix.stopped_instruction = instruction;
+        prefix.stopped_token = token;
+        prefix.eip = instruction;
+    };
+    const auto* node =
+        static_cast<const LegacyBattleActorFrameLinkedNode*>(nullptr);
+    if (request.linked_node_readable) {
+        for (const auto& candidate : nodes) {
+            if (candidate.token == prefix.eax && candidate.token != 0U) {
+                node = &candidate;
+                break;
+            }
+        }
+    }
+    // A borrowed node snapshot cannot override the actor image after the
+    // callee's earlier +0x2584 write. Such a token needs a live alias owner.
+    const bool actor_alias =
+        prefix.eax - request.actor_token < kLegacyBattleActorImageSize ||
+        request.actor_token - prefix.eax < sizeof(u32);
+    if (prefix.accesses_completed == request.stop_before_access ||
+        node == nullptr || actor_alias) {
+        stop(
+            LegacyBattleActorFrameEntryStatus::linked_node_read_typed_stop,
+            LegacyBattleActorFrameEntryAccessKind::linked_node_read,
+            0x0047F0DEU,
+            prefix.eax
+        );
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esi = node->next_token;
+    const u32 current_token = prefix.eax;
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            stop(
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot
+            );
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(0x0047F0E0U, current_token) || !push(0x0047F0E1U, 0x0047F0E6U)) {
+        return prefix;
+    }
+    ++prefix.release_calls;
+    prefix.release_child = release.release_emitter(
+        current_token, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    const auto& reply = prefix.release_child;
+    if (!reply.returned) {
+        stop(
+            LegacyBattleActorFrameEntryStatus::
+                linked_node_release_child_typed_stop,
+            LegacyBattleActorFrameEntryAccessKind::callee_call,
+            0x004885A0U,
+            current_token
+        );
+        return prefix;
+    }
+    prefix.esp += 4U;  // sub_4885A0 RET leaves its node argument.
+    prefix.eax = reply.eax;
+    prefix.ecx = reply.ecx;
+    prefix.edx = reply.edx;
+    prefix.flags = reply.flags;
+    prefix.flags_known = reply.flags_known;
+    prefix.flags = add_flags(prefix.esp, 4U);
+    prefix.flags_known = true;
+    prefix.esp += 4U;
+    prefix.flags = subtract_flags(prefix.esi, prefix.ebp);
+    prefix.eax = prefix.esi;
+    if (prefix.esi != 0U) {
+        prefix.eip = 0x0047F0DEU;
+        return prefix;
+    }
+    const auto pop = [&](const u32 instruction, u32& target, const u32 saved) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.stack_readable) {
+            stop(
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+                LegacyBattleActorFrameEntryAccessKind::stack_read,
+                instruction,
+                prefix.esp
+            );
+            return false;
+        }
+        ++prefix.accesses_completed;
+        target = saved;
+        prefix.esp += 4U;
+        return true;
+    };
+    if (!pop(0x0047F0EFU, prefix.edi, prefix.release_saved_edi) ||
+        !pop(0x0047F0F0U, prefix.esi, prefix.release_saved_esi) ||
+        !pop(0x0047F0F1U, prefix.ebp, prefix.release_saved_ebp) ||
+        !pop(0x0047F0F2U, prefix.ebx, prefix.release_saved_ebx)) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.stack_readable || !request.release_return_address_readable) {
+        stop(
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            0x0047F0F3U,
+            prefix.esp
+        );
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 8U;
+    prefix.eip = 0x00479916U;
+    if (!pop(0x00479916U, prefix.edi, request.entry_edi)) {
+        return prefix;
+    }
+    prefix.eax = prefix.ebp;
+    if (!pop(0x00479919U, prefix.esi, request.entry_esi) ||
+        !pop(0x0047991AU, prefix.ebp, request.entry_ebp) ||
+        !pop(0x0047991BU, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.stack_readable || !request.return_address_readable) {
+        stop(
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            0x0047991FU,
+            prefix.esp
+        );
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status = LegacyBattleActorFrameEntryStatus::reset_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_update(
+    const LegacyBattleActorRuntimeResetView& actor,
+    LegacyBattleActorFrameUpdatePort& port,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status != LegacyBattleActorFrameEntryStatus::update_ready ||
+        prefix.eip != 0x00479920U) {
+        return prefix;
+    }
+
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 token = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                token,
+                request.call_stack_writable
+            )) {
+            return false;
+        }
+        prefix.esp = token;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    const auto pop = [&](const u32 instruction, u32& value, const u32 saved) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_read,
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+                instruction,
+                prefix.esp,
+                request.stack_readable
+            )) {
+            return false;
+        }
+        value = saved;
+        prefix.esp += 4U;
+        return true;
+    };
+
+    if (!push(0x00479920U, prefix.edi) || !push(0x00479921U, 0x00479926U)) {
+        return prefix;
+    }
+    prefix.update_calls = 1U;
+    if (actor.action_execution == nullptr ||
+        prefix.edi != request.actor_token + 0x03D0U) {
+        // Stop inside sub_4321E0 only when its record is unbacked. The
+        // intervening PUSHes and physical caller-argument read can each
+        // fault before the XOR and the first record read at 0x004321EE.
+        if (!push(0x004321E0U, prefix.ebx) || !push(0x004321E1U, prefix.ebp) ||
+            !push(0x004321E2U, prefix.esi) ||
+            !touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_read,
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+                0x004321E3U,
+                prefix.esp + 0x10U,
+                request.stack_readable
+            )) {
+            return prefix;
+        }
+        prefix.esi = prefix.edi;
+        prefix.ebp = 1U;
+        prefix.ebx = 0U;
+        prefix.flags = logical_zero_flags();
+        prefix.flags_known = true;
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::update_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x004321EEU;
+        prefix.stopped_token = prefix.edi + 0x90U;
+        prefix.eip = 0x004321EEU;
+        return prefix;
+    }
+    prefix.update_child = port.update(
+        actor.action_execution->reserved_action_record_02,
+        prefix.edi,
+        prefix.eax,
+        prefix.ecx,
+        prefix.edx
+    );
+    const auto& reply = prefix.update_child;
+    prefix.eax = reply.eax;
+    prefix.ecx = reply.ecx;
+    prefix.edx = reply.edx;
+    prefix.flags = reply.flags;
+    prefix.flags_known = reply.flags_known;
+    if (!reply.returned) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::update_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = reply.stopped_instruction == 0U
+            ? 0x004321E0U
+            : reply.stopped_instruction;
+        prefix.eip = prefix.stopped_instruction;
+        return prefix;
+    }
+
+    prefix.esp += 4U;  // sub_4321E0's return address, not its caller argument.
+    prefix.flags = add_flags(prefix.esp, 4U);
+    prefix.esp += 4U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.eax)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.eax == 0U,
+        .sign = (prefix.eax & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (prefix.eax != 0U) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::update_frame_read_ready;
+        prefix.eip = 0x00479937U;
+        return prefix;
+    }
+
+    if (!pop(0x0047992DU, prefix.edi, request.entry_edi)) {
+        return prefix;
+    }
+    prefix.eax = prefix.ebp;
+    if (!pop(0x00479930U, prefix.esi, request.entry_esi) ||
+        !pop(0x00479931U, prefix.ebp, request.entry_ebp) ||
+        !pop(0x00479932U, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+            0x00479936U,
+            prefix.esp,
+            request.stack_readable && request.return_address_readable
+        )) {
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status = LegacyBattleActorFrameEntryStatus::update_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_lookup(
+    const LegacyBattleActorRuntimeResetView& actor,
+    LegacyBattleActorFrameUpdatePort& port,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_frame_read_ready ||
+        prefix.eip != 0x00479937U) {
+        return prefix;
+    }
+
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 token = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                token,
+                request.call_stack_writable
+            )) {
+            return false;
+        }
+        prefix.esp = token;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto read_actor =
+        [&](const u32 instruction, const u32 offset, auto& value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_read,
+                    LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    full_actor && request.actor_readable
+                )) {
+                return false;
+            }
+            std::memcpy(&value, image.data() + offset, sizeof(value));
+            return true;
+        };
+    const auto write_actor =
+        [&](const u32 instruction, const u32 offset, const auto value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_write,
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    full_actor && request.actor_writable
+                )) {
+                return false;
+            }
+            std::memcpy(image.data() + offset, &value, sizeof(value));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(value)
+            );
+            return true;
+        };
+
+    u16 frame_word{};
+    if (!read_actor(0x00479937U, 0x041AU, frame_word)) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) | frame_word;
+    if (!push(0x0047993EU, prefix.ebx) || !push(0x0047993FU, prefix.ecx) ||
+        !push(0x00479940U, 0x00479945U)) {
+        return prefix;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_read,
+            LegacyBattleActorFrameEntryStatus::update_frame_lookup_typed_stop,
+            0x004315D0U,
+            0x004CF840U,
+            request.global_readable
+        )) {
+        return prefix;
+    }
+    prefix.frame_lookup_calls = 1U;
+    prefix.frame_lookup_child = port.lookup_frame(
+        prefix.ecx, prefix.ebx, prefix.eax, prefix.ecx, prefix.edx
+    );
+    const auto& reply = prefix.frame_lookup_child;
+    prefix.eax = reply.eax;
+    prefix.ecx = reply.ecx;
+    prefix.edx = reply.edx;
+    prefix.flags = reply.flags;
+    prefix.flags_known = reply.flags_known;
+    if (!reply.returned) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::update_frame_lookup_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = reply.stopped_instruction == 0U
+            ? 0x004315D0U
+            : reply.stopped_instruction;
+        prefix.eip = prefix.stopped_instruction;
+        return prefix;
+    }
+    prefix.esp += 4U;  // The caller's two arguments are still on the stack.
+    if (reply.resource_header_known) {
+        // The lookup callee has already published this resource before
+        // the parent attempts its independently faultable +0x2548 write.
+        auto& resource = actor.action_execution->resource;
+        resource.token = reply.eax;
+        resource.value_00 = reply.resource_value_00;
+        resource.value_04 = reply.resource_value_04;
+        resource.value_0c = reply.resource_value_0c;
+        resource.value_0e = reply.resource_value_0e;
+        resource.value_00_known = true;
+        resource.value_0c_known = true;
+        resource.value_0e_known = true;
+    }
+    materialize_legacy_battle_actor_image(actor, image);
+    if (!write_actor(0x00479945U, 0x2548U, prefix.eax)) {
+        return prefix;
+    }
+    if (!read_actor(0x0047994BU, 0x2B20U, prefix.eax) ||
+        !read_actor(0x00479951U, 0x03E0U, prefix.ebp)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 8U);
+    prefix.flags_known = true;
+    prefix.esp += 8U;
+    prefix.flags = subtract_flags(prefix.eax, 1U);
+    if (prefix.eax == 1U && !write_actor(0x0047995FU, 0x2B08U, prefix.ebx)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::update_post_lookup_ready;
+    prefix.eip = 0x00479965U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_resource_gate(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_post_lookup_ready ||
+        prefix.eip != 0x00479965U) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_dword =
+        [&](const u32 instruction, const u32 offset, u32& value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_read,
+                    LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    full_actor && request.actor_readable &&
+                        (offset != 0x000CU ||
+                         actor.actor_resource_token_owner != nullptr)
+                )) {
+                return false;
+            }
+            std::memcpy(&value, image.data() + offset, sizeof(value));
+            return true;
+        };
+    const auto write_dword =
+        [&](const u32 instruction, const u32 offset, const u32 value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_write,
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    full_actor && request.actor_writable
+                )) {
+                return false;
+            }
+            std::memcpy(image.data() + offset, &value, sizeof(value));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(value)
+            );
+            return true;
+        };
+
+    u32 value{};
+    if (!read_dword(0x00479965U, 0x2B08U, value)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(value, 1U);
+    prefix.flags_known = true;
+    if (value == 1U) {
+        if (!read_dword(0x0047996EU, 0x03E0U, prefix.eax)) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(prefix.eax, prefix.ebx);
+        if (prefix.eax != prefix.ebx) {
+            if (!read_dword(0x00479978U, 0x2548U, prefix.edx)) {
+                return prefix;
+            }
+            prefix.ebp = 0U;
+            prefix.flags = logical_zero_flags();
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                    LegacyBattleActorFrameEntryStatus::
+                        update_frame_resource_read_typed_stop,
+                    0x00479980U,
+                    prefix.edx + 0x0CU,
+                    actor.actor_resource_token_owner != nullptr &&
+                        prefix.edx != 0U &&
+                        prefix.edx == *actor.actor_resource_token_owner &&
+                        actor.actor_resource_bytes != nullptr &&
+                        actor.actor_resource_size >= 0x0EU &&
+                        request.actor_resource_readable
+                )) {
+                return prefix;
+            }
+            prefix.ebp = static_cast<u32>(actor.actor_resource_bytes[0x0CU]) |
+                (static_cast<u32>(actor.actor_resource_bytes[0x0DU]) << 8U);
+            prefix.flags = subtract_flags(prefix.ebp, prefix.eax);
+            prefix.ebp -= prefix.eax;
+        }
+    }
+    if (!read_dword(0x00479986U, 0x2694U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.ecx = 0x64U;
+    prefix.eax &= 0x80000003U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.eax)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.eax == 0U,
+        .sign = (prefix.eax & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    if (!write_dword(0x00479996U, 0x2694U, prefix.eax) ||
+        !read_dword(0x0047999CU, 0x000CU, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::update_resource_byte_read_ready;
+    prefix.eip = 0x0047999FU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_selector_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                update_resource_byte_read_ready ||
+        prefix.eip != 0x0047999FU) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_byte =
+        [&](const u32 instruction, const u32 offset, u8& value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_read,
+                    LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    full_actor && request.actor_readable
+                )) {
+                return false;
+            }
+            value = std::to_integer<u8>(image[offset]);
+            return true;
+        };
+    const auto write_byte = [&](const u32 instruction,
+                                const u32 offset,
+                                const u8 value) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_write,
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                instruction,
+                request.actor_token + offset,
+                full_actor && request.actor_writable
+            )) {
+            return false;
+        }
+        image[offset] = static_cast<std::byte>(value);
+        synchronize_legacy_battle_actor_image_write(actor, image, offset, 1U);
+        return true;
+    };
+
+    const u32 resource_token = prefix.eax;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_resource_read,
+            LegacyBattleActorFrameEntryStatus::actor_resource_read_typed_stop,
+            0x0047999FU,
+            resource_token + 0x20U,
+            actor.actor_resource_token_owner != nullptr &&
+                resource_token != 0U &&
+                resource_token == *actor.actor_resource_token_owner &&
+                actor.actor_resource_bytes != nullptr &&
+                actor.actor_resource_size > 0x20U &&
+                request.actor_resource_readable
+        )) {
+        return prefix;
+    }
+    const u8 tested =
+        static_cast<u8>(actor.actor_resource_bytes[0x20U] & 0x20U);
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(tested),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = tested == 0U,
+        .sign = false,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (tested != 0U &&
+        !write_byte(0x004799A5U, 0x2A94U, static_cast<u8>(prefix.ecx))) {
+        return prefix;
+    }
+    u8 override_selector{};
+    if (!read_byte(0x004799ABU, 0x2A95U, override_selector)) {
+        return prefix;
+    }
+    prefix.eax = (prefix.eax & 0xFFFFFF00U) | override_selector;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(override_selector),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = override_selector == 0U,
+        .sign = (override_selector & 0x80U) != 0U,
+        .overflow = false,
+    };
+    if (override_selector != 0U &&
+        !write_byte(0x004799B5U, 0x2A94U, override_selector)) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    u8 selector{};
+    if (!read_byte(0x004799BDU, 0x2A94U, selector)) {
+        return prefix;
+    }
+    prefix.eax = selector;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::update_selector_dec_ready;
+    prefix.eip = 0x004799C3U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_selector_dispatch(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_dec_ready ||
+        prefix.eip != 0x004799C3U) {
+        return prefix;
+    }
+    const bool saved_carry = prefix.flags.carry;
+    const u32 decremented = prefix.eax - 1U;
+    prefix.flags = subtract_flags(prefix.eax, 1U);
+    prefix.flags.carry = saved_carry;  // DEC does not modify CF.
+    prefix.eax = decremented;
+    prefix.flags = subtract_flags(prefix.eax, 0x63U);
+    prefix.flags_known = true;
+    if (prefix.eax > 0x63U) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::update_selector_default_ready;
+        prefix.eip = 0x0047A80BU;
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.selector_byte_table_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::selector_table_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::selector_byte_table_read;
+        prefix.stopped_instruction = 0x004799CFU;
+        prefix.stopped_token = 0x0047BA18U + prefix.eax;
+        prefix.eip = 0x004799CFU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u8 table_index = prefix.eax <= 14U ? static_cast<u8>(prefix.eax)
+        : prefix.eax == 49U                  ? 15U
+        : prefix.eax == 50U                  ? 16U
+        : prefix.eax == 99U                  ? 17U
+                                             : 18U;
+    prefix.edx = table_index;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.selector_jump_table_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::selector_table_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::selector_jump_table_read;
+        prefix.stopped_instruction = 0x004799D5U;
+        prefix.stopped_token = 0x0047B9CCU + 4U * prefix.edx;
+        prefix.eip = 0x004799D5U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    constexpr std::array<u32, 19U> kTargets{
+        0x004799DCU, 0x00479B06U, 0x00479CA6U, 0x00479EAAU, 0x0047A083U,
+        0x0047A1A0U, 0x0047A266U, 0x0047A5FEU, 0x0047A752U, 0x0047A815U,
+        0x0047A94DU, 0x0047AA7BU, 0x0047ABADU, 0x0047AF24U, 0x0047B2E8U,
+        0x0047B747U, 0x0047B83EU, 0x0047B409U, 0x0047A80BU,
+    };
+    prefix.eip = kTargets[table_index];
+    prefix.status = table_index == 18U
+        ? LegacyBattleActorFrameEntryStatus::update_selector_default_ready
+        : LegacyBattleActorFrameEntryStatus::update_selector_case_ready;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_default_return(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_default_ready ||
+        prefix.eip != 0x0047A80BU) {
+        return prefix;
+    }
+    const auto pop = [&](const u32 instruction, u32& target, const u32 saved) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.stack_readable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = prefix.esp;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        target = saved;
+        prefix.esp += 4U;
+        return true;
+    };
+    if (!pop(0x0047A80BU, prefix.edi, request.entry_edi) ||
+        !pop(0x0047A80CU, prefix.esi, request.entry_esi) ||
+        !pop(0x0047A80DU, prefix.ebp, request.entry_ebp)) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!pop(0x0047A810U, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047A814U;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = 0x0047A814U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status = LegacyBattleActorFrameEntryStatus::default_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_one_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x004799DCU) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x004799DCU;
+        prefix.stopped_token = request.actor_token + 0x2958U;
+        prefix.eip = 0x004799DCU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 phase = actor.action_execution->turn_threshold;
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | phase;
+    prefix.flags = subtract_flags_16(phase, 0x01E0U);
+    prefix.flags_known = true;
+    if (!prefix.flags.zero && prefix.flags.sign == prefix.flags.overflow) {
+        prefix.eip = 0x0047B801U;
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::case_one_active_ready;
+    prefix.eip = 0x004799EDU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_common_reset_prefix(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool start_at_phase = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready &&
+        prefix.eip == 0x0047B801U;
+    const bool start_at_progress = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_reset_progress_write_ready &&
+        prefix.eip == 0x0047B808U;
+    if (!start_at_phase && !start_at_progress) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto write =
+        [&](const u32 instruction, const u32 offset, const u32 value) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !full_actor || !request.actor_writable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::actor_write;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = request.actor_token + offset;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            const u16 word = static_cast<u16>(value);
+            std::memcpy(image.data() + offset, &word, sizeof(word));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(word)
+            );
+            return true;
+        };
+    if ((start_at_phase && !write(0x0047B801U, 0x2958U, prefix.ebx)) ||
+        !write(0x0047B808U, 0x2A12U, prefix.ebx)) {
+        return prefix;
+    }
+    prefix.ecx = 0x26U;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    while (prefix.ecx != 0U) {
+        const u32 offset = prefix.edi - request.actor_token;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !full_actor || !request.actor_writable ||
+            offset > image.size() - sizeof(prefix.eax)) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = 0x0047B816U;
+            prefix.stopped_token = prefix.edi;
+            prefix.eip = 0x0047B816U;
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        std::memcpy(image.data() + offset, &prefix.eax, sizeof(prefix.eax));
+        synchronize_legacy_battle_actor_image_write(
+            actor, image, offset, sizeof(prefix.eax)
+        );
+        --prefix.ecx;
+        prefix.edi = prefix.direction_flag ? prefix.edi - 4U : prefix.edi + 4U;
+    }
+    prefix.ecx = prefix.esi;
+    prefix.status = LegacyBattleActorFrameEntryStatus::case_reset_call_ready;
+    prefix.eip = 0x0047B81AU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_common_reset_return(
+    const LegacyBattleActorRuntimeResetView& actor,
+    LegacyBattleBoundedRandomPort& random,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_twelve = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_twelve_reset_call_ready &&
+        prefix.eip == 0x0047B9A7U;
+    const bool case_hundred = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_hundred_reset_call_ready &&
+        prefix.eip == 0x0047B723U;
+    if (!case_twelve && !case_hundred &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_reset_call_ready ||
+         prefix.eip != 0x0047B81AU)) {
+        return prefix;
+    }
+    const u32 call_ip = case_hundred ? 0x0047B723U
+        : case_twelve                ? 0x0047B9A7U
+                                     : 0x0047B81AU;
+    const u32 return_ip = case_hundred ? 0x0047B728U
+        : case_twelve                  ? 0x0047B9ACU
+                                       : 0x0047B81FU;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible = true) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const u32 return_token = prefix.esp - 4U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            call_ip,
+            return_token,
+            request.call_stack_writable
+        )) {
+        return prefix;
+    }
+    prefix.reset_calls = 1U;
+    prefix.last_pushed_value = return_ip;
+    std::size_t child_stop = std::numeric_limits<std::size_t>::max();
+    if (request.stop_before_access != child_stop &&
+        request.stop_before_access >= prefix.accesses_completed) {
+        child_stop = request.stop_before_access - prefix.accesses_completed;
+    }
+    const LegacyBattleActorRuntimeResetRequest child_request{
+        .actor_token = prefix.esi,
+        .entry_eax = prefix.eax,
+        .entry_edx = prefix.edx,
+        .entry_ebx = prefix.ebx,
+        .entry_ebp = prefix.ebp,
+        .entry_esi = prefix.esi,
+        .entry_edi = prefix.edi,
+        .entry_esp = return_token,
+        .entry_return_address = return_ip,
+        .entry_flags = prefix.flags,
+        .entry_flags_known = prefix.flags_known,
+        .direction_flag = prefix.direction_flag,
+        .random_callable = request.reset_random_callable,
+        .random_return_ecx = request.reset_random_return_ecx,
+        .stop_before_access = child_stop,
+    };
+    prefix.reset_child =
+        reset_legacy_battle_actor_runtime(actor, random, child_request);
+    const auto& child = prefix.reset_child;
+    prefix.accesses_completed += child.accesses_completed;
+    prefix.eax = child.return_eax;
+    prefix.ecx = child.return_ecx;
+    prefix.edx = child.return_edx;
+    prefix.ebx = child.return_ebx;
+    prefix.ebp = child.return_ebp;
+    prefix.esi = child.return_esi;
+    prefix.edi = child.return_edi;
+    prefix.esp = child.return_esp;
+    prefix.eip = child.return_eip;
+    prefix.flags = child.flags;
+    prefix.flags_known = child.flags_known;
+    prefix.direction_flag = child.direction_flag;
+    if (child.status != LegacyBattleActorRuntimeResetStatus::completed ||
+        !child.returned) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::reset_child_typed_stop;
+        prefix.stopped_instruction = child.stopped_instruction;
+        prefix.stopped_token = child.stopped_token;
+        if (child.status ==
+            LegacyBattleActorRuntimeResetStatus::random_call_typed_stop) {
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::callee_call;
+            prefix.stopped_instruction = child.return_eip;
+            return prefix;
+        }
+        switch (child.stopped_access_kind) {
+        case LegacyBattleActorRuntimeResetAccessKind::actor_read:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_read;
+            break;
+        case LegacyBattleActorRuntimeResetAccessKind::actor_write:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            break;
+        case LegacyBattleActorRuntimeResetAccessKind::stack_read:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            break;
+        case LegacyBattleActorRuntimeResetAccessKind::stack_write:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            break;
+        }
+        return prefix;
+    }
+
+    if (!case_twelve) {
+        prefix.eax = 1U;
+    }
+    LegacyBattleActorImage image{};
+    materialize_legacy_battle_actor_image(actor, image);
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    const auto write_dword =
+        [&](const u32 instruction, const u32 offset, const u32 value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_write,
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    full_actor && request.actor_writable
+                )) {
+                return false;
+            }
+            std::memcpy(image.data() + offset, &value, sizeof(value));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(value)
+            );
+            return true;
+        };
+    if (case_twelve) {
+        if (!write_dword(0x0047B9ACU, 0x2AACU, prefix.ebx)) {
+            return prefix;
+        }
+        prefix.eax = 1U;
+        if (!write_dword(0x0047B9B7U, 0x2ABCU, prefix.ebx) ||
+            !write_dword(0x0047B9BDU, 0x2AB8U, prefix.eax)) {
+            return prefix;
+        }
+    } else if (case_hundred) {
+        if (!write_dword(0x0047B72DU, 0x2AACU, prefix.ebx) ||
+            !write_dword(0x0047B733U, 0x2AB8U, prefix.eax) ||
+            !write_dword(0x0047B739U, 0x2ABCU, prefix.ebx)) {
+            return prefix;
+        }
+    } else if (
+        !write_dword(0x0047B824U, 0x2AACU, prefix.ebx) ||
+        !write_dword(0x0047B82AU, 0x2AB8U, prefix.eax) ||
+        !write_dword(0x0047B830U, 0x2ABCU, prefix.ebx)
+    ) {
+        return prefix;
+    }
+    const auto pop = [&](const u32 instruction, u32& target, const u32 saved) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_read,
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+                instruction,
+                prefix.esp,
+                request.stack_readable
+            )) {
+            return false;
+        }
+        target = saved;
+        prefix.esp += 4U;
+        return true;
+    };
+    if (!pop(
+            case_hundred      ? 0x0047B73FU
+                : case_twelve ? 0x0047B9C3U
+                              : 0x0047B836U,
+            prefix.edi,
+            request.entry_edi
+        ) ||
+        !pop(
+            case_hundred      ? 0x0047B740U
+                : case_twelve ? 0x0047B9C4U
+                              : 0x0047B837U,
+            prefix.esi,
+            request.entry_esi
+        ) ||
+        !pop(
+            case_hundred      ? 0x0047B741U
+                : case_twelve ? 0x0047B9C5U
+                              : 0x0047B838U,
+            prefix.ebp,
+            request.entry_ebp
+        ) ||
+        !pop(
+            case_hundred      ? 0x0047B742U
+                : case_twelve ? 0x0047B9C6U
+                              : 0x0047B839U,
+            prefix.ebx,
+            request.entry_ebx
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.flags_known = true;
+    prefix.esp += 0x14U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+            case_hundred      ? 0x0047B746U
+                : case_twelve ? 0x0047B9CAU
+                              : 0x0047B83DU,
+            prefix.esp,
+            request.return_address_readable
+        )) {
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status = case_hundred
+        ? LegacyBattleActorFrameEntryStatus::case_hundred_reset_returned
+        : case_twelve
+        ? LegacyBattleActorFrameEntryStatus::case_twelve_reset_returned
+        : LegacyBattleActorFrameEntryStatus::case_reset_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_one_active_prefix(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool after_audio = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_one_source_token_ready &&
+        prefix.eip == 0x00479A02U;
+    if (!after_audio &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_one_active_ready ||
+         prefix.eip != 0x004799EDU)) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 token = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                token,
+                request.call_stack_writable
+            )) {
+            return false;
+        }
+        prefix.esp = token;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!after_audio) {
+        prefix.flags = subtract_flags_16(
+            static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+        );
+        prefix.flags_known = true;
+    }
+    if (!after_audio && prefix.flags.zero) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::global_read,
+                LegacyBattleActorFrameEntryStatus::global_read_typed_stop,
+                0x004799F2U,
+                0x004AB784U,
+                actor.shared_action != nullptr && request.global_readable
+            )) {
+            return prefix;
+        }
+        prefix.eax = actor.shared_action->sample_handle;
+        if (!push(0x004799F7U, prefix.eax) || !push(0x004799F8U, 0x31U)) {
+            return prefix;
+        }
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_one_audio_call_ready;
+        prefix.eip = 0x004799FAU;
+        return prefix;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x00479A02U,
+            request.actor_token + 0x2548U,
+            actor.action_execution != nullptr && request.actor_readable
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->render_source_token;
+    prefix.eax = 0x7BDEF7BDU;
+    if (!push(0x00479A0DU, prefix.ebx)) {
+        return prefix;
+    }
+    prefix.draw_auxiliary_value = prefix.ebx;
+    prefix.draw_auxiliary_pushed = true;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_one_source_read_ready;
+    prefix.eip = 0x00479A0EU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_one_source_read(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_one_source_read_ready ||
+        prefix.eip != 0x00479A0EU) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_resource_readable ||
+        prefix.ecx == 0U ||
+        actor.action_execution->resource.token != prefix.ecx ||
+        !actor.action_execution->resource.value_00_known) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_one_source_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read;
+        prefix.stopped_instruction = 0x00479A0EU;
+        prefix.stopped_token = prefix.ecx;
+        prefix.eip = 0x00479A0EU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.edx = actor.action_execution->resource.value_00;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_one_global_write_ready;
+    prefix.eip = 0x00479A10U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_one_audio(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_one_audio_call_ready ||
+        prefix.eip != 0x004799FAU) {
+        return prefix;
+    }
+    const u32 return_token = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x004799FAU;
+        prefix.stopped_token = return_token;
+        prefix.eip = 0x004799FAU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = return_token;
+    prefix.last_pushed_value = 0x004799FFU;
+    prefix.sample_calls = 1U;
+    auto callee = prefix;
+    if (!read_sound_callee_arguments(request, callee, prefix.eax, 0x31U)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    prefix.sample_child = callee.sample_child.returned ? callee.sample_child
+                                                       : sound.play_sample(
+                                                             0x31U,
+                                                             prefix.eax,
+                                                             prefix.eax,
+                                                             prefix.ecx,
+                                                             prefix.edx,
+                                                             prefix.flags
+                                                         );
+    const auto& reply = prefix.sample_child;
+    if (!reply.returned) {
+        prefix.accesses_completed -=
+            16U;  // Entry-only stop precedes both nested callee reads.
+        // This narrow adapter supports an entry stop only. Deep Miles/CRT
+        // stops require a separate physical stack and call trace owner.
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_one_audio_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x00485610U;
+        prefix.eip = 0x00485610U;
+        return prefix;
+    }
+    prefix.eax = reply.eax;
+    prefix.ecx = reply.ecx;
+    prefix.edx = reply.edx;
+    prefix.flags = reply.flags;
+    prefix.flags_known = reply.flags_known;
+    prefix.esp += 4U;  // Child RET removes only the CALL return address.
+    prefix.flags = add_flags(prefix.esp, 8U);
+    prefix.flags_known = true;
+    prefix.esp += 8U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_one_source_token_ready;
+    prefix.eip = 0x00479A02U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_one_motion_globals(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_one_global_write_ready ||
+        prefix.eip != 0x00479A10U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+            0x00479A10U,
+            0x004CD730U,
+            actor.shared_action != nullptr && request.global_writable
+        )) {
+        return prefix;
+    }
+    actor.shared_action->turn_frame_source_token = prefix.edx;
+    constexpr std::array<u32, 3> kReads{0x00479A16U, 0x00479A38U, 0x00479A5AU};
+    constexpr std::array<u32, 3> kWrites{0x00479A32U, 0x00479A54U, 0x00479A71U};
+    constexpr std::array<u32, 3> kGlobalTokens{
+        0x004CD71CU, 0x004CD30CU, 0x004CD304U
+    };
+    u32* const destinations[3]{
+        &actor.shared_action->draw_motion_a,
+        &actor.shared_action->draw_motion_b,
+        &actor.shared_action->draw_motion_c,
+    };
+    for (std::size_t index = 0U; index < kReads.size(); ++index) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                kReads[index],
+                request.actor_token + 0x2958U,
+                actor.action_execution != nullptr && request.actor_readable
+            )) {
+            return prefix;
+        }
+        const auto signed_phase = static_cast<std::int32_t>(
+            std::bit_cast<std::int16_t>(actor.action_execution->turn_threshold)
+        );
+        prefix.ecx = static_cast<u32>(signed_phase);
+        const auto product = static_cast<std::int64_t>(0x7BDEF7BDU) *
+            static_cast<std::int64_t>(signed_phase);
+        const auto product_bits = static_cast<std::uint64_t>(product);
+        prefix.eax = static_cast<u32>(product_bits);
+        prefix.edx = static_cast<u32>(product_bits >> 32U);
+        prefix.edx -= prefix.ecx;
+        prefix.edx = (prefix.edx >> 4U) |
+            ((prefix.edx & 0x80000000U) != 0U ? 0xF0000000U : 0U);
+        if (index == 1U) {
+            prefix.eax = 0x7BDEF7BDU;
+            prefix.ecx = prefix.edx >> 31U;
+            prefix.edx += prefix.ecx;
+        } else {
+            prefix.eax = prefix.edx >> 31U;
+            prefix.edx += prefix.eax;
+            if (index == 0U) {
+                prefix.eax = 0x7BDEF7BDU;
+            }
+        }
+        const u32 before_shift = prefix.edx;
+        prefix.edx <<= 1U;
+        prefix.flags = {
+            .carry = (before_shift & 0x80000000U) != 0U,
+            .parity = even_parity(static_cast<u8>(prefix.edx)),
+            .auxiliary_carry = false,
+            .auxiliary_carry_defined = false,
+            .zero = prefix.edx == 0U,
+            .sign = (prefix.edx & 0x80000000U) != 0U,
+            .overflow = ((prefix.edx ^ before_shift) & 0x80000000U) != 0U,
+        };
+        prefix.flags_known = true;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::global_write,
+                LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+                kWrites[index],
+                kGlobalTokens[index],
+                request.global_writable
+            )) {
+            return prefix;
+        }
+        *destinations[index] = prefix.edx;
+        if (index == 1U) {
+            prefix.eax = 0x7BDEF7BDU;
+        }
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::case_one_height_ready;
+    prefix.eip = 0x00479A77U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_one_height(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_one_height_ready ||
+        prefix.eip != 0x00479A77U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& value,
+                                const u32 source) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                request.actor_token + offset,
+                actor.action_execution != nullptr && request.actor_readable
+            )) {
+            return false;
+        }
+        value = source;
+        return true;
+    };
+    if (!read_actor(
+            0x00479A77U,
+            0x2548U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token
+        )) {
+        return prefix;
+    }
+    if (!read_actor(
+            0x00479A7DU,
+            0x2958U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : static_cast<u32>(
+                      static_cast<std::int32_t>(std::bit_cast<std::int16_t>(
+                          actor.action_execution->turn_threshold
+                      ))
+                  )
+        )) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_one_height_resource_read_typed_stop,
+            0x00479A86U,
+            prefix.ecx + 0x0EU,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_0e_known && request.actor_resource_readable
+        )) {
+        return prefix;
+    }
+    prefix.edx = resource.value_0e;
+    prefix.flags = add_flags(prefix.edx, prefix.eax);
+    prefix.edx += prefix.eax;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+            0x00479A8CU,
+            0x004CD75CU,
+            actor.shared_action != nullptr && request.global_writable
+        )) {
+        return prefix;
+    }
+    actor.shared_action->draw_height_third = prefix.edx;
+    if (!read_actor(
+            0x00479A92U,
+            0x2694U,
+            prefix.eax,
+            actor.action_execution->presentation_render_flags
+        )) {
+        return prefix;
+    }
+    prefix.eax &= 0x80000023U;
+    prefix.edx = 0U;
+    prefix.eax |= 0x20U;
+    const u8 low = static_cast<u8>(prefix.eax);
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(low),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = low == 0U,
+        .sign = (low & 0x80U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_write,
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+            0x00479AA1U,
+            request.actor_token + 0x2694U,
+            request.actor_writable
+        )) {
+        return prefix;
+    }
+    actor.action_execution->presentation_render_flags = prefix.eax;
+    prefix.status = LegacyBattleActorFrameEntryStatus::case_one_draw_args_ready;
+    prefix.eip = 0x00479AA7U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_one_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_one_draw_args_ready ||
+        prefix.eip != 0x00479AA7U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 source,
+                                const bool owner_known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                request.actor_token + offset,
+                owner_known && request.actor_readable
+            )) {
+            return false;
+        }
+        destination = source;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 token = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                token,
+                request.call_stack_writable
+            )) {
+            return false;
+        }
+        prefix.esp = token;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!read_actor(
+            0x00479AA7U,
+            0x2548U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x00479AADU,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        ) ||
+        !push(0x00479AB3U, prefix.eax)) {
+        return prefix;
+    }
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_one_draw_resource_read_typed_stop,
+            0x00479AB4U,
+            prefix.ecx + 0x0EU,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_0e_known && request.actor_resource_readable
+        )) {
+        return prefix;
+    }
+    prefix.edx = (prefix.edx & 0xFFFF0000U) | resource.value_0e;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_one_draw_resource_read_typed_stop,
+            0x00479ABAU,
+            prefix.ecx + 0x0CU,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_0c_known && request.actor_resource_readable
+        )) {
+        return prefix;
+    }
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | resource.value_0c;
+    if (!push(0x00479ABEU, prefix.edx) ||
+        !read_actor(
+            0x00479ABFU,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : static_cast<u32>(
+                      static_cast<std::int32_t>(std::bit_cast<std::int16_t>(
+                          actor.primary_coordinates->position_y
+                      ))
+                  ),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !touch(
+            LegacyBattleActorFrameEntryAccessKind::global_read,
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop,
+            0x00479AC6U,
+            0x004CD71CU,
+            actor.shared_action != nullptr && request.global_readable
+        )) {
+        return prefix;
+    }
+    prefix.edx = actor.shared_action->draw_motion_a;
+    if (!push(0x00479ACCU, prefix.eax)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edi);
+    prefix.ecx -= prefix.edi;
+    prefix.eax = prefix.edx * 4U;
+    if (!read_actor(
+            0x00479AD6U,
+            0x2958U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : static_cast<u32>(
+                      static_cast<std::int32_t>(std::bit_cast<std::int16_t>(
+                          actor.action_execution->turn_threshold
+                      ))
+                  ),
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.eax);
+    prefix.ecx -= prefix.eax;
+    if (!read_actor(
+            0x00479ADFU,
+            0x0D66U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : static_cast<u32>(
+                      static_cast<std::int32_t>(std::bit_cast<std::int16_t>(
+                          actor.primary_coordinates->position_x
+                      ))
+                  ),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edx);
+    prefix.ecx -= prefix.edx;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    if (!push(0x00479AEAU, prefix.ecx) || !push(0x00479AEBU, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::case_one_draw_call_ready;
+    prefix.eip = 0x00479AECU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_one_draw_call(
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool case_hundred = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_hundred_draw_call_ready &&
+        prefix.eip == 0x0047B4C0U;
+    if (!case_hundred &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_one_draw_call_ready ||
+         prefix.eip != 0x00479AECU)) {
+        return prefix;
+    }
+    const u32 call_ip = case_hundred ? 0x0047B4C0U : 0x00479AECU;
+    if (!prefix.draw_auxiliary_pushed ||
+        prefix.draw_argument_count != prefix.draw_argument_pushes.size()) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_one_draw_arguments_unbacked;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = prefix.esp + 20U;
+        return prefix;
+    }
+    const u32 return_token = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = return_token;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = return_token;
+    prefix.last_pushed_value = case_hundred ? 0x0047B4C5U : 0x00479AF1U;
+    prefix.draw_calls = 1U;
+    const std::size_t pre_callee_accesses = prefix.accesses_completed;
+    auto callee = prefix;
+    if (!read_draw_callee_global(request, callee)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    const std::array<u32, 6U> arguments{
+        prefix.draw_argument_pushes[4U],
+        prefix.draw_argument_pushes[3U],
+        prefix.draw_argument_pushes[2U],
+        prefix.draw_argument_pushes[1U],
+        prefix.draw_argument_pushes[0U],
+        prefix.draw_auxiliary_value,  // 0x00479A0D PUSH EBX remains below.
+    };
+    prefix.draw_child = draw.draw_frame(
+        arguments, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    const auto& reply = prefix.draw_child;
+    if (!reply.returned) {
+        // Entry-only reply means no callee access occurred.
+        prefix.accesses_completed = pre_callee_accesses;
+        prefix.status = case_hundred
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_hundred_draw_child_typed_stop
+            : LegacyBattleActorFrameEntryStatus::case_one_draw_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x004170E0U;
+        prefix.eip = 0x004170E0U;
+        return prefix;
+    }
+    prefix.esp += 4U;  // The six cdecl arguments remain in the caller stack.
+    prefix.eax = reply.eax;
+    prefix.ecx = reply.ecx;
+    prefix.edx = reply.edx;
+    prefix.flags = reply.flags;
+    prefix.flags_known = reply.flags_known;
+    prefix.status = case_hundred
+        ? LegacyBattleActorFrameEntryStatus::case_hundred_draw_return_ready
+        : LegacyBattleActorFrameEntryStatus::case_one_draw_return_ready;
+    prefix.eip = case_hundred ? 0x0047B4C5U : 0x00479AF1U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_one_phase_increment(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_one_draw_return_ready ||
+        prefix.eip != 0x00479AF1U) {
+        return prefix;
+    }
+    const u32 token = request.actor_token + 0x2958U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x00479AF1U;
+        prefix.stopped_token = token;
+        prefix.eip = 0x00479AF1U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 before = actor.action_execution->turn_threshold;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.actor_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x00479AF1U;
+        prefix.stopped_token = token;
+        prefix.eip = 0x00479AF1U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.action_execution->turn_threshold = static_cast<u16>(before + 0x1FU);
+    prefix.flags = add_flags_16(before, 0x1FU);
+    prefix.flags_known = true;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_one_stack_cleanup_ready;
+    prefix.eip = 0x00479AF9U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_one_return(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_one_stack_cleanup_ready ||
+        prefix.eip != 0x00479AF9U) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x18U);
+    prefix.flags_known = true;
+    prefix.esp += 0x18U;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    const auto pop =
+        [&](const u32 instruction, u32& destination, const u32 saved) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.stack_readable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::stack_read;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = prefix.esp;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            destination = saved;
+            prefix.esp += 4U;
+            return true;
+        };
+    if (!pop(0x00479AFEU, prefix.edi, request.entry_edi) ||
+        !pop(0x00479AFFU, prefix.esi, request.entry_esi) ||
+        !pop(0x00479B00U, prefix.ebp, request.entry_ebp) ||
+        !pop(0x00479B01U, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x00479B05U;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = 0x00479B05U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status = LegacyBattleActorFrameEntryStatus::case_one_draw_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x00479B06U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x00479B06U;
+        prefix.stopped_token = request.actor_token + 0x2958U;
+        prefix.eip = 0x00479B06U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 phase = actor.action_execution->turn_threshold;
+    prefix.flags = subtract_flags_16(phase, static_cast<u16>(prefix.ecx));
+    prefix.flags_known = true;
+    if (prefix.flags.zero) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_two_release_ready;
+        prefix.eip = 0x00479C6CU;
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.particle_source_token_owner == nullptr ||
+        !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x00479B13U;
+        prefix.stopped_token = request.actor_token + 0x0E14U;
+        prefix.eip = 0x00479B13U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.flags =
+        subtract_flags(*actor.particle_source_token_owner, prefix.ebx);
+    prefix.status = prefix.flags.zero
+        ? LegacyBattleActorFrameEntryStatus::case_two_particle_init_ready
+        : LegacyBattleActorFrameEntryStatus::case_two_particle_tail_ready;
+    prefix.eip = prefix.flags.zero ? 0x00479B1FU : 0x0047B6B4U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_release_prefix(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_two_release_ready ||
+        prefix.eip != 0x00479C6CU) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto write_word = [&](const u32 instruction, const u32 offset) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !full_actor || !request.actor_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = request.actor_token + offset;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        const u16 value = static_cast<u16>(prefix.ebx);
+        std::memcpy(image.data() + offset, &value, sizeof(value));
+        synchronize_legacy_battle_actor_image_write(
+            actor, image, offset, sizeof(value)
+        );
+        return true;
+    };
+    if (!write_word(0x00479C6CU, 0x2958U)) {
+        return prefix;
+    }
+    prefix.ecx = 0x26U;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!write_word(0x00479C7AU, 0x2A12U)) {
+        return prefix;
+    }
+    while (prefix.ecx != 0U) {
+        const u32 offset = prefix.edi - request.actor_token;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !full_actor || !request.actor_writable ||
+            offset > image.size() - sizeof(prefix.eax)) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = 0x00479C81U;
+            prefix.stopped_token = prefix.edi;
+            prefix.eip = 0x00479C81U;
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        std::memcpy(image.data() + offset, &prefix.eax, sizeof(prefix.eax));
+        synchronize_legacy_battle_actor_image_write(
+            actor, image, offset, sizeof(prefix.eax)
+        );
+        --prefix.ecx;
+        prefix.edi = prefix.direction_flag ? prefix.edi - 4U : prefix.edi + 4U;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.particle_source_token_owner == nullptr ||
+        !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x00479C83U;
+        prefix.stopped_token = request.actor_token + 0x0E14U;
+        prefix.eip = 0x00479C83U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax = *actor.particle_source_token_owner;
+    prefix.edi = request.actor_token + 0x0E14U;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebx);
+    prefix.status = prefix.flags.zero
+        ? LegacyBattleActorFrameEntryStatus::case_two_emitter_clear_ready
+        : LegacyBattleActorFrameEntryStatus::case_two_release_call_ready;
+    prefix.eip = prefix.flags.zero ? 0x00479C9CU : 0x00479C93U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_emitter_clear(
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_two_emitter_clear_ready ||
+        prefix.eip != 0x00479C9CU) {
+        return prefix;
+    }
+    prefix.ecx = 0x16U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_two_emitter_reset_ready;
+    prefix.eip = 0x0047B814U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_release_call(
+    LegacyBattleActorFrameReleasePort& release,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_two_emitter_clear_ready &&
+        prefix.eip == 0x00479C9CU) {
+        return continue_legacy_battle_actor_frame_case_two_emitter_clear(
+            prefix
+        );
+    }
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_two_release_call_ready ||
+        prefix.eip != 0x00479C93U) {
+        return prefix;
+    }
+    const u32 emitter_token = prefix.eax;
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 token = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = token;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(0x00479C93U, emitter_token) || !push(0x00479C94U, 0x00479C99U)) {
+        return prefix;
+    }
+    prefix.release_calls = 1U;
+    prefix.release_child = release.release_emitter(
+        emitter_token, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    const auto& reply = prefix.release_child;
+    if (!reply.returned) {
+        // Deep wrapper/CRT exceptions need a complete callee stack model;
+        // this adapter can stop only before the wrapper's first PUSH EBP.
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_two_release_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x004885A0U;
+        prefix.eip = 0x004885A0U;
+        return prefix;
+    }
+    prefix.esp += 4U;  // sub_4885A0 RET leaves its caller's token argument.
+    prefix.eax = reply.eax;
+    prefix.ecx = reply.ecx;
+    prefix.edx = reply.edx;
+    prefix.flags = reply.flags;
+    prefix.flags_known = reply.flags_known;
+    prefix.flags = add_flags(prefix.esp, 4U);
+    prefix.flags_known = true;
+    prefix.esp += 4U;
+    prefix.ecx = 0x16U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_two_emitter_reset_ready;
+    prefix.eip = 0x0047B814U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_emitter_reset(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_two_emitter_reset_ready ||
+        prefix.eip != 0x0047B814U) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    while (prefix.ecx != 0U) {
+        const u32 offset = prefix.edi - request.actor_token;
+        const bool owner_known = offset == 0x0E14U
+            ? actor.particle_source_token_owner != nullptr
+            : offset >= 0x0E18U && offset < 0x0E6CU
+            ? actor.particle_phase_owner != nullptr
+            : offset >= 0x0DF4U && offset < 0x0E14U
+            ? actor.particle_phase_owner != nullptr
+            : offset >= 0x0DC0U && offset < 0x0DF4U &&
+                actor.action_execution != nullptr;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !full_actor || !request.actor_writable || !owner_known ||
+            offset > image.size() - sizeof(prefix.eax)) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = 0x0047B816U;
+            prefix.stopped_token = prefix.edi;
+            prefix.eip = 0x0047B816U;
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        std::memcpy(image.data() + offset, &prefix.eax, sizeof(prefix.eax));
+        synchronize_legacy_battle_actor_image_write(
+            actor, image, offset, sizeof(prefix.eax)
+        );
+        --prefix.ecx;
+        prefix.edi = prefix.direction_flag ? prefix.edi - 4U : prefix.edi + 4U;
+    }
+    prefix.ecx = prefix.esi;
+    prefix.status = LegacyBattleActorFrameEntryStatus::case_reset_call_ready;
+    prefix.eip = 0x0047B81AU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_initial_clear(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_two_start = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_two_particle_init_ready &&
+        prefix.eip == 0x00479B1FU;
+    const bool case_eight_start = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_eight_particle_init_ready &&
+        prefix.eip == 0x0047A617U;
+    const bool case_hundred_start = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_particle_init_ready &&
+        prefix.eip == 0x0047B544U;
+    if (!case_two_start && !case_eight_start && !case_hundred_start) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    prefix.ecx = 0x16U;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    prefix.edi = request.actor_token + 0x0E14U;
+    prefix.edx = prefix.esp + (case_hundred_start ? 0x1CU : 0x18U);
+    while (prefix.ecx != 0U) {
+        const u32 offset = prefix.edi - request.actor_token;
+        const bool owner_known = offset == 0x0E14U
+            ? actor.particle_source_token_owner != nullptr
+            : offset >= 0x0E18U && offset < 0x0E6CU
+            ? actor.particle_phase_owner != nullptr
+            : offset >= 0x0DF4U && offset < 0x0E14U
+            ? actor.particle_phase_owner != nullptr
+            : offset >= 0x0DC0U && offset < 0x0DF4U &&
+                actor.action_execution != nullptr;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !full_actor || !request.actor_writable || !owner_known ||
+            offset > image.size() - sizeof(prefix.eax)) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = case_hundred_start ? 0x0047B555U
+                : case_eight_start                          ? 0x0047A628U
+                                                            : 0x00479B30U;
+            prefix.stopped_token = prefix.edi;
+            prefix.eip = prefix.stopped_instruction;
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        std::memcpy(image.data() + offset, &prefix.eax, sizeof(prefix.eax));
+        synchronize_legacy_battle_actor_image_write(
+            actor, image, offset, sizeof(prefix.eax)
+        );
+        --prefix.ecx;
+        prefix.edi = prefix.direction_flag ? prefix.edi - 4U : prefix.edi + 4U;
+    }
+    prefix.status = case_hundred_start
+        ? LegacyBattleActorFrameEntryStatus::
+              case_hundred_particle_decoder_arguments_ready
+        : case_eight_start
+        ? LegacyBattleActorFrameEntryStatus::case_eight_decoder_prepare_ready
+        : LegacyBattleActorFrameEntryStatus::case_two_decoder_prepare_ready;
+    prefix.eip = case_hundred_start ? 0x0047B557U
+        : case_eight_start          ? 0x0047A62AU
+                                    : 0x00479B32U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_decoder_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_two_start = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_two_decoder_prepare_ready &&
+        prefix.eip == 0x00479B32U;
+    const bool case_eight_start = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_eight_decoder_prepare_ready &&
+        prefix.eip == 0x0047A62AU;
+    if (!case_two_start && !case_eight_start) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 token = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                token,
+                request.call_stack_writable
+            )) {
+            return false;
+        }
+        prefix.esp = token;
+        prefix.last_pushed_value = value;
+        prefix.decoder_argument_pushes[prefix.decoder_argument_count++] = value;
+        return true;
+    };
+    const u32 stack_base = prefix.esp;
+    prefix.ecx = stack_base + 0x14U;
+    prefix.eax = stack_base + 0x1CU;
+    if (!push(case_eight_start ? 0x0047A632U : 0x00479B3AU, prefix.ecx)) {
+        return prefix;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            case_eight_start ? 0x0047A633U : 0x00479B3BU,
+            request.actor_token + 0x2548U,
+            actor.action_execution != nullptr && request.actor_readable
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->render_source_token;
+    if (!push(case_eight_start ? 0x0047A639U : 0x00479B41U, prefix.edx) ||
+        !push(case_eight_start ? 0x0047A63AU : 0x00479B42U, prefix.eax)) {
+        return prefix;
+    }
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            case_eight_start ? LegacyBattleActorFrameEntryStatus::
+                                   case_eight_decoder_source_read_typed_stop
+                             : LegacyBattleActorFrameEntryStatus::
+                                   case_two_decoder_source_read_typed_stop,
+            case_eight_start ? 0x0047A63BU : 0x00479B43U,
+            prefix.ecx,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_00_known && request.actor_resource_readable
+        )) {
+        return prefix;
+    }
+    prefix.edx = resource.value_00;
+    if (!push(case_eight_start ? 0x0047A63DU : 0x00479B45U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.status = case_eight_start
+        ? LegacyBattleActorFrameEntryStatus::case_eight_decoder_call_ready
+        : LegacyBattleActorFrameEntryStatus::case_two_decoder_call_ready;
+    prefix.eip = case_eight_start ? 0x0047A63EU : 0x00479B46U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_decoder_call(
+    LegacyBattleActorFrameDecodePort& decoder,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool case_two_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_two_decoder_call_ready &&
+        prefix.eip == 0x00479B46U;
+    const bool case_eight_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_eight_decoder_call_ready &&
+        prefix.eip == 0x0047A63EU;
+    const bool case_fifty_one_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_decoder_call_ready &&
+        prefix.eip == 0x0047B902U;
+    const bool case_hundred_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_decoder_call_ready &&
+        prefix.eip == 0x0047B56BU;
+    if (!case_two_call && !case_eight_call && !case_fifty_one_call &&
+        !case_hundred_call) {
+        return prefix;
+    }
+    const u32 call_ip = case_hundred_call ? 0x0047B56BU
+        : case_eight_call                 ? 0x0047A63EU
+        : case_fifty_one_call             ? 0x0047B902U
+                                          : 0x00479B46U;
+    if (prefix.decoder_argument_count !=
+        prefix.decoder_argument_pushes.size()) {
+        prefix.status = case_hundred_call
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_hundred_decoder_arguments_unbacked
+            : case_eight_call ? LegacyBattleActorFrameEntryStatus::
+                                    case_eight_decoder_arguments_unbacked
+            : case_fifty_one_call
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_fifty_one_decoder_arguments_unbacked
+            : LegacyBattleActorFrameEntryStatus::
+                  case_two_decoder_arguments_unbacked;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    const u32 return_token = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = return_token;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = return_token;
+    prefix.last_pushed_value = case_hundred_call ? 0x0047B570U
+        : case_eight_call                        ? 0x0047A643U
+        : case_fifty_one_call                    ? 0x0047B907U
+                                                 : 0x00479B4BU;
+    prefix.decode_calls = 1U;
+    const std::array<u32, 4U> arguments{
+        prefix.decoder_argument_pushes[3U],
+        prefix.decoder_argument_pushes[2U],
+        prefix.decoder_argument_pushes[1U],
+        prefix.decoder_argument_pushes[0U],
+    };
+    prefix.decoder_child = decoder.decode(
+        arguments, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    const auto& reply = prefix.decoder_child;
+    if (!reply.returned) {
+        // Only an entry stop is representable without the decoder's own
+        // stack and physical writes; never treat it as a token reply.
+        prefix.status = case_hundred_call
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_hundred_decoder_child_typed_stop
+            : case_eight_call     ? LegacyBattleActorFrameEntryStatus::
+                                        case_eight_decoder_child_typed_stop
+            : case_fifty_one_call ? LegacyBattleActorFrameEntryStatus::
+                                        case_fifty_one_decoder_child_typed_stop
+                                  : LegacyBattleActorFrameEntryStatus::
+                                        case_two_decoder_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x004019A0U;
+        prefix.eip = 0x004019A0U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = reply.eax;
+    prefix.ecx = reply.ecx;
+    prefix.edx = reply.edx;
+    prefix.flags = reply.flags;
+    prefix.flags_known = reply.flags_known;
+    prefix.status = case_hundred_call
+        ? LegacyBattleActorFrameEntryStatus::
+              case_hundred_decoder_token_write_ready
+        : case_eight_call ? LegacyBattleActorFrameEntryStatus::
+                                case_eight_decoder_token_write_ready
+        : case_fifty_one_call
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fifty_one_decoder_token_write_ready
+        : LegacyBattleActorFrameEntryStatus::case_two_decoder_token_write_ready;
+    prefix.eip = case_hundred_call ? 0x0047B570U
+        : case_eight_call          ? 0x0047A643U
+        : case_fifty_one_call      ? 0x0047B907U
+                                   : 0x00479B4BU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_decoder_publish(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_two_publish = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_two_decoder_token_write_ready &&
+        prefix.eip == 0x00479B4BU;
+    const bool case_eight_publish = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_eight_decoder_token_write_ready &&
+        prefix.eip == 0x0047A643U;
+    const bool case_hundred_publish = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_decoder_token_write_ready &&
+        prefix.eip == 0x0047B570U;
+    if (!case_two_publish && !case_eight_publish && !case_hundred_publish) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.particle_source_token_owner == nullptr ||
+        actor.residual == nullptr || actor.progress == nullptr ||
+        actor.action_execution == nullptr ||
+        actor.primary_coordinates == nullptr ||
+        actor.base_initialization == nullptr || !request.actor_writable ||
+        (case_hundred_publish && prefix.esi != request.actor_token)) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = case_hundred_publish ? 0x0047B570U
+            : case_eight_publish                          ? 0x0047A643U
+                                                          : 0x00479B4BU;
+        prefix.stopped_token = request.actor_token + 0x0E14U;
+        prefix.eip = prefix.stopped_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    LegacyBattleActorImage image{};
+    materialize_legacy_battle_actor_image(actor, image);
+    std::memcpy(image.data() + 0x0E14U, &prefix.eax, sizeof(prefix.eax));
+    synchronize_legacy_battle_actor_image_write(
+        actor, image, 0x0E14U, sizeof(prefix.eax)
+    );
+    if (actor.particle_phase_owner != nullptr) {
+        actor.particle_phase_owner->emitter.source_pixels =
+            prefix.decoder_child.source_pixels_known
+            ? prefix.decoder_child.source_pixels
+            : std::span<u16>{};
+    }
+    prefix.status = case_hundred_publish
+        ? LegacyBattleActorFrameEntryStatus::
+              case_hundred_post_decoder_source_ready
+        : case_eight_publish ? LegacyBattleActorFrameEntryStatus::
+                                   case_eight_post_decoder_frame_read_ready
+                             : LegacyBattleActorFrameEntryStatus::
+                                   case_two_post_decoder_frame_read_ready;
+    prefix.eip = case_hundred_publish ? 0x0047B576U
+        : case_eight_publish          ? 0x0047A649U
+                                      : 0x00479B51U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_dimensions(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_two_start = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_two_post_decoder_frame_read_ready &&
+        prefix.eip == 0x00479B51U;
+    const bool case_eight_start = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_eight_post_decoder_frame_read_ready &&
+        prefix.eip == 0x0047A649U;
+    if (!case_two_start && !case_eight_start) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_token = [&](const u32 instruction, u32& destination) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                request.actor_token + 0x2548U,
+                actor.action_execution != nullptr && request.actor_readable
+            )) {
+            return false;
+        }
+        destination = actor.action_execution->render_source_token;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 token,
+                                   const u32 offset,
+                                   const bool known,
+                                   const u16 value,
+                                   u16& output) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                case_eight_start ? LegacyBattleActorFrameEntryStatus::
+                                       case_eight_frame_resource_read_typed_stop
+                                 : LegacyBattleActorFrameEntryStatus::
+                                       case_two_frame_resource_read_typed_stop,
+                instruction,
+                token + offset,
+                token != 0U &&
+                    actor.action_execution->resource.token == token && known &&
+                    request.actor_resource_readable
+            )) {
+            return false;
+        }
+        output = value;
+        return true;
+    };
+    const auto write_word =
+        [&](const u32 instruction, const u32 offset, const u16 value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_write,
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    full_actor && actor.particle_phase_owner != nullptr &&
+                        request.actor_writable
+                )) {
+                return false;
+            }
+            std::memcpy(image.data() + offset, &value, sizeof(value));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(value)
+            );
+            return true;
+        };
+    if (!read_token(case_eight_start ? 0x0047A649U : 0x00479B51U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x10U);
+    prefix.flags_known = true;
+    prefix.esp += 0x10U;
+    u16 width{};
+    if (!read_resource(
+            case_eight_start ? 0x0047A652U : 0x00479B5AU,
+            prefix.eax,
+            0x0CU,
+            actor.action_execution->resource.value_0c_known,
+            actor.action_execution->resource.value_0c,
+            width
+        )) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) | width;
+    if (!write_word(
+            case_eight_start ? 0x0047A656U : 0x00479B5EU, 0x0E18U, width
+        ) ||
+        !read_token(case_eight_start ? 0x0047A65DU : 0x00479B65U, prefix.edx)) {
+        return prefix;
+    }
+    u16 height{};
+    if (!read_resource(
+            case_eight_start ? 0x0047A663U : 0x00479B6BU,
+            prefix.edx,
+            0x0EU,
+            actor.action_execution->resource.value_0e_known,
+            actor.action_execution->resource.value_0e,
+            height
+        )) {
+        return prefix;
+    }
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | height;
+    if (!write_word(
+            case_eight_start ? 0x0047A667U : 0x00479B6FU, 0x0E1AU, height
+        )) {
+        return prefix;
+    }
+    prefix.status = case_eight_start
+        ? LegacyBattleActorFrameEntryStatus::case_eight_geometry_ready
+        : LegacyBattleActorFrameEntryStatus::case_two_geometry_ready;
+    prefix.eip = case_eight_start ? 0x0047A66EU : 0x00479B76U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_geometry(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_two_geometry_ready ||
+        prefix.eip != 0x00479B76U) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 source,
+                                const bool owner_known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                request.actor_token + offset,
+                owner_known && request.actor_readable
+            )) {
+            return false;
+        }
+        destination = source;
+        return true;
+    };
+    const auto write_dword =
+        [&](const u32 instruction, const u32 offset, const u32 value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_write,
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    full_actor && actor.particle_phase_owner != nullptr &&
+                        request.actor_writable
+                )) {
+                return false;
+            }
+            std::memcpy(image.data() + offset, &value, sizeof(value));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(value)
+            );
+            return true;
+        };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 token,
+                                   const u32 offset,
+                                   const bool known,
+                                   const u16 value,
+                                   u16& output) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                LegacyBattleActorFrameEntryStatus::
+                    case_two_frame_resource_read_typed_stop,
+                instruction,
+                token + offset,
+                token != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == token && known &&
+                    request.actor_resource_readable
+            )) {
+            return false;
+        }
+        output = value;
+        return true;
+    };
+    if (!read_actor(
+            0x00479B76U,
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    if (!write_dword(0x00479B7FU, 0x0E1CU, prefix.ecx) ||
+        !read_actor(
+            0x00479B85U,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x00479B8BU,
+            0x0D68U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, prefix.edi);
+    prefix.edx -= prefix.edi;
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!write_dword(0x00479B96U, 0x0E20U, prefix.edx) ||
+        !read_actor(
+            0x00479B9CU,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x00479BA2U,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    u16 width{};
+    if (!read_resource(
+            0x00479BA9U,
+            prefix.eax,
+            0x0CU,
+            actor.action_execution->resource.value_0c_known,
+            actor.action_execution->resource.value_0c,
+            width
+        )) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) | width;
+    const u32 before_shift = prefix.ecx;
+    prefix.ecx >>= 1U;
+    prefix.flags = {
+        .carry = (before_shift & 1U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.ecx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.ecx == 0U,
+        .sign = (prefix.ecx & 0x80000000U) != 0U,
+        .overflow = (before_shift & 0x80000000U) != 0U,
+    };
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    prefix.flags = add_flags(prefix.ecx, prefix.edx);
+    prefix.ecx += prefix.edx;
+    if (!write_dword(0x00479BB3U, 0x0E24U, prefix.ecx) ||
+        !read_actor(
+            0x00479BB9U,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x00479BBFU,
+            0x03E4U,
+            prefix.ebp,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    u16 height{};
+    if (!read_resource(
+            0x00479BC7U,
+            prefix.eax,
+            0x0EU,
+            actor.action_execution->resource.value_0e_known,
+            actor.action_execution->resource.value_0e,
+            height
+        )) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) | height;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_two_emitter_flags_ready;
+    prefix.eip = 0x00479BCBU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_emitter_fields(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_two_emitter_flags_ready ||
+        prefix.eip != 0x00479BCBU) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const bool emitter_owned =
+        full_actor && actor.particle_phase_owner != nullptr;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x00479BCBU,
+            request.actor_token + 0x0E3CU,
+            emitter_owned && request.actor_readable
+        )) {
+        return prefix;
+    }
+    const u8 updated_flags = std::to_integer<u8>(image[0x0E3CU]) | 0x16U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_write,
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+            0x00479BCBU,
+            request.actor_token + 0x0E3CU,
+            request.actor_writable
+        )) {
+        return prefix;
+    }
+    image[0x0E3CU] = static_cast<std::byte>(updated_flags);
+    synchronize_legacy_battle_actor_image_write(actor, image, 0x0E3CU, 1U);
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(updated_flags),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = updated_flags == 0U,
+        .sign = (updated_flags & 0x80U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x00479BD2U,
+            request.actor_token + 0x0D68U,
+            actor.primary_coordinates != nullptr && request.actor_readable
+        )) {
+        return prefix;
+    }
+    prefix.edx = static_cast<u32>(static_cast<std::int32_t>(
+        std::bit_cast<std::int16_t>(actor.primary_coordinates->position_y)
+    ));
+    prefix.ecx >>= 1U;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    prefix.eax = 2U;
+    prefix.flags = add_flags(prefix.ecx, prefix.edx);
+    prefix.ecx += prefix.edx;
+    const auto write =
+        [&](const u32 instruction, const u32 offset, const auto value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_write,
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    emitter_owned && request.actor_writable
+                )) {
+                return false;
+            }
+            std::memcpy(image.data() + offset, &value, sizeof(value));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(value)
+            );
+            return true;
+        };
+    if (!write(0x00479BE4U, 0x0E30U, prefix.eax) ||
+        !write(0x00479BEAU, 0x0E2CU, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.ecx = prefix.esi;
+    if (!write(0x00479BF2U, 0x0E28U, prefix.eax) ||
+        !write(0x00479BF8U, 0x0E36U, static_cast<u16>(0x32U)) ||
+        !write(0x00479C01U, 0x0E34U, static_cast<u16>(0xFAU)) ||
+        !write(0x00479C0AU, 0x0E38U, static_cast<u16>(1U)) ||
+        !write(0x00479C13U, 0x0E3AU, static_cast<u16>(0x0AU))) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_two_property_call_ready;
+    prefix.eip = 0x00479C1CU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_property(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_two_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_two_property_call_ready &&
+        prefix.eip == 0x00479C1CU;
+    const bool case_eight_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_eight_property_call_ready &&
+        prefix.eip == 0x0047A70EU;
+    const bool case_hundred_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_attribute_call_ready &&
+        prefix.eip == 0x0047B634U;
+    if (!case_two_call && !case_eight_call && !case_hundred_call) {
+        return prefix;
+    }
+    const u32 call_ip = case_hundred_call ? 0x0047B634U
+        : case_eight_call                 ? 0x0047A70EU
+                                          : 0x00479C1CU;
+    const u32 return_ip = case_hundred_call ? 0x0047B639U
+        : case_eight_call                   ? 0x0047A713U
+                                            : 0x00479C21U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const u32 return_slot = prefix.esp - 4U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            call_ip,
+            return_slot,
+            request.call_stack_writable
+        )) {
+        return prefix;
+    }
+    prefix.esp = return_slot;
+    prefix.last_pushed_value = return_ip;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            case_hundred_call ? LegacyBattleActorFrameEntryStatus::
+                                    case_hundred_attribute_child_read_typed_stop
+                : case_eight_call
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_eight_property_child_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::
+                      case_two_property_child_read_typed_stop,
+            0x0047CE70U,
+            prefix.ecx + 0x2694U,
+            actor.action_execution != nullptr &&
+                prefix.ecx == request.actor_token && request.actor_readable
+        )) {
+        return prefix;
+    }
+    const u8 value = static_cast<u8>(
+        actor.action_execution->presentation_render_flags & 0xFFU
+    );
+    const u32 sign_extended = static_cast<u32>(
+        static_cast<std::int32_t>(std::bit_cast<std::int8_t>(value))
+    );
+    prefix.eax = sign_extended & 1U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.eax)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.eax == 0U,
+        .sign = false,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+            0x0047CE7AU,
+            prefix.esp,
+            request.stack_readable
+        )) {
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.flags = subtract_flags(
+        prefix.eax,
+        case_hundred_call     ? prefix.edi
+            : case_eight_call ? prefix.ebp
+                              : 1U
+    );
+    if (prefix.flags.zero) {
+        const u32 field_token = request.actor_token + 0x0E3CU;
+        const bool full_actor = actor.residual != nullptr &&
+            actor.progress != nullptr && actor.action_execution != nullptr &&
+            actor.primary_coordinates != nullptr &&
+            actor.base_initialization != nullptr &&
+            actor.particle_phase_owner != nullptr;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                case_hundred_call     ? 0x0047B63DU
+                    : case_eight_call ? 0x0047A717U
+                                      : 0x00479C26U,
+                field_token,
+                full_actor && request.actor_readable
+            )) {
+            return prefix;
+        }
+        LegacyBattleActorImage image{};
+        materialize_legacy_battle_actor_image(actor, image);
+        u16 old_flags{};
+        std::memcpy(
+            &old_flags,
+            image.data() + 0x0E3CU,
+            (case_eight_call || case_hundred_call) ? sizeof(u16) : sizeof(u8)
+        );
+        const u16 updated_flags = old_flags |
+            static_cast<u16>(case_hundred_call     ? prefix.edi
+                                 : case_eight_call ? prefix.ebp
+                                                   : 1U);
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_write,
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                case_hundred_call     ? 0x0047B63DU
+                    : case_eight_call ? 0x0047A717U
+                                      : 0x00479C26U,
+                field_token,
+                request.actor_writable
+            )) {
+            return prefix;
+        }
+        const std::size_t width =
+            (case_eight_call || case_hundred_call) ? sizeof(u16) : sizeof(u8);
+        std::memcpy(image.data() + 0x0E3CU, &updated_flags, width);
+        synchronize_legacy_battle_actor_image_write(
+            actor, image, 0x0E3CU, width
+        );
+        prefix.flags = {
+            .carry = false,
+            .parity = even_parity(static_cast<u8>(updated_flags)),
+            .auxiliary_carry = false,
+            .auxiliary_carry_defined = false,
+            .zero = updated_flags == 0U,
+            .sign = (updated_flags &
+                     ((case_eight_call || case_hundred_call) ? 0x8000U
+                                                             : 0x80U)) != 0U,
+            .overflow = false,
+        };
+    }
+    prefix.status = case_hundred_call
+        ? LegacyBattleActorFrameEntryStatus::case_hundred_metrics_iat_read_ready
+        : case_eight_call
+        ? LegacyBattleActorFrameEntryStatus::case_eight_metrics_iat_read_ready
+        : LegacyBattleActorFrameEntryStatus::case_two_metrics_iat_read_ready;
+    prefix.eip = case_hundred_call ? 0x0047B644U
+        : case_eight_call          ? 0x0047A71EU
+                                   : 0x00479C2CU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_metrics(
+    LegacyBattleActorFrameMetricsPort& port,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool case_two_start = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_two_metrics_iat_read_ready &&
+        prefix.eip == 0x00479C2CU;
+    const bool case_eight_start = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_eight_metrics_iat_read_ready &&
+        prefix.eip == 0x0047A71EU;
+    if (!case_two_start && !case_eight_start) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                request.call_stack_writable
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_read,
+            case_eight_start ? LegacyBattleActorFrameEntryStatus::
+                                   case_eight_metrics_iat_read_typed_stop
+                             : LegacyBattleActorFrameEntryStatus::
+                                   case_two_metrics_iat_read_typed_stop,
+            case_eight_start ? 0x0047A71EU : 0x00479C2CU,
+            0x00499214U,
+            request.global_readable && request.system_metrics_iat_known
+        )) {
+        return prefix;
+    }
+    prefix.edi = request.system_metrics_function_token;
+    if (!push(case_eight_start ? 0x0047A724U : 0x00479C32U, 1U) ||
+        !push(
+            case_eight_start ? 0x0047A725U : 0x00479C34U,
+            case_eight_start ? 0x0047A727U : 0x00479C36U
+        )) {
+        return prefix;
+    }
+    ++prefix.metrics_calls;
+    prefix.metrics_child = port.get_system_metrics(
+        1U, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    if (!prefix.metrics_child.returned) {
+        prefix.status = case_eight_start
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_eight_metrics_child_typed_stop
+            : LegacyBattleActorFrameEntryStatus::
+                  case_two_metrics_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = prefix.edi;
+        prefix.eip = prefix.edi;
+        return prefix;
+    }
+    prefix.esp += 8U;  // Win32 stdcall RET 4, plus CALL return slot.
+    prefix.eax = prefix.metrics_child.eax;
+    prefix.ecx = prefix.metrics_child.ecx;
+    prefix.edx = prefix.metrics_child.edx;
+    prefix.flags = prefix.metrics_child.flags;
+    prefix.flags_known = prefix.metrics_child.flags_known;
+    if (!push(case_eight_start ? 0x0047A727U : 0x00479C36U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.metric_height_on_stack = prefix.eax;
+    if (!push(case_eight_start ? 0x0047A728U : 0x00479C37U, prefix.ebx) ||
+        !push(
+            case_eight_start ? 0x0047A729U : 0x00479C38U,
+            case_eight_start ? 0x0047A72BU : 0x00479C3AU
+        )) {
+        return prefix;
+    }
+    ++prefix.metrics_calls;
+    prefix.metrics_child = port.get_system_metrics(
+        prefix.ebx, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    if (!prefix.metrics_child.returned) {
+        prefix.status = case_eight_start
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_eight_metrics_child_typed_stop
+            : LegacyBattleActorFrameEntryStatus::
+                  case_two_metrics_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = prefix.edi;
+        prefix.eip = prefix.edi;
+        return prefix;
+    }
+    prefix.esp += 8U;
+    prefix.eax = prefix.metrics_child.eax;
+    prefix.ecx = prefix.metrics_child.ecx;
+    prefix.edx = prefix.metrics_child.edx;
+    prefix.flags = prefix.metrics_child.flags;
+    prefix.flags_known = prefix.metrics_child.flags_known;
+    if (!push(case_eight_start ? 0x0047A72BU : 0x00479C3AU, prefix.eax)) {
+        return prefix;
+    }
+    prefix.metric_width_on_stack = prefix.eax;
+    prefix.ecx = 0x0053B0B8U;
+    prefix.status = case_eight_start
+        ? LegacyBattleActorFrameEntryStatus::case_eight_rectangle_call_ready
+        : LegacyBattleActorFrameEntryStatus::case_two_rectangle_call_ready;
+    prefix.eip = case_eight_start ? 0x0047A731U : 0x00479C40U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_particle_arguments(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_two_particle_tail_ready ||
+        prefix.eip != 0x0047B6B4U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.global_readable || !request.particle_global_4cd76c_known) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_two_particle_global_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        prefix.stopped_instruction = 0x0047B6B4U;
+        prefix.stopped_token = 0x004CD76CU;
+        prefix.eip = 0x0047B6B4U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.ecx = request.particle_global_4cd76c;
+    prefix.eax = request.actor_token + 0x0E14U;
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = slot;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(0x0047B6C0U, prefix.eax) || !push(0x0047B6C1U, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.particle_global_argument_on_stack = prefix.ecx;
+    prefix.ecx = 0x0053B0B8U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_two_particle_call_ready;
+    prefix.eip = 0x0047B6C7U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_rectangle_call(
+    LegacyBattleActorFrameRectanglePort& port,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool case_two_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_two_rectangle_call_ready &&
+        prefix.eip == 0x00479C40U;
+    const bool case_eight_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_eight_rectangle_call_ready &&
+        prefix.eip == 0x0047A731U;
+    const bool case_hundred_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_rectangle_call_ready &&
+        prefix.eip == 0x0047B66EU;
+    if (!case_two_call && !case_eight_call && !case_hundred_call) {
+        return prefix;
+    }
+    const u32 call_ip = case_hundred_call ? 0x0047B66EU
+        : case_eight_call                 ? 0x0047A731U
+                                          : 0x00479C40U;
+    const u32 return_slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = return_slot;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = return_slot;
+    prefix.last_pushed_value = case_hundred_call ? 0x0047B673U
+        : case_eight_call                        ? 0x0047A736U
+                                                 : 0x00479C45U;
+    ++prefix.rectangle_calls;
+    prefix.rectangle_child = port.set_host_surface(
+        prefix.metric_width_on_stack,
+        prefix.metric_height_on_stack,
+        prefix.ecx,
+        prefix.eax,
+        prefix.ecx,
+        prefix.edx,
+        prefix.flags
+    );
+    if (!prefix.rectangle_child.returned) {
+        prefix.status = case_hundred_call
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_hundred_rectangle_child_typed_stop
+            : case_eight_call ? LegacyBattleActorFrameEntryStatus::
+                                    case_eight_rectangle_child_typed_stop
+                              : LegacyBattleActorFrameEntryStatus::
+                                    case_two_rectangle_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x00433F30U;
+        prefix.eip = 0x00433F30U;
+        return prefix;
+    }
+    prefix.esp += 12U;  // sub_433F30 RET 8 pops two metric results.
+    prefix.eax = prefix.rectangle_child.eax;
+    prefix.ecx = prefix.rectangle_child.ecx;
+    prefix.edx = prefix.rectangle_child.edx;
+    prefix.flags = prefix.rectangle_child.flags;
+    prefix.flags_known = prefix.rectangle_child.flags_known;
+    prefix.status = case_hundred_call
+        ? LegacyBattleActorFrameEntryStatus::
+              case_hundred_post_rectangle_sample_ready
+        : case_eight_call
+        ? LegacyBattleActorFrameEntryStatus::case_eight_sample_handle_read_ready
+        : LegacyBattleActorFrameEntryStatus::case_two_sample_code_write_ready;
+    prefix.eip = case_hundred_call ? 0x0047B673U
+        : case_eight_call          ? 0x0047A736U
+                                   : 0x00479C45U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_sample_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_two_sample_code_write_ready ||
+        prefix.eip != 0x00479C45U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x00479C45U;
+        prefix.stopped_token = request.actor_token + 0x0428U;
+        prefix.eip = 0x00479C45U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.action_execution->reserved_action_record_02.field_58 = 0x31U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.shared_action == nullptr || !request.global_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        prefix.stopped_instruction = 0x00479C4EU;
+        prefix.stopped_token = 0x004AB784U;
+        prefix.eip = 0x00479C4EU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax = actor.shared_action->sample_handle;
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = slot;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(0x00479C53U, prefix.eax) || !push(0x00479C54U, 0x31U)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_two_sample_call_ready;
+    prefix.eip = 0x00479C56U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_sample_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool case_two_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_two_sample_call_ready &&
+        prefix.eip == 0x00479C56U;
+    const bool case_eight_call = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_eight_sample_call_ready &&
+        prefix.eip == 0x0047A73EU;
+    if (!case_two_call && !case_eight_call) {
+        return prefix;
+    }
+    const u32 call_ip = case_eight_call ? 0x0047A73EU : 0x00479C56U;
+    const u32 return_slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = return_slot;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = return_slot;
+    prefix.last_pushed_value = case_eight_call ? 0x0047A743U : 0x00479C5BU;
+    ++prefix.sample_calls;
+    auto callee = prefix;
+    if (!read_sound_callee_arguments(request, callee, prefix.eax, 0x31U)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    prefix.sample_child = callee.sample_child.returned ? callee.sample_child
+                                                       : sound.play_sample(
+                                                             0x31U,
+                                                             prefix.eax,
+                                                             prefix.eax,
+                                                             prefix.ecx,
+                                                             prefix.edx,
+                                                             prefix.flags
+                                                         );
+    if (!prefix.sample_child.returned) {
+        prefix.accesses_completed -=
+            16U;  // Entry-only stop precedes both nested callee reads.
+        prefix.status = case_eight_call ? LegacyBattleActorFrameEntryStatus::
+                                              case_eight_audio_child_typed_stop
+                                        : LegacyBattleActorFrameEntryStatus::
+                                              case_two_audio_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x00485610U;
+        prefix.eip = 0x00485610U;
+        return prefix;
+    }
+    prefix.esp += 4U;  // sub_485610 RET does not clean its parent's args.
+    prefix.eax = prefix.sample_child.eax;
+    prefix.ecx = prefix.sample_child.ecx;
+    prefix.edx = prefix.sample_child.edx;
+    prefix.flags = add_flags(prefix.esp, 8U);
+    prefix.flags_known = true;
+    prefix.esp += 8U;
+    prefix.status = case_eight_call
+        ? LegacyBattleActorFrameEntryStatus::case_eight_sample_phase_write_ready
+        : LegacyBattleActorFrameEntryStatus::case_two_sample_phase_write_ready;
+    prefix.eip = case_eight_call ? 0x0047A746U : 0x00479C5EU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_sample_phase(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_two_phase = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_two_sample_phase_write_ready &&
+        prefix.eip == 0x00479C5EU;
+    const bool case_eight_phase = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_eight_sample_phase_write_ready &&
+        prefix.eip == 0x0047A746U;
+    if (!case_two_phase && !case_eight_phase) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction =
+            case_eight_phase ? 0x0047A746U : 0x00479C5EU;
+        prefix.stopped_token = request.actor_token + 0x2958U;
+        prefix.eip = prefix.stopped_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.action_execution->turn_threshold = 1U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_two_particle_tail_ready;
+    prefix.eip = 0x0047B6B4U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_particle_call(
+    LegacyBattleActorFrameParticlePort& port,
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_two_particle_call_ready ||
+        prefix.eip != 0x0047B6C7U) {
+        return prefix;
+    }
+    const u32 return_slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x0047B6C7U;
+        prefix.stopped_token = return_slot;
+        prefix.eip = 0x0047B6C7U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = return_slot;
+    prefix.last_pushed_value = 0x0047B6CCU;
+    const bool canonical_owner = actor.particle_phase_owner != nullptr &&
+        actor.particle_source_token_owner ==
+            &actor.particle_phase_owner->decoded_resource_token;
+    if (!canonical_owner) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_two_particle_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x00434790U;
+        prefix.eip = 0x00434790U;
+        return prefix;
+    }
+    ++prefix.particle_calls;
+    prefix.particle_child = port.update_particles(
+        *actor.particle_phase_owner,
+        prefix.particle_global_argument_on_stack,
+        prefix.eax,
+        prefix.ecx,
+        prefix.eax,
+        prefix.ecx,
+        prefix.edx,
+        prefix.flags
+    );
+    if (!prefix.particle_child.returned) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_two_particle_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x00434790U;
+        prefix.eip = 0x00434790U;
+        return prefix;
+    }
+    prefix.esp += 12U;  // sub_434790 RET 8 pops both caller arguments.
+    prefix.eax = prefix.particle_child.eax;
+    prefix.ecx = prefix.particle_child.ecx;
+    prefix.edx = prefix.particle_child.edx;
+    prefix.flags = prefix.particle_child.flags;
+    prefix.flags_known = prefix.particle_child.flags_known;
+    prefix.flags = subtract_flags(prefix.eax, 1U);
+    prefix.flags_known = true;
+    prefix.status = prefix.eax == 1U
+        ? LegacyBattleActorFrameEntryStatus::
+              case_two_particle_phase_100_write_ready
+        : LegacyBattleActorFrameEntryStatus::update_selector_default_ready;
+    prefix.eip = prefix.eax == 1U ? 0x0047B6D5U : 0x0047A80BU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_two_particle_return(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_two_particle_phase_100_write_ready ||
+        prefix.eip != 0x0047B6D5U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x0047B6D5U;
+        prefix.stopped_token = request.actor_token + 0x2958U;
+        prefix.eip = 0x0047B6D5U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.action_execution->turn_threshold = 100U;
+    const auto pop = [&](const u32 instruction, u32& target, const u32 saved) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.stack_readable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = prefix.esp;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        target = saved;
+        prefix.esp += 4U;
+        return true;
+    };
+    if (!pop(0x0047B6DEU, prefix.edi, request.entry_edi) ||
+        !pop(0x0047B6DFU, prefix.esi, request.entry_esi) ||
+        !pop(0x0047B6E0U, prefix.ebp, request.entry_ebp)) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!pop(0x0047B6E3U, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047B6E7U;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = 0x0047B6E7U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_two_particle_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_nine_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x0047A752U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047A752U;
+        prefix.stopped_token = request.actor_token + 0x2958U;
+        prefix.eip = 0x0047A752U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 phase = actor.action_execution->turn_threshold;
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | phase;
+    prefix.flags = subtract_flags_16(phase, 45U);
+    prefix.flags_known = true;
+    if (prefix.flags.sign != prefix.flags.overflow) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_nine_active_ready;
+        prefix.eip = 0x0047A763U;
+        return prefix;
+    }
+    const auto write_word =
+        [&](const u32 instruction, const u32 offset, u16& owner) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.actor_writable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::actor_write;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = request.actor_token + offset;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            owner = static_cast<u16>(prefix.ebx);
+            return true;
+        };
+    if (!write_word(
+            0x0047A253U, 0x2958U, actor.action_execution->turn_threshold
+        ) ||
+        !write_word(
+            0x0047A25AU, 0x2954U, actor.action_execution->motion_word
+        )) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_reset_progress_write_ready;
+    prefix.eip = 0x0047B808U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_nine_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_nine_active_ready ||
+        prefix.eip != 0x0047A763U) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+    );
+    prefix.flags_known = true;
+    if (!prefix.flags.zero) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_nine_source_ready;
+        prefix.eip = 0x0047A779U;
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.shared_action == nullptr || !request.global_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        prefix.stopped_instruction = 0x0047A768U;
+        prefix.stopped_token = 0x004AB784U;
+        prefix.eip = 0x0047A768U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.edx = actor.shared_action->sample_handle;
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = slot;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(0x0047A76EU, prefix.edx) || !push(0x0047A76FU, 0x31U)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_nine_audio_call_ready;
+    prefix.eip = 0x0047A771U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_nine_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_nine_audio_call_ready ||
+        prefix.eip != 0x0047A771U) {
+        return prefix;
+    }
+    const u32 return_slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x0047A771U;
+        prefix.stopped_token = return_slot;
+        prefix.eip = 0x0047A771U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = return_slot;
+    prefix.last_pushed_value = 0x0047A776U;
+    ++prefix.sample_calls;
+    auto callee = prefix;
+    if (!read_sound_callee_arguments(request, callee, prefix.edx, 0x31U)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    prefix.sample_child = callee.sample_child.returned ? callee.sample_child
+                                                       : sound.play_sample(
+                                                             0x31U,
+                                                             prefix.edx,
+                                                             prefix.eax,
+                                                             prefix.ecx,
+                                                             prefix.edx,
+                                                             prefix.flags
+                                                         );
+    if (!prefix.sample_child.returned) {
+        prefix.accesses_completed -=
+            16U;  // Entry-only stop precedes both nested callee reads.
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_nine_audio_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x00485610U;
+        prefix.eip = 0x00485610U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.sample_child.eax;
+    prefix.ecx = prefix.sample_child.ecx;
+    prefix.edx = prefix.sample_child.edx;
+    prefix.flags = add_flags(prefix.esp, 8U);
+    prefix.flags_known = true;
+    prefix.esp += 8U;
+    prefix.status = LegacyBattleActorFrameEntryStatus::case_nine_source_ready;
+    prefix.eip = 0x0047A779U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_nine_source_and_opacity(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_nine_source_ready ||
+        prefix.eip != 0x0047A779U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047A779U,
+            request.actor_token + 0x2548U,
+            actor.action_execution != nullptr && request.actor_readable
+        )) {
+        return prefix;
+    }
+    prefix.eax = actor.action_execution->render_source_token;
+    const u32 stack_slot = prefix.esp - 4U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            0x0047A77FU,
+            stack_slot,
+            request.call_stack_writable
+        )) {
+        return prefix;
+    }
+    prefix.esp = stack_slot;
+    prefix.last_pushed_value = prefix.ebx;
+    prefix.draw_auxiliary_value = prefix.ebx;
+    prefix.draw_auxiliary_pushed = true;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_nine_source_resource_read_typed_stop,
+            0x0047A780U,
+            prefix.eax,
+            prefix.eax != 0U &&
+                actor.action_execution->resource.token == prefix.eax &&
+                actor.action_execution->resource.value_00_known &&
+                request.actor_resource_readable
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->resource.value_00;
+    prefix.eax = 0x55555556U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+            0x0047A787U,
+            0x004CD730U,
+            actor.shared_action != nullptr && request.global_writable
+        )) {
+        return prefix;
+    }
+    actor.shared_action->turn_frame_source_token = prefix.ecx;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047A78DU,
+            request.actor_token + 0x2958U,
+            request.actor_readable
+        )) {
+        return prefix;
+    }
+    prefix.ecx = static_cast<u32>(static_cast<std::int32_t>(
+        std::bit_cast<std::int16_t>(actor.action_execution->turn_threshold)
+    ));
+    const std::int64_t product = static_cast<std::int64_t>(0x55555556U) *
+        static_cast<std::int64_t>(std::bit_cast<std::int32_t>(prefix.ecx));
+    const std::uint64_t product_bits = std::bit_cast<std::uint64_t>(product);
+    prefix.edx = static_cast<u32>(product_bits >> 32U);
+    prefix.eax = prefix.edx;
+    prefix.ecx = 15U;
+    prefix.eax = prefix.edx + (prefix.eax >> 31U) + 1U;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.eax);
+    prefix.ecx -= prefix.eax;
+    prefix.flags_known = true;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+            0x0047A7A6U,
+            0x004CD724U,
+            actor.shared_action != nullptr && request.global_writable
+        )) {
+        return prefix;
+    }
+    actor.shared_action->draw_opacity = prefix.eax;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+            0x0047A7ABU,
+            0x004CC2F0U,
+            request.global_writable
+        )) {
+        return prefix;
+    }
+    actor.shared_action->special_render_mode = prefix.ecx;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_nine_draw_flags_ready;
+    prefix.eip = 0x0047A7B1U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_nine_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_nine_draw_flags_ready ||
+        prefix.eip != 0x0047A7B1U) {
+        return prefix;
+    }
+    if (!prefix.draw_auxiliary_pushed) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_nine_draw_arguments_unbacked;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047A7B1U;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool accessible) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !accessible) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 source,
+                                const bool owner_known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                request.actor_token + offset,
+                owner_known && request.actor_readable
+            )) {
+            return false;
+        }
+        destination = source;
+        return true;
+    };
+    const auto read_frame = [&](const u32 instruction,
+                                const u32 token,
+                                const u32 offset,
+                                const bool known,
+                                const u16 value,
+                                u32& destination) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                LegacyBattleActorFrameEntryStatus::
+                    case_nine_draw_resource_read_typed_stop,
+                instruction,
+                token + offset,
+                token != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == token && known &&
+                    request.actor_resource_readable
+            )) {
+            return false;
+        }
+        destination = (destination & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                request.call_stack_writable
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    if (!read_actor(
+            0x0047A7B1U,
+            0x2694U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A7B7U,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx |= 0x14U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edx == 0U,
+        .sign = (prefix.edx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!push(0x0047A7C0U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_frame(
+            0x0047A7C3U,
+            prefix.eax,
+            0x0EU,
+            actor.action_execution->resource.value_0e_known,
+            actor.action_execution->resource.value_0e,
+            prefix.ecx
+        )) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_frame(
+            0x0047A7C9U,
+            prefix.eax,
+            0x0CU,
+            actor.action_execution->resource.value_0c_known,
+            actor.action_execution->resource.value_0c,
+            prefix.edx
+        ) ||
+        !push(0x0047A7CDU, prefix.ecx) ||
+        !read_actor(
+            0x0047A7CEU,
+            0x0D68U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            0x0047A7D5U,
+            0x29B2U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->source_y_offset),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(0x0047A7DCU, prefix.edx) ||
+        !read_actor(
+            0x0047A7DDU,
+            0x02B4U,
+            prefix.edx,
+            actor.action_execution->frame_source_action_record.draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    if (!read_actor(
+            0x0047A7E5U,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, prefix.ecx);
+    prefix.edx -= prefix.ecx;
+    if (!push(0x0047A7EEU, prefix.eax) || !push(0x0047A7EFU, prefix.edx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_nine_draw_call_ready;
+    prefix.eip = 0x0047A7F0U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_nine_draw_call(
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_nine_draw_call_ready ||
+        prefix.eip != 0x0047A7F0U) {
+        return prefix;
+    }
+    if (!prefix.draw_auxiliary_pushed ||
+        prefix.draw_argument_count != prefix.draw_argument_pushes.size()) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_nine_draw_arguments_unbacked;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047A7F0U;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    const u32 return_slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x0047A7F0U;
+        prefix.stopped_token = return_slot;
+        prefix.eip = 0x0047A7F0U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = return_slot;
+    prefix.last_pushed_value = 0x0047A7F5U;
+    ++prefix.draw_calls;
+    const std::size_t pre_callee_accesses = prefix.accesses_completed;
+    auto callee = prefix;
+    if (!read_draw_callee_global(request, callee)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    const std::array<u32, 6U> arguments{
+        prefix.draw_argument_pushes[4U],
+        prefix.draw_argument_pushes[3U],
+        prefix.draw_argument_pushes[2U],
+        prefix.draw_argument_pushes[1U],
+        prefix.draw_argument_pushes[0U],
+        prefix.draw_auxiliary_value,
+    };
+    prefix.draw_child = draw.draw_frame(
+        arguments, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    if (!prefix.draw_child.returned) {
+        prefix.accesses_completed = pre_callee_accesses;
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_nine_draw_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x004170E0U;
+        prefix.eip = 0x004170E0U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.draw_child.eax;
+    prefix.ecx = prefix.draw_child.ecx;
+    prefix.edx = prefix.draw_child.edx;
+    prefix.flags = add_flags(prefix.esp, 0x18U);
+    prefix.flags_known = true;
+    prefix.esp += 0x18U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_nine_draw_globals_ready;
+    prefix.eip = 0x0047A7F8U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_nine_finish(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_nine_draw_globals_ready ||
+        prefix.eip != 0x0047A7F8U) {
+        return prefix;
+    }
+    const auto write_global =
+        [&](const u32 instruction, const u32 token, u32& owner) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.global_writable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::global_write;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = token;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            owner = prefix.ebx;
+            return true;
+        };
+    if (actor.shared_action == nullptr) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_write;
+        prefix.stopped_instruction = 0x0047A7F8U;
+        prefix.stopped_token = 0x004CC2F0U;
+        prefix.eip = 0x0047A7F8U;
+        return prefix;
+    }
+    if (!write_global(
+            0x0047A7F8U, 0x004CC2F0U, actor.shared_action->special_render_mode
+        ) ||
+        !write_global(
+            0x0047A7FEU, 0x004CD724U, actor.shared_action->draw_opacity
+        )) {
+        return prefix;
+    }
+    const u32 phase_token = request.actor_token + 0x2958U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047A804U;
+        prefix.stopped_token = phase_token;
+        prefix.eip = 0x0047A804U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 before = actor.action_execution->turn_threshold;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.actor_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x0047A804U;
+        prefix.stopped_token = phase_token;
+        prefix.eip = 0x0047A804U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.action_execution->turn_threshold = static_cast<u16>(before + 1U);
+    auto inc_flags = add_flags_16(before, 1U);
+    inc_flags.carry = prefix.flags.carry;  // INC does not change CF.
+    prefix.flags = inc_flags;
+    prefix.flags_known = true;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::update_selector_default_ready;
+    prefix.eip = 0x0047A80BU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eight_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x0047A5FEU) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047A5FEU;
+        prefix.stopped_token = request.actor_token + 0x2958U;
+        prefix.eip = 0x0047A5FEU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.flags = subtract_flags_16(
+        actor.action_execution->turn_threshold, static_cast<u16>(prefix.ecx)
+    );
+    prefix.flags_known = true;
+    if (prefix.flags.zero) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_two_release_ready;
+        prefix.eip = 0x00479C6CU;
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.particle_source_token_owner == nullptr ||
+        !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047A60BU;
+        prefix.stopped_token = request.actor_token + 0x0E14U;
+        prefix.eip = 0x0047A60BU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.flags =
+        subtract_flags(*actor.particle_source_token_owner, prefix.ebx);
+    prefix.status = prefix.flags.zero
+        ? LegacyBattleActorFrameEntryStatus::case_eight_particle_init_ready
+        : LegacyBattleActorFrameEntryStatus::case_two_particle_tail_ready;
+    prefix.eip = prefix.flags.zero ? 0x0047A617U : 0x0047B6B4U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eight_geometry(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_eight_geometry_ready ||
+        prefix.eip != 0x0047A66EU) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto touch = [&](const bool write,
+                           const u32 instruction,
+                           const u32 offset,
+                           const bool backed) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed ||
+            (write ? !request.actor_writable : !request.actor_readable)) {
+            prefix.status = write
+                ? LegacyBattleActorFrameEntryStatus::actor_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+            prefix.stopped_access_kind = write
+                ? LegacyBattleActorFrameEntryAccessKind::actor_write
+                : LegacyBattleActorFrameEntryAccessKind::actor_read;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = request.actor_token + offset;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto write_dword =
+        [&](const u32 instruction, const u32 offset, const u32 value) {
+            if (!touch(
+                    true,
+                    instruction,
+                    offset,
+                    full_actor && actor.particle_phase_owner != nullptr
+                )) {
+                return false;
+            }
+            std::memcpy(image.data() + offset, &value, sizeof(value));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(value)
+            );
+            return true;
+        };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    if (!touch(
+            false, 0x0047A66EU, 0x0D66U, actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = signed_word(actor.primary_coordinates->position_x);
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    if (!write_dword(0x0047A677U, 0x0E1CU, prefix.ecx) ||
+        !touch(
+            false, 0x0047A67DU, 0x03E4U, actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx =
+        actor.action_execution->reserved_action_record_02.draw_offset_y;
+    if (!touch(
+            false, 0x0047A683U, 0x0D68U, actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx = signed_word(actor.primary_coordinates->position_y);
+    prefix.flags = subtract_flags(prefix.edx, prefix.ecx);
+    prefix.edx -= prefix.ecx;
+    if (!write_dword(0x0047A68CU, 0x0E20U, prefix.edx) ||
+        !write_dword(0x0047A692U, 0x0E24U, 0xFFFFFFE2U) ||
+        !touch(false, 0x0047A69CU, 0x2B08U, actor.progress != nullptr)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(actor.progress->post_action_value, 1U);
+    prefix.flags_known = true;
+    if (prefix.flags.zero && !write_dword(0x0047A6A5U, 0x0E24U, 0x29EU)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_eight_geometry_value_ready;
+    prefix.eip = 0x0047A6AFU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eight_fields(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_eight_geometry_value_ready ||
+        prefix.eip != 0x0047A6AFU) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr &&
+        actor.particle_phase_owner != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto touch = [&](const bool write,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed,
+                           const bool resource = false) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed ||
+            (resource    ? !request.actor_resource_readable
+                 : write ? !request.actor_writable
+                         : !request.actor_readable)) {
+            prefix.status = resource
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_eight_frame_resource_read_typed_stop
+                : write
+                ? LegacyBattleActorFrameEntryStatus::actor_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+            prefix.stopped_access_kind = resource
+                ? LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                : write ? LegacyBattleActorFrameEntryAccessKind::actor_write
+                        : LegacyBattleActorFrameEntryAccessKind::actor_read;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto write_field = [&](const u32 instruction,
+                                 const u32 offset,
+                                 const u32 value,
+                                 const std::size_t size) {
+        if (!touch(
+                true, instruction, request.actor_token + offset, full_actor
+            )) {
+            return false;
+        }
+        std::memcpy(image.data() + offset, &value, size);
+        synchronize_legacy_battle_actor_image_write(actor, image, offset, size);
+        return true;
+    };
+    if (!touch(false, 0x0047A6AFU, request.actor_token + 0x0E20U, full_actor)) {
+        return prefix;
+    }
+    std::memcpy(&prefix.eax, image.data() + 0x0E20U, sizeof(u32));
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags = subtract_flags(prefix.eax, 10U);
+    prefix.eax -= 10U;
+    prefix.ebp = 1U;
+    if (!write_field(0x0047A6BFU, 0x0E2CU, prefix.eax, sizeof(u32)) ||
+        !write_field(0x0047A6C5U, 0x0E28U, 2U, sizeof(u32)) ||
+        !touch(
+            false,
+            0x0047A6CFU,
+            request.actor_token + 0x2548U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->render_source_token;
+    prefix.eax = 100U;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            false,
+            0x0047A6DAU,
+            prefix.ecx + 0x0EU,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_0e_known,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.edx = (prefix.edx & 0xFFFF0000U) | resource.value_0e;
+    if (!touch(false, 0x0047A6DEU, request.actor_token + 0x0E3CU, full_actor)) {
+        return prefix;
+    }
+    const u8 old_flags = std::to_integer<u8>(image[0x0E3CU]);
+    const u8 new_flags = old_flags | 0x16U;
+    if (!write_field(0x0047A6DEU, 0x0E3CU, new_flags, sizeof(u8))) {
+        return prefix;
+    }
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(new_flags),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = new_flags == 0U,
+        .sign = (new_flags & 0x80U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags = add_flags(prefix.edx, 10U);
+    prefix.edx += 10U;
+    prefix.ecx = prefix.esi;
+    if (!write_field(0x0047A6EAU, 0x0E30U, prefix.edx, sizeof(u32)) ||
+        !write_field(0x0047A6F0U, 0x0E36U, prefix.eax, sizeof(u16)) ||
+        !write_field(0x0047A6F7U, 0x0E34U, prefix.eax, sizeof(u16)) ||
+        !write_field(0x0047A6FEU, 0x0E38U, prefix.ebp, sizeof(u16)) ||
+        !write_field(0x0047A705U, 0x0E3AU, 10U, sizeof(u16))) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_eight_property_call_ready;
+    prefix.eip = 0x0047A70EU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eight_sample_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_eight_sample_handle_read_ready ||
+        prefix.eip != 0x0047A736U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.shared_action == nullptr || !request.global_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        prefix.stopped_instruction = 0x0047A736U;
+        prefix.stopped_token = 0x004AB784U;
+        prefix.eip = 0x0047A736U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax = actor.shared_action->sample_handle;
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = slot;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(0x0047A73BU, prefix.eax) || !push(0x0047A73CU, 0x31U)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_eight_sample_call_ready;
+    prefix.eip = 0x0047A73EU;
+    return prefix;
+}
+
+namespace {
+LegacyBattleActorFrameEntryResult continue_negative_thirtytwo_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix,
+    const u32 entry_instruction,
+    const u32 active_instruction,
+    const LegacyBattleActorFrameEntryStatus active_status
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != entry_instruction) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = entry_instruction;
+        prefix.stopped_token = request.actor_token + 0x2958U;
+        prefix.eip = entry_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 phase = actor.action_execution->turn_threshold;
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | phase;
+    prefix.flags = subtract_flags_16(phase, 0xFFE0U);
+    prefix.flags_known = true;
+    if (!prefix.flags.zero && prefix.flags.sign == prefix.flags.overflow) {
+        prefix.status = active_status;
+        prefix.eip = active_instruction;
+        return prefix;
+    }
+    const auto write_word =
+        [&](const u32 instruction, const u32 offset, u16& owner) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.actor_writable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::actor_write;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = request.actor_token + offset;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            owner = static_cast<u16>(prefix.ebx);
+            return true;
+        };
+    if (!write_word(
+            0x0047A253U, 0x2958U, actor.action_execution->turn_threshold
+        ) ||
+        !write_word(
+            0x0047A25AU, 0x2954U, actor.action_execution->motion_word
+        )) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_reset_progress_write_ready;
+    prefix.eip = 0x0047B808U;
+    return prefix;
+}
+}  // namespace
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_six_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_negative_thirtytwo_header(
+        actor,
+        request,
+        prefix,
+        0x0047A1A0U,
+        0x0047A1B1U,
+        LegacyBattleActorFrameEntryStatus::case_six_active_ready
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eleven_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_negative_thirtytwo_header(
+        actor,
+        request,
+        prefix,
+        0x0047A94DU,
+        0x0047A95EU,
+        LegacyBattleActorFrameEntryStatus::case_eleven_active_ready
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifteen_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_negative_thirtytwo_header(
+        actor,
+        request,
+        prefix,
+        0x0047B2E8U,
+        0x0047B2F9U,
+        LegacyBattleActorFrameEntryStatus::case_fifteen_active_ready
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x0047B747U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047B747U;
+        prefix.stopped_token = request.actor_token + 0x2958U;
+        prefix.eip = 0x0047B747U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 phase = actor.action_execution->turn_threshold;
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | phase;
+    prefix.flags = subtract_flags_16(phase, 0x000FU);
+    prefix.flags_known = true;
+    if (prefix.flags.zero || prefix.flags.sign == prefix.flags.overflow) {
+        prefix.eip = 0x0047B801U;
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::case_fifty_active_ready;
+    prefix.eip = 0x0047B758U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x0047B83EU) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047B83EU;
+        prefix.stopped_token = request.actor_token + 0x2958U;
+        prefix.eip = 0x0047B83EU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax =
+        (prefix.eax & 0xFFFF0000U) | actor.action_execution->turn_threshold;
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ecx)
+    );
+    prefix.flags_known = true;
+    if (prefix.flags.sign == prefix.flags.overflow) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_fifty_one_reset_ready;
+        prefix.eip = 0x0047B98EU;
+        return prefix;
+    }
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+    );
+    prefix.status = prefix.flags.zero
+        ? LegacyBattleActorFrameEntryStatus::case_fifty_one_init_ready
+        : LegacyBattleActorFrameEntryStatus::case_fifty_one_tail_ready;
+    prefix.eip = prefix.flags.zero ? 0x0047B857U : 0x0047B92CU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_initialize(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fifty_one_init_ready ||
+        prefix.eip != 0x0047B857U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::actor_write
+            ? request.actor_writable
+            : request.actor_resource_readable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B857U,
+            request.actor_token + 0x2548U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = actor.action_execution->render_source_token;
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_write,
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+            0x0047B85FU,
+            request.actor_token + 0x0DD8U,
+            true
+        )) {
+        return prefix;
+    }
+    actor.action_execution->case_fifty_one_scale_x = 0x400U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_write,
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+            0x0047B869U,
+            request.actor_token + 0x0DDCU,
+            true
+        )) {
+        return prefix;
+    }
+    actor.action_execution->case_fifty_one_scale_y = 0x400U;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_resource_read_typed_stop,
+            0x0047B873U,
+            prefix.eax + 0x0CU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) | resource.value_0c;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_one_geometry_ready;
+    prefix.eip = 0x0047B877U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_geometry(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fifty_one_geometry_ready ||
+        prefix.eip != 0x0047B877U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::actor_write
+            ? request.actor_writable
+            : request.actor_resource_readable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto write = [&](const u32 instruction,
+                           const u32 offset,
+                           auto& owner,
+                           const auto value) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_write,
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                instruction,
+                request.actor_token + offset,
+                actor.action_execution != nullptr
+            )) {
+            return false;
+        }
+        owner = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 offset,
+                                   const bool known,
+                                   u32& destination,
+                                   const u16 value) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                LegacyBattleActorFrameEntryStatus::
+                    case_fifty_one_geometry_resource_typed_stop,
+                instruction,
+                prefix.eax + offset,
+                prefix.eax != 0U &&
+                    actor.action_execution->resource.token == prefix.eax &&
+                    known
+            )) {
+            return false;
+        }
+        destination = (destination & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto shr_one = [&](u32& register_value) {
+        const u32 old = register_value;
+        register_value >>= 1U;
+        prefix.flags = {
+            .carry = (old & 1U) != 0U,
+            .parity = even_parity(static_cast<u8>(register_value)),
+            .auxiliary_carry = false,
+            .auxiliary_carry_defined = false,
+            .zero = register_value == 0U,
+            .sign = (register_value & 0x80000000U) != 0U,
+            .overflow = (old & 0x80000000U) != 0U,
+        };
+        prefix.flags_known = true;
+    };
+    if (actor.action_execution == nullptr) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x0047B87BU;
+        prefix.stopped_token = request.actor_token + 0x0DC0U;
+        prefix.eip = 0x0047B87BU;
+        return prefix;
+    }
+    auto& owner = *actor.action_execution;
+    const auto& resource = owner.resource;
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    shr_one(prefix.ecx);
+    if (!write(
+            0x0047B87BU, 0x0DC0U, owner.case_fifty_one_half_width, prefix.ecx
+        ) ||
+        !read_resource(
+            0x0047B881U,
+            0x0EU,
+            resource.value_0e_known,
+            prefix.edx,
+            resource.value_0e
+        ) ||
+        !write(
+            0x0047B885U, 0x0DC4U, owner.case_fifty_one_height_dword, prefix.edx
+        ) ||
+        !read_resource(
+            0x0047B88BU,
+            0x0CU,
+            resource.value_0c_known,
+            prefix.ecx,
+            resource.value_0c
+        ) ||
+        !write(
+            0x0047B88FU,
+            0x0DBCU,
+            owner.case_fifty_one_width,
+            static_cast<u16>(prefix.ecx)
+        ) ||
+        !read_resource(
+            0x0047B896U,
+            0x0EU,
+            resource.value_0e_known,
+            prefix.edx,
+            resource.value_0e
+        )) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!write(
+            0x0047B89CU,
+            0x0DBEU,
+            owner.case_fifty_one_height,
+            static_cast<u16>(prefix.edx)
+        ) ||
+        !read_resource(
+            0x0047B8A3U,
+            0x0CU,
+            resource.value_0c_known,
+            prefix.ecx,
+            resource.value_0c
+        ) ||
+        !write(
+            0x0047B8A7U,
+            0x0DE0U,
+            owner.case_fifty_one_flags,
+            static_cast<u16>(0x16U)
+        )) {
+        return prefix;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B8B0U,
+            request.actor_token + 0x0D66U,
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx = signed_word(actor.primary_coordinates->position_x);
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B8B7U,
+            request.actor_token + 0x0D68U,
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = signed_word(actor.primary_coordinates->position_y);
+    shr_one(prefix.ecx);
+    prefix.flags = subtract_flags(prefix.edx, prefix.ecx);
+    prefix.edx -= prefix.ecx;
+    prefix.ecx = prefix.esi;
+    if (!write(
+            0x0047B8C4U, 0x0DC8U, owner.case_fifty_one_origin_x, prefix.edx
+        ) ||
+        !write(
+            0x0047B8CAU, 0x0DCCU, owner.case_fifty_one_origin_y, prefix.eax
+        )) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_one_particle_call_ready;
+    prefix.eip = 0x0047B8D0U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_property(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_particle_call_ready ||
+        prefix.eip != 0x0047B8D0U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::actor_write
+            ? request.actor_writable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+            ? request.stack_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const u32 return_slot = prefix.esp - 4U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            0x0047B8D0U,
+            return_slot,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.esp = return_slot;
+    prefix.last_pushed_value = 0x0047B8D5U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_property_child_read_typed_stop,
+            0x0047CE70U,
+            prefix.ecx + 0x2694U,
+            actor.action_execution != nullptr &&
+                prefix.ecx == request.actor_token
+        )) {
+        return prefix;
+    }
+    const auto byte =
+        static_cast<u8>(actor.action_execution->presentation_render_flags);
+    prefix.eax = static_cast<u32>(
+                     static_cast<std::int32_t>(std::bit_cast<std::int8_t>(byte))
+                 ) &
+        1U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.eax)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.eax == 0U,
+        .sign = false,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+            0x0047CE7AU,
+            prefix.esp,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.flags = subtract_flags(prefix.eax, 1U);
+    if (prefix.flags.zero) {
+        const u32 token = request.actor_token + 0x0DE0U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                0x0047B8DAU,
+                token,
+                actor.action_execution != nullptr
+            )) {
+            return prefix;
+        }
+        const u8 original =
+            static_cast<u8>(actor.action_execution->case_fifty_one_flags);
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_write,
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                0x0047B8DAU,
+                token,
+                actor.action_execution != nullptr
+            )) {
+            return prefix;
+        }
+        const auto updated = static_cast<u8>(original | prefix.eax);
+        actor.action_execution->case_fifty_one_flags = static_cast<u16>(
+            (actor.action_execution->case_fifty_one_flags & 0xFF00U) | updated
+        );
+        prefix.flags = {
+            .carry = false,
+            .parity = even_parity(updated),
+            .auxiliary_carry = false,
+            .auxiliary_carry_defined = false,
+            .zero = updated == 0U,
+            .sign = (updated & 0x80U) != 0U,
+            .overflow = false,
+        };
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_one_decoder_prepare_ready;
+    prefix.eip = 0x0047B8E0U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_decoder_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_decoder_prepare_ready ||
+        prefix.eip != 0x0047B8E0U) {
+        return prefix;
+    }
+    prefix.decoder_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::actor_write
+            ? request.actor_writable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.decoder_argument_pushes[prefix.decoder_argument_count++] = value;
+        return true;
+    };
+    const u32 base = prefix.esp;
+    prefix.ecx = base + 0x14U;
+    prefix.edx = base + 0x18U;
+    if (!push(0x0047B8E8U, prefix.ecx)) {
+        return prefix;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B8E9U,
+            request.actor_token + 0x2548U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->render_source_token;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_write,
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+            0x0047B8EFU,
+            request.actor_token + 0x0DF0U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    actor.action_execution->case_fifty_one_value_df0 = 0x5AU;
+    if (!push(0x0047B8F9U, prefix.edx)) {
+        return prefix;
+    }
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_decoder_source_read_typed_stop,
+            0x0047B8FAU,
+            prefix.ecx,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_00_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = resource.value_00;
+    prefix.eax = base + 0x1CU;
+    if (!push(0x0047B900U, prefix.eax) || !push(0x0047B901U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_one_decoder_call_ready;
+    prefix.eip = 0x0047B902U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_decoder_call(
+    LegacyBattleActorFrameDecodePort& decoder,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_decoder_call_ready ||
+        prefix.eip != 0x0047B902U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_two_decoder_call(
+        decoder, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_decoder_token_write_ready ||
+        prefix.eip != 0x0047B907U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::actor_write
+            ? request.actor_writable
+            : kind == LegacyBattleActorFrameEntryAccessKind::global_read
+            ? request.global_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B907U,
+            request.actor_token + 0x0428U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) |
+        actor.action_execution->reserved_action_record_02.field_58;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_write,
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+            0x0047B90EU,
+            request.actor_token + 0x0DB8U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    actor.action_execution->case_fifty_one_resource_token = prefix.eax;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_write,
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+            0x0047B914U,
+            request.actor_token + 0x0390U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    actor.action_execution->primary_action_record.field_58 = 0x31U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_read,
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop,
+            0x0047B91DU,
+            0x004AB784U,
+            actor.shared_action != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = actor.shared_action->sample_handle;
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(0x0047B922U, prefix.eax) || !push(0x0047B923U, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_one_audio_call_ready;
+    prefix.eip = 0x0047B924U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_audio_call_ready ||
+        prefix.eip != 0x0047B924U) {
+        return prefix;
+    }
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x0047B924U;
+        prefix.stopped_token = slot;
+        prefix.eip = 0x0047B924U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = 0x0047B929U;
+    ++prefix.sample_calls;
+    auto callee = prefix;
+    if (!read_sound_callee_arguments(request, callee, prefix.eax, prefix.ecx)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    prefix.sample_child = callee.sample_child.returned ? callee.sample_child
+                                                       : sound.play_sample(
+                                                             prefix.ecx,
+                                                             prefix.eax,
+                                                             prefix.eax,
+                                                             prefix.ecx,
+                                                             prefix.edx,
+                                                             prefix.flags
+                                                         );
+    if (!prefix.sample_child.returned) {
+        prefix.accesses_completed -=
+            16U;  // Entry-only stop precedes both nested callee reads.
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_fifty_one_audio_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x00485610U;
+        prefix.eip = 0x00485610U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.sample_child.eax;
+    prefix.ecx = prefix.sample_child.ecx;
+    prefix.edx = prefix.sample_child.edx;
+    prefix.flags = add_flags(prefix.esp, 0x18U);
+    prefix.flags_known = true;
+    prefix.esp += 0x18U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_one_tail_ready;
+    prefix.eip = 0x0047B92CU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_tail(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fifty_one_tail_ready ||
+        prefix.eip != 0x0047B92CU) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::actor_write
+            ? request.actor_writable
+            : kind == LegacyBattleActorFrameEntryAccessKind::global_read
+            ? request.global_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B92CU,
+            prefix.esi + 0x0DD8U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
+        )) {
+        return prefix;
+    }
+    prefix.ebx = actor.action_execution->case_fifty_one_scale_x;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B932U,
+            prefix.esi + 0x0DDCU,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.edi = actor.action_execution->case_fifty_one_scale_y;
+    const u32 phase_token = prefix.esi + 0x2958U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B938U,
+            phase_token,
+            true
+        )) {
+        return prefix;
+    }
+    const u16 phase = actor.action_execution->turn_threshold;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_write,
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+            0x0047B938U,
+            phase_token,
+            true
+        )) {
+        return prefix;
+    }
+    actor.action_execution->turn_threshold = static_cast<u16>(phase + 2U);
+    prefix.flags = add_flags_16(phase, 2U);
+    prefix.flags_known = true;
+    prefix.eax = 5U;
+    const auto write = [&](const u32 instruction,
+                           const u32 offset,
+                           u32& owner,
+                           const u32 value) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_write,
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                instruction,
+                prefix.esi + offset,
+                true
+            )) {
+            return false;
+        }
+        owner = value;
+        return true;
+    };
+    if (!write(
+            0x0047B945U,
+            0x0DE4U,
+            actor.action_execution->case_fifty_one_value_de4,
+            prefix.eax
+        ) ||
+        !write(
+            0x0047B94BU,
+            0x0DE8U,
+            actor.action_execution->case_fifty_one_value_de8,
+            prefix.eax
+        ) ||
+        !write(
+            0x0047B951U,
+            0x0DECU,
+            actor.action_execution->case_fifty_one_value_dec,
+            prefix.eax
+        )) {
+        return prefix;
+    }
+    prefix.eax = 4U;
+    prefix.flags = add_flags(prefix.ebx, prefix.eax);
+    prefix.ebx += prefix.eax;
+    prefix.flags = add_flags(prefix.edi, prefix.eax);
+    prefix.edi += prefix.eax;
+    if (!write(
+            0x0047B960U,
+            0x0DD8U,
+            actor.action_execution->case_fifty_one_scale_x,
+            prefix.ebx
+        ) ||
+        !write(
+            0x0047B966U,
+            0x0DDCU,
+            actor.action_execution->case_fifty_one_scale_y,
+            prefix.edi
+        )) {
+        return prefix;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_global_read_typed_stop,
+            0x0047B96CU,
+            0x004CD76CU,
+            request.particle_global_4cd76c_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = request.particle_global_4cd76c;
+    prefix.flags = add_flags(prefix.esi, 0x0DB8U);
+    prefix.esi += 0x0DB8U;
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(0x0047B978U, prefix.esi) || !push(0x0047B979U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.ecx = 0x0053B0B8U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_one_spawn_call_ready;
+    prefix.eip = 0x0047B97FU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_spawn_entry(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_spawn_call_ready ||
+        prefix.eip != 0x0047B97FU) {
+        return prefix;
+    }
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x0047B97FU;
+        prefix.stopped_token = slot;
+        prefix.eip = 0x0047B97FU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = 0x0047B984U;
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fifty_one_spawn_child_typed_stop;
+    prefix.stopped_access_kind =
+        LegacyBattleActorFrameEntryAccessKind::callee_call;
+    prefix.stopped_instruction = 0x004344E0U;
+    prefix.eip = 0x004344E0U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_spawn_call(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameDirectionalScanOwners& owners,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_spawn_call_ready ||
+        prefix.eip != 0x0047B97FU) {
+        return prefix;
+    }
+    prefix = continue_legacy_battle_actor_frame_case_fifty_one_spawn_entry(
+        request, prefix
+    );
+    if (prefix.status !=
+        LegacyBattleActorFrameEntryStatus::
+            case_fifty_one_spawn_child_typed_stop) {
+        return prefix;
+    }
+    const auto source_pixels = prefix.decoder_child.source_pixels;
+    const bool backed = actor.action_execution != nullptr &&
+        prefix.esi == request.actor_token + 0x0DB8U &&
+        actor.action_execution->case_fifty_one_resource_token != 0U &&
+        actor.action_execution->case_fifty_one_resource_token ==
+            prefix.decoder_child.eax &&
+        prefix.decoder_child.source_pixels_known && !source_pixels.empty() &&
+        request.particle_global_4cd76c_known &&
+        request.particle_global_4cd76c == owners.surface_token &&
+        owners.vectors != nullptr && owners.surface != nullptr &&
+        owners.shared != nullptr && owners.pixel_format != nullptr;
+    if (!backed ||
+        request.stop_before_access != std::numeric_limits<std::size_t>::max()) {
+        // Interior sub_4344E0 accesses have no parent ordinal projection.
+        return prefix;
+    }
+    const auto& record = *actor.action_execution;
+    const LegacyBattleDirectionalScanSource source{
+        .pixels =
+            std::span<const u8>{
+                reinterpret_cast<const u8*>(source_pixels.data()),
+                source_pixels.size_bytes()
+            },
+        .width = record.case_fifty_one_width,
+        .height = record.case_fifty_one_height,
+        .start_x = std::bit_cast<std::int32_t>(record.case_fifty_one_origin_x),
+        .start_y = std::bit_cast<std::int32_t>(record.case_fifty_one_origin_y),
+        .horizontal_divisor =
+            std::bit_cast<std::int32_t>(record.case_fifty_one_scale_x),
+        .vertical_divisor =
+            std::bit_cast<std::int32_t>(record.case_fifty_one_scale_y),
+        .flags = record.case_fifty_one_flags,
+        .published_value_2c =
+            std::bit_cast<std::int32_t>(record.case_fifty_one_value_de4),
+        .published_value_30 =
+            std::bit_cast<std::int32_t>(record.case_fifty_one_value_de8),
+        .published_value_34 =
+            std::bit_cast<std::int32_t>(record.case_fifty_one_value_dec),
+        .direction_index =
+            std::bit_cast<std::int32_t>(record.case_fifty_one_value_df0),
+    };
+    const auto child = scan_legacy_battle_directional_surface(
+        *owners.vectors,
+        source,
+        *owners.surface,
+        *owners.shared,
+        *owners.pixel_format
+    );
+    if (child.status != LegacyBattleDirectionalScanStatus::completed) {
+        // The callee has committed its prefix. Unknown interior failures
+        // must not masquerade as either child entry or normal RET.
+        prefix.stopped_instruction = child.stopped_instruction;
+        prefix.eip = child.stopped_instruction;
+        prefix.flags_known = false;
+        if (child.status ==
+            LegacyBattleDirectionalScanStatus::horizontal_divisor_zero) {
+            // SUB 68h; PUSH EBX, EBP, ESI; EDI has not been pushed.
+            prefix.esp -= 0x74U;
+            prefix.stopped_token = 0U;
+        } else if (
+            child.status ==
+                LegacyBattleDirectionalScanStatus::vertical_divisor_zero ||
+            child.status ==
+                LegacyBattleDirectionalScanStatus::source_out_of_range ||
+            (child.stopped_instruction != 0U &&
+             (child.status ==
+                  LegacyBattleDirectionalScanStatus::row_table_out_of_range ||
+              child.status ==
+                  LegacyBattleDirectionalScanStatus::destination_out_of_range))
+        ) {
+            // SUB 68h and four saved-register PUSHes. Both direction
+            // subcalls have cleaned their argument slots by a source read.
+            prefix.esp -= 0x78U;
+            if (child.status ==
+                LegacyBattleDirectionalScanStatus::source_out_of_range) {
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read;
+                prefix.stopped_token = record.case_fifty_one_resource_token +
+                    child.stopped_source_byte_offset;
+            } else {
+                prefix.stopped_token = child.stopped_surface_token_known
+                    ? child.stopped_surface_token
+                    : 0U;
+                if (child.status ==
+                    LegacyBattleDirectionalScanStatus::row_table_out_of_range) {
+                    prefix.stopped_access_kind =
+                        LegacyBattleActorFrameEntryAccessKind::surface_row_read;
+                    if (child.stopped_instruction == 0x004346E6U) {
+                        // The combine branch already pushed its constant 1.
+                        prefix.esp -= 4U;
+                    }
+                } else if (
+                    child.status ==
+                    LegacyBattleDirectionalScanStatus::destination_out_of_range
+                ) {
+                    if (child.stopped_instruction == 0x0042085AU) {
+                        // PUSH 1/destination/source, CALL sub_4207E0,
+                        // then four saved-register PUSHes precede its read.
+                        prefix.esp -= 0x20U;
+                        prefix.stopped_access_kind =
+                            LegacyBattleActorFrameEntryAccessKind::
+                                surface_pixel_read;
+                    } else {
+                        prefix.stopped_access_kind =
+                            LegacyBattleActorFrameEntryAccessKind::
+                                surface_pixel_write;
+                    }
+                }
+            }
+        }
+        return prefix;
+    }
+    // sub_4344E0 RET 8 removes its own return slot and two arguments.
+    prefix.stopped_instruction = 0U;
+    prefix.stopped_token = 0U;
+    prefix.flags_known = false;
+    prefix.esp += 12U;
+    prefix.eip = 0x0047B984U;
+    const auto pop = [&](const u32 instruction, u32& target, const u32 saved) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.stack_readable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = prefix.esp;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        target = saved;
+        prefix.esp += 4U;
+        return true;
+    };
+    if (!pop(0x0047B984U, prefix.edi, request.entry_edi) ||
+        !pop(0x0047B985U, prefix.esi, request.entry_esi) ||
+        !pop(0x0047B986U, prefix.ebp, request.entry_ebp)) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!pop(0x0047B989U, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047B98DU;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = 0x0047B98DU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.returned = true;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_one_spawn_returned;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_reset_prefix(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fifty_one_reset_ready ||
+        prefix.eip != 0x0047B98EU) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto write_word = [&](const u32 instruction, const u32 offset) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !full_actor || !request.actor_writable ||
+            prefix.esi != request.actor_token) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = prefix.esi + offset;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        const u16 word = static_cast<u16>(prefix.ebx);
+        std::memcpy(image.data() + offset, &word, sizeof(word));
+        synchronize_legacy_battle_actor_image_write(
+            actor, image, offset, sizeof(word)
+        );
+        return true;
+    };
+    if (!write_word(0x0047B98EU, 0x2958U)) {
+        return prefix;
+    }
+    prefix.ecx = 0x26U;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!write_word(0x0047B99CU, 0x2A12U)) {
+        return prefix;
+    }
+    while (prefix.ecx != 0U) {
+        const u32 offset = prefix.edi - request.actor_token;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !full_actor || !request.actor_writable ||
+            offset > image.size() - sizeof(prefix.eax)) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = 0x0047B9A3U;
+            prefix.stopped_token = prefix.edi;
+            prefix.eip = 0x0047B9A3U;
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        std::memcpy(image.data() + offset, &prefix.eax, sizeof(prefix.eax));
+        synchronize_legacy_battle_actor_image_write(
+            actor, image, offset, sizeof(prefix.eax)
+        );
+        --prefix.ecx;
+        prefix.edi = prefix.direction_flag ? prefix.edi - 4U : prefix.edi + 4U;
+    }
+    prefix.ecx = prefix.esi;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_one_reset_call_ready;
+    prefix.eip = 0x0047B9A7U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_reset_return(
+    const LegacyBattleActorRuntimeResetView& actor,
+    LegacyBattleBoundedRandomPort& random,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_one_reset_call_ready ||
+        prefix.eip != 0x0047B9A7U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_write
+            ? request.actor_writable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+            ? request.stack_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const u32 return_slot = prefix.esp - 4U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            0x0047B9A7U,
+            return_slot,
+            true
+        )) {
+        return prefix;
+    }
+    ++prefix.reset_calls;
+    prefix.last_pushed_value = 0x0047B9ACU;
+    std::size_t child_stop = std::numeric_limits<std::size_t>::max();
+    if (request.stop_before_access != child_stop &&
+        request.stop_before_access >= prefix.accesses_completed) {
+        child_stop = request.stop_before_access - prefix.accesses_completed;
+    }
+    const LegacyBattleActorRuntimeResetRequest child_request{
+        .actor_token = prefix.esi,
+        .entry_eax = prefix.eax,
+        .entry_edx = prefix.edx,
+        .entry_ebx = prefix.ebx,
+        .entry_ebp = prefix.ebp,
+        .entry_esi = prefix.esi,
+        .entry_edi = prefix.edi,
+        .entry_esp = return_slot,
+        .entry_return_address = 0x0047B9ACU,
+        .entry_flags = prefix.flags,
+        .entry_flags_known = prefix.flags_known,
+        .direction_flag = prefix.direction_flag,
+        .random_callable = request.reset_random_callable,
+        .random_return_ecx = request.reset_random_return_ecx,
+        .stop_before_access = child_stop,
+    };
+    prefix.reset_child =
+        reset_legacy_battle_actor_runtime(actor, random, child_request);
+    const auto& child = prefix.reset_child;
+    prefix.accesses_completed += child.accesses_completed;
+    prefix.eax = child.return_eax;
+    prefix.ecx = child.return_ecx;
+    prefix.edx = child.return_edx;
+    prefix.ebx = child.return_ebx;
+    prefix.ebp = child.return_ebp;
+    prefix.esi = child.return_esi;
+    prefix.edi = child.return_edi;
+    prefix.esp = child.return_esp;
+    prefix.eip = child.return_eip;
+    prefix.flags = child.flags;
+    prefix.flags_known = child.flags_known;
+    prefix.direction_flag = child.direction_flag;
+    if (child.status != LegacyBattleActorRuntimeResetStatus::completed ||
+        !child.returned) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::reset_child_typed_stop;
+        prefix.stopped_instruction = child.stopped_instruction;
+        prefix.stopped_token = child.stopped_token;
+        if (child.status ==
+            LegacyBattleActorRuntimeResetStatus::random_call_typed_stop) {
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::callee_call;
+            prefix.stopped_instruction = child.return_eip;
+            return prefix;
+        }
+        switch (child.stopped_access_kind) {
+        case LegacyBattleActorRuntimeResetAccessKind::actor_read:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_read;
+            break;
+        case LegacyBattleActorRuntimeResetAccessKind::actor_write:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            break;
+        case LegacyBattleActorRuntimeResetAccessKind::stack_read:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            break;
+        case LegacyBattleActorRuntimeResetAccessKind::stack_write:
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            break;
+        }
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto write_dword =
+        [&](const u32 instruction, const u32 offset, const u32 value) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_write,
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+                    instruction,
+                    request.actor_token + offset,
+                    full_actor && prefix.esi == request.actor_token
+                )) {
+                return false;
+            }
+            std::memcpy(image.data() + offset, &value, sizeof(value));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(value)
+            );
+            return true;
+        };
+    if (!write_dword(0x0047B9ACU, 0x2AACU, prefix.ebx)) {
+        return prefix;
+    }
+    prefix.eax = 1U;
+    if (!write_dword(0x0047B9B7U, 0x2ABCU, prefix.ebx) ||
+        !write_dword(0x0047B9BDU, 0x2AB8U, prefix.eax)) {
+        return prefix;
+    }
+    const auto pop = [&](const u32 instruction, u32& target, const u32 saved) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_read,
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+                instruction,
+                prefix.esp,
+                true
+            )) {
+            return false;
+        }
+        target = saved;
+        prefix.esp += 4U;
+        return true;
+    };
+    if (!pop(0x0047B9C3U, prefix.edi, request.entry_edi) ||
+        !pop(0x0047B9C4U, prefix.esi, request.entry_esi) ||
+        !pop(0x0047B9C5U, prefix.ebp, request.entry_ebp) ||
+        !pop(0x0047B9C6U, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.flags_known = true;
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047B9CAU;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = 0x0047B9CAU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_one_reset_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_three_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x00479CA6U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x00479CA6U;
+        prefix.stopped_token = prefix.esi + 0x2958U;
+        prefix.eip = 0x00479CA6U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax =
+        (prefix.eax & 0xFFFF0000U) | actor.action_execution->turn_threshold;
+    prefix.flags = subtract_flags_16(static_cast<u16>(prefix.eax), 0x20U);
+    prefix.flags_known = true;
+    if (!prefix.flags.zero && prefix.flags.sign == prefix.flags.overflow) {
+        prefix.eip = 0x0047B801U;
+        return prefix;
+    }
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+    );
+    prefix.status = prefix.flags.zero
+        ? LegacyBattleActorFrameEntryStatus::case_three_audio_ready
+        : LegacyBattleActorFrameEntryStatus::case_three_source_ready;
+    prefix.eip = prefix.flags.zero ? 0x00479CBCU : 0x00479CCDU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x0047A266U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047A266U;
+        prefix.stopped_token = prefix.esi + 0x2958U;
+        prefix.eip = 0x0047A266U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax =
+        (prefix.eax & 0xFFFF0000U) | actor.action_execution->turn_threshold;
+    prefix.flags = subtract_flags_16(static_cast<u16>(prefix.eax), 0x20U);
+    prefix.flags_known = true;
+    if (prefix.flags.sign == prefix.flags.overflow) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready;
+        prefix.eip = 0x0047B801U;
+        return prefix;
+    }
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+    );
+    prefix.status = prefix.flags.zero
+        ? LegacyBattleActorFrameEntryStatus::case_seven_audio_ready
+        : LegacyBattleActorFrameEntryStatus::case_seven_source_ready;
+    prefix.eip = prefix.flags.zero ? 0x0047A27CU : 0x0047A28DU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_three_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_four = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_four_audio_ready &&
+        prefix.eip == 0x00479EC0U;
+    const bool case_five = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_five_audio_ready &&
+        prefix.eip == 0x0047A0A6U;
+    const bool case_ten = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_ten_audio_ready &&
+        prefix.eip == 0x0047A838U;
+    const bool case_twelve = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_twelve_audio_ready &&
+        prefix.eip == 0x0047AA91U;
+    const bool case_seven = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_seven_audio_ready &&
+        prefix.eip == 0x0047A27CU;
+    const bool case_thirteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_thirteen_audio_ready &&
+        prefix.eip == 0x0047ABC3U;
+    const bool case_fourteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_fourteen_audio_ready &&
+        prefix.eip == 0x0047AF3AU;
+    if (!case_four && !case_five && !case_ten && !case_twelve && !case_seven &&
+        !case_thirteen && !case_fourteen &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_three_audio_ready ||
+         prefix.eip != 0x00479CBCU)) {
+        return prefix;
+    }
+    const u32 global_ip = case_four ? 0x00479EC0U
+        : case_five                 ? 0x0047A0A6U
+        : case_ten                  ? 0x0047A838U
+        : case_twelve               ? 0x0047AA91U
+        : case_seven                ? 0x0047A27CU
+        : case_thirteen             ? 0x0047ABC3U
+        : case_fourteen             ? 0x0047AF3AU
+                                    : 0x00479CBCU;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.shared_action == nullptr || !request.global_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        prefix.stopped_instruction = global_ip;
+        prefix.stopped_token = 0x004AB784U;
+        prefix.eip = global_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    if (case_four || case_fourteen) {
+        prefix.eax = actor.shared_action->sample_handle;
+    } else if (case_twelve) {
+        prefix.ecx = actor.shared_action->sample_handle;
+    } else {
+        prefix.edx = actor.shared_action->sample_handle;
+    }
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = slot;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(
+            case_four           ? 0x00479EC5U
+                : case_five     ? 0x0047A0ACU
+                : case_ten      ? 0x0047A83EU
+                : case_twelve   ? 0x0047AA97U
+                : case_seven    ? 0x0047A282U
+                : case_thirteen ? 0x0047ABC9U
+                : case_fourteen ? 0x0047AF3FU
+                                : 0x00479CC2U,
+            (case_four || case_fourteen) ? prefix.eax
+                : case_twelve            ? prefix.ecx
+                                         : prefix.edx
+        ) ||
+        !push(
+            case_four           ? 0x00479EC6U
+                : case_five     ? 0x0047A0ADU
+                : case_ten      ? 0x0047A83FU
+                : case_twelve   ? 0x0047AA98U
+                : case_seven    ? 0x0047A283U
+                : case_thirteen ? 0x0047ABCAU
+                : case_fourteen ? 0x0047AF40U
+                                : 0x00479CC3U,
+            0x31U
+        )) {
+        return prefix;
+    }
+    prefix.status = case_four
+        ? LegacyBattleActorFrameEntryStatus::case_four_audio_call_ready
+        : case_five
+        ? LegacyBattleActorFrameEntryStatus::case_five_audio_call_ready
+        : case_ten
+        ? LegacyBattleActorFrameEntryStatus::case_ten_audio_call_ready
+        : case_twelve
+        ? LegacyBattleActorFrameEntryStatus::case_twelve_audio_call_ready
+        : case_seven
+        ? LegacyBattleActorFrameEntryStatus::case_seven_audio_call_ready
+        : case_thirteen
+        ? LegacyBattleActorFrameEntryStatus::case_thirteen_audio_call_ready
+        : case_fourteen
+        ? LegacyBattleActorFrameEntryStatus::case_fourteen_audio_call_ready
+        : LegacyBattleActorFrameEntryStatus::case_three_audio_call_ready;
+    prefix.eip = case_four ? 0x00479EC8U
+        : case_five        ? 0x0047A0AFU
+        : case_ten         ? 0x0047A841U
+        : case_twelve      ? 0x0047AA9AU
+        : case_seven       ? 0x0047A285U
+        : case_thirteen    ? 0x0047ABCCU
+        : case_fourteen    ? 0x0047AF42U
+                           : 0x00479CC5U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_three_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool case_four = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_four_audio_call_ready &&
+        prefix.eip == 0x00479EC8U;
+    const bool case_five = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_five_audio_call_ready &&
+        prefix.eip == 0x0047A0AFU;
+    const bool case_ten = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_ten_audio_call_ready &&
+        prefix.eip == 0x0047A841U;
+    const bool case_twelve = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_twelve_audio_call_ready &&
+        prefix.eip == 0x0047AA9AU;
+    const bool case_seven = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_seven_audio_call_ready &&
+        prefix.eip == 0x0047A285U;
+    const bool case_thirteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_thirteen_audio_call_ready &&
+        prefix.eip == 0x0047ABCCU;
+    const bool case_fourteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_fourteen_audio_call_ready &&
+        prefix.eip == 0x0047AF42U;
+    if (!case_four && !case_five && !case_ten && !case_twelve && !case_seven &&
+        !case_thirteen && !case_fourteen &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_three_audio_call_ready ||
+         prefix.eip != 0x00479CC5U)) {
+        return prefix;
+    }
+    const u32 call_ip = case_four ? 0x00479EC8U
+        : case_five               ? 0x0047A0AFU
+        : case_ten                ? 0x0047A841U
+        : case_twelve             ? 0x0047AA9AU
+        : case_seven              ? 0x0047A285U
+        : case_thirteen           ? 0x0047ABCCU
+        : case_fourteen           ? 0x0047AF42U
+                                  : 0x00479CC5U;
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = slot;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = case_four ? 0x00479ECDU
+        : case_five                      ? 0x0047A0B4U
+        : case_ten                       ? 0x0047A846U
+        : case_twelve                    ? 0x0047AA9FU
+        : case_seven                     ? 0x0047A28AU
+        : case_thirteen                  ? 0x0047ABD1U
+        : case_fourteen                  ? 0x0047AF47U
+                                         : 0x00479CCAU;
+    ++prefix.sample_calls;
+    auto callee = prefix;
+    const u32 sample_handle = (case_four || case_fourteen) ? prefix.eax
+        : case_twelve                                      ? prefix.ecx
+                                                           : prefix.edx;
+    if (!read_sound_callee_arguments(request, callee, sample_handle, 0x31U)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    prefix.sample_child = callee.sample_child.returned
+        ? callee.sample_child
+        : sound.play_sample(
+              0x31U,
+              (case_four || case_fourteen) ? prefix.eax
+                  : case_twelve            ? prefix.ecx
+                                           : prefix.edx,
+              prefix.eax,
+              prefix.ecx,
+              prefix.edx,
+              prefix.flags
+          );
+    if (!prefix.sample_child.returned) {
+        prefix.accesses_completed -=
+            16U;  // Entry-only stop precedes both nested callee reads.
+        prefix.status = case_four ? LegacyBattleActorFrameEntryStatus::
+                                        case_four_audio_child_typed_stop
+            : case_five           ? LegacyBattleActorFrameEntryStatus::
+                                        case_five_audio_child_typed_stop
+            : case_ten
+            ? LegacyBattleActorFrameEntryStatus::case_ten_audio_child_typed_stop
+            : case_twelve   ? LegacyBattleActorFrameEntryStatus::
+                                  case_twelve_audio_child_typed_stop
+            : case_seven    ? LegacyBattleActorFrameEntryStatus::
+                                  case_seven_audio_child_typed_stop
+            : case_thirteen ? LegacyBattleActorFrameEntryStatus::
+                                  case_thirteen_audio_child_typed_stop
+            : case_fourteen ? LegacyBattleActorFrameEntryStatus::
+                                  case_fourteen_audio_child_typed_stop
+                            : LegacyBattleActorFrameEntryStatus::
+                                  case_three_audio_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x00485610U;
+        prefix.eip = 0x00485610U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.sample_child.eax;
+    prefix.ecx = prefix.sample_child.ecx;
+    prefix.edx = prefix.sample_child.edx;
+    prefix.flags = add_flags(prefix.esp, 8U);
+    prefix.flags_known = true;
+    prefix.esp += 8U;
+    prefix.status = case_four
+        ? LegacyBattleActorFrameEntryStatus::case_four_source_ready
+        : case_five ? LegacyBattleActorFrameEntryStatus::case_five_source_ready
+        : case_ten  ? LegacyBattleActorFrameEntryStatus::case_ten_source_ready
+        : case_twelve
+        ? LegacyBattleActorFrameEntryStatus::case_twelve_globals_ready
+        : case_seven
+        ? LegacyBattleActorFrameEntryStatus::case_seven_source_ready
+        : case_thirteen
+        ? LegacyBattleActorFrameEntryStatus::case_thirteen_source_ready
+        : case_fourteen
+        ? LegacyBattleActorFrameEntryStatus::case_fourteen_source_ready
+        : LegacyBattleActorFrameEntryStatus::case_three_source_ready;
+    prefix.eip = case_four ? 0x00479ED0U
+        : case_five        ? 0x0047A0B7U
+        : case_ten         ? 0x0047A849U
+        : case_twelve      ? 0x0047AAA2U
+        : case_seven       ? 0x0047A28DU
+        : case_thirteen    ? 0x0047ABD4U
+        : case_fourteen    ? 0x0047AF4AU
+                           : 0x00479CCDU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_four_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_three_audio_arguments(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_four_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    return continue_legacy_battle_actor_frame_case_three_audio_call(
+        sound, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_three_audio_arguments(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    return continue_legacy_battle_actor_frame_case_three_audio_call(
+        sound, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_three_audio_arguments(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    return continue_legacy_battle_actor_frame_case_three_audio_call(
+        sound, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_twelve_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_three_audio_arguments(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_twelve_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    return continue_legacy_battle_actor_frame_case_three_audio_call(
+        sound, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_source(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool thirteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_thirteen_source_ready &&
+        prefix.eip == 0x0047ABD4U;
+    if (!thirteen &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_seven_source_ready ||
+         prefix.eip != 0x0047A28DU)) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.global_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            thirteen ? 0x0047ABD4U : 0x0047A28DU,
+            prefix.esi + 0x2548U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
+        )) {
+        return prefix;
+    }
+    prefix.eax = actor.action_execution->render_source_token;
+    if (thirteen) {
+        prefix.edi = 0U;
+    } else {
+        prefix.ebx = 0U;
+    }
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_resource_read_typed_stop,
+            thirteen ? 0x0047ABDCU : 0x0047A295U,
+            prefix.eax,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_00_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = resource.value_00;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+            thirteen ? 0x0047ABDEU : 0x0047A297U,
+            0x004CD730U,
+            actor.shared_action != nullptr
+        )) {
+        return prefix;
+    }
+    actor.shared_action->turn_frame_source_token = prefix.ecx;
+    prefix.status = thirteen
+        ? LegacyBattleActorFrameEntryStatus::case_thirteen_initial_source_ready
+        : LegacyBattleActorFrameEntryStatus::case_seven_initial_source_ready;
+    prefix.eip = thirteen ? 0x0047ABE4U : 0x0047A29DU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_initial_source_ready ||
+        prefix.eip != 0x0047A29DU) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_geometry_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 offset,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                instruction,
+                prefix.edi + offset,
+                prefix.edi != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == prefix.edi &&
+                    known
+            )) {
+            return false;
+        }
+        prefix.ebx = (prefix.ebx & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047A29DU,
+            0x2548U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A2A3U,
+            0x2958U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        ) ||
+        !read_resource(
+            0x0047A2AAU,
+            0x0EU,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0e,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0e_known
+        ) ||
+        !read_actor(
+            0x0047A2AEU,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A2B4U,
+            0x0D68U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ebx >>= 1U;
+    prefix.flags = subtract_flags(prefix.ebx, prefix.edi);
+    prefix.ebx -= prefix.edi;
+    if (!read_actor(
+            0x0047A2BFU,
+            0x2548U,
+            prefix.edi,
+            actor.action_execution->render_source_token,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ebx, prefix.edx);
+    prefix.ebx -= prefix.edx;
+    prefix.flags = add_flags(prefix.ebx, prefix.eax);
+    prefix.ebx += prefix.eax;
+    if (!read_actor(
+            0x0047A2C9U,
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(0x0047A2D0U, prefix.ebx)) {
+        return prefix;
+    }
+    prefix.ebx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_resource(
+            0x0047A2D3U,
+            0x0CU,
+            actor.action_execution->resource.value_0c,
+            actor.action_execution->resource.value_0c_known
+        ) ||
+        !read_actor(
+            0x0047A2D7U,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.ebx >>= 1U;
+    prefix.flags = subtract_flags(prefix.ebx, prefix.edx);
+    prefix.ebx -= prefix.edx;
+    prefix.flags = subtract_flags(prefix.eax, prefix.edi);
+    prefix.eax -= prefix.edi;
+    prefix.flags = subtract_flags(prefix.ebx, prefix.ebp);
+    prefix.ebx -= prefix.ebp;
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    prefix.flags = add_flags(prefix.ebx, prefix.ecx);
+    prefix.ebx += prefix.ecx;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edx);
+    prefix.ecx -= prefix.edx;
+    if (!push(0x0047A2EBU, prefix.ebx)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    if (!push(0x0047A2EEU, prefix.eax) || !push(0x0047A2EFU, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_seven_rectangle_call_ready;
+    prefix.eip = 0x0047A2F0U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_post_rectangle_globals(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_second_rectangle_return_ready &&
+        prefix.eip == 0x0047A3D0U;
+    const bool third = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_third_rectangle_return_ready &&
+        prefix.eip == 0x0047A4A0U;
+    const bool fourth = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_fourth_rectangle_return_ready &&
+        prefix.eip == 0x0047A577U;
+    const bool case_three = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_three_rectangle_return_ready &&
+        prefix.eip == 0x00479D3EU;
+    const bool case_four = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_four_rectangle_return_ready &&
+        prefix.eip == 0x00479F3CU;
+    const bool case_three_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_three_second_rectangle_return_ready &&
+        prefix.eip == 0x00479E0CU;
+    const bool case_four_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_four_second_rectangle_return_ready &&
+        prefix.eip == 0x0047A00EU;
+    const bool case_thirteen_first = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_first_rectangle_return_ready &&
+        prefix.eip == 0x0047AC34U;
+    const bool case_thirteen_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_second_rectangle_return_ready &&
+        prefix.eip == 0x0047ACEBU;
+    const bool case_thirteen_third = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_third_rectangle_return_ready &&
+        prefix.eip == 0x0047ADBDU;
+    const bool case_thirteen_fourth = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_fourth_rectangle_return_ready &&
+        prefix.eip == 0x0047AE83U;
+    const bool case_fourteen_late_first = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_first_rectangle_return_ready &&
+        prefix.eip == 0x0047B179U;
+    const bool case_fourteen_late_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_second_rectangle_return_ready &&
+        prefix.eip == 0x0047B24BU;
+    if (!second && !third && !fourth && !case_three && !case_four &&
+        !case_three_second && !case_four_second && !case_thirteen_first &&
+        !case_thirteen_second && !case_thirteen_third &&
+        !case_thirteen_fourth && !case_fourteen_late_first &&
+        !case_fourteen_late_second &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_seven_rectangle_return_ready ||
+         prefix.eip != 0x0047A2F5U)) {
+        return prefix;
+    }
+    if (third) {
+        prefix.draw_auxiliary_pushed = false;
+    }
+    const std::array<u32, 3U> read_ips = second
+        ? std::array<u32, 3U>{0x0047A3D0U, 0x0047A3E0U, 0x0047A3EFU}
+        : third  ? std::array<u32, 3U>{0x0047A4A0U, 0x0047A4AEU, 0x0047A4BDU}
+        : fourth ? std::array<u32, 3U>{0x0047A577U, 0x0047A587U, 0x0047A596U}
+        : case_three
+        ? std::array<u32, 3U>{0x00479D3EU, 0x00479D4DU, 0x00479D5CU}
+        : case_four ? std::array<u32, 3U>{0x00479F3CU, 0x00479F4CU, 0x00479F5DU}
+        : case_three_second
+        ? std::array<u32, 3U>{0x00479E0CU, 0x00479E1CU, 0x00479E2AU}
+        : case_four_second
+        ? std::array<u32, 3U>{0x0047A00EU, 0x0047A01EU, 0x0047A02CU}
+        : case_thirteen_first
+        ? std::array<u32, 3U>{0x0047AC34U, 0x0047AC45U, 0x0047AC56U}
+        : case_thirteen_second
+        ? std::array<u32, 3U>{0x0047ACEBU, 0x0047ACFBU, 0x0047AD0AU}
+        : case_thirteen_third
+        ? std::array<u32, 3U>{0x0047ADBDU, 0x0047ADCDU, 0x0047ADDCU}
+        : case_thirteen_fourth
+        ? std::array<u32, 3U>{0x0047AE83U, 0x0047AE94U, 0x0047AEA2U}
+        : case_fourteen_late_first
+        ? std::array<u32, 3U>{0x0047B179U, 0x0047B189U, 0x0047B19AU}
+        : case_fourteen_late_second
+        ? std::array<u32, 3U>{0x0047B24BU, 0x0047B25BU, 0x0047B269U}
+        : std::array<u32, 3U>{0x0047A2F5U, 0x0047A306U, 0x0047A314U};
+    const std::array<u32, 3U> write_ips = second
+        ? std::array<u32, 3U>{0x0047A3D9U, 0x0047A3E9U, 0x0047A3F8U}
+        : third  ? std::array<u32, 3U>{0x0047A4A9U, 0x0047A4B7U, 0x0047A4C6U}
+        : fourth ? std::array<u32, 3U>{0x0047A580U, 0x0047A590U, 0x0047A59FU}
+        : case_three
+        ? std::array<u32, 3U>{0x00479D47U, 0x00479D56U, 0x00479D65U}
+        : case_four ? std::array<u32, 3U>{0x00479F45U, 0x00479F55U, 0x00479F66U}
+        : case_three_second
+        ? std::array<u32, 3U>{0x00479E15U, 0x00479E25U, 0x00479E33U}
+        : case_four_second
+        ? std::array<u32, 3U>{0x0047A017U, 0x0047A027U, 0x0047A035U}
+        : case_thirteen_first
+        ? std::array<u32, 3U>{0x0047AC3DU, 0x0047AC4EU, 0x0047AC5FU}
+        : case_thirteen_second
+        ? std::array<u32, 3U>{0x0047ACF4U, 0x0047AD04U, 0x0047AD13U}
+        : case_thirteen_third
+        ? std::array<u32, 3U>{0x0047ADC6U, 0x0047ADD6U, 0x0047ADE5U}
+        : case_thirteen_fourth
+        ? std::array<u32, 3U>{0x0047AE8CU, 0x0047AE9DU, 0x0047AEABU}
+        : case_fourteen_late_first
+        ? std::array<u32, 3U>{0x0047B182U, 0x0047B192U, 0x0047B1A3U}
+        : case_fourteen_late_second
+        ? std::array<u32, 3U>{0x0047B254U, 0x0047B264U, 0x0047B272U}
+        : std::array<u32, 3U>{0x0047A2FEU, 0x0047A30FU, 0x0047A31DU};
+    const std::array<u32, 3U> global_tokens{
+        0x004CD71CU,
+        0x004CD30CU,
+        0x004CD304U,
+    };
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::global_write
+            ? request.global_writable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::global_write
+                ? LegacyBattleActorFrameEntryStatus::global_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    for (std::size_t index = 0U; index < read_ips.size(); ++index) {
+        if ((case_four || case_thirteen_first || case_fourteen_late_first) &&
+            index == 2U) {
+            prefix.edx = 0U;
+            prefix.flags = logical_zero_flags();
+        }
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                read_ips[index],
+                prefix.esi + 0x2958U,
+                actor.action_execution != nullptr &&
+                    prefix.esi == request.actor_token
+            )) {
+            return prefix;
+        }
+        u32& register_value =
+            (case_four || case_thirteen_first || case_fourteen_late_first)
+            ? (index == 0U       ? prefix.ecx
+                   : index == 1U ? prefix.edx
+                                 : prefix.eax)
+            : (second || third || fourth || case_three ||
+               case_thirteen_second || case_thirteen_third)
+            ? (index == 0U       ? prefix.eax
+                   : index == 1U ? prefix.ecx
+                                 : prefix.edx)
+            : (index == 0U       ? prefix.edx
+                   : index == 1U ? prefix.eax
+                                 : prefix.ecx);
+        register_value = signed_word(actor.action_execution->turn_threshold);
+        prefix.flags = subtract_flags(0U, register_value);
+        prefix.flags_known = true;
+        register_value = 0U - register_value;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::global_write,
+                write_ips[index],
+                global_tokens[index],
+                actor.shared_action != nullptr
+            )) {
+            return prefix;
+        }
+        u32& owner = index == 0U ? actor.shared_action->draw_motion_a
+            : index == 1U        ? actor.shared_action->draw_motion_b
+                                 : actor.shared_action->draw_motion_c;
+        owner = register_value;
+        if (index == 0U && !third) {
+            const u32 slot = prefix.esp - 4U;
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::stack_write,
+                    case_fourteen_late_first        ? 0x0047B188U
+                        : case_fourteen_late_second ? 0x0047B25AU
+                        : case_thirteen_first       ? 0x0047AC43U
+                        : case_thirteen_second      ? 0x0047ACF9U
+                        : case_thirteen_third       ? 0x0047ADCBU
+                        : case_thirteen_fourth      ? 0x0047AE92U
+                        : case_three_second         ? 0x00479E1BU
+                        : case_four_second          ? 0x0047A01DU
+                        : case_three                ? 0x00479D4CU
+                        : case_four                 ? 0x00479F4BU
+                        : fourth                    ? 0x0047A585U
+                        : second                    ? 0x0047A3DEU
+                                                    : 0x0047A304U,
+                    slot,
+                    true
+                )) {
+                return prefix;
+            }
+            prefix.esp = slot;
+            prefix.last_pushed_value =
+                (case_three || case_four || case_three_second ||
+                 case_four_second || case_fourteen_late_first ||
+                 case_fourteen_late_second)
+                ? prefix.ebx
+                : 0U;
+            prefix.draw_auxiliary_pushed = true;
+            prefix.draw_auxiliary_value = prefix.last_pushed_value;
+        }
+    }
+    prefix.status = fourth  ? LegacyBattleActorFrameEntryStatus::
+                                  case_seven_fourth_post_rectangle_globals_ready
+        : third             ? LegacyBattleActorFrameEntryStatus::
+                                  case_seven_third_post_rectangle_globals_ready
+        : second            ? LegacyBattleActorFrameEntryStatus::
+                                  case_seven_second_post_rectangle_globals_ready
+        : case_three        ? LegacyBattleActorFrameEntryStatus::
+                                  case_three_post_rectangle_globals_ready
+        : case_four         ? LegacyBattleActorFrameEntryStatus::
+                                  case_four_post_rectangle_globals_ready
+        : case_three_second ? LegacyBattleActorFrameEntryStatus::
+                                  case_three_second_post_rectangle_globals_ready
+        : case_four_second  ? LegacyBattleActorFrameEntryStatus::
+                                  case_four_second_post_rectangle_globals_ready
+        : case_thirteen_first
+        ? LegacyBattleActorFrameEntryStatus::
+              case_thirteen_first_post_rectangle_globals_ready
+        : case_thirteen_second
+        ? LegacyBattleActorFrameEntryStatus::
+              case_thirteen_second_post_rectangle_globals_ready
+        : case_thirteen_third
+        ? LegacyBattleActorFrameEntryStatus::
+              case_thirteen_third_post_rectangle_globals_ready
+        : case_thirteen_fourth
+        ? LegacyBattleActorFrameEntryStatus::
+              case_thirteen_fourth_post_rectangle_globals_ready
+        : case_fourteen_late_first ? LegacyBattleActorFrameEntryStatus::
+                                         case_fourteen_late_first_globals_ready
+        : case_fourteen_late_second
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_late_second_globals_ready
+        : LegacyBattleActorFrameEntryStatus::
+              case_seven_post_rectangle_globals_ready;
+    prefix.eip = fourth             ? 0x0047A5A5U
+        : third                     ? 0x0047A4CCU
+        : second                    ? 0x0047A3FEU
+        : case_three                ? 0x00479D6BU
+        : case_four                 ? 0x00479F6BU
+        : case_three_second         ? 0x00479E39U
+        : case_four_second          ? 0x0047A03BU
+        : case_thirteen_first       ? 0x0047AC64U
+        : case_thirteen_second      ? 0x0047AD19U
+        : case_thirteen_third       ? 0x0047ADEBU
+        : case_thirteen_fourth      ? 0x0047AEB1U
+        : case_fourteen_late_first  ? 0x0047B1A8U
+        : case_fourteen_late_second ? 0x0047B278U
+                                    : 0x0047A323U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_first_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_second_post_rectangle_globals_ready &&
+        prefix.eip == 0x0047A3FEU;
+    const bool third = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_third_post_rectangle_globals_ready &&
+        prefix.eip == 0x0047A4CCU;
+    if (!second && !third &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_seven_post_rectangle_globals_ready ||
+         prefix.eip != 0x0047A323U)) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_draw_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 offset,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                instruction,
+                prefix.eax + offset,
+                prefix.eax != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == prefix.eax &&
+                    known
+            )) {
+            return false;
+        }
+        prefix.edx = (prefix.edx & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!read_actor(
+            third        ? 0x0047A4CCU
+                : second ? 0x0047A3FEU
+                         : 0x0047A323U,
+            0x2694U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            third        ? 0x0047A4D2U
+                : second ? 0x0047A404U
+                         : 0x0047A329U,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx |= 4U;
+    prefix.flags = {
+        .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .zero = prefix.edx == 0U,
+        .sign = (prefix.edx & 0x80000000U) != 0U,
+    };
+    prefix.flags_known = true;
+    if (third) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                0x0047A4DBU,
+                slot,
+                true
+            )) {
+            return prefix;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = 0U;
+        prefix.draw_auxiliary_pushed = true;
+        prefix.draw_auxiliary_value = 0U;
+    }
+    if (!push(
+            third        ? 0x0047A4DDU
+                : second ? 0x0047A40DU
+                         : 0x0047A332U,
+            prefix.edx
+        )) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_resource(
+            third        ? 0x0047A4E0U
+                : second ? 0x0047A410U
+                         : 0x0047A335U,
+            0x0EU,
+            actor.action_execution->resource.value_0e,
+            actor.action_execution->resource.value_0e_known
+        ) ||
+        !read_actor(
+            third        ? 0x0047A4E4U
+                : second ? 0x0047A414U
+                         : 0x0047A339U,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        ) ||
+        !read_actor(
+            third        ? 0x0047A4EAU
+                : second ? 0x0047A41AU
+                         : 0x0047A33FU,
+            0x2958U,
+            prefix.ecx,
+            signed_word(actor.action_execution->turn_threshold),
+            true
+        )) {
+        return prefix;
+    }
+    if (!second && !third) {
+        const u32 before_shift = prefix.edx;
+        prefix.edx >>= 1U;
+        prefix.flags = {
+            .carry = (before_shift & 1U) != 0U,
+            .parity = even_parity(static_cast<u8>(prefix.edx)),
+            .zero = prefix.edx == 0U,
+            .sign = (prefix.edx & 0x80000000U) != 0U,
+            .overflow = (before_shift & 0x80000000U) != 0U,
+        };
+    }
+    if (!push(
+            third        ? 0x0047A4F1U
+                : second ? 0x0047A421U
+                         : 0x0047A348U,
+            prefix.edx
+        )) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_resource(
+            third        ? 0x0047A4F4U
+                : second ? 0x0047A424U
+                         : 0x0047A34BU,
+            0x0CU,
+            actor.action_execution->resource.value_0c,
+            actor.action_execution->resource.value_0c_known
+        ) ||
+        !read_actor(
+            third        ? 0x0047A4F8U
+                : second ? 0x0047A428U
+                         : 0x0047A34FU,
+            0x0D68U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(
+            third        ? 0x0047A4FFU
+                : second ? 0x0047A42FU
+                         : 0x0047A356U,
+            prefix.edx
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, second ? prefix.edi : prefix.ecx);
+    prefix.eax -= second ? prefix.edi : prefix.ecx;
+    if (!read_actor(
+            third        ? 0x0047A502U
+                : second ? 0x0047A432U
+                         : 0x0047A359U,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, third ? prefix.ebp : prefix.ecx);
+    prefix.edx -= third ? prefix.ebp : prefix.ecx;
+    if (second) {
+        prefix.flags = add_flags(prefix.eax, prefix.ecx);
+        prefix.eax += prefix.ecx;
+    } else {
+        prefix.flags = subtract_flags(prefix.eax, prefix.edi);
+        prefix.eax -= prefix.edi;
+    }
+    if (third) {
+        prefix.flags = add_flags(prefix.edx, prefix.ecx);
+        prefix.edx += prefix.ecx;
+    } else {
+        prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+        prefix.edx -= prefix.ebp;
+    }
+    if (!push(
+            third        ? 0x0047A50FU
+                : second ? 0x0047A43FU
+                         : 0x0047A366U,
+            prefix.eax
+        ) ||
+        !push(
+            third        ? 0x0047A510U
+                : second ? 0x0047A440U
+                         : 0x0047A367U,
+            prefix.edx
+        )) {
+        return prefix;
+    }
+    prefix.status = third
+        ? LegacyBattleActorFrameEntryStatus::case_seven_third_draw_call_ready
+        : second
+        ? LegacyBattleActorFrameEntryStatus::case_seven_second_draw_call_ready
+        : LegacyBattleActorFrameEntryStatus::case_seven_draw_call_ready;
+    prefix.eip = third ? 0x0047A511U : second ? 0x0047A441U : 0x0047A368U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_first_draw_call(
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_second_draw_call_ready &&
+        prefix.eip == 0x0047A441U;
+    const bool third = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_third_draw_call_ready &&
+        prefix.eip == 0x0047A511U;
+    const bool fourth = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_fourth_draw_call_ready &&
+        prefix.eip == 0x0047A5EAU;
+    const bool case_three = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_three_first_draw_call_ready &&
+        prefix.eip == 0x00479DAEU;
+    const bool case_four = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_four_first_draw_call_ready &&
+        prefix.eip == 0x00479FAAU;
+    const bool case_three_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_three_second_draw_call_ready &&
+        prefix.eip == 0x00479E7CU;
+    const bool case_four_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_four_second_draw_call_ready &&
+        prefix.eip == 0x00479E7CU;
+    const bool case_thirteen_first = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_first_draw_call_ready &&
+        prefix.eip == 0x0047ACA3U;
+    const bool case_thirteen_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_second_draw_call_ready &&
+        prefix.eip == 0x0047AD5CU;
+    const bool case_thirteen_third = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_third_draw_call_ready &&
+        prefix.eip == 0x0047AE2EU;
+    const bool case_thirteen_fourth = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_fourth_draw_call_ready &&
+        prefix.eip == 0x0047AEF4U;
+    const bool case_fourteen_early_first = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_first_draw_call_ready &&
+        prefix.eip == 0x0047B01BU;
+    const bool case_fourteen_early_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_second_draw_call_ready &&
+        prefix.eip == 0x0047B0D9U;
+    const bool case_fourteen_late_first = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_first_draw_call_ready &&
+        prefix.eip == 0x0047B1E7U;
+    const bool case_fourteen_late_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_second_draw_call_ready &&
+        prefix.eip == 0x0047B2BBU;
+    if (!second && !third && !fourth && !case_three && !case_four &&
+        !case_three_second && !case_four_second && !case_thirteen_first &&
+        !case_thirteen_second && !case_thirteen_third &&
+        !case_thirteen_fourth && !case_fourteen_early_first &&
+        !case_fourteen_early_second && !case_fourteen_late_first &&
+        !case_fourteen_late_second &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_seven_draw_call_ready ||
+         prefix.eip != 0x0047A368U)) {
+        return prefix;
+    }
+    const u32 call_ip = fourth                  ? 0x0047A5EAU
+        : third                                 ? 0x0047A511U
+        : second                                ? 0x0047A441U
+        : case_three                            ? 0x00479DAEU
+        : case_four                             ? 0x00479FAAU
+        : case_three_second || case_four_second ? 0x00479E7CU
+        : case_thirteen_first                   ? 0x0047ACA3U
+        : case_thirteen_second                  ? 0x0047AD5CU
+        : case_thirteen_third                   ? 0x0047AE2EU
+        : case_thirteen_fourth                  ? 0x0047AEF4U
+        : case_fourteen_early_first             ? 0x0047B01BU
+        : case_fourteen_early_second            ? 0x0047B0D9U
+        : case_fourteen_late_first              ? 0x0047B1E7U
+        : case_fourteen_late_second             ? 0x0047B2BBU
+                                                : 0x0047A368U;
+    if (!prefix.draw_auxiliary_pushed ||
+        prefix.draw_argument_count != prefix.draw_argument_pushes.size()) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = prefix.esp + 20U;
+        return prefix;
+    }
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = slot;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = fourth           ? 0x0047A5EFU
+        : third                                 ? 0x0047A516U
+        : second                                ? 0x0047A446U
+        : case_three                            ? 0x00479DB3U
+        : case_four                             ? 0x00479FAFU
+        : case_three_second || case_four_second ? 0x00479E81U
+        : case_thirteen_first                   ? 0x0047ACA8U
+        : case_thirteen_second                  ? 0x0047AD61U
+        : case_thirteen_third                   ? 0x0047AE33U
+        : case_thirteen_fourth                  ? 0x0047AEF9U
+        : case_fourteen_early_first             ? 0x0047B020U
+        : case_fourteen_early_second            ? 0x0047B0DEU
+        : case_fourteen_late_first              ? 0x0047B1ECU
+        : case_fourteen_late_second             ? 0x0047B2C0U
+                                                : 0x0047A36DU;
+    ++prefix.draw_calls;
+    const std::size_t pre_callee_accesses = prefix.accesses_completed;
+    auto callee = prefix;
+    if (!read_draw_callee_global(request, callee)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    const std::array<u32, 6U> arguments{
+        prefix.draw_argument_pushes[4U],
+        prefix.draw_argument_pushes[3U],
+        prefix.draw_argument_pushes[2U],
+        prefix.draw_argument_pushes[1U],
+        prefix.draw_argument_pushes[0U],
+        prefix.draw_auxiliary_value,
+    };
+    prefix.draw_child = draw.draw_frame(
+        arguments, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    if (!prefix.draw_child.returned) {
+        prefix.accesses_completed = pre_callee_accesses;
+        prefix.status = fourth  ? LegacyBattleActorFrameEntryStatus::
+                                      case_seven_fourth_draw_child_typed_stop
+            : third             ? LegacyBattleActorFrameEntryStatus::
+                                      case_seven_third_draw_child_typed_stop
+            : second            ? LegacyBattleActorFrameEntryStatus::
+                                      case_seven_second_draw_child_typed_stop
+            : case_three        ? LegacyBattleActorFrameEntryStatus::
+                                      case_three_first_draw_child_typed_stop
+            : case_four         ? LegacyBattleActorFrameEntryStatus::
+                                      case_four_first_draw_child_typed_stop
+            : case_three_second ? LegacyBattleActorFrameEntryStatus::
+                                      case_three_second_draw_child_typed_stop
+            : case_four_second  ? LegacyBattleActorFrameEntryStatus::
+                                      case_four_second_draw_child_typed_stop
+            : case_thirteen_first
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_thirteen_first_draw_child_typed_stop
+            : case_thirteen_second
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_thirteen_second_draw_child_typed_stop
+            : case_thirteen_third
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_thirteen_third_draw_child_typed_stop
+            : case_thirteen_fourth
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_thirteen_fourth_draw_child_typed_stop
+            : case_fourteen_early_first
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_fourteen_early_first_draw_child_typed_stop
+            : case_fourteen_early_second
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_fourteen_early_second_draw_child_typed_stop
+            : case_fourteen_late_first
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_fourteen_late_first_draw_child_typed_stop
+            : case_fourteen_late_second
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_fourteen_late_second_draw_child_typed_stop
+            : LegacyBattleActorFrameEntryStatus::
+                  case_seven_draw_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x004170E0U;
+        prefix.eip = 0x004170E0U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.draw_child.eax;
+    prefix.ecx = prefix.draw_child.ecx;
+    prefix.edx = prefix.draw_child.edx;
+    prefix.flags = prefix.draw_child.flags;
+    prefix.flags_known = prefix.draw_child.flags_known;
+    prefix.status = fourth
+        ? LegacyBattleActorFrameEntryStatus::case_seven_fourth_draw_return_ready
+        : third
+        ? LegacyBattleActorFrameEntryStatus::case_seven_third_draw_return_ready
+        : second
+        ? LegacyBattleActorFrameEntryStatus::case_seven_second_draw_return_ready
+        : case_three
+        ? LegacyBattleActorFrameEntryStatus::case_three_first_draw_return_ready
+        : case_four
+        ? LegacyBattleActorFrameEntryStatus::case_four_first_draw_return_ready
+        : case_three_second
+        ? LegacyBattleActorFrameEntryStatus::case_three_second_draw_return_ready
+        : case_four_second
+        ? LegacyBattleActorFrameEntryStatus::case_four_second_draw_return_ready
+        : case_thirteen_first  ? LegacyBattleActorFrameEntryStatus::
+                                     case_thirteen_first_draw_return_ready
+        : case_thirteen_second ? LegacyBattleActorFrameEntryStatus::
+                                     case_thirteen_second_draw_return_ready
+        : case_thirteen_third  ? LegacyBattleActorFrameEntryStatus::
+                                     case_thirteen_third_draw_return_ready
+        : case_thirteen_fourth ? LegacyBattleActorFrameEntryStatus::
+                                     case_thirteen_fourth_draw_return_ready
+        : case_fourteen_early_first
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_early_first_draw_return_ready
+        : case_fourteen_early_second
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_early_second_draw_return_ready
+        : case_fourteen_late_first
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_late_first_draw_return_ready
+        : case_fourteen_late_second
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_late_second_draw_return_ready
+        : LegacyBattleActorFrameEntryStatus::case_seven_draw_return_ready;
+    prefix.eip = fourth                         ? 0x0047A5EFU
+        : third                                 ? 0x0047A516U
+        : second                                ? 0x0047A446U
+        : case_three                            ? 0x00479DB3U
+        : case_four                             ? 0x00479FAFU
+        : case_three_second || case_four_second ? 0x00479E81U
+        : case_thirteen_first                   ? 0x0047ACA8U
+        : case_thirteen_second                  ? 0x0047AD61U
+        : case_thirteen_third                   ? 0x0047AE33U
+        : case_thirteen_fourth                  ? 0x0047AEF9U
+        : case_fourteen_early_first             ? 0x0047B020U
+        : case_fourteen_early_second            ? 0x0047B0DEU
+        : case_fourteen_late_first              ? 0x0047B1ECU
+        : case_fourteen_late_second             ? 0x0047B2C0U
+                                                : 0x0047A36DU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_second_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_seven_draw_return_ready ||
+        prefix.eip != 0x0047A36DU) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_geometry_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 base,
+                                   const u32 offset,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                instruction,
+                base + offset,
+                base != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == base && known
+            )) {
+            return false;
+        }
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047A36DU,
+            0x0D68U,
+            prefix.edi,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            0x0047A374U,
+            0x2548U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A37AU,
+            0x03E4U,
+            prefix.ebx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A380U,
+            0x2958U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags = subtract_flags(prefix.edi, prefix.ebx);
+    prefix.edi -= prefix.ebx;
+    if (!read_resource(
+            0x0047A38BU,
+            prefix.ecx,
+            0x0EU,
+            actor.action_execution->resource.value_0e,
+            actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.eax = actor.action_execution->resource.value_0e;
+    prefix.ebx = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags = add_flags(prefix.edi, prefix.eax);
+    prefix.edi += prefix.eax;
+    prefix.flags = add_flags(prefix.edi, prefix.edx);
+    prefix.edi += prefix.edx;
+    if (!read_actor(
+            0x0047A395U,
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(0x0047A39CU, prefix.edi) ||
+        !read_actor(
+            0x0047A39DU,
+            0x2548U,
+            prefix.edi,
+            actor.action_execution->render_source_token,
+            true
+        ) ||
+        !read_resource(
+            0x0047A3A3U,
+            prefix.edi,
+            0x0CU,
+            actor.action_execution->resource.value_0c,
+            actor.action_execution->resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.ebx =
+        (prefix.ebx & 0xFFFF0000U) | actor.action_execution->resource.value_0c;
+    prefix.ebx >>= 1U;
+    prefix.flags = subtract_flags(prefix.ebx, prefix.edx);
+    prefix.ebx -= prefix.edx;
+    prefix.flags = subtract_flags(prefix.ebx, prefix.ebp);
+    prefix.ebx -= prefix.ebp;
+    prefix.flags = add_flags(prefix.ebx, prefix.ecx);
+    prefix.ebx += prefix.ecx;
+    if (!read_actor(
+            0x0047A3AFU,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edx);
+    prefix.ecx -= prefix.edx;
+    prefix.eax >>= 1U;
+    prefix.flags = subtract_flags(prefix.eax, prefix.edi);
+    prefix.eax -= prefix.edi;
+    if (!push(0x0047A3BBU, prefix.ebx) ||
+        !read_actor(
+            0x0047A3BCU,
+            0x0D68U,
+            prefix.edi,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.eax, prefix.edi);
+    prefix.eax += prefix.edi;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    prefix.flags = add_flags(prefix.eax, prefix.edx);
+    prefix.eax += prefix.edx;
+    if (!push(0x0047A3C9U, prefix.eax) || !push(0x0047A3CAU, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_seven_second_rectangle_call_ready;
+    prefix.eip = 0x0047A3CBU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_third_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_second_draw_return_ready ||
+        prefix.eip != 0x0047A446U) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_geometry_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 offset,
+                                   u32& destination,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                instruction,
+                prefix.edi + offset,
+                prefix.edi != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == prefix.edi &&
+                    known
+            )) {
+            return false;
+        }
+        destination = (destination & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047A446U,
+            0x2548U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ebx = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!read_actor(
+            0x0047A44EU,
+            0x2958U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        ) ||
+        !read_resource(
+            0x0047A455U,
+            0x0EU,
+            prefix.ebx,
+            actor.action_execution->resource.value_0e,
+            actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_resource(
+            0x0047A45BU,
+            0x0CU,
+            prefix.eax,
+            actor.action_execution->resource.value_0c,
+            actor.action_execution->resource.value_0c_known
+        ) ||
+        !read_actor(
+            0x0047A45FU,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        ) ||
+        !read_actor(
+            0x0047A465U,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ebx >>= 1U;
+    prefix.flags = subtract_flags(prefix.ebx, prefix.edi);
+    prefix.ebx -= prefix.edi;
+    prefix.flags = add_flags(prefix.esp, 0x50U);
+    prefix.esp += 0x50U;
+    prefix.flags = subtract_flags(prefix.ebx, prefix.edx);
+    prefix.ebx -= prefix.edx;
+    prefix.flags = add_flags(prefix.ebx, prefix.ecx);
+    prefix.ebx += prefix.ecx;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edi);
+    prefix.ecx -= prefix.edi;
+    if (!push(0x0047A479U, prefix.ebx)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edx);
+    prefix.ecx -= prefix.edx;
+    if (!read_actor(
+            0x0047A47CU,
+            0x0D66U,
+            prefix.ebx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ebx, prefix.ebp);
+    prefix.ebx -= prefix.ebp;
+    prefix.flags = add_flags(prefix.ebx, prefix.edx);
+    prefix.ebx += prefix.edx;
+    prefix.flags = add_flags(prefix.ebx, prefix.eax);
+    prefix.ebx += prefix.eax;
+    if (!push(0x0047A489U, prefix.ebx) || !push(0x0047A48AU, prefix.ecx) ||
+        !read_actor(
+            0x0047A48BU,
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax >>= 1U;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    prefix.flags = add_flags(prefix.eax, prefix.ecx);
+    prefix.eax += prefix.ecx;
+    prefix.flags = add_flags(prefix.eax, prefix.edx);
+    prefix.eax += prefix.edx;
+    if (!push(0x0047A49AU, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_seven_third_rectangle_call_ready;
+    prefix.eip = 0x0047A49BU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_fourth_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_third_draw_return_ready ||
+        prefix.eip != 0x0047A516U) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_geometry_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 offset,
+                                   u32& destination,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                instruction,
+                prefix.edi + offset,
+                prefix.edi != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == prefix.edi &&
+                    known
+            )) {
+            return false;
+        }
+        destination = (destination & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047A516U,
+            0x2548U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_actor(
+            0x0047A51EU,
+            0x0D68U,
+            prefix.ebx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_resource(
+            0x0047A525U,
+            0x0EU,
+            prefix.eax,
+            actor.action_execution->resource.value_0e,
+            actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_resource(
+            0x0047A52BU,
+            0x0CU,
+            prefix.ecx,
+            actor.action_execution->resource.value_0c,
+            actor.action_execution->resource.value_0c_known
+        ) ||
+        !read_actor(
+            0x0047A52FU,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        ) ||
+        !read_actor(
+            0x0047A535U,
+            0x2958U,
+            prefix.edx,
+            signed_word(actor.action_execution->turn_threshold),
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ebx, prefix.edi);
+    prefix.ebx -= prefix.edi;
+    if (!read_actor(
+            0x0047A53EU,
+            0x0D66U,
+            prefix.edi,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.ebx, prefix.eax);
+    prefix.ebx += prefix.eax;
+    prefix.flags = add_flags(prefix.ebx, prefix.edx);
+    prefix.ebx += prefix.edx;
+    if (!push(0x0047A549U, prefix.ebx)) {
+        return prefix;
+    }
+    prefix.ebx = prefix.edi;
+    prefix.flags = subtract_flags(prefix.ebx, prefix.ebp);
+    prefix.ebx -= prefix.ebp;
+    prefix.flags = add_flags(prefix.ebx, prefix.edx);
+    prefix.ebx += prefix.edx;
+    prefix.flags = add_flags(prefix.ebx, prefix.ecx);
+    prefix.ebx += prefix.ecx;
+    if (!push(0x0047A552U, prefix.ebx) ||
+        !read_actor(
+            0x0047A553U,
+            0x03E4U,
+            prefix.ebx,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.eax >>= 1U;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebx);
+    prefix.eax -= prefix.ebx;
+    if (!read_actor(
+            0x0047A55DU,
+            0x0D68U,
+            prefix.ebx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx >>= 1U;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    prefix.flags = add_flags(prefix.eax, prefix.ebx);
+    prefix.eax += prefix.ebx;
+    prefix.flags = add_flags(prefix.ecx, prefix.edi);
+    prefix.ecx += prefix.edi;
+    prefix.flags = add_flags(prefix.eax, prefix.edx);
+    prefix.eax += prefix.edx;
+    prefix.flags = add_flags(prefix.ecx, prefix.edx);
+    prefix.ecx += prefix.edx;
+    if (!push(0x0047A570U, prefix.eax) || !push(0x0047A571U, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_seven_fourth_rectangle_call_ready;
+    prefix.eip = 0x0047A572U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_fourth_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_fourth_post_rectangle_globals_ready ||
+        prefix.eip != 0x0047A5A5U) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_draw_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 offset,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                instruction,
+                prefix.eax + offset,
+                prefix.eax != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == prefix.eax &&
+                    known
+            )) {
+            return false;
+        }
+        prefix.edx = (prefix.edx & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047A5A5U,
+            0x2694U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A5ABU,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution->render_source_token,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.edx |= 4U;
+    prefix.flags = {
+        .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .zero = prefix.edx == 0U,
+        .sign = (prefix.edx & 0x80000000U) != 0U,
+    };
+    prefix.flags_known = true;
+    if (!push(0x0047A5B4U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_resource(
+            0x0047A5B7U,
+            0x0EU,
+            actor.action_execution->resource.value_0e,
+            actor.action_execution->resource.value_0e_known
+        ) ||
+        !read_actor(
+            0x0047A5BBU,
+            0x2958U,
+            prefix.ecx,
+            signed_word(actor.action_execution->turn_threshold),
+            true
+        ) ||
+        !push(0x0047A5C2U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_resource(
+            0x0047A5C5U,
+            0x0CU,
+            actor.action_execution->resource.value_0c,
+            actor.action_execution->resource.value_0c_known
+        ) ||
+        !read_actor(
+            0x0047A5C9U,
+            0x0D68U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(0x0047A5D0U, prefix.edx) ||
+        !read_actor(
+            0x0047A5D1U,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    prefix.edx = prefix.eax + prefix.ecx + 0x10U;
+    if (!read_actor(
+            0x0047A5DDU,
+            0x0D66U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(0x0047A5E4U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    prefix.flags = add_flags(prefix.eax, prefix.ecx);
+    prefix.eax += prefix.ecx;
+    if (!push(0x0047A5E9U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_seven_fourth_draw_call_ready;
+    prefix.eip = 0x0047A5EAU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_shared_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_thirteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_fourth_draw_return_ready &&
+        prefix.eip == 0x0047AEF9U;
+    if (!case_thirteen &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_seven_fourth_draw_return_ready ||
+         prefix.eip != 0x0047A5EFU)) {
+        return prefix;
+    }
+    const u32 phase_ip = case_thirteen ? 0x0047AEFCU : 0x0047A5F2U;
+    prefix.case_thirteen_shared = case_thirteen;
+    prefix.flags = add_flags(prefix.esp, 0x50U);
+    prefix.flags_known = true;
+    prefix.esp += 0x50U;
+    prefix.draw_auxiliary_pushed = false;
+    const u32 phase_token = prefix.esi + 0x2958U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = phase_ip;
+        prefix.stopped_token = phase_token;
+        prefix.eip = phase_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 before = actor.action_execution->turn_threshold;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.actor_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = phase_ip;
+        prefix.stopped_token = phase_token;
+        prefix.eip = phase_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const bool prior_carry = prefix.flags.carry;
+    actor.action_execution->turn_threshold =
+        static_cast<u16>(before + (case_thirteen ? 2U : 1U));
+    prefix.flags = add_flags_16(before, case_thirteen ? 2U : 1U);
+    if (!case_thirteen) {
+        prefix.flags.carry = prior_carry;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const std::array<u32, 4U> arguments{480U, 640U, 0U, 0U};
+    const std::array<u32, 4U> instructions{
+        0x0047AF04U, 0x0047AF09U, 0x0047AF0EU, 0x0047AF10U
+    };
+    for (std::size_t index = 0U; index < arguments.size(); ++index) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instructions[index];
+            prefix.stopped_token = slot;
+            prefix.eip = instructions[index];
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = arguments[index];
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            arguments[index];
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_seven_shared_rectangle_call_ready;
+    prefix.eip = 0x0047AF12U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_seven_shared_return(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_three_four = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_three_four_shared_rectangle_return_ready &&
+        prefix.eip == 0x00479E9DU;
+    const bool case_fourteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_shared_rectangle_return_ready &&
+        prefix.eip == 0x0047B2DBU;
+    if (!case_three_four && !case_fourteen &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_seven_shared_rectangle_return_ready ||
+         prefix.eip != 0x0047AF17U)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x10U);
+    prefix.flags_known = true;
+    prefix.esp += 0x10U;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    const auto pop =
+        [&](const u32 instruction, u32& destination, const u32 saved) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.stack_readable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::stack_read;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = prefix.esp;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            destination = saved;
+            prefix.esp += 4U;
+            return true;
+        };
+    if (!pop(
+            case_three_four     ? 0x00479EA2U
+                : case_fourteen ? 0x0047B2E0U
+                                : 0x0047AF1CU,
+            prefix.edi,
+            request.entry_edi
+        ) ||
+        !pop(
+            case_three_four     ? 0x00479EA3U
+                : case_fourteen ? 0x0047B2E1U
+                                : 0x0047AF1DU,
+            prefix.esi,
+            request.entry_esi
+        ) ||
+        !pop(
+            case_three_four     ? 0x00479EA4U
+                : case_fourteen ? 0x0047B2E2U
+                                : 0x0047AF1EU,
+            prefix.ebp,
+            request.entry_ebp
+        ) ||
+        !pop(
+            case_three_four     ? 0x00479EA5U
+                : case_fourteen ? 0x0047B2E3U
+                                : 0x0047AF1FU,
+            prefix.ebx,
+            request.entry_ebx
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = case_three_four ? 0x00479EA9U
+            : case_fourteen                          ? 0x0047B2E7U
+                                                     : 0x0047AF23U;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = prefix.stopped_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status = case_three_four
+        ? LegacyBattleActorFrameEntryStatus::case_three_four_active_returned
+        : case_fourteen
+        ? LegacyBattleActorFrameEntryStatus::case_fourteen_active_returned
+        : prefix.case_thirteen_shared
+        ? LegacyBattleActorFrameEntryStatus::case_thirteen_active_returned
+        : LegacyBattleActorFrameEntryStatus::case_seven_active_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_three_four_first_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool four = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_four_post_rectangle_globals_ready &&
+        prefix.eip == 0x00479F6BU;
+    const bool thirteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_first_post_rectangle_globals_ready &&
+        prefix.eip == 0x0047AC64U;
+    const bool fourteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_first_globals_ready &&
+        prefix.eip == 0x0047B1A8U;
+    if (!four && !thirteen && !fourteen &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_three_post_rectangle_globals_ready ||
+         prefix.eip != 0x00479D6BU)) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_draw_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 offset,
+                                   u32& destination,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                instruction,
+                prefix.eax + offset,
+                prefix.eax != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == prefix.eax &&
+                    known
+            )) {
+            return false;
+        }
+        destination = (destination & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (four || thirteen || fourteen) {
+        if (!read_actor(
+                fourteen       ? 0x0047B1A8U
+                    : thirteen ? 0x0047AC64U
+                               : 0x00479F6BU,
+                0x2694U,
+                prefix.ecx,
+                actor.action_execution == nullptr
+                    ? 0U
+                    : actor.action_execution->presentation_render_flags,
+                actor.action_execution != nullptr
+            ) ||
+            !read_actor(
+                fourteen       ? 0x0047B1AEU
+                    : thirteen ? 0x0047AC6AU
+                               : 0x00479F71U,
+                0x2548U,
+                prefix.eax,
+                actor.action_execution->render_source_token,
+                true
+            )) {
+            return prefix;
+        }
+        prefix.ecx |= 4U;
+        prefix.flags = {
+            .parity = even_parity(static_cast<u8>(prefix.ecx)),
+            .zero = prefix.ecx == 0U,
+            .sign = (prefix.ecx & 0x80000000U) != 0U,
+        };
+        prefix.flags_known = true;
+        if (!push(
+                fourteen       ? 0x0047B1B7U
+                    : thirteen ? 0x0047AC73U
+                               : 0x00479F7AU,
+                prefix.ecx
+            )) {
+            return prefix;
+        }
+        prefix.ecx = 0U;
+        prefix.flags = logical_zero_flags();
+        if (!read_resource(
+                fourteen       ? 0x0047B1BAU
+                    : thirteen ? 0x0047AC76U
+                               : 0x00479F7DU,
+                0x0EU,
+                prefix.edx,
+                actor.action_execution->resource.value_0e,
+                actor.action_execution->resource.value_0e_known
+            ) ||
+            !read_resource(
+                fourteen       ? 0x0047B1BEU
+                    : thirteen ? 0x0047AC7AU
+                               : 0x00479F81U,
+                0x0CU,
+                prefix.ecx,
+                actor.action_execution->resource.value_0c,
+                actor.action_execution->resource.value_0c_known
+            ) ||
+            !read_actor(
+                fourteen       ? 0x0047B1C2U
+                    : thirteen ? 0x0047AC7EU
+                               : 0x00479F85U,
+                0x2958U,
+                prefix.eax,
+                signed_word(actor.action_execution->turn_threshold),
+                true
+            ) ||
+            !push(
+                fourteen       ? 0x0047B1C9U
+                    : thirteen ? 0x0047AC85U
+                               : 0x00479F8CU,
+                prefix.edx
+            ) ||
+            !push(
+                fourteen       ? 0x0047B1CAU
+                    : thirteen ? 0x0047AC86U
+                               : 0x00479F8DU,
+                prefix.ecx
+            ) ||
+            !read_actor(
+                fourteen       ? 0x0047B1CBU
+                    : thirteen ? 0x0047AC87U
+                               : 0x00479F8EU,
+                0x0D68U,
+                prefix.edx,
+                actor.primary_coordinates == nullptr
+                    ? 0U
+                    : signed_word(actor.primary_coordinates->position_y),
+                actor.primary_coordinates != nullptr
+            ) ||
+            !touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                fourteen       ? 0x0047B1D2U
+                    : thirteen ? 0x0047AC8EU
+                               : 0x00479F95U,
+                prefix.esi + 0x03E4U,
+                actor.action_execution != nullptr &&
+                    prefix.esi == request.actor_token
+            )) {
+            return prefix;
+        }
+        const u32 offset_y =
+            actor.action_execution->reserved_action_record_02.draw_offset_y;
+        prefix.flags = subtract_flags(prefix.edx, offset_y);
+        prefix.edx -= offset_y;
+        if (!read_actor(
+                fourteen       ? 0x0047B1D8U
+                    : thirteen ? 0x0047AC94U
+                               : 0x00479F9BU,
+                0x0D66U,
+                prefix.ecx,
+                actor.primary_coordinates == nullptr
+                    ? 0U
+                    : signed_word(actor.primary_coordinates->position_x),
+                actor.primary_coordinates != nullptr
+            )) {
+            return prefix;
+        }
+        const u32 phase = prefix.eax;
+        prefix.eax <<= 1U;
+        prefix.flags = {
+            .carry = (phase & 0x80000000U) != 0U,
+            .parity = even_parity(static_cast<u8>(prefix.eax)),
+            .zero = prefix.eax == 0U,
+            .sign = (prefix.eax & 0x80000000U) != 0U,
+            .overflow = ((phase ^ prefix.eax) & 0x80000000U) != 0U,
+        };
+        prefix.flags = subtract_flags(prefix.ecx, prefix.eax);
+        prefix.ecx -= prefix.eax;
+        if (!push(
+                fourteen       ? 0x0047B1E3U
+                    : thirteen ? 0x0047AC9FU
+                               : 0x00479FA6U,
+                prefix.edx
+            )) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+        prefix.ecx -= prefix.ebp;
+        if (!push(
+                fourteen       ? 0x0047B1E6U
+                    : thirteen ? 0x0047ACA2U
+                               : 0x00479FA9U,
+                prefix.ecx
+            )) {
+            return prefix;
+        }
+    } else {
+        if (!read_actor(
+                0x00479D6BU,
+                0x2548U,
+                prefix.eax,
+                actor.action_execution == nullptr
+                    ? 0U
+                    : actor.action_execution->render_source_token,
+                actor.action_execution != nullptr
+            ) ||
+            !read_actor(
+                0x00479D71U,
+                0x2694U,
+                prefix.ecx,
+                actor.action_execution->presentation_render_flags,
+                true
+            )) {
+            return prefix;
+        }
+        prefix.edx = 0U;
+        prefix.flags = logical_zero_flags();
+        if (!read_resource(
+                0x00479D79U,
+                0x0EU,
+                prefix.edx,
+                actor.action_execution->resource.value_0e,
+                actor.action_execution->resource.value_0e_known
+            )) {
+            return prefix;
+        }
+        prefix.ecx |= 4U;
+        prefix.flags = {
+            .parity = even_parity(static_cast<u8>(prefix.ecx)),
+            .zero = prefix.ecx == 0U,
+            .sign = (prefix.ecx & 0x80000000U) != 0U,
+        };
+        if (!push(0x00479D80U, prefix.ecx) || !push(0x00479D81U, prefix.edx) ||
+            !read_actor(
+                0x00479D82U,
+                0x2958U,
+                prefix.edx,
+                signed_word(actor.action_execution->turn_threshold),
+                true
+            )) {
+            return prefix;
+        }
+        prefix.ecx = 0U;
+        prefix.flags = logical_zero_flags();
+        if (!read_resource(
+                0x00479D8BU,
+                0x0CU,
+                prefix.ecx,
+                actor.action_execution->resource.value_0c,
+                actor.action_execution->resource.value_0c_known
+            ) ||
+            !read_actor(
+                0x00479D8FU,
+                0x0D68U,
+                prefix.eax,
+                actor.primary_coordinates == nullptr
+                    ? 0U
+                    : signed_word(actor.primary_coordinates->position_y),
+                actor.primary_coordinates != nullptr
+            )) {
+            return prefix;
+        }
+        const u32 phase = prefix.edx;
+        prefix.edx <<= 1U;
+        prefix.flags = {
+            .carry = (phase & 0x80000000U) != 0U,
+            .parity = even_parity(static_cast<u8>(prefix.edx)),
+            .zero = prefix.edx == 0U,
+            .sign = (prefix.edx & 0x80000000U) != 0U,
+            .overflow = ((phase ^ prefix.edx) & 0x80000000U) != 0U,
+        };
+        if (!push(0x00479D98U, prefix.ecx)) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+        prefix.eax -= prefix.edx;
+        if (!read_actor(
+                0x00479D9BU,
+                0x0D66U,
+                prefix.ecx,
+                actor.primary_coordinates == nullptr
+                    ? 0U
+                    : signed_word(actor.primary_coordinates->position_x),
+                actor.primary_coordinates != nullptr
+            ) ||
+            !read_actor(
+                0x00479DA2U,
+                0x03E4U,
+                prefix.edx,
+                actor.action_execution->reserved_action_record_02.draw_offset_y,
+                true
+            )) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+        prefix.ecx -= prefix.ebp;
+        prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+        prefix.eax -= prefix.edx;
+        if (!push(0x00479DACU, prefix.eax) || !push(0x00479DADU, prefix.ecx)) {
+            return prefix;
+        }
+    }
+    prefix.status = fourteen ? LegacyBattleActorFrameEntryStatus::
+                                   case_fourteen_late_first_draw_call_ready
+        : thirteen
+        ? LegacyBattleActorFrameEntryStatus::case_thirteen_first_draw_call_ready
+        : four
+        ? LegacyBattleActorFrameEntryStatus::case_four_first_draw_call_ready
+        : LegacyBattleActorFrameEntryStatus::case_three_first_draw_call_ready;
+    prefix.eip = fourteen ? 0x0047B1E7U
+        : thirteen        ? 0x0047ACA3U
+        : four            ? 0x00479FAAU
+                          : 0x00479DAEU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_three_second_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_three_first_draw_return_ready ||
+        prefix.eip != 0x00479DB3U) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_geometry_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 offset,
+                                   u32& destination,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                instruction,
+                prefix.edx + offset,
+                prefix.edx != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == prefix.edx &&
+                    known
+            )) {
+            return false;
+        }
+        destination = (destination & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x00479DB3U,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!read_actor(
+            0x00479DBBU,
+            0x2958U,
+            prefix.ecx,
+            signed_word(actor.action_execution->turn_threshold),
+            true
+        ) ||
+        !read_resource(
+            0x00479DC2U,
+            0x0CU,
+            prefix.eax,
+            actor.action_execution->resource.value_0c,
+            actor.action_execution->resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_resource(
+            0x00479DC8U,
+            0x0EU,
+            prefix.edi,
+            actor.action_execution->resource.value_0e,
+            actor.action_execution->resource.value_0e_known
+        ) ||
+        !read_actor(
+            0x00479DCCU,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edi, prefix.edx);
+    prefix.edi -= prefix.edx;
+    if (!read_actor(
+            0x00479DD4U,
+            0x0D68U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx <<= 1U;
+    prefix.flags = add_flags(prefix.edi, prefix.ecx);
+    prefix.edi += prefix.ecx;
+    prefix.flags = add_flags(prefix.edi, prefix.edx);
+    prefix.edi += prefix.edx;
+    if (!push(0x00479DE1U, prefix.edi) ||
+        !read_actor(
+            0x00479DE2U,
+            0x0D66U,
+            prefix.edi,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edi, prefix.ebp);
+    prefix.edi -= prefix.ebp;
+    prefix.flags = add_flags(prefix.edi, prefix.eax);
+    prefix.edi += prefix.eax;
+    if (!push(0x00479DEDU, prefix.edi) ||
+        !read_actor(
+            0x00479DEEU,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edi);
+    prefix.ecx -= prefix.edi;
+    prefix.flags = add_flags(prefix.ecx, prefix.edx);
+    prefix.ecx += prefix.edx;
+    if (!push(0x00479DF8U, prefix.ecx) ||
+        !read_actor(
+            0x00479DF9U,
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax >>= 1U;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    prefix.flags = add_flags(prefix.eax, prefix.ecx);
+    prefix.eax += prefix.ecx;
+    if (!push(0x00479E06U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_three_second_rectangle_call_ready;
+    prefix.eip = 0x00479E07U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_four_second_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_four_first_draw_return_ready ||
+        prefix.eip != 0x00479FAFU) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_geometry_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 token,
+                                   const u32 offset,
+                                   u32& destination,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                instruction,
+                token + offset,
+                token != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == token && known
+            )) {
+            return false;
+        }
+        destination = (destination & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x00479FAFU,
+            0x0D68U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            0x00479FB6U,
+            0x2548U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x00479FBCU,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags = subtract_flags(prefix.edx, prefix.edi);
+    prefix.edx -= prefix.edi;
+    if (!read_resource(
+            0x00479FC6U,
+            prefix.ecx,
+            0x0EU,
+            prefix.eax,
+            actor.action_execution->resource.value_0e,
+            actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_actor(
+            0x00479FCCU,
+            0x2958U,
+            prefix.ecx,
+            signed_word(actor.action_execution->turn_threshold),
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.edx, prefix.eax);
+    prefix.edx += prefix.eax;
+    if (!push(0x00479FD5U, prefix.edx) ||
+        !read_actor(
+            0x00479FD6U,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution->render_source_token,
+            true
+        )) {
+        return prefix;
+    }
+    const u32 phase = prefix.ecx;
+    prefix.ecx <<= 1U;
+    prefix.flags = {
+        .carry = (phase & 0x80000000U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.ecx)),
+        .zero = prefix.ecx == 0U,
+        .sign = (prefix.ecx & 0x80000000U) != 0U,
+        .overflow = ((phase ^ prefix.ecx) & 0x80000000U) != 0U,
+    };
+    if (!read_resource(
+            0x00479FDEU,
+            prefix.edx,
+            0x0CU,
+            prefix.edi,
+            actor.action_execution->resource.value_0c,
+            actor.action_execution->resource.value_0c_known
+        ) ||
+        !read_actor(
+            0x00479FE2U,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edi, prefix.ebp);
+    prefix.edi -= prefix.ebp;
+    prefix.flags = add_flags(prefix.edi, prefix.ecx);
+    prefix.edi += prefix.ecx;
+    prefix.flags = add_flags(prefix.edi, prefix.edx);
+    prefix.edi += prefix.edx;
+    if (!push(0x00479FEFU, prefix.edi)) {
+        return prefix;
+    }
+    prefix.eax >>= 1U;
+    if (!read_actor(
+            0x00479FF2U,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    prefix.flags = subtract_flags(prefix.eax, prefix.edi);
+    prefix.eax -= prefix.edi;
+    prefix.flags = add_flags(prefix.ecx, prefix.edx);
+    prefix.ecx += prefix.edx;
+    if (!read_actor(
+            0x00479FFEU,
+            0x0D68U,
+            prefix.edi,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.eax, prefix.edi);
+    prefix.eax += prefix.edi;
+    if (!push(0x0047A007U, prefix.eax) || !push(0x0047A008U, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_four_second_rectangle_call_ready;
+    prefix.eip = 0x0047A009U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_three_four_second_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool four = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_four_second_post_rectangle_globals_ready &&
+        prefix.eip == 0x0047A03BU;
+    if (!four &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_three_second_post_rectangle_globals_ready ||
+         prefix.eip != 0x00479E39U)) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_draw_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 offset,
+                                   u32& destination,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                instruction,
+                prefix.eax + offset,
+                prefix.eax != 0U && actor.action_execution != nullptr &&
+                    actor.action_execution->resource.token == prefix.eax &&
+                    known
+            )) {
+            return false;
+        }
+        destination = (destination & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (four) {
+        if (!read_actor(
+                0x0047A03BU,
+                0x2694U,
+                prefix.edx,
+                actor.action_execution == nullptr
+                    ? 0U
+                    : actor.action_execution->presentation_render_flags,
+                actor.action_execution != nullptr
+            ) ||
+            !read_actor(
+                0x0047A041U,
+                0x2548U,
+                prefix.eax,
+                actor.action_execution->render_source_token,
+                true
+            )) {
+            return prefix;
+        }
+        prefix.edx |= 4U;
+        prefix.flags = {
+            .parity = even_parity(static_cast<u8>(prefix.edx)),
+            .zero = prefix.edx == 0U,
+            .sign = (prefix.edx & 0x80000000U) != 0U,
+        };
+        prefix.flags_known = true;
+        if (!push(0x0047A04AU, prefix.edx)) {
+            return prefix;
+        }
+        prefix.ecx = 0U;
+        prefix.flags = logical_zero_flags();
+        if (!read_resource(
+                0x0047A04DU,
+                0x0EU,
+                prefix.ecx,
+                actor.action_execution->resource.value_0e,
+                actor.action_execution->resource.value_0e_known
+            )) {
+            return prefix;
+        }
+        prefix.edx = 0U;
+        prefix.flags = logical_zero_flags();
+        if (!read_resource(
+                0x0047A053U,
+                0x0CU,
+                prefix.edx,
+                actor.action_execution->resource.value_0c,
+                actor.action_execution->resource.value_0c_known
+            ) ||
+            !push(0x0047A057U, prefix.ecx) ||
+            !read_actor(
+                0x0047A058U,
+                0x0D68U,
+                prefix.eax,
+                actor.primary_coordinates == nullptr
+                    ? 0U
+                    : signed_word(actor.primary_coordinates->position_y),
+                actor.primary_coordinates != nullptr
+            ) ||
+            !read_actor(
+                0x0047A05FU,
+                0x03E4U,
+                prefix.ecx,
+                actor.action_execution->reserved_action_record_02.draw_offset_y,
+                true
+            ) ||
+            !push(0x0047A065U, prefix.edx) ||
+            !read_actor(
+                0x0047A066U,
+                0x0D66U,
+                prefix.edx,
+                actor.primary_coordinates == nullptr
+                    ? 0U
+                    : signed_word(actor.primary_coordinates->position_x),
+                actor.primary_coordinates != nullptr
+            )) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(prefix.eax, prefix.ecx);
+        prefix.eax -= prefix.ecx;
+        if (!read_actor(
+                0x0047A06FU,
+                0x2958U,
+                prefix.ecx,
+                signed_word(actor.action_execution->turn_threshold),
+                true
+            )) {
+            return prefix;
+        }
+        prefix.ecx <<= 1U;
+        prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+        prefix.ecx -= prefix.ebp;
+        if (!push(0x0047A07AU, prefix.eax)) {
+            return prefix;
+        }
+        prefix.flags = add_flags(prefix.ecx, prefix.edx);
+        prefix.ecx += prefix.edx;
+        if (!push(0x0047A07DU, prefix.ecx)) {
+            return prefix;
+        }
+    } else {
+        if (!read_actor(
+                0x00479E39U,
+                0x2694U,
+                prefix.edx,
+                actor.action_execution == nullptr
+                    ? 0U
+                    : actor.action_execution->presentation_render_flags,
+                actor.action_execution != nullptr
+            ) ||
+            !read_actor(
+                0x00479E3FU,
+                0x2548U,
+                prefix.eax,
+                actor.action_execution->render_source_token,
+                true
+            )) {
+            return prefix;
+        }
+        prefix.edx |= 4U;
+        prefix.flags = {
+            .parity = even_parity(static_cast<u8>(prefix.edx)),
+            .zero = prefix.edx == 0U,
+            .sign = (prefix.edx & 0x80000000U) != 0U,
+        };
+        prefix.flags_known = true;
+        if (!push(0x00479E48U, prefix.edx) ||
+            !read_actor(
+                0x00479E49U,
+                0x03E4U,
+                prefix.edi,
+                actor.action_execution->reserved_action_record_02.draw_offset_y,
+                true
+            )) {
+            return prefix;
+        }
+        prefix.ecx = 0U;
+        prefix.flags = logical_zero_flags();
+        prefix.edx = 0U;
+        prefix.flags = logical_zero_flags();
+        if (!read_resource(
+                0x00479E53U,
+                0x0EU,
+                prefix.ecx,
+                actor.action_execution->resource.value_0e,
+                actor.action_execution->resource.value_0e_known
+            ) ||
+            !read_resource(
+                0x00479E57U,
+                0x0CU,
+                prefix.edx,
+                actor.action_execution->resource.value_0c,
+                actor.action_execution->resource.value_0c_known
+            ) ||
+            !read_actor(
+                0x00479E5BU,
+                0x2958U,
+                prefix.eax,
+                signed_word(actor.action_execution->turn_threshold),
+                true
+            ) ||
+            !push(0x00479E62U, prefix.ecx) || !push(0x00479E63U, prefix.edx) ||
+            !read_actor(
+                0x00479E64U,
+                0x0D68U,
+                prefix.ecx,
+                actor.primary_coordinates == nullptr
+                    ? 0U
+                    : signed_word(actor.primary_coordinates->position_y),
+                actor.primary_coordinates != nullptr
+            ) ||
+            !read_actor(
+                0x00479E6BU,
+                0x0D66U,
+                prefix.edx,
+                actor.primary_coordinates == nullptr
+                    ? 0U
+                    : signed_word(actor.primary_coordinates->position_x),
+                actor.primary_coordinates != nullptr
+            )) {
+            return prefix;
+        }
+        prefix.eax <<= 1U;
+        prefix.flags = subtract_flags(prefix.eax, prefix.edi);
+        prefix.eax -= prefix.edi;
+        prefix.flags = add_flags(prefix.eax, prefix.ecx);
+        prefix.eax += prefix.ecx;
+        prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+        prefix.edx -= prefix.ebp;
+        if (!push(0x00479E7AU, prefix.eax) || !push(0x00479E7BU, prefix.edx)) {
+            return prefix;
+        }
+    }
+    prefix.status = four
+        ? LegacyBattleActorFrameEntryStatus::case_four_second_draw_call_ready
+        : LegacyBattleActorFrameEntryStatus::case_three_second_draw_call_ready;
+    prefix.eip = 0x00479E7CU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_three_four_shared_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_three = prefix.status ==
+        LegacyBattleActorFrameEntryStatus::case_three_second_draw_return_ready;
+    const bool case_four = prefix.status ==
+        LegacyBattleActorFrameEntryStatus::case_four_second_draw_return_ready;
+    if ((!case_three && !case_four) || prefix.eip != 0x00479E81U) {
+        return prefix;
+    }
+    const u32 phase_token = prefix.esi + 0x2958U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x00479E81U;
+        prefix.stopped_token = phase_token;
+        prefix.eip = 0x00479E81U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 before = actor.action_execution->turn_threshold;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.actor_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x00479E81U;
+        prefix.stopped_token = phase_token;
+        prefix.eip = 0x00479E81U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.action_execution->turn_threshold = static_cast<u16>(before + 2U);
+    prefix.flags = add_flags_16(before, 2U);
+    prefix.flags_known = true;
+    prefix.flags = add_flags(prefix.esp, 0x50U);
+    prefix.esp += 0x50U;
+    prefix.draw_auxiliary_pushed = false;
+    prefix.rectangle_argument_count = 0U;
+    const std::array<u32, 4U> arguments{480U, 640U, prefix.ebx, prefix.ebx};
+    const std::array<u32, 4U> instructions{
+        0x00479E8CU, 0x00479E91U, 0x00479E96U, 0x00479E97U
+    };
+    for (std::size_t index = 0U; index < arguments.size(); ++index) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instructions[index];
+            prefix.stopped_token = slot;
+            prefix.eip = instructions[index];
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = arguments[index];
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            arguments[index];
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_three_four_shared_rectangle_call_ready;
+    prefix.eip = 0x00479E98U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_thirteen_first_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_initial_source_ready ||
+        prefix.eip != 0x0047ABE4U) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+            ? request.stack_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_geometry_resource_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+                ? LegacyBattleActorFrameEntryStatus::stack_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047ABE4U,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047ABEAU,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047ABF1U,
+            prefix.edx + 0x0EU,
+            prefix.edx != 0U && actor.action_execution != nullptr &&
+                actor.action_execution->resource.token == prefix.edx &&
+                actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edi =
+        (prefix.edi & 0xFFFF0000U) | actor.action_execution->resource.value_0e;
+    if (!read_actor(
+            0x0047ABF5U,
+            0x03E4U,
+            prefix.eax,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.edi >>= 2U;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.eax);
+    prefix.ecx -= prefix.eax;
+    if (!read_actor(
+            0x0047AC00U,
+            0x2958U,
+            prefix.eax,
+            signed_word(actor.action_execution->turn_threshold),
+            true
+        )) {
+        return prefix;
+    }
+    prefix.ebx = prefix.ecx + prefix.edi;
+    prefix.flags = add_flags(prefix.eax, prefix.eax);
+    prefix.eax += prefix.eax;
+    if (!push(0x0047AC0CU, prefix.ebx)) {
+        return prefix;
+    }
+    prefix.ebx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047AC0FU,
+            prefix.edx + 0x0CU,
+            prefix.edx != 0U && actor.action_execution != nullptr &&
+                actor.action_execution->resource.token == prefix.edx &&
+                actor.action_execution->resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.ebx =
+        (prefix.ebx & 0xFFFF0000U) | actor.action_execution->resource.value_0c;
+    const u32 local_slot = prefix.esp + 0x14U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            0x0047AC13U,
+            local_slot,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.case_thirteen_phase_twice_local = prefix.eax;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            0x0047AC17U,
+            local_slot,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.edx = prefix.case_thirteen_phase_twice_local;
+    if (!read_actor(
+            0x0047AC1BU,
+            0x0D66U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ebx, prefix.edx);
+    prefix.ebx -= prefix.edx;
+    prefix.flags = subtract_flags(prefix.ebx, prefix.ebp);
+    prefix.ebx -= prefix.ebp;
+    prefix.flags = add_flags(prefix.ebx, prefix.eax);
+    prefix.ebx += prefix.eax;
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    if (!push(0x0047AC2AU, prefix.ebx)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    if (!push(0x0047AC2DU, prefix.ecx) || !push(0x0047AC2EU, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_thirteen_first_rectangle_call_ready;
+    prefix.eip = 0x0047AC2FU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_thirteen_second_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_first_draw_return_ready ||
+        prefix.eip != 0x0047ACA8U) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_geometry_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047ACA8U,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            0x0047ACAFU,
+            0x03E4U,
+            prefix.ebx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047ACB5U,
+            0x2958U,
+            prefix.eax,
+            signed_word(actor.action_execution->turn_threshold),
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebx);
+    prefix.ecx -= prefix.ebx;
+    prefix.ebx = 0U;
+    prefix.flags = logical_zero_flags();
+    const u32 phase = prefix.eax;
+    prefix.eax <<= 1U;
+    prefix.flags = {
+        .carry = (phase & 0x80000000U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.eax)),
+        .zero = prefix.eax == 0U,
+        .sign = (prefix.eax & 0x80000000U) != 0U,
+        .overflow = ((phase ^ prefix.eax) & 0x80000000U) != 0U,
+    };
+    prefix.edx = prefix.ecx + prefix.edi * 2U;
+    prefix.flags = add_flags(prefix.ecx, prefix.edi);
+    prefix.ecx += prefix.edi;
+    if (!push(0x0047ACC7U, prefix.edx) ||
+        !read_actor(
+            0x0047ACC8U,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution->render_source_token,
+            true
+        )) {
+        return prefix;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047ACCEU,
+            prefix.edx + 0x0CU,
+            prefix.edx != 0U && actor.action_execution != nullptr &&
+                actor.action_execution->resource.token == prefix.edx &&
+                actor.action_execution->resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.ebx =
+        (prefix.ebx & 0xFFFF0000U) | actor.action_execution->resource.value_0c;
+    if (!read_actor(
+            0x0047ACD2U,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ebx, prefix.ebp);
+    prefix.ebx -= prefix.ebp;
+    prefix.flags = add_flags(prefix.ebx, prefix.eax);
+    prefix.ebx += prefix.eax;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    prefix.flags = add_flags(prefix.ebx, prefix.edx);
+    prefix.ebx += prefix.edx;
+    prefix.flags = add_flags(prefix.eax, prefix.edx);
+    prefix.eax += prefix.edx;
+    if (!push(0x0047ACE3U, prefix.ebx) || !push(0x0047ACE4U, prefix.ecx) ||
+        !push(0x0047ACE5U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_thirteen_second_rectangle_call_ready;
+    prefix.eip = 0x0047ACE6U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_thirteen_second_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_second_post_rectangle_globals_ready ||
+        prefix.eip != 0x0047AD19U) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_draw_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047AD19U,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047AD1FU,
+            0x2694U,
+            prefix.ecx,
+            actor.action_execution->presentation_render_flags,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047AD27U,
+            prefix.eax + 0x0EU,
+            prefix.eax != 0U && actor.action_execution != nullptr &&
+                actor.action_execution->resource.token == prefix.eax &&
+                actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edx =
+        (prefix.edx & 0xFFFF0000U) | actor.action_execution->resource.value_0e;
+    prefix.ecx |= 4U;
+    prefix.flags = {
+        .parity = even_parity(static_cast<u8>(prefix.ecx)),
+        .zero = prefix.ecx == 0U,
+        .sign = (prefix.ecx & 0x80000000U) != 0U,
+    };
+    prefix.flags_known = true;
+    if (!push(0x0047AD2EU, prefix.ecx) || !push(0x0047AD2FU, prefix.edx) ||
+        !read_actor(
+            0x0047AD30U,
+            0x0D68U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047AD39U,
+            prefix.eax + 0x0CU,
+            prefix.eax != 0U && actor.action_execution != nullptr &&
+                actor.action_execution->resource.token == prefix.eax &&
+                actor.action_execution->resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx =
+        (prefix.ecx & 0xFFFF0000U) | actor.action_execution->resource.value_0c;
+    if (!read_actor(
+            0x0047AD3DU,
+            0x03E4U,
+            prefix.eax,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, prefix.eax);
+    prefix.edx -= prefix.eax;
+    if (!push(0x0047AD45U, prefix.ecx) ||
+        !read_actor(
+            0x0047AD46U,
+            0x2958U,
+            prefix.eax,
+            signed_word(actor.action_execution->turn_threshold),
+            true
+        ) ||
+        !read_actor(
+            0x0047AD4DU,
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    const u32 phase = prefix.eax;
+    prefix.eax <<= 1U;
+    prefix.flags = {
+        .carry = (phase & 0x80000000U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.eax)),
+        .zero = prefix.eax == 0U,
+        .sign = (prefix.eax & 0x80000000U) != 0U,
+        .overflow = ((phase ^ prefix.eax) & 0x80000000U) != 0U,
+    };
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    if (!push(0x0047AD58U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.eax, prefix.ecx);
+    prefix.eax += prefix.ecx;
+    if (!push(0x0047AD5BU, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_thirteen_second_draw_call_ready;
+    prefix.eip = 0x0047AD5CU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_thirteen_third_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_second_draw_return_ready ||
+        prefix.eip != 0x0047AD61U) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+            ? request.stack_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_geometry_resource_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+                ? LegacyBattleActorFrameEntryStatus::stack_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047AD61U,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            0x0047AD68U,
+            0x2958U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047AD6FU,
+            0x03E4U,
+            prefix.ebx,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.esp += 0x50U;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebx);
+    prefix.ecx -= prefix.ebx;
+    prefix.ebx = prefix.edi + prefix.edi * 2U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            0x0047AD7DU,
+            prefix.esp + 0x20U,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.case_thirteen_y_local = prefix.ecx;
+    prefix.edx = prefix.eax + prefix.eax;
+    prefix.flags = add_flags(prefix.ecx, prefix.ebx);
+    prefix.ecx += prefix.ebx;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            0x0047AD86U,
+            prefix.esp + 0x10U,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.case_thirteen_phase_twice_local = prefix.edx;
+    if (!read_actor(
+            0x0047AD8AU,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution->render_source_token,
+            true
+        ) ||
+        !push(0x0047AD90U, prefix.ecx) ||
+        !read_actor(
+            0x0047AD91U,
+            0x0D66U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047AD9AU,
+            prefix.edx + 0x0CU,
+            prefix.edx != 0U && actor.action_execution != nullptr &&
+                actor.action_execution->resource.token == prefix.edx &&
+                actor.action_execution->resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx =
+        (prefix.ecx & 0xFFFF0000U) | actor.action_execution->resource.value_0c;
+    prefix.edx = prefix.ecx;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            0x0047ADA0U,
+            prefix.esp + 0x14U,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.ecx = prefix.case_thirteen_phase_twice_local;
+    prefix.flags = subtract_flags(prefix.edx, prefix.ecx);
+    prefix.edx -= prefix.ecx;
+    prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+    prefix.edx -= prefix.ebp;
+    prefix.flags = add_flags(prefix.edx, prefix.eax);
+    prefix.edx += prefix.eax;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ecx);
+    prefix.eax -= prefix.ecx;
+    if (!push(0x0047ADACU, prefix.edx)) {
+        return prefix;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            0x0047ADADU,
+            prefix.esp + 0x28U,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.edx = prefix.case_thirteen_y_local;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    prefix.edx += prefix.edi * 2U;
+    if (!push(0x0047ADB6U, prefix.edx) || !push(0x0047ADB7U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_thirteen_third_rectangle_call_ready;
+    prefix.eip = 0x0047ADB8U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_thirteen_third_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_third_post_rectangle_globals_ready ||
+        prefix.eip != 0x0047ADEBU) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_draw_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047ADEBU,
+            0x2694U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047ADF1U,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution->render_source_token,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.ecx |= 4U;
+    prefix.flags = {
+        .parity = even_parity(static_cast<u8>(prefix.ecx)),
+        .zero = prefix.ecx == 0U,
+        .sign = (prefix.ecx & 0x80000000U) != 0U,
+    };
+    prefix.flags_known = true;
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!push(0x0047ADFCU, prefix.ecx)) {
+        return prefix;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047ADFDU,
+            prefix.eax + 0x0EU,
+            prefix.eax != 0U && actor.action_execution != nullptr &&
+                actor.action_execution->resource.token == prefix.eax &&
+                actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edx =
+        (prefix.edx & 0xFFFF0000U) | actor.action_execution->resource.value_0e;
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047AE03U,
+            prefix.eax + 0x0CU,
+            prefix.eax != 0U &&
+                actor.action_execution->resource.token == prefix.eax &&
+                actor.action_execution->resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx =
+        (prefix.ecx & 0xFFFF0000U) | actor.action_execution->resource.value_0c;
+    if (!push(0x0047AE07U, prefix.edx) ||
+        !read_actor(
+            0x0047AE08U,
+            0x0D68U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(0x0047AE0FU, prefix.ecx) ||
+        !read_actor(
+            0x0047AE10U,
+            0x03E4U,
+            prefix.ecx,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, prefix.ecx);
+    prefix.edx -= prefix.ecx;
+    if (!read_actor(
+            0x0047AE18U,
+            0x2958U,
+            prefix.eax,
+            signed_word(actor.action_execution->turn_threshold),
+            true
+        ) ||
+        !read_actor(
+            0x0047AE1FU,
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    const u32 phase = prefix.eax;
+    prefix.eax <<= 1U;
+    prefix.flags = {
+        .carry = (phase & 0x80000000U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.eax)),
+        .zero = prefix.eax == 0U,
+        .sign = (prefix.eax & 0x80000000U) != 0U,
+        .overflow = ((phase ^ prefix.eax) & 0x80000000U) != 0U,
+    };
+    prefix.flags = subtract_flags(prefix.ecx, prefix.eax);
+    prefix.ecx -= prefix.eax;
+    if (!push(0x0047AE2AU, prefix.edx)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    if (!push(0x0047AE2DU, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_thirteen_third_draw_call_ready;
+    prefix.eip = 0x0047AE2EU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_thirteen_fourth_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_third_draw_return_ready ||
+        prefix.eip != 0x0047AE33U) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_geometry_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047AE33U,
+            0x2548U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047AE39U,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047AE41U,
+            prefix.ecx + 0x0EU,
+            prefix.ecx != 0U && actor.action_execution != nullptr &&
+                actor.action_execution->resource.token == prefix.ecx &&
+                actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edi =
+        (prefix.edi & 0xFFFF0000U) | actor.action_execution->resource.value_0e;
+    if (!read_actor(
+            0x0047AE45U,
+            0x2958U,
+            prefix.eax,
+            signed_word(actor.action_execution->turn_threshold),
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edi, prefix.edx);
+    prefix.edi -= prefix.edx;
+    if (!read_actor(
+            0x0047AE4EU,
+            0x0D68U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.edi, prefix.edx);
+    prefix.edi += prefix.edx;
+    if (!push(0x0047AE57U, prefix.edi)) {
+        return prefix;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047AE5AU,
+            prefix.ecx + 0x0CU,
+            prefix.ecx != 0U &&
+                actor.action_execution->resource.token == prefix.ecx &&
+                actor.action_execution->resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.edi =
+        (prefix.edi & 0xFFFF0000U) | actor.action_execution->resource.value_0c;
+    if (!read_actor(
+            0x0047AE5EU,
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    const u32 phase = prefix.eax;
+    prefix.eax <<= 1U;
+    prefix.flags = {
+        .carry = (phase & 0x80000000U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.eax)),
+        .zero = prefix.eax == 0U,
+        .sign = (prefix.eax & 0x80000000U) != 0U,
+        .overflow = ((phase ^ prefix.eax) & 0x80000000U) != 0U,
+    };
+    prefix.flags = subtract_flags(prefix.edi, prefix.ebp);
+    prefix.edi -= prefix.ebp;
+    prefix.flags = add_flags(prefix.edi, prefix.eax);
+    prefix.edi += prefix.eax;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    prefix.flags = add_flags(prefix.edi, prefix.ecx);
+    prefix.edi += prefix.ecx;
+    prefix.flags = add_flags(prefix.eax, prefix.ecx);
+    prefix.eax += prefix.ecx;
+    if (!push(0x0047AE71U, prefix.edi) ||
+        !read_actor(
+            0x0047AE72U,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ebx, prefix.edi);
+    prefix.ebx -= prefix.edi;
+    prefix.flags = add_flags(prefix.ebx, prefix.edx);
+    prefix.ebx += prefix.edx;
+    if (!push(0x0047AE7CU, prefix.ebx) || !push(0x0047AE7DU, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_thirteen_fourth_rectangle_call_ready;
+    prefix.eip = 0x0047AE7EU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_thirteen_fourth_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_fourth_post_rectangle_globals_ready ||
+        prefix.eip != 0x0047AEB1U) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_draw_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047AEB1U,
+            0x2694U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047AEB7U,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution->render_source_token,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.edx |= 4U;
+    prefix.flags = {
+        .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .zero = prefix.edx == 0U,
+        .sign = (prefix.edx & 0x80000000U) != 0U,
+    };
+    prefix.flags_known = true;
+    if (!push(0x0047AEC0U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047AEC3U,
+            prefix.eax + 0x0EU,
+            prefix.eax != 0U && actor.action_execution != nullptr &&
+                actor.action_execution->resource.token == prefix.eax &&
+                actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx =
+        (prefix.ecx & 0xFFFF0000U) | actor.action_execution->resource.value_0e;
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047AEC9U,
+            prefix.eax + 0x0CU,
+            prefix.eax != 0U &&
+                actor.action_execution->resource.token == prefix.eax &&
+                actor.action_execution->resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.edx =
+        (prefix.edx & 0xFFFF0000U) | actor.action_execution->resource.value_0c;
+    if (!push(0x0047AECDU, prefix.ecx) ||
+        !read_actor(
+            0x0047AECEU,
+            0x0D68U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            0x0047AED5U,
+            0x2958U,
+            prefix.ecx,
+            signed_word(actor.action_execution->turn_threshold),
+            true
+        ) ||
+        !push(0x0047AEDCU, prefix.edx) ||
+        !read_actor(
+            0x0047AEDDU,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    if (!read_actor(
+            0x0047AEE5U,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    const u32 phase = prefix.ecx;
+    prefix.ecx <<= 1U;
+    prefix.flags = {
+        .carry = (phase & 0x80000000U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.ecx)),
+        .zero = prefix.ecx == 0U,
+        .sign = (prefix.ecx & 0x80000000U) != 0U,
+        .overflow = ((phase ^ prefix.ecx) & 0x80000000U) != 0U,
+    };
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    if (!push(0x0047AEF0U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.ecx, prefix.edx);
+    prefix.ecx += prefix.edx;
+    if (!push(0x0047AEF3U, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_thirteen_fourth_draw_call_ready;
+    prefix.eip = 0x0047AEF4U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_three_source(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_four = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_four_source_ready &&
+        prefix.eip == 0x00479ED0U;
+    if (!case_four &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_three_source_ready ||
+         prefix.eip != 0x00479CCDU)) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.global_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            case_four ? 0x00479ED0U : 0x00479CCDU,
+            prefix.esi + 0x2548U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
+        )) {
+        return prefix;
+    }
+    const u32 token = actor.action_execution->render_source_token;
+    if (case_four) {
+        prefix.ecx = token;
+    } else {
+        prefix.eax = token;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            case_four ? LegacyBattleActorFrameEntryStatus::
+                            case_four_resource_read_typed_stop
+                      : LegacyBattleActorFrameEntryStatus::
+                            case_three_resource_read_typed_stop,
+            case_four ? 0x00479ED8U : 0x00479CD5U,
+            token,
+            token != 0U && resource.token == token && resource.value_00_known
+        )) {
+        return prefix;
+    }
+    if (case_four) {
+        prefix.edx = resource.value_00;
+    } else {
+        prefix.ecx = resource.value_00;
+    }
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+            case_four ? 0x00479EDAU : 0x00479CD7U,
+            0x004CD730U,
+            actor.shared_action != nullptr
+        )) {
+        return prefix;
+    }
+    actor.shared_action->turn_frame_source_token =
+        case_four ? prefix.edx : prefix.ecx;
+    prefix.status = case_four
+        ? LegacyBattleActorFrameEntryStatus::case_four_initial_source_ready
+        : LegacyBattleActorFrameEntryStatus::case_three_initial_source_ready;
+    prefix.eip = case_four ? 0x00479EE0U : 0x00479CDDU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_four_source(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_three_source(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_three_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_three_initial_source_ready ||
+        prefix.eip != 0x00479CDDU) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+            ? request.stack_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& register_value,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        register_value = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 offset,
+                                   u32& register_value,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                LegacyBattleActorFrameEntryStatus::
+                    case_three_geometry_resource_read_typed_stop,
+                instruction,
+                prefix.edx + offset,
+                actor.action_execution != nullptr && prefix.edx != 0U &&
+                    actor.action_execution->resource.token == prefix.edx &&
+                    known
+            )) {
+            return false;
+        }
+        register_value = (register_value & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto stack_access = [&](const bool read,
+                                  const u32 instruction,
+                                  const u32 token) {
+        return touch(
+            read ? LegacyBattleActorFrameEntryAccessKind::stack_read
+                 : LegacyBattleActorFrameEntryAccessKind::stack_write,
+            read ? LegacyBattleActorFrameEntryStatus::stack_read_typed_stop
+                 : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            instruction,
+            token,
+            true
+        );
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!stack_access(false, instruction, slot)) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x00479CDDU,
+            0x2958U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x00479CE4U,
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx = prefix.eax + prefix.eax;
+    const u32 local_token = prefix.esp + 0x10U;
+    if (!stack_access(false, 0x00479CEEU, local_token)) {
+        return prefix;
+    }
+    prefix.case_three_phase_twice_local = prefix.edx;
+    if (!read_actor(
+            0x00479CF2U,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x00479CF8U,
+            0x0D68U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    if (!read_resource(
+            0x00479CFFU,
+            0x0EU,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0e,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0e_known
+        ) ||
+        !stack_access(true, 0x00479D03U, prefix.esp + 0x10U)) {
+        return prefix;
+    }
+    prefix.edx = prefix.case_three_phase_twice_local;
+    prefix.flags = subtract_flags(prefix.edi, prefix.edx);
+    prefix.edi -= prefix.edx;
+    if (!read_actor(
+            0x00479D09U,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edi, prefix.edx);
+    prefix.edi -= prefix.edx;
+    if (!read_actor(
+            0x00479D11U,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.edi, prefix.eax);
+    prefix.edi += prefix.eax;
+    if (!push(0x00479D19U, prefix.edi)) {
+        return prefix;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_resource(
+            0x00479D1CU,
+            0x0CU,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0c,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0c_known
+        ) ||
+        !stack_access(true, 0x00479D20U, prefix.esp + 0x14U)) {
+        return prefix;
+    }
+    prefix.edx = prefix.case_three_phase_twice_local;
+    const u32 old_edi = prefix.edi;
+    prefix.edi >>= 1U;
+    prefix.flags = {
+        .carry = (old_edi & 1U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.edi)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edi == 0U,
+        .sign = (prefix.edi & 0x80000000U) != 0U,
+        .overflow = (old_edi & 0x80000000U) != 0U,
+    };
+    prefix.flags = subtract_flags(prefix.edi, prefix.ebp);
+    prefix.edi -= prefix.ebp;
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    prefix.flags = add_flags(prefix.edi, prefix.ecx);
+    prefix.edi += prefix.ecx;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    if (!push(0x00479D2EU, prefix.edi) ||
+        !read_actor(
+            0x00479D2FU,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.edi);
+    prefix.eax -= prefix.edi;
+    if (!push(0x00479D37U, prefix.eax) || !push(0x00479D38U, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_three_rectangle_call_ready;
+    prefix.eip = 0x00479D39U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_three_rectangle_entry(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_four = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_four_rectangle_call_ready &&
+        prefix.eip == 0x00479F37U;
+    const bool case_seven = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_rectangle_call_ready &&
+        prefix.eip == 0x0047A2F0U;
+    const bool case_seven_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_second_rectangle_call_ready &&
+        prefix.eip == 0x0047A3CBU;
+    const bool case_seven_third = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_third_rectangle_call_ready &&
+        prefix.eip == 0x0047A49BU;
+    const bool case_seven_fourth = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_fourth_rectangle_call_ready &&
+        prefix.eip == 0x0047A572U;
+    const bool case_seven_shared = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_shared_rectangle_call_ready &&
+        prefix.eip == 0x0047AF12U;
+    const bool case_three_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_three_second_rectangle_call_ready &&
+        prefix.eip == 0x00479E07U;
+    const bool case_four_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_four_second_rectangle_call_ready &&
+        prefix.eip == 0x0047A009U;
+    const bool case_three_four_shared = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_three_four_shared_rectangle_call_ready &&
+        prefix.eip == 0x00479E98U;
+    const bool case_thirteen_first = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_first_rectangle_call_ready &&
+        prefix.eip == 0x0047AC2FU;
+    const bool case_thirteen_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_second_rectangle_call_ready &&
+        prefix.eip == 0x0047ACE6U;
+    const bool case_thirteen_third = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_third_rectangle_call_ready &&
+        prefix.eip == 0x0047ADB8U;
+    const bool case_thirteen_fourth = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_fourth_rectangle_call_ready &&
+        prefix.eip == 0x0047AE7EU;
+    const bool case_fourteen_early_first = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_first_rectangle_call_ready &&
+        prefix.eip == 0x0047AFBEU;
+    const bool case_fourteen_early_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_second_rectangle_call_ready &&
+        prefix.eip == 0x0047B083U;
+    const bool case_fourteen_shared = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_shared_rectangle_call_ready &&
+        prefix.eip == 0x0047B2D6U;
+    const bool case_fourteen_late_first = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_first_rectangle_call_ready &&
+        prefix.eip == 0x0047B174U;
+    const bool case_fourteen_late_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_second_rectangle_call_ready &&
+        prefix.eip == 0x0047B246U;
+    if (!case_four && !case_seven && !case_seven_second && !case_seven_third &&
+        !case_seven_fourth && !case_seven_shared && !case_three_second &&
+        !case_four_second && !case_three_four_shared && !case_thirteen_first &&
+        !case_thirteen_second && !case_thirteen_third &&
+        !case_thirteen_fourth && !case_fourteen_early_first &&
+        !case_fourteen_early_second && !case_fourteen_shared &&
+        !case_fourteen_late_first && !case_fourteen_late_second &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_three_rectangle_call_ready ||
+         prefix.eip != 0x00479D39U)) {
+        return prefix;
+    }
+    const u32 call_ip = case_four    ? 0x00479F37U
+        : case_seven                 ? 0x0047A2F0U
+        : case_seven_second          ? 0x0047A3CBU
+        : case_seven_third           ? 0x0047A49BU
+        : case_seven_fourth          ? 0x0047A572U
+        : case_seven_shared          ? 0x0047AF12U
+        : case_three_second          ? 0x00479E07U
+        : case_four_second           ? 0x0047A009U
+        : case_three_four_shared     ? 0x00479E98U
+        : case_thirteen_first        ? 0x0047AC2FU
+        : case_thirteen_second       ? 0x0047ACE6U
+        : case_thirteen_third        ? 0x0047ADB8U
+        : case_thirteen_fourth       ? 0x0047AE7EU
+        : case_fourteen_early_first  ? 0x0047AFBEU
+        : case_fourteen_early_second ? 0x0047B083U
+        : case_fourteen_shared       ? 0x0047B2D6U
+        : case_fourteen_late_first   ? 0x0047B174U
+        : case_fourteen_late_second  ? 0x0047B246U
+                                     : 0x00479D39U;
+    if (prefix.rectangle_argument_count !=
+        prefix.rectangle_argument_pushes.size()) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = slot;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = case_four ? 0x00479F3CU
+        : case_seven                     ? 0x0047A2F5U
+        : case_seven_second              ? 0x0047A3D0U
+        : case_seven_third               ? 0x0047A4A0U
+        : case_seven_fourth              ? 0x0047A577U
+        : case_seven_shared              ? 0x0047AF17U
+        : case_three_second              ? 0x00479E0CU
+        : case_four_second               ? 0x0047A00EU
+        : case_three_four_shared         ? 0x00479E9DU
+        : case_thirteen_first            ? 0x0047AC34U
+        : case_thirteen_second           ? 0x0047ACEBU
+        : case_thirteen_third            ? 0x0047ADBDU
+        : case_thirteen_fourth           ? 0x0047AE83U
+        : case_fourteen_early_first      ? 0x0047AFC3U
+        : case_fourteen_early_second     ? 0x0047B088U
+        : case_fourteen_shared           ? 0x0047B2DBU
+        : case_fourteen_late_first       ? 0x0047B179U
+        : case_fourteen_late_second      ? 0x0047B24BU
+                                         : 0x00479D3EU;
+    ++prefix.rectangle_calls;
+    prefix.status = case_four ? LegacyBattleActorFrameEntryStatus::
+                                    case_four_rectangle_child_typed_stop
+        : case_seven          ? LegacyBattleActorFrameEntryStatus::
+                                    case_seven_rectangle_child_typed_stop
+        : case_seven_second   ? LegacyBattleActorFrameEntryStatus::
+                                    case_seven_second_rectangle_child_typed_stop
+        : case_seven_third    ? LegacyBattleActorFrameEntryStatus::
+                                    case_seven_third_rectangle_child_typed_stop
+        : case_seven_fourth   ? LegacyBattleActorFrameEntryStatus::
+                                    case_seven_fourth_rectangle_child_typed_stop
+        : case_seven_shared   ? LegacyBattleActorFrameEntryStatus::
+                                    case_seven_shared_rectangle_child_typed_stop
+        : case_three_second   ? LegacyBattleActorFrameEntryStatus::
+                                    case_three_second_rectangle_child_typed_stop
+        : case_four_second    ? LegacyBattleActorFrameEntryStatus::
+                                    case_four_second_rectangle_child_typed_stop
+        : case_three_four_shared
+        ? LegacyBattleActorFrameEntryStatus::
+              case_three_four_shared_rectangle_child_typed_stop
+        : case_thirteen_first
+        ? LegacyBattleActorFrameEntryStatus::
+              case_thirteen_first_rectangle_child_typed_stop
+        : case_thirteen_second
+        ? LegacyBattleActorFrameEntryStatus::
+              case_thirteen_second_rectangle_child_typed_stop
+        : case_thirteen_third
+        ? LegacyBattleActorFrameEntryStatus::
+              case_thirteen_third_rectangle_child_typed_stop
+        : case_thirteen_fourth
+        ? LegacyBattleActorFrameEntryStatus::
+              case_thirteen_fourth_rectangle_child_typed_stop
+        : case_fourteen_early_first
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_early_first_rectangle_child_typed_stop
+        : case_fourteen_early_second
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_early_second_rectangle_child_typed_stop
+        : case_fourteen_shared
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_shared_rectangle_child_typed_stop
+        : case_fourteen_late_first
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_late_first_rectangle_child_typed_stop
+        : case_fourteen_late_second
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_late_second_rectangle_child_typed_stop
+        : LegacyBattleActorFrameEntryStatus::
+              case_three_rectangle_child_typed_stop;
+    prefix.stopped_access_kind =
+        LegacyBattleActorFrameEntryAccessKind::callee_call;
+    prefix.stopped_instruction = 0x00416FF0U;
+    prefix.eip = 0x00416FF0U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_four_rectangle_entry(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_three_rectangle_entry(
+        request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_four_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool thirteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready &&
+        prefix.eip == 0x0047ABADU;
+    if (!thirteen &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+         prefix.eip != 0x00479EAAU)) {
+        return prefix;
+    }
+    const u32 header_ip = thirteen ? 0x0047ABADU : 0x00479EAAU;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = header_ip;
+        prefix.stopped_token = prefix.esi + 0x2958U;
+        prefix.eip = header_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax =
+        (prefix.eax & 0xFFFF0000U) | actor.action_execution->turn_threshold;
+    prefix.flags = subtract_flags_16(static_cast<u16>(prefix.eax), 0x20U);
+    prefix.flags_known = true;
+    if (!prefix.flags.zero && prefix.flags.sign == prefix.flags.overflow) {
+        prefix.eip = 0x0047B801U;
+        return prefix;
+    }
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+    );
+    prefix.status = thirteen
+        ? (prefix.flags.zero
+               ? LegacyBattleActorFrameEntryStatus::case_thirteen_audio_ready
+               : LegacyBattleActorFrameEntryStatus::case_thirteen_source_ready)
+        : (prefix.flags.zero
+               ? LegacyBattleActorFrameEntryStatus::case_four_audio_ready
+               : LegacyBattleActorFrameEntryStatus::case_four_source_ready);
+    prefix.eip = thirteen ? (prefix.flags.zero ? 0x0047ABC3U : 0x0047ABD4U)
+                          : (prefix.flags.zero ? 0x00479EC0U : 0x00479ED0U);
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x0047AF24U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047AF24U;
+        prefix.stopped_token = prefix.esi + 0x2958U;
+        prefix.eip = 0x0047AF24U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax =
+        (prefix.eax & 0xFFFF0000U) | actor.action_execution->turn_threshold;
+    prefix.flags = subtract_flags_16(static_cast<u16>(prefix.eax), 0x20U);
+    prefix.flags_known = true;
+    if (!prefix.flags.zero && prefix.flags.sign == prefix.flags.overflow) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_fourteen_progress_reset_ready;
+        prefix.eip = 0x0047A253U;
+        return prefix;
+    }
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+    );
+    prefix.status = prefix.flags.zero
+        ? LegacyBattleActorFrameEntryStatus::case_fourteen_audio_ready
+        : LegacyBattleActorFrameEntryStatus::case_fourteen_source_ready;
+    prefix.eip = prefix.flags.zero ? 0x0047AF3AU : 0x0047AF4AU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_progress_reset(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_progress_reset_ready ||
+        prefix.eip != 0x0047A253U) {
+        return prefix;
+    }
+    u16 unbacked{};
+    const auto write =
+        [&](const u32 instruction, const u32 offset, u16& owner) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                actor.action_execution == nullptr || !request.actor_writable ||
+                prefix.esi != request.actor_token) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::actor_write;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = prefix.esi + offset;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            owner = static_cast<u16>(prefix.ebx);
+            return true;
+        };
+    if (!write(
+            0x0047A253U,
+            0x2958U,
+            actor.action_execution == nullptr
+                ? unbacked
+                : actor.action_execution->turn_threshold
+        ) ||
+        !write(
+            0x0047A25AU,
+            0x2954U,
+            actor.action_execution == nullptr
+                ? unbacked
+                : actor.action_execution->motion_word
+        )) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_reset_progress_write_ready;
+    prefix.eip = 0x0047B808U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_source(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fourteen_source_ready ||
+        prefix.eip != 0x0047AF4AU) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.global_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            0x0047AF4AU,
+            prefix.esi + 0x2548U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->render_source_token;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047AF50U,
+            prefix.ecx,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_00_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = resource.value_00;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            0x0047AF52U,
+            0x004CD730U,
+            actor.shared_action != nullptr
+        )) {
+        return prefix;
+    }
+    actor.shared_action->turn_frame_source_token = prefix.edx;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            0x0047AF58U,
+            prefix.esi + 0x2958U,
+            prefix.esi == request.actor_token
+        )) {
+        return prefix;
+    }
+    prefix.eax =
+        (prefix.eax & 0xFFFF0000U) | actor.action_execution->turn_threshold;
+    prefix.flags = subtract_flags_16(static_cast<u16>(prefix.eax), 9U);
+    prefix.flags_known = true;
+    const bool late = prefix.flags.sign == prefix.flags.overflow;
+    prefix.status = late
+        ? LegacyBattleActorFrameEntryStatus::case_fourteen_late_geometry_ready
+        : LegacyBattleActorFrameEntryStatus::case_fourteen_early_geometry_ready;
+    prefix.eip = late ? 0x0047B11FU : 0x0047AF69U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_early_first_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_geometry_ready ||
+        prefix.eip != 0x0047AF69U) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 ip,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+            ? request.stack_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_four_geometry_resource_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+                ? LegacyBattleActorFrameEntryStatus::stack_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = token;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto actor_read = [&](const u32 ip,
+                                const u32 offset,
+                                u32& target,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                ip,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        target = value;
+        return true;
+    };
+    const auto resource_read = [&](const u32 ip,
+                                   const u32 offset,
+                                   u32& target,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                ip,
+                prefix.edx + offset,
+                actor.action_execution != nullptr && prefix.edx != 0U &&
+                    actor.action_execution->resource.token == prefix.edx &&
+                    known
+            )) {
+            return false;
+        }
+        target = (target & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                ip,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!actor_read(
+            0x0047AF69U,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!actor_read(
+            0x0047AF71U,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !resource_read(
+            0x0047AF78U,
+            0x0EU,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0e,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0e_known
+        ) ||
+        !actor_read(
+            0x0047AF7CU,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    const u32 before_shift = prefix.edi;
+    prefix.edi >>= 1U;
+    prefix.flags = {
+        .carry = (before_shift & 1U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.edi)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edi == 0U,
+        .sign = (prefix.edi & 0x80000000U) != 0U,
+        .overflow = (before_shift & 0x80000000U) != 0U,
+    };
+    prefix.flags = subtract_flags(prefix.edi, prefix.edx);
+    prefix.edi -= prefix.edx;
+    if (!actor_read(
+            0x0047AF86U,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = signed_word(static_cast<u16>(prefix.eax));
+    prefix.flags = add_flags(prefix.edi, prefix.ecx);
+    prefix.edi += prefix.ecx;
+    const u32 local_slot = prefix.esp + 0x10U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            0x0047AF91U,
+            local_slot,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.case_fourteen_phase_local = prefix.eax;
+    if (!actor_read(
+            0x0047AF95U,
+            0x0D66U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(0x0047AF9CU, prefix.edi)) {
+        return prefix;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!resource_read(
+            0x0047AF9FU,
+            0x0CU,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0c,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0c_known
+        ) ||
+        !touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            0x0047AFA3U,
+            prefix.esp + 0x14U,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.edx = prefix.case_fourteen_phase_local;
+    prefix.flags = add_flags(prefix.edx, prefix.edx);
+    prefix.edx += prefix.edx;
+    prefix.flags = subtract_flags(prefix.edi, prefix.edx);
+    prefix.edi -= prefix.edx;
+    prefix.flags = subtract_flags(prefix.edi, prefix.ebp);
+    prefix.edi -= prefix.ebp;
+    prefix.flags = add_flags(prefix.edi, prefix.eax);
+    prefix.edi += prefix.eax;
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    if (!push(0x0047AFB1U, prefix.edi) ||
+        !actor_read(
+            0x0047AFB2U,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edi);
+    prefix.ecx -= prefix.edi;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    if (!push(0x0047AFBCU, prefix.ecx) || !push(0x0047AFBDU, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_early_first_rectangle_call_ready;
+    prefix.eip = 0x0047AFBEU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_early_first_globals(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_first_rectangle_return_ready ||
+        prefix.eip != 0x0047AFC3U) {
+        return prefix;
+    }
+    const u32 local_slot = prefix.esp + 0x20U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.stack_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047AFC3U;
+        prefix.stopped_token = local_slot;
+        prefix.eip = 0x0047AFC3U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.ecx = prefix.case_fourteen_phase_local;
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x0047AFC7U;
+        prefix.stopped_token = slot;
+        prefix.eip = 0x0047AFC7U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = prefix.ebx;
+    prefix.draw_auxiliary_pushed = true;
+    prefix.draw_auxiliary_value = prefix.ebx;
+    prefix.edi = prefix.ecx;
+    prefix.flags = subtract_flags(0U, prefix.edi);
+    prefix.flags_known = true;
+    prefix.edi = 0U - prefix.edi;
+    constexpr std::array<u32, 3U> write_ips{
+        0x0047AFCCU, 0x0047AFD2U, 0x0047AFD8U
+    };
+    constexpr std::array<u32, 3U> global_tokens{
+        0x004CD71CU, 0x004CD30CU, 0x004CD304U
+    };
+    for (std::size_t index = 0U; index < write_ips.size(); ++index) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.global_writable || actor.shared_action == nullptr) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::global_write;
+            prefix.stopped_instruction = write_ips[index];
+            prefix.stopped_token = global_tokens[index];
+            prefix.eip = write_ips[index];
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        u32& owner = index == 0U ? actor.shared_action->draw_motion_a
+            : index == 1U        ? actor.shared_action->draw_motion_b
+                                 : actor.shared_action->draw_motion_c;
+        owner = prefix.edi;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_early_first_globals_ready;
+    prefix.eip = 0x0047AFDEU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_early_first_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_first_globals_ready ||
+        prefix.eip != 0x0047AFDEU) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 ip,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_draw_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = token;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto actor_read = [&](const u32 ip,
+                                const u32 offset,
+                                u32& target,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                ip,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        target = value;
+        return true;
+    };
+    const auto resource_read =
+        [&](const u32 ip, const u32 offset, const u16 value, const bool known) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                    ip,
+                    prefix.eax + offset,
+                    actor.action_execution != nullptr && prefix.eax != 0U &&
+                        actor.action_execution->resource.token == prefix.eax &&
+                        known
+                )) {
+                return false;
+            }
+            prefix.edx = (prefix.edx & 0xFFFF0000U) | value;
+            return true;
+        };
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                ip,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!actor_read(
+            0x0047AFDEU,
+            0x2694U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !actor_read(
+            0x0047AFE4U,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx |= 4U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edx == 0U,
+        .sign = (prefix.edx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!push(0x0047AFEDU, prefix.edx)) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!resource_read(
+            0x0047AFF0U,
+            0x0EU,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0e,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0e_known
+        ) ||
+        !push(0x0047AFF4U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!resource_read(
+            0x0047AFF7U,
+            0x0CU,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0c,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0c_known
+        ) ||
+        !actor_read(
+            0x0047AFFBU,
+            0x0D68U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(0x0047B002U, prefix.edx) ||
+        !actor_read(
+            0x0047B003U,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    if (!actor_read(
+            0x0047B00BU,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(0x0047B012U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.eax = prefix.ecx + prefix.ecx;
+    prefix.flags = subtract_flags(prefix.edx, prefix.eax);
+    prefix.edx -= prefix.eax;
+    prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+    prefix.edx -= prefix.ebp;
+    if (!push(0x0047B01AU, prefix.edx)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_early_first_draw_call_ready;
+    prefix.eip = 0x0047B01BU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_early_second_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_first_draw_return_ready ||
+        prefix.eip != 0x0047B020U) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 ip,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+            ? request.stack_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_four_geometry_resource_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+                ? LegacyBattleActorFrameEntryStatus::stack_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = token;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto actor_read = [&](const u32 ip,
+                                const u32 offset,
+                                u32& target,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                ip,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        target = value;
+        return true;
+    };
+    const auto resource_read = [&](const u32 ip,
+                                   const u32 token,
+                                   const u32 offset,
+                                   u32& target,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                ip,
+                token + offset,
+                actor.action_execution != nullptr && token != 0U &&
+                    actor.action_execution->resource.token == token && known
+            )) {
+            return false;
+        }
+        target = (target & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto local_access =
+        [&](const u32 ip, const u32 offset, const bool read) {
+            return touch(
+                read ? LegacyBattleActorFrameEntryAccessKind::stack_read
+                     : LegacyBattleActorFrameEntryAccessKind::stack_write,
+                ip,
+                prefix.esp + offset,
+                true
+            );
+        };
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                ip,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!actor_read(
+            0x0047B020U,
+            0x2548U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !local_access(0x0047B026U, 0x38U, true)) {
+        return prefix;
+    }
+    prefix.edx = prefix.case_fourteen_phase_local;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    prefix.flags = add_flags(prefix.edx, prefix.edx);
+    prefix.edx += prefix.edx;
+    if (!resource_read(
+            0x0047B02EU,
+            prefix.ecx,
+            0x0EU,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0e,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0e_known
+        ) ||
+        !local_access(0x0047B032U, 0x38U, false)) {
+        return prefix;
+    }
+    prefix.case_fourteen_phase_local = prefix.edx;
+    if (!actor_read(
+            0x0047B036U,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !actor_read(
+            0x0047B03DU,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edx);
+    prefix.ecx -= prefix.edx;
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags = add_flags(prefix.ecx, prefix.eax);
+    prefix.ecx += prefix.eax;
+    if (!push(0x0047B049U, prefix.ecx) ||
+        !actor_read(
+            0x0047B04AU,
+            0x2548U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    const u32 before_shift = prefix.eax;
+    prefix.eax >>= 1U;
+    prefix.flags = {
+        .carry = (before_shift & 1U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.eax)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.eax == 0U,
+        .sign = (prefix.eax & 0x80000000U) != 0U,
+        .overflow = (before_shift & 0x80000000U) != 0U,
+    };
+    if (!resource_read(
+            0x0047B052U,
+            prefix.ecx,
+            0x0CU,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0c,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0c_known
+        ) ||
+        !local_access(0x0047B056U, 0x3CU, true)) {
+        return prefix;
+    }
+    prefix.ecx = prefix.case_fourteen_phase_local;
+    prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+    prefix.edx -= prefix.ebp;
+    prefix.flags = add_flags(prefix.edx, prefix.ecx);
+    prefix.edx += prefix.ecx;
+    if (!actor_read(
+            0x0047B05EU,
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.edx, prefix.ecx);
+    prefix.edx += prefix.ecx;
+    if (!push(0x0047B067U, prefix.edx) ||
+        !actor_read(
+            0x0047B068U,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    if (!actor_read(
+            0x0047B070U,
+            0x0D68U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.eax, prefix.edx);
+    prefix.eax += prefix.edx;
+    if (!push(0x0047B079U, prefix.eax) ||
+        !local_access(0x0047B07AU, 0x44U, true)) {
+        return prefix;
+    }
+    prefix.eax = prefix.case_fourteen_phase_local;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    prefix.flags = add_flags(prefix.eax, prefix.ecx);
+    prefix.eax += prefix.ecx;
+    if (!push(0x0047B082U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_early_second_rectangle_call_ready;
+    prefix.eip = 0x0047B083U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_early_second_globals(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_second_rectangle_return_ready ||
+        prefix.eip != 0x0047B088U) {
+        return prefix;
+    }
+    constexpr std::array<u32, 3U> write_ips{
+        0x0047B088U, 0x0047B08EU, 0x0047B094U
+    };
+    constexpr std::array<u32, 3U> tokens{0x004CD71CU, 0x004CD30CU, 0x004CD304U};
+    for (std::size_t index = 0U; index < write_ips.size(); ++index) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.global_writable || actor.shared_action == nullptr) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::global_write;
+            prefix.stopped_instruction = write_ips[index];
+            prefix.stopped_token = tokens[index];
+            prefix.eip = write_ips[index];
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        u32& owner = index == 0U ? actor.shared_action->draw_motion_a
+            : index == 1U        ? actor.shared_action->draw_motion_b
+                                 : actor.shared_action->draw_motion_c;
+        owner = prefix.edi;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_early_second_globals_ready;
+    prefix.eip = 0x0047B09AU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_early_second_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_second_globals_ready ||
+        prefix.eip != 0x0047B09AU) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 ip,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+            ? request.stack_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_draw_resource_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+                ? LegacyBattleActorFrameEntryStatus::stack_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = token;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto actor_read = [&](const u32 ip,
+                                const u32 offset,
+                                u32& target,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                ip,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        target = value;
+        return true;
+    };
+    const auto resource_read = [&](const u32 ip,
+                                   const u32 offset,
+                                   u32& target,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                ip,
+                prefix.eax + offset,
+                actor.action_execution != nullptr && prefix.eax != 0U &&
+                    actor.action_execution->resource.token == prefix.eax &&
+                    known
+            )) {
+            return false;
+        }
+        target = (target & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                ip,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        if (ip == 0x0047B0AFU) {
+            prefix.draw_auxiliary_pushed = true;
+            prefix.draw_auxiliary_value = value;
+        } else {
+            prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        }
+        return true;
+    };
+    if (!actor_read(
+            0x0047B09AU,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !actor_read(
+            0x0047B0A0U,
+            0x2694U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!resource_read(
+            0x0047B0A8U,
+            0x0EU,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0e,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx |= 4U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.ecx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.ecx == 0U,
+        .sign = (prefix.ecx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    if (!push(0x0047B0AFU, prefix.ebx) || !push(0x0047B0B0U, prefix.ecx) ||
+        !push(0x0047B0B1U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!actor_read(
+            0x0047B0B4U,
+            0x0D68U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !resource_read(
+            0x0047B0BBU,
+            0x0CU,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0c,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0c_known
+        ) ||
+        !actor_read(
+            0x0047B0BFU,
+            0x03E4U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, prefix.eax);
+    prefix.edx -= prefix.eax;
+    if (!push(0x0047B0C7U, prefix.ecx) ||
+        !actor_read(
+            0x0047B0C8U,
+            0x0D66U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            0x0047B0D1U,
+            prefix.esp + 0x58U,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.ebp = prefix.case_fourteen_phase_local;
+    prefix.flags = add_flags(prefix.eax, prefix.ebp);
+    prefix.eax += prefix.ebp;
+    if (!push(0x0047B0D7U, prefix.edx) || !push(0x0047B0D8U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_early_second_draw_call_ready;
+    prefix.eip = 0x0047B0D9U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_early_phase_tail(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_second_draw_return_ready ||
+        prefix.eip != 0x0047B0DEU) {
+        return prefix;
+    }
+    const auto touch = [&](const bool write, const u32 ip, const u32 offset) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            actor.action_execution == nullptr ||
+            (write ? !request.actor_writable : !request.actor_readable) ||
+            prefix.esi != request.actor_token) {
+            prefix.status = write
+                ? LegacyBattleActorFrameEntryStatus::actor_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+            prefix.stopped_access_kind = write
+                ? LegacyBattleActorFrameEntryAccessKind::actor_write
+                : LegacyBattleActorFrameEntryAccessKind::actor_read;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = prefix.esi + offset;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(false, 0x0047B0DEU, 0x2958U)) {
+        return prefix;
+    }
+    prefix.eax =
+        (prefix.eax & 0xFFFF0000U) | actor.action_execution->turn_threshold;
+    prefix.flags = add_flags(prefix.esp, 0x50U);
+    prefix.flags_known = true;
+    prefix.esp += 0x50U;
+    prefix.draw_auxiliary_pushed = false;
+    prefix.flags = subtract_flags_16(static_cast<u16>(prefix.eax), 8U);
+    if (!prefix.flags.zero) {
+        prefix.flags = add_flags(prefix.eax, 4U);
+        prefix.eax += 4U;
+        if (!touch(true, 0x0047B113U, 0x2958U)) {
+            return prefix;
+        }
+        actor.action_execution->turn_threshold = static_cast<u16>(prefix.eax);
+    } else {
+        if (!touch(false, 0x0047B0EEU, 0x2954U)) {
+            return prefix;
+        }
+        const u16 before = actor.action_execution->motion_word;
+        if (!touch(true, 0x0047B0EEU, 0x2954U)) {
+            return prefix;
+        }
+        const bool prior_carry = prefix.flags.carry;
+        actor.action_execution->motion_word = static_cast<u16>(before + 1U);
+        prefix.flags = add_flags_16(before, 1U);
+        prefix.flags.carry = prior_carry;
+        if (!touch(false, 0x0047B0F5U, 0x2954U)) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags_16(
+            actor.action_execution->motion_word, static_cast<u16>(prefix.eax)
+        );
+        if (prefix.flags.zero) {
+            if (!touch(true, 0x0047B102U, 0x2958U)) {
+                return prefix;
+            }
+            actor.action_execution->turn_threshold = 9U;
+        }
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_shared_rectangle_arguments_ready;
+    prefix.eip = 0x0047B2CAU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_shared_rectangle_arguments(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_shared_rectangle_arguments_ready ||
+        prefix.eip != 0x0047B2CAU) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    constexpr std::array<u32, 4U> instructions{
+        0x0047B2CAU, 0x0047B2CFU, 0x0047B2D4U, 0x0047B2D5U
+    };
+    const std::array<u32, 4U> arguments{480U, 640U, prefix.ebx, prefix.ebx};
+    for (std::size_t index = 0U; index < instructions.size(); ++index) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instructions[index];
+            prefix.stopped_token = slot;
+            prefix.eip = instructions[index];
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = arguments[index];
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            arguments[index];
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_shared_rectangle_call_ready;
+    prefix.eip = 0x0047B2D6U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_late_first_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_geometry_ready ||
+        prefix.eip != 0x0047B11FU) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 ip,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+            ? request.stack_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_four_geometry_resource_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+                ? LegacyBattleActorFrameEntryStatus::stack_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = token;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto actor_read = [&](const u32 ip,
+                                const u32 offset,
+                                u32& target,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                ip,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        target = value;
+        return true;
+    };
+    const auto resource_read = [&](const u32 ip,
+                                   const u32 offset,
+                                   u32& target,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                ip,
+                prefix.edx + offset,
+                actor.action_execution != nullptr && prefix.edx != 0U &&
+                    actor.action_execution->resource.token == prefix.edx &&
+                    known
+            )) {
+            return false;
+        }
+        target = (target & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                ip,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!actor_read(
+            0x0047B11FU,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!actor_read(
+            0x0047B127U,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !resource_read(
+            0x0047B12EU,
+            0x0EU,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0e,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0e_known
+        ) ||
+        !actor_read(
+            0x0047B132U,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    const u32 before_shift = prefix.edi;
+    prefix.edi >>= 1U;
+    prefix.flags = {
+        .carry = (before_shift & 1U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.edi)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edi == 0U,
+        .sign = (prefix.edi & 0x80000000U) != 0U,
+        .overflow = (before_shift & 0x80000000U) != 0U,
+    };
+    prefix.eax = signed_word(static_cast<u16>(prefix.eax));
+    prefix.flags = subtract_flags(prefix.edi, prefix.edx);
+    prefix.edi -= prefix.edx;
+    if (!actor_read(
+            0x0047B13FU,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.edi, prefix.ecx);
+    prefix.edi += prefix.ecx;
+    prefix.flags = add_flags(prefix.eax, prefix.eax);
+    prefix.eax += prefix.eax;
+    if (!push(0x0047B149U, prefix.edi)) {
+        return prefix;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!resource_read(
+            0x0047B14CU,
+            0x0CU,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0c,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0c_known
+        ) ||
+        !touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            0x0047B150U,
+            prefix.esp + 0x14U,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.case_fourteen_phase_local = prefix.eax;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            0x0047B154U,
+            prefix.esp + 0x14U,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.edx = prefix.case_fourteen_phase_local;
+    if (!actor_read(
+            0x0047B158U,
+            0x0D66U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edi, prefix.edx);
+    prefix.edi -= prefix.edx;
+    prefix.flags = subtract_flags(prefix.edi, prefix.ebp);
+    prefix.edi -= prefix.ebp;
+    prefix.flags = add_flags(prefix.edi, prefix.eax);
+    prefix.edi += prefix.eax;
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    if (!push(0x0047B167U, prefix.edi) ||
+        !actor_read(
+            0x0047B168U,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edi);
+    prefix.ecx -= prefix.edi;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    if (!push(0x0047B172U, prefix.ecx) || !push(0x0047B173U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_late_first_rectangle_call_ready;
+    prefix.eip = 0x0047B174U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_late_second_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_first_draw_return_ready ||
+        prefix.eip != 0x0047B1ECU) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 ip,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_four_geometry_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = token;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto actor_read = [&](const u32 ip,
+                                const u32 offset,
+                                u32& target,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                ip,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        target = value;
+        return true;
+    };
+    const auto resource_read = [&](const u32 ip,
+                                   const u32 token,
+                                   const u32 offset,
+                                   u32& target,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                ip,
+                token + offset,
+                actor.action_execution != nullptr && token != 0U &&
+                    actor.action_execution->resource.token == token && known
+            )) {
+            return false;
+        }
+        target = (target & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                ip,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!actor_read(
+            0x0047B1ECU,
+            0x0D68U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !actor_read(
+            0x0047B1F3U,
+            0x2548U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !actor_read(
+            0x0047B1F9U,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    prefix.flags = subtract_flags(prefix.edx, prefix.edi);
+    prefix.edx -= prefix.edi;
+    if (!resource_read(
+            0x0047B203U,
+            prefix.ecx,
+            0x0EU,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0e,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!actor_read(
+            0x0047B209U,
+            0x2958U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.edx, prefix.eax);
+    prefix.edx += prefix.eax;
+    if (!push(0x0047B212U, prefix.edx) ||
+        !actor_read(
+            0x0047B213U,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    const u32 before_shift = prefix.ecx;
+    prefix.ecx <<= 1U;
+    prefix.flags = {
+        .carry = (before_shift & 0x80000000U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.ecx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.ecx == 0U,
+        .sign = (prefix.ecx & 0x80000000U) != 0U,
+        .overflow = ((before_shift ^ prefix.ecx) & 0x80000000U) != 0U,
+    };
+    if (!resource_read(
+            0x0047B21BU,
+            prefix.edx,
+            0x0CU,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0c,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0c_known
+        ) ||
+        !actor_read(
+            0x0047B21FU,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edi, prefix.ebp);
+    prefix.edi -= prefix.ebp;
+    prefix.flags = add_flags(prefix.edi, prefix.ecx);
+    prefix.edi += prefix.ecx;
+    prefix.flags = add_flags(prefix.edi, prefix.edx);
+    prefix.edi += prefix.edx;
+    if (!push(0x0047B22CU, prefix.edi) ||
+        !actor_read(
+            0x0047B22DU,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    const u32 before_half = prefix.eax;
+    prefix.eax >>= 1U;
+    prefix.flags = {
+        .carry = (before_half & 1U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.eax)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.eax == 0U,
+        .sign = (prefix.eax & 0x80000000U) != 0U,
+        .overflow = (before_half & 0x80000000U) != 0U,
+    };
+    prefix.flags = subtract_flags(prefix.eax, prefix.edi);
+    prefix.eax -= prefix.edi;
+    if (!actor_read(
+            0x0047B237U,
+            0x0D68U,
+            prefix.edi,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    prefix.flags = add_flags(prefix.eax, prefix.edi);
+    prefix.eax += prefix.edi;
+    prefix.flags = add_flags(prefix.ecx, prefix.edx);
+    prefix.ecx += prefix.edx;
+    if (!push(0x0047B244U, prefix.eax) || !push(0x0047B245U, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_late_second_rectangle_call_ready;
+    prefix.eip = 0x0047B246U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_late_second_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_second_globals_ready ||
+        prefix.eip != 0x0047B278U) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 ip,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_seven_draw_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = token;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto actor_read = [&](const u32 ip,
+                                const u32 offset,
+                                u32& target,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                ip,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        target = value;
+        return true;
+    };
+    const auto resource_read = [&](const u32 ip,
+                                   const u32 offset,
+                                   u32& target,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                ip,
+                prefix.eax + offset,
+                actor.action_execution != nullptr && prefix.eax != 0U &&
+                    actor.action_execution->resource.token == prefix.eax &&
+                    known
+            )) {
+            return false;
+        }
+        target = (target & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                ip,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!actor_read(
+            0x0047B278U,
+            0x2694U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !actor_read(
+            0x0047B27EU,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx |= 4U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edx == 0U,
+        .sign = (prefix.edx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!push(0x0047B287U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!resource_read(
+            0x0047B28AU,
+            0x0EU,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0e,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!resource_read(
+            0x0047B290U,
+            0x0CU,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0c,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0c_known
+        ) ||
+        !push(0x0047B294U, prefix.ecx) ||
+        !actor_read(
+            0x0047B295U,
+            0x0D68U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !actor_read(
+            0x0047B29CU,
+            0x03E4U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        ) ||
+        !push(0x0047B2A2U, prefix.edx) ||
+        !actor_read(
+            0x0047B2A3U,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.ecx);
+    prefix.eax -= prefix.ecx;
+    if (!actor_read(
+            0x0047B2ACU,
+            0x2958U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    const u32 before_shift = prefix.ecx;
+    prefix.ecx <<= 1U;
+    prefix.flags = {
+        .carry = (before_shift & 0x80000000U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.ecx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.ecx == 0U,
+        .sign = (prefix.ecx & 0x80000000U) != 0U,
+        .overflow = ((before_shift ^ prefix.ecx) & 0x80000000U) != 0U,
+    };
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    if (!push(0x0047B2B7U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.ecx, prefix.edx);
+    prefix.ecx += prefix.edx;
+    if (!push(0x0047B2BAU, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_late_second_draw_call_ready;
+    prefix.eip = 0x0047B2BBU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fourteen_late_phase_tail(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_second_draw_return_ready ||
+        prefix.eip != 0x0047B2C0U) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x50U);
+    prefix.flags_known = true;
+    prefix.esp += 0x50U;
+    prefix.draw_auxiliary_pushed = false;
+    const auto touch = [&](const bool write) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            actor.action_execution == nullptr ||
+            (write ? !request.actor_writable : !request.actor_readable) ||
+            prefix.esi != request.actor_token) {
+            prefix.status = write
+                ? LegacyBattleActorFrameEntryStatus::actor_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+            prefix.stopped_access_kind = write
+                ? LegacyBattleActorFrameEntryAccessKind::actor_write
+                : LegacyBattleActorFrameEntryAccessKind::actor_read;
+            prefix.stopped_instruction = 0x0047B2C3U;
+            prefix.stopped_token = prefix.esi + 0x2958U;
+            prefix.eip = 0x0047B2C3U;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(false)) {
+        return prefix;
+    }
+    const u16 before = actor.action_execution->turn_threshold;
+    if (!touch(true)) {
+        return prefix;
+    }
+    const bool prior_carry = prefix.flags.carry;
+    actor.action_execution->turn_threshold = static_cast<u16>(before + 1U);
+    prefix.flags = add_flags_16(before, 1U);
+    prefix.flags.carry = prior_carry;
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fourteen_shared_rectangle_arguments_ready;
+    prefix.eip = 0x0047B2CAU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x0047B409U) {
+        return prefix;
+    }
+    const auto read = [&](const u32 ip, const u32 offset, const bool backed) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.actor_readable || !backed ||
+            prefix.esi != request.actor_token) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_read;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = prefix.esi + offset;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!read(0x0047B409U, 0x2958U, actor.action_execution != nullptr)) {
+        return prefix;
+    }
+    prefix.eax =
+        (prefix.eax & 0xFFFF0000U) | actor.action_execution->turn_threshold;
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ecx)
+    );
+    prefix.flags_known = true;
+    if (prefix.flags.zero) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_hundred_terminal_reset_ready;
+        prefix.eip = 0x0047B6E8U;
+        return prefix;
+    }
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+    );
+    if (!prefix.flags.zero) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_hundred_particle_gate_ready;
+        prefix.eip = 0x0047B538U;
+        return prefix;
+    }
+    if (!read(0x0047B422U, 0x2680U, actor.particle_phase_owner != nullptr)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(actor.particle_phase_owner->runtime_gate, 6U);
+    if (prefix.flags.sign == prefix.flags.overflow) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_hundred_count_short_reset_ready;
+        prefix.eip = 0x0047B518U;
+        return prefix;
+    }
+    if (!read(0x0047B42FU, 0x2956U, actor.action_execution != nullptr)) {
+        return prefix;
+    }
+    prefix.flags =
+        subtract_flags_16(actor.action_execution->motion_aux_word, 0x18U);
+    prefix.status = prefix.flags.zero
+        ? LegacyBattleActorFrameEntryStatus::case_hundred_audio_ready
+        : LegacyBattleActorFrameEntryStatus::case_hundred_source_ready;
+    prefix.eip = prefix.flags.zero ? 0x0047B439U : 0x0047B44DU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_short_reset(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_count_short_reset_ready ||
+        prefix.eip != 0x0047B518U) {
+        return prefix;
+    }
+    const auto write = [&](const u32 ip, const u32 offset, const bool backed) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.actor_writable || !backed ||
+            prefix.esi != request.actor_token) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = prefix.esi + offset;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!write(0x0047B518U, 0x2956U, actor.action_execution != nullptr)) {
+        return prefix;
+    }
+    actor.action_execution->motion_aux_word = static_cast<u16>(prefix.ebx);
+    if (!write(0x0047B51FU, 0x2958U, actor.action_execution != nullptr)) {
+        return prefix;
+    }
+    actor.action_execution->turn_threshold = 1U;
+    if (!write(0x0047B528U, 0x2680U, actor.particle_phase_owner != nullptr)) {
+        return prefix;
+    }
+    actor.particle_phase_owner->runtime_gate = prefix.ebx;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_short_return_ready;
+    prefix.eip = 0x0047B52EU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_short_return(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_short_return_ready ||
+        prefix.eip != 0x0047B52EU) {
+        return prefix;
+    }
+    const auto pop = [&](const u32 ip, u32& reg, const u32 saved) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.stack_readable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = prefix.esp;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        reg = saved;
+        prefix.esp += 4U;
+        return true;
+    };
+    if (!pop(0x0047B52EU, prefix.edi, request.entry_edi) ||
+        !pop(0x0047B52FU, prefix.esi, request.entry_esi) ||
+        !pop(0x0047B530U, prefix.ebp, request.entry_ebp)) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!pop(0x0047B533U, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047B537U;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = 0x0047B537U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_short_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool late = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_post_rectangle_sample_ready &&
+        prefix.eip == 0x0047B673U;
+    if (!late &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_hundred_audio_ready ||
+         prefix.eip != 0x0047B439U)) {
+        return prefix;
+    }
+    const u32 read_ip = late ? 0x0047B673U : 0x0047B439U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.shared_action == nullptr || !request.global_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        prefix.stopped_instruction = read_ip;
+        prefix.stopped_token = 0x004AB784U;
+        prefix.eip = read_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.ecx = actor.shared_action->sample_handle;
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = slot;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(late ? 0x0047B679U : 0x0047B43FU, prefix.ecx) ||
+        !push(late ? 0x0047B67AU : 0x0047B440U, late ? 0x31U : 0xEBU)) {
+        return prefix;
+    }
+    prefix.status = late
+        ? LegacyBattleActorFrameEntryStatus::
+              case_hundred_post_rectangle_audio_call_ready
+        : LegacyBattleActorFrameEntryStatus::case_hundred_audio_call_ready;
+    prefix.eip = late ? 0x0047B67CU : 0x0047B445U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool late = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_post_rectangle_audio_call_ready &&
+        prefix.eip == 0x0047B67CU;
+    if (!late &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_hundred_audio_call_ready ||
+         prefix.eip != 0x0047B445U)) {
+        return prefix;
+    }
+    const u32 call_ip = late ? 0x0047B67CU : 0x0047B445U;
+    const u32 return_slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = return_slot;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = return_slot;
+    prefix.last_pushed_value = late ? 0x0047B681U : 0x0047B44AU;
+    ++prefix.sample_calls;
+    auto callee = prefix;
+    if (!read_sound_callee_arguments(
+            request, callee, prefix.ecx, late ? 0x31U : 0xEBU
+        )) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    prefix.sample_child = callee.sample_child.returned
+        ? callee.sample_child
+        : sound.play_sample(
+              late ? 0x31U : 0xEBU,
+              prefix.ecx,
+              prefix.eax,
+              prefix.ecx,
+              prefix.edx,
+              prefix.flags
+          );
+    if (!prefix.sample_child.returned) {
+        prefix.accesses_completed -=
+            16U;  // Entry-only stop precedes both nested callee reads.
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_hundred_audio_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x00485610U;
+        prefix.eip = 0x00485610U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.sample_child.eax;
+    prefix.ecx = prefix.sample_child.ecx;
+    prefix.edx = prefix.sample_child.edx;
+    prefix.flags = add_flags(prefix.esp, 8U);
+    prefix.flags_known = true;
+    prefix.esp += 8U;
+    prefix.status = late
+        ? LegacyBattleActorFrameEntryStatus::case_hundred_phase_write_ready
+        : LegacyBattleActorFrameEntryStatus::case_hundred_source_ready;
+    prefix.eip = late ? 0x0047B684U : 0x0047B44DU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_source(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_hundred_source_ready ||
+        prefix.eip != 0x0047B44DU) {
+        return prefix;
+    }
+    const auto touch = [&](const u32 ip,
+                           const u32 token,
+                           const LegacyBattleActorFrameEntryAccessKind kind,
+                           const bool backed) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed) {
+            prefix.status = kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_hundred_source_resource_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::global_write
+                ? LegacyBattleActorFrameEntryStatus::global_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = token;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    constexpr auto actor_read =
+        LegacyBattleActorFrameEntryAccessKind::actor_read;
+    constexpr auto resource_read =
+        LegacyBattleActorFrameEntryAccessKind::frame_resource_read;
+    constexpr auto global_write =
+        LegacyBattleActorFrameEntryAccessKind::global_write;
+    constexpr auto stack_write =
+        LegacyBattleActorFrameEntryAccessKind::stack_write;
+    const bool actor_ok = actor.action_execution != nullptr &&
+        request.actor_readable && prefix.esi == request.actor_token;
+    const bool global_ok =
+        actor.shared_action != nullptr && request.global_writable;
+    if (!touch(0x0047B44DU, prefix.esi + 0x2548U, actor_read, actor_ok)) {
+        return prefix;
+    }
+    prefix.edx = actor.action_execution->render_source_token;
+    const u32 slot = prefix.esp - 4U;
+    if (!touch(0x0047B453U, slot, stack_write, request.call_stack_writable)) {
+        return prefix;
+    }
+    prefix.esp = slot;
+    prefix.last_pushed_value = prefix.ebx;
+    prefix.draw_auxiliary_value = prefix.ebx;
+    prefix.draw_auxiliary_pushed = true;
+    prefix.draw_argument_count = 0U;
+    if (!touch(
+            0x0047B454U,
+            prefix.edx,
+            resource_read,
+            actor_ok && request.actor_resource_readable && prefix.edx != 0U &&
+                actor.action_execution->resource.token == prefix.edx &&
+                actor.action_execution->resource.value_00_known
+        )) {
+        return prefix;
+    }
+    prefix.eax = actor.action_execution->resource.value_00;
+    if (!touch(0x0047B456U, 0x004CD730U, global_write, global_ok)) {
+        return prefix;
+    }
+    actor.shared_action->turn_frame_source_token = prefix.eax;
+    constexpr std::array<u32, 3U> reads{0x0047B45BU, 0x0047B468U, 0x0047B477U};
+    constexpr std::array<u32, 3U> writes{0x0047B462U, 0x0047B46FU, 0x0047B47EU};
+    constexpr std::array<u32, 3U> tokens{0x004CD71CU, 0x004CD30CU, 0x004CD304U};
+    u32* const destinations[3U]{
+        &actor.shared_action->draw_motion_a,
+        &actor.shared_action->draw_motion_b,
+        &actor.shared_action->draw_motion_c,
+    };
+    for (std::size_t index = 0U; index < reads.size(); ++index) {
+        if (index == 2U) {
+            prefix.edx = 0U;
+            prefix.flags = logical_zero_flags();
+            prefix.flags_known = true;
+        }
+        if (!touch(reads[index], prefix.esi + 0x2956U, actor_read, actor_ok)) {
+            return prefix;
+        }
+        const u32 signed_aux = static_cast<u32>(static_cast<std::int32_t>(
+            std::bit_cast<std::int16_t>(actor.action_execution->motion_aux_word)
+        ));
+        if (index == 0U) {
+            prefix.ecx = signed_aux;
+        } else if (index == 1U) {
+            prefix.edx = signed_aux;
+        } else {
+            prefix.eax = signed_aux;
+        }
+        if (!touch(writes[index], tokens[index], global_write, global_ok)) {
+            return prefix;
+        }
+        *destinations[index] = signed_aux;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_draw_arguments_ready;
+    prefix.eip = 0x0047B483U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_draw_arguments_ready ||
+        prefix.eip != 0x0047B483U) {
+        return prefix;
+    }
+    const auto touch = [&](const u32 ip,
+                           const u32 token,
+                           const LegacyBattleActorFrameEntryAccessKind kind,
+                           const bool backed) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed) {
+            prefix.status = kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_hundred_draw_resource_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = token;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 ip,
+                                const u32 offset,
+                                const bool owner) {
+        return touch(
+            ip,
+            prefix.esi + offset,
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            owner && request.actor_readable && prefix.esi == request.actor_token
+        );
+    };
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                ip,
+                slot,
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                request.call_stack_writable
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    if (!read_actor(0x0047B483U, 0x2694U, actor.action_execution != nullptr)) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->presentation_render_flags;
+    if (!read_actor(0x0047B489U, 0x2548U, actor.action_execution != nullptr)) {
+        return prefix;
+    }
+    prefix.eax = actor.action_execution->render_source_token;
+    prefix.ecx |= 4U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.ecx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.ecx == 0U,
+        .sign = (prefix.ecx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!read_actor(0x0047B492U, 0x02B4U, actor.action_execution != nullptr)) {
+        return prefix;
+    }
+    prefix.ebp =
+        actor.action_execution->frame_source_action_record.draw_offset_y;
+    if (!push(0x0047B498U, prefix.ecx)) {
+        return prefix;
+    }
+    const bool resource_ok = actor.action_execution != nullptr &&
+        request.actor_resource_readable && prefix.eax != 0U &&
+        actor.action_execution->resource.token == prefix.eax;
+    if (!touch(
+            0x0047B499U,
+            prefix.eax + 0x0EU,
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            resource_ok && actor.action_execution->resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edx =
+        (prefix.edx & 0xFFFF0000U) | actor.action_execution->resource.value_0e;
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            0x0047B49FU,
+            prefix.eax + 0x0CU,
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            resource_ok && actor.action_execution->resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->resource.value_0c;
+    if (!push(0x0047B4A3U, prefix.edx) ||
+        !read_actor(
+            0x0047B4A4U, 0x0D68U, actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx = signed_word(actor.primary_coordinates->position_y);
+    if (!read_actor(
+            0x0047B4ABU, 0x29B2U, actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = signed_word(actor.primary_coordinates->source_y_offset);
+    if (!push(0x0047B4B2U, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+    prefix.edx -= prefix.ebp;
+    if (!read_actor(
+            0x0047B4B5U, 0x0D66U, actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = signed_word(actor.primary_coordinates->position_x);
+    prefix.flags = subtract_flags(prefix.ecx, prefix.eax);
+    prefix.ecx -= prefix.eax;
+    if (!push(0x0047B4BEU, prefix.edx) || !push(0x0047B4BFU, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_draw_call_ready;
+    prefix.eip = 0x0047B4C0U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_draw_phase(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_hundred_draw_return_ready ||
+        prefix.eip != 0x0047B4C5U) {
+        return prefix;
+    }
+    const auto access = [&](const u32 ip,
+                            const u32 offset,
+                            const bool write,
+                            const bool owner) {
+        if (prefix.accesses_completed == request.stop_before_access || !owner ||
+            prefix.esi != request.actor_token ||
+            (write ? !request.actor_writable : !request.actor_readable)) {
+            prefix.status = write
+                ? LegacyBattleActorFrameEntryStatus::actor_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+            prefix.stopped_access_kind = write
+                ? LegacyBattleActorFrameEntryAccessKind::actor_write
+                : LegacyBattleActorFrameEntryAccessKind::actor_read;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = prefix.esi + offset;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!access(
+            0x0047B4C5U, 0x2680U, false, actor.particle_phase_owner != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = actor.particle_phase_owner->runtime_gate;
+    prefix.flags = add_flags(prefix.esp, 0x18U);
+    prefix.flags_known = true;
+    prefix.esp += 0x18U;
+    prefix.edx = prefix.eax & 0x80000001U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edx == 0U,
+        .sign = (prefix.edx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    if (prefix.flags.sign) {
+        const u32 before_dec = prefix.edx;
+        --prefix.edx;
+        prefix.flags = subtract_flags(before_dec, 1U);
+        prefix.flags.carry = false;  // DEC preserves CF from AND.
+        prefix.edx |= 0xFFFFFFFEU;
+        prefix.flags = {
+            .carry = false,
+            .parity = even_parity(static_cast<u8>(prefix.edx)),
+            .auxiliary_carry = false,
+            .auxiliary_carry_defined = false,
+            .zero = prefix.edx == 0U,
+            .sign = (prefix.edx & 0x80000000U) != 0U,
+            .overflow = false,
+        };
+        const u32 before_inc = prefix.edx;
+        ++prefix.edx;
+        prefix.flags = add_flags(before_inc, 1U);
+        prefix.flags.carry = false;  // INC preserves CF from OR.
+    }
+    const bool even = prefix.edx == 0U;
+    const u32 rmw_ip = even ? 0x0047B4DFU : 0x0047B4E9U;
+    if (!access(rmw_ip, 0x2956U, false, actor.action_execution != nullptr)) {
+        return prefix;
+    }
+    const u16 before = actor.action_execution->motion_aux_word;
+    if (!access(rmw_ip, 0x2956U, true, actor.action_execution != nullptr)) {
+        return prefix;
+    }
+    if (even) {
+        actor.action_execution->motion_aux_word = static_cast<u16>(before + 4U);
+        prefix.flags = add_flags_16(before, 4U);
+    } else {
+        actor.action_execution->motion_aux_word = static_cast<u16>(before - 1U);
+        const bool carry = prefix.flags.carry;
+        prefix.flags = subtract_flags_16(before, 1U);
+        prefix.flags.carry = carry;  // DEC preserves the preceding CF.
+    }
+    if (!access(
+            0x0047B4F0U, 0x2956U, false, actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx =
+        (prefix.ecx & 0xFFFF0000U) | actor.action_execution->motion_aux_word;
+    const u16 phase = static_cast<u16>(prefix.ecx);
+    prefix.flags = subtract_flags_16(phase, 24U);
+    if (prefix.flags.sign == prefix.flags.overflow) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_hundred_count_increment_ready;
+        prefix.eip = 0x0047B507U;
+        return prefix;
+    }
+    prefix.flags = subtract_flags_16(phase, 0xFFF8U);
+    if (prefix.flags.sign == prefix.flags.overflow && !prefix.flags.zero) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::update_selector_default_ready;
+        prefix.eip = 0x0047A80BU;
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_count_increment_ready;
+    prefix.eip = 0x0047B507U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_count_increment(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_count_increment_ready ||
+        prefix.eip != 0x0047B507U) {
+        return prefix;
+    }
+    const u32 before = prefix.eax;
+    ++prefix.eax;
+    const bool carry = prefix.flags.carry;
+    prefix.flags = add_flags(before, 1U);
+    prefix.flags.carry = carry;  // INC EAX preserves preceding CMP's CF.
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.stack_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047B508U;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = 0x0047B508U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.edi = request.entry_edi;
+    prefix.esp += 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.particle_phase_owner == nullptr || !request.actor_writable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x0047B509U;
+        prefix.stopped_token = prefix.esi + 0x2680U;
+        prefix.eip = 0x0047B509U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.particle_phase_owner->runtime_gate = prefix.eax;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_increment_return_ready;
+    prefix.eip = 0x0047B50FU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_increment_return(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_increment_return_ready ||
+        prefix.eip != 0x0047B50FU) {
+        return prefix;
+    }
+    const auto pop = [&](const u32 ip, u32& reg, const u32 saved) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.stack_readable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = prefix.esp;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        reg = saved;
+        prefix.esp += 4U;
+        return true;
+    };
+    if (!pop(0x0047B50FU, prefix.esi, request.entry_esi) ||
+        !pop(0x0047B510U, prefix.ebp, request.entry_ebp)) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!pop(0x0047B513U, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047B517U;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = 0x0047B517U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_increment_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_particle_gate(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_particle_gate_ready ||
+        prefix.eip != 0x0047B538U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.particle_source_token_owner == nullptr ||
+        !request.actor_readable || prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047B538U;
+        prefix.stopped_token = prefix.esi + 0x0E14U;
+        prefix.eip = 0x0047B538U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.flags =
+        subtract_flags(*actor.particle_source_token_owner, prefix.ebx);
+    prefix.flags_known = true;
+    const bool existing = !prefix.flags.zero;
+    prefix.status = existing
+        ? LegacyBattleActorFrameEntryStatus::
+              case_hundred_particle_existing_ready
+        : LegacyBattleActorFrameEntryStatus::case_hundred_particle_init_ready;
+    prefix.eip = existing ? 0x0047B68DU : 0x0047B544U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_decoder_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_particle_decoder_arguments_ready ||
+        prefix.eip != 0x0047B557U) {
+        return prefix;
+    }
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = slot;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.decoder_argument_pushes[prefix.decoder_argument_count++] = value;
+        return true;
+    };
+    const u32 stack_base = prefix.esp;
+    prefix.decoder_argument_count = 0U;
+    prefix.eax = stack_base + 0x14U;
+    prefix.ecx = stack_base + 0x18U;
+    if (!push(0x0047B55FU, prefix.eax)) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047B560U;
+        prefix.stopped_token = prefix.esi + 0x2548U;
+        prefix.eip = 0x0047B560U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax = actor.action_execution->render_source_token;
+    if (!push(0x0047B566U, prefix.ecx) || !push(0x0047B567U, prefix.edx)) {
+        return prefix;
+    }
+    const auto& resource = actor.action_execution->resource;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.actor_resource_readable || prefix.eax == 0U ||
+        resource.token != prefix.eax || !resource.value_00_known) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_hundred_decoder_source_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read;
+        prefix.stopped_instruction = 0x0047B568U;
+        prefix.stopped_token = prefix.eax;
+        prefix.eip = 0x0047B568U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.ecx = resource.value_00;
+    if (!push(0x0047B56AU, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_decoder_call_ready;
+    prefix.eip = 0x0047B56BU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_dimensions(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_post_decoder_source_ready ||
+        prefix.eip != 0x0047B576U) {
+        return prefix;
+    }
+    const auto touch = [&](const u32 ip,
+                           const u32 token,
+                           const LegacyBattleActorFrameEntryAccessKind kind,
+                           const bool backed) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed) {
+            prefix.status = kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_hundred_decoder_resource_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::actor_write
+                ? LegacyBattleActorFrameEntryStatus::actor_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = token;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    constexpr auto actor_read =
+        LegacyBattleActorFrameEntryAccessKind::actor_read;
+    constexpr auto actor_write =
+        LegacyBattleActorFrameEntryAccessKind::actor_write;
+    constexpr auto resource_read =
+        LegacyBattleActorFrameEntryAccessKind::frame_resource_read;
+    const bool actor_ok = actor.action_execution != nullptr &&
+        request.actor_readable && prefix.esi == request.actor_token;
+    const bool write_ok = actor.particle_phase_owner != nullptr &&
+        request.actor_writable && prefix.esi == request.actor_token;
+    if (!touch(0x0047B576U, prefix.esi + 0x2548U, actor_read, actor_ok)) {
+        return prefix;
+    }
+    prefix.edx = actor.action_execution->render_source_token;
+    prefix.flags = add_flags(prefix.esp, 0x10U);
+    prefix.flags_known = true;
+    prefix.esp += 0x10U;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            0x0047B57FU,
+            prefix.edx + 0x0CU,
+            resource_read,
+            prefix.edx != 0U && request.actor_resource_readable &&
+                resource.token == prefix.edx && resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | resource.value_0c;
+    if (!touch(0x0047B583U, prefix.esi + 0x0E18U, actor_write, write_ok)) {
+        return prefix;
+    }
+    actor.particle_phase_owner->emitter.source_width =
+        static_cast<u16>(prefix.eax);
+    if (!touch(0x0047B58AU, prefix.esi + 0x2548U, actor_read, actor_ok)) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->render_source_token;
+    if (!touch(
+            0x0047B590U,
+            prefix.ecx + 0x0EU,
+            resource_read,
+            prefix.ecx != 0U && request.actor_resource_readable &&
+                resource.token == prefix.ecx && resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = (prefix.edx & 0xFFFF0000U) | resource.value_0e;
+    if (!touch(0x0047B594U, prefix.esi + 0x0E1AU, actor_write, write_ok)) {
+        return prefix;
+    }
+    actor.particle_phase_owner->emitter.source_height =
+        static_cast<u16>(prefix.edx);
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_geometry_ready;
+    prefix.eip = 0x0047B59BU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_geometry(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_hundred_geometry_ready ||
+        prefix.eip != 0x0047B59BU) {
+        return prefix;
+    }
+    const auto touch = [&](const u32 ip,
+                           const u32 offset,
+                           const bool write,
+                           const bool owner) {
+        if (prefix.accesses_completed == request.stop_before_access || !owner ||
+            prefix.esi != request.actor_token ||
+            (write ? !request.actor_writable : !request.actor_readable)) {
+            prefix.status = write
+                ? LegacyBattleActorFrameEntryStatus::actor_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+            prefix.stopped_access_kind = write
+                ? LegacyBattleActorFrameEntryAccessKind::actor_write
+                : LegacyBattleActorFrameEntryAccessKind::actor_read;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = prefix.esi + offset;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const bool coords = actor.primary_coordinates != nullptr;
+    const bool emitter = actor.particle_phase_owner != nullptr;
+    if (!touch(0x0047B59BU, 0x0D66U, false, coords)) {
+        return prefix;
+    }
+    prefix.eax = signed_word(actor.primary_coordinates->position_x);
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.flags_known = true;
+    prefix.eax -= prefix.ebp;
+    if (!touch(0x0047B5A4U, 0x0E1CU, true, emitter)) {
+        return prefix;
+    }
+    actor.particle_phase_owner->emitter.source_origin_x =
+        std::bit_cast<std::int32_t>(prefix.eax);
+    if (!touch(
+            0x0047B5AAU, 0x03E4U, false, actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx =
+        actor.action_execution->reserved_action_record_02.draw_offset_y;
+    if (!touch(0x0047B5B0U, 0x0D68U, false, coords)) {
+        return prefix;
+    }
+    prefix.ecx = signed_word(actor.primary_coordinates->position_y);
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edx);
+    prefix.ecx -= prefix.edx;
+    prefix.eax = 1U;
+    if (!touch(0x0047B5BEU, 0x0E20U, true, emitter)) {
+        return prefix;
+    }
+    actor.particle_phase_owner->emitter.source_origin_y =
+        std::bit_cast<std::int32_t>(prefix.ecx);
+    if (!touch(0x0047B5C4U, 0x0E24U, true, emitter)) {
+        return prefix;
+    }
+    actor.particle_phase_owner->emitter.target_origin_x =
+        std::bit_cast<std::int32_t>(prefix.ebx);
+    if (!touch(0x0047B5CAU, 0x0E2CU, true, emitter)) {
+        return prefix;
+    }
+    actor.particle_phase_owner->emitter.target_origin_y = 1;
+    if (!touch(0x0047B5D0U, 0x2B08U, false, actor.progress != nullptr)) {
+        return prefix;
+    }
+    prefix.ecx = actor.progress->post_action_value;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.eax);
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_geometry_gate_ready;
+    prefix.eip = prefix.flags.zero ? 0x0047B5DAU : 0x0047B5E4U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_configuration(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_geometry_gate_ready ||
+        (prefix.eip != 0x0047B5DAU && prefix.eip != 0x0047B5E4U)) {
+        return prefix;
+    }
+    const auto access = [&](const u32 ip,
+                            const u32 offset,
+                            const bool write,
+                            const bool owner) {
+        if (prefix.accesses_completed == request.stop_before_access || !owner ||
+            prefix.esi != request.actor_token ||
+            (write ? !request.actor_writable : !request.actor_readable)) {
+            prefix.status = write
+                ? LegacyBattleActorFrameEntryStatus::actor_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+            prefix.stopped_access_kind = write
+                ? LegacyBattleActorFrameEntryAccessKind::actor_write
+                : LegacyBattleActorFrameEntryAccessKind::actor_read;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = prefix.esi + offset;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    auto* const emitter = actor.particle_phase_owner == nullptr
+        ? nullptr
+        : &actor.particle_phase_owner->emitter;
+    if (prefix.eip == 0x0047B5DAU) {
+        if (!access(0x0047B5DAU, 0x0E24U, true, emitter != nullptr)) {
+            return prefix;
+        }
+        emitter->target_origin_x = 0x154;
+    }
+    if (!access(0x0047B5E4U, 0x0E28U, true, emitter != nullptr)) {
+        return prefix;
+    }
+    emitter->target_width = 0x140;
+    if (!access(
+            0x0047B5EEU, 0x2548U, false, actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx = actor.action_execution->render_source_token;
+    prefix.edi = 1U;
+    if (!access(0x0047B5F9U, 0x0E36U, true, emitter != nullptr)) {
+        return prefix;
+    }
+    emitter->lifetime_divisor = 24U;
+    if (!access(0x0047B602U, 0x0E30U, true, emitter != nullptr)) {
+        return prefix;
+    }
+    emitter->target_height = 1;
+    if (!access(0x0047B608U, 0x0E34U, true, emitter != nullptr)) {
+        return prefix;
+    }
+    emitter->distance_offset_base = 100U;
+    const auto& resource = actor.action_execution->resource;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.actor_resource_readable || prefix.edx == 0U ||
+        resource.token != prefix.edx || !resource.value_0e_known) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_hundred_configuration_resource_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read;
+        prefix.stopped_instruction = 0x0047B611U;
+        prefix.stopped_token = prefix.edx + 0x0EU;
+        prefix.eip = 0x0047B611U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 height = resource.value_0e;
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | height;
+    prefix.ecx = prefix.esi;
+    const u16 quarter = static_cast<u16>(height >> 2U);
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | quarter;
+    prefix.flags = {
+        .carry = (height & 0x2U) != 0U,
+        .parity = even_parity(static_cast<u8>(quarter)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = quarter == 0U,
+        .sign = (quarter & 0x8000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!access(0x0047B61BU, 0x0E38U, true, emitter != nullptr)) {
+        return prefix;
+    }
+    emitter->remaining_batches = quarter;
+    if (!access(0x0047B622U, 0x0E3AU, true, emitter != nullptr)) {
+        return prefix;
+    }
+    emitter->spawn_divisor = 40U;
+    if (!access(0x0047B62BU, 0x0E3CU, true, emitter != nullptr)) {
+        return prefix;
+    }
+    emitter->flags = 0x56U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_attribute_call_ready;
+    prefix.eip = 0x0047B634U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_metrics_prepare(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_metrics_iat_read_ready ||
+        prefix.eip != 0x0047B644U) {
+        return prefix;
+    }
+    prefix.eax = 15U;
+    const u32 first_slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x0047B649U;
+        prefix.stopped_token = first_slot;
+        prefix.eip = 0x0047B649U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = first_slot;
+    prefix.last_pushed_value = prefix.edi;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.global_readable || !request.system_metrics_iat_known) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_hundred_metrics_iat_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        prefix.stopped_instruction = 0x0047B64AU;
+        prefix.stopped_token = 0x00499214U;
+        prefix.eip = 0x0047B64AU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.edi = request.system_metrics_function_token;
+    constexpr std::array<u32, 3U> ips{0x0047B650U, 0x0047B656U, 0x0047B65CU};
+    constexpr std::array<u32, 3U> offsets{0x0E40U, 0x0E44U, 0x0E48U};
+    for (std::size_t index = 0U; index < ips.size(); ++index) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            actor.particle_phase_owner == nullptr || !request.actor_writable ||
+            prefix.esi != request.actor_token) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = ips[index];
+            prefix.stopped_token = prefix.esi + offsets[index];
+            prefix.eip = ips[index];
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        if (index == 0U) {
+            actor.particle_phase_owner->emitter.published_value_2c = 15;
+        } else if (index == 1U) {
+            actor.particle_phase_owner->emitter.published_value_30 = 15;
+        } else {
+            actor.particle_phase_owner->emitter.published_value_34 = 15;
+        }
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_hundred_metrics_first_call_ready;
+    prefix.eip = 0x0047B662U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_metrics_calls(
+    LegacyBattleActorFrameMetricsPort& port,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_metrics_first_call_ready ||
+        prefix.eip != 0x0047B662U) {
+        return prefix;
+    }
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = slot;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    const auto call = [&](const u32 ip, const u32 return_ip, const u32 index) {
+        if (!push(ip, return_ip)) {
+            return false;
+        }
+        ++prefix.metrics_calls;
+        prefix.metrics_child = port.get_system_metrics(
+            index, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+        );
+        if (!prefix.metrics_child.returned) {
+            prefix.status = LegacyBattleActorFrameEntryStatus::
+                case_hundred_metrics_child_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::callee_call;
+            prefix.stopped_instruction = prefix.edi;
+            prefix.eip = prefix.edi;
+            return false;
+        }
+        prefix.esp +=
+            8U;  // Win32 stdcall removes CALL return and one argument.
+        prefix.eax = prefix.metrics_child.eax;
+        prefix.ecx = prefix.metrics_child.ecx;
+        prefix.edx = prefix.metrics_child.edx;
+        prefix.flags = prefix.metrics_child.flags;
+        prefix.flags_known = prefix.metrics_child.flags_known;
+        return true;
+    };
+    if (!call(0x0047B662U, 0x0047B664U, 1U)) {
+        return prefix;
+    }
+    if (!push(0x0047B664U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.metric_height_on_stack = prefix.eax;
+    if (!push(0x0047B665U, prefix.ebx) ||
+        !call(0x0047B666U, 0x0047B668U, prefix.ebx)) {
+        return prefix;
+    }
+    if (!push(0x0047B668U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.metric_width_on_stack = prefix.eax;
+    prefix.ecx = 0x0053B0B8U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_rectangle_call_ready;
+    prefix.eip = 0x0047B66EU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_phase_write(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_hundred_phase_write_ready ||
+        prefix.eip != 0x0047B684U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_writable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x0047B684U;
+        prefix.stopped_token = prefix.esi + 0x2958U;
+        prefix.eip = 0x0047B684U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.action_execution->turn_threshold = 101U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_particle_tail_ready;
+    prefix.eip = 0x0047B68DU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_particle_phase(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool initialized = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_particle_tail_ready &&
+        prefix.eip == 0x0047B68DU;
+    const bool existing = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_particle_existing_ready &&
+        prefix.eip == 0x0047B68DU;
+    if (!initialized && !existing) {
+        return prefix;
+    }
+    const auto touch = [&](const u32 ip,
+                           const u32 offset,
+                           const bool write,
+                           const bool owner) {
+        if (prefix.accesses_completed == request.stop_before_access || !owner ||
+            prefix.esi != request.actor_token ||
+            (write ? !request.actor_writable : !request.actor_readable)) {
+            prefix.status = write
+                ? LegacyBattleActorFrameEntryStatus::actor_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+            prefix.stopped_access_kind = write
+                ? LegacyBattleActorFrameEntryAccessKind::actor_write
+                : LegacyBattleActorFrameEntryAccessKind::actor_read;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = prefix.esi + offset;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            0x0047B68DU, 0x2958U, false, actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    const u16 before = actor.action_execution->turn_threshold;
+    if (!touch(0x0047B68DU, 0x2958U, true, actor.action_execution != nullptr)) {
+        return prefix;
+    }
+    actor.action_execution->turn_threshold = static_cast<u16>(before + 1U);
+    const bool carry = prefix.flags.carry;
+    prefix.flags = add_flags_16(before, 1U);
+    prefix.flags.carry = carry;
+    prefix.flags_known = true;
+    prefix.ecx = 3U;
+    if (!touch(
+            0x0047B699U, 0x2958U, false, actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    const std::int32_t signed_phase =
+        std::bit_cast<std::int16_t>(actor.action_execution->turn_threshold);
+    const std::int32_t quotient = signed_phase / 3;
+    const std::int32_t remainder = signed_phase % 3;
+    prefix.eax = std::bit_cast<u32>(quotient);
+    prefix.edx = std::bit_cast<u32>(remainder);
+    if (!touch(
+            0x0047B6A3U, 0x0D66U, false, actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = static_cast<u32>(static_cast<std::int32_t>(
+        std::bit_cast<std::int16_t>(actor.primary_coordinates->position_x)
+    ));
+    prefix.flags = add_flags(prefix.edx, prefix.eax);
+    prefix.edx += prefix.eax;
+    prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+    prefix.edx -= prefix.ebp;
+    if (!touch(
+            0x0047B6AEU, 0x0E1CU, true, actor.particle_phase_owner != nullptr
+        )) {
+        return prefix;
+    }
+    actor.particle_phase_owner->emitter.source_origin_x =
+        std::bit_cast<std::int32_t>(prefix.edx);
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_two_particle_tail_ready;
+    prefix.eip = 0x0047B6B4U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_release_gate(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_terminal_reset_ready ||
+        prefix.eip != 0x0047B6E8U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.particle_source_token_owner == nullptr ||
+        !request.actor_readable || prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047B6E8U;
+        prefix.stopped_token = prefix.esi + 0x0E14U;
+        prefix.eip = 0x0047B6E8U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax = *actor.particle_source_token_owner;
+    prefix.ebp = prefix.esi + 0x0E14U;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebx);
+    prefix.flags_known = true;
+    prefix.status = prefix.flags.zero
+        ? LegacyBattleActorFrameEntryStatus::case_hundred_reset_prefix_ready
+        : LegacyBattleActorFrameEntryStatus::case_hundred_release_call_ready;
+    prefix.eip = prefix.flags.zero ? 0x0047B701U : 0x0047B6F8U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_release_call(
+    LegacyBattleActorFrameReleasePort& release,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_release_call_ready ||
+        prefix.eip != 0x0047B6F8U) {
+        return prefix;
+    }
+    const u32 emitter_token = prefix.eax;
+    const auto push = [&](const u32 ip, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = slot;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(0x0047B6F8U, emitter_token) || !push(0x0047B6F9U, 0x0047B6FEU)) {
+        return prefix;
+    }
+    ++prefix.release_calls;
+    prefix.release_child = release.release_emitter(
+        emitter_token, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    if (!prefix.release_child.returned) {
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_hundred_release_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x004885A0U;
+        prefix.eip = 0x004885A0U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.release_child.eax;
+    prefix.ecx = prefix.release_child.ecx;
+    prefix.edx = prefix.release_child.edx;
+    prefix.flags = add_flags(prefix.esp, 4U);
+    prefix.flags_known = true;
+    prefix.esp += 4U;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_reset_prefix_ready;
+    prefix.eip = 0x0047B701U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_hundred_reset_prefix(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_hundred_reset_prefix_ready ||
+        prefix.eip != 0x0047B701U) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    const bool particle_owner = actor.particle_phase_owner != nullptr &&
+        actor.particle_source_token_owner ==
+            &actor.particle_phase_owner->decoded_resource_token;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    const auto write_word = [&](const u32 ip, const u32 offset) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !full_actor || !request.actor_writable ||
+            prefix.esi != request.actor_token) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = ip;
+            prefix.stopped_token = prefix.esi + offset;
+            prefix.eip = ip;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        const u16 value = static_cast<u16>(prefix.ebx);
+        std::memcpy(image.data() + offset, &value, sizeof(value));
+        synchronize_legacy_battle_actor_image_write(
+            actor, image, offset, sizeof(value)
+        );
+        return true;
+    };
+    if (!write_word(0x0047B701U, 0x2958U)) {
+        return prefix;
+    }
+    prefix.ecx = 0x26U;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!write_word(0x0047B70FU, 0x2A12U)) {
+        return prefix;
+    }
+    const auto store = [&](const u32 ip) {
+        while (prefix.ecx != 0U) {
+            const u32 offset = prefix.edi - request.actor_token;
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !full_actor || !request.actor_writable ||
+                (ip == 0x0047B71FU && !particle_owner) ||
+                offset > image.size() - sizeof(prefix.eax)) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::actor_write;
+                prefix.stopped_instruction = ip;
+                prefix.stopped_token = prefix.edi;
+                prefix.eip = ip;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            std::memcpy(image.data() + offset, &prefix.eax, sizeof(prefix.eax));
+            synchronize_legacy_battle_actor_image_write(
+                actor, image, offset, sizeof(prefix.eax)
+            );
+            --prefix.ecx;
+            prefix.edi =
+                prefix.direction_flag ? prefix.edi - 4U : prefix.edi + 4U;
+        }
+        return true;
+    };
+    if (!store(0x0047B716U)) {
+        return prefix;
+    }
+    prefix.ecx = 0x16U;
+    prefix.edi = prefix.ebp;
+    if (!store(0x0047B71FU)) {
+        return prefix;
+    }
+    prefix.ecx = prefix.esi;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_reset_call_ready;
+    prefix.eip = 0x0047B723U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_four_rectangle_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_four_initial_source_ready ||
+        prefix.eip != 0x00479EE0U) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+            ? request.stack_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& register_value,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        register_value = value;
+        return true;
+    };
+    const auto read_resource = [&](const u32 instruction,
+                                   const u32 offset,
+                                   u32& register_value,
+                                   const u16 value,
+                                   const bool known) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+                LegacyBattleActorFrameEntryStatus::
+                    case_four_geometry_resource_read_typed_stop,
+                instruction,
+                prefix.edx + offset,
+                actor.action_execution != nullptr && prefix.edx != 0U &&
+                    actor.action_execution->resource.token == prefix.edx &&
+                    known
+            )) {
+            return false;
+        }
+        register_value = (register_value & 0xFFFF0000U) | value;
+        return true;
+    };
+    const auto stack_access = [&](const bool read,
+                                  const u32 instruction,
+                                  const u32 token) {
+        return touch(
+            read ? LegacyBattleActorFrameEntryAccessKind::stack_read
+                 : LegacyBattleActorFrameEntryAccessKind::stack_write,
+            read ? LegacyBattleActorFrameEntryStatus::stack_read_typed_stop
+                 : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            instruction,
+            token,
+            true
+        );
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!stack_access(false, instruction, slot)) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            value;
+        return true;
+    };
+    if (!read_actor(
+            0x00479EE0U,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x00479EE6U,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_resource(
+            0x00479EEDU,
+            0x0EU,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0e,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0e_known
+        ) ||
+        !read_actor(
+            0x00479EF1U,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x00479EF7U,
+            0x2958U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    const u32 before_shift = prefix.edi;
+    prefix.edi >>= 1U;
+    prefix.flags = {
+        .carry = (before_shift & 1U) != 0U,
+        .parity = even_parity(static_cast<u8>(prefix.edi)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edi == 0U,
+        .sign = (prefix.edi & 0x80000000U) != 0U,
+        .overflow = (before_shift & 0x80000000U) != 0U,
+    };
+    prefix.flags_known = true;
+    prefix.flags = subtract_flags(prefix.edi, prefix.edx);
+    prefix.edi -= prefix.edx;
+    if (!read_actor(
+            0x00479F02U,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.edi, prefix.ecx);
+    prefix.edi += prefix.ecx;
+    prefix.flags = add_flags(prefix.eax, prefix.eax);
+    prefix.eax += prefix.eax;
+    if (!push(0x00479F0CU, prefix.edi)) {
+        return prefix;
+    }
+    prefix.edi = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_resource(
+            0x00479F0FU,
+            0x0CU,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->resource.value_0c,
+            actor.action_execution != nullptr &&
+                actor.action_execution->resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    if (!stack_access(false, 0x00479F13U, prefix.esp + 0x14U)) {
+        return prefix;
+    }
+    prefix.case_four_phase_twice_local = prefix.eax;
+    if (!stack_access(true, 0x00479F17U, prefix.esp + 0x14U)) {
+        return prefix;
+    }
+    prefix.edx = prefix.case_four_phase_twice_local;
+    if (!read_actor(
+            0x00479F1BU,
+            0x0D66U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edi, prefix.edx);
+    prefix.edi -= prefix.edx;
+    prefix.flags = subtract_flags(prefix.edi, prefix.ebp);
+    prefix.edi -= prefix.ebp;
+    prefix.flags = add_flags(prefix.edi, prefix.eax);
+    prefix.edi += prefix.eax;
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    if (!push(0x00479F2AU, prefix.edi) ||
+        !read_actor(
+            0x00479F2BU,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edi);
+    prefix.ecx -= prefix.edi;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ebp);
+    prefix.eax -= prefix.ebp;
+    if (!push(0x00479F35U, prefix.ecx) || !push(0x00479F36U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_four_rectangle_call_ready;
+    prefix.eip = 0x00479F37U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_ten = prefix.eip == 0x0047A815U;
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        (!case_ten && prefix.eip != 0x0047A083U)) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : request.actor_resource_readable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            case_ten ? 0x0047A815U : 0x0047A083U,
+            prefix.esi + 0x2548U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->render_source_token;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            case_ten ? 0x0047A81BU : 0x0047A089U,
+            prefix.esi + 0x2958U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax =
+        (prefix.eax & 0xFFFF0000U) | actor.action_execution->turn_threshold;
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            case_ten ? LegacyBattleActorFrameEntryStatus::
+                           case_ten_resource_read_typed_stop
+                     : LegacyBattleActorFrameEntryStatus::
+                           case_five_resource_read_typed_stop,
+            case_ten ? 0x0047A824U : 0x0047A092U,
+            prefix.ecx + 0x0EU,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = (prefix.edx & 0xFFFF0000U) | resource.value_0e;
+    prefix.ecx = static_cast<u32>(static_cast<std::int32_t>(
+        std::bit_cast<std::int16_t>(static_cast<u16>(prefix.eax))
+    ));
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edx);
+    if (prefix.flags.zero || prefix.flags.sign == prefix.flags.overflow) {
+        prefix.eip = 0x0047A935U;
+        return prefix;
+    }
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+    );
+    prefix.status = case_ten
+        ? (prefix.flags.zero
+               ? LegacyBattleActorFrameEntryStatus::case_ten_audio_ready
+               : LegacyBattleActorFrameEntryStatus::case_ten_source_ready)
+        : (prefix.flags.zero
+               ? LegacyBattleActorFrameEntryStatus::case_five_audio_ready
+               : LegacyBattleActorFrameEntryStatus::case_five_source_ready);
+    prefix.eip = case_ten ? (prefix.flags.zero ? 0x0047A838U : 0x0047A849U)
+                          : (prefix.flags.zero ? 0x0047A0A6U : 0x0047A0B7U);
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_five_header(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_source(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_ten = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_ten_source_ready &&
+        prefix.eip == 0x0047A849U;
+    if (!case_ten &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_five_source_ready ||
+         prefix.eip != 0x0047A0B7U)) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::global_write
+            ? request.global_writable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            case_ten ? 0x0047A849U : 0x0047A0B7U,
+            prefix.esi + 0x2548U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
+        )) {
+        return prefix;
+    }
+    prefix.eax = actor.action_execution->render_source_token;
+    const u32 slot = prefix.esp - 4U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            case_ten ? 0x0047A84FU : 0x0047A0BDU,
+            slot,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.esp = slot;
+    prefix.last_pushed_value = prefix.ebx;
+    prefix.draw_auxiliary_value = prefix.ebx;
+    prefix.draw_auxiliary_pushed = true;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            case_ten ? LegacyBattleActorFrameEntryStatus::
+                           case_ten_resource_read_typed_stop
+                     : LegacyBattleActorFrameEntryStatus::
+                           case_five_resource_read_typed_stop,
+            case_ten ? 0x0047A850U : 0x0047A0BEU,
+            prefix.eax,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_00_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = resource.value_00;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+            case_ten ? 0x0047A852U : 0x0047A0C0U,
+            0x004CD730U,
+            actor.shared_action != nullptr
+        )) {
+        return prefix;
+    }
+    actor.shared_action->turn_frame_source_token = prefix.ecx;
+    prefix.status = case_ten
+        ? LegacyBattleActorFrameEntryStatus::case_ten_source_base_ready
+        : LegacyBattleActorFrameEntryStatus::case_five_source_base_ready;
+    prefix.eip = case_ten ? 0x0047A858U : 0x0047A0C6U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_source(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_five_source(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_ten = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_ten_source_base_ready &&
+        prefix.eip == 0x0047A858U;
+    if (!case_ten &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_five_source_base_ready ||
+         prefix.eip != 0x0047A0C6U)) {
+        return prefix;
+    }
+    const auto ip = [case_ten](const u32 case_five_ip) {
+        return case_five_ip + (case_ten ? 0x792U : 0U);
+    };
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!read_actor(
+            ip(0x0047A0C6U),
+            0x2694U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            ip(0x0047A0CCU),
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !push(ip(0x0047A0D2U), prefix.edx)) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            case_ten ? LegacyBattleActorFrameEntryStatus::
+                           case_ten_draw_resource_read_typed_stop
+                     : LegacyBattleActorFrameEntryStatus::
+                           case_five_draw_resource_read_typed_stop,
+            ip(0x0047A0D7U),
+            prefix.eax + 0x0EU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) | resource.value_0e;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            case_ten ? LegacyBattleActorFrameEntryStatus::
+                           case_ten_draw_resource_read_typed_stop
+                     : LegacyBattleActorFrameEntryStatus::
+                           case_five_draw_resource_read_typed_stop,
+            ip(0x0047A0DBU),
+            prefix.eax + 0x0CU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = (prefix.edx & 0xFFFF0000U) | resource.value_0c;
+    if (!read_actor(
+            ip(0x0047A0DFU),
+            0x0D68U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(ip(0x0047A0E6U), prefix.ecx) ||
+        !read_actor(
+            ip(0x0047A0E7U),
+            0x03E4U,
+            prefix.ecx,
+            actor.action_execution->reserved_action_record_02.draw_offset_y,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.ecx);
+    prefix.eax -= prefix.ecx;
+    if (!push(ip(0x0047A0EFU), prefix.edx) ||
+        !read_actor(
+            ip(0x0047A0F0U),
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.ebp);
+    prefix.ecx -= prefix.ebp;
+    if (!push(ip(0x0047A0F9U), prefix.eax) ||
+        !push(ip(0x0047A0FAU), prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status = case_ten
+        ? LegacyBattleActorFrameEntryStatus::case_ten_draw_call_ready
+        : LegacyBattleActorFrameEntryStatus::case_five_draw_call_ready;
+    prefix.eip = ip(0x0047A0FBU);
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_five_draw_arguments(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_draw_call(
+    const LegacyBattleActorRuntimeResetView& actor,
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool case_ten = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_ten_draw_call_ready &&
+        prefix.eip == 0x0047A88DU;
+    if (!case_ten &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_five_draw_call_ready ||
+         prefix.eip != 0x0047A0FBU)) {
+        return prefix;
+    }
+    const u32 call_ip = case_ten ? 0x0047A88DU : 0x0047A0FBU;
+    const u32 return_ip = case_ten ? 0x0047A892U : 0x0047A100U;
+    if (!prefix.draw_auxiliary_pushed ||
+        prefix.draw_argument_count != prefix.draw_argument_pushes.size()) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = slot;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = return_ip;
+    ++prefix.draw_calls;
+    const std::size_t pre_callee_accesses = prefix.accesses_completed;
+    auto callee = prefix;
+    if (!read_draw_callee_global(request, callee)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    const std::array<u32, 6U> arguments{
+        prefix.draw_argument_pushes[4U],
+        prefix.draw_argument_pushes[3U],
+        prefix.draw_argument_pushes[2U],
+        prefix.draw_argument_pushes[1U],
+        prefix.draw_argument_pushes[0U],
+        prefix.draw_auxiliary_value,
+    };
+    prefix.draw_child = draw.draw_frame(
+        arguments, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    if (!prefix.draw_child.returned) {
+        prefix.accesses_completed = pre_callee_accesses;
+        prefix.status = case_ten
+            ? LegacyBattleActorFrameEntryStatus::case_ten_draw_child_typed_stop
+            : LegacyBattleActorFrameEntryStatus::
+                  case_five_draw_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x004170E0U;
+        prefix.eip = 0x004170E0U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.draw_child.eax;
+    prefix.ecx = prefix.draw_child.ecx;
+    prefix.edx = prefix.draw_child.edx;
+    prefix.flags = prefix.draw_child.flags;
+    prefix.flags_known = prefix.draw_child.flags_known;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = return_ip;
+        prefix.stopped_token = prefix.esi + 0x2548U;
+        prefix.eip = return_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.edx = actor.action_execution->render_source_token;
+    prefix.flags = add_flags(prefix.esp, 0x18U);
+    prefix.flags_known = true;
+    prefix.esp += 0x18U;
+    prefix.draw_auxiliary_pushed = false;
+    prefix.status = case_ten
+        ? LegacyBattleActorFrameEntryStatus::case_ten_after_first_draw_ready
+        : LegacyBattleActorFrameEntryStatus::case_five_after_first_draw_ready;
+    prefix.eip = case_ten ? 0x0047A89BU : 0x0047A109U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_draw_call(
+    const LegacyBattleActorRuntimeResetView& actor,
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    return continue_legacy_battle_actor_frame_case_five_draw_call(
+        actor, draw, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_after_first_draw(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_ten = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_ten_after_first_draw_ready &&
+        prefix.eip == 0x0047A89BU;
+    if (!case_ten &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_five_after_first_draw_ready ||
+         prefix.eip != 0x0047A109U)) {
+        return prefix;
+    }
+    const auto* resource = actor.action_execution == nullptr
+        ? nullptr
+        : &actor.action_execution->resource;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.actor_resource_readable || resource == nullptr ||
+        prefix.edx == 0U || resource->token != prefix.edx ||
+        !resource->value_0e_known) {
+        prefix.status = case_ten
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_ten_height_resource_read_typed_stop
+            : LegacyBattleActorFrameEntryStatus::
+                  case_five_height_resource_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read;
+        prefix.stopped_instruction = case_ten ? 0x0047A89BU : 0x0047A109U;
+        prefix.stopped_token = prefix.edx + 0x0EU;
+        prefix.eip = prefix.stopped_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | resource->value_0e;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.actor_readable || actor.action_execution == nullptr ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = case_ten ? 0x0047A89FU : 0x0047A10DU;
+        prefix.stopped_token = prefix.esi + 0x2958U;
+        prefix.eip = prefix.stopped_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 phase = actor.action_execution->turn_threshold;
+    prefix.edx = static_cast<u32>(
+        static_cast<std::int32_t>(std::bit_cast<std::int16_t>(phase))
+    );
+    prefix.ecx = prefix.eax & 0xFFFFU;
+    prefix.flags = subtract_flags(prefix.edx, prefix.ecx);
+    prefix.flags_known = true;
+    if (!prefix.flags.zero && prefix.flags.sign == prefix.flags.overflow) {
+        auto dec_flags = subtract_flags(prefix.eax, 1U);
+        dec_flags.carry = prefix.flags.carry;
+        prefix.flags = dec_flags;
+        --prefix.eax;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.actor_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = case_ten ? 0x0047A8B3U : 0x0047A121U;
+            prefix.stopped_token = prefix.esi + 0x2958U;
+            prefix.eip = prefix.stopped_instruction;
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        actor.action_execution->turn_threshold = static_cast<u16>(prefix.eax);
+    }
+    prefix.status = case_ten
+        ? LegacyBattleActorFrameEntryStatus::case_ten_second_draw_prepare_ready
+        : LegacyBattleActorFrameEntryStatus::
+              case_five_second_draw_prepare_ready;
+    prefix.eip = case_ten ? 0x0047A8BAU : 0x0047A128U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_after_first_draw(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_five_after_first_draw(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_second_draw_globals(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_five_second_draw_prepare_ready ||
+        prefix.eip != 0x0047A128U) {
+        return prefix;
+    }
+    prefix.eax = 0xFFFFFFE8U;
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x0047A12DU;
+        prefix.stopped_token = slot;
+        prefix.eip = 0x0047A12DU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = prefix.ebx;
+    prefix.draw_auxiliary_value = prefix.ebx;
+    prefix.draw_auxiliary_pushed = true;
+    const auto write_global =
+        [&](const u32 instruction, const u32 token, u32& destination) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.global_writable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::global_write;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = token;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            destination = prefix.eax;
+            return true;
+        };
+    if (actor.shared_action == nullptr) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_write;
+        prefix.stopped_instruction = 0x0047A12EU;
+        prefix.stopped_token = 0x004CD71CU;
+        prefix.eip = 0x0047A12EU;
+        return prefix;
+    }
+    if (!write_global(
+            0x0047A12EU, 0x004CD71CU, actor.shared_action->draw_motion_a
+        ) ||
+        !write_global(
+            0x0047A133U, 0x004CD30CU, actor.shared_action->draw_motion_b
+        ) ||
+        !write_global(
+            0x0047A138U, 0x004CD304U, actor.shared_action->draw_motion_c
+        )) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_five_second_draw_globals_ready;
+    prefix.eip = 0x0047A13DU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_second_draw_globals(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_ten_second_draw_prepare_ready ||
+        prefix.eip != 0x0047A8BAU) {
+        return prefix;
+    }
+    const std::array<u32, 3U> instructions{
+        0x0047A8BAU,
+        0x0047A8C0U,
+        0x0047A8C6U,
+    };
+    const std::array<u32, 3U> tokens{
+        0x004CD71CU,
+        0x004CD30CU,
+        0x004CD304U,
+    };
+    const std::array<u32, 3U> values{
+        prefix.ebx,
+        prefix.ebx,
+        0x10U,
+    };
+    for (std::size_t index = 0U; index < instructions.size(); ++index) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.global_writable || actor.shared_action == nullptr) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::global_write;
+            prefix.stopped_instruction = instructions[index];
+            prefix.stopped_token = tokens[index];
+            prefix.eip = instructions[index];
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        if (index == 0U) {
+            actor.shared_action->draw_motion_a = values[index];
+        } else if (index == 1U) {
+            actor.shared_action->draw_motion_b = values[index];
+        } else {
+            actor.shared_action->draw_motion_c = values[index];
+        }
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_ten_second_draw_globals_ready;
+    prefix.eip = 0x0047A8D0U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_second_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_five_second_draw_globals_ready ||
+        prefix.eip != 0x0047A13DU) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    if (!read_actor(
+            0x0047A13DU,
+            0x2694U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A143U,
+            0x2958U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A14AU,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A150U,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax |= 0x10U;
+    const auto low = static_cast<u8>(prefix.eax);
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(low),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = low == 0U,
+        .sign = (low & 0x80U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!push(0x0047A158U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_five_second_width_resource_read_typed_stop,
+            0x0047A15BU,
+            prefix.edx + 0x0CU,
+            prefix.edx != 0U && resource.token == prefix.edx &&
+                resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | resource.value_0c;
+    if (!push(0x0047A15FU, prefix.ecx) ||
+        !read_actor(
+            0x0047A160U,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            0x0047A167U,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edi);
+    prefix.ecx -= prefix.edi;
+    if (!push(0x0047A170U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+    prefix.edx -= prefix.ebp;
+    if (!push(0x0047A173U, prefix.ecx) || !push(0x0047A174U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_five_second_draw_call_ready;
+    prefix.eip = 0x0047A175U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_second_draw_call(
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool case_ten = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_ten_second_draw_call_ready &&
+        prefix.eip == 0x0047A90AU;
+    if (!case_ten &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_five_second_draw_call_ready ||
+         prefix.eip != 0x0047A175U)) {
+        return prefix;
+    }
+    const u32 call_ip = case_ten ? 0x0047A90AU : 0x0047A175U;
+    const u32 return_ip = case_ten ? 0x0047A90FU : 0x0047A17AU;
+    if (!prefix.draw_auxiliary_pushed ||
+        prefix.draw_argument_count != prefix.draw_argument_pushes.size()) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = slot;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = return_ip;
+    ++prefix.draw_calls;
+    const std::size_t pre_callee_accesses = prefix.accesses_completed;
+    auto callee = prefix;
+    if (!read_draw_callee_global(request, callee)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    const std::array<u32, 6U> arguments{
+        prefix.draw_argument_pushes[4U],
+        prefix.draw_argument_pushes[3U],
+        prefix.draw_argument_pushes[2U],
+        prefix.draw_argument_pushes[1U],
+        prefix.draw_argument_pushes[0U],
+        prefix.draw_auxiliary_value,
+    };
+    prefix.draw_child = draw.draw_frame(
+        arguments, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    if (!prefix.draw_child.returned) {
+        prefix.accesses_completed = pre_callee_accesses;
+        prefix.status = case_ten ? LegacyBattleActorFrameEntryStatus::
+                                       case_ten_second_draw_child_typed_stop
+                                 : LegacyBattleActorFrameEntryStatus::
+                                       case_five_second_draw_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x004170E0U;
+        prefix.eip = 0x004170E0U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.draw_child.eax;
+    prefix.ecx = prefix.draw_child.ecx;
+    prefix.edx = prefix.draw_child.edx;
+    prefix.flags = prefix.draw_child.flags;
+    prefix.flags_known = prefix.draw_child.flags_known;
+    prefix.status = case_ten
+        ? LegacyBattleActorFrameEntryStatus::case_ten_clip_arguments_ready
+        : LegacyBattleActorFrameEntryStatus::case_five_clip_arguments_ready;
+    prefix.eip = return_ip;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_second_draw_call(
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    return continue_legacy_battle_actor_frame_case_five_second_draw_call(
+        draw, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_clip_arguments(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_ten = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_ten_clip_arguments_ready &&
+        prefix.eip == 0x0047A90FU;
+    if (!case_ten &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_five_clip_arguments_ready ||
+         prefix.eip != 0x0047A17AU)) {
+        return prefix;
+    }
+    prefix.rectangle_argument_count = 0U;
+    const std::array<u32, 4U> instructions{
+        case_ten ? 0x0047A90FU : 0x0047A17AU,
+        case_ten ? 0x0047A914U : 0x0047A17FU,
+        case_ten ? 0x0047A919U : 0x0047A184U,
+        case_ten ? 0x0047A91AU : 0x0047A185U,
+    };
+    const std::array<u32, 4U> values{
+        0x1E0U,
+        0x280U,
+        prefix.ebx,
+        prefix.ebx,
+    };
+    for (std::size_t index = 0U; index < instructions.size(); ++index) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instructions[index];
+            prefix.stopped_token = slot;
+            prefix.eip = instructions[index];
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = values[index];
+        prefix.rectangle_argument_pushes[prefix.rectangle_argument_count++] =
+            values[index];
+    }
+    prefix.status = case_ten
+        ? LegacyBattleActorFrameEntryStatus::case_ten_clip_call_ready
+        : LegacyBattleActorFrameEntryStatus::case_five_clip_call_ready;
+    prefix.eip = case_ten ? 0x0047A91BU : 0x0047A186U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_clip_arguments(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_five_clip_arguments(
+        request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_clip_entry(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_ten = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_ten_clip_call_ready &&
+        prefix.eip == 0x0047A91BU;
+    if (!case_ten &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_five_clip_call_ready ||
+         prefix.eip != 0x0047A186U)) {
+        return prefix;
+    }
+    const u32 call_ip = case_ten ? 0x0047A91BU : 0x0047A186U;
+    if (prefix.rectangle_argument_count !=
+        prefix.rectangle_argument_pushes.size()) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = slot;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = case_ten ? 0x0047A920U : 0x0047A18BU;
+    ++prefix.rectangle_calls;
+    prefix.status = case_ten
+        ? LegacyBattleActorFrameEntryStatus::case_ten_clip_child_typed_stop
+        : LegacyBattleActorFrameEntryStatus::case_five_clip_child_typed_stop;
+    prefix.stopped_access_kind =
+        LegacyBattleActorFrameEntryAccessKind::callee_call;
+    prefix.stopped_instruction = 0x00416FF0U;
+    prefix.eip = 0x00416FF0U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_clip_entry(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    return continue_legacy_battle_actor_frame_case_five_clip_entry(
+        request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_ten_second_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_ten_second_draw_globals_ready ||
+        prefix.eip != 0x0047A8D0U) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction,
+                          const u32 value,
+                          const bool draw_argument) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        if (draw_argument) {
+            prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        } else {
+            prefix.draw_auxiliary_value = value;
+            prefix.draw_auxiliary_pushed = true;
+        }
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    if (!read_actor(
+            0x0047A8D0U,
+            0x2694U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A8D6U,
+            0x2958U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A8DDU,
+            0x2548U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047A8E3U,
+            0x03E4U,
+            prefix.edi,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax |= 0x10U;
+    const auto low = static_cast<u8>(prefix.eax);
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(low),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = low == 0U,
+        .sign = (low & 0x80U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!push(0x0047A8EBU, prefix.ebx, false) ||
+        !push(0x0047A8ECU, prefix.eax, true)) {
+        return prefix;
+    }
+    auto inc_flags = add_flags(prefix.ecx, 1U);
+    inc_flags.carry = prefix.flags.carry;
+    prefix.flags = inc_flags;
+    ++prefix.ecx;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!push(0x0047A8F0U, prefix.ecx, true)) {
+        return prefix;
+    }
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_ten_second_width_resource_read_typed_stop,
+            0x0047A8F1U,
+            prefix.edx + 0x0CU,
+            prefix.edx != 0U && resource.token == prefix.edx &&
+                resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | resource.value_0c;
+    if (!read_actor(
+            0x0047A8F5U,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            0x0047A8FCU,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edi);
+    prefix.ecx -= prefix.edi;
+    if (!push(0x0047A905U, prefix.eax, true)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+    prefix.edx -= prefix.ebp;
+    if (!push(0x0047A908U, prefix.ecx, true) ||
+        !push(0x0047A909U, prefix.edx, true)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_ten_second_draw_call_ready;
+    prefix.eip = 0x0047A90AU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_ten_terminal_writes(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x0047A935U) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.base_initialization == nullptr || !request.actor_writable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x0047A935U;
+        prefix.stopped_token = prefix.esi + 0x2A94U;
+        prefix.eip = 0x0047A935U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.base_initialization->field_2a94 = 2U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_writable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x0047A93CU;
+        prefix.stopped_token = prefix.esi + 0x2958U;
+        prefix.eip = 0x0047A93CU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.action_execution->turn_threshold = static_cast<u16>(prefix.ebx);
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_five_ten_terminal_return_ready;
+    prefix.eip = 0x0047A943U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_ten_terminal_return(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_five_ten_terminal_return_ready ||
+        prefix.eip != 0x0047A943U) {
+        return prefix;
+    }
+    const auto pop =
+        [&](const u32 instruction, u32& destination, const u32 saved) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.stack_readable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::stack_read;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = prefix.esp;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            destination = saved;
+            prefix.esp += 4U;
+            return true;
+        };
+    if (!pop(0x0047A943U, prefix.edi, request.entry_edi) ||
+        !pop(0x0047A944U, prefix.esi, request.entry_esi) ||
+        !pop(0x0047A945U, prefix.ebp, request.entry_ebp)) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (!pop(0x0047A948U, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047A94CU;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = 0x0047A94CU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_five_ten_terminal_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_ten_clip_callee(
+    rendering::LegacyRasterGeometryState& raster,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_ten = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_ten_clip_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_three = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_three_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_four = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_four_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_seven = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_seven_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_second_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_seven_third = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_third_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_seven_fourth = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_fourth_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_seven_shared = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_seven_shared_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_three_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_three_second_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_four_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_four_second_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_three_four_shared = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_three_four_shared_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_thirteen_first = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_first_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_thirteen_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_second_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_thirteen_third = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_third_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_thirteen_fourth = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_thirteen_fourth_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_fourteen_early_first = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_first_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_fourteen_early_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_early_second_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_fourteen_shared = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_shared_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_fourteen_late_first = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_first_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    const bool case_fourteen_late_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fourteen_late_second_rectangle_child_typed_stop &&
+        prefix.eip == 0x00416FF0U;
+    if (!case_ten && !case_three && !case_four && !case_seven &&
+        !case_seven_second && !case_seven_third && !case_seven_fourth &&
+        !case_seven_shared && !case_three_second && !case_four_second &&
+        !case_three_four_shared && !case_thirteen_first &&
+        !case_thirteen_second && !case_thirteen_third &&
+        !case_thirteen_fourth && !case_fourteen_early_first &&
+        !case_fourteen_early_second && !case_fourteen_shared &&
+        !case_fourteen_late_first && !case_fourteen_late_second &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_five_clip_child_typed_stop ||
+         prefix.eip != 0x00416FF0U)) {
+        return prefix;
+    }
+    if (prefix.rectangle_argument_count !=
+        prefix.rectangle_argument_pushes.size()) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x00416FF1U;
+        prefix.stopped_token = prefix.esp + 4U;
+        prefix.eip = 0x00416FF1U;
+        return prefix;
+    }
+    const u32 call_esp = prefix.esp;
+    const u32 saved_esi = prefix.esi;
+    const u32 saved_edi = prefix.edi;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::stack_write
+            ? request.call_stack_writable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+            ? request.stack_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::global_read
+            ? request.global_readable
+            : request.global_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::stack_write
+                ? LegacyBattleActorFrameEntryStatus::stack_write_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::stack_read
+                ? LegacyBattleActorFrameEntryStatus::stack_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::global_read
+                ? LegacyBattleActorFrameEntryStatus::global_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto stack_read = [&](const u32 instruction, const u32 token) {
+        return touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_read,
+            instruction,
+            token
+        );
+    };
+    const auto stack_write = [&](const u32 instruction, const u32 token) {
+        return touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            instruction,
+            token
+        );
+    };
+    if (!stack_write(0x00416FF0U, prefix.esp - 4U)) {
+        return prefix;
+    }
+    prefix.esp -= 4U;
+    if (!stack_read(0x00416FF1U, call_esp + 4U)) {
+        return prefix;
+    }
+    prefix.esi = prefix.rectangle_argument_pushes[3U];
+    const auto test_value = prefix.esi;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(test_value)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = test_value == 0U,
+        .sign = (test_value & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!stack_write(0x00416FF7U, prefix.esp - 4U)) {
+        return prefix;
+    }
+    prefix.esp -= 4U;
+    if (static_cast<std::int32_t>(prefix.esi) < 0) {
+        prefix.esi = 0U;
+        prefix.flags = logical_zero_flags();
+    }
+    if (!stack_read(0x00416FFCU, call_esp + 8U)) {
+        return prefix;
+    }
+    prefix.edx = prefix.rectangle_argument_pushes[2U];
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edx == 0U,
+        .sign = (prefix.edx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    if (static_cast<std::int32_t>(prefix.edx) < 0) {
+        prefix.edx = 0U;
+        prefix.flags = logical_zero_flags();
+    }
+    if (!stack_read(0x00417006U, call_esp + 12U)) {
+        return prefix;
+    }
+    prefix.ecx = prefix.rectangle_argument_pushes[1U];
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_read,
+            0x0041700AU,
+            0x004A0E78U
+        )) {
+        return prefix;
+    }
+    prefix.eax = std::bit_cast<u32>(raster.surface.width);
+    prefix.flags = subtract_flags(prefix.ecx, prefix.eax);
+    if (!prefix.flags.zero && prefix.flags.sign == prefix.flags.overflow) {
+        prefix.ecx = prefix.eax;
+    }
+    if (!stack_read(0x00417015U, call_esp + 16U)) {
+        return prefix;
+    }
+    prefix.eax = prefix.rectangle_argument_pushes[0U];
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_read,
+            0x00417019U,
+            0x004A0E7CU
+        )) {
+        return prefix;
+    }
+    prefix.edi = std::bit_cast<u32>(raster.surface.height);
+    prefix.flags = subtract_flags(prefix.eax, prefix.edi);
+    if (!prefix.flags.zero && prefix.flags.sign == prefix.flags.overflow) {
+        prefix.eax = prefix.edi;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.esi);
+    prefix.ecx -= prefix.esi;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            0x00417029U,
+            0x004CD2F8U
+        )) {
+        return prefix;
+    }
+    raster.clip_left = std::bit_cast<compat::i32>(prefix.esi);
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            0x0041702FU,
+            0x004CD720U
+        )) {
+        return prefix;
+    }
+    raster.clip_height = std::bit_cast<compat::i32>(prefix.eax);
+    if (!stack_read(0x00417034U, prefix.esp)) {
+        return prefix;
+    }
+    prefix.edi = saved_edi;
+    prefix.esp += 4U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            0x00417035U,
+            0x004CD734U
+        )) {
+        return prefix;
+    }
+    raster.clip_top = std::bit_cast<compat::i32>(prefix.edx);
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            0x0041703BU,
+            0x004CD310U
+        )) {
+        return prefix;
+    }
+    raster.clip_width = std::bit_cast<compat::i32>(prefix.ecx);
+    prefix.eax = 1U;
+    if (!stack_read(0x00417046U, prefix.esp)) {
+        return prefix;
+    }
+    prefix.esi = saved_esi;
+    prefix.esp += 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x00417047U;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = 0x00417047U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.status = case_three
+        ? LegacyBattleActorFrameEntryStatus::case_three_rectangle_return_ready
+        : case_four
+        ? LegacyBattleActorFrameEntryStatus::case_four_rectangle_return_ready
+        : case_seven
+        ? LegacyBattleActorFrameEntryStatus::case_seven_rectangle_return_ready
+        : case_seven_second ? LegacyBattleActorFrameEntryStatus::
+                                  case_seven_second_rectangle_return_ready
+        : case_seven_third  ? LegacyBattleActorFrameEntryStatus::
+                                  case_seven_third_rectangle_return_ready
+        : case_seven_fourth ? LegacyBattleActorFrameEntryStatus::
+                                  case_seven_fourth_rectangle_return_ready
+        : case_seven_shared ? LegacyBattleActorFrameEntryStatus::
+                                  case_seven_shared_rectangle_return_ready
+        : case_three_second ? LegacyBattleActorFrameEntryStatus::
+                                  case_three_second_rectangle_return_ready
+        : case_four_second  ? LegacyBattleActorFrameEntryStatus::
+                                  case_four_second_rectangle_return_ready
+        : case_three_four_shared
+        ? LegacyBattleActorFrameEntryStatus::
+              case_three_four_shared_rectangle_return_ready
+        : case_thirteen_first  ? LegacyBattleActorFrameEntryStatus::
+                                     case_thirteen_first_rectangle_return_ready
+        : case_thirteen_second ? LegacyBattleActorFrameEntryStatus::
+                                     case_thirteen_second_rectangle_return_ready
+        : case_thirteen_third  ? LegacyBattleActorFrameEntryStatus::
+                                     case_thirteen_third_rectangle_return_ready
+        : case_thirteen_fourth ? LegacyBattleActorFrameEntryStatus::
+                                     case_thirteen_fourth_rectangle_return_ready
+        : case_fourteen_early_first
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_early_first_rectangle_return_ready
+        : case_fourteen_early_second
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_early_second_rectangle_return_ready
+        : case_fourteen_shared ? LegacyBattleActorFrameEntryStatus::
+                                     case_fourteen_shared_rectangle_return_ready
+        : case_fourteen_late_first
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_late_first_rectangle_return_ready
+        : case_fourteen_late_second
+        ? LegacyBattleActorFrameEntryStatus::
+              case_fourteen_late_second_rectangle_return_ready
+        : LegacyBattleActorFrameEntryStatus::case_five_ten_clip_return_ready;
+    prefix.stopped_instruction = 0U;
+    prefix.stopped_token = 0U;
+    prefix.eip = case_three          ? 0x00479D3EU
+        : case_four                  ? 0x00479F3CU
+        : case_seven                 ? 0x0047A2F5U
+        : case_seven_second          ? 0x0047A3D0U
+        : case_seven_third           ? 0x0047A4A0U
+        : case_seven_fourth          ? 0x0047A577U
+        : case_seven_shared          ? 0x0047AF17U
+        : case_three_second          ? 0x00479E0CU
+        : case_four_second           ? 0x0047A00EU
+        : case_three_four_shared     ? 0x00479E9DU
+        : case_thirteen_first        ? 0x0047AC34U
+        : case_thirteen_second       ? 0x0047ACEBU
+        : case_thirteen_third        ? 0x0047ADBDU
+        : case_thirteen_fourth       ? 0x0047AE83U
+        : case_fourteen_early_first  ? 0x0047AFC3U
+        : case_fourteen_early_second ? 0x0047B088U
+        : case_fourteen_shared       ? 0x0047B2DBU
+        : case_fourteen_late_first   ? 0x0047B179U
+        : case_fourteen_late_second  ? 0x0047B24BU
+        : case_ten                   ? 0x0047A920U
+                                     : 0x0047A18BU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_five_ten_active_return(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_ten = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_five_ten_clip_return_ready &&
+        prefix.eip == 0x0047A920U;
+    if (!case_ten &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_five_ten_clip_return_ready ||
+         prefix.eip != 0x0047A18BU)) {
+        return prefix;
+    }
+    const u32 phase_instruction = case_ten ? 0x0047A920U : 0x0047A18BU;
+    const u32 phase_token = prefix.esi + 0x2958U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = phase_instruction;
+        prefix.stopped_token = phase_token;
+        prefix.eip = phase_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 before = actor.action_execution->turn_threshold;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.actor_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = phase_instruction;
+        prefix.stopped_token = phase_token;
+        prefix.eip = phase_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 delta = case_ten ? 4U : 14U;
+    actor.action_execution->turn_threshold = static_cast<u16>(before + delta);
+    prefix.flags = add_flags_16(before, delta);
+    prefix.flags_known = true;
+    prefix.flags = add_flags(prefix.esp, 0x28U);
+    prefix.esp += 0x28U;
+    prefix.draw_auxiliary_pushed = false;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    const auto pop =
+        [&](const u32 instruction, u32& destination, const u32 saved) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.stack_readable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::stack_read;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = prefix.esp;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            destination = saved;
+            prefix.esp += 4U;
+            return true;
+        };
+    if (!pop(
+            case_ten ? 0x0047A92DU : 0x0047A198U, prefix.edi, request.entry_edi
+        ) ||
+        !pop(
+            case_ten ? 0x0047A92EU : 0x0047A199U, prefix.esi, request.entry_esi
+        ) ||
+        !pop(
+            case_ten ? 0x0047A92FU : 0x0047A19AU, prefix.ebp, request.entry_ebp
+        ) ||
+        !pop(
+            case_ten ? 0x0047A930U : 0x0047A19BU, prefix.ebx, request.entry_ebx
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = case_ten ? 0x0047A934U : 0x0047A19FU;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = prefix.stopped_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_five_ten_active_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_twelve_header(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x0047AA7BU) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = 0x0047AA7BU;
+        prefix.stopped_token = prefix.esi + 0x2958U;
+        prefix.eip = 0x0047AA7BU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax =
+        (prefix.eax & 0xFFFF0000U) | actor.action_execution->turn_threshold;
+    prefix.flags = subtract_flags_16(static_cast<u16>(prefix.eax), 30U);
+    prefix.flags_known = true;
+    if (prefix.flags.sign == prefix.flags.overflow) {
+        prefix.eip = 0x0047AB9AU;
+        return prefix;
+    }
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+    );
+    prefix.status = prefix.flags.zero
+        ? LegacyBattleActorFrameEntryStatus::case_twelve_audio_ready
+        : LegacyBattleActorFrameEntryStatus::case_twelve_globals_ready;
+    prefix.eip = prefix.flags.zero ? 0x0047AA91U : 0x0047AAA2U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_twelve_globals(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_twelve_globals_ready ||
+        prefix.eip != 0x0047AAA2U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::stack_write
+            ? request.call_stack_writable
+            : request.global_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind == LegacyBattleActorFrameEntryAccessKind::stack_write
+                ? LegacyBattleActorFrameEntryStatus::stack_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                actor.action_execution != nullptr &&
+                    prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    const auto publish = [&](const u32 instruction,
+                             const u32 token,
+                             compat::i32& destination,
+                             const u32 value) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::global_write,
+                instruction,
+                token,
+                request.scaled_rle_transform != nullptr
+            )) {
+            return false;
+        }
+        destination = std::bit_cast<compat::i32>(value);
+        return true;
+    };
+    if (!read_actor(
+            0x0047AAA2U,
+            0x02B0U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->frame_source_action_record
+                      .draw_offset_x
+        )) {
+        return prefix;
+    }
+    const u32 slot = prefix.esp - 4U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            0x0047AAA8U,
+            slot,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.esp = slot;
+    prefix.last_pushed_value = prefix.ebx;
+    if (request.scaled_rle_transform == nullptr) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_write;
+        prefix.stopped_instruction = 0x0047AAA9U;
+        prefix.stopped_token = 0x004A0698U;
+        prefix.eip = 0x0047AAA9U;
+        return prefix;
+    }
+    auto& transform = *request.scaled_rle_transform;
+    if (!publish(0x0047AAA9U, 0x004A0698U, transform.anchor_x, prefix.edx) ||
+        !read_actor(
+            0x0047AAAFU,
+            0x02B4U,
+            prefix.eax,
+            actor.action_execution->frame_source_action_record.draw_offset_y
+        ) ||
+        !publish(0x0047AAB5U, 0x004A069CU, transform.anchor_y, prefix.eax) ||
+        !read_actor(
+            0x0047AABAU,
+            0x2954U,
+            prefix.ecx,
+            signed_word(actor.action_execution->motion_word)
+        ) ||
+        !read_actor(
+            0x0047AAC1U,
+            0x2958U,
+            prefix.edx,
+            signed_word(actor.action_execution->turn_threshold)
+        )) {
+        return prefix;
+    }
+    prefix.ecx =
+        static_cast<u32>(static_cast<std::uint64_t>(prefix.ecx) * prefix.edx);
+    prefix.flags_known = false;
+    prefix.flags = add_flags(prefix.ecx, 0x400U);
+    prefix.flags_known = true;
+    prefix.ecx += 0x400U;
+    prefix.edx = 0x400U;
+    if (!publish(
+            0x0047AAD6U,
+            0x004A06A0U,
+            transform.horizontal_step_10_10,
+            prefix.ecx
+        ) ||
+        !read_actor(
+            0x0047AADCU,
+            0x2954U,
+            prefix.eax,
+            signed_word(actor.action_execution->motion_word)
+        ) ||
+        !read_actor(
+            0x0047AAE3U,
+            0x2958U,
+            prefix.ecx,
+            signed_word(actor.action_execution->turn_threshold)
+        )) {
+        return prefix;
+    }
+    auto inc_flags = add_flags(prefix.eax, 1U);
+    inc_flags.carry = prefix.flags.carry;
+    prefix.flags = inc_flags;
+    ++prefix.eax;
+    prefix.eax =
+        static_cast<u32>(static_cast<std::uint64_t>(prefix.eax) * prefix.ecx);
+    prefix.flags_known = false;
+    prefix.flags = subtract_flags(prefix.edx, prefix.eax);
+    prefix.flags_known = true;
+    prefix.edx -= prefix.eax;
+    if (!publish(
+            0x0047AAF0U, 0x004A06A4U, transform.vertical_step_10_10, prefix.edx
+        )) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_twelve_global_values_ready;
+    prefix.eip = 0x0047AAF6U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_twelve_source_route(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_twelve_global_values_ready ||
+        prefix.eip != 0x0047AAF6U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.global_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_twelve_source_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            0x0047AAF6U,
+            prefix.esi + 0x2548U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
+        )) {
+        return prefix;
+    }
+    prefix.eax = actor.action_execution->render_source_token;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            0x0047AAFCU,
+            prefix.eax,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_00_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = resource.value_00;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            0x0047AAFEU,
+            0x004CD730U,
+            actor.shared_action != nullptr
+        )) {
+        return prefix;
+    }
+    actor.shared_action->turn_frame_source_token = prefix.ecx;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            0x0047AB04U,
+            prefix.esi + 0x2694U,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.eax = (prefix.eax & 0xFFFFFF00U) |
+        static_cast<u8>(actor.action_execution->presentation_render_flags);
+    const u8 tested = static_cast<u8>(prefix.eax) & 1U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(tested),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = tested == 0U,
+        .sign = false,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            0x0047AB0CU,
+            prefix.esi + 0x2548U,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.eax = actor.action_execution->render_source_token;
+    prefix.status = tested == 0U
+        ? LegacyBattleActorFrameEntryStatus::case_twelve_forward_args_ready
+        : LegacyBattleActorFrameEntryStatus::case_twelve_reverse_args_ready;
+    prefix.eip = tested == 0U ? 0x0047AB4AU : 0x0047AB14U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_twelve_raster_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool reverse = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_twelve_reverse_args_ready &&
+        prefix.eip == 0x0047AB14U;
+    if (!reverse &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_twelve_forward_args_ready ||
+         prefix.eip != 0x0047AB4AU)) {
+        return prefix;
+    }
+    const auto ip = [reverse](const u32 reverse_ip, const u32 forward_ip) {
+        return reverse ? reverse_ip : forward_ip;
+    };
+    prefix.scaled_rle_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status =
+                kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+                ? LegacyBattleActorFrameEntryStatus::actor_read_typed_stop
+                : kind ==
+                    LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_twelve_raster_resource_read_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                instruction,
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.scaled_rle_argument_pushes[prefix.scaled_rle_argument_count++] =
+            value;
+        return true;
+    };
+    const auto signed_word = [](const u16 value) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(value))
+        );
+    };
+    if (!read_actor(
+            ip(0x0047AB14U, 0x0047AB4AU),
+            0x02B4U,
+            prefix.ebp,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->frame_source_action_record
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            ip(0x0047AB1CU, 0x0047AB52U),
+            prefix.eax + 0x0EU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = (prefix.edx & 0xFFFF0000U) | resource.value_0e;
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            ip(0x0047AB22U, 0x0047AB58U),
+            prefix.eax + 0x0CU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) | resource.value_0c;
+    if (!push(ip(0x0047AB26U, 0x0047AB5CU), prefix.edx) ||
+        !read_actor(
+            ip(0x0047AB27U, 0x0047AB5DU),
+            0x0D68U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            ip(0x0047AB2EU, 0x0047AB64U),
+            0x29B2U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->source_y_offset),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(ip(0x0047AB35U, 0x0047AB6BU), prefix.ecx)) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+    prefix.edx -= prefix.ebp;
+    if (!read_actor(
+            ip(0x0047AB38U, 0x0047AB6EU),
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.eax);
+    prefix.ecx -= prefix.eax;
+    if (!push(ip(0x0047AB41U, 0x0047AB77U), prefix.edx) ||
+        !push(ip(0x0047AB42U, 0x0047AB78U), prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_twelve_raster_call_ready;
+    prefix.eip = ip(0x0047AB43U, 0x0047AB79U);
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_twelve_raster_entry(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix,
+    LegacyBattleActorFrameScaledRlePort* raster
+) {
+    const bool reverse = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_twelve_raster_call_ready &&
+        prefix.eip == 0x0047AB43U;
+    if (!reverse &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_twelve_raster_call_ready ||
+         prefix.eip != 0x0047AB79U)) {
+        return prefix;
+    }
+    const u32 call_ip = reverse ? 0x0047AB43U : 0x0047AB79U;
+    if (prefix.scaled_rle_argument_count !=
+        prefix.scaled_rle_argument_pushes.size()) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_ip;
+        prefix.stopped_token = slot;
+        prefix.eip = call_ip;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = reverse ? 0x0047AB48U : 0x0047AB7EU;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_twelve_raster_child_typed_stop;
+    prefix.stopped_access_kind =
+        LegacyBattleActorFrameEntryAccessKind::callee_call;
+    prefix.stopped_instruction = reverse ? 0x00423020U : 0x00422C70U;
+    prefix.eip = prefix.stopped_instruction;
+    if (raster == nullptr || request.scaled_rle_transform == nullptr ||
+        actor.action_execution == nullptr) {
+        return prefix;
+    }
+    const std::array<u32, 4U> arguments{
+        prefix.scaled_rle_argument_pushes[3U],
+        prefix.scaled_rle_argument_pushes[2U],
+        prefix.scaled_rle_argument_pushes[1U],
+        prefix.scaled_rle_argument_pushes[0U],
+    };
+    prefix.scaled_rle_child = raster->draw_scaled_rle(
+        reverse,
+        arguments,
+        actor.action_execution->resource.token,
+        *request.scaled_rle_transform,
+        prefix.eax,
+        prefix.ecx,
+        prefix.edx,
+        prefix.flags
+    );
+    if (!prefix.scaled_rle_child.returned) {
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.scaled_rle_child.eax;
+    prefix.ecx = prefix.scaled_rle_child.ecx;
+    prefix.edx = prefix.scaled_rle_child.edx;
+    prefix.flags = prefix.scaled_rle_child.flags;
+    prefix.flags_known = prefix.scaled_rle_child.flags_known;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_twelve_raster_return_ready;
+    prefix.eip = 0x0047AB7EU;  // Reverse jumps from 0x0047AB48.
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_twelve_active_phase(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_twelve_raster_return_ready ||
+        prefix.eip != 0x0047AB7EU) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const u32 instruction,
+                           const u32 offset) {
+        const bool writable =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_write;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            actor.action_execution == nullptr ||
+            prefix.esi != request.actor_token ||
+            (writable ? !request.actor_writable : !request.actor_readable)) {
+            prefix.status = writable
+                ? LegacyBattleActorFrameEntryStatus::actor_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = prefix.esi + offset;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            0x0047AB7EU,
+            0x2954U
+        )) {
+        return prefix;
+    }
+    const u16 before = actor.action_execution->motion_word;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_write,
+            0x0047AB7EU,
+            0x2954U
+        )) {
+        return prefix;
+    }
+    actor.action_execution->motion_word = static_cast<u16>(before + 2U);
+    prefix.flags = add_flags_16(before, 2U);
+    prefix.flags_known = true;
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.flags_known = true;
+    prefix.esp += 0x14U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            0x0047AB89U,
+            0x2958U
+        )) {
+        return prefix;
+    }
+    const u16 before_phase = actor.action_execution->turn_threshold;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_write,
+            0x0047AB89U,
+            0x2958U
+        )) {
+        return prefix;
+    }
+    actor.action_execution->turn_threshold =
+        static_cast<u16>(before_phase + 1U);
+    const bool carry = prefix.flags.carry;
+    prefix.flags = add_flags_16(before_phase, 1U);
+    prefix.flags.carry = carry;  // INC does not change CF.
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_twelve_stack_cleanup_ready;
+    prefix.eip = 0x0047AB90U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_twelve_active_return(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_twelve_stack_cleanup_ready ||
+        prefix.eip != 0x0047AB90U) {
+        return prefix;
+    }
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    const auto pop =
+        [&](const u32 instruction, u32& destination, const u32 saved) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.stack_readable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::stack_read;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = prefix.esp;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            destination = saved;
+            prefix.esp += 4U;
+            return true;
+        };
+    if (!pop(0x0047AB92U, prefix.edi, request.entry_edi) ||
+        !pop(0x0047AB93U, prefix.esi, request.entry_esi) ||
+        !pop(0x0047AB94U, prefix.ebp, request.entry_ebp) ||
+        !pop(0x0047AB95U, prefix.ebx, request.entry_ebx)) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047AB99U;
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = 0x0047AB99U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_twelve_active_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_twelve_terminal_writes(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::update_selector_case_ready ||
+        prefix.eip != 0x0047AB9AU) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_writable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x0047AB9AU;
+        prefix.stopped_token = prefix.esi + 0x2958U;
+        prefix.eip = 0x0047AB9AU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.action_execution->turn_threshold = static_cast<u16>(prefix.ebx);
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.actor_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x0047ABA1U;
+        prefix.stopped_token = prefix.esi + 0x2954U;
+        prefix.eip = 0x0047ABA1U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.action_execution->motion_word = static_cast<u16>(prefix.ebx);
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_twelve_reset_tail_ready;
+    prefix.eip = 0x0047B995U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_twelve_reset_prefix(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_twelve_reset_tail_ready ||
+        prefix.eip != 0x0047B995U) {
+        return prefix;
+    }
+    const bool full_actor = actor.residual != nullptr &&
+        actor.progress != nullptr && actor.action_execution != nullptr &&
+        actor.primary_coordinates != nullptr &&
+        actor.base_initialization != nullptr;
+    LegacyBattleActorImage image{};
+    if (full_actor) {
+        materialize_legacy_battle_actor_image(actor, image);
+    }
+    prefix.ecx = 0x26U;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !full_actor || !request.actor_writable ||
+        prefix.esi != request.actor_token) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = 0x0047B99CU;
+        prefix.stopped_token = prefix.esi + 0x2A12U;
+        prefix.eip = 0x0047B99CU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 word = static_cast<u16>(prefix.ebx);
+    std::memcpy(image.data() + 0x2A12U, &word, sizeof(word));
+    synchronize_legacy_battle_actor_image_write(
+        actor, image, 0x2A12U, sizeof(word)
+    );
+    while (prefix.ecx != 0U) {
+        const u32 offset = prefix.edi - request.actor_token;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !full_actor || !request.actor_writable ||
+            offset > image.size() - sizeof(prefix.eax)) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::actor_write;
+            prefix.stopped_instruction = 0x0047B9A3U;
+            prefix.stopped_token = prefix.edi;
+            prefix.eip = 0x0047B9A3U;
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        std::memcpy(image.data() + offset, &prefix.eax, sizeof(prefix.eax));
+        synchronize_legacy_battle_actor_image_write(
+            actor, image, offset, sizeof(prefix.eax)
+        );
+        --prefix.ecx;
+        prefix.edi = prefix.direction_flag ? prefix.edi - 4U : prefix.edi + 4U;
+    }
+    prefix.ecx = prefix.esi;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_twelve_reset_call_ready;
+    prefix.eip = 0x0047B9A7U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fifty_active_ready ||
+        prefix.eip != 0x0047B758U) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+    );
+    prefix.flags_known = true;
+    if (!prefix.flags.zero) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_fifty_source_ready;
+        prefix.eip = 0x0047B77DU;
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::actor_write
+            ? request.actor_writable
+            : kind == LegacyBattleActorFrameEntryAccessKind::global_read
+            ? request.global_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B75DU,
+            request.actor_token + 0x0428U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = (prefix.eax & 0xFFFF0000U) |
+        actor.action_execution->reserved_action_record_02.field_58;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_write,
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
+            0x0047B764U,
+            request.actor_token + 0x0390U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    actor.action_execution->primary_action_record.field_58 = 0x31U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_read,
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop,
+            0x0047B76DU,
+            0x004AB784U,
+            actor.shared_action != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx = actor.shared_action->sample_handle;
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(0x0047B773U, prefix.edx) || !push(0x0047B774U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_audio_call_ready;
+    prefix.eip = 0x0047B775U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fifty_audio_call_ready ||
+        prefix.eip != 0x0047B775U) {
+        return prefix;
+    }
+    const u32 slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x0047B775U;
+        prefix.stopped_token = slot;
+        prefix.eip = 0x0047B775U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = slot;
+    prefix.last_pushed_value = 0x0047B77AU;
+    ++prefix.sample_calls;
+    auto callee = prefix;
+    if (!read_sound_callee_arguments(request, callee, prefix.edx, prefix.eax)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    prefix.sample_child = callee.sample_child.returned ? callee.sample_child
+                                                       : sound.play_sample(
+                                                             prefix.eax,
+                                                             prefix.edx,
+                                                             prefix.eax,
+                                                             prefix.ecx,
+                                                             prefix.edx,
+                                                             prefix.flags
+                                                         );
+    if (!prefix.sample_child.returned) {
+        prefix.accesses_completed -=
+            16U;  // Entry-only stop precedes both nested callee reads.
+        prefix.status = LegacyBattleActorFrameEntryStatus::
+            case_fifty_audio_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x00485610U;
+        prefix.eip = 0x00485610U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.sample_child.eax;
+    prefix.ecx = prefix.sample_child.ecx;
+    prefix.edx = prefix.sample_child.edx;
+    prefix.flags = add_flags(prefix.esp, 8U);
+    prefix.flags_known = true;
+    prefix.esp += 8U;
+    prefix.status = LegacyBattleActorFrameEntryStatus::case_fifty_source_ready;
+    prefix.eip = 0x0047B77DU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_source(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fifty_source_ready ||
+        prefix.eip != 0x0047B77DU) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::global_write
+            ? request.global_writable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B77DU,
+            request.actor_token + 0x2548U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->render_source_token;
+    const u32 slot = prefix.esp - 4U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            0x0047B783U,
+            slot,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.esp = slot;
+    prefix.last_pushed_value = prefix.ebx;
+    prefix.draw_auxiliary_pushed = true;
+    prefix.draw_auxiliary_value = prefix.ebx;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_source_resource_read_typed_stop,
+            0x0047B784U,
+            prefix.ecx,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_00_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = resource.value_00;
+    prefix.ecx = 0x0FU;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+            0x0047B78BU,
+            0x004CD730U,
+            actor.shared_action != nullptr
+        )) {
+        return prefix;
+    }
+    actor.shared_action->turn_frame_source_token = prefix.edx;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B791U,
+            request.actor_token + 0x2958U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.eax = static_cast<u32>(static_cast<std::int32_t>(
+        std::bit_cast<std::int16_t>(actor.action_execution->turn_threshold)
+    ));
+    prefix.flags = subtract_flags(prefix.ecx, prefix.eax);
+    prefix.flags_known = true;
+    prefix.ecx -= prefix.eax;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+            0x0047B79AU,
+            0x004CC2F0U,
+            actor.shared_action != nullptr
+        )) {
+        return prefix;
+    }
+    actor.shared_action->special_render_mode = prefix.ecx;
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_draw_arguments_ready;
+    prefix.eip = 0x0047B7A0U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_draw_arguments_ready ||
+        prefix.eip != 0x0047B7A0U) {
+        return prefix;
+    }
+    if (!prefix.draw_auxiliary_pushed) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_six_draw_arguments_unbacked;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047B7A0U;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::global_read
+            ? request.global_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                request.actor_token + offset,
+                backed
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047B7A0U,
+            0x2694U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047B7A6U,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx |= 0x16U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edx == 0U,
+        .sign = (prefix.edx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!push(0x0047B7AFU, prefix.edx)) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_draw_resource_read_typed_stop,
+            0x0047B7B2U,
+            prefix.eax + 0x0EU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) | resource.value_0e;
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_draw_resource_read_typed_stop,
+            0x0047B7B8U,
+            prefix.eax + 0x0CU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = (prefix.edx & 0xFFFF0000U) | resource.value_0c;
+    if (!push(0x0047B7BCU, prefix.ecx) ||
+        !read_actor(
+            0x0047B7BDU,
+            0x2958U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047B7C4U,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    // The five preceding dwords at 0x004A7DA0..0x004A7DB3 are
+    // LST-backed; beyond [-5,14] no dword is established here.
+    constexpr std::array<u32, 20U> kTableFromMinusFive{
+        4U,          0U,          2U,          0U,          0U,
+        0U,          4U,          12U,         24U,         32U,
+        24U,         16U,         8U,          4U,          0U,
+        0xFFFFFFFCU, 0xFFFFFFF4U, 0xFFFFFFF0U, 0xFFFFFFECU, 0xFFFFFFE0U,
+    };
+    const auto phase = std::bit_cast<std::int32_t>(prefix.eax);
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_read,
+            LegacyBattleActorFrameEntryStatus::case_fifty_table_read_typed_stop,
+            0x0047B7CBU,
+            0x004A7DB4U + prefix.eax * 4U,
+            phase >= -5 && phase <= 14
+        )) {
+        return prefix;
+    }
+    prefix.edi = kTableFromMinusFive[static_cast<std::size_t>(phase + 5)];
+    if (!push(0x0047B7D2U, prefix.edx) ||
+        !read_actor(
+            0x0047B7D3U,
+            0x03E4U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->reserved_action_record_02
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edi);
+    prefix.ecx -= prefix.edi;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edx);
+    prefix.ecx -= prefix.edx;
+    if (!read_actor(
+            0x0047B7DDU,
+            0x0D66U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+    prefix.edx -= prefix.ebp;
+    if (!push(0x0047B7E6U, prefix.ecx) || !push(0x0047B7E7U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_draw_call_ready;
+    prefix.eip = 0x0047B7E8U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_six_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_eleven = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_eleven_active_ready &&
+        prefix.eip == 0x0047A95EU;
+    const bool case_fifteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_fifteen_active_ready &&
+        prefix.eip == 0x0047B2F9U;
+    if (!case_eleven && !case_fifteen &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_six_active_ready ||
+         prefix.eip != 0x0047A1B1U)) {
+        return prefix;
+    }
+    const u32 source_instruction = case_eleven ? 0x0047A973U
+        : case_fifteen                         ? 0x0047B30EU
+                                               : 0x0047A1C6U;
+    prefix.flags = subtract_flags_16(
+        static_cast<u16>(prefix.eax), static_cast<u16>(prefix.ebx)
+    );
+    prefix.flags_known = true;
+    if (!prefix.flags.zero) {
+        prefix.status = case_eleven
+            ? LegacyBattleActorFrameEntryStatus::case_eleven_source_ready
+            : case_fifteen
+            ? LegacyBattleActorFrameEntryStatus::case_fifteen_source_ready
+            : LegacyBattleActorFrameEntryStatus::case_six_source_ready;
+        prefix.eip = source_instruction;
+        return prefix;
+    }
+    const u32 sample_instruction = case_eleven ? 0x0047A963U
+        : case_fifteen                         ? 0x0047B2FEU
+                                               : 0x0047A1B6U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.shared_action == nullptr || !request.global_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        prefix.stopped_instruction = sample_instruction;
+        prefix.stopped_token = 0x004AB784U;
+        prefix.eip = sample_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax = actor.shared_action->sample_handle;
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = slot;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!push(
+            case_eleven        ? 0x0047A968U
+                : case_fifteen ? 0x0047B303U
+                               : 0x0047A1BBU,
+            prefix.eax
+        ) ||
+        !push(
+            case_eleven        ? 0x0047A969U
+                : case_fifteen ? 0x0047B304U
+                               : 0x0047A1BCU,
+            0x31U
+        )) {
+        return prefix;
+    }
+    prefix.status = case_eleven
+        ? LegacyBattleActorFrameEntryStatus::case_eleven_audio_call_ready
+        : case_fifteen
+        ? LegacyBattleActorFrameEntryStatus::case_fifteen_audio_call_ready
+        : LegacyBattleActorFrameEntryStatus::case_six_audio_call_ready;
+    prefix.eip = case_eleven ? 0x0047A96BU
+        : case_fifteen       ? 0x0047B306U
+                             : 0x0047A1BEU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_six_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool case_eleven = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_eleven_audio_call_ready &&
+        prefix.eip == 0x0047A96BU;
+    const bool case_fifteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_fifteen_audio_call_ready &&
+        prefix.eip == 0x0047B306U;
+    if (!case_eleven && !case_fifteen &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_six_audio_call_ready ||
+         prefix.eip != 0x0047A1BEU)) {
+        return prefix;
+    }
+    const u32 call_instruction = case_eleven ? 0x0047A96BU
+        : case_fifteen                       ? 0x0047B306U
+                                             : 0x0047A1BEU;
+    const u32 return_slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_instruction;
+        prefix.stopped_token = return_slot;
+        prefix.eip = call_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = return_slot;
+    prefix.last_pushed_value = case_eleven ? 0x0047A970U
+        : case_fifteen                     ? 0x0047B30BU
+                                           : 0x0047A1C3U;
+    ++prefix.sample_calls;
+    auto callee = prefix;
+    if (!read_sound_callee_arguments(request, callee, prefix.eax, 0x31U)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    prefix.sample_child = callee.sample_child.returned ? callee.sample_child
+                                                       : sound.play_sample(
+                                                             0x31U,
+                                                             prefix.eax,
+                                                             prefix.eax,
+                                                             prefix.ecx,
+                                                             prefix.edx,
+                                                             prefix.flags
+                                                         );
+    if (!prefix.sample_child.returned) {
+        prefix.accesses_completed -=
+            16U;  // Entry-only stop precedes both nested callee reads.
+        prefix.status = case_eleven ? LegacyBattleActorFrameEntryStatus::
+                                          case_eleven_audio_child_typed_stop
+            : case_fifteen          ? LegacyBattleActorFrameEntryStatus::
+                                          case_fifteen_audio_child_typed_stop
+                                    : LegacyBattleActorFrameEntryStatus::
+                                          case_six_audio_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x00485610U;
+        prefix.eip = 0x00485610U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.sample_child.eax;
+    prefix.ecx = prefix.sample_child.ecx;
+    prefix.edx = prefix.sample_child.edx;
+    prefix.flags = add_flags(prefix.esp, 8U);
+    prefix.flags_known = true;
+    prefix.esp += 8U;
+    prefix.status = case_eleven
+        ? LegacyBattleActorFrameEntryStatus::case_eleven_source_ready
+        : case_fifteen
+        ? LegacyBattleActorFrameEntryStatus::case_fifteen_source_ready
+        : LegacyBattleActorFrameEntryStatus::case_six_source_ready;
+    prefix.eip = case_eleven ? 0x0047A973U
+        : case_fifteen       ? 0x0047B30EU
+                             : 0x0047A1C6U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifteen_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fifteen_active_ready ||
+        prefix.eip != 0x0047B2F9U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_audio_arguments(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifteen_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fifteen_audio_call_ready ||
+        prefix.eip != 0x0047B306U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_audio_call(
+        sound, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eleven_audio_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_eleven_active_ready ||
+        prefix.eip != 0x0047A95EU) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_audio_arguments(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eleven_audio_call(
+    LegacyBattleActorFrameSoundPort& sound,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_eleven_audio_call_ready ||
+        prefix.eip != 0x0047A96BU) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_audio_call(
+        sound, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eleven_source(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_eleven_source_ready ||
+        prefix.eip != 0x0047A973U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::global_write
+            ? request.global_writable
+            : request.actor_resource_readable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto write_global = [&](const u32 instruction,
+                                  const u32 token,
+                                  u32* destination,
+                                  const u32 value) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::global_write,
+                LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+                instruction,
+                token,
+                destination != nullptr
+            )) {
+            return false;
+        }
+        *destination = value;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047A973U,
+            request.actor_token + 0x2548U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->render_source_token;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_source_resource_read_typed_stop,
+            0x0047A979U,
+            prefix.ecx,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_00_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = resource.value_00;
+    if (!write_global(
+            0x0047A97BU,
+            0x004CC2F0U,
+            actor.shared_action == nullptr
+                ? nullptr
+                : &actor.shared_action->special_render_mode,
+            0x0FU
+        ) ||
+        !write_global(
+            0x0047A985U,
+            0x004CD730U,
+            actor.shared_action == nullptr
+                ? nullptr
+                : &actor.shared_action->turn_frame_source_token,
+            prefix.edx
+        ) ||
+        !touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047A98BU,
+            request.actor_token + 0x2958U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    const u16 phase = actor.action_execution->turn_threshold;
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | phase;
+    prefix.flags = subtract_flags_16(phase, 0xFFF0U);
+    prefix.flags_known = true;
+    if (prefix.flags.zero || prefix.flags.sign != prefix.flags.overflow) {
+        prefix.eax = static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(phase))
+        );
+        prefix.flags = add_flags(prefix.eax, 0x1FU);
+        prefix.eax += 0x1FU;
+        if (!write_global(
+                0x0047A99EU,
+                0x004CC2F0U,
+                actor.shared_action == nullptr
+                    ? nullptr
+                    : &actor.shared_action->special_render_mode,
+                prefix.eax
+            )) {
+            return prefix;
+        }
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_eleven_first_draw_arguments_ready;
+    prefix.eip = 0x0047A9A3U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifteen_source(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fifteen_source_ready ||
+        prefix.eip != 0x0047B30EU) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::global_write
+            ? request.global_writable
+            : request.actor_resource_readable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B30EU,
+            request.actor_token + 0x2548U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->render_source_token;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_source_resource_read_typed_stop,
+            0x0047B314U,
+            prefix.ecx,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_00_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = resource.value_00;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::global_write,
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+            0x0047B316U,
+            0x004CD730U,
+            actor.shared_action != nullptr
+        )) {
+        return prefix;
+    }
+    actor.shared_action->turn_frame_source_token = prefix.edx;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047B31CU,
+            request.actor_token + 0x2958U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    const u16 phase = actor.action_execution->turn_threshold;
+    prefix.eax = (prefix.eax & 0xFFFF0000U) | phase;
+    prefix.flags = subtract_flags_16(phase, 0xFFF1U);
+    prefix.flags_known = true;
+    if (prefix.flags.sign == prefix.flags.overflow) {
+        prefix.eax = static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(phase))
+        );
+        prefix.flags = add_flags(prefix.eax, 0x0FU);
+        prefix.eax += 0x0FU;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::global_write,
+                LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+                0x0047B32FU,
+                0x004CC2F0U,
+                actor.shared_action != nullptr
+            )) {
+            return prefix;
+        }
+        actor.shared_action->special_render_mode = prefix.eax;
+    }
+    prefix.status = LegacyBattleActorFrameEntryStatus::
+        case_fifteen_first_draw_arguments_ready;
+    prefix.eip = 0x0047B334U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_six_source(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_six_source_ready ||
+        prefix.eip != 0x0047A1C6U) {
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::global_write
+            ? request.global_writable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_phase = [&](const u32 instruction, u32& destination) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                request.actor_token + 0x2958U,
+                actor.action_execution != nullptr
+            )) {
+            return false;
+        }
+        destination = static_cast<u32>(static_cast<std::int32_t>(
+            std::bit_cast<std::int16_t>(actor.action_execution->turn_threshold)
+        ));
+        return true;
+    };
+    const auto write_global = [&](const u32 instruction,
+                                  const u32 token,
+                                  u32* destination,
+                                  const u32 source) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::global_write,
+                LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+                instruction,
+                token,
+                destination != nullptr
+            )) {
+            return false;
+        }
+        *destination = source;
+        return true;
+    };
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::actor_read,
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+            0x0047A1C6U,
+            request.actor_token + 0x2548U,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx = actor.action_execution->render_source_token;
+    const u32 stack_slot = prefix.esp - 4U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            0x0047A1CCU,
+            stack_slot,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.esp = stack_slot;
+    prefix.last_pushed_value = prefix.ebx;
+    prefix.draw_auxiliary_value = prefix.ebx;
+    prefix.draw_auxiliary_pushed = true;
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_six_source_resource_read_typed_stop,
+            0x0047A1CDU,
+            prefix.ecx,
+            prefix.ecx != 0U && resource.token == prefix.ecx &&
+                resource.value_00_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = resource.value_00;
+    if (!write_global(
+            0x0047A1CFU,
+            0x004CD730U,
+            actor.shared_action == nullptr
+                ? nullptr
+                : &actor.shared_action->turn_frame_source_token,
+            prefix.edx
+        ) ||
+        !read_phase(0x0047A1D5U, prefix.eax) ||
+        !write_global(
+            0x0047A1DCU,
+            0x004CD71CU,
+            actor.shared_action == nullptr
+                ? nullptr
+                : &actor.shared_action->draw_motion_a,
+            prefix.eax
+        ) ||
+        !read_phase(0x0047A1E1U, prefix.ecx) ||
+        !write_global(
+            0x0047A1E8U,
+            0x004CD30CU,
+            actor.shared_action == nullptr
+                ? nullptr
+                : &actor.shared_action->draw_motion_b,
+            prefix.ecx
+        ) ||
+        !read_phase(0x0047A1EEU, prefix.edx) ||
+        !write_global(
+            0x0047A1F5U,
+            0x004CD304U,
+            actor.shared_action == nullptr
+                ? nullptr
+                : &actor.shared_action->draw_motion_c,
+            prefix.edx
+        )) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_six_draw_parameters_ready;
+    prefix.eip = 0x0047A1FBU;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_six_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_eleven = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_first_draw_arguments_ready &&
+        prefix.eip == 0x0047A9A3U;
+    const bool case_fifteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_first_draw_arguments_ready &&
+        prefix.eip == 0x0047B334U;
+    if (!case_eleven && !case_fifteen &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_six_draw_parameters_ready ||
+         prefix.eip != 0x0047A1FBU)) {
+        return prefix;
+    }
+    if (!case_eleven && !case_fifteen && !prefix.draw_auxiliary_pushed) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_six_draw_arguments_unbacked;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047A1FBU;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    const auto address =
+        [&](const u32 six, const u32 eleven, const u32 fifteen) {
+            return case_eleven ? eleven : case_fifteen ? fifteen : six;
+        };
+    const auto resource_stop = case_eleven
+        ? LegacyBattleActorFrameEntryStatus::
+              case_eleven_first_draw_resource_read_typed_stop
+        : case_fifteen ? LegacyBattleActorFrameEntryStatus::
+                             case_fifteen_first_draw_resource_read_typed_stop
+                       : LegacyBattleActorFrameEntryStatus::
+                             case_six_draw_resource_read_typed_stop;
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 source,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                request.actor_token + offset,
+                backed
+            )) {
+            return false;
+        }
+        destination = source;
+        return true;
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    if (!read_actor(
+            address(0x0047A1FBU, 0x0047A9A3U, 0x0047B334U),
+            0x2694U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            address(0x0047A201U, 0x0047A9A9U, 0x0047B33AU),
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx |= case_eleven || case_fifteen ? 0x14U : 4U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.ecx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.ecx == 0U,
+        .sign = (prefix.ecx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (case_eleven || case_fifteen) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                case_eleven ? 0x0047A9B2U : 0x0047B343U,
+                slot,
+                true
+            )) {
+            return prefix;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = prefix.ebx;
+        prefix.draw_auxiliary_value = prefix.ebx;
+        prefix.draw_auxiliary_pushed = true;
+    }
+    if (!read_actor(
+            address(0x0047A20AU, 0x0047A9B3U, 0x0047B344U),
+            0x02B4U,
+            prefix.ebp,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->frame_source_action_record
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        ) ||
+        !push(address(0x0047A210U, 0x0047A9B9U, 0x0047B34AU), prefix.ecx)) {
+        return prefix;
+    }
+    prefix.edx = 0U;
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            resource_stop,
+            address(0x0047A215U, 0x0047A9BEU, 0x0047B34FU),
+            prefix.eax + 0x0EU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = (prefix.edx & 0xFFFF0000U) | resource.value_0e;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            resource_stop,
+            address(0x0047A219U, 0x0047A9C2U, 0x0047B353U),
+            prefix.eax + 0x0CU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) | resource.value_0c;
+    if (!read_actor(
+            address(0x0047A21DU, 0x0047A9C6U, 0x0047B357U),
+            0x29B2U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->source_y_offset),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(address(0x0047A224U, 0x0047A9CDU, 0x0047B35EU), prefix.edx) ||
+        !push(address(0x0047A225U, 0x0047A9CEU, 0x0047B35FU), prefix.ecx) ||
+        !read_actor(
+            address(0x0047A226U, 0x0047A9CFU, 0x0047B360U),
+            0x0D68U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            address(0x0047A22DU, 0x0047A9D6U, 0x0047B367U),
+            0x0D66U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
+    prefix.edx -= prefix.ebp;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.eax);
+    prefix.ecx -= prefix.eax;
+    if (!push(address(0x0047A238U, 0x0047A9E1U, 0x0047B372U), prefix.edx) ||
+        !push(address(0x0047A239U, 0x0047A9E2U, 0x0047B373U), prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status = case_eleven
+        ? LegacyBattleActorFrameEntryStatus::case_eleven_first_draw_call_ready
+        : case_fifteen
+        ? LegacyBattleActorFrameEntryStatus::case_fifteen_first_draw_call_ready
+        : LegacyBattleActorFrameEntryStatus::case_six_draw_call_ready;
+    prefix.eip = address(0x0047A23AU, 0x0047A9E3U, 0x0047B374U);
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifteen_first_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_first_draw_arguments_ready ||
+        prefix.eip != 0x0047B334U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_draw_arguments(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eleven_first_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_first_draw_arguments_ready ||
+        prefix.eip != 0x0047A9A3U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_draw_arguments(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_six_draw_call(
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    const bool case_eleven = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_first_draw_call_ready &&
+        prefix.eip == 0x0047A9E3U;
+    const bool case_eleven_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_second_draw_call_ready &&
+        prefix.eip == 0x0047AA62U;
+    const bool case_fifteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_first_draw_call_ready &&
+        prefix.eip == 0x0047B374U;
+    const bool case_fifteen_second = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_second_draw_call_ready &&
+        prefix.eip == 0x0047B3F0U;
+    const bool case_fifty = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::case_fifty_draw_call_ready &&
+        prefix.eip == 0x0047B7E8U;
+    if (!case_eleven && !case_eleven_second && !case_fifteen &&
+        !case_fifteen_second && !case_fifty &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::case_six_draw_call_ready ||
+         prefix.eip != 0x0047A23AU)) {
+        return prefix;
+    }
+    const u32 call_instruction = case_eleven ? 0x0047A9E3U
+        : case_eleven_second                 ? 0x0047AA62U
+        : case_fifteen                       ? 0x0047B374U
+        : case_fifteen_second                ? 0x0047B3F0U
+        : case_fifty                         ? 0x0047B7E8U
+                                             : 0x0047A23AU;
+    if (!prefix.draw_auxiliary_pushed ||
+        prefix.draw_argument_count != prefix.draw_argument_pushes.size()) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_six_draw_arguments_unbacked;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = call_instruction;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    const u32 return_slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = call_instruction;
+        prefix.stopped_token = return_slot;
+        prefix.eip = call_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp = return_slot;
+    prefix.last_pushed_value = case_eleven ? 0x0047A9E8U
+        : case_eleven_second               ? 0x0047AA67U
+        : case_fifteen                     ? 0x0047B379U
+        : case_fifteen_second              ? 0x0047B3F5U
+        : case_fifty                       ? 0x0047B7EDU
+                                           : 0x0047A23FU;
+    ++prefix.draw_calls;
+    const std::size_t pre_callee_accesses = prefix.accesses_completed;
+    auto callee = prefix;
+    if (!read_draw_callee_global(request, callee)) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
+    const std::array<u32, 6U> arguments{
+        prefix.draw_argument_pushes[4U],
+        prefix.draw_argument_pushes[3U],
+        prefix.draw_argument_pushes[2U],
+        prefix.draw_argument_pushes[1U],
+        prefix.draw_argument_pushes[0U],
+        prefix.draw_auxiliary_value,
+    };
+    prefix.draw_child = draw.draw_frame(
+        arguments, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+    );
+    if (!prefix.draw_child.returned) {
+        prefix.accesses_completed = pre_callee_accesses;
+        prefix.status = case_eleven
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_eleven_first_draw_child_typed_stop
+            : case_eleven_second ? LegacyBattleActorFrameEntryStatus::
+                                       case_eleven_second_draw_child_typed_stop
+            : case_fifteen       ? LegacyBattleActorFrameEntryStatus::
+                                       case_fifteen_first_draw_child_typed_stop
+            : case_fifteen_second
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_fifteen_second_draw_child_typed_stop
+            : case_fifty
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_fifty_draw_child_typed_stop
+            : LegacyBattleActorFrameEntryStatus::case_six_draw_child_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.stopped_instruction = 0x004170E0U;
+        prefix.eip = 0x004170E0U;
+        return prefix;
+    }
+    prefix.esp += 4U;
+    prefix.eax = prefix.draw_child.eax;
+    prefix.ecx = prefix.draw_child.ecx;
+    prefix.edx = prefix.draw_child.edx;
+    if (case_eleven || case_fifteen) {
+        prefix.flags = prefix.draw_child.flags;
+        prefix.flags_known = prefix.draw_child.flags_known;
+        prefix.status = case_eleven ? LegacyBattleActorFrameEntryStatus::
+                                          case_eleven_first_draw_return_ready
+                                    : LegacyBattleActorFrameEntryStatus::
+                                          case_fifteen_first_draw_return_ready;
+        prefix.eip = case_eleven ? 0x0047A9E8U : 0x0047B379U;
+        return prefix;
+    }
+    const u32 cleanup =
+        case_eleven_second || case_fifteen_second ? 0x30U : 0x18U;
+    prefix.flags = add_flags(prefix.esp, cleanup);
+    prefix.flags_known = true;
+    prefix.esp += cleanup;
+    prefix.status = case_eleven_second
+        ? LegacyBattleActorFrameEntryStatus::case_eleven_phase_decrement_ready
+        : case_fifteen_second
+        ? LegacyBattleActorFrameEntryStatus::case_fifteen_phase_decrement_ready
+        : case_fifty
+        ? LegacyBattleActorFrameEntryStatus::case_fifty_phase_increment_ready
+        : LegacyBattleActorFrameEntryStatus::case_six_phase_decrement_ready;
+    prefix.eip = case_eleven_second ? 0x0047AA6AU
+        : case_fifteen_second       ? 0x0047B3F8U
+        : case_fifty                ? 0x0047B7F0U
+                                    : 0x0047A242U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_draw_call(
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::case_fifty_draw_call_ready ||
+        prefix.eip != 0x0047B7E8U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_draw_call(
+        draw, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifteen_second_draw_call(
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_second_draw_call_ready ||
+        prefix.eip != 0x0047B3F0U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_draw_call(
+        draw, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifteen_first_draw_call(
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_first_draw_call_ready ||
+        prefix.eip != 0x0047B374U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_draw_call(
+        draw, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eleven_second_draw_call(
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_second_draw_call_ready ||
+        prefix.eip != 0x0047AA62U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_draw_call(
+        draw, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eleven_first_draw_call(
+    LegacyBattleActorFrameDrawPort& draw,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_first_draw_call_ready ||
+        prefix.eip != 0x0047A9E3U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_draw_call(
+        draw, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eleven_between_draws(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_fifteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_first_draw_return_ready &&
+        prefix.eip == 0x0047B379U;
+    if (!case_fifteen &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_eleven_first_draw_return_ready ||
+         prefix.eip != 0x0047A9E8U)) {
+        return prefix;
+    }
+    const auto address = [&](const u32 eleven, const u32 fifteen) {
+        return case_fifteen ? fifteen : eleven;
+    };
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::global_write
+            ? request.global_writable
+            : kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto write_global = [&](const u32 instruction,
+                                  const u32 token,
+                                  u32* destination,
+                                  const u32 value) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::global_write,
+                LegacyBattleActorFrameEntryStatus::global_write_typed_stop,
+                instruction,
+                token,
+                destination != nullptr
+            )) {
+            return false;
+        }
+        *destination = value;
+        return true;
+    };
+    const auto read_phase = [&](const u32 instruction, u32& destination) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                request.actor_token + 0x2958U,
+                actor.action_execution != nullptr
+            )) {
+            return false;
+        }
+        destination = static_cast<u32>(static_cast<std::int32_t>(
+            std::bit_cast<std::int16_t>(actor.action_execution->turn_threshold)
+        ));
+        return true;
+    };
+    if (!write_global(
+            address(0x0047A9E8U, 0x0047B379U),
+            0x004CC2F0U,
+            actor.shared_action == nullptr
+                ? nullptr
+                : &actor.shared_action->special_render_mode,
+            prefix.ebx
+        )) {
+        return prefix;
+    }
+    const u32 slot = prefix.esp - 4U;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::stack_write,
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+            address(0x0047A9EEU, 0x0047B37FU),
+            slot,
+            true
+        )) {
+        return prefix;
+    }
+    prefix.esp = slot;
+    prefix.last_pushed_value = prefix.ebx;
+    prefix.draw_auxiliary_value = prefix.ebx;
+    prefix.draw_auxiliary_pushed = true;
+    if (!read_phase(address(0x0047A9EFU, 0x0047B380U), prefix.edx) ||
+        !write_global(
+            address(0x0047A9F6U, 0x0047B387U),
+            0x004CD71CU,
+            actor.shared_action == nullptr
+                ? nullptr
+                : &actor.shared_action->draw_motion_a,
+            prefix.edx
+        ) ||
+        !read_phase(address(0x0047A9FCU, 0x0047B38DU), prefix.eax) ||
+        !write_global(
+            address(0x0047AA03U, 0x0047B394U),
+            0x004CD30CU,
+            actor.shared_action == nullptr
+                ? nullptr
+                : &actor.shared_action->draw_motion_b,
+            prefix.eax
+        ) ||
+        !read_phase(address(0x0047AA08U, 0x0047B399U), prefix.ecx) ||
+        !write_global(
+            address(0x0047AA0FU, 0x0047B3A0U),
+            0x004CD304U,
+            actor.shared_action == nullptr
+                ? nullptr
+                : &actor.shared_action->draw_motion_c,
+            prefix.ecx
+        )) {
+        return prefix;
+    }
+    prefix.draw_argument_count = 0U;
+    prefix.status = case_fifteen ? LegacyBattleActorFrameEntryStatus::
+                                       case_fifteen_second_draw_arguments_ready
+                                 : LegacyBattleActorFrameEntryStatus::
+                                       case_eleven_second_draw_arguments_ready;
+    prefix.eip = address(0x0047AA15U, 0x0047B3A6U);
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifteen_between_draws(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_first_draw_return_ready ||
+        prefix.eip != 0x0047B379U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_eleven_between_draws(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifteen_second_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_second_draw_arguments_ready ||
+        prefix.eip != 0x0047B3A6U) {
+        return prefix;
+    }
+    if (!prefix.draw_auxiliary_pushed || prefix.draw_argument_count != 0U) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_six_draw_arguments_unbacked;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047B3A6U;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                request.actor_token + offset,
+                backed
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047B3A6U,
+            0x2694U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047B3ACU,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx |= 4U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edx == 0U,
+        .sign = (prefix.edx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!push(0x0047B3B5U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_second_draw_resource_read_typed_stop,
+            0x0047B3B8U,
+            prefix.eax + 0x0EU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) | resource.value_0e;
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_second_draw_resource_read_typed_stop,
+            0x0047B3BEU,
+            prefix.eax + 0x0CU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = (prefix.edx & 0xFFFF0000U) | resource.value_0c;
+    if (!push(0x0047B3C2U, prefix.ecx) ||
+        !read_actor(
+            0x0047B3C3U,
+            0x0D68U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            0x0047B3CAU,
+            0x2958U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        ) ||
+        !push(0x0047B3D1U, prefix.edx) ||
+        !read_actor(
+            0x0047B3D2U,
+            0x02B4U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->frame_source_action_record
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    if (!read_actor(
+            0x0047B3DAU,
+            0x29B2U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->source_y_offset),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !push(0x0047B3E1U, prefix.eax) ||
+        !read_actor(
+            0x0047B3E2U,
+            0x0D66U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.ecx *= 2U;
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edx);
+    prefix.ecx -= prefix.edx;
+    prefix.flags = add_flags(prefix.ecx, prefix.eax);
+    prefix.ecx += prefix.eax;
+    if (!push(0x0047B3EFU, prefix.ecx)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_fifteen_second_draw_call_ready;
+    prefix.eip = 0x0047B3F0U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eleven_second_draw_arguments(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_second_draw_arguments_ready ||
+        prefix.eip != 0x0047AA15U) {
+        return prefix;
+    }
+    if (!prefix.draw_auxiliary_pushed || prefix.draw_argument_count != 0U) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::case_six_draw_arguments_unbacked;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x0047AA15U;
+        prefix.stopped_token = prefix.esp;
+        return prefix;
+    }
+    const auto touch = [&](const LegacyBattleActorFrameEntryAccessKind kind,
+                           const LegacyBattleActorFrameEntryStatus status,
+                           const u32 instruction,
+                           const u32 token,
+                           const bool backed) {
+        const bool allowed =
+            kind == LegacyBattleActorFrameEntryAccessKind::actor_read
+            ? request.actor_readable
+            : kind == LegacyBattleActorFrameEntryAccessKind::frame_resource_read
+            ? request.actor_resource_readable
+            : request.call_stack_writable;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !backed || !allowed) {
+            prefix.status = status;
+            prefix.stopped_access_kind = kind;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        return true;
+    };
+    const auto read_actor = [&](const u32 instruction,
+                                const u32 offset,
+                                u32& destination,
+                                const u32 value,
+                                const bool backed) {
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
+                instruction,
+                request.actor_token + offset,
+                backed
+            )) {
+            return false;
+        }
+        destination = value;
+        return true;
+    };
+    const auto signed_word = [](const u16 word) {
+        return static_cast<u32>(
+            static_cast<std::int32_t>(std::bit_cast<std::int16_t>(word))
+        );
+    };
+    const auto push = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_write,
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop,
+                instruction,
+                slot,
+                true
+            )) {
+            return false;
+        }
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        prefix.draw_argument_pushes[prefix.draw_argument_count++] = value;
+        return true;
+    };
+    if (!read_actor(
+            0x0047AA15U,
+            0x2694U,
+            prefix.edx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->presentation_render_flags,
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047AA1BU,
+            0x2548U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->render_source_token,
+            actor.action_execution != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.edx |= 4U;
+    prefix.flags = {
+        .carry = false,
+        .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .auxiliary_carry = false,
+        .auxiliary_carry_defined = false,
+        .zero = prefix.edx == 0U,
+        .sign = (prefix.edx & 0x80000000U) != 0U,
+        .overflow = false,
+    };
+    prefix.flags_known = true;
+    if (!push(0x0047AA24U, prefix.edx)) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    const auto& resource = actor.action_execution->resource;
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_second_draw_resource_read_typed_stop,
+            0x0047AA27U,
+            prefix.eax + 0x0EU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0e_known
+        )) {
+        return prefix;
+    }
+    prefix.ecx = (prefix.ecx & 0xFFFF0000U) | resource.value_0e;
+    prefix.edx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!touch(
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_second_draw_resource_read_typed_stop,
+            0x0047AA2DU,
+            prefix.eax + 0x0CU,
+            prefix.eax != 0U && resource.token == prefix.eax &&
+                resource.value_0c_known
+        )) {
+        return prefix;
+    }
+    prefix.edx = (prefix.edx & 0xFFFF0000U) | resource.value_0c;
+    if (!push(0x0047AA31U, prefix.ecx) ||
+        !read_actor(
+            0x0047AA32U,
+            0x2958U,
+            prefix.eax,
+            actor.action_execution == nullptr
+                ? 0U
+                : signed_word(actor.action_execution->turn_threshold),
+            actor.action_execution != nullptr
+        ) ||
+        !read_actor(
+            0x0047AA39U,
+            0x02B4U,
+            prefix.ecx,
+            actor.action_execution == nullptr
+                ? 0U
+                : actor.action_execution->frame_source_action_record
+                      .draw_offset_y,
+            actor.action_execution != nullptr
+        ) ||
+        !push(0x0047AA3FU, prefix.edx)) {
+        return prefix;
+    }
+    prefix.eax = prefix.eax * 10U;
+    prefix.flags = subtract_flags(prefix.eax, prefix.ecx);
+    prefix.eax -= prefix.ecx;
+    if (!read_actor(
+            0x0047AA47U,
+            0x0D68U,
+            prefix.ecx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_y),
+            actor.primary_coordinates != nullptr
+        ) ||
+        !read_actor(
+            0x0047AA4EU,
+            0x29B2U,
+            prefix.edx,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->source_y_offset),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.eax, prefix.ecx);
+    prefix.eax += prefix.ecx;
+    if (!push(0x0047AA57U, prefix.eax) ||
+        !read_actor(
+            0x0047AA58U,
+            0x0D66U,
+            prefix.eax,
+            actor.primary_coordinates == nullptr
+                ? 0U
+                : signed_word(actor.primary_coordinates->position_x),
+            actor.primary_coordinates != nullptr
+        )) {
+        return prefix;
+    }
+    prefix.flags = subtract_flags(prefix.eax, prefix.edx);
+    prefix.eax -= prefix.edx;
+    if (!push(0x0047AA61U, prefix.eax)) {
+        return prefix;
+    }
+    prefix.status =
+        LegacyBattleActorFrameEntryStatus::case_eleven_second_draw_call_ready;
+    prefix.eip = 0x0047AA62U;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_six_finish(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    const bool case_eleven = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_phase_decrement_ready &&
+        prefix.eip == 0x0047AA6AU;
+    const bool case_fifteen = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_phase_decrement_ready &&
+        prefix.eip == 0x0047B3F8U;
+    const bool case_fifty = prefix.status ==
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_phase_increment_ready &&
+        prefix.eip == 0x0047B7F0U;
+    if (!case_eleven && !case_fifteen && !case_fifty &&
+        (prefix.status !=
+             LegacyBattleActorFrameEntryStatus::
+                 case_six_phase_decrement_ready ||
+         prefix.eip != 0x0047A242U)) {
+        return prefix;
+    }
+    const auto address = [&](const u32 six,
+                             const u32 eleven,
+                             const u32 fifteen,
+                             const u32 fifty) {
+        return case_eleven ? eleven
+            : case_fifteen ? fifteen
+            : case_fifty   ? fifty
+                           : six;
+    };
+    const u32 phase_instruction =
+        address(0x0047A242U, 0x0047AA6AU, 0x0047B3F8U, 0x0047B7F0U);
+    const u32 phase_token = request.actor_token + 0x2958U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        actor.action_execution == nullptr || !request.actor_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_read;
+        prefix.stopped_instruction = phase_instruction;
+        prefix.stopped_token = phase_token;
+        prefix.eip = phase_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    const u16 before = actor.action_execution->turn_threshold;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.actor_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::actor_write;
+        prefix.stopped_instruction = phase_instruction;
+        prefix.stopped_token = phase_token;
+        prefix.eip = phase_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    actor.action_execution->turn_threshold =
+        static_cast<u16>(case_fifty ? before + 1U : before - 1U);
+    auto phase_flags =
+        case_fifty ? add_flags_16(before, 1U) : subtract_flags_16(before, 1U);
+    phase_flags.carry = prefix.flags.carry;
+    prefix.flags = phase_flags;
+    prefix.flags_known = true;
+    prefix.eax = 0U;
+    prefix.flags = logical_zero_flags();
+    const auto pop =
+        [&](const u32 instruction, u32& destination, const u32 saved) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.stack_readable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::stack_read;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = prefix.esp;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            destination = saved;
+            prefix.esp += 4U;
+            return true;
+        };
+    if (!pop(
+            address(0x0047A24BU, 0x0047AA73U, 0x0047B401U, 0x0047B7F9U),
+            prefix.edi,
+            request.entry_edi
+        ) ||
+        !pop(
+            address(0x0047A24CU, 0x0047AA74U, 0x0047B402U, 0x0047B7FAU),
+            prefix.esi,
+            request.entry_esi
+        ) ||
+        !pop(
+            address(0x0047A24DU, 0x0047AA75U, 0x0047B403U, 0x0047B7FBU),
+            prefix.ebp,
+            request.entry_ebp
+        )) {
+        return prefix;
+    }
+    if (!pop(
+            address(0x0047A24EU, 0x0047AA76U, 0x0047B404U, 0x0047B7FCU),
+            prefix.ebx,
+            request.entry_ebx
+        )) {
+        return prefix;
+    }
+    prefix.flags = add_flags(prefix.esp, 0x14U);
+    prefix.esp += 0x14U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.return_address_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction =
+            address(0x0047A252U, 0x0047AA7AU, 0x0047B408U, 0x0047B800U);
+        prefix.stopped_token = prefix.esp;
+        prefix.eip = prefix.stopped_instruction;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.esp += 4U;
+    prefix.eip = request.entry_return_address;
+    prefix.status = case_eleven
+        ? LegacyBattleActorFrameEntryStatus::case_eleven_returned
+        : case_fifteen
+        ? LegacyBattleActorFrameEntryStatus::case_fifteen_returned
+        : case_fifty ? LegacyBattleActorFrameEntryStatus::case_fifty_returned
+                     : LegacyBattleActorFrameEntryStatus::case_six_returned;
+    prefix.returned = true;
+    return prefix;
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_finish(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifty_phase_increment_ready ||
+        prefix.eip != 0x0047B7F0U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_finish(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifteen_finish(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_fifteen_phase_decrement_ready ||
+        prefix.eip != 0x0047B3F8U) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_finish(
+        actor, request, prefix
+    );
+}
+
+LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_eleven_finish(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept {
+    if (prefix.status !=
+            LegacyBattleActorFrameEntryStatus::
+                case_eleven_phase_decrement_ready ||
+        prefix.eip != 0x0047AA6AU) {
+        return prefix;
+    }
+    return continue_legacy_battle_actor_frame_case_six_finish(
+        actor, request, prefix
+    );
+}
+
+}  // namespace openswd3::battle

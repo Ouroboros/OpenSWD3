@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinate_publication.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_resource.hpp"
+#include "openswd3/battle/legacy_battle_actor_frame_presentation.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_snapshot_clear.hpp"
 #include "openswd3/battle/legacy_battle_actor_idle_state.hpp"
 #include "openswd3/battle/legacy_battle_actor_action_kind.hpp"
@@ -1385,6 +1386,11 @@ struct LegacyBattleActionDispatchState {
     std::array<LegacyBattleRewardScaleActorState, 8> group_b_reward_scale{};
     std::array<std::array<std::unique_ptr<LegacyBattleTargetPhaseState>, 10>, 8>
         group_b_target_phases{};
+    // The fixed actor+0x0E14 emitter is not the source-by-target phase grid.
+    std::unique_ptr<std::array<LegacyBattleTargetPhaseState, 8>>
+        group_b_fixed_particle_phases{
+            std::make_unique<std::array<LegacyBattleTargetPhaseState, 8>>()
+        };
     LegacyBattleImageParticleNodePool target_phase_particle_nodes;
     LegacyBattleImageParticleSharedState target_phase_particle_shared;
     LegacyBattleImageParticleDiagnostics target_phase_particle_diagnostics;
@@ -1483,6 +1489,10 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorPresentationActivationCallRequests
         actor_presentation_activation_requests{};
     LegacyBattleActorRuntimeResetCallRequests actor_runtime_reset_requests{};
+    LegacyBattleActorFrameCallerBinding actor_frame_action_group_b{};
+    LegacyBattleActorFrameCallerBinding actor_frame_opponent_group_a{};
+    LegacyBattleActorFrameCallerBinding actor_frame_final_group_a{};
+    LegacyBattleActorFrameCallerBinding actor_frame_final_group_b{};
     LegacyBattleActorActionPresentationCallRequests
         actor_action_presentation_requests{};
     LegacyBattleActorTargetSelectionRequestList
@@ -1560,6 +1570,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     final_actor_record_typed_stop,
     actor_availability_block_typed_stop,
     actor_progress_threshold_sync_typed_stop,
+    actor_progress_slot0_typed_stop,
     group_b_coordinate_offset_typed_stop,
     final_actor_descriptor_typed_stop,
     fixed_count_typed_stop,
@@ -1612,6 +1623,8 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     mon_definition_load_typed_stop,
     mon_definition_release_typed_stop,
     actor_frame_snapshot_clear_typed_stop,
+    actor_frame_caller_typed_stop,
+    actor_frame_parent_stack_typed_stop,
 };
 
 struct LegacyBattleActionDispatchResult {

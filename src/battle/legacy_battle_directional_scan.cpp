@@ -78,6 +78,7 @@ LegacyBattleDirectionalScanResult scan_legacy_battle_directional_surface(
     if (source.horizontal_divisor == 0) {
         result.status =
             LegacyBattleDirectionalScanStatus::horizontal_divisor_zero;
+        result.stopped_instruction = 0x0043453CU;
         result.legacy_return_value = horizontal_numerator;
         return result;
     }
@@ -90,6 +91,7 @@ LegacyBattleDirectionalScanResult scan_legacy_battle_directional_surface(
     if (source.vertical_divisor == 0) {
         result.status =
             LegacyBattleDirectionalScanStatus::vertical_divisor_zero;
+        result.stopped_instruction = 0x00434566U;
         result.legacy_return_value = vertical_numerator;
         return result;
     }
@@ -179,6 +181,11 @@ LegacyBattleDirectionalScanResult scan_legacy_battle_directional_surface(
                         )) {
                         result.status = LegacyBattleDirectionalScanStatus::
                             source_out_of_range;
+                        result.stopped_instruction =
+                            (static_cast<compat::u8>(source.flags) & 1U) != 0U
+                            ? 0x00434651U
+                            : 0x004346B7U;
+                        result.stopped_source_byte_offset = source_byte_offset;
                         return result;
                     }
 
@@ -191,6 +198,17 @@ LegacyBattleDirectionalScanResult scan_legacy_battle_directional_surface(
                         if (row_table_index >= destination.row_offsets.size()) {
                             result.status = LegacyBattleDirectionalScanStatus::
                                 row_table_out_of_range;
+                            result.stopped_instruction =
+                                (static_cast<compat::u8>(source.flags) &
+                                 0x16U) != 0U
+                                ? 0x004346E6U
+                                : 0x0043470EU;
+                            if (destination.row_offsets_token_known) {
+                                result.stopped_surface_token =
+                                    destination.row_offsets_token +
+                                    row_table_byte_offset;
+                                result.stopped_surface_token_known = true;
+                            }
                             return result;
                         }
                         const compat::u32 destination_index =
@@ -199,6 +217,23 @@ LegacyBattleDirectionalScanResult scan_legacy_battle_directional_surface(
                         if (destination_index >= destination.pixels.size()) {
                             result.status = LegacyBattleDirectionalScanStatus::
                                 destination_out_of_range;
+                            if (destination.pixels_token_known) {
+                                result.stopped_surface_token =
+                                    destination.pixels_token +
+                                    destination_index * sizeof(compat::u16);
+                                result.stopped_surface_token_known = true;
+                            }
+                            if ((static_cast<compat::u8>(source.flags) &
+                                 0x16U) != 0U) {
+                                // sub_4207E0 masks these three globals
+                                // before its source then destination reads.
+                                pixel_format.effective_masks.red &= 0xFFFFU;
+                                pixel_format.effective_masks.green &= 0xFFFFU;
+                                pixel_format.effective_masks.blue &= 0xFFFFU;
+                                result.stopped_instruction = 0x0042085AU;
+                            } else {
+                                result.stopped_instruction = 0x00434717U;
+                            }
                             return result;
                         }
 

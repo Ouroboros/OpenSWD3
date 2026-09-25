@@ -614,11 +614,18 @@ void test_battle_transition(openswd3::test::Context& test) {
         ports.actor_metric_state().values[9] = 4;
         ports.random_values = {99U, 1U, 27U};
         startup.party[0].progress.progress = 0xFACE0001U;
+        startup.party[0].progress.cache_x = 7U;
+        startup.party[0].progress.cache_y = 6U;
         startup.party[1].progress.scene_identity = 1U;
         ports.actor_mode_returns[0x005029D0U] = 0xABCD0000U;
         ports.actor_mode_edx_returns[0x005029D0U] = 0xA5A55A5AU;
         FrameFixture frame;
         ActorFrameFixture actor_frames(ports, frame, startup);
+        auto& frame_source = actor_frames.context.state.shared.action
+                                 .group_a_action_execution[0U]
+                                 .frame_source_action_record;
+        frame_source.field_24 = 7U;
+        frame_source.field_28 = 6U;
         auto transition_request = request(0U);
         transition_request.actor_frames = &actor_frames.context;
 
@@ -695,6 +702,12 @@ void test_battle_transition(openswd3::test::Context& test) {
                 frame.provider.resource_ids ==
                     std::vector<u32>{0x234DU, 0x234DU},
             "mode zero redraw blend and second rare branch preserve actor slot and enemy refresh paths"
+        );
+        test.expect_true(
+            startup.party[0].progress.cache_x == 0U &&
+                startup.party[0].progress.cache_y == 0U &&
+                frame_source.field_24 == 0U && frame_source.field_28 == 0U,
+            "transition actor progress completion synchronizes both slot0 cache dwords"
         );
     }
 

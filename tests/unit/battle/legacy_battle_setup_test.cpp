@@ -182,6 +182,7 @@ void test_battle_actor_field_26b8_high_bit_query(openswd3::test::Context& test);
 void test_battle_actor_binary_state_toggle(openswd3::test::Context& test);
 void test_battle_actor_runtime_reset(openswd3::test::Context& test);
 void test_battle_actor_action_presentation(openswd3::test::Context& test);
+void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test);
 void test_battle_actor_target_selection(openswd3::test::Context& test);
 void test_battle_actor_target_selection_count_increment(
     openswd3::test::Context& test
@@ -2801,6 +2802,7 @@ void test_directional_scan_division_and_typed_stops(
     test.expect_true(
         horizontal_zero.status ==
                 LegacyBattleDirectionalScanStatus::horizontal_divisor_zero &&
+            horizontal_zero.stopped_instruction == 0x0043453CU &&
             horizontal_zero.legacy_return_value == 2048 &&
             horizontal_shared.published_value_2c == 21 &&
             horizontal_shared.published_value_30 == 22 &&
@@ -2824,6 +2826,7 @@ void test_directional_scan_division_and_typed_stops(
     test.expect_true(
         vertical_zero.status ==
                 LegacyBattleDirectionalScanStatus::vertical_divisor_zero &&
+            vertical_zero.stopped_instruction == 0x00434566U &&
             vertical_zero.legacy_return_value == 2048,
         "vertical divide stop occurs after the horizontal quotient"
     );
@@ -2906,9 +2909,28 @@ void test_directional_scan_division_and_typed_stops(
     test.expect_true(
         source_stop.status ==
                 LegacyBattleDirectionalScanStatus::source_out_of_range &&
+            source_stop.stopped_instruction == 0x004346B7U &&
+            source_stop.stopped_source_byte_offset == 4U &&
             source_stop.direct_writes == 0U &&
             destination_pixels[3U] == 0xAAAAU,
-        "source typed stop occurs at the original word read"
+        "nonmirrored source typed stop reports its physical word read"
+    );
+    source_short.flags = 1U;
+    const auto mirror_source_stop =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            source_short,
+            surface,
+            source_short_shared,
+            source_short_format
+        );
+    test.expect_true(
+        mirror_source_stop.status ==
+                LegacyBattleDirectionalScanStatus::source_out_of_range &&
+            mirror_source_stop.stopped_instruction == 0x00434651U &&
+            mirror_source_stop.stopped_source_byte_offset == 8U &&
+            destination_pixels[3U] == 0xAAAAU,
+        "mirrored source typed stop reports its distinct physical word read"
     );
 
     LegacyBattleDirectionalScanSharedState row_shared;
@@ -2922,6 +2944,8 @@ void test_directional_scan_division_and_typed_stops(
                 .height = 2,
                 .row_offsets = {},
                 .pixels = destination_pixels,
+                .row_offsets_token = 0x90000000U,
+                .row_offsets_token_known = true,
             },
             row_shared,
             row_format
@@ -2929,8 +2953,35 @@ void test_directional_scan_division_and_typed_stops(
     test.expect_true(
         row_stop.status ==
                 LegacyBattleDirectionalScanStatus::row_table_out_of_range &&
+            row_stop.stopped_instruction == 0x0043470EU &&
+            row_stop.stopped_surface_token_known &&
+            row_stop.stopped_surface_token == 0x90000004U &&
             row_stop.direct_writes == 0U,
         "row table typed stop follows source and transparent checks"
+    );
+    auto combine_row_source = base_source;
+    combine_row_source.flags = 0x16U;
+    const auto combine_row_stop =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            combine_row_source,
+            LegacyBattleDirectionalSurface{
+                .width = 2,
+                .height = 2,
+                .row_offsets = {},
+                .pixels = destination_pixels,
+                .row_offsets_token = 0x90000000U,
+                .row_offsets_token_known = true,
+            },
+            row_shared,
+            row_format
+        );
+    test.expect_true(
+        combine_row_stop.status ==
+                LegacyBattleDirectionalScanStatus::row_table_out_of_range &&
+            combine_row_stop.stopped_instruction == 0x004346E6U &&
+            combine_row_stop.stopped_surface_token == 0x90000004U,
+        "combine branch PUSHes one before its distinct row-offset read"
     );
 
     const std::array<u32, 2> bad_rows{0U, 100U};
@@ -2945,6 +2996,8 @@ void test_directional_scan_division_and_typed_stops(
                 .height = 2,
                 .row_offsets = bad_rows,
                 .pixels = destination_pixels,
+                .pixels_token = 0x91000000U,
+                .pixels_token_known = true,
             },
             destination_shared,
             destination_format
@@ -2952,9 +3005,44 @@ void test_directional_scan_division_and_typed_stops(
     test.expect_true(
         destination_stop.status ==
                 LegacyBattleDirectionalScanStatus::destination_out_of_range &&
+            destination_stop.stopped_instruction == 0x00434717U &&
+            destination_stop.stopped_surface_token_known &&
+            destination_stop.stopped_surface_token == 0x910000CAU &&
             destination_stop.direct_writes == 0U &&
             destination_pixels[3U] == 0xAAAAU,
         "destination typed stop occurs after the row offset read"
+    );
+    LegacyBattleDirectionalScanSharedState combine_destination_shared;
+    LegacyPixelConversionState combine_destination_format;
+    combine_destination_format.effective_masks.red = 0xFFFF0001U;
+    combine_destination_format.effective_masks.green = 0xFFFF0002U;
+    combine_destination_format.effective_masks.blue = 0xFFFF0004U;
+    const auto combine_destination_stop =
+        openswd3::battle::scan_legacy_battle_directional_surface(
+            vectors,
+            combine_row_source,
+            LegacyBattleDirectionalSurface{
+                .width = 2,
+                .height = 2,
+                .row_offsets = bad_rows,
+                .pixels = destination_pixels,
+                .pixels_token = 0x91000000U,
+                .pixels_token_known = true,
+            },
+            combine_destination_shared,
+            combine_destination_format
+        );
+    test.expect_true(
+        combine_destination_stop.status ==
+                LegacyBattleDirectionalScanStatus::destination_out_of_range &&
+            combine_destination_stop.stopped_instruction == 0x0042085AU &&
+            combine_destination_stop.stopped_surface_token_known &&
+            combine_destination_stop.stopped_surface_token == 0x910000CAU &&
+            combine_destination_format.effective_masks.red == 1U &&
+            combine_destination_format.effective_masks.green == 2U &&
+            combine_destination_format.effective_masks.blue == 4U &&
+            destination_pixels[3U] == 0xAAAAU,
+        "blend destination read faults in sub_4207E0 after its three mask writes"
     );
 }
 
@@ -7266,6 +7354,7 @@ int main() {
     test_battle_actor_binary_state_toggle(test);
     test_battle_actor_runtime_reset(test);
     test_battle_actor_action_presentation(test);
+    test_battle_actor_frame_presentation_entry(test);
     test_battle_actor_target_selection(test);
     test_battle_actor_target_selection_count_increment(test);
     test_battle_actor_target_selection_count_query(test);

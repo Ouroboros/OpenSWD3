@@ -94,6 +94,10 @@ void publish_resource(
     resource.value_04 = reply.outputs[3U];
     resource.value_0c = low_word(reply.outputs[1U]);
     resource.value_0e = low_word(reply.outputs[2U]);
+    resource.value_00 = reply.outputs[0U];
+    resource.value_00_known = true;
+    resource.value_0c_known = true;
+    resource.value_0e_known = true;
 }
 
 }  // namespace

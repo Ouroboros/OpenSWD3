@@ -396,6 +396,14 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
                         .resource.value_0c == 32U &&
                 fixture.action->group_a_action_execution[0U]
                         .resource.value_0e == 48U &&
+                fixture.action->group_a_action_execution[0U]
+                        .resource.value_00 == 0x72000000U &&
+                fixture.action->group_a_action_execution[0U]
+                    .resource.value_00_known &&
+                fixture.action->group_a_action_execution[0U]
+                    .resource.value_0c_known &&
+                fixture.action->group_a_action_execution[0U]
+                    .resource.value_0e_known &&
                 fixture.action->group_a_action_shared.turn_frame_source_token ==
                     0x72000000U &&
                 fixture.action->group_a_action_shared.draw_height_third ==

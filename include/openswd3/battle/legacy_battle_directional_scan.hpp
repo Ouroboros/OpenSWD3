@@ -28,6 +28,11 @@ struct LegacyBattleDirectionalSurface {
     compat::i32 height{};
     std::span<const compat::u32> row_offsets{};
     std::span<compat::u16> pixels{};
+    // Optional original pointer tokens: [surface+0xB44] and arg_0.
+    compat::u32 row_offsets_token{};
+    compat::u32 pixels_token{};
+    bool row_offsets_token_known{};
+    bool pixels_token_known{};
 };
 
 struct LegacyBattleDirectionalScanSharedState {
@@ -57,6 +62,12 @@ struct LegacyBattleDirectionalScanResult {
         rendering::LegacyFrameColorStatus::completed
     };
     compat::i32 legacy_return_value{};
+    // Exact instruction for division by zero, source/row reads and known
+    // direct/blended pixel faults; unresolved nested failures retain zero.
+    compat::u32 stopped_instruction{};
+    compat::u32 stopped_source_byte_offset{};
+    compat::u32 stopped_surface_token{};
+    bool stopped_surface_token_known{};
     compat::u32 outer_iterations{};
     compat::u32 inner_iterations{};
     compat::u32 bounds_skips{};
