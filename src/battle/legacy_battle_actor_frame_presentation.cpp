@@ -6954,12 +6954,13 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         const auto write_heap_header = [&](const u32 instruction,
                                            const u32 base,
                                            const std::size_t offset,
-                                           const u32 value) {
+                                           const u32 value,
+                                           const std::size_t width = 4U) {
             const auto bytes = request.decoder_heap_block_bytes;
             if (prefix.accesses_completed == request.stop_before_access ||
                 !request.decoder_heap_block_writable ||
                 request.decoder_heap_block_token != base ||
-                offset > bytes.size() || bytes.size() - offset < 4U) {
+                offset > bytes.size() || bytes.size() - offset < width) {
                 prefix.status = LegacyBattleActorFrameEntryStatus::
                     allocator_block_write_typed_stop;
                 prefix.stopped_access_kind =
@@ -6971,7 +6972,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                 return false;
             }
             ++prefix.accesses_completed;
-            for (std::size_t i = 0U; i < 4U; ++i) {
+            for (std::size_t i = 0U; i < width; ++i) {
                 bytes[offset + i] = static_cast<u8>(value >> (8U * i));
             }
             return true;
@@ -8726,6 +8727,69 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                         .eip =
                                                                                         prefix
                                                                                             .stopped_instruction;
+                                                                                    if (
+                                                                                        command ==
+                                                                                            2U &&
+                                                                                        request
+                                                                                            .decoder_payload_heap_first_literal_pixel_write_backed
+                                                                                    ) {
+                                                                                        if (
+                                                                                            !write_heap_header(
+                                                                                                prefix
+                                                                                                    .stopped_instruction,
+                                                                                                request
+                                                                                                    .decoder_heap_block_token,
+                                                                                                0x20U,
+                                                                                                pixel,
+                                                                                                pixel_width
+                                                                                            )
+                                                                                        ) {
+                                                                                            return prefix;
+                                                                                        }
+                                                                                        prefix
+                                                                                            .esi +=
+                                                                                            pixel_width;
+                                                                                        if (
+                                                                                            format_sixteen
+                                                                                        ) {
+                                                                                            ++prefix
+                                                                                                  .ecx;
+                                                                                            prefix
+                                                                                                .ebp +=
+                                                                                                2U;
+                                                                                        } else {
+                                                                                            ++prefix
+                                                                                                  .edx;
+                                                                                            ++prefix
+                                                                                                  .ebp;
+                                                                                        }
+                                                                                        prefix
+                                                                                            .flags = subtract_flags(
+                                                                                            1U,
+                                                                                            2U
+                                                                                        );
+                                                                                        prefix
+                                                                                            .status =
+                                                                                            LegacyBattleActorFrameEntryStatus::
+                                                                                                frame_resource_read_typed_stop;
+                                                                                        prefix
+                                                                                            .stopped_access_kind =
+                                                                                            LegacyBattleActorFrameEntryAccessKind::
+                                                                                                frame_resource_read;
+                                                                                        prefix
+                                                                                            .stopped_instruction =
+                                                                                            format_sixteen
+                                                                                            ? 0x00401A45U
+                                                                                            : 0x00401B02U;
+                                                                                        prefix
+                                                                                            .stopped_token =
+                                                                                            prefix
+                                                                                                .edi;
+                                                                                        prefix
+                                                                                            .eip =
+                                                                                            prefix
+                                                                                                .stopped_instruction;
+                                                                                    }
                                                                                 }
                                                                             }
                                                                         }

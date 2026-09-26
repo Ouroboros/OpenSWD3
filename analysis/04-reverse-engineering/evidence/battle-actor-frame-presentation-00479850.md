@@ -2909,6 +2909,18 @@ AND FLAGS保持非零且奇偶位为0。高位编码、短源、未绑定源继�
 Size=12空链DF=0；不把读成功当作像素写入、生产来源或完整解码。
 `proc_3d50` Linux core/CTest `199/199`、`proc_c635` ASan
 core/CTest `199/199`、`proc_927a` Linux app/CTest `205/205`。
+该批提交推送`b122ab83`，远端同SHA；阶段TG `proc_dcf9`退出0，
+客户端显示未验证。仅对显式可写Size=12块、普通字面计数2的
+合成路径，按LST `0x00401A4B MOV [ESI],BX`提交低字节`0x34`、
+高字节`0x12`，`0x00401B05 MOV [ESI],BL`仅提交字节`0x5A`；
+原有调试头与填充dword仍按4字节写，不把像素写扩成dword。
+故障序号截断在各目标写前时保持填充`0x7E`；写后16位路径
+ESI加2、ECX=1、EBP=6，8位路径ESI加1、EDX=1、EBP=5，
+两者均比较`1<2`并在下一像素源读`0x00401A45`或
+`0x00401B02`前停下，ESP与已写像素保持。`proc_9355`
+Linux core/CTest `199/199`、`proc_2d87` ASan core/CTest
+`199/199`、`proc_3566` Linux app/CTest `205/205`。
+其他计数、源/目标别名和真实生产块未由此证明。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

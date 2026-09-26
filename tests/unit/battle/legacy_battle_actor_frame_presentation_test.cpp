@@ -9052,8 +9052,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     false;
                 request.decoder_payload_heap_outer_return_stack_backed = false;
                 request.decoder_payload_heap_initial_source_word_backed = false;
-                request.decoder_payload_heap_literal_command_word_backed = false;
+                request.decoder_payload_heap_literal_command_word_backed =
+                    false;
                 request.decoder_payload_heap_first_literal_pixel_backed = false;
+                request.decoder_payload_heap_first_literal_pixel_write_backed =
+                    false;
                 auto heap_register_snapshot_request = request;
                 heap_register_snapshot_request.stop_before_access =
                     decoder_pending.accesses_completed + 44U;
@@ -9948,6 +9951,55 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         "format-sixteen first pixel source read precedes the untouched target write"
                     );
                 }
+                auto pixel_write_request = pixel_request;
+                pixel_write_request
+                    .decoder_payload_heap_first_literal_pixel_write_backed =
+                    true;
+                for (const u32 stop_offset : {193U, 194U}) {
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    pixel_write_request.stop_before_access =
+                        decoder_pending.accesses_completed + stop_offset +
+                        (has_old_tail ? 1U : 0U);
+                    const auto stopped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, pixel_write_request, fill_prefix
+                        );
+                    test.expect_true(
+                        stopped.eip ==
+                                (stop_offset == 193U ? 0x00401A4BU
+                                                     : 0x00401A45U) &&
+                            stopped.stopped_access_kind ==
+                                (stop_offset == 193U
+                                     ? Access::allocator_block_write
+                                     : Access::frame_resource_read) &&
+                            stopped.stopped_token ==
+                                (stop_offset == 193U ? 0x00804020U
+                                                     : 0x77665552U) &&
+                            stopped.accesses_completed ==
+                                pixel_write_request.stop_before_access &&
+                            stopped.esp == stack_top - 20U &&
+                            stopped.ebx == 0x1234U &&
+                            linked_raw_backing[32U] ==
+                                (stop_offset == 193U ? 0x7EU : 0x34U) &&
+                            linked_raw_backing[33U] ==
+                                (stop_offset == 193U ? 0x7EU : 0x12U) &&
+                            linked_raw_backing[34U] == 0x7EU &&
+                            (stop_offset == 193U ||
+                             (stopped.esi == 0x00804022U && stopped.ecx == 1U &&
+                              stopped.edx == 2U && stopped.ebp == 6U &&
+                              stopped.flags.carry && stopped.flags.sign &&
+                              !stopped.flags.zero)),
+                        "format-sixteen first pixel write commits only one word before the next source read"
+                    );
+                }
                 const std::array<openswd3::compat::u8, 12U> kZeroCountSource{
                     0xFFU,
                     0xFFU,
@@ -10193,6 +10245,48 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         std::array<u32, 3U>{3U, 4U, 0x08U} &&
                     linked_raw_backing[32U] == 0x7EU,
                 "format-eight first pixel source read precedes the untouched target write"
+            );
+        }
+        auto eight_pixel_write_request = eight_pixel_request;
+        eight_pixel_write_request
+            .decoder_payload_heap_first_literal_pixel_write_backed = true;
+        for (const u32 stop_offset : {193U, 194U}) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            writable_heap_head = 0xABCDEF01U;
+            linked_raw_backing.fill(0xA5U);
+            case_two_outputs.words = {2U, 3U, 0x10U};
+            eight_pixel_write_request.stop_before_access =
+                decoder_pending.accesses_completed + stop_offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, eight_pixel_write_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip ==
+                        (stop_offset == 193U ? 0x00401B05U : 0x00401B02U) &&
+                    stopped.stopped_access_kind ==
+                        (stop_offset == 193U ? Access::allocator_block_write
+                                             : Access::frame_resource_read) &&
+                    stopped.stopped_token ==
+                        (stop_offset == 193U ? 0x00804020U : 0x77665551U) &&
+                    stopped.accesses_completed ==
+                        eight_pixel_write_request.stop_before_access &&
+                    stopped.esp == stack_top - 20U && stopped.ebx == 0x5AU &&
+                    linked_raw_backing[32U] ==
+                        (stop_offset == 193U ? 0x7EU : 0x5AU) &&
+                    linked_raw_backing[33U] == 0x7EU &&
+                    (stop_offset == 193U ||
+                     (stopped.esi == 0x00804021U && stopped.edx == 1U &&
+                      stopped.ecx == 2U && stopped.ebp == 5U &&
+                      stopped.flags.carry && stopped.flags.sign &&
+                      !stopped.flags.zero)) &&
+                    case_two_outputs.words ==
+                        std::array<u32, 3U>{3U, 4U, 0x08U},
+                "format-eight first pixel write commits only one byte before the next source read"
             );
         }
         const std::array<openswd3::compat::u8, 12U> kEightZeroCountSource{
