@@ -304,9 +304,9 @@ subtract_flags_16(u16 left, u16 right) noexcept;
     if (!saved_register(0x004170EDU, child.edi)) {
         return false;
     }
-    child.ebp = 0U;
     if (first_word != 0xFFFFU) {
-        child.flags = logical_zero_flags();  // loc_417105 XOR EBP,EBP.
+        child.ebp = 0U;  // loc_417105 XOR EBP,EBP.
+        child.flags = logical_zero_flags();
         return true;
     }
     if (child.accesses_completed == request.stop_before_access ||
@@ -323,6 +323,7 @@ subtract_flags_16(u16 left, u16 right) noexcept;
     }
     child.eax = *request.draw_palette_token_owner;
     ++child.accesses_completed;
+    child.ebp = 0U;  // 0x004170F5 XOR EBP,EBP follows the palette read.
     child.flags = subtract_flags(child.eax, 0U);
     if (child.eax == 0U) {
         // OR [ESP+0x24],0x80000000 is an RMW on the caller's arg_10.

@@ -5497,6 +5497,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_draw_palette.eip == 0x004170F0U &&
                 stopped_draw_palette.esp == draw_pending.esp - 20U &&
                 stopped_draw_palette.eax == 0x00700000U &&
+                draw_pending.ebp == 17U &&
+                stopped_draw_palette.ebp == draw_pending.ebp &&
                 stopped_draw_palette.stopped_token == 0x004CD764U &&
                 stopped_draw_palette.flags.zero &&
                 stopped_draw_palette.accesses_completed ==
@@ -5508,6 +5510,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_draw_palette_rmw.stopped_token ==
                     draw_pending.esp + 16U &&
                 stopped_draw_palette_rmw.eax == 0U &&
+                stopped_draw_palette_rmw.ebp == 0U &&
                 stopped_draw_palette_rmw.accesses_completed ==
                     draw_pending.accesses_completed + 8U &&
                 renderer.calls == 1U &&

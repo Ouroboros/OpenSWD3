@@ -2218,8 +2218,11 @@ case9、3、5首/第二绘制、11 各有首word读障代表向量。
 `199/199`、`proc_c250` Linux app/CTest `205/205`。源首word为 `0xFFFF` 的路径另加
 `0x004170F0` 显式调色板指针 owner 首读；指针0时 `0x004170FB`
 栈上 `arg_10` RMW因缺可写栈 owner 而停于该指令，未冒充正常绘制；
-非 `0xFFFF` 的原始源路径跳过这次调色板读取。两条路径及窄port入口型停止的
-可变访问序号经过 `proc_5060` core/CTest `199/199`，该后续改动的ASan/app尚未重跑。
+调色板读取障在 `0x004170F5 XOR EBP,EBP` 前，EBP必须保留入站值；
+此前过早清零已修正并补故障向量。非 `0xFFFF` 的原始源路径跳过这次调色板读取。
+两条路径及窄port入口型停止的可变访问序号先经 `proc_5060` core/CTest `199/199`；
+本次修正及代表向量经 `proc_24ad` Linux core/CTest `199/199`、
+`proc_4262` ASan core/CTest `199/199`、`proc_97fb` Linux app/CTest `205/205`。
 测试 `request()` 的图像首字节是显式合成backing，不是实际 `shared_action->turn_frame_source_token`
 与绘图/像素页的生产别名证明。`sub_4170E0` 后续全局/帧/像素页访问及故障前缀仍不闭合。
 2026-09-26 00:19:36+08 五段阶段 TG `proc_8cfb` 获 API `ok=true/message_id=4315`；
