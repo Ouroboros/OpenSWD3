@@ -2569,7 +2569,19 @@ EAX=0的池回包不冒充成功；其真实fallback与池内副作用仍由opaq
 使计数从合成`0x00760000`加至`0x00760001`，但由于计数写入owner未绑定，
 未宣称写回。零回包明确保留`sub_48BB80`原opaque入口。
 `proc_3366` Linux core/CTest `199/199`、`proc_6cfd` ASan core/CTest `199/199`、
-`proc_5ad5` Linux app/CTest `205/205`。
+`proc_5ad5` Linux app/CTest `205/205`。该批提交推送`7e8b7993`，TG
+`proc_0044`退出0，客户端显示未验证。
+在显式同址可写owner下，`0x00487E8E`把本次请求计数+1写回；缺owner、
+与读取owner不别名或预写故障均停在本指令，不能只凭两个值相同推断同址。
+随后`0x00487E94`按早先`0x00487CD9`初始化、`0x00487DCF`可选写入的
+`[EBP-0Ch]`判路：调试bit0为0时物理读`[EBP-4]`、在原始块首dword
+`0x00487E9D`写入前因无块backing而停止；bit0为1时直接在
+`0x00487EE3`读取未绑定统计全局前停止。这些停点分别保留已提交的计数增量，
+不假造块头、链表或后续像素。
+新增`allocator_block_write`枚举项放在原有访问种类末尾，不移动原枚举数值；
+调整前core `proc_53b8`、ASan `proc_883e`各`199/199`及app `proc_e9b9`
+`205/205`不替代复验。追加枚举后`proc_6dd6` Linux core/CTest `199/199`、
+`proc_25d5` ASan core/CTest `199/199`、`proc_ea7b` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

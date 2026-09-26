@@ -7783,6 +7783,102 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 decoder.calls == 1U,
             "injected small-pool success stops before the unowned request counter increment"
         );
+        u32 mutable_request_counter = 0x00760000U;
+        auto writable_counter_request = pool_reply_request;
+        writable_counter_request.decoder_heap_request_counter_owner =
+            &mutable_request_counter;
+        writable_counter_request.decoder_heap_request_counter_write_owner =
+            &mutable_request_counter;
+        const std::array<HeapPrefixFault, 3U> kCounterSuffixFaults{{
+            {96U, 0x00487E94U, 116U, stack_top - 100U, Access::stack_read},
+            {97U, 0x00487E9AU, 116U, stack_top - 92U, Access::stack_read},
+            {98U,
+             0x00487E9DU,
+             116U,
+             0x00804000U,
+             Access::allocator_block_write},
+        }};
+        for (const auto& fault : kCounterSuffixFaults) {
+            mutable_request_counter = 0x00760000U;
+            writable_counter_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, writable_counter_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.ebp == stack_top - 88U &&
+                    stopped.accesses_completed ==
+                        writable_counter_request.stop_before_access &&
+                    mutable_request_counter == 0x00760001U &&
+                    decoder.calls == 1U,
+                "request count commits before mode reread and the unowned heap header write"
+            );
+        }
+        mutable_request_counter = 0x00760000U;
+        writable_counter_request.stop_before_access =
+            decoder_pending.accesses_completed + 95U;
+        const auto stopped_before_counter_write = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, writable_counter_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_before_counter_write.eip == 0x00487E8EU &&
+                mutable_request_counter == 0x00760000U,
+            "counter write fault does not advance the bound counter"
+        );
+        writable_counter_request.stop_before_access = 0U;
+        auto mismatched_counter_request = writable_counter_request;
+        u32 unrelated_counter = 0x00760000U;
+        mismatched_counter_request.decoder_heap_request_counter_write_owner =
+            &unrelated_counter;
+        const auto stopped_counter_alias = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, mismatched_counter_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_counter_alias.eip == 0x00487E8EU &&
+                mutable_request_counter == 0x00760000U &&
+                unrelated_counter == 0x00760000U,
+            "counter read and write owners must alias the same original global"
+        );
+        const auto stopped_header_write = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, writable_counter_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_header_write.eip == 0x00487E9DU &&
+                stopped_header_write.stopped_access_kind ==
+                    Access::allocator_block_write &&
+                stopped_header_write.stopped_token == 0x00804000U &&
+                stopped_header_write.flags_known &&
+                !stopped_header_write.flags.zero &&
+                mutable_request_counter == 0x00760001U,
+            "debug flag bit zero cleared chooses the unlinked heap-header branch"
+        );
+        mutable_request_counter = 0x00760000U;
+        static constexpr u32 kLinkedHeapDebugFlag = 1U;
+        auto linked_header_request = writable_counter_request;
+        linked_header_request.decoder_heap_debug_flags_owner =
+            &kLinkedHeapDebugFlag;
+        const auto stopped_linked_stats = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, linked_header_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_linked_stats.eip == 0x00487EE3U &&
+                stopped_linked_stats.stopped_token == 0x0053D124U &&
+                stopped_linked_stats.stopped_access_kind ==
+                    Access::global_read &&
+                stopped_linked_stats.flags_known &&
+                stopped_linked_stats.flags.zero &&
+                mutable_request_counter == 0x00760001U && decoder.calls == 1U,
+            "debug flag bit zero set selects linked heap statistics without inventing an owner"
+        );
         auto missing_small_limit = group_a_initial_request;
         missing_small_limit.decoder_small_block_limit_owner = nullptr;
         const auto stopped_small_limit = openswd3::battle::

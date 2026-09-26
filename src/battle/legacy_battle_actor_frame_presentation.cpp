@@ -6479,6 +6479,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     // target must match before its return can be modeled here.
     const bool bound_static_leaf = !debug_heap_check &&
         allocator_callee_token == 0x0048AA70U && allocation_size <= 0xFFFFFFBCU;
+    bool unlinked_heap_header = false;
     if (bound_static_leaf) {
         if (!save(0x0048AA70U, prefix.ebp)) {
             return prefix;
@@ -6533,6 +6534,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             return prefix;
         }
         prefix.edx &= 1U;
+        unlinked_heap_header = prefix.edx == 0U;
         prefix.flags = {
             .carry = false,
             .parity = even_parity(static_cast<u8>(prefix.edx)),
@@ -6915,13 +6917,57 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         prefix.flags = add_flags(prefix.edx, 1U);
         ++prefix.edx;
         prefix.flags_known = true;
-        prefix.status =
-            LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
-        prefix.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::global_write;
-        prefix.stopped_instruction = 0x00487E8EU;
-        prefix.stopped_token = 0x004A82F8U;
-        prefix.eip = 0x00487E8EU;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.global_writable ||
+            request.decoder_heap_request_counter_write_owner == nullptr ||
+            request.decoder_heap_request_counter_write_owner !=
+                request.decoder_heap_request_counter_owner) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::global_write;
+            prefix.stopped_instruction = 0x00487E8EU;
+            prefix.stopped_token = 0x004A82F8U;
+            prefix.eip = 0x00487E8EU;
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        *request.decoder_heap_request_counter_write_owner = prefix.edx;
+        u32 header_mode{};
+        if (!read_inner_argument(
+                0x00487E94U,
+                prefix.ebp - 0x0CU,
+                unlinked_heap_header ? 1U : 0U,
+                header_mode
+            )) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(header_mode, 0U);
+        if (header_mode != 0U) {
+            if (!read_inner_argument(
+                    0x00487E9AU,
+                    prefix.ebp - 4U,
+                    request.decoder_small_pool_return_eax,
+                    prefix.eax
+                )) {
+                return prefix;
+            }
+            prefix.status = LegacyBattleActorFrameEntryStatus::
+                allocator_block_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::allocator_block_write;
+            prefix.stopped_instruction = 0x00487E9DU;
+            prefix.stopped_token = prefix.eax;
+            prefix.eip = 0x00487E9DU;
+        } else {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::global_read;
+            prefix.stopped_instruction = 0x00487EE3U;
+            prefix.stopped_token = 0x0053D124U;
+            prefix.eip = 0x00487EE3U;
+        }
         return prefix;
     }
 

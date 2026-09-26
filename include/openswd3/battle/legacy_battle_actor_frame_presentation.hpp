@@ -493,6 +493,7 @@ enum class LegacyBattleActorFrameEntryStatus : compat::u16 {
     stack_write_typed_stop,
     stack_read_typed_stop,
     allocator_debug_break_typed_stop,
+    allocator_block_write_typed_stop,
 };
 
 enum class LegacyBattleActorFrameEntryAccessKind : compat::u8 {
@@ -514,6 +515,7 @@ enum class LegacyBattleActorFrameEntryAccessKind : compat::u8 {
     stack_read,
     callee_call,
     debug_break,
+    allocator_block_write,
 };
 
 struct LegacyBattleActorFrameParentArgumentWord;
@@ -556,6 +558,7 @@ struct LegacyBattleActorFrameEntryRequest {
     const compat::u32* decoder_allocator_global_owner{};      // 0x0053D1B4
     const compat::u32* decoder_heap_debug_flags_owner{};      // 0x004A82F4
     const compat::u32* decoder_heap_request_counter_owner{};  // 0x004A82F8
+    compat::u32* decoder_heap_request_counter_write_owner{};  // same address
     const compat::u32* decoder_heap_break_counter_owner{};    // 0x004A82FC
     const compat::u32* decoder_heap_alloc_owner{};            // 0x004A8360
     const compat::u32* decoder_small_block_limit_owner{};     // 0x004A8390
