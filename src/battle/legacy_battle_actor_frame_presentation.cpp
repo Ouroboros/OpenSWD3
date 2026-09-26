@@ -7952,14 +7952,56 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                 .sign = false,
                                 .overflow = false,
                             };
-                            prefix.status = LegacyBattleActorFrameEntryStatus::
-                                global_read_typed_stop;
+                            if (prefix.accesses_completed ==
+                                    request.stop_before_access ||
+                                !request.global_readable ||
+                                request.decoder_heap_payload_byte_owner ==
+                                    nullptr) {
+                                prefix.status =
+                                    LegacyBattleActorFrameEntryStatus::
+                                        global_read_typed_stop;
+                                prefix.stopped_access_kind =
+                                    LegacyBattleActorFrameEntryAccessKind::
+                                        global_read;
+                                prefix.stopped_instruction = 0x00487FC1U;
+                                prefix.stopped_token = 0x004A8302U;
+                                prefix.eip = 0x00487FC1U;
+                                return prefix;
+                            }
+                            ++prefix.accesses_completed;
+                            prefix.eax =
+                                *request.decoder_heap_payload_byte_owner;
+                            if (!save(0x00487FC6U, prefix.eax) ||
+                                !read_inner_argument(
+                                    0x00487FC7U,
+                                    prefix.ebp - 4U,
+                                    request.decoder_small_pool_return_eax,
+                                    prefix.ecx
+                                )) {
+                                return prefix;
+                            }
+                            prefix.flags = add_flags(prefix.ecx, 0x20U);
+                            prefix.ecx += 0x20U;
+                            if (!save(0x00487FCDU, prefix.ecx) ||
+                                !save(0x00487FCEU, 0x00487FD3U)) {
+                                return prefix;
+                            }
+                            prefix.status = case_hundred_call
+                                ? LegacyBattleActorFrameEntryStatus::
+                                      case_hundred_decoder_child_typed_stop
+                                : case_eight_call
+                                ? LegacyBattleActorFrameEntryStatus::
+                                      case_eight_decoder_child_typed_stop
+                                : case_fifty_one_call
+                                ? LegacyBattleActorFrameEntryStatus::
+                                      case_fifty_one_decoder_child_typed_stop
+                                : LegacyBattleActorFrameEntryStatus::
+                                      case_two_decoder_child_typed_stop;
                             prefix.stopped_access_kind =
                                 LegacyBattleActorFrameEntryAccessKind::
-                                    global_read;
-                            prefix.stopped_instruction = 0x00487FC1U;
-                            prefix.stopped_token = 0x004A8302U;
-                            prefix.eip = 0x00487FC1U;
+                                    callee_call;
+                            prefix.stopped_instruction = 0x0048A930U;
+                            prefix.eip = 0x0048A930U;
                         }
                     }
                 }

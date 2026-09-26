@@ -8879,6 +8879,89 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         0x00804000U,
                 "linked second fill restores its stack before the pixel-byte read"
             );
+            static constexpr openswd3::compat::u8 kLinkedPayloadByte = 0x7EU;
+            request.decoder_heap_payload_byte_owner = &kLinkedPayloadByte;
+            const std::array<HeapPrefixFault, 5U> kLinkedPayloadCallFaults{{
+                {162U, 0x00487FC1U, 120U, 0x004A8302U, Access::global_read},
+                {163U,
+                 0x00487FC6U,
+                 120U,
+                 stack_top - 124U,
+                 Access::stack_write},
+                {164U, 0x00487FC7U, 124U, stack_top - 92U, Access::stack_read},
+                {165U,
+                 0x00487FCDU,
+                 124U,
+                 stack_top - 128U,
+                 Access::stack_write},
+                {166U,
+                 0x00487FCEU,
+                 128U,
+                 stack_top - 132U,
+                 Access::stack_write},
+            }};
+            for (const auto& fault : kLinkedPayloadCallFaults) {
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access =
+                    decoder_pending.accesses_completed + fault.offset +
+                    (has_old_tail ? 1U : 0U);
+                const auto stopped = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, decoder_pending
+                    );
+                test.expect_true(
+                    stopped.eip == fault.instruction &&
+                        stopped.stopped_access_kind == fault.kind &&
+                        stopped.stopped_token == fault.token &&
+                        stopped.esp == stack_top - fault.stack_drop &&
+                        stopped.accesses_completed ==
+                            request.stop_before_access &&
+                        linked_raw_backing[28U] == 0xFDU &&
+                        linked_raw_backing[44U] == 0xFDU &&
+                        linked_raw_backing[32U] == 0xA5U &&
+                        (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
+                            0x00804000U,
+                    "linked payload fill reads its independent byte before three argument pushes"
+                );
+            }
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            nonempty_heap_tail = 0x00806000U;
+            writable_heap_head = 0xABCDEF01U;
+            old_tail_backing.fill(0xA5U);
+            linked_raw_backing.fill(0xA5U);
+            request.stop_before_access = 0U;
+            const auto linked_payload_child = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, request, decoder_pending
+                );
+            test.expect_true(
+                linked_payload_child.eip == 0x0048A930U &&
+                    linked_payload_child.stopped_access_kind ==
+                        Access::callee_call &&
+                    linked_payload_child.esp == stack_top - 132U &&
+                    linked_payload_child.eax == 0x7EU &&
+                    linked_payload_child.ecx == 0x00804020U &&
+                    linked_payload_child.edx == 12U &&
+                    linked_payload_child.last_pushed_value == 0x00487FD3U &&
+                    linked_payload_child.accesses_completed ==
+                        decoder_pending.accesses_completed +
+                            (has_old_tail ? 168U : 167U) &&
+                    linked_raw_backing[32U] == 0xA5U &&
+                    linked_raw_backing[44U] == 0xFDU,
+                "linked payload fill enters the third callee without inventing pixel writes"
+            );
         }
         auto unaligned_linked_request = linked_metadata_empty_request;
         unaligned_linked_request.decoder_small_pool_return_eax = 0x00804001U;

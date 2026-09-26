@@ -2746,7 +2746,14 @@ core/CTest `199/199`、`proc_4550` Linux app/CTest `205/205`。
 `0x00487FC1` byte全局读取前。空链/非空链各七处故障保持首、
 尾两处保护值写入先后和各自故障前副作用；第三次填充未开始。
 `proc_d23f` Linux core/CTest `199/199`、`proc_a001` ASan core/CTest
-`199/199`、`proc_f244` Linux app/CTest `205/205`。
+`199/199`、`proc_f244` Linux app/CTest `205/205`。该阶段提交
+推送`7176c19c`，TG `proc_dd2f`退出0，客户端显示未验证。
+linked块在显式绑定独立`0x004A8302` byte后，从`0x00487FC1`
+读取像素填充值，按`0x00487FC6/C7/FCD/FCE`压值、重读raw、
+压raw+0x20及返回地址，停在第三次`sub_48A930`入口。空链
+/非空链各五处故障向量不得以已有保护字节冒充像素写入。
+`proc_0695` Linux core/CTest `199/199`、`proc_7bc9` ASan
+core/CTest `199/199`、`proc_5526` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
