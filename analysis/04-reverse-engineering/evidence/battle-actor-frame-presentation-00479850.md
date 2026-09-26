@@ -2753,7 +2753,15 @@ linked块在显式绑定独立`0x004A8302` byte后，从`0x00487FC1`
 压raw+0x20及返回地址，停在第三次`sub_48A930`入口。空链
 /非空链各五处故障向量不得以已有保护字节冒充像素写入。
 `proc_0695` Linux core/CTest `199/199`、`proc_7bc9` ASan
-core/CTest `199/199`、`proc_5526` Linux app/CTest `205/205`。
+core/CTest `199/199`、`proc_5526` Linux app/CTest `205/205`。该阶段提交
+推送`bf2b7145`，TG `proc_3004`退出0，客户端显示未验证。
+第三次填充显式绑定子栈后，`sub_48A930`读Size=12、目标raw+0x20、
+独立像素byte，按LST计算对齐及`SHR ECX,2`，对齐目标保留
+ECX=3并停在首个`0x0048A971 REP STOSD`写前；不得把三处
+连续dword写合并成一次安全边界。空链/非空链各四处子栈故障
+验证，未对齐像素目标仍待单独向量。`proc_a12a` Linux core/CTest
+`199/199`、`proc_0958` ASan core/CTest `199/199`、`proc_7dc7`
+Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

@@ -8962,6 +8962,79 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     linked_raw_backing[44U] == 0xFDU,
                 "linked payload fill enters the third callee without inventing pixel writes"
             );
+            request.decoder_payload_heap_fill_child_stack_backed = true;
+            const std::array<HeapPrefixFault, 4U> kLinkedPixelChildFaults{{
+                {167U, 0x0048A930U, 132U, stack_top - 120U, Access::stack_read},
+                {168U, 0x0048A934U, 132U, stack_top - 128U, Access::stack_read},
+                {169U, 0x0048A93EU, 132U, stack_top - 124U, Access::stack_read},
+                {170U,
+                 0x0048A942U,
+                 132U,
+                 stack_top - 136U,
+                 Access::stack_write},
+            }};
+            for (const auto& fault : kLinkedPixelChildFaults) {
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access =
+                    decoder_pending.accesses_completed + fault.offset +
+                    (has_old_tail ? 1U : 0U);
+                const auto stopped = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, decoder_pending
+                    );
+                test.expect_true(
+                    stopped.eip == fault.instruction &&
+                        stopped.stopped_access_kind == fault.kind &&
+                        stopped.stopped_token == fault.token &&
+                        stopped.esp == stack_top - fault.stack_drop &&
+                        stopped.accesses_completed ==
+                            request.stop_before_access &&
+                        linked_raw_backing[32U] == 0xA5U &&
+                        linked_raw_backing[43U] == 0xA5U &&
+                        linked_raw_backing[44U] == 0xFDU,
+                    "linked pixel fill child preserves four physical stack faults"
+                );
+            }
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            nonempty_heap_tail = 0x00806000U;
+            writable_heap_head = 0xABCDEF01U;
+            old_tail_backing.fill(0xA5U);
+            linked_raw_backing.fill(0xA5U);
+            request.stop_before_access = 0U;
+            const auto pixel_dwords_pending = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, request, decoder_pending
+                );
+            test.expect_true(
+                pixel_dwords_pending.eip == 0x0048A971U &&
+                    pixel_dwords_pending.stopped_access_kind ==
+                        Access::allocator_block_write &&
+                    pixel_dwords_pending.stopped_token == 0x00804020U &&
+                    pixel_dwords_pending.esp == stack_top - 136U &&
+                    pixel_dwords_pending.eax == 0x7E7E7E7EU &&
+                    pixel_dwords_pending.ecx == 3U &&
+                    pixel_dwords_pending.edx == 0U &&
+                    pixel_dwords_pending.edi == 0x00804020U &&
+                    pixel_dwords_pending.accesses_completed ==
+                        decoder_pending.accesses_completed +
+                            (has_old_tail ? 172U : 171U) &&
+                    linked_raw_backing[32U] == 0xA5U &&
+                    linked_raw_backing[43U] == 0xA5U &&
+                    linked_raw_backing[44U] == 0xFDU,
+                "linked pixel fill needs three dword writes, not one guard dword"
+            );
         }
         auto unaligned_linked_request = linked_metadata_empty_request;
         unaligned_linked_request.decoder_small_pool_return_eax = 0x00804001U;
