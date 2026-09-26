@@ -2456,7 +2456,24 @@ EDI/ESI/EBP，`0x004019BA XOR EAX,EAX` 清零并设置ZF，再从 `0x004019BC` �
 原 `sub_487CD0` 后缀尚未验证，port非返回暂在其入口停下。使用此前压入参数的
 合成缓存重放内层栈读，不证明真实栈别名和原版分配语义。
 `proc_6a6b` Linux core/CTest `199/199`、`proc_d084` ASan core/CTest `199/199`、
-`proc_96f3` Linux app/CTest `205/205`。
+`proc_96f3` Linux app/CTest `205/205`；该批提交推送为`c7db2b8d`，阶段TG
+`proc_e26a`退出0，客户端显示未验证。
+`sub_487CD0` 普通分配路径继续逐项追到 `0x00487D49` 间接CALL：入站先PUSH EBP，
+`SUB ESP,10h`更新FLAGS，再PUSH EBX/ESI/EDI，零写`[EBP-0Ch]`；
+`0x00487CE0` 从显式owner读取`0x004A82F4`并TEST bit2。bit2为1时
+`0x00487CEC`压返回地址`0x00487CF1`转调试堆检查，不冒充普通分配。
+普通路径依次读取`0x004A82F8`、写读`[EBP-8]`、比较`0x004A82FC`；
+相等时`0x00487D30 INT3`另设停点，不传递申请参数。不等时重读
+`[EBP+14h/10h/-8/0Ch/8]`，按原顺序压入五个值，再PUSH 0/1；
+`0x00487D49`先读函数指针`[0x004A8360]`，再压返回地址`0x00487D4F`。
+普通路径的24个可障栈/全局站点各有独立ESP、EBP、token序号测试；
+合成堆全局与间接目标只是测试backing，真实生产owner和内存别名未证。
+间接CALL及调试检查之后的回包、retry、CRT、像素解码仍归opaque后缀；
+Port正常回包只用于检查条件性栈平衡，**不证明**分配或真实图像数据等价。
+首次core `proc_7dad`有1项战斗测试失败：opaque端口返回后遗漏decoder自身CALL返回槽的
+四字节弹栈；已按原物理RET修正，不把失败轮次计作通过。
+`proc_e5c3` Linux core/CTest `199/199`、`proc_4c7a` ASan core/CTest `199/199`、
+`proc_760d` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
