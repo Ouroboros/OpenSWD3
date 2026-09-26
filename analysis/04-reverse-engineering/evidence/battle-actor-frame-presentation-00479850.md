@@ -2231,8 +2231,14 @@ case9、3、5首/第二绘制、11 各有首word读障代表向量。
 两条路径及窄port入口型停止的可变访问序号先经 `proc_5060` core/CTest `199/199`；
 本次修正及代表向量经 `proc_24ad` Linux core/CTest `199/199`、
 `proc_4262` ASan core/CTest `199/199`、`proc_97fb` Linux app/CTest `205/205`。
-测试 `request()` 的图像首字节是显式合成backing，不是实际 `shared_action->turn_frame_source_token`
-与绘图/像素页的生产别名证明。`sub_4170E0` 后续全局/帧/像素页访问及故障前缀仍不闭合。
+调色板指针为零时，`0x004170FB` 的栈上 `arg_10` 仅在token匹配且有显式栈word owner时读、写；
+写障不提交高位，成功则原位 OR bit31，更新FLAGS；`0x00417107` 从同一owner重新读，
+经 `AND ECX,0xFFFC/CMP ECX,0x14`，分别停在未绑定的 `0x00417116` 或 `0x00417130` 全局读取，
+不让窄绘图port代答。case1合成栈值0x21/0x14的读障、写障、写后重读障与两条后继全局读
+按LST核对 EIP/token、先前写入和访问序号；`proc_6a3e` Linux core/CTest `199/199`、
+`proc_5bc9` ASan core/CTest `199/199`、`proc_0b33` Linux app/CTest `205/205`。
+测试 `request()` 的图像首字节与本轮栈word均为合成backing，不证明实际
+`shared_action->turn_frame_source_token` 与绘图/像素页或生产父栈的别名。`sub_4170E0` 后续全局/帧/像素页访问及故障前缀仍不闭合。
 留底提交 `7b95f28b` 后五段阶段 TG `proc_142a` 退出0；所用脚本仅在 `sendMessage`
 响应 `ok=true` 时正常返回，但未输出 `message_id`；客户端显示未验证，留底不算316验收。
 2026-09-26 00:19:36+08 五段阶段 TG `proc_8cfb` 获 API `ok=true/message_id=4315`；
@@ -2275,6 +2281,8 @@ EIP/ESP/token/累计访问序号；八个共享wrapper在入口型停止时撤�
 `proc_d18f` Linux core/CTest `199/199`、`proc_6d16` ASan core/CTest `199/199`、
 `proc_3204` Linux app/CTest `205/205`。两次音频状态指针与真实全局之间的别名尚无生产证明；
 两状态均为1后的更深callee与AIL仍由窄port表示，19处CALL仍为partial。
+留底提交 `a0e3db5e` 后五段阶段 TG `proc_5023` 退出0；同一脚本仅在 API `ok=true`
+时正常返回，未输出 `message_id`；客户端显示未验证，仍不是316验收。
 2026-09-25 23:57:38+08 五段阶段 TG `proc_e4b5` 获 API `ok=true/message_id=4314`；
 只证明平台接受，不证明用户客户端显示。
 2026-09-25 23:23:54+08 五段阶段 TG `proc_b642` 获 API `ok=true/message_id=4312`；

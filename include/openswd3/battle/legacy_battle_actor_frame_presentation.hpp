@@ -514,6 +514,8 @@ enum class LegacyBattleActorFrameEntryAccessKind : compat::u8 {
     callee_call,
 };
 
+struct LegacyBattleActorFrameParentArgumentWord;
+
 struct LegacyBattleActorFrameEntryRequest {
     compat::u32 actor_token{};
     compat::u32 entry_eax{};
@@ -541,6 +543,7 @@ struct LegacyBattleActorFrameEntryRequest {
     bool global_writable{true};
     const compat::u32* draw_source_token_owner{};   // 0x004CD730
     const compat::u32* draw_palette_token_owner{};  // 0x004CD764
+    LegacyBattleActorFrameParentArgumentWord* draw_argument_10_owner{};
     compat::u32 draw_source_bytes_token{};
     std::span<const compat::u8> draw_source_bytes{};
     bool draw_source_readable{true};

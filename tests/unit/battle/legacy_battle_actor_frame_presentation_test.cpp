@@ -5584,6 +5584,77 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 raw_draw_port.calls == 1U,
             "RLE header reads bound palette before flags RMW; raw header skips palette read entirely"
         );
+        auto palette_zero_prefix = draw_pending;
+        palette_zero_prefix.draw_argument_pushes[0U] = 0x21U;
+        u32 argument_10_word = 0x21U;
+        openswd3::battle::LegacyBattleActorFrameParentArgumentWord
+            argument_10_owner{
+                .token = palette_zero_prefix.esp + 16U,
+                .word = &argument_10_word,
+            };
+        auto bound_draw_palette = absent_draw_palette;
+        bound_draw_palette.draw_argument_10_owner = &argument_10_owner;
+        argument_10_owner.writable = false;
+        const auto stopped_palette_stack_write = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_draw_call(
+                renderer, bound_draw_palette, palette_zero_prefix
+            );
+        const bool write_fault_preserved_arg_10 = argument_10_word == 0x21U;
+        argument_10_owner.writable = true;
+        bound_draw_palette.stop_before_access =
+            palette_zero_prefix.accesses_completed + 10U;
+        const auto stopped_palette_stack_reread = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_draw_call(
+                renderer, bound_draw_palette, palette_zero_prefix
+            );
+        const bool reread_fault_committed_arg_10 =
+            argument_10_word == 0x80000021U;
+        argument_10_word = 0x21U;
+        bound_draw_palette.stop_before_access =
+            std::numeric_limits<std::size_t>::max();
+        const auto stopped_palette_next_global = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_draw_call(
+                renderer, bound_draw_palette, palette_zero_prefix
+            );
+        argument_10_word = 0x14U;
+        palette_zero_prefix.draw_argument_pushes[0U] = 0x14U;
+        const auto stopped_palette_special_global = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_draw_call(
+                renderer, bound_draw_palette, palette_zero_prefix
+            );
+        test.expect_true(
+            stopped_palette_stack_write.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
+                stopped_palette_stack_write.eip == 0x004170FBU &&
+                stopped_palette_stack_write.stopped_token ==
+                    argument_10_owner.token &&
+                stopped_palette_stack_write.flags.zero &&
+                write_fault_preserved_arg_10 &&
+                stopped_palette_stack_write.accesses_completed ==
+                    draw_pending.accesses_completed + 9U &&
+                stopped_palette_stack_reread.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
+                stopped_palette_stack_reread.eip == 0x00417107U &&
+                reread_fault_committed_arg_10 &&
+                stopped_palette_stack_reread.flags.sign &&
+                !stopped_palette_stack_reread.flags.zero &&
+                stopped_palette_stack_reread.accesses_completed ==
+                    draw_pending.accesses_completed + 10U &&
+                stopped_palette_next_global.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                stopped_palette_next_global.eip == 0x00417130U &&
+                stopped_palette_next_global.stopped_token == 0x004CD75CU &&
+                stopped_palette_next_global.ecx == 0x20U &&
+                stopped_palette_next_global.accesses_completed ==
+                    draw_pending.accesses_completed + 11U &&
+                stopped_palette_special_global.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                stopped_palette_special_global.eip == 0x00417116U &&
+                stopped_palette_special_global.stopped_token == 0x004CC2F0U &&
+                stopped_palette_special_global.ecx == 0x14U &&
+                argument_10_word == 0x80000014U && renderer.calls == 1U,
+            "bound drawing arg_10 completes the palette-zero stack RMW before its physical reread and distinct following global reads"
+        );
         renderer.reply.returned = true;
         const auto completed_draw = openswd3::battle::
             continue_legacy_battle_actor_frame_case_one_draw_call(

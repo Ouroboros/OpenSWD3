@@ -353,14 +353,61 @@ subtract_flags_16(u16 left, u16 right) noexcept;
     child.ebp = 0U;  // 0x004170F5 XOR EBP,EBP follows the palette read.
     child.flags = subtract_flags(child.eax, 0U);
     if (child.eax == 0U) {
-        // OR [ESP+0x24],0x80000000 is an RMW on the caller's arg_10.
-        // The captured PUSH value is not writable physical stack backing.
-        child.status = LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        // The RMW and its following MOV read the same physical arg_10 slot.
+        const u32 token = child.esp + 0x24U;
+        auto* const owner = request.draw_argument_10_owner;
+        const auto stop_stack = [&](const u32 ip, const bool write) {
+            child.status = write
+                ? LegacyBattleActorFrameEntryStatus::stack_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            child.stopped_access_kind = write
+                ? LegacyBattleActorFrameEntryAccessKind::stack_write
+                : LegacyBattleActorFrameEntryAccessKind::stack_read;
+            child.stopped_instruction = ip;
+            child.stopped_token = token;
+            child.eip = ip;
+            return false;
+        };
+        if (child.accesses_completed == request.stop_before_access ||
+            !request.stack_readable || owner == nullptr ||
+            owner->token != token || owner->word == nullptr ||
+            !owner->readable) {
+            return stop_stack(0x004170FBU, false);
+        }
+        const u32 before = *owner->word;
+        ++child.accesses_completed;
+        if (child.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable || !owner->writable) {
+            return stop_stack(0x004170FBU, true);
+        }
+        const u32 updated = before | 0x80000000U;
+        *owner->word = updated;
+        ++child.accesses_completed;
+        child.flags = {
+            .carry = false,
+            .parity = even_parity(static_cast<u8>(updated)),
+            .auxiliary_carry = false,
+            .auxiliary_carry_defined = false,
+            .zero = updated == 0U,
+            .sign = (updated & 0x80000000U) != 0U,
+            .overflow = false,
+        };
+        child.flags_known = true;
+        if (child.accesses_completed == request.stop_before_access ||
+            !request.stack_readable || !owner->readable) {
+            return stop_stack(0x00417107U, false);
+        }
+        ++child.accesses_completed;
+        child.ecx = *owner->word & 0x0000FFFCU;
+        child.flags = subtract_flags(child.ecx, 0x14U);
+        child.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
         child.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::stack_read;
-        child.stopped_instruction = 0x004170FBU;
-        child.stopped_token = child.esp + 0x24U;
-        child.eip = 0x004170FBU;
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        child.stopped_instruction =
+            child.flags.zero ? 0x00417116U : 0x00417130U;
+        child.stopped_token = child.flags.zero ? 0x004CC2F0U : 0x004CD75CU;
+        child.eip = child.stopped_instruction;
         return false;
     }
     return true;
