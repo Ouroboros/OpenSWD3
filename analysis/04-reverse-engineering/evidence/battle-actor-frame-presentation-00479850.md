@@ -2846,6 +2846,16 @@ Linux core/CTest `199/199`、`proc_d5f7` ASan core/CTest
 `199/199`、`proc_6d3a` Linux app/CTest `205/205`。
 失败轮次不计通过。
 合成返回地址不证明生产父调用栈或其他caller。
+该阶段提交推送`0673b160`，远端SHA一致；TG `proc_7e3a`退出0，
+客户端显示未验证。显式绑定最外层分配返回栈时，按LST
+`0x00487C2B POP EBP`读`0x00487C10 PUSH EBP`保存值，
+`0x00487C2C RET`取回格式16的`0x00401A0B`或格式8的
+`0x00401AC8`，清一项实参，再停在格式对应的首次源字读取
+`0x00401A0E`/`0x00401ACB`前。当前故障向量仅覆盖格式16
+显式合成块的两次栈读、DF双向和空链/非空链；格式8未由本轮向量证明。
+`proc_b155` Linux core/CTest `199/199`、`proc_7e5b` ASan
+core/CTest `199/199`、`proc_99cc` Linux app/CTest `205/205`。
+真实像素数据及生产块来源仍待核对。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

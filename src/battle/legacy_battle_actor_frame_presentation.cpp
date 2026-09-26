@@ -6255,6 +6255,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         !save(allocator_call_ip, allocator_return_ip)) {
         return prefix;
     }
+    const u32 saved_heap_outer_ebp = prefix.ebp;
     if (!save(0x00487C10U, prefix.ebp)) {
         return prefix;
     }
@@ -8369,6 +8370,69 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                     prefix.esp;
                                                                 prefix.eip =
                                                                     0x00487C2BU;
+                                                                if (
+                                                                    request
+                                                                        .decoder_payload_heap_outer_return_stack_backed
+                                                                ) {
+                                                                    if (!read_inner_argument(
+                                                                            0x00487C2BU,
+                                                                            prefix
+                                                                                .esp,
+                                                                            saved_heap_outer_ebp,
+                                                                            prefix
+                                                                                .ebp
+                                                                        )) {
+                                                                        return prefix;
+                                                                    }
+                                                                    prefix
+                                                                        .esp +=
+                                                                        4U;
+                                                                    u32 outer_return_ip{};
+                                                                    if (!read_inner_argument(
+                                                                            0x00487C2CU,
+                                                                            prefix
+                                                                                .esp,
+                                                                            allocator_return_ip,
+                                                                            outer_return_ip
+                                                                        )) {
+                                                                        return prefix;
+                                                                    }
+                                                                    prefix
+                                                                        .esp +=
+                                                                        4U;
+                                                                    prefix.eip =
+                                                                        outer_return_ip;
+                                                                    prefix
+                                                                        .flags =
+                                                                        add_flags(
+                                                                            prefix
+                                                                                .esp,
+                                                                            4U
+                                                                        );
+                                                                    prefix
+                                                                        .esp +=
+                                                                        4U;
+                                                                    prefix
+                                                                        .status =
+                                                                        LegacyBattleActorFrameEntryStatus::
+                                                                            frame_resource_read_typed_stop;
+                                                                    prefix
+                                                                        .stopped_access_kind =
+                                                                        LegacyBattleActorFrameEntryAccessKind::
+                                                                            frame_resource_read;
+                                                                    prefix
+                                                                        .stopped_instruction =
+                                                                        format_sixteen
+                                                                        ? 0x00401A0EU
+                                                                        : 0x00401ACBU;
+                                                                    prefix
+                                                                        .stopped_token =
+                                                                        prefix
+                                                                            .edi;
+                                                                    prefix.eip =
+                                                                        prefix
+                                                                            .stopped_instruction;
+                                                                }
                                                             }
                                                         } else {
                                                             prefix.status =
