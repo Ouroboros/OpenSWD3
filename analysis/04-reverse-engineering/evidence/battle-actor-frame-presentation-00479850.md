@@ -2880,7 +2880,23 @@ core/CTest `199/199`、`proc_99cc` Linux app/CTest `205/205`。
 `proc_fa7d` Linux core/CTest `199/199`、`proc_3790` ASan
 core/CTest `199/199`、`proc_226f` Linux app/CTest `205/205`。
 仅验证该Size=12的显式空链合成路径，不证明其他尺寸、真实源页、
-分配器块来源或后续格式8命令流。
+分配器块来源或后续格式8命令流。该批提交推送`b47e45e2`，
+远端同SHA；阶段TG `proc_98b4`退出0，客户端显示未验证。
+继续在显式源span且首词非零、第二词为普通字面类
+`(word & 0xC000)==0`时独立读源`+10`的16位词：格式16在
+`0x00401A1A MOV DX,[EDI+2]`、格式8在
+`0x00401AD7 MOV CX,[EDI+2]`，保留对应寄存器高16位；
+两个`ADD EDI`使源游标到`+12`。第二词0时分别在
+`0x00401AAB`/`0x00401B58`下一行标记读前停下，EBP=2，
+TEST低16位FLAGS为零；字面计数2时分别在
+`0x00401A45`下一个像素字、`0x00401B02`下一个像素字节读前
+停下，EBP=4、16位路径EDX=2/ECX=0、8位路径ECX=2/EDX=0、
+AND FLAGS保持非零且奇偶位为0。高位编码、短源、未绑定源继续
+停在第二词读前，不将窥视的合成数据冒充可观察访问；输出像素流
+尚未执行。格式16向量含空/非空链与双向DF，格式8仅空链DF=0；
+均为Size=12显式合成块和源。`proc_335e` Linux core/CTest
+`199/199`、`proc_f022` ASan core/CTest `199/199`、
+`proc_71c6` Linux app/CTest `205/205`；这不证明真实生产别名。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

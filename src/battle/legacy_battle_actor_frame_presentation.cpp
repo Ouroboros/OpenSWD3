@@ -8522,6 +8522,125 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                             .eip =
                                                                             prefix
                                                                                 .stopped_instruction;
+                                                                        if (
+                                                                            nonzero &&
+                                                                            request
+                                                                                .decoder_payload_heap_literal_command_word_backed &&
+                                                                            source_bytes
+                                                                                    ->size() >=
+                                                                                12U &&
+                                                                            prefix.accesses_completed !=
+                                                                                request
+                                                                                    .stop_before_access
+                                                                        ) {
+                                                                            const u16 command =
+                                                                                static_cast<
+                                                                                    u16>((
+                                                                                    *source_bytes
+                                                                                )[10U]) |
+                                                                                static_cast<
+                                                                                    u16>(
+                                                                                    static_cast<
+                                                                                        u16>((
+                                                                                        *source_bytes
+                                                                                    )[11U])
+                                                                                    << 8U
+                                                                                );
+                                                                            if (
+                                                                                (
+                                                                                    command &
+                                                                                    0xC000U
+                                                                                ) ==
+                                                                                0U
+                                                                            ) {
+                                                                                ++prefix
+                                                                                      .accesses_completed;
+                                                                                prefix
+                                                                                    .edi +=
+                                                                                    4U;
+                                                                                prefix
+                                                                                    .ebp =
+                                                                                    command ==
+                                                                                        0U
+                                                                                    ? 2U
+                                                                                    : 4U;
+                                                                                if (
+                                                                                    format_sixteen
+                                                                                ) {
+                                                                                    prefix
+                                                                                        .edx =
+                                                                                        command ==
+                                                                                            0U
+                                                                                        ? prefix.edx &
+                                                                                            0xFFFF0000U
+                                                                                        : command;
+                                                                                    prefix
+                                                                                        .ecx =
+                                                                                        0U;
+                                                                                } else {
+                                                                                    prefix
+                                                                                        .ecx =
+                                                                                        command ==
+                                                                                            0U
+                                                                                        ? prefix.ecx &
+                                                                                            0xFFFF0000U
+                                                                                        : command;
+                                                                                    prefix
+                                                                                        .edx =
+                                                                                        0U;
+                                                                                }
+                                                                                if (
+                                                                                    command !=
+                                                                                    0U
+                                                                                ) {
+                                                                                    prefix
+                                                                                        .ebx =
+                                                                                        0U;
+                                                                                }
+                                                                                prefix
+                                                                                    .flags = {
+                                                                                    .carry =
+                                                                                        false,
+                                                                                    .parity = even_parity(
+                                                                                        static_cast<
+                                                                                            u8>(
+                                                                                            command
+                                                                                        )
+                                                                                    ),
+                                                                                    .auxiliary_carry_defined =
+                                                                                        false,
+                                                                                    .zero =
+                                                                                        command ==
+                                                                                        0U,
+                                                                                    .sign =
+                                                                                        false,
+                                                                                    .overflow =
+                                                                                        false,
+                                                                                };
+                                                                                prefix
+                                                                                    .stopped_instruction =
+                                                                                    command ==
+                                                                                        0U
+                                                                                    ? (
+                                                                                          format_sixteen
+                                                                                              ? 0x00401AABU
+                                                                                              : 0x00401B58U
+                                                                                      )
+                                                                                    : (
+                                                                                          format_sixteen
+                                                                                              ? 0x00401A45U
+                                                                                              : 0x00401B02U
+                                                                                      );
+                                                                                prefix
+                                                                                    .stopped_token =
+                                                                                    prefix
+                                                                                        .edi;
+                                                                                prefix
+                                                                                    .eip =
+                                                                                    prefix
+                                                                                        .stopped_instruction;
+                                                                            }
+                                                                        }
                                                                     }
                                                                 }
                                                             }

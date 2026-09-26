@@ -9052,6 +9052,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     false;
                 request.decoder_payload_heap_outer_return_stack_backed = false;
                 request.decoder_payload_heap_initial_source_word_backed = false;
+                request.decoder_payload_heap_literal_command_word_backed = false;
                 auto heap_register_snapshot_request = request;
                 heap_register_snapshot_request.stop_before_access =
                     decoder_pending.accesses_completed + 44U;
@@ -9841,6 +9842,96 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         linked_raw_backing[32U] == 0x7EU,
                     "nonzero format-sixteen command stops before its next source word"
                 );
+                auto literal_request = source_request;
+                literal_request
+                    .decoder_payload_heap_literal_command_word_backed = true;
+                for (const u32 stop_offset : {191U, 192U}) {
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    literal_request.stop_before_access =
+                        decoder_pending.accesses_completed + stop_offset +
+                        (has_old_tail ? 1U : 0U);
+                    const auto stopped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, literal_request, fill_prefix
+                        );
+                    test.expect_true(
+                        stopped.eip ==
+                                (stop_offset == 191U ? 0x00401A1AU
+                                                     : 0x00401A45U) &&
+                            stopped.stopped_access_kind ==
+                                Access::frame_resource_read &&
+                            stopped.stopped_token ==
+                                heap_register_snapshot.edi +
+                                    (stop_offset == 191U ? 2U : 4U) &&
+                            stopped.accesses_completed ==
+                                literal_request.stop_before_access &&
+                            stopped.esp == stack_top - 20U &&
+                            stopped.esi == 0x00804020U &&
+                            (stop_offset == 191U ||
+                             (stopped.edi == 0x77665550U && stopped.edx == 2U &&
+                              stopped.ecx == 0U && stopped.ebx == 0U &&
+                              stopped.ebp == 4U && !stopped.flags.parity &&
+                              !stopped.flags.zero && !stopped.flags.sign)) &&
+                            linked_raw_backing[32U] == 0x7EU,
+                        "format-sixteen literal count read stops before its first pixel source word"
+                    );
+                }
+                const std::array<openswd3::compat::u8, 12U> kZeroCountSource{
+                    0xFFU,
+                    0xFFU,
+                    0x02U,
+                    0x00U,
+                    0x03U,
+                    0x00U,
+                    0x10U,
+                    0x00U,
+                    0x01U,
+                    0x80U,
+                    0x00U,
+                    0x00U,
+                };
+                const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                    zero_count_sources{{{0x77665544U, kZeroCountSource}}};
+                auto zero_count_request = literal_request;
+                zero_count_request.decoder_sources = zero_count_sources;
+                zero_count_request.stop_before_access = 0U;
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                const auto zero_count = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, zero_count_request, fill_prefix
+                    );
+                test.expect_true(
+                    zero_count.eip == 0x00401AABU &&
+                        zero_count.stopped_access_kind ==
+                            Access::frame_resource_read &&
+                        zero_count.stopped_token == 0x77665550U &&
+                        zero_count.edi == 0x77665550U && zero_count.ebp == 2U &&
+                        zero_count.ecx == 0U &&
+                        (zero_count.edx & 0xFFFFU) == 0U &&
+                        zero_count.flags_known && zero_count.flags.zero &&
+                        zero_count.flags.parity &&
+                        zero_count.accesses_completed ==
+                            decoder_pending.accesses_completed +
+                                (has_old_tail ? 193U : 192U) &&
+                        linked_raw_backing[32U] == 0x7EU,
+                    "zero format-sixteen command count advances to next row marker read"
+                );
                 const std::array<openswd3::compat::u8, 10U> kZeroSourceBytes{
                     0xFFU,
                     0xFFU,
@@ -9943,6 +10034,93 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 "format-eight twelve-byte allocation reads its first word before the command stream"
             );
         }
+        auto eight_literal_request = eight_request;
+        eight_literal_request.decoder_payload_heap_literal_command_word_backed =
+            true;
+        for (const u32 stop_offset : {191U, 192U}) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            writable_heap_head = 0xABCDEF01U;
+            linked_raw_backing.fill(0xA5U);
+            case_two_outputs.words = {2U, 3U, 0x10U};
+            eight_literal_request.stop_before_access =
+                decoder_pending.accesses_completed + stop_offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, eight_literal_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip ==
+                        (stop_offset == 191U ? 0x00401AD7U : 0x00401B02U) &&
+                    stopped.stopped_access_kind ==
+                        Access::frame_resource_read &&
+                    stopped.stopped_token ==
+                        0x77665544U + (stop_offset == 191U ? 10U : 12U) &&
+                    stopped.accesses_completed ==
+                        eight_literal_request.stop_before_access &&
+                    stopped.esp == stack_top - 20U &&
+                    stopped.esi == 0x00804020U &&
+                    (stop_offset == 191U ||
+                     (stopped.edi == 0x77665550U && stopped.ecx == 2U &&
+                      stopped.edx == 0U && stopped.ebx == 0U &&
+                      stopped.ebp == 4U && !stopped.flags.parity &&
+                      !stopped.flags.zero && !stopped.flags.sign)) &&
+                    case_two_outputs.words ==
+                        std::array<u32, 3U>{3U, 4U, 0x08U} &&
+                    linked_raw_backing[32U] == 0x7EU,
+                "format-eight literal count read stops before its first pixel source byte"
+            );
+        }
+        const std::array<openswd3::compat::u8, 12U> kEightZeroCountSource{
+            0xFFU,
+            0xFFU,
+            0x03U,
+            0x00U,
+            0x04U,
+            0x00U,
+            0x08U,
+            0x00U,
+            0x01U,
+            0x80U,
+            0x00U,
+            0x00U,
+        };
+        const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+            eight_zero_count_sources{{{0x77665544U, kEightZeroCountSource}}};
+        auto eight_zero_count_request = eight_literal_request;
+        eight_zero_count_request.decoder_sources = eight_zero_count_sources;
+        eight_zero_count_request.stop_before_access = 0U;
+        mutable_request_counter = 0x00760000U;
+        mutable_heap_size = 0xFFFFFFFEU;
+        mutable_live_size = 0xFFFFFFFDU;
+        mutable_peak_size = 8U;
+        empty_heap_tail = 0U;
+        writable_heap_head = 0xABCDEF01U;
+        linked_raw_backing.fill(0xA5U);
+        case_two_outputs.words = {2U, 3U, 0x10U};
+        const auto eight_zero_count = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, eight_zero_count_request, decoder_pending
+            );
+        test.expect_true(
+            eight_zero_count.eip == 0x00401B58U &&
+                eight_zero_count.stopped_access_kind ==
+                    Access::frame_resource_read &&
+                eight_zero_count.stopped_token == 0x77665550U &&
+                eight_zero_count.edi == 0x77665550U &&
+                eight_zero_count.ebp == 2U && eight_zero_count.edx == 0U &&
+                (eight_zero_count.ecx & 0xFFFFU) == 0U &&
+                eight_zero_count.flags_known && eight_zero_count.flags.zero &&
+                eight_zero_count.flags.parity &&
+                eight_zero_count.accesses_completed ==
+                    decoder_pending.accesses_completed + 192U &&
+                case_two_outputs.words == std::array<u32, 3U>{3U, 4U, 0x08U} &&
+                linked_raw_backing[32U] == 0x7EU,
+            "zero format-eight command count advances to next row marker read"
+        );
         const std::array<openswd3::compat::u8, 10U> kEightZeroSource{
             0xFFU,
             0xFFU,
