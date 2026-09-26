@@ -2422,7 +2422,20 @@ EDI/ESI/EBP，`0x004019BA XOR EAX,EAX` 清零并设置ZF，再从 `0x004019BC` �
 分别核对ESP/EAX/EDX/EDI和之前三项输出；合成宽2、高3的16位分配尺寸为12 byte，
 8位分配尺寸为6 byte。测试不能证明真实栈页、分配器回包或首个图像命令读取。
 `proc_82ee` Linux core/CTest `199/199`、`proc_adf7` ASan core/CTest `199/199`、
-`proc_c4b9` Linux app/CTest `205/205`。
+`proc_c4b9` Linux app/CTest `205/205`；该批已提交并推送 `6296c5ee`，
+阶段TG `proc_c6fe` 退出0，客户端显示未验证。
+分配请求前下两处可障父栈写已按 LST 分开：16位`0x00401A05 PUSH EDX(Size)` 与
+`0x00401A06 CALL sub_487C10`，8位`0x00401AC2 PUSH EAX(Size)` 与
+`0x00401AC3 CALL sub_487C10`。前者成功后ESP额外减4且保留尺寸，后者才
+另写返回地址`0x00401A0B/0x00401AC8`并进入真实callee入口`0x00487C10`；
+因此非返回窄port不得把已完成的两次栈写或父栈三项输出撤销。测试合成宽2高3对应
+16位尺寸12、8位尺寸6，四个独立栈写故障序号、ESP、token、last-pushed前缀均有验证。
+`sub_487C10` 自身`PUSH EBP`、保存栈基址、前三个常量PUSH、全局读取、
+后两次参数PUSH、`sub_487C80`深层CALL、平栈/POP/RET以及分配后的首个图像命令读取
+仍归未审后缀；
+正常端口回包只代表该后缀具备条件性正常栈平衡，**不证明其分配/循环故障**。
+`proc_53eb` Linux core/CTest `199/199`、`proc_36e8` ASan core/CTest `199/199`、
+`proc_742c` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

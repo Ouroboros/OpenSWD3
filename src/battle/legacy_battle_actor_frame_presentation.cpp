@@ -6247,7 +6247,13 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     } else {
         prefix.eax = low_product;
     }
-    const u32 suffix_ip = format_sixteen ? 0x00401A05U : 0x00401AC2U;
+    const u32 size_push_ip = format_sixteen ? 0x00401A05U : 0x00401AC2U;
+    const u32 allocator_call_ip = format_sixteen ? 0x00401A06U : 0x00401AC3U;
+    const u32 allocator_return_ip = format_sixteen ? 0x00401A0BU : 0x00401AC8U;
+    if (!save(size_push_ip, format_sixteen ? prefix.edx : prefix.eax) ||
+        !save(allocator_call_ip, allocator_return_ip)) {
+        return prefix;
+    }
 
     const std::array<u32, 4U> arguments{
         prefix.decoder_argument_pushes[3U],
@@ -6273,11 +6279,12 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                         case_two_decoder_child_typed_stop;
         prefix.stopped_access_kind =
             LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = suffix_ip;
-        prefix.eip = suffix_ip;
+        prefix.stopped_instruction = 0x00487C10U;
+        prefix.eip = 0x00487C10U;
         return prefix;
     }
-    prefix.esp += 20U;  // Four saved registers and the CALL slot are restored.
+    // The allocator argument/return and decoder saves unwind.
+    prefix.esp += 28U;
     prefix.esi = callee_entry.esi;
     prefix.edi = callee_entry.edi;
     prefix.eax = reply.eax;
