@@ -429,12 +429,14 @@ public:
     static constexpr std::array<openswd3::compat::u8, 2U> kSyntheticDrawHeader{
         0xFFU, 0xFFU
     };
+    static constexpr std::array<openswd3::compat::u8, 4U>
+        kSyntheticDecoderHeader{0xFFU, 0xFFU, 0x02U, 0x00U};
     static const std::array<LegacyBattleActorFrameDecoderSource, 4U>
         kSyntheticDecoderSources{{
-            {0x12340000U, kSyntheticDrawHeader},
-            {0x77665544U, kSyntheticDrawHeader},
-            {0xAABBCCDDU, kSyntheticDrawHeader},
-            {0x12345678U, kSyntheticDrawHeader},
+            {0x12340000U, kSyntheticDecoderHeader},
+            {0x77665544U, kSyntheticDecoderHeader},
+            {0xAABBCCDDU, kSyntheticDecoderHeader},
+            {0x12345678U, kSyntheticDecoderHeader},
         }};
     return {
         .actor_token = 0x005029D0U,
@@ -6883,6 +6885,76 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 "decoder mismatched header preserves each callee save/restore fault prefix"
             );
         }
+        struct MatchedHeaderReadFault {
+            u32 offset;
+            u32 instruction;
+            u32 token;
+        };
+        const std::array<MatchedHeaderReadFault, 4U> kReadFaults{{
+            {8U, 0x004019BEU, decoder_pending.esp + 4U},
+            {9U, 0x004019C2U, decoder_pending.esp + 8U},
+            {10U, 0x004019C8U, decoder_pending.esp + 12U},
+            {11U, 0x004019CCU, 0x77665546U},
+        }};
+        for (const auto fault : kReadFaults) {
+            auto at_fault = group_a_initial_request;
+            at_fault.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, at_fault, decoder_pending
+                );
+            test.expect_true(
+                stopped.status ==
+                        (fault.offset == 11U
+                             ? LegacyBattleActorFrameEntryStatus::
+                                   frame_resource_read_typed_stop
+                             : LegacyBattleActorFrameEntryStatus::
+                                   stack_read_typed_stop) &&
+                    stopped.eip == fault.instruction &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == decoder_pending.esp - 20U &&
+                    stopped.edx ==
+                        (fault.offset > 8U
+                             ? decoder_pending.decoder_argument_pushes[2U]
+                             : 0xFFFFU) &&
+                    stopped.esi ==
+                        (fault.offset > 9U
+                             ? decoder_pending.decoder_argument_pushes[1U]
+                             : decoder_pending.esi) &&
+                    stopped.edi ==
+                        (fault.offset > 10U
+                             ? decoder_pending.decoder_argument_pushes[0U]
+                             : decoder_pending.edi) &&
+                    stopped.ecx == (fault.offset > 9U ? 0U : 0xFFFFU) &&
+                    stopped.flags_known && stopped.flags.zero &&
+                    stopped.accesses_completed == at_fault.stop_before_access &&
+                    decoder.calls == 0U,
+                "matched decoder header preserves three parent argument stack reads and the width-word source read in LST order"
+            );
+        }
+        static constexpr std::array<openswd3::compat::u8, 2U>
+            kShortDecoderSource{0xFFU, 0xFFU};
+        const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+            short_decoder_sources{{{0x77665544U, kShortDecoderSource}}};
+        auto short_decoder_request = group_a_initial_request;
+        short_decoder_request.decoder_sources = short_decoder_sources;
+        const auto stopped_short_header = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, short_decoder_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_short_header.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        frame_resource_read_typed_stop &&
+                stopped_short_header.eip == 0x004019CCU &&
+                stopped_short_header.stopped_token == 0x77665546U &&
+                stopped_short_header.esp == decoder_pending.esp - 20U &&
+                stopped_short_header.ecx == 0U &&
+                stopped_short_header.flags_known &&
+                stopped_short_header.flags.zero && decoder.calls == 0U,
+            "matched decoder header requires width bytes after reading its three output addresses"
+        );
         decoder.reply.returned = false;
         const auto stopped_decoder_entry = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_decoder_call(
@@ -6919,6 +6991,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 decoder_returned.eip == 0x00479B4BU &&
                 decoder_returned.esp == decoder_pending.esp &&
                 decoder_returned.eax == 0x00803000U &&
+                decoder_returned.esi == decoder_pending.esi &&
+                decoder_returned.edi == decoder_pending.edi &&
                 decoder_returned.flags_known && decoder_returned.flags.zero &&
                 decoder.arguments == expected_decode_arguments &&
                 decoder.entry_eax == decoder_pending.eax &&

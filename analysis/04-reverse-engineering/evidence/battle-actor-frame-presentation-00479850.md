@@ -2376,7 +2376,17 @@ EDI/ESI/EBP，`0x004019BA XOR EAX,EAX` 清零并设置ZF，再从 `0x004019BC` �
 测试用合成头 `0x1234` 对比合成全局 `0xFFFF`，只验证case2及共享callee这段前缀，
 不能证明其余三caller的整个父路径或正常格式匹配后的宽高、格式、分配和循环。
 `proc_8369` Linux core/CTest `199/199`、`proc_4eaf` ASan core/CTest `199/199`、
-`proc_4de6` Linux app/CTest `205/205`。
+`proc_4de6` Linux app/CTest `205/205`；该批已提交并推送 `445052c4`，
+阶段TG `proc_b56f` 退出0，客户端显示未验证。
+匹配头后的 `0x004019BE/C2/C8` 依次从当前callee栈的
+`CALL_ESP+8/+12/+16` 重读输出指针（`var_8/var_C/var_10`），先写 EDX/ESI，
+`0x004019C6` 清ECX及置ZF，再写EDI，才在 `0x004019CC` 从首参数源指针
+`+2` 读取宽度word。三次父栈读障和宽度读障分别保留已有寄存器/ESP/FLAGS，
+源字节不足四个时停在真实宽度读取点，不调用深层port；port正常回复恢复保存的ESI/EDI。
+测试四个源token的宽度值仍为合成2，父栈owner及资源字节别名未有生产证明；
+`0x004019D0` 写首个输出栈槽以及后续高度、格式读取/写入仍未核对。
+`proc_da5c` Linux core/CTest `199/199`、`proc_16da` ASan core/CTest `199/199`、
+`proc_b09c` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

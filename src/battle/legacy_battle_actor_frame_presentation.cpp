@@ -6029,6 +6029,64 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         return prefix;
     }
 
+    const auto read_parent_argument = [&](const u32 instruction,
+                                          const u32 token,
+                                          const u32 value,
+                                          u32& destination) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.stack_readable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        destination = value;
+        return true;
+    };
+    if (!read_parent_argument(
+            0x004019BEU,
+            callee_entry.esp + 8U,
+            prefix.decoder_argument_pushes[2U],
+            prefix.edx
+        ) ||
+        !read_parent_argument(
+            0x004019C2U,
+            callee_entry.esp + 12U,
+            prefix.decoder_argument_pushes[1U],
+            prefix.esi
+        )) {
+        return prefix;
+    }
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_parent_argument(
+            0x004019C8U,
+            callee_entry.esp + 16U,
+            prefix.decoder_argument_pushes[0U],
+            prefix.edi
+        )) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.decoder_source_readable || source_bytes->size() < 4U) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::frame_resource_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read;
+        prefix.stopped_instruction = 0x004019CCU;
+        prefix.stopped_token = prefix.eax + 2U;
+        prefix.eip = 0x004019CCU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.ecx = static_cast<u32>((*source_bytes)[2U]) |
+        (static_cast<u32>((*source_bytes)[3U]) << 8U);
+
     const std::array<u32, 4U> arguments{
         prefix.decoder_argument_pushes[3U],
         prefix.decoder_argument_pushes[2U],
@@ -6065,6 +6123,8 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         return prefix;
     }
     prefix.esp += 20U;  // Four saved registers and the CALL slot are restored.
+    prefix.esi = callee_entry.esi;
+    prefix.edi = callee_entry.edi;
     prefix.eax = reply.eax;
     prefix.ecx = reply.ecx;
     prefix.edx = reply.edx;
