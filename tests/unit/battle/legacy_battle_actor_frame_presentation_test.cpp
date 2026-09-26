@@ -8187,6 +8187,103 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 "old linked heap tail writes the raw block pointer before the new block back-link"
             );
         }
+        std::array<openswd3::compat::u8, 48U> linked_raw_backing{};
+        auto bound_empty_raw_request = bound_empty_head_request;
+        bound_empty_raw_request.decoder_heap_block_token = 0x00804000U;
+        bound_empty_raw_request.decoder_heap_block_bytes = linked_raw_backing;
+        const std::array<HeapPrefixFault, 5U> kEmptyRawFaults{{
+            {111U,
+             0x00487F41U,
+             116U,
+             0x00804000U,
+             Access::allocator_block_write},
+            {112U, 0x00487F43U, 116U, stack_top - 92U, Access::stack_read},
+            {113U,
+             0x00487F46U,
+             116U,
+             0x00804004U,
+             Access::allocator_block_write},
+            {114U, 0x00487F4DU, 116U, stack_top - 92U, Access::stack_read},
+            {115U, 0x00487F50U, 116U, stack_top - 72U, Access::stack_read},
+        }};
+        for (const auto& fault : kEmptyRawFaults) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            writable_heap_head = 0xABCDEF01U;
+            linked_raw_backing.fill(0xA5U);
+            bound_empty_raw_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, bound_empty_raw_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.accesses_completed ==
+                        bound_empty_raw_request.stop_before_access &&
+                    linked_raw_backing[0U] ==
+                        (fault.offset > 111U ? 0U : 0xA5U) &&
+                    linked_raw_backing[4U] ==
+                        (fault.offset > 113U ? 0U : 0xA5U) &&
+                    writable_heap_head == 0x00804000U &&
+                    mutable_heap_size == 10U && mutable_live_size == 9U &&
+                    mutable_peak_size == 9U,
+                "empty linked heap writes the raw block previous and next pointers before reading metadata"
+            );
+        }
+        auto bound_nonempty_raw_request = bound_old_tail_request;
+        bound_nonempty_raw_request.decoder_heap_block_token = 0x00804000U;
+        bound_nonempty_raw_request.decoder_heap_block_bytes =
+            linked_raw_backing;
+        const std::array<HeapPrefixFault, 5U> kNonemptyRawFaults{{
+            {112U,
+             0x00487F41U,
+             116U,
+             0x00804000U,
+             Access::allocator_block_write},
+            {113U, 0x00487F43U, 116U, stack_top - 92U, Access::stack_read},
+            {114U,
+             0x00487F46U,
+             116U,
+             0x00804004U,
+             Access::allocator_block_write},
+            {115U, 0x00487F4DU, 116U, stack_top - 92U, Access::stack_read},
+            {116U, 0x00487F50U, 116U, stack_top - 72U, Access::stack_read},
+        }};
+        for (const auto& fault : kNonemptyRawFaults) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            old_tail_backing.fill(0xA5U);
+            linked_raw_backing.fill(0xA5U);
+            bound_nonempty_raw_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, bound_nonempty_raw_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.accesses_completed ==
+                        bound_nonempty_raw_request.stop_before_access &&
+                    linked_raw_backing[0U] ==
+                        (fault.offset > 112U ? 0U : 0xA5U) &&
+                    linked_raw_backing[1U] ==
+                        (fault.offset > 112U ? 0x60U : 0xA5U) &&
+                    linked_raw_backing[4U] ==
+                        (fault.offset > 114U ? 0U : 0xA5U) &&
+                    old_tail_backing[5U] == 0x40U && mutable_heap_size == 10U &&
+                    mutable_live_size == 9U && mutable_peak_size == 9U,
+                "nonempty linked heap preserves the old-tail write before raw back-link fields"
+            );
+        }
         std::array<openswd3::compat::u8, 48U> synthetic_heap_bytes{};
         auto backed_header_request = writable_counter_request;
         backed_header_request.decoder_heap_block_token = 0x00804000U;

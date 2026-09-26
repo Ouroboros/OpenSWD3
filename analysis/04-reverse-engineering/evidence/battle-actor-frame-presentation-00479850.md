@@ -2672,7 +2672,16 @@ backing时拒绝虚构别名；上述合成绑定均不证明生产链表所有�
 空链头四处与旧尾四处故障前缀均验证旧统计量持续可见；初次
 `proc_d631`因测试向量一处括号拼接编译失败，不算门禁通过。修复后
 `proc_a98b` Linux core/CTest `199/199`、`proc_fa2a` ASan core/CTest
-`199/199`、`proc_6a09` Linux app/CTest `205/205`。
+`199/199`、`proc_6a09` Linux app/CTest `205/205`。该阶段提交推送
+`840f296f`，TG `proc_37f3`退出0，客户端显示未验证。
+两条linked分支写完链头或旧尾后，仅在raw块有同址可写字节backing
+时于`0x00487F41`写当前链尾token至`[raw]`，在`0x00487F43`
+重读raw后于`0x00487F46`写`[raw+4]=0`；然后`0x00487F4D`
+再读raw，停在尚未审计的`0x00487F50 [EBP+arg_8]`读取前。
+零链尾和非零链尾各五处故障顺序与前缀字节分别验证，合成字节不
+证明实际堆块来源或生产节点别名。
+`proc_7561` Linux core/CTest `199/199`、`proc_5498` ASan core/CTest
+`199/199`、`proc_7a67` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
