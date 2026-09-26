@@ -6649,6 +6649,37 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_decoder_call.decode_calls == 0U && decoder.calls == 0U,
             "case2 decoder CALL return-address PUSH fault retains four input arguments without invoking decoder"
         );
+        auto unreadable_decoder_argument = group_a_initial_request;
+        unreadable_decoder_argument.stack_readable = false;
+        const auto stopped_decoder_argument = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, unreadable_decoder_argument, decoder_pending
+            );
+        auto indexed_decoder_argument = group_a_initial_request;
+        indexed_decoder_argument.stop_before_access =
+            decoder_pending.accesses_completed + 1U;
+        const auto stopped_indexed_argument = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, indexed_decoder_argument, decoder_pending
+            );
+        test.expect_true(
+            stopped_decoder_argument.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
+                stopped_decoder_argument.eip == 0x004019A0U &&
+                stopped_decoder_argument.stopped_token == decoder_pending.esp &&
+                stopped_decoder_argument.esp == decoder_pending.esp - 4U &&
+                stopped_decoder_argument.accesses_completed ==
+                    decoder_pending.accesses_completed + 1U &&
+                stopped_decoder_argument.decode_calls == 1U &&
+                stopped_indexed_argument.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
+                stopped_indexed_argument.eip == 0x004019A0U &&
+                stopped_indexed_argument.stopped_token == decoder_pending.esp &&
+                stopped_indexed_argument.accesses_completed ==
+                    stopped_decoder_argument.accesses_completed &&
+                decoder.calls == 0U,
+            "decoder first caller-argument stack read faults after CALL return PUSH but before decoder port invocation"
+        );
         decoder.reply.returned = false;
         const auto stopped_decoder_entry = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_decoder_call(
