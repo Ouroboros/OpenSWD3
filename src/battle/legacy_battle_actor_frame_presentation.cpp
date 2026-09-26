@@ -8087,6 +8087,43 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                 prefix.stopped_instruction = 0x0048A971U;
                                 prefix.stopped_token = payload_target;
                                 prefix.eip = 0x0048A971U;
+                                const bool pixel_fill_backed =
+                                    request
+                                        .decoder_payload_heap_fill_write_backed &&
+                                    allocation_size == 12U;
+                                if (pixel_fill_backed) {
+                                    const u32 pixel_block_token =
+                                        request.decoder_heap_block_token;
+                                    for (u32 dword = 0U; dword < 3U; ++dword) {
+                                        const std::size_t offset =
+                                            static_cast<std::size_t>(
+                                                prefix.edi - pixel_block_token
+                                            );
+                                        if (!write_heap_header(
+                                                0x0048A971U,
+                                                pixel_block_token,
+                                                offset,
+                                                prefix.eax
+                                            )) {
+                                            return prefix;
+                                        }
+                                        prefix.edi += prefix.direction_flag
+                                            ? 0xFFFFFFFCU
+                                            : 4U;
+                                        --prefix.ecx;
+                                    }
+                                    prefix.flags =
+                                        subtract_flags(prefix.edx, 0U);
+                                    prefix.status =
+                                        LegacyBattleActorFrameEntryStatus::
+                                            stack_read_typed_stop;
+                                    prefix.stopped_access_kind =
+                                        LegacyBattleActorFrameEntryAccessKind::
+                                            stack_read;
+                                    prefix.stopped_instruction = 0x0048A97DU;
+                                    prefix.stopped_token = prefix.esp + 8U;
+                                    prefix.eip = 0x0048A97DU;
+                                }
                             }
                         }
                     }

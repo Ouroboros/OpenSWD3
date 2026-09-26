@@ -9035,6 +9035,86 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     linked_raw_backing[44U] == 0xFDU,
                 "linked pixel fill needs three dword writes, not one guard dword"
             );
+            request.decoder_payload_heap_fill_write_backed = true;
+            for (const bool reverse : {true, false}) {
+                auto fill_prefix = decoder_pending;
+                fill_prefix.direction_flag = reverse;
+                request.direction_flag = reverse;
+                for (u32 dword = 0U; dword < 3U; ++dword) {
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    request.stop_before_access =
+                        decoder_pending.accesses_completed + 171U + dword +
+                        (has_old_tail ? 1U : 0U);
+                    const auto stopped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, request, fill_prefix
+                        );
+                    test.expect_true(
+                        stopped.eip == 0x0048A971U &&
+                            stopped.stopped_access_kind ==
+                                Access::allocator_block_write &&
+                            stopped.stopped_token ==
+                                0x00804020U +
+                                    (reverse ? 0U - 4U * dword : 4U * dword) &&
+                            stopped.edi == stopped.stopped_token &&
+                            stopped.ecx == 3U - dword &&
+                            stopped.esp == stack_top - 136U &&
+                            stopped.accesses_completed ==
+                                request.stop_before_access &&
+                            linked_raw_backing[32U] ==
+                                (dword != 0U ? 0x7EU : 0xA5U) &&
+                            linked_raw_backing[28U] ==
+                                (reverse && dword > 1U ? 0x7EU : 0xFDU) &&
+                            linked_raw_backing[26U] ==
+                                (reverse && dword > 2U ? 0x7EU : 0x76U) &&
+                            linked_raw_backing[36U] ==
+                                (!reverse && dword > 1U ? 0x7EU : 0xA5U) &&
+                            linked_raw_backing[40U] ==
+                                (!reverse && dword > 2U ? 0x7EU : 0xA5U) &&
+                            linked_raw_backing[44U] == 0xFDU,
+                        "pixel REP STOSD preserves each forward or reverse dword fault prefix"
+                    );
+                }
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access = 0U;
+                const auto filled = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, fill_prefix
+                    );
+                test.expect_true(
+                    filled.eip == 0x0048A97DU &&
+                        filled.stopped_access_kind == Access::stack_read &&
+                        filled.stopped_token == stack_top - 128U &&
+                        filled.esp == stack_top - 136U && filled.ecx == 0U &&
+                        filled.edi == (reverse ? 0x00804014U : 0x0080402CU) &&
+                        filled.flags_known && filled.flags.zero &&
+                        filled.accesses_completed ==
+                            decoder_pending.accesses_completed +
+                                (has_old_tail ? 175U : 174U) &&
+                        linked_raw_backing[32U] == 0x7EU &&
+                        linked_raw_backing[28U] == (reverse ? 0x7EU : 0xFDU) &&
+                        linked_raw_backing[26U] == (reverse ? 0x7EU : 0x76U) &&
+                        linked_raw_backing[40U] == (reverse ? 0xA5U : 0x7EU) &&
+                        linked_raw_backing[44U] == 0xFDU,
+                    "pixel REP STOSD writes three dwords and preserves DF-dependent aliasing"
+                );
+            }
         }
         auto unaligned_linked_request = linked_metadata_empty_request;
         unaligned_linked_request.decoder_small_pool_return_eax = 0x00804001U;

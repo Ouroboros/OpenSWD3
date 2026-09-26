@@ -2761,7 +2761,20 @@ ECX=3并停在首个`0x0048A971 REP STOSD`写前；不得把三处
 连续dword写合并成一次安全边界。空链/非空链各四处子栈故障
 验证，未对齐像素目标仍待单独向量。`proc_a12a` Linux core/CTest
 `199/199`、`proc_0958` ASan core/CTest `199/199`、`proc_7dc7`
-Linux app/CTest `205/205`。
+Linux app/CTest `205/205`。该阶段提交推送`28379709`，TG
+`proc_744c`退出0，客户端显示未验证。
+显式可写linked raw块以`REP STOSD`的三次物理dword写执行
+Size=12像素填充：DF=0写raw+0x20/+0x24/+0x28，DF=1写
+raw+0x20/+0x1C/+0x18。后一条件会依次覆盖原首填充guard及
+原请求计数元数据，不能以“前序已写”视为之后仍不变。两种DF
+各在三次写前注入独立停止并检查已提交字节、EDI/ECX；完整
+三写后停在`0x0048A97D`栈读前，未虚构子RET与分配回包。
+`proc_7c09` Linux core/CTest `199/199`、`proc_b5dd` ASan
+core/CTest `199/199`、`proc_dcbe` Linux app/CTest `205/205`。
+暂存差异审阅发现三写循环仅验证Size=12，已将显式写入门收紧到
+Size恰12；其他Size仍停在写入前，不能套用固定循环。
+收紧后`proc_68a1` Linux core/CTest `199/199`、`proc_08b7`
+ASan core/CTest `199/199`、`proc_e39f` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
