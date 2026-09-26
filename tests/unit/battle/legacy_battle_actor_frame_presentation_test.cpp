@@ -443,8 +443,8 @@ public:
         }};
     static constexpr u32 kSyntheticAllocatorGlobal = 0x00790000U;
     static constexpr u32 kSyntheticHeapDebugFlags = 0U;
-    static constexpr u32 kSyntheticHeapHandle = 0x00760000U;
-    static constexpr u32 kSyntheticHeapInvalid = 0xFFFFFFFFU;
+    static constexpr u32 kSyntheticHeapRequestCounter = 0x00760000U;
+    static constexpr u32 kSyntheticHeapBreakCounter = 0xFFFFFFFFU;
     static constexpr u32 kSyntheticHeapAlloc = 0x00754321U;
     static std::array<u32, 3U> synthetic_decoder_outputs{};
     static std::array<LegacyBattleActorFrameParentArgumentWord, 3U>
@@ -474,8 +474,8 @@ public:
              &synthetic_decoder_output_owners[2U]},
         .decoder_allocator_global_owner = &kSyntheticAllocatorGlobal,
         .decoder_heap_debug_flags_owner = &kSyntheticHeapDebugFlags,
-        .decoder_heap_handle_owner = &kSyntheticHeapHandle,
-        .decoder_heap_invalid_owner = &kSyntheticHeapInvalid,
+        .decoder_heap_request_counter_owner = &kSyntheticHeapRequestCounter,
+        .decoder_heap_break_counter_owner = &kSyntheticHeapBreakCounter,
         .decoder_heap_alloc_owner = &kSyntheticHeapAlloc,
         .draw_source_token_owner = &kSyntheticDrawToken,
         .draw_palette_token_owner = &kSyntheticDrawPaletteToken,
@@ -7564,12 +7564,13 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 decoder.calls == 1U,
             "heap debug flags require an explicit owner after the callee prologue"
         );
-        auto invalid_heap = group_a_initial_request;
-        static constexpr u32 kMatchingHeapHandle = 0x00760000U;
-        invalid_heap.decoder_heap_invalid_owner = &kMatchingHeapHandle;
+        auto matching_heap_counter = group_a_initial_request;
+        static constexpr u32 kMatchingBreakCounter = 0x00760000U;
+        matching_heap_counter.decoder_heap_break_counter_owner =
+            &kMatchingBreakCounter;
         const auto stopped_heap_trap = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_decoder_call(
-                decoder, invalid_heap, decoder_pending
+                decoder, matching_heap_counter, decoder_pending
             );
         test.expect_true(
             stopped_heap_trap.status ==
@@ -7579,7 +7580,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_heap_trap.flags.zero &&
                 stopped_heap_trap.esp == decoder_pending.esp - 116U &&
                 decoder.calls == 1U,
-            "matching allocator heap handles execute INT3 before forwarding parameters"
+            "matching request and break counters execute INT3 before forwarding parameters"
         );
         decoder.reply.returned = false;
         auto debug_check_request = group_a_initial_request;

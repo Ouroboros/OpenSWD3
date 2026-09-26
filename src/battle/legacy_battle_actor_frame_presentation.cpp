@@ -6411,7 +6411,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         if (!read_heap_global(
                 0x00487D1CU,
                 0x004A82F8U,
-                request.decoder_heap_handle_owner,
+                request.decoder_heap_request_counter_owner,
                 prefix.edx
             ) ||
             !write_heap_local(0x00487D22U, prefix.ebp - 8U) ||
@@ -6420,16 +6420,16 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             )) {
             return prefix;
         }
-        u32 invalid_heap_handle{};
+        u32 break_counter{};
         if (!read_heap_global(
                 0x00487D28U,
                 0x004A82FCU,
-                request.decoder_heap_invalid_owner,
-                invalid_heap_handle
+                request.decoder_heap_break_counter_owner,
+                break_counter
             )) {
             return prefix;
         }
-        prefix.flags = subtract_flags(prefix.eax, invalid_heap_handle);
+        prefix.flags = subtract_flags(prefix.eax, break_counter);
         if (prefix.flags.zero) {
             prefix.status = LegacyBattleActorFrameEntryStatus::
                 allocator_debug_break_typed_stop;
@@ -6439,7 +6439,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             prefix.eip = 0x00487D30U;
             return prefix;
         }
-        const u32 heap_handle = prefix.eax;
+        const u32 request_counter = prefix.eax;
         if (!read_inner_argument(
                 0x00487D31U, prefix.ebp + 0x14U, 0U, prefix.ecx
             ) ||
@@ -6449,7 +6449,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             ) ||
             !save(0x00487D38U, prefix.edx) ||
             !read_inner_argument(
-                0x00487D39U, prefix.ebp - 8U, heap_handle, prefix.eax
+                0x00487D39U, prefix.ebp - 8U, request_counter, prefix.eax
             ) ||
             !save(0x00487D3CU, prefix.eax) ||
             !read_inner_argument(
