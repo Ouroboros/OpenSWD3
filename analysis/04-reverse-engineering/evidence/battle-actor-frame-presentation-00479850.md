@@ -2299,6 +2299,8 @@ EIP/ESP/token/累计访问序号；八个共享wrapper在入口型停止时撤�
 `proc_7e14` Linux core/CTest `199/199`、`proc_3504` ASan core/CTest `199/199`、
 `proc_8d77` Linux app/CTest `205/205`。两次音频状态的生产别名、真实父栈可变别名及
 非零声音编号后的更深callee/AIL仍未闭合；19处CALL仍为partial。
+留底提交 `f6ffd84f` 后五段阶段 TG `proc_115f` 退出0；脚本仅在 API `ok=true` 时正常返回，
+未输出 `message_id`，客户端显示未验证，留底不算316验收。
 留底提交 `a0e3db5e` 后五段阶段 TG `proc_5023` 退出0；同一脚本仅在 API `ok=true`
 时正常返回，未输出 `message_id`；客户端显示未验证，仍不是316验收。
 2026-09-25 23:57:38+08 五段阶段 TG `proc_e4b5` 获 API `ok=true/message_id=4314`；
@@ -2309,6 +2311,13 @@ EIP/ESP/token/累计访问序号；八个共享wrapper在入口型停止时撤�
 只证明平台接受，不证明用户客户端显示。
 2026-09-25 15:36:30+08 五段阶段 TG `proc_e469` 获 API `ok=true/message_id=4290`；
 只证明平台接受，不证明用户客户端显示。
+复查入口基本块 `0x00479850..0x00479861` 与默认出口首POP：`SUB ESP,0x14` 只改ESP，
+`0x00479853/54/55/5A` 四次PUSH各应先检查栈可写；原共用push辅助遗漏权限。
+`+0x2ABC==0` 时默认出口第一处 `0x0047A80B POP EDI` 应先检查栈可读，原共用pop辅助亦遗漏。
+已修正，两条权限拒绝向量按LST核对 EIP/ESP/token/序号与默认CMP的ZF：
+`proc_8bee` Linux core/CTest `199/199`、`proc_9e87` ASan core/CTest `199/199`、
+`proc_4ec1` Linux app/CTest `205/205`。这仅闭合两处故障条件；入口各owner、REP反向别名、
+`0x00479920`后两层callee与四处父caller仍待完整REVIEW，不能给001..020整体签字。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

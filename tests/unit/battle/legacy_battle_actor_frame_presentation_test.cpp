@@ -3301,6 +3301,34 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         physical_stops_exact,
         "every physical entry/default stack or actor access stops before its own committed access"
     );
+    auto unwritable_prologue = input;
+    unwritable_prologue.call_stack_writable = false;
+    const auto stopped_prologue =
+        openswd3::battle::enter_legacy_battle_actor_frame_presentation(
+            actor, unwritable_prologue
+        );
+    auto unreadable_default_pop = input;
+    unreadable_default_pop.stack_readable = false;
+    const auto stopped_default_pop =
+        openswd3::battle::enter_legacy_battle_actor_frame_presentation(
+            actor, unreadable_default_pop
+        );
+    test.expect_true(
+        stopped_prologue.status ==
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
+            stopped_prologue.eip == 0x00479853U &&
+            stopped_prologue.stopped_token == input.entry_esp - 0x18U &&
+            stopped_prologue.esp == input.entry_esp - 0x14U &&
+            stopped_prologue.accesses_completed == 0U &&
+            stopped_default_pop.status ==
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
+            stopped_default_pop.eip == 0x0047A80BU &&
+            stopped_default_pop.stopped_token == input.entry_esp - 0x24U &&
+            stopped_default_pop.esp == input.entry_esp - 0x24U &&
+            stopped_default_pop.flags.zero &&
+            stopped_default_pop.accesses_completed == 5U,
+        "entry PUSH and default POP respect physical stack permissions before any later memory access"
+    );
 
     {
         auto entry = input;

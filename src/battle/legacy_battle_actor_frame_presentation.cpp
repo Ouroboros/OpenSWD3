@@ -638,7 +638,8 @@ LegacyBattleActorFrameEntryResult enter_legacy_battle_actor_frame_presentation(
         if (!touch(
                 LegacyBattleActorFrameEntryAccessKind::stack_write,
                 instruction,
-                token
+                token,
+                request.call_stack_writable
             )) {
             return false;
         }
@@ -651,7 +652,8 @@ LegacyBattleActorFrameEntryResult enter_legacy_battle_actor_frame_presentation(
         if (!touch(
                 LegacyBattleActorFrameEntryAccessKind::stack_read,
                 instruction,
-                esp
+                esp,
+                request.stack_readable
             )) {
             return false;
         }
