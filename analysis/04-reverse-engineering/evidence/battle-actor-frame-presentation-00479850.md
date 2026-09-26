@@ -2775,6 +2775,23 @@ core/CTest `199/199`、`proc_dcbe` Linux app/CTest `205/205`。
 Size恰12；其他Size仍停在写入前，不能套用固定循环。
 收紧后`proc_68a1` Linux core/CTest `199/199`、`proc_08b7`
 ASan core/CTest `199/199`、`proc_e39f` Linux app/CTest `205/205`。
+该阶段提交推送`935f674b`，TG `proc_4567`退出0，客户端显示未验证。
+显式绑定第三次填充的合成返回栈后，逐项执行`0x0048A97D`
+读取原目标、`0x0048A981`恢复EDI、`0x0048A982`读取返回地址
+`0x00487FD3`，清理三项父实参，停在`0x00487FD6`
+读取allocator局部raw前。DF正、逆写入已提交的块字节不得回滚；
+仅验证条件化Size=12路径，不证明生产块别名或完整分配回包。
+初版`proc_b962`的`battle.legacy_battle_setup`失败：跨DF向量未重置
+“返回栈已绑定”条件，导致旧`0x0048A97D`停点向量继续运行；
+新返回向量亦有合取断言失败。重置绑定后，`proc_8c22`仍失败；
+拆分断言的`proc_3919`将唯一差异定位到测试误把诊断字段
+`last_pushed_value`当作CALL返回地址，实际`0x0048A942 PUSH EDI`
+是更晚的物理压栈。已改为校验旧EDI压栈值与恢复值，
+上述失败轮次均不计通过；修正后`proc_a324` Linux core/CTest
+`199/199`、`proc_d96f` ASan core/CTest `199/199`、
+`proc_7bc7` Linux app/CTest `205/205`；`git diff --check`和
+更改行`clang-format --dry-run --Werror`均通过。该阶段仅覆盖
+显式合成返回栈的Size=12路径，不能视作316完整验收。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

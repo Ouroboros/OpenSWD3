@@ -9040,6 +9040,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 auto fill_prefix = decoder_pending;
                 fill_prefix.direction_flag = reverse;
                 request.direction_flag = reverse;
+                request.decoder_payload_heap_fill_return_stack_backed = false;
                 for (u32 dword = 0U; dword < 3U; ++dword) {
                     mutable_request_counter = 0x00760000U;
                     mutable_heap_size = 0xFFFFFFFEU;
@@ -9113,6 +9114,115 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         linked_raw_backing[40U] == (reverse ? 0xA5U : 0x7EU) &&
                         linked_raw_backing[44U] == 0xFDU,
                     "pixel REP STOSD writes three dwords and preserves DF-dependent aliasing"
+                );
+                request.decoder_payload_heap_fill_return_stack_backed = true;
+                const std::array<HeapPrefixFault, 4U> kPayloadReturnFaults{{
+                    {174U,
+                     0x0048A97DU,
+                     136U,
+                     stack_top - 128U,
+                     Access::stack_read},
+                    {175U,
+                     0x0048A981U,
+                     136U,
+                     stack_top - 136U,
+                     Access::stack_read},
+                    {176U,
+                     0x0048A982U,
+                     132U,
+                     stack_top - 132U,
+                     Access::stack_read},
+                    {177U,
+                     0x00487FD6U,
+                     116U,
+                     stack_top - 92U,
+                     Access::stack_read},
+                }};
+                for (const auto& fault : kPayloadReturnFaults) {
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    request.stop_before_access =
+                        decoder_pending.accesses_completed + fault.offset +
+                        (has_old_tail ? 1U : 0U);
+                    const auto stopped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, request, fill_prefix
+                        );
+                    test.expect_true(
+                        stopped.eip == fault.instruction &&
+                            stopped.stopped_access_kind == fault.kind &&
+                            stopped.stopped_token == fault.token &&
+                            stopped.esp == stack_top - fault.stack_drop &&
+                            stopped.accesses_completed ==
+                                request.stop_before_access &&
+                            stopped.direction_flag == reverse &&
+                            stopped.eax ==
+                                (fault.offset == 174U ? 0x7E7E7E7EU
+                                                      : 0x00804020U) &&
+                            (fault.offset > 175U ||
+                             stopped.edi ==
+                                 (reverse ? 0x00804014U : 0x0080402CU)) &&
+                            linked_raw_backing[32U] == 0x7EU &&
+                            linked_raw_backing[28U] ==
+                                (reverse ? 0x7EU : 0xFDU) &&
+                            linked_raw_backing[26U] ==
+                                (reverse ? 0x7EU : 0x76U) &&
+                            linked_raw_backing[40U] ==
+                                (reverse ? 0xA5U : 0x7EU) &&
+                            linked_raw_backing[44U] == 0xFDU,
+                        "linked pixel fill return reads arguments and RET before allocator payload read"
+                    );
+                }
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access = 0U;
+                const auto returned = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, fill_prefix
+                    );
+                test.expect_true(
+                    returned.eip == 0x00487FD6U &&
+                        returned.stopped_access_kind == Access::stack_read &&
+                        returned.stopped_token == stack_top - 92U &&
+                        returned.esp == stack_top - 116U &&
+                        returned.ebp == stack_top - 88U,
+                    "linked pixel fill returns to the allocator stack read"
+                );
+                test.expect_true(
+                    returned.eax == 0x00804020U,
+                    "linked pixel fill returns its original payload pointer"
+                );
+                test.expect_true(
+                    returned.last_pushed_value == linked_payload_child.edi &&
+                        returned.edi == linked_payload_child.edi,
+                    "linked pixel fill restores EDI after its final physical push"
+                );
+                test.expect_true(
+                    returned.accesses_completed ==
+                        decoder_pending.accesses_completed +
+                            (has_old_tail ? 178U : 177U),
+                    "linked pixel fill counts its three return-stack reads"
+                );
+                test.expect_true(
+                    linked_raw_backing[32U] == 0x7EU &&
+                        linked_raw_backing[28U] == (reverse ? 0x7EU : 0xFDU) &&
+                        linked_raw_backing[26U] == (reverse ? 0x7EU : 0x76U) &&
+                        linked_raw_backing[44U] == 0xFDU,
+                    "linked pixel fill return preserves DF-dependent block bytes"
                 );
             }
         }

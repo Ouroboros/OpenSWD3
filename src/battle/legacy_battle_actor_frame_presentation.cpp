@@ -8010,6 +8010,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                     request.decoder_heap_block_token + 0x20U) {
                                 const u32 payload_target = prefix.ecx;
                                 const u32 payload_value = prefix.eax;
+                                const u32 saved_payload_edi = prefix.edi;
                                 if (!read_inner_argument(
                                         0x0048A930U,
                                         prefix.esp + 0x0CU,
@@ -8123,6 +8124,50 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                     prefix.stopped_instruction = 0x0048A97DU;
                                     prefix.stopped_token = prefix.esp + 8U;
                                     prefix.eip = 0x0048A97DU;
+                                    if (
+                                        request
+                                            .decoder_payload_heap_fill_return_stack_backed
+                                    ) {
+                                        if (!read_inner_argument(
+                                                0x0048A97DU,
+                                                prefix.esp + 8U,
+                                                payload_target,
+                                                prefix.eax
+                                            ) ||
+                                            !read_inner_argument(
+                                                0x0048A981U,
+                                                prefix.esp,
+                                                saved_payload_edi,
+                                                prefix.edi
+                                            )) {
+                                            return prefix;
+                                        }
+                                        prefix.esp += 4U;
+                                        u32 payload_return_ip{};
+                                        if (!read_inner_argument(
+                                                0x0048A982U,
+                                                prefix.esp,
+                                                0x00487FD3U,
+                                                payload_return_ip
+                                            )) {
+                                            return prefix;
+                                        }
+                                        prefix.esp += 4U;
+                                        prefix.eip = payload_return_ip;
+                                        prefix.flags =
+                                            add_flags(prefix.esp, 0x0CU);
+                                        prefix.esp += 0x0CU;
+                                        prefix.status =
+                                            LegacyBattleActorFrameEntryStatus::
+                                                stack_read_typed_stop;
+                                        prefix.stopped_access_kind =
+                                            LegacyBattleActorFrameEntryAccessKind::
+                                                stack_read;
+                                        prefix.stopped_instruction =
+                                            0x00487FD6U;
+                                        prefix.stopped_token = prefix.ebp - 4U;
+                                        prefix.eip = 0x00487FD6U;
+                                    }
                                 }
                             }
                         }
