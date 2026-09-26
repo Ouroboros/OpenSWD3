@@ -6590,6 +6590,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         allocator_callee_token = 0x0048AA10U;
     }
 
+    bool small_pool_branch = false;
     if (bound_static_leaf) {
         const u32 raw_bytes = allocation_size + 0x24U;
         if (!save(0x0048AA10U, prefix.ebp)) {
@@ -6621,6 +6622,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                 return prefix;
             }
             allocator_callee_token = 0x0048BB80U;
+            small_pool_branch = true;
         } else {
             u32 heap_bytes{};
             if (!read_inner_argument(
@@ -6677,6 +6679,165 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             }
             allocator_callee_token = win32_alloc_target;
         }
+    }
+
+    if (small_pool_branch &&
+        request.decoder_small_pool_index_owner != nullptr) {
+        const u32 raw_bytes = allocation_size + 0x24U;
+        if (!save(0x0048BB80U, prefix.ebp)) {
+            return prefix;
+        }
+        prefix.ebp = prefix.esp;
+        prefix.flags = subtract_flags(prefix.esp, 0x38U);
+        prefix.flags_known = true;
+        prefix.esp -= 0x38U;
+        if (!save(0x0048BB86U, prefix.esi) ||
+            !read_heap_global(
+                0x0048BB87U,
+                0x0053E7B4U,
+                request.decoder_small_pool_index_owner,
+                prefix.eax
+            )) {
+            return prefix;
+        }
+        const std::int64_t pool_product =
+            static_cast<std::int64_t>(static_cast<std::int32_t>(prefix.eax)) *
+            0x14;
+        prefix.eax = static_cast<u32>(pool_product);
+        const bool pool_overflow = pool_product !=
+            static_cast<std::int64_t>(static_cast<std::int32_t>(prefix.eax));
+        prefix.flags.carry = pool_overflow;
+        prefix.flags.overflow = pool_overflow;
+        prefix.flags_known = false;
+        if (!read_heap_global(
+                0x0048BB8FU,
+                0x0053E7B8U,
+                request.decoder_small_pool_base_owner,
+                prefix.ecx
+            )) {
+            return prefix;
+        }
+        prefix.flags = add_flags(prefix.ecx, prefix.eax);
+        prefix.flags_known = true;
+        prefix.ecx += prefix.eax;
+        if (!write_heap_local(0x0048BB97U, prefix.ebp - 0x2CU) ||
+            !read_inner_argument(
+                0x0048BB9AU, prefix.ebp + 8U, raw_bytes, prefix.edx
+            )) {
+            return prefix;
+        }
+        prefix.flags = add_flags(prefix.edx, 0x17U);
+        prefix.edx += 0x17U;
+        prefix.edx &= 0xFFFFFFF0U;
+        prefix.flags = {
+            .carry = false,
+            .parity = even_parity(static_cast<u8>(prefix.edx)),
+            .auxiliary_carry_defined = false,
+            .zero = prefix.edx == 0U,
+            .sign = (prefix.edx & 0x80000000U) != 0U,
+            .overflow = false,
+        };
+        if (!write_heap_local(0x0048BBA3U, prefix.ebp - 0x28U) ||
+            !read_inner_argument(
+                0x0048BBA6U, prefix.ebp - 0x28U, prefix.edx, prefix.eax
+            )) {
+            return prefix;
+        }
+        prefix.eax =
+            static_cast<u32>(static_cast<std::int32_t>(prefix.eax) >> 4);
+        prefix.flags_known = false;  // SAR by four leaves OF undefined.
+        prefix.flags = subtract_flags(prefix.eax, 1U);
+        prefix.flags_known = true;
+        prefix.eax -= 1U;
+        if (!write_heap_local(0x0048BBAFU, prefix.ebp - 0x20U)) {
+            return prefix;
+        }
+        u32 size_class{};
+        if (!read_inner_argument(
+                0x0048BBB2U, prefix.ebp - 0x20U, prefix.eax, size_class
+            )) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(size_class, 0x20U);
+        if (static_cast<std::int32_t>(size_class) < 0x20) {
+            prefix.edx = 0xFFFFFFFFU;
+            prefix.flags = {
+                .carry = false,
+                .parity = true,
+                .auxiliary_carry_defined = false,
+                .zero = false,
+                .sign = true,
+                .overflow = false,
+            };
+            if (!read_inner_argument(
+                    0x0048BBBBU, prefix.ebp - 0x20U, size_class, prefix.ecx
+                )) {
+                return prefix;
+            }
+            const u32 shift = prefix.ecx & 0x1FU;
+            if (shift != 0U) {
+                const u32 before_shift = prefix.edx;
+                prefix.edx >>= shift;
+                prefix.flags = {
+                    .carry = ((before_shift >> (shift - 1U)) & 1U) != 0U,
+                    .parity = even_parity(static_cast<u8>(prefix.edx)),
+                    .auxiliary_carry_defined = false,
+                    .zero = prefix.edx == 0U,
+                    .sign = (prefix.edx & 0x80000000U) != 0U,
+                    .overflow = (before_shift & 0x80000000U) != 0U,
+                };
+                prefix.flags_known = shift == 1U;
+            }
+            if (!write_heap_local(0x0048BBC0U, prefix.ebp - 0x24U) ||
+                !write_heap_local(0x0048BBC3U, prefix.ebp - 0x34U)) {
+                return prefix;
+            }
+        } else {
+            if (!write_heap_local(0x0048BBCCU, prefix.ebp - 0x24U) ||
+                !read_inner_argument(
+                    0x0048BBD3U, prefix.ebp - 0x20U, size_class, prefix.ecx
+                )) {
+                return prefix;
+            }
+            prefix.flags = subtract_flags(prefix.ecx, 0x20U);
+            prefix.ecx -= 0x20U;
+            prefix.eax = 0xFFFFFFFFU;
+            prefix.flags = {
+                .carry = false,
+                .parity = true,
+                .auxiliary_carry_defined = false,
+                .zero = false,
+                .sign = true,
+                .overflow = false,
+            };
+            const u32 shift = prefix.ecx & 0x1FU;
+            if (shift != 0U) {
+                const u32 before_shift = prefix.eax;
+                prefix.eax >>= shift;
+                prefix.flags = {
+                    .carry = ((before_shift >> (shift - 1U)) & 1U) != 0U,
+                    .parity = even_parity(static_cast<u8>(prefix.eax)),
+                    .auxiliary_carry_defined = false,
+                    .zero = prefix.eax == 0U,
+                    .sign = (prefix.eax & 0x80000000U) != 0U,
+                    .overflow = (before_shift & 0x80000000U) != 0U,
+                };
+                prefix.flags_known = shift == 1U;
+            }
+            if (!write_heap_local(0x0048BBDEU, prefix.ebp - 0x34U)) {
+                return prefix;
+            }
+        }
+        // The next LST instruction reads mutable pool scan state. No owner
+        // has been bound for that global, so stop before its physical read.
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        prefix.stopped_instruction = 0x0048BBE1U;
+        prefix.stopped_token = 0x0053E7ACU;
+        prefix.eip = 0x0048BBE1U;
+        return prefix;
     }
 
     const std::array<u32, 4U> arguments{

@@ -7629,6 +7629,103 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 "small block allocation wrapper preserves seven separate stack and global fault sites"
             );
         }
+        static constexpr u32 kSyntheticPoolIndex = 0U;
+        static constexpr u32 kSyntheticPoolBase = 0x00800000U;
+        auto bound_pool_request = group_a_initial_request;
+        bound_pool_request.decoder_small_pool_index_owner =
+            &kSyntheticPoolIndex;
+        bound_pool_request.decoder_small_pool_base_owner = &kSyntheticPoolBase;
+        const std::array<HeapPrefixFault, 14U> kPoolPrefixFaults{{
+            {87U, 0x0048BB80U, 140U, stack_top - 144U, Access::stack_write},
+            {88U, 0x0048BB86U, 200U, stack_top - 204U, Access::stack_write},
+            {89U, 0x0048BB87U, 204U, 0x0053E7B4U, Access::global_read},
+            {90U, 0x0048BB8FU, 204U, 0x0053E7B8U, Access::global_read},
+            {91U, 0x0048BB97U, 204U, stack_top - 188U, Access::stack_write},
+            {92U, 0x0048BB9AU, 204U, stack_top - 136U, Access::stack_read},
+            {93U, 0x0048BBA3U, 204U, stack_top - 184U, Access::stack_write},
+            {94U, 0x0048BBA6U, 204U, stack_top - 184U, Access::stack_read},
+            {95U, 0x0048BBAFU, 204U, stack_top - 176U, Access::stack_write},
+            {96U, 0x0048BBB2U, 204U, stack_top - 176U, Access::stack_read},
+            {97U, 0x0048BBBBU, 204U, stack_top - 176U, Access::stack_read},
+            {98U, 0x0048BBC0U, 204U, stack_top - 180U, Access::stack_write},
+            {99U, 0x0048BBC3U, 204U, stack_top - 196U, Access::stack_write},
+            {100U, 0x0048BBE1U, 204U, 0x0053E7ACU, Access::global_read},
+        }};
+        for (const auto& fault : kPoolPrefixFaults) {
+            bound_pool_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, bound_pool_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.ebp ==
+                        (fault.offset == 87U ? stack_top - 128U
+                                             : stack_top - 144U) &&
+                    stopped.accesses_completed ==
+                        bound_pool_request.stop_before_access &&
+                    decoder.calls == 1U,
+                "explicit small-block pool globals preserve fourteen real stack and global fault sites"
+            );
+        }
+        bound_pool_request.stop_before_access = 0U;
+        const auto stopped_pool_scan = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, bound_pool_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_pool_scan.eip == 0x0048BBE1U &&
+                stopped_pool_scan.stopped_token == 0x0053E7ACU &&
+                stopped_pool_scan.esp == stack_top - 204U &&
+                stopped_pool_scan.ebp == stack_top - 144U &&
+                stopped_pool_scan.eax == 3U && stopped_pool_scan.ecx == 3U &&
+                stopped_pool_scan.edx == 0x1FFFFFFFU &&
+                !stopped_pool_scan.flags_known,
+            "small-block pool scan stops before unowned dynamic global instead of inventing allocated pixels"
+        );
+        auto missing_pool_base = bound_pool_request;
+        missing_pool_base.decoder_small_pool_base_owner = nullptr;
+        const auto stopped_pool_base = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, missing_pool_base, decoder_pending
+            );
+        test.expect_true(
+            stopped_pool_base.eip == 0x0048BB8FU &&
+                stopped_pool_base.stopped_token == 0x0053E7B8U &&
+                stopped_pool_base.esp == stack_top - 204U &&
+                !stopped_pool_base.flags_known,
+            "missing pool base cannot inherit image-initialized bytes from the synthetic fixture"
+        );
+        static constexpr std::array<openswd3::compat::u8, 8U>
+            kLargePoolSourceBytes{
+                0xFFU, 0xFFU, 0x10U, 0x00U, 0x10U, 0x00U, 0x10U, 0x00U
+            };
+        const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+            large_pool_source{{{0x77665544U, kLargePoolSourceBytes}}};
+        auto large_pool_request = bound_pool_request;
+        large_pool_request.decoder_sources = large_pool_source;
+        case_two_outputs.words = {};
+        const auto stopped_large_pool_class = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, large_pool_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_large_pool_class.eip == 0x0048BBE1U &&
+                stopped_large_pool_class.stopped_token == 0x0053E7ACU &&
+                stopped_large_pool_class.eax == 0x3FFFFFFFU &&
+                stopped_large_pool_class.ecx == 2U &&
+                stopped_large_pool_class.edx == 560U &&
+                !stopped_large_pool_class.flags_known &&
+                case_two_outputs.words ==
+                    std::array<u32, 3U>{16U, 16U, 0x10U} &&
+                decoder.calls == 1U,
+            "sixteen by sixteen source takes the upper small-block size-class mask branch"
+        );
+        case_two_outputs.words = {2U, 3U, 0x10U};
         auto missing_small_limit = group_a_initial_request;
         missing_small_limit.decoder_small_block_limit_owner = nullptr;
         const auto stopped_small_limit = openswd3::battle::

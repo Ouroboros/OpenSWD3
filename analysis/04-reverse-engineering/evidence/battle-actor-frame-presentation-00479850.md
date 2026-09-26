@@ -2541,6 +2541,21 @@ EIP/ESP/EBP/token；无阈值owner时停在`0x0048AA17`，并不假造阈值；
 `proc_8fb2` Linux core/CTest `199/199`、`proc_cbbd` ASan core/CTest `199/199`、
 `proc_6d31` Linux app/CTest `205/205`。小块/系统堆callee真实回包、
 第二次申请后的调试头、像素流及生产owner别名仍未验证。
+再核对小块子函数`sub_48BB80`：`0x0053E7B4`池索引、`0x0053E7B8`池基址
+和后续`0x0053E7AC`扫描游标在LST `.data`均为`dd ?`，没有可替代
+运行时owner的静态初值。仅当显式绑定索引时，从`0x0048BB80`物理保存EBP、
+局部开栈、保存ESI，再以索引乘`0x14`、池基址相加，按Size+0x17对齐成尺寸类；
+两种尺寸类分支分别构造位掩码，尚未为扫描游标绑定owner，故都在
+`0x0048BBE1 MOV ECX,[0x0053E7AC]`读取前停止。
+未绑定池索引仍停在原`sub_48BB80` opaque入口，不把合成池首址当生产堆内存；
+子函数回包、页位图、池链表和随后的调试头依旧未审。
+显式池索引0、池基址`0x00800000`为**合成测试值**，低尺寸类源产生Size12、
+`[EBP-20h]=3`和低位掩码`0x1FFFFFFF`；另用16×16、16位的真实格式头
+产生Size512、类号34，覆盖高位掩码`0x3FFFFFFF`，仍在扫描游标全局前停止。
+低类路径14处独立栈/全局故障向量及缺池基址故障均验证ESP/EBP/token，
+IMUL和多位SHR的未定义算术FLAGS不冒充已知。
+首次`proc_d851`及补高类后`proc_1ddb` Linux core/CTest `199/199`、
+`proc_a25d` ASan core/CTest `199/199`、`proc_a218` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
