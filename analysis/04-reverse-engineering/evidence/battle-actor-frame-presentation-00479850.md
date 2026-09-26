@@ -2365,7 +2365,18 @@ EAX=首参数、EDX=格式全局、ECX=0、ZF=1，栈写失败时ESP仍指CALL�
 EIP与源token保留，ECX仍为0且后续EBP/ESI未压栈。四条测试token的合成
 `0xFFFF`头只验证本次读取和正常窄port继续，不证明生产TSW缓存帧的物理token/寿命、
 格式比较或真实输出；`proc_d1dc` Linux core/CTest `199/199`、
-`proc_4eaa` ASan core/CTest `199/199`、`proc_d302` Linux app/CTest `205/205`。
+`proc_4eaa` ASan core/CTest `199/199`、`proc_d302` Linux app/CTest `205/205`；
+该批已提交并推送 `dff5d250`，阶段TG `proc_c1f4` 退出0但未验证客户端显示。
+解码头比较的下一段按 LST 的 `0x004019B0/B1` 保存 EBP/ESI、`0x004019B2 CMP ECX,EDX`、
+`0x004019B4` 保存 EDI 后才分岔：不匹配时 `0x004019B7/B8/B9` 依次弹出
+EDI/ESI/EBP，`0x004019BA XOR EAX,EAX` 清零并设置ZF，再从 `0x004019BC` 弹出 EBX、
+`0x004019BD` 取返回地址，完全不调用深层解码port且三个输出指针尚未写。
+八个新的独立栈停点均从本次CALL的真实ESP位置取序号；前两个保存写障保持读头后ZF，
+第三保存写障及前三个POP读障保持比较FLAGS；XOR后的最后POP和RET读障则保留EAX0/ZF1。
+测试用合成头 `0x1234` 对比合成全局 `0xFFFF`，只验证case2及共享callee这段前缀，
+不能证明其余三caller的整个父路径或正常格式匹配后的宽高、格式、分配和循环。
+`proc_8369` Linux core/CTest `199/199`、`proc_4eaf` ASan core/CTest `199/199`、
+`proc_4de6` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

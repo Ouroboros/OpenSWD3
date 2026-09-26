@@ -5932,6 +5932,103 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     ++prefix.accesses_completed;
     prefix.ecx = static_cast<u32>((*source_bytes)[0U]) |
         (static_cast<u32>((*source_bytes)[1U]) << 8U);
+    const auto save = [&](const u32 instruction, const u32 value) {
+        const u32 slot = prefix.esp - 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_write;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = slot;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp = slot;
+        prefix.last_pushed_value = value;
+        return true;
+    };
+    if (!save(0x004019B0U, prefix.ebp) || !save(0x004019B1U, prefix.esi)) {
+        return prefix;
+    }
+
+    prefix.flags = subtract_flags(prefix.ecx, prefix.edx);
+    prefix.flags_known = true;
+    if (!save(0x004019B4U, prefix.edi)) {
+        return prefix;
+    }
+
+    if (!prefix.flags.zero) {
+        const auto restore = [&](const u32 instruction,
+                                 u32& register_value,
+                                 const u32 saved) {
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.stack_readable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::stack_read;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = prefix.esp;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            register_value = saved;
+            prefix.esp += 4U;
+            return true;
+        };
+        if (!restore(0x004019B7U, prefix.edi, callee_entry.edi) ||
+            !restore(0x004019B8U, prefix.esi, callee_entry.esi) ||
+            !restore(0x004019B9U, prefix.ebp, callee_entry.ebp)) {
+            return prefix;
+        }
+
+        prefix.eax = 0U;
+        prefix.flags = logical_zero_flags();
+        if (!restore(0x004019BCU, prefix.ebx, callee_entry.ebx)) {
+            return prefix;
+        }
+
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.return_address_readable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            prefix.stopped_instruction = 0x004019BDU;
+            prefix.stopped_token = prefix.esp;
+            prefix.eip = 0x004019BDU;
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp += 4U;
+        prefix.decoder_child = {
+            .returned = true,
+            .eax = prefix.eax,
+            .ecx = prefix.ecx,
+            .edx = prefix.edx,
+            .flags = prefix.flags,
+            .flags_known = true,
+        };
+        prefix.status = case_hundred_call
+            ? LegacyBattleActorFrameEntryStatus::
+                  case_hundred_decoder_token_write_ready
+            : case_eight_call     ? LegacyBattleActorFrameEntryStatus::
+                                        case_eight_decoder_token_write_ready
+            : case_fifty_one_call ? LegacyBattleActorFrameEntryStatus::
+                                        case_fifty_one_decoder_token_write_ready
+                                  : LegacyBattleActorFrameEntryStatus::
+                                        case_two_decoder_token_write_ready;
+        prefix.eip = case_hundred_call ? 0x0047B570U
+            : case_eight_call          ? 0x0047A643U
+            : case_fifty_one_call      ? 0x0047B907U
+                                       : 0x00479B4BU;
+        return prefix;
+    }
+
     const std::array<u32, 4U> arguments{
         prefix.decoder_argument_pushes[3U],
         prefix.decoder_argument_pushes[2U],
@@ -5967,7 +6064,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         prefix.eip = 0x004019A0U;
         return prefix;
     }
-    prefix.esp += 8U;  // Saved EBX and the CALL return slot are restored.
+    prefix.esp += 20U;  // Four saved registers and the CALL slot are restored.
     prefix.eax = reply.eax;
     prefix.ecx = reply.ecx;
     prefix.edx = reply.edx;

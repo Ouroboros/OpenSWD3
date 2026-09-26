@@ -6799,6 +6799,90 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 decoder.calls == 0U,
             "decoder header word needs a source-byte owner at the exact first-byte token after saving EBX"
         );
+        static constexpr std::array<openswd3::compat::u8, 2U>
+            kMismatchedDecoderHeader{0x34U, 0x12U};
+        const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+            mismatched_sources{{{0x77665544U, kMismatchedDecoderHeader}}};
+        auto mismatched_request = group_a_initial_request;
+        mismatched_request.decoder_sources = mismatched_sources;
+        const auto mismatched_return = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, mismatched_request, decoder_pending
+            );
+        auto mismatched_pop_fault = mismatched_request;
+        mismatched_pop_fault.stop_before_access =
+            decoder_pending.accesses_completed + 8U;
+        const auto stopped_mismatched_pop = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, mismatched_pop_fault, decoder_pending
+            );
+        test.expect_true(
+            mismatched_return.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_two_decoder_token_write_ready &&
+                mismatched_return.eip == 0x00479B4BU &&
+                mismatched_return.esp == decoder_pending.esp &&
+                mismatched_return.eax == 0U &&
+                mismatched_return.ecx == 0x1234U &&
+                mismatched_return.edx == 0x0000FFFFU &&
+                mismatched_return.flags_known && mismatched_return.flags.zero &&
+                mismatched_return.decoder_child.returned &&
+                mismatched_return.decoder_child.eax == 0U &&
+                !mismatched_return.decoder_child.source_pixels_known &&
+                stopped_mismatched_pop.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
+                stopped_mismatched_pop.eip == 0x004019B7U &&
+                stopped_mismatched_pop.stopped_token ==
+                    decoder_pending.esp - 20U &&
+                stopped_mismatched_pop.esp == decoder_pending.esp - 20U &&
+                stopped_mismatched_pop.eax == 0x77665544U &&
+                stopped_mismatched_pop.ecx == 0x1234U &&
+                !stopped_mismatched_pop.flags.zero && decoder.calls == 0U,
+            "decoder mismatched header returns zero without port or output writes; first restore POP fault keeps its compare flags and four saved registers"
+        );
+        struct MismatchedHeaderFault {
+            u32 offset;
+            u32 instruction;
+            u32 stack_drop;
+            bool zero;
+            bool stack_write;
+        };
+        static constexpr std::array<MismatchedHeaderFault, 8U> kFaults{{
+            {5U, 0x004019B0U, 8U, true, true},
+            {6U, 0x004019B1U, 12U, true, true},
+            {7U, 0x004019B4U, 16U, false, true},
+            {8U, 0x004019B7U, 20U, false, false},
+            {9U, 0x004019B8U, 16U, false, false},
+            {10U, 0x004019B9U, 12U, false, false},
+            {11U, 0x004019BCU, 8U, true, false},
+            {12U, 0x004019BDU, 4U, true, false},
+        }};
+        for (const auto fault : kFaults) {
+            auto at_fault = mismatched_request;
+            at_fault.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, at_fault, decoder_pending
+                );
+            test.expect_true(
+                stopped.status ==
+                        (fault.stack_write ? LegacyBattleActorFrameEntryStatus::
+                                                 stack_write_typed_stop
+                                           : LegacyBattleActorFrameEntryStatus::
+                                                 stack_read_typed_stop) &&
+                    stopped.eip == fault.instruction &&
+                    stopped.esp == decoder_pending.esp - fault.stack_drop &&
+                    stopped.stopped_token ==
+                        stopped.esp - (fault.stack_write ? 4U : 0U) &&
+                    stopped.eax == (fault.offset >= 11U ? 0U : 0x77665544U) &&
+                    stopped.ecx == 0x1234U && stopped.flags_known &&
+                    stopped.flags.zero == fault.zero &&
+                    stopped.accesses_completed == at_fault.stop_before_access &&
+                    decoder.calls == 0U,
+                "decoder mismatched header preserves each callee save/restore fault prefix"
+            );
+        }
         decoder.reply.returned = false;
         const auto stopped_decoder_entry = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_decoder_call(
