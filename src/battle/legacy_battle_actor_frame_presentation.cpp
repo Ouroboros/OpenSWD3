@@ -6590,6 +6590,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         allocator_callee_token = 0x0048AA10U;
     }
 
+    const u32 parent_heap_frame_ebp = prefix.ebp;
     bool small_pool_branch = false;
     if (bound_static_leaf) {
         const u32 raw_bytes = allocation_size + 0x24U;
@@ -6837,6 +6838,90 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         prefix.stopped_instruction = 0x0048BBE1U;
         prefix.stopped_token = 0x0053E7ACU;
         prefix.eip = 0x0048BBE1U;
+        return prefix;
+    }
+
+    if (small_pool_branch && request.decoder_small_pool_return_known &&
+        request.decoder_small_pool_return_eax != 0U) {
+        // The injected nonzero reply describes only the completed pool CALL.
+        // It cannot stand in for the remaining decoder or heap metadata writes.
+        prefix.esp += 4U;  // sub_48BB80 RET pops 0x0048AA28.
+        prefix.eax = request.decoder_small_pool_return_eax;
+        prefix.ecx = request.decoder_small_pool_return_ecx;
+        prefix.edx = request.decoder_small_pool_return_edx;
+        prefix.flags = request.decoder_small_pool_return_flags;
+        prefix.flags_known = request.decoder_small_pool_return_flags_known;
+        prefix.flags = add_flags(prefix.esp, 4U);
+        prefix.flags_known = true;
+        prefix.esp += 4U;  // 0x0048AA28 ADD ESP,4.
+        if (!write_heap_local(0x0048AA2BU, prefix.ebp - 4U)) {
+            return prefix;
+        }
+        u32 pool_return_word{};
+        if (!read_inner_argument(
+                0x0048AA2EU,
+                prefix.ebp - 4U,
+                request.decoder_small_pool_return_eax,
+                pool_return_word
+            )) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(pool_return_word, 0U);
+        if (!read_inner_argument(
+                0x0048AA34U, prefix.ebp - 4U, pool_return_word, prefix.eax
+            )) {
+            return prefix;
+        }
+        prefix.esp = prefix.ebp;  // 0x0048AA65 MOV ESP,EBP.
+        if (!read_inner_argument(
+                0x0048AA67U, prefix.esp, parent_heap_frame_ebp, prefix.ebp
+            )) {
+            return prefix;
+        }
+        prefix.esp += 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.return_address_readable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            prefix.stopped_instruction = 0x0048AA68U;
+            prefix.stopped_token = prefix.esp;
+            prefix.eip = 0x0048AA68U;
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp += 4U;
+        prefix.flags = add_flags(prefix.esp, 4U);
+        prefix.esp += 4U;  // 0x00487E72 ADD ESP,4.
+        if (!write_heap_local(0x00487E75U, prefix.ebp - 4U) ||
+            !read_inner_argument(
+                0x00487E78U,
+                prefix.ebp - 4U,
+                request.decoder_small_pool_return_eax,
+                pool_return_word
+            )) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(pool_return_word, 0U);
+        if (!read_heap_global(
+                0x00487E85U,
+                0x004A82F8U,
+                request.decoder_heap_request_counter_owner,
+                prefix.edx
+            )) {
+            return prefix;
+        }
+        prefix.flags = add_flags(prefix.edx, 1U);
+        ++prefix.edx;
+        prefix.flags_known = true;
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_write;
+        prefix.stopped_instruction = 0x00487E8EU;
+        prefix.stopped_token = 0x004A82F8U;
+        prefix.eip = 0x00487E8EU;
         return prefix;
     }
 

@@ -561,11 +561,17 @@ struct LegacyBattleActorFrameEntryRequest {
     const compat::u32* decoder_small_block_limit_owner{};     // 0x004A8390
     const compat::u32* decoder_small_pool_index_owner{};      // 0x0053E7B4
     const compat::u32* decoder_small_pool_base_owner{};       // 0x0053E7B8
-    const compat::u32* decoder_win32_heap_owner{};            // 0x0053E7BC
-    const compat::u32* decoder_win32_alloc_owner{};           // 0x00499198
-    const compat::u32* draw_source_token_owner{};             // 0x004CD730
-    const compat::u32* draw_palette_token_owner{};            // 0x004CD764
-    const compat::u32* draw_height_third_owner{};             // 0x004CD75C
+    bool decoder_small_pool_return_known{};
+    compat::u32 decoder_small_pool_return_eax{};
+    compat::u32 decoder_small_pool_return_ecx{};
+    compat::u32 decoder_small_pool_return_edx{};
+    LegacyBattleActorCoordinateFlags decoder_small_pool_return_flags{};
+    bool decoder_small_pool_return_flags_known{};
+    const compat::u32* decoder_win32_heap_owner{};   // 0x0053E7BC
+    const compat::u32* decoder_win32_alloc_owner{};  // 0x00499198
+    const compat::u32* draw_source_token_owner{};    // 0x004CD730
+    const compat::u32* draw_palette_token_owner{};   // 0x004CD764
+    const compat::u32* draw_height_third_owner{};    // 0x004CD75C
     LegacyBattleActorFrameParentArgumentWord* draw_argument_10_owner{};
     compat::u32 draw_source_bytes_token{};
     std::span<const compat::u8> draw_source_bytes{};

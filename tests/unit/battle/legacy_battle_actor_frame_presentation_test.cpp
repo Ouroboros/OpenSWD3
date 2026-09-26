@@ -7726,6 +7726,63 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             "sixteen by sixteen source takes the upper small-block size-class mask branch"
         );
         case_two_outputs.words = {2U, 3U, 0x10U};
+        auto pool_reply_request = group_a_initial_request;
+        pool_reply_request.decoder_small_pool_return_known = true;
+        pool_reply_request.decoder_small_pool_return_eax = 0x00804000U;
+        pool_reply_request.decoder_small_pool_return_ecx = 0x87654321U;
+        pool_reply_request.decoder_small_pool_return_edx = 0x12345678U;
+        pool_reply_request.decoder_small_pool_return_flags_known = true;
+        const std::array<HeapPrefixFault, 9U> kPoolReplyFaults{{
+            {87U, 0x0048AA2BU, 132U, stack_top - 132U, Access::stack_write},
+            {88U, 0x0048AA2EU, 132U, stack_top - 132U, Access::stack_read},
+            {89U, 0x0048AA34U, 132U, stack_top - 132U, Access::stack_read},
+            {90U, 0x0048AA67U, 128U, stack_top - 128U, Access::stack_read},
+            {91U, 0x0048AA68U, 124U, stack_top - 124U, Access::stack_read},
+            {92U, 0x00487E75U, 116U, stack_top - 92U, Access::stack_write},
+            {93U, 0x00487E78U, 116U, stack_top - 92U, Access::stack_read},
+            {94U, 0x00487E85U, 116U, 0x004A82F8U, Access::global_read},
+            {95U, 0x00487E8EU, 116U, 0x004A82F8U, Access::global_write},
+        }};
+        for (const auto& fault : kPoolReplyFaults) {
+            pool_reply_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, pool_reply_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.ebp ==
+                        (fault.offset <= 90U ? stack_top - 128U
+                                             : stack_top - 88U) &&
+                    stopped.accesses_completed ==
+                        pool_reply_request.stop_before_access &&
+                    decoder.calls == 1U,
+                "explicit nonzero pool reply preserves wrapper RET, parent slot and counter read/write faults"
+            );
+        }
+        pool_reply_request.stop_before_access = 0U;
+        const auto stopped_pool_counter_write = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, pool_reply_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_pool_counter_write.eip == 0x00487E8EU &&
+                stopped_pool_counter_write.esp == stack_top - 116U &&
+                stopped_pool_counter_write.ebp == stack_top - 88U &&
+                stopped_pool_counter_write.eax == 0x00804000U &&
+                stopped_pool_counter_write.ecx == 0x87654321U &&
+                stopped_pool_counter_write.edx == 0x00760001U &&
+                stopped_pool_counter_write.flags_known &&
+                !stopped_pool_counter_write.flags.zero &&
+                stopped_pool_counter_write.stopped_access_kind ==
+                    Access::global_write &&
+                decoder.calls == 1U,
+            "injected small-pool success stops before the unowned request counter increment"
+        );
         auto missing_small_limit = group_a_initial_request;
         missing_small_limit.decoder_small_block_limit_owner = nullptr;
         const auto stopped_small_limit = openswd3::battle::
@@ -7891,6 +7948,17 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_large_block.flags_known &&
                 !stopped_large_block.flags.carry,
             "synthetic low threshold takes the Win32 HeapAlloc branch but cannot prove imported allocator return"
+        );
+        auto zero_pool_reply = pool_reply_request;
+        zero_pool_reply.decoder_small_pool_return_eax = 0U;
+        const auto stopped_zero_pool_reply = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, zero_pool_reply, decoder_pending
+            );
+        test.expect_true(
+            stopped_zero_pool_reply.eip == 0x0048BB80U &&
+                stopped_zero_pool_reply.esp == stack_top - 140U,
+            "zero pool reply cannot bypass sub_48AA10 fallback via synthetic success"
         );
         decoder.reply.returned = true;
         const auto decoder_returned = openswd3::battle::

@@ -2556,6 +2556,20 @@ EIP/ESP/EBP/token；无阈值owner时停在`0x0048AA17`，并不假造阈值；
 IMUL和多位SHR的未定义算术FLAGS不冒充已知。
 首次`proc_d851`及补高类后`proc_1ddb` Linux core/CTest `199/199`、
 `proc_a25d` ASan core/CTest `199/199`、`proc_a218` Linux app/CTest `205/205`。
+该批提交推送为`5fe7be5d`，TG `proc_64fa`退出0，客户端显示未验证。
+新阶段将**显式注入的非零小块分配回包**与既有“整个解码后缀的正常回包”分开：
+只在未进入池内审计前缀、且专门绑定回包EAX非零时，视`sub_48BB80`已完成并弹
+其CALL返回槽，按`0x0048AA28`清Size实参、`0x0048AA2B/2E/34`写读本地槽，
+`0x0048AA65/67/68`恢复ESP、EBP并物理RET，`0x00487E72`清第二次Size实参，
+`0x00487E75/78`写读`[EBP-4]`并比较回包，`0x00487E85`读取请求计数、
+`0x00487E8B`加一，在尚无可写owner的`0x00487E8E`**写入前停住**。
+EAX=0的池回包不冒充成功；其真实fallback与池内副作用仍由opaque边界承担。
+合成非零token不证明真实内存可写，也不替代分配器完成或父栈别名证明。
+九处新增栈/全局读写分别测试故障前ESP/EBP/token；合成EAX=`0x00804000`
+使计数从合成`0x00760000`加至`0x00760001`，但由于计数写入owner未绑定，
+未宣称写回。零回包明确保留`sub_48BB80`原opaque入口。
+`proc_3366` Linux core/CTest `199/199`、`proc_6cfd` ASan core/CTest `199/199`、
+`proc_5ad5` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
