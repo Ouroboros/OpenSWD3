@@ -6732,6 +6732,30 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 decoder.calls == 0U,
             "decoder needs the actual format-global owner even when generic global reads are permitted"
         );
+        auto decoder_save_fault = group_a_initial_request;
+        decoder_save_fault.stop_before_access =
+            decoder_pending.accesses_completed + 3U;
+        const auto stopped_decoder_save = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, decoder_save_fault, decoder_pending
+            );
+        test.expect_true(
+            stopped_decoder_save.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
+                stopped_decoder_save.eip == 0x004019ACU &&
+                stopped_decoder_save.stopped_token ==
+                    decoder_pending.esp - 8U &&
+                stopped_decoder_save.esp == decoder_pending.esp - 4U &&
+                stopped_decoder_save.eax == 0x77665544U &&
+                stopped_decoder_save.edx == 0x0000FFFFU &&
+                stopped_decoder_save.ecx == 0U &&
+                stopped_decoder_save.flags_known &&
+                stopped_decoder_save.flags.zero &&
+                stopped_decoder_save.accesses_completed ==
+                    decoder_pending.accesses_completed + 3U &&
+                stopped_decoder_save.decode_calls == 1U && decoder.calls == 0U,
+            "decoder first callee register PUSH faults after the format read and XOR without changing ESP"
+        );
         decoder.reply.returned = false;
         const auto stopped_decoder_entry = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_decoder_call(

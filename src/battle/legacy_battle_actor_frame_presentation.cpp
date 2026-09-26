@@ -5859,8 +5859,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         : case_fifty_one_call                    ? 0x0047B907U
                                                  : 0x00479B4BU;
     prefix.decode_calls = 1U;
-    const u32 entry_eax = prefix.eax;
-    const u32 entry_edx = prefix.edx;
+    const auto callee_entry = prefix;
     if (prefix.accesses_completed == request.stop_before_access ||
         !request.stack_readable) {
         prefix.status =
@@ -5890,6 +5889,25 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
 
     ++prefix.accesses_completed;
     prefix.edx = *request.decoder_header_marker_owner;
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    prefix.flags_known = true;
+    const u32 saved_ebx_slot = prefix.esp - 4U;
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x004019ACU;
+        prefix.stopped_token = saved_ebx_slot;
+        prefix.eip = 0x004019ACU;
+        return prefix;
+    }
+
+    ++prefix.accesses_completed;
+    prefix.esp = saved_ebx_slot;
+    prefix.last_pushed_value = prefix.ebx;
     const std::array<u32, 4U> arguments{
         prefix.decoder_argument_pushes[3U],
         prefix.decoder_argument_pushes[2U],
@@ -5897,13 +5915,17 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         prefix.decoder_argument_pushes[0U],
     };
     prefix.decoder_child = decoder.decode(
-        arguments, entry_eax, prefix.ecx, entry_edx, prefix.flags
+        arguments,
+        callee_entry.eax,
+        callee_entry.ecx,
+        callee_entry.edx,
+        callee_entry.flags
     );
     const auto& reply = prefix.decoder_child;
     if (!reply.returned) {
-        prefix.accesses_completed -= 2U;
-        prefix.eax = entry_eax;
-        prefix.edx = entry_edx;
+        const auto entry_stop = reply;
+        prefix = callee_entry;
+        prefix.decoder_child = entry_stop;
         // Only an entry stop is representable without the decoder's own
         // stack and physical writes; never treat it as a token reply.
         prefix.status = case_hundred_call
@@ -5921,7 +5943,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         prefix.eip = 0x004019A0U;
         return prefix;
     }
-    prefix.esp += 4U;
+    prefix.esp += 8U;  // Saved EBX and the CALL return slot are restored.
     prefix.eax = reply.eax;
     prefix.ecx = reply.ecx;
     prefix.edx = reply.edx;

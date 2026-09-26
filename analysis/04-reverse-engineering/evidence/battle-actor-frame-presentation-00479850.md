@@ -2351,6 +2351,14 @@ port仅支持入口型停止时撤销这次模型化读计数，不冒充已完�
 测试快照给合成`0xFFFF`，与LST `0x004237F9`写入常量一致，但不能证明生产初始化、
 可变别名或随后header比较。`proc_bbf2` Linux core/CTest `199/199`、
 `proc_42db` ASan core/CTest `199/199`、`proc_4fcf` Linux app/CTest `205/205`。
+该批留底后的五段阶段TG `proc_0a06` 退出0；无 `message_id`，客户端显示未验证。
+继续核对解码callee：全局读后`0x004019AA XOR ECX,ECX`只改寄存器与FLAGS，
+`0x004019AC PUSH EBX`是下一独立可障栈写。已在四处共享解码CALL中保留写前
+EAX=首参数、EDX=格式全局、ECX=0、ZF=1，栈写失败时ESP仍指CALL返回槽，
+未执行`0x004019AD`源header读取；port入口型停止仍还原入站寄存器与栈计数。
+成功回复仅由窄port代表余下decoder与保存寄存器弹出，不宣称后续解码等价；
+`proc_471b` Linux core/CTest `199/199`、`proc_6c9c` ASan core/CTest `199/199`、
+`proc_1c9e` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
