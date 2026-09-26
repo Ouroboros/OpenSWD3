@@ -2632,6 +2632,17 @@ DF=1时第一轮dword写入内容相同，但REP写后暂存EDI倒退4，POP后
 默认DF与反向DF的首轮写入均保留正确字节，反向DF时写后EDI暂为
 `raw+0x18`。`proc_1127` Linux core/CTest `199/199`、`proc_ad1d`
 ASan core/CTest `199/199`、`proc_046c` Linux app/CTest `205/205`。
+该阶段提交推送`4fb6a5b2`，TG `proc_b45c`退出0，客户端显示未验证。
+linked分配分支在显式同址可写owner下按
+`0x00487EE3`读取总尺寸`0x0053D124`、`0x00487EE9`读取原始Size、
+`0x00487EEC`按32位回绕写回总尺寸；随后停在尚无owner的
+`0x00487EF2`第二个统计全局`0x0053D12C`读取前。错误读写别名或
+故障都不更新总尺寸；该合成统计owner不证明生产链表与统计全局。
+初版测试错误地沿用未链接分支多一个栈读取的序号，`proc_2705`和
+临时诊断`proc_2394`各有1个失败测试；诊断显示linked分支首个统计读取
+早一位。修正四个停点序号、移除临时诊断后，`proc_4e7e` Linux core/CTest
+`199/199`、`proc_fae7` ASan core/CTest `199/199`、`proc_993d`
+Linux app/CTest `205/205`。失败轮次不算通过证据。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

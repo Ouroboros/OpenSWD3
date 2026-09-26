@@ -7879,6 +7879,72 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 mutable_request_counter == 0x00760001U && decoder.calls == 1U,
             "debug flag bit zero set selects linked heap statistics without inventing an owner"
         );
+        u32 mutable_heap_size = 0xFFFFFFFEU;
+        auto linked_size_request = linked_header_request;
+        linked_size_request.decoder_heap_stats_size_owner = &mutable_heap_size;
+        linked_size_request.decoder_heap_stats_size_write_owner =
+            &mutable_heap_size;
+        const std::array<HeapPrefixFault, 4U> kLinkedSizeFaults{{
+            {96U, 0x00487EE3U, 116U, 0x0053D124U, Access::global_read},
+            {97U, 0x00487EE9U, 116U, stack_top - 80U, Access::stack_read},
+            {98U, 0x00487EECU, 116U, 0x0053D124U, Access::global_write},
+            {99U, 0x00487EF2U, 116U, 0x0053D12CU, Access::global_read},
+        }};
+        for (const auto& fault : kLinkedSizeFaults) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            linked_size_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, linked_size_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.accesses_completed ==
+                        linked_size_request.stop_before_access &&
+                    mutable_heap_size ==
+                        (fault.offset > 98U ? 10U : 0xFFFFFFFEU) &&
+                    mutable_request_counter == 0x00760001U,
+                "linked heap statistics preserve the read, size add and writable-alias fault order"
+            );
+        }
+        linked_size_request.stop_before_access = 0U;
+        mutable_request_counter = 0x00760000U;
+        mutable_heap_size = 0xFFFFFFFEU;
+        const auto stopped_next_statistic = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, linked_size_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_next_statistic.eip == 0x00487EF2U &&
+                stopped_next_statistic.edx == 10U &&
+                stopped_next_statistic.flags_known &&
+                stopped_next_statistic.flags.carry &&
+                mutable_heap_size == 10U &&
+                mutable_request_counter == 0x00760001U,
+            "linked heap size increments with 32-bit wrap before the next statistics global"
+        );
+        mutable_request_counter = 0x00760000U;
+        mutable_heap_size = 0xFFFFFFFEU;
+        u32 unrelated_heap_size = 0xFFFFFFFEU;
+        auto mismatched_heap_size_request = linked_size_request;
+        mismatched_heap_size_request.decoder_heap_stats_size_write_owner =
+            &unrelated_heap_size;
+        const auto stopped_stats_alias = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, mismatched_heap_size_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_stats_alias.eip == 0x00487EECU &&
+                mutable_heap_size == 0xFFFFFFFEU &&
+                unrelated_heap_size == 0xFFFFFFFEU &&
+                mutable_request_counter == 0x00760001U,
+            "linked heap statistics require a single read/write owner for the size global"
+        );
         std::array<openswd3::compat::u8, 48U> synthetic_heap_bytes{};
         auto backed_header_request = writable_counter_request;
         backed_header_request.decoder_heap_block_token = 0x00804000U;
