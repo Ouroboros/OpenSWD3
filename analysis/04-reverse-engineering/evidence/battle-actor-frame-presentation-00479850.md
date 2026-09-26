@@ -2596,7 +2596,17 @@ owner必须与分配回包的原始块token同址并具有至少四字节当前�
 `00 00 00 00`、`BC BA DC FE`、Size=12、类别3，未覆盖的偏移`0x1C`
 仍保持初始`0xA5`。错误token与20字节短窗均先停止且保留已写字节。
 `proc_0e03` Linux core/CTest `199/199`、`proc_7688` ASan core/CTest `199/199`、
-`proc_b3a8` Linux app/CTest `205/205`。
+`proc_b3a8` Linux app/CTest `205/205`。该阶段提交推送`bb7cfe9f`，TG
+`proc_5ab2`退出0；客户端显示未验证。
+首个填充子调用的前缀：只有显式绑定`0x004A8300`字节owner时，
+`0x00487F87`读取运行时byte至DL；依次压入Val、重读原始块指针、
+加`0x1C`后压入目标地址，在`0x00487F95`压入返回地址
+`0x00487F9A`，停在`sub_48A930`入口。没有实际填充或正常回包证明；
+填充目标、块可写性及生产owner仍待核验。
+五处逐项停点核对`0x00487F87/F8D/F8E/F94/F95`及ESP和写入前缀；
+合成`0xFD`只是在显式owner下回包，不冒充生产global。
+`proc_65cf` Linux core/CTest `199/199`、`proc_36a2` ASan core/CTest `199/199`、
+`proc_bd51` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

@@ -7040,13 +7040,49 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                 .overflow = false,
             };
             prefix.flags_known = true;
-            prefix.status =
-                LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.global_readable ||
+                request.decoder_heap_guard_byte_owner == nullptr) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::global_read;
+                prefix.stopped_instruction = 0x00487F87U;
+                prefix.stopped_token = 0x004A8300U;
+                prefix.eip = 0x00487F87U;
+                return prefix;
+            }
+            ++prefix.accesses_completed;
+            prefix.edx = *request.decoder_heap_guard_byte_owner;
+            if (!save(0x00487F8DU, prefix.edx) ||
+                !read_inner_argument(
+                    0x00487F8EU,
+                    prefix.ebp - 4U,
+                    request.decoder_small_pool_return_eax,
+                    prefix.eax
+                )) {
+                return prefix;
+            }
+            prefix.flags = add_flags(prefix.eax, 0x1CU);
+            prefix.eax += 0x1CU;
+            if (!save(0x00487F94U, prefix.eax) ||
+                !save(0x00487F95U, 0x00487F9AU)) {
+                return prefix;
+            }
+            prefix.status = case_hundred_call
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_hundred_decoder_child_typed_stop
+                : case_eight_call ? LegacyBattleActorFrameEntryStatus::
+                                        case_eight_decoder_child_typed_stop
+                : case_fifty_one_call
+                ? LegacyBattleActorFrameEntryStatus::
+                      case_fifty_one_decoder_child_typed_stop
+                : LegacyBattleActorFrameEntryStatus::
+                      case_two_decoder_child_typed_stop;
             prefix.stopped_access_kind =
-                LegacyBattleActorFrameEntryAccessKind::global_read;
-            prefix.stopped_instruction = 0x00487F87U;
-            prefix.stopped_token = 0x004A8300U;
-            prefix.eip = 0x00487F87U;
+                LegacyBattleActorFrameEntryAccessKind::callee_call;
+            prefix.stopped_instruction = 0x0048A930U;
+            prefix.eip = 0x0048A930U;
         } else {
             prefix.status =
                 LegacyBattleActorFrameEntryStatus::global_read_typed_stop;

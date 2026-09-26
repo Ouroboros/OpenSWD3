@@ -7982,6 +7982,65 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 synthetic_heap_bytes[28U] == 0xA5U,
             "unlinked allocation writes seven exact little-endian header dwords before filling"
         );
+        static constexpr openswd3::compat::u8 kHeapGuardByte = 0xFDU;
+        auto bound_guard_request = backed_header_request;
+        bound_guard_request.decoder_heap_guard_byte_owner = &kHeapGuardByte;
+        const std::array<HeapPrefixFault, 5U> kFirstFillCallFaults{{
+            {113U, 0x00487F87U, 120U, 0x004A8300U, Access::global_read},
+            {114U, 0x00487F8DU, 120U, stack_top - 124U,
+             Access::stack_write},
+            {115U, 0x00487F8EU, 124U, stack_top - 92U, Access::stack_read},
+            {116U, 0x00487F94U, 124U, stack_top - 128U,
+             Access::stack_write},
+            {117U, 0x00487F95U, 128U, stack_top - 132U,
+             Access::stack_write},
+        }};
+        for (const auto& fault : kFirstFillCallFaults) {
+            synthetic_heap_bytes.fill(0xA5U);
+            mutable_request_counter = 0x00760000U;
+            bound_guard_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, bound_guard_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.accesses_completed ==
+                        bound_guard_request.stop_before_access &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.ebp == stack_top - 88U &&
+                    synthetic_heap_bytes[12U] == 0xBCU &&
+                    synthetic_heap_bytes[28U] == 0xA5U &&
+                    mutable_request_counter == 0x00760001U,
+                "first fill call preserves header bytes and faults before each stack or byte access"
+            );
+        }
+        synthetic_heap_bytes.fill(0xA5U);
+        mutable_request_counter = 0x00760000U;
+        bound_guard_request.stop_before_access = 0U;
+        const auto stopped_first_fill_child = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, bound_guard_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_first_fill_child.eip == 0x0048A930U &&
+                stopped_first_fill_child.status ==
+                    openswd3::battle::LegacyBattleActorFrameEntryStatus::
+                        case_two_decoder_child_typed_stop &&
+                stopped_first_fill_child.stopped_access_kind ==
+                    Access::callee_call &&
+                stopped_first_fill_child.esp == stack_top - 132U &&
+                stopped_first_fill_child.ebp == stack_top - 88U &&
+                stopped_first_fill_child.eax == 0x0080401CU &&
+                stopped_first_fill_child.edx == 0xFDU &&
+                stopped_first_fill_child.last_pushed_value == 0x00487F9AU &&
+                synthetic_heap_bytes[28U] == 0xA5U &&
+                mutable_request_counter == 0x00760001U,
+            "explicit guard byte reaches the first fill child without fabricating its writes"
+        );
         synthetic_heap_bytes.fill(0xA5U);
         mutable_request_counter = 0x00760000U;
         auto wrong_heap_token = backed_header_request;
