@@ -558,6 +558,9 @@ struct LegacyBattleActorFrameEntryRequest {
     const compat::u32* decoder_heap_request_counter_owner{};  // 0x004A82F8
     const compat::u32* decoder_heap_break_counter_owner{};    // 0x004A82FC
     const compat::u32* decoder_heap_alloc_owner{};            // 0x004A8360
+    const compat::u32* decoder_small_block_limit_owner{};     // 0x004A8390
+    const compat::u32* decoder_win32_heap_owner{};            // 0x0053E7BC
+    const compat::u32* decoder_win32_alloc_owner{};           // 0x00499198
     const compat::u32* draw_source_token_owner{};             // 0x004CD730
     const compat::u32* draw_palette_token_owner{};            // 0x004CD764
     const compat::u32* draw_height_third_owner{};             // 0x004CD75C

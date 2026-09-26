@@ -6477,8 +6477,9 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
 
     // The LST .data initial target is this leaf, but a mutable indirect
     // target must match before its return can be modeled here.
-    if (!debug_heap_check && allocator_callee_token == 0x0048AA70U &&
-        allocation_size <= 0xFFFFFFBCU) {
+    const bool bound_static_leaf = !debug_heap_check &&
+        allocator_callee_token == 0x0048AA70U && allocation_size <= 0xFFFFFFBCU;
+    if (bound_static_leaf) {
         if (!save(0x0048AA70U, prefix.ebp)) {
             return prefix;
         }
@@ -6587,6 +6588,95 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             return prefix;
         }
         allocator_callee_token = 0x0048AA10U;
+    }
+
+    if (bound_static_leaf) {
+        const u32 raw_bytes = allocation_size + 0x24U;
+        if (!save(0x0048AA10U, prefix.ebp)) {
+            return prefix;
+        }
+        prefix.ebp = prefix.esp;
+        if (!save(0x0048AA13U, prefix.ecx) ||
+            !read_inner_argument(
+                0x0048AA14U, prefix.ebp + 8U, raw_bytes, prefix.eax
+            )) {
+            return prefix;
+        }
+        u32 small_block_limit{};
+        if (!read_heap_global(
+                0x0048AA17U,
+                0x004A8390U,
+                request.decoder_small_block_limit_owner,
+                small_block_limit
+            )) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(prefix.eax, small_block_limit);
+        if (prefix.flags.carry || prefix.flags.zero) {
+            if (!read_inner_argument(
+                    0x0048AA1FU, prefix.ebp + 8U, raw_bytes, prefix.ecx
+                ) ||
+                !save(0x0048AA22U, prefix.ecx) ||
+                !save(0x0048AA23U, 0x0048AA28U)) {
+                return prefix;
+            }
+            allocator_callee_token = 0x0048BB80U;
+        } else {
+            u32 heap_bytes{};
+            if (!read_inner_argument(
+                    0x0048AA39U, prefix.ebp + 8U, raw_bytes, heap_bytes
+                )) {
+                return prefix;
+            }
+            prefix.flags = subtract_flags(heap_bytes, 0U);
+            if (heap_bytes == 0U) {
+                if (!write_heap_local(0x0048AA3FU, prefix.ebp + 8U)) {
+                    return prefix;
+                }
+                heap_bytes = 1U;
+            }
+            if (!read_inner_argument(
+                    0x0048AA46U, prefix.ebp + 8U, heap_bytes, prefix.edx
+                )) {
+                return prefix;
+            }
+            prefix.flags = add_flags(prefix.edx, 0x0FU);
+            prefix.edx += 0x0FU;
+            prefix.edx &= 0xFFFFFFF0U;
+            prefix.flags = {
+                .carry = false,
+                .parity = even_parity(static_cast<u8>(prefix.edx)),
+                .auxiliary_carry_defined = false,
+                .zero = prefix.edx == 0U,
+                .sign = (prefix.edx & 0x80000000U) != 0U,
+                .overflow = false,
+            };
+            if (!write_heap_local(0x0048AA4FU, prefix.ebp + 8U) ||
+                !read_inner_argument(
+                    0x0048AA52U, prefix.ebp + 8U, prefix.edx, prefix.eax
+                ) ||
+                !save(0x0048AA55U, prefix.eax) || !save(0x0048AA56U, 0U) ||
+                !read_heap_global(
+                    0x0048AA58U,
+                    0x0053E7BCU,
+                    request.decoder_win32_heap_owner,
+                    prefix.ecx
+                ) ||
+                !save(0x0048AA5EU, prefix.ecx)) {
+                return prefix;
+            }
+            u32 win32_alloc_target{};
+            if (!read_heap_global(
+                    0x0048AA5FU,
+                    0x00499198U,
+                    request.decoder_win32_alloc_owner,
+                    win32_alloc_target
+                ) ||
+                !save(0x0048AA5FU, 0x0048AA65U)) {
+                return prefix;
+            }
+            allocator_callee_token = win32_alloc_target;
+        }
     }
 
     const std::array<u32, 4U> arguments{

@@ -2526,7 +2526,21 @@ LST对应实际为`0x00487D52 TEST`，该两处未提交且已删除并重跑门
 含错误指令地址时的`proc_7d81/18a7/9345/7195`虽各门禁通过，
 **不计入修正后验收**。修正后的`proc_ec48` Linux core/CTest `199/199`、
 `proc_6657` ASan core/CTest `199/199`、`proc_f38f` Linux app/CTest `205/205`。
-`sub_48AA10`内小块/HeapAlloc、调试头、像素流仍未验证。
+该阶段提交推送`2be3e27e`；TG `proc_cdb2`退出0，客户端显示未验证。
+`sub_48AA10`此前尚未审计。当前沿显式叶目标继续核对其入口：
+`0x0048AA10`保存EBP、`0x0048AA13`保存ECX，`0x0048AA14`重读Size+0x24；
+`0x0048AA17`要求显式`0x004A8390`当前值owner。LST `.data`初值为`0x3F8`，
+但不能代替实时owner。Size不大于阈值时，`0x0048AA1F..23`重读Size并分别压参、
+返回地址`0x0048AA28`，在`sub_48BB80`入口停住；测试中的48/42字节走此支。
+显式合成小阈值16时，原版`0x0048AA39`改走系统堆分支：重读Size、按16字节对齐、
+写回参数槽，压Size和Flags；从显式`0x0053E7BC`堆句柄owner及
+IAT `0x00499198`函数指针owner读取，再压句柄和返回地址`0x0048AA65`，
+在显式目标入口停住。小块分支7处、系统堆分支10处独立栈/全局故障向量覆盖
+EIP/ESP/EBP/token；无阈值owner时停在`0x0048AA17`，并不假造阈值；
+显式低阈值下正常执行至合成HeapAlloc入口，但不把其端口回包当真实内存证明。
+`proc_8fb2` Linux core/CTest `199/199`、`proc_cbbd` ASan core/CTest `199/199`、
+`proc_6d31` Linux app/CTest `205/205`。小块/系统堆callee真实回包、
+第二次申请后的调试头、像素流及生产owner别名仍未验证。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
