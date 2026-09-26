@@ -2652,7 +2652,16 @@ Linux app/CTest `205/205`。失败轮次不算通过证据。该阶段提交推�
 统计量不证明原版运行时owner或节点别名。较大/较小两侧、八处故障
 停点及峰值写入别名测试均使用显式合成统计owner。
 `proc_cccb` Linux core/CTest `199/199`、`proc_ec4b` ASan core/CTest
-`199/199`、`proc_8e40` Linux app/CTest `205/205`。
+`199/199`、`proc_8e40` Linux app/CTest `205/205`。该阶段提交推送
+`f556db99`，TG `proc_d87b`退出0，客户端显示未验证。
+显式绑定链尾全局`0x0053D128`读取后，原版`0x00487F19`比较零值。
+零链尾在`0x00487F2F`重读raw块，并停在尚无owner的
+`0x00487F32`链头`0x0053D120`写入前；非零链尾在
+`0x00487F22`再次读取链尾，再于`0x00487F27`重读raw，停在
+旧尾节点`[tail+4]`写入前。未提供旧尾节点可写backing，不冒充链接成功。
+零链尾三处、非零链尾四处独立故障向量核对写前统计量持久化；
+`proc_b819` Linux core/CTest `199/199`、`proc_ae81` ASan core/CTest
+`199/199`、`proc_c2ec` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

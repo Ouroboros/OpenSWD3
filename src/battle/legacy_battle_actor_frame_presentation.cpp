@@ -7396,9 +7396,53 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             }
             u32 tail_token{};
             if (!read_heap_stat(
-                    0x00487F19U, 0x0053D128U, nullptr, tail_token
+                    0x00487F19U,
+                    0x0053D128U,
+                    request.decoder_heap_tail_owner,
+                    tail_token
                 )) {
                 return prefix;
+            }
+            prefix.flags = subtract_flags(tail_token, 0U);
+            if (tail_token != 0U) {
+                if (!read_heap_stat(
+                        0x00487F22U,
+                        0x0053D128U,
+                        request.decoder_heap_tail_owner,
+                        prefix.eax
+                    ) ||
+                    !read_inner_argument(
+                        0x00487F27U,
+                        prefix.ebp - 4U,
+                        request.decoder_small_pool_return_eax,
+                        prefix.ecx
+                    )) {
+                    return prefix;
+                }
+                prefix.status = LegacyBattleActorFrameEntryStatus::
+                    allocator_block_write_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::
+                        allocator_block_write;
+                prefix.stopped_instruction = 0x00487F2AU;
+                prefix.stopped_token = prefix.eax + 4U;
+                prefix.eip = 0x00487F2AU;
+            } else {
+                if (!read_inner_argument(
+                        0x00487F2FU,
+                        prefix.ebp - 4U,
+                        request.decoder_small_pool_return_eax,
+                        prefix.edx
+                    )) {
+                    return prefix;
+                }
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::global_write;
+                prefix.stopped_instruction = 0x00487F32U;
+                prefix.stopped_token = 0x0053D120U;
+                prefix.eip = 0x00487F32U;
             }
         }
         return prefix;

@@ -8028,6 +8028,74 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 unrelated_peak == 8U,
             "peak statistics reject a different write owner after committing prior totals"
         );
+        u32 empty_heap_tail = 0U;
+        auto empty_tail_request = linked_peak_request;
+        empty_tail_request.decoder_heap_tail_owner = &empty_heap_tail;
+        const std::array<HeapPrefixFault, 3U> kEmptyTailFaults{{
+            {106U, 0x00487F19U, 116U, 0x0053D128U, Access::global_read},
+            {107U, 0x00487F2FU, 116U, stack_top - 92U, Access::stack_read},
+            {108U, 0x00487F32U, 116U, 0x0053D120U, Access::global_write},
+        }};
+        for (const auto& fault : kEmptyTailFaults) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_tail_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, empty_tail_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.accesses_completed ==
+                        empty_tail_request.stop_before_access &&
+                    mutable_heap_size == 10U && mutable_live_size == 9U &&
+                    mutable_peak_size == 9U && empty_heap_tail == 0U,
+                "empty heap tail branches to the unbound list-head write after statistics"
+            );
+        }
+        u32 nonempty_heap_tail = 0x00806000U;
+        auto nonempty_tail_request = linked_peak_request;
+        nonempty_tail_request.decoder_heap_tail_owner = &nonempty_heap_tail;
+        const std::array<HeapPrefixFault, 4U> kNonemptyTailFaults{{
+            {106U, 0x00487F19U, 116U, 0x0053D128U, Access::global_read},
+            {107U, 0x00487F22U, 116U, 0x0053D128U, Access::global_read},
+            {108U, 0x00487F27U, 116U, stack_top - 92U, Access::stack_read},
+            {109U,
+             0x00487F2AU,
+             116U,
+             0x00806004U,
+             Access::allocator_block_write},
+        }};
+        for (const auto& fault : kNonemptyTailFaults) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            nonempty_tail_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, nonempty_tail_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.accesses_completed ==
+                        nonempty_tail_request.stop_before_access &&
+                    mutable_heap_size == 10U && mutable_live_size == 9U &&
+                    mutable_peak_size == 9U &&
+                    nonempty_heap_tail == 0x00806000U,
+                "nonempty heap tail rereads the old node before its unbound next-pointer write"
+            );
+        }
         std::array<openswd3::compat::u8, 48U> synthetic_heap_bytes{};
         auto backed_header_request = writable_counter_request;
         backed_header_request.decoder_heap_block_token = 0x00804000U;
