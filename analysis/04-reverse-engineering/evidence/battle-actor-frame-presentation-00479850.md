@@ -2993,6 +2993,16 @@ ESP 和保存寄存器，停在 `0x00401AB5/0x00401B62` 的首次 POP
 分别核对源读次数、FLAGS、寄存器及已写像素。
 `proc_6a11` Linux core/CTest `199/199`、`proc_a56e` ASan
 core/CTest `199/199`、`proc_1b54` Linux app/CTest `205/205`。
+仅在零行命令、零终止字且显式合成栈快照下，继续逐个读取
+`0x00401AB5..0x00401AB8` 或 `0x00401B62..0x00401B65` 的
+EDI、ESI、EBP、EBX 保存字：各停点在本次 POP 前保持前次恢复结果，
+成功 POP 后 ESP 分别加 4，FLAGS 仍为终止字比较结果；四次恢复后
+停在 `0x00401AB9/0x00401B66` 返回地址读取前，EAX 不被伪置零，
+也不提前发布父函数回包。空链、非空链格式16和空链格式8的
+五个停点（四次 POP 读障与 RET 读前）分别按原快照寄存器及先前像素字节核对。
+`proc_515a` Linux core/CTest `199/199`、`proc_6773` ASan
+core/CTest `199/199`、`proc_c4b8` Linux app/CTest `205/205`。
+生产栈同址写入、RET 真正读入和后续父函数行为仍待核对。
 里程碑 (3) 尚需其余解码命令和尺寸，仍为 `2/8 = 25%`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，

@@ -10275,6 +10275,64 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         "format-sixteen row end decides stack pop or next row read without early cleanup"
                     );
                 }
+                const std::array<u8, 20U> kCompletedSixteenRow{
+                    0xFFU, 0xFFU, 0x02U, 0x00U, 0x03U, 0x00U, 0x10U,
+                    0x00U, 0x01U, 0x80U, 0x02U, 0x00U, 0x34U, 0x12U,
+                    0xCDU, 0xABU, 0x00U, 0x00U, 0x00U, 0x00U,
+                };
+                const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                    completed_sixteen_sources{
+                        {{0x77665544U, kCompletedSixteenRow}}
+                    };
+                auto return_request = second_pixel_request;
+                return_request.decoder_sources = completed_sixteen_sources;
+                return_request.decoder_payload_heap_next_command_word_backed =
+                    true;
+                return_request.decoder_payload_heap_row_end_word_backed = true;
+                return_request.decoder_payload_heap_return_pops_backed = true;
+                for (u32 pop_count = 0U; pop_count <= 4U; ++pop_count) {
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    return_request.stop_before_access =
+                        decoder_pending.accesses_completed + 198U + pop_count +
+                        (has_old_tail ? 1U : 0U);
+                    const auto stopped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, return_request, fill_prefix
+                        );
+                    test.expect_true(
+                        stopped.eip == 0x00401AB5U + pop_count &&
+                            stopped.stopped_access_kind == Access::stack_read &&
+                            stopped.stopped_token ==
+                                stack_top - 20U + 4U * pop_count &&
+                            stopped.accesses_completed ==
+                                return_request.stop_before_access &&
+                            stopped.esp == stack_top - 20U + 4U * pop_count &&
+                            stopped.edi ==
+                                (pop_count >= 1U ? decoder_pending.edi
+                                                 : 0x77665556U) &&
+                            stopped.esi ==
+                                (pop_count >= 2U ? decoder_pending.esi
+                                                 : 0x00804024U) &&
+                            stopped.ebp ==
+                                (pop_count >= 3U ? decoder_pending.ebp : 8U) &&
+                            stopped.ebx ==
+                                (pop_count >= 4U ? decoder_pending.ebx
+                                                 : 0xABCDU) &&
+                            stopped.flags.zero && stopped.flags.parity &&
+                            !stopped.flags.carry &&
+                            linked_raw_backing[32U] == 0x34U &&
+                            linked_raw_backing[35U] == 0xABU,
+                        "format-sixteen decoder restores four saved registers before reading RET"
+                    );
+                }
 
                 const std::array<openswd3::compat::u8, 12U> kZeroCountSource{
                     0xFFU,
@@ -10809,6 +10867,69 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     linked_raw_backing[32U] == 0x5AU &&
                     linked_raw_backing[33U] == 0xA6U,
                 "format-eight row end decides stack pop or next row read without early cleanup"
+            );
+        }
+        const std::array<u8, 18U> kCompletedEightRow{
+            0xFFU,
+            0xFFU,
+            0x03U,
+            0x00U,
+            0x04U,
+            0x00U,
+            0x08U,
+            0x00U,
+            0x01U,
+            0x80U,
+            0x02U,
+            0x00U,
+            0x5AU,
+            0xA6U,
+            0x00U,
+            0x00U,
+            0x00U,
+            0x00U,
+        };
+        const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+            completed_eight_sources{{{0x77665544U, kCompletedEightRow}}};
+        auto return_request = eight_second_pixel_request;
+        return_request.decoder_sources = completed_eight_sources;
+        return_request.decoder_payload_heap_next_command_word_backed = true;
+        return_request.decoder_payload_heap_row_end_word_backed = true;
+        return_request.decoder_payload_heap_return_pops_backed = true;
+        for (u32 pop_count = 0U; pop_count <= 4U; ++pop_count) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            writable_heap_head = 0xABCDEF01U;
+            linked_raw_backing.fill(0xA5U);
+            case_two_outputs.words = {2U, 3U, 0x10U};
+            return_request.stop_before_access =
+                decoder_pending.accesses_completed + 198U + pop_count;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, return_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == 0x00401B62U + pop_count &&
+                    stopped.stopped_access_kind == Access::stack_read &&
+                    stopped.stopped_token == stack_top - 20U + 4U * pop_count &&
+                    stopped.accesses_completed ==
+                        return_request.stop_before_access &&
+                    stopped.esp == stack_top - 20U + 4U * pop_count &&
+                    stopped.edi ==
+                        (pop_count >= 1U ? decoder_pending.edi : 0x77665554U) &&
+                    stopped.esi ==
+                        (pop_count >= 2U ? decoder_pending.esi : 0x00804022U) &&
+                    stopped.ebp ==
+                        (pop_count >= 3U ? decoder_pending.ebp : 6U) &&
+                    stopped.ebx ==
+                        (pop_count >= 4U ? decoder_pending.ebx : 0xA6U) &&
+                    stopped.flags.zero && stopped.flags.parity &&
+                    !stopped.flags.carry && linked_raw_backing[32U] == 0x5AU &&
+                    linked_raw_backing[33U] == 0xA6U,
+                "format-eight decoder restores four saved registers before reading RET"
             );
         }
 

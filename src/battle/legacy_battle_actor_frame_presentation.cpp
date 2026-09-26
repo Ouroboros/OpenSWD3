@@ -9115,6 +9115,97 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                                                 .eip =
                                                                                                                 prefix
                                                                                                                     .stopped_instruction;
+                                                                                                            if (
+                                                                                                                row_end ==
+                                                                                                                    0U &&
+                                                                                                                request
+                                                                                                                    .decoder_payload_heap_return_pops_backed
+                                                                                                            ) {
+                                                                                                                const u32
+                                                                                                                    first_pop =
+                                                                                                                        format_sixteen
+                                                                                                                    ? 0x00401AB5U
+                                                                                                                    : 0x00401B62U;
+                                                                                                                if (
+                                                                                                                    !read_inner_argument(
+                                                                                                                        first_pop,
+                                                                                                                        prefix
+                                                                                                                            .esp,
+                                                                                                                        callee_entry
+                                                                                                                            .edi,
+                                                                                                                        prefix
+                                                                                                                            .edi
+                                                                                                                    )
+                                                                                                                ) {
+                                                                                                                    return prefix;
+                                                                                                                }
+                                                                                                                prefix
+                                                                                                                    .esp +=
+                                                                                                                    4U;
+                                                                                                                if (
+                                                                                                                    !read_inner_argument(
+                                                                                                                        first_pop +
+                                                                                                                            1U,
+                                                                                                                        prefix
+                                                                                                                            .esp,
+                                                                                                                        callee_entry
+                                                                                                                            .esi,
+                                                                                                                        prefix
+                                                                                                                            .esi
+                                                                                                                    )
+                                                                                                                ) {
+                                                                                                                    return prefix;
+                                                                                                                }
+                                                                                                                prefix
+                                                                                                                    .esp +=
+                                                                                                                    4U;
+                                                                                                                if (
+                                                                                                                    !read_inner_argument(
+                                                                                                                        first_pop +
+                                                                                                                            2U,
+                                                                                                                        prefix
+                                                                                                                            .esp,
+                                                                                                                        callee_entry
+                                                                                                                            .ebp,
+                                                                                                                        prefix
+                                                                                                                            .ebp
+                                                                                                                    )
+                                                                                                                ) {
+                                                                                                                    return prefix;
+                                                                                                                }
+                                                                                                                prefix
+                                                                                                                    .esp +=
+                                                                                                                    4U;
+                                                                                                                if (
+                                                                                                                    !read_inner_argument(
+                                                                                                                        first_pop +
+                                                                                                                            3U,
+                                                                                                                        prefix
+                                                                                                                            .esp,
+                                                                                                                        callee_entry
+                                                                                                                            .ebx,
+                                                                                                                        prefix
+                                                                                                                            .ebx
+                                                                                                                    )
+                                                                                                                ) {
+                                                                                                                    return prefix;
+                                                                                                                }
+                                                                                                                prefix
+                                                                                                                    .esp +=
+                                                                                                                    4U;
+                                                                                                                prefix
+                                                                                                                    .stopped_instruction =
+                                                                                                                    first_pop +
+                                                                                                                    4U;
+                                                                                                                prefix
+                                                                                                                    .stopped_token =
+                                                                                                                    prefix
+                                                                                                                        .esp;
+                                                                                                                prefix
+                                                                                                                    .eip =
+                                                                                                                    prefix
+                                                                                                                        .stopped_instruction;
+                                                                                                            }
                                                                                                         }
                                                                                                     }
                                                                                                 }
