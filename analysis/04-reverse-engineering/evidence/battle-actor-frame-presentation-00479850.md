@@ -2435,7 +2435,19 @@ EDI/ESI/EBP，`0x004019BA XOR EAX,EAX` 清零并设置ZF，再从 `0x004019BC` �
 仍归未审后缀；
 正常端口回包只代表该后缀具备条件性正常栈平衡，**不证明其分配/循环故障**。
 `proc_53eb` Linux core/CTest `199/199`、`proc_36e8` ASan core/CTest `199/199`、
-`proc_742c` Linux app/CTest `205/205`。
+`proc_742c` Linux app/CTest `205/205`；该批已提交并推送 `98d6ef88`，
+阶段TG `proc_7a2c` 退出0，客户端显示未验证。
+分配wrapper `sub_487C10` 的九次独立可障访问继续按物理顺序接入：
+`0x00487C10 PUSH EBP`、`0x00487C13/15/17 PUSH 0/0/1`、
+`0x00487C19 MOV EAX,[0x0053D1B4]`、`0x00487C1E PUSH EAX`、
+`0x00487C1F MOV ECX,[EBP+8]` 重读刚压的Size、`0x00487C22 PUSH ECX`、
+`0x00487C23 CALL sub_487C80` 压返回地址`0x00487C28`。缺失显式全局owner时
+在`0x00487C19`停下，先前PUSH 0/0/1与旧EAX保留；现有合成全局值`0x00790000`
+只是测试backing，不证明生产堆状态。九个序号/ESP/EBP/token停点和先前三项父栈输出均有局部测试；
+非返回深层port现停在`0x00487C80`入口，保留wrapper已压的七个dword及EIP。
+`sub_487C80`及后续分配、回包、decoder命令流仍未审计，不能据此声称成功分配等价。
+`proc_a1cb` Linux core/CTest `199/199`、`proc_51e0` ASan core/CTest `199/199`、
+`proc_922d` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

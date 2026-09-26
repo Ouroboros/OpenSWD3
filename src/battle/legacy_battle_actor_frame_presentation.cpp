@@ -6250,8 +6250,50 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     const u32 size_push_ip = format_sixteen ? 0x00401A05U : 0x00401AC2U;
     const u32 allocator_call_ip = format_sixteen ? 0x00401A06U : 0x00401AC3U;
     const u32 allocator_return_ip = format_sixteen ? 0x00401A0BU : 0x00401AC8U;
-    if (!save(size_push_ip, format_sixteen ? prefix.edx : prefix.eax) ||
+    const u32 allocation_size = format_sixteen ? prefix.edx : prefix.eax;
+    if (!save(size_push_ip, allocation_size) ||
         !save(allocator_call_ip, allocator_return_ip)) {
+        return prefix;
+    }
+    if (!save(0x00487C10U, prefix.ebp)) {
+        return prefix;
+    }
+    prefix.ebp = prefix.esp;
+    if (!save(0x00487C13U, 0U) || !save(0x00487C15U, 0U) ||
+        !save(0x00487C17U, 1U)) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.global_readable ||
+        request.decoder_allocator_global_owner == nullptr) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        prefix.stopped_instruction = 0x00487C19U;
+        prefix.stopped_token = 0x0053D1B4U;
+        prefix.eip = 0x00487C19U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.eax = *request.decoder_allocator_global_owner;
+    if (!save(0x00487C1EU, prefix.eax)) {
+        return prefix;
+    }
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.stack_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        prefix.stopped_instruction = 0x00487C1FU;
+        prefix.stopped_token = prefix.ebp + 8U;
+        prefix.eip = 0x00487C1FU;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    prefix.ecx = allocation_size;
+    if (!save(0x00487C22U, prefix.ecx) || !save(0x00487C23U, 0x00487C28U)) {
         return prefix;
     }
 
@@ -6279,12 +6321,13 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                         case_two_decoder_child_typed_stop;
         prefix.stopped_access_kind =
             LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x00487C10U;
-        prefix.eip = 0x00487C10U;
+        prefix.stopped_instruction = 0x00487C80U;
+        prefix.eip = 0x00487C80U;
         return prefix;
     }
-    // The allocator argument/return and decoder saves unwind.
-    prefix.esp += 28U;
+    // The allocator wrapper, its five arguments, and the decoder saves unwind.
+    prefix.esp += 56U;
+    prefix.ebp = callee_entry.ebp;
     prefix.esi = callee_entry.esi;
     prefix.edi = callee_entry.edi;
     prefix.eax = reply.eax;
