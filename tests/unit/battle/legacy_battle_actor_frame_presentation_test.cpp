@@ -445,7 +445,7 @@ public:
     static constexpr u32 kSyntheticHeapDebugFlags = 0U;
     static constexpr u32 kSyntheticHeapRequestCounter = 0x00760000U;
     static constexpr u32 kSyntheticHeapBreakCounter = 0xFFFFFFFFU;
-    static constexpr u32 kSyntheticHeapAlloc = 0x00754321U;
+    static constexpr u32 kSyntheticHeapAlloc = 0x0048AA70U;
     static std::array<u32, 3U> synthetic_decoder_outputs{};
     static std::array<LegacyBattleActorFrameParentArgumentWord, 3U>
         synthetic_decoder_output_owners{{
@@ -7218,15 +7218,15 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_indexed_suffix.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_two_decoder_child_typed_stop &&
-                stopped_indexed_suffix.eip == 0x00754321U &&
-                stopped_indexed_suffix.esp == decoder_pending.esp - 148U &&
-                stopped_indexed_suffix.last_pushed_value == 0x00487D4FU &&
-                stopped_indexed_suffix.eax == 0x00760000U &&
-                stopped_indexed_suffix.ecx == 0x00790000U &&
-                stopped_indexed_suffix.edx == 6U &&
+                stopped_indexed_suffix.eip == 0x0048AA10U &&
+                stopped_indexed_suffix.esp == decoder_pending.esp - 124U &&
+                stopped_indexed_suffix.last_pushed_value == 0x00487E72U &&
+                stopped_indexed_suffix.eax == 42U &&
+                stopped_indexed_suffix.ecx == 42U &&
+                stopped_indexed_suffix.edx == 0U &&
                 stopped_indexed_suffix.edi == 0x7766554CU &&
                 stopped_indexed_suffix.flags_known &&
-                stopped_indexed_suffix.flags.carry &&
+                !stopped_indexed_suffix.flags.carry &&
                 case_two_outputs.words == std::array<u32, 3U>{2U, 3U, 8U} &&
                 decoder.calls == 1U,
             "indexed format masks high format bits and enters its separate decoder suffix after all three output stores"
@@ -7551,6 +7551,47 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 "heap allocator prologue keeps each stack/global fault distinct before indirect allocation"
             );
         }
+        const std::array<HeapPrefixFault, 15U> kHeapReturnFaults{{
+            {65U, 0x0048AA70U, 148U, stack_top - 152U, Access::stack_write},
+            {66U, 0x0048AA78U, 152U, stack_top - 152U, Access::stack_read},
+            {67U, 0x0048AA79U, 148U, stack_top - 148U, Access::stack_read},
+            {68U, 0x00487DB4U, 116U, stack_top - 76U, Access::stack_read},
+            {69U, 0x00487DC2U, 116U, 0x004A82F4U, Access::global_read},
+            {70U, 0x00487DCFU, 116U, stack_top - 100U, Access::stack_write},
+            {71U, 0x00487DD6U, 116U, stack_top - 80U, Access::stack_read},
+            {72U, 0x00487DDCU, 116U, stack_top - 80U, Access::stack_read},
+            {73U, 0x00487E13U, 116U, stack_top - 76U, Access::stack_read},
+            {74U, 0x00487E20U, 116U, stack_top - 76U, Access::stack_read},
+            {75U, 0x00487E60U, 116U, stack_top - 80U, Access::stack_read},
+            {76U, 0x00487E66U, 116U, stack_top - 104U, Access::stack_write},
+            {77U, 0x00487E69U, 116U, stack_top - 104U, Access::stack_read},
+            {78U, 0x00487E6CU, 116U, stack_top - 120U, Access::stack_write},
+            {79U, 0x00487E6DU, 120U, stack_top - 124U, Access::stack_write},
+        }};
+        for (const auto& fault : kHeapReturnFaults) {
+            auto heap_return_fault = group_a_initial_request;
+            heap_return_fault.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, heap_return_fault, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.ebp ==
+                        (fault.offset == 66U ? stack_top - 152U
+                                             : stack_top - 88U) &&
+                    stopped.accesses_completed ==
+                        heap_return_fault.stop_before_access &&
+                    case_two_outputs.words ==
+                        std::array<u32, 3U>{2U, 3U, 0x10U} &&
+                    decoder.calls == 1U,
+                "bound CRT check callback and debug size request keep fifteen independent fault prefixes"
+            );
+        }
         auto missing_heap_flags = group_a_initial_request;
         missing_heap_flags.decoder_heap_debug_flags_owner = nullptr;
         const auto stopped_heap_flags = openswd3::battle::
@@ -7599,6 +7640,36 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 !stopped_debug_check.flags.zero,
             "debug heap bit 2 calls the CRT heap check before allocating"
         );
+        auto debug_bit_zero = group_a_initial_request;
+        static constexpr u32 kDebugHeapBitZero = 1U;
+        debug_bit_zero.decoder_heap_debug_flags_owner = &kDebugHeapBitZero;
+        debug_bit_zero.stop_before_access =
+            decoder_pending.accesses_completed + 70U;
+        const auto stopped_debug_bit_zero = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, debug_bit_zero, decoder_pending
+            );
+        test.expect_true(
+            stopped_debug_bit_zero.eip == 0x00487DD6U &&
+                stopped_debug_bit_zero.esp == decoder_pending.esp - 116U &&
+                stopped_debug_bit_zero.edx == 1U &&
+                stopped_debug_bit_zero.flags_known &&
+                !stopped_debug_bit_zero.flags.zero,
+            "debug heap bit zero skips the local flag write before checking allocation size"
+        );
+        auto changed_heap_target = group_a_initial_request;
+        static constexpr u32 kChangedHeapTarget = 0x00754321U;
+        changed_heap_target.decoder_heap_alloc_owner = &kChangedHeapTarget;
+        const auto stopped_changed_target = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, changed_heap_target, decoder_pending
+            );
+        test.expect_true(
+            stopped_changed_target.eip == kChangedHeapTarget &&
+                stopped_changed_target.esp == decoder_pending.esp - 148U &&
+                stopped_changed_target.last_pushed_value == 0x00487D4FU,
+            "a runtime-selected heap callback outside the known leaf keeps the opaque CALL boundary"
+        );
         const auto stopped_decoder_entry = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_decoder_call(
                 decoder, group_a_initial_request, decoder_pending
@@ -7607,12 +7678,12 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_decoder_entry.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_two_decoder_child_typed_stop &&
-                stopped_decoder_entry.eip == 0x00754321U &&
-                stopped_decoder_entry.esp == decoder_pending.esp - 148U &&
-                stopped_decoder_entry.last_pushed_value == 0x00487D4FU &&
-                stopped_decoder_entry.eax == 0x00760000U &&
-                stopped_decoder_entry.ecx == 0x00790000U &&
-                stopped_decoder_entry.edx == 12U &&
+                stopped_decoder_entry.eip == 0x0048AA10U &&
+                stopped_decoder_entry.esp == decoder_pending.esp - 124U &&
+                stopped_decoder_entry.last_pushed_value == 0x00487E72U &&
+                stopped_decoder_entry.eax == 48U &&
+                stopped_decoder_entry.ecx == 48U &&
+                stopped_decoder_entry.edx == 0U &&
                 stopped_decoder_entry.ebp == decoder_pending.esp - 88U &&
                 stopped_decoder_entry.edi == 0x7766554CU &&
                 stopped_decoder_entry.flags_known &&
@@ -7644,8 +7715,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 decoder_returned.edi == decoder_pending.edi &&
                 decoder_returned.flags_known && decoder_returned.flags.zero &&
                 decoder.arguments == expected_decode_arguments &&
-                decoder.entry_eax == 0x00760000U &&
-                decoder.entry_ecx == 0x00790000U && decoder.entry_edx == 12U &&
+                decoder.entry_eax == 48U && decoder.entry_ecx == 48U &&
+                decoder.entry_edx == 0U &&
                 group_a_phase.decoded_resource_token == 0U,
             "case2 normal decoder reply restores callee saves and CALL slot while four arguments remain on the caller stack"
         );
@@ -9254,9 +9325,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         stopped_case_eight_decoder_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_eight_decoder_child_typed_stop &&
-            stopped_case_eight_decoder_child.eip == 0x00754321U &&
+            stopped_case_eight_decoder_child.eip == 0x0048AA10U &&
             stopped_case_eight_decoder_child.esp ==
-                case_eight_decoder_args.esp - 148U &&
+                case_eight_decoder_args.esp - 124U &&
             case_eight_outputs.words == std::array<u32, 3U>{2U, 3U, 0x10U} &&
             case_eight_phase.decoded_resource_token == 0U,
         "case8 decoder suffix stop retains its three output writes but cannot publish emitter token"
@@ -12661,9 +12732,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_fifty_one_decoder_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fifty_one_decoder_child_typed_stop &&
-            stopped_case_fifty_one_decoder_child.eip == 0x00754321U &&
+            stopped_case_fifty_one_decoder_child.eip == 0x0048AA10U &&
             stopped_case_fifty_one_decoder_child.esp ==
-                case_fifty_one_decoder_args.esp - 148U &&
+                case_fifty_one_decoder_args.esp - 124U &&
             case_fifty_one_outputs.words ==
                 std::array<u32, 3U>{2U, 3U, 0x10U} &&
             case_fifty_one_decoder.arguments ==
@@ -19910,9 +19981,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_hundred_decoder_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_decoder_child_typed_stop &&
-            case_hundred_decoder_stop.eip == 0x00754321U &&
+            case_hundred_decoder_stop.eip == 0x0048AA10U &&
             case_hundred_decoder_stop.esp ==
-                case_hundred_decoder_args.esp - 148U &&
+                case_hundred_decoder_args.esp - 124U &&
             case_hundred_outputs.words == std::array<u32, 3U>{2U, 3U, 0x10U} &&
             case_hundred_decoder_return.status ==
                 LegacyBattleActorFrameEntryStatus::

@@ -6475,6 +6475,120 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         }
     }
 
+    // The LST .data initial target is this leaf, but a mutable indirect
+    // target must match before its return can be modeled here.
+    if (!debug_heap_check && allocator_callee_token == 0x0048AA70U &&
+        allocation_size <= 0xFFFFFFBCU) {
+        if (!save(0x0048AA70U, prefix.ebp)) {
+            return prefix;
+        }
+        const u32 saved_heap_ebp = prefix.ebp;
+        prefix.ebp = prefix.esp;
+        prefix.eax = 1U;
+        if (!read_inner_argument(
+                0x0048AA78U, prefix.esp, saved_heap_ebp, prefix.ebp
+            )) {
+            return prefix;
+        }
+        prefix.esp += 4U;
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.return_address_readable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            prefix.stopped_instruction = 0x0048AA79U;
+            prefix.stopped_token = prefix.esp;
+            prefix.eip = 0x0048AA79U;
+            return prefix;
+        }
+        ++prefix.accesses_completed;
+        prefix.esp += 4U;
+        prefix.flags = add_flags(prefix.esp, 0x1CU);
+        prefix.esp += 0x1CU;
+        // 0x00487D52 TEST EAX,EAX; 0x00487D54 JNZ reaches DB4.
+        // [EBP-4] is first written only after the later 0x00487E6D CALL.
+        prefix.flags = {
+            .carry = false,
+            .parity = even_parity(static_cast<u8>(prefix.eax)),
+            .auxiliary_carry_defined = false,
+            .zero = prefix.eax == 0U,
+            .sign = (prefix.eax & 0x80000000U) != 0U,
+            .overflow = false,
+        };
+        if (!read_inner_argument(
+                0x00487DB4U, prefix.ebp + 0x0CU, 1U, prefix.ecx
+            )) {
+            return prefix;
+        }
+        prefix.ecx &= 0xFFFFU;
+        prefix.flags = subtract_flags(prefix.ecx, 2U);
+        if (!read_heap_global(
+                0x00487DC2U,
+                0x004A82F4U,
+                request.decoder_heap_debug_flags_owner,
+                prefix.edx
+            )) {
+            return prefix;
+        }
+        prefix.edx &= 1U;
+        prefix.flags = {
+            .carry = false,
+            .parity = even_parity(static_cast<u8>(prefix.edx)),
+            .auxiliary_carry_defined = false,
+            .zero = prefix.edx == 0U,
+            .sign = false,
+            .overflow = false,
+        };
+        if (prefix.edx == 0U &&
+            !write_heap_local(0x00487DCFU, prefix.ebp - 0x0CU)) {
+            return prefix;
+        }
+        u32 size_word{};
+        if (!read_inner_argument(
+                0x00487DD6U, prefix.ebp + 8U, allocation_size, size_word
+            )) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(size_word, 0xFFFFFFE0U);
+        if (!read_inner_argument(
+                0x00487DDCU, prefix.ebp + 8U, allocation_size, prefix.eax
+            )) {
+            return prefix;
+        }
+        prefix.eax += 0x24U;
+        prefix.flags = subtract_flags(prefix.eax, 0xFFFFFFE0U);
+        if (!read_inner_argument(
+                0x00487E13U, prefix.ebp + 0x0CU, 1U, prefix.eax
+            )) {
+            return prefix;
+        }
+        prefix.eax &= 0xFFFFU;
+        prefix.flags = subtract_flags(prefix.eax, 4U);
+        u32 allocation_kind{};
+        if (!read_inner_argument(
+                0x00487E20U, prefix.ebp + 0x0CU, 1U, allocation_kind
+            )) {
+            return prefix;
+        }
+        prefix.flags = subtract_flags(allocation_kind, 1U);
+        if (!read_inner_argument(
+                0x00487E60U, prefix.ebp + 8U, allocation_size, prefix.eax
+            )) {
+            return prefix;
+        }
+        prefix.flags = add_flags(prefix.eax, 0x24U);
+        prefix.eax += 0x24U;
+        if (!write_heap_local(0x00487E66U, prefix.ebp - 0x10U) ||
+            !read_inner_argument(
+                0x00487E69U, prefix.ebp - 0x10U, prefix.eax, prefix.ecx
+            ) ||
+            !save(0x00487E6CU, prefix.ecx) || !save(0x00487E6DU, 0x00487E72U)) {
+            return prefix;
+        }
+        allocator_callee_token = 0x0048AA10U;
+    }
+
     const std::array<u32, 4U> arguments{
         prefix.decoder_argument_pushes[3U],
         prefix.decoder_argument_pushes[2U],
