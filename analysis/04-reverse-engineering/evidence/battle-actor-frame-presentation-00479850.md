@@ -2739,6 +2739,14 @@ REP写前；同址尾部guard依旧未写。空链/非空链各四处子栈
 故障以独立绑定核对；未对齐第二填充仍待单独向量。
 `proc_9203` Linux core/CTest `199/199`、`proc_f4dc` ASan
 core/CTest `199/199`、`proc_4550` Linux app/CTest `205/205`。
+该阶段提交推送`515d9b83`，TG `proc_7709`退出0，客户端显示未验证。
+仅显式同址可写linked块在第二次`0x0048A971`向raw+Size+0x20
+写四byte保护值，再依次执行子栈读取、RET及父栈清参；
+`0x00487FBB`重读Size、`0x00487FBE`压参，停在第三次填充的
+`0x00487FC1` byte全局读取前。空链/非空链各七处故障保持首、
+尾两处保护值写入先后和各自故障前副作用；第三次填充未开始。
+`proc_d23f` Linux core/CTest `199/199`、`proc_a001` ASan core/CTest
+`199/199`、`proc_f244` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

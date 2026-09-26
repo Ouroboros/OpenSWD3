@@ -577,6 +577,7 @@ struct LegacyBattleActorFrameEntryRequest {
     bool decoder_first_heap_fill_child_stack_backed{};
     bool decoder_first_heap_fill_write_backed{};
     bool decoder_second_heap_fill_child_stack_backed{};
+    bool decoder_second_heap_fill_write_backed{};
     const compat::u32* decoder_heap_stats_size_owner{};
     compat::u32* decoder_heap_stats_size_write_owner{};
     const compat::u32* decoder_heap_stats_live_size_owner{};

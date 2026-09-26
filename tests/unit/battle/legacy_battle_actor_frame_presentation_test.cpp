@@ -8794,6 +8794,91 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         0x00804000U,
                 "linked second aligned fill stops before writing trailing guard bytes"
             );
+            request.decoder_second_heap_fill_write_backed = true;
+            const std::array<HeapPrefixFault, 7U> kLinkedTrailingFaults{{
+                {156U,
+                 0x0048A971U,
+                 136U,
+                 0x0080402CU,
+                 Access::allocator_block_write},
+                {157U, 0x0048A97DU, 136U, stack_top - 128U, Access::stack_read},
+                {158U, 0x0048A981U, 136U, stack_top - 136U, Access::stack_read},
+                {159U, 0x0048A982U, 132U, stack_top - 132U, Access::stack_read},
+                {160U, 0x00487FBBU, 116U, stack_top - 80U, Access::stack_read},
+                {161U,
+                 0x00487FBEU,
+                 116U,
+                 stack_top - 120U,
+                 Access::stack_write},
+                {162U, 0x00487FC1U, 120U, 0x004A8302U, Access::global_read},
+            }};
+            for (const auto& fault : kLinkedTrailingFaults) {
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access =
+                    decoder_pending.accesses_completed + fault.offset +
+                    (has_old_tail ? 1U : 0U);
+                const auto stopped = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, decoder_pending
+                    );
+                test.expect_true(
+                    stopped.eip == fault.instruction &&
+                        stopped.stopped_access_kind == fault.kind &&
+                        stopped.stopped_token == fault.token &&
+                        stopped.esp == stack_top - fault.stack_drop &&
+                        stopped.accesses_completed ==
+                            request.stop_before_access &&
+                        linked_raw_backing[28U] == 0xFDU &&
+                        linked_raw_backing[44U] ==
+                            (fault.offset > 156U ? 0xFDU : 0xA5U) &&
+                        (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
+                            0x00804000U,
+                    "linked trailing guard commits only after the second fill write fault"
+                );
+            }
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            nonempty_heap_tail = 0x00806000U;
+            writable_heap_head = 0xABCDEF01U;
+            old_tail_backing.fill(0xA5U);
+            linked_raw_backing.fill(0xA5U);
+            request.stop_before_access = 0U;
+            const auto pixel_guard_pending = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, request, decoder_pending
+                );
+            test.expect_true(
+                pixel_guard_pending.eip == 0x00487FC1U &&
+                    pixel_guard_pending.stopped_access_kind ==
+                        Access::global_read &&
+                    pixel_guard_pending.stopped_token == 0x004A8302U &&
+                    pixel_guard_pending.esp == stack_top - 120U &&
+                    pixel_guard_pending.eax == 0U &&
+                    pixel_guard_pending.edx == 12U &&
+                    pixel_guard_pending.last_pushed_value == 12U &&
+                    pixel_guard_pending.flags_known &&
+                    pixel_guard_pending.flags.zero &&
+                    pixel_guard_pending.accesses_completed ==
+                        decoder_pending.accesses_completed +
+                            (has_old_tail ? 163U : 162U) &&
+                    linked_raw_backing[28U] == 0xFDU &&
+                    linked_raw_backing[44U] == 0xFDU &&
+                    linked_raw_backing[47U] == 0xFDU &&
+                    (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
+                        0x00804000U,
+                "linked second fill restores its stack before the pixel-byte read"
+            );
         }
         auto unaligned_linked_request = linked_metadata_empty_request;
         unaligned_linked_request.decoder_small_pool_return_eax = 0x00804001U;
