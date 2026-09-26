@@ -2835,6 +2835,17 @@ ASan core/CTest `199/199`、`proc_bd99` Linux app/CTest `205/205`。
 不能据此声称零回包重试已验收。`proc_6224` Linux core/CTest
 `199/199`、`proc_c85f` ASan core/CTest `199/199`、
 `proc_9a69` Linux app/CTest `205/205`。生产父栈别名仍未证明。
+该阶段提交推送`bb87b791`，远端SHA一致；TG `proc_8072`退出0，
+客户端显示未验证。显式绑定`sub_487C80`父返回栈时，
+LST `0x00487CC8 POP EBP`读取`0x00487C80 PUSH EBP`
+的保存值，`0x00487CC9 RET`取回`0x00487C28`，随后
+`ADD ESP,0x14`清五项实参，停在`0x00487C2B POP EBP`前。
+初版`proc_dc0d`测试失败：预期父EBP错写为入口ESP减36，
+实际六个物理压栈槽对应入口ESP减32；修正后`proc_fb7d`
+Linux core/CTest `199/199`、`proc_d5f7` ASan core/CTest
+`199/199`、`proc_6d3a` Linux app/CTest `205/205`。
+失败轮次不计通过。
+合成返回地址不证明生产父调用栈或其他caller。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

@@ -6297,6 +6297,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     if (!save(0x00487C22U, prefix.ecx) || !save(0x00487C23U, 0x00487C28U)) {
         return prefix;
     }
+    const u32 saved_heap_wrapper_ebp = prefix.ebp;
     if (!save(0x00487C80U, prefix.ebp)) {
         return prefix;
     }
@@ -8322,6 +8323,53 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                 prefix.esp;
                                                             prefix.eip =
                                                                 0x00487CC8U;
+                                                            if (
+                                                                request
+                                                                    .decoder_payload_heap_wrapper_return_stack_backed
+                                                            ) {
+                                                                if (!read_inner_argument(
+                                                                        0x00487CC8U,
+                                                                        prefix
+                                                                            .esp,
+                                                                        saved_heap_wrapper_ebp,
+                                                                        prefix
+                                                                            .ebp
+                                                                    )) {
+                                                                    return prefix;
+                                                                }
+                                                                prefix.esp +=
+                                                                    4U;
+                                                                u32 wrapper_return_ip{};
+                                                                if (!read_inner_argument(
+                                                                        0x00487CC9U,
+                                                                        prefix
+                                                                            .esp,
+                                                                        0x00487C28U,
+                                                                        wrapper_return_ip
+                                                                    )) {
+                                                                    return prefix;
+                                                                }
+                                                                prefix.esp +=
+                                                                    4U;
+                                                                prefix.eip =
+                                                                    wrapper_return_ip;
+                                                                prefix.flags =
+                                                                    add_flags(
+                                                                        prefix
+                                                                            .esp,
+                                                                        0x14U
+                                                                    );
+                                                                prefix.esp +=
+                                                                    0x14U;
+                                                                prefix
+                                                                    .stopped_instruction =
+                                                                    0x00487C2BU;
+                                                                prefix
+                                                                    .stopped_token =
+                                                                    prefix.esp;
+                                                                prefix.eip =
+                                                                    0x00487C2BU;
+                                                            }
                                                         } else {
                                                             prefix.status =
                                                                 LegacyBattleActorFrameEntryStatus::
