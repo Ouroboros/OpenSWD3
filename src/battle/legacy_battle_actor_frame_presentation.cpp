@@ -6952,13 +6952,101 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                 )) {
                 return prefix;
             }
-            prefix.status = LegacyBattleActorFrameEntryStatus::
-                allocator_block_write_typed_stop;
+            const auto write_heap_header = [&](const u32 instruction,
+                                               const u32 base,
+                                               const std::size_t offset,
+                                               const u32 value) {
+                const auto bytes = request.decoder_heap_block_bytes;
+                if (prefix.accesses_completed == request.stop_before_access ||
+                    !request.decoder_heap_block_writable ||
+                    request.decoder_heap_block_token != base ||
+                    offset > bytes.size() || bytes.size() - offset < 4U) {
+                    prefix.status = LegacyBattleActorFrameEntryStatus::
+                        allocator_block_write_typed_stop;
+                    prefix.stopped_access_kind =
+                        LegacyBattleActorFrameEntryAccessKind::
+                            allocator_block_write;
+                    prefix.stopped_instruction = instruction;
+                    prefix.stopped_token = base + static_cast<u32>(offset);
+                    prefix.eip = instruction;
+                    return false;
+                }
+                ++prefix.accesses_completed;
+                for (std::size_t i = 0U; i < 4U; ++i) {
+                    bytes[offset + i] = static_cast<u8>(value >> (8U * i));
+                }
+                return true;
+            };
+            if (!write_heap_header(0x00487E9DU, prefix.eax, 0U, 0U) ||
+                !read_inner_argument(
+                    0x00487EA3U,
+                    prefix.ebp - 4U,
+                    request.decoder_small_pool_return_eax,
+                    prefix.ecx
+                ) ||
+                !write_heap_header(0x00487EA6U, prefix.ecx, 4U, 0U) ||
+                !read_inner_argument(
+                    0x00487EADU,
+                    prefix.ebp - 4U,
+                    request.decoder_small_pool_return_eax,
+                    prefix.edx
+                ) ||
+                !write_heap_header(0x00487EB0U, prefix.edx, 8U, 0U) ||
+                !read_inner_argument(
+                    0x00487EB7U,
+                    prefix.ebp - 4U,
+                    request.decoder_small_pool_return_eax,
+                    prefix.eax
+                ) ||
+                !write_heap_header(
+                    0x00487EBAU, prefix.eax, 0x0CU, 0xFEDCBABCU
+                ) ||
+                !read_inner_argument(
+                    0x00487EC1U,
+                    prefix.ebp - 4U,
+                    request.decoder_small_pool_return_eax,
+                    prefix.ecx
+                ) ||
+                !read_inner_argument(
+                    0x00487EC4U, prefix.ebp + 8U, allocation_size, prefix.edx
+                ) ||
+                !write_heap_header(
+                    0x00487EC7U, prefix.ecx, 0x10U, prefix.edx
+                ) ||
+                !read_inner_argument(
+                    0x00487ECAU,
+                    prefix.ebp - 4U,
+                    request.decoder_small_pool_return_eax,
+                    prefix.eax
+                ) ||
+                !write_heap_header(0x00487ECDU, prefix.eax, 0x14U, 3U) ||
+                !read_inner_argument(
+                    0x00487ED4U,
+                    prefix.ebp - 4U,
+                    request.decoder_small_pool_return_eax,
+                    prefix.ecx
+                ) ||
+                !write_heap_header(0x00487ED7U, prefix.ecx, 0x18U, 0U) ||
+                !save(0x00487F83U, 4U)) {
+                return prefix;
+            }
+            prefix.edx = 0U;
+            prefix.flags = {
+                .carry = false,
+                .parity = true,
+                .auxiliary_carry_defined = false,
+                .zero = true,
+                .sign = false,
+                .overflow = false,
+            };
+            prefix.flags_known = true;
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
             prefix.stopped_access_kind =
-                LegacyBattleActorFrameEntryAccessKind::allocator_block_write;
-            prefix.stopped_instruction = 0x00487E9DU;
-            prefix.stopped_token = prefix.eax;
-            prefix.eip = 0x00487E9DU;
+                LegacyBattleActorFrameEntryAccessKind::global_read;
+            prefix.stopped_instruction = 0x00487F87U;
+            prefix.stopped_token = 0x004A8300U;
+            prefix.eip = 0x00487F87U;
         } else {
             prefix.status =
                 LegacyBattleActorFrameEntryStatus::global_read_typed_stop;

@@ -7879,6 +7879,141 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 mutable_request_counter == 0x00760001U && decoder.calls == 1U,
             "debug flag bit zero set selects linked heap statistics without inventing an owner"
         );
+        std::array<openswd3::compat::u8, 48U> synthetic_heap_bytes{};
+        auto backed_header_request = writable_counter_request;
+        backed_header_request.decoder_heap_block_token = 0x00804000U;
+        backed_header_request.decoder_heap_block_bytes = synthetic_heap_bytes;
+        const std::array<HeapPrefixFault, 16U> kHeaderFaults{{
+            {98U,
+             0x00487E9DU,
+             116U,
+             0x00804000U,
+             Access::allocator_block_write},
+            {99U, 0x00487EA3U, 116U, stack_top - 92U, Access::stack_read},
+            {100U,
+             0x00487EA6U,
+             116U,
+             0x00804004U,
+             Access::allocator_block_write},
+            {101U, 0x00487EADU, 116U, stack_top - 92U, Access::stack_read},
+            {102U,
+             0x00487EB0U,
+             116U,
+             0x00804008U,
+             Access::allocator_block_write},
+            {103U, 0x00487EB7U, 116U, stack_top - 92U, Access::stack_read},
+            {104U,
+             0x00487EBAU,
+             116U,
+             0x0080400CU,
+             Access::allocator_block_write},
+            {105U, 0x00487EC1U, 116U, stack_top - 92U, Access::stack_read},
+            {106U, 0x00487EC4U, 116U, stack_top - 80U, Access::stack_read},
+            {107U,
+             0x00487EC7U,
+             116U,
+             0x00804010U,
+             Access::allocator_block_write},
+            {108U, 0x00487ECAU, 116U, stack_top - 92U, Access::stack_read},
+            {109U,
+             0x00487ECDU,
+             116U,
+             0x00804014U,
+             Access::allocator_block_write},
+            {110U, 0x00487ED4U, 116U, stack_top - 92U, Access::stack_read},
+            {111U,
+             0x00487ED7U,
+             116U,
+             0x00804018U,
+             Access::allocator_block_write},
+            {112U, 0x00487F83U, 116U, stack_top - 120U, Access::stack_write},
+            {113U, 0x00487F87U, 120U, 0x004A8300U, Access::global_read},
+        }};
+        for (const auto& fault : kHeaderFaults) {
+            synthetic_heap_bytes.fill(0xA5U);
+            mutable_request_counter = 0x00760000U;
+            backed_header_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, backed_header_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.ebp == stack_top - 88U &&
+                    stopped.accesses_completed ==
+                        backed_header_request.stop_before_access &&
+                    mutable_request_counter == 0x00760001U &&
+                    synthetic_heap_bytes[0U] ==
+                        (fault.offset > 98U ? 0U : 0xA5U) &&
+                    synthetic_heap_bytes[12U] ==
+                        (fault.offset > 104U ? 0xBCU : 0xA5U) &&
+                    decoder.calls == 1U,
+                "seven heap header dwords preserve each preceding byte write at sixteen independent faults"
+            );
+        }
+        synthetic_heap_bytes.fill(0xA5U);
+        mutable_request_counter = 0x00760000U;
+        backed_header_request.stop_before_access = 0U;
+        const auto stopped_fill_pattern = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, backed_header_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_fill_pattern.eip == 0x00487F87U &&
+                stopped_fill_pattern.esp == stack_top - 120U &&
+                stopped_fill_pattern.edx == 0U &&
+                stopped_fill_pattern.flags_known &&
+                stopped_fill_pattern.flags.zero &&
+                mutable_request_counter == 0x00760001U &&
+                synthetic_heap_bytes[0U] == 0U &&
+                synthetic_heap_bytes[4U] == 0U &&
+                synthetic_heap_bytes[8U] == 0U &&
+                synthetic_heap_bytes[12U] == 0xBCU &&
+                synthetic_heap_bytes[13U] == 0xBAU &&
+                synthetic_heap_bytes[14U] == 0xDCU &&
+                synthetic_heap_bytes[15U] == 0xFEU &&
+                synthetic_heap_bytes[16U] == 12U &&
+                synthetic_heap_bytes[20U] == 3U &&
+                synthetic_heap_bytes[24U] == 0U &&
+                synthetic_heap_bytes[28U] == 0xA5U,
+            "unlinked allocation writes seven exact little-endian header dwords before filling"
+        );
+        synthetic_heap_bytes.fill(0xA5U);
+        mutable_request_counter = 0x00760000U;
+        auto wrong_heap_token = backed_header_request;
+        wrong_heap_token.decoder_heap_block_token = 0x00805000U;
+        const auto stopped_wrong_block = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, wrong_heap_token, decoder_pending
+            );
+        test.expect_true(
+            stopped_wrong_block.eip == 0x00487E9DU &&
+                synthetic_heap_bytes[0U] == 0xA5U &&
+                mutable_request_counter == 0x00760001U,
+            "heap byte owner must bind the returned raw block token"
+        );
+        synthetic_heap_bytes.fill(0xA5U);
+        mutable_request_counter = 0x00760000U;
+        auto short_heap_block = backed_header_request;
+        short_heap_block.decoder_heap_block_bytes =
+            std::span{synthetic_heap_bytes}.first(20U);
+        const auto stopped_short_block = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, short_heap_block, decoder_pending
+            );
+        test.expect_true(
+            stopped_short_block.eip == 0x00487ECDU &&
+                stopped_short_block.stopped_token == 0x00804014U &&
+                synthetic_heap_bytes[12U] == 0xBCU &&
+                synthetic_heap_bytes[16U] == 12U &&
+                synthetic_heap_bytes[20U] == 0xA5U &&
+                mutable_request_counter == 0x00760001U,
+            "short raw block keeps committed debug header fields before the next write fault"
+        );
         auto missing_small_limit = group_a_initial_request;
         missing_small_limit.decoder_small_block_limit_owner = nullptr;
         const auto stopped_small_limit = openswd3::battle::

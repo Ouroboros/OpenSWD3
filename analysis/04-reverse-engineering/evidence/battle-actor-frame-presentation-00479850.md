@@ -2582,6 +2582,21 @@ EAX=0的池回包不冒充成功；其真实fallback与池内副作用仍由opaq
 调整前core `proc_53b8`、ASan `proc_883e`各`199/199`及app `proc_e9b9`
 `205/205`不替代复验。追加枚举后`proc_6dd6` Linux core/CTest `199/199`、
 `proc_25d5` ASan core/CTest `199/199`、`proc_ea7b` Linux app/CTest `205/205`。
+该批提交推送`292cc21d`，TG `proc_b08d`退出0，客户端显示未验证。
+针对显式绑定且可写的合成原始块，未链接调试头路径按LST
+`0x00487E9D/EA6/EB0/EBA/EC7/ECD/ED7`七次独立写入偏移
+`0/4/8/0xC/0x10/0x14/0x18`，值分别为0/0/0/`0xFEDCBABC`/
+原始Size/3/0；七次写之间必须在各自原IP重读`[EBP-4]`或Size槽。
+owner必须与分配回包的原始块token同址并具有至少四字节当前写窗；
+短窗或停止时保留已经写入的字节。头写完先在`0x00487F83`压入首个
+填充调用的Size=4，然后`0x00487F85`清EDX并置ZF，在尚无owner的
+`0x00487F87`全局byte读取前停住，不伪造填充或像素返回。
+合成块不是原版分配器真实回包证明；linked统计分支不受这组写入影响。
+16处独立停点验证EIP/ESP/EBP/地址及写入前缀；头部小端字节检查
+`00 00 00 00`、`BC BA DC FE`、Size=12、类别3，未覆盖的偏移`0x1C`
+仍保持初始`0xA5`。错误token与20字节短窗均先停止且保留已写字节。
+`proc_0e03` Linux core/CTest `199/199`、`proc_7688` ASan core/CTest `199/199`、
+`proc_b3a8` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

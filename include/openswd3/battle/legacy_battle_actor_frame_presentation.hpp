@@ -570,6 +570,9 @@ struct LegacyBattleActorFrameEntryRequest {
     compat::u32 decoder_small_pool_return_edx{};
     LegacyBattleActorCoordinateFlags decoder_small_pool_return_flags{};
     bool decoder_small_pool_return_flags_known{};
+    compat::u32 decoder_heap_block_token{};
+    std::span<compat::u8> decoder_heap_block_bytes{};
+    bool decoder_heap_block_writable{true};
     const compat::u32* decoder_win32_heap_owner{};   // 0x0053E7BC
     const compat::u32* decoder_win32_alloc_owner{};  // 0x00499198
     const compat::u32* draw_source_token_owner{};    // 0x004CD730
