@@ -2731,7 +2731,14 @@ linked分支显式读取第二次`0x004A8300` byte，按`0x00487FA7`
 向量预期仍停FA1而新版显式owner已继续到CALL，导致一项测试失败；
 改为在FA1实际访问前注入停止后，`proc_8d8a` Linux core/CTest
 `199/199`、`proc_c70b` ASan core/CTest `199/199`、`proc_b919`
-Linux app/CTest `205/205`。失败轮次不计通过。
+Linux app/CTest `205/205`。失败轮次不计通过。该阶段提交推送
+`b4c4925b`，TG `proc_b9b7`退出0，客户端显示未验证。
+linked块显式绑定第二次填充的合成子栈后，按`sub_48A930`
+三参读取、EDI保存、低byte展开与对齐条件到`0x0048A971`
+REP写前；同址尾部guard依旧未写。空链/非空链各四处子栈
+故障以独立绑定核对；未对齐第二填充仍待单独向量。
+`proc_9203` Linux core/CTest `199/199`、`proc_f4dc` ASan
+core/CTest `199/199`、`proc_4550` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

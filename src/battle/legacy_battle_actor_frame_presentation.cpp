@@ -7772,6 +7772,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                     }
                     ++prefix.accesses_completed;
                     prefix.ecx = *request.decoder_heap_guard_byte_owner;
+                    const u32 second_fill_value = prefix.ecx;
                     if (!save(0x00487FA7U, prefix.ecx) ||
                         !read_inner_argument(
                             0x00487FA8U,
@@ -7807,6 +7808,82 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                         LegacyBattleActorFrameEntryAccessKind::callee_call;
                     prefix.stopped_instruction = 0x0048A930U;
                     prefix.eip = 0x0048A930U;
+                    if (request.decoder_second_heap_fill_child_stack_backed &&
+                        request.decoder_heap_block_token ==
+                            request.decoder_small_pool_return_eax &&
+                        prefix.ecx ==
+                            request.decoder_heap_block_token + allocation_size +
+                                0x20U) {
+                        const u32 second_fill_target = prefix.ecx;
+                        if (!read_inner_argument(
+                                0x0048A930U, prefix.esp + 0x0CU, 4U, prefix.edx
+                            ) ||
+                            !read_inner_argument(
+                                0x0048A934U,
+                                prefix.esp + 4U,
+                                second_fill_target,
+                                prefix.ecx
+                            )) {
+                            return prefix;
+                        }
+                        prefix.eax = 0U;
+                        prefix.flags = {
+                            .carry = false,
+                            .parity = true,
+                            .auxiliary_carry_defined = false,
+                            .zero = true,
+                            .sign = false,
+                            .overflow = false,
+                        };
+                        if (!read_inner_argument(
+                                0x0048A93EU,
+                                prefix.esp + 8U,
+                                second_fill_value,
+                                prefix.eax
+                            ) ||
+                            !save(0x0048A942U, prefix.edi)) {
+                            return prefix;
+                        }
+                        prefix.eax &= 0xFFU;
+                        prefix.edi = prefix.ecx;
+                        prefix.flags = subtract_flags(prefix.edx, 4U);
+                        prefix.ecx = 0U - prefix.ecx;
+                        prefix.ecx &= 3U;
+                        prefix.flags = {
+                            .carry = false,
+                            .parity = even_parity(static_cast<u8>(prefix.ecx)),
+                            .auxiliary_carry_defined = false,
+                            .zero = prefix.ecx == 0U,
+                            .sign = false,
+                            .overflow = false,
+                        };
+                        if (prefix.ecx != 0U) {
+                            prefix.stopped_instruction = 0x0048A951U;
+                            prefix.eip = 0x0048A951U;
+                            return prefix;
+                        }
+                        const u32 byte_value = prefix.eax;
+                        prefix.eax = (byte_value << 24U) | (byte_value << 16U) |
+                            (byte_value << 8U) | byte_value;
+                        prefix.ecx = 1U;
+                        prefix.edx = 0U;
+                        prefix.flags = {
+                            .carry = false,
+                            .parity = false,
+                            .auxiliary_carry_defined = false,
+                            .zero = false,
+                            .sign = false,
+                            .overflow_defined = false,
+                        };
+                        prefix.status = LegacyBattleActorFrameEntryStatus::
+                            allocator_block_write_typed_stop;
+                        prefix.stopped_access_kind =
+                            LegacyBattleActorFrameEntryAccessKind::
+                                allocator_block_write;
+                        prefix.stopped_instruction = 0x0048A971U;
+                        prefix.stopped_token = second_fill_target;
+                        prefix.eip = 0x0048A971U;
+                    }
                 }
             }
         }
