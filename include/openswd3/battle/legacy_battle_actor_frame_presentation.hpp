@@ -549,6 +549,8 @@ struct LegacyBattleActorFrameEntryRequest {
     const compat::u32* decoder_header_marker_owner{};  // 0x004CDE74
     std::span<const LegacyBattleActorFrameDecoderSource> decoder_sources{};
     bool decoder_source_readable{true};
+    std::array<LegacyBattleActorFrameParentArgumentWord*, 3U>
+        decoder_output_owners{};
     const compat::u32* draw_source_token_owner{};   // 0x004CD730
     const compat::u32* draw_palette_token_owner{};  // 0x004CD764
     const compat::u32* draw_height_third_owner{};   // 0x004CD75C
@@ -603,6 +605,8 @@ struct LegacyBattleActorFrameDecodeReply {
 class LegacyBattleActorFrameDecodePort {
 public:
     virtual ~LegacyBattleActorFrameDecodePort() = default;
+    // The registers/flags are the current state after the typed callee prefix,
+    // not the original CALL entry. returned=false stops at that suffix boundary.
     [[nodiscard]] virtual LegacyBattleActorFrameDecodeReply decode(
         const std::array<compat::u32, 4U>& stack_arguments,
         compat::u32 entry_eax,

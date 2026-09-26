@@ -31,6 +31,7 @@ using openswd3::battle::LegacyBattleActorFrameDecoderSource;
 using openswd3::battle::LegacyBattleActorFrameEntryAccessKind;
 using openswd3::battle::LegacyBattleActorFrameEntryRequest;
 using openswd3::battle::LegacyBattleActorFrameEntryStatus;
+using openswd3::battle::LegacyBattleActorFrameParentArgumentWord;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
@@ -429,14 +430,23 @@ public:
     static constexpr std::array<openswd3::compat::u8, 2U> kSyntheticDrawHeader{
         0xFFU, 0xFFU
     };
-    static constexpr std::array<openswd3::compat::u8, 4U>
-        kSyntheticDecoderHeader{0xFFU, 0xFFU, 0x02U, 0x00U};
+    static constexpr std::array<openswd3::compat::u8, 8U>
+        kSyntheticDecoderHeader{
+            0xFFU, 0xFFU, 0x02U, 0x00U, 0x03U, 0x00U, 0x10U, 0x00U
+        };
     static const std::array<LegacyBattleActorFrameDecoderSource, 4U>
         kSyntheticDecoderSources{{
             {0x12340000U, kSyntheticDecoderHeader},
             {0x77665544U, kSyntheticDecoderHeader},
             {0xAABBCCDDU, kSyntheticDecoderHeader},
             {0x12345678U, kSyntheticDecoderHeader},
+        }};
+    static std::array<u32, 3U> synthetic_decoder_outputs{};
+    static std::array<LegacyBattleActorFrameParentArgumentWord, 3U>
+        synthetic_decoder_output_owners{{
+            {0x0012FEF8U, &synthetic_decoder_outputs[0U]},
+            {0x0012FEF4U, &synthetic_decoder_outputs[1U]},
+            {0x0012FEF0U, &synthetic_decoder_outputs[2U]},
         }};
     return {
         .actor_token = 0x005029D0U,
@@ -453,12 +463,34 @@ public:
         .audio_state_submode_owner = &kAudioStateSubmode,
         .decoder_header_marker_owner = &kSyntheticDecoderHeaderMarker,
         .decoder_sources = kSyntheticDecoderSources,
+        .decoder_output_owners =
+            {&synthetic_decoder_output_owners[0U],
+             &synthetic_decoder_output_owners[1U],
+             &synthetic_decoder_output_owners[2U]},
         .draw_source_token_owner = &kSyntheticDrawToken,
         .draw_palette_token_owner = &kSyntheticDrawPaletteToken,
         .draw_source_bytes_token = kSyntheticDrawToken,
         .draw_source_bytes = kSyntheticDrawHeader,
     };
 }
+
+struct DecoderOutputBacking {
+    std::array<u32, 3U> words{};
+    std::array<LegacyBattleActorFrameParentArgumentWord, 3U> owners{};
+
+    explicit DecoderOutputBacking(
+        const openswd3::battle::LegacyBattleActorFrameEntryResult& prefix
+    ) {
+        for (std::size_t index = 0U; index < owners.size(); ++index) {
+            owners[index].token = prefix.decoder_argument_pushes[2U - index];
+            owners[index].word = &words[index];
+        }
+    }
+
+    void bind(LegacyBattleActorFrameEntryRequest& request) {
+        request.decoder_output_owners = {&owners[0U], &owners[1U], &owners[2U]};
+    }
+};
 
 }  // namespace
 
@@ -6955,6 +6987,63 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_short_header.flags.zero && decoder.calls == 0U,
             "matched decoder header requires width bytes after reading its three output addresses"
         );
+        auto unbound_decoder_width = group_a_initial_request;
+        unbound_decoder_width.decoder_output_owners = {};
+        const auto stopped_unbound_width = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, unbound_decoder_width, decoder_pending
+            );
+        test.expect_true(
+            stopped_unbound_width.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
+                stopped_unbound_width.eip == 0x004019D0U &&
+                stopped_unbound_width.stopped_token ==
+                    decoder_pending.decoder_argument_pushes[2U] &&
+                stopped_unbound_width.ecx == 2U &&
+                stopped_unbound_width.esp == decoder_pending.esp - 20U &&
+                decoder.calls == 0U,
+            "decoder width output must alias the exact parent var_8 stack token before any deep decode"
+        );
+        u32 wrong_width_word = 0xABCD1234U;
+        openswd3::battle::LegacyBattleActorFrameParentArgumentWord
+            wrong_width_owner{
+                .token = decoder_pending.decoder_argument_pushes[2U] + 4U,
+                .word = &wrong_width_word,
+            };
+        auto wrong_width_request = group_a_initial_request;
+        wrong_width_request.decoder_output_owners[0U] = &wrong_width_owner;
+        const auto stopped_wrong_width = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, wrong_width_request, decoder_pending
+            );
+        wrong_width_owner.token = decoder_pending.decoder_argument_pushes[2U];
+        wrong_width_owner.writable = false;
+        const auto stopped_unwritable_width = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, wrong_width_request, decoder_pending
+            );
+        auto indexed_width_request = group_a_initial_request;
+        indexed_width_request.stop_before_access =
+            decoder_pending.accesses_completed + 12U;
+        const auto stopped_indexed_width = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, indexed_width_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_wrong_width.eip == 0x004019D0U &&
+                stopped_unwritable_width.eip == 0x004019D0U &&
+                stopped_indexed_width.eip == 0x004019D0U &&
+                stopped_wrong_width.stopped_token ==
+                    decoder_pending.decoder_argument_pushes[2U] &&
+                stopped_unwritable_width.stopped_token ==
+                    stopped_wrong_width.stopped_token &&
+                stopped_indexed_width.accesses_completed ==
+                    indexed_width_request.stop_before_access &&
+                wrong_width_word == 0xABCD1234U && decoder.calls == 0U,
+            "decoder width output rejects the wrong slot, an unwritable owner and an indexed fault before changing parent bytes"
+        );
+        DecoderOutputBacking case_two_outputs{decoder_pending};
+        case_two_outputs.bind(group_a_initial_request);
         decoder.reply.returned = false;
         const auto stopped_decoder_entry = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_decoder_call(
@@ -6964,14 +7053,16 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_decoder_entry.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_two_decoder_child_typed_stop &&
-                stopped_decoder_entry.eip == 0x004019A0U &&
-                stopped_decoder_entry.esp == decoder_pending.esp - 4U &&
-                stopped_decoder_entry.eax == decoder_pending.eax &&
-                stopped_decoder_entry.ecx == decoder_pending.ecx &&
-                stopped_decoder_entry.edx == decoder_pending.edx &&
+                stopped_decoder_entry.eip == 0x004019D2U &&
+                stopped_decoder_entry.esp == decoder_pending.esp - 20U &&
+                stopped_decoder_entry.eax == 0x77665544U &&
+                stopped_decoder_entry.ecx == 2U &&
+                stopped_decoder_entry.edx ==
+                    decoder_pending.decoder_argument_pushes[2U] &&
+                case_two_outputs.words[0U] == 2U &&
                 stopped_decoder_entry.decode_calls == 1U &&
                 group_a_phase.decoded_resource_token == 0U,
-            "case2 decoder entry stop preserves its return slot and all registers before the emitter token write"
+            "case2 opaque decoder suffix stop keeps the already-written parent width without publishing emitter token"
         );
         decoder.reply.returned = true;
         const auto decoder_returned = openswd3::battle::
@@ -6995,11 +7086,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 decoder_returned.edi == decoder_pending.edi &&
                 decoder_returned.flags_known && decoder_returned.flags.zero &&
                 decoder.arguments == expected_decode_arguments &&
-                decoder.entry_eax == decoder_pending.eax &&
-                decoder.entry_ecx == decoder_pending.ecx &&
-                decoder.entry_edx == decoder_pending.edx &&
+                decoder.entry_eax == 0x77665544U && decoder.entry_ecx == 2U &&
+                decoder.entry_edx ==
+                    decoder_pending.decoder_argument_pushes[2U] &&
                 group_a_phase.decoded_resource_token == 0U,
-            "case2 normal decoder reply removes only CALL return slot while the four arguments remain on caller stack"
+            "case2 normal decoder reply restores callee saves and CALL slot while four arguments remain on the caller stack"
         );
         auto decoder_token_fault = group_a_initial_request;
         decoder_token_fault.stop_before_access =
@@ -8593,6 +8684,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_eight_decoder.calls == 0U,
         "case8 decoder CALL return-slot fault preserves four arguments before entering callee"
     );
+    DecoderOutputBacking case_eight_outputs{case_eight_decoder_args};
+    case_eight_outputs.bind(case_eight_forward_request);
     case_eight_decoder.reply.returned = false;
     const auto stopped_case_eight_decoder_child = openswd3::battle::
         continue_legacy_battle_actor_frame_case_two_decoder_call(
@@ -8604,12 +8697,12 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         stopped_case_eight_decoder_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_eight_decoder_child_typed_stop &&
-            stopped_case_eight_decoder_child.eip == 0x004019A0U &&
+            stopped_case_eight_decoder_child.eip == 0x004019D2U &&
             stopped_case_eight_decoder_child.esp ==
-                case_eight_decoder_args.esp - 4U &&
-            stopped_case_eight_decoder_child.last_pushed_value == 0x0047A643U &&
+                case_eight_decoder_args.esp - 20U &&
+            case_eight_outputs.words[0U] == 2U &&
             case_eight_phase.decoded_resource_token == 0U,
-        "case8 decoder child entry stop uses case8 return address and cannot publish emitter token"
+        "case8 decoder suffix stop retains its width write but cannot publish emitter token"
     );
     case_eight_decoder.reply.returned = true;
     const auto case_eight_decoder_return = openswd3::battle::
@@ -11981,6 +12074,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         "case51 decoder source dereference and seven accesses publish DF0 before four original argument pushes"
     );
     DecodePort case_fifty_one_decoder{};
+    DecoderOutputBacking case_fifty_one_outputs{case_fifty_one_decoder_args};
+    case_fifty_one_outputs.bind(case_eight_forward_request);
     auto case_fifty_one_call_fault = case_eight_forward_request;
     case_fifty_one_call_fault.stop_before_access =
         case_fifty_one_decoder_args.accesses_completed;
@@ -12009,11 +12104,10 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_fifty_one_decoder_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fifty_one_decoder_child_typed_stop &&
-            stopped_case_fifty_one_decoder_child.eip == 0x004019A0U &&
+            stopped_case_fifty_one_decoder_child.eip == 0x004019D2U &&
             stopped_case_fifty_one_decoder_child.esp ==
-                case_fifty_one_decoder_args.esp - 4U &&
-            stopped_case_fifty_one_decoder_child.last_pushed_value ==
-                0x0047B907U &&
+                case_fifty_one_decoder_args.esp - 20U &&
+            case_fifty_one_outputs.words[0U] == 2U &&
             case_fifty_one_decoder.arguments ==
                 std::array<u32, 4U>{
                     0xAABBCCDDU,
@@ -19231,6 +19325,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_eight_view, rle_request, case_hundred_cleared
         );
     DecodePort case_hundred_decoder{};
+    DecoderOutputBacking case_hundred_outputs{case_hundred_decoder_args};
+    case_hundred_outputs.bind(rle_request);
     case_hundred_decoder.reply.returned = false;
     const auto case_hundred_decoder_stop = openswd3::battle::
         continue_legacy_battle_actor_frame_case_two_decoder_call(
@@ -19256,8 +19352,10 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_hundred_decoder_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_decoder_child_typed_stop &&
+            case_hundred_decoder_stop.eip == 0x004019D2U &&
             case_hundred_decoder_stop.esp ==
-                case_hundred_decoder_args.esp - 4U &&
+                case_hundred_decoder_args.esp - 20U &&
+            case_hundred_outputs.words[0U] == 2U &&
             case_hundred_decoder_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_decoder_token_write_ready &&

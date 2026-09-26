@@ -6086,6 +6086,22 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     ++prefix.accesses_completed;
     prefix.ecx = static_cast<u32>((*source_bytes)[2U]) |
         (static_cast<u32>((*source_bytes)[3U]) << 8U);
+    auto* const width_owner = request.decoder_output_owners[0U];
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable || width_owner == nullptr ||
+        width_owner->token != prefix.edx || width_owner->word == nullptr ||
+        !width_owner->writable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_write;
+        prefix.stopped_instruction = 0x004019D0U;
+        prefix.stopped_token = prefix.edx;
+        prefix.eip = 0x004019D0U;
+        return prefix;
+    }
+    ++prefix.accesses_completed;
+    *width_owner->word = prefix.ecx;
 
     const std::array<u32, 4U> arguments{
         prefix.decoder_argument_pushes[3U],
@@ -6094,19 +6110,12 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         prefix.decoder_argument_pushes[0U],
     };
     prefix.decoder_child = decoder.decode(
-        arguments,
-        callee_entry.eax,
-        callee_entry.ecx,
-        callee_entry.edx,
-        callee_entry.flags
+        arguments, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
     );
     const auto& reply = prefix.decoder_child;
     if (!reply.returned) {
-        const auto entry_stop = reply;
-        prefix = callee_entry;
-        prefix.decoder_child = entry_stop;
-        // Only an entry stop is representable without the decoder's own
-        // stack and physical writes; never treat it as a token reply.
+        // The width output write is already visible to the parent stack.
+        // An opaque suffix stop must not roll it back to the callee entry.
         prefix.status = case_hundred_call
             ? LegacyBattleActorFrameEntryStatus::
                   case_hundred_decoder_child_typed_stop
@@ -6118,8 +6127,8 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                         case_two_decoder_child_typed_stop;
         prefix.stopped_access_kind =
             LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x004019A0U;
-        prefix.eip = 0x004019A0U;
+        prefix.stopped_instruction = 0x004019D2U;
+        prefix.eip = 0x004019D2U;
         return prefix;
     }
     prefix.esp += 20U;  // Four saved registers and the CALL slot are restored.

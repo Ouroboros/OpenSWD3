@@ -2355,7 +2355,8 @@ port仅支持入口型停止时撤销这次模型化读计数，不冒充已完�
 继续核对解码callee：全局读后`0x004019AA XOR ECX,ECX`只改寄存器与FLAGS，
 `0x004019AC PUSH EBX`是下一独立可障栈写。已在四处共享解码CALL中保留写前
 EAX=首参数、EDX=格式全局、ECX=0、ZF=1，栈写失败时ESP仍指CALL返回槽，
-未执行`0x004019AD`源header读取；port入口型停止仍还原入站寄存器与栈计数。
+未执行`0x004019AD`源header读取；当时port入口型停止可还原入站寄存器与栈计数；
+当前显式输出栈槽写入后的port边界已改为保留前缀（见下文），不再执行这项回滚。
 成功回复仅由窄port代表余下decoder与保存寄存器弹出，不宣称后续解码等价；
 `proc_471b` Linux core/CTest `199/199`、`proc_6c9c` ASan core/CTest `199/199`、
 `proc_1c9e` Linux app/CTest `205/205`。该批留底后的阶段TG `proc_8282`
@@ -2386,7 +2387,17 @@ EDI/ESI/EBP，`0x004019BA XOR EAX,EAX` 清零并设置ZF，再从 `0x004019BC` �
 测试四个源token的宽度值仍为合成2，父栈owner及资源字节别名未有生产证明；
 `0x004019D0` 写首个输出栈槽以及后续高度、格式读取/写入仍未核对。
 `proc_da5c` Linux core/CTest `199/199`、`proc_16da` ASan core/CTest `199/199`、
-`proc_b09c` Linux app/CTest `205/205`。
+`proc_b09c` Linux app/CTest `205/205`；该批已提交并推送 `539e1543`，
+阶段TG `proc_4ba5` 退出0，未验证客户端显示。
+匹配格式头和源宽度读后，`0x004019D0 MOV [EDX],ECX` 首次写调用方
+`var_8` dword，需输出token与显式可写word owner精确匹配；缺owner、错token、不可写或访问序号截断
+均在该写点停止，保留宽度ECX、四项callee保存栈及先前读取顺序，不调用深层port。
+测试中的 `S−8/S−0x0C/S−0x10` 栈槽是合成parent owner，不证明生产栈页、跨owner别名或输出缓冲。
+写入正常完成后port只代表未审计后缀：非返回停点位于下一条 `0x004019D2`，必须保留已写父栈的宽度，
+不能倒退到 `0x004019A0` 并撤销副作用；port接收该边界的EAX/ECX/EDX/FLAGS。
+目前高度/格式源读与剩余两次输出写仍归未审计后缀，不能把本批解释成完整解码或生产资源接线。
+本轮 `proc_e505` Linux core/CTest `199/199`、`proc_b057` ASan core/CTest `199/199`、
+`proc_d71d` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
