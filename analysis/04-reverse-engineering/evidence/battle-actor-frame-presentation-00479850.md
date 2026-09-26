@@ -2804,6 +2804,18 @@ ASan core/CTest `199/199`、`proc_e39f` Linux app/CTest `205/205`。
 修正后`proc_a666` Linux core/CTest `199/199`、`proc_7de4`
 ASan core/CTest `199/199`、`proc_3a26` Linux app/CTest `205/205`，
 失败轮次不计通过。此条件路径不证明生产分配器回包、真实本地槽或跨owner别名。
+该阶段提交推送`ce7c0ee6`，远端SHA一致；TG `proc_f5fc`退出0，
+客户端显示未验证。显式绑定allocator的三个保存寄存器栈槽后，
+按LST `0x00487FDC/0x00487FDD/0x00487FDE`逐次POP
+EDI、ESI、EBX，`0x00487FDF`令ESP回到EBP，停在
+`0x00487FE1 POP EBP`读取前；成功POP不修改EAX/FLAGS/DF。
+四个故障前缀和DF双向、空链/非空链终点向量均读取
+`0x00487CD6/0x00487CD7/0x00487CD8`的物理保存值；
+不能用外层decoder快照的EDI/ESI冒充该子函数保存值。
+`proc_e117`合取断言失败；`proc_4670`将其定位为测试的
+错误对照值，修正后`proc_dd9b` Linux core/CTest `199/199`、
+`proc_4035` ASan core/CTest `199/199`、`proc_8209` Linux
+app/CTest `205/205`，失败轮次不计通过。此合成栈不证明真实父栈来源。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

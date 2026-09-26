@@ -9042,6 +9042,22 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 request.direction_flag = reverse;
                 request.decoder_payload_heap_fill_return_stack_backed = false;
                 request.decoder_payload_heap_allocator_raw_local_backed = false;
+                request.decoder_payload_heap_allocator_saved_registers_backed =
+                    false;
+                auto heap_register_snapshot_request = request;
+                heap_register_snapshot_request.stop_before_access =
+                    decoder_pending.accesses_completed + 44U;
+                const auto heap_register_snapshot = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, heap_register_snapshot_request, fill_prefix
+                    );
+                test.expect_true(
+                    heap_register_snapshot.eip == 0x00487CD8U &&
+                        heap_register_snapshot.stopped_access_kind ==
+                            Access::stack_write &&
+                        heap_register_snapshot.esp == stack_top - 112U,
+                    "allocator register snapshot precedes its physical PUSH EDI"
+                );
                 for (u32 dword = 0U; dword < 3U; ++dword) {
                     mutable_request_counter = 0x00760000U;
                     mutable_heap_size = 0xFFFFFFFEU;
@@ -9290,6 +9306,111 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         linked_raw_backing[32U] == 0x7EU &&
                         linked_raw_backing[26U] == (reverse ? 0x7EU : 0x76U),
                     "linked pixel fill returns its raw block offset before restoring allocator EDI"
+                );
+                request.decoder_payload_heap_allocator_saved_registers_backed =
+                    true;
+                const std::array<HeapPrefixFault, 4U> kAllocatorPopFaults{{
+                    {178U,
+                     0x00487FDCU,
+                     116U,
+                     stack_top - 116U,
+                     Access::stack_read},
+                    {179U,
+                     0x00487FDDU,
+                     112U,
+                     stack_top - 112U,
+                     Access::stack_read},
+                    {180U,
+                     0x00487FDEU,
+                     108U,
+                     stack_top - 108U,
+                     Access::stack_read},
+                    {181U,
+                     0x00487FE1U,
+                     88U,
+                     stack_top - 88U,
+                     Access::stack_read},
+                }};
+                for (const auto& fault : kAllocatorPopFaults) {
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    request.stop_before_access =
+                        decoder_pending.accesses_completed + fault.offset +
+                        (has_old_tail ? 1U : 0U);
+                    const auto popped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, request, fill_prefix
+                        );
+                    test.expect_true(
+                        popped.eip == fault.instruction &&
+                            popped.stopped_access_kind == fault.kind &&
+                            popped.stopped_token == fault.token &&
+                            popped.esp == stack_top - fault.stack_drop &&
+                            popped.accesses_completed ==
+                                request.stop_before_access &&
+                            popped.eax == 0x00804020U &&
+                            popped.direction_flag == reverse &&
+                            linked_raw_backing[32U] == 0x7EU &&
+                            linked_raw_backing[26U] ==
+                                (reverse ? 0x7EU : 0x76U),
+                        "allocator restores saved registers in physical POP order"
+                    );
+                }
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access = 0U;
+                const auto registers_restored = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, fill_prefix
+                    );
+                test.expect_true(
+                    registers_restored.eip == 0x00487FE1U &&
+                        registers_restored.stopped_access_kind ==
+                            Access::stack_read &&
+                        registers_restored.stopped_token == stack_top - 88U &&
+                        registers_restored.esp == stack_top - 88U &&
+                        registers_restored.ebp == stack_top - 88U &&
+                        registers_restored.eax == 0x00804020U,
+                    "allocator POP sequence stops before reading saved EBP"
+                );
+                test.expect_true(
+                    registers_restored.edi == heap_register_snapshot.edi,
+                    "allocator POP EDI restores its value from PUSH EDI"
+                );
+                test.expect_true(
+                    registers_restored.esi == heap_register_snapshot.esi,
+                    "allocator POP ESI restores its value from PUSH ESI"
+                );
+                test.expect_true(
+                    registers_restored.ebx == heap_register_snapshot.ebx,
+                    "allocator POP EBX restores its value from PUSH EBX"
+                );
+                test.expect_true(
+                    registers_restored.accesses_completed ==
+                            decoder_pending.accesses_completed +
+                                (has_old_tail ? 182U : 181U) &&
+                        registers_restored.flags_known &&
+                        !registers_restored.flags.carry &&
+                        !registers_restored.flags.zero &&
+                        !registers_restored.flags.sign &&
+                        registers_restored.direction_flag == reverse &&
+                        linked_raw_backing[32U] == 0x7EU &&
+                        linked_raw_backing[26U] == (reverse ? 0x7EU : 0x76U),
+                    "allocator POP reads preserve flags, DF and block bytes"
                 );
             }
         }
