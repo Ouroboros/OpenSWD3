@@ -8041,6 +8041,85 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 mutable_request_counter == 0x00760001U,
             "explicit guard byte reaches the first fill child without fabricating its writes"
         );
+        auto backed_fill_stack_request = bound_guard_request;
+        backed_fill_stack_request.decoder_first_heap_fill_child_stack_backed =
+            true;
+        const std::array<HeapPrefixFault, 5U> kFillChildFaults{{
+            {118U, 0x0048A930U, 132U, stack_top - 120U, Access::stack_read},
+            {119U, 0x0048A934U, 132U, stack_top - 128U, Access::stack_read},
+            {120U, 0x0048A93EU, 132U, stack_top - 124U, Access::stack_read},
+            {121U, 0x0048A942U, 132U, stack_top - 136U, Access::stack_write},
+            {122U,
+             0x0048A971U,
+             136U,
+             0x0080401CU,
+             Access::allocator_block_write},
+        }};
+        for (const auto& fault : kFillChildFaults) {
+            synthetic_heap_bytes.fill(0xA5U);
+            mutable_request_counter = 0x00760000U;
+            backed_fill_stack_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, backed_fill_stack_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.ebp == stack_top - 88U &&
+                    stopped.accesses_completed ==
+                        backed_fill_stack_request.stop_before_access &&
+                    synthetic_heap_bytes[28U] == 0xA5U &&
+                    mutable_request_counter == 0x00760001U,
+                "first memset child preserves five access-specific stack and dword-write faults"
+            );
+        }
+        backed_fill_stack_request.stop_before_access = 0U;
+        synthetic_heap_bytes.fill(0xA5U);
+        mutable_request_counter = 0x00760000U;
+        const auto stopped_first_fill_dword = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, backed_fill_stack_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_first_fill_dword.eip == 0x0048A971U &&
+                stopped_first_fill_dword.eax == 0xFDFDFDFDU &&
+                stopped_first_fill_dword.ecx == 1U &&
+                stopped_first_fill_dword.edx == 0U &&
+                stopped_first_fill_dword.edi == 0x0080401CU &&
+                stopped_first_fill_dword.flags_known &&
+                !stopped_first_fill_dword.flags.zero &&
+                !stopped_first_fill_dword.flags.overflow_defined &&
+                !stopped_first_fill_dword.flags.auxiliary_carry_defined &&
+                synthetic_heap_bytes[28U] == 0xA5U && decoder.calls == 1U,
+            "aligned first memset stops before REP STOSD and leaves undefined SHR flags unclaimed"
+        );
+        synthetic_heap_bytes.fill(0xA5U);
+        mutable_request_counter = 0x00760000U;
+        auto unaligned_fill_request = backed_fill_stack_request;
+        unaligned_fill_request.decoder_small_pool_return_eax = 0x00804001U;
+        unaligned_fill_request.decoder_heap_block_token = 0x00804001U;
+        const auto stopped_unaligned_fill = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, unaligned_fill_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_unaligned_fill.eip == 0x0048A951U &&
+                stopped_unaligned_fill.stopped_access_kind ==
+                    Access::callee_call &&
+                stopped_unaligned_fill.esp == stack_top - 136U &&
+                stopped_unaligned_fill.edi == 0x0080401DU &&
+                stopped_unaligned_fill.ecx == 3U &&
+                stopped_unaligned_fill.flags_known &&
+                !stopped_unaligned_fill.flags.zero &&
+                stopped_unaligned_fill.flags.parity &&
+                synthetic_heap_bytes[28U] == 0xA5U &&
+                mutable_request_counter == 0x00760001U,
+            "unaligned first memset stops before the byte-adjustment loop"
+        );
         synthetic_heap_bytes.fill(0xA5U);
         mutable_request_counter = 0x00760000U;
         auto wrong_heap_token = backed_header_request;

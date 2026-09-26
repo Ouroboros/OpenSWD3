@@ -2606,7 +2606,18 @@ owner必须与分配回包的原始块token同址并具有至少四字节当前�
 五处逐项停点核对`0x00487F87/F8D/F8E/F94/F95`及ESP和写入前缀；
 合成`0xFD`只是在显式owner下回包，不冒充生产global。
 `proc_65cf` Linux core/CTest `199/199`、`proc_36a2` ASan core/CTest `199/199`、
-`proc_bd51` Linux app/CTest `205/205`。
+`proc_bd51` Linux app/CTest `205/205`。该阶段提交推送`03594f71`，
+TG `proc_ac23`退出0，客户端显示未验证。
+显式绑定首个填充子调用的合成栈时，按`sub_48A930`
+`0x0048A930/A934/A93E/A942`分别读取Size、目标指针、Val与压EDI；
+对齐目标在`0x0048A971 REP STOSD`实际内存写入前停住。
+汇编的`SHR ECX,2`计数为2，OF不定义，不能沿用原先known OF；
+当前仅覆盖Size=4的首个调用前缀；对齐分支停在实际dword写入前，
+未对齐分支停在`0x0048A951`字节对齐循环前，不声称三次填充或父函数返回。
+补充未对齐测试前`proc_0e84` Linux core/CTest `199/199`、
+`proc_69d8` ASan core/CTest `199/199`、`proc_f618` Linux app/CTest
+`205/205`；加入未对齐测试后重跑`proc_30f1` core `199/199`、
+`proc_c8d7` ASan `199/199`、`proc_7ec1` app `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
