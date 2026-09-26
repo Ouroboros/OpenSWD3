@@ -6680,6 +6680,38 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 decoder.calls == 0U,
             "decoder first caller-argument stack read faults after CALL return PUSH but before decoder port invocation"
         );
+        auto unreadable_decoder_global = group_a_initial_request;
+        unreadable_decoder_global.global_readable = false;
+        const auto stopped_decoder_global = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, unreadable_decoder_global, decoder_pending
+            );
+        auto indexed_decoder_global = group_a_initial_request;
+        indexed_decoder_global.stop_before_access =
+            decoder_pending.accesses_completed + 2U;
+        const auto stopped_indexed_global = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, indexed_decoder_global, decoder_pending
+            );
+        test.expect_true(
+            stopped_decoder_global.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                stopped_decoder_global.eip == 0x004019A4U &&
+                stopped_decoder_global.stopped_token == 0x004CDE74U &&
+                stopped_decoder_global.eax == 0x77665544U &&
+                stopped_decoder_global.edx == decoder_pending.edx &&
+                stopped_decoder_global.esp == decoder_pending.esp - 4U &&
+                stopped_decoder_global.accesses_completed ==
+                    decoder_pending.accesses_completed + 2U &&
+                stopped_decoder_global.decode_calls == 1U &&
+                stopped_indexed_global.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                stopped_indexed_global.eip == 0x004019A4U &&
+                stopped_indexed_global.accesses_completed ==
+                    stopped_decoder_global.accesses_completed &&
+                decoder.calls == 0U,
+            "decoder global format read faults after the first stack argument has loaded EAX without invoking the decoder port"
+        );
         decoder.reply.returned = false;
         const auto stopped_decoder_entry = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_decoder_call(

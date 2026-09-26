@@ -2335,7 +2335,15 @@ EIP/ESP/token/累计访问序号；八个共享wrapper在入口型停止时撤�
 port仅支持入口型停止时撤销这次模型化读计数，不冒充已完成解码；后续`0x004019A4`
 全局、输出参数的逐写及分配/循环故障仍未闭合。本轮`proc_c417` Linux core/CTest
 `199/199`、`proc_a85a` ASan core/CTest `199/199`、`proc_045d` Linux app/CTest
-`205/205`；四CALL仍为partial。
+`205/205`；四CALL仍为partial。该批留底后的阶段TG `proc_68a9` 退出0，
+未输出 `message_id`，不能证明客户端显示。
+继续对同四个解码CALL核对`0x004019A4 MOV EDX,[0x004CDE74]`：父栈首参数
+`MOV EAX,[ESP+4]`已完成后，第二次物理读取若全局不可读或序号截断，停在
+`0x004019A4`；EAX保留首参数、EDX与FLAGS未改、callee尚未保存EBX，解码port零调用。
+入口型port停止仍回滚本阶段两次模型化读及EAX；本轮`proc_d756` Linux core/CTest
+`199/199`、`proc_d36c` ASan core/CTest `199/199`、`proc_bba8` Linux app/CTest
+`205/205`。全局`0x004CDE74`的真实owner和值、源header和随后三处输出栈槽写仍未接通；
+“允许读”仅提供故障门，不是全局值或正常回复的独立证明。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

@@ -5859,6 +5859,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         : case_fifty_one_call                    ? 0x0047B907U
                                                  : 0x00479B4BU;
     prefix.decode_calls = 1U;
+    const u32 entry_eax = prefix.eax;
     if (prefix.accesses_completed == request.stop_before_access ||
         !request.stack_readable) {
         prefix.status =
@@ -5872,6 +5873,20 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     }
 
     ++prefix.accesses_completed;
+    prefix.eax = prefix.decoder_argument_pushes[3U];
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.global_readable) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        prefix.stopped_instruction = 0x004019A4U;
+        prefix.stopped_token = 0x004CDE74U;
+        prefix.eip = 0x004019A4U;
+        return prefix;
+    }
+
+    ++prefix.accesses_completed;
     const std::array<u32, 4U> arguments{
         prefix.decoder_argument_pushes[3U],
         prefix.decoder_argument_pushes[2U],
@@ -5879,11 +5894,12 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         prefix.decoder_argument_pushes[0U],
     };
     prefix.decoder_child = decoder.decode(
-        arguments, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
+        arguments, entry_eax, prefix.ecx, prefix.edx, prefix.flags
     );
     const auto& reply = prefix.decoder_child;
     if (!reply.returned) {
-        --prefix.accesses_completed;
+        prefix.accesses_completed -= 2U;
+        prefix.eax = entry_eax;
         // Only an entry stop is representable without the decoder's own
         // stack and physical writes; never treat it as a token reply.
         prefix.status = case_hundred_call
