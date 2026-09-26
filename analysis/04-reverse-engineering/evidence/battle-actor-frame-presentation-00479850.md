@@ -2825,6 +2825,16 @@ app/CTest `205/205`，失败轮次不计通过。此合成栈不证明真实父�
 `proc_c096` Linux core/CTest `199/199`、`proc_a41f`
 ASan core/CTest `199/199`、`proc_bd99` Linux app/CTest `205/205`。
 合成返回地址和父栈不证明生产调用链。
+该阶段提交推送`33e6258c`，远端SHA一致；TG `proc_db41`退出0，
+客户端显示未验证。父函数在`0x00487C9C`写本地返回指针，
+`0x00487C9F`重读并与零比较；合成块的非零指针走
+`0x00487CAB`再次读取原本地值，再由`0x00487CC6`恢复ESP，
+停在`0x00487CC8 POP EBP`前。已按DF双向和空链/非空链
+覆盖写/比较/重读/POP四个逐次访问故障与最终寄存器/FLAGS。
+若指针为零，仅停在`0x00487CA5`读取重试条件前，
+不能据此声称零回包重试已验收。`proc_6224` Linux core/CTest
+`199/199`、`proc_c85f` ASan core/CTest `199/199`、
+`proc_9a69` Linux app/CTest `205/205`。生产父栈别名仍未证明。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

@@ -9047,6 +9047,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 request
                     .decoder_payload_heap_allocator_parent_return_stack_backed =
                     false;
+                request.decoder_payload_heap_parent_local_backed = false;
                 auto heap_register_snapshot_request = request;
                 heap_register_snapshot_request.stop_before_access =
                     decoder_pending.accesses_completed + 44U;
@@ -9500,6 +9501,91 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         heap_returned.direction_flag == reverse &&
                         linked_raw_backing[32U] == 0x7EU,
                     "allocator parent cleans four arguments before writing its local payload"
+                );
+                request.decoder_payload_heap_parent_local_backed = true;
+                const std::array<HeapPrefixFault, 4U> kParentLocalFaults{{
+                    {183U,
+                     0x00487C9CU,
+                     64U,
+                     stack_top - 64U,
+                     Access::stack_write},
+                    {184U,
+                     0x00487C9FU,
+                     64U,
+                     stack_top - 64U,
+                     Access::stack_read},
+                    {185U,
+                     0x00487CABU,
+                     64U,
+                     stack_top - 64U,
+                     Access::stack_read},
+                    {186U,
+                     0x00487CC8U,
+                     60U,
+                     stack_top - 60U,
+                     Access::stack_read},
+                }};
+                for (const auto& fault : kParentLocalFaults) {
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    request.stop_before_access =
+                        decoder_pending.accesses_completed + fault.offset +
+                        (has_old_tail ? 1U : 0U);
+                    const auto stopped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, request, fill_prefix
+                        );
+                    test.expect_true(
+                        stopped.eip == fault.instruction &&
+                            stopped.stopped_access_kind == fault.kind &&
+                            stopped.stopped_token == fault.token &&
+                            stopped.esp == stack_top - fault.stack_drop &&
+                            stopped.ebp == stack_top - 60U &&
+                            stopped.eax == 0x00804020U &&
+                            stopped.accesses_completed ==
+                                request.stop_before_access &&
+                            stopped.direction_flag == reverse &&
+                            linked_raw_backing[32U] == 0x7EU,
+                        "parent allocation local writes and reads precede its epilogue"
+                    );
+                }
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access = 0U;
+                const auto parent_nonzero = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, fill_prefix
+                    );
+                test.expect_true(
+                    parent_nonzero.eip == 0x00487CC8U &&
+                        parent_nonzero.stopped_access_kind ==
+                            Access::stack_read &&
+                        parent_nonzero.stopped_token == stack_top - 60U &&
+                        parent_nonzero.esp == stack_top - 60U &&
+                        parent_nonzero.ebp == stack_top - 60U &&
+                        parent_nonzero.eax == 0x00804020U &&
+                        parent_nonzero.accesses_completed ==
+                            decoder_pending.accesses_completed +
+                                (has_old_tail ? 187U : 186U) &&
+                        parent_nonzero.flags_known &&
+                        !parent_nonzero.flags.zero &&
+                        parent_nonzero.direction_flag == reverse &&
+                        linked_raw_backing[32U] == 0x7EU,
+                    "nonzero allocator payload returns from the parent after its local reread"
                 );
             }
         }

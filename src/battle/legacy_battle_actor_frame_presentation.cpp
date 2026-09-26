@@ -8267,6 +8267,80 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                     prefix.stopped_token =
                                                         prefix.ebp - 4U;
                                                     prefix.eip = 0x00487C9CU;
+                                                    if (
+                                                        request
+                                                            .decoder_payload_heap_parent_local_backed
+                                                    ) {
+                                                        const u32
+                                                            payload_local =
+                                                                prefix.eax;
+                                                        if (!write_heap_local(
+                                                                0x00487C9CU,
+                                                                prefix.ebp - 4U
+                                                            )) {
+                                                            return prefix;
+                                                        }
+                                                        u32 compared_payload{};
+                                                        if (!read_inner_argument(
+                                                                0x00487C9FU,
+                                                                prefix.ebp - 4U,
+                                                                payload_local,
+                                                                compared_payload
+                                                            )) {
+                                                            return prefix;
+                                                        }
+                                                        prefix.flags =
+                                                            subtract_flags(
+                                                                compared_payload,
+                                                                0U
+                                                            );
+                                                        if (compared_payload !=
+                                                            0U) {
+                                                            if (!read_inner_argument(
+                                                                    0x00487CABU,
+                                                                    prefix.ebp -
+                                                                        4U,
+                                                                    payload_local,
+                                                                    prefix.eax
+                                                                )) {
+                                                                return prefix;
+                                                            }
+                                                            prefix.esp =
+                                                                prefix.ebp;
+                                                            prefix.status =
+                                                                LegacyBattleActorFrameEntryStatus::
+                                                                    stack_read_typed_stop;
+                                                            prefix
+                                                                .stopped_access_kind =
+                                                                LegacyBattleActorFrameEntryAccessKind::
+                                                                    stack_read;
+                                                            prefix
+                                                                .stopped_instruction =
+                                                                0x00487CC8U;
+                                                            prefix
+                                                                .stopped_token =
+                                                                prefix.esp;
+                                                            prefix.eip =
+                                                                0x00487CC8U;
+                                                        } else {
+                                                            prefix.status =
+                                                                LegacyBattleActorFrameEntryStatus::
+                                                                    stack_read_typed_stop;
+                                                            prefix
+                                                                .stopped_access_kind =
+                                                                LegacyBattleActorFrameEntryAccessKind::
+                                                                    stack_read;
+                                                            prefix
+                                                                .stopped_instruction =
+                                                                0x00487CA5U;
+                                                            prefix
+                                                                .stopped_token =
+                                                                prefix.ebp +
+                                                                0x0CU;
+                                                            prefix.eip =
+                                                                0x00487CA5U;
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
