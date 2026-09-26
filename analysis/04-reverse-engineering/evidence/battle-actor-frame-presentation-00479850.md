@@ -2318,6 +2318,14 @@ EIP/ESP/token/累计访问序号；八个共享wrapper在入口型停止时撤�
 `proc_8bee` Linux core/CTest `199/199`、`proc_9e87` ASan core/CTest `199/199`、
 `proc_4ec1` Linux app/CTest `205/205`。这仅闭合两处故障条件；入口各owner、REP反向别名、
 `0x00479920`后两层callee与四处父caller仍待完整REVIEW，不能给001..020整体签字。
+四处实际caller调用`advance_legacy_battle_actor_frame_caller`时，若显式快照未绑定绘图源token
+`0x004CD730`与高度`0x004CD75C`，且resolved actor有共享action owner，则分别接入
+`turn_frame_source_token`和`draw_height_third`；显式快照优先，不伪造缺失owner。
+四处零门caller验证默认接线；Group-B case1激活绘图验证`0x004170E0`真实共享源token
+读取后，因源字节仍未绑定，在`0x004170E8`故障前停、绘图port零调用。
+本轮`proc_4821` Linux core/CTest `199/199`、`proc_6ad8` ASan core/CTest `199/199`、
+`proc_0d3e` Linux app/CTest `205/205`；源字节、像素页、父栈别名的生产闭合尚待核对。
+默认共享字段接线不是绘图全路径或四caller完整REVIEW。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

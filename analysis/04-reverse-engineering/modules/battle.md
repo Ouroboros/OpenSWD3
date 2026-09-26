@@ -4368,7 +4368,7 @@ inventory SHA-256为`8f70033463b588e8a32cfdea2784c7b3142872a27a64d49bedcf51c8696
 31个callee及两个caller联合寄存器、flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 
 当前执行`audit_order=316 / 0x00479850 / sub_479850`，inventory仍为`pending_audit`。
-未提交WIP将`+0x2584/+0x2B1C/+0x2B20/+0x2958/+0x2A94`接入Group-A/B image owner；
+316阶段性改动已分批留底，但未完成最终REVIEW；其中`+0x2584/+0x2B1C/+0x2B20/+0x2958/+0x2A94`接入Group-A/B image owner；
 `+0x2C4/+0x2C8`逐写同步slot0/progress，DF=1反向38项逐写同步slot1别名。typed入口覆盖零门default、
 四门短路与更新路由`0x00479920`；更新 continuation 经`0x00479921 sub_4321E0`适配port：
 EAX0逐次出栈返回1，非零停在**未读**`0x00479937 actor+0x41A`，
@@ -4382,8 +4382,8 @@ Group-B从既有`resource_token/resource_bytes`接入；
 `+0x2A95`覆盖、`+0x2A94`重读抵达**未执行**的`0x004799C3 DEC`，
 Group-A/B独立owner及故障向量经`proc_182b`的core/CTest`199/199`通过，双表读取已保留独立故障、
 default物理POP/RET已执行（`proc_8a4b/proc_c362`各core/CTest`199/199`）；
-18条case仅有case1 signed phase门与`0x0047B801..0x0047B81A`共享reset写/REP前缀经`proc_02fc`
-的core/CTest`199/199`通过，其余case行为、case1音频绘图未执行；
+18条case中case1 signed phase门与`0x0047B801..0x0047B81A`共享reset写/REP前缀经`proc_02fc`
+的core/CTest`199/199`通过；case1音频和绘图仅有部分故障前缀及早退接线，其余case未完整审计；
 case1经共享reset组合`sub_478850`与EAX1栈尾经`proc_4f69`的core/CTest`199/199`通过；
 重置路由执行phase/selector、nested byte RMW、四项清零及`0x004798F3`可障REP，
 按DF保留第29/30次写障前缀。
@@ -4399,11 +4399,14 @@ child正常返回后按LST清两字段、压EBP、写`+0x2AB8`，
 缺owner及末条界外typed-stop向量经`proc_a52f`的core/CTest`199/199`通过；
 末条`+0x25=0x005214A5`已核为`growth_delta_primary[0]`高byte，缺全局owner仍typed-stop，
 显式提供该owner时`0x1234→0x9234`且清phase，`proc_3818`的core/CTest`199/199`通过；
-真实caller尚未接入共享全局。
+该末条跨记录写入的真实caller尚未接入共享全局。
 progress完成分支已在Group-A frame与Transition携带`actor_frames`两处同步slot0，
 `proc_74ac`的core/CTest`199/199`通过；Transition无owner时于`0x0046E5AC`前typed-stop而不伪作返回1，
-独立向量经`proc_fa9a`的core/CTest`199/199`通过；其它跨调用alias仍未闭合。非空链释放、完整函数、
-四处`sub_479850`caller、其它独立分支测试、Linux app/sanitizer与最终REVIEW均未完成。
+独立向量经`proc_fa9a`的core/CTest`199/199`通过；其它跨调用alias仍未闭合。
+四处真实caller缺省绘图源与高度现在按resolved actor的`shared_action`绑定
+`0x004CD730/0x004CD75C`，显式快照仍优先；Group-B激活绘图后因源字节无owner停在
+`0x004170E8`，不能视为生产绘图闭合。非空链释放、完整函数、四处caller与其它独立分支的
+完整测试及最终REVIEW仍未完成；阶段性Linux core/app/ASan通过不替代全量门禁。
 机器证据与剩余缺口见`../evidence/battle-actor-frame-presentation-00479850.md`；
 未完成316前不得开始317。
 

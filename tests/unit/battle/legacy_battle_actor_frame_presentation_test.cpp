@@ -2225,6 +2225,62 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 !final_b_sentinel.returned,
             "all four caller snapshots preserve CALL and four child stack writes before the first actor fault; only a physical RET resumes the parent"
         );
+        auto without_draw_owners = route_request;
+        without_draw_owners.draw_source_token_owner = nullptr;
+        without_draw_owners.draw_height_third_owner = nullptr;
+        without_draw_owners.draw_source_bytes = {};
+        without_draw_owners.draw_source_bytes_token = 0U;
+        bool all_callers_bound_shared_draw_owners = true;
+        for (const auto site : caller_sites) {
+            const auto caller =
+                openswd3::battle::advance_legacy_battle_actor_frame_caller(
+                    site,
+                    0U,
+                    owners,
+                    without_draw_owners,
+                    {},
+                    &parent_argument_owner
+                );
+            all_callers_bound_shared_draw_owners =
+                all_callers_bound_shared_draw_owners && caller.returned &&
+                caller.admission.child_request.draw_source_token_owner ==
+                    &route_action->group_a_action_shared
+                         .turn_frame_source_token &&
+                caller.admission.child_request.draw_height_third_owner ==
+                    &route_action->group_a_action_shared.draw_height_third;
+        }
+
+        route_startup->enemies[0U].progress.presentation_enabled = 1U;
+        route_actor.runtime_reset.field_2a95 = 1U;
+        route_actor.action_execution.turn_threshold = 0U;
+        SoundPort caller_sound{};
+        DrawPort caller_draw{};
+        const auto stopped_at_source_bytes =
+            openswd3::battle::advance_legacy_battle_actor_frame_caller(
+                caller_sites[0U],
+                0U,
+                owners,
+                without_draw_owners,
+                {.updater = &route_updater,
+                 .sound = &caller_sound,
+                 .draw = &caller_draw}
+            );
+        test.expect_true(
+            all_callers_bound_shared_draw_owners &&
+                stopped_at_source_bytes.status ==
+                    openswd3::battle::LegacyBattleActorFrameCallerRunStatus::
+                        child_typed_stop &&
+                stopped_at_source_bytes.eip == 0x004170E8U &&
+                stopped_at_source_bytes.child.stopped_token ==
+                    route_action->group_a_action_shared
+                        .turn_frame_source_token &&
+                stopped_at_source_bytes.admission.child_request
+                        .draw_source_token_owner ==
+                    &route_action->group_a_action_shared
+                         .turn_frame_source_token &&
+                caller_draw.calls == 0U,
+            "four caller snapshots bind the real shared draw globals, and the active draw stops at its still-unbacked source bytes"
+        );
     }
 
     {

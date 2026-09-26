@@ -2870,12 +2870,23 @@ LegacyBattleActorFrameCallerRunResult advance_legacy_battle_actor_frame_caller(
             caller_stack_write_typed_stop;
         return result;
     }
-    const auto& request = result.admission.child_request;
-    result.child = advance_legacy_battle_actor_frame_entry_route(
-        resolve_legacy_battle_actor_runtime_reset(owners, request.actor_token),
-        request,
-        ports
-    );
+    auto& request = result.admission.child_request;
+    const auto actor =
+        resolve_legacy_battle_actor_runtime_reset(owners, request.actor_token);
+    if (actor.shared_action != nullptr) {
+        if (request.draw_source_token_owner == nullptr) {
+            request.draw_source_token_owner =
+                &actor.shared_action->turn_frame_source_token;
+        }
+
+        if (request.draw_height_third_owner == nullptr) {
+            request.draw_height_third_owner =
+                &actor.shared_action->draw_height_third;
+        }
+    }
+
+    result.child =
+        advance_legacy_battle_actor_frame_entry_route(actor, request, ports);
     result.eip = result.child.eip;
     result.esp = result.child.esp;
     result.eax = result.child.eax;
