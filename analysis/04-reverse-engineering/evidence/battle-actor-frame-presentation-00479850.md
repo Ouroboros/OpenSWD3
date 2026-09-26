@@ -2617,7 +2617,21 @@ TG `proc_ac23`退出0，客户端显示未验证。
 补充未对齐测试前`proc_0e84` Linux core/CTest `199/199`、
 `proc_69d8` ASan core/CTest `199/199`、`proc_f618` Linux app/CTest
 `205/205`；加入未对齐测试后重跑`proc_30f1` core `199/199`、
-`proc_c8d7` ASan `199/199`、`proc_7ec1` app `205/205`。
+`proc_c8d7` ASan `199/199`、`proc_7ec1` app `205/205`。该阶段提交推送
+`601e71d8`，TG `proc_3b0e`退出0，客户端显示未验证。
+只有合成原始块同址可写且首个填充子调用的栈显式绑定时，
+`0x0048A971 REP STOSD`按一个dword实际写`[raw+0x1C..+0x1F]`为
+当前全局字节的四次重复；然后分别按`0x0048A97D/A981/A982`读取返回
+参数、已保存EDI与返回地址；父层`0x00487F9A`回收12字节参数，再按
+`0x00487F9D..FB3`读取第二次运行时byte、Size和raw块，压入第二次
+填充调用参数与返回地址，在第二个`sub_48A930`入口停住。
+DF=1时第一轮dword写入内容相同，但REP写后暂存EDI倒退4，POP后
+还原；无合成内存权限时仍停在实际写入前，尾端保护字节保持未写。
+第二次填充、像素填充及真实分配器回包尚未验证。
+十处逐项停点核对第一个RET/回收和第二个CALL前的访存与ESP；
+默认DF与反向DF的首轮写入均保留正确字节，反向DF时写后EDI暂为
+`raw+0x18`。`proc_1127` Linux core/CTest `199/199`、`proc_ad1d`
+ASan core/CTest `199/199`、`proc_046c` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

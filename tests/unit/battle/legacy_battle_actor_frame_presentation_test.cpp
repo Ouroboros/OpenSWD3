@@ -8120,6 +8120,83 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 mutable_request_counter == 0x00760001U,
             "unaligned first memset stops before the byte-adjustment loop"
         );
+        auto backed_fill_write_request = backed_fill_stack_request;
+        backed_fill_write_request.decoder_first_heap_fill_write_backed = true;
+        const std::array<HeapPrefixFault, 10U> kFirstFillReturnFaults{{
+            {123U, 0x0048A97DU, 136U, stack_top - 128U, Access::stack_read},
+            {124U, 0x0048A981U, 136U, stack_top - 136U, Access::stack_read},
+            {125U, 0x0048A982U, 132U, stack_top - 132U, Access::stack_read},
+            {126U, 0x00487F9DU, 116U, stack_top - 120U, Access::stack_write},
+            {127U, 0x00487FA1U, 120U, 0x004A8300U, Access::global_read},
+            {128U, 0x00487FA7U, 120U, stack_top - 124U, Access::stack_write},
+            {129U, 0x00487FA8U, 124U, stack_top - 80U, Access::stack_read},
+            {130U, 0x00487FABU, 124U, stack_top - 92U, Access::stack_read},
+            {131U, 0x00487FB2U, 124U, stack_top - 128U, Access::stack_write},
+            {132U, 0x00487FB3U, 128U, stack_top - 132U, Access::stack_write},
+        }};
+        for (const auto& fault : kFirstFillReturnFaults) {
+            synthetic_heap_bytes.fill(0xA5U);
+            mutable_request_counter = 0x00760000U;
+            backed_fill_write_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, backed_fill_write_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.accesses_completed ==
+                        backed_fill_write_request.stop_before_access &&
+                    synthetic_heap_bytes[28U] == 0xFDU &&
+                    synthetic_heap_bytes[31U] == 0xFDU &&
+                    synthetic_heap_bytes[44U] == 0xA5U &&
+                    mutable_request_counter == 0x00760001U,
+                "first four-byte fill persists through ten child-return and next-call faults"
+            );
+        }
+        backed_fill_write_request.stop_before_access = 0U;
+        synthetic_heap_bytes.fill(0xA5U);
+        mutable_request_counter = 0x00760000U;
+        const auto stopped_second_fill_child = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, backed_fill_write_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_second_fill_child.eip == 0x0048A930U &&
+                stopped_second_fill_child.stopped_access_kind ==
+                    Access::callee_call &&
+                stopped_second_fill_child.esp == stack_top - 132U &&
+                stopped_second_fill_child.ebp == stack_top - 88U &&
+                stopped_second_fill_child.eax == 0x00804000U &&
+                stopped_second_fill_child.ecx == 0x0080402CU &&
+                stopped_second_fill_child.edx == 12U &&
+                stopped_second_fill_child.last_pushed_value == 0x00487FB8U &&
+                synthetic_heap_bytes[28U] == 0xFDU &&
+                synthetic_heap_bytes[44U] == 0xA5U &&
+                mutable_request_counter == 0x00760001U,
+            "first fill writes guard bytes and reaches second memset before touching the trailing guard"
+        );
+        synthetic_heap_bytes.fill(0xA5U);
+        mutable_request_counter = 0x00760000U;
+        auto reverse_fill_pending = decoder_pending;
+        reverse_fill_pending.direction_flag = true;
+        backed_fill_write_request.stop_before_access =
+            decoder_pending.accesses_completed + 123U;
+        const auto stopped_reverse_fill = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, backed_fill_write_request, reverse_fill_pending
+            );
+        test.expect_true(
+            stopped_reverse_fill.eip == 0x0048A97DU &&
+                stopped_reverse_fill.edi == 0x00804018U &&
+                synthetic_heap_bytes[28U] == 0xFDU &&
+                synthetic_heap_bytes[31U] == 0xFDU &&
+                mutable_request_counter == 0x00760001U,
+            "reverse-direction REP STOSD decrements EDI before restoring the saved register"
+        );
         synthetic_heap_bytes.fill(0xA5U);
         mutable_request_counter = 0x00760000U;
         auto wrong_heap_token = backed_header_request;
