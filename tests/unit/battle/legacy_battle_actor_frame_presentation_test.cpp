@@ -8611,7 +8611,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             writable_heap_head = 0xABCDEF01U;
             old_tail_backing.fill(0xA5U);
             linked_raw_backing.fill(0xA5U);
-            request.stop_before_access = 0U;
+            request.stop_before_access =
+                decoder_pending.accesses_completed +
+                (has_old_tail ? 147U : 146U);
             const auto second_guard_pending = openswd3::battle::
                 continue_legacy_battle_actor_frame_case_two_decoder_call(
                     decoder, request, decoder_pending
@@ -8633,6 +8635,89 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
                         0x00804000U,
                 "linked first fill restores its stack before the second guard-byte read"
+            );
+            const std::array<HeapPrefixFault, 6U> kLinkedSecondCallFaults{{
+                {146U, 0x00487FA1U, 120U, 0x004A8300U, Access::global_read},
+                {147U,
+                 0x00487FA7U,
+                 120U,
+                 stack_top - 124U,
+                 Access::stack_write},
+                {148U, 0x00487FA8U, 124U, stack_top - 80U, Access::stack_read},
+                {149U, 0x00487FABU, 124U, stack_top - 92U, Access::stack_read},
+                {150U,
+                 0x00487FB2U,
+                 124U,
+                 stack_top - 128U,
+                 Access::stack_write},
+                {151U,
+                 0x00487FB3U,
+                 128U,
+                 stack_top - 132U,
+                 Access::stack_write},
+            }};
+            for (const auto& fault : kLinkedSecondCallFaults) {
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access =
+                    decoder_pending.accesses_completed + fault.offset +
+                    (has_old_tail ? 1U : 0U);
+                const auto stopped = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, decoder_pending
+                    );
+                test.expect_true(
+                    stopped.eip == fault.instruction &&
+                        stopped.stopped_access_kind == fault.kind &&
+                        stopped.stopped_token == fault.token &&
+                        stopped.esp == stack_top - fault.stack_drop &&
+                        stopped.accesses_completed ==
+                            request.stop_before_access &&
+                        linked_raw_backing[28U] == 0xFDU &&
+                        linked_raw_backing[44U] == 0xA5U &&
+                        (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
+                            0x00804000U,
+                    "linked second fill call preserves six ordered global and stack faults"
+                );
+            }
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            nonempty_heap_tail = 0x00806000U;
+            writable_heap_head = 0xABCDEF01U;
+            old_tail_backing.fill(0xA5U);
+            linked_raw_backing.fill(0xA5U);
+            request.stop_before_access = 0U;
+            const auto second_fill_child = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, request, decoder_pending
+                );
+            test.expect_true(
+                second_fill_child.eip == 0x0048A930U &&
+                    second_fill_child.stopped_access_kind ==
+                        Access::callee_call &&
+                    second_fill_child.esp == stack_top - 132U &&
+                    second_fill_child.eax == 0x00804000U &&
+                    second_fill_child.edx == 12U &&
+                    second_fill_child.ecx == 0x0080402CU &&
+                    second_fill_child.last_pushed_value == 0x00487FB8U &&
+                    second_fill_child.accesses_completed ==
+                        decoder_pending.accesses_completed +
+                            (has_old_tail ? 153U : 152U) &&
+                    linked_raw_backing[28U] == 0xFDU &&
+                    linked_raw_backing[44U] == 0xA5U &&
+                    (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
+                        0x00804000U,
+                "linked second fill enters its callee without fabricating trailing guard bytes"
             );
         }
         auto unaligned_linked_request = linked_metadata_empty_request;

@@ -2721,7 +2721,17 @@ ASan core/CTest `199/199`、`proc_e59d` Linux app/CTest `205/205`。
 按`0x00487F9D`压第二填充长度，停在`0x00487FA1`保护byte重读前。
 空链/非空链各六处故障前缀与合成字节向量不证明生产别名。
 `proc_6679` Linux core/CTest `199/199`、`proc_595a` ASan core/CTest
-`199/199`、`proc_72e3` Linux app/CTest `205/205`。
+`199/199`、`proc_72e3` Linux app/CTest `205/205`。该阶段提交
+推送`defedee9`，TG `proc_11cf`退出0，客户端显示未验证。
+linked分支显式读取第二次`0x004A8300` byte，按`0x00487FA7`
+压填充值、`0x00487FA8/FAB`重读Size与raw、`0x00487FB2`
+压raw+Size+0x20、`0x00487FB3`压返回地址，停在第二次
+`sub_48A930`入口；空链/非空链各六处故障核对首填充已提交。
+第二次子函数的内存写入仍未审计。初版`proc_f57f`的旧无stop
+向量预期仍停FA1而新版显式owner已继续到CALL，导致一项测试失败；
+改为在FA1实际访问前注入停止后，`proc_8d8a` Linux core/CTest
+`199/199`、`proc_c70b` ASan core/CTest `199/199`、`proc_b919`
+Linux app/CTest `205/205`。失败轮次不计通过。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
