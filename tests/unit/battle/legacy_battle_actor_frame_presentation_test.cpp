@@ -8482,7 +8482,106 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         0x00804000U,
                 "linked heap enters first-fill callee only after committing node metadata and tail"
             );
+            request.decoder_first_heap_fill_child_stack_backed = true;
+            const std::array<HeapPrefixFault, 4U> kLinkedChildFaults{{
+                {137U, 0x0048A930U, 132U, stack_top - 120U, Access::stack_read},
+                {138U, 0x0048A934U, 132U, stack_top - 128U, Access::stack_read},
+                {139U, 0x0048A93EU, 132U, stack_top - 124U, Access::stack_read},
+                {140U,
+                 0x0048A942U,
+                 132U,
+                 stack_top - 136U,
+                 Access::stack_write},
+            }};
+            for (const auto& fault : kLinkedChildFaults) {
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access =
+                    decoder_pending.accesses_completed + fault.offset +
+                    (has_old_tail ? 1U : 0U);
+                const auto stopped = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, decoder_pending
+                    );
+                test.expect_true(
+                    stopped.eip == fault.instruction &&
+                        stopped.stopped_access_kind == fault.kind &&
+                        stopped.stopped_token == fault.token &&
+                        stopped.esp == stack_top - fault.stack_drop &&
+                        stopped.accesses_completed ==
+                            request.stop_before_access &&
+                        linked_raw_backing[26U] == 0x76U &&
+                        (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
+                            0x00804000U,
+                    "linked fill child reads three physical arguments before saving EDI"
+                );
+            }
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            nonempty_heap_tail = 0x00806000U;
+            writable_heap_head = 0xABCDEF01U;
+            old_tail_backing.fill(0xA5U);
+            linked_raw_backing.fill(0xA5U);
+            request.stop_before_access = 0U;
+            const auto stopped_fill_write = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, request, decoder_pending
+                );
+            test.expect_true(
+                stopped_fill_write.eip == 0x0048A971U &&
+                    stopped_fill_write.stopped_access_kind ==
+                        Access::allocator_block_write &&
+                    stopped_fill_write.stopped_token == 0x0080401CU &&
+                    stopped_fill_write.esp == stack_top - 136U &&
+                    stopped_fill_write.eax == 0xFDFDFDFDU &&
+                    stopped_fill_write.ecx == 1U &&
+                    stopped_fill_write.edx == 0U &&
+                    stopped_fill_write.accesses_completed ==
+                        decoder_pending.accesses_completed +
+                            (has_old_tail ? 142U : 141U) &&
+                    linked_raw_backing[28U] == 0xA5U &&
+                    (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
+                        0x00804000U,
+                "linked aligned fill stops before writing guard bytes"
+            );
         }
+        auto unaligned_linked_request = linked_metadata_empty_request;
+        unaligned_linked_request.decoder_small_pool_return_eax = 0x00804001U;
+        unaligned_linked_request.decoder_heap_block_token = 0x00804001U;
+        unaligned_linked_request.decoder_first_heap_fill_child_stack_backed =
+            true;
+        unaligned_linked_request.stop_before_access = 0U;
+        mutable_request_counter = 0x00760000U;
+        mutable_heap_size = 0xFFFFFFFEU;
+        mutable_live_size = 0xFFFFFFFDU;
+        mutable_peak_size = 8U;
+        empty_heap_tail = 0U;
+        writable_heap_head = 0xABCDEF01U;
+        linked_raw_backing.fill(0xA5U);
+        const auto unaligned_linked = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, unaligned_linked_request, decoder_pending
+            );
+        test.expect_true(
+            unaligned_linked.eip == 0x0048A951U &&
+                unaligned_linked.stopped_access_kind == Access::callee_call &&
+                unaligned_linked.esp == stack_top - 136U &&
+                unaligned_linked.eax == 0xFDU && unaligned_linked.ecx == 3U &&
+                unaligned_linked.edi == 0x0080401DU &&
+                linked_raw_backing[29U] == 0xA5U &&
+                empty_heap_tail == 0x00804001U,
+            "linked unaligned fill stops before the byte loop"
+        );
         std::array<openswd3::compat::u8, 48U> synthetic_heap_bytes{};
         auto backed_header_request = writable_counter_request;
         backed_header_request.decoder_heap_block_token = 0x00804000U;
