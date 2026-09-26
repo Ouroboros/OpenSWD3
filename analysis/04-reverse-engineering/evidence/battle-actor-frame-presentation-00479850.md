@@ -2921,6 +2921,20 @@ ESI加2、ECX=1、EBP=6，8位路径ESI加1、EDX=1、EBP=5，
 Linux core/CTest `199/199`、`proc_2d87` ASan core/CTest
 `199/199`、`proc_3566` Linux app/CTest `205/205`。
 其他计数、源/目标别名和真实生产块未由此证明。
+该批提交推送`37ae19ac`，远端同SHA；阶段TG `proc_bca9`退出0，
+客户端显示未验证。相同显式Size=12、普通计数2合成路径的第二像素
+逐访问接入：格式16在`0x00401A45`读源`+14`的`0xABCD`，
+`0x00401A4B`以word写像素区`+2`；格式8在`0x00401B02`
+读源`+13`的`0xA6`，`0x00401B05`只写像素区`+1`。
+源读前、目标写前、写后各有独立停点；写前首像素保留、
+第二像素仍为`0x7E`，写后16位像素区字节为`34 12 CD AB`，
+8位为`5A A6`。格式8第二次INC EDI继承前次`CMP 1,2`
+的CF=1，写后`CMP 2,2`使ZF=1/CF=0；16位对应计数
+ECX=2/EDX=2、EBP=8，8位为EDX=2/ECX=2、EBP=6；
+分别停在`0x00401A9E`或`0x00401B4B`行标记读前。
+`proc_6c88` Linux core/CTest `199/199`、`proc_7801` ASan
+core/CTest `199/199`、`proc_eacf` Linux app/CTest `205/205`。
+尚未核对行标记、其他命令、真实源/目标别名或完整caller。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
