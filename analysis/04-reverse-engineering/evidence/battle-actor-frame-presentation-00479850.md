@@ -2245,6 +2245,8 @@ case9、3、5首/第二绘制、11 各有首word读障代表向量。
 测试 `request()` 的图像首字节、栈word及新增高度源值均为合成backing，不证明实际
 `shared_action->turn_frame_source_token` 与绘图/像素页或生产父栈、全局高度值的别名。
 `sub_4170E0` 后续全局/帧/像素页访问及故障前缀仍不闭合。
+留底提交 `525a9822` 后五段阶段 TG `proc_21cd` 退出0；脚本仅在 API `ok=true` 时正常返回，
+未输出 `message_id`，客户端显示未验证，留底不算316验收。
 留底提交 `12380a67` 后五段阶段 TG `proc_fd11` 退出0；脚本仅在 API `ok=true` 时正常返回，
 未输出 `message_id`，客户端显示未验证，留底不算316验收。
 留底提交 `7b95f28b` 后五段阶段 TG `proc_142a` 退出0；所用脚本仅在 `sendMessage`
@@ -2287,8 +2289,16 @@ case1代表向量核对第二CALL栈写障、第二状态缺owner读障、内层
 EIP/ESP/token/累计访问序号；八个共享wrapper在入口型停止时撤销本轮预读的19次访问。
 初轮 `proc_0fb2` core/CTest `198/199`，新增向量少计父CALL返回槽，修正后
 `proc_d18f` Linux core/CTest `199/199`、`proc_6d16` ASan core/CTest `199/199`、
-`proc_3204` Linux app/CTest `205/205`。两次音频状态指针与真实全局之间的别名尚无生产证明；
-两状态均为1后的更深callee与AIL仍由窄port表示，19处CALL仍为partial。
+`proc_3204` Linux app/CTest `205/205`。两次音频状态指针与真实全局之间的别名尚无生产证明。
+两状态均为1时，`0x00485D02 MOV EDI,[ESP+0x18]` 读取 `sub_485610` 压入的低16位声音编号，
+`0x00485D06 TEST EDI,EDI` 为零则按原四POP/双RET直接返回0，绝不调用音频port；
+非零仍由窄port承接未展开的后续读取、缓存查找、AIL调用。八处共享wrapper入口型停止的
+预读撤销由19改为20，case1补485D02栈读障；selector51源编号低16位为0时音频port调用数
+由1更正为0，独立截断向量用高16位非零、低16位零验证物理早退及27次访问。
+初轮 `proc_9ab5` core/CTest `198/199` 因两处selector51旧port期望失败，修正后
+`proc_7e14` Linux core/CTest `199/199`、`proc_3504` ASan core/CTest `199/199`、
+`proc_8d77` Linux app/CTest `205/205`。两次音频状态的生产别名、真实父栈可变别名及
+非零声音编号后的更深callee/AIL仍未闭合；19处CALL仍为partial。
 留底提交 `a0e3db5e` 后五段阶段 TG `proc_5023` 退出0；同一脚本仅在 API `ok=true`
 时正常返回，未输出 `message_id`；客户端显示未验证，仍不是316验收。
 2026-09-25 23:57:38+08 五段阶段 TG `proc_e4b5` 获 API `ok=true/message_id=4314`；

@@ -1514,7 +1514,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 fifty_one_spawn_pending.stopped_token == 0x004CD76CU &&
                 fifty_one_spawn_pending.decode_calls == 1U &&
                 fifty_one_spawn_pending.sample_calls == 1U &&
-                fifty_one_decoder.calls == 1U && fifty_one_sound.calls == 1U &&
+                fifty_one_decoder.calls == 1U && fifty_one_sound.calls == 0U &&
                 route_actor.action_execution.turn_threshold == 2U &&
                 !fifty_one_spawn_pending.returned,
             std::string{"selector51 scan global read status="} +
@@ -1551,7 +1551,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 scan_call.eip == 0x004344E0U &&
                 scan_call.stopped_instruction == 0x004344E0U &&
                 scan_call.decode_calls == 1U && scan_call.sample_calls == 1U &&
-                backed_decoder.calls == 1U && backed_sound.calls == 1U &&
+                backed_decoder.calls == 1U && backed_sound.calls == 0U &&
                 route_actor.action_execution.turn_threshold == 2U &&
                 !scan_call.returned,
             "selector51 with global backing pushes both scan arguments and CALL return before stopping inside the unbacked direction callee"
@@ -4914,6 +4914,13 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             openswd3::battle::continue_legacy_battle_actor_frame_case_one_audio(
                 sound, submode_ret_fault, audio_pending
             );
+        auto sample_id_read_fault = group_b_input;
+        sample_id_read_fault.stop_before_access =
+            audio_pending.accesses_completed + 20U;
+        const auto stopped_sample_id_read =
+            openswd3::battle::continue_legacy_battle_actor_frame_case_one_audio(
+                sound, sample_id_read_fault, audio_pending
+            );
         static constexpr u32 kDisabledAudioSubmode = 0U;
         auto disabled_audio_submode = group_b_input;
         disabled_audio_submode.audio_state_submode_owner =
@@ -4944,6 +4951,15 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_submode_ret.esp == audio_pending.esp - 52U &&
                 stopped_submode_ret.accesses_completed ==
                     audio_pending.accesses_completed + 19U &&
+                stopped_sample_id_read.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
+                stopped_sample_id_read.eip == 0x00485D02U &&
+                stopped_sample_id_read.esp == audio_pending.esp - 48U &&
+                stopped_sample_id_read.stopped_token ==
+                    audio_pending.esp - 24U &&
+                stopped_sample_id_read.flags.zero &&
+                stopped_sample_id_read.accesses_completed ==
+                    audio_pending.accesses_completed + 20U &&
                 submode_early_return.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_one_source_token_ready &&
@@ -4972,7 +4988,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 completed_audio.esp == phase_zero.esp &&
                 completed_audio.flags_known &&
                 completed_audio.accesses_completed ==
-                    audio_pending.accesses_completed + 20U &&
+                    audio_pending.accesses_completed + 21U &&
                 resumed_audio.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_one_source_read_ready &&
@@ -11748,6 +11764,35 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_fifty_one_sound_return.eip == 0x0047B92CU &&
             case_fifty_one_sound_return.esp == case_fifty_one_property_one.esp,
         "case51 decoder token writes precede sound CALL; normal return cleans four decoder and two sound arguments"
+    );
+    const u16 prior_sample_id =
+        action_execution.reserved_action_record_02.field_58;
+    action_execution.reserved_action_record_02.field_58 = 0U;
+    const auto zero_sample_audio_args = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_fifty_one_audio_arguments(
+            case_eight_view,
+            case_eight_forward_request,
+            case_fifty_one_decoder_return
+        );
+    const auto sound_calls_before_zero_sample = case_fifty_one_sound.calls;
+    const auto zero_sample_return = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_fifty_one_audio_call(
+            case_fifty_one_sound,
+            case_eight_forward_request,
+            zero_sample_audio_args
+        );
+    action_execution.reserved_action_record_02.field_58 = prior_sample_id;
+    test.expect_true(
+        zero_sample_audio_args.ecx == 0xFEDC0000U &&
+            zero_sample_return.status ==
+                LegacyBattleActorFrameEntryStatus::case_fifty_one_tail_ready &&
+            zero_sample_return.eip == 0x0047B92CU &&
+            zero_sample_return.eax == 0U &&
+            zero_sample_return.sample_child.returned &&
+            zero_sample_return.accesses_completed ==
+                zero_sample_audio_args.accesses_completed + 27U &&
+            case_fifty_one_sound.calls == sound_calls_before_zero_sample,
+        "sample ID truncated to zero exits inside the audio callee without calling the sound port"
     );
     const std::array<u32, 12U> case_fifty_one_tail_fault_eips{
         0x0047B92CU,

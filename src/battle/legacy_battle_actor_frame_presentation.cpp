@@ -188,6 +188,7 @@ subtract_flags_16(u16 left, u16 right) noexcept;
         return false;
     }
     child.esp += 4U;
+    bool empty_sample_id = false;
     if (mode == 1U) {
         child.ecx = child.ebp;  // 0x00485CF3 MOV ECX,EBP.
         if (!stack_push(0x00485CF5U, 0x00485CFAU)) {
@@ -215,20 +216,40 @@ subtract_flags_16(u16 left, u16 right) noexcept;
         }
         child.esp += 4U;
         if (submode == 1U) {
-            child.sample_child.returned = false;
-            return true;  // The deeper audio branch stays behind the narrow port.
+            // 0x00485D02 reads the low-16-bit sample ID pushed by sub_485610.
+            if (!stack_read(0x00485D02U, child.esp + 0x18U)) {
+                return false;
+            }
+            child.edi = sample_id & 0xFFFFU;
+            child.flags = {
+                .carry = false,
+                .parity = even_parity(static_cast<u8>(child.edi)),
+                .auxiliary_carry = false,
+                .auxiliary_carry_defined = false,
+                .zero = child.edi == 0U,
+                .sign = false,
+                .overflow = false,
+            };
+            child.flags_known = true;
+            empty_sample_id = child.edi == 0U;
+            if (!empty_sample_id) {
+                child.sample_child.returned = false;
+                return true;  // The deeper audio branch stays behind the narrow port.
+            }
         }
     }
-    // Either mode comparison returned AL=0; CMP AL,1 takes the early RET.
-    child.flags = {
-        .carry = true,
-        .parity = true,
-        .auxiliary_carry = true,
-        .auxiliary_carry_defined = true,
-        .zero = false,
-        .sign = true,
-        .overflow = false,
-    };
+    // A failed mode check or zero sample ID takes the physical early RET.
+    if (!empty_sample_id) {
+        child.flags = {
+            .carry = true,
+            .parity = true,
+            .auxiliary_carry = true,
+            .auxiliary_carry_defined = true,
+            .zero = false,
+            .sign = true,
+            .overflow = false,
+        };
+    }
     const auto stack_pop =
         [&](const u32 ip, const u32 value, u32& register_out) {
             if (!stack_read(ip, child.esp)) {
@@ -4647,7 +4668,7 @@ continue_legacy_battle_actor_frame_case_one_audio(
     const auto& reply = prefix.sample_child;
     if (!reply.returned) {
         prefix.accesses_completed -=
-            19U;  // Entry-only stop rolls back the uncommitted callee prefix.
+            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
         // This narrow adapter supports an entry stop only. Deep Miles/CRT
         // stops require a separate physical stack and call trace owner.
         prefix.status =
@@ -6984,7 +7005,7 @@ continue_legacy_battle_actor_frame_case_two_sample_call(
                                                          );
     if (!prefix.sample_child.returned) {
         prefix.accesses_completed -=
-            19U;  // Entry-only stop rolls back the uncommitted callee prefix.
+            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
         prefix.status = case_eight_call ? LegacyBattleActorFrameEntryStatus::
                                               case_eight_audio_child_typed_stop
                                         : LegacyBattleActorFrameEntryStatus::
@@ -7363,7 +7384,7 @@ continue_legacy_battle_actor_frame_case_nine_audio_call(
                                                          );
     if (!prefix.sample_child.returned) {
         prefix.accesses_completed -=
-            19U;  // Entry-only stop rolls back the uncommitted callee prefix.
+            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
         prefix.status =
             LegacyBattleActorFrameEntryStatus::case_nine_audio_child_typed_stop;
         prefix.stopped_access_kind =
@@ -9091,7 +9112,7 @@ continue_legacy_battle_actor_frame_case_fifty_one_audio_call(
                                                          );
     if (!prefix.sample_child.returned) {
         prefix.accesses_completed -=
-            19U;  // Entry-only stop rolls back the uncommitted callee prefix.
+            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
         prefix.status = LegacyBattleActorFrameEntryStatus::
             case_fifty_one_audio_child_typed_stop;
         prefix.stopped_access_kind =
@@ -10088,7 +10109,7 @@ continue_legacy_battle_actor_frame_case_three_audio_call(
           );
     if (!prefix.sample_child.returned) {
         prefix.accesses_completed -=
-            19U;  // Entry-only stop rolls back the uncommitted callee prefix.
+            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
         prefix.status = case_four ? LegacyBattleActorFrameEntryStatus::
                                         case_four_audio_child_typed_stop
             : case_five           ? LegacyBattleActorFrameEntryStatus::
@@ -18109,7 +18130,7 @@ continue_legacy_battle_actor_frame_case_hundred_audio_call(
           );
     if (!prefix.sample_child.returned) {
         prefix.accesses_completed -=
-            19U;  // Entry-only stop rolls back the uncommitted callee prefix.
+            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
         prefix.status = LegacyBattleActorFrameEntryStatus::
             case_hundred_audio_child_typed_stop;
         prefix.stopped_access_kind =
@@ -22646,7 +22667,7 @@ continue_legacy_battle_actor_frame_case_fifty_audio_call(
                                                          );
     if (!prefix.sample_child.returned) {
         prefix.accesses_completed -=
-            19U;  // Entry-only stop rolls back the uncommitted callee prefix.
+            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
         prefix.status = LegacyBattleActorFrameEntryStatus::
             case_fifty_audio_child_typed_stop;
         prefix.stopped_access_kind =
@@ -23157,7 +23178,7 @@ continue_legacy_battle_actor_frame_case_six_audio_call(
                                                          );
     if (!prefix.sample_child.returned) {
         prefix.accesses_completed -=
-            19U;  // Entry-only stop rolls back the uncommitted callee prefix.
+            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
         prefix.status = case_eleven ? LegacyBattleActorFrameEntryStatus::
                                           case_eleven_audio_child_typed_stop
             : case_fifteen          ? LegacyBattleActorFrameEntryStatus::
