@@ -421,6 +421,7 @@ public:
 
 [[nodiscard]] LegacyBattleActorFrameEntryRequest request() noexcept {
     static constexpr u32 kAudioStateMode = 1U;
+    static constexpr u32 kAudioStateSubmode = 1U;
     static constexpr u32 kSyntheticDrawToken = 0x00700000U;
     static constexpr u32 kSyntheticDrawPaletteToken = 0x00701000U;
     static constexpr std::array<openswd3::compat::u8, 2U> kSyntheticDrawHeader{
@@ -438,6 +439,7 @@ public:
         .entry_return_address = 0x004554FBU,
         .direction_flag = true,
         .audio_state_mode_owner = &kAudioStateMode,
+        .audio_state_submode_owner = &kAudioStateSubmode,
         .draw_source_token_owner = &kSyntheticDrawToken,
         .draw_palette_token_owner = &kSyntheticDrawPaletteToken,
         .draw_source_bytes_token = kSyntheticDrawToken,
@@ -4892,6 +4894,66 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 sound.calls == 1U,
             "audio mode zero takes the physical nested POP/RET early return without invoking the sound port"
         );
+        auto missing_audio_submode = group_b_input;
+        missing_audio_submode.audio_state_submode_owner = nullptr;
+        const auto stopped_submode_owner =
+            openswd3::battle::continue_legacy_battle_actor_frame_case_one_audio(
+                sound, missing_audio_submode, audio_pending
+            );
+        auto submode_call_fault = group_b_input;
+        submode_call_fault.stop_before_access =
+            audio_pending.accesses_completed + 17U;
+        const auto stopped_submode_call =
+            openswd3::battle::continue_legacy_battle_actor_frame_case_one_audio(
+                sound, submode_call_fault, audio_pending
+            );
+        auto submode_ret_fault = group_b_input;
+        submode_ret_fault.stop_before_access =
+            audio_pending.accesses_completed + 19U;
+        const auto stopped_submode_ret =
+            openswd3::battle::continue_legacy_battle_actor_frame_case_one_audio(
+                sound, submode_ret_fault, audio_pending
+            );
+        static constexpr u32 kDisabledAudioSubmode = 0U;
+        auto disabled_audio_submode = group_b_input;
+        disabled_audio_submode.audio_state_submode_owner =
+            &kDisabledAudioSubmode;
+        const auto submode_early_return =
+            openswd3::battle::continue_legacy_battle_actor_frame_case_one_audio(
+                sound, disabled_audio_submode, audio_pending
+            );
+        test.expect_true(
+            stopped_submode_call.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
+                stopped_submode_call.eip == 0x00485CF5U &&
+                stopped_submode_call.esp == audio_pending.esp - 48U &&
+                stopped_submode_call.stopped_token == audio_pending.esp - 52U &&
+                stopped_submode_call.accesses_completed ==
+                    audio_pending.accesses_completed + 17U &&
+                stopped_submode_owner.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                stopped_submode_owner.eip == 0x00485CD0U &&
+                stopped_submode_owner.esp == audio_pending.esp - 52U &&
+                stopped_submode_owner.stopped_token == 0x004C84A8U &&
+                stopped_submode_owner.last_pushed_value == 0x00485CFAU &&
+                stopped_submode_owner.accesses_completed ==
+                    audio_pending.accesses_completed + 18U &&
+                stopped_submode_ret.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
+                stopped_submode_ret.eip == 0x00485CD7U &&
+                stopped_submode_ret.esp == audio_pending.esp - 52U &&
+                stopped_submode_ret.accesses_completed ==
+                    audio_pending.accesses_completed + 19U &&
+                submode_early_return.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_one_source_token_ready &&
+                submode_early_return.eax == 0U &&
+                submode_early_return.esp == phase_zero.esp &&
+                submode_early_return.accesses_completed ==
+                    audio_pending.accesses_completed + 26U &&
+                sound.calls == 1U,
+            "audio mode one reads the second bound state after a nested CALL; mode two disabled returns through the physical early RET"
+        );
         sound.reply.returned = true;
         const auto completed_audio =
             openswd3::battle::continue_legacy_battle_actor_frame_case_one_audio(
@@ -4910,7 +4972,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 completed_audio.esp == phase_zero.esp &&
                 completed_audio.flags_known &&
                 completed_audio.accesses_completed ==
-                    audio_pending.accesses_completed + 17U &&
+                    audio_pending.accesses_completed + 20U &&
                 resumed_audio.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_one_source_read_ready &&

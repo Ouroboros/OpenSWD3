@@ -2164,6 +2164,14 @@ GetSystemMetrics via edi (6) 479C34 479C38 47A725 47A729 47B662 47B666
 未见汇合冲突。98行现在都有入口栏（其中矩形21/绘制28/音频19只新增 LST 压栈链的原始 IP/操作数导航，而非完整时刻字节）、98行有不同程度的正常回复分类、98行有至少一个条件性故障栏（音频19行新增 wrapper 的10处通用栈访问模板，
 但 AIL/更深嵌套访问尚未审毕）；**98行均为 partial，零行通过完整调用点语义/异常验收**，也不据此推定 Win32 IAT 内部指令。
 
+`unanchored-basic-blocks.txt` 的20个块首地址仅表示源码未直接写出该地址文本，不等于不可达、未实现或已验收。
+本轮从原LST逐块分类：selector分派2处 `0x004799BB/0x004799CD`；十处零phase音频比较门
+`0x00479CB7/0x00479EBB/0x0047A0A1/0x0047A277/0x0047A833/0x0047AA8C/0x0047ABBE/0x0047AF35/0x0047B419/0x0047B84E`；
+两处首绘后高度截断 `0x0047A120/0x0047A8B2`；两处signed phase绘图参数写
+`0x0047A998/0x0047B329`；case14的加4写 `0x0047B110`；case100的负数余数修正与
+signed范围门 `0x0047B4D8/0x0047B4DD/0x0047B4FD`。其中短分支可在相邻continuation找到对应运算，
+但这组文本锚点检查不证明相邻CALL、故障前缀或249块双向REVIEW已完成。
+
 已开始按块核对现有 C++：Block 011 更新 CALL 在记录 owner 缺失时原实现误把 callee 入口 `0x004321E0` 当成记录首读障；
 首次修正为三次 callee PUSH 与 `XOR EBX,EBX` 后的 `0x004321EE`、`record+0x90`、ESP 再减12，
 `proc_e231` 局部 core/CTest `199/199` 验证故障寄存器与不调用更新 port。
@@ -2225,6 +2233,8 @@ case9、3、5首/第二绘制、11 各有首word读障代表向量。
 `proc_4262` ASan core/CTest `199/199`、`proc_97fb` Linux app/CTest `205/205`。
 测试 `request()` 的图像首字节是显式合成backing，不是实际 `shared_action->turn_frame_source_token`
 与绘图/像素页的生产别名证明。`sub_4170E0` 后续全局/帧/像素页访问及故障前缀仍不闭合。
+留底提交 `7b95f28b` 后五段阶段 TG `proc_142a` 退出0；所用脚本仅在 `sendMessage`
+响应 `ok=true` 时正常返回，但未输出 `message_id`；客户端显示未验证，留底不算316验收。
 2026-09-26 00:19:36+08 五段阶段 TG `proc_8cfb` 获 API `ok=true/message_id=4315`；
 只证明平台接受，不证明用户客户端显示。
 2026-09-25 22:18:00+08 五段阶段 TG `proc_546f` 获 API `ok=true/message_id=4308`；
@@ -2256,7 +2266,15 @@ Linux app/CTest `205/205`。
 四次 POP、`retn 0x18`、`sub_485610 RET` 的物理次序直接 EAX0 早退，不调用窄port；
 mode0六处栈读障和正常早退向量已通过 `proc_d969` core/CTest `199/199`、
 `proc_268c` ASan core/CTest `199/199`、`proc_0b57` Linux app/CTest `205/205`。
-实际音频状态跨owner别名、mode1更深callee及AIL仍由窄port表示。
+首状态为1时，`0x00485CF5 CALL sub_485CD0` 先压返回槽，`0x00485CD0`
+再从显式绑定的 `[0x004C8450+0x58]` owner 读取第二状态，`0x00485CD7` 独立RET；
+第二状态非1则经 `0x00485CFA CMP AL,1` 和共享四POP/双RET早退，不调用窄port。
+case1代表向量核对第二CALL栈写障、第二状态缺owner读障、内层RET读障与正常早退的
+EIP/ESP/token/累计访问序号；八个共享wrapper在入口型停止时撤销本轮预读的19次访问。
+初轮 `proc_0fb2` core/CTest `198/199`，新增向量少计父CALL返回槽，修正后
+`proc_d18f` Linux core/CTest `199/199`、`proc_6d16` ASan core/CTest `199/199`、
+`proc_3204` Linux app/CTest `205/205`。两次音频状态指针与真实全局之间的别名尚无生产证明；
+两状态均为1后的更深callee与AIL仍由窄port表示，19处CALL仍为partial。
 2026-09-25 23:57:38+08 五段阶段 TG `proc_e4b5` 获 API `ok=true/message_id=4314`；
 只证明平台接受，不证明用户客户端显示。
 2026-09-25 23:23:54+08 五段阶段 TG `proc_b642` 获 API `ok=true/message_id=4312`；

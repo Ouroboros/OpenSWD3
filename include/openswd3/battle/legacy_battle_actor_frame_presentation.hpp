@@ -535,6 +535,8 @@ struct LegacyBattleActorFrameEntryRequest {
     bool linked_node_readable{true};
     const compat::u32* audio_state_mode_owner{};  // [0x004C8450+0x54]
     bool audio_state_readable{true};
+    const compat::u32* audio_state_submode_owner{};  // [0x004C8450+0x58]
+    bool audio_state_submode_readable{true};
     bool global_readable{true};
     bool global_writable{true};
     const compat::u32* draw_source_token_owner{};   // 0x004CD730
