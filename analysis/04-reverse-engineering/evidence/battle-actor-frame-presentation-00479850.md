@@ -2871,6 +2871,16 @@ core/CTest `199/199`、`proc_99cc` Linux app/CTest `205/205`。
 失败轮次不计通过；修正后`proc_4f0d` Linux core/CTest
 `199/199`、`proc_f98a` ASan core/CTest `199/199`、
 `proc_f3f4` Linux app/CTest `205/205`。生产源数据和块别名仍未证明。
+该批提交推送`40b08a1c`，远端同SHA；阶段TG `proc_1086`退出0，
+客户端显示未验证。格式8另用显式合成宽3、高4、格式8、Size=12的
+源span和空链堆块（DF=0）独立验证首个命令字`0x8001/0x0000`：
+按LST `0x00401ACB`在源`+8`先读16位、置CMP FLAGS和ESI，
+非零停在`0x00401AD7`源`+10`读取前，零停在`0x00401B62`
+首个POP前；源故障前缀和像素填充、三个输出槽保持。
+`proc_fa7d` Linux core/CTest `199/199`、`proc_3790` ASan
+core/CTest `199/199`、`proc_226f` Linux app/CTest `205/205`。
+仅验证该Size=12的显式空链合成路径，不证明其他尺寸、真实源页、
+分配器块来源或后续格式8命令流。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

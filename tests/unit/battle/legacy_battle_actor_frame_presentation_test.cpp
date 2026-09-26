@@ -9888,6 +9888,104 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 );
             }
         }
+        const std::array<openswd3::compat::u8, 12U> kEightNonzeroSource{
+            0xFFU,
+            0xFFU,
+            0x03U,
+            0x00U,
+            0x04U,
+            0x00U,
+            0x08U,
+            0x00U,
+            0x01U,
+            0x80U,
+            0x02U,
+            0x00U,
+        };
+        const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+            eight_nonzero_sources{{{0x77665544U, kEightNonzeroSource}}};
+        auto eight_request = linked_metadata_empty_request;
+        eight_request.decoder_sources = eight_nonzero_sources;
+        eight_request.decoder_payload_heap_initial_source_word_backed = true;
+        eight_request.direction_flag = false;
+        for (const u32 stop_offset : {190U, 191U}) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            writable_heap_head = 0xABCDEF01U;
+            linked_raw_backing.fill(0xA5U);
+            case_two_outputs.words = {2U, 3U, 0x10U};
+            eight_request.stop_before_access =
+                decoder_pending.accesses_completed + stop_offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, eight_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip ==
+                        (stop_offset == 190U ? 0x00401ACBU : 0x00401AD7U) &&
+                    stopped.stopped_access_kind ==
+                        Access::frame_resource_read &&
+                    stopped.stopped_token ==
+                        0x77665544U + (stop_offset == 190U ? 8U : 10U) &&
+                    stopped.accesses_completed ==
+                        eight_request.stop_before_access &&
+                    stopped.esp == stack_top - 20U &&
+                    stopped.eax == 0x00804020U &&
+                    (stop_offset == 190U ||
+                     (stopped.esi == stopped.eax && stopped.flags.sign &&
+                      !stopped.flags.zero)) &&
+                    case_two_outputs.words ==
+                        std::array<u32, 3U>{3U, 4U, 0x08U} &&
+                    linked_raw_backing[32U] == 0x7EU,
+                "format-eight twelve-byte allocation reads its first word before the command stream"
+            );
+        }
+        const std::array<openswd3::compat::u8, 10U> kEightZeroSource{
+            0xFFU,
+            0xFFU,
+            0x03U,
+            0x00U,
+            0x04U,
+            0x00U,
+            0x08U,
+            0x00U,
+            0x00U,
+            0x00U,
+        };
+        const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+            eight_zero_sources{{{0x77665544U, kEightZeroSource}}};
+        auto eight_zero_request = eight_request;
+        eight_zero_request.decoder_sources = eight_zero_sources;
+        eight_zero_request.stop_before_access = 0U;
+        mutable_request_counter = 0x00760000U;
+        mutable_heap_size = 0xFFFFFFFEU;
+        mutable_live_size = 0xFFFFFFFDU;
+        mutable_peak_size = 8U;
+        empty_heap_tail = 0U;
+        writable_heap_head = 0xABCDEF01U;
+        linked_raw_backing.fill(0xA5U);
+        case_two_outputs.words = {2U, 3U, 0x10U};
+        const auto eight_zero = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, eight_zero_request, decoder_pending
+            );
+        test.expect_true(
+            eight_zero.eip == 0x00401B62U &&
+                eight_zero.stopped_access_kind == Access::stack_read &&
+                eight_zero.stopped_token == stack_top - 20U &&
+                eight_zero.esp == stack_top - 20U &&
+                eight_zero.esi == 0x00804020U && eight_zero.flags_known &&
+                eight_zero.flags.zero && !eight_zero.flags.sign &&
+                eight_zero.accesses_completed ==
+                    decoder_pending.accesses_completed + 191U &&
+                case_two_outputs.words == std::array<u32, 3U>{3U, 4U, 0x08U} &&
+                linked_raw_backing[32U] == 0x7EU,
+            "zero first format-eight command stops before decoder register pops"
+        );
+        case_two_outputs.words = {2U, 3U, 0x10U};
         auto unaligned_linked_request = linked_metadata_empty_request;
         unaligned_linked_request.decoder_small_pool_return_eax = 0x00804001U;
         unaligned_linked_request.decoder_heap_block_token = 0x00804001U;
