@@ -7298,13 +7298,108 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             }
             ++prefix.accesses_completed;
             *request.decoder_heap_stats_size_write_owner = prefix.edx;
-            prefix.status =
-                LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
-            prefix.stopped_access_kind =
-                LegacyBattleActorFrameEntryAccessKind::global_read;
-            prefix.stopped_instruction = 0x00487EF2U;
-            prefix.stopped_token = 0x0053D12CU;
-            prefix.eip = 0x00487EF2U;
+            const auto read_heap_stat = [&](const u32 instruction,
+                                            const u32 token,
+                                            const u32* owner,
+                                            u32& destination) {
+                if (prefix.accesses_completed == request.stop_before_access ||
+                    !request.global_readable || owner == nullptr) {
+                    prefix.status = LegacyBattleActorFrameEntryStatus::
+                        global_read_typed_stop;
+                    prefix.stopped_access_kind =
+                        LegacyBattleActorFrameEntryAccessKind::global_read;
+                    prefix.stopped_instruction = instruction;
+                    prefix.stopped_token = token;
+                    prefix.eip = instruction;
+                    return false;
+                }
+                ++prefix.accesses_completed;
+                destination = *owner;
+                return true;
+            };
+            const auto write_heap_stat = [&](const u32 instruction,
+                                             const u32 token,
+                                             const u32* read_owner,
+                                             u32* write_owner,
+                                             const u32 value) {
+                if (prefix.accesses_completed == request.stop_before_access ||
+                    !request.global_writable || write_owner != read_owner) {
+                    prefix.status = LegacyBattleActorFrameEntryStatus::
+                        global_write_typed_stop;
+                    prefix.stopped_access_kind =
+                        LegacyBattleActorFrameEntryAccessKind::global_write;
+                    prefix.stopped_instruction = instruction;
+                    prefix.stopped_token = token;
+                    prefix.eip = instruction;
+                    return false;
+                }
+                ++prefix.accesses_completed;
+                *write_owner = value;
+                return true;
+            };
+            if (!read_heap_stat(
+                    0x00487EF2U,
+                    0x0053D12CU,
+                    request.decoder_heap_stats_live_size_owner,
+                    prefix.eax
+                )) {
+                return prefix;
+            }
+            if (!read_inner_argument(
+                    0x00487EF7U, prefix.ebp + 8U, allocation_size, size_word
+                )) {
+                return prefix;
+            }
+            prefix.flags = add_flags(prefix.eax, size_word);
+            prefix.eax += size_word;
+            if (!write_heap_stat(
+                    0x00487EFAU,
+                    0x0053D12CU,
+                    request.decoder_heap_stats_live_size_owner,
+                    request.decoder_heap_stats_live_size_write_owner,
+                    prefix.eax
+                ) ||
+                !read_heap_stat(
+                    0x00487EFFU,
+                    0x0053D12CU,
+                    request.decoder_heap_stats_live_size_owner,
+                    prefix.ecx
+                )) {
+                return prefix;
+            }
+            u32 peak_size{};
+            if (!read_heap_stat(
+                    0x00487F05U,
+                    0x0053D130U,
+                    request.decoder_heap_stats_peak_size_owner,
+                    peak_size
+                )) {
+                return prefix;
+            }
+            prefix.flags = subtract_flags(prefix.ecx, peak_size);
+            if (!prefix.flags.carry && !prefix.flags.zero) {
+                if (!read_heap_stat(
+                        0x00487F0DU,
+                        0x0053D12CU,
+                        request.decoder_heap_stats_live_size_owner,
+                        prefix.edx
+                    ) ||
+                    !write_heap_stat(
+                        0x00487F13U,
+                        0x0053D130U,
+                        request.decoder_heap_stats_peak_size_owner,
+                        request.decoder_heap_stats_peak_size_write_owner,
+                        prefix.edx
+                    )) {
+                    return prefix;
+                }
+            }
+            u32 tail_token{};
+            if (!read_heap_stat(
+                    0x00487F19U, 0x0053D128U, nullptr, tail_token
+                )) {
+                return prefix;
+            }
         }
         return prefix;
     }

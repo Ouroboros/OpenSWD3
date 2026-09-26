@@ -7945,6 +7945,89 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 mutable_request_counter == 0x00760001U,
             "linked heap statistics require a single read/write owner for the size global"
         );
+        u32 mutable_live_size = 0xFFFFFFFDU;
+        u32 mutable_peak_size = 8U;
+        auto linked_peak_request = linked_size_request;
+        linked_peak_request.decoder_heap_stats_live_size_owner =
+            &mutable_live_size;
+        linked_peak_request.decoder_heap_stats_live_size_write_owner =
+            &mutable_live_size;
+        linked_peak_request.decoder_heap_stats_peak_size_owner =
+            &mutable_peak_size;
+        linked_peak_request.decoder_heap_stats_peak_size_write_owner =
+            &mutable_peak_size;
+        const std::array<HeapPrefixFault, 8U> kLinkedPeakFaults{{
+            {99U, 0x00487EF2U, 116U, 0x0053D12CU, Access::global_read},
+            {100U, 0x00487EF7U, 116U, stack_top - 80U, Access::stack_read},
+            {101U, 0x00487EFAU, 116U, 0x0053D12CU, Access::global_write},
+            {102U, 0x00487EFFU, 116U, 0x0053D12CU, Access::global_read},
+            {103U, 0x00487F05U, 116U, 0x0053D130U, Access::global_read},
+            {104U, 0x00487F0DU, 116U, 0x0053D12CU, Access::global_read},
+            {105U, 0x00487F13U, 116U, 0x0053D130U, Access::global_write},
+            {106U, 0x00487F19U, 116U, 0x0053D128U, Access::global_read},
+        }};
+        for (const auto& fault : kLinkedPeakFaults) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            linked_peak_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, linked_peak_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.accesses_completed ==
+                        linked_peak_request.stop_before_access &&
+                    mutable_heap_size == 10U &&
+                    mutable_live_size ==
+                        (fault.offset > 101U ? 9U : 0xFFFFFFFDU) &&
+                    mutable_peak_size == (fault.offset > 105U ? 9U : 8U) &&
+                    mutable_request_counter == 0x00760001U,
+                "linked heap live and peak statistics preserve eight individual faults and prior writes"
+            );
+        }
+        linked_peak_request.stop_before_access = 0U;
+        mutable_request_counter = 0x00760000U;
+        mutable_heap_size = 0xFFFFFFFEU;
+        mutable_live_size = 0xFFFFFFFDU;
+        mutable_peak_size = 10U;
+        const auto stopped_below_peak = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, linked_peak_request, decoder_pending
+            );
+        test.expect_true(
+            stopped_below_peak.eip == 0x00487F19U &&
+                stopped_below_peak.accesses_completed ==
+                    decoder_pending.accesses_completed + 104U &&
+                stopped_below_peak.flags_known &&
+                stopped_below_peak.flags.carry && mutable_heap_size == 10U &&
+                mutable_live_size == 9U && mutable_peak_size == 10U,
+            "live allocation total below peak skips peak write before list-tail read"
+        );
+        mutable_request_counter = 0x00760000U;
+        mutable_heap_size = 0xFFFFFFFEU;
+        mutable_live_size = 0xFFFFFFFDU;
+        mutable_peak_size = 8U;
+        u32 unrelated_peak = 8U;
+        auto wrong_peak_write = linked_peak_request;
+        wrong_peak_write.decoder_heap_stats_peak_size_write_owner =
+            &unrelated_peak;
+        const auto stopped_peak_alias = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, wrong_peak_write, decoder_pending
+            );
+        test.expect_true(
+            stopped_peak_alias.eip == 0x00487F13U && mutable_heap_size == 10U &&
+                mutable_live_size == 9U && mutable_peak_size == 8U &&
+                unrelated_peak == 8U,
+            "peak statistics reject a different write owner after committing prior totals"
+        );
         std::array<openswd3::compat::u8, 48U> synthetic_heap_bytes{};
         auto backed_header_request = writable_counter_request;
         backed_header_request.decoder_heap_block_token = 0x00804000U;

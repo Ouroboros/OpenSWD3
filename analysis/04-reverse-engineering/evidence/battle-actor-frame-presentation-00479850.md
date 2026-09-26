@@ -2642,7 +2642,17 @@ linked分配分支在显式同址可写owner下按
 临时诊断`proc_2394`各有1个失败测试；诊断显示linked分支首个统计读取
 早一位。修正四个停点序号、移除临时诊断后，`proc_4e7e` Linux core/CTest
 `199/199`、`proc_fae7` ASan core/CTest `199/199`、`proc_993d`
-Linux app/CTest `205/205`。失败轮次不算通过证据。
+Linux app/CTest `205/205`。失败轮次不算通过证据。该阶段提交推送
+`4422d5f9`，TG `proc_7388`退出0，客户端显示未验证。
+对显式绑定的第二统计量`0x0053D12C`执行`0x00487EF2/EF7/EFA`
+读、加Size、同址写；`0x00487EFF`实际重读后在`0x00487F05`
+用无符号比较峰值`0x0053D130`。若当前值大于峰值，必须在
+`0x00487F0D`重读第二统计量后才在`0x00487F13`写峰值；相等或更小
+不写峰值。两条路径均停在未绑定的链尾`0x0053D128`读取前；合成
+统计量不证明原版运行时owner或节点别名。较大/较小两侧、八处故障
+停点及峰值写入别名测试均使用显式合成统计owner。
+`proc_cccb` Linux core/CTest `199/199`、`proc_ec4b` ASan core/CTest
+`199/199`、`proc_8e40` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
