@@ -8284,6 +8284,98 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 "nonempty linked heap preserves the old-tail write before raw back-link fields"
             );
         }
+        auto linked_metadata_empty_request = bound_empty_raw_request;
+        linked_metadata_empty_request.decoder_heap_tail_write_owner =
+            &empty_heap_tail;
+        auto linked_metadata_nonempty_request = bound_nonempty_raw_request;
+        linked_metadata_nonempty_request.decoder_heap_tail_write_owner =
+            &nonempty_heap_tail;
+        const std::array<HeapPrefixFault, 17U> kLinkedMetadataFaults{{
+            {115U, 0x00487F50U, 116U, stack_top - 72U, Access::stack_read},
+            {116U,
+             0x00487F53U,
+             116U,
+             0x00804008U,
+             Access::allocator_block_write},
+            {117U, 0x00487F56U, 116U, stack_top - 92U, Access::stack_read},
+            {118U, 0x00487F59U, 116U, stack_top - 68U, Access::stack_read},
+            {119U,
+             0x00487F5CU,
+             116U,
+             0x0080400CU,
+             Access::allocator_block_write},
+            {120U, 0x00487F5FU, 116U, stack_top - 92U, Access::stack_read},
+            {121U, 0x00487F62U, 116U, stack_top - 80U, Access::stack_read},
+            {122U,
+             0x00487F65U,
+             116U,
+             0x00804010U,
+             Access::allocator_block_write},
+            {123U, 0x00487F68U, 116U, stack_top - 92U, Access::stack_read},
+            {124U, 0x00487F6BU, 116U, stack_top - 76U, Access::stack_read},
+            {125U,
+             0x00487F6EU,
+             116U,
+             0x00804014U,
+             Access::allocator_block_write},
+            {126U, 0x00487F71U, 116U, stack_top - 92U, Access::stack_read},
+            {127U, 0x00487F74U, 116U, stack_top - 96U, Access::stack_read},
+            {128U,
+             0x00487F77U,
+             116U,
+             0x00804018U,
+             Access::allocator_block_write},
+            {129U, 0x00487F7AU, 116U, stack_top - 92U, Access::stack_read},
+            {130U, 0x00487F7DU, 116U, 0x0053D128U, Access::global_write},
+            {131U, 0x00487F83U, 116U, stack_top - 120U, Access::stack_write},
+        }};
+        for (const bool has_old_tail : {false, true}) {
+            auto& request = has_old_tail ? linked_metadata_nonempty_request
+                                         : linked_metadata_empty_request;
+            for (const auto& fault : kLinkedMetadataFaults) {
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access =
+                    decoder_pending.accesses_completed + fault.offset +
+                    (has_old_tail ? 1U : 0U);
+                const auto stopped = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, decoder_pending
+                    );
+                test.expect_true(
+                    stopped.eip == fault.instruction &&
+                        stopped.stopped_access_kind == fault.kind &&
+                        stopped.stopped_token == fault.token &&
+                        stopped.esp == stack_top - fault.stack_drop &&
+                        stopped.accesses_completed ==
+                            request.stop_before_access &&
+                        linked_raw_backing[8U] ==
+                            (fault.offset > 116U ? 1U : 0xA5U) &&
+                        linked_raw_backing[12U] ==
+                            (fault.offset > 119U ? 0U : 0xA5U) &&
+                        linked_raw_backing[16U] ==
+                            (fault.offset > 122U ? 12U : 0xA5U) &&
+                        linked_raw_backing[22U] ==
+                            (fault.offset > 125U ? 0x79U : 0xA5U) &&
+                        linked_raw_backing[26U] ==
+                            (fault.offset > 128U ? 0x76U : 0xA5U) &&
+                        (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
+                            (fault.offset > 130U ? 0x00804000U
+                                 : has_old_tail  ? 0x00806000U
+                                                 : 0U) &&
+                        mutable_heap_size == 10U && mutable_live_size == 9U &&
+                        mutable_peak_size == 9U,
+                    "linked heap metadata preserves seventeen physical faults on empty and nonempty lists"
+                );
+            }
+        }
         std::array<openswd3::compat::u8, 48U> synthetic_heap_bytes{};
         auto backed_header_request = writable_counter_request;
         backed_header_request.decoder_heap_block_token = 0x00804000U;

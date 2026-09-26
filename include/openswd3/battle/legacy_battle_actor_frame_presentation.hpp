@@ -583,6 +583,7 @@ struct LegacyBattleActorFrameEntryRequest {
     const compat::u32* decoder_heap_stats_peak_size_owner{};
     compat::u32* decoder_heap_stats_peak_size_write_owner{};
     const compat::u32* decoder_heap_tail_owner{};
+    compat::u32* decoder_heap_tail_write_owner{};
     compat::u32* decoder_heap_head_write_owner{};
     compat::u32 decoder_heap_old_tail_block_token{};
     std::span<compat::u8> decoder_heap_old_tail_block_bytes{};

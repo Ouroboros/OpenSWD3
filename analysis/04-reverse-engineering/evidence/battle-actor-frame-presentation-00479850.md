@@ -2681,7 +2681,19 @@ backing时拒绝虚构别名；上述合成绑定均不证明生产链表所有�
 零链尾和非零链尾各五处故障顺序与前缀字节分别验证，合成字节不
 证明实际堆块来源或生产节点别名。
 `proc_7561` Linux core/CTest `199/199`、`proc_5498` ASan core/CTest
-`199/199`、`proc_7a67` Linux app/CTest `205/205`。
+`199/199`、`proc_7a67` Linux app/CTest `205/205`。该阶段提交推送
+`e160ffd3`，TG `proc_9911`退出0，客户端显示未验证。
+linked块在当前raw前驱/后继写入后，按LST`0x00487F50..F77`五次
+从物理父栈重读`arg_8=1`、`arg_C=0`、Size、来自全局`0x0053D1B4`
+的`arg_4`运行时值与本次请求前计数`var_8`，依次写到raw偏移`8/0xC/0x10/
+0x14/0x18`；后者是写回计数递增**前**的快照。`0x00487F7A`
+重读raw后，仅在尾指针全局读写同址且可写时`0x00487F7D`写
+`0x0053D128=raw`；随后停在`0x00487F83`首次填充压栈前。
+空链与非空链各17处故障检查写入前缀，仍不证明生产owner。
+初版`proc_cb1c`因请求前计数快照局部作用域编译失败，不算通过；
+改为同一条件路径保存快照后，`proc_8533` Linux core/CTest
+`199/199`、`proc_2598` ASan core/CTest `199/199`、`proc_bf08`
+Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
