@@ -2715,6 +2715,13 @@ core/CTest `199/199`、`proc_91bc` ASan core/CTest `199/199`、
 已写入。空链/非空链各四处子栈故障前缀与原raw元数据已在合成
 owner向量核对；`proc_f3de` Linux core/CTest `199/199`、`proc_156f`
 ASan core/CTest `199/199`、`proc_e59d` Linux app/CTest `205/205`。
+该阶段提交推送`413fad2c`，TG `proc_76c3`退出0，客户端显示未验证。
+显式同址可写的linked raw块在`0x0048A971`首填充写四个保护字节，
+保留DF对EDI的移动方向，再逐项恢复子返回地址、清理父实参、
+按`0x00487F9D`压第二填充长度，停在`0x00487FA1`保护byte重读前。
+空链/非空链各六处故障前缀与合成字节向量不证明生产别名。
+`proc_6679` Linux core/CTest `199/199`、`proc_595a` ASan core/CTest
+`199/199`、`proc_72e3` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

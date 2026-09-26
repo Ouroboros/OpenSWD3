@@ -7638,6 +7638,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                 prefix.eax == request.decoder_heap_block_token + 0x1CU) {
                 const u32 fill_target = prefix.eax;
                 const u32 fill_value = prefix.edx;
+                const u32 saved_fill_edi = prefix.edi;
                 if (!read_inner_argument(
                         0x0048A930U, prefix.esp + 0x0CU, 4U, prefix.edx
                     ) ||
@@ -7700,6 +7701,70 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                 prefix.stopped_instruction = 0x0048A971U;
                 prefix.stopped_token = fill_target;
                 prefix.eip = 0x0048A971U;
+                if (request.decoder_first_heap_fill_write_backed) {
+                    if (!write_heap_header(
+                            0x0048A971U,
+                            request.decoder_heap_block_token,
+                            0x1CU,
+                            prefix.eax
+                        )) {
+                        return prefix;
+                    }
+                    prefix.ecx = 0U;
+                    prefix.edi += prefix.direction_flag ? 0xFFFFFFFCU : 4U;
+                    prefix.flags = {
+                        .carry = false,
+                        .parity = true,
+                        .auxiliary_carry_defined = false,
+                        .zero = true,
+                        .sign = false,
+                        .overflow = false,
+                    };
+                    if (!read_inner_argument(
+                            0x0048A97DU,
+                            prefix.esp + 8U,
+                            fill_target,
+                            prefix.eax
+                        ) ||
+                        !read_inner_argument(
+                            0x0048A981U, prefix.esp, saved_fill_edi, prefix.edi
+                        )) {
+                        return prefix;
+                    }
+                    prefix.esp += 4U;
+                    u32 child_return_ip{};
+                    if (!read_inner_argument(
+                            0x0048A982U,
+                            prefix.esp,
+                            0x00487F9AU,
+                            child_return_ip
+                        )) {
+                        return prefix;
+                    }
+                    prefix.esp += 4U;
+                    prefix.eip = child_return_ip;
+                    prefix.flags = add_flags(prefix.esp, 0x0CU);
+                    prefix.esp += 0x0CU;
+                    if (!save(0x00487F9DU, 4U)) {
+                        return prefix;
+                    }
+                    prefix.ecx = 0U;
+                    prefix.flags = {
+                        .carry = false,
+                        .parity = true,
+                        .auxiliary_carry_defined = false,
+                        .zero = true,
+                        .sign = false,
+                        .overflow = false,
+                    };
+                    prefix.status = LegacyBattleActorFrameEntryStatus::
+                        global_read_typed_stop;
+                    prefix.stopped_access_kind =
+                        LegacyBattleActorFrameEntryAccessKind::global_read;
+                    prefix.stopped_instruction = 0x00487FA1U;
+                    prefix.stopped_token = 0x004A8300U;
+                    prefix.eip = 0x00487FA1U;
+                }
             }
         }
         return prefix;
