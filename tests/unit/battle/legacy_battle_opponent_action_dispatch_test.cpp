@@ -1252,6 +1252,39 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 7U;
+        auto context = fixture.context();
+        const auto unbound = dispatch(state, port, context, 0U, 10U);
+        openswd3::battle::LegacyBattleActorFrameEntryRequest snapshot{};
+        snapshot.entry_esp = 0x00130800U;
+        openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};
+        context.actor_frame_opponent_group_a.caller_snapshot = &snapshot;
+        context.actor_frame_opponent_group_a.observed = &observed;
+        const auto bound = dispatch(state, port, context, 0U, 10U);
+        test.expect_true(
+            unbound.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_a_index_typed_stop &&
+                bound.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_frame_caller_typed_stop &&
+                !observed.returned && observed.eip == 0x0047985BU &&
+                observed.esp == snapshot.entry_esp - 0x28U &&
+                observed.child.status ==
+                    openswd3::battle::LegacyBattleActorFrameEntryStatus::
+                        actor_read_typed_stop &&
+                observed.child.stopped_token == 0x00522C94U &&
+                observed.admission.child_request.actor_token == 0x005201D8U &&
+                bound.attack_order_remove_calls == 0U &&
+                port.count(0x00479850U) == 0U,
+            "explicit opponent-seven A10 call reaches the physical child read without inventing mapped data"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
         state.active_target_code = 4U;
         state.active_effect_target = 4U;
         state.active_effect_gate = 9U;

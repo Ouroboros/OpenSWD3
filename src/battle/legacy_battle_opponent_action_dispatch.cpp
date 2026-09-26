@@ -776,7 +776,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
     }
 
     case 7U: {
-        if (!validate_group_a(result, target_index)) {
+        if (context.actor_frame_opponent_group_a.caller_snapshot == nullptr &&
+            !validate_group_a(result, target_index)) {
             return result;
         }
         const u32 target_token = group_a_token(target_index);

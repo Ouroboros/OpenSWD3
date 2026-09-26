@@ -39,8 +39,9 @@ EAX!=1 的三类原 LST 后缀也已锁定：主分派跳 `0x00455CBB..0x00455CC
 主分派的成功后缀已逐指令核到 `0x00455538`：目标 EAX==1 后压0、以 ECX=先前算出的 EDI actor token 调 `sub_478710`，
 再压 ESI 源 Group-B 索引调 `sub_45EFB0`、`add esp,4`；随后按 **signed** `0<=ESI<=3` 门只递增 `dword_53BF00` 低 byte，
 恢复寄存器、EAX=入口时设好的 EBX=1、恢复 fs:0 的 SEH 链、`add esp,0x10` 并 `retn`。任何两个后续 CALL 的 typed-stop 都不得执行它们之后的自增/正常 return。
-现有 C++ `case 7` 在进入 `sub_479850` 前先调用 `require_group_b()`，但原 LST `0x004554D8..004554F6` 对 ESI 直接按低32位构造 actor token，
-无显式索引范围判断；需在 caller 集成时针对异常索引复核该现代 typed-stop 是否抢先于原始物理读点，不能沿用现有 C++ 作为 LST 证据。
+未绑定显式 caller 快照的 C++ `case 7` 在进入 `sub_479850` 前仍调用 `require_group_b()`；
+显式快照现绕过此现代数组门，原 LST `0x004554D8..004554F6` 对 ESI 按低32位构造 actor token 并先发 CALL。
+仅证明无物理 owner 时停在 child 首读；不能将静态 `.data` 覆盖冒充实际页面值或完整 caller 等价。
 对手分派成功后缀也已逐指令核到 `0x00456580`：原 `0x00456514` **先**写 EBX=1，再以回复 EAX==1 门继续；
 清 EBP=0、以目标 token EDI/压0 调 `sub_478710`，将 EDI 改为 `ESI+4` 后调 `sub_45EFB0(EDI)`、`add esp,4`；
 按 signed `0<=ESI<=3` 才 `inc byte_53BEFF`。随后独立比较 `dword_53BD54==EDI` 则清0、`dword_53AE70==EDI` 则写全1并清 `dword_53BF74`，
@@ -2090,18 +2091,19 @@ GetSystemMetrics via edi (6) 479C34 479C38 47A725 47A729 47B662 47B666
   应在 CALL 处读取，而不是复制入口 bit0 snapshot。已关闭 `sub_433F30` 的组合边界返回原宿主高度并保留宽高预发布/分配失败后矩形调用；
   已关闭 `sub_4344E0` 接收共享 surface 及 actor `+0x0DB8` 记录。这两处只能在保持当前调用前缀时直接复用 typed owner。
 
-- 现有主分派 case7 在 child 调用前 `require_group_b()` 令 `index>=8` 立即 typed-stop；
-  对手分派 case7 在 child 前的 `validate_group_a()` **允许 index<10，只拒绝 index>=10**（现行 `src/battle/legacy_battle_opponent_action_dispatch.cpp:105..112`）；
+- 无显式 caller 快照的主分派 case7 在 child 前 `require_group_b()` 仍令 `index>=8` typed-stop；
+  对手分派 case7 在无快照时的 `validate_group_a()` **允许 index<10，只拒绝 index>=10**（现行 `src/battle/legacy_battle_opponent_action_dispatch.cpp:105..112`）；
+  两处有显式快照时已绕过该现代数组门，按低32位算 token、执行 CALL 并在无物理 owner 时停在 child 首读；
   此前把 A index8 当成现代前置 typed-stop 的结论错误，已撤回，A index8 本身是现代合法输入。Group-B 步进在算 token 前显式检查 `index==0xFFFFFFFF`；
   其余三处进入相应分支后不作 actor 容量检查，四处原 CALL 都**没有**现代这两个数组容量门。真正的边界例分别是 B index8：
   token=`0x0053AE48`、child 首读 dword=`0x0053D904..07`，LST `.data` 四条 `db ?` 均覆盖；
   以及 A index10：token=`0x005201D8`，恰为 `.data:005201D8 dword_5201D8[]` 首址、child 首读 dword=`0x00522C94..97` 也有四条 `.data db ?`。
   原 parent 都会先以低32位算 token 再发 CALL；若物理 dword 可读且为0，child 在 `0x0047985B` 读到零并正常走 default 返回 EAX0，
-  主/对手 parent 才执行其各自正常非1后缀；现代 `require_group_b()/validate_group_a()` 则分别在 B8/A10 的 CALL 前抢先 typed-stop。
+  主/对手 parent 才执行其各自正常非1后缀；无快照现代路径仍分别在 B8/A10 的 CALL 前 typed-stop，显式快照路径不再提前跳过 CALL。
   A index8 token=`0x0051A370` 与首读=`0x0051CE2C` 也落在 `.data:0050E6A0 char[72472]` 内，
   但仅证明物理映像交叉，**不**构成 `validate_group_a` 的索引8反例。LST 只证明这些静态映像地址，不证明字节当前值/页保护/宿主可读取或所有异常路径；
-  仍须由 canonical 物理访问模型或原版 oracle 核定，不能把现代数组边界当作原版 child 入口故障。若现在只支持合法索引，
-  需明确将越界列为不等价未覆盖范围，不能无证据声称四处 caller 完整等价；parent stop 前缀须保持原 child CALL 是否实际发出的区别。
+  仍须由 canonical 物理访问模型或原版 oracle 核定，不能把现代数组边界当作原版 child 入口故障。显式快照仅纠正 B8/A10 的前置停点顺序，
+  无快照路径及越界内存的实际值仍不等价或未覆盖，不能声称四处 caller 完整等价；parent stop 前缀须保持原 child CALL 是否实际发出的区别。
 
 - 最终角色步进的**child 正常 EAX1 之后**还有两个不同的现代容量/owner 早停边界，不能只回收 CALL 本身。
   组A `src/battle/legacy_battle_final_actor_step.cpp:160..167` 在 child回复1后先按 `group_a_completion_flags.size()==10` 拒绝 index>=10；
@@ -2935,6 +2937,17 @@ ECX=2/EDX=2、EBP=8，8位为EDX=2/ECX=2、EBP=6；
 `proc_6c88` Linux core/CTest `199/199`、`proc_7801` ASan
 core/CTest `199/199`、`proc_eacf` Linux app/CTest `205/205`。
 尚未核对行标记、其他命令、真实源/目标别名或完整caller。
+该批提交推送`95ec5c27`，远端同SHA；阶段TG `proc_5ce0`退出0，
+客户端显示未验证。四处真实 caller 中主动作分派及对手动作分派的
+现代前置容量门在**显式 caller 快照**时改为先按 LST 发物理 CALL：
+B index8 的组B token=`0x0053AE48`、首读地址=`0x0053D904`，
+A index10 的组A token=`0x005201D8`、首读地址=`0x00522C94`；
+无 owner 时均在 `0x0047985B` 保留子入站 ESP=`P−0x28`，
+不执行 parent EAX 后缀或 opaque port。无快照仍保留现代数组门；
+原版 `.data` 的运行时值、是否可读、两个最终步进后缀和生产别名
+仍未核对。`proc_9c92` Linux core/CTest `199/199`、
+`proc_7a85` ASan core/CTest `199/199`、`proc_da82`
+Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

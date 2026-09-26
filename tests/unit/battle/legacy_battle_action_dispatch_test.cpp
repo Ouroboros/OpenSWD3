@@ -4700,6 +4700,42 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState state;
         state.group_a_count = 1U;
         state.group_b_count = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 7U;
+        auto context = fixture.context();
+        const auto unbound = dispatch(state, port, context, 0U, 8U);
+        openswd3::battle::LegacyBattleActorFrameEntryRequest snapshot{};
+        snapshot.entry_esp = 0x00120800U;
+        openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};
+        context.actor_frame_action_group_b.caller_snapshot = &snapshot;
+        context.actor_frame_action_group_b.observed = &observed;
+        const auto bound = dispatch(state, port, context, 0U, 8U);
+        test.expect_true(
+            unbound.status ==
+                    LegacyBattleActionDispatchStatus::
+                        group_b_index_typed_stop &&
+                bound.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_frame_caller_typed_stop &&
+                !observed.returned && observed.eip == 0x0047985BU &&
+                observed.esp == snapshot.entry_esp - 0x28U &&
+                observed.child.status ==
+                    openswd3::battle::LegacyBattleActorFrameEntryStatus::
+                        actor_read_typed_stop &&
+                observed.child.stopped_token == 0x0053D904U &&
+                observed.admission.child_request.actor_token == 0x0053AE48U &&
+                bound.attack_order_remove_calls == 0U &&
+                bound.actor_action_mode_calls == 0U &&
+                port.count(0x00479850U) == 0U,
+            "explicit action-seven B8 call reaches the physical child read; without physical owner it cannot claim a legacy return"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1U;
+        state.group_b_count = 1U;
         state.group_a_to_actor[0U] = 0U;
         Fixture fixture;
         fixture.attack_order_records[0U].value_00 = 0U;

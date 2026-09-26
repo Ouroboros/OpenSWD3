@@ -8100,7 +8100,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_action(
         return result;
     }
     case 7U:
-        if (!require_group_b()) {
+        if (context.actor_frame_action_group_b.caller_snapshot == nullptr &&
+            !require_group_b()) {
             return result;
         }
         if (const auto& binding = context.actor_frame_action_group_b;
