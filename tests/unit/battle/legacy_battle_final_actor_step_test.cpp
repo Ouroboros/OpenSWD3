@@ -211,6 +211,61 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
     }
 
     {
+        bool both_boundary_callers_stopped = true;
+        for (const u32 group : {1U, 0U}) {
+            LegacyBattleFinalActorStepState state;
+            LegacyBattleActionDispatchState action;
+            FinalStepPort port;
+            openswd3::battle::LegacyBattleActorFrameEntryRequest snapshot{};
+            snapshot.entry_esp = 0x00140900U + group * 0x100U;
+            openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};
+            u32 parent_argument_4 = 0xFFFFFFFFU;
+            openswd3::battle::LegacyBattleActorFrameParentArgumentWord
+                parent_argument_owner{
+                    .token = snapshot.entry_esp + 0x18U,
+                    .word = &parent_argument_4,
+                };
+            const openswd3::battle::LegacyBattleActorFrameCallerBinding binding{
+                .caller_snapshot = &snapshot,
+                .observed = &observed,
+                .final_group_a_argument_4 =
+                    group == 1U ? &parent_argument_owner : nullptr,
+            };
+            const u32 index = group == 1U ? 10U : 8U;
+            const auto result = advance_legacy_battle_final_actor_step(
+                state,
+                action,
+                port,
+                port.attack_order(),
+                index,
+                group,
+                port.startup.get(),
+                &binding
+            );
+            both_boundary_callers_stopped = both_boundary_callers_stopped &&
+                result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_frame_caller_typed_stop &&
+                !observed.returned && observed.eip == 0x0047985BU &&
+                observed.esp == snapshot.entry_esp - 0x28U &&
+                observed.child.status ==
+                    openswd3::battle::LegacyBattleActorFrameEntryStatus::
+                        actor_read_typed_stop &&
+                observed.child.stopped_token ==
+                    (group == 1U ? 0x00522C94U : 0x0053D904U) &&
+                observed.admission.child_request.actor_token ==
+                    (group == 1U ? 0x005201D8U : 0x0053AE48U) &&
+                (group != 1U || parent_argument_4 == 0x005201D8U) &&
+                result.group_a_actor_cleanup_calls == 0U &&
+                port.count(0x00479850U) == 0U;
+        }
+        test.expect_true(
+            both_boundary_callers_stopped,
+            "final A10/B8 callers reach the child first read, retaining A's prior parent argument write without invented physical data"
+        );
+    }
+
+    {
         LegacyBattleFinalActorStepState state;
         LegacyBattleActionDispatchState action;
         action.group_a_count = 1;

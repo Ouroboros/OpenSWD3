@@ -2947,7 +2947,17 @@ A index10 的组A token=`0x005201D8`、首读地址=`0x00522C94`；
 原版 `.data` 的运行时值、是否可读、两个最终步进后缀和生产别名
 仍未核对。`proc_9c92` Linux core/CTest `199/199`、
 `proc_7a85` ASan core/CTest `199/199`、`proc_da82`
-Linux app/CTest `205/205`。
+Linux app/CTest `205/205`。该批提交推送`51cf8a76`，
+远端同SHA；阶段TG `proc_b77a`退出0，客户端显示未验证。
+最终角色步进组A index10与组B index8也按 LST 用显式 caller
+快照走到子首读 `0x0047985B`，无当前物理 owner 时以
+`P−0x28`的ESP停止，分别公布`0x00522C94/0x0053D904`
+故障token；A 的`0x0045AA2F`父栈`arg_4`已经先写
+`0x005201D8`，B 不伪造这个前置写。四处 caller 的**合成无owner
+首读边界**已分别有测试，但真实内存页/字段值、正常EAX1后的
+完整父后缀、生产alias和跨owner栈并未验收。
+`proc_887e` Linux core/CTest `199/199`、`proc_9bea` ASan
+core/CTest `199/199`、`proc_b262` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
