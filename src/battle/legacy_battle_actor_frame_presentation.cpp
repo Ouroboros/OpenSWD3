@@ -25,16 +25,21 @@ using compat::u32;
 }
 
 [[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
-logical_zero_flags() noexcept {
+logical_result_flags(const u32 value) noexcept {
     return {
         .carry = false,
-        .parity = true,
+        .parity = even_parity(static_cast<u8>(value)),
         .auxiliary_carry = false,
         .auxiliary_carry_defined = false,
-        .zero = true,
-        .sign = false,
+        .zero = value == 0U,
+        .sign = (value & 0x80000000U) != 0U,
         .overflow = false,
     };
+}
+
+[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
+logical_zero_flags() noexcept {
+    return logical_result_flags(0U);
 }
 
 [[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
@@ -5960,7 +5965,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
         return prefix;
     }
 
-    if (!prefix.flags.zero) {
+    const auto return_zero = [&](const std::array<u32, 5U>& instructions) {
         const auto restore = [&](const u32 instruction,
                                  u32& register_value,
                                  const u32 saved) {
@@ -5980,15 +5985,15 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             prefix.esp += 4U;
             return true;
         };
-        if (!restore(0x004019B7U, prefix.edi, callee_entry.edi) ||
-            !restore(0x004019B8U, prefix.esi, callee_entry.esi) ||
-            !restore(0x004019B9U, prefix.ebp, callee_entry.ebp)) {
+        if (!restore(instructions[0U], prefix.edi, callee_entry.edi) ||
+            !restore(instructions[1U], prefix.esi, callee_entry.esi) ||
+            !restore(instructions[2U], prefix.ebp, callee_entry.ebp)) {
             return prefix;
         }
 
         prefix.eax = 0U;
         prefix.flags = logical_zero_flags();
-        if (!restore(0x004019BCU, prefix.ebx, callee_entry.ebx)) {
+        if (!restore(instructions[3U], prefix.ebx, callee_entry.ebx)) {
             return prefix;
         }
 
@@ -5998,9 +6003,9 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                 LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
             prefix.stopped_access_kind =
                 LegacyBattleActorFrameEntryAccessKind::stack_read;
-            prefix.stopped_instruction = 0x004019BDU;
+            prefix.stopped_instruction = instructions[4U];
             prefix.stopped_token = prefix.esp;
-            prefix.eip = 0x004019BDU;
+            prefix.eip = instructions[4U];
             return prefix;
         }
         ++prefix.accesses_completed;
@@ -6027,6 +6032,11 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             : case_fifty_one_call      ? 0x0047B907U
                                        : 0x00479B4BU;
         return prefix;
+    };
+    if (!prefix.flags.zero) {
+        return return_zero(
+            {0x004019B7U, 0x004019B8U, 0x004019B9U, 0x004019BCU, 0x004019BDU}
+        );
     }
 
     const auto read_parent_argument = [&](const u32 instruction,
@@ -6103,6 +6113,73 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     ++prefix.accesses_completed;
     *width_owner->word = prefix.ecx;
 
+    const auto read_source_word = [&](const u32 instruction,
+                                      const std::size_t offset) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.decoder_source_readable ||
+            source_bytes->size() < offset + sizeof(u16)) {
+            prefix.status = LegacyBattleActorFrameEntryStatus::
+                frame_resource_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::frame_resource_read;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = prefix.eax + static_cast<u32>(offset);
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        prefix.ecx = static_cast<u32>((*source_bytes)[offset]) |
+            (static_cast<u32>((*source_bytes)[offset + 1U]) << 8U);
+        return true;
+    };
+    const auto write_output =
+        [&](const u32 instruction, const std::size_t index, const u32 token) {
+            auto* const owner = request.decoder_output_owners[index];
+            if (prefix.accesses_completed == request.stop_before_access ||
+                !request.call_stack_writable || owner == nullptr ||
+                owner->token != token || owner->word == nullptr ||
+                !owner->writable) {
+                prefix.status =
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+                prefix.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::stack_write;
+                prefix.stopped_instruction = instruction;
+                prefix.stopped_token = token;
+                prefix.eip = instruction;
+                return false;
+            }
+            ++prefix.accesses_completed;
+            *owner->word = prefix.ecx;
+            return true;
+        };
+    prefix.ecx = 0U;
+    prefix.flags = logical_zero_flags();
+    if (!read_source_word(0x004019D4U, 4U) ||
+        !write_output(0x004019D8U, 1U, prefix.esi) ||
+        !read_source_word(0x004019DAU, 6U)) {
+        return prefix;
+    }
+    prefix.ecx &= 0x3FFFU;
+    prefix.flags = logical_result_flags(prefix.ecx);
+    prefix.flags = subtract_flags(prefix.ecx, 0x10U);
+    const bool format_sixteen = prefix.flags.zero;
+    if (!write_output(0x004019E7U, 2U, prefix.edi)) {
+        return prefix;
+    }
+    if (!format_sixteen) {
+        prefix.flags = subtract_flags(prefix.ecx, 8U);
+        if (!prefix.flags.zero) {
+            return return_zero(
+                {0x004019F4U,
+                 0x004019F5U,
+                 0x004019F6U,
+                 0x004019F9U,
+                 0x004019FAU}
+            );
+        }
+    }
+    const u32 suffix_ip = format_sixteen ? 0x004019FBU : 0x00401ABAU;
+
     const std::array<u32, 4U> arguments{
         prefix.decoder_argument_pushes[3U],
         prefix.decoder_argument_pushes[2U],
@@ -6114,8 +6191,8 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     );
     const auto& reply = prefix.decoder_child;
     if (!reply.returned) {
-        // The width output write is already visible to the parent stack.
-        // An opaque suffix stop must not roll it back to the callee entry.
+        // The three output writes are already visible to the parent stack.
+        // An opaque suffix stop must not roll them back to the callee entry.
         prefix.status = case_hundred_call
             ? LegacyBattleActorFrameEntryStatus::
                   case_hundred_decoder_child_typed_stop
@@ -6127,8 +6204,8 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                         case_two_decoder_child_typed_stop;
         prefix.stopped_access_kind =
             LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x004019D2U;
-        prefix.eip = 0x004019D2U;
+        prefix.stopped_instruction = suffix_ip;
+        prefix.eip = suffix_ip;
         return prefix;
     }
     prefix.esp += 20U;  // Four saved registers and the CALL slot are restored.

@@ -2397,7 +2397,20 @@ EDI/ESI/EBP，`0x004019BA XOR EAX,EAX` 清零并设置ZF，再从 `0x004019BC` �
 不能倒退到 `0x004019A0` 并撤销副作用；port接收该边界的EAX/ECX/EDX/FLAGS。
 目前高度/格式源读与剩余两次输出写仍归未审计后缀，不能把本批解释成完整解码或生产资源接线。
 本轮 `proc_e505` Linux core/CTest `199/199`、`proc_b057` ASan core/CTest `199/199`、
-`proc_d71d` Linux app/CTest `205/205`。
+`proc_d71d` Linux app/CTest `205/205`；该批已提交并推送 `6d5ed1af`，
+阶段TG `proc_d553` 退出0，客户端显示未验证。上一段仅记录提交当时的宽度后缀边界，
+当前已继续向后审计：`0x004019D2` 清ECX、`0x004019D4` 从源`+4`读高度、
+`0x004019D8` 写第二父栈槽`var_C`，`0x004019DA` 从源`+6`读格式、
+`0x004019DE` 按`0x3FFF`掩码、`0x004019E4` 比较16，再在`0x004019E7` **先写**
+第三父栈槽`var_10`；非16的格式另在`0x004019EB`比较8。
+无效格式的`0x004019F4/F5/F6`弹栈、`0x004019F7 XOR EAX,EAX`、
+`0x004019F9 POP EBX`、`0x004019FA RET`分项执行；这一路EAX0但三个输出已发布，
+不能复用最早的格式头不匹配返回前缀。两个新的源读点、两次栈写和无效格式五个栈读停点
+均有序号与已写owner值的局部向量。匹配16的深层port起点现为`0x004019FB`，
+格式8为`0x00401ABA`；任何非返回回复均保留**三个**栈槽写入和相应ESP/FLAGS。
+测试字节仍为合成头；allocator/循环/真实源页与父栈跨owner别名未证明，
+不能以三个测试输出写入推断完整解码。`proc_d598` Linux core/CTest `199/199`、
+`proc_13a1` ASan core/CTest `199/199`、`proc_db18` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
