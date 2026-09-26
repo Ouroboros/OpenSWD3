@@ -8096,6 +8096,97 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 "nonempty heap tail rereads the old node before its unbound next-pointer write"
             );
         }
+        u32 writable_heap_head = 0xABCDEF01U;
+        auto bound_empty_head_request = empty_tail_request;
+        bound_empty_head_request.decoder_heap_head_write_owner =
+            &writable_heap_head;
+        const std::array<HeapPrefixFault, 4U> kHeadWriteFaults{{
+            {108U, 0x00487F32U, 116U, 0x0053D120U, Access::global_write},
+            {109U, 0x00487F38U, 116U, stack_top - 92U, Access::stack_read},
+            {110U, 0x00487F3BU, 116U, 0x0053D128U, Access::global_read},
+            {111U,
+             0x00487F41U,
+             116U,
+             0x00804000U,
+             Access::allocator_block_write},
+        }};
+        for (const auto& fault : kHeadWriteFaults) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            writable_heap_head = 0xABCDEF01U;
+            bound_empty_head_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, bound_empty_head_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.accesses_completed ==
+                        bound_empty_head_request.stop_before_access &&
+                    writable_heap_head ==
+                        (fault.offset > 108U ? 0x00804000U : 0xABCDEF01U) &&
+                    mutable_heap_size == 10U && mutable_live_size == 9U &&
+                    mutable_peak_size == 9U,
+                "empty linked heap writes head before reading tail for the new block back-link"
+            );
+        }
+        std::array<openswd3::compat::u8, 16U> old_tail_backing{};
+        auto bound_old_tail_request = nonempty_tail_request;
+        bound_old_tail_request.decoder_heap_old_tail_block_token = 0x00806000U;
+        bound_old_tail_request.decoder_heap_old_tail_block_bytes =
+            old_tail_backing;
+        const std::array<HeapPrefixFault, 4U> kOldTailWriteFaults{{
+            {109U,
+             0x00487F2AU,
+             116U,
+             0x00806004U,
+             Access::allocator_block_write},
+            {110U, 0x00487F38U, 116U, stack_top - 92U, Access::stack_read},
+            {111U, 0x00487F3BU, 116U, 0x0053D128U, Access::global_read},
+            {112U,
+             0x00487F41U,
+             116U,
+             0x00804000U,
+             Access::allocator_block_write},
+        }};
+        for (const auto& fault : kOldTailWriteFaults) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            old_tail_backing.fill(0xA5U);
+            bound_old_tail_request.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, bound_old_tail_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip == fault.instruction &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.stopped_access_kind == fault.kind &&
+                    stopped.esp == stack_top - fault.stack_drop &&
+                    stopped.accesses_completed ==
+                        bound_old_tail_request.stop_before_access &&
+                    old_tail_backing[4U] ==
+                        (fault.offset > 109U ? 0U : 0xA5U) &&
+                    old_tail_backing[5U] ==
+                        (fault.offset > 109U ? 0x40U : 0xA5U) &&
+                    old_tail_backing[6U] ==
+                        (fault.offset > 109U ? 0x80U : 0xA5U) &&
+                    old_tail_backing[7U] ==
+                        (fault.offset > 109U ? 0U : 0xA5U) &&
+                    mutable_heap_size == 10U && mutable_live_size == 9U &&
+                    mutable_peak_size == 9U,
+                "old linked heap tail writes the raw block pointer before the new block back-link"
+            );
+        }
         std::array<openswd3::compat::u8, 48U> synthetic_heap_bytes{};
         auto backed_header_request = writable_counter_request;
         backed_header_request.decoder_heap_block_token = 0x00804000U;

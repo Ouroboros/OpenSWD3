@@ -2661,7 +2661,18 @@ Linux app/CTest `205/205`。失败轮次不算通过证据。该阶段提交推�
 旧尾节点`[tail+4]`写入前。未提供旧尾节点可写backing，不冒充链接成功。
 零链尾三处、非零链尾四处独立故障向量核对写前统计量持久化；
 `proc_b819` Linux core/CTest `199/199`、`proc_ae81` ASan core/CTest
-`199/199`、`proc_c2ec` Linux app/CTest `205/205`。
+`199/199`、`proc_c2ec` Linux app/CTest `205/205`。该阶段提交推送
+`aa32cbbd`，TG `proc_efb5`退出0，客户端显示未验证。
+链尾为零且链头全局有显式可写owner时在`0x00487F32`写raw块指针；
+非零链尾且旧尾块有独立同址可写backing时在`0x00487F2A`写
+`[tail+4]=raw`，不能把raw块backing冒充旧尾块。之后两条路径统一在
+`0x00487F38`重读raw块、`0x00487F3B`重读链尾，停在当前raw块
+`0x00487F41 [raw]`反向链接写入前。旧尾块与raw块同token但不同物理
+backing时拒绝虚构别名；上述合成绑定均不证明生产链表所有权。
+空链头四处与旧尾四处故障前缀均验证旧统计量持续可见；初次
+`proc_d631`因测试向量一处括号拼接编译失败，不算门禁通过。修复后
+`proc_a98b` Linux core/CTest `199/199`、`proc_fa2a` ASan core/CTest
+`199/199`、`proc_6a09` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
