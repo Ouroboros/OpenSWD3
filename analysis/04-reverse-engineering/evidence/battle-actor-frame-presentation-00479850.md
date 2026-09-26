@@ -2983,6 +2983,16 @@ core/CTest `199/199`、`proc_b262` Linux app/CTest `205/205`。
 其他尺寸、更多像素和生产源／目标别名仍未核对。
 `proc_5e98` Linux core/CTest `199/199`、`proc_25e9` ASan
 core/CTest `199/199`、`proc_1170` Linux app/CTest `205/205`。
+零行命令后的终止比较也仅在上述显式合成路径接入：格式 16 从
+源 `+18`、格式 8 从 `+16` 以 `CMP word [EDI],0` 读取下一字。
+读取障碍先于该字且保留原始两像素；字为 0 时保留比较 FLAGS、
+ESP 和保存寄存器，停在 `0x00401AB5/0x00401B62` 的首次 POP
+栈读取前，不冒充完成 RET；字非零（含 `0x8000`）则停在
+`0x00401A1A/0x00401AD7` 的下一行命令字读取前，地址为 EDI+2，
+不提前清理栈或改变 EDI。零／正／符号位样本在读障与读后停点
+分别核对源读次数、FLAGS、寄存器及已写像素。
+`proc_6a11` Linux core/CTest `199/199`、`proc_a56e` ASan
+core/CTest `199/199`、`proc_1b54` Linux app/CTest `205/205`。
 里程碑 (3) 尚需其余解码命令和尺寸，仍为 `2/8 = 25%`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，

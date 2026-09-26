@@ -10177,6 +10177,104 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         "format-sixteen row command routes zero or plain literal without decoding high commands"
                     );
                 }
+                for (const u32 row_end : {0U, 1U, 0x8000U}) {
+                    const std::array<u8, 20U> row_source{
+                        0xFFU,
+                        0xFFU,
+                        0x02U,
+                        0x00U,
+                        0x03U,
+                        0x00U,
+                        0x10U,
+                        0x00U,
+                        0x01U,
+                        0x80U,
+                        0x02U,
+                        0x00U,
+                        0x34U,
+                        0x12U,
+                        0xCDU,
+                        0xABU,
+                        0x00U,
+                        0x00U,
+                        static_cast<u8>(row_end),
+                        static_cast<u8>(row_end >> 8U),
+                    };
+                    const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                        row_sources{{{0x77665544U, row_source}}};
+                    auto row_request = second_pixel_request;
+                    row_request.decoder_sources = row_sources;
+                    row_request.decoder_payload_heap_next_command_word_backed =
+                        true;
+                    row_request.decoder_payload_heap_row_end_word_backed = true;
+                    row_request.stop_before_access =
+                        decoder_pending.accesses_completed + 197U +
+                        (has_old_tail ? 1U : 0U);
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    const auto before_end = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, row_request, fill_prefix
+                        );
+                    test.expect_true(
+                        before_end.eip == 0x00401AABU &&
+                            before_end.stopped_access_kind ==
+                                Access::frame_resource_read &&
+                            before_end.stopped_token == 0x77665556U &&
+                            before_end.accesses_completed ==
+                                row_request.stop_before_access &&
+                            before_end.edi == 0x77665556U &&
+                            before_end.edx == 0U && before_end.ecx == 0U &&
+                            linked_raw_backing[34U] == 0xCDU &&
+                            linked_raw_backing[35U] == 0xABU,
+                        "format-sixteen row end comparison stops before reading its word"
+                    );
+                    row_request.stop_before_access = 0U;
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    const auto after_end = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, row_request, fill_prefix
+                        );
+                    const bool end_of_rows = row_end == 0U;
+                    test.expect_true(
+                        after_end.eip ==
+                                (end_of_rows ? 0x00401AB5U : 0x00401A1AU) &&
+                            after_end.stopped_access_kind ==
+                                (end_of_rows ? Access::stack_read
+                                             : Access::frame_resource_read) &&
+                            after_end.stopped_token ==
+                                (end_of_rows ? stack_top - 20U : 0x77665558U) &&
+                            after_end.accesses_completed ==
+                                decoder_pending.accesses_completed + 198U +
+                                    (has_old_tail ? 1U : 0U) &&
+                            after_end.esp == stack_top - 20U &&
+                            after_end.edi == 0x77665556U &&
+                            after_end.edx == 0U && after_end.ecx == 0U &&
+                            after_end.ebx == 0xABCDU && after_end.ebp == 8U &&
+                            after_end.flags.zero == end_of_rows &&
+                            after_end.flags.sign == (row_end == 0x8000U) &&
+                            after_end.flags.parity == (row_end != 1U) &&
+                            !after_end.flags.carry &&
+                            linked_raw_backing[32U] == 0x34U &&
+                            linked_raw_backing[35U] == 0xABU,
+                        "format-sixteen row end decides stack pop or next row read without early cleanup"
+                    );
+                }
 
                 const std::array<openswd3::compat::u8, 12U> kZeroCountSource{
                     0xFFU,
@@ -10622,6 +10720,95 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     linked_raw_backing[32U] == 0x5AU &&
                     linked_raw_backing[33U] == 0xA6U,
                 "format-eight row command routes zero or plain literal without decoding high commands"
+            );
+        }
+        for (const u32 row_end : {0U, 1U, 0x8000U}) {
+            const std::array<u8, 18U> row_source{
+                0xFFU,
+                0xFFU,
+                0x03U,
+                0x00U,
+                0x04U,
+                0x00U,
+                0x08U,
+                0x00U,
+                0x01U,
+                0x80U,
+                0x02U,
+                0x00U,
+                0x5AU,
+                0xA6U,
+                0x00U,
+                0x00U,
+                static_cast<u8>(row_end),
+                static_cast<u8>(row_end >> 8U),
+            };
+            const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                row_sources{{{0x77665544U, row_source}}};
+            auto row_request = eight_second_pixel_request;
+            row_request.decoder_sources = row_sources;
+            row_request.decoder_payload_heap_next_command_word_backed = true;
+            row_request.decoder_payload_heap_row_end_word_backed = true;
+            row_request.stop_before_access =
+                decoder_pending.accesses_completed + 197U;
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            writable_heap_head = 0xABCDEF01U;
+            linked_raw_backing.fill(0xA5U);
+            case_two_outputs.words = {2U, 3U, 0x10U};
+            const auto before_end = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, row_request, decoder_pending
+                );
+            test.expect_true(
+                before_end.eip == 0x00401B58U &&
+                    before_end.stopped_access_kind ==
+                        Access::frame_resource_read &&
+                    before_end.stopped_token == 0x77665554U &&
+                    before_end.accesses_completed ==
+                        row_request.stop_before_access &&
+                    before_end.edi == 0x77665554U && before_end.ecx == 0U &&
+                    before_end.edx == 0U && linked_raw_backing[32U] == 0x5AU &&
+                    linked_raw_backing[33U] == 0xA6U,
+                "format-eight row end comparison stops before reading its word"
+            );
+            row_request.stop_before_access = 0U;
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            writable_heap_head = 0xABCDEF01U;
+            linked_raw_backing.fill(0xA5U);
+            case_two_outputs.words = {2U, 3U, 0x10U};
+            const auto after_end = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, row_request, decoder_pending
+                );
+            const bool end_of_rows = row_end == 0U;
+            test.expect_true(
+                after_end.eip == (end_of_rows ? 0x00401B62U : 0x00401AD7U) &&
+                    after_end.stopped_access_kind ==
+                        (end_of_rows ? Access::stack_read
+                                     : Access::frame_resource_read) &&
+                    after_end.stopped_token ==
+                        (end_of_rows ? stack_top - 20U : 0x77665556U) &&
+                    after_end.accesses_completed ==
+                        decoder_pending.accesses_completed + 198U &&
+                    after_end.esp == stack_top - 20U &&
+                    after_end.edi == 0x77665554U && after_end.ecx == 0U &&
+                    after_end.edx == 0U && after_end.ebx == 0xA6U &&
+                    after_end.ebp == 6U &&
+                    after_end.flags.zero == end_of_rows &&
+                    after_end.flags.sign == (row_end == 0x8000U) &&
+                    after_end.flags.parity == (row_end != 1U) &&
+                    !after_end.flags.carry &&
+                    linked_raw_backing[32U] == 0x5AU &&
+                    linked_raw_backing[33U] == 0xA6U,
+                "format-eight row end decides stack pop or next row read without early cleanup"
             );
         }
 

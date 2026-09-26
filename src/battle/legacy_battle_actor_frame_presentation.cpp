@@ -9034,6 +9034,88 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                                             .eip =
                                                                                                             prefix
                                                                                                                 .stopped_instruction;
+                                                                                                        if (
+                                                                                                            next_command ==
+                                                                                                                0U &&
+                                                                                                            request
+                                                                                                                .decoder_payload_heap_row_end_word_backed &&
+                                                                                                            source_bytes
+                                                                                                                    ->size() >=
+                                                                                                                next_word_offset +
+                                                                                                                    4U &&
+                                                                                                            prefix.accesses_completed !=
+                                                                                                                request
+                                                                                                                    .stop_before_access
+                                                                                                        ) {
+                                                                                                            const u32
+                                                                                                                row_end_offset =
+                                                                                                                    next_word_offset +
+                                                                                                                2U;
+                                                                                                            const u16 row_end =
+                                                                                                                static_cast<
+                                                                                                                    u16>(
+                                                                                                                    (
+                                                                                                                        *source_bytes
+                                                                                                                    )[row_end_offset]
+                                                                                                                ) |
+                                                                                                                static_cast<
+                                                                                                                    u16>(
+                                                                                                                    static_cast<
+                                                                                                                        u16>((
+                                                                                                                        *source_bytes
+                                                                                                                    )[row_end_offset +
+                                                                                                                      1U])
+                                                                                                                    << 8U
+                                                                                                                );
+                                                                                                            ++prefix
+                                                                                                                  .accesses_completed;
+                                                                                                            prefix
+                                                                                                                .flags = subtract_flags_16(
+                                                                                                                row_end,
+                                                                                                                0U
+                                                                                                            );
+                                                                                                            prefix
+                                                                                                                .status =
+                                                                                                                row_end ==
+                                                                                                                    0U
+                                                                                                                ? LegacyBattleActorFrameEntryStatus::
+                                                                                                                      stack_read_typed_stop
+                                                                                                                : LegacyBattleActorFrameEntryStatus::
+                                                                                                                      frame_resource_read_typed_stop;
+                                                                                                            prefix
+                                                                                                                .stopped_access_kind =
+                                                                                                                row_end ==
+                                                                                                                    0U
+                                                                                                                ? LegacyBattleActorFrameEntryAccessKind::
+                                                                                                                      stack_read
+                                                                                                                : LegacyBattleActorFrameEntryAccessKind::
+                                                                                                                      frame_resource_read;
+                                                                                                            prefix
+                                                                                                                .stopped_instruction =
+                                                                                                                format_sixteen
+                                                                                                                ? (row_end ==
+                                                                                                                           0U
+                                                                                                                       ? 0x00401AB5U
+                                                                                                                       : 0x00401A1AU)
+                                                                                                                : (
+                                                                                                                      row_end ==
+                                                                                                                              0U
+                                                                                                                          ? 0x00401B62U
+                                                                                                                          : 0x00401AD7U
+                                                                                                                  );
+                                                                                                            prefix
+                                                                                                                .stopped_token =
+                                                                                                                row_end ==
+                                                                                                                    0U
+                                                                                                                ? prefix
+                                                                                                                      .esp
+                                                                                                                : prefix.edi +
+                                                                                                                    2U;
+                                                                                                            prefix
+                                                                                                                .eip =
+                                                                                                                prefix
+                                                                                                                    .stopped_instruction;
+                                                                                                        }
                                                                                                     }
                                                                                                 }
                                                                                             }
