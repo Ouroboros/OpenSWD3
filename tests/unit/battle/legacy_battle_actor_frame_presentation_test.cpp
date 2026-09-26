@@ -8375,6 +8375,39 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     "linked heap metadata preserves seventeen physical faults on empty and nonempty lists"
                 );
             }
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            nonempty_heap_tail = 0x00806000U;
+            writable_heap_head = 0xABCDEF01U;
+            old_tail_backing.fill(0xA5U);
+            linked_raw_backing.fill(0xA5U);
+            request.stop_before_access = 0U;
+            const auto stopped_guard_read = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, request, decoder_pending
+                );
+            test.expect_true(
+                stopped_guard_read.eip == 0x00487F87U &&
+                    stopped_guard_read.stopped_access_kind ==
+                        Access::global_read &&
+                    stopped_guard_read.stopped_token == 0x004A8300U &&
+                    stopped_guard_read.esp == stack_top - 120U &&
+                    stopped_guard_read.ebp == stack_top - 88U &&
+                    stopped_guard_read.edx == 0U &&
+                    stopped_guard_read.last_pushed_value == 4U &&
+                    stopped_guard_read.flags_known &&
+                    stopped_guard_read.flags.zero &&
+                    stopped_guard_read.accesses_completed ==
+                        decoder_pending.accesses_completed +
+                            (has_old_tail ? 133U : 132U) &&
+                    linked_raw_backing[26U] == 0x76U &&
+                    (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
+                        0x00804000U,
+                "linked heap reaches the shared first-fill guard read after committing node fields"
+            );
         }
         std::array<openswd3::compat::u8, 48U> synthetic_heap_bytes{};
         auto backed_header_request = writable_counter_request;

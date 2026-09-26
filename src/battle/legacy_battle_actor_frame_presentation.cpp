@@ -7576,13 +7576,26 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             }
             ++prefix.accesses_completed;
             *request.decoder_heap_tail_write_owner = prefix.ecx;
+            if (!save(0x00487F83U, 4U)) {
+                return prefix;
+            }
+            prefix.edx = 0U;
+            prefix.flags = {
+                .carry = false,
+                .parity = true,
+                .auxiliary_carry_defined = false,
+                .zero = true,
+                .sign = false,
+                .overflow = false,
+            };
+            prefix.flags_known = true;
             prefix.status =
-                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+                LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
             prefix.stopped_access_kind =
-                LegacyBattleActorFrameEntryAccessKind::stack_write;
-            prefix.stopped_instruction = 0x00487F83U;
-            prefix.stopped_token = prefix.esp - 4U;
-            prefix.eip = 0x00487F83U;
+                LegacyBattleActorFrameEntryAccessKind::global_read;
+            prefix.stopped_instruction = 0x00487F87U;
+            prefix.stopped_token = 0x004A8300U;
+            prefix.eip = 0x00487F87U;
         }
         return prefix;
     }

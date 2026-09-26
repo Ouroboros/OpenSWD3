@@ -2693,7 +2693,15 @@ linked块在当前raw前驱/后继写入后，按LST`0x00487F50..F77`五次
 初版`proc_cb1c`因请求前计数快照局部作用域编译失败，不算通过；
 改为同一条件路径保存快照后，`proc_8533` Linux core/CTest
 `199/199`、`proc_2598` ASan core/CTest `199/199`、`proc_bf08`
-Linux app/CTest `205/205`。
+Linux app/CTest `205/205`。该阶段提交推送`71d8f67d`，TG
+`proc_be9c`退出0，客户端显示未验证。
+linked块在完成尾指针写回后与unlinked块同到`0x00487F83`：压入
+Size=4，`0x00487F85 XOR EDX,EDX`确定ZF=1，停在尚无owner的
+`0x00487F87`保护字节读取前；没有偷用静态初始化字节代替运行时值。
+空链、非空链两条均在该读取前检查ESP、EBP、EDX、FLAGS、尾指针和
+已写元数据。`proc_7cf2` Linux core/CTest `199/199`、`proc_a507`
+ASan core/CTest `199/199`、`proc_9767` Linux app/CTest `205/205`。
+其后的linked填充子调用及两条路径的正式合流仍未审计。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
