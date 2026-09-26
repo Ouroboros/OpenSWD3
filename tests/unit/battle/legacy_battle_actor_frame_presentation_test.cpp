@@ -5616,6 +5616,23 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             continue_legacy_battle_actor_frame_case_one_draw_call(
                 renderer, bound_draw_palette, palette_zero_prefix
             );
+        u32 draw_height_third = 0x234U;
+        bound_draw_palette.draw_height_third_owner = &draw_height_third;
+        argument_10_word = 0x21U;
+        bound_draw_palette.stop_before_access =
+            palette_zero_prefix.accesses_completed + 11U;
+        const auto stopped_palette_height_read = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_draw_call(
+                renderer, bound_draw_palette, palette_zero_prefix
+            );
+        argument_10_word = 0x21U;
+        bound_draw_palette.stop_before_access =
+            std::numeric_limits<std::size_t>::max();
+        const auto stopped_palette_height_write = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_draw_call(
+                renderer, bound_draw_palette, palette_zero_prefix
+            );
+        const bool height_write_preserved_owner = draw_height_third == 0x234U;
         argument_10_word = 0x14U;
         palette_zero_prefix.draw_argument_pushes[0U] = 0x14U;
         const auto stopped_palette_special_global = openswd3::battle::
@@ -5647,6 +5664,21 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_palette_next_global.ecx == 0x20U &&
                 stopped_palette_next_global.accesses_completed ==
                     draw_pending.accesses_completed + 11U &&
+                stopped_palette_height_read.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                stopped_palette_height_read.eip == 0x00417130U &&
+                stopped_palette_height_read.stopped_token == 0x004CD75CU &&
+                stopped_palette_height_read.accesses_completed ==
+                    draw_pending.accesses_completed + 11U &&
+                stopped_palette_height_write.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        global_write_typed_stop &&
+                stopped_palette_height_write.eip == 0x00417136U &&
+                stopped_palette_height_write.stopped_token == 0x004CD744U &&
+                stopped_palette_height_write.edi == 0x234U &&
+                stopped_palette_height_write.accesses_completed ==
+                    draw_pending.accesses_completed + 12U &&
+                height_write_preserved_owner &&
                 stopped_palette_special_global.status ==
                     LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
                 stopped_palette_special_global.eip == 0x00417116U &&

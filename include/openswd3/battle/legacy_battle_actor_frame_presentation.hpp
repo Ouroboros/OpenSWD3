@@ -543,6 +543,7 @@ struct LegacyBattleActorFrameEntryRequest {
     bool global_writable{true};
     const compat::u32* draw_source_token_owner{};   // 0x004CD730
     const compat::u32* draw_palette_token_owner{};  // 0x004CD764
+    const compat::u32* draw_height_third_owner{};   // 0x004CD75C
     LegacyBattleActorFrameParentArgumentWord* draw_argument_10_owner{};
     compat::u32 draw_source_bytes_token{};
     std::span<const compat::u8> draw_source_bytes{};

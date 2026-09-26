@@ -2237,8 +2237,16 @@ case9、3、5首/第二绘制、11 各有首word读障代表向量。
 不让窄绘图port代答。case1合成栈值0x21/0x14的读障、写障、写后重读障与两条后继全局读
 按LST核对 EIP/token、先前写入和访问序号；`proc_6a3e` Linux core/CTest `199/199`、
 `proc_5bc9` ASan core/CTest `199/199`、`proc_0b33` Linux app/CTest `205/205`。
-测试 `request()` 的图像首字节与本轮栈word均为合成backing，不证明实际
-`shared_action->turn_frame_source_token` 与绘图/像素页或生产父栈的别名。`sub_4170E0` 后续全局/帧/像素页访问及故障前缀仍不闭合。
+非 `ECX==0x14` 分支在显式绑定源值时物理执行 `0x00417130 MOV EDI,dword_4CD75C`，
+保留读取后的 EDI 与访问序号；因 `0x00417136 MOV dword_4CD744,EBP` 的目的owner尚未绑定，
+停在该写入前。`ECX==0x14` 分支仍停在 `0x00417116`，不借用高度源值。
+0x234合成高度及读取故障向量经 `proc_1c79` Linux core/CTest `199/199`、
+`proc_e16e` ASan core/CTest `199/199`、`proc_2924` Linux app/CTest `205/205`。
+测试 `request()` 的图像首字节、栈word及新增高度源值均为合成backing，不证明实际
+`shared_action->turn_frame_source_token` 与绘图/像素页或生产父栈、全局高度值的别名。
+`sub_4170E0` 后续全局/帧/像素页访问及故障前缀仍不闭合。
+留底提交 `12380a67` 后五段阶段 TG `proc_fd11` 退出0；脚本仅在 API `ok=true` 时正常返回，
+未输出 `message_id`，客户端显示未验证，留底不算316验收。
 留底提交 `7b95f28b` 后五段阶段 TG `proc_142a` 退出0；所用脚本仅在 `sendMessage`
 响应 `ok=true` 时正常返回，但未输出 `message_id`；客户端显示未验证，留底不算316验收。
 2026-09-26 00:19:36+08 五段阶段 TG `proc_8cfb` 获 API `ok=true/message_id=4315`；

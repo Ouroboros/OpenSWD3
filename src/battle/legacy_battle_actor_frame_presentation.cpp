@@ -400,13 +400,29 @@ subtract_flags_16(u16 left, u16 right) noexcept;
         ++child.accesses_completed;
         child.ecx = *owner->word & 0x0000FFFCU;
         child.flags = subtract_flags(child.ecx, 0x14U);
+        if (child.flags.zero ||
+            child.accesses_completed == request.stop_before_access ||
+            !request.global_readable ||
+            request.draw_height_third_owner == nullptr) {
+            child.status =
+                LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+            child.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::global_read;
+            child.stopped_instruction =
+                child.flags.zero ? 0x00417116U : 0x00417130U;
+            child.stopped_token = child.flags.zero ? 0x004CC2F0U : 0x004CD75CU;
+            child.eip = child.stopped_instruction;
+            return false;
+        }
+        child.edi = *request.draw_height_third_owner;
+        ++child.accesses_completed;
+        // 0x00417136 writes 0x004CD744; no destination owner is bound.
         child.status =
-            LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+            LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
         child.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::global_read;
-        child.stopped_instruction =
-            child.flags.zero ? 0x00417116U : 0x00417130U;
-        child.stopped_token = child.flags.zero ? 0x004CC2F0U : 0x004CD75CU;
+            LegacyBattleActorFrameEntryAccessKind::global_write;
+        child.stopped_instruction = 0x00417136U;
+        child.stopped_token = 0x004CD744U;
         child.eip = child.stopped_instruction;
         return false;
     }
