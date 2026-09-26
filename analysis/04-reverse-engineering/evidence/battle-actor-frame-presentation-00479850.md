@@ -2897,6 +2897,18 @@ AND FLAGS保持非零且奇偶位为0。高位编码、短源、未绑定源继�
 均为Size=12显式合成块和源。`proc_335e` Linux core/CTest
 `199/199`、`proc_f022` ASan core/CTest `199/199`、
 `proc_71c6` Linux app/CTest `205/205`；这不证明真实生产别名。
+该批提交推送`cc8e5f7c`，远端同SHA；阶段TG `proc_6097`退出0，
+客户端显示未验证。普通字面计数非零的首个像素源读另按显式合成源
+`+12`审计：格式16 `0x00401A45 MOV BX,[EDI]`读`0x1234`、
+`0x00401A48 ADD EDI,2`后停在`0x00401A4B`写目标前；
+格式8 `0x00401B02 MOV BL,[EDI]`读`0x5A`、
+`0x00401B04 INC EDI`保留先前CF并停在`0x00401B05`写前。
+两处目标都是合成像素块`+0x20`，停点时先前填充字节`0x7E`
+尚未被新像素覆盖；源读故障序号、EDI/EBX/FLAGS/ESP和目标token
+均独立检验。格式16仍仅Size=12的空/非空链及双DF，格式8仅
+Size=12空链DF=0；不把读成功当作像素写入、生产来源或完整解码。
+`proc_3d50` Linux core/CTest `199/199`、`proc_c635` ASan
+core/CTest `199/199`、`proc_927a` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

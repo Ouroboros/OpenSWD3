@@ -8639,6 +8639,94 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                     .eip =
                                                                                     prefix
                                                                                         .stopped_instruction;
+                                                                                if (
+                                                                                    command !=
+                                                                                        0U &&
+                                                                                    request
+                                                                                        .decoder_payload_heap_first_literal_pixel_backed &&
+                                                                                    source_bytes
+                                                                                            ->size() >=
+                                                                                        (format_sixteen
+                                                                                             ? 14U
+                                                                                             : 13U) &&
+                                                                                    prefix.edi ==
+                                                                                        decoder_source_token +
+                                                                                            12U &&
+                                                                                    prefix.esi ==
+                                                                                        request.decoder_heap_block_token +
+                                                                                            0x20U &&
+                                                                                    prefix.accesses_completed !=
+                                                                                        request
+                                                                                            .stop_before_access
+                                                                                ) {
+                                                                                    const u32
+                                                                                        pixel =
+                                                                                            format_sixteen
+                                                                                        ? static_cast<
+                                                                                              u32>((
+                                                                                              *source_bytes
+                                                                                          )[12U]) |
+                                                                                            (static_cast<
+                                                                                                 u32>((
+                                                                                                 *source_bytes
+                                                                                             )[13U])
+                                                                                             << 8U)
+                                                                                        : (
+                                                                                              *source_bytes
+                                                                                          )[12U];
+                                                                                    ++prefix
+                                                                                          .accesses_completed;
+                                                                                    prefix
+                                                                                        .ebx =
+                                                                                        pixel;
+                                                                                    const u32
+                                                                                        pixel_width =
+                                                                                            format_sixteen
+                                                                                        ? 2U
+                                                                                        : 1U;
+                                                                                    const bool carry_before_inc =
+                                                                                        prefix
+                                                                                            .flags
+                                                                                            .carry;
+                                                                                    prefix
+                                                                                        .flags = add_flags(
+                                                                                        prefix
+                                                                                            .edi,
+                                                                                        pixel_width
+                                                                                    );
+                                                                                    if (
+                                                                                        !format_sixteen
+                                                                                    ) {
+                                                                                        prefix
+                                                                                            .flags
+                                                                                            .carry =
+                                                                                            carry_before_inc;
+                                                                                    }
+                                                                                    prefix
+                                                                                        .edi +=
+                                                                                        pixel_width;
+                                                                                    prefix
+                                                                                        .status =
+                                                                                        LegacyBattleActorFrameEntryStatus::
+                                                                                            allocator_block_write_typed_stop;
+                                                                                    prefix
+                                                                                        .stopped_access_kind =
+                                                                                        LegacyBattleActorFrameEntryAccessKind::
+                                                                                            allocator_block_write;
+                                                                                    prefix
+                                                                                        .stopped_instruction =
+                                                                                        format_sixteen
+                                                                                        ? 0x00401A4BU
+                                                                                        : 0x00401B05U;
+                                                                                    prefix
+                                                                                        .stopped_token =
+                                                                                        prefix
+                                                                                            .esi;
+                                                                                    prefix
+                                                                                        .eip =
+                                                                                        prefix
+                                                                                            .stopped_instruction;
+                                                                                }
                                                                             }
                                                                         }
                                                                     }
