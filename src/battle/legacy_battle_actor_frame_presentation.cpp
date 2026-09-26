@@ -6178,7 +6178,76 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
             );
         }
     }
-    const u32 suffix_ip = format_sixteen ? 0x004019FBU : 0x00401ABAU;
+    const auto read_output = [&](const u32 instruction,
+                                 const std::size_t index,
+                                 const u32 token,
+                                 u32& destination) {
+        const auto* const owner = request.decoder_output_owners[index];
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.stack_readable || owner == nullptr ||
+            owner->token != token || owner->word == nullptr ||
+            !owner->readable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        destination = *owner->word;
+        return true;
+    };
+    if (!format_sixteen) {
+        prefix.edi = prefix.eax + 8U;
+    }
+    if (!read_output(
+            format_sixteen ? 0x004019FBU : 0x00401ABDU,
+            0U,
+            prefix.edx,
+            format_sixteen ? prefix.edx : prefix.eax
+        )) {
+        return prefix;
+    }
+    if (format_sixteen) {
+        prefix.edi = prefix.eax + 8U;
+    }
+    u32 height{};
+    if (!read_output(
+            format_sixteen ? 0x00401A00U : 0x00401ABFU, 1U, prefix.esi, height
+        )) {
+        return prefix;
+    }
+    const u32 width = format_sixteen ? prefix.edx : prefix.eax;
+    const std::int64_t product =
+        static_cast<std::int64_t>(static_cast<std::int32_t>(width)) *
+        static_cast<std::int64_t>(static_cast<std::int32_t>(height));
+    const u32 low_product = static_cast<u32>(product);
+    const bool overflow = product !=
+        static_cast<std::int64_t>(static_cast<std::int32_t>(low_product));
+    prefix.flags.carry = overflow;
+    prefix.flags.overflow = overflow;
+    // IMUL leaves the other arithmetic flags undefined.
+    prefix.flags_known = false;
+    if (format_sixteen) {
+        prefix.edx = low_product;
+        const u32 before_shift = prefix.edx;
+        prefix.edx <<= 1U;
+        prefix.flags = {
+            .carry = (before_shift & 0x80000000U) != 0U,
+            .parity = even_parity(static_cast<u8>(prefix.edx)),
+            .auxiliary_carry_defined = false,
+            .zero = prefix.edx == 0U,
+            .sign = (prefix.edx & 0x80000000U) != 0U,
+            .overflow = ((before_shift ^ prefix.edx) & 0x80000000U) != 0U,
+        };
+        prefix.flags_known = true;
+    } else {
+        prefix.eax = low_product;
+    }
+    const u32 suffix_ip = format_sixteen ? 0x00401A05U : 0x00401AC2U;
 
     const std::array<u32, 4U> arguments{
         prefix.decoder_argument_pushes[3U],

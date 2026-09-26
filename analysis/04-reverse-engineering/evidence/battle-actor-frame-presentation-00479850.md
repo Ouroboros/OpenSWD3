@@ -2410,7 +2410,19 @@ EDI/ESI/EBP，`0x004019BA XOR EAX,EAX` 清零并设置ZF，再从 `0x004019BC` �
 格式8为`0x00401ABA`；任何非返回回复均保留**三个**栈槽写入和相应ESP/FLAGS。
 测试字节仍为合成头；allocator/循环/真实源页与父栈跨owner别名未证明，
 不能以三个测试输出写入推断完整解码。`proc_d598` Linux core/CTest `199/199`、
-`proc_13a1` ASan core/CTest `199/199`、`proc_db18` Linux app/CTest `205/205`。
+`proc_13a1` ASan core/CTest `199/199`、`proc_db18` Linux app/CTest `205/205`；
+该批已提交并推送 `89161ce0`，阶段TG `proc_262e` 退出0，客户端显示未验证。
+下一步逐项审计分配前的输出重读：格式16先在`0x004019FB`从EDX指向的首输出槽读宽度，
+`0x004019FD`把EDI换为源`+8`，`0x00401A00`再从ESI指向的第二槽读高度，
+有符号`IMUL`的低32位之后在`0x00401A03`左移一位，至`0x00401A05 PUSH Size`待审边界。
+格式8先在`0x00401ABA`设EDI=源`+8`，`0x00401ABD`从首输出槽重读到EAX，
+`0x00401ABF`再乘第二槽高度，至`0x00401AC2 PUSH Size`待审边界；IMUL仅CF/OF有定义，
+无后续SHL的8位路径不把其他算术FLAGS冒充已知。
+源头写入成功不替代物理重读，两个输出槽均需原token可读owner；两种格式的四个读取停点
+分别核对ESP/EAX/EDX/EDI和之前三项输出；合成宽2、高3的16位分配尺寸为12 byte，
+8位分配尺寸为6 byte。测试不能证明真实栈页、分配器回包或首个图像命令读取。
+`proc_82ee` Linux core/CTest `199/199`、`proc_adf7` ASan core/CTest `199/199`、
+`proc_c4b9` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
