@@ -8933,6 +8933,109 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                                     .eip =
                                                                                                     prefix
                                                                                                         .stopped_instruction;
+                                                                                                const u32
+                                                                                                    next_word_offset =
+                                                                                                        format_sixteen
+                                                                                                    ? 16U
+                                                                                                    : 14U;
+                                                                                                if (
+                                                                                                    request
+                                                                                                        .decoder_payload_heap_next_command_word_backed &&
+                                                                                                    source_bytes
+                                                                                                            ->size() >=
+                                                                                                        next_word_offset +
+                                                                                                            2U &&
+                                                                                                    prefix.edi ==
+                                                                                                        decoder_source_token +
+                                                                                                            next_word_offset &&
+                                                                                                    prefix.accesses_completed !=
+                                                                                                        request
+                                                                                                            .stop_before_access
+                                                                                                ) {
+                                                                                                    const u16 next_command =
+                                                                                                        static_cast<
+                                                                                                            u16>(
+                                                                                                            (
+                                                                                                                *source_bytes
+                                                                                                            )[next_word_offset]
+                                                                                                        ) |
+                                                                                                        static_cast<
+                                                                                                            u16>(
+                                                                                                            static_cast<
+                                                                                                                u16>((
+                                                                                                                *source_bytes
+                                                                                                            )[next_word_offset +
+                                                                                                              1U])
+                                                                                                            << 8U
+                                                                                                        );
+                                                                                                    if (
+                                                                                                        (
+                                                                                                            next_command &
+                                                                                                            0xC000U
+                                                                                                        ) ==
+                                                                                                        0U
+                                                                                                    ) {
+                                                                                                        ++prefix
+                                                                                                              .accesses_completed;
+                                                                                                        prefix
+                                                                                                            .edi +=
+                                                                                                            2U;
+                                                                                                        if (
+                                                                                                            format_sixteen
+                                                                                                        ) {
+                                                                                                            prefix
+                                                                                                                .edx =
+                                                                                                                next_command;
+                                                                                                            prefix
+                                                                                                                .ecx =
+                                                                                                                0U;
+                                                                                                        } else {
+                                                                                                            prefix
+                                                                                                                .ecx =
+                                                                                                                next_command;
+                                                                                                            prefix
+                                                                                                                .edx =
+                                                                                                                0U;
+                                                                                                        }
+                                                                                                        prefix
+                                                                                                            .flags =
+                                                                                                            logical_result_flags(
+                                                                                                                next_command
+                                                                                                            );
+                                                                                                        if (
+                                                                                                            next_command !=
+                                                                                                            0U
+                                                                                                        ) {
+                                                                                                            prefix
+                                                                                                                .ebx =
+                                                                                                                0U;
+                                                                                                            prefix
+                                                                                                                .ebp +=
+                                                                                                                2U;
+                                                                                                        }
+                                                                                                        prefix
+                                                                                                            .stopped_instruction =
+                                                                                                            format_sixteen
+                                                                                                            ? (next_command ==
+                                                                                                                       0U
+                                                                                                                   ? 0x00401AABU
+                                                                                                                   : 0x00401A45U)
+                                                                                                            : (
+                                                                                                                  next_command ==
+                                                                                                                          0U
+                                                                                                                      ? 0x00401B58U
+                                                                                                                      : 0x00401B02U
+                                                                                                              );
+                                                                                                        prefix
+                                                                                                            .stopped_token =
+                                                                                                            prefix
+                                                                                                                .edi;
+                                                                                                        prefix
+                                                                                                            .eip =
+                                                                                                            prefix
+                                                                                                                .stopped_instruction;
+                                                                                                    }
+                                                                                                }
                                                                                             }
                                                                                         }
                                                                                     }
