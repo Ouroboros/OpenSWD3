@@ -27,6 +27,7 @@
 
 namespace {
 
+using openswd3::battle::LegacyBattleActorFrameDecoderSource;
 using openswd3::battle::LegacyBattleActorFrameEntryAccessKind;
 using openswd3::battle::LegacyBattleActorFrameEntryRequest;
 using openswd3::battle::LegacyBattleActorFrameEntryStatus;
@@ -428,6 +429,13 @@ public:
     static constexpr std::array<openswd3::compat::u8, 2U> kSyntheticDrawHeader{
         0xFFU, 0xFFU
     };
+    static const std::array<LegacyBattleActorFrameDecoderSource, 4U>
+        kSyntheticDecoderSources{{
+            {0x12340000U, kSyntheticDrawHeader},
+            {0x77665544U, kSyntheticDrawHeader},
+            {0xAABBCCDDU, kSyntheticDrawHeader},
+            {0x12345678U, kSyntheticDrawHeader},
+        }};
     return {
         .actor_token = 0x005029D0U,
         .entry_eax = 0x12345678U,
@@ -442,6 +450,7 @@ public:
         .audio_state_mode_owner = &kAudioStateMode,
         .audio_state_submode_owner = &kAudioStateSubmode,
         .decoder_header_marker_owner = &kSyntheticDecoderHeaderMarker,
+        .decoder_sources = kSyntheticDecoderSources,
         .draw_source_token_owner = &kSyntheticDrawToken,
         .draw_palette_token_owner = &kSyntheticDrawPaletteToken,
         .draw_source_bytes_token = kSyntheticDrawToken,
@@ -6755,6 +6764,40 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     decoder_pending.accesses_completed + 3U &&
                 stopped_decoder_save.decode_calls == 1U && decoder.calls == 0U,
             "decoder first callee register PUSH faults after the format read and XOR without changing ESP"
+        );
+        auto missing_decoder_header = group_a_initial_request;
+        missing_decoder_header.decoder_sources = {};
+        const auto stopped_decoder_header = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, missing_decoder_header, decoder_pending
+            );
+        auto indexed_decoder_header = group_a_initial_request;
+        indexed_decoder_header.stop_before_access =
+            decoder_pending.accesses_completed + 4U;
+        const auto stopped_indexed_header = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, indexed_decoder_header, decoder_pending
+            );
+        test.expect_true(
+            stopped_decoder_header.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        frame_resource_read_typed_stop &&
+                stopped_decoder_header.eip == 0x004019ADU &&
+                stopped_decoder_header.stopped_token == 0x77665544U &&
+                stopped_decoder_header.esp == decoder_pending.esp - 8U &&
+                stopped_decoder_header.ecx == 0U &&
+                stopped_decoder_header.flags_known &&
+                stopped_decoder_header.flags.zero &&
+                stopped_decoder_header.accesses_completed ==
+                    decoder_pending.accesses_completed + 4U &&
+                stopped_indexed_header.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        frame_resource_read_typed_stop &&
+                stopped_indexed_header.eip == 0x004019ADU &&
+                stopped_indexed_header.accesses_completed ==
+                    stopped_decoder_header.accesses_completed &&
+                decoder.calls == 0U,
+            "decoder header word needs a source-byte owner at the exact first-byte token after saving EBX"
         );
         decoder.reply.returned = false;
         const auto stopped_decoder_entry = openswd3::battle::

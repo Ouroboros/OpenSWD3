@@ -2358,7 +2358,14 @@ EAX=首参数、EDX=格式全局、ECX=0、ZF=1，栈写失败时ESP仍指CALL�
 未执行`0x004019AD`源header读取；port入口型停止仍还原入站寄存器与栈计数。
 成功回复仅由窄port代表余下decoder与保存寄存器弹出，不宣称后续解码等价；
 `proc_471b` Linux core/CTest `199/199`、`proc_6c9c` ASan core/CTest `199/199`、
-`proc_1c9e` Linux app/CTest `205/205`。
+`proc_1c9e` Linux app/CTest `205/205`。该批留底后的阶段TG `proc_8282`
+退出0，未输出 `message_id`，客户端显示未验证。
+解码callee下一站`0x004019AD MOV CX,[EAX]`要求图像源token与至少两个源字节同属
+显式backing；首个EBX保存完成后，缺owner/字节不足/读障或序号截断均在该指令停止，
+EIP与源token保留，ECX仍为0且后续EBP/ESI未压栈。四条测试token的合成
+`0xFFFF`头只验证本次读取和正常窄port继续，不证明生产TSW缓存帧的物理token/寿命、
+格式比较或真实输出；`proc_d1dc` Linux core/CTest `199/199`、
+`proc_4eaa` ASan core/CTest `199/199`、`proc_d302` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

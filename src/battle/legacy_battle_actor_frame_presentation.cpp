@@ -5908,6 +5908,30 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     ++prefix.accesses_completed;
     prefix.esp = saved_ebx_slot;
     prefix.last_pushed_value = prefix.ebx;
+    const std::span<const u8>* source_bytes = nullptr;
+    for (const auto& source : request.decoder_sources) {
+        if (source.token == prefix.eax) {
+            source_bytes = &source.bytes;
+            break;
+        }
+    }
+
+    if (prefix.accesses_completed == request.stop_before_access ||
+        !request.decoder_source_readable || source_bytes == nullptr ||
+        source_bytes->size() < sizeof(u16)) {
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::frame_resource_read_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::frame_resource_read;
+        prefix.stopped_instruction = 0x004019ADU;
+        prefix.stopped_token = prefix.eax;
+        prefix.eip = 0x004019ADU;
+        return prefix;
+    }
+
+    ++prefix.accesses_completed;
+    prefix.ecx = static_cast<u32>((*source_bytes)[0U]) |
+        (static_cast<u32>((*source_bytes)[1U]) << 8U);
     const std::array<u32, 4U> arguments{
         prefix.decoder_argument_pushes[3U],
         prefix.decoder_argument_pushes[2U],
