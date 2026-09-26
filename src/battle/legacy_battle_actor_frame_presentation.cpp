@@ -6296,6 +6296,44 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     if (!save(0x00487C22U, prefix.ecx) || !save(0x00487C23U, 0x00487C28U)) {
         return prefix;
     }
+    if (!save(0x00487C80U, prefix.ebp)) {
+        return prefix;
+    }
+    prefix.ebp = prefix.esp;
+    if (!save(0x00487C83U, prefix.ecx)) {
+        return prefix;
+    }
+    const auto read_inner_argument = [&](const u32 instruction,
+                                         const u32 token,
+                                         const u32 value,
+                                         u32& destination) {
+        if (prefix.accesses_completed == request.stop_before_access ||
+            !request.stack_readable) {
+            prefix.status =
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            prefix.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::stack_read;
+            prefix.stopped_instruction = instruction;
+            prefix.stopped_token = token;
+            prefix.eip = instruction;
+            return false;
+        }
+        ++prefix.accesses_completed;
+        destination = value;
+        return true;
+    };
+    if (!read_inner_argument(0x00487C84U, prefix.ebp + 0x18U, 0U, prefix.eax) ||
+        !save(0x00487C87U, prefix.eax) ||
+        !read_inner_argument(0x00487C88U, prefix.ebp + 0x14U, 0U, prefix.ecx) ||
+        !save(0x00487C8BU, prefix.ecx) ||
+        !read_inner_argument(0x00487C8CU, prefix.ebp + 0x10U, 1U, prefix.edx) ||
+        !save(0x00487C8FU, prefix.edx) ||
+        !read_inner_argument(
+            0x00487C90U, prefix.ebp + 8U, allocation_size, prefix.eax
+        ) ||
+        !save(0x00487C93U, prefix.eax) || !save(0x00487C94U, 0x00487C99U)) {
+        return prefix;
+    }
 
     const std::array<u32, 4U> arguments{
         prefix.decoder_argument_pushes[3U],
@@ -6321,12 +6359,12 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                         case_two_decoder_child_typed_stop;
         prefix.stopped_access_kind =
             LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x00487C80U;
-        prefix.eip = 0x00487C80U;
+        prefix.stopped_instruction = 0x00487CD0U;
+        prefix.eip = 0x00487CD0U;
         return prefix;
     }
-    // The allocator wrapper, its five arguments, and the decoder saves unwind.
-    prefix.esp += 56U;
+    // The two allocator wrappers, their arguments, and decoder saves unwind.
+    prefix.esp += 84U;
     prefix.ebp = callee_entry.ebp;
     prefix.esi = callee_entry.esi;
     prefix.edi = callee_entry.edi;

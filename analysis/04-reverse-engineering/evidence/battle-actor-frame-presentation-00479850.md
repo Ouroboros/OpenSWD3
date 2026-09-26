@@ -2445,9 +2445,18 @@ EDI/ESI/EBP，`0x004019BA XOR EAX,EAX` 清零并设置ZF，再从 `0x004019BC` �
 在`0x00487C19`停下，先前PUSH 0/0/1与旧EAX保留；现有合成全局值`0x00790000`
 只是测试backing，不证明生产堆状态。九个序号/ESP/EBP/token停点和先前三项父栈输出均有局部测试；
 非返回深层port现停在`0x00487C80`入口，保留wrapper已压的七个dword及EIP。
-`sub_487C80`及后续分配、回包、decoder命令流仍未审计，不能据此声称成功分配等价。
+`sub_487C80`后缀及后续分配、回包、decoder命令流仍未审计，不能据此声称成功分配等价。
 `proc_a1cb` Linux core/CTest `199/199`、`proc_51e0` ASan core/CTest `199/199`、
-`proc_922d` Linux app/CTest `205/205`。
+`proc_922d` Linux app/CTest `205/205`。该wrapper前缀已提交推送`111d3eb7`，阶段TG
+`proc_08b9`退出0，客户端显示未验证。
+`sub_487C80` 的首轮再向内展开到 `0x00487C94 CALL sub_487CD0`：先
+`0x00487C80 PUSH EBP`、`0x00487C83 PUSH ECX`建立帧/局部槽，再依次从
+`[EBP+18h/14h/10h/8]`重读此前wrapper所压的0/0/1/Size，分别PUSH后压入
+`0x00487C99`返回地址。11个栈读写站点各自保留故障前ESP、EBP与输出栈槽；
+原 `sub_487CD0` 后缀尚未验证，port非返回暂在其入口停下。使用此前压入参数的
+合成缓存重放内层栈读，不证明真实栈别名和原版分配语义。
+`proc_6a6b` Linux core/CTest `199/199`、`proc_d084` ASan core/CTest `199/199`、
+`proc_96f3` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

@@ -7210,11 +7210,12 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_indexed_suffix.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_two_decoder_child_typed_stop &&
-                stopped_indexed_suffix.eip == 0x00487C80U &&
-                stopped_indexed_suffix.esp == decoder_pending.esp - 56U &&
-                stopped_indexed_suffix.last_pushed_value == 0x00487C28U &&
-                stopped_indexed_suffix.eax == 0x00790000U &&
-                stopped_indexed_suffix.ecx == 6U &&
+                stopped_indexed_suffix.eip == 0x00487CD0U &&
+                stopped_indexed_suffix.esp == decoder_pending.esp - 84U &&
+                stopped_indexed_suffix.last_pushed_value == 0x00487C99U &&
+                stopped_indexed_suffix.eax == 6U &&
+                stopped_indexed_suffix.ecx == 0U &&
+                stopped_indexed_suffix.edx == 1U &&
                 stopped_indexed_suffix.edi == 0x7766554CU &&
                 !stopped_indexed_suffix.flags_known &&
                 !stopped_indexed_suffix.flags.carry &&
@@ -7435,6 +7436,54 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 decoder.calls == 1U,
             "allocator wrapper requires the real global owner after its first three constant parameter pushes"
         );
+        struct InnerAllocatorFault {
+            u32 offset;
+            u32 instruction;
+            u32 stack_drop;
+            u32 token;
+            bool stack_read;
+        };
+        const std::array<InnerAllocatorFault, 11U> kInnerFaults{{
+            {30U, 0x00487C80U, 56U, decoder_pending.esp - 60U, false},
+            {31U, 0x00487C83U, 60U, decoder_pending.esp - 64U, false},
+            {32U, 0x00487C84U, 64U, decoder_pending.esp - 36U, true},
+            {33U, 0x00487C87U, 64U, decoder_pending.esp - 68U, false},
+            {34U, 0x00487C88U, 68U, decoder_pending.esp - 40U, true},
+            {35U, 0x00487C8BU, 68U, decoder_pending.esp - 72U, false},
+            {36U, 0x00487C8CU, 72U, decoder_pending.esp - 44U, true},
+            {37U, 0x00487C8FU, 72U, decoder_pending.esp - 76U, false},
+            {38U, 0x00487C90U, 76U, decoder_pending.esp - 52U, true},
+            {39U, 0x00487C93U, 76U, decoder_pending.esp - 80U, false},
+            {40U, 0x00487C94U, 80U, decoder_pending.esp - 84U, false},
+        }};
+        for (const auto& fault : kInnerFaults) {
+            auto inner_fault = group_a_initial_request;
+            inner_fault.stop_before_access =
+                decoder_pending.accesses_completed + fault.offset;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, inner_fault, decoder_pending
+                );
+            test.expect_true(
+                stopped.status ==
+                        (fault.stack_read ? LegacyBattleActorFrameEntryStatus::
+                                                stack_read_typed_stop
+                                          : LegacyBattleActorFrameEntryStatus::
+                                                stack_write_typed_stop) &&
+                    stopped.eip == fault.instruction &&
+                    stopped.stopped_token == fault.token &&
+                    stopped.esp == decoder_pending.esp - fault.stack_drop &&
+                    stopped.ebp ==
+                        (fault.offset == 30U ? decoder_pending.esp - 32U
+                                             : decoder_pending.esp - 60U) &&
+                    stopped.accesses_completed ==
+                        inner_fault.stop_before_access &&
+                    case_two_outputs.words ==
+                        std::array<u32, 3U>{2U, 3U, 0x10U} &&
+                    decoder.calls == 1U,
+                "inner allocator wrapper reads and pushes four physical arguments before nested heap CALL"
+            );
+        }
         decoder.reply.returned = false;
         const auto stopped_decoder_entry = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_decoder_call(
@@ -7444,13 +7493,13 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_decoder_entry.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_two_decoder_child_typed_stop &&
-                stopped_decoder_entry.eip == 0x00487C80U &&
-                stopped_decoder_entry.esp == decoder_pending.esp - 56U &&
-                stopped_decoder_entry.last_pushed_value == 0x00487C28U &&
-                stopped_decoder_entry.eax == 0x00790000U &&
-                stopped_decoder_entry.ecx == 12U &&
-                stopped_decoder_entry.edx == 12U &&
-                stopped_decoder_entry.ebp == decoder_pending.esp - 32U &&
+                stopped_decoder_entry.eip == 0x00487CD0U &&
+                stopped_decoder_entry.esp == decoder_pending.esp - 84U &&
+                stopped_decoder_entry.last_pushed_value == 0x00487C99U &&
+                stopped_decoder_entry.eax == 12U &&
+                stopped_decoder_entry.ecx == 0U &&
+                stopped_decoder_entry.edx == 1U &&
+                stopped_decoder_entry.ebp == decoder_pending.esp - 60U &&
                 stopped_decoder_entry.edi == 0x7766554CU &&
                 stopped_decoder_entry.flags_known &&
                 !stopped_decoder_entry.flags.zero &&
@@ -7481,8 +7530,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 decoder_returned.edi == decoder_pending.edi &&
                 decoder_returned.flags_known && decoder_returned.flags.zero &&
                 decoder.arguments == expected_decode_arguments &&
-                decoder.entry_eax == 0x00790000U && decoder.entry_ecx == 12U &&
-                decoder.entry_edx == 12U &&
+                decoder.entry_eax == 12U && decoder.entry_ecx == 0U &&
+                decoder.entry_edx == 1U &&
                 group_a_phase.decoded_resource_token == 0U,
             "case2 normal decoder reply restores callee saves and CALL slot while four arguments remain on the caller stack"
         );
@@ -9091,9 +9140,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         stopped_case_eight_decoder_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_eight_decoder_child_typed_stop &&
-            stopped_case_eight_decoder_child.eip == 0x00487C80U &&
+            stopped_case_eight_decoder_child.eip == 0x00487CD0U &&
             stopped_case_eight_decoder_child.esp ==
-                case_eight_decoder_args.esp - 56U &&
+                case_eight_decoder_args.esp - 84U &&
             case_eight_outputs.words == std::array<u32, 3U>{2U, 3U, 0x10U} &&
             case_eight_phase.decoded_resource_token == 0U,
         "case8 decoder suffix stop retains its three output writes but cannot publish emitter token"
@@ -12498,9 +12547,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_fifty_one_decoder_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fifty_one_decoder_child_typed_stop &&
-            stopped_case_fifty_one_decoder_child.eip == 0x00487C80U &&
+            stopped_case_fifty_one_decoder_child.eip == 0x00487CD0U &&
             stopped_case_fifty_one_decoder_child.esp ==
-                case_fifty_one_decoder_args.esp - 56U &&
+                case_fifty_one_decoder_args.esp - 84U &&
             case_fifty_one_outputs.words ==
                 std::array<u32, 3U>{2U, 3U, 0x10U} &&
             case_fifty_one_decoder.arguments ==
@@ -19747,9 +19796,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_hundred_decoder_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_decoder_child_typed_stop &&
-            case_hundred_decoder_stop.eip == 0x00487C80U &&
+            case_hundred_decoder_stop.eip == 0x00487CD0U &&
             case_hundred_decoder_stop.esp ==
-                case_hundred_decoder_args.esp - 56U &&
+                case_hundred_decoder_args.esp - 84U &&
             case_hundred_outputs.words == std::array<u32, 3U>{2U, 3U, 0x10U} &&
             case_hundred_decoder_return.status ==
                 LegacyBattleActorFrameEntryStatus::
