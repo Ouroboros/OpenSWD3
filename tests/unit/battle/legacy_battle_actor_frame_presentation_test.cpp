@@ -8409,6 +8409,80 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 "linked heap reaches the shared first-fill guard read after committing node fields"
             );
         }
+        static constexpr openswd3::compat::u8 kLinkedGuardByte = 0xFDU;
+        const std::array<HeapPrefixFault, 5U> kLinkedFirstFillFaults{{
+            {132U, 0x00487F87U, 120U, 0x004A8300U, Access::global_read},
+            {133U, 0x00487F8DU, 120U, stack_top - 124U, Access::stack_write},
+            {134U, 0x00487F8EU, 124U, stack_top - 92U, Access::stack_read},
+            {135U, 0x00487F94U, 124U, stack_top - 128U, Access::stack_write},
+            {136U, 0x00487F95U, 128U, stack_top - 132U, Access::stack_write},
+        }};
+        for (const bool has_old_tail : {false, true}) {
+            auto& request = has_old_tail ? linked_metadata_nonempty_request
+                                         : linked_metadata_empty_request;
+            request.decoder_heap_guard_byte_owner = &kLinkedGuardByte;
+            for (const auto& fault : kLinkedFirstFillFaults) {
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access =
+                    decoder_pending.accesses_completed + fault.offset +
+                    (has_old_tail ? 1U : 0U);
+                const auto stopped = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, decoder_pending
+                    );
+                test.expect_true(
+                    stopped.eip == fault.instruction &&
+                        stopped.stopped_token == fault.token &&
+                        stopped.stopped_access_kind == fault.kind &&
+                        stopped.esp == stack_top - fault.stack_drop &&
+                        stopped.accesses_completed ==
+                            request.stop_before_access &&
+                        linked_raw_backing[26U] == 0x76U &&
+                        (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
+                            0x00804000U,
+                    "linked first-fill call preserves five ordered global and stack faults"
+                );
+            }
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            nonempty_heap_tail = 0x00806000U;
+            writable_heap_head = 0xABCDEF01U;
+            old_tail_backing.fill(0xA5U);
+            linked_raw_backing.fill(0xA5U);
+            request.stop_before_access = 0U;
+            const auto stopped_fill_child = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, request, decoder_pending
+                );
+            test.expect_true(
+                stopped_fill_child.eip == 0x0048A930U &&
+                    stopped_fill_child.stopped_access_kind ==
+                        Access::callee_call &&
+                    stopped_fill_child.esp == stack_top - 132U &&
+                    stopped_fill_child.ebp == stack_top - 88U &&
+                    stopped_fill_child.eax == 0x0080401CU &&
+                    stopped_fill_child.edx == 0xFDU &&
+                    stopped_fill_child.last_pushed_value == 0x00487F9AU &&
+                    stopped_fill_child.accesses_completed ==
+                        decoder_pending.accesses_completed +
+                            (has_old_tail ? 138U : 137U) &&
+                    linked_raw_backing[28U] == 0xA5U &&
+                    (has_old_tail ? nonempty_heap_tail : empty_heap_tail) ==
+                        0x00804000U,
+                "linked heap enters first-fill callee only after committing node metadata and tail"
+            );
+        }
         std::array<openswd3::compat::u8, 48U> synthetic_heap_bytes{};
         auto backed_header_request = writable_counter_request;
         backed_header_request.decoder_heap_block_token = 0x00804000U;

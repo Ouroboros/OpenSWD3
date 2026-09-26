@@ -2702,6 +2702,12 @@ Size=4，`0x00487F85 XOR EDX,EDX`确定ZF=1，停在尚无owner的
 已写元数据。`proc_7cf2` Linux core/CTest `199/199`、`proc_a507`
 ASan core/CTest `199/199`、`proc_9767` Linux app/CTest `205/205`。
 其后的linked填充子调用及两条路径的正式合流仍未审计。
+linked块显式绑定首填充byte后，按`0x00487F87/F8D/F8E/F94/F95`
+读全局byte、压填充值、重读raw、压raw+0x1C与返回地址；空链
+与非空链各五处故障验证旧元数据/尾写已提交，未绑定子栈仍停在
+`sub_48A930`入口，不臆测填充字节。`proc_b37d` Linux
+core/CTest `199/199`、`proc_91bc` ASan core/CTest `199/199`、
+`proc_1115` Linux app/CTest `205/205`。linked子栈及正常填充尚未审计。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
