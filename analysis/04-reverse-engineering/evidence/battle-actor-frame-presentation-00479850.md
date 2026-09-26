@@ -2816,6 +2816,15 @@ EDI、ESI、EBX，`0x00487FDF`令ESP回到EBP，停在
 错误对照值，修正后`proc_dd9b` Linux core/CTest `199/199`、
 `proc_4035` ASan core/CTest `199/199`、`proc_8209` Linux
 app/CTest `205/205`，失败轮次不计通过。此合成栈不证明真实父栈来源。
+该阶段提交推送`f01a4e2d`，远端SHA一致；TG `proc_d2a9`退出0，
+客户端显示未验证。在显式绑定合成父栈时，LST
+`0x00487CD0 PUSH EBP`保存的上层EBP被`0x00487FE1 POP EBP`
+读取，`0x00487FE2 RET`取回`0x00487C99`，父函数随后
+`ADD ESP,0x10`，停在`0x00487C9C`写本地像素指针前。
+分别覆盖POP EBP、RET及父本地写的故障前缀、DF双向和两种链尾。
+`proc_c096` Linux core/CTest `199/199`、`proc_a41f`
+ASan core/CTest `199/199`、`proc_bd99` Linux app/CTest `205/205`。
+合成返回地址和父栈不证明生产调用链。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
