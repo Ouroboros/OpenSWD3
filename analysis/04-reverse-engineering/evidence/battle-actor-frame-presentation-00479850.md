@@ -2856,6 +2856,21 @@ Linux core/CTest `199/199`、`proc_d5f7` ASan core/CTest
 `proc_b155` Linux core/CTest `199/199`、`proc_7e5b` ASan
 core/CTest `199/199`、`proc_99cc` Linux app/CTest `205/205`。
 真实像素数据及生产块来源仍待核对。
+该阶段提交推送`2e66f6f4`，远端SHA一致；TG `proc_eba4`退出0，
+客户端显示未验证。显式绑定扩展源span且保留同一token时，
+按LST `0x00401A0E`/`0x00401ACB`读取EDI所指首个16位命令，
+按16位CMP更新FLAGS并将分配回包移到ESI：零命令停在
+`0x00401B62 POP EDI`前，非零命令停在格式16的
+`0x00401A1A`或格式8的`0x00401AD7`读取下一源字前。
+本轮独立向量只覆盖格式16的`0x8001`与`0x0000`，
+验证符号位、零值、访问计数及故障前已写像素；不据此宣称
+格式8或后续命令流已完成。`proc_574f` Linux core/CTest
+`199/199`。初版`proc_2ac4` ASan/CTest失败，报告
+`stack-use-after-scope`：测试把局部源数组的span写入持久夹具引用，
+后续向量越过作用域继续读取。已改为只在局部请求副本中绑定扩展源；
+失败轮次不计通过；修正后`proc_4f0d` Linux core/CTest
+`199/199`、`proc_f98a` ASan core/CTest `199/199`、
+`proc_f3f4` Linux app/CTest `205/205`。生产源数据和块别名仍未证明。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

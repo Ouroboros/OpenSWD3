@@ -5913,9 +5913,10 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
     ++prefix.accesses_completed;
     prefix.esp = saved_ebx_slot;
     prefix.last_pushed_value = prefix.ebx;
+    const u32 decoder_source_token = prefix.eax;
     const std::span<const u8>* source_bytes = nullptr;
     for (const auto& source : request.decoder_sources) {
-        if (source.token == prefix.eax) {
+        if (source.token == decoder_source_token) {
             source_bytes = &source.bytes;
             break;
         }
@@ -8432,6 +8433,96 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                     prefix.eip =
                                                                         prefix
                                                                             .stopped_instruction;
+                                                                    if (
+                                                                        request
+                                                                            .decoder_payload_heap_initial_source_word_backed &&
+                                                                        request
+                                                                            .decoder_source_readable &&
+                                                                        source_bytes !=
+                                                                            nullptr &&
+                                                                        source_bytes
+                                                                                ->size() >=
+                                                                            10U &&
+                                                                        prefix.edi ==
+                                                                            decoder_source_token +
+                                                                                8U &&
+                                                                        prefix.accesses_completed !=
+                                                                            request
+                                                                                .stop_before_access
+                                                                    ) {
+                                                                        ++prefix
+                                                                              .accesses_completed;
+                                                                        const u16 first_word =
+                                                                            static_cast<
+                                                                                u16>((
+                                                                                *source_bytes
+                                                                            )[8U]) |
+                                                                            static_cast<
+                                                                                u16>(
+                                                                                static_cast<
+                                                                                    u16>((
+                                                                                    *source_bytes
+                                                                                )[9U])
+                                                                                << 8U
+                                                                            );
+                                                                        prefix
+                                                                            .flags =
+                                                                            subtract_flags(
+                                                                                first_word,
+                                                                                0U
+                                                                            );
+                                                                        prefix
+                                                                            .flags
+                                                                            .sign =
+                                                                            (first_word &
+                                                                             0x8000U) !=
+                                                                            0U;
+                                                                        prefix
+                                                                            .flags_known =
+                                                                            true;
+                                                                        prefix
+                                                                            .esi =
+                                                                            prefix
+                                                                                .eax;
+                                                                        const bool
+                                                                            nonzero =
+                                                                                first_word !=
+                                                                            0U;
+                                                                        prefix
+                                                                            .status =
+                                                                            nonzero
+                                                                            ? LegacyBattleActorFrameEntryStatus::
+                                                                                  frame_resource_read_typed_stop
+                                                                            : LegacyBattleActorFrameEntryStatus::
+                                                                                  stack_read_typed_stop;
+                                                                        prefix
+                                                                            .stopped_access_kind =
+                                                                            nonzero
+                                                                            ? LegacyBattleActorFrameEntryAccessKind::
+                                                                                  frame_resource_read
+                                                                            : LegacyBattleActorFrameEntryAccessKind::
+                                                                                  stack_read;
+                                                                        prefix
+                                                                            .stopped_instruction =
+                                                                            nonzero
+                                                                            ? (
+                                                                                  format_sixteen
+                                                                                      ? 0x00401A1AU
+                                                                                      : 0x00401AD7U
+                                                                              )
+                                                                            : 0x00401B62U;
+                                                                        prefix
+                                                                            .stopped_token =
+                                                                            nonzero
+                                                                            ? prefix.edi +
+                                                                                2U
+                                                                            : prefix
+                                                                                  .esp;
+                                                                        prefix
+                                                                            .eip =
+                                                                            prefix
+                                                                                .stopped_instruction;
+                                                                    }
                                                                 }
                                                             }
                                                         } else {

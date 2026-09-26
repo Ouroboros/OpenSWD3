@@ -9051,6 +9051,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 request.decoder_payload_heap_wrapper_return_stack_backed =
                     false;
                 request.decoder_payload_heap_outer_return_stack_backed = false;
+                request.decoder_payload_heap_initial_source_word_backed = false;
                 auto heap_register_snapshot_request = request;
                 heap_register_snapshot_request.stop_before_access =
                     decoder_pending.accesses_completed + 44U;
@@ -9752,6 +9753,138 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         outer_returned.direction_flag == reverse &&
                         linked_raw_backing[32U] == 0x7EU,
                     "format-sixteen decoder resumes before rereading source word"
+                );
+                const std::array<openswd3::compat::u8, 12U> kNonzeroSourceBytes{
+                    0xFFU,
+                    0xFFU,
+                    0x02U,
+                    0x00U,
+                    0x03U,
+                    0x00U,
+                    0x10U,
+                    0x00U,
+                    0x01U,
+                    0x80U,
+                    0x02U,
+                    0x00U
+                };
+                const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                    nonzero_sources{{{0x77665544U, kNonzeroSourceBytes}}};
+                auto source_request = request;
+                source_request.decoder_sources = nonzero_sources;
+                source_request.decoder_payload_heap_initial_source_word_backed =
+                    true;
+                for (const u32 stop_offset : {190U, 191U}) {
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    source_request.stop_before_access =
+                        decoder_pending.accesses_completed + stop_offset +
+                        (has_old_tail ? 1U : 0U);
+                    const auto stopped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, source_request, fill_prefix
+                        );
+                    test.expect_true(
+                        stopped.eip ==
+                                (stop_offset == 190U ? 0x00401A0EU
+                                                     : 0x00401A1AU) &&
+                            stopped.stopped_access_kind ==
+                                Access::frame_resource_read &&
+                            stopped.stopped_token ==
+                                heap_register_snapshot.edi +
+                                    (stop_offset == 190U ? 0U : 2U) &&
+                            stopped.accesses_completed ==
+                                source_request.stop_before_access &&
+                            stopped.esp == stack_top - 20U &&
+                            stopped.eax == 0x00804020U &&
+                            (stop_offset == 190U ||
+                             (stopped.esi == stopped.eax &&
+                              stopped.flags.sign && !stopped.flags.zero)) &&
+                            linked_raw_backing[32U] == 0x7EU,
+                        "decoder first 16-bit command read precedes the nonzero command stream"
+                    );
+                }
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                source_request.stop_before_access = 0U;
+                const auto nonzero_command = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, source_request, fill_prefix
+                    );
+                test.expect_true(
+                    nonzero_command.eip == 0x00401A1AU &&
+                        nonzero_command.stopped_access_kind ==
+                            Access::frame_resource_read &&
+                        nonzero_command.stopped_token ==
+                            heap_register_snapshot.edi + 2U &&
+                        nonzero_command.esi == 0x00804020U &&
+                        nonzero_command.flags_known &&
+                        nonzero_command.flags.sign &&
+                        !nonzero_command.flags.zero &&
+                        nonzero_command.accesses_completed ==
+                            decoder_pending.accesses_completed +
+                                (has_old_tail ? 192U : 191U) &&
+                        linked_raw_backing[32U] == 0x7EU,
+                    "nonzero format-sixteen command stops before its next source word"
+                );
+                const std::array<openswd3::compat::u8, 10U> kZeroSourceBytes{
+                    0xFFU,
+                    0xFFU,
+                    0x02U,
+                    0x00U,
+                    0x03U,
+                    0x00U,
+                    0x10U,
+                    0x00U,
+                    0x00U,
+                    0x00U
+                };
+                const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                    zero_sources{{{0x77665544U, kZeroSourceBytes}}};
+                auto zero_request = source_request;
+                zero_request.decoder_sources = zero_sources;
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                zero_request.stop_before_access = 0U;
+                const auto zero_command = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, zero_request, fill_prefix
+                    );
+                test.expect_true(
+                    zero_command.eip == 0x00401B62U &&
+                        zero_command.stopped_access_kind ==
+                            Access::stack_read &&
+                        zero_command.stopped_token == stack_top - 20U &&
+                        zero_command.esp == stack_top - 20U &&
+                        zero_command.esi == 0x00804020U &&
+                        zero_command.flags_known && zero_command.flags.zero &&
+                        !zero_command.flags.sign &&
+                        zero_command.accesses_completed ==
+                            decoder_pending.accesses_completed +
+                                (has_old_tail ? 192U : 191U) &&
+                        linked_raw_backing[32U] == 0x7EU,
+                    "zero first format-sixteen command stops before decoder register pops"
                 );
             }
         }
