@@ -2343,7 +2343,14 @@ port仅支持入口型停止时撤销这次模型化读计数，不冒充已完�
 入口型port停止仍回滚本阶段两次模型化读及EAX；本轮`proc_d756` Linux core/CTest
 `199/199`、`proc_d36c` ASan core/CTest `199/199`、`proc_bba8` Linux app/CTest
 `205/205`。全局`0x004CDE74`的真实owner和值、源header和随后三处输出栈槽写仍未接通；
-“允许读”仅提供故障门，不是全局值或正常回复的独立证明。
+“允许读”仅提供故障门，不是全局值或正常回复的独立证明。该批留底后的
+五段阶段TG `proc_238e` 退出0，未输出 `message_id`，客户端显示未验证。
+现在`0x004019A4`不仅检查全局可读，还要求快照显式提供`0x004CDE74`的独立owner；
+即使通用全局可读，缺owner仍在该指令停，不借用绘图或actor字段伪造数据。
+成功读取时模型将其完整dword写入EDX；入口型port停止时恢复原始EDX与前两次读计数。
+测试快照给合成`0xFFFF`，与LST `0x004237F9`写入常量一致，但不能证明生产初始化、
+可变别名或随后header比较。`proc_bbf2` Linux core/CTest `199/199`、
+`proc_42db` ASan core/CTest `199/199`、`proc_4fcf` Linux app/CTest `205/205`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。

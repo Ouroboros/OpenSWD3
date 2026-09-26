@@ -541,9 +541,10 @@ struct LegacyBattleActorFrameEntryRequest {
     bool audio_state_submode_readable{true};
     bool global_readable{true};
     bool global_writable{true};
-    const compat::u32* draw_source_token_owner{};   // 0x004CD730
-    const compat::u32* draw_palette_token_owner{};  // 0x004CD764
-    const compat::u32* draw_height_third_owner{};   // 0x004CD75C
+    const compat::u32* decoder_header_marker_owner{};  // 0x004CDE74
+    const compat::u32* draw_source_token_owner{};      // 0x004CD730
+    const compat::u32* draw_palette_token_owner{};     // 0x004CD764
+    const compat::u32* draw_height_third_owner{};      // 0x004CD75C
     LegacyBattleActorFrameParentArgumentWord* draw_argument_10_owner{};
     compat::u32 draw_source_bytes_token{};
     std::span<const compat::u8> draw_source_bytes{};

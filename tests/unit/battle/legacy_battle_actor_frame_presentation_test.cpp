@@ -422,6 +422,7 @@ public:
 [[nodiscard]] LegacyBattleActorFrameEntryRequest request() noexcept {
     static constexpr u32 kAudioStateMode = 1U;
     static constexpr u32 kAudioStateSubmode = 1U;
+    static constexpr u32 kSyntheticDecoderHeaderMarker = 0x0000FFFFU;
     static constexpr u32 kSyntheticDrawToken = 0x00700000U;
     static constexpr u32 kSyntheticDrawPaletteToken = 0x00701000U;
     static constexpr std::array<openswd3::compat::u8, 2U> kSyntheticDrawHeader{
@@ -440,6 +441,7 @@ public:
         .direction_flag = true,
         .audio_state_mode_owner = &kAudioStateMode,
         .audio_state_submode_owner = &kAudioStateSubmode,
+        .decoder_header_marker_owner = &kSyntheticDecoderHeaderMarker,
         .draw_source_token_owner = &kSyntheticDrawToken,
         .draw_palette_token_owner = &kSyntheticDrawPaletteToken,
         .draw_source_bytes_token = kSyntheticDrawToken,
@@ -6711,6 +6713,24 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     stopped_decoder_global.accesses_completed &&
                 decoder.calls == 0U,
             "decoder global format read faults after the first stack argument has loaded EAX without invoking the decoder port"
+        );
+        auto missing_decoder_marker = group_a_initial_request;
+        missing_decoder_marker.decoder_header_marker_owner = nullptr;
+        const auto stopped_missing_marker = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, missing_decoder_marker, decoder_pending
+            );
+        test.expect_true(
+            stopped_missing_marker.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                stopped_missing_marker.eip == 0x004019A4U &&
+                stopped_missing_marker.stopped_token == 0x004CDE74U &&
+                stopped_missing_marker.eax == 0x77665544U &&
+                stopped_missing_marker.edx == decoder_pending.edx &&
+                stopped_missing_marker.accesses_completed ==
+                    stopped_decoder_global.accesses_completed &&
+                decoder.calls == 0U,
+            "decoder needs the actual format-global owner even when generic global reads are permitted"
         );
         decoder.reply.returned = false;
         const auto stopped_decoder_entry = openswd3::battle::
