@@ -8167,6 +8167,27 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                             0x00487FD6U;
                                         prefix.stopped_token = prefix.ebp - 4U;
                                         prefix.eip = 0x00487FD6U;
+                                        if (
+                                            request
+                                                .decoder_payload_heap_allocator_raw_local_backed
+                                        ) {
+                                            if (!read_inner_argument(
+                                                    0x00487FD6U,
+                                                    prefix.ebp - 4U,
+                                                    request
+                                                        .decoder_heap_block_token,
+                                                    prefix.eax
+                                                )) {
+                                                return prefix;
+                                            }
+                                            prefix.flags =
+                                                add_flags(prefix.eax, 0x20U);
+                                            prefix.eax += 0x20U;
+                                            prefix.stopped_instruction =
+                                                0x00487FDCU;
+                                            prefix.stopped_token = prefix.esp;
+                                            prefix.eip = 0x00487FDCU;
+                                        }
                                     }
                                 }
                             }

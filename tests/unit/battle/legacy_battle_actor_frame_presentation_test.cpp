@@ -9041,6 +9041,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 fill_prefix.direction_flag = reverse;
                 request.direction_flag = reverse;
                 request.decoder_payload_heap_fill_return_stack_backed = false;
+                request.decoder_payload_heap_allocator_raw_local_backed = false;
                 for (u32 dword = 0U; dword < 3U; ++dword) {
                     mutable_request_counter = 0x00760000U;
                     mutable_heap_size = 0xFFFFFFFEU;
@@ -9223,6 +9224,72 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         linked_raw_backing[26U] == (reverse ? 0x7EU : 0x76U) &&
                         linked_raw_backing[44U] == 0xFDU,
                     "linked pixel fill return preserves DF-dependent block bytes"
+                );
+                request.decoder_payload_heap_allocator_raw_local_backed = true;
+                const auto allocator_return_access =
+                    decoder_pending.accesses_completed +
+                    (has_old_tail ? 178U : 177U);
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access = allocator_return_access;
+                const auto local_fault = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, fill_prefix
+                    );
+                test.expect_true(
+                    local_fault.eip == 0x00487FD6U &&
+                        local_fault.stopped_access_kind == Access::stack_read &&
+                        local_fault.stopped_token == stack_top - 92U &&
+                        local_fault.accesses_completed ==
+                            allocator_return_access &&
+                        local_fault.esp == stack_top - 116U &&
+                        local_fault.eax == 0x00804020U &&
+                        linked_raw_backing[32U] == 0x7EU &&
+                        linked_raw_backing[26U] == (reverse ? 0x7EU : 0x76U),
+                    "linked pixel fill faults before reloading the allocator raw block"
+                );
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                request.stop_before_access = 0U;
+                const auto allocator_return = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, request, fill_prefix
+                    );
+                test.expect_true(
+                    allocator_return.eip == 0x00487FDCU &&
+                        allocator_return.stopped_access_kind ==
+                            Access::stack_read &&
+                        allocator_return.stopped_token == stack_top - 116U &&
+                        allocator_return.esp == stack_top - 116U &&
+                        allocator_return.ebp == stack_top - 88U &&
+                        allocator_return.eax == 0x00804020U &&
+                        allocator_return.edi == linked_payload_child.edi &&
+                        allocator_return.last_pushed_value ==
+                            linked_payload_child.edi &&
+                        allocator_return.accesses_completed ==
+                            allocator_return_access + 1U &&
+                        allocator_return.flags_known &&
+                        !allocator_return.flags.zero &&
+                        !allocator_return.flags.carry &&
+                        !allocator_return.flags.sign &&
+                        allocator_return.direction_flag == reverse &&
+                        linked_raw_backing[32U] == 0x7EU &&
+                        linked_raw_backing[26U] == (reverse ? 0x7EU : 0x76U),
+                    "linked pixel fill returns its raw block offset before restoring allocator EDI"
                 );
             }
         }

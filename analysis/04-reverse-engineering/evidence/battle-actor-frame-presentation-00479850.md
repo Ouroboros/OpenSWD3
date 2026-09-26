@@ -2792,6 +2792,18 @@ ASan core/CTest `199/199`、`proc_e39f` Linux app/CTest `205/205`。
 `proc_7bc7` Linux app/CTest `205/205`；`git diff --check`和
 更改行`clang-format --dry-run --Werror`均通过。该阶段仅覆盖
 显式合成返回栈的Size=12路径，不能视作316完整验收。
+该阶段提交推送`31ac299a`，远端SHA一致；TG `proc_6113`退出0，
+客户端显示未验证。其后对同一显式路径，LST `0x00487E75`
+将`sub_48AA10`的raw回包写入`[ebp-4]`；第三次填充返回后
+`0x00487FD6`重新读取该槽，再由`0x00487FD9`将其加`0x20`，
+停在`0x00487FDC POP EDI`真实读取前。仅显式绑定raw本地槽且
+先前确认回包等于合成块token时执行；DF双向、空链/非空链、
+停在读取前与成功读取后的访问计数、ESP/EIP、EAX、FLAGS、
+像素块字节均有独立向量。初版`proc_f3b2`的
+`battle.legacy_battle_setup`失败：DF下一轮错误沿用本地槽绑定；
+修正后`proc_a666` Linux core/CTest `199/199`、`proc_7de4`
+ASan core/CTest `199/199`、`proc_3a26` Linux app/CTest `205/205`，
+失败轮次不计通过。此条件路径不证明生产分配器回包、真实本地槽或跨owner别名。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
