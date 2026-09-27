@@ -10062,6 +10062,86 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         "format-sixteen second fill color uses its own global and writes one word"
                     );
                 }
+                for (const u16 fill_command : {u16{0x8002U}, u16{0xC002U}}) {
+                    auto repeat_source = kHighSixteenFillSource;
+                    repeat_source[10U] = 2U;
+                    repeat_source[11U] = static_cast<u8>(fill_command >> 8U);
+                    const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                        repeat_sources{{{0x77665544U, repeat_source}}};
+                    auto repeat_request = high_fill_request;
+                    repeat_request.decoder_sources = repeat_sources;
+                    repeat_request.decoder_second_fill_word_owner =
+                        &second_fill_word;
+                    const bool first_fill = fill_command == 0x8002U;
+                    const u32 fill_color = first_fill ? 0x1234U : 0xBEEFU;
+                    for (const u32 stop_offset :
+                         {192U, 193U, 194U, 195U, 196U}) {
+                        mutable_request_counter = 0x00760000U;
+                        mutable_heap_size = 0xFFFFFFFEU;
+                        mutable_live_size = 0xFFFFFFFDU;
+                        mutable_peak_size = 8U;
+                        empty_heap_tail = 0U;
+                        nonempty_heap_tail = 0x00806000U;
+                        writable_heap_head = 0xABCDEF01U;
+                        old_tail_backing.fill(0xA5U);
+                        linked_raw_backing.fill(0xA5U);
+                        repeat_request.stop_before_access =
+                            decoder_pending.accesses_completed + stop_offset +
+                            (has_old_tail ? 1U : 0U);
+                        const auto filled = openswd3::battle::
+                            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                                decoder, repeat_request, fill_prefix
+                            );
+                        const u32 pixel_count = stop_offset == 196U ? 2U
+                            : stop_offset >= 194U                   ? 1U
+                                                                    : 0U;
+                        const u32 expected_instruction = stop_offset == 196U
+                            ? 0x00401A9EU
+                            : (stop_offset & 1U) == 0U
+                            ? (first_fill ? 0x00401A69U : 0x00401A8BU)
+                            : (first_fill ? 0x00401A70U : 0x00401A92U);
+                        test.expect_true(
+                            filled.eip == expected_instruction &&
+                                filled.stopped_access_kind ==
+                                    (stop_offset == 196U
+                                         ? Access::frame_resource_read
+                                         : (stop_offset & 1U) == 0U
+                                         ? Access::global_read
+                                         : Access::allocator_block_write) &&
+                                filled.stopped_token ==
+                                    (stop_offset == 196U ? 0x77665550U
+                                         : (stop_offset & 1U) == 0U
+                                         ? (first_fill ? 0x004CDE20U
+                                                       : 0x004CDE78U)
+                                         : 0x00804020U + pixel_count * 2U) &&
+                                filled.accesses_completed ==
+                                    repeat_request.stop_before_access &&
+                                filled.esp == stack_top - 20U &&
+                                filled.edi == 0x77665550U &&
+                                filled.esi == 0x00804020U + pixel_count * 2U &&
+                                filled.ebx ==
+                                    (stop_offset == 192U
+                                         ? fill_command & 0xC000U
+                                         : fill_color) &&
+                                filled.edx == 2U && filled.ecx == pixel_count &&
+                                filled.ebp == 4U &&
+                                filled.flags.zero == (stop_offset == 196U) &&
+                                linked_raw_backing[32U] ==
+                                    (pixel_count ? (fill_color & 0xFFU)
+                                                 : 0x7EU) &&
+                                linked_raw_backing[33U] ==
+                                    (pixel_count ? (fill_color >> 8U)
+                                                 : 0x7EU) &&
+                                linked_raw_backing[34U] ==
+                                    (pixel_count == 2U ? (fill_color & 0xFFU)
+                                                       : 0x7EU) &&
+                                linked_raw_backing[35U] ==
+                                    (pixel_count == 2U ? (fill_color >> 8U)
+                                                       : 0x7EU),
+                            "format-sixteen repeated fill re-reads color before each word write"
+                        );
+                    }
+                }
 
                 const std::array<openswd3::compat::u8, 14U> kSixteenPixelSource{
                     0xFFU,
@@ -10912,6 +10992,72 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     linked_raw_backing[33U] == 0x7EU,
                 "format-eight second fill color uses its own global and writes one byte"
             );
+        }
+        for (const u16 fill_command : {u16{0x8002U}, u16{0xC002U}}) {
+            auto repeat_source = kHighEightFillSource;
+            repeat_source[10U] = 2U;
+            repeat_source[11U] = static_cast<u8>(fill_command >> 8U);
+            const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                repeat_sources{{{0x77665544U, repeat_source}}};
+            auto repeat_request = high_fill_request;
+            repeat_request.decoder_sources = repeat_sources;
+            repeat_request.decoder_second_fill_byte_owner = &second_fill_byte;
+            const bool first_fill = fill_command == 0x8002U;
+            const u32 fill_color = first_fill ? 0xA5U : 0xB6U;
+            for (const u32 stop_offset : {192U, 193U, 194U, 195U, 196U}) {
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                writable_heap_head = 0xABCDEF01U;
+                linked_raw_backing.fill(0xA5U);
+                case_two_outputs.words = {2U, 3U, 0x10U};
+                repeat_request.stop_before_access =
+                    decoder_pending.accesses_completed + stop_offset;
+                const auto filled = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, repeat_request, decoder_pending
+                    );
+                const u32 pixel_count = stop_offset == 196U ? 2U
+                    : stop_offset >= 194U                   ? 1U
+                                                            : 0U;
+                const u32 expected_instruction = stop_offset == 196U
+                    ? 0x00401B4BU
+                    : (stop_offset & 1U) == 0U
+                    ? (first_fill ? 0x00401B1EU : 0x00401B3CU)
+                    : (first_fill ? 0x00401B24U : 0x00401B42U);
+                test.expect_true(
+                    filled.eip == expected_instruction &&
+                        filled.stopped_access_kind ==
+                            (stop_offset == 196U ? Access::frame_resource_read
+                                 : (stop_offset & 1U) == 0U
+                                 ? Access::global_read
+                                 : Access::allocator_block_write) &&
+                        filled.stopped_token ==
+                            (stop_offset == 196U ? 0x77665550U
+                                 : (stop_offset & 1U) == 0U
+                                 ? (first_fill ? 0x004CD780U : 0x004CD7B4U)
+                                 : 0x00804020U + pixel_count) &&
+                        filled.accesses_completed ==
+                            repeat_request.stop_before_access &&
+                        filled.esp == stack_top - 20U &&
+                        filled.edi == 0x77665550U &&
+                        filled.esi == 0x00804020U + pixel_count &&
+                        filled.ebx ==
+                            ((fill_command & 0xC000U) |
+                             (stop_offset == 192U ? 0U : fill_color)) &&
+                        filled.edx == pixel_count && filled.ecx == 2U &&
+                        filled.ebp == 4U &&
+                        filled.flags.zero == (stop_offset == 196U) &&
+                        linked_raw_backing[32U] ==
+                            (pixel_count ? fill_color : 0x7EU) &&
+                        linked_raw_backing[33U] ==
+                            (pixel_count == 2U ? fill_color : 0x7EU) &&
+                        linked_raw_backing[34U] == 0x7EU,
+                    "format-eight repeated fill re-reads color before each byte write"
+                );
+            }
         }
 
         const std::array<openswd3::compat::u8, 13U> kEightPixelSource{
