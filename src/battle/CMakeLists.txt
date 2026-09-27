@@ -2,6 +2,11 @@ add_library(
     openswd3_battle
     STATIC
         legacy_battle_action_dispatch.cpp
+        legacy_battle_action_dispatch_special.cpp
+        legacy_battle_action_dispatch_effects.cpp
+        legacy_battle_action_dispatch_runner.cpp
+        legacy_battle_action_dispatch_cases_low.cpp
+        legacy_battle_action_dispatch_cases_high.cpp
         legacy_battle_action_frame_draw.cpp
         legacy_battle_action_mode_refresh.cpp
         legacy_battle_action_summary.cpp
@@ -11,6 +16,22 @@ add_library(
         legacy_battle_actor_action_cycle.cpp
         legacy_battle_actor_action_presentation.cpp
         legacy_battle_actor_frame_presentation.cpp
+        legacy_battle_actor_frame_presentation_decoder.cpp
+        legacy_battle_actor_frame_presentation_resource_pipeline.cpp
+        legacy_battle_actor_frame_presentation_decoder_continuations.cpp
+        legacy_battle_actor_frame_presentation_selector_audio.cpp
+        legacy_battle_actor_frame_presentation_draw_arguments.cpp
+        legacy_battle_actor_frame_presentation_draw_rectangles.cpp
+        legacy_battle_actor_frame_presentation_rectangle_phases.cpp
+        legacy_battle_actor_frame_presentation_late_decoder.cpp
+        legacy_battle_actor_frame_presentation_case_five.cpp
+        legacy_battle_actor_frame_presentation_late_cases.cpp
+        legacy_battle_actor_frame_route_phase_1.cpp
+        legacy_battle_actor_frame_route_phase_2.cpp
+        legacy_battle_actor_frame_route_phase_3.cpp
+        legacy_battle_actor_frame_route_phase_4.cpp
+        legacy_battle_actor_frame_route_phase_5.cpp
+        legacy_battle_actor_frame_route_phase_6.cpp
         legacy_battle_actor_action_reverse_cycle.cpp
         legacy_battle_actor_message_percent_refresh.cpp
         legacy_battle_actor_target_preparation.cpp
@@ -193,6 +214,9 @@ add_library(
         legacy_battle_scale_scan.cpp
         legacy_battle_script_curve.cpp
         legacy_battle_script_dispatch.cpp
+        legacy_battle_script_dispatch_cases_one_to_twenty_seven.cpp
+        legacy_battle_script_dispatch_cases_twenty_eight_to_fifty_four.cpp
+        legacy_battle_script_dispatch_cases_fifty_five_to_eighty_three.cpp
         legacy_battle_selection_frame.cpp
         legacy_battle_selection_hint_frame.cpp
         legacy_battle_setup.cpp
