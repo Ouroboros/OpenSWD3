@@ -9205,6 +9205,59 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                                                     .eip =
                                                                                                                     prefix
                                                                                                                         .stopped_instruction;
+                                                                                                                if (
+                                                                                                                    request
+                                                                                                                        .decoder_payload_heap_return_address_backed &&
+                                                                                                                    prefix.accesses_completed !=
+                                                                                                                        request
+                                                                                                                            .stop_before_access &&
+                                                                                                                    request
+                                                                                                                        .return_address_readable
+                                                                                                                ) {
+                                                                                                                    ++prefix
+                                                                                                                          .accesses_completed;
+                                                                                                                    prefix
+                                                                                                                        .esp +=
+                                                                                                                        4U;
+                                                                                                                    prefix
+                                                                                                                        .eip =
+                                                                                                                        callee_entry
+                                                                                                                            .last_pushed_value;
+                                                                                                                    prefix
+                                                                                                                        .decoder_child = {
+                                                                                                                        .returned =
+                                                                                                                            true,
+                                                                                                                        .eax =
+                                                                                                                            prefix
+                                                                                                                                .eax,
+                                                                                                                        .ecx =
+                                                                                                                            prefix
+                                                                                                                                .ecx,
+                                                                                                                        .edx =
+                                                                                                                            prefix
+                                                                                                                                .edx,
+                                                                                                                        .flags =
+                                                                                                                            prefix
+                                                                                                                                .flags,
+                                                                                                                        .flags_known =
+                                                                                                                            prefix
+                                                                                                                                .flags_known,
+                                                                                                                    };
+                                                                                                                    prefix
+                                                                                                                        .status =
+                                                                                                                        case_hundred_call
+                                                                                                                        ? LegacyBattleActorFrameEntryStatus::
+                                                                                                                              case_hundred_decoder_token_write_ready
+                                                                                                                        : case_eight_call
+                                                                                                                        ? LegacyBattleActorFrameEntryStatus::
+                                                                                                                              case_eight_decoder_token_write_ready
+                                                                                                                        : case_fifty_one_call
+                                                                                                                        ? LegacyBattleActorFrameEntryStatus::
+                                                                                                                              case_fifty_one_decoder_token_write_ready
+                                                                                                                        : LegacyBattleActorFrameEntryStatus::
+                                                                                                                              case_two_decoder_token_write_ready;
+                                                                                                                    return prefix;
+                                                                                                                }
                                                                                                             }
                                                                                                         }
                                                                                                     }

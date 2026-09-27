@@ -10333,6 +10333,75 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         "format-sixteen decoder restores four saved registers before reading RET"
                     );
                 }
+                auto completed_request = return_request;
+                completed_request.decoder_payload_heap_return_address_backed =
+                    true;
+                completed_request.stop_before_access =
+                    decoder_pending.accesses_completed + 202U +
+                    (has_old_tail ? 1U : 0U);
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                const auto blocked_return = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, completed_request, fill_prefix
+                    );
+                test.expect_true(
+                    blocked_return.eip == 0x00401AB9U &&
+                        blocked_return.stopped_access_kind ==
+                            Access::stack_read &&
+                        blocked_return.stopped_token == stack_top - 4U &&
+                        blocked_return.accesses_completed ==
+                            decoder_pending.accesses_completed + 202U +
+                                (has_old_tail ? 1U : 0U) &&
+                        blocked_return.esp == stack_top - 4U &&
+                        blocked_return.eax == 0x00804020U &&
+                        !blocked_return.decoder_child.returned,
+                    "format-sixteen decoder does not return before its RET address read"
+                );
+                completed_request.stop_before_access = 0U;
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                const auto completed_return = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, completed_request, fill_prefix
+                    );
+                test.expect_true(
+                    completed_return.status ==
+                            LegacyBattleActorFrameEntryStatus::
+                                case_two_decoder_token_write_ready &&
+                        completed_return.eip == 0x00479B4BU &&
+                        completed_return.esp == stack_top &&
+                        completed_return.accesses_completed ==
+                            decoder_pending.accesses_completed + 203U +
+                                (has_old_tail ? 1U : 0U) &&
+                        completed_return.eax == 0x00804020U &&
+                        completed_return.edi == decoder_pending.edi &&
+                        completed_return.esi == decoder_pending.esi &&
+                        completed_return.ebp == decoder_pending.ebp &&
+                        completed_return.ebx == decoder_pending.ebx &&
+                        completed_return.flags.zero &&
+                        completed_return.decoder_child.returned &&
+                        completed_return.decoder_child.eax == 0x00804020U &&
+                        completed_return.decoder_child.flags.zero &&
+                        group_a_phase.decoded_resource_token == 0U &&
+                        linked_raw_backing[32U] == 0x34U &&
+                        linked_raw_backing[35U] == 0xABU,
+                    "format-sixteen decoder RET publishes its reply but leaves the parent token write pending"
+                );
 
                 const std::array<openswd3::compat::u8, 12U> kZeroCountSource{
                     0xFFU,
@@ -10932,6 +11001,69 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 "format-eight decoder restores four saved registers before reading RET"
             );
         }
+        auto completed_request = return_request;
+        completed_request.decoder_payload_heap_return_address_backed = true;
+        completed_request.stop_before_access =
+            decoder_pending.accesses_completed + 202U;
+        mutable_request_counter = 0x00760000U;
+        mutable_heap_size = 0xFFFFFFFEU;
+        mutable_live_size = 0xFFFFFFFDU;
+        mutable_peak_size = 8U;
+        empty_heap_tail = 0U;
+        writable_heap_head = 0xABCDEF01U;
+        linked_raw_backing.fill(0xA5U);
+        case_two_outputs.words = {2U, 3U, 0x10U};
+        const auto blocked_return = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, completed_request, decoder_pending
+            );
+        test.expect_true(
+            blocked_return.eip == 0x00401B66U &&
+                blocked_return.stopped_access_kind == Access::stack_read &&
+                blocked_return.stopped_token == stack_top - 4U &&
+                blocked_return.accesses_completed ==
+                    decoder_pending.accesses_completed + 202U &&
+                blocked_return.esp == stack_top - 4U &&
+                blocked_return.eax == 0x00804020U &&
+                !blocked_return.decoder_child.returned,
+            "format-eight decoder does not return before its RET address read"
+        );
+        completed_request.stop_before_access = 0U;
+        mutable_request_counter = 0x00760000U;
+        mutable_heap_size = 0xFFFFFFFEU;
+        mutable_live_size = 0xFFFFFFFDU;
+        mutable_peak_size = 8U;
+        empty_heap_tail = 0U;
+        writable_heap_head = 0xABCDEF01U;
+        linked_raw_backing.fill(0xA5U);
+        case_two_outputs.words = {2U, 3U, 0x10U};
+        const auto completed_return = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, completed_request, decoder_pending
+            );
+        test.expect_true(
+            completed_return.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_two_decoder_token_write_ready &&
+                completed_return.eip == 0x00479B4BU &&
+                completed_return.esp == stack_top &&
+                completed_return.accesses_completed ==
+                    decoder_pending.accesses_completed + 203U &&
+                completed_return.eax == 0x00804020U &&
+                completed_return.edi == decoder_pending.edi &&
+                completed_return.esi == decoder_pending.esi &&
+                completed_return.ebp == decoder_pending.ebp &&
+                completed_return.ebx == decoder_pending.ebx &&
+                completed_return.flags.zero &&
+                completed_return.decoder_child.returned &&
+                completed_return.decoder_child.eax == 0x00804020U &&
+                completed_return.decoder_child.flags.zero &&
+                case_two_outputs.words == std::array<u32, 3U>{3U, 4U, 0x08U} &&
+                group_a_phase.decoded_resource_token == 0U &&
+                linked_raw_backing[32U] == 0x5AU &&
+                linked_raw_backing[33U] == 0xA6U,
+            "format-eight decoder RET publishes its reply but leaves the parent token write pending"
+        );
 
         const std::array<openswd3::compat::u8, 12U> kEightZeroCountSource{
             0xFFU,

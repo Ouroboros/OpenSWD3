@@ -3002,7 +3002,18 @@ EDI、ESI、EBP、EBX 保存字：各停点在本次 POP 前保持前次恢复�
 五个停点（四次 POP 读障与 RET 读前）分别按原快照寄存器及先前像素字节核对。
 `proc_515a` Linux core/CTest `199/199`、`proc_6773` ASan
 core/CTest `199/199`、`proc_c4b8` Linux app/CTest `205/205`。
-生产栈同址写入、RET 真正读入和后续父函数行为仍待核对。
+显式合成栈快照且 `return_address_readable` 为真时，继续核对
+格式16 `0x00401AB9`、格式8 `0x00401B66` 的 RET 物理读：
+访问序号挡在 RET 前时，ESP 停于 decoder CALL 返回字，
+EAX 仍为合成分配回包像素区 token，父回包未发布；允许本次读后
+ESP 加 4，EIP 到 case2 父 `0x00479B4B`，EAX 保留
+`0x00804020`，保存寄存器已恢复且终止比较 FLAGS 未变。
+父目标 token 尚未写入，其余三个 decoder caller 和生产同址栈仍待核对。
+首次 `proc_c692` core 仅 198/199：测试将全局
+`return_address_readable` 置假，实际先停在嵌套分配器较早的 RET；
+改用精确访问序号断在 decoder RET 后，`proc_4ba0` Linux
+core/CTest `199/199`、`proc_1b09` ASan core/CTest `199/199`、
+`proc_1beb` Linux app/CTest `205/205`。失败轮次不计通过。
 里程碑 (3) 尚需其余解码命令和尺寸，仍为 `2/8 = 25%`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
