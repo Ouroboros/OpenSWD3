@@ -8554,9 +8554,13 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                 ) ==
                                                                                     0U ||
                                                                                 command ==
+                                                                                    0x8000U ||
+                                                                                command ==
                                                                                     0x8001U ||
                                                                                 command ==
                                                                                     0x8002U ||
+                                                                                command ==
+                                                                                    0xC000U ||
                                                                                 command ==
                                                                                     0xC001U ||
                                                                                 command ==
@@ -8575,9 +8579,13 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                     : 4U;
                                                                                 if (
                                                                                     command ==
+                                                                                        0x8000U ||
+                                                                                    command ==
                                                                                         0x8001U ||
                                                                                     command ==
                                                                                         0x8002U ||
+                                                                                    command ==
+                                                                                        0xC000U ||
                                                                                     command ==
                                                                                         0xC001U ||
                                                                                     command ==
@@ -8587,6 +8595,12 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                         fill_count =
                                                                                             command &
                                                                                         0x3FFFU;
+                                                                                    const u32
+                                                                                        iterations =
+                                                                                            fill_count ==
+                                                                                            0U
+                                                                                        ? 0x10000U
+                                                                                        : fill_count;
                                                                                     const bool first_fill =
                                                                                         (command &
                                                                                          0xC000U) ==
@@ -8621,7 +8635,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                         u32 fill_index =
                                                                                             0U;
                                                                                         fill_index <
-                                                                                        fill_count;
+                                                                                        iterations;
                                                                                         ++fill_index
                                                                                     ) {
                                                                                         const u16*
