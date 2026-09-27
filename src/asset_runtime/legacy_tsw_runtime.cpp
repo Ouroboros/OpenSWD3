@@ -190,7 +190,8 @@ LegacyTswQueryResult LegacyTswRuntime::find_low16(
             bucket.splice(bucket.begin(), bucket, iterator);
         }
         result.status = LegacyTswRuntimeStatus::ready;
-        result.frame = view_of(bucket.front().frame);
+        result.frame_owner = bucket.front().frame;
+        result.frame = view_of(*result.frame_owner);
         result.cache_hit = true;
         return result;
     }
@@ -221,7 +222,7 @@ void LegacyTswRuntime::evict_before_lookup() noexcept {
     CacheBucket& bucket = buckets_[selected];
     while (!bucket.empty() && cached_primary_bytes_ >= cache_limit_) {
         const std::size_t removed_size =
-            bucket.back().frame.primary_stream.size();
+            bucket.back().frame->primary_stream.size();
         cached_primary_bytes_ -= static_cast<compat::u32>(removed_size);
         bucket.pop_back();
     }
@@ -260,7 +261,9 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
             CacheNode{
                 resource_id,
                 variant_index,
-                std::move(loaded.frame),
+                std::make_shared<const LegacyTswRuntimeFrame>(
+                    std::move(loaded.frame)
+                ),
             }
         );
     } catch (const std::bad_alloc&) {
@@ -269,7 +272,8 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
     }
     cached_primary_bytes_ += static_cast<compat::u32>(primary_size);
     result.status = LegacyTswRuntimeStatus::ready;
-    result.frame = view_of(bucket.front().frame);
+    result.frame_owner = bucket.front().frame;
+    result.frame = view_of(*result.frame_owner);
     return result;
 }
 

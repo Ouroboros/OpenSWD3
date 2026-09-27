@@ -394,6 +394,54 @@ void populate_eviction_shape(
     );
 }
 
+void test_cached_frame_lease_outlives_eviction(
+    openswd3::test::Context& test
+) {
+    const TestTree tree;
+    write_six_archives(tree);
+
+    FakeSpecialLoader loader;
+    LegacyTswRuntime runtime{tree.root(), {}, &loader};
+    runtime.set_cache_limit(8U);
+    const LegacyTswQueryResult original = runtime.query_cached(0xFFFFU, 0U);
+    const u8* const pinned_bytes = original.frame.primary_stream.data();
+    const LegacyTswQueryResult other = runtime.query_cached(0xFFFFU, 10U);
+    test.expect_true(
+        original.status == LegacyTswRuntimeStatus::ready &&
+            other.status == LegacyTswRuntimeStatus::ready &&
+            original.frame_owner != nullptr &&
+            other.frame_owner != nullptr &&
+            runtime.cached_primary_bytes() == 8U,
+        "two special frames occupy the same cache bucket"
+    );
+    if (original.frame.primary_stream.size() < 4U ||
+        other.frame.primary_stream.size() < 4U) {
+        return;
+    }
+
+    const LegacyTswQueryResult replacement =
+        runtime.query_cached(0xFFFFU, 0U);
+    test.expect_true(
+        replacement.status == LegacyTswRuntimeStatus::ready &&
+            !replacement.cache_hit && loader.calls == 3U &&
+            replacement.frame_owner != original.frame_owner &&
+            replacement.frame.primary_stream.data() != pinned_bytes &&
+            original.frame.primary_stream.data() == pinned_bytes &&
+            original.frame.primary_stream[0U] == 0U &&
+            original.frame.primary_stream[2U] == 0xAAU &&
+            runtime.cached_primary_bytes() == 8U,
+        "evicted cache frame remains readable while its lease is held"
+    );
+
+    runtime.close();
+    test.expect_true(
+        runtime.cache_entry_count() == 0U &&
+            original.frame.primary_stream.data() == pinned_bytes &&
+            original.frame.primary_stream[3U] == 0x55U,
+        "closing the cache does not invalidate an outstanding lease"
+    );
+}
+
 void test_original_bucket_eviction(openswd3::test::Context& test) {
     const TestTree tree;
     write_six_archives(tree);
@@ -459,5 +507,6 @@ int main() {
     test_lazy_open_route_and_conversion(test);
     test_special_resource_and_failures(test);
     test_original_bucket_eviction(test);
+    test_cached_frame_lease_outlives_eviction(test);
     return test.exit_code();
 }

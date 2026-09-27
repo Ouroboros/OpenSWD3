@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <list>
+#include <memory>
 #include <span>
 #include <vector>
 
@@ -57,6 +58,7 @@ struct LegacyTswQueryResult {
     LegacyTswFrameStatus physical_status{LegacyTswFrameStatus::ready};
     LegacyTswFrameView frame;
     bool cache_hit{};
+    std::shared_ptr<const LegacyTswRuntimeFrame> frame_owner{};
 };
 
 struct LegacyTswDirectResult {
@@ -103,7 +105,7 @@ private:
     struct CacheNode {
         compat::u16 resource_id{};
         compat::u16 variant_index{};
-        LegacyTswRuntimeFrame frame;
+        std::shared_ptr<const LegacyTswRuntimeFrame> frame;
     };
 
     using CacheBucket = std::list<CacheNode>;
