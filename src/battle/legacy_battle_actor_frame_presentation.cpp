@@ -8552,7 +8552,9 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                     command &
                                                                                     0xC000U
                                                                                 ) ==
-                                                                                0U
+                                                                                    0U ||
+                                                                                command ==
+                                                                                    0x8001U
                                                                             ) {
                                                                                 ++prefix
                                                                                       .accesses_completed;
@@ -8565,6 +8567,59 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                         0U
                                                                                     ? 2U
                                                                                     : 4U;
+                                                                                if (
+                                                                                    command ==
+                                                                                    0x8001U
+                                                                                ) {
+                                                                                    prefix
+                                                                                        .ebx =
+                                                                                        0x8000U;
+                                                                                    if (
+                                                                                        format_sixteen
+                                                                                    ) {
+                                                                                        prefix
+                                                                                            .edx =
+                                                                                            1U;
+                                                                                        prefix
+                                                                                            .ecx =
+                                                                                            0U;
+                                                                                    } else {
+                                                                                        prefix
+                                                                                            .ecx =
+                                                                                            1U;
+                                                                                        prefix
+                                                                                            .edx =
+                                                                                            0U;
+                                                                                    }
+                                                                                    prefix
+                                                                                        .flags =
+                                                                                        logical_result_flags(
+                                                                                            1U
+                                                                                        );
+                                                                                    prefix
+                                                                                        .status =
+                                                                                        LegacyBattleActorFrameEntryStatus::
+                                                                                            global_read_typed_stop;
+                                                                                    prefix
+                                                                                        .stopped_access_kind =
+                                                                                        LegacyBattleActorFrameEntryAccessKind::
+                                                                                            global_read;
+                                                                                    prefix
+                                                                                        .stopped_instruction =
+                                                                                        format_sixteen
+                                                                                        ? 0x00401A69U
+                                                                                        : 0x00401B1EU;
+                                                                                    prefix
+                                                                                        .stopped_token =
+                                                                                        format_sixteen
+                                                                                        ? 0x004CDE20U
+                                                                                        : 0x004CD780U;
+                                                                                    prefix
+                                                                                        .eip =
+                                                                                        prefix
+                                                                                            .stopped_instruction;
+                                                                                    return prefix;
+                                                                                }
                                                                                 if (
                                                                                     format_sixteen
                                                                                 ) {

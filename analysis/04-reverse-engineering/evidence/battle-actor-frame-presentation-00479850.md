@@ -3014,6 +3014,17 @@ ESP 加 4，EIP 到 case2 父 `0x00479B4B`，EAX 保留
 改用精确访问序号断在 decoder RET 后，`proc_4ba0` Linux
 core/CTest `199/199`、`proc_1b09` ASan core/CTest `199/199`、
 `proc_1beb` Linux app/CTest `205/205`。失败轮次不计通过。
+在原本仅支持普通字面的显式 Size=12 解码前缀中，额外只允许
+第二命令字 `0x8001` 进入高位填充的首个全局颜色读障。
+格式16 按 LST `0x00401A5C..0x00401A69` 令 EBX=0x8000、
+EDX=1、ECX=0、EBP=4，停在 `0x00401A69` 读取
+`0x004CDE20` 低16位之前；格式8 按 `0x00401B11..0x00401B1E`
+令 EBX=0x8000、ECX=1、EDX=0、EBP=4，停在 `0x00401B1E`
+读取 `0x004CD780` 低字节之前。两路均保留 EDI=源+12、
+ESI=像素区起点、原有填充字节及访问序号；其它高位编码仍停在
+命令字读取前。尚未核对真实全局颜色值或任何高位填充像素写。
+`proc_0379` Linux core/CTest `199/199`、`proc_c627` ASan
+core/CTest `199/199`、`proc_e77d` Linux app/CTest `205/205`。
 里程碑 (3) 尚需其余解码命令和尺寸，仍为 `2/8 = 25%`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，

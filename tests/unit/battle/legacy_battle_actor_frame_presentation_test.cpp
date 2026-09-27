@@ -9893,6 +9893,58 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         "format-sixteen literal count read stops before its first pixel source word"
                     );
                 }
+                const std::array<u8, 12U> kHighSixteenFillSource{
+                    0xFFU,
+                    0xFFU,
+                    0x02U,
+                    0x00U,
+                    0x03U,
+                    0x00U,
+                    0x10U,
+                    0x00U,
+                    0x01U,
+                    0x80U,
+                    0x01U,
+                    0x80U,
+                };
+                const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                    high_sixteen_sources{
+                        {{0x77665544U, kHighSixteenFillSource}}
+                    };
+                auto high_fill_request = literal_request;
+                high_fill_request.decoder_sources = high_sixteen_sources;
+                high_fill_request.stop_before_access = 0U;
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                nonempty_heap_tail = 0x00806000U;
+                writable_heap_head = 0xABCDEF01U;
+                old_tail_backing.fill(0xA5U);
+                linked_raw_backing.fill(0xA5U);
+                const auto high_fill = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, high_fill_request, fill_prefix
+                    );
+                test.expect_true(
+                    high_fill.eip == 0x00401A69U &&
+                        high_fill.stopped_access_kind == Access::global_read &&
+                        high_fill.stopped_token == 0x004CDE20U &&
+                        high_fill.accesses_completed ==
+                            decoder_pending.accesses_completed + 192U +
+                                (has_old_tail ? 1U : 0U) &&
+                        high_fill.esp == stack_top - 20U &&
+                        high_fill.edi == 0x77665550U &&
+                        high_fill.esi == 0x00804020U && high_fill.edx == 1U &&
+                        high_fill.ecx == 0U && high_fill.ebx == 0x8000U &&
+                        high_fill.ebp == 4U && high_fill.flags_known &&
+                        !high_fill.flags.zero && !high_fill.flags.parity &&
+                        !high_fill.flags.carry &&
+                        linked_raw_backing[32U] == 0x7EU,
+                    "format-sixteen high fill command stops before reading its global color word"
+                );
+
                 const std::array<openswd3::compat::u8, 14U> kSixteenPixelSource{
                     0xFFU,
                     0xFFU,
@@ -10593,6 +10645,53 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 "format-eight literal count read stops before its first pixel source byte"
             );
         }
+        const std::array<u8, 12U> kHighEightFillSource{
+            0xFFU,
+            0xFFU,
+            0x03U,
+            0x00U,
+            0x04U,
+            0x00U,
+            0x08U,
+            0x00U,
+            0x01U,
+            0x80U,
+            0x01U,
+            0x80U,
+        };
+        const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+            high_eight_sources{{{0x77665544U, kHighEightFillSource}}};
+        auto high_fill_request = eight_literal_request;
+        high_fill_request.decoder_sources = high_eight_sources;
+        high_fill_request.stop_before_access = 0U;
+        mutable_request_counter = 0x00760000U;
+        mutable_heap_size = 0xFFFFFFFEU;
+        mutable_live_size = 0xFFFFFFFDU;
+        mutable_peak_size = 8U;
+        empty_heap_tail = 0U;
+        writable_heap_head = 0xABCDEF01U;
+        linked_raw_backing.fill(0xA5U);
+        case_two_outputs.words = {2U, 3U, 0x10U};
+        const auto high_fill = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                decoder, high_fill_request, decoder_pending
+            );
+        test.expect_true(
+            high_fill.eip == 0x00401B1EU &&
+                high_fill.stopped_access_kind == Access::global_read &&
+                high_fill.stopped_token == 0x004CD780U &&
+                high_fill.accesses_completed ==
+                    decoder_pending.accesses_completed + 192U &&
+                high_fill.esp == stack_top - 20U &&
+                high_fill.edi == 0x77665550U && high_fill.esi == 0x00804020U &&
+                high_fill.ecx == 1U && high_fill.edx == 0U &&
+                high_fill.ebx == 0x8000U && high_fill.ebp == 4U &&
+                high_fill.flags_known && !high_fill.flags.zero &&
+                !high_fill.flags.parity && !high_fill.flags.carry &&
+                linked_raw_backing[32U] == 0x7EU,
+            "format-eight high fill command stops before reading its global color byte"
+        );
+
         const std::array<openswd3::compat::u8, 13U> kEightPixelSource{
             0xFFU,
             0xFFU,
