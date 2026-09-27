@@ -10254,6 +10254,130 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         "format-sixteen 01-bit command skips pixels and reads next row word"
                     );
                 }
+                for (const u16 fill_command : {u16{0x8003U}, u16{0xC003U}}) {
+                    auto three_source = kHighSixteenFillSource;
+                    three_source[10U] = 3U;
+                    three_source[11U] = static_cast<u8>(fill_command >> 8U);
+                    const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                        three_sources{{{0x77665544U, three_source}}};
+                    auto three_request = high_fill_request;
+                    three_request.decoder_sources = three_sources;
+                    three_request.decoder_second_fill_word_owner =
+                        &second_fill_word;
+                    const bool first_fill = fill_command == 0x8003U;
+                    const u32 color = first_fill ? 0x1234U : 0xBEEFU;
+                    for (const u32 stop_offset :
+                         {192U, 193U, 194U, 195U, 196U, 197U, 198U}) {
+                        mutable_request_counter = 0x00760000U;
+                        mutable_heap_size = 0xFFFFFFFEU;
+                        mutable_live_size = 0xFFFFFFFDU;
+                        mutable_peak_size = 8U;
+                        empty_heap_tail = 0U;
+                        nonempty_heap_tail = 0x00806000U;
+                        writable_heap_head = 0xABCDEF01U;
+                        old_tail_backing.fill(0xA5U);
+                        linked_raw_backing.fill(0xA5U);
+                        three_request.stop_before_access =
+                            decoder_pending.accesses_completed + stop_offset +
+                            (has_old_tail ? 1U : 0U);
+                        const auto filled = openswd3::battle::
+                            continue_legacy_battle_actor_frame_case_two_decoder_call(
+                                decoder, three_request, fill_prefix
+                            );
+                        const u32 count = stop_offset == 198U ? 3U
+                            : stop_offset >= 196U             ? 2U
+                            : stop_offset >= 194U             ? 1U
+                                                              : 0U;
+                        const bool color_read = (stop_offset & 1U) == 0U;
+                        test.expect_true(
+                            filled.eip ==
+                                    (stop_offset == 198U ? 0x00401A9EU
+                                         : color_read
+                                         ? (first_fill ? 0x00401A69U
+                                                       : 0x00401A8BU)
+                                         : (first_fill ? 0x00401A70U
+                                                       : 0x00401A92U)) &&
+                                filled.stopped_access_kind ==
+                                    (stop_offset == 198U
+                                         ? Access::frame_resource_read
+                                         : color_read
+                                         ? Access::global_read
+                                         : Access::allocator_block_write) &&
+                                filled.stopped_token ==
+                                    (stop_offset == 198U ? 0x77665550U
+                                         : color_read
+                                         ? (first_fill ? 0x004CDE20U
+                                                       : 0x004CDE78U)
+                                         : 0x00804020U + 2U * count) &&
+                                filled.accesses_completed ==
+                                    three_request.stop_before_access &&
+                                filled.esp == stack_top - 20U &&
+                                filled.edi == 0x77665550U &&
+                                filled.esi == 0x00804020U + 2U * count &&
+                                filled.edx == 3U && filled.ecx == count &&
+                                filled.ebx ==
+                                    (stop_offset == 192U
+                                         ? fill_command & 0xC000U
+                                         : color) &&
+                                filled.flags.zero == (count == 3U) &&
+                                linked_raw_backing[32U] ==
+                                    (count >= 1U ? (color & 0xFFU) : 0x7EU) &&
+                                linked_raw_backing[34U] ==
+                                    (count >= 2U ? (color & 0xFFU) : 0x7EU) &&
+                                linked_raw_backing[36U] ==
+                                    (count >= 3U ? (color & 0xFFU)
+                                                 : (reverse ? 0xA5U : 0x7EU)) &&
+                                linked_raw_backing[37U] ==
+                                    (count >= 3U ? (color >> 8U)
+                                                 : (reverse ? 0xA5U : 0x7EU)),
+                            "format-sixteen three-color fill re-reads each pixel source"
+                        );
+                    }
+                }
+                for (const u16 fill_command : {u16{0xBFFFU}, u16{0xFFFFU}}) {
+                    auto max_source = kHighSixteenFillSource;
+                    max_source[10U] = 0xFFU;
+                    max_source[11U] = static_cast<u8>(fill_command >> 8U);
+                    const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                        max_sources{{{0x77665544U, max_source}}};
+                    auto max_request = high_fill_request;
+                    max_request.decoder_sources = max_sources;
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    max_request.stop_before_access =
+                        decoder_pending.accesses_completed + 192U +
+                        (has_old_tail ? 1U : 0U);
+                    const auto stopped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, max_request, fill_prefix
+                        );
+                    test.expect_true(
+                        stopped.eip ==
+                                (fill_command == 0xBFFFU ? 0x00401A69U
+                                                         : 0x00401A8BU) &&
+                            stopped.stopped_access_kind ==
+                                Access::global_read &&
+                            stopped.stopped_token ==
+                                (fill_command == 0xBFFFU ? 0x004CDE20U
+                                                         : 0x004CDE78U) &&
+                            stopped.accesses_completed ==
+                                max_request.stop_before_access &&
+                            stopped.edi == 0x77665550U &&
+                            stopped.esi == 0x00804020U &&
+                            stopped.edx == 0x3FFFU && stopped.ecx == 0U &&
+                            stopped.ebx == (fill_command & 0xC000U) &&
+                            !stopped.flags.zero &&
+                            linked_raw_backing[32U] == 0x7EU,
+                        "format-sixteen maximal fill count stops before first color read"
+                    );
+                }
 
                 const std::array<openswd3::compat::u8, 14U> kSixteenPixelSource{
                     0xFFU,
@@ -11267,6 +11391,112 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     linked_raw_backing[32U] == 0x7EU &&
                     linked_raw_backing[33U] == 0x7EU,
                 "format-eight 01-bit command skips pixels and reads next row word"
+            );
+        }
+        for (const u16 fill_command : {u16{0x8003U}, u16{0xC003U}}) {
+            auto three_source = kHighEightFillSource;
+            three_source[10U] = 3U;
+            three_source[11U] = static_cast<u8>(fill_command >> 8U);
+            const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                three_sources{{{0x77665544U, three_source}}};
+            auto three_request = high_fill_request;
+            three_request.decoder_sources = three_sources;
+            three_request.decoder_second_fill_byte_owner = &second_fill_byte;
+            const bool first_fill = fill_command == 0x8003U;
+            const u32 color = first_fill ? 0xA5U : 0xB6U;
+            for (const u32 stop_offset :
+                 {192U, 193U, 194U, 195U, 196U, 197U, 198U}) {
+                mutable_request_counter = 0x00760000U;
+                mutable_heap_size = 0xFFFFFFFEU;
+                mutable_live_size = 0xFFFFFFFDU;
+                mutable_peak_size = 8U;
+                empty_heap_tail = 0U;
+                writable_heap_head = 0xABCDEF01U;
+                linked_raw_backing.fill(0xA5U);
+                case_two_outputs.words = {2U, 3U, 0x10U};
+                three_request.stop_before_access =
+                    decoder_pending.accesses_completed + stop_offset;
+                const auto filled = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_decoder_call(
+                        decoder, three_request, decoder_pending
+                    );
+                const u32 count = stop_offset == 198U ? 3U
+                    : stop_offset >= 196U             ? 2U
+                    : stop_offset >= 194U             ? 1U
+                                                      : 0U;
+                const bool color_read = (stop_offset & 1U) == 0U;
+                test.expect_true(
+                    filled.eip ==
+                            (stop_offset == 198U ? 0x00401B4BU
+                                 : color_read
+                                 ? (first_fill ? 0x00401B1EU : 0x00401B3CU)
+                                 : (first_fill ? 0x00401B24U : 0x00401B42U)) &&
+                        filled.stopped_access_kind ==
+                            (stop_offset == 198U ? Access::frame_resource_read
+                                 : color_read
+                                 ? Access::global_read
+                                 : Access::allocator_block_write) &&
+                        filled.stopped_token ==
+                            (stop_offset == 198U ? 0x77665550U
+                                 : color_read
+                                 ? (first_fill ? 0x004CD780U : 0x004CD7B4U)
+                                 : 0x00804020U + count) &&
+                        filled.accesses_completed ==
+                            three_request.stop_before_access &&
+                        filled.esp == stack_top - 20U &&
+                        filled.edi == 0x77665550U &&
+                        filled.esi == 0x00804020U + count && filled.ecx == 3U &&
+                        filled.edx == count &&
+                        filled.ebx ==
+                            ((fill_command & 0xC000U) |
+                             (stop_offset == 192U ? 0U : color)) &&
+                        filled.flags.zero == (count == 3U) &&
+                        linked_raw_backing[32U] ==
+                            (count >= 1U ? color : 0x7EU) &&
+                        linked_raw_backing[33U] ==
+                            (count >= 2U ? color : 0x7EU) &&
+                        linked_raw_backing[34U] ==
+                            (count >= 3U ? color : 0x7EU) &&
+                        linked_raw_backing[35U] == 0x7EU,
+                    "format-eight three-color fill re-reads each pixel source"
+                );
+            }
+        }
+        for (const u16 fill_command : {u16{0xBFFFU}, u16{0xFFFFU}}) {
+            auto max_source = kHighEightFillSource;
+            max_source[10U] = 0xFFU;
+            max_source[11U] = static_cast<u8>(fill_command >> 8U);
+            const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                max_sources{{{0x77665544U, max_source}}};
+            auto max_request = high_fill_request;
+            max_request.decoder_sources = max_sources;
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            writable_heap_head = 0xABCDEF01U;
+            linked_raw_backing.fill(0xA5U);
+            case_two_outputs.words = {2U, 3U, 0x10U};
+            max_request.stop_before_access =
+                decoder_pending.accesses_completed + 192U;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, max_request, decoder_pending
+                );
+            test.expect_true(
+                stopped.eip ==
+                        (fill_command == 0xBFFFU ? 0x00401B1EU : 0x00401B3CU) &&
+                    stopped.stopped_access_kind == Access::global_read &&
+                    stopped.stopped_token ==
+                        (fill_command == 0xBFFFU ? 0x004CD780U : 0x004CD7B4U) &&
+                    stopped.accesses_completed ==
+                        max_request.stop_before_access &&
+                    stopped.edi == 0x77665550U && stopped.esi == 0x00804020U &&
+                    stopped.ecx == 0x3FFFU && stopped.edx == 0U &&
+                    stopped.ebx == (fill_command & 0xC000U) &&
+                    !stopped.flags.zero && linked_raw_backing[32U] == 0x7EU,
+                "format-eight maximal fill count stops before first color read"
             );
         }
 

@@ -8556,18 +8556,12 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                 (command &
                                                                                  0xC000U) ==
                                                                                     0x4000U ||
-                                                                                command ==
+                                                                                (command &
+                                                                                 0xC000U) ==
                                                                                     0x8000U ||
-                                                                                command ==
-                                                                                    0x8001U ||
-                                                                                command ==
-                                                                                    0x8002U ||
-                                                                                command ==
-                                                                                    0xC000U ||
-                                                                                command ==
-                                                                                    0xC001U ||
-                                                                                command ==
-                                                                                    0xC002U
+                                                                                (command &
+                                                                                 0xC000U) ==
+                                                                                    0xC000U
                                                                             ) {
                                                                                 ++prefix
                                                                                       .accesses_completed;
@@ -8645,18 +8639,7 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                     return prefix;
                                                                                 }
                                                                                 if (
-                                                                                    command ==
-                                                                                        0x8000U ||
-                                                                                    command ==
-                                                                                        0x8001U ||
-                                                                                    command ==
-                                                                                        0x8002U ||
-                                                                                    command ==
-                                                                                        0xC000U ||
-                                                                                    command ==
-                                                                                        0xC001U ||
-                                                                                    command ==
-                                                                                        0xC002U
+                                                                                    (command & 0x8000U) != 0U
                                                                                 ) {
                                                                                     const u32
                                                                                         fill_count =
