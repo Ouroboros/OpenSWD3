@@ -3025,6 +3025,19 @@ ESI=像素区起点、原有填充字节及访问序号；其它高位编码仍�
 命令字读取前。尚未核对真实全局颜色值或任何高位填充像素写。
 `proc_0379` Linux core/CTest `199/199`、`proc_c627` ASan
 core/CTest `199/199`、`proc_e77d` Linux app/CTest `205/205`。
+同一 `0x8001` 路径的全局颜色在显式只读 owner 下依次接入：
+格式16 从 `0x004CDE20` 读低字 `0x1234`，LST `0x00401A70`
+仅写目标像素区 `+0x20` 的两个字节 `34 12`；格式8 从
+`0x004CD780` 读字节 `0xA5`，只写像素区 `+0x20` 的单字节。
+格式8 的 `MOV BL` 保留高字节，故写前 EBX=`0x80A5`；
+全局读前、目标写前、写后各独立停点，写前原填充 `0x7E`
+仍保留。写后格式16 ESI 加2、ECX=1、EDX=1，格式8
+ESI 加1、EDX=1、ECX=1；EBP 都仍为4，比较计数相等后分别
+停在 `0x00401A9E/0x00401B4B` 的下一行命令字读取前。
+`proc_b7d0` Linux core/CTest `199/199`、`proc_8a9c` ASan
+core/CTest `199/199`、`proc_e86d` Linux app/CTest `205/205`。
+颜色 owner 和原始目标块仍为合成输入；计数0／多次填充、
+其它高位命令、生产值与跨 owner 别名均未由此验收。
 里程碑 (3) 尚需其余解码命令和尺寸，仍为 `2/8 = 25%`。
 其余块还未完成双向追溯，也未完成共享内存可变时的几何重读、所有逐条可观察访问顺序、字段别名、EAX/ECX/EDX、FLAGS、DF、ESP/EIP 和每个异常停点的校验；
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，

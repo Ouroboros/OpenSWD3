@@ -8618,6 +8618,115 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                         .eip =
                                                                                         prefix
                                                                                             .stopped_instruction;
+                                                                                    if (
+                                                                                        prefix.accesses_completed ==
+                                                                                            request
+                                                                                                .stop_before_access ||
+                                                                                        !request
+                                                                                             .global_readable ||
+                                                                                        (format_sixteen
+                                                                                             ? request
+                                                                                                     .decoder_high_fill_word_owner ==
+                                                                                                 nullptr
+                                                                                             : request
+                                                                                                     .decoder_high_fill_byte_owner ==
+                                                                                                 nullptr)
+                                                                                    ) {
+                                                                                        return prefix;
+                                                                                    }
+                                                                                    ++prefix
+                                                                                          .accesses_completed;
+                                                                                    prefix
+                                                                                        .ebx =
+                                                                                        format_sixteen
+                                                                                        ? *request
+                                                                                               .decoder_high_fill_word_owner
+                                                                                        : 0x8000U |
+                                                                                            *request
+                                                                                                 .decoder_high_fill_byte_owner;
+                                                                                    prefix
+                                                                                        .status =
+                                                                                        LegacyBattleActorFrameEntryStatus::
+                                                                                            allocator_block_write_typed_stop;
+                                                                                    prefix
+                                                                                        .stopped_access_kind =
+                                                                                        LegacyBattleActorFrameEntryAccessKind::
+                                                                                            allocator_block_write;
+                                                                                    prefix
+                                                                                        .stopped_instruction =
+                                                                                        format_sixteen
+                                                                                        ? 0x00401A70U
+                                                                                        : 0x00401B24U;
+                                                                                    prefix
+                                                                                        .stopped_token =
+                                                                                        prefix
+                                                                                            .esi;
+                                                                                    prefix
+                                                                                        .eip =
+                                                                                        prefix
+                                                                                            .stopped_instruction;
+                                                                                    if (
+                                                                                        request
+                                                                                            .decoder_payload_heap_high_fill_pixel_write_backed
+                                                                                    ) {
+                                                                                        const u32
+                                                                                            pixel_width =
+                                                                                                format_sixteen
+                                                                                            ? 2U
+                                                                                            : 1U;
+                                                                                        if (
+                                                                                            !write_heap_header(
+                                                                                                prefix
+                                                                                                    .stopped_instruction,
+                                                                                                request
+                                                                                                    .decoder_heap_block_token,
+                                                                                                0x20U,
+                                                                                                prefix
+                                                                                                    .ebx,
+                                                                                                pixel_width
+                                                                                            )
+                                                                                        ) {
+                                                                                            return prefix;
+                                                                                        }
+                                                                                        prefix
+                                                                                            .esi +=
+                                                                                            pixel_width;
+                                                                                        if (
+                                                                                            format_sixteen
+                                                                                        ) {
+                                                                                            ++prefix
+                                                                                                  .ecx;
+                                                                                        } else {
+                                                                                            ++prefix
+                                                                                                  .edx;
+                                                                                        }
+                                                                                        prefix
+                                                                                            .flags = subtract_flags_16(
+                                                                                            1U,
+                                                                                            1U
+                                                                                        );
+                                                                                        prefix
+                                                                                            .status =
+                                                                                            LegacyBattleActorFrameEntryStatus::
+                                                                                                frame_resource_read_typed_stop;
+                                                                                        prefix
+                                                                                            .stopped_access_kind =
+                                                                                            LegacyBattleActorFrameEntryAccessKind::
+                                                                                                frame_resource_read;
+                                                                                        prefix
+                                                                                            .stopped_instruction =
+                                                                                            format_sixteen
+                                                                                            ? 0x00401A9EU
+                                                                                            : 0x00401B4BU;
+                                                                                        prefix
+                                                                                            .stopped_token =
+                                                                                            prefix
+                                                                                                .edi;
+                                                                                        prefix
+                                                                                            .eip =
+                                                                                            prefix
+                                                                                                .stopped_instruction;
+                                                                                    }
                                                                                     return prefix;
                                                                                 }
                                                                                 if (

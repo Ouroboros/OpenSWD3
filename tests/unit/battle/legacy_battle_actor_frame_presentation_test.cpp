@@ -9944,6 +9944,63 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         linked_raw_backing[32U] == 0x7EU,
                     "format-sixteen high fill command stops before reading its global color word"
                 );
+                const u16 high_fill_word = 0x1234U;
+                high_fill_request.decoder_high_fill_word_owner =
+                    &high_fill_word;
+                high_fill_request
+                    .decoder_payload_heap_high_fill_pixel_write_backed = true;
+                for (const u32 stop_offset : {192U, 193U, 194U}) {
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    high_fill_request.stop_before_access =
+                        decoder_pending.accesses_completed + stop_offset +
+                        (has_old_tail ? 1U : 0U);
+                    const auto filled = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, high_fill_request, fill_prefix
+                        );
+                    test.expect_true(
+                        filled.eip ==
+                                (stop_offset == 192U       ? 0x00401A69U
+                                     : stop_offset == 193U ? 0x00401A70U
+                                                           : 0x00401A9EU) &&
+                            filled.stopped_access_kind ==
+                                (stop_offset == 192U ? Access::global_read
+                                     : stop_offset == 193U
+                                     ? Access::allocator_block_write
+                                     : Access::frame_resource_read) &&
+                            filled.stopped_token ==
+                                (stop_offset == 192U       ? 0x004CDE20U
+                                     : stop_offset == 193U ? 0x00804020U
+                                                           : 0x77665550U) &&
+                            filled.accesses_completed ==
+                                high_fill_request.stop_before_access &&
+                            filled.esp == stack_top - 20U &&
+                            filled.edi == 0x77665550U &&
+                            filled.esi ==
+                                (stop_offset == 194U ? 0x00804022U
+                                                     : 0x00804020U) &&
+                            filled.edx == 1U &&
+                            filled.ecx == (stop_offset == 194U ? 1U : 0U) &&
+                            filled.ebx ==
+                                (stop_offset == 192U ? 0x8000U : 0x1234U) &&
+                            filled.ebp == 4U &&
+                            filled.flags.zero == (stop_offset == 194U) &&
+                            linked_raw_backing[32U] ==
+                                (stop_offset == 194U ? 0x34U : 0x7EU) &&
+                            linked_raw_backing[33U] ==
+                                (stop_offset == 194U ? 0x12U : 0x7EU) &&
+                            linked_raw_backing[34U] == 0x7EU,
+                        "format-sixteen high fill reads one global word before writing one pixel"
+                    );
+                }
 
                 const std::array<openswd3::compat::u8, 14U> kSixteenPixelSource{
                     0xFFU,
@@ -10691,6 +10748,56 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 linked_raw_backing[32U] == 0x7EU,
             "format-eight high fill command stops before reading its global color byte"
         );
+        const u8 high_fill_byte = 0xA5U;
+        high_fill_request.decoder_high_fill_byte_owner = &high_fill_byte;
+        high_fill_request.decoder_payload_heap_high_fill_pixel_write_backed =
+            true;
+        for (const u32 stop_offset : {192U, 193U, 194U}) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            writable_heap_head = 0xABCDEF01U;
+            linked_raw_backing.fill(0xA5U);
+            case_two_outputs.words = {2U, 3U, 0x10U};
+            high_fill_request.stop_before_access =
+                decoder_pending.accesses_completed + stop_offset;
+            const auto filled = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, high_fill_request, decoder_pending
+                );
+            test.expect_true(
+                filled.eip ==
+                        (stop_offset == 192U       ? 0x00401B1EU
+                             : stop_offset == 193U ? 0x00401B24U
+                                                   : 0x00401B4BU) &&
+                    filled.stopped_access_kind ==
+                        (stop_offset == 192U ? Access::global_read
+                             : stop_offset == 193U
+                             ? Access::allocator_block_write
+                             : Access::frame_resource_read) &&
+                    filled.stopped_token ==
+                        (stop_offset == 192U       ? 0x004CD780U
+                             : stop_offset == 193U ? 0x00804020U
+                                                   : 0x77665550U) &&
+                    filled.accesses_completed ==
+                        high_fill_request.stop_before_access &&
+                    filled.esp == stack_top - 20U &&
+                    filled.edi == 0x77665550U &&
+                    filled.esi ==
+                        (stop_offset == 194U ? 0x00804021U : 0x00804020U) &&
+                    filled.ecx == 1U &&
+                    filled.edx == (stop_offset == 194U ? 1U : 0U) &&
+                    filled.ebx == (stop_offset == 192U ? 0x8000U : 0x80A5U) &&
+                    filled.ebp == 4U &&
+                    filled.flags.zero == (stop_offset == 194U) &&
+                    linked_raw_backing[32U] ==
+                        (stop_offset == 194U ? 0xA5U : 0x7EU) &&
+                    linked_raw_backing[33U] == 0x7EU,
+                "format-eight high fill reads one global byte before writing one pixel"
+            );
+        }
 
         const std::array<openswd3::compat::u8, 13U> kEightPixelSource{
             0xFFU,

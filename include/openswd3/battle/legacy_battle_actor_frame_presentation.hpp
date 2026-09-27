@@ -551,6 +551,8 @@ struct LegacyBattleActorFrameEntryRequest {
     bool global_readable{true};
     bool global_writable{true};
     const compat::u32* decoder_header_marker_owner{};  // 0x004CDE74
+    const compat::u16* decoder_high_fill_word_owner{};  // 0x004CDE20
+    const compat::u8* decoder_high_fill_byte_owner{};   // 0x004CD780
     std::span<const LegacyBattleActorFrameDecoderSource> decoder_sources{};
     bool decoder_source_readable{true};
     std::array<LegacyBattleActorFrameParentArgumentWord*, 3U>
@@ -592,6 +594,7 @@ struct LegacyBattleActorFrameEntryRequest {
     bool decoder_payload_heap_literal_command_word_backed{};
     bool decoder_payload_heap_first_literal_pixel_backed{};
     bool decoder_payload_heap_first_literal_pixel_write_backed{};
+    bool decoder_payload_heap_high_fill_pixel_write_backed{};
     bool decoder_payload_heap_second_literal_pixel_backed{};
     bool decoder_payload_heap_second_literal_pixel_write_backed{};
     bool decoder_payload_heap_next_command_word_backed{};
