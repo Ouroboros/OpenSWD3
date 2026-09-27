@@ -10378,6 +10378,81 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         "format-sixteen maximal fill count stops before first color read"
                     );
                 }
+                auto size_sixteen_source = kHighSixteenFillSource;
+                size_sixteen_source[4U] = 4U;
+                const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                    size_sixteen_sources{{{0x77665544U, size_sixteen_source}}};
+                std::array<u8, 64U> larger_raw_backing{};
+                auto size_sixteen_request = high_fill_request;
+                size_sixteen_request.decoder_sources = size_sixteen_sources;
+                size_sixteen_request.decoder_heap_block_bytes =
+                    larger_raw_backing;
+                size_sixteen_request
+                    .decoder_payload_heap_fill_return_stack_backed = false;
+                for (u32 completed_dwords = 0U; completed_dwords <= 4U;
+                     ++completed_dwords) {
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    larger_raw_backing.fill(0xA5U);
+                    size_sixteen_request.stop_before_access =
+                        completed_dwords == 4U
+                        ? 0U
+                        : decoder_pending.accesses_completed + 171U +
+                            completed_dwords + (has_old_tail ? 1U : 0U);
+                    const auto filled = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, size_sixteen_request, fill_prefix
+                        );
+                    bool written_dwords_match = true;
+                    for (u32 dword = 0U; dword < completed_dwords; ++dword) {
+                        const u32 raw_offset =
+                            reverse ? 32U - 4U * dword : 32U + 4U * dword;
+                        written_dwords_match &=
+                            larger_raw_backing[raw_offset] == 0x7EU &&
+                            larger_raw_backing[raw_offset + 3U] == 0x7EU;
+                    }
+                    test.expect_true(
+                        filled.eip ==
+                                (completed_dwords == 4U ? 0x0048A97DU
+                                                        : 0x0048A971U) &&
+                            filled.stopped_access_kind ==
+                                (completed_dwords == 4U
+                                     ? Access::stack_read
+                                     : Access::allocator_block_write) &&
+                            filled.stopped_token ==
+                                (completed_dwords == 4U ? stack_top - 128U
+                                                        : 0x00804020U +
+                                         (reverse ? 0U - completed_dwords * 4U
+                                                  : completed_dwords * 4U)) &&
+                            filled.esp == stack_top - 136U &&
+                            written_dwords_match &&
+                            filled.accesses_completed ==
+                                decoder_pending.accesses_completed + 171U +
+                                    completed_dwords +
+                                    (has_old_tail ? 1U : 0U) &&
+                            filled.eax == 0x7E7E7E7EU &&
+                            filled.ecx == 4U - completed_dwords &&
+                            filled.edx == 0U &&
+                            filled.edi ==
+                                0x00804020U +
+                                    (reverse ? 0U - completed_dwords * 4U
+                                             : completed_dwords * 4U) &&
+                            larger_raw_backing[32U] ==
+                                (completed_dwords == 0U ? 0xA5U : 0x7EU) &&
+                            larger_raw_backing[44U] ==
+                                (!reverse && completed_dwords == 4U ? 0x7EU
+                                                                    : 0xA5U) &&
+                            (!reverse || completed_dwords != 4U ||
+                             larger_raw_backing[20U] == 0x7EU),
+                        "sixteen-byte pixel backing writes four directional dwords in physical order"
+                    );
+                }
 
                 const std::array<openswd3::compat::u8, 14U> kSixteenPixelSource{
                     0xFFU,

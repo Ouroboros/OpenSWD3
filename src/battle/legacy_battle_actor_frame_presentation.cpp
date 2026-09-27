@@ -8099,11 +8099,14 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                 const bool pixel_fill_backed =
                                     request
                                         .decoder_payload_heap_fill_write_backed &&
-                                    allocation_size == 12U;
+                                    (allocation_size == 12U ||
+                                     allocation_size == 16U);
                                 if (pixel_fill_backed) {
                                     const u32 pixel_block_token =
                                         request.decoder_heap_block_token;
-                                    for (u32 dword = 0U; dword < 3U; ++dword) {
+                                    const u32 dword_count = prefix.ecx;
+                                    for (u32 dword = 0U; dword < dword_count;
+                                         ++dword) {
                                         const std::size_t offset =
                                             static_cast<std::size_t>(
                                                 prefix.edi - pixel_block_token
