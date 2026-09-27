@@ -10210,6 +10210,50 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         );
                     }
                 }
+                for (const u16 skip_command :
+                     {u16{0x4000U}, u16{0x4001U}, u16{0x7FFFU}}) {
+                    auto skip_source = kHighSixteenFillSource;
+                    skip_source[10U] = static_cast<u8>(skip_command);
+                    skip_source[11U] = static_cast<u8>(skip_command >> 8U);
+                    const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                        skip_sources{{{0x77665544U, skip_source}}};
+                    auto skip_request = high_fill_request;
+                    skip_request.decoder_sources = skip_sources;
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    skip_request.stop_before_access = 0U;
+                    const auto skipped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, skip_request, fill_prefix
+                        );
+                    test.expect_true(
+                        skipped.eip == 0x00401A9EU &&
+                            skipped.stopped_access_kind ==
+                                Access::frame_resource_read &&
+                            skipped.stopped_token == 0x77665550U &&
+                            skipped.accesses_completed ==
+                                decoder_pending.accesses_completed + 192U +
+                                    (has_old_tail ? 1U : 0U) &&
+                            skipped.esp == stack_top - 20U &&
+                            skipped.edi == 0x77665550U &&
+                            skipped.esi == 0x00804020U &&
+                            skipped.edx == skip_command && skipped.ecx == 0U &&
+                            skipped.ebx == 0x4000U && skipped.ebp == 4U &&
+                            skipped.flags_known && skipped.flags.carry &&
+                            skipped.flags.parity && !skipped.flags.zero &&
+                            skipped.flags.sign && skipped.flags.overflow &&
+                            linked_raw_backing[32U] == 0x7EU &&
+                            linked_raw_backing[33U] == 0x7EU,
+                        "format-sixteen 01-bit command skips pixels and reads next row word"
+                    );
+                }
 
                 const std::array<openswd3::compat::u8, 14U> kSixteenPixelSource{
                     0xFFU,
@@ -11183,6 +11227,47 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     "format-eight zero-count fill reads and writes instead of skipping"
                 );
             }
+        }
+        for (const u16 skip_command :
+             {u16{0x4000U}, u16{0x4001U}, u16{0x7FFFU}}) {
+            auto skip_source = kHighEightFillSource;
+            skip_source[10U] = static_cast<u8>(skip_command);
+            skip_source[11U] = static_cast<u8>(skip_command >> 8U);
+            const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                skip_sources{{{0x77665544U, skip_source}}};
+            auto skip_request = high_fill_request;
+            skip_request.decoder_sources = skip_sources;
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            writable_heap_head = 0xABCDEF01U;
+            linked_raw_backing.fill(0xA5U);
+            case_two_outputs.words = {2U, 3U, 0x10U};
+            skip_request.stop_before_access = 0U;
+            const auto skipped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, skip_request, decoder_pending
+                );
+            test.expect_true(
+                skipped.eip == 0x00401B4BU &&
+                    skipped.stopped_access_kind ==
+                        Access::frame_resource_read &&
+                    skipped.stopped_token == 0x77665550U &&
+                    skipped.accesses_completed ==
+                        decoder_pending.accesses_completed + 192U &&
+                    skipped.esp == stack_top - 20U &&
+                    skipped.edi == 0x77665550U && skipped.esi == 0x00804020U &&
+                    skipped.ecx == skip_command && skipped.edx == 0U &&
+                    skipped.ebx == 0x4000U && skipped.ebp == 4U &&
+                    skipped.flags_known && skipped.flags.carry &&
+                    skipped.flags.parity && !skipped.flags.zero &&
+                    skipped.flags.sign && skipped.flags.overflow &&
+                    linked_raw_backing[32U] == 0x7EU &&
+                    linked_raw_backing[33U] == 0x7EU,
+                "format-eight 01-bit command skips pixels and reads next row word"
+            );
         }
 
         const std::array<openswd3::compat::u8, 13U> kEightPixelSource{

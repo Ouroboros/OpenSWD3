@@ -8553,6 +8553,9 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                     0xC000U
                                                                                 ) ==
                                                                                     0U ||
+                                                                                (command &
+                                                                                 0xC000U) ==
+                                                                                    0x4000U ||
                                                                                 command ==
                                                                                     0x8000U ||
                                                                                 command ==
@@ -8577,6 +8580,70 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                         0U
                                                                                     ? 2U
                                                                                     : 4U;
+                                                                                if (
+                                                                                    (
+                                                                                        command &
+                                                                                        0xC000U
+                                                                                    ) ==
+                                                                                    0x4000U
+                                                                                ) {
+                                                                                    prefix
+                                                                                        .ebx =
+                                                                                        0x4000U;
+                                                                                    if (
+                                                                                        format_sixteen
+                                                                                    ) {
+                                                                                        prefix
+                                                                                            .edx =
+                                                                                            (prefix
+                                                                                                 .edx &
+                                                                                             0xFFFF0000U) |
+                                                                                            command;
+                                                                                        prefix
+                                                                                            .ecx =
+                                                                                            0U;
+                                                                                    } else {
+                                                                                        prefix
+                                                                                            .ecx =
+                                                                                            (prefix
+                                                                                                 .ecx &
+                                                                                             0xFFFF0000U) |
+                                                                                            command;
+                                                                                        prefix
+                                                                                            .edx =
+                                                                                            0U;
+                                                                                    }
+                                                                                    prefix
+                                                                                        .flags = subtract_flags_16(
+                                                                                        0x4000U,
+                                                                                        0xC000U
+                                                                                    );
+                                                                                    prefix
+                                                                                        .flags_known =
+                                                                                        true;
+                                                                                    prefix
+                                                                                        .status =
+                                                                                        LegacyBattleActorFrameEntryStatus::
+                                                                                            frame_resource_read_typed_stop;
+                                                                                    prefix
+                                                                                        .stopped_access_kind =
+                                                                                        LegacyBattleActorFrameEntryAccessKind::
+                                                                                            frame_resource_read;
+                                                                                    prefix
+                                                                                        .stopped_instruction =
+                                                                                        format_sixteen
+                                                                                        ? 0x00401A9EU
+                                                                                        : 0x00401B4BU;
+                                                                                    prefix
+                                                                                        .stopped_token =
+                                                                                        prefix
+                                                                                            .edi;
+                                                                                    prefix
+                                                                                        .eip =
+                                                                                        prefix
+                                                                                            .stopped_instruction;
+                                                                                    return prefix;
+                                                                                }
                                                                                 if (
                                                                                     command ==
                                                                                         0x8000U ||
