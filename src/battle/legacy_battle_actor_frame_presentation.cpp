@@ -8554,7 +8554,9 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                 ) ==
                                                                                     0U ||
                                                                                 command ==
-                                                                                    0x8001U
+                                                                                    0x8001U ||
+                                                                                command ==
+                                                                                    0xC001U
                                                                             ) {
                                                                                 ++prefix
                                                                                       .accesses_completed;
@@ -8569,11 +8571,14 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                     : 4U;
                                                                                 if (
                                                                                     command ==
-                                                                                    0x8001U
+                                                                                        0x8001U ||
+                                                                                    command ==
+                                                                                        0xC001U
                                                                                 ) {
                                                                                     prefix
                                                                                         .ebx =
-                                                                                        0x8000U;
+                                                                                        command &
+                                                                                        0xC000U;
                                                                                     if (
                                                                                         format_sixteen
                                                                                     ) {
@@ -8596,6 +8601,22 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                         logical_result_flags(
                                                                                             1U
                                                                                         );
+                                                                                    const u16*
+                                                                                        fill_word_owner =
+                                                                                            command ==
+                                                                                            0x8001U
+                                                                                        ? request
+                                                                                              .decoder_high_fill_word_owner
+                                                                                        : request
+                                                                                              .decoder_second_fill_word_owner;
+                                                                                    const u8*
+                                                                                        fill_byte_owner =
+                                                                                            command ==
+                                                                                            0x8001U
+                                                                                        ? request
+                                                                                              .decoder_high_fill_byte_owner
+                                                                                        : request
+                                                                                              .decoder_second_fill_byte_owner;
                                                                                     prefix
                                                                                         .status =
                                                                                         LegacyBattleActorFrameEntryStatus::
@@ -8607,13 +8628,29 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                     prefix
                                                                                         .stopped_instruction =
                                                                                         format_sixteen
-                                                                                        ? 0x00401A69U
-                                                                                        : 0x00401B1EU;
+                                                                                        ? (command ==
+                                                                                                   0x8001U
+                                                                                               ? 0x00401A69U
+                                                                                               : 0x00401A8BU)
+                                                                                        : (
+                                                                                              command ==
+                                                                                                      0x8001U
+                                                                                                  ? 0x00401B1EU
+                                                                                                  : 0x00401B3CU
+                                                                                          );
                                                                                     prefix
                                                                                         .stopped_token =
                                                                                         format_sixteen
-                                                                                        ? 0x004CDE20U
-                                                                                        : 0x004CD780U;
+                                                                                        ? (command ==
+                                                                                                   0x8001U
+                                                                                               ? 0x004CDE20U
+                                                                                               : 0x004CDE78U)
+                                                                                        : (
+                                                                                              command ==
+                                                                                                      0x8001U
+                                                                                                  ? 0x004CD780U
+                                                                                                  : 0x004CD7B4U
+                                                                                          );
                                                                                     prefix
                                                                                         .eip =
                                                                                         prefix
@@ -8625,11 +8662,9 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                         !request
                                                                                              .global_readable ||
                                                                                         (format_sixteen
-                                                                                             ? request
-                                                                                                     .decoder_high_fill_word_owner ==
+                                                                                             ? fill_word_owner ==
                                                                                                  nullptr
-                                                                                             : request
-                                                                                                     .decoder_high_fill_byte_owner ==
+                                                                                             : fill_byte_owner ==
                                                                                                  nullptr)
                                                                                     ) {
                                                                                         return prefix;
@@ -8639,11 +8674,9 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                     prefix
                                                                                         .ebx =
                                                                                         format_sixteen
-                                                                                        ? *request
-                                                                                               .decoder_high_fill_word_owner
-                                                                                        : 0x8000U |
-                                                                                            *request
-                                                                                                 .decoder_high_fill_byte_owner;
+                                                                                        ? *fill_word_owner
+                                                                                        : prefix.ebx |
+                                                                                            *fill_byte_owner;
                                                                                     prefix
                                                                                         .status =
                                                                                         LegacyBattleActorFrameEntryStatus::
@@ -8655,8 +8688,16 @@ continue_legacy_battle_actor_frame_case_two_decoder_call(
                                                                                     prefix
                                                                                         .stopped_instruction =
                                                                                         format_sixteen
-                                                                                        ? 0x00401A70U
-                                                                                        : 0x00401B24U;
+                                                                                        ? (command ==
+                                                                                                   0x8001U
+                                                                                               ? 0x00401A70U
+                                                                                               : 0x00401A92U)
+                                                                                        : (
+                                                                                              command ==
+                                                                                                      0x8001U
+                                                                                                  ? 0x00401B24U
+                                                                                                  : 0x00401B42U
+                                                                                          );
                                                                                     prefix
                                                                                         .stopped_token =
                                                                                         prefix

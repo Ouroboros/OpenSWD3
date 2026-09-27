@@ -10001,6 +10001,67 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         "format-sixteen high fill reads one global word before writing one pixel"
                     );
                 }
+                auto second_fill_source = kHighSixteenFillSource;
+                second_fill_source[11U] = 0xC0U;
+                const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+                    second_fill_sources{{{0x77665544U, second_fill_source}}};
+                const u16 second_fill_word = 0xBEEFU;
+                auto second_fill_request = high_fill_request;
+                second_fill_request.decoder_sources = second_fill_sources;
+                second_fill_request.decoder_second_fill_word_owner =
+                    &second_fill_word;
+                for (const u32 stop_offset : {192U, 193U, 194U}) {
+                    mutable_request_counter = 0x00760000U;
+                    mutable_heap_size = 0xFFFFFFFEU;
+                    mutable_live_size = 0xFFFFFFFDU;
+                    mutable_peak_size = 8U;
+                    empty_heap_tail = 0U;
+                    nonempty_heap_tail = 0x00806000U;
+                    writable_heap_head = 0xABCDEF01U;
+                    old_tail_backing.fill(0xA5U);
+                    linked_raw_backing.fill(0xA5U);
+                    second_fill_request.stop_before_access =
+                        decoder_pending.accesses_completed + stop_offset +
+                        (has_old_tail ? 1U : 0U);
+                    const auto filled = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_decoder_call(
+                            decoder, second_fill_request, fill_prefix
+                        );
+                    test.expect_true(
+                        filled.eip ==
+                                (stop_offset == 192U       ? 0x00401A8BU
+                                     : stop_offset == 193U ? 0x00401A92U
+                                                           : 0x00401A9EU) &&
+                            filled.stopped_access_kind ==
+                                (stop_offset == 192U ? Access::global_read
+                                     : stop_offset == 193U
+                                     ? Access::allocator_block_write
+                                     : Access::frame_resource_read) &&
+                            filled.stopped_token ==
+                                (stop_offset == 192U       ? 0x004CDE78U
+                                     : stop_offset == 193U ? 0x00804020U
+                                                           : 0x77665550U) &&
+                            filled.accesses_completed ==
+                                second_fill_request.stop_before_access &&
+                            filled.esp == stack_top - 20U &&
+                            filled.edi == 0x77665550U &&
+                            filled.esi ==
+                                (stop_offset == 194U ? 0x00804022U
+                                                     : 0x00804020U) &&
+                            filled.ebx ==
+                                (stop_offset == 192U ? 0xC000U : 0xBEEFU) &&
+                            filled.edx == 1U &&
+                            filled.ecx == (stop_offset == 194U ? 1U : 0U) &&
+                            filled.ebp == 4U &&
+                            filled.flags.zero == (stop_offset == 194U) &&
+                            linked_raw_backing[32U] ==
+                                (stop_offset == 194U ? 0xEFU : 0x7EU) &&
+                            linked_raw_backing[33U] ==
+                                (stop_offset == 194U ? 0xBEU : 0x7EU) &&
+                            linked_raw_backing[34U] == 0x7EU,
+                        "format-sixteen second fill color uses its own global and writes one word"
+                    );
+                }
 
                 const std::array<openswd3::compat::u8, 14U> kSixteenPixelSource{
                     0xFFU,
@@ -10796,6 +10857,60 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         (stop_offset == 194U ? 0xA5U : 0x7EU) &&
                     linked_raw_backing[33U] == 0x7EU,
                 "format-eight high fill reads one global byte before writing one pixel"
+            );
+        }
+        auto second_fill_source = kHighEightFillSource;
+        second_fill_source[11U] = 0xC0U;
+        const std::array<LegacyBattleActorFrameDecoderSource, 1U>
+            second_fill_sources{{{0x77665544U, second_fill_source}}};
+        const u8 second_fill_byte = 0xB6U;
+        auto second_fill_request = high_fill_request;
+        second_fill_request.decoder_sources = second_fill_sources;
+        second_fill_request.decoder_second_fill_byte_owner = &second_fill_byte;
+        for (const u32 stop_offset : {192U, 193U, 194U}) {
+            mutable_request_counter = 0x00760000U;
+            mutable_heap_size = 0xFFFFFFFEU;
+            mutable_live_size = 0xFFFFFFFDU;
+            mutable_peak_size = 8U;
+            empty_heap_tail = 0U;
+            writable_heap_head = 0xABCDEF01U;
+            linked_raw_backing.fill(0xA5U);
+            case_two_outputs.words = {2U, 3U, 0x10U};
+            second_fill_request.stop_before_access =
+                decoder_pending.accesses_completed + stop_offset;
+            const auto filled = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_decoder_call(
+                    decoder, second_fill_request, decoder_pending
+                );
+            test.expect_true(
+                filled.eip ==
+                        (stop_offset == 192U       ? 0x00401B3CU
+                             : stop_offset == 193U ? 0x00401B42U
+                                                   : 0x00401B4BU) &&
+                    filled.stopped_access_kind ==
+                        (stop_offset == 192U ? Access::global_read
+                             : stop_offset == 193U
+                             ? Access::allocator_block_write
+                             : Access::frame_resource_read) &&
+                    filled.stopped_token ==
+                        (stop_offset == 192U       ? 0x004CD7B4U
+                             : stop_offset == 193U ? 0x00804020U
+                                                   : 0x77665550U) &&
+                    filled.accesses_completed ==
+                        second_fill_request.stop_before_access &&
+                    filled.esp == stack_top - 20U &&
+                    filled.edi == 0x77665550U &&
+                    filled.esi ==
+                        (stop_offset == 194U ? 0x00804021U : 0x00804020U) &&
+                    filled.ebx == (stop_offset == 192U ? 0xC000U : 0xC0B6U) &&
+                    filled.ecx == 1U &&
+                    filled.edx == (stop_offset == 194U ? 1U : 0U) &&
+                    filled.ebp == 4U &&
+                    filled.flags.zero == (stop_offset == 194U) &&
+                    linked_raw_backing[32U] ==
+                        (stop_offset == 194U ? 0xB6U : 0x7EU) &&
+                    linked_raw_backing[33U] == 0x7EU,
+                "format-eight second fill color uses its own global and writes one byte"
             );
         }
 

@@ -3036,6 +3036,16 @@ ESI 加1、EDX=1、ECX=1；EBP 都仍为4，比较计数相等后分别
 停在 `0x00401A9E/0x00401B4B` 的下一行命令字读取前。
 `proc_b7d0` Linux core/CTest `199/199`、`proc_8a9c` ASan
 core/CTest `199/199`、`proc_e86d` Linux app/CTest `205/205`。
+`0xC001` 在同一显式 Size=12、单次填充条件下另有独立全局：
+格式16 按 `0x00401A7E..0x00401A92` 读
+`0x004CDE78` 的低字 `0xBEEF`，只写一个 word `EF BE`；
+格式8 按 `0x00401B2F..0x00401B42` 读
+`0x004CD7B4` 的低字节 `0xB6`，`MOV BL` 保留 BH=0xC0，
+写前 EBX=`0xC0B6`，只写一个 byte。两种格式分别在自己的
+颜色读前、目标写前与下一个命令字读取前停住，写前原填充
+`0x7E` 不变；此前 `0x8001` 的全局地址和测试保持独立。
+`proc_8147` Linux core/CTest `199/199`、`proc_fd31` ASan
+core/CTest `199/199`、`proc_828c` Linux app/CTest `205/205`。
 颜色 owner 和原始目标块仍为合成输入；计数0／多次填充、
 其它高位命令、生产值与跨 owner 别名均未由此验收。
 里程碑 (3) 尚需其余解码命令和尺寸，仍为 `2/8 = 25%`。
