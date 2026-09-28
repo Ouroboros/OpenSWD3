@@ -206,3 +206,15 @@ case 17逐帧入口内部原`0x0047656D`坐标publication已由typed action17直
 Workpack 289 REVIEW 3最终定向`1/1`、Linux core `199/199`、AddressSanitizer/UBSan `199/199`、Linux app `205/205`及连续十轮core `10/10`均通过；全部正式stderr为空，changed-range格式检查通过。
 
 当前缺少原版组A/B对象、33类剩余callee共享副作用、攻击顺序与相邻强度效果记录、wave scratch与记录、AI表、DirectDraw framebuffer、allocator和SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 13. Workpack 316 caller 的 case7 FLAGS 局部审查
+
+LST `0x0045650F CALL sub_479850` 后先在 `0x00456519 CMP EAX,EBX`
+比较1；只有相等路径经过 `0x00456521 XOR EBP,EBP`，它把
+ZF/PF 置1、CF 置0，但 AF 不定义。`0x00456525 PUSH EBP`
+不改变 FLAGS；下一 `sub_478710` 参数读障应保留该 XOR
+结果，不能误继承 CMP 的 AF。生产
+`legacy_battle_opponent_action_dispatch.cpp` 传入逻辑零 FLAGS；
+定向测试由对手动作 dispatch 抵达参数读障，核返回地址、
+已定义位和 AF 未定义。本局部核对不等于
+`sub_479850`、case7 其余后缀或原版差分完成。

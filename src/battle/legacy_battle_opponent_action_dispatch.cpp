@@ -820,7 +820,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 target_complete.eax,
                 target_complete.edx,
                 0x0045652BU,
-                subtract_flags(0U, 0U)
+                // 0x00456521 XOR EBP,EBP overrides CMP; AF is undefined.
+                {.parity = true, .auxiliary_carry_defined = false, .zero = true}
             )) {
             return result;
         }

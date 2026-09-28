@@ -775,7 +775,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
                 reply.eax,
                 reply.edx,
                 0x0045550CU,
-                logical_flags(0U)
+                subtract_flags(reply.eax, 1U)  // 0x004554FB CMP EAX,EBX; EBX=1.
             )) {
             return result;
         }

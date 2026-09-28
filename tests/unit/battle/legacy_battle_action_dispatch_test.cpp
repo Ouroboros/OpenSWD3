@@ -4661,6 +4661,30 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.action = 7U;
+        port.push(0x00479850U, {.eax = 1U});
+        auto context = fixture.context();
+        context.actor_action_mode_requests[0].access.argument_readable = false;
+        const auto stopped = dispatch(state, port, context, 0U, 0U);
+        test.expect_true(
+            stopped.status ==
+                    LegacyBattleActionDispatchStatus::actor_action_mode_typed_stop &&
+                stopped.actor_action_mode.flags_known &&
+                stopped.actor_action_mode.flags.zero &&
+                !stopped.actor_action_mode.flags.carry &&
+                !stopped.actor_action_mode.flags.auxiliary_carry &&
+                stopped.actor_action_mode.flags.auxiliary_carry_defined &&
+                stopped.actor_action_mode.return_eip == 0x00478710U,
+            "action seven carries CMP EAX,EBX defined AF into the next argument-read fault"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.group_a_count = 1U;
+        state.group_b_count = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 7U;
         openswd3::battle::LegacyBattleActorFrameEntryRequest snapshot{};
         snapshot.entry_esp = 0x00120000U;
         openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};

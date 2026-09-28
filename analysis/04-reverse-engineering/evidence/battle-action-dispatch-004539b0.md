@@ -266,3 +266,16 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 实现直接组合`0x004786E0` typed leaf，不增加generic端口调用。动作目标字段或RET停止保留已完成的状态指示器与case前缀，抑制目标准备、扫描、发布和公共场景后缀。首个存活目标经待审`0x00478A70`发布时，同步写Group-A首角色唯一canonical动作目标；全局选择值保持独立状态。定向测试覆盖两处返回地址、EAX高word、ECX/EDX、比较flags、目标符号扩展、发布写入和typed-stop后缀抑制；生产`0x004786E0` raw调用为零。
 
 当前缺少原版完整Group-A/Group-B actor、状态指示器与case 22剩余callee共享副作用，以及两处caller联合寄存器、flags和SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 20. Workpack 316 caller 的 case7 FLAGS 局部审查
+
+`0x004554F6 CALL sub_479850` 正常返回后，LST 的
+`0x004554FB CMP EAX,EBX`（此路径 EBX=1）定义包括 AF 在内的
+减法 FLAGS；`0x004554FD JNZ` 不改 FLAGS。成功路径传入下一
+`sub_478710` 的参数首读障时必须保持 ZF=1、CF=0、AF 已定义且为0，
+不能把 CMP 替换成 `TEST`/逻辑零标志（AF 未定义）。
+`legacy_battle_action_dispatch_cases_low.cpp` 在该物理 caller
+使用 `subtract_flags(reply.eax,1)`；定向用例由 dispatch
+生产入口抵达动作模式参数读障，并核返回地址和 FLAGS。
+此结论只覆盖该 caller 的局部后缀，不替代
+`sub_479850` 的完整 REVIEW 或原版差分。

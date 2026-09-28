@@ -1218,6 +1218,26 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.action = 7U;
+        auto context = fixture.context();
+        context.actor_action_mode_requests[0].access.argument_readable = false;
+        const auto stopped = dispatch(state, port, context, 0U, 0U);
+        test.expect_true(
+            stopped.status ==
+                    LegacyBattleActionDispatchStatus::actor_action_mode_typed_stop &&
+                stopped.actor_action_mode.flags_known &&
+                stopped.actor_action_mode.flags.zero &&
+                !stopped.actor_action_mode.flags.carry &&
+                !stopped.actor_action_mode.flags.auxiliary_carry_defined &&
+                stopped.actor_action_mode.return_eip == 0x00478710U,
+            "opponent-seven XOR EBP overrides CMP flags before the mode argument-read fault"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 7U;
         openswd3::battle::LegacyBattleActorFrameEntryRequest snapshot{};
         snapshot.entry_esp = 0x00130000U;
         openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};
