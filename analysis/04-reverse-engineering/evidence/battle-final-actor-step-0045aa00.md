@@ -90,6 +90,28 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 
 两个caller源码均不再包含`0x0045AA00` token。
 
+### 组 B 帧呈现返回后的结算参数入栈故障（工作包 316 局部）
+
+LST `0x0045ACC4..0x0045ACE3`：仅在
+`sub_479850` 完整返回 EAX=1 时，LEA EDX 为
+父 ESP+0x18，LEA EAX 为父 ESP+0x14，
+`0x0045ACD5 XOR EBX,EBX` 令 CF/OF=0、
+ZF/PF=1、AF 未定义；随后按 EDX、EAX
+顺序 PUSH 两个参数地址，再清参数、进入
+`sub_475870`。caller 的两个受控栈写故障
+现在报告当时的 EAX/EDX 和已定义 FLAGS，
+并核对应的 ESP、栈 token、原参数未被提前清零。
+这仅验证父级到子函数调用前的可停点现场，
+不代表 316 的帧呈现或 `sub_475870` 已整体审完。
+隔离 HEAD `367e0322` 加本两文件行为补丁，
+与主工作树对应文件 SHA-256 相同；Linux core
+`199/199`（首次因新工作树缺 TMPDIR 导致无关
+single-instance 测试失败，创建目录重跑
+`proc_36ad` 通过）、ASan core `199/199`
+（`proc_c3d7`）、Linux app `205/205`
+（`proc_9adf`）通过。结论限上述隔离切片，
+不是工作包 316 整体门禁。
+
 ## 9. 测试与动态差分
 
 定向测试覆盖：初始有效性失败、组A完成阈值和32字节逆向清零、三刷新、双组重置、攻击顺序移除与旧token清零、相邻效果记录stop前缀、角色顺序左移、removed unsigned终止、工作区typed-stop、配置后记录typed-stop、组B全1早退、共享资源坐标读取、坐标回绕、坐标owner typed-stop、描述符bit5、动作查询后的固定键计数链直连、缺键唯一分配、闭区间低byte递增、signed完成比较、共享message 1/0x63/0x67、组B重置、零描述符停点，以及组A/组B caller直连和组B父级typed-stop传播。

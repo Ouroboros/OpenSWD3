@@ -451,6 +451,11 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 stop.eip == expected_eips[step] &&
                 stop.esp == expected_esps[step] &&
                 stop.token == expected_tokens[step] &&
+                stop.eax == parent_esp + 0x14U &&
+                stop.edx == parent_esp + 0x18U &&
+                stop.flags_known && stop.flags.zero && stop.flags.parity &&
+                !stop.flags.carry &&
+                !stop.flags.auxiliary_carry_defined &&
                 argument_0 == (step == 3U ? 0U : 0xA0A0A0A0U) &&
                 argument_4 == 0xB4B4B4B4U && state.coordinate_x == 0U &&
                 result.port_calls == 0U;

@@ -113,8 +113,20 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         result.status = LegacyBattleActionDispatchStatus::
             actor_frame_parent_stack_typed_stop;
         if (binding->final_group_b_stack_stop != nullptr) {
+            // 0x0045ACCD/D1 form the two parent argument pointers;
+            // 0x0045ACD5 XOR EBX,EBX defines ZF/PF but not AF.
             *binding->final_group_b_stack_stop = {
-                .eip = eip, .esp = esp, .token = token
+                .eip = eip,
+                .esp = esp,
+                .token = token,
+                .eax = parent_esp + 0x14U,
+                .edx = parent_esp + 0x18U,
+                .flags = {
+                    .parity = true,
+                    .auxiliary_carry_defined = false,
+                    .zero = true,
+                },
+                .flags_known = true,
             };
         }
         return false;
