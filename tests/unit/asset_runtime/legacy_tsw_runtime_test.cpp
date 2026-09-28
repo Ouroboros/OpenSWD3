@@ -211,6 +211,17 @@ void test_lazy_open_route_and_conversion(openswd3::test::Context& test) {
     );
     test.expect_false(first.cache_hit, "first query is a miss");
     test.expect_true(
+        first.frame_owner != nullptr &&
+            first.frame_owner->record_token != 0U &&
+            first.frame_owner->primary_stream_token != 0U &&
+            first.frame_owner->record_token !=
+                first.frame_owner->primary_stream_token &&
+            first.lookup_return_ecx ==
+                first.frame_owner->primary_stream.size() &&
+            first.lookup_return_edx == runtime.cached_primary_bytes(),
+        "loaded cache node has separate 32-bit record/source identities and miss registers"
+    );
+    test.expect_true(
         first.frame.auxiliary_stream.empty(),
         "physical TSW auxiliary pointer stays null"
     );
@@ -250,8 +261,28 @@ void test_lazy_open_route_and_conversion(openswd3::test::Context& test) {
     );
     test.expect_true(repeated.cache_hit, "repeat query hits cache");
     test.expect_true(
+        repeated.frame_owner->record_token ==
+                first.frame_owner->record_token &&
+            repeated.frame_owner->primary_stream_token ==
+                first.frame_owner->primary_stream_token &&
+            repeated.lookup_return_ecx == 1U &&
+            repeated.lookup_return_edx == 0x004CF86CU,
+        "head hit preserves cache identity and packed key/bucket registers"
+    );
+    test.expect_true(
         repeated.frame.primary_stream.data() == first_pointer,
         "cache returns a borrowed stable view"
+    );
+    LegacyTswRuntime independent{tree.root()};
+    independent.set_cache_limit(0x00400000U);
+    const auto other_runtime = independent.query_cached(1U, 0U);
+    test.expect_true(
+        other_runtime.status == LegacyTswRuntimeStatus::ready &&
+            other_runtime.frame_owner->record_token !=
+                first.frame_owner->record_token &&
+            other_runtime.frame_owner->primary_stream_token !=
+                first.frame_owner->primary_stream_token,
+        "two simultaneously live TSW archives never reuse guest node or stream tokens"
     );
 
     const LegacyTswQueryResult truncated =
@@ -339,6 +370,16 @@ void test_special_resource_and_failures(openswd3::test::Context& test) {
     test.expect_equal(
         loader.calls, std::size_t{1U}, "special cache hit skips loader"
     );
+    const LegacyTswQueryResult newer = runtime.query_cached(0xFFFFU, 23U);
+    const LegacyTswQueryResult moved = runtime.query_cached(0xFFFFU, 13U);
+    test.expect_true(
+        newer.status == LegacyTswRuntimeStatus::ready && moved.cache_hit &&
+            moved.frame_owner == first.frame_owner &&
+            moved.lookup_return_ecx ==
+                newer.frame_owner->record_token - 8U &&
+            moved.lookup_return_edx == 0x004CF8ACU,
+        "non-head hit reports the old bucket head in ECX and moves the node"
+    );
 
     loader.fail = true;
     test.expect_equal(
@@ -425,6 +466,10 @@ void test_cached_frame_lease_outlives_eviction(
         replacement.status == LegacyTswRuntimeStatus::ready &&
             !replacement.cache_hit && loader.calls == 3U &&
             replacement.frame_owner != original.frame_owner &&
+            replacement.frame_owner->record_token !=
+                original.frame_owner->record_token &&
+            replacement.frame_owner->primary_stream_token !=
+                original.frame_owner->primary_stream_token &&
             replacement.frame.primary_stream.data() != pinned_bytes &&
             original.frame.primary_stream.data() == pinned_bytes &&
             original.frame.primary_stream[0U] == 0U &&

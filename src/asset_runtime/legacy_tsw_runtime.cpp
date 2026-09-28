@@ -3,7 +3,9 @@
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 
 #include <array>
+#include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <new>
 #include <string_view>
@@ -180,13 +182,22 @@ LegacyTswQueryResult LegacyTswRuntime::find_low16(
 ) noexcept {
     LegacyTswQueryResult result;
     result.status = LegacyTswRuntimeStatus::cache_miss;
-    CacheBucket& bucket = buckets_[bucket_index(resource_id, variant_index)];
+    const std::size_t bucket_number = bucket_index(resource_id, variant_index);
+    CacheBucket& bucket = buckets_[bucket_number];
     for (auto iterator = bucket.begin(); iterator != bucket.end(); ++iterator) {
         if (iterator->resource_id != resource_id ||
             iterator->variant_index != variant_index) {
             continue;
         }
-        if (iterator != bucket.begin()) {
+        // sub_431DF0 leaves ECX as the key for a head hit, but loads
+        // the former head node pointer into ECX when moving a later hit.
+        const bool was_head = iterator == bucket.begin();
+        result.lookup_return_ecx = was_head
+            ? (static_cast<compat::u32>(variant_index) << 16U) | resource_id
+            : bucket.front().frame->record_token - 8U;
+        result.lookup_return_edx = 0x004CF84CU +
+            static_cast<compat::u32>(bucket_number) * 0x20U;
+        if (!was_head) {
             bucket.splice(bucket.begin(), bucket, iterator);
         }
         result.status = LegacyTswRuntimeStatus::ready;
@@ -205,6 +216,28 @@ LegacyTswQueryResult LegacyTswRuntime::find_cached(
         static_cast<compat::u16>(resource_id_slot),
         static_cast<compat::u16>(variant_index_slot)
     );
+}
+
+std::optional<compat::u32> LegacyTswRuntime::reserve_guest_bytes(
+    const std::size_t count
+) noexcept {
+    // A process-wide guest range avoids two archives assigning the same
+    // identity; live leases remain distinct after cache eviction or close().
+    static std::atomic<compat::u32> next_guest_token{0x70000000U};
+    constexpr std::uint64_t kGuestLimit = 0xF0000000ULL;
+    const std::uint64_t bytes =
+        static_cast<std::uint64_t>(count == 0U ? 1U : count);
+    const std::uint64_t padded = (bytes + 15U) & ~std::uint64_t{15U};
+    compat::u32 token = next_guest_token.load(std::memory_order_relaxed);
+    while (padded <= kGuestLimit - token) {
+        const auto end = static_cast<compat::u32>(token + padded);
+        if (next_guest_token.compare_exchange_weak(
+                token, end, std::memory_order_relaxed
+            )) {
+            return token;
+        }
+    }
+    return std::nullopt;
 }
 
 void LegacyTswRuntime::evict_before_lookup() noexcept {
@@ -256,6 +289,14 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
 
     CacheBucket& bucket = buckets_[bucket_index(resource_id, variant_index)];
     const std::size_t primary_size = loaded.frame.primary_stream.size();
+    const auto node_token = reserve_guest_bytes(0x20U);
+    const auto source_token = reserve_guest_bytes(primary_size);
+    if (!node_token || !source_token) {
+        result.status = LegacyTswRuntimeStatus::allocation_failed;
+        return result;
+    }
+    loaded.frame.record_token = *node_token + 8U;
+    loaded.frame.primary_stream_token = *source_token;
     try {
         bucket.push_front(
             CacheNode{
@@ -274,6 +315,9 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
     result.status = LegacyTswRuntimeStatus::ready;
     result.frame_owner = bucket.front().frame;
     result.frame = view_of(*result.frame_owner);
+    // sub_431C50 returns ECX=record+0x10 and EDX=new cached byte total.
+    result.lookup_return_ecx = static_cast<compat::u32>(primary_size);
+    result.lookup_return_edx = cached_primary_bytes_;
     return result;
 }
 

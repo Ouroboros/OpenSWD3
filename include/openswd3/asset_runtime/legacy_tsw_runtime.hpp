@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <list>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -17,6 +18,10 @@ namespace openswd3::asset_runtime {
 inline constexpr std::size_t kLegacyTswCacheBucketCount = 10U;
 
 struct LegacyTswRuntimeFrame {
+    // 32-bit guest allocation identities, not truncated host pointers.
+    // The record is the +8 interior of a 0x20-byte cache node.
+    compat::u32 record_token{};
+    compat::u32 primary_stream_token{};
     std::vector<compat::u8> primary_stream;
     std::vector<compat::u8> auxiliary_stream;
     std::vector<compat::u8> palette;
@@ -59,6 +64,11 @@ struct LegacyTswQueryResult {
     LegacyTswFrameView frame;
     bool cache_hit{};
     std::shared_ptr<const LegacyTswRuntimeFrame> frame_owner{};
+    // sub_431DF0 hit: ECX is the packed key or old bucket head and EDX
+    // is the bucket header; sub_431C50 loaded miss: ECX is stream length
+    // and EDX is the new cache byte total. Not a full failure-path ABI.
+    compat::u32 lookup_return_ecx{};
+    compat::u32 lookup_return_edx{};
 };
 
 struct LegacyTswDirectResult {
@@ -123,6 +133,8 @@ private:
     [[nodiscard]] LegacyTswQueryResult
     find_low16(compat::u16 resource_id, compat::u16 variant_index) noexcept;
     void evict_before_lookup() noexcept;
+    [[nodiscard]] std::optional<compat::u32>
+    reserve_guest_bytes(std::size_t count) noexcept;
 
     std::filesystem::path data_root_;
     rendering::LegacyPixelConversionState pixel_conversion_;
