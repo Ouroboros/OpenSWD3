@@ -1747,6 +1747,24 @@ core／ASan 各200/200、app 206/206；改为真正二次解引用后
 阶段快照 `proc_c5db` core／ASan 各200/200、app 206/206。
 其余调用、CRT 深层与原版异常仍 partial。
 
+合成掩码4 恢复外层后，缺 `decoder_heap_alloc_owner` 的
+case2 路径继续按原版参数 PUSH 顺序停在 `0x00488620`
+释放钩子 IAT 读前：ESP 相对父 CALL 前减72、EAX 为
+资源 token、EDX=1、末次 PUSH=3、release port 零调用；
+相比非调试分支多12次已完成的内层物理访问，
+`proc_2d3c` core 200/200，阶段快照 `proc_b6e6`
+core／ASan 各200/200、app 206/206。生产绑定静态审查：
+`include/openswd3/battle/legacy_battle_actor_frame_presentation.hpp`
+两项 owner 默认空；
+`src/battle/legacy_battle_actor_frame_presentation.cpp`
+只把 `caller_snapshot` 复制到 `child_request`，并仅为
+`draw_source_token_owner`／`draw_height_third_owner` 补绑定。
+四个父调用通过 `LegacyBattleActorFrameCallerBinding` 可选快照
+进入该路径；当前 `src/` 内没有对这两项堆 owner 的赋值，
+测试中的指针为合成输入。故本阶段只证明源码可消费注入值，
+**未证明真实生产调用已初始化 owner**；不得把缺绑定的
+IAT 读前停点当成原版正常释放。
+
 case100 `0x0047B723` 的 reset CALL 另用已持有的独立 actor
 配置 owner 将 `+0x2AA0` 设为1，沿完整 `sub_478850` 子函数
 走过重复写入，再在 `0x00478A4D` 的随机子 CALL 停下；

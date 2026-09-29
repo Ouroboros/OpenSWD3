@@ -9462,6 +9462,34 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     std::to_string(ordinal)
             );
         }
+        auto debug_missing_hook_request = debug_release;
+        debug_missing_hook_request.decoder_heap_alloc_owner = nullptr;
+        debug_missing_hook_request.stop_before_access =
+            std::numeric_limits<std::size_t>::max();
+        ReleasePort debug_missing_hook_port{};
+        const auto stopped_debug_missing_hook = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                debug_missing_hook_port,
+                debug_missing_hook_request,
+                nonzero_emitter_release
+            );
+        test.expect_true(
+            stopped_debug_missing_hook.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                stopped_debug_missing_hook.eip == 0x00488620U &&
+                stopped_debug_missing_hook.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::global_read &&
+                stopped_debug_missing_hook.stopped_token == 0x004A8360U &&
+                stopped_debug_missing_hook.esp ==
+                    nonzero_emitter_release.esp - 72U &&
+                stopped_debug_missing_hook.eax == 0x00801000U &&
+                stopped_debug_missing_hook.edx == 1U &&
+                stopped_debug_missing_hook.last_pushed_value == 3U &&
+                stopped_debug_missing_hook.accesses_completed ==
+                    nonzero_emitter_release.accesses_completed + 35U &&
+                debug_missing_hook_port.calls == 0U,
+            "case2 CRT debug flags4 returns through the shared free-hook IAT prefix without a synthetic hook owner"
+        );
         auto second_debug_read_request = debug_release;
         second_debug_read_request.stop_before_access =
             nonzero_emitter_release.accesses_completed + 19U;
