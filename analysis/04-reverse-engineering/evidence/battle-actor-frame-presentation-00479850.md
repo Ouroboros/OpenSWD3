@@ -1700,6 +1700,17 @@ release port 调用数为零。定向 `proc_064b` core 200/200；
 阶段快照 `proc_14ec` core／ASan 各200/200、app 206/206。
 生产 caller 的 owner 初始化与深层 hook 仍未证实。
 
+已持有的 `0x004A8360` 槽若明确含零，与缺 owner 不同：
+`0x00488620` 先读出零目标、再写入 CALL 返回地址
+`0x00488626`，ESP 相对父 CALL 前减76，此后只能在
+guest EIP=0 的取指入口停止；原版具体异常/SEH 路径
+尚未捕获，不能虚构 release port 返回。case2、case100
+与链节点各有零目标独立测试，均不调用 release port，
+同时检查已提交的返回槽、ESP 和访问数；
+`proc_da29`、`proc_f062` 分别 core 200/200；阶段快照
+`proc_8c12` core／ASan 各200/200、app 206/206，
+尚非316最终门禁。
+
 case100 `0x0047B723` 的 reset CALL 另用已持有的独立 actor
 配置 owner 将 `+0x2AA0` 设为1，沿完整 `sub_478850` 子函数
 走过重复写入，再在 `0x00478A4D` 的随机子 CALL 停下；

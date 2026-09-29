@@ -4243,6 +4243,31 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             linked_missing_hook_port.calls == 0U,
         "linked-node release retains prior node and CRT argument writes before unowned hook read"
     );
+    constexpr u32 kLinkedNullHookTarget = 0U;
+    auto linked_null_hook_request = forward;
+    linked_null_hook_request.decoder_heap_alloc_owner = &kLinkedNullHookTarget;
+    ReleasePort linked_null_hook_port{};
+    const auto linked_null_hook =
+        openswd3::battle::continue_legacy_battle_actor_frame_release_node(
+            linked_nodes,
+            linked_null_hook_port,
+            linked_null_hook_request,
+            stopped_node
+        );
+    test.expect_true(
+        linked_null_hook.status ==
+                LegacyBattleActorFrameEntryStatus::
+                    linked_node_release_child_typed_stop &&
+            linked_null_hook.eip == 0U &&
+            linked_null_hook.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::callee_call &&
+            linked_null_hook.esp == stopped_node.esp - 76U &&
+            linked_null_hook.last_pushed_value == 0x00488626U &&
+            linked_null_hook.accesses_completed ==
+                stopped_node.accesses_completed + 26U &&
+            linked_null_hook_port.calls == 0U,
+        "linked-node null free hook stops only after its return slot is committed"
+    );
     test.expect_true(
         linked_child_fault.status ==
                 LegacyBattleActorFrameEntryStatus::
@@ -9515,6 +9540,29 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     nonzero_emitter_release.accesses_completed + 25U &&
                 different_hook_port.calls == 1U,
             "case2 CRT indirect free hook target is read from its owner, not a fixed synthetic address"
+        );
+        constexpr u32 kNullHookTarget = 0U;
+        auto null_hook_request = group_b_input;
+        null_hook_request.decoder_heap_alloc_owner = &kNullHookTarget;
+        ReleasePort null_hook_port{};
+        const auto stopped_null_hook = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                null_hook_port, null_hook_request, nonzero_emitter_release
+            );
+        test.expect_true(
+            stopped_null_hook.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_two_release_child_typed_stop &&
+                stopped_null_hook.eip == 0U &&
+                stopped_null_hook.stopped_instruction == 0U &&
+                stopped_null_hook.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::callee_call &&
+                stopped_null_hook.esp == nonzero_emitter_release.esp - 76U &&
+                stopped_null_hook.last_pushed_value == 0x00488626U &&
+                stopped_null_hook.accesses_completed ==
+                    nonzero_emitter_release.accesses_completed + 25U &&
+                null_hook_port.calls == 0U,
+            "case2 CRT null hook target retains the committed return slot but cannot invoke the release port"
         );
         auto missing_hook_owner = group_b_input;
         missing_hook_owner.decoder_heap_alloc_owner = nullptr;
@@ -43325,6 +43373,32 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             ) &&
             case_hundred_missing_hook_port.calls == 0U,
         "case100 release keeps argument pushes and no release port call without hook owner"
+    );
+    constexpr u32 kCaseHundredNullHookTarget = 0U;
+    auto case_hundred_null_hook_request = case_hundred_particle_request;
+    case_hundred_null_hook_request.decoder_heap_alloc_owner =
+        &kCaseHundredNullHookTarget;
+    ReleasePort case_hundred_null_hook_port{};
+    const auto case_hundred_null_hook = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_hundred_release_call(
+            case_hundred_null_hook_port,
+            case_hundred_null_hook_request,
+            case_hundred_nonempty_release
+        );
+    test.expect_true(
+        case_hundred_null_hook.status ==
+                LegacyBattleActorFrameEntryStatus::
+                    case_hundred_release_child_typed_stop &&
+            case_hundred_null_hook.eip == 0U &&
+            case_hundred_null_hook.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::callee_call &&
+            case_hundred_null_hook.esp ==
+                case_hundred_nonempty_release.esp - 76U &&
+            case_hundred_null_hook.last_pushed_value == 0x00488626U &&
+            case_hundred_null_hook.accesses_completed ==
+                case_hundred_nonempty_release.accesses_completed + 25U &&
+            case_hundred_null_hook_port.calls == 0U,
+        "case100 null free hook retains the completed CALL stack write and skips release port"
     );
     case_hundred_release_port.reply.returned = true;
     const auto case_hundred_release_return = openswd3::battle::

@@ -500,6 +500,15 @@ stop_sound_before_deep_read(
     callee.esp -= 4U;
     callee.last_pushed_value = 0x00488626U;
     callee.eip = hook_target;
+    if (hook_target == 0U) {
+        // The indirect CALL committed its return slot before fetching code at 0.
+        callee.status = opaque_status;
+        callee.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        callee.stopped_instruction = 0U;
+        callee.stopped_token = 0U;
+        return false;
+    }
     return true;
 }
 
