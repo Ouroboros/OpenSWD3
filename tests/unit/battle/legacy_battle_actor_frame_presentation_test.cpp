@@ -147,6 +147,31 @@ using openswd3::compat::u32;
         !stopped.release_child.returned;
 }
 
+// The host-surface callee saves three registers, reads both metric arguments,
+// and pushes both nested arguments before writing its first host field.
+[[nodiscard]] bool matches_host_prewrite_stop(
+    const openswd3::battle::LegacyBattleActorFrameEntryResult& stopped,
+    const openswd3::battle::LegacyBattleActorFrameEntryResult& before_call
+) noexcept {
+    return stopped.eip == 0x00433F3FU &&
+        stopped.stopped_instruction == 0x00433F3FU &&
+        stopped.stopped_token == before_call.ecx + 0x0B50U &&
+        stopped.stopped_access_kind ==
+        LegacyBattleActorFrameEntryAccessKind::global_write &&
+        stopped.esp == before_call.esp - 24U &&
+        stopped.accesses_completed == before_call.accesses_completed + 8U &&
+        stopped.last_pushed_value == before_call.metric_width_on_stack &&
+        stopped.eax == before_call.eax &&
+        stopped.ebx == before_call.metric_height_on_stack &&
+        stopped.ecx == before_call.ecx && stopped.edx == before_call.edx &&
+        stopped.ebp == before_call.ebp && stopped.esi == before_call.ecx &&
+        stopped.edi == before_call.metric_width_on_stack &&
+        stopped.flags_known == before_call.flags_known &&
+        same_frame_flags(stopped.flags, before_call.flags) &&
+        stopped.direction_flag == before_call.direction_flag &&
+        !stopped.rectangle_child.returned;
+}
+
 // All three directed RET fixtures enter at ESP=0x0012FF00: the epilogue
 // ADD ESP,0x14 starts at 0x0012FEEC and sets PF/AF only.
 constexpr openswd3::battle::LegacyBattleActorCoordinateFlags
@@ -20475,6 +20500,92 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 rectangle.calls == 0U,
             "case2 rectangle CALL return-slot PUSH stops before touching host surface"
         );
+        constexpr std::array<u32, 8U> kHostPrefixIps{
+            0x00433F30U,
+            0x00433F31U,
+            0x00433F35U,
+            0x00433F36U,
+            0x00433F37U,
+            0x00433F3DU,
+            0x00433F3EU,
+            0x00433F3FU,
+        };
+        constexpr std::array<u32, 8U> kHostEspOffsets{
+            4U,
+            8U,
+            8U,
+            12U,
+            16U,
+            16U,
+            20U,
+            24U,
+        };
+        bool host_prefix_exact = true;
+        for (std::size_t ordinal = 0U; ordinal < kHostPrefixIps.size();
+             ++ordinal) {
+            auto stop_request = metrics_request;
+            stop_request.stop_before_access =
+                metrics_ready.accesses_completed + 1U + ordinal;
+            RectanglePort untouched{};
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_rectangle_call(
+                    untouched, stop_request, metrics_ready
+                );
+            const bool host_write = ordinal == 7U;
+            const bool stack_read = ordinal == 1U || ordinal == 4U;
+            const u32 expected_token = host_write ? metrics_ready.ecx + 0x0B50U
+                : ordinal == 1U                   ? metrics_ready.esp + 4U
+                : ordinal == 4U                   ? metrics_ready.esp
+                                                  : metrics_ready.esp -
+                    std::array<u32, 8U>{
+                        8U, 0U, 12U, 16U, 0U, 20U, 24U, 0U
+                    }[ordinal];
+            const bool exact = stopped.status ==
+                    (host_write       ? LegacyBattleActorFrameEntryStatus::
+                                            case_two_rectangle_child_typed_stop
+                         : stack_read ? LegacyBattleActorFrameEntryStatus::
+                                            stack_read_typed_stop
+                                      : LegacyBattleActorFrameEntryStatus::
+                                            stack_write_typed_stop) &&
+                stopped.eip == kHostPrefixIps[ordinal] &&
+                stopped.stopped_instruction == kHostPrefixIps[ordinal] &&
+                stopped.stopped_token == expected_token &&
+                stopped.stopped_access_kind ==
+                    (host_write
+                         ? LegacyBattleActorFrameEntryAccessKind::global_write
+                         : stack_read
+                         ? LegacyBattleActorFrameEntryAccessKind::stack_read
+                         : LegacyBattleActorFrameEntryAccessKind::
+                               stack_write) &&
+                stopped.esp == metrics_ready.esp - kHostEspOffsets[ordinal] &&
+                stopped.accesses_completed == stop_request.stop_before_access &&
+                stopped.rectangle_calls == 1U &&
+                stopped.direction_flag == metrics_ready.direction_flag &&
+                same_frame_flags(stopped.flags, metrics_ready.flags) &&
+                untouched.calls == 0U;
+            test.expect_true(
+                exact,
+                std::string("case2 host setup access ") +
+                    std::to_string(ordinal)
+            );
+            host_prefix_exact = host_prefix_exact && exact;
+        }
+        auto unwritable_host = metrics_request;
+        unwritable_host.global_writable = false;
+        RectanglePort untouched_host{};
+        const auto stopped_host_write = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_rectangle_call(
+                untouched_host, unwritable_host, metrics_ready
+            );
+        test.expect_true(
+            host_prefix_exact &&
+                stopped_host_write.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        global_write_typed_stop &&
+                matches_host_prewrite_stop(stopped_host_write, metrics_ready) &&
+                untouched_host.calls == 0U,
+            "case2 explicitly unwritable host write stops after seven physical accesses"
+        );
         rectangle.reply.returned = false;
         const auto stopped_rectangle_child = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_rectangle_call(
@@ -20484,13 +20595,14 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_rectangle_child.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_two_rectangle_child_typed_stop &&
-                stopped_rectangle_child.eip == 0x00433F30U &&
-                stopped_rectangle_child.esp == metrics_ready.esp - 4U &&
+                matches_host_prewrite_stop(
+                    stopped_rectangle_child, metrics_ready
+                ) &&
                 stopped_rectangle_child.rectangle_calls == 1U &&
                 rectangle.width == 1280U && rectangle.height == 720U &&
                 rectangle.host_token == 0x0053B0B8U &&
                 rectangle.entry_eax == 1280U,
-            "case2 rectangle callee entry receives distinct retained width/height slots and leaves its return slot stacked"
+            "case2 rectangle callee reads both metric slots and saves its nested arguments before the first host write"
         );
         rectangle.reply.returned = true;
         const auto rectangle_returned = openswd3::battle::
@@ -22924,12 +23036,10 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         stopped_case_eight_rectangle_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_eight_rectangle_child_typed_stop &&
-            stopped_case_eight_rectangle_child.eip == 0x00433F30U &&
-            stopped_case_eight_rectangle_child.last_pushed_value ==
-                0x0047A736U &&
-            stopped_case_eight_rectangle_child.esp ==
-                case_eight_metrics_ready.esp - 4U,
-        "case8 rectangle callee entry stop does not invent RET8 or consume metric arguments"
+            matches_host_prewrite_stop(
+                stopped_case_eight_rectangle_child, case_eight_metrics_ready
+            ),
+        "case8 rectangle stops before its first host write without inventing RET8"
     );
     case_eight_rectangle.reply.returned = true;
     const auto case_eight_rectangle_ready = openswd3::battle::
@@ -42113,8 +42223,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         case_hundred_surface_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_rectangle_child_typed_stop &&
-            case_hundred_surface_stop.esp ==
-                case_hundred_metrics_ready.esp - 4U &&
+            matches_host_prewrite_stop(
+                case_hundred_surface_stop, case_hundred_metrics_ready
+            ) &&
             case_hundred_surface_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_post_rectangle_sample_ready &&

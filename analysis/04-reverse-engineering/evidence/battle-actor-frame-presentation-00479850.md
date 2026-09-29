@@ -2212,6 +2212,8 @@ WIN32 内部访问及精确寄存器/FLAGS 出站不在 LST，现有证据只校
 19处可障栈/宿主/CALL站点见 `build/workpack316/host-callee-audit.tsv`，状态仍 partial：
 第二字段写障时第一宽度已发布、高度仍旧，两个 nested 调用都未发生；不可因已关闭的 host helper 正常路径通过就省略此中途可见的分项前缀。
 
+case2、case8、case100 三处 `CALL sub_433F30` 现先执行 CALL 返回槽，再按 LST 分别在 `0x00433F30/31/35/36/37/3D/3E` 保存 EBX、从原父栈读取 height、保存 ESI/EDI、读取 width、压内层 height/width，恰七项子级访问；在首次 `0x00433F3F mov [ESI+0B50h],EDI` 宿主字段写前停止时，相对父 CALL 前 ESP 减24，EBX=height、EDI=width、ESI=宿主 token，EAX/ECX/EDX/EBP、FLAGS/DF 保持原入站，末次 PUSH=width。请求显式标为不可写或序号恰在首写前均不调用宿主 port；受控 port 未返回时保留五项栈写和两次实参栈读，正常回复才按原 `retn 8` 清父双参。case2 逐序号 0–7、三处回包停点及 case2 显式不可写于 `proc_cca8` 定向 `battle.actor_frame_316` 1/1 通过；阶段源码快照 `proc_d513` 完整门禁通过 Linux core 200/200、ASan core 200/200、Linux app 206/206；测试说明修正后最终阶段快照 `proc_f35c` 重跑同三组门禁均通过（200/200、200/200、206/206）。**上述受控停点未执行**首宿主写、第二宿主写及两个深层子调用；正常受控回包也不证明原版宽高发布或 Win32/像素路径等价，仍为 partial。该阶段门禁不代替 Workpack 316 最终门禁。
+
 四处 `sub_4019A0`（`0x00479B46/0x0047A63E/0x0047B56B/0x0047B902`）的正常返回不等于必须分配成功：
 callee `0x004019A0..0x00401B66` 是四参 cdecl `retn`，入口 `mov cx,[pixel_header]` 与 `dword_4CDE74` 比较，
 不符时 `0x004019BD` **EAX=0且三个输出指针尚未写**；通过后按物理顺序写三个输出局部 `[arg_4]`、`[arg_8]`、`[arg_C]` 的 zero-extended width/height 与 masked 格式 dword，

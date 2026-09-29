@@ -1078,6 +1078,77 @@ continue_legacy_battle_actor_frame_case_two_rectangle_call(
         : case_eight_call                        ? 0x0047A736U
                                                  : 0x00479C45U;
     ++prefix.rectangle_calls;
+    const auto stop_status = case_hundred_call
+        ? LegacyBattleActorFrameEntryStatus::
+              case_hundred_rectangle_child_typed_stop
+        : case_eight_call ? LegacyBattleActorFrameEntryStatus::
+                                case_eight_rectangle_child_typed_stop
+                          : LegacyBattleActorFrameEntryStatus::
+                                case_two_rectangle_child_typed_stop;
+    auto callee = prefix;
+    callee.rectangle_child = {};
+    const auto stop_stack =
+        [&](const u32 ip, const u32 token, const bool write) {
+            callee.status = write
+                ? LegacyBattleActorFrameEntryStatus::stack_write_typed_stop
+                : LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+            callee.stopped_access_kind = write
+                ? LegacyBattleActorFrameEntryAccessKind::stack_write
+                : LegacyBattleActorFrameEntryAccessKind::stack_read;
+            callee.stopped_instruction = ip;
+            callee.stopped_token = token;
+            callee.eip = ip;
+            return false;
+        };
+    const auto save = [&](const u32 ip, const u32 value) {
+        const u32 saved_slot = callee.esp - 4U;
+        if (callee.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            return stop_stack(ip, saved_slot, true);
+        }
+        ++callee.accesses_completed;
+        callee.esp = saved_slot;
+        callee.last_pushed_value = value;
+        return true;
+    };
+    const auto read_argument = [&](const u32 ip, const u32 token) {
+        if (callee.accesses_completed == request.stop_before_access ||
+            !request.stack_readable) {
+            return stop_stack(ip, token, false);
+        }
+        ++callee.accesses_completed;
+        return true;
+    };
+    if (!save(0x00433F30U, callee.ebx) ||
+        !read_argument(0x00433F31U, callee.esp + 0x0CU)) {
+        return callee;
+    }
+    callee.ebx = prefix.metric_height_on_stack;
+    if (!save(0x00433F35U, callee.esi) || !save(0x00433F36U, callee.edi) ||
+        !read_argument(0x00433F37U, callee.esp + 0x10U)) {
+        return callee;
+    }
+    callee.edi = prefix.metric_width_on_stack;
+    callee.esi = callee.ecx;
+    if (!save(0x00433F3DU, callee.ebx) || !save(0x00433F3EU, callee.edi)) {
+        return callee;
+    }
+    const auto stop_first_host_write = [&]() {
+        callee.status = request.global_writable
+            ? stop_status
+            : LegacyBattleActorFrameEntryStatus::global_write_typed_stop;
+        callee.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_write;
+        callee.stopped_instruction = 0x00433F3FU;
+        callee.stopped_token = callee.esi + 0x0B50U;
+        callee.eip = 0x00433F3FU;
+        return callee;
+    };
+    if (callee.accesses_completed == request.stop_before_access ||
+        !request.global_writable) {
+        return stop_first_host_write();
+    }
+    prefix.accesses_completed = callee.accesses_completed;
     prefix.rectangle_child = port.set_host_surface(
         prefix.metric_width_on_stack,
         prefix.metric_height_on_stack,
@@ -1088,18 +1159,8 @@ continue_legacy_battle_actor_frame_case_two_rectangle_call(
         prefix.flags
     );
     if (!prefix.rectangle_child.returned) {
-        prefix.status = case_hundred_call
-            ? LegacyBattleActorFrameEntryStatus::
-                  case_hundred_rectangle_child_typed_stop
-            : case_eight_call ? LegacyBattleActorFrameEntryStatus::
-                                    case_eight_rectangle_child_typed_stop
-                              : LegacyBattleActorFrameEntryStatus::
-                                    case_two_rectangle_child_typed_stop;
-        prefix.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x00433F30U;
-        prefix.eip = 0x00433F30U;
-        return prefix;
+        callee.rectangle_child = prefix.rectangle_child;
+        return stop_first_host_write();
     }
     prefix.esp += 12U;  // sub_433F30 RET 8 pops two metric results.
     prefix.eax = prefix.rectangle_child.eax;

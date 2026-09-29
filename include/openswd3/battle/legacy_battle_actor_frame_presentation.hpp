@@ -784,8 +784,9 @@ struct LegacyBattleActorFrameMetricsReply {
 class LegacyBattleActorFrameRectanglePort {
 public:
     virtual ~LegacyBattleActorFrameRectanglePort() = default;
-    // returned=true is permitted only after the host-surface owner and
-    // nested callees completed; returned=false denotes entry-only stop.
+    // returned=true requires the host fields and nested callees to complete.
+    // An opaque stop preserves the caller-modeled stack prefix before the
+    // first host field write; no deeper host mutation is inferred.
     [[nodiscard]] virtual LegacyBattleActorFrameUpdateReply set_host_surface(
         compat::u32 width,
         compat::u32 height,
@@ -887,8 +888,9 @@ class LegacyBattleActorFrameScaledRlePort {
 public:
     virtual ~LegacyBattleActorFrameScaledRlePort() = default;
     // A returned reply requires the canonical source, transform and
-    // framebuffer to have completed the selected writer call. A stop may
-    // only denote its entry; no deep child state is represented here.
+    // framebuffer to have completed the selected writer call. An opaque stop
+    // preserves the caller-modeled local stack before the first global read;
+    // no pixel or later child state is inferred.
     [[nodiscard]] virtual LegacyBattleActorFrameUpdateReply draw_scaled_rle(
         bool reverse,
         const std::array<compat::u32, 4U>& stack_arguments,
