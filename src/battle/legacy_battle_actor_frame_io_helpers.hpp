@@ -439,9 +439,56 @@ stop_sound_before_deep_read(
         callee.eip = 0x00488BB0U;
         return false;
     }
+    const auto read_stack = [&](const u32 ip, const u32 token) {
+        if (callee.accesses_completed == request.stop_before_access ||
+            !request.stack_readable) {
+            return stop(ip, token, false);
+        }
+        ++callee.accesses_completed;
+        return true;
+    };
+    if (!read_stack(0x00488603U, callee.ebp + 8U)) {
+        return false;
+    }
+    callee.flags = subtract_flags(argument_token, 0U);
+    callee.flags_known = true;
+    if (argument_token == 0U) {
+        // The zero argument jumps to the CRT epilogue, not the free hook.
+        callee.status = opaque_status;
+        callee.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        callee.stopped_instruction = 0x004889A5U;
+        callee.stopped_token = callee.esp;
+        callee.eip = 0x004889A5U;
+        return false;
+    }
+    if (!save(0x0048860EU, 0U) || !save(0x00488610U, 0U) ||
+        !save(0x00488612U, 0U) ||
+        !read_stack(0x00488614U, callee.ebp + 0x0CU)) {
+        return false;
+    }
+    callee.edx = 1U;  // The wrapper's PUSH 1 at 0x004885A3.
+    if (!save(0x00488617U, callee.edx) || !save(0x00488618U, 0U) ||
+        !read_stack(0x0048861AU, callee.ebp + 8U)) {
+        return false;
+    }
+    callee.eax = argument_token;
+    if (!save(0x0048861DU, callee.eax) || !save(0x0048861EU, 3U)) {
+        return false;
+    }
     if (callee.accesses_completed == request.stop_before_access ||
-        !request.stack_readable) {
-        return stop(0x00488603U, callee.ebp + 8U, false);
+        !request.global_readable ||
+        request.decoder_heap_alloc_owner == nullptr) {
+        callee.status = request.global_readable &&
+                request.decoder_heap_alloc_owner != nullptr
+            ? opaque_status
+            : LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        callee.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        callee.stopped_instruction = 0x00488620U;
+        callee.stopped_token = 0x004A8360U;
+        callee.eip = 0x00488620U;
+        return false;
     }
     return true;
 }
@@ -455,10 +502,10 @@ stop_release_before_crt_global(
     callee.release_child = reply;
     callee.status = status;
     callee.stopped_access_kind =
-        LegacyBattleActorFrameEntryAccessKind::stack_read;
-    callee.stopped_instruction = 0x00488603U;
-    callee.stopped_token = callee.ebp + 8U;
-    callee.eip = 0x00488603U;
+        LegacyBattleActorFrameEntryAccessKind::global_read;
+    callee.stopped_instruction = 0x00488620U;
+    callee.stopped_token = 0x004A8360U;
+    callee.eip = 0x00488620U;
     return callee;
 }
 

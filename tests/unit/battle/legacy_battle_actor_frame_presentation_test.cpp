@@ -146,7 +146,7 @@ using openswd3::compat::u32;
 }
 
 // The release wrapper and CRT callee commit ten accesses before the debug
-// flag read; a zero debug bit then reaches the backed argument read.
+// flag read; the non-debug path reaches its first indirect free-hook read.
 [[nodiscard]] bool matches_release_deep_global_stop(
     const openswd3::battle::LegacyBattleActorFrameEntryResult& stopped,
     const openswd3::battle::LegacyBattleActorFrameEntryResult& before_call,
@@ -156,33 +156,42 @@ using openswd3::compat::u32;
 ) noexcept {
     const bool before_debug_read = stopped.eip == 0x004885C7U;
     const bool before_argument_read = stopped.eip == 0x00488603U;
-    return (before_debug_read || before_argument_read) &&
+    const bool before_hook_read = stopped.eip == 0x00488620U;
+    const auto expected_flags = before_debug_read ? before_call.flags
+        : before_argument_read
+        ? openswd3::battle::
+              LegacyBattleActorCoordinateFlags{.parity = true, .auxiliary_carry_defined = false, .zero = true}
+        : openswd3::battle::LegacyBattleActorCoordinateFlags{
+              .parity =
+                  (std::popcount(static_cast<u8>(argument_token)) & 1) == 0,
+              .sign = (argument_token & 0x80000000U) != 0U
+          };
+    return (before_debug_read || before_argument_read || before_hook_read) &&
         stopped.stopped_instruction == stopped.eip &&
         stopped.stopped_token ==
-        (before_debug_read ? 0x004A82F4U : stopped.ebp + 8U) &&
+        (before_debug_read          ? 0x004A82F4U
+             : before_argument_read ? stopped.ebp + 8U
+                                    : 0x004A8360U) &&
         stopped.stopped_access_kind ==
-        (before_debug_read
-             ? LegacyBattleActorFrameEntryAccessKind::global_read
-             : LegacyBattleActorFrameEntryAccessKind::stack_read) &&
-        stopped.esp == before_call.esp - 44U &&
+        (before_argument_read
+             ? LegacyBattleActorFrameEntryAccessKind::stack_read
+             : LegacyBattleActorFrameEntryAccessKind::global_read) &&
+        stopped.esp == before_call.esp - (before_hook_read ? 72U : 44U) &&
         stopped.ebp == before_call.esp - 28U &&
         stopped.accesses_completed ==
         before_call.accesses_completed + (linked_node ? 13U : 12U) +
-            (before_argument_read ? 1U : 0U) &&
-        stopped.last_pushed_value == before_call.edi &&
-        stopped.eax == (before_debug_read ? argument_token : 0U) &&
+            (before_debug_read          ? 0U
+                 : before_argument_read ? 1U
+                                        : 11U) &&
+        stopped.last_pushed_value ==
+        (before_hook_read ? 3U : before_call.edi) &&
+        stopped.eax == (before_argument_read ? 0U : argument_token) &&
         stopped.ebx == before_call.ebx && stopped.ecx == before_call.ecx &&
-        stopped.edx == before_call.edx && stopped.esi == expected_esi &&
-        stopped.edi == before_call.edi &&
+        stopped.edx == (before_hook_read ? 1U : before_call.edx) &&
+        stopped.esi == expected_esi && stopped.edi == before_call.edi &&
         stopped.flags_known ==
         (before_debug_read ? before_call.flags_known : true) &&
-        same_frame_flags(
-               stopped.flags,
-               before_debug_read
-                   ? before_call.flags
-                   : openswd3::battle::
-                         LegacyBattleActorCoordinateFlags{.parity = true, .auxiliary_carry_defined = false, .zero = true}
-        ) &&
+        same_frame_flags(stopped.flags, expected_flags) &&
         stopped.direction_flag == before_call.direction_flag &&
         !stopped.release_child.returned;
 }
@@ -4042,7 +4051,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             linked_next.esi == 0x701300U &&
             linked_next.esp == stopped_node.esp &&
             linked_next.accesses_completed ==
-                stopped_node.accesses_completed + 14U &&
+                stopped_node.accesses_completed + 24U &&
             linked_done.status ==
                 LegacyBattleActorFrameEntryStatus::reset_returned &&
             linked_done.returned && linked_done.eax == 1U &&
@@ -4265,7 +4274,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             terminal_return_fault.eip == 0x0047F0F3U &&
             terminal_return_fault.esp == linked_release_call.esp - 4U &&
             terminal_return_fault.accesses_completed ==
-                linked_next.accesses_completed + 18U &&
+                linked_next.accesses_completed + 28U &&
             terminal_return_fault_port.calls == 1U,
         "borrowed node snapshot cannot override actor alias after head clear; final callee RET read faults after committed node release and POPs"
     );
@@ -9320,6 +9329,110 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     nonzero_emitter_release.accesses_completed + 14U &&
                 debug_release_port.calls == 0U,
             "case2 CRT debug bit enters the separate sub_488BB0 call without pretending it returned"
+        );
+        constexpr std::array<u32, 11U> kCrtHookIps{
+            0x00488603U,
+            0x0048860EU,
+            0x00488610U,
+            0x00488612U,
+            0x00488614U,
+            0x00488617U,
+            0x00488618U,
+            0x0048861AU,
+            0x0048861DU,
+            0x0048861EU,
+            0x00488620U,
+        };
+        constexpr std::array<u32, 11U> kCrtHookEspOffsets{
+            44U,
+            44U,
+            48U,
+            52U,
+            56U,
+            56U,
+            60U,
+            64U,
+            64U,
+            68U,
+            72U,
+        };
+        constexpr std::array<u32, 11U> kCrtHookTokenOffsets{
+            20U,
+            48U,
+            52U,
+            56U,
+            16U,
+            60U,
+            64U,
+            20U,
+            68U,
+            72U,
+            0U,
+        };
+        bool crt_hook_prefix_exact = true;
+        for (std::size_t ordinal = 0U; ordinal < kCrtHookIps.size();
+             ++ordinal) {
+            auto fault = group_b_input;
+            fault.stop_before_access =
+                nonzero_emitter_release.accesses_completed + 13U + ordinal;
+            ReleasePort untouched_hook{};
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_release_call(
+                    untouched_hook, fault, nonzero_emitter_release
+                );
+            const bool global = ordinal == 10U;
+            const bool read = ordinal == 0U || ordinal == 4U || ordinal == 7U;
+            const bool exact = stopped.status ==
+                    (global     ? LegacyBattleActorFrameEntryStatus::
+                                      case_two_release_child_typed_stop
+                         : read ? LegacyBattleActorFrameEntryStatus::
+                                      stack_read_typed_stop
+                                : LegacyBattleActorFrameEntryStatus::
+                                      stack_write_typed_stop) &&
+                stopped.eip == kCrtHookIps[ordinal] &&
+                stopped.stopped_instruction == kCrtHookIps[ordinal] &&
+                stopped.stopped_access_kind ==
+                    (global ? LegacyBattleActorFrameEntryAccessKind::global_read
+                         : read
+                         ? LegacyBattleActorFrameEntryAccessKind::stack_read
+                         : LegacyBattleActorFrameEntryAccessKind::
+                               stack_write) &&
+                stopped.stopped_token ==
+                    (global ? 0x004A8360U
+                            : nonzero_emitter_release.esp -
+                             kCrtHookTokenOffsets[ordinal]) &&
+                stopped.esp ==
+                    nonzero_emitter_release.esp - kCrtHookEspOffsets[ordinal] &&
+                stopped.accesses_completed == fault.stop_before_access &&
+                stopped.ebp == nonzero_emitter_release.esp - 28U &&
+                stopped.direction_flag ==
+                    nonzero_emitter_release.direction_flag &&
+                untouched_hook.calls == 0U;
+            test.expect_true(
+                exact,
+                std::string{"case2 CRT hook access "} + std::to_string(ordinal)
+            );
+            crt_hook_prefix_exact = crt_hook_prefix_exact && exact;
+        }
+        auto missing_hook_owner = group_b_input;
+        missing_hook_owner.decoder_heap_alloc_owner = nullptr;
+        ReleasePort missing_hook_port{};
+        const auto stopped_missing_hook = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                missing_hook_port, missing_hook_owner, nonzero_emitter_release
+            );
+        test.expect_true(
+            crt_hook_prefix_exact &&
+                stopped_missing_hook.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                matches_release_deep_global_stop(
+                    stopped_missing_hook,
+                    nonzero_emitter_release,
+                    0x00801000U,
+                    nonzero_emitter_release.esi
+                ) &&
+                missing_hook_port.calls == 0U,
+            "case2 CRT free hook IAT read needs an owner after all seven argument pushes"
         );
         releaser.reply.returned = false;
         const auto stopped_wrapper = openswd3::battle::

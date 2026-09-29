@@ -1661,8 +1661,25 @@ ZF/PF=1、CF/OF=0、AF 未定义，ESP 不变，前缀新增一次真实访问�
 不伪造其返回或跳至非调试路径。case2 的 owner 缺失、
 debug 掩码0x4 的两停点及原有 C7 逐序号，链节点每次释放
 新增的一次访问，定向 `proc_d25a` Linux core 200/200。
-仍未读取 488603 栈字或执行 CRT hook／heap／int3，
-现阶段只收敛至该分叉前；阶段快照 `proc_9a04` Linux core／ASan core 各200/200、Linux app 206/206，不能代替316最终门禁。
+该阶段尚未读取 488603 栈字或执行 CRT hook／heap／int3；
+阶段快照 `proc_9a04` Linux core／ASan core 各200/200、
+Linux app 206/206，不能代替316最终门禁。
+
+三处已知非零释放 token 的非调试分支随后于 `0x00488603`
+从已压入的内层 `arg_0` 栈槽读 token 并 `CMP token,0`；
+非零分支按物理次序在 `0x0048860E/10/12` 压三个零、
+`0x00488614` 读 wrapper 先前压入的 `arg_4=1`、
+`0x00488617` 压1、`0x00488618` 压0、`0x0048861A`
+重读同一 `arg_0`、`0x0048861D` 压 token、`0x0048861E` 压3。
+在间接 `CALL ds:off_4A8360` 的内存操作数 `0x00488620`
+读取前停下，**尚未压该 CALL 的返回槽**，不调用 release port；
+ESP 相对父 CALL 前减72，EAX=token、EDX=1、末次 PUSH=3，
+FLAGS 来自 `CMP token,0`。无 hook 全局 owner 或显式不可读
+同样在操作数前停；零 token 只到 `0x004889A5` 的未建模
+CRT 尾部，不错误调用 hook。case2 C603–C620 共11处前障
+核 IP、token、ESP、计数及无提前端口调用，链节点每次正常释放
+相较上一阶段新增十项访问；阶段 `proc_5f1c` Linux core 200/200。
+间接钩子、CRT 深层和真实父路径仍 partial；阶段快照 `proc_da14` Linux core／ASan core 各200/200、Linux app 206/206，不是316最终门禁。
 
 - case3/4 `0x00479CA6..0x0047A07E`：两支均在 signed phase `>32` 时跳公共重置，
   phase0 先播0x31；先读取 frame `+0x00` 发布 `dword_4CD730`，随后顺序调用矩形 `sub_416FF0`、绘制 `sub_4170E0`、第二个矩形、第二个绘制，
