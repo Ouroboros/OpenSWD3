@@ -580,6 +580,7 @@ void synchronize_actor_write(
             const u32 next = load_value<u32>(image, 0x0E14U);
             if (next != phase.decoded_resource_token) {
                 emitter.source_pixels = {};
+                emitter.source_pixels_owner.reset();
             }
             phase.decoded_resource_token = next;
         }
@@ -687,6 +688,7 @@ void synchronize_actor_write(
             actor.action_execution->resource.value_00_known = false;
             actor.action_execution->resource.value_0c_known = false;
             actor.action_execution->resource.value_0e_known = false;
+            actor.action_execution->resource.frame_owner.reset();
         }
         actor.action_execution->render_source_token = value;
         actor.action_execution->resource.token = value;

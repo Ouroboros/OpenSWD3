@@ -1,6 +1,8 @@
 #include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 
+#include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_actor_frame_raw_block.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
@@ -297,6 +299,9 @@ void test_battle_actor_runtime_reset(openswd3::test::Context& test) {
             actor.action_execution->resource.value_00_known = true;
             actor.action_execution->resource.value_0c_known = true;
             actor.action_execution->resource.value_0e_known = true;
+            auto frame_owner = std::make_shared<
+                openswd3::asset_runtime::LegacyTswRuntimeFrame>();
+            actor.action_execution->resource.frame_owner = frame_owner;
             openswd3::battle::LegacyBattleActorImage image{};
             openswd3::battle::materialize_legacy_battle_actor_image(
                 actor, image
@@ -309,7 +314,8 @@ void test_battle_actor_runtime_reset(openswd3::test::Context& test) {
             frame_source_alias_exact = frame_source_alias_exact &&
                 actor.action_execution->resource.value_00_known &&
                 actor.action_execution->resource.value_0c_known &&
-                actor.action_execution->resource.value_0e_known;
+                actor.action_execution->resource.value_0e_known &&
+                actor.action_execution->resource.frame_owner == frame_owner;
             const u32 changed = 0x00720000U;
             std::memcpy(image.data() + 0x2548U, &changed, sizeof(changed));
             openswd3::battle::synchronize_legacy_battle_actor_image_write(
@@ -320,11 +326,13 @@ void test_battle_actor_runtime_reset(openswd3::test::Context& test) {
                 actor.action_execution->resource.token == changed &&
                 !actor.action_execution->resource.value_00_known &&
                 !actor.action_execution->resource.value_0c_known &&
-                !actor.action_execution->resource.value_0e_known;
+                !actor.action_execution->resource.value_0e_known &&
+                actor.action_execution->resource.frame_owner == nullptr &&
+                frame_owner.use_count() == 1U;
         }
         test.expect_true(
             frame_source_alias_exact,
-            "Group-A and Group-B +0x2548 token writes preserve a matching resource header but invalidate an unrelated first-dword cache"
+            "Group-A and Group-B +0x2548 token writes retain matching record leases and invalidate changed resource leases"
         );
     }
 
@@ -336,9 +344,16 @@ void test_battle_actor_runtime_reset(openswd3::test::Context& test) {
                 fixture.owners(), token
             );
         auto& phase = *actor.particle_phase_owner;
-        std::array<openswd3::compat::u16, 2U> pixels{1U, 2U};
+        auto raw = std::make_shared<
+            openswd3::battle::LegacyBattleActorFrameRawBlock>(36U);
+        raw->words()[16U] = 1U;
+        raw->words()[17U] = 2U;
+        std::weak_ptr<openswd3::battle::LegacyBattleActorFrameRawBlock>
+            raw_weak = raw;
         phase.decoded_resource_token = 0x00811000U;
-        phase.emitter.source_pixels = std::span{pixels};
+        phase.emitter.source_pixels = raw->words().subspan(16U, 2U);
+        phase.emitter.source_pixels_owner = raw;
+        raw.reset();
         phase.emitter.source_width = 19U;
         phase.emitter.source_height = 23U;
         phase.emitter.flags = 0x56U;
@@ -353,8 +368,19 @@ void test_battle_actor_runtime_reset(openswd3::test::Context& test) {
         std::memcpy(&width, image.data() + 0x0E18U, sizeof(width));
         std::memcpy(&height, image.data() + 0x0E1AU, sizeof(height));
         bool emitter_mapping_exact = source == 0x00811000U && width == 19U &&
-            height == 23U &&
+            height == 23U && !raw_weak.expired() &&
             static_cast<unsigned char>(image[0x0E3CU]) == 0x56U;
+        openswd3::battle::synchronize_legacy_battle_actor_image_write(
+            actor, image, 0x0E14U, sizeof(source)
+        );
+        test.expect_true(
+            !raw_weak.expired() &&
+                phase.emitter.source_pixels_owner != nullptr,
+            "unchanged source token retains raw pixel owner"
+        );
+        emitter_mapping_exact = emitter_mapping_exact &&
+            !raw_weak.expired() &&
+            phase.emitter.source_pixels_owner != nullptr;
         const u32 zero{};
         std::memcpy(image.data() + 0x0E14U, &zero, sizeof(zero));
         openswd3::battle::synchronize_legacy_battle_actor_image_write(
@@ -372,10 +398,20 @@ void test_battle_actor_runtime_reset(openswd3::test::Context& test) {
         openswd3::battle::synchronize_legacy_battle_actor_image_write(
             actor, image, 0x0E64U, sizeof(zero)
         );
+        test.expect_true(
+            phase.emitter.source_pixels_owner == nullptr &&
+                raw_weak.expired(),
+            "changed source token releases the raw pixel owner"
+        );
+        test.expect_true(
+            phase.emitter.source_pixels.empty(),
+            "changed source token invalidates the borrowed pixel span"
+        );
         emitter_mapping_exact = emitter_mapping_exact &&
             phase.decoded_resource_token == 0U &&
             phase.emitter.source_pixels.empty() &&
-            phase.emitter.source_width == 0U &&
+            phase.emitter.source_pixels_owner == nullptr &&
+            raw_weak.expired() && phase.emitter.source_width == 0U &&
             phase.emitter.source_height == 0U && phase.emitter.flags == 0U &&
             phase.emitter.head_token == 0U &&
             phase.emitter.tail_token == 0x00720000U;

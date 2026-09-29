@@ -631,21 +631,55 @@ template <
                     .overflow = false,
                 };
                 if (prefix.ecx != 0U) {
-                    prefix.stopped_instruction = 0x0048A951U;
-                    prefix.eip = 0x0048A951U;
-                    return prefix;
+                    const u32 alignment_count = prefix.ecx;
+                    prefix.flags = subtract_flags(prefix.edx, prefix.ecx);
+                    prefix.edx -= prefix.ecx;
+                    if (!request.decoder_second_heap_fill_write_backed) {
+                        prefix.status = LegacyBattleActorFrameEntryStatus::
+                            allocator_block_write_typed_stop;
+                        prefix.stopped_access_kind =
+                            LegacyBattleActorFrameEntryAccessKind::
+                                allocator_block_write;
+                        prefix.stopped_instruction = 0x0048A953U;
+                        prefix.stopped_token = prefix.edi;
+                        prefix.eip = 0x0048A953U;
+                        return prefix;
+                    }
+
+                    for (u32 byte = 0U; byte < alignment_count; ++byte) {
+                        const std::size_t offset = static_cast<std::size_t>(
+                            prefix.edi - request.decoder_heap_block_token
+                        );
+                        if (!write_heap_header(
+                                0x0048A953U,
+                                request.decoder_heap_block_token,
+                                offset,
+                                prefix.eax,
+                                1U
+                            )) {
+                            return prefix;
+                        }
+
+                        ++prefix.edi;
+                        const u32 previous_count = prefix.ecx--;
+                        const bool carry = prefix.flags.carry;
+                        prefix.flags = subtract_flags(previous_count, 1U);
+                        prefix.flags.carry = carry;
+                    }
                 }
+
                 const u32 byte_value = prefix.eax;
                 prefix.eax = (byte_value << 24U) | (byte_value << 16U) |
                     (byte_value << 8U) | byte_value;
-                prefix.ecx = 1U;
-                prefix.edx = 0U;
+                const u32 remaining = prefix.edx;
+                prefix.ecx = remaining >> 2U;
+                prefix.edx = remaining & 3U;
                 prefix.flags = {
-                    .carry = false,
-                    .parity = false,
+                    .carry = (remaining & 2U) != 0U,
+                    .parity = even_parity(static_cast<u8>(prefix.ecx)),
                     .auxiliary_carry_defined = false,
-                    .zero = false,
-                    .sign = false,
+                    .zero = prefix.ecx == 0U,
+                    .sign = (prefix.ecx & 0x80000000U) != 0U,
                     .overflow_defined = false,
                 };
                 prefix.status = LegacyBattleActorFrameEntryStatus::
@@ -657,24 +691,47 @@ template <
                 prefix.stopped_token = second_fill_target;
                 prefix.eip = 0x0048A971U;
                 if (request.decoder_second_heap_fill_write_backed) {
-                    if (!write_heap_header(
-                            0x0048A971U,
-                            request.decoder_heap_block_token,
-                            static_cast<std::size_t>(allocation_size + 0x20U),
-                            prefix.eax
-                        )) {
-                        return prefix;
+                    if (prefix.ecx != 0U) {
+                        const std::size_t offset = static_cast<std::size_t>(
+                            prefix.edi - request.decoder_heap_block_token
+                        );
+                        if (!write_heap_header(
+                                0x0048A971U,
+                                request.decoder_heap_block_token,
+                                offset,
+                                prefix.eax
+                            )) {
+                            return prefix;
+                        }
+
+                        --prefix.ecx;
+                        prefix.edi +=
+                            prefix.direction_flag ? 0xFFFFFFFCU : 4U;
+                        prefix.flags = subtract_flags(prefix.edx, 0U);
                     }
-                    prefix.ecx = 0U;
-                    prefix.edi += prefix.direction_flag ? 0xFFFFFFFCU : 4U;
-                    prefix.flags = {
-                        .carry = false,
-                        .parity = true,
-                        .auxiliary_carry_defined = false,
-                        .zero = true,
-                        .sign = false,
-                        .overflow = false,
-                    };
+
+                    const u32 tail_count = prefix.edx;
+                    for (u32 byte = 0U; byte < tail_count; ++byte) {
+                        const std::size_t offset = static_cast<std::size_t>(
+                            prefix.edi - request.decoder_heap_block_token
+                        );
+                        if (!write_heap_header(
+                                0x0048A977U,
+                                request.decoder_heap_block_token,
+                                offset,
+                                prefix.eax,
+                                1U
+                            )) {
+                            return prefix;
+                        }
+
+                        ++prefix.edi;
+                        const u32 previous_count = prefix.edx--;
+                        const bool carry = prefix.flags.carry;
+                        prefix.flags = subtract_flags(previous_count, 1U);
+                        prefix.flags.carry = carry;
+                    }
+
                     if (!read_inner_argument(
                             0x0048A97DU,
                             prefix.esp + 8U,
@@ -827,10 +884,11 @@ template <
                         const u32 byte_value = prefix.eax;
                         prefix.eax = (byte_value << 24U) | (byte_value << 16U) |
                             (byte_value << 8U) | byte_value;
-                        prefix.ecx = prefix.edx >> 2U;
-                        prefix.edx &= 3U;
+                        const u32 remaining = prefix.edx;
+                        prefix.ecx = remaining >> 2U;
+                        prefix.edx = remaining & 3U;
                         prefix.flags = {
-                            .carry = false,
+                            .carry = (remaining & 2U) != 0U,
                             .parity = even_parity(static_cast<u8>(prefix.ecx)),
                             .auxiliary_carry_defined = false,
                             .zero = prefix.ecx == 0U,
@@ -845,10 +903,7 @@ template <
                         prefix.stopped_instruction = 0x0048A971U;
                         prefix.stopped_token = payload_target;
                         prefix.eip = 0x0048A971U;
-                        const bool pixel_fill_backed =
-                            request.decoder_payload_heap_fill_write_backed &&
-                            (allocation_size == 12U || allocation_size == 16U);
-                        if (!pixel_fill_backed) {
+                        if (!request.decoder_payload_heap_fill_write_backed) {
                             return prefix;
                         }
                         const u32 pixel_block_token =
@@ -871,6 +926,25 @@ template <
                             --prefix.ecx;
                         }
                         prefix.flags = subtract_flags(prefix.edx, 0U);
+                        const u32 tail_count = prefix.edx;
+                        for (u32 tail_byte = 0U; tail_byte < tail_count;
+                             ++tail_byte) {
+                            const std::size_t offset = static_cast<std::size_t>(
+                                prefix.edi - pixel_block_token
+                            );
+                            if (!write_heap_header(
+                                    0x0048A977U,
+                                    pixel_block_token,
+                                    offset,
+                                    prefix.eax,
+                                    1U
+                                )) {
+                                return prefix;
+                            }
+                            ++prefix.edi;
+                            --prefix.edx;
+                            prefix.flags = subtract_flags(prefix.edx, 0U);
+                        }
                         prefix.status = LegacyBattleActorFrameEntryStatus::
                             stack_read_typed_stop;
                         prefix.stopped_access_kind =

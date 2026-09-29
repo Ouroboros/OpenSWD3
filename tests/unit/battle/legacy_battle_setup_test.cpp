@@ -37,14 +37,6 @@ void test_battle_actor_action_reverse_cycle(openswd3::test::Context& test);
 void test_battle_actor_target_preparation(openswd3::test::Context& test);
 void test_battle_available_actor_cycle(openswd3::test::Context& test);
 void test_battle_available_actor_reverse_cycle(openswd3::test::Context& test);
-void test_battle_group_b_action_composition_action_caller(
-    openswd3::test::Context& test
-);
-void test_battle_group_b_action_profile_selection_action_caller(
-    openswd3::test::Context& test
-);
-void test_battle_action_dispatch_invalid_group_a(openswd3::test::Context& test);
-void test_battle_action_dispatch(openswd3::test::Context& test);
 void test_battle_attack_order_dequeue(openswd3::test::Context& test);
 void test_battle_attack_order_entry(openswd3::test::Context& test);
 void test_battle_attack_order_insert(openswd3::test::Context& test);
@@ -91,7 +83,6 @@ void test_battle_group_a_value_pair(openswd3::test::Context& test);
 void test_battle_group_a_workspace_reset(openswd3::test::Context& test);
 void test_battle_animation_collision(openswd3::test::Context& test);
 void test_battle_group_b_action_execution(openswd3::test::Context& test);
-void test_battle_opponent_action_dispatch(openswd3::test::Context& test);
 void test_battle_background_initialization(openswd3::test::Context& test);
 void test_battle_color_accumulation(openswd3::test::Context& test);
 void test_battle_context_prompt(openswd3::test::Context& test);
@@ -109,9 +100,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test);
 void test_battle_frame_effect(openswd3::test::Context& test);
 void test_battle_frame_refresh(openswd3::test::Context& test);
 void test_battle_full_frame_darkening(openswd3::test::Context& test);
-void test_battle_final_actor_step(openswd3::test::Context& test);
 void test_battle_global_reset(openswd3::test::Context& test);
-void test_battle_group_a_frame(openswd3::test::Context& test);
 void test_battle_group_b_action_composition(openswd3::test::Context& test);
 void test_battle_group_b_action_configuration(openswd3::test::Context& test);
 void test_battle_group_b_action_item_option(openswd3::test::Context& test);
@@ -144,7 +133,6 @@ void test_battle_group_b_script_special_action_item_parameters(
     openswd3::test::Context& test
 );
 void test_battle_group_b_coordinate_offsets(openswd3::test::Context& test);
-void test_battle_group_b_frame(openswd3::test::Context& test);
 void test_battle_group_b_opponent_mode(openswd3::test::Context& test);
 void test_battle_group_b_reward_item_selection(openswd3::test::Context& test);
 void test_battle_group_b_status_action(openswd3::test::Context& test);
@@ -180,9 +168,6 @@ void test_battle_actor_start_gate_latch_query(openswd3::test::Context& test);
 void test_battle_actor_field_26b8_high_bit_clear(openswd3::test::Context& test);
 void test_battle_actor_field_26b8_high_bit_query(openswd3::test::Context& test);
 void test_battle_actor_binary_state_toggle(openswd3::test::Context& test);
-void test_battle_actor_runtime_reset(openswd3::test::Context& test);
-void test_battle_actor_action_presentation(openswd3::test::Context& test);
-void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test);
 void test_battle_actor_target_selection(openswd3::test::Context& test);
 void test_battle_actor_target_selection_count_increment(
     openswd3::test::Context& test
@@ -7275,10 +7260,6 @@ int main() {
     test_battle_actor_target_preparation(test);
     test_battle_available_actor_cycle(test);
     test_battle_available_actor_reverse_cycle(test);
-    test_battle_group_b_action_composition_action_caller(test);
-    test_battle_group_b_action_profile_selection_action_caller(test);
-    test_battle_action_dispatch_invalid_group_a(test);
-    test_battle_action_dispatch(test);
     test_battle_attack_order_dequeue(test);
     test_battle_attack_order_entry(test);
     test_battle_attack_order_insert(test);
@@ -7320,7 +7301,6 @@ int main() {
     test_battle_group_a_workspace_reset(test);
     test_battle_animation_collision(test);
     test_battle_group_b_action_execution(test);
-    test_battle_opponent_action_dispatch(test);
     test_battle_background_initialization(test);
     test_battle_color_accumulation(test);
     test_battle_context_prompt(test);
@@ -7352,9 +7332,6 @@ int main() {
     test_battle_actor_field_26b8_high_bit_clear(test);
     test_battle_actor_field_26b8_high_bit_query(test);
     test_battle_actor_binary_state_toggle(test);
-    test_battle_actor_runtime_reset(test);
-    test_battle_actor_action_presentation(test);
-    test_battle_actor_frame_presentation_entry(test);
     test_battle_actor_target_selection(test);
     test_battle_actor_target_selection_count_increment(test);
     test_battle_actor_target_selection_count_query(test);
@@ -7383,9 +7360,7 @@ int main() {
     test_battle_frame_effect(test);
     test_battle_frame_refresh(test);
     test_battle_full_frame_darkening(test);
-    test_battle_final_actor_step(test);
     test_battle_global_reset(test);
-    test_battle_group_a_frame(test);
     test_battle_group_b_action_composition(test);
     test_battle_group_b_action_configuration(test);
     test_battle_group_b_action_item_option(test);
@@ -7404,7 +7379,6 @@ int main() {
     test_battle_group_b_script_resource_parameters(test);
     test_battle_group_b_script_special_action_item_parameters(test);
     test_battle_group_b_coordinate_offsets(test);
-    test_battle_group_b_frame(test);
     test_battle_group_b_opponent_mode(test);
     test_battle_group_b_reward_item_selection(test);
     test_battle_group_b_status_action(test);

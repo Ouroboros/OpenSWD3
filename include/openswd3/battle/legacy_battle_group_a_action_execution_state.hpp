@@ -10,6 +10,10 @@
 #include <cstddef>
 #include <memory>
 
+namespace openswd3::asset_runtime {
+struct LegacyTswRuntimeFrame;
+}
+
 namespace openswd3::battle {
 
 inline constexpr std::size_t kLegacyBattleGroupAActionRecordDwords = 0x26U;
@@ -28,6 +32,8 @@ struct LegacyBattleGroupAActionResourceRecord {
     bool value_00_known{};   // no synthesized contents for opaque loaders
     bool value_0c_known{};
     bool value_0e_known{};
+    // Host lease for the source stream published by this resource record.
+    std::shared_ptr<const asset_runtime::LegacyTswRuntimeFrame> frame_owner{};
 };
 
 struct LegacyBattleActorActionRecordSlots {

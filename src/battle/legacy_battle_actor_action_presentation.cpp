@@ -98,6 +98,7 @@ void publish_resource(
     resource.value_00_known = true;
     resource.value_0c_known = true;
     resource.value_0e_known = true;
+    resource.frame_owner.reset();
 }
 
 }  // namespace

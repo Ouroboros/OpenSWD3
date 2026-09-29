@@ -408,7 +408,6 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
             openswd3::battle::LegacyBattleActorFrameEntryRoutePorts ports{};
             ports.random = &random;
             openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};
-            openswd3::battle::LegacyBattleActorFrameCallerPhysicalStop stop{};
             u32 argument_0 = 0xA0A0A0A0U;
             u32 argument_4 = 0xB4B4B4B4U;
             openswd3::battle::LegacyBattleActorFrameParentArgumentWord
@@ -431,7 +430,6 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 .final_group_b_argument_4 = &second_owner,
                 .final_group_b_first_push_writable = step != 0U,
                 .final_group_b_second_push_writable = step != 1U,
-                .final_group_b_stack_stop = &stop,
             };
             const auto result = advance_legacy_battle_final_actor_step(
                 state,
@@ -443,6 +441,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 port.startup.get(),
                 &binding
             );
+            const auto& stop = result.final_group_b_physical_stop;
             all_parent_stack_stops = all_parent_stack_stops &&
                 observed.returned && observed.eax == 1U &&
                 result.status ==
@@ -452,6 +451,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 stop.esp == expected_esps[step] &&
                 stop.token == expected_tokens[step] &&
                 stop.eax == parent_esp + 0x14U &&
+                observed.ecx == observed.child.ecx &&
+                stop.ecx == observed.ecx &&
                 stop.edx == parent_esp + 0x18U &&
                 stop.flags_known && stop.flags.zero && stop.flags.parity &&
                 !stop.flags.carry &&
@@ -492,7 +493,6 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
             openswd3::battle::LegacyBattleActorFrameEntryRoutePorts ports{};
             ports.random = &random;
             openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};
-            openswd3::battle::LegacyBattleActorFrameCallerPhysicalStop stop{};
             u32 argument_0 = 0xA0A0A0A0U;
             u32 argument_4 = 0xB4B4B4B4U;
             openswd3::battle::LegacyBattleActorFrameParentArgumentWord
@@ -513,7 +513,6 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 .final_group_b_argument_4 = &second_owner,
                 .final_group_b_first_output_writable = stop_site != 1U,
                 .final_group_b_second_output_writable = stop_site != 2U,
-                .final_group_b_stack_stop = &stop,
             };
             const auto result = advance_legacy_battle_final_actor_step(
                 state,
@@ -525,6 +524,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 port.startup.get(),
                 &binding
             );
+            const auto& stop = result.final_group_b_physical_stop;
             all_coordinate_child_stops = all_coordinate_child_stops &&
                 observed.returned && observed.eax == 1U &&
                 result.status ==
@@ -574,7 +574,6 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
             openswd3::battle::LegacyBattleActorFrameEntryRoutePorts ports{};
             ports.random = &random;
             openswd3::battle::LegacyBattleActorFrameCallerRunResult observed{};
-            openswd3::battle::LegacyBattleActorFrameCallerPhysicalStop stop{};
             u32 argument_0 = 0xFFFFFFFFU;
             u32 argument_4 = 0xFFFFFFFFU;
             openswd3::battle::LegacyBattleActorFrameParentArgumentWord first{
@@ -593,7 +592,6 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 .observed = &observed,
                 .final_group_b_argument_0 = &first,
                 .final_group_b_argument_4 = &second,
-                .final_group_b_stack_stop = &stop,
             };
             const auto result = advance_legacy_battle_final_actor_step(
                 state,
@@ -605,6 +603,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 port.startup.get(),
                 &binding
             );
+            const auto& stop = result.final_group_b_physical_stop;
             both_parent_reads_stopped = both_parent_reads_stopped &&
                 observed.returned && observed.eax == 1U &&
                 result.status ==

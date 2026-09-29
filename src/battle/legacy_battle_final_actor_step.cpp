@@ -94,6 +94,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         return false;
     }
     reply.eax = caller.eax;
+    reply.ecx = caller.ecx;
     reply.edx = caller.edx;
     return true;
 }
@@ -101,34 +102,31 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
 [[nodiscard]] bool prepare_final_group_b_coordinate_stack(
     LegacyBattleActionDispatchResult& result,
     const LegacyBattleActorFrameCallerBinding* const binding,
-    const u32 parent_esp
+    const u32 parent_esp,
+    const u32 child_ecx
 ) {
     if (binding == nullptr || binding->caller_snapshot == nullptr) {
         return true;
     }
-    if (binding->final_group_b_stack_stop != nullptr) {
-        *binding->final_group_b_stack_stop = {};
-    }
     const auto stop = [&](const u32 eip, const u32 esp, const u32 token) {
         result.status = LegacyBattleActionDispatchStatus::
             actor_frame_parent_stack_typed_stop;
-        if (binding->final_group_b_stack_stop != nullptr) {
-            // 0x0045ACCD/D1 form the two parent argument pointers;
-            // 0x0045ACD5 XOR EBX,EBX defines ZF/PF but not AF.
-            *binding->final_group_b_stack_stop = {
-                .eip = eip,
-                .esp = esp,
-                .token = token,
-                .eax = parent_esp + 0x14U,
-                .edx = parent_esp + 0x18U,
-                .flags = {
-                    .parity = true,
-                    .auxiliary_carry_defined = false,
-                    .zero = true,
-                },
-                .flags_known = true,
-            };
-        }
+        // 0x0045ACCD/D1 form the two parent argument pointers;
+        // 0x0045ACD5 XOR EBX,EBX defines ZF/PF but not AF.
+        result.final_group_b_physical_stop = {
+            .eip = eip,
+            .esp = esp,
+            .token = token,
+            .eax = parent_esp + 0x14U,
+            .ecx = child_ecx,
+            .edx = parent_esp + 0x18U,
+            .flags = {
+                .parity = true,
+                .auxiliary_carry_defined = false,
+                .zero = true,
+            },
+            .flags_known = true,
+        };
         return false;
     };
     if (!binding->final_group_b_first_push_writable) {
@@ -474,7 +472,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         return result;
     }
     if (!prepare_final_group_b_coordinate_stack(
-            result, frame_caller, parent_call_esp
+            result, frame_caller, parent_call_esp, validation.ecx
         )) {
         return result;
     }
@@ -519,8 +517,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         LegacyBattleGroupBCoordinateOffsetStatus::completed) {
         result.status = LegacyBattleActionDispatchStatus::
             group_b_coordinate_offset_typed_stop;
-        if (typed_frame_caller &&
-            frame_caller->final_group_b_stack_stop != nullptr) {
+        if (typed_frame_caller) {
             u32 stop_eip{};
             u32 stop_token{};
             switch (coordinates.status) {
@@ -551,7 +548,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
             case LegacyBattleGroupBCoordinateOffsetStatus::completed:
                 break;
             }
-            *frame_caller->final_group_b_stack_stop = {
+            result.final_group_b_physical_stop = {
                 .eip = stop_eip,
                 .esp = parent_call_esp - 0x0CU,
                 .token = stop_token,
@@ -571,25 +568,25 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
                 .flags_known = true,
             };
         }
+
         return result;
     }
+
     if (typed_frame_caller) {
         const auto stop_parent_read =
             [&](const u32 eip, const u32 token, const u32 ecx) {
                 result.status = LegacyBattleActionDispatchStatus::
                     actor_frame_parent_stack_typed_stop;
-                if (frame_caller->final_group_b_stack_stop != nullptr) {
-                    *frame_caller->final_group_b_stack_stop = {
-                        .eip = eip,
-                        .esp = parent_call_esp,
-                        .token = token,
-                        .eax = coordinates.return_eax,
-                        .ecx = ecx,
-                        .edx = coordinates.return_edx,
-                        .flags = {.parity = true, .zero = true},
-                        .flags_known = true,
-                    };
-                }
+                result.final_group_b_physical_stop = {
+                    .eip = eip,
+                    .esp = parent_call_esp,
+                    .token = token,
+                    .eax = coordinates.return_eax,
+                    .ecx = ecx,
+                    .edx = coordinates.return_edx,
+                    .flags = {.parity = true, .zero = true},
+                    .flags_known = true,
+                };
                 return result;
             };
         const auto* const first = frame_caller->final_group_b_argument_0;

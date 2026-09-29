@@ -1,11 +1,10 @@
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 
+#include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 
 #include <array>
-#include <atomic>
 #include <cstddef>
-#include <cstdint>
 #include <limits>
 #include <new>
 #include <string_view>
@@ -218,28 +217,6 @@ LegacyTswQueryResult LegacyTswRuntime::find_cached(
     );
 }
 
-std::optional<compat::u32> LegacyTswRuntime::reserve_guest_bytes(
-    const std::size_t count
-) noexcept {
-    // A process-wide guest range avoids two archives assigning the same
-    // identity; live leases remain distinct after cache eviction or close().
-    static std::atomic<compat::u32> next_guest_token{0x70000000U};
-    constexpr std::uint64_t kGuestLimit = 0xF0000000ULL;
-    const std::uint64_t bytes =
-        static_cast<std::uint64_t>(count == 0U ? 1U : count);
-    const std::uint64_t padded = (bytes + 15U) & ~std::uint64_t{15U};
-    compat::u32 token = next_guest_token.load(std::memory_order_relaxed);
-    while (padded <= kGuestLimit - token) {
-        const auto end = static_cast<compat::u32>(token + padded);
-        if (next_guest_token.compare_exchange_weak(
-                token, end, std::memory_order_relaxed
-            )) {
-            return token;
-        }
-    }
-    return std::nullopt;
-}
-
 void LegacyTswRuntime::evict_before_lookup() noexcept {
     if (cached_primary_bytes_ < cache_limit_) {
         return;
@@ -289,8 +266,8 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
 
     CacheBucket& bucket = buckets_[bucket_index(resource_id, variant_index)];
     const std::size_t primary_size = loaded.frame.primary_stream.size();
-    const auto node_token = reserve_guest_bytes(0x20U);
-    const auto source_token = reserve_guest_bytes(primary_size);
+    const auto node_token = reserve_legacy_guest_bytes(0x20U);
+    const auto source_token = reserve_legacy_guest_bytes(primary_size);
     if (!node_token || !source_token) {
         result.status = LegacyTswRuntimeStatus::allocation_failed;
         return result;

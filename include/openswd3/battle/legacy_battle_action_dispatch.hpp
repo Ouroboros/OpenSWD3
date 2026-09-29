@@ -1790,6 +1790,7 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleGroupBOpponentWaveParametersResult
         group_b_opponent_wave_parameters{};
     compat::u32 group_b_opponent_wave_parameters_calls{};
+    LegacyBattleActorFrameCallerPhysicalStop final_group_b_physical_stop{};
 };
 
 // sub_4731A0.

@@ -471,7 +471,6 @@ add_executable(
     unit/battle/legacy_battle_actor_target_preparation_test.cpp
     unit/battle/legacy_battle_available_actor_cycle_test.cpp
     unit/battle/legacy_battle_available_actor_reverse_cycle_test.cpp
-    unit/battle/legacy_battle_action_dispatch_test.cpp
     unit/battle/legacy_battle_attack_order_dequeue_test.cpp
     unit/battle/legacy_battle_attack_order_entry_test.cpp
     unit/battle/legacy_battle_attack_order_insert_test.cpp
@@ -511,7 +510,6 @@ add_executable(
     unit/battle/legacy_battle_group_a_workspace_reset_test.cpp
     unit/battle/legacy_battle_animation_collision_test.cpp
     unit/battle/legacy_battle_group_b_action_execution_test.cpp
-    unit/battle/legacy_battle_opponent_action_dispatch_test.cpp
     unit/battle/legacy_battle_background_initialization_test.cpp
     unit/battle/legacy_battle_color_accumulation_test.cpp
     unit/battle/legacy_battle_context_prompt_test.cpp
@@ -529,8 +527,6 @@ add_executable(
     unit/battle/legacy_battle_frame_effect_test.cpp
     unit/battle/legacy_battle_frame_refresh_test.cpp
     unit/battle/legacy_battle_full_frame_darkening_test.cpp
-    unit/battle/legacy_battle_final_actor_step_test.cpp
-    unit/battle/legacy_battle_group_a_frame_test.cpp
     unit/battle/legacy_battle_group_a_target_cycle_test.cpp
     unit/battle/legacy_battle_group_b_action_composition_test.cpp
     unit/battle/legacy_battle_group_b_action_configuration_test.cpp
@@ -549,7 +545,6 @@ add_executable(
     unit/battle/legacy_battle_group_b_script_resource_parameters_test.cpp
     unit/battle/legacy_battle_group_b_script_special_action_item_parameters_test.cpp
     unit/battle/legacy_battle_group_b_coordinate_offsets_test.cpp
-    unit/battle/legacy_battle_group_b_frame_test.cpp
     unit/battle/legacy_battle_group_b_opponent_mode_test.cpp
     unit/battle/legacy_battle_group_b_reward_item_selection_test.cpp
     unit/battle/legacy_battle_group_b_status_action_test.cpp
@@ -581,9 +576,6 @@ add_executable(
     unit/battle/legacy_battle_actor_field_26b8_high_bit_clear_test.cpp
     unit/battle/legacy_battle_actor_field_26b8_high_bit_query_test.cpp
     unit/battle/legacy_battle_actor_binary_state_toggle_test.cpp
-    unit/battle/legacy_battle_actor_runtime_reset_test.cpp
-    unit/battle/legacy_battle_actor_action_presentation_test.cpp
-    unit/battle/legacy_battle_actor_frame_presentation_test.cpp
     unit/battle/legacy_battle_actor_target_selection_test.cpp
     unit/battle/legacy_battle_actor_target_selection_count_increment_test.cpp
     unit/battle/legacy_battle_actor_target_selection_count_query_test.cpp
@@ -683,6 +675,39 @@ endif()
 add_test(
     NAME battle.legacy_battle_setup
     COMMAND openswd3_battle_legacy_battle_setup_tests
+)
+
+# Workpack 316 and its four callers are one independently buildable test unit.
+# These sources are not also compiled into the legacy battle setup target.
+add_executable(
+    openswd3_battle_actor_frame_316_tests
+    unit/battle/legacy_battle_actor_frame_316_main.cpp
+    unit/battle/legacy_battle_action_dispatch_test.cpp
+    unit/battle/legacy_battle_opponent_action_dispatch_test.cpp
+    unit/battle/legacy_battle_final_actor_step_test.cpp
+    unit/battle/legacy_battle_group_a_frame_test.cpp
+    unit/battle/legacy_battle_group_b_frame_test.cpp
+    unit/battle/legacy_battle_actor_runtime_reset_test.cpp
+    unit/battle/legacy_battle_actor_action_presentation_test.cpp
+    unit/battle/legacy_battle_actor_frame_presentation_test.cpp
+)
+target_include_directories(
+    openswd3_battle_actor_frame_316_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_battle_actor_frame_316_tests
+    PRIVATE openswd3_battle
+)
+if(WIN32)
+    target_link_options(
+        openswd3_battle_actor_frame_316_tests
+        PRIVATE "LINKER:/STACK:8388608"
+    )
+endif()
+add_test(
+    NAME battle.actor_frame_316
+    COMMAND openswd3_battle_actor_frame_316_tests
 )
 
 add_executable(
@@ -1972,6 +1997,14 @@ if(
     EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.tsw" AND
     EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.tsw"
 )
+    target_compile_definitions(
+        openswd3_battle_legacy_battle_setup_tests
+        PRIVATE OPENSWD3_REAL_TSW_ROOT="${PROJECT_SOURCE_DIR}/.."
+    )
+    target_compile_definitions(
+        openswd3_battle_actor_frame_316_tests
+        PRIVATE OPENSWD3_REAL_TSW_ROOT="${PROJECT_SOURCE_DIR}/.."
+    )
     add_test(
         NAME asset_runtime.legacy_tsw_archive_real
         COMMAND

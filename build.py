@@ -33,6 +33,14 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="run unit tests after a successful build",
     )
+    parser.add_argument(
+        "--build-target",
+        help="build only this CMake target and its dependencies",
+    )
+    parser.add_argument(
+        "--test-regex",
+        help="run only CTest names matching this regular expression",
+    )
     return parser.parse_args()
 
 
@@ -75,6 +83,13 @@ def run(command, environment=None) -> None:
 
 
 def build(arguments: argparse.Namespace) -> None:
+    if arguments.test_regex and not arguments.test:
+        raise BuildConfigurationError("--test-regex requires --test.")
+    if arguments.build_target and arguments.test and not arguments.test_regex:
+        raise BuildConfigurationError(
+            "--build-target with --test requires --test-regex."
+        )
+
     processor_count = os.cpu_count() or 1
     build_jobs = positive_job_count("OPENSWD3_BUILD_JOBS", processor_count)
     test_jobs = None
@@ -175,17 +190,18 @@ def build(arguments: argparse.Namespace) -> None:
         f"[OpenSWD3] Build: {build_label}-debug "
         f"(parallel jobs: {build_jobs})"
     )
-    run(
-        (
-            cmake,
-            "--build",
-            str(build_directory.relative_to(ROOT)),
-            "--config",
-            "Debug",
-            "--parallel",
-            str(build_jobs),
-        )
-    )
+    build_command = [
+        cmake,
+        "--build",
+        str(build_directory.relative_to(ROOT)),
+        "--config",
+        "Debug",
+        "--parallel",
+        str(build_jobs),
+    ]
+    if arguments.build_target:
+        build_command.extend(("--target", arguments.build_target))
+    run(build_command)
 
     if not arguments.test:
         print("[OpenSWD3] Build completed successfully. Unit tests were not run.")
@@ -197,19 +213,19 @@ def build(arguments: argparse.Namespace) -> None:
     if sanitizer == "address":
         test_environment["ASAN_OPTIONS"] = "detect_leaks=1:halt_on_error=1"
 
-    run(
-        (
-            ctest,
-            "--test-dir",
-            str(build_directory.relative_to(ROOT)),
-            "-C",
-            "Debug",
-            "--parallel",
-            str(test_jobs),
-            "--output-on-failure",
-        ),
-        test_environment,
-    )
+    test_command = [
+        ctest,
+        "--test-dir",
+        str(build_directory.relative_to(ROOT)),
+        "-C",
+        "Debug",
+        "--parallel",
+        str(test_jobs),
+        "--output-on-failure",
+    ]
+    if arguments.test_regex:
+        test_command.extend(("-R", arguments.test_regex, "--no-tests=error"))
+    run(test_command, test_environment)
     print("[OpenSWD3] Build and tests completed successfully.")
 
 

@@ -3,6 +3,7 @@
 #include "legacy_battle_actor_frame_io_helpers.hpp"
 #include "legacy_battle_actor_frame_route_internal.hpp"
 
+#include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
@@ -15,6 +16,7 @@
 #include <bit>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 
 namespace openswd3::battle {
 
@@ -463,7 +465,38 @@ LegacyBattleActorFrameEntryResult advance_legacy_battle_actor_frame_entry_route(
     const LegacyBattleActorFrameEntryRoutePorts& ports
 ) {
     auto prefix = enter_legacy_battle_actor_frame_presentation(actor, request);
+    auto routed_request = request;
+    const bool caller_supplied_draw_source =
+        !request.draw_source_bytes.empty() ||
+        request.draw_source_bytes_token != 0U;
+    std::shared_ptr<const asset_runtime::LegacyTswRuntimeFrame> draw_owner;
     while (!prefix.returned) {
+        if (!caller_supplied_draw_source) {
+            const auto* resource = actor.action_execution == nullptr
+                ? nullptr
+                : &actor.action_execution->resource;
+            const auto next_owner = resource == nullptr
+                ? nullptr
+                : resource->frame_owner;
+            if (resource != nullptr && next_owner != nullptr &&
+                resource->token != 0U &&
+                resource->token == next_owner->record_token &&
+                resource->token ==
+                    actor.action_execution->render_source_token &&
+                resource->value_00_known && resource->value_00 != 0U &&
+                resource->value_00 == next_owner->primary_stream_token &&
+                next_owner->primary_stream.size() >= 2U) {
+                draw_owner = next_owner;
+                routed_request.draw_source_bytes =
+                    draw_owner->primary_stream;
+                routed_request.draw_source_bytes_token =
+                    resource->value_00;
+            } else {
+                routed_request.draw_source_bytes = {};
+                routed_request.draw_source_bytes_token = 0U;
+                draw_owner.reset();
+            }
+        }
         auto outcome = actor_frame_route_detail::RouteStepOutcome::unhandled;
         constexpr auto phases = std::array{
             &actor_frame_route_detail::advance_phase_1,
@@ -474,7 +507,7 @@ LegacyBattleActorFrameEntryResult advance_legacy_battle_actor_frame_entry_route(
             &actor_frame_route_detail::advance_phase_6,
         };
         for (const auto phase : phases) {
-            outcome = phase(actor, request, ports, prefix);
+            outcome = phase(actor, routed_request, ports, prefix);
             if (outcome !=
                 actor_frame_route_detail::RouteStepOutcome::unhandled) {
                 break;
@@ -626,6 +659,7 @@ LegacyBattleActorFrameCallerRunResult advance_legacy_battle_actor_frame_caller(
     result.eip = result.child.eip;
     result.esp = result.child.esp;
     result.eax = result.child.eax;
+    result.ecx = result.child.ecx;
     result.edx = result.child.edx;
     if (result.child.returned &&
         result.child.eip == static_cast<u32>(site) + 5U &&
@@ -756,12 +790,13 @@ LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_reset(
     const auto write_dword =
         [&](const u32 instruction, const u32 offset, const u32 value) {
             if (prefix.accesses_completed == request.stop_before_access ||
-                !full_actor || !request.actor_writable) {
+                !full_actor || !request.actor_writable ||
+                prefix.esi != request.actor_token) {
                 stop(
                     LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
                     LegacyBattleActorFrameEntryAccessKind::actor_write,
                     instruction,
-                    request.actor_token + offset
+                    prefix.esi + offset
                 );
                 return false;
             }

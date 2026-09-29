@@ -902,8 +902,9 @@ continue_legacy_battle_actor_frame_case_fifty_audio_arguments(
             LegacyBattleActorFrameEntryAccessKind::actor_read,
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
             0x0047B75DU,
-            request.actor_token + 0x0428U,
-            actor.action_execution != nullptr
+            prefix.esi + 0x0428U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
         )) {
         return prefix;
     }
@@ -913,8 +914,9 @@ continue_legacy_battle_actor_frame_case_fifty_audio_arguments(
             LegacyBattleActorFrameEntryAccessKind::actor_write,
             LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
             0x0047B764U,
-            request.actor_token + 0x0390U,
-            actor.action_execution != nullptr
+            prefix.esi + 0x0390U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
         )) {
         return prefix;
     }
@@ -1057,8 +1059,9 @@ continue_legacy_battle_actor_frame_case_fifty_source(
             LegacyBattleActorFrameEntryAccessKind::actor_read,
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
             0x0047B77DU,
-            request.actor_token + 0x2548U,
-            actor.action_execution != nullptr
+            prefix.esi + 0x2548U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
         )) {
         return prefix;
     }
@@ -1105,8 +1108,9 @@ continue_legacy_battle_actor_frame_case_fifty_source(
             LegacyBattleActorFrameEntryAccessKind::actor_read,
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
             0x0047B791U,
-            request.actor_token + 0x2958U,
-            actor.action_execution != nullptr
+            prefix.esi + 0x2958U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
         )) {
         return prefix;
     }
@@ -1188,8 +1192,8 @@ continue_legacy_battle_actor_frame_case_fifty_draw_arguments(
                 LegacyBattleActorFrameEntryAccessKind::actor_read,
                 LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
                 instruction,
-                request.actor_token + offset,
-                backed
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
             )) {
             return false;
         }
@@ -1873,8 +1877,9 @@ continue_legacy_battle_actor_frame_case_six_source(
                 LegacyBattleActorFrameEntryAccessKind::actor_read,
                 LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
                 instruction,
-                request.actor_token + 0x2958U,
-                actor.action_execution != nullptr
+                prefix.esi + 0x2958U,
+                actor.action_execution != nullptr &&
+                    prefix.esi == request.actor_token
             )) {
             return false;
         }
@@ -1903,8 +1908,9 @@ continue_legacy_battle_actor_frame_case_six_source(
             LegacyBattleActorFrameEntryAccessKind::actor_read,
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
             0x0047A1C6U,
-            request.actor_token + 0x2548U,
-            actor.action_execution != nullptr
+            prefix.esi + 0x2548U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
         )) {
         return prefix;
     }
@@ -2053,8 +2059,8 @@ continue_legacy_battle_actor_frame_case_six_draw_arguments(
                 LegacyBattleActorFrameEntryAccessKind::actor_read,
                 LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
                 instruction,
-                request.actor_token + offset,
-                backed
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
             )) {
             return false;
         }
@@ -2539,8 +2545,9 @@ continue_legacy_battle_actor_frame_case_eleven_between_draws(
                 LegacyBattleActorFrameEntryAccessKind::actor_read,
                 LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
                 instruction,
-                request.actor_token + 0x2958U,
-                actor.action_execution != nullptr
+                prefix.esi + 0x2958U,
+                actor.action_execution != nullptr &&
+                    prefix.esi == request.actor_token
             )) {
             return false;
         }
@@ -2681,8 +2688,8 @@ continue_legacy_battle_actor_frame_case_fifteen_second_draw_arguments(
                 LegacyBattleActorFrameEntryAccessKind::actor_read,
                 LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
                 instruction,
-                request.actor_token + offset,
-                backed
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
             )) {
             return false;
         }

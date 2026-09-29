@@ -2,6 +2,7 @@
 
 #include "legacy_battle_actor_frame_io_helpers.hpp"
 
+#include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
@@ -273,10 +274,104 @@ LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_update(
         prefix.eip = 0x004321EEU;
         return prefix;
     }
+    const auto& record =
+        actor.action_execution->reserved_action_record_02;
+    const bool direct_return = port.models_fast_action_return() &&
+        ((record.external_mode == 1U && record.command_cursor != 0U) ||
+         record.action_id == 0U);
+    const u32 callee_entry_eax = prefix.eax;
+    if (direct_return) {
+        const u32 saved_ebx = prefix.ebx;
+        const u32 saved_ebp = prefix.ebp;
+        const u32 saved_esi = prefix.esi;
+        const u32 saved_edi = prefix.edi;
+        if (!push(0x004321E0U, saved_ebx) ||
+            !push(0x004321E1U, saved_ebp) ||
+            !push(0x004321E2U, saved_esi) ||
+            !touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_read,
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+                0x004321E3U,
+                prefix.esp + 0x10U,
+                request.stack_readable
+            )) {
+            return prefix;
+        }
+
+        prefix.esi = saved_edi;
+        prefix.ebp = 1U;
+        prefix.ebx = 0U;
+        prefix.flags = logical_zero_flags();
+        prefix.flags_known = true;
+        if (!touch(
+                LegacyBattleActorFrameEntryAccessKind::actor_read,
+                LegacyBattleActorFrameEntryStatus::update_child_typed_stop,
+                0x004321EEU,
+                prefix.esi + 0x90U,
+                request.actor_readable
+            )) {
+            return prefix;
+        }
+
+        prefix.eax = record.external_mode;
+        if (!push(0x004321F4U, saved_edi)) {
+            return prefix;
+        }
+
+        prefix.flags = subtract_flags(prefix.eax, 1U);
+        if (record.external_mode == 1U) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_read,
+                    LegacyBattleActorFrameEntryStatus::update_child_typed_stop,
+                    0x004321F9U,
+                    prefix.esi + 0x42U,
+                    request.actor_readable
+                )) {
+                return prefix;
+            }
+
+            prefix.flags = subtract_flags_16(record.command_cursor, 0U);
+        }
+
+        if (record.external_mode != 1U || record.command_cursor == 0U) {
+            if (!touch(
+                    LegacyBattleActorFrameEntryAccessKind::actor_read,
+                    LegacyBattleActorFrameEntryStatus::update_child_typed_stop,
+                    0x00432203U,
+                    prefix.esi,
+                    request.actor_readable
+                )) {
+                return prefix;
+            }
+
+            prefix.flags = subtract_flags(record.action_id, 0U);
+        }
+
+        if (!pop(0x00432A10U, prefix.edi, saved_edi)) {
+            return prefix;
+        }
+
+        prefix.eax = 1U;
+        if (!pop(0x00432A13U, prefix.esi, saved_esi) ||
+            !pop(0x00432A14U, prefix.ebp, saved_ebp) ||
+            !pop(0x00432A15U, prefix.ebx, saved_ebx) ||
+            !touch(
+                LegacyBattleActorFrameEntryAccessKind::stack_read,
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop,
+                0x00432A16U,
+                prefix.esp,
+                request.stack_readable && request.return_address_readable
+            )) {
+            return prefix;
+        }
+
+        prefix.esp += 4U;
+    }
+
     prefix.update_child = port.update(
         actor.action_execution->reserved_action_record_02,
         prefix.edi,
-        prefix.eax,
+        callee_entry_eax,
         prefix.ecx,
         prefix.edx
     );
@@ -298,7 +393,10 @@ LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_update(
         return prefix;
     }
 
-    prefix.esp += 4U;  // sub_4321E0's return address, not its caller argument.
+    if (!direct_return) {
+        prefix.esp += 4U;  // Opaque callee consumed its return address.
+    }
+
     prefix.flags = add_flags(prefix.esp, 4U);
     prefix.esp += 4U;
     prefix.flags = {
@@ -403,8 +501,9 @@ LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_lookup(
                     LegacyBattleActorFrameEntryAccessKind::actor_read,
                     LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
                     instruction,
-                    request.actor_token + offset,
-                    full_actor && request.actor_readable
+                    prefix.esi + offset,
+                    full_actor && request.actor_readable &&
+                        prefix.esi == request.actor_token
                 )) {
                 return false;
             }
@@ -417,8 +516,9 @@ LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_lookup(
                     LegacyBattleActorFrameEntryAccessKind::actor_write,
                     LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
                     instruction,
-                    request.actor_token + offset,
-                    full_actor && request.actor_writable
+                    prefix.esi + offset,
+                    full_actor && request.actor_writable &&
+                        prefix.esi == request.actor_token
                 )) {
                 return false;
             }
@@ -481,6 +581,17 @@ LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_lookup(
         resource.value_00_known = true;
         resource.value_0c_known = true;
         resource.value_0e_known = true;
+        const auto& source = reply.decoder_source;
+        const auto& owner = source.frame_owner;
+        resource.frame_owner = reply.decoder_source_known &&
+                owner != nullptr && reply.eax == owner->record_token &&
+                source.token != 0U &&
+                source.token == owner->primary_stream_token &&
+                source.token == reply.resource_value_00 &&
+                source.bytes.data() == owner->primary_stream.data() &&
+                source.bytes.size() == owner->primary_stream.size()
+            ? owner
+            : nullptr;
     }
     materialize_legacy_battle_actor_image(actor, image);
     if (!write_actor(0x00479945U, 0x2548U, prefix.eax)) {
@@ -589,23 +700,37 @@ continue_legacy_battle_actor_frame_resource_gate(
             }
             prefix.ebp = 0U;
             prefix.flags = logical_zero_flags();
+            const auto& frame = actor.action_execution->resource;
+            const bool frame_record_matches =
+                prefix.edx != 0U && frame.token == prefix.edx &&
+                frame.value_0c_known;
+            const bool actor_resource_matches =
+                actor.actor_resource_token_owner != nullptr &&
+                prefix.edx != 0U &&
+                prefix.edx == *actor.actor_resource_token_owner &&
+                actor.actor_resource_bytes != nullptr &&
+                actor.actor_resource_size >= 0x0EU;
+            const bool actor_width_available = actor_resource_matches &&
+                request.actor_resource_readable &&
+                prefix.accesses_completed != request.stop_before_access;
+            const u16 actor_width = actor_width_available
+                ? static_cast<u16>(actor.actor_resource_bytes[0x0CU]) |
+                    static_cast<u16>(actor.actor_resource_bytes[0x0DU] << 8U)
+                : 0U;
+            const bool conflicting_aliases = frame_record_matches &&
+                actor_width_available && frame.value_0c != actor_width;
             if (!touch(
                     LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
                     LegacyBattleActorFrameEntryStatus::
                         update_frame_resource_read_typed_stop,
                     0x00479980U,
                     prefix.edx + 0x0CU,
-                    actor.actor_resource_token_owner != nullptr &&
-                        prefix.edx != 0U &&
-                        prefix.edx == *actor.actor_resource_token_owner &&
-                        actor.actor_resource_bytes != nullptr &&
-                        actor.actor_resource_size >= 0x0EU &&
-                        request.actor_resource_readable
+                    (frame_record_matches || actor_resource_matches) &&
+                        !conflicting_aliases && request.actor_resource_readable
                 )) {
                 return prefix;
             }
-            prefix.ebp = static_cast<u32>(actor.actor_resource_bytes[0x0CU]) |
-                (static_cast<u32>(actor.actor_resource_bytes[0x0DU]) << 8U);
+            prefix.ebp = frame_record_matches ? frame.value_0c : actor_width;
             prefix.flags = subtract_flags(prefix.ebp, prefix.eax);
             prefix.ebp -= prefix.eax;
         }
@@ -953,13 +1078,14 @@ continue_legacy_battle_actor_frame_common_reset_prefix(
     const auto write =
         [&](const u32 instruction, const u32 offset, const u32 value) {
             if (prefix.accesses_completed == request.stop_before_access ||
-                !full_actor || !request.actor_writable) {
+                !full_actor || !request.actor_writable ||
+                prefix.esi != request.actor_token) {
                 prefix.status =
                     LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
                 prefix.stopped_access_kind =
                     LegacyBattleActorFrameEntryAccessKind::actor_write;
                 prefix.stopped_instruction = instruction;
-                prefix.stopped_token = request.actor_token + offset;
+                prefix.stopped_token = prefix.esi + offset;
                 prefix.eip = instruction;
                 return false;
             }
@@ -1148,8 +1274,9 @@ continue_legacy_battle_actor_frame_common_reset_return(
                     LegacyBattleActorFrameEntryAccessKind::actor_write,
                     LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
                     instruction,
-                    request.actor_token + offset,
-                    full_actor && request.actor_writable
+                    prefix.esi + offset,
+                    full_actor && request.actor_writable &&
+                        prefix.esi == request.actor_token
                 )) {
                 return false;
             }
@@ -2144,13 +2271,14 @@ continue_legacy_battle_actor_frame_case_two_release_prefix(
     }
     const auto write_word = [&](const u32 instruction, const u32 offset) {
         if (prefix.accesses_completed == request.stop_before_access ||
-            !full_actor || !request.actor_writable) {
+            !full_actor || !request.actor_writable ||
+            prefix.esi != request.actor_token) {
             prefix.status =
                 LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
             prefix.stopped_access_kind =
                 LegacyBattleActorFrameEntryAccessKind::actor_write;
             prefix.stopped_instruction = instruction;
-            prefix.stopped_token = request.actor_token + offset;
+            prefix.stopped_token = prefix.esi + offset;
             prefix.eip = instruction;
             return false;
         }
@@ -2202,13 +2330,13 @@ continue_legacy_battle_actor_frame_case_two_release_prefix(
         prefix.stopped_access_kind =
             LegacyBattleActorFrameEntryAccessKind::actor_read;
         prefix.stopped_instruction = 0x00479C83U;
-        prefix.stopped_token = request.actor_token + 0x0E14U;
+        prefix.stopped_token = prefix.esi + 0x0E14U;
         prefix.eip = 0x00479C83U;
         return prefix;
     }
     ++prefix.accesses_completed;
     prefix.eax = *actor.particle_source_token_owner;
-    prefix.edi = request.actor_token + 0x0E14U;
+    prefix.edi = prefix.esi + 0x0E14U;
     prefix.flags = subtract_flags(prefix.eax, prefix.ebx);
     prefix.status = prefix.flags.zero
         ? LegacyBattleActorFrameEntryStatus::case_two_emitter_clear_ready
@@ -2394,10 +2522,10 @@ continue_legacy_battle_actor_frame_case_two_initial_clear(
     prefix.eax = 0U;
     prefix.flags = logical_zero_flags();
     prefix.flags_known = true;
-    prefix.edi = request.actor_token + 0x0E14U;
+    prefix.edi = prefix.esi + 0x0E14U;
     prefix.edx = prefix.esp + (case_hundred_start ? 0x1CU : 0x18U);
     while (prefix.ecx != 0U) {
-        const u32 offset = prefix.edi - request.actor_token;
+        const u32 offset = prefix.edi - prefix.esi;
         const bool owner_known = offset == 0x0E14U
             ? actor.particle_source_token_owner != nullptr
             : offset >= 0x0E18U && offset < 0x0E6CU
@@ -2407,7 +2535,8 @@ continue_legacy_battle_actor_frame_case_two_initial_clear(
             : offset >= 0x0DC0U && offset < 0x0DF4U &&
                 actor.action_execution != nullptr;
         if (prefix.accesses_completed == request.stop_before_access ||
-            !full_actor || !request.actor_writable || !owner_known ||
+            !full_actor || !request.actor_writable ||
+            prefix.esi != request.actor_token || !owner_known ||
             offset > image.size() - sizeof(prefix.eax)) {
             prefix.status =
                 LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
@@ -2499,8 +2628,9 @@ continue_legacy_battle_actor_frame_case_two_decoder_arguments(
             LegacyBattleActorFrameEntryAccessKind::actor_read,
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
             case_eight_start ? 0x0047A633U : 0x00479B3BU,
-            request.actor_token + 0x2548U,
-            actor.action_execution != nullptr && request.actor_readable
+            prefix.esi + 0x2548U,
+            actor.action_execution != nullptr && request.actor_readable &&
+                prefix.esi == request.actor_token
         )) {
         return prefix;
     }

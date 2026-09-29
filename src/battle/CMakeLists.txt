@@ -16,6 +16,8 @@ add_library(
         legacy_battle_actor_action_cycle.cpp
         legacy_battle_actor_action_presentation.cpp
         legacy_battle_actor_frame_presentation.cpp
+        legacy_battle_actor_frame_host_heap.cpp
+        legacy_battle_actor_frame_tsw_lookup.cpp
         legacy_battle_actor_frame_presentation_decoder.cpp
         legacy_battle_actor_frame_presentation_resource_pipeline.cpp
         legacy_battle_actor_frame_presentation_decoder_continuations.cpp

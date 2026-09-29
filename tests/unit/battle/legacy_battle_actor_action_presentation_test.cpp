@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_actor_action_presentation.hpp"
 
+#include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/rendering/legacy_blitter.hpp"
@@ -359,6 +360,10 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.startup->party[0U].progress.special_ready = 1U;
+        auto prior_frame_owner = std::make_shared<
+            openswd3::asset_runtime::LegacyTswRuntimeFrame>();
+        fixture.action->group_a_action_execution[0U].resource.frame_owner =
+            prior_frame_owner;
         const auto entry = request(group_a_token);
         const auto result =
             openswd3::battle::advance_legacy_battle_actor_action_presentation(
@@ -404,6 +409,9 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
                     .resource.value_0c_known &&
                 fixture.action->group_a_action_execution[0U]
                     .resource.value_0e_known &&
+                fixture.action->group_a_action_execution[0U]
+                        .resource.frame_owner == nullptr &&
+                prior_frame_owner.use_count() == 1U &&
                 fixture.action->group_a_action_shared.turn_frame_source_token ==
                     0x72000000U &&
                 fixture.action->group_a_action_shared.draw_height_third ==

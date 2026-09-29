@@ -5,11 +5,14 @@
 
 #include <array>
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <span>
 #include <vector>
 
 namespace openswd3::battle {
+
+class LegacyBattleActorFrameRawBlock;
 
 struct LegacyBattleImageParticleNode {
     std::array<compat::u16, 4> saved_pixels{};
@@ -86,6 +89,7 @@ struct LegacyBattleImageParticleEmitter {
     compat::i32 shared_modulus_increment{};
     compat::u32 head_token{};
     compat::u32 tail_token{};
+    std::shared_ptr<LegacyBattleActorFrameRawBlock> source_pixels_owner{};
 };
 
 struct LegacyBattleImageParticleSharedState {

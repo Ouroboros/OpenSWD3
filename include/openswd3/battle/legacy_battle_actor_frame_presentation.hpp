@@ -1,15 +1,18 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_actor_frame_raw_block.hpp"
 #include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
 #include <cstddef>
 #include <limits>
+#include <memory>
 #include <span>
 
 namespace openswd3::asset_runtime {
 struct LegacyActionRecord;
+struct LegacyTswRuntimeFrame;
 }
 
 namespace openswd3::rendering {
@@ -375,6 +378,7 @@ enum class LegacyBattleActorFrameEntryStatus : compat::u16 {
     case_fifty_one_global_read_typed_stop,
     case_fifty_one_spawn_call_ready,
     case_fifty_one_spawn_child_typed_stop,
+    case_fifty_one_spawn_tail_ready,
     case_fifty_one_spawn_returned,
     case_fifty_one_reset_ready,
     case_fifty_one_reset_call_ready,
@@ -494,6 +498,8 @@ enum class LegacyBattleActorFrameEntryStatus : compat::u16 {
     stack_read_typed_stop,
     allocator_debug_break_typed_stop,
     allocator_block_write_typed_stop,
+    decoder_output_write_typed_stop,
+    heap_retry_callback_typed_stop,
 };
 
 enum class LegacyBattleActorFrameEntryAccessKind : compat::u8 {
@@ -516,6 +522,7 @@ enum class LegacyBattleActorFrameEntryAccessKind : compat::u8 {
     callee_call,
     debug_break,
     allocator_block_write,
+    decoder_output_write,
 };
 
 struct LegacyBattleActorFrameParentArgumentWord;
@@ -523,6 +530,56 @@ struct LegacyBattleActorFrameParentArgumentWord;
 struct LegacyBattleActorFrameDecoderSource {
     compat::u32 token{};
     std::span<const compat::u8> bytes{};
+    std::shared_ptr<const asset_runtime::LegacyTswRuntimeFrame> frame_owner{};
+};
+
+struct LegacyBattleActorFrameHeapRetryReply {
+    bool returned{};
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+    LegacyBattleActorCoordinateFlags flags{};
+    bool flags_known{};
+};
+
+class LegacyBattleActorFrameHeapRetryPort {
+public:
+    virtual ~LegacyBattleActorFrameHeapRetryPort() = default;
+    [[nodiscard]] virtual LegacyBattleActorFrameHeapRetryReply retry(
+        compat::u32 callback_token,
+        compat::u32 size,
+        compat::u32 entry_eax,
+        compat::u32 entry_ecx,
+        compat::u32 entry_edx,
+        const LegacyBattleActorCoordinateFlags& entry_flags
+    ) = 0;
+};
+
+struct LegacyBattleActorFrameWin32AllocationReply {
+    bool returned{};
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+    LegacyBattleActorCoordinateFlags flags{};
+    bool flags_known{};
+    std::shared_ptr<LegacyBattleActorFrameRawBlock> raw_owner{};
+};
+
+class LegacyBattleActorFrameWin32AllocationPort {
+public:
+    virtual ~LegacyBattleActorFrameWin32AllocationPort() = default;
+    // returned=false stops at the callee entry, with no claimed side effects.
+    // For a nonzero EAX, raw_owner starts at that token and retains at least
+    // the requested byte count through the decoder and parent result.
+    [[nodiscard]] virtual LegacyBattleActorFrameWin32AllocationReply allocate(
+        compat::u32 target,
+        compat::u32 heap_token,
+        compat::u32 flags,
+        compat::u32 bytes,
+        compat::u32 entry_eax,
+        compat::u32 entry_ecx,
+        compat::u32 entry_edx
+    ) = 0;
 };
 
 struct LegacyBattleActorFrameEntryRequest {
@@ -599,8 +656,13 @@ struct LegacyBattleActorFrameEntryRequest {
     bool decoder_payload_heap_high_fill_pixel_write_backed{};
     bool decoder_payload_heap_second_literal_pixel_backed{};
     bool decoder_payload_heap_second_literal_pixel_write_backed{};
+    bool decoder_payload_heap_subsequent_literal_pixel_backed{};
+    bool decoder_payload_heap_subsequent_literal_pixel_write_backed{};
+    bool decoder_payload_heap_remaining_literal_pixel_backed{};
+    bool decoder_payload_heap_remaining_literal_pixel_write_backed{};
     bool decoder_payload_heap_next_command_word_backed{};
     bool decoder_payload_heap_row_end_word_backed{};
+    bool decoder_payload_heap_next_row_command_word_backed{};
     bool decoder_payload_heap_return_pops_backed{};
     bool decoder_payload_heap_return_address_backed{};
     const compat::u32* decoder_heap_stats_size_owner{};
@@ -617,6 +679,26 @@ struct LegacyBattleActorFrameEntryRequest {
     bool decoder_heap_old_tail_block_writable{true};
     const compat::u32* decoder_win32_heap_owner{};   // 0x0053E7BC
     const compat::u32* decoder_win32_alloc_owner{};  // 0x00499198
+    LegacyBattleActorFrameWin32AllocationPort* decoder_win32_alloc_port{};
+    bool decoder_win32_alloc_return_known{};
+    compat::u32 decoder_win32_alloc_return_eax{};
+    compat::u32 decoder_win32_alloc_return_ecx{};
+    compat::u32 decoder_win32_alloc_return_edx{};
+    LegacyBattleActorCoordinateFlags decoder_win32_alloc_return_flags{};
+    bool decoder_win32_alloc_return_flags_known{};
+    bool decoder_heap_retry_argument_backed{};
+    bool decoder_heap_retry_zero_local_read_backed{};
+    bool decoder_heap_zero_initial_source_word_backed{};
+    bool decoder_heap_zero_second_source_word_backed{};
+    bool decoder_heap_zero_literal_source_word_backed{};
+    bool decoder_heap_zero_literal_source_byte_backed{};
+    bool decoder_heap_zero_empty_command_return_backed{};
+    bool decoder_heap_zero_fill_global_backed{};
+    const compat::u32* decoder_heap_retry_callback_owner{};  // 0x0053D1B8
+    bool decoder_heap_retry_local_backed{};
+    bool decoder_heap_retry_callback_size_backed{};
+    bool decoder_heap_retry_callback_target_backed{};
+    LegacyBattleActorFrameHeapRetryPort* decoder_heap_retry_port{};
     const compat::u32* draw_source_token_owner{};    // 0x004CD730
     const compat::u32* draw_palette_token_owner{};   // 0x004CD764
     const compat::u32* draw_height_third_owner{};    // 0x004CD75C
@@ -655,6 +737,10 @@ struct LegacyBattleActorFrameUpdateReply {
     compat::u32 resource_value_04{};
     compat::u16 resource_value_0c{};
     compat::u16 resource_value_0e{};
+    // A cache-backed source carries its frame lease through the decoder call.
+    // An unowned span remains an explicit synthetic/test boundary only.
+    LegacyBattleActorFrameDecoderSource decoder_source{};
+    bool decoder_source_known{};
 };
 
 struct LegacyBattleActorFrameDecodeReply {
@@ -666,6 +752,10 @@ struct LegacyBattleActorFrameDecodeReply {
     bool flags_known{};
     std::span<compat::u16> source_pixels{};
     bool source_pixels_known{};
+    // Optional explicit guest allocation lease for an external pixel span.
+    // The returned EAX must address this exact span inside the raw owner.
+    compat::u32 source_pixels_raw_token{};
+    std::shared_ptr<LegacyBattleActorFrameRawBlock> source_pixels_raw_owner{};
 };
 
 class LegacyBattleActorFrameDecodePort {
@@ -814,6 +904,12 @@ public:
 class LegacyBattleActorFrameUpdatePort {
 public:
     virtual ~LegacyBattleActorFrameUpdatePort() = default;
+    // Only a port that models the two direct sub_432A10 returns may opt into
+    // their physical child accesses in the parent route.
+    [[nodiscard]] virtual bool models_fast_action_return() const noexcept {
+        return false;
+    }
+
     [[nodiscard]] virtual LegacyBattleActorFrameUpdateReply update(
         asset_runtime::LegacyActionRecord& record,
         compat::u32 record_token,
@@ -887,6 +983,13 @@ struct LegacyBattleActorFrameEntryResult {
     std::size_t frame_lookup_calls{};
     LegacyBattleActorFrameUpdateReply update_child{};
     LegacyBattleActorFrameUpdateReply frame_lookup_child{};
+    std::shared_ptr<LegacyBattleActorFrameRawBlock> decoder_heap_block_owner{};
+    compat::u32 decoder_heap_block_token{};
+    compat::u32 decoder_pixel_count{};
+    // Number of contiguous output bytes committed before a normal byte
+    // decoder return; may be shorter than the declared pixel count.
+    compat::u32 decoder_byte_output_written{};
+    bool decoder_pixels_direct16{};
     LegacyBattleActorFrameUpdateReply sample_child{};
     LegacyBattleActorFrameUpdateReply draw_child{};
     LegacyBattleActorFrameUpdateReply scaled_rle_child{};
@@ -978,6 +1081,7 @@ struct LegacyBattleActorFrameCallerRunResult {
     compat::u32 eip{};
     compat::u32 esp{};
     compat::u32 eax{};
+    compat::u32 ecx{};
     compat::u32 edx{};
     bool returned{};
 };
@@ -1017,7 +1121,6 @@ struct LegacyBattleActorFrameCallerBinding {
     bool final_group_b_second_push_writable{true};
     bool final_group_b_first_output_writable{true};
     bool final_group_b_second_output_writable{true};
-    LegacyBattleActorFrameCallerPhysicalStop* final_group_b_stack_stop{};
 };
 
 // Requires a real parent ESP/register snapshot; no synthetic stack address
@@ -1677,6 +1780,14 @@ continue_legacy_battle_actor_frame_case_fifty_one_spawn_call(
 
 [[nodiscard]] LegacyBattleActorFrameEntryResult
 continue_legacy_battle_actor_frame_case_fifty_one_spawn_entry(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult prefix
+) noexcept;
+
+// Local physical POP/RET continuation after the scan child has returned.
+// It cannot bypass an unfinished 0x004344E0 child invocation.
+[[nodiscard]] LegacyBattleActorFrameEntryResult
+continue_legacy_battle_actor_frame_case_fifty_one_spawn_tail(
     const LegacyBattleActorFrameEntryRequest& request,
     LegacyBattleActorFrameEntryResult prefix
 ) noexcept;

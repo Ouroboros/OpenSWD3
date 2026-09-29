@@ -1265,6 +1265,7 @@ continue_legacy_battle_actor_frame_case_hundred_configuration(
         .zero = quarter == 0U,
         .sign = (quarter & 0x8000U) != 0U,
         .overflow = false,
+        .overflow_defined = false,
     };
     prefix.flags_known = true;
     if (!access(0x0047B61BU, 0x0E38U, true, emitter != nullptr)) {
@@ -1529,6 +1530,7 @@ continue_legacy_battle_actor_frame_case_hundred_particle_phase(
     const std::int32_t remainder = signed_phase % 3;
     prefix.eax = std::bit_cast<u32>(quotient);
     prefix.edx = std::bit_cast<u32>(remainder);
+    prefix.flags_known = false;  // IDIV leaves arithmetic FLAGS undefined.
     if (!touch(
             0x0047B6A3U, 0x0D66U, false, actor.primary_coordinates != nullptr
         )) {
@@ -1538,6 +1540,7 @@ continue_legacy_battle_actor_frame_case_hundred_particle_phase(
         std::bit_cast<std::int16_t>(actor.primary_coordinates->position_x)
     ));
     prefix.flags = add_flags(prefix.edx, prefix.eax);
+    prefix.flags_known = true;
     prefix.edx += prefix.eax;
     prefix.flags = subtract_flags(prefix.edx, prefix.ebp);
     prefix.edx -= prefix.ebp;

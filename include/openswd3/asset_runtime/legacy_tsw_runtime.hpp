@@ -9,7 +9,6 @@
 #include <filesystem>
 #include <list>
 #include <memory>
-#include <optional>
 #include <span>
 #include <vector>
 
@@ -133,8 +132,6 @@ private:
     [[nodiscard]] LegacyTswQueryResult
     find_low16(compat::u16 resource_id, compat::u16 variant_index) noexcept;
     void evict_before_lookup() noexcept;
-    [[nodiscard]] std::optional<compat::u32>
-    reserve_guest_bytes(std::size_t count) noexcept;
 
     std::filesystem::path data_root_;
     rendering::LegacyPixelConversionState pixel_conversion_;
