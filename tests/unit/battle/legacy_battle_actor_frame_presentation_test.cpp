@@ -157,6 +157,7 @@ using openswd3::compat::u32;
     const bool before_debug_read = stopped.eip == 0x004885C7U;
     const bool before_argument_read = stopped.eip == 0x00488603U;
     const bool before_hook_read = stopped.eip == 0x00488620U;
+    const bool at_hook_entry = stopped.eip == 0x0048AA70U;
     const auto expected_flags = before_debug_read ? before_call.flags
         : before_argument_read
         ? openswd3::battle::
@@ -166,28 +167,39 @@ using openswd3::compat::u32;
                   (std::popcount(static_cast<u8>(argument_token)) & 1) == 0,
               .sign = (argument_token & 0x80000000U) != 0U
           };
-    return (before_debug_read || before_argument_read || before_hook_read) &&
+    return (before_debug_read || before_argument_read || before_hook_read ||
+            at_hook_entry) &&
         stopped.stopped_instruction == stopped.eip &&
         stopped.stopped_token ==
         (before_debug_read          ? 0x004A82F4U
              : before_argument_read ? stopped.ebp + 8U
-                                    : 0x004A8360U) &&
+             : before_hook_read     ? 0x004A8360U
+                                    : 0U) &&
         stopped.stopped_access_kind ==
-        (before_argument_read
+        (at_hook_entry ? LegacyBattleActorFrameEntryAccessKind::callee_call
+             : before_argument_read
              ? LegacyBattleActorFrameEntryAccessKind::stack_read
              : LegacyBattleActorFrameEntryAccessKind::global_read) &&
-        stopped.esp == before_call.esp - (before_hook_read ? 72U : 44U) &&
+        stopped.esp ==
+        before_call.esp -
+            (at_hook_entry          ? 76U
+                 : before_hook_read ? 72U
+                                    : 44U) &&
         stopped.ebp == before_call.esp - 28U &&
         stopped.accesses_completed ==
         before_call.accesses_completed + (linked_node ? 13U : 12U) +
             (before_debug_read          ? 0U
                  : before_argument_read ? 1U
-                                        : 11U) &&
+                 : before_hook_read     ? 11U
+                                        : 13U) &&
         stopped.last_pushed_value ==
-        (before_hook_read ? 3U : before_call.edi) &&
+        (at_hook_entry          ? 0x00488626U
+             : before_hook_read ? 3U
+                                : before_call.edi) &&
         stopped.eax == (before_argument_read ? 0U : argument_token) &&
         stopped.ebx == before_call.ebx && stopped.ecx == before_call.ecx &&
-        stopped.edx == (before_hook_read ? 1U : before_call.edx) &&
+        stopped.edx ==
+        ((before_hook_read || at_hook_entry) ? 1U : before_call.edx) &&
         stopped.esi == expected_esi && stopped.edi == before_call.edi &&
         stopped.flags_known ==
         (before_debug_read ? before_call.flags_known : true) &&
@@ -4051,7 +4063,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             linked_next.esi == 0x701300U &&
             linked_next.esp == stopped_node.esp &&
             linked_next.accesses_completed ==
-                stopped_node.accesses_completed + 24U &&
+                stopped_node.accesses_completed + 26U &&
             linked_done.status ==
                 LegacyBattleActorFrameEntryStatus::reset_returned &&
             linked_done.returned && linked_done.eax == 1U &&
@@ -4274,7 +4286,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             terminal_return_fault.eip == 0x0047F0F3U &&
             terminal_return_fault.esp == linked_release_call.esp - 4U &&
             terminal_return_fault.accesses_completed ==
-                linked_next.accesses_completed + 28U &&
+                linked_next.accesses_completed + 30U &&
             terminal_return_fault_port.calls == 1U,
         "borrowed node snapshot cannot override actor alias after head clear; final callee RET read faults after committed node release and POPs"
     );
@@ -9414,6 +9426,73 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             );
             crt_hook_prefix_exact = crt_hook_prefix_exact && exact;
         }
+        auto hook_return_slot = group_b_input;
+        hook_return_slot.stop_before_access =
+            nonzero_emitter_release.accesses_completed + 24U;
+        ReleasePort hook_return_port{};
+        const auto stopped_hook_return_slot = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                hook_return_port, hook_return_slot, nonzero_emitter_release
+            );
+        test.expect_true(
+            stopped_hook_return_slot.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
+                stopped_hook_return_slot.eip == 0x00488620U &&
+                stopped_hook_return_slot.stopped_token ==
+                    nonzero_emitter_release.esp - 76U &&
+                stopped_hook_return_slot.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::stack_write &&
+                stopped_hook_return_slot.esp ==
+                    nonzero_emitter_release.esp - 72U &&
+                stopped_hook_return_slot.accesses_completed ==
+                    hook_return_slot.stop_before_access &&
+                stopped_hook_return_slot.last_pushed_value == 3U &&
+                hook_return_port.calls == 0U,
+            "case2 CRT free hook operand read precedes its independent CALL return-slot write"
+        );
+        ReleasePort hook_entry_port{};
+        hook_entry_port.reply.returned = false;
+        const auto stopped_hook_entry = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                hook_entry_port, group_b_input, nonzero_emitter_release
+            );
+        test.expect_true(
+            stopped_hook_entry.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_two_release_child_typed_stop &&
+                matches_release_deep_global_stop(
+                    stopped_hook_entry,
+                    nonzero_emitter_release,
+                    0x00801000U,
+                    nonzero_emitter_release.esi
+                ) &&
+                hook_entry_port.calls == 1U,
+            "case2 CRT free hook controlled non-return preserves IAT read and return slot"
+        );
+        constexpr u32 kDifferentHookTarget = 0x0048ABCDU;
+        auto different_hook_request = group_b_input;
+        different_hook_request.decoder_heap_alloc_owner = &kDifferentHookTarget;
+        ReleasePort different_hook_port{};
+        different_hook_port.reply.returned = false;
+        const auto stopped_different_hook = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                different_hook_port,
+                different_hook_request,
+                nonzero_emitter_release
+            );
+        test.expect_true(
+            stopped_different_hook.eip == kDifferentHookTarget &&
+                stopped_different_hook.stopped_instruction ==
+                    kDifferentHookTarget &&
+                stopped_different_hook.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::callee_call &&
+                stopped_different_hook.stopped_token == 0U &&
+                stopped_different_hook.last_pushed_value == 0x00488626U &&
+                stopped_different_hook.accesses_completed ==
+                    nonzero_emitter_release.accesses_completed + 25U &&
+                different_hook_port.calls == 1U,
+            "case2 CRT indirect free hook target is read from its owner, not a fixed synthetic address"
+        );
         auto missing_hook_owner = group_b_input;
         missing_hook_owner.decoder_heap_alloc_owner = nullptr;
         ReleasePort missing_hook_port{};

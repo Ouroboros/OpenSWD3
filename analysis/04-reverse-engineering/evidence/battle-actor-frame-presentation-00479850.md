@@ -1681,6 +1681,19 @@ CRT 尾部，不错误调用 hook。case2 C603–C620 共11处前障
 相较上一阶段新增十项访问；阶段 `proc_5f1c` Linux core 200/200。
 间接钩子、CRT 深层和真实父路径仍 partial；阶段快照 `proc_da14` Linux core／ASan core 各200/200、Linux app 206/206，不是316最终门禁。
 
+继续区分间接 CALL 的两次物理访问：在 `0x00488620`
+从持有的 `decoder_heap_alloc_owner` 读取 `0x004A8360` 中的
+目标 guest 地址，先检查返回槽 `ESP−4` 的写前障；成功后
+压 `0x00488626` 并以**实际读取的**目标地址为 EIP，
+非返回的窄 release port 停在该入口，保留 EAX=token、
+EDX=1、ESP 相对父 CALL 前减76和源于 CMP token,0 的 FLAGS。
+原有11个读前站不前移，新增返回槽独立站，三处正常受控
+回包的计数再加两项。测试中的 owner 是合成地址；当前源码
+只在测试构造中显式赋值该字段，实际 caller 通过
+`caller_snapshot` 传递请求，尚未证明生产 owner 已绑定，
+不能将测试 hook 地址或受控回包冒充原版钩子执行。
+`proc_e1d3` 定向 Linux core 200/200；阶段快照 `proc_9311` Linux core／ASan core 各200/200、Linux app 206/206，尚非316最终门禁。
+
 - case3/4 `0x00479CA6..0x0047A07E`：两支均在 signed phase `>32` 时跳公共重置，
   phase0 先播0x31；先读取 frame `+0x00` 发布 `dword_4CD730`，随后顺序调用矩形 `sub_416FF0`、绘制 `sub_4170E0`、第二个矩形、第二个绘制，
   最后把 phase 按 word 加2，**仅此时** `add esp,0x50` 一次性清掉四个调用累计压入的80字节，再以参数 `(0,0,640,480)` 调第三次矩形并返回0。

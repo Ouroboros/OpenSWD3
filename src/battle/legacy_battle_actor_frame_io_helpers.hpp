@@ -490,6 +490,16 @@ stop_sound_before_deep_read(
         callee.eip = 0x00488620U;
         return false;
     }
+    const u32 hook_target = *request.decoder_heap_alloc_owner;
+    ++callee.accesses_completed;
+    if (callee.accesses_completed == request.stop_before_access ||
+        !request.call_stack_writable) {
+        return stop(0x00488620U, callee.esp - 4U, true);
+    }
+    ++callee.accesses_completed;
+    callee.esp -= 4U;
+    callee.last_pushed_value = 0x00488626U;
+    callee.eip = hook_target;
     return true;
 }
 
@@ -502,10 +512,9 @@ stop_release_before_crt_global(
     callee.release_child = reply;
     callee.status = status;
     callee.stopped_access_kind =
-        LegacyBattleActorFrameEntryAccessKind::global_read;
-    callee.stopped_instruction = 0x00488620U;
-    callee.stopped_token = 0x004A8360U;
-    callee.eip = 0x00488620U;
+        LegacyBattleActorFrameEntryAccessKind::callee_call;
+    callee.stopped_instruction = callee.eip;
+    callee.stopped_token = 0U;
     return callee;
 }
 
