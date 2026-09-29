@@ -3113,6 +3113,18 @@ ECX=EDX=0、EAX=`0x7E7E7E7E`，停于
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
 
+逐块双向工作记录更新：249 块中，001–007、010、012–013、
+016–027、029、031–033、036–037、042、047–048、050、056–059、061、
+066–067、069、071–079、081–086、095–097、100、103、108–110、
+112、115–117、119、121–157、158–186、189–193、195、197–206、209、211–212、217、220–222、224、227–228、230、232–233、237–238、240–241、244、246–247、249 共171块完成**单块**
+LST→C++ 与 C++→LST 的局部核对；余78块仍未完成，不能由单块测试推出整包 REVIEW。
+新增块185–186：case15 B30E/B314 物理读取 ESI+2548 源 token 与 `[ECX]` dword，先写 4CD730 后才重读 ESI+2958 phase；5站核 token/kind/ESP/FLAGS/DF、序号、寄存器与未写全局旧值。生产已将两处 actor token 诊断及别名判定绑定真实 ESI，错误 ESI 在首读前停止而不代读另一 actor。signed -16 保留旧 4CC2F0/高位 EAX 及 CMP16 FLAGS；-15 的 B32F 写前停核 EAX0/ADD FLAGS/旧模式，-14 正常写模式1/EAX1 与 ADD FLAGS。定向 core/ASan `proc_a4c3` 各1/1；生产父栈及原版差分仍 partial。
+新增块183：case15 零相位在 B2FE 读全局 4AB784 采样 handle，B303/B304 顺压 handle、31h；三站核 token/kind/ESP/FLAGS/DF、访问序号及未压参旧前缀，FLAGS 属于此前 CMP AX,BX 而非 CMP AX,FFE0h。CALL #77 B306 回址 B30B 写障保留两参且不进 SoundPort，受控回包后 ADD ESP8 已另核；wrapper 深层/site 与原版差分 partial。初次错误预期及临时编译失败已修复，最终定向 core/ASan `proc_cb27` 各1/1。
+新增块177：case14 晚期最后图对 actor phase word 三次物理重读并依次写 `4CD71C/30C/304`，首写后压 EBX 且第三读前不清 EDX；P10 七站核 token/kind/ESP/FLAGS/DF、访问序号与全局旧值/寄存器。随后受控 P11 的绘图13站按 flags/source/H/W/Y/Oy/X/P 核五参 `(flags|4,7,5,16,65-EBP)` 及 OR 后 AF 未定义；CALL #75 B2BB 回址 B2C0 写障保留六参，DrawPort 未调用；绘图 callee/site 深层、生产父栈、原版差分仍 partial，定向 core/ASan `proc_3722` 各1/1。
+新增块176：case14 晚期绘图返回后重读 Y/源/Oy/H/P，压底边后再读源/W/X 及 Oy/Y 并压右/顶/左；14站独立核 actor/resource/stack 的 token/kind/ESP/FLAGS/DF、访问序号、已压参数及 SHL 的 AF 未定义，P10/H7 得 `(23,68-EBP,19,63-EBP)`；CALL #74 B246 回址 B24B 写前障保留四参，绘图留下的父栈前缀未清，深层 callee/site 与原版差分 partial；定向 core/ASan `proc_7224` 各1/1。
+新增块175：case14 晚期首矩形后对 actor+2958 的 word 分三次物理重读，各自取负并写 4CD71C/30C/304；首写后才压 EBX 辅助值。7 个站核 token/kind/ESP/FLAGS/DF、访问序号与旧全局值，第三次读前 EDX 清零；全局 P9 完成后受控改 P10，首图续段独立重读 flags/source/H/W/P/Y/Oy/X，13个站核五参 `(flags|4,7,5,16,23-EBP)` 的物理前缀及 OR 后 AF 未定义。CALL #73 B1E7 回址 B1EC 写前障不进 DrawPort；定向 core/ASan `proc_7210` 各1/1，绘图 callee/site 深层、生产父栈及原版差分 partial。
+新增块174：case14 晚期首矩形先重读源/Y/H/Oy、MOVSX AX 到 signed P 并翻倍，先压底边 Y+H/2-Oy，再于 B150 将2P写本地 ESP+10h、B154 读回，续读 W/X 并压右/顶/左 `(X+W-2P-EBP,Y-Oy,X-2P-EBP)`；14站核 token/kind/ESP/FLAGS/DF、访问序号、本地写前后与已压四参，P9/H7 得 `(19,30-EBP,16,25-EBP)`。CALL #72 B174 回址 B179 写障仅父级参数，callee/site 深层、生产父栈、原版差分仍 partial；定向 core/ASan `proc_c2a3` 各1/1。
+新增块173：非8相位在 B110 全宽 ADD EAX,4，B113 仅将 AX 低16位写 actor+2958，B11A 跳共享尾；受控 phase7 与图像回包 EAX12348000h 在写前障保留旧相位7、EAX1234000Bh/ADD FLAGS/ESP+80/DF/token/kind/instruction，正常落相位11且不截断 EAX 高位。受控 FFFF8000h 与 phaseFFFEh 全宽累加回绕到 EAX2/CF1；定向 core/ASan `proc_54cd` 各1/1，生产父栈及原版差分仍 partial。
 新增块172：仅当辅助 INC 后重读等于 AX8，B102 写 actor+2958 为9，B10B 跳共享尾；写前停点保留主相位8与辅助8，核 token/kind/ESP+80/EAX12340008h/CMP16 零标志/DF/访问序号；正常返回主相位9且 FLAGS/EAX 保持，辅助不等时跳过。定向 core/ASan `proc_5919` 各1/1，原版差分未核。
 新增块171：B0EE 对 actor+2954 的同一 INC word 分读、写两处物理停点，写前值7保持，B0F5 重读见8；三站核 token/kind/ESP/FLAGS/DF/EAX 高16位/访问序号，7→8 的 INC 不改来自 CMP AX8 的 CF，辅助0→1 与 AX8 不等时保留旧主相位8及 CMP16(1,8) FLAGS。定向 core/ASan `proc_efee` 各1/1；父层与原版差分仍 partial。
 新增块170：第二图 CALL 返回后20参仍在栈，B0DE 读 actor+2958 word 覆写 AX 低16位、高16位取受控回包，ADD ESP50h 回收80字节再 CMP AX,8。读前故障保持旧 EAX/ESP/FLAGS/DF，下一站 B0EE 见 EAX=12340008h 与 CMP16 相等标志、辅助标记取消；受控非8与高位回包向量分别在 B113 写前见完整 EAX=1234000Bh、FFFF8000h/phaseFFFEh 加4回绕至2/CF1，不将关联块 B110 或辅助块171–172提前标 reviewed。定向 core/ASan `proc_a185` 各1/1；生产父栈及原版差分仍 partial。

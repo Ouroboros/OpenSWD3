@@ -1765,8 +1765,9 @@ continue_legacy_battle_actor_frame_case_fifteen_source(
             LegacyBattleActorFrameEntryAccessKind::actor_read,
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
             0x0047B30EU,
-            request.actor_token + 0x2548U,
-            actor.action_execution != nullptr
+            prefix.esi + 0x2548U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
         )) {
         return prefix;
     }
@@ -1798,8 +1799,9 @@ continue_legacy_battle_actor_frame_case_fifteen_source(
             LegacyBattleActorFrameEntryAccessKind::actor_read,
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
             0x0047B31CU,
-            request.actor_token + 0x2958U,
-            actor.action_execution != nullptr
+            prefix.esi + 0x2958U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
         )) {
         return prefix;
     }
