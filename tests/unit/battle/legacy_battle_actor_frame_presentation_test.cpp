@@ -7154,6 +7154,10 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_source_token.status ==
                     LegacyBattleActorFrameEntryStatus::actor_read_typed_stop &&
                 stopped_source_token.eip == 0x00479A02U &&
+                stopped_source_token.stopped_token ==
+                    phase_equal.esi + 0x2548U &&
+                stopped_source_token.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::actor_read &&
                 stopped_source_token.eax == 480U &&
                 stopped_source_token.esp == phase_equal.esp &&
                 stopped_source_token.accesses_completed ==
@@ -7161,6 +7165,22 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             "case 1 +0x2548 read fault precedes both the 7BDEF7BD constant and EBX PUSH"
         );
 
+        auto foreign_case_one_source = phase_equal;
+        foreign_case_one_source.esi = phase_equal.esi + 0x100U;
+        const auto stopped_foreign_case_one_source = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_active_prefix(
+                group_b, group_b_input, foreign_case_one_source
+            );
+        test.expect_true(
+            stopped_foreign_case_one_source.eip == 0x00479A02U &&
+                stopped_foreign_case_one_source.stopped_token ==
+                    foreign_case_one_source.esi + 0x2548U &&
+                stopped_foreign_case_one_source.accesses_completed ==
+                    foreign_case_one_source.accesses_completed &&
+                stopped_foreign_case_one_source.esp ==
+                    foreign_case_one_source.esp,
+            "case1 foreign physical ESI cannot borrow actor source backing"
+        );
         const auto missing_first_dword = openswd3::battle::
             continue_legacy_battle_actor_frame_case_one_source_read(
                 group_b, group_b_input, source_pending
@@ -7308,10 +7328,25 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 continue_legacy_battle_actor_frame_case_one_motion_globals(
                     group_b, motion_fault, source_global_prefix
                 );
-            each_motion_access_exact = each_motion_access_exact &&
+            const bool read = ordinal == 1U || ordinal == 3U || ordinal == 5U;
+            const bool stop_exact =
                 stopped_motion.eip == motion_fault_eips[ordinal] &&
+                stopped_motion.stopped_instruction == stopped_motion.eip &&
+                stopped_motion.stopped_token ==
+                    (read                ? source_global_prefix.esi + 0x2958U
+                         : ordinal == 0U ? 0x004CD730U
+                         : ordinal == 2U ? 0x004CD71CU
+                         : ordinal == 4U ? 0x004CD30CU
+                                         : 0x004CD304U) &&
+                stopped_motion.stopped_access_kind ==
+                    (read ? LegacyBattleActorFrameEntryAccessKind::actor_read
+                          : LegacyBattleActorFrameEntryAccessKind::
+                                global_write) &&
                 stopped_motion.accesses_completed ==
                     motion_fault.stop_before_access &&
+                stopped_motion.esp == source_global_prefix.esp &&
+                stopped_motion.direction_flag ==
+                    source_global_prefix.direction_flag &&
                 motion.turn_frame_source_token ==
                     (ordinal >= 1U ? 0x12340000U : 0x10101010U) &&
                 motion.draw_motion_a ==
@@ -7319,10 +7354,31 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 motion.draw_motion_b ==
                     (ordinal >= 5U ? 0xFFFFFFE2U : 0x22222222U) &&
                 motion.draw_motion_c == 0x33333333U;
+            test.expect_true(
+                stop_exact,
+                std::string("case1 motion physical stop ") +
+                    std::to_string(ordinal)
+            );
+            each_motion_access_exact = each_motion_access_exact && stop_exact;
         }
+        auto foreign_case_one_motion = source_global_prefix;
+        foreign_case_one_motion.esi += 0x100U;
+        motion.turn_frame_source_token = 0x10101010U;
+        motion.draw_motion_a = 0x11111111U;
+        const auto stopped_foreign_case_one_motion = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_motion_globals(
+                group_b, group_b_input, foreign_case_one_motion
+            );
         test.expect_true(
-            each_motion_access_exact,
-            "case 1 source/phase/global writes have seven independently stoppable accesses and retain each committed prefix"
+            each_motion_access_exact &&
+                stopped_foreign_case_one_motion.eip == 0x00479A16U &&
+                stopped_foreign_case_one_motion.stopped_token ==
+                    foreign_case_one_motion.esi + 0x2958U &&
+                stopped_foreign_case_one_motion.accesses_completed ==
+                    foreign_case_one_motion.accesses_completed + 1U &&
+                motion.turn_frame_source_token == 0x12340000U &&
+                motion.draw_motion_a == 0x11111111U,
+            "case1 source/global first write commits before mismatched physical phase ESI stops"
         );
         first.action_execution.turn_threshold = 0xFFFFU;
         const auto signed_negative_motion = openswd3::battle::
@@ -7400,17 +7456,53 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 continue_legacy_battle_actor_frame_case_one_height(
                     group_b, height_fault, motion_ready
                 );
-            each_height_access_exact = each_height_access_exact &&
+            const bool stop_exact =
                 stopped_height.eip == height_fault_eips[ordinal] &&
+                stopped_height.stopped_instruction == stopped_height.eip &&
+                stopped_height.stopped_token ==
+                    (ordinal == 0U       ? motion_ready.esi + 0x2548U
+                         : ordinal == 1U ? motion_ready.esi + 0x2958U
+                         : ordinal == 2U ? 0x0070200EU
+                         : ordinal == 3U ? 0x004CD75CU
+                                         : motion_ready.esi + 0x2694U) &&
+                stopped_height.stopped_access_kind ==
+                    (ordinal == 2U ? LegacyBattleActorFrameEntryAccessKind::
+                                         frame_resource_read
+                         : ordinal == 3U
+                         ? LegacyBattleActorFrameEntryAccessKind::global_write
+                         : ordinal == 5U
+                         ? LegacyBattleActorFrameEntryAccessKind::actor_write
+                         : LegacyBattleActorFrameEntryAccessKind::actor_read) &&
                 stopped_height.accesses_completed ==
                     height_fault.stop_before_access &&
+                stopped_height.esp == motion_ready.esp &&
+                stopped_height.direction_flag == motion_ready.direction_flag &&
                 motion.draw_height_third ==
                     (ordinal >= 4U ? 487U : 0xCAFEC0DEU) &&
                 first.action_execution.presentation_render_flags == 0x9A000085U;
+            test.expect_true(
+                stop_exact,
+                std::string("case1 height physical stop ") +
+                    std::to_string(ordinal)
+            );
+            each_height_access_exact = each_height_access_exact && stop_exact;
         }
+        auto foreign_case_one_height = motion_ready;
+        foreign_case_one_height.esi += 0x100U;
+        motion.draw_height_third = 0xCAFEC0DEU;
+        const auto stopped_foreign_case_one_height = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_height(
+                group_b, group_b_input, foreign_case_one_height
+            );
         test.expect_true(
-            each_height_access_exact,
-            "case 1 token/phase/resource/height/flag RMW preserves six independently stoppable physical accesses"
+            each_height_access_exact &&
+                stopped_foreign_case_one_height.eip == 0x00479A77U &&
+                stopped_foreign_case_one_height.stopped_token ==
+                    foreign_case_one_height.esi + 0x2548U &&
+                stopped_foreign_case_one_height.accesses_completed ==
+                    foreign_case_one_height.accesses_completed &&
+                motion.draw_height_third == 0xCAFEC0DEU,
+            "case1 height physical ESI mismatch stops before resource and flag writes"
         );
         motion.draw_height_third = 0xCAFEC0DEU;
         source_record.value_0e_known = false;
@@ -7479,6 +7571,21 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             0x00479AEAU,
             0x00479AEBU,
         };
+        const std::array<u32, 13U> case_one_draw_fault_tokens{
+            draw_prefix.esi + 0x2548U,
+            draw_prefix.esi + 0x03E4U,
+            draw_prefix.esp - 4U,
+            0x0070200EU,
+            0x0070200CU,
+            draw_prefix.esp - 8U,
+            draw_prefix.esi + 0x0D68U,
+            0x004CD71CU,
+            draw_prefix.esp - 12U,
+            draw_prefix.esi + 0x2958U,
+            draw_prefix.esi + 0x0D66U,
+            draw_prefix.esp - 16U,
+            draw_prefix.esp - 20U,
+        };
         for (std::size_t ordinal = 0U; ordinal < draw_fault_eips.size();
              ++ordinal) {
             auto draw_fault = group_b_input;
@@ -7491,17 +7598,50 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             const std::size_t pushed = (ordinal >= 3U ? 1U : 0U) +
                 (ordinal >= 6U ? 1U : 0U) + (ordinal >= 9U ? 1U : 0U) +
                 (ordinal >= 12U ? 1U : 0U);
-            each_draw_access_exact = each_draw_access_exact &&
+            const bool write = ordinal == 2U || ordinal == 5U ||
+                ordinal == 8U || ordinal == 11U || ordinal == 12U;
+            const bool resource = ordinal == 3U || ordinal == 4U;
+            const bool stop_exact =
                 stopped_draw.eip == draw_fault_eips[ordinal] &&
+                stopped_draw.stopped_instruction == stopped_draw.eip &&
+                stopped_draw.stopped_token ==
+                    case_one_draw_fault_tokens[ordinal] &&
+                stopped_draw.stopped_access_kind ==
+                    (write ? LegacyBattleActorFrameEntryAccessKind::stack_write
+                         : resource ? LegacyBattleActorFrameEntryAccessKind::
+                                          frame_resource_read
+                         : ordinal == 7U
+                         ? LegacyBattleActorFrameEntryAccessKind::global_read
+                         : LegacyBattleActorFrameEntryAccessKind::actor_read) &&
                 stopped_draw.accesses_completed ==
                     draw_fault.stop_before_access &&
                 stopped_draw.draw_argument_count == pushed &&
                 stopped_draw.esp ==
-                    draw_prefix.esp - static_cast<u32>(4U * pushed);
+                    draw_prefix.esp - static_cast<u32>(4U * pushed) &&
+                stopped_draw.direction_flag == draw_prefix.direction_flag &&
+                stopped_draw.flags_known;
+            test.expect_true(
+                stop_exact,
+                std::string("case1 draw physical stop ") +
+                    std::to_string(ordinal)
+            );
+            each_draw_access_exact = each_draw_access_exact && stop_exact;
         }
+        auto foreign_case_one_draw = draw_prefix;
+        foreign_case_one_draw.esi += 0x100U;
+        const auto stopped_foreign_case_one_draw = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_draw_arguments(
+                group_b, group_b_input, foreign_case_one_draw
+            );
         test.expect_true(
-            each_draw_access_exact,
-            "case1 draw preparation stops independently at all thirteen actor/resource/global/stack accesses"
+            each_draw_access_exact &&
+                stopped_foreign_case_one_draw.eip == 0x00479AA7U &&
+                stopped_foreign_case_one_draw.stopped_token ==
+                    foreign_case_one_draw.esi + 0x2548U &&
+                stopped_foreign_case_one_draw.accesses_completed ==
+                    foreign_case_one_draw.accesses_completed &&
+                stopped_foreign_case_one_draw.esp == foreign_case_one_draw.esp,
+            "case1 draw physical ESI mismatch stops before any argument PUSH"
         );
         source_record.value_0c_known = false;
         const auto unknown_draw_width = openswd3::battle::
@@ -7533,8 +7673,18 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_draw_call.status ==
                     LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
                 stopped_draw_call.eip == 0x00479AECU &&
+                stopped_draw_call.stopped_instruction == 0x00479AECU &&
                 stopped_draw_call.esp == draw_pending.esp &&
                 stopped_draw_call.stopped_token == draw_pending.esp - 4U &&
+                stopped_draw_call.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::stack_write &&
+                stopped_draw_call.accesses_completed ==
+                    draw_pending.accesses_completed &&
+                stopped_draw_call.draw_argument_pushes ==
+                    draw_pending.draw_argument_pushes &&
+                stopped_draw_call.direction_flag ==
+                    draw_pending.direction_flag &&
+                same_frame_flags(stopped_draw_call.flags, draw_pending.flags) &&
                 stopped_draw_call.draw_calls == 0U && renderer.calls == 0U,
             "draw CALL return-address fault retains all six prior cdecl arguments without invoking renderer"
         );

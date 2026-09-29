@@ -4813,9 +4813,16 @@ span 未超出块尾，emitter 现在也保有 raw 块
 `platform_adapted` / `assembly_exact` 尚未判定。原版动态 oracle 缺失时只能在实现和静态门全部完成后登记 `blocked_runtime_oracle`，
 不能事先宣称差分通过。production/parent 仅有部分条件化接线与局部测试；inventory、PLAN 和模块文档未因这些阶段性证据预先关闭。
 
-逐块双向工作记录更新：249 块中，001–029、031–054、055–059、060–065、
-066–070、071–079、080–094、095–120、121–157、158–249 共248块完成**单块**
-LST→C++ 与 C++→LST 的局部核对；余1块仍未完成，不能由单块测试推出整包 REVIEW。
+逐块双向工作记录更新：001–249 共249/249块完成**单块**
+LST→C++ 与 C++→LST 的局部核对；98 CALL/22 RET 深层、生产 caller 与
+跨块状态尚未整体收敛，不能由单块测试推出整包 REVIEW。
+新增块030：case1 A02 物理 ESI+2548 源、A0D 压 EBX、源首字发布4CD730，
+三次独立 signed phase 高乘写4CD71C/4CD30C/4CD304；A77 起重读源与 phase、
+源+0E 写4CD75C，ESI+2694 读/掩码/置位/写，再读源/Oy/H/W/Y/首全局/phase/X，
+压 flags/H/W/Y−Oy−4*motion−phase/X−EBP，AEC CALL sub4170E0 压 AF1。
+修正生产源、motion、height、flags RMW、draw actor 访存为物理 ESI/backing；
+7+6+13站、CALL槽及外来ESI核 token/kind/ESP/FLAGS/DF/已提交前缀；
+子级深层与原版差分 partial，定向 core/ASan `proc_4979` 各1/1。
 新增块094：case7 第四绘图 A577 三次 signed phase NEG 写三全局，A585 首写后 PUSH 字面零，压 flags|4/H/W/Y−Oy+P+16（LEA 不改 FLAGS）/X−Ox+P，A5EA CALL sub4170E0 压 A5EF，第二组20参仍在调用方栈。7全局+13绘图物理站及 CALL 核 token/kind/ESP/FLAGS/DF/已提交前缀；像素/原版 partial，core/ASan `proc_f19e` 各1/1。
 新增块093：case7 第四矩形 A516 一次 source 供 H/W，Oy/Y 各独立重读，压 Y+H−Oy+P、X+W−Ox+P、Y+(H>>1)−Oy+P、X+(W>>1)−Ox+P；A572 CALL sub416FF0 压 A577。13物理站及 CALL 核 token/kind/ESP/FLAGS/DF/已压前缀；clip 深层/原版 partial，core/ASan `proc_200b` 各1/1。
 新增块092：case7 第三绘图 A4A0 后三次 signed phase NEG 全部写全局后才在 A4DB PUSH 字面零（不同于前两轮首写后压零）；压 flags|4/H/W/Y−P−Oy/X+P−Ox，A511 CALL sub4170E0 压 A516。6全局+14绘图物理站与 CALL 区分辅助 PUSH/五参并核 token/kind/ESP/FLAGS/DF/已提交前缀；像素/原版 partial，core/ASan `proc_25ab` 各1/1。
