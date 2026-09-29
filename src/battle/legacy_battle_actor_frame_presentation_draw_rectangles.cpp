@@ -152,6 +152,7 @@ continue_legacy_battle_actor_frame_case_three_four_first_draw_arguments(
         prefix.ecx |= 4U;
         prefix.flags = {
             .parity = even_parity(static_cast<u8>(prefix.ecx)),
+            .auxiliary_carry_defined = false,
             .zero = prefix.ecx == 0U,
             .sign = (prefix.ecx & 0x80000000U) != 0U,
         };
@@ -1722,6 +1723,7 @@ continue_legacy_battle_actor_frame_case_thirteen_second_draw_arguments(
     prefix.ecx |= 4U;
     prefix.flags = {
         .parity = even_parity(static_cast<u8>(prefix.ecx)),
+        .auxiliary_carry_defined = false,
         .zero = prefix.ecx == 0U,
         .sign = (prefix.ecx & 0x80000000U) != 0U,
     };
