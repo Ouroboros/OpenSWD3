@@ -9359,7 +9359,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 debug_release_port, debug_release, nonzero_emitter_release
             );
         debug_release.stop_before_access =
-            std::numeric_limits<std::size_t>::max();
+            nonzero_emitter_release.accesses_completed + 25U;
         const auto stopped_debug_callee = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_release_call(
                 debug_release_port, debug_release, nonzero_emitter_release
@@ -9378,15 +9378,15 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_debug_call_push.flags_known &&
                 !stopped_debug_call_push.flags.zero &&
                 stopped_debug_callee.status ==
-                    LegacyBattleActorFrameEntryStatus::
-                        case_two_release_child_typed_stop &&
-                stopped_debug_callee.eip == 0x00488EEAU &&
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
+                stopped_debug_callee.eip == 0x00488603U &&
                 stopped_debug_callee.stopped_access_kind ==
                     LegacyBattleActorFrameEntryAccessKind::stack_read &&
                 stopped_debug_callee.stopped_token ==
-                    nonzero_emitter_release.esp - 88U &&
-                stopped_debug_callee.esp == nonzero_emitter_release.esp - 88U &&
-                stopped_debug_callee.ebp == nonzero_emitter_release.esp - 52U &&
+                    nonzero_emitter_release.esp - 20U &&
+                stopped_debug_callee.esp == nonzero_emitter_release.esp - 44U &&
+                stopped_debug_callee.ebp == nonzero_emitter_release.esp - 28U &&
+                stopped_debug_callee.ecx == 0U &&
                 stopped_debug_callee.last_pushed_value ==
                     nonzero_emitter_release.edi &&
                 stopped_debug_callee.eax == 1U &&
@@ -9400,10 +9400,68 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     }
                 ) &&
                 stopped_debug_callee.accesses_completed ==
-                    nonzero_emitter_release.accesses_completed + 20U &&
+                    nonzero_emitter_release.accesses_completed + 25U &&
                 debug_release_port.calls == 0U,
-            "case2 CRT debug flags4 reads the second flag and reaches heap-check first epilogue POP without a fake return"
+            "case2 CRT debug flags4 restores the nested frame before the outer free argument read"
         );
+        constexpr std::array<u32, 5U> kDebugHeapRestoreIps{
+            0x00488EEAU,
+            0x00488EEBU,
+            0x00488EECU,
+            0x00488EEFU,
+            0x00488EF0U,
+        };
+        constexpr std::array<u32, 5U> kDebugHeapRestoreOffsets{
+            88U,
+            84U,
+            80U,
+            52U,
+            48U,
+        };
+        for (std::size_t ordinal = 0U; ordinal < kDebugHeapRestoreIps.size();
+             ++ordinal) {
+            auto restore_request = debug_release;
+            restore_request.stop_before_access =
+                nonzero_emitter_release.accesses_completed + 20U + ordinal;
+            ReleasePort untouched_restore_port{};
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_release_call(
+                    untouched_restore_port,
+                    restore_request,
+                    nonzero_emitter_release
+                );
+            test.expect_true(
+                stopped.status ==
+                        LegacyBattleActorFrameEntryStatus::
+                            stack_read_typed_stop &&
+                    stopped.eip == kDebugHeapRestoreIps[ordinal] &&
+                    stopped.stopped_instruction == stopped.eip &&
+                    stopped.stopped_access_kind ==
+                        LegacyBattleActorFrameEntryAccessKind::stack_read &&
+                    stopped.stopped_token ==
+                        nonzero_emitter_release.esp -
+                            kDebugHeapRestoreOffsets[ordinal] &&
+                    stopped.esp == stopped.stopped_token &&
+                    stopped.ebp ==
+                        nonzero_emitter_release.esp -
+                            (ordinal == 4U ? 28U : 52U) &&
+                    stopped.last_pushed_value == nonzero_emitter_release.edi &&
+                    stopped.eax == 1U && stopped.flags_known &&
+                    same_frame_flags(
+                        stopped.flags,
+                        openswd3::battle::LegacyBattleActorCoordinateFlags{
+                            .parity = true,
+                            .auxiliary_carry_defined = false,
+                            .zero = true
+                        }
+                    ) &&
+                    stopped.accesses_completed ==
+                        restore_request.stop_before_access &&
+                    untouched_restore_port.calls == 0U,
+                std::string{"case2 CRT heap-check restore POP #"} +
+                    std::to_string(ordinal)
+            );
+        }
         auto second_debug_read_request = debug_release;
         second_debug_read_request.stop_before_access =
             nonzero_emitter_release.accesses_completed + 19U;

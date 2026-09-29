@@ -422,7 +422,16 @@ stop_sound_before_deep_read(
     callee.eax = debug_flags & 4U;
     callee.flags = logical_result_flags(callee.eax);  // AND then TEST EAX,EAX.
     callee.flags_known = true;
+    const auto read_stack = [&](const u32 ip, const u32 token) {
+        if (callee.accesses_completed == request.stop_before_access ||
+            !request.stack_readable) {
+            return stop(ip, token, false);
+        }
+        ++callee.accesses_completed;
+        return true;
+    };
     if (callee.eax != 0U) {
+        const u32 crt_frame_pointer = callee.ebp;
         const u32 return_slot = callee.esp - 4U;
         if (callee.accesses_completed == request.stop_before_access ||
             !request.call_stack_writable) {
@@ -478,22 +487,32 @@ stop_sound_before_deep_read(
             return false;
         }
         callee.eax = 1U;
-        callee.status = opaque_status;
-        callee.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::stack_read;
-        callee.stopped_instruction = 0x00488EEAU;
-        callee.stopped_token = callee.esp;
-        callee.eip = 0x00488EEAU;
-        return false;
-    }
-    const auto read_stack = [&](const u32 ip, const u32 token) {
-        if (callee.accesses_completed == request.stop_before_access ||
-            !request.stack_readable) {
-            return stop(ip, token, false);
+        if (!read_stack(0x00488EEAU, callee.esp)) {
+            return false;
         }
-        ++callee.accesses_completed;
-        return true;
-    };
+        callee.esp += 4U;  // POP EDI; saved EDI is unchanged.
+        if (!read_stack(0x00488EEBU, callee.esp)) {
+            return false;
+        }
+        callee.esp += 4U;  // POP ESI; saved ESI is unchanged.
+        if (!read_stack(0x00488EECU, callee.esp)) {
+            return false;
+        }
+        callee.esp += 4U;  // POP EBX; saved EBX is unchanged.
+        callee.esp = callee.ebp;  // MOV ESP,EBP drops the local reservation.
+        if (!read_stack(0x00488EEFU, callee.esp)) {
+            return false;
+        }
+        callee.esp += 4U;
+        callee.ebp = crt_frame_pointer;
+        if (!read_stack(0x00488EF0U, callee.esp)) {
+            return false;
+        }
+        callee.esp += 4U;
+        callee.flags = logical_result_flags(callee.eax);  // Outer TEST EAX,EAX.
+        callee.ecx = 0U;  // XOR ECX,ECX then TEST ECX,ECX.
+        callee.flags = logical_zero_flags();
+    }
     if (!read_stack(0x00488603U, callee.ebp + 8U)) {
         return false;
     }
