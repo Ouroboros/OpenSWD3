@@ -1541,22 +1541,13 @@ continue_legacy_battle_actor_frame_case_one_audio(
     if (!read_sound_callee_arguments(request, callee, prefix.eax, 0x31U)) {
         return callee;
     }
-    // On the nonzero-sample path, the wrapper and two mode queries have
-    // committed twenty physical stack/global accesses. Neither an ordinal
-    // stop nor an opaque reply may undo them. Next is an arg_0 stack read.
-    const auto stop_before_deep_read = [&]() {
-        callee.status =
-            LegacyBattleActorFrameEntryStatus::case_one_audio_child_typed_stop;
-        callee.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::stack_read;
-        callee.stopped_instruction = 0x00485D0EU;
-        callee.stopped_token = callee.esp + 0x14U;
-        callee.eip = 0x00485D0EU;
-        return callee;
-    };
+
     if (!callee.sample_child.returned &&
         callee.accesses_completed == request.stop_before_access) {
-        return stop_before_deep_read();
+        return stop_sound_before_deep_read(
+            callee,
+            LegacyBattleActorFrameEntryStatus::case_one_audio_child_typed_stop
+        );
     }
 
     prefix.accesses_completed = callee.accesses_completed;
@@ -1571,8 +1562,11 @@ continue_legacy_battle_actor_frame_case_one_audio(
                                                          );
     const auto& reply = prefix.sample_child;
     if (!reply.returned) {
-        callee.sample_child = reply;
-        return stop_before_deep_read();
+        return stop_sound_before_deep_read(
+            callee,
+            LegacyBattleActorFrameEntryStatus::case_one_audio_child_typed_stop,
+            reply
+        );
     }
 
     prefix.eax = reply.eax;

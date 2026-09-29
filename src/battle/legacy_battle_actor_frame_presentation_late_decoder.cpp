@@ -348,6 +348,14 @@ continue_legacy_battle_actor_frame_case_hundred_audio_call(
         )) {
         return callee;
     }
+
+    constexpr auto stop_status =
+        LegacyBattleActorFrameEntryStatus::case_hundred_audio_child_typed_stop;
+    if (!callee.sample_child.returned &&
+        callee.accesses_completed == request.stop_before_access) {
+        return stop_sound_before_deep_read(callee, stop_status);
+    }
+
     prefix.accesses_completed = callee.accesses_completed;
     prefix.sample_child = callee.sample_child.returned
         ? callee.sample_child
@@ -360,16 +368,11 @@ continue_legacy_battle_actor_frame_case_hundred_audio_call(
               prefix.flags
           );
     if (!prefix.sample_child.returned) {
-        prefix.accesses_completed -=
-            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
-        prefix.status = LegacyBattleActorFrameEntryStatus::
-            case_hundred_audio_child_typed_stop;
-        prefix.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x00485610U;
-        prefix.eip = 0x00485610U;
-        return prefix;
+        return stop_sound_before_deep_read(
+            callee, stop_status, prefix.sample_child
+        );
     }
+
     prefix.esp += 4U;
     prefix.eax = prefix.sample_child.eax;
     prefix.ecx = prefix.sample_child.ecx;

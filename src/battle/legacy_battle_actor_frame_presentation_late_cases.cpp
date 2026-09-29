@@ -986,6 +986,14 @@ continue_legacy_battle_actor_frame_case_fifty_audio_call(
     if (!read_sound_callee_arguments(request, callee, prefix.edx, prefix.eax)) {
         return callee;
     }
+
+    constexpr auto stop_status =
+        LegacyBattleActorFrameEntryStatus::case_fifty_audio_child_typed_stop;
+    if (!callee.sample_child.returned &&
+        callee.accesses_completed == request.stop_before_access) {
+        return stop_sound_before_deep_read(callee, stop_status);
+    }
+
     prefix.accesses_completed = callee.accesses_completed;
     prefix.sample_child = callee.sample_child.returned ? callee.sample_child
                                                        : sound.play_sample(
@@ -997,16 +1005,11 @@ continue_legacy_battle_actor_frame_case_fifty_audio_call(
                                                              prefix.flags
                                                          );
     if (!prefix.sample_child.returned) {
-        prefix.accesses_completed -=
-            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
-        prefix.status = LegacyBattleActorFrameEntryStatus::
-            case_fifty_audio_child_typed_stop;
-        prefix.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x00485610U;
-        prefix.eip = 0x00485610U;
-        return prefix;
+        return stop_sound_before_deep_read(
+            callee, stop_status, prefix.sample_child
+        );
     }
+
     prefix.esp += 4U;
     prefix.eax = prefix.sample_child.eax;
     prefix.ecx = prefix.sample_child.ecx;
@@ -1499,6 +1502,17 @@ continue_legacy_battle_actor_frame_case_six_audio_call(
     if (!read_sound_callee_arguments(request, callee, prefix.eax, 0x31U)) {
         return callee;
     }
+
+    const auto stop_status = case_eleven
+        ? LegacyBattleActorFrameEntryStatus::case_eleven_audio_child_typed_stop
+        : case_fifteen
+        ? LegacyBattleActorFrameEntryStatus::case_fifteen_audio_child_typed_stop
+        : LegacyBattleActorFrameEntryStatus::case_six_audio_child_typed_stop;
+    if (!callee.sample_child.returned &&
+        callee.accesses_completed == request.stop_before_access) {
+        return stop_sound_before_deep_read(callee, stop_status);
+    }
+
     prefix.accesses_completed = callee.accesses_completed;
     prefix.sample_child = callee.sample_child.returned ? callee.sample_child
                                                        : sound.play_sample(
@@ -1510,20 +1524,11 @@ continue_legacy_battle_actor_frame_case_six_audio_call(
                                                              prefix.flags
                                                          );
     if (!prefix.sample_child.returned) {
-        prefix.accesses_completed -=
-            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
-        prefix.status = case_eleven ? LegacyBattleActorFrameEntryStatus::
-                                          case_eleven_audio_child_typed_stop
-            : case_fifteen          ? LegacyBattleActorFrameEntryStatus::
-                                          case_fifteen_audio_child_typed_stop
-                                    : LegacyBattleActorFrameEntryStatus::
-                                          case_six_audio_child_typed_stop;
-        prefix.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x00485610U;
-        prefix.eip = 0x00485610U;
-        return prefix;
+        return stop_sound_before_deep_read(
+            callee, stop_status, prefix.sample_child
+        );
     }
+
     prefix.esp += 4U;
     prefix.eax = prefix.sample_child.eax;
     prefix.ecx = prefix.sample_child.ecx;

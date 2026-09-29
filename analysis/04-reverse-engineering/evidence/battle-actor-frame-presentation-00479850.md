@@ -4871,20 +4871,32 @@ right=640, bottom=480)` 驱动子级，只证明各 site 的调用边界和
 各 1/1；随后测试集快照的完整 Linux core／ASan 各 200/200、
 app 206/206（`proc_aea2`）通过；21 行审计状态仍按各自上游事实
 保持 partial／局部 reviewed。
-音频 CALL #5 新发现：`0x004799FA` 先压返回槽；`sub_485610`
+音频 CALL #5 `0x004799FA` 先压返回槽；`sub_485610`
 两次外层实参读、六次压参，`sub_485CE0` 四次保存与两次
 `sub_485CC0/485CD0` 的调用、模式查询及 `0x00485D02`
-实参读取，已完成 20 次子级访问。此前适配器回包未返回时
+实参读取，在模式和子模式均为1且低16位音效编号非零时，
+已完成 20 次子级访问。此前 case1 适配器回包未返回时
 把计数回滚至 CALL 入口且把 ESP/EIP 复位到 `0x00485610`，
-不符合 LST 已提交的栈与寄存器状态。现仅在 case1 保留这
-20 次前缀并停于下一处未建模的 `0x00485D0E`
-`MOV ESI,[ESP+0x14]` 前，标记物理 stack_read、实际 ESP、
-参数槽 token、EDI=非零 sample ID、FLAGS/DF；序号恰停在该读前
-不调用深层声音 port。`proc_f224` core／ASan 定向各 1/1。
-其余音频 CALL 的同型适配器回包回滚仍待修，CALL #5 后续
-Miles/CRT 深层、真实生产父栈及原版差分也尚未闭合。
-最新源码／测试快照的完整 Linux 门禁 `proc_4476`：core
-200/200、ASan 200/200、app 206/206；此验证不升级整包状态。
+不符合 LST 已提交的栈与寄存器状态；先修正 case1
+（`proc_f224` core／ASan 定向各 1/1）。现复核其余18处，
+统一保留这20次访问并停于下一处未建模的 `0x00485D0E`
+`MOV ESI,[ESP+0x14]` 前：19处受控音频 CALL 各自核
+外层返回槽加20次访问、实际 ESP（相对 CALL 前减48）、
+上一 PUSH 的内层返回地址 `0x00485CFA`、物理 stack_read
+及 `ESP+0x14` token、EAX/ECX/EBX/EBP/ESI/EDI、
+`TEST EDI,EDI` 后已定义 FLAGS 与 DF。原先另外18处
+回包失败错误回滚20次并复位到 wrapper 入口的实现已修；
+case2、case51 和 case100 两条音频分支另验证序号恰停
+在深层读前时不调用声音 port。前期定向 core 1/1
+（`proc_4f67`）；最终源码／测试快照通过串行完整门禁
+`proc_5c9c`：Linux core 200/200、ASan core 200/200、
+app 206/206。
+这只是受控回包与栈前缀，不是19处真实父路径实参逐字节收敛，
+更不证明后续 Miles/CRT 子级、物理父栈、生产 caller、
+全部98 CALL／22 RET 或原版差分。
+上述 case1／矩形阶段源码的完整 Linux 门禁 `proc_4476`：core
+200/200、ASan 200/200、app 206/206；不覆盖后续19处音频
+改动，也不升级整包状态。
 新增块094：case7 第四绘图 A577 三次 signed phase NEG 写三全局，A585 首写后 PUSH 字面零，压 flags|4/H/W/Y−Oy+P+16（LEA 不改 FLAGS）/X−Ox+P，A5EA CALL sub4170E0 压 A5EF，第二组20参仍在调用方栈。7全局+13绘图物理站及 CALL 核 token/kind/ESP/FLAGS/DF/已提交前缀；像素/原版 partial，core/ASan `proc_f19e` 各1/1。
 新增块093：case7 第四矩形 A516 一次 source 供 H/W，Oy/Y 各独立重读，压 Y+H−Oy+P、X+W−Ox+P、Y+(H>>1)−Oy+P、X+(W>>1)−Ox+P；A572 CALL sub416FF0 压 A577。13物理站及 CALL 核 token/kind/ESP/FLAGS/DF/已压前缀；clip 深层/原版 partial，core/ASan `proc_200b` 各1/1。
 新增块092：case7 第三绘图 A4A0 后三次 signed phase NEG 全部写全局后才在 A4DB PUSH 字面零（不同于前两轮首写后压零）；压 flags|4/H/W/Y−P−Oy/X+P−Ox，A511 CALL sub4170E0 压 A516。6全局+14绘图物理站与 CALL 区分辅助 PUSH/五参并核 token/kind/ESP/FLAGS/DF/已提交前缀；像素/原版 partial，core/ASan `proc_25ab` 各1/1。

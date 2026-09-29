@@ -268,6 +268,25 @@ using compat::u32;
     return true;
 }
 
+// Only called after the nonzero-ID path of sub_485610/sub_485CE0 has
+// committed its twenty physical accesses. The next LST access is the
+// sub_485CE0 arg_0 stack read; an opaque sound reply cannot undo the prefix.
+[[nodiscard]] inline LegacyBattleActorFrameEntryResult
+stop_sound_before_deep_read(
+    LegacyBattleActorFrameEntryResult callee,
+    const LegacyBattleActorFrameEntryStatus status,
+    const LegacyBattleActorFrameUpdateReply& reply = {}
+) {
+    callee.sample_child = reply;
+    callee.status = status;
+    callee.stopped_access_kind =
+        LegacyBattleActorFrameEntryAccessKind::stack_read;
+    callee.stopped_instruction = 0x00485D0EU;
+    callee.stopped_token = callee.esp + 0x14U;
+    callee.eip = 0x00485D0EU;
+    return callee;
+}
+
 [[nodiscard]] inline bool read_draw_callee_global(
     const LegacyBattleActorFrameEntryRequest& request,
     LegacyBattleActorFrameEntryResult& child

@@ -54,6 +54,34 @@ using openswd3::compat::u32;
         lhs.overflow_defined == rhs.overflow_defined;
 }
 
+// An audio CALL commits its return-slot PUSH, then sub_485610/sub_485CE0
+// commit twenty accesses before the first deep stack read at 0x00485D0E.
+[[nodiscard]] bool matches_audio_deep_read_stop(
+    const openswd3::battle::LegacyBattleActorFrameEntryResult& stopped,
+    const openswd3::battle::LegacyBattleActorFrameEntryResult& before_call
+) noexcept {
+    return stopped.eip == 0x00485D0EU &&
+        stopped.stopped_instruction == 0x00485D0EU &&
+        stopped.stopped_access_kind ==
+        LegacyBattleActorFrameEntryAccessKind::stack_read &&
+        stopped.esp == before_call.esp - 48U &&
+        stopped.stopped_token == stopped.esp + 0x14U &&
+        stopped.accesses_completed == before_call.accesses_completed + 21U &&
+        stopped.last_pushed_value == 0x00485CFAU && stopped.eax == 1U &&
+        stopped.ecx == 0x004C8450U && stopped.ebx == before_call.ebx &&
+        stopped.ebp == 0x004C8450U && stopped.esi == before_call.esi &&
+        stopped.edi == (before_call.last_pushed_value & 0xFFFFU) &&
+        stopped.edi != 0U && stopped.flags_known &&
+        same_frame_flags(
+               stopped.flags,
+               {.parity =
+                    (std::popcount(static_cast<u8>(stopped.edi)) & 1) == 0,
+                .auxiliary_carry_defined = false}
+        ) &&
+        stopped.direction_flag == before_call.direction_flag &&
+        !stopped.sample_child.returned;
+}
+
 // All three directed RET fixtures enter at ESP=0x0012FF00: the epilogue
 // ADD ESP,0x14 starts at 0x0012FEEC and sets PF/AF only.
 constexpr openswd3::battle::LegacyBattleActorCoordinateFlags
@@ -6752,6 +6780,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_sound_child.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_one_audio_child_typed_stop &&
+                matches_audio_deep_read_stop(
+                    stopped_sound_child, audio_pending
+                ) &&
                 stopped_sound_child.eip == 0x00485D0EU &&
                 stopped_sound_child.esp == audio_pending.esp - 48U &&
                 stopped_sound_child.stopped_access_kind ==
@@ -6784,9 +6815,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_before_deep_audio_read.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_one_audio_child_typed_stop &&
+                matches_audio_deep_read_stop(
+                    stopped_before_deep_audio_read, audio_pending
+                ) &&
                 stopped_before_deep_audio_read.eip == 0x00485D0EU &&
-                stopped_before_deep_audio_read.esp ==
-                    stopped_sound_child.esp &&
+                stopped_before_deep_audio_read.esp == stopped_sound_child.esp &&
                 stopped_before_deep_audio_read.stopped_token ==
                     stopped_sound_child.stopped_token &&
                 stopped_before_deep_audio_read.accesses_completed ==
@@ -20361,16 +20394,34 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_two_sound_child.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_two_audio_child_typed_stop &&
-                stopped_case_two_sound_child.eip == 0x00485610U &&
-                stopped_case_two_sound_child.esp == sample_arguments.esp - 4U &&
+                matches_audio_deep_read_stop(
+                    stopped_case_two_sound_child, sample_arguments
+                ) &&
                 stopped_case_two_sound_child.sample_calls == 1U &&
                 case_two_sound.sample_id == 0x31U &&
                 case_two_sound.sample_handle == 0x70123456U &&
                 action_execution.reserved_action_record_02.field_58 == 0x31U &&
                 action_execution.turn_threshold == 4U,
-            "case2 audio child entry stop retains code write, two arguments and CALL return slot without phase change"
+            "case2 audio deep-read stop retains code write, two arguments and twenty callee accesses without phase change"
         );
+        auto case_two_deep_read_fault = metrics_request;
+        case_two_deep_read_fault.stop_before_access =
+            sample_arguments.accesses_completed + 21U;
         case_two_sound.reply.returned = true;
+        const auto stopped_case_two_deep_read = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_sample_call(
+                case_two_sound, case_two_deep_read_fault, sample_arguments
+            );
+        test.expect_true(
+            stopped_case_two_deep_read.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_two_audio_child_typed_stop &&
+                matches_audio_deep_read_stop(
+                    stopped_case_two_deep_read, sample_arguments
+                ) &&
+                case_two_sound.calls == 1U,
+            "case2 ordinal deep-read stop does not call the sound port after the committed wrapper prefix"
+        );
         const auto sound_returned = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_sample_call(
                 case_two_sound, metrics_request, sample_arguments
@@ -20978,11 +21029,12 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         stopped_case_nine_sound.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_nine_audio_child_typed_stop &&
-            stopped_case_nine_sound.eip == 0x00485610U &&
-            stopped_case_nine_sound.esp == case_nine_sound_arguments.esp - 4U &&
+            matches_audio_deep_read_stop(
+                stopped_case_nine_sound, case_nine_sound_arguments
+            ) &&
             case_nine_sound.sample_handle == 0x70123456U &&
             case_nine_sound.entry_eax == 0xABCD0000U,
-        "case9 audio wrapper entry stop leaves two arguments and return slot without moving frame source"
+        "case9 audio deep-read stop retains the two outer arguments and callee stack without moving frame source"
     );
     auto case_nine_unreadable_arg = input;
     case_nine_unreadable_arg.stack_readable = false;
@@ -22792,8 +22844,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_eight_sound_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_eight_audio_child_typed_stop &&
-            stopped_case_eight_sound_child.eip == 0x00485610U &&
-            stopped_case_eight_sound_child.last_pushed_value == 0x0047A743U &&
+            matches_audio_deep_read_stop(
+                stopped_case_eight_sound_child, case_eight_sample_args
+            ) &&
             case_eight_sound_ready.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_eight_sample_phase_write_ready &&
@@ -22809,7 +22862,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_eight_sound_ready.direction_flag ==
                 case_eight_sample_args.direction_flag &&
             case_eight_sound.sample_handle == 0x70123456U,
-        "case8 audio CALL entry stop and normal return keep independent address then clean two arguments"
+        "case8 audio deep-read stop and normal return keep independent addresses then clean two arguments"
     );
     action_execution.turn_threshold = 99U;
     auto case_eight_phase_fault = case_eight_metrics_request;
@@ -23301,9 +23354,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_six_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_six_audio_child_typed_stop &&
-            stopped_case_six_child.eip == 0x00485610U &&
-            stopped_case_six_child.esp == case_six_audio_args.esp - 4U &&
-            stopped_case_six_child.last_pushed_value == 0x0047A1C3U &&
+            matches_audio_deep_read_stop(
+                stopped_case_six_child, case_six_audio_args
+            ) &&
             case_six_audio_return.status ==
                 LegacyBattleActorFrameEntryStatus::case_six_source_ready &&
             case_six_audio_return.eip == 0x0047A1C6U &&
@@ -23317,7 +23370,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             ) &&
             case_six_sound.sample_handle == 0x70123456U &&
             case_six_sound.entry_eax == 0x70123456U,
-        "case6 audio CALL uses distinct return slot; child entry stop is not normal reply, normal caller cleans eight bytes"
+        "case6 audio CALL uses distinct return slot; deep-read stop is not normal reply, normal caller cleans eight bytes"
     );
     action_execution.turn_threshold = 0xFFE1U;
     action_execution.render_source_token = 0x00702000U;
@@ -24003,9 +24056,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_eleven_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_eleven_audio_child_typed_stop &&
-            stopped_case_eleven_child.eip == 0x00485610U &&
-            stopped_case_eleven_child.esp == case_eleven_audio_args.esp - 4U &&
-            stopped_case_eleven_child.last_pushed_value == 0x0047A970U &&
+            matches_audio_deep_read_stop(
+                stopped_case_eleven_child, case_eleven_audio_args
+            ) &&
             case_eleven_audio_return.status ==
                 LegacyBattleActorFrameEntryStatus::case_eleven_source_ready &&
             case_eleven_audio_return.eip == 0x0047A973U &&
@@ -25004,8 +25057,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_fifteen_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fifteen_audio_child_typed_stop &&
-            stopped_case_fifteen_child.eip == 0x00485610U &&
-            stopped_case_fifteen_child.last_pushed_value == 0x0047B30BU &&
+            matches_audio_deep_read_stop(
+                stopped_case_fifteen_child, case_fifteen_audio_args
+            ) &&
             case_fifteen_audio_return.status ==
                 LegacyBattleActorFrameEntryStatus::case_fifteen_source_ready &&
             case_fifteen_audio_return.eip == 0x0047B30EU &&
@@ -26217,8 +26271,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_fifty_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fifty_audio_child_typed_stop &&
-            stopped_case_fifty_child.eip == 0x00485610U &&
-            stopped_case_fifty_child.last_pushed_value == 0x0047B77AU &&
+            matches_audio_deep_read_stop(
+                stopped_case_fifty_child, case_fifty_audio_args
+            ) &&
             case_fifty_audio_return.status ==
                 LegacyBattleActorFrameEntryStatus::case_fifty_source_ready &&
             case_fifty_audio_return.eip == 0x0047B77DU &&
@@ -27536,7 +27591,26 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_fifty_one_sound.calls == 1U,
         "case51 audio second argument read follows the decoder and audio argument writes"
     );
+    auto case_fifty_one_deep_read_fault = case_eight_forward_request;
+    case_fifty_one_deep_read_fault.stop_before_access =
+        case_fifty_one_audio_args.accesses_completed + 21U;
     case_fifty_one_sound.reply.returned = true;
+    const auto stopped_case_fifty_one_deep_read = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_fifty_one_audio_call(
+            case_fifty_one_sound,
+            case_fifty_one_deep_read_fault,
+            case_fifty_one_audio_args
+        );
+    test.expect_true(
+        stopped_case_fifty_one_deep_read.status ==
+                LegacyBattleActorFrameEntryStatus::
+                    case_fifty_one_audio_child_typed_stop &&
+            matches_audio_deep_read_stop(
+                stopped_case_fifty_one_deep_read, case_fifty_one_audio_args
+            ) &&
+            case_fifty_one_sound.calls == 1U,
+        "case51 ordinal sound deep-read stop retains decoder writes and avoids the port"
+    );
     const auto case_fifty_one_sound_return = openswd3::battle::
         continue_legacy_battle_actor_frame_case_fifty_one_audio_call(
             case_fifty_one_sound,
@@ -27575,9 +27649,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_fifty_one_sound_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fifty_one_audio_child_typed_stop &&
-            stopped_case_fifty_one_sound_child.eip == 0x00485610U &&
-            stopped_case_fifty_one_sound_child.last_pushed_value ==
-                0x0047B929U &&
+            matches_audio_deep_read_stop(
+                stopped_case_fifty_one_sound_child, case_fifty_one_audio_args
+            ) &&
             case_fifty_one_sound.sample_id == 0xFEDC1234U &&
             case_fifty_one_sound.sample_handle == 0x70123456U &&
             case_fifty_one_sound_return.status ==
@@ -28690,8 +28764,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_three_sound_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_three_audio_child_typed_stop &&
-            stopped_case_three_sound_child.eip == 0x00485610U &&
-            stopped_case_three_sound_child.last_pushed_value == 0x00479CCAU &&
+            matches_audio_deep_read_stop(
+                stopped_case_three_sound_child, case_three_audio_args
+            ) &&
             case_three_sound.sample_id == 0x31U &&
             case_three_sound.sample_handle == 0x70123456U &&
             case_three_sound.entry_eax == 0xCDEF0000U &&
@@ -28706,7 +28781,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     case_three_audio_return.esp - 8U, 8U
                 )
             ),
-        "case3 zero phase plays 0x31 using original high EAX, typed child entry and two-argument cleanup"
+        "case3 zero phase plays 0x31 using original high EAX, typed deep-read stop and two-argument cleanup"
     );
     action_execution.render_source_token = 0x00702000U;
     action_execution.resource.token = 0x00702000U;
@@ -29198,8 +29273,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_four_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_four_audio_child_typed_stop &&
-            stopped_case_four_child.eip == 0x00485610U &&
-            stopped_case_four_child.last_pushed_value == 0x00479ECDU &&
+            matches_audio_deep_read_stop(
+                stopped_case_four_child, case_four_audio_args
+            ) &&
             case_four_sound.sample_id == 0x31U &&
             case_four_sound.sample_handle == 0x70123456U &&
             case_four_sound.entry_eax == 0x70123456U &&
@@ -30991,8 +31067,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_five_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_five_audio_child_typed_stop &&
-            stopped_case_five_child.eip == 0x00485610U &&
-            stopped_case_five_child.last_pushed_value == 0x0047A0B4U &&
+            matches_audio_deep_read_stop(
+                stopped_case_five_child, case_five_audio_args
+            ) &&
             case_five_sound.sample_id == 0x31U &&
             case_five_sound.sample_handle == 0x70123456U &&
             case_five_sound.entry_eax == 0xCDEF0000U &&
@@ -31832,8 +31909,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_ten_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_ten_audio_child_typed_stop &&
-            stopped_case_ten_child.eip == 0x00485610U &&
-            stopped_case_ten_child.last_pushed_value == 0x0047A846U &&
+            matches_audio_deep_read_stop(
+                stopped_case_ten_child, case_ten_audio_args
+            ) &&
             case_ten_sound.sample_id == 0x31U &&
             case_ten_sound.sample_handle == 0x70123456U &&
             case_ten_audio_return.status ==
@@ -33074,9 +33152,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_twelve_sound.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_twelve_audio_child_typed_stop &&
-            stopped_case_twelve_sound.eip == 0x00485610U &&
-            stopped_case_twelve_sound.esp == case_twelve_audio_args.esp - 4U &&
-            stopped_case_twelve_sound.last_pushed_value == 0x0047AA9FU &&
+            matches_audio_deep_read_stop(
+                stopped_case_twelve_sound, case_twelve_audio_args
+            ) &&
             case_twelve_sound.sample_handle == 0x70123456U &&
             case_twelve_sound.entry_ecx == 0x70123456U &&
             case_twelve_audio_return.status ==
@@ -34257,8 +34335,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_thirteen_audio_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_audio_child_typed_stop &&
-            case_thirteen_audio_stop.last_pushed_value == 0x0047ABD1U &&
-            case_thirteen_audio_stop.esp == case_thirteen_audio_args.esp - 4U &&
+            matches_audio_deep_read_stop(
+                case_thirteen_audio_stop, case_thirteen_audio_args
+            ) &&
             case_thirteen_sound.sample_handle == 0x70123456U &&
             case_thirteen_sound.entry_edx == 0x70123456U &&
             case_thirteen_audio_return.status ==
@@ -36572,9 +36651,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_fourteen_audio_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fourteen_audio_child_typed_stop &&
-            case_fourteen_audio_child.last_pushed_value == 0x0047AF47U &&
-            case_fourteen_audio_child.esp ==
-                case_fourteen_audio_args.esp - 4U &&
+            matches_audio_deep_read_stop(
+                case_fourteen_audio_child, case_fourteen_audio_args
+            ) &&
             case_fourteen_sound.sample_handle == 0x70123456U &&
             case_fourteen_sound.entry_eax == 0x70123456U &&
             case_fourteen_audio_return.status ==
@@ -39703,7 +39782,26 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_hundred_sound.calls == 1U,
         "case100 early audio sample ID EB is the fifth callee PUSH, before the last zero"
     );
+    auto case_hundred_deep_read_fault = rle_request;
+    case_hundred_deep_read_fault.stop_before_access =
+        case_hundred_audio_args.accesses_completed + 21U;
     case_hundred_sound.reply.returned = true;
+    const auto stopped_case_hundred_deep_read = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_hundred_audio_call(
+            case_hundred_sound,
+            case_hundred_deep_read_fault,
+            case_hundred_audio_args
+        );
+    test.expect_true(
+        stopped_case_hundred_deep_read.status ==
+                LegacyBattleActorFrameEntryStatus::
+                    case_hundred_audio_child_typed_stop &&
+            matches_audio_deep_read_stop(
+                stopped_case_hundred_deep_read, case_hundred_audio_args
+            ) &&
+            case_hundred_sound.calls == 1U,
+        "case100 early ordinal sound deep-read stop keeps sample EB and avoids the port"
+    );
     const auto case_hundred_audio_return = openswd3::battle::
         continue_legacy_battle_actor_frame_case_hundred_audio_call(
             case_hundred_sound, rle_request, case_hundred_audio_args
@@ -39717,7 +39815,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_hundred_audio_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_audio_child_typed_stop &&
-            case_hundred_audio_stop.esp == case_hundred_audio.esp - 12U &&
+            matches_audio_deep_read_stop(
+                case_hundred_audio_stop, case_hundred_audio_args
+            ) &&
             case_hundred_audio_return.status ==
                 LegacyBattleActorFrameEntryStatus::case_hundred_source_ready &&
             case_hundred_audio_return.eip == 0x0047B44DU &&
@@ -41704,7 +41804,27 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_hundred_metrics_request,
             case_hundred_post_surface_audio_args
         );
+    auto case_hundred_late_deep_read_fault = case_hundred_metrics_request;
+    case_hundred_late_deep_read_fault.stop_before_access =
+        case_hundred_post_surface_audio_args.accesses_completed + 21U;
     case_hundred_post_surface_sound.reply.returned = true;
+    const auto stopped_case_hundred_late_deep_read = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_hundred_audio_call(
+            case_hundred_post_surface_sound,
+            case_hundred_late_deep_read_fault,
+            case_hundred_post_surface_audio_args
+        );
+    test.expect_true(
+        stopped_case_hundred_late_deep_read.status ==
+                LegacyBattleActorFrameEntryStatus::
+                    case_hundred_audio_child_typed_stop &&
+            matches_audio_deep_read_stop(
+                stopped_case_hundred_late_deep_read,
+                case_hundred_post_surface_audio_args
+            ) &&
+            case_hundred_post_surface_sound.calls == 1U,
+        "case100 late ordinal sound deep-read stop keeps sample 31 and avoids the port"
+    );
     const auto case_hundred_post_surface_audio_return = openswd3::battle::
         continue_legacy_battle_actor_frame_case_hundred_audio_call(
             case_hundred_post_surface_sound,
@@ -41737,8 +41857,10 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_hundred_post_surface_audio_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_audio_child_typed_stop &&
-            case_hundred_post_surface_audio_stop.esp ==
-                case_hundred_surface_return.esp - 12U &&
+            matches_audio_deep_read_stop(
+                case_hundred_post_surface_audio_stop,
+                case_hundred_post_surface_audio_args
+            ) &&
             case_hundred_post_surface_audio_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_phase_write_ready &&
@@ -42804,10 +42926,10 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_seven_audio_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_seven_audio_child_typed_stop &&
-            case_seven_audio_stop.last_pushed_value == 0x0047A28AU &&
-            case_seven_audio_stop.esp == case_seven_audio_args.esp - 4U &&
+            matches_audio_deep_read_stop(
+                case_seven_audio_stop, case_seven_audio_args
+            ) &&
             case_seven_sound.entry_edx == 0x70123456U &&
-            case_seven_audio_stop.eip == 0x00485610U &&
             case_seven_audio_return.status ==
                 LegacyBattleActorFrameEntryStatus::case_seven_source_ready &&
             case_seven_audio_return.eip == 0x0047A28DU &&
