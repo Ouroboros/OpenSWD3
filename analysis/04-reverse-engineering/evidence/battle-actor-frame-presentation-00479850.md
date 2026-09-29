@@ -4895,6 +4895,21 @@ case2、case51 和 case100 两条音频分支另验证序号恰停
 （`proc_4f67`）；最终源码／测试快照通过串行完整门禁
 `proc_5c9c`：Linux core 200/200、ASan core 200/200、
 app 206/206。
+随后复核 LST `0x00485639 PUSH 0` 与 `0x00485D0E MOV ESI,[ESP+14h]`：
+内层 `arg_0` 是此调用自己压入的零值，物理地址为内层 ESP+14h，
+而非外部未知 owner。模式／子模式均为1且音效编号低16位非零时，
+现于原20次子级访问之后先核 D0E 栈读前障，成功后完成第21次子级访问、
+令 ESI=0，再由 `0x00485D12 TEST ESI,ESI` 得 ZF/PF=1、CF/OF=0、
+AF 未定义；不进入 `JNZ`，在 `0x00485D14 MOV [ESP+18h],ESI`
+覆写内层 `arg_4`（先前压入的音效编号）之前停住，ESP 不变，
+写 token=ESP+18h。每次新音频 CALL 进入 wrapper 即清空旧
+`sample_child` 回包标记，避免本次 D0E 读障错误继承上一次已返回状态；
+case1 两个序号分别停于读前／写前且不调用声音 port，19处共享前缀的
+受控回包停点保留21次子级访问；Linux core 阶段 `proc_1bd8` 200/200；
+追加旧回包标记断言后的最终阶段快照 `proc_090c` 经 Linux core／
+ASan core 各200/200、Linux app 206/206。D14 栈槽覆写、后续
+`sub_486490`／Miles／CRT 与真实生产父路径仍 partial，
+不能把本次安全前缀当作整包验收。
 这只是受控回包与栈前缀，不是19处真实父路径实参逐字节收敛，
 更不证明后续 Miles/CRT 子级、物理父栈、生产 caller、
 全部98 CALL／22 RET 或原版差分。

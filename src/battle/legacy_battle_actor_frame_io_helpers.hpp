@@ -30,6 +30,7 @@ using compat::u32;
     const u32 sample_handle,
     const u32 sample_id
 ) noexcept {
+    child.sample_child = {};  // This CALL has not produced a new reply.
     const auto stack_read = [&](const u32 ip, const u32 token) {
         const bool ret = ip == 0x00485CC7U || ip == 0x00485CD7U ||
             ip == 0x00485E8AU || ip == 0x00485645U;
@@ -213,8 +214,15 @@ using compat::u32;
             child.flags_known = true;
             empty_sample_id = child.edi == 0U;
             if (!empty_sample_id) {
+                // arg_0 is the zero pushed by sub_485610 at 0x00485639.
+                if (!stack_read(0x00485D0EU, child.esp + 0x14U)) {
+                    return false;
+                }
+                child.esi = 0U;
+                child.flags = logical_zero_flags();  // TEST ESI,ESI.
+                child.flags_known = true;
                 child.sample_child.returned = false;
-                return true;  // The deeper audio branch stays behind the narrow port.
+                return true;  // Stop before rewriting the aliased arg_4 slot.
             }
         }
     }
@@ -269,8 +277,9 @@ using compat::u32;
 }
 
 // Only called after the nonzero-ID path of sub_485610/sub_485CE0 has
-// committed its twenty physical accesses. The next LST access is the
-// sub_485CE0 arg_0 stack read; an opaque sound reply cannot undo the prefix.
+// committed its twenty physical accesses and read its known-zero arg_0.
+// The next LST access overwrites the nested arg_4 stack slot; an opaque
+// sound reply cannot undo the committed prefix.
 [[nodiscard]] inline LegacyBattleActorFrameEntryResult
 stop_sound_before_deep_read(
     LegacyBattleActorFrameEntryResult callee,
@@ -280,10 +289,10 @@ stop_sound_before_deep_read(
     callee.sample_child = reply;
     callee.status = status;
     callee.stopped_access_kind =
-        LegacyBattleActorFrameEntryAccessKind::stack_read;
-    callee.stopped_instruction = 0x00485D0EU;
-    callee.stopped_token = callee.esp + 0x14U;
-    callee.eip = 0x00485D0EU;
+        LegacyBattleActorFrameEntryAccessKind::stack_write;
+    callee.stopped_instruction = 0x00485D14U;
+    callee.stopped_token = callee.esp + 0x18U;
+    callee.eip = 0x00485D14U;
     return callee;
 }
 

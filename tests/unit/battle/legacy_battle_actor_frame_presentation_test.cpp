@@ -55,28 +55,41 @@ using openswd3::compat::u32;
 }
 
 // An audio CALL commits its return-slot PUSH, then sub_485610/sub_485CE0
-// commit twenty accesses before the first deep stack read at 0x00485D0E.
+// commit twenty accesses before the arg_0 read at 0x00485D0E. If readable,
+// TEST ESI,ESI precedes the first unmodeled arg_4 write at 0x00485D14.
 [[nodiscard]] bool matches_audio_deep_read_stop(
     const openswd3::battle::LegacyBattleActorFrameEntryResult& stopped,
     const openswd3::battle::LegacyBattleActorFrameEntryResult& before_call
 ) noexcept {
-    return stopped.eip == 0x00485D0EU &&
-        stopped.stopped_instruction == 0x00485D0EU &&
+    const bool before_read = stopped.eip == 0x00485D0EU;
+    const u32 ip = before_read ? 0x00485D0EU : 0x00485D14U;
+    return stopped.eip == ip && stopped.stopped_instruction == ip &&
         stopped.stopped_access_kind ==
-        LegacyBattleActorFrameEntryAccessKind::stack_read &&
+        (before_read ? LegacyBattleActorFrameEntryAccessKind::stack_read
+                     : LegacyBattleActorFrameEntryAccessKind::stack_write) &&
         stopped.esp == before_call.esp - 48U &&
-        stopped.stopped_token == stopped.esp + 0x14U &&
-        stopped.accesses_completed == before_call.accesses_completed + 21U &&
+        stopped.stopped_token == stopped.esp + (before_read ? 0x14U : 0x18U) &&
+        stopped.accesses_completed ==
+            before_call.accesses_completed + (before_read ? 21U : 22U) &&
         stopped.last_pushed_value == 0x00485CFAU && stopped.eax == 1U &&
         stopped.ecx == 0x004C8450U && stopped.ebx == before_call.ebx &&
-        stopped.ebp == 0x004C8450U && stopped.esi == before_call.esi &&
+        stopped.ebp == 0x004C8450U &&
+        stopped.esi == (before_read ? before_call.esi : 0U) &&
         stopped.edi == (before_call.last_pushed_value & 0xFFFFU) &&
         stopped.edi != 0U && stopped.flags_known &&
         same_frame_flags(
-               stopped.flags,
-               {.parity =
-                    (std::popcount(static_cast<u8>(stopped.edi)) & 1) == 0,
-                .auxiliary_carry_defined = false}
+            stopped.flags,
+            before_read
+                ? openswd3::battle::LegacyBattleActorCoordinateFlags{
+                      .parity = (std::popcount(
+                                     static_cast<u8>(stopped.edi)
+                                 ) &
+                                 1) == 0,
+                      .auxiliary_carry_defined = false}
+                : openswd3::battle::LegacyBattleActorCoordinateFlags{
+                      .parity = true,
+                      .auxiliary_carry_defined = false,
+                      .zero = true}
         ) &&
         stopped.direction_flag == before_call.direction_flag &&
         !stopped.sample_child.returned;
@@ -6919,50 +6932,83 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 matches_audio_deep_read_stop(
                     stopped_sound_child, audio_pending
                 ) &&
-                stopped_sound_child.eip == 0x00485D0EU &&
+                stopped_sound_child.eip == 0x00485D14U &&
                 stopped_sound_child.esp == audio_pending.esp - 48U &&
                 stopped_sound_child.stopped_access_kind ==
-                    LegacyBattleActorFrameEntryAccessKind::stack_read &&
+                    LegacyBattleActorFrameEntryAccessKind::stack_write &&
                 stopped_sound_child.stopped_token ==
-                    stopped_sound_child.esp + 0x14U &&
+                    stopped_sound_child.esp + 0x18U &&
                 stopped_sound_child.accesses_completed ==
-                    audio_pending.accesses_completed + 21U &&
+                    audio_pending.accesses_completed + 22U &&
                 stopped_sound_child.edi == 0x31U &&
                 stopped_sound_child.ecx == 0x004C8450U &&
+                stopped_sound_child.esi == 0U &&
                 stopped_sound_child.flags_known &&
-                !stopped_sound_child.flags.zero &&
+                stopped_sound_child.flags.zero &&
                 !stopped_sound_child.flags.carry &&
                 stopped_sound_child.direction_flag ==
                     audio_pending.direction_flag &&
                 stopped_sound_child.sample_calls == 1U && sound.calls == 1U &&
                 !stopped_sound_child.sample_child.returned,
-            "case 1 opaque audio stop retains the twenty committed wrapper and mode accesses before the next stack read"
+            "case 1 opaque audio stop reads the known-zero arg_0 before the aliased arg_4 write"
         );
         sound.reply.returned = true;
         auto stop_before_deep_audio_read = group_b_input;
         stop_before_deep_audio_read.stop_before_access =
             audio_pending.accesses_completed + 21U;
         const auto sound_calls_before_deep_stop = sound.calls;
-        const auto stopped_before_deep_audio_read = openswd3::battle::
-            continue_legacy_battle_actor_frame_case_one_audio(
+        const auto stopped_before_deep_audio_read =
+            openswd3::battle::continue_legacy_battle_actor_frame_case_one_audio(
                 sound, stop_before_deep_audio_read, audio_pending
             );
         test.expect_true(
             stopped_before_deep_audio_read.status ==
-                    LegacyBattleActorFrameEntryStatus::
-                        case_one_audio_child_typed_stop &&
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
                 matches_audio_deep_read_stop(
                     stopped_before_deep_audio_read, audio_pending
                 ) &&
                 stopped_before_deep_audio_read.eip == 0x00485D0EU &&
                 stopped_before_deep_audio_read.esp == stopped_sound_child.esp &&
                 stopped_before_deep_audio_read.stopped_token ==
-                    stopped_sound_child.stopped_token &&
+                    stopped_sound_child.esp + 0x14U &&
                 stopped_before_deep_audio_read.accesses_completed ==
                     stop_before_deep_audio_read.stop_before_access &&
                 stopped_before_deep_audio_read.edi == 0x31U &&
                 sound.calls == sound_calls_before_deep_stop,
-            "case 1 audio ordinal stops at the next stack read without invoking the deeper sound port"
+            "case 1 audio ordinal stops at the known-zero arg_0 read without invoking the sound port"
+        );
+        auto audio_with_prior_reply = audio_pending;
+        audio_with_prior_reply.sample_child.returned = true;
+        const auto stopped_after_prior_reply =
+            openswd3::battle::continue_legacy_battle_actor_frame_case_one_audio(
+                sound, stop_before_deep_audio_read, audio_with_prior_reply
+            );
+        test.expect_true(
+            stopped_after_prior_reply.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
+                matches_audio_deep_read_stop(
+                    stopped_after_prior_reply, audio_with_prior_reply
+                ) &&
+                sound.calls == sound_calls_before_deep_stop,
+            "case 1 new audio CALL does not inherit a prior sample reply at the stack-read stop"
+        );
+        auto stop_before_aliased_audio_write = group_b_input;
+        stop_before_aliased_audio_write.stop_before_access =
+            audio_pending.accesses_completed + 22U;
+        const auto stopped_before_aliased_audio_write =
+            openswd3::battle::continue_legacy_battle_actor_frame_case_one_audio(
+                sound, stop_before_aliased_audio_write, audio_pending
+            );
+        test.expect_true(
+            stopped_before_aliased_audio_write.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_one_audio_child_typed_stop &&
+                matches_audio_deep_read_stop(
+                    stopped_before_aliased_audio_write, audio_pending
+                ) &&
+                stopped_before_aliased_audio_write.eip == 0x00485D14U &&
+                sound.calls == sound_calls_before_deep_stop,
+            "case 1 audio ordinal stops before the aliased arg_4 write without invoking the sound port"
         );
         sound.reply.returned = false;
         auto unreadable_sound_argument = group_b_input;
@@ -7326,7 +7372,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 completed_audio.direction_flag ==
                     audio_pending.direction_flag &&
                 completed_audio.accesses_completed ==
-                    audio_pending.accesses_completed + 21U &&
+                    audio_pending.accesses_completed + 22U &&
                 resumed_audio.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_one_source_read_ready &&
@@ -20780,8 +20826,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             );
         test.expect_true(
             stopped_case_two_deep_read.status ==
-                    LegacyBattleActorFrameEntryStatus::
-                        case_two_audio_child_typed_stop &&
+                    LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
                 matches_audio_deep_read_stop(
                     stopped_case_two_deep_read, sample_arguments
                 ) &&
@@ -27973,8 +28018,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         );
     test.expect_true(
         stopped_case_fifty_one_deep_read.status ==
-                LegacyBattleActorFrameEntryStatus::
-                    case_fifty_one_audio_child_typed_stop &&
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
             matches_audio_deep_read_stop(
                 stopped_case_fifty_one_deep_read, case_fifty_one_audio_args
             ) &&
@@ -40323,8 +40367,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         );
     test.expect_true(
         stopped_case_hundred_deep_read.status ==
-                LegacyBattleActorFrameEntryStatus::
-                    case_hundred_audio_child_typed_stop &&
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
             matches_audio_deep_read_stop(
                 stopped_case_hundred_deep_read, case_hundred_audio_args
             ) &&
@@ -42348,8 +42391,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         );
     test.expect_true(
         stopped_case_hundred_late_deep_read.status ==
-                LegacyBattleActorFrameEntryStatus::
-                    case_hundred_audio_child_typed_stop &&
+                LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
             matches_audio_deep_read_stop(
                 stopped_case_hundred_late_deep_read,
                 case_hundred_post_surface_audio_args
