@@ -731,6 +731,7 @@ continue_legacy_battle_actor_frame_case_thirteen_fourth_draw_arguments(
     prefix.edx |= 4U;
     prefix.flags = {
         .parity = even_parity(static_cast<u8>(prefix.edx)),
+        .auxiliary_carry_defined = false,
         .zero = prefix.edx == 0U,
         .sign = (prefix.edx & 0x80000000U) != 0U,
     };

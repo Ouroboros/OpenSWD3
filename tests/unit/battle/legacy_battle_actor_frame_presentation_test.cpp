@@ -23501,6 +23501,42 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         0x0047AE7CU,
         0x0047AE7DU,
     };
+    const std::array<u32, 12U> case_thirteen_fourth_rect_fault_tokens{
+        case_thirteen_third_draw_return.esi + 0x2548U,
+        case_thirteen_third_draw_return.esi + 0x03E4U,
+        action_execution.render_source_token + 0x0EU,
+        case_thirteen_third_draw_return.esi + 0x2958U,
+        case_thirteen_third_draw_return.esi + 0x0D68U,
+        case_thirteen_third_draw_return.esp - 4U,
+        action_execution.render_source_token + 0x0CU,
+        case_thirteen_third_draw_return.esi + 0x0D66U,
+        case_thirteen_third_draw_return.esp - 8U,
+        case_thirteen_third_draw_return.esi + 0x03E4U,
+        case_thirteen_third_draw_return.esp - 12U,
+        case_thirteen_third_draw_return.esp - 16U,
+    };
+    const std::array case_thirteen_fourth_rect_fault_flags{
+        case_thirteen_third_draw_return.flags,
+        case_thirteen_third_draw_return.flags,
+        case_thirteen_xor_zero_flags,
+        case_thirteen_xor_zero_flags,
+        case_thirteen_sub_flags(7U, 11U),
+        expected_add_esp_cleanup_flags(7U - 11U, 27U),
+        case_thirteen_xor_zero_flags,
+        case_thirteen_xor_zero_flags,
+        expected_add_esp_cleanup_flags(
+            0U - case_thirteen_third_draw_return.ebp, 43U
+        ),
+        expected_add_esp_cleanup_flags(
+            0U - case_thirteen_third_draw_return.ebp, 43U
+        ),
+        expected_add_esp_cleanup_flags(
+            case_thirteen_third_draw_return.ebx - 11U, 27U
+        ),
+        expected_add_esp_cleanup_flags(
+            case_thirteen_third_draw_return.ebx - 11U, 27U
+        ),
+    };
     bool case_thirteen_fourth_rect_faults_exact = true;
     for (std::size_t ordinal = 0U;
          ordinal < case_thirteen_fourth_rect_fault_ips.size();
@@ -23519,12 +23555,49 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         case_thirteen_fourth_rect_faults_exact =
             case_thirteen_fourth_rect_faults_exact &&
             stopped.eip == case_thirteen_fourth_rect_fault_ips[ordinal] &&
+            stopped.stopped_token ==
+                case_thirteen_fourth_rect_fault_tokens[ordinal] &&
+            stopped.stopped_access_kind ==
+                (ordinal == 2U || ordinal == 6U
+                     ? LegacyBattleActorFrameEntryAccessKind::
+                           frame_resource_read
+                     : ordinal == 5U || ordinal == 8U || ordinal >= 10U
+                     ? LegacyBattleActorFrameEntryAccessKind::stack_write
+                     : LegacyBattleActorFrameEntryAccessKind::actor_read) &&
+            stopped.accesses_completed == rect_fault.stop_before_access &&
             stopped.esp == case_thirteen_third_draw_return.esp - 4U * pushed &&
-            (ordinal != 2U || stopped.edi == 0U);
+            stopped.rectangle_argument_count == pushed &&
+            stopped.last_pushed_value ==
+                (ordinal <= 5U
+                     ? case_thirteen_third_draw_return.last_pushed_value
+                     : ordinal <= 8U ? 23U
+                     : ordinal <= 10U
+                     ? 48U - case_thirteen_third_draw_return.ebp
+                     : 19U) &&
+            stopped.flags_known &&
+            same_frame_flags(
+                stopped.flags, case_thirteen_fourth_rect_fault_flags[ordinal]
+            ) &&
+            stopped.direction_flag ==
+                case_thirteen_third_draw_return.direction_flag &&
+            (ordinal != 2U || stopped.edi == 0U) &&
+            (ordinal != 4U || stopped.edi == 7U - 11U) &&
+            (ordinal != 5U || stopped.edi == 23U) &&
+            (ordinal != 10U || stopped.ebx == 19U);
     }
+    action_execution.turn_threshold = 0xFFFFU;
+    const auto case_thirteen_negative_fourth_rect = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_thirteen_fourth_rectangle_arguments(
+            case_eight_view, rle_request, case_thirteen_third_draw_return
+        );
+    action_execution.turn_threshold = 0U;
     const auto case_thirteen_fourth_rect_args = openswd3::battle::
         continue_legacy_battle_actor_frame_case_thirteen_fourth_rectangle_arguments(
             case_eight_view, rle_request, case_thirteen_third_draw_return
+        );
+    const auto case_thirteen_fourth_rect_call_fault = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_three_rectangle_entry(
+            case_thirteen_no_call, case_thirteen_fourth_rect_args
         );
     const auto case_thirteen_fourth_rect_child = openswd3::battle::
         continue_legacy_battle_actor_frame_case_three_rectangle_entry(
@@ -23536,6 +23609,33 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         );
     test.expect_true(
         case_thirteen_fourth_rect_faults_exact &&
+            case_thirteen_third_draw_return.ebx == 3U &&
+            case_thirteen_negative_fourth_rect.rectangle_argument_pushes ==
+                std::array<u32, 4U>{
+                    23U,
+                    46U - case_thirteen_third_draw_return.ebp,
+                    19U,
+                    41U - case_thirteen_third_draw_return.ebp
+                } &&
+            case_thirteen_fourth_rect_call_fault.status ==
+                LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
+            case_thirteen_fourth_rect_call_fault.eip == 0x0047AE7EU &&
+            case_thirteen_fourth_rect_call_fault.stopped_token ==
+                case_thirteen_fourth_rect_args.esp - 4U &&
+            case_thirteen_fourth_rect_call_fault.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::stack_write &&
+            case_thirteen_fourth_rect_call_fault.accesses_completed ==
+                case_thirteen_fourth_rect_args.accesses_completed &&
+            case_thirteen_fourth_rect_call_fault.esp ==
+                case_thirteen_fourth_rect_args.esp &&
+            case_thirteen_fourth_rect_call_fault.last_pushed_value ==
+                case_thirteen_fourth_rect_args.last_pushed_value &&
+            case_thirteen_fourth_rect_call_fault.direction_flag ==
+                case_thirteen_fourth_rect_args.direction_flag &&
+            same_frame_flags(
+                case_thirteen_fourth_rect_call_fault.flags,
+                case_thirteen_fourth_rect_args.flags
+            ) &&
             case_thirteen_fourth_rect_args.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_fourth_rectangle_call_ready &&
@@ -23564,10 +23664,22 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         0x0047AEA2U,
         0x0047AEABU,
     };
+    const std::array<u32, 7U> case_thirteen_fourth_global_fault_tokens{
+        case_thirteen_fourth_rect_return.esi + 0x2958U,
+        0x004CD71CU,
+        case_thirteen_fourth_rect_return.esp - 4U,
+        case_thirteen_fourth_rect_return.esi + 0x2958U,
+        0x004CD30CU,
+        case_thirteen_fourth_rect_return.esi + 0x2958U,
+        0x004CD304U,
+    };
     bool case_thirteen_fourth_global_faults_exact = true;
     for (std::size_t ordinal = 0U;
          ordinal < case_thirteen_fourth_global_fault_ips.size();
          ++ordinal) {
+        case_eight_view.shared_action->draw_motion_a = 11U;
+        case_eight_view.shared_action->draw_motion_b = 22U;
+        case_eight_view.shared_action->draw_motion_c = 33U;
         auto global_fault = rle_request;
         global_fault.stop_before_access =
             case_thirteen_fourth_rect_return.accesses_completed + ordinal;
@@ -23578,17 +23690,55 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         case_thirteen_fourth_global_faults_exact =
             case_thirteen_fourth_global_faults_exact &&
             stopped.eip == case_thirteen_fourth_global_fault_ips[ordinal] &&
+            stopped.stopped_token ==
+                case_thirteen_fourth_global_fault_tokens[ordinal] &&
+            stopped.stopped_access_kind ==
+                (ordinal == 2U
+                     ? LegacyBattleActorFrameEntryAccessKind::stack_write
+                     : ordinal == 0U || ordinal == 3U || ordinal == 5U
+                     ? LegacyBattleActorFrameEntryAccessKind::actor_read
+                     : LegacyBattleActorFrameEntryAccessKind::global_write) &&
+            stopped.accesses_completed == global_fault.stop_before_access &&
             stopped.esp ==
                 case_thirteen_fourth_rect_return.esp -
                     (ordinal >= 3U ? 4U : 0U) &&
-            stopped.edi == 11U;
+            stopped.edi == 11U &&
+            stopped.direction_flag ==
+                case_thirteen_fourth_rect_return.direction_flag &&
+            stopped.flags_known &&
+            same_frame_flags(
+                stopped.flags,
+                ordinal == 0U ? case_thirteen_fourth_rect_return.flags
+                              : case_thirteen_arithmetic_zero_flags
+            ) &&
+            case_eight_view.shared_action->draw_motion_a ==
+                (ordinal >= 2U ? 0U : 11U) &&
+            case_eight_view.shared_action->draw_motion_b ==
+                (ordinal >= 5U ? 0U : 22U) &&
+            case_eight_view.shared_action->draw_motion_c == 33U;
     }
+    action_execution.turn_threshold = 0xFFFFU;
+    const auto case_thirteen_negative_fourth_global = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_seven_post_rectangle_globals(
+            case_eight_view, rle_request, case_thirteen_fourth_rect_return
+        );
+    const bool case_thirteen_negative_fourth_globals_committed =
+        case_eight_view.shared_action->draw_motion_a == 1U &&
+        case_eight_view.shared_action->draw_motion_b == 1U &&
+        case_eight_view.shared_action->draw_motion_c == 1U;
+    action_execution.turn_threshold = 0U;
     const auto case_thirteen_fourth_global_ready = openswd3::battle::
         continue_legacy_battle_actor_frame_case_seven_post_rectangle_globals(
             case_eight_view, rle_request, case_thirteen_fourth_rect_return
         );
     test.expect_true(
         case_thirteen_fourth_global_faults_exact &&
+            case_thirteen_negative_fourth_globals_committed &&
+            case_thirteen_negative_fourth_global.flags.carry &&
+            case_thirteen_negative_fourth_global.flags.auxiliary_carry &&
+            case_eight_view.shared_action->draw_motion_a == 0U &&
+            case_eight_view.shared_action->draw_motion_b == 0U &&
+            case_eight_view.shared_action->draw_motion_c == 0U &&
             case_thirteen_fourth_global_ready.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_fourth_post_rectangle_globals_ready &&
@@ -23613,6 +23763,38 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         0x0047AEF0U,
         0x0047AEF3U,
     };
+    const std::array<u32, 13U> case_thirteen_fourth_draw_fault_tokens{
+        case_thirteen_fourth_global_ready.esi + 0x2694U,
+        case_thirteen_fourth_global_ready.esi + 0x2548U,
+        case_thirteen_fourth_global_ready.esp - 4U,
+        action_execution.render_source_token + 0x0EU,
+        action_execution.render_source_token + 0x0CU,
+        case_thirteen_fourth_global_ready.esp - 8U,
+        case_thirteen_fourth_global_ready.esi + 0x0D68U,
+        case_thirteen_fourth_global_ready.esi + 0x2958U,
+        case_thirteen_fourth_global_ready.esp - 12U,
+        case_thirteen_fourth_global_ready.esi + 0x03E4U,
+        case_thirteen_fourth_global_ready.esi + 0x0D66U,
+        case_thirteen_fourth_global_ready.esp - 16U,
+        case_thirteen_fourth_global_ready.esp - 20U,
+    };
+    const std::array case_thirteen_fourth_draw_fault_flags{
+        case_thirteen_fourth_global_ready.flags,
+        case_thirteen_fourth_global_ready.flags,
+        case_thirteen_or_flags,
+        case_thirteen_xor_zero_flags,
+        case_thirteen_xor_zero_flags,
+        case_thirteen_xor_zero_flags,
+        case_thirteen_xor_zero_flags,
+        case_thirteen_xor_zero_flags,
+        case_thirteen_xor_zero_flags,
+        case_thirteen_xor_zero_flags,
+        case_thirteen_sub_flags(27U, 11U),
+        case_thirteen_sub_flags(0U, case_thirteen_fourth_global_ready.ebp),
+        expected_add_esp_cleanup_flags(
+            0U - case_thirteen_fourth_global_ready.ebp, 43U
+        ),
+    };
     bool case_thirteen_fourth_draw_faults_exact = true;
     for (std::size_t ordinal = 0U;
          ordinal < case_thirteen_fourth_draw_fault_ips.size();
@@ -23632,12 +23814,45 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         case_thirteen_fourth_draw_faults_exact =
             case_thirteen_fourth_draw_faults_exact &&
             stopped.eip == case_thirteen_fourth_draw_fault_ips[ordinal] &&
-            stopped.esp == case_thirteen_fourth_global_ready.esp - 4U * pushed;
+            stopped.stopped_token ==
+                case_thirteen_fourth_draw_fault_tokens[ordinal] &&
+            stopped.stopped_access_kind ==
+                (ordinal == 3U || ordinal == 4U
+                     ? LegacyBattleActorFrameEntryAccessKind::
+                           frame_resource_read
+                     : ordinal == 2U || ordinal == 5U || ordinal == 8U ||
+                         ordinal >= 11U
+                     ? LegacyBattleActorFrameEntryAccessKind::stack_write
+                     : LegacyBattleActorFrameEntryAccessKind::actor_read) &&
+            stopped.accesses_completed == draw_fault.stop_before_access &&
+            stopped.esp ==
+                case_thirteen_fourth_global_ready.esp - 4U * pushed &&
+            stopped.draw_argument_count == pushed &&
+            stopped.last_pushed_value ==
+                (ordinal <= 2U
+                     ? case_thirteen_fourth_global_ready.last_pushed_value
+                     : ordinal <= 5U  ? case_thirteen_draw_flags
+                     : ordinal <= 8U  ? 7U
+                     : ordinal <= 11U ? 5U
+                                      : 16U) &&
+            stopped.direction_flag ==
+                case_thirteen_fourth_global_ready.direction_flag &&
+            stopped.flags_known &&
+            same_frame_flags(
+                stopped.flags, case_thirteen_fourth_draw_fault_flags[ordinal]
+            ) &&
+            stopped.edi == 11U;
     }
     const auto case_thirteen_fourth_draw_args = openswd3::battle::
         continue_legacy_battle_actor_frame_case_thirteen_fourth_draw_arguments(
             case_eight_view, rle_request, case_thirteen_fourth_global_ready
         );
+    action_execution.turn_threshold = 0xFFFFU;
+    const auto case_thirteen_negative_fourth_draw = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_thirteen_fourth_draw_arguments(
+            case_eight_view, rle_request, case_thirteen_fourth_global_ready
+        );
+    action_execution.turn_threshold = 0U;
     const auto case_thirteen_fourth_call_fault = openswd3::battle::
         continue_legacy_battle_actor_frame_case_seven_first_draw_call(
             case_thirteen_call_fault_port,
@@ -23646,8 +23861,22 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         );
     test.expect_true(
         case_thirteen_fourth_call_fault.eip == 0x0047AEF4U &&
+            case_thirteen_fourth_call_fault.stopped_token ==
+                case_thirteen_fourth_draw_args.esp - 4U &&
+            case_thirteen_fourth_call_fault.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::stack_write &&
+            case_thirteen_fourth_call_fault.accesses_completed ==
+                case_thirteen_fourth_draw_args.accesses_completed &&
             case_thirteen_fourth_call_fault.esp ==
                 case_thirteen_fourth_draw_args.esp &&
+            case_thirteen_fourth_call_fault.last_pushed_value ==
+                case_thirteen_fourth_draw_args.last_pushed_value &&
+            case_thirteen_fourth_call_fault.direction_flag ==
+                case_thirteen_fourth_draw_args.direction_flag &&
+            same_frame_flags(
+                case_thirteen_fourth_call_fault.flags,
+                case_thirteen_fourth_draw_args.flags
+            ) &&
             case_thirteen_fourth_call_fault.status ==
                 LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
             case_thirteen_call_fault_port.calls == 0U,
@@ -23670,6 +23899,14 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         );
     test.expect_true(
         case_thirteen_fourth_draw_faults_exact &&
+            case_thirteen_negative_fourth_draw.draw_argument_pushes ==
+                std::array<u32, 5U>{
+                    case_thirteen_draw_flags,
+                    7U,
+                    5U,
+                    16U,
+                    41U - case_thirteen_fourth_global_ready.ebp
+                } &&
             case_thirteen_fourth_draw_args.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_fourth_draw_call_ready &&
@@ -23933,18 +24170,56 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         case_fourteen_audio_argument_faults =
             case_fourteen_audio_argument_faults &&
             stopped.eip == case_fourteen_audio_argument_fault_ips[ordinal] &&
-            stopped.esp ==
-                case_fourteen_zero.esp -
-                    4U *
-                        (ordinal == 0U       ? 0U
-                             : ordinal == 1U ? 0U
-                                             : 1U);
+            stopped.stopped_token ==
+                (ordinal == 0U ? 0x004AB784U : stopped.esp - 4U) &&
+            stopped.stopped_access_kind ==
+                (ordinal == 0U
+                     ? LegacyBattleActorFrameEntryAccessKind::global_read
+                     : LegacyBattleActorFrameEntryAccessKind::stack_write) &&
+            stopped.accesses_completed == audio_fault.stop_before_access &&
+            stopped.esp == case_fourteen_zero.esp - (ordinal == 2U ? 4U : 0U) &&
+            stopped.last_pushed_value ==
+                (ordinal == 2U ? 0x70123456U
+                               : case_fourteen_zero.last_pushed_value) &&
+            stopped.direction_flag == case_fourteen_zero.direction_flag &&
+            stopped.flags_known &&
+            same_frame_flags(stopped.flags, case_thirteen_audio_cmp_flags) &&
+            (ordinal == 0U || stopped.eax == 0x70123456U);
     }
     const auto case_fourteen_audio_args = openswd3::battle::
         continue_legacy_battle_actor_frame_case_three_audio_arguments(
             case_eight_view, rle_request, case_fourteen_zero
         );
     SoundPort case_fourteen_sound{};
+    auto case_fourteen_audio_call_fault = rle_request;
+    case_fourteen_audio_call_fault.stop_before_access =
+        case_fourteen_audio_args.accesses_completed;
+    const auto stopped_case_fourteen_call = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_three_audio_call(
+            case_fourteen_sound,
+            case_fourteen_audio_call_fault,
+            case_fourteen_audio_args
+        );
+    auto case_fourteen_first_wrapper_read = rle_request;
+    case_fourteen_first_wrapper_read.stop_before_access =
+        case_fourteen_audio_args.accesses_completed + 1U;
+    const auto stopped_case_fourteen_first_wrapper_read = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_three_audio_call(
+            case_fourteen_sound,
+            case_fourteen_first_wrapper_read,
+            case_fourteen_audio_args
+        );
+    auto case_fourteen_second_wrapper_read = rle_request;
+    case_fourteen_second_wrapper_read.stop_before_access =
+        case_fourteen_audio_args.accesses_completed + 2U;
+    const auto stopped_case_fourteen_second_wrapper_read = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_three_audio_call(
+            case_fourteen_sound,
+            case_fourteen_second_wrapper_read,
+            case_fourteen_audio_args
+        );
+    const bool case_fourteen_sound_untouched_before_reply =
+        case_fourteen_sound.calls == 0U;
     case_fourteen_sound.reply.returned = false;
     const auto case_fourteen_audio_child = openswd3::battle::
         continue_legacy_battle_actor_frame_case_three_audio_call(
@@ -23956,29 +24231,107 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_fourteen_sound, rle_request, case_fourteen_audio_args
         );
     test.expect_true(
-        case_fourteen_audio_argument_faults &&
+        case_fourteen_audio_argument_faults && case_fourteen_zero.flags_known &&
+            same_frame_flags(
+                case_fourteen_zero.flags, case_thirteen_audio_cmp_flags
+            ) &&
             case_fourteen_audio_args.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fourteen_audio_call_ready &&
             case_fourteen_audio_args.eip == 0x0047AF42U &&
+            case_fourteen_audio_args.esp == case_fourteen_zero.esp - 8U &&
+            case_fourteen_audio_args.accesses_completed ==
+                case_fourteen_zero.accesses_completed + 3U &&
+            case_fourteen_audio_args.eax == 0x70123456U &&
             case_fourteen_audio_args.last_pushed_value == 0x31U &&
+            case_fourteen_sound_untouched_before_reply &&
+            stopped_case_fourteen_call.eip == 0x0047AF42U &&
+            stopped_case_fourteen_call.esp == case_fourteen_audio_args.esp &&
+            stopped_case_fourteen_call.stopped_token ==
+                case_fourteen_audio_args.esp - 4U &&
+            stopped_case_fourteen_call.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::stack_write &&
+            stopped_case_fourteen_call.accesses_completed ==
+                case_fourteen_audio_args.accesses_completed &&
+            stopped_case_fourteen_call.direction_flag ==
+                case_fourteen_audio_args.direction_flag &&
+            same_frame_flags(
+                stopped_case_fourteen_call.flags, case_fourteen_audio_args.flags
+            ) &&
+            stopped_case_fourteen_first_wrapper_read.eip == 0x00485610U &&
+            stopped_case_fourteen_first_wrapper_read.stopped_token ==
+                case_fourteen_audio_args.esp + 4U &&
+            stopped_case_fourteen_first_wrapper_read.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::stack_read &&
+            stopped_case_fourteen_first_wrapper_read.esp ==
+                case_fourteen_audio_args.esp - 4U &&
+            stopped_case_fourteen_second_wrapper_read.eip == 0x0048561EU &&
+            stopped_case_fourteen_second_wrapper_read.stopped_token ==
+                case_fourteen_audio_args.esp &&
+            stopped_case_fourteen_second_wrapper_read.ecx ==
+                (case_fourteen_audio_args.eax << 7U) &&
             case_fourteen_audio_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fourteen_audio_child_typed_stop &&
             case_fourteen_audio_child.last_pushed_value == 0x0047AF47U &&
+            case_fourteen_audio_child.esp ==
+                case_fourteen_audio_args.esp - 4U &&
+            case_fourteen_sound.sample_handle == 0x70123456U &&
+            case_fourteen_sound.entry_eax == 0x70123456U &&
             case_fourteen_audio_return.status ==
                 LegacyBattleActorFrameEntryStatus::case_fourteen_source_ready &&
             case_fourteen_audio_return.eip == 0x0047AF4AU &&
-            case_fourteen_audio_return.esp == case_fourteen_zero.esp,
+            case_fourteen_audio_return.esp == case_fourteen_zero.esp &&
+            case_fourteen_audio_return.flags_known &&
+            same_frame_flags(
+                case_fourteen_audio_return.flags,
+                expected_add_esp_cleanup_flags(
+                    case_fourteen_audio_return.esp - 8U, 8U
+                )
+            ),
         "case14 phase zero reads canonical sample handle, pushes sample 31 and only publishes source after physical audio return"
     );
     const u32 case_fourteen_saved_source =
         case_eight_view.shared_action->turn_frame_source_token;
-    const std::array<u16, 5U> case_fourteen_source_phases{
-        0U, 8U, 9U, 32U, 0xFFFFU
+    const std::array<u16, 6U> case_fourteen_source_phases{
+        0U, 8U, 9U, 32U, 0xFFFFU, 0x8000U
     };
-    const std::array<u32, 5U> case_fourteen_source_targets{
-        0x0047AF69U, 0x0047AF69U, 0x0047B11FU, 0x0047B11FU, 0x0047AF69U
+    const std::array<u32, 6U> case_fourteen_source_targets{
+        0x0047AF69U,
+        0x0047AF69U,
+        0x0047B11FU,
+        0x0047B11FU,
+        0x0047AF69U,
+        0x0047AF69U,
+    };
+    const std::array case_fourteen_source_cmp_flags{
+        openswd3::battle::LegacyBattleActorCoordinateFlags{
+            .carry = true,
+            .auxiliary_carry = true,
+            .sign = true,
+        },
+        openswd3::battle::LegacyBattleActorCoordinateFlags{
+            .carry = true,
+            .parity = true,
+            .auxiliary_carry = true,
+            .sign = true,
+        },
+        openswd3::battle::LegacyBattleActorCoordinateFlags{
+            .parity = true,
+            .zero = true,
+        },
+        openswd3::battle::LegacyBattleActorCoordinateFlags{
+            .parity = true,
+            .auxiliary_carry = true,
+        },
+        openswd3::battle::LegacyBattleActorCoordinateFlags{
+            .parity = true,
+            .sign = true,
+        },
+        openswd3::battle::LegacyBattleActorCoordinateFlags{
+            .auxiliary_carry = true,
+            .overflow = true,
+        },
     };
     bool case_fourteen_source_branches_exact = true;
     for (std::size_t index = 0U; index < case_fourteen_source_phases.size();
@@ -24006,6 +24359,16 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                            case_fourteen_late_geometry_ready) &&
             selected.accesses_completed ==
                 source_start.accesses_completed + 4U &&
+            selected.eax ==
+                ((source_start.eax & 0xFFFF0000U) |
+                 case_fourteen_source_phases[index]) &&
+            selected.ecx == action_execution.render_source_token &&
+            selected.edx == 0x12345678U && selected.esp == source_start.esp &&
+            selected.direction_flag == source_start.direction_flag &&
+            selected.flags_known &&
+            same_frame_flags(
+                selected.flags, case_fourteen_source_cmp_flags[index]
+            ) &&
             case_eight_view.shared_action->turn_frame_source_token ==
                 0x12345678U;
     }
@@ -24013,6 +24376,12 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     bool case_fourteen_source_faults_exact = true;
     const std::array<u32, 4U> case_fourteen_source_fault_ips{
         0x0047AF4AU, 0x0047AF50U, 0x0047AF52U, 0x0047AF58U
+    };
+    const std::array<u32, 4U> case_fourteen_source_fault_tokens{
+        case_fourteen_audio_return.esi + 0x2548U,
+        action_execution.render_source_token,
+        0x004CD730U,
+        case_fourteen_audio_return.esi + 0x2958U,
     };
     for (std::size_t ordinal = 0U;
          ordinal < case_fourteen_source_fault_ips.size();
@@ -24027,6 +24396,29 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             );
         case_fourteen_source_faults_exact = case_fourteen_source_faults_exact &&
             stopped.eip == case_fourteen_source_fault_ips[ordinal] &&
+            stopped.stopped_token ==
+                case_fourteen_source_fault_tokens[ordinal] &&
+            stopped.stopped_access_kind ==
+                (ordinal == 0U || ordinal == 3U
+                     ? LegacyBattleActorFrameEntryAccessKind::actor_read
+                     : ordinal == 1U
+                     ? LegacyBattleActorFrameEntryAccessKind::
+                           frame_resource_read
+                     : LegacyBattleActorFrameEntryAccessKind::global_write) &&
+            stopped.accesses_completed == source_fault.stop_before_access &&
+            stopped.esp == case_fourteen_audio_return.esp &&
+            stopped.eax == case_fourteen_audio_return.eax &&
+            stopped.ecx ==
+                (ordinal == 0U ? case_fourteen_audio_return.ecx
+                               : action_execution.render_source_token) &&
+            stopped.edx ==
+                (ordinal < 2U ? case_fourteen_audio_return.edx : 0x12345678U) &&
+            stopped.last_pushed_value ==
+                case_fourteen_audio_return.last_pushed_value &&
+            stopped.direction_flag ==
+                case_fourteen_audio_return.direction_flag &&
+            stopped.flags_known &&
+            same_frame_flags(stopped.flags, case_fourteen_audio_return.flags) &&
             case_eight_view.shared_action->turn_frame_source_token ==
                 (ordinal < 3U ? 0xAABBCCDDU : 0x12345678U);
     }
