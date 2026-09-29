@@ -1700,6 +1700,19 @@ release port 调用数为零。定向 `proc_064b` core 200/200；
 阶段快照 `proc_14ec` core／ASan 各200/200、app 206/206。
 生产 caller 的 owner 初始化与深层 hook 仍未证实。
 
+case100 `0x0047B723` 的 reset CALL 另用已持有的独立 actor
+配置 owner 将 `+0x2AA0` 设为1，沿完整 `sub_478850` 子函数
+走过重复写入，再在 `0x00478A4D` 的随机子 CALL 停下；
+该站的 EIP 是 `0x00439070`，父级三处尾写和 RET 尚未执行。
+`random_callable=false` 时 CALL 已压实参和返回槽，但未真正调用
+随机端口，故随机调用计数、bound 发布和端口调用数均为零；
+不能把 PUSH 140 当作端口已收到 bound。首次断言误预期调用数1、
+随后误预期 bound 已发布，`proc_5299/proc_2494/proc_7415`
+分别失败；按该物理边界修正后 `proc_b106` core 200/200，
+阶段快照 `proc_9131` core／ASan 各200/200、app 206/206。
+这只覆盖 case100 的受控子路径，其余三个 reset CALL
+的全路径与真实父 caller 仍待 REVIEW。
+
 - case3/4 `0x00479CA6..0x0047A07E`：两支均在 signed phase `>32` 时跳公共重置，
   phase0 先播0x31；先读取 frame `+0x00` 发布 `dword_4CD730`，随后顺序调用矩形 `sub_416FF0`、绘制 `sub_4170E0`、第二个矩形、第二个绘制，
   最后把 phase 按 word 加2，**仅此时** `add esp,0x50` 一次性清掉四个调用累计压入的80字节，再以参数 `(0,0,640,480)` 调第三次矩形并返回0。

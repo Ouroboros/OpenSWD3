@@ -43774,6 +43774,40 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             !case_hundred_reset_ret_fault.returned,
         "case100 unique reset CALL/three writes compose physical POP/RET on a separate canonical owner"
     );
+    auto case_hundred_random_configuration =
+        *case_hundred_reset_view.group_a_configuration;
+    case_hundred_random_configuration.source_runtime_value = 1U;
+    auto case_hundred_random_view = case_hundred_reset_view;
+    case_hundred_random_view.group_a_configuration =
+        &case_hundred_random_configuration;
+    auto case_hundred_random_request = case_hundred_particle_request;
+    case_hundred_random_request.reset_random_callable = false;
+    Random case_hundred_random_stop_port{};
+    const auto case_hundred_random_stop = openswd3::battle::
+        continue_legacy_battle_actor_frame_common_reset_return(
+            case_hundred_random_view,
+            case_hundred_random_stop_port,
+            case_hundred_random_request,
+            case_hundred_reset_ready
+        );
+    test.expect_true(
+        case_hundred_random_stop.status ==
+                LegacyBattleActorFrameEntryStatus::reset_child_typed_stop &&
+            case_hundred_random_stop.eip == 0x00439070U &&
+            case_hundred_random_stop.stopped_instruction == 0x00439070U &&
+            case_hundred_random_stop.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::callee_call &&
+            case_hundred_random_stop.reset_child.status ==
+                openswd3::battle::LegacyBattleActorRuntimeResetStatus::
+                    random_call_typed_stop &&
+            !case_hundred_random_stop.returned &&
+            case_hundred_random_stop.accesses_completed >
+                case_hundred_reset_ready.accesses_completed + 770U &&
+            case_hundred_random_stop.reset_child.random_bound == 0U &&
+            case_hundred_random_stop.reset_child.random_calls == 0U &&
+            case_hundred_random_stop_port.calls == 0U,
+        "case100 reset random branch stops before invoking RNG after all repeated actor clears"
+    );
     action_execution.reserved_action_record_02 =
         case_hundred_saved_record_before_reset;
     action_execution.turn_threshold = case_hundred_saved_phase_before_reset;
