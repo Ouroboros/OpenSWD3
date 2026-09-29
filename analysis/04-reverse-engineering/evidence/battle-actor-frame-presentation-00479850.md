@@ -4907,9 +4907,22 @@ AF 未定义；不进入 `JNZ`，在 `0x00485D14 MOV [ESP+18h],ESI`
 case1 两个序号分别停于读前／写前且不调用声音 port，19处共享前缀的
 受控回包停点保留21次子级访问；Linux core 阶段 `proc_1bd8` 200/200；
 追加旧回包标记断言后的最终阶段快照 `proc_090c` 经 Linux core／
-ASan core 各200/200、Linux app 206/206。D14 栈槽覆写、后续
-`sub_486490`／Miles／CRT 与真实生产父路径仍 partial，
-不能把本次安全前缀当作整包验收。
+ASan core 各200/200、Linux app 206/206。该阶段 D14 栈槽覆写、
+`sub_486490`／Miles／CRT 与真实生产父路径仍 partial。
+随后再按 LST 建模 `0x00485D14` 内层栈 `arg_4` 写零：写前可停，
+写后把原音效编号被覆盖的事实保留在专属结果字段，不冒充已持有真实
+guest 栈字节。按顺序执行 `0x00485D1A PUSH EDI`、D1D CALL 返回槽、
+`sub_486490` 的 `SUB ESP,8` 与三次保存 EBX／EBP／ESI、
+`0x00486496` 从此前压入的 arg_0 读音效编号并 `SHL ESI,4`；
+于首次无已持有 backing 的音频表字段读 `0x0048649F [EBP+67Ch]`
+前停止，ESP 相对父 CALL 前减76、ESI=低16位音效编号左移4、
+EBP=0x004C8450、token=0x004C8ACC，SHL 四位的 OF／AF 未定义。
+子级共28次物理访问，另有父 CALL 返回槽一次；case1 覆盖 D14 之后
+七个逐访问序号及显式 `global_readable=false`，均不先调用声音 port；
+19处音频 CALL 共享受控前缀。阶段 `proc_6987` Linux core 200/200；
+最终阶段快照 `proc_676a` Linux core／ASan core 各200/200、
+Linux app 206/206。音频表、Miles／CRT 深层与生产父栈仍 partial，
+不将受控回包当作原版差分。
 这只是受控回包与栈前缀，不是19处真实父路径实参逐字节收敛，
 更不证明后续 Miles/CRT 子级、物理父栈、生产 caller、
 全部98 CALL／22 RET 或原版差分。

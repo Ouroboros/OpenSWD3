@@ -31,6 +31,7 @@ using compat::u32;
     const u32 sample_id
 ) noexcept {
     child.sample_child = {};  // This CALL has not produced a new reply.
+    child.sample_nested_arg4_known = false;
     const auto stack_read = [&](const u32 ip, const u32 token) {
         const bool ret = ip == 0x00485CC7U || ip == 0x00485CD7U ||
             ip == 0x00485E8AU || ip == 0x00485645U;
@@ -129,8 +130,12 @@ using compat::u32;
         .overflow = false,
     };
     if (!stack_push(0x00485637U, child.edx) ||
-        !stack_push(0x00485638U, child.ecx) || !stack_push(0x00485639U, 0U) ||
-        !stack_push(0x00485640U, 0x00485645U)) {
+        !stack_push(0x00485638U, child.ecx)) {
+        return false;
+    }
+    child.sample_nested_arg4_on_stack = child.ecx;
+    child.sample_nested_arg4_known = true;
+    if (!stack_push(0x00485639U, 0U) || !stack_push(0x00485640U, 0x00485645U)) {
         return false;
     }
     child.ecx = 0x004C8450U;
@@ -221,8 +226,55 @@ using compat::u32;
                 child.esi = 0U;
                 child.flags = logical_zero_flags();  // TEST ESI,ESI.
                 child.flags_known = true;
-                child.sample_child.returned = false;
-                return true;  // Stop before rewriting the aliased arg_4 slot.
+                const u32 arg4_slot = child.esp + 0x18U;
+                if (child.accesses_completed == request.stop_before_access ||
+                    !request.call_stack_writable) {
+                    child.status = LegacyBattleActorFrameEntryStatus::
+                        stack_write_typed_stop;
+                    child.stopped_access_kind =
+                        LegacyBattleActorFrameEntryAccessKind::stack_write;
+                    child.stopped_instruction = 0x00485D14U;
+                    child.stopped_token = arg4_slot;
+                    child.eip = 0x00485D14U;
+                    return false;
+                }
+                ++child.accesses_completed;
+                child.sample_nested_arg4_on_stack = 0U;
+                if (!stack_push(0x00485D1AU, child.edi)) {
+                    return false;
+                }
+                child.ecx = child.ebp;
+                if (!stack_push(0x00485D1DU, 0x00485D22U)) {
+                    return false;
+                }
+                child.flags = subtract_flags(child.esp, 8U);
+                child.flags_known = true;
+                child.esp -= 8U;  // sub_486490 reserves two local dwords.
+                if (!stack_push(0x00486493U, child.ebx) ||
+                    !stack_push(0x00486494U, child.ebp) ||
+                    !stack_push(0x00486495U, child.esi) ||
+                    !stack_read(0x00486496U, child.esp + 0x18U)) {
+                    return false;
+                }
+                child.esi = child.edi;  // The pushed sub_486490 arg_0.
+                child.ebp = child.ecx;
+                const u32 old_esi = child.esi;
+                child.esi <<= 4U;
+                child.flags = logical_result_flags(child.esi);
+                child.flags.carry = (old_esi & 0x10000000U) != 0U;
+                child.flags.overflow_defined = false;  // SHL by four.
+                child.flags_known = false;
+                if (!request.global_readable) {
+                    child.status = LegacyBattleActorFrameEntryStatus::
+                        global_read_typed_stop;
+                    child.stopped_access_kind =
+                        LegacyBattleActorFrameEntryAccessKind::global_read;
+                    child.stopped_instruction = 0x0048649FU;
+                    child.stopped_token = child.ebp + 0x067CU;
+                    child.eip = 0x0048649FU;
+                    return false;
+                }
+                return true;  // Stop before the first audio-table field read.
             }
         }
     }
@@ -277,9 +329,9 @@ using compat::u32;
 }
 
 // Only called after the nonzero-ID path of sub_485610/sub_485CE0 has
-// committed its twenty physical accesses and read its known-zero arg_0.
-// The next LST access overwrites the nested arg_4 stack slot; an opaque
-// sound reply cannot undo the committed prefix.
+// committed its wrapper, aliased stack write and nested sub_486490 prologue.
+// Its first audio-table read is not backed here; an opaque sound reply cannot
+// undo the committed prefix.
 [[nodiscard]] inline LegacyBattleActorFrameEntryResult
 stop_sound_before_deep_read(
     LegacyBattleActorFrameEntryResult callee,
@@ -289,10 +341,10 @@ stop_sound_before_deep_read(
     callee.sample_child = reply;
     callee.status = status;
     callee.stopped_access_kind =
-        LegacyBattleActorFrameEntryAccessKind::stack_write;
-    callee.stopped_instruction = 0x00485D14U;
-    callee.stopped_token = callee.esp + 0x18U;
-    callee.eip = 0x00485D14U;
+        LegacyBattleActorFrameEntryAccessKind::global_read;
+    callee.stopped_instruction = 0x0048649FU;
+    callee.stopped_token = callee.ebp + 0x067CU;
+    callee.eip = 0x0048649FU;
     return callee;
 }
 

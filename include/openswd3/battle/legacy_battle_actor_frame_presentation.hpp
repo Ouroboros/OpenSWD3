@@ -950,6 +950,9 @@ struct LegacyBattleActorFrameEntryResult {
     compat::u32 stopped_instruction{};
     compat::u32 stopped_token{};
     compat::u32 last_pushed_value{};
+    // sub_485610's nested arg_4 slot, retained across its aliased write.
+    compat::u32 sample_nested_arg4_on_stack{};
+    bool sample_nested_arg4_known{};
     compat::u32 draw_auxiliary_value{};
     bool draw_auxiliary_pushed{};
     compat::u32 metric_height_on_stack{};
