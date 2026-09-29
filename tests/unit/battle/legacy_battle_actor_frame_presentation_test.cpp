@@ -145,8 +145,8 @@ using openswd3::compat::u32;
         !stopped.draw_child.returned;
 }
 
-// The release wrapper and its CRT callee commit ten accesses after the
-// parent argument/CALL writes, then stop before the first CRT global read.
+// The release wrapper and CRT callee commit ten accesses before the debug
+// flag read; a zero debug bit then reaches the backed argument read.
 [[nodiscard]] bool matches_release_deep_global_stop(
     const openswd3::battle::LegacyBattleActorFrameEntryResult& stopped,
     const openswd3::battle::LegacyBattleActorFrameEntryResult& before_call,
@@ -154,21 +154,35 @@ using openswd3::compat::u32;
     const u32 expected_esi,
     const bool linked_node = false
 ) noexcept {
-    return stopped.eip == 0x004885C7U &&
-        stopped.stopped_instruction == 0x004885C7U &&
-        stopped.stopped_token == 0x004A82F4U &&
+    const bool before_debug_read = stopped.eip == 0x004885C7U;
+    const bool before_argument_read = stopped.eip == 0x00488603U;
+    return (before_debug_read || before_argument_read) &&
+        stopped.stopped_instruction == stopped.eip &&
+        stopped.stopped_token ==
+        (before_debug_read ? 0x004A82F4U : stopped.ebp + 8U) &&
         stopped.stopped_access_kind ==
-        LegacyBattleActorFrameEntryAccessKind::global_read &&
+        (before_debug_read
+             ? LegacyBattleActorFrameEntryAccessKind::global_read
+             : LegacyBattleActorFrameEntryAccessKind::stack_read) &&
         stopped.esp == before_call.esp - 44U &&
         stopped.ebp == before_call.esp - 28U &&
         stopped.accesses_completed ==
-        before_call.accesses_completed + (linked_node ? 13U : 12U) &&
+        before_call.accesses_completed + (linked_node ? 13U : 12U) +
+            (before_argument_read ? 1U : 0U) &&
         stopped.last_pushed_value == before_call.edi &&
-        stopped.eax == argument_token && stopped.ebx == before_call.ebx &&
-        stopped.ecx == before_call.ecx && stopped.edx == before_call.edx &&
-        stopped.esi == expected_esi && stopped.edi == before_call.edi &&
-        stopped.flags_known == before_call.flags_known &&
-        same_frame_flags(stopped.flags, before_call.flags) &&
+        stopped.eax == (before_debug_read ? argument_token : 0U) &&
+        stopped.ebx == before_call.ebx && stopped.ecx == before_call.ecx &&
+        stopped.edx == before_call.edx && stopped.esi == expected_esi &&
+        stopped.edi == before_call.edi &&
+        stopped.flags_known ==
+        (before_debug_read ? before_call.flags_known : true) &&
+        same_frame_flags(
+               stopped.flags,
+               before_debug_read
+                   ? before_call.flags
+                   : openswd3::battle::
+                         LegacyBattleActorCoordinateFlags{.parity = true, .auxiliary_carry_defined = false, .zero = true}
+        ) &&
         stopped.direction_flag == before_call.direction_flag &&
         !stopped.release_child.returned;
 }
@@ -4028,7 +4042,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             linked_next.esi == 0x701300U &&
             linked_next.esp == stopped_node.esp &&
             linked_next.accesses_completed ==
-                stopped_node.accesses_completed + 13U &&
+                stopped_node.accesses_completed + 14U &&
             linked_done.status ==
                 LegacyBattleActorFrameEntryStatus::reset_returned &&
             linked_done.returned && linked_done.eax == 1U &&
@@ -4251,7 +4265,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             terminal_return_fault.eip == 0x0047F0F3U &&
             terminal_return_fault.esp == linked_release_call.esp - 4U &&
             terminal_return_fault.accesses_completed ==
-                linked_next.accesses_completed + 17U &&
+                linked_next.accesses_completed + 18U &&
             terminal_return_fault_port.calls == 1U,
         "borrowed node snapshot cannot override actor alias after head clear; final callee RET read faults after committed node release and POPs"
     );
@@ -9245,6 +9259,67 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 ) &&
                 releaser.calls == 0U,
             "case2 release wrapper reaches CRT global only after the ten committed accesses"
+        );
+        auto missing_debug_owner = group_b_input;
+        missing_debug_owner.decoder_heap_debug_flags_owner = nullptr;
+        ReleasePort missing_debug_port{};
+        const auto stopped_missing_debug_owner = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                missing_debug_port, missing_debug_owner, nonzero_emitter_release
+            );
+        test.expect_true(
+            stopped_missing_debug_owner.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                matches_release_deep_global_stop(
+                    stopped_missing_debug_owner,
+                    nonzero_emitter_release,
+                    0x00801000U,
+                    nonzero_emitter_release.esi
+                ) &&
+                missing_debug_port.calls == 0U,
+            "case2 release CRT debug flag needs an actual owner before reading"
+        );
+        constexpr u32 kDebugReleaseFlag = 4U;
+        auto debug_release = group_b_input;
+        debug_release.decoder_heap_debug_flags_owner = &kDebugReleaseFlag;
+        debug_release.stop_before_access =
+            nonzero_emitter_release.accesses_completed + 13U;
+        ReleasePort debug_release_port{};
+        const auto stopped_debug_call_push = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                debug_release_port, debug_release, nonzero_emitter_release
+            );
+        debug_release.stop_before_access =
+            std::numeric_limits<std::size_t>::max();
+        const auto stopped_debug_callee = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                debug_release_port, debug_release, nonzero_emitter_release
+            );
+        test.expect_true(
+            stopped_debug_call_push.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
+                stopped_debug_call_push.eip == 0x004885D3U &&
+                stopped_debug_call_push.stopped_token ==
+                    nonzero_emitter_release.esp - 48U &&
+                stopped_debug_call_push.esp ==
+                    nonzero_emitter_release.esp - 44U &&
+                stopped_debug_call_push.accesses_completed ==
+                    nonzero_emitter_release.accesses_completed + 13U &&
+                stopped_debug_call_push.eax == 4U &&
+                stopped_debug_call_push.flags_known &&
+                !stopped_debug_call_push.flags.zero &&
+                stopped_debug_callee.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_two_release_child_typed_stop &&
+                stopped_debug_callee.eip == 0x00488BB0U &&
+                stopped_debug_callee.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::callee_call &&
+                stopped_debug_callee.esp == nonzero_emitter_release.esp - 48U &&
+                stopped_debug_callee.last_pushed_value == 0x004885D8U &&
+                stopped_debug_callee.accesses_completed ==
+                    nonzero_emitter_release.accesses_completed + 14U &&
+                debug_release_port.calls == 0U,
+            "case2 CRT debug bit enters the separate sub_488BB0 call without pretending it returned"
         );
         releaser.reply.returned = false;
         const auto stopped_wrapper = openswd3::battle::

@@ -1648,7 +1648,22 @@ fallback 余下77条的分支索引见 `build/workpack316/cache-fallback-suffix-
 相对本函数入口 S 的 ESP 为 `S−0x50`，EAX=原 token、EBP=CRT 局部帧、FLAGS 仍是释放入口前的 `cmp token,EBX`，
 释放后的 parent REP 均不能在这一停点执行（case2 的前置38项已执行，case100 的38与22项均尚未开始）。
 
-现将该条件性首非栈读落实到 case2 `0x00479C94`、case100 `0x0047B6F9` 与链节点内 `0x0047F0E1` 三个生产续段：外层参数及 CALL 返回槽写入后，依次执行 wrapper `PUSH EBP`、`PUSH 1`、原参数栈读、`PUSH EAX`、内层 CALL 返回槽、CRT `PUSH EBP/ECX/EBX/ESI/EDI` 共十次访问；窄 release port 不返回时不再回滚到 wrapper 入口，而在首次未拥有的 `0x004885C7` 全局读前保留真实 ESP、两层 EBP、EAX、末次 EDI 保存值、FLAGS/DF 和先前 actor／链节点写入。逐访问序号 0–10 验证每一步停点 IP、kind、物理 token、ESP 和访问计数；序号恰停全局读前或全局 owner 缺失时不调用 release port，另对 case100/链节点也核不调用 port 的全局前障；正常回包的父级已知访问数追加十项。定向 `battle.actor_frame_316` 于 `proc_15ce` 1/1 通过（首次 `proc_2d87` 因两处旧测试仍用入口停止前访问数而失败，已按新物理前缀修正）。格式化后阶段快照的串行完整门禁 `proc_65bc` 通过 Linux core 200/200、ASan core 200/200、Linux app 206/206。这仍只是受控回包与首非栈读的局部前缀；`0x004885C7` 及后续 CRT hook/全局/链表/`int3` 异常和真实原版差分仍未核定，不能当作 Workpack 316 最终门禁。
+现将该条件性首非栈读落实到 case2 `0x00479C94`、case100 `0x0047B6F9` 与链节点内 `0x0047F0E1` 三个生产续段：外层参数及 CALL 返回槽写入后，依次执行 wrapper `PUSH EBP`、`PUSH 1`、原参数栈读、`PUSH EAX`、内层 CALL 返回槽、CRT `PUSH EBP/ECX/EBX/ESI/EDI` 共十次访问；窄 release port 不返回时不再回滚到 wrapper 入口，而在首次未拥有的 `0x004885C7` 全局读前保留真实 ESP、两层 EBP、EAX、末次 EDI 保存值、FLAGS/DF 和先前 actor／链节点写入。逐访问序号 0–10 验证每一步停点 IP、kind、物理 token、ESP 和访问计数；序号恰停全局读前或全局 owner 缺失时不调用 release port，另对 case100/链节点也核不调用 port 的全局前障；正常回包的父级已知访问数追加十项。定向 `battle.actor_frame_316` 于 `proc_15ce` 1/1 通过（首次 `proc_2d87` 因两处旧测试仍用入口停止前访问数而失败，已按新物理前缀修正）。格式化后阶段快照的串行完整门禁 `proc_65bc` 通过 Linux core 200/200、ASan core 200/200、Linux app 206/206。这仍只是当时受控回包与首非栈读的局部前缀；`0x004885C7` 及后续 CRT hook/全局/链表/`int3` 异常和真实原版差分当时仍未核定，不能当作 Workpack 316 最终门禁。
+
+随后按相同全局 `0x004A82F4` 的已持有 decoder debug-flags owner，
+在三处 release 续段先对 `0x004885C7 MOV EAX,[dword_4A82F4]`
+单独设读前障；缺 owner 或显式不可读时不调用 release port。
+成功读后 `AND EAX,4`、`TEST EAX,EAX`：掩码结果为零则停在
+下一个 `0x00488603 CMP [EBP+8],0` 栈实参读前，EAX=0、
+ZF/PF=1、CF/OF=0、AF 未定义，ESP 不变，前缀新增一次真实访问；
+掩码结果非零则先检查 `0x004885D3 CALL sub_488BB0` 返回槽写，
+可于写前停；写入后在调试子调用入口 `0x00488BB0` 停住，
+不伪造其返回或跳至非调试路径。case2 的 owner 缺失、
+debug 掩码0x4 的两停点及原有 C7 逐序号，链节点每次释放
+新增的一次访问，定向 `proc_d25a` Linux core 200/200。
+仍未读取 488603 栈字或执行 CRT hook／heap／int3，
+现阶段只收敛至该分叉前；阶段快照 `proc_9a04` Linux core／ASan core 各200/200、Linux app 206/206，不能代替316最终门禁。
+
 - case3/4 `0x00479CA6..0x0047A07E`：两支均在 signed phase `>32` 时跳公共重置，
   phase0 先播0x31；先读取 frame `+0x00` 发布 `dword_4CD730`，随后顺序调用矩形 `sub_416FF0`、绘制 `sub_4170E0`、第二个矩形、第二个绘制，
   最后把 phase 按 word 加2，**仅此时** `add esp,0x50` 一次性清掉四个调用累计压入的80字节，再以参数 `(0,0,640,480)` 调第三次矩形并返回0。

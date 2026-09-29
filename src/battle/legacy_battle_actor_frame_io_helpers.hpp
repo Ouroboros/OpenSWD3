@@ -404,8 +404,10 @@ stop_sound_before_deep_read(
         return false;
     }
     if (callee.accesses_completed == request.stop_before_access ||
-        !request.global_readable) {
-        callee.status = request.global_readable
+        !request.global_readable ||
+        request.decoder_heap_debug_flags_owner == nullptr) {
+        callee.status = request.global_readable &&
+                request.decoder_heap_debug_flags_owner != nullptr
             ? opaque_status
             : LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
         callee.stopped_access_kind =
@@ -414,6 +416,32 @@ stop_sound_before_deep_read(
         callee.stopped_token = 0x004A82F4U;
         callee.eip = 0x004885C7U;
         return false;
+    }
+    const u32 debug_flags = *request.decoder_heap_debug_flags_owner;
+    ++callee.accesses_completed;
+    callee.eax = debug_flags & 4U;
+    callee.flags = logical_result_flags(callee.eax);  // AND then TEST EAX,EAX.
+    callee.flags_known = true;
+    if (callee.eax != 0U) {
+        const u32 return_slot = callee.esp - 4U;
+        if (callee.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            return stop(0x004885D3U, return_slot, true);
+        }
+        ++callee.accesses_completed;
+        callee.esp = return_slot;
+        callee.last_pushed_value = 0x004885D8U;
+        callee.status = opaque_status;
+        callee.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        callee.stopped_instruction = 0x00488BB0U;
+        callee.stopped_token = 0U;
+        callee.eip = 0x00488BB0U;
+        return false;
+    }
+    if (callee.accesses_completed == request.stop_before_access ||
+        !request.stack_readable) {
+        return stop(0x00488603U, callee.ebp + 8U, false);
     }
     return true;
 }
@@ -427,10 +455,10 @@ stop_release_before_crt_global(
     callee.release_child = reply;
     callee.status = status;
     callee.stopped_access_kind =
-        LegacyBattleActorFrameEntryAccessKind::global_read;
-    callee.stopped_instruction = 0x004885C7U;
-    callee.stopped_token = 0x004A82F4U;
-    callee.eip = 0x004885C7U;
+        LegacyBattleActorFrameEntryAccessKind::stack_read;
+    callee.stopped_instruction = 0x00488603U;
+    callee.stopped_token = callee.ebp + 8U;
+    callee.eip = 0x00488603U;
     return callee;
 }
 
