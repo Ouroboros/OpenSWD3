@@ -690,6 +690,7 @@ add_executable(
     unit/battle/legacy_battle_actor_runtime_reset_test.cpp
     unit/battle/legacy_battle_actor_action_presentation_test.cpp
     unit/battle/legacy_battle_actor_frame_presentation_test.cpp
+    unit/battle/legacy_battle_actor_frame_rectangle_calls_test.cpp
 )
 target_include_directories(
     openswd3_battle_actor_frame_316_tests

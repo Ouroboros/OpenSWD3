@@ -6752,15 +6752,50 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_sound_child.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_one_audio_child_typed_stop &&
-                stopped_sound_child.eip == 0x00485610U &&
-                stopped_sound_child.esp == audio_pending.esp - 4U &&
-                stopped_sound_child.eax == audio_pending.eax &&
-                stopped_sound_child.ecx == audio_pending.ecx &&
-                stopped_sound_child.edx == audio_pending.edx &&
-                stopped_sound_child.flags.zero == audio_pending.flags.zero &&
-                stopped_sound_child.sample_calls == 1U && sound.calls == 1U,
-            "case 1 opaque audio entry stop retains the CALL return slot and both sound arguments"
+                stopped_sound_child.eip == 0x00485D0EU &&
+                stopped_sound_child.esp == audio_pending.esp - 48U &&
+                stopped_sound_child.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::stack_read &&
+                stopped_sound_child.stopped_token ==
+                    stopped_sound_child.esp + 0x14U &&
+                stopped_sound_child.accesses_completed ==
+                    audio_pending.accesses_completed + 21U &&
+                stopped_sound_child.edi == 0x31U &&
+                stopped_sound_child.ecx == 0x004C8450U &&
+                stopped_sound_child.flags_known &&
+                !stopped_sound_child.flags.zero &&
+                !stopped_sound_child.flags.carry &&
+                stopped_sound_child.direction_flag ==
+                    audio_pending.direction_flag &&
+                stopped_sound_child.sample_calls == 1U && sound.calls == 1U &&
+                !stopped_sound_child.sample_child.returned,
+            "case 1 opaque audio stop retains the twenty committed wrapper and mode accesses before the next stack read"
         );
+        sound.reply.returned = true;
+        auto stop_before_deep_audio_read = group_b_input;
+        stop_before_deep_audio_read.stop_before_access =
+            audio_pending.accesses_completed + 21U;
+        const auto sound_calls_before_deep_stop = sound.calls;
+        const auto stopped_before_deep_audio_read = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_audio(
+                sound, stop_before_deep_audio_read, audio_pending
+            );
+        test.expect_true(
+            stopped_before_deep_audio_read.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_one_audio_child_typed_stop &&
+                stopped_before_deep_audio_read.eip == 0x00485D0EU &&
+                stopped_before_deep_audio_read.esp ==
+                    stopped_sound_child.esp &&
+                stopped_before_deep_audio_read.stopped_token ==
+                    stopped_sound_child.stopped_token &&
+                stopped_before_deep_audio_read.accesses_completed ==
+                    stop_before_deep_audio_read.stop_before_access &&
+                stopped_before_deep_audio_read.edi == 0x31U &&
+                sound.calls == sound_calls_before_deep_stop,
+            "case 1 audio ordinal stops at the next stack read without invoking the deeper sound port"
+        );
+        sound.reply.returned = false;
         auto unreadable_sound_argument = group_b_input;
         unreadable_sound_argument.stack_readable = false;
         const auto stopped_sound_argument =

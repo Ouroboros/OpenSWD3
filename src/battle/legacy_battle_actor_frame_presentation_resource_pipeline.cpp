@@ -1541,6 +1541,24 @@ continue_legacy_battle_actor_frame_case_one_audio(
     if (!read_sound_callee_arguments(request, callee, prefix.eax, 0x31U)) {
         return callee;
     }
+    // On the nonzero-sample path, the wrapper and two mode queries have
+    // committed twenty physical stack/global accesses. Neither an ordinal
+    // stop nor an opaque reply may undo them. Next is an arg_0 stack read.
+    const auto stop_before_deep_read = [&]() {
+        callee.status =
+            LegacyBattleActorFrameEntryStatus::case_one_audio_child_typed_stop;
+        callee.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        callee.stopped_instruction = 0x00485D0EU;
+        callee.stopped_token = callee.esp + 0x14U;
+        callee.eip = 0x00485D0EU;
+        return callee;
+    };
+    if (!callee.sample_child.returned &&
+        callee.accesses_completed == request.stop_before_access) {
+        return stop_before_deep_read();
+    }
+
     prefix.accesses_completed = callee.accesses_completed;
     prefix.sample_child = callee.sample_child.returned ? callee.sample_child
                                                        : sound.play_sample(
@@ -1553,18 +1571,10 @@ continue_legacy_battle_actor_frame_case_one_audio(
                                                          );
     const auto& reply = prefix.sample_child;
     if (!reply.returned) {
-        prefix.accesses_completed -=
-            20U;  // Entry-only stop rolls back the uncommitted callee prefix.
-        // This narrow adapter supports an entry stop only. Deep Miles/CRT
-        // stops require a separate physical stack and call trace owner.
-        prefix.status =
-            LegacyBattleActorFrameEntryStatus::case_one_audio_child_typed_stop;
-        prefix.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x00485610U;
-        prefix.eip = 0x00485610U;
-        return prefix;
+        callee.sample_child = reply;
+        return stop_before_deep_read();
     }
+
     prefix.eax = reply.eax;
     prefix.ecx = reply.ecx;
     prefix.edx = reply.edx;

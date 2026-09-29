@@ -4858,6 +4858,33 @@ CALL #2 子级 sub_47E950 在 E95D `MOV ESI,ECX` 后 F0BF/C5/D0/D6
 对上述同一源码／测试快照，`proc_1061` 完整 Linux core
 200/200、ASan 200/200、Linux app 206/206 均通过；
 不代替98 CALL/22 RET 深层和生产 caller 的最终 REVIEW。
+矩形子级交叉验证：独立按 LST `0x00416FF0–0x00417047` 的 15 次物理
+栈／全局访问列出指令地址与种类，逐处对照本函数 21 个 `E8 rel32`
+矩形 CALL（地址集合与 LST 双向相等）。新增独立测试文件对这 21 个
+CALL 各自验证 CALL 返回槽写前停点、五字节返回地址、进入同一
+`sub_416FF0` 后 15 个访问前障的地址／token／ESP／已提交四处
+clip 写、后七站的 GPR／FLAGS／DF 和正常返回的四个 clip 值及
+父级下一 EIP。测试用同一受控四参数 `(left=43, top=24,
+right=640, bottom=480)` 驱动子级，只证明各 site 的调用边界和
+共享子级访问模板，不证明 21 条真实父级路径各自压入相同参数、
+前后缀收敛或原版差分。`proc_ad38` Linux core／ASan 定向
+各 1/1；随后测试集快照的完整 Linux core／ASan 各 200/200、
+app 206/206（`proc_aea2`）通过；21 行审计状态仍按各自上游事实
+保持 partial／局部 reviewed。
+音频 CALL #5 新发现：`0x004799FA` 先压返回槽；`sub_485610`
+两次外层实参读、六次压参，`sub_485CE0` 四次保存与两次
+`sub_485CC0/485CD0` 的调用、模式查询及 `0x00485D02`
+实参读取，已完成 20 次子级访问。此前适配器回包未返回时
+把计数回滚至 CALL 入口且把 ESP/EIP 复位到 `0x00485610`，
+不符合 LST 已提交的栈与寄存器状态。现仅在 case1 保留这
+20 次前缀并停于下一处未建模的 `0x00485D0E`
+`MOV ESI,[ESP+0x14]` 前，标记物理 stack_read、实际 ESP、
+参数槽 token、EDI=非零 sample ID、FLAGS/DF；序号恰停在该读前
+不调用深层声音 port。`proc_f224` core／ASan 定向各 1/1。
+其余音频 CALL 的同型适配器回包回滚仍待修，CALL #5 后续
+Miles/CRT 深层、真实生产父栈及原版差分也尚未闭合。
+最新源码／测试快照的完整 Linux 门禁 `proc_4476`：core
+200/200、ASan 200/200、app 206/206；此验证不升级整包状态。
 新增块094：case7 第四绘图 A577 三次 signed phase NEG 写三全局，A585 首写后 PUSH 字面零，压 flags|4/H/W/Y−Oy+P+16（LEA 不改 FLAGS）/X−Ox+P，A5EA CALL sub4170E0 压 A5EF，第二组20参仍在调用方栈。7全局+13绘图物理站及 CALL 核 token/kind/ESP/FLAGS/DF/已提交前缀；像素/原版 partial，core/ASan `proc_f19e` 各1/1。
 新增块093：case7 第四矩形 A516 一次 source 供 H/W，Oy/Y 各独立重读，压 Y+H−Oy+P、X+W−Ox+P、Y+(H>>1)−Oy+P、X+(W>>1)−Ox+P；A572 CALL sub416FF0 压 A577。13物理站及 CALL 核 token/kind/ESP/FLAGS/DF/已压前缀；clip 深层/原版 partial，core/ASan `proc_200b` 各1/1。
 新增块092：case7 第三绘图 A4A0 后三次 signed phase NEG 全部写全局后才在 A4DB PUSH 字面零（不同于前两轮首写后压零）；压 flags|4/H/W/Y−P−Oy/X+P−Ox，A511 CALL sub4170E0 压 A516。6全局+14绘图物理站与 CALL 区分辅助 PUSH/五参并核 token/kind/ESP/FLAGS/DF/已提交前缀；像素/原版 partial，core/ASan `proc_25ab` 各1/1。
