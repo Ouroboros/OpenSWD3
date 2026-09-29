@@ -1693,6 +1693,12 @@ EDX=1、ESP 相对父 CALL 前减76和源于 CMP token,0 的 FLAGS。
 `caller_snapshot` 传递请求，尚未证明生产 owner 已绑定，
 不能将测试 hook 地址或受控回包冒充原版钩子执行。
 `proc_e1d3` 定向 Linux core 200/200；阶段快照 `proc_9311` Linux core／ASan core 各200/200、Linux app 206/206，尚非316最终门禁。
+另以 case100 `0x0047B6F9` 和链节点 `0x0047F0E1` 的
+真实调用续段，分别撤掉 hook owner；两处均在 `0x00488620`
+IAT 首读前停下，已压实参和 actor／节点先前状态保留，
+release port 调用数为零。定向 `proc_064b` core 200/200；
+阶段快照 `proc_14ec` core／ASan 各200/200、app 206/206。
+生产 caller 的 owner 初始化与深层 hook 仍未证实。
 
 - case3/4 `0x00479CA6..0x0047A07E`：两支均在 signed phase `>32` 时跳公共重置，
   phase0 先播0x31；先读取 frame `+0x00` 发布 `dword_4CD730`，随后顺序调用矩形 `sub_416FF0`、绘制 `sub_4170E0`、第二个矩形、第二个绘制，

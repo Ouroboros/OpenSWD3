@@ -4220,6 +4220,29 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             linked_ordinal_port.calls == 0U,
         "linked-node release stops before the first CRT global without calling the release port"
     );
+    auto linked_missing_hook_request = forward;
+    linked_missing_hook_request.decoder_heap_alloc_owner = nullptr;
+    ReleasePort linked_missing_hook_port{};
+    const auto linked_missing_hook =
+        openswd3::battle::continue_legacy_battle_actor_frame_release_node(
+            linked_nodes,
+            linked_missing_hook_port,
+            linked_missing_hook_request,
+            stopped_node
+        );
+    test.expect_true(
+        linked_missing_hook.status ==
+                LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+            matches_release_deep_global_stop(
+                linked_missing_hook,
+                stopped_node,
+                stopped_node.eax,
+                0x701300U,
+                true
+            ) &&
+            linked_missing_hook_port.calls == 0U,
+        "linked-node release retains prior node and CRT argument writes before unowned hook read"
+    );
     test.expect_true(
         linked_child_fault.status ==
                 LegacyBattleActorFrameEntryStatus::
@@ -43281,6 +43304,27 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             ) &&
             case_hundred_ordinal_port.calls == 0U,
         "case100 release ordinal stop retains wrapper and CRT saves before first global"
+    );
+    auto case_hundred_missing_hook_request = case_hundred_particle_request;
+    case_hundred_missing_hook_request.decoder_heap_alloc_owner = nullptr;
+    ReleasePort case_hundred_missing_hook_port{};
+    const auto case_hundred_missing_hook = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_hundred_release_call(
+            case_hundred_missing_hook_port,
+            case_hundred_missing_hook_request,
+            case_hundred_nonempty_release
+        );
+    test.expect_true(
+        case_hundred_missing_hook.status ==
+                LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+            matches_release_deep_global_stop(
+                case_hundred_missing_hook,
+                case_hundred_nonempty_release,
+                0x78001000U,
+                case_hundred_nonempty_release.esi
+            ) &&
+            case_hundred_missing_hook_port.calls == 0U,
+        "case100 release keeps argument pushes and no release port call without hook owner"
     );
     case_hundred_release_port.reply.returned = true;
     const auto case_hundred_release_return = openswd3::battle::
