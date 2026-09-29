@@ -119,6 +119,34 @@ using openswd3::compat::u32;
         !stopped.draw_child.returned;
 }
 
+// The release wrapper and its CRT callee commit ten accesses after the
+// parent argument/CALL writes, then stop before the first CRT global read.
+[[nodiscard]] bool matches_release_deep_global_stop(
+    const openswd3::battle::LegacyBattleActorFrameEntryResult& stopped,
+    const openswd3::battle::LegacyBattleActorFrameEntryResult& before_call,
+    const u32 argument_token,
+    const u32 expected_esi,
+    const bool linked_node = false
+) noexcept {
+    return stopped.eip == 0x004885C7U &&
+        stopped.stopped_instruction == 0x004885C7U &&
+        stopped.stopped_token == 0x004A82F4U &&
+        stopped.stopped_access_kind ==
+        LegacyBattleActorFrameEntryAccessKind::global_read &&
+        stopped.esp == before_call.esp - 44U &&
+        stopped.ebp == before_call.esp - 28U &&
+        stopped.accesses_completed ==
+        before_call.accesses_completed + (linked_node ? 13U : 12U) &&
+        stopped.last_pushed_value == before_call.edi &&
+        stopped.eax == argument_token && stopped.ebx == before_call.ebx &&
+        stopped.ecx == before_call.ecx && stopped.edx == before_call.edx &&
+        stopped.esi == expected_esi && stopped.edi == before_call.edi &&
+        stopped.flags_known == before_call.flags_known &&
+        same_frame_flags(stopped.flags, before_call.flags) &&
+        stopped.direction_flag == before_call.direction_flag &&
+        !stopped.release_child.returned;
+}
+
 // All three directed RET fixtures enter at ESP=0x0012FF00: the epilogue
 // ADD ESP,0x14 starts at 0x0012FEEC and sets PF/AF only.
 constexpr openswd3::battle::LegacyBattleActorCoordinateFlags
@@ -3932,7 +3960,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             linked_next.esi == 0x701300U &&
             linked_next.esp == stopped_node.esp &&
             linked_next.accesses_completed ==
-                stopped_node.accesses_completed + 3U &&
+                stopped_node.accesses_completed + 13U &&
             linked_done.status ==
                 LegacyBattleActorFrameEntryStatus::reset_returned &&
             linked_done.returned && linked_done.eax == 1U &&
@@ -4064,13 +4092,42 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         openswd3::battle::continue_legacy_battle_actor_frame_release_node(
             linked_nodes, linked_fault_port, forward, stopped_node
         );
+    auto linked_ordinal_request = forward;
+    linked_ordinal_request.stop_before_access =
+        stopped_node.accesses_completed + 13U;
+    ReleasePort linked_ordinal_port{};
+    const auto linked_ordinal_stop =
+        openswd3::battle::continue_legacy_battle_actor_frame_release_node(
+            linked_nodes,
+            linked_ordinal_port,
+            linked_ordinal_request,
+            stopped_node
+        );
+    test.expect_true(
+        linked_ordinal_stop.status ==
+                LegacyBattleActorFrameEntryStatus::
+                    linked_node_release_child_typed_stop &&
+            matches_release_deep_global_stop(
+                linked_ordinal_stop,
+                stopped_node,
+                stopped_node.eax,
+                0x701300U,
+                true
+            ) &&
+            linked_ordinal_port.calls == 0U,
+        "linked-node release stops before the first CRT global without calling the release port"
+    );
     test.expect_true(
         linked_child_fault.status ==
                 LegacyBattleActorFrameEntryStatus::
                     linked_node_release_child_typed_stop &&
-            linked_child_fault.eip == 0x004885A0U &&
-            linked_child_fault.esp == stopped_node.esp - 8U &&
-            linked_child_fault.esi == 0x701300U &&
+            matches_release_deep_global_stop(
+                linked_child_fault,
+                stopped_node,
+                stopped_node.eax,
+                0x701300U,
+                true
+            ) &&
             !linked_child_fault.returned && linked_fault_port.calls == 1U,
         "linked node wrapper failure preserves prior node read and argument plus CALL stack writes without a fake return"
     );
@@ -4126,7 +4183,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             terminal_return_fault.eip == 0x0047F0F3U &&
             terminal_return_fault.esp == linked_release_call.esp - 4U &&
             terminal_return_fault.accesses_completed ==
-                linked_next.accesses_completed + 7U &&
+                linked_next.accesses_completed + 17U &&
             terminal_return_fault_port.calls == 1U,
         "borrowed node snapshot cannot override actor alias after head clear; final callee RET read faults after committed node release and POPs"
     );
@@ -8878,6 +8935,109 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 releaser.calls == 0U,
             "case2 emitter argument and CALL return-slot PUSH faults preserve distinct stack prefixes"
         );
+        constexpr std::array<u32, 11U> kReleaseIps{
+            0x004885A0U,
+            0x004885A3U,
+            0x004885A5U,
+            0x004885A8U,
+            0x004885A9U,
+            0x004885C0U,
+            0x004885C3U,
+            0x004885C4U,
+            0x004885C5U,
+            0x004885C6U,
+            0x004885C7U,
+        };
+        constexpr std::array<u32, 11U> kReleaseEspOffsets{
+            8U,
+            12U,
+            16U,
+            16U,
+            20U,
+            24U,
+            28U,
+            32U,
+            36U,
+            40U,
+            44U,
+        };
+        constexpr std::array<u32, 10U> kReleaseTokenOffsets{
+            12U,
+            16U,
+            4U,
+            20U,
+            24U,
+            28U,
+            32U,
+            36U,
+            40U,
+            44U,
+        };
+        bool release_prefix_exact = true;
+        for (std::size_t ordinal = 0U; ordinal < kReleaseIps.size();
+             ++ordinal) {
+            auto stop_request = group_b_input;
+            stop_request.stop_before_access =
+                nonzero_emitter_release.accesses_completed + 2U + ordinal;
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_release_call(
+                    releaser, stop_request, nonzero_emitter_release
+                );
+            const bool global = ordinal == 10U;
+            const bool read = ordinal == 2U || global;
+            const bool exact = stopped.status ==
+                    (global     ? LegacyBattleActorFrameEntryStatus::
+                                      case_two_release_child_typed_stop
+                         : read ? LegacyBattleActorFrameEntryStatus::
+                                      stack_read_typed_stop
+                                : LegacyBattleActorFrameEntryStatus::
+                                      stack_write_typed_stop) &&
+                stopped.eip == kReleaseIps[ordinal] &&
+                stopped.stopped_instruction == kReleaseIps[ordinal] &&
+                stopped.stopped_access_kind ==
+                    (global ? LegacyBattleActorFrameEntryAccessKind::global_read
+                         : read
+                         ? LegacyBattleActorFrameEntryAccessKind::stack_read
+                         : LegacyBattleActorFrameEntryAccessKind::
+                               stack_write) &&
+                stopped.stopped_token ==
+                    (global ? 0x004A82F4U
+                            : nonzero_emitter_release.esp -
+                             kReleaseTokenOffsets[ordinal]) &&
+                stopped.esp ==
+                    nonzero_emitter_release.esp - kReleaseEspOffsets[ordinal] &&
+                stopped.accesses_completed == stop_request.stop_before_access &&
+                stopped.direction_flag ==
+                    nonzero_emitter_release.direction_flag &&
+                same_frame_flags(stopped.flags,
+                                 nonzero_emitter_release.flags) &&
+                releaser.calls == 0U;
+            test.expect_true(
+                exact,
+                std::string("case2 release wrapper stop ") +
+                    std::to_string(ordinal)
+            );
+            release_prefix_exact = release_prefix_exact && exact;
+        }
+        auto unbacked_release_global = group_b_input;
+        unbacked_release_global.global_readable = false;
+        const auto stopped_release_global = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                releaser, unbacked_release_global, nonzero_emitter_release
+            );
+        test.expect_true(
+            release_prefix_exact &&
+                stopped_release_global.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                matches_release_deep_global_stop(
+                    stopped_release_global,
+                    nonzero_emitter_release,
+                    0x00801000U,
+                    nonzero_emitter_release.esi
+                ) &&
+                releaser.calls == 0U,
+            "case2 release wrapper reaches CRT global only after the ten committed accesses"
+        );
         releaser.reply.returned = false;
         const auto stopped_wrapper = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_release_call(
@@ -8887,11 +9047,12 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_wrapper.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_two_release_child_typed_stop &&
-                stopped_wrapper.eip == 0x004885A0U &&
-                stopped_wrapper.esp == nonzero_emitter_release.esp - 8U &&
-                stopped_wrapper.eax == 0x00801000U &&
-                stopped_wrapper.flags.zero ==
-                    nonzero_emitter_release.flags.zero &&
+                matches_release_deep_global_stop(
+                    stopped_wrapper,
+                    nonzero_emitter_release,
+                    0x00801000U,
+                    nonzero_emitter_release.esi
+                ) &&
                 stopped_wrapper.release_calls == 1U &&
                 first.action_execution.turn_threshold == 0U &&
                 explicit_emitter_token == 0x00801000U,
@@ -42435,6 +42596,29 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_hundred_particle_request,
             case_hundred_nonempty_release
         );
+    auto case_hundred_ordinal_request = case_hundred_particle_request;
+    case_hundred_ordinal_request.stop_before_access =
+        case_hundred_nonempty_release.accesses_completed + 12U;
+    ReleasePort case_hundred_ordinal_port{};
+    const auto case_hundred_ordinal_stop = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_hundred_release_call(
+            case_hundred_ordinal_port,
+            case_hundred_ordinal_request,
+            case_hundred_nonempty_release
+        );
+    test.expect_true(
+        case_hundred_ordinal_stop.status ==
+                LegacyBattleActorFrameEntryStatus::
+                    case_hundred_release_child_typed_stop &&
+            matches_release_deep_global_stop(
+                case_hundred_ordinal_stop,
+                case_hundred_nonempty_release,
+                0x78001000U,
+                case_hundred_nonempty_release.esi
+            ) &&
+            case_hundred_ordinal_port.calls == 0U,
+        "case100 release ordinal stop retains wrapper and CRT saves before first global"
+    );
     case_hundred_release_port.reply.returned = true;
     const auto case_hundred_release_return = openswd3::battle::
         continue_legacy_battle_actor_frame_case_hundred_release_call(
@@ -42488,8 +42672,12 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_hundred_release_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_release_child_typed_stop &&
-            case_hundred_release_stop.esp ==
-                case_hundred_nonempty_release.esp - 8U &&
+            matches_release_deep_global_stop(
+                case_hundred_release_stop,
+                case_hundred_nonempty_release,
+                0x78001000U,
+                case_hundred_nonempty_release.esi
+            ) &&
             case_hundred_release_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_reset_prefix_ready &&

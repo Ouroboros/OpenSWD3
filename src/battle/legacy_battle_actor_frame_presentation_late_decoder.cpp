@@ -1631,18 +1631,24 @@ continue_legacy_battle_actor_frame_case_hundred_release_call(
         return prefix;
     }
     ++prefix.release_calls;
+    constexpr auto stop_status = LegacyBattleActorFrameEntryStatus::
+        case_hundred_release_child_typed_stop;
+    auto callee = prefix;
+    if (!read_release_callee_prefix(
+            request, callee, emitter_token, stop_status
+        )) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
     prefix.release_child = release.release_emitter(
         emitter_token, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
     );
     if (!prefix.release_child.returned) {
-        prefix.status = LegacyBattleActorFrameEntryStatus::
-            case_hundred_release_child_typed_stop;
-        prefix.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x004885A0U;
-        prefix.eip = 0x004885A0U;
-        return prefix;
+        return stop_release_before_crt_global(
+            callee, stop_status, prefix.release_child
+        );
     }
+
     prefix.esp += 4U;
     prefix.eax = prefix.release_child.eax;
     prefix.ecx = prefix.release_child.ecx;

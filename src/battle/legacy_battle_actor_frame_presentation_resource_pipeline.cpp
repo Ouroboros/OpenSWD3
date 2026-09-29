@@ -89,20 +89,23 @@ continue_legacy_battle_actor_frame_release_node(
         return prefix;
     }
     ++prefix.release_calls;
+    constexpr auto stop_status =
+        LegacyBattleActorFrameEntryStatus::linked_node_release_child_typed_stop;
+    auto callee = prefix;
+    if (!read_release_callee_prefix(
+            request, callee, current_token, stop_status
+        )) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
     prefix.release_child = release.release_emitter(
         current_token, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
     );
     const auto& reply = prefix.release_child;
     if (!reply.returned) {
-        stop(
-            LegacyBattleActorFrameEntryStatus::
-                linked_node_release_child_typed_stop,
-            LegacyBattleActorFrameEntryAccessKind::callee_call,
-            0x004885A0U,
-            current_token
-        );
-        return prefix;
+        return stop_release_before_crt_global(callee, stop_status, reply);
     }
+
     prefix.esp += 4U;  // sub_4885A0 RET leaves its node argument.
     prefix.eax = reply.eax;
     prefix.ecx = reply.ecx;
@@ -2415,21 +2418,23 @@ continue_legacy_battle_actor_frame_case_two_release_call(
         return prefix;
     }
     prefix.release_calls = 1U;
+    constexpr auto stop_status =
+        LegacyBattleActorFrameEntryStatus::case_two_release_child_typed_stop;
+    auto callee = prefix;
+    if (!read_release_callee_prefix(
+            request, callee, emitter_token, stop_status
+        )) {
+        return callee;
+    }
+    prefix.accesses_completed = callee.accesses_completed;
     prefix.release_child = release.release_emitter(
         emitter_token, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
     );
     const auto& reply = prefix.release_child;
     if (!reply.returned) {
-        // Deep wrapper/CRT exceptions need a complete callee stack model;
-        // this adapter can stop only before the wrapper's first PUSH EBP.
-        prefix.status = LegacyBattleActorFrameEntryStatus::
-            case_two_release_child_typed_stop;
-        prefix.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x004885A0U;
-        prefix.eip = 0x004885A0U;
-        return prefix;
+        return stop_release_before_crt_global(callee, stop_status, reply);
     }
+
     prefix.esp += 4U;  // sub_4885A0 RET leaves its caller's token argument.
     prefix.eax = reply.eax;
     prefix.ecx = reply.ecx;

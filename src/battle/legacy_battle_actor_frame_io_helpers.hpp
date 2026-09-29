@@ -287,6 +287,92 @@ stop_sound_before_deep_read(
     return callee;
 }
 
+// sub_4885A0 saves a wrapper frame, copies its already-pushed argument to
+// sub_4885C0, and saves five more words before the first unowned CRT global.
+// The captured argument token is the word pushed by the immediate caller.
+[[nodiscard]] inline bool read_release_callee_prefix(
+    const LegacyBattleActorFrameEntryRequest& request,
+    LegacyBattleActorFrameEntryResult& callee,
+    const u32 argument_token,
+    const LegacyBattleActorFrameEntryStatus opaque_status
+) noexcept {
+    callee.release_child = {};
+    const auto stop = [&](const u32 ip, const u32 token, const bool write) {
+        callee.status = write
+            ? LegacyBattleActorFrameEntryStatus::stack_write_typed_stop
+            : LegacyBattleActorFrameEntryStatus::stack_read_typed_stop;
+        callee.stopped_access_kind = write
+            ? LegacyBattleActorFrameEntryAccessKind::stack_write
+            : LegacyBattleActorFrameEntryAccessKind::stack_read;
+        callee.stopped_instruction = ip;
+        callee.stopped_token = token;
+        callee.eip = ip;
+        return false;
+    };
+    const auto save = [&](const u32 ip, const u32 value) {
+        const u32 slot = callee.esp - 4U;
+        if (callee.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            return stop(ip, slot, true);
+        }
+        ++callee.accesses_completed;
+        callee.esp = slot;
+        callee.last_pushed_value = value;
+        return true;
+    };
+    if (!save(0x004885A0U, callee.ebp)) {
+        return false;
+    }
+    callee.ebp = callee.esp;
+    if (!save(0x004885A3U, 1U)) {
+        return false;
+    }
+    if (callee.accesses_completed == request.stop_before_access ||
+        !request.stack_readable) {
+        return stop(0x004885A5U, callee.ebp + 8U, false);
+    }
+    ++callee.accesses_completed;
+    callee.eax = argument_token;
+    if (!save(0x004885A8U, callee.eax) || !save(0x004885A9U, 0x004885AEU) ||
+        !save(0x004885C0U, callee.ebp)) {
+        return false;
+    }
+    callee.ebp = callee.esp;
+    if (!save(0x004885C3U, callee.ecx) || !save(0x004885C4U, callee.ebx) ||
+        !save(0x004885C5U, callee.esi) || !save(0x004885C6U, callee.edi)) {
+        return false;
+    }
+    if (callee.accesses_completed == request.stop_before_access ||
+        !request.global_readable) {
+        callee.status = request.global_readable
+            ? opaque_status
+            : LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+        callee.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        callee.stopped_instruction = 0x004885C7U;
+        callee.stopped_token = 0x004A82F4U;
+        callee.eip = 0x004885C7U;
+        return false;
+    }
+    return true;
+}
+
+[[nodiscard]] inline LegacyBattleActorFrameEntryResult
+stop_release_before_crt_global(
+    LegacyBattleActorFrameEntryResult callee,
+    const LegacyBattleActorFrameEntryStatus status,
+    const LegacyBattleActorFrameUpdateReply& reply
+) noexcept {
+    callee.release_child = reply;
+    callee.status = status;
+    callee.stopped_access_kind =
+        LegacyBattleActorFrameEntryAccessKind::global_read;
+    callee.stopped_instruction = 0x004885C7U;
+    callee.stopped_token = 0x004A82F4U;
+    callee.eip = 0x004885C7U;
+    return callee;
+}
+
 // On the completed raw-header or marker-with-palette prefix of sub_4170E0,
 // the next physical access reads arg_10. A stopped draw port cannot roll
 // back the source/palette reads or the four saved-register stack writes.
