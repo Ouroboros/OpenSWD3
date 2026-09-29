@@ -475,15 +475,28 @@ stop_sound_before_deep_read(
         callee.eax = heap_check_flags & 1U;
         callee.flags = logical_result_flags(callee.eax);
         if (callee.eax != 0U) {
-            if (!save(0x00488BD6U, 0x00488BDBU)) {
+            if (!save(0x00488BD6U, 0x00488BDBU) ||
+                !save(0x0048B3E0U, callee.ebp)) {
+                return false;
+            }
+            callee.ebp = callee.esp;
+            if (!save(0x0048B3E3U, callee.ecx)) {
+                return false;
+            }
+            if (callee.accesses_completed == request.stop_before_access ||
+                !request.call_stack_writable) {
+                return stop(0x0048B3E4U, callee.ebp - 4U, true);
+            }
+            ++callee.accesses_completed;
+            if (!save(0x0048B3EBU, 0x0048B3F0U)) {
                 return false;
             }
             callee.status = opaque_status;
             callee.stopped_access_kind =
                 LegacyBattleActorFrameEntryAccessKind::callee_call;
-            callee.stopped_instruction = 0x0048B3E0U;
+            callee.stopped_instruction = 0x0048C9B0U;
             callee.stopped_token = 0U;
-            callee.eip = 0x0048B3E0U;
+            callee.eip = 0x0048C9B0U;
             return false;
         }
         callee.eax = 1U;

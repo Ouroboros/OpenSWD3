@@ -1765,6 +1765,18 @@ core／ASan 各200/200、app 206/206。生产绑定静态审查：
 **未证明真实生产调用已初始化 owner**；不得把缺绑定的
 IAT 读前停点当成原版正常释放。
 
+合成掩码5 在 `0x00488BD6` 压入调用返回槽后，
+`sub_48B3E0` 再顺序压 EBP、ECX，向 `[EBP−4]`
+写 `0xFFFFFFFE`；末次局部 MOV 不改写 PUSH 记录。
+在 `0x0048B3EB CALL sub_48C9B0` 先核独立栈写
+前障，写入返回地址 `0x0048B3F0` 才停于
+`0x0048C9B0`：相对父 CALL 前 ESP 减104、
+EBP 减96，EAX=1，FLAGS 仍来自 `TEST EAX,EAX`，
+release port 未调用。四处写前障均核已完成计数与
+末次 PUSH，`proc_4bed` core 200/200，阶段快照 `proc_0560`
+core／ASan 各200/200、app 206/206；`sub_48C9B0`
+内部、后续堆验证 Win32 API 与原版异常尚未执行。
+
 case100 `0x0047B723` 的 reset CALL 另用已持有的独立 actor
 配置 owner 将 `+0x2AA0` 设为1，沿完整 `sub_478850` 子函数
 走过重复写入，再在 `0x00478A4D` 的随机子 CALL 停下；

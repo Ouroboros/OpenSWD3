@@ -9545,17 +9545,80 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_nested_heap_call.eax == 1U &&
                 stopped_nested_heap_call.accesses_completed ==
                     nonzero_emitter_release.accesses_completed + 20U &&
-                stopped_nested_heap_entry.eip == 0x0048B3E0U &&
+                stopped_nested_heap_entry.eip == 0x0048C9B0U &&
                 stopped_nested_heap_entry.stopped_access_kind ==
                     LegacyBattleActorFrameEntryAccessKind::callee_call &&
                 stopped_nested_heap_entry.esp ==
-                    nonzero_emitter_release.esp - 92U &&
-                stopped_nested_heap_entry.last_pushed_value == 0x00488BDBU &&
+                    nonzero_emitter_release.esp - 104U &&
+                stopped_nested_heap_entry.ebp ==
+                    nonzero_emitter_release.esp - 96U &&
+                stopped_nested_heap_entry.last_pushed_value == 0x0048B3F0U &&
                 stopped_nested_heap_entry.accesses_completed ==
-                    nonzero_emitter_release.accesses_completed + 21U &&
+                    nonzero_emitter_release.accesses_completed + 25U &&
                 nested_heap_port.calls == 0U,
-            "case2 debug flags5 enters the nested heap verifier only after its independent CALL return-slot write"
+            "case2 debug flags5 preserves the second heap verifier call stack without pretending it returned"
         );
+        constexpr std::array<u32, 4U> kDeepHeapWriteIps{
+            0x0048B3E0U,
+            0x0048B3E3U,
+            0x0048B3E4U,
+            0x0048B3EBU,
+        };
+        constexpr std::array<u32, 4U> kDeepHeapWriteEspOffsets{
+            92U,
+            96U,
+            100U,
+            100U,
+        };
+        constexpr std::array<u32, 4U> kDeepHeapWriteTokenOffsets{
+            96U,
+            100U,
+            100U,
+            104U,
+        };
+        for (std::size_t ordinal = 0U; ordinal < kDeepHeapWriteIps.size();
+             ++ordinal) {
+            auto fault = nested_heap_request;
+            fault.stop_before_access =
+                nonzero_emitter_release.accesses_completed + 21U + ordinal;
+            ReleasePort untouched_deep_heap{};
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_release_call(
+                    untouched_deep_heap, fault, nonzero_emitter_release
+                );
+            test.expect_true(
+                stopped.status ==
+                        LegacyBattleActorFrameEntryStatus::
+                            stack_write_typed_stop &&
+                    stopped.eip == kDeepHeapWriteIps[ordinal] &&
+                    stopped.stopped_access_kind ==
+                        LegacyBattleActorFrameEntryAccessKind::stack_write &&
+                    stopped.stopped_token ==
+                        nonzero_emitter_release.esp -
+                            kDeepHeapWriteTokenOffsets[ordinal] &&
+                    stopped.esp ==
+                        nonzero_emitter_release.esp -
+                            kDeepHeapWriteEspOffsets[ordinal] &&
+                    stopped.ebp ==
+                        nonzero_emitter_release.esp -
+                            (ordinal == 0U ? 52U : 96U) &&
+                    stopped.last_pushed_value ==
+                        (ordinal == 0U       ? 0x00488BDBU
+                             : ordinal == 1U ? nonzero_emitter_release.esp - 52U
+                                             : nonzero_emitter_release.ecx) &&
+                    stopped.eax == 1U && stopped.flags_known &&
+                    same_frame_flags(
+                        stopped.flags,
+                        openswd3::battle::LegacyBattleActorCoordinateFlags{
+                            .parity = false, .auxiliary_carry_defined = false
+                        }
+                    ) &&
+                    stopped.accesses_completed == fault.stop_before_access &&
+                    untouched_deep_heap.calls == 0U,
+                std::string{"case2 deep CRT heap verifier write #"} +
+                    std::to_string(ordinal)
+            );
+        }
         constexpr std::array<u32, 5U> kDebugHeapSaveIps{
             0x00488BB0U,
             0x00488BB6U,
