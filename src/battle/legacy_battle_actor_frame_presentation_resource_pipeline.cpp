@@ -2059,11 +2059,18 @@ continue_legacy_battle_actor_frame_case_one_draw_call(
     prefix.esp = return_token;
     prefix.last_pushed_value = case_hundred ? 0x0047B4C5U : 0x00479AF1U;
     prefix.draw_calls = 1U;
-    const std::size_t pre_callee_accesses = prefix.accesses_completed;
     auto callee = prefix;
     if (!read_draw_callee_global(request, callee)) {
         return callee;
     }
+
+    const auto stop_status = case_hundred
+        ? LegacyBattleActorFrameEntryStatus::case_hundred_draw_child_typed_stop
+        : LegacyBattleActorFrameEntryStatus::case_one_draw_child_typed_stop;
+    if (callee.accesses_completed == request.stop_before_access) {
+        return stop_draw_before_first_argument_read(callee, stop_status);
+    }
+
     prefix.accesses_completed = callee.accesses_completed;
     const std::array<u32, 6U> arguments{
         prefix.draw_argument_pushes[4U],
@@ -2078,18 +2085,9 @@ continue_legacy_battle_actor_frame_case_one_draw_call(
     );
     const auto& reply = prefix.draw_child;
     if (!reply.returned) {
-        // Entry-only reply means no callee access occurred.
-        prefix.accesses_completed = pre_callee_accesses;
-        prefix.status = case_hundred
-            ? LegacyBattleActorFrameEntryStatus::
-                  case_hundred_draw_child_typed_stop
-            : LegacyBattleActorFrameEntryStatus::case_one_draw_child_typed_stop;
-        prefix.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x004170E0U;
-        prefix.eip = 0x004170E0U;
-        return prefix;
+        return stop_draw_before_first_argument_read(callee, stop_status, reply);
     }
+
     prefix.esp += 4U;  // The six cdecl arguments remain in the caller stack.
     prefix.eax = reply.eax;
     prefix.ecx = reply.ecx;

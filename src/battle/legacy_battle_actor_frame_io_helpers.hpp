@@ -287,6 +287,25 @@ stop_sound_before_deep_read(
     return callee;
 }
 
+// On the completed raw-header or marker-with-palette prefix of sub_4170E0,
+// the next physical access reads arg_10. A stopped draw port cannot roll
+// back the source/palette reads or the four saved-register stack writes.
+[[nodiscard]] inline LegacyBattleActorFrameEntryResult
+stop_draw_before_first_argument_read(
+    LegacyBattleActorFrameEntryResult callee,
+    const LegacyBattleActorFrameEntryStatus status,
+    const LegacyBattleActorFrameUpdateReply& reply = {}
+) {
+    callee.draw_child = reply;
+    callee.status = status;
+    callee.stopped_access_kind =
+        LegacyBattleActorFrameEntryAccessKind::stack_read;
+    callee.stopped_instruction = 0x00417107U;
+    callee.stopped_token = callee.esp + 0x24U;
+    callee.eip = 0x00417107U;
+    return callee;
+}
+
 [[nodiscard]] inline bool read_draw_callee_global(
     const LegacyBattleActorFrameEntryRequest& request,
     LegacyBattleActorFrameEntryResult& child

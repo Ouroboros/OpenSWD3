@@ -82,6 +82,43 @@ using openswd3::compat::u32;
         !stopped.sample_child.returned;
 }
 
+// A draw CALL commits its return slot and sub_4170E0 saves four registers.
+// Raw headers commit six callee accesses; marker headers with a nonzero
+// palette commit seven. The next physical access reads arg_10 at 0x417107.
+[[nodiscard]] bool matches_draw_deep_read_stop(
+    const openswd3::battle::LegacyBattleActorFrameEntryResult& stopped,
+    const openswd3::battle::LegacyBattleActorFrameEntryResult& before_call,
+    const LegacyBattleActorFrameEntryRequest& request
+) noexcept {
+    const bool marker = request.draw_source_bytes[0U] == 0xFFU &&
+        request.draw_source_bytes[1U] == 0xFFU;
+    const u32 expected_eax = marker ? *request.draw_palette_token_owner
+                                    : *request.draw_source_token_owner;
+    return stopped.eip == 0x00417107U &&
+        stopped.stopped_instruction == 0x00417107U &&
+        stopped.stopped_access_kind ==
+        LegacyBattleActorFrameEntryAccessKind::stack_read &&
+        stopped.esp == before_call.esp - 20U &&
+        stopped.stopped_token == stopped.esp + 0x24U &&
+        stopped.accesses_completed ==
+        before_call.accesses_completed + (marker ? 8U : 7U) &&
+        stopped.last_pushed_value == before_call.edi &&
+        stopped.eax == expected_eax && stopped.ecx == before_call.ecx &&
+        stopped.edx == before_call.edx && stopped.ebx == before_call.ebx &&
+        stopped.ebp == 0U && stopped.esi == before_call.esi &&
+        stopped.edi == before_call.edi && stopped.flags_known &&
+        same_frame_flags(
+               stopped.flags,
+               {.parity = !marker ||
+                    (std::popcount(static_cast<u8>(expected_eax)) & 1) == 0,
+                .auxiliary_carry_defined = marker,
+                .zero = !marker || expected_eax == 0U,
+                .sign = marker && (expected_eax & 0x80000000U) != 0U}
+        ) &&
+        stopped.direction_flag == before_call.direction_flag &&
+        !stopped.draw_child.returned;
+}
+
 // All three directed RET fixtures enter at ESP=0x0012FF00: the epilogue
 // ADD ESP,0x14 starts at 0x0012FEEC and sets PF/AF only.
 constexpr openswd3::battle::LegacyBattleActorCoordinateFlags
@@ -7876,14 +7913,32 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_renderer.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_one_draw_child_typed_stop &&
-                stopped_renderer.eip == 0x004170E0U &&
-                stopped_renderer.esp == draw_pending.esp - 4U &&
-                stopped_renderer.eax == draw_pending.eax &&
-                stopped_renderer.ecx == draw_pending.ecx &&
-                stopped_renderer.edx == draw_pending.edx &&
+                matches_draw_deep_read_stop(
+                    stopped_renderer, draw_pending, group_b_input
+                ) &&
                 stopped_renderer.draw_calls == 1U &&
                 first.action_execution.turn_threshold == 480U,
-            "unreturned rendering boundary retains the CALL return slot and does not increment phase"
+            "unreturned rendering boundary retains the CALL return slot and callee register saves without incrementing phase"
+        );
+        auto marker_argument_stop_request = group_b_input;
+        marker_argument_stop_request.stop_before_access =
+            draw_pending.accesses_completed + 8U;
+        DrawPort marker_argument_draw{};
+        const auto stopped_marker_argument = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_draw_call(
+                marker_argument_draw, marker_argument_stop_request, draw_pending
+            );
+        test.expect_true(
+            stopped_marker_argument.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_one_draw_child_typed_stop &&
+                matches_draw_deep_read_stop(
+                    stopped_marker_argument,
+                    draw_pending,
+                    marker_argument_stop_request
+                ) &&
+                marker_argument_draw.calls == 0U,
+            "marker header ordinal stop retains palette read and four callee register saves before 0x417107 without invoking draw port"
         );
         auto unbacked_draw_global = group_b_input;
         unbacked_draw_global.global_readable = false;
@@ -8011,6 +8066,26 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             continue_legacy_battle_actor_frame_case_one_draw_call(
                 raw_draw_port, raw_draw_source, draw_pending
             );
+        auto raw_argument_stop_request = raw_draw_source;
+        raw_argument_stop_request.stop_before_access =
+            draw_pending.accesses_completed + 7U;
+        DrawPort raw_argument_draw{};
+        const auto stopped_raw_argument = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_draw_call(
+                raw_argument_draw, raw_argument_stop_request, draw_pending
+            );
+        test.expect_true(
+            stopped_raw_argument.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_one_draw_child_typed_stop &&
+                matches_draw_deep_read_stop(
+                    stopped_raw_argument,
+                    draw_pending,
+                    raw_argument_stop_request
+                ) &&
+                raw_argument_draw.calls == 0U,
+            "raw header ordinal stop skips palette read and retains six callee accesses before 0x417107"
+        );
         test.expect_true(
             stopped_draw_palette.status ==
                     LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
@@ -8037,8 +8112,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_raw_draw.status ==
                     LegacyBattleActorFrameEntryStatus::
                         case_one_draw_child_typed_stop &&
-                stopped_raw_draw.accesses_completed ==
-                    draw_pending.accesses_completed + 1U &&
+                matches_draw_deep_read_stop(
+                    stopped_raw_draw, draw_pending, raw_draw_source
+                ) &&
                 raw_draw_port.calls == 1U,
             "RLE header reads bound palette before flags RMW; raw header skips palette read entirely"
         );
@@ -21391,13 +21467,14 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         stopped_draw_callee.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_nine_draw_child_typed_stop &&
-            stopped_draw_callee.eip == 0x004170E0U &&
-            stopped_draw_callee.esp == draw_arguments_ready.esp - 4U &&
+            matches_draw_deep_read_stop(
+                stopped_draw_callee, draw_arguments_ready, input
+            ) &&
             case_nine_draw.arguments == expected_case_nine_call &&
             case_nine_draw.entry_eax == 189U &&
             case_nine_draw.entry_edx == 93U &&
             action_execution.turn_threshold == 2U,
-        "case9 drawing port entry stop preserves all six args and does not increment actor phase"
+        "case9 drawing argument-read stop preserves six caller args and does not increment actor phase"
     );
     auto case_nine_global_fault = input;
     case_nine_global_fault.global_readable = false;
@@ -23689,13 +23766,14 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         stopped_case_six_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_six_draw_child_typed_stop &&
-            stopped_case_six_draw_child.eip == 0x004170E0U &&
-            stopped_case_six_draw_child.esp == case_six_draw_args.esp - 4U &&
-            stopped_case_six_draw_child.last_pushed_value == 0x0047A23FU &&
-            stopped_case_six_draw_child.ebp == 3U &&
+            matches_draw_deep_read_stop(
+                stopped_case_six_draw_child,
+                case_six_draw_args,
+                case_eight_forward_request
+            ) &&
             case_six_draw.arguments ==
                 std::array<u32, 6U>{39U, 24U, 5U, 7U, 0xF4U, 0U},
-        "case6 draw callee entry stop retains replaced EBP and six frozen parameters without inventing RET"
+        "case6 drawing argument-read stop retains saved registers and six frozen caller args without inventing RET"
     );
     auto case_six_global_fault = case_eight_forward_request;
     case_six_global_fault.global_readable = false;
@@ -24449,10 +24527,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_eleven_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_eleven_first_draw_child_typed_stop &&
-            stopped_case_eleven_draw_child.eip == 0x004170E0U &&
-            stopped_case_eleven_draw_child.esp ==
-                case_eleven_draw_args.esp - 4U &&
-            stopped_case_eleven_draw_child.last_pushed_value == 0x0047A9E8U &&
+            matches_draw_deep_read_stop(
+                stopped_case_eleven_draw_child,
+                case_eleven_draw_args,
+                case_eight_forward_request
+            ) &&
             case_eleven_draw.arguments ==
                 std::array<u32, 6U>{39U, 24U, 5U, 7U, 0xF4U, 0U} &&
             case_eleven_draw_return.status ==
@@ -24739,10 +24818,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_eleven_second_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_eleven_second_draw_child_typed_stop &&
-            stopped_case_eleven_second_child.eip == 0x004170E0U &&
-            stopped_case_eleven_second_child.esp ==
-                case_eleven_second_args.esp - 4U &&
-            stopped_case_eleven_second_child.last_pushed_value == 0x0047AA67U &&
+            matches_draw_deep_read_stop(
+                stopped_case_eleven_second_child,
+                case_eleven_second_args,
+                case_eight_forward_request
+            ) &&
             case_eleven_second_draw.arguments ==
                 std::array<u32, 6U>{39U, 0xFFFFFF82U, 5U, 7U, 0xF4U, 0U} &&
             case_eleven_second_return.status ==
@@ -25478,10 +25558,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_fifteen_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fifteen_first_draw_child_typed_stop &&
-            stopped_case_fifteen_draw_child.eip == 0x004170E0U &&
-            stopped_case_fifteen_draw_child.esp ==
-                case_fifteen_draw_args.esp - 4U &&
-            stopped_case_fifteen_draw_child.last_pushed_value == 0x0047B379U &&
+            matches_draw_deep_read_stop(
+                stopped_case_fifteen_draw_child,
+                case_fifteen_draw_args,
+                case_eight_forward_request
+            ) &&
             case_fifteen_draw.arguments ==
                 std::array<u32, 6U>{39U, 24U, 5U, 7U, 0xF4U, 0U} &&
             case_fifteen_draw_return.status ==
@@ -25841,11 +25922,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_fifteen_second_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fifteen_second_draw_child_typed_stop &&
-            stopped_case_fifteen_second_child.eip == 0x004170E0U &&
-            stopped_case_fifteen_second_child.esp ==
-                case_fifteen_second_args.esp - 4U &&
-            stopped_case_fifteen_second_child.last_pushed_value ==
-                0x0047B3F5U &&
+            matches_draw_deep_read_stop(
+                stopped_case_fifteen_second_child,
+                case_fifteen_second_args,
+                case_eight_forward_request
+            ) &&
             case_fifteen_second_draw.arguments ==
                 std::array<u32, 6U>{9U, 24U, 5U, 7U, 0xF4U, 0U} &&
             case_fifteen_second_return.status ==
@@ -26657,10 +26738,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_fifty_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fifty_draw_child_typed_stop &&
-            stopped_case_fifty_draw_child.eip == 0x004170E0U &&
-            stopped_case_fifty_draw_child.esp ==
-                case_fifty_draw_args.esp - 4U &&
-            stopped_case_fifty_draw_child.last_pushed_value == 0x0047B7EDU &&
+            matches_draw_deep_read_stop(
+                stopped_case_fifty_draw_child,
+                case_fifty_draw_args,
+                case_eight_forward_request
+            ) &&
             case_fifty_draw.arguments ==
                 std::array<u32, 6U>{
                     43U - case_fifty_fourteen_source.ebp, 56U, 5U, 7U, 0xF6U, 0U
@@ -29912,8 +29994,16 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_four_first_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_four_first_draw_child_typed_stop &&
-            case_three_first_draw_child.last_pushed_value == 0x00479DB3U &&
-            case_four_first_draw_child.last_pushed_value == 0x00479FAFU &&
+            matches_draw_deep_read_stop(
+                case_three_first_draw_child,
+                case_three_first_draw_args,
+                case_eight_forward_request
+            ) &&
+            matches_draw_deep_read_stop(
+                case_four_first_draw_child,
+                case_four_first_draw_args,
+                case_eight_forward_request
+            ) &&
             case_three_first_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_three_first_draw_return_ready &&
@@ -30560,8 +30650,16 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_four_second_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_four_second_draw_child_typed_stop &&
-            case_three_second_draw_child.last_pushed_value == 0x00479E81U &&
-            case_four_second_draw_child.last_pushed_value == 0x00479E81U &&
+            matches_draw_deep_read_stop(
+                case_three_second_draw_child,
+                case_three_second_draw_args,
+                case_eight_forward_request
+            ) &&
+            matches_draw_deep_read_stop(
+                case_four_second_draw_child,
+                case_four_second_draw_args,
+                case_eight_forward_request
+            ) &&
             case_three_second_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_three_second_draw_return_ready &&
@@ -31322,8 +31420,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     );
     case_five_draw.reply.returned = true;
     auto case_five_draw_actor_fault = case_eight_forward_request;
-    case_five_draw_actor_fault.stop_before_access =
-        case_five_draw_args.accesses_completed + 8U;
+    case_five_draw_actor_fault.actor_readable = false;
     const auto stopped_case_five_draw_actor = openswd3::battle::
         continue_legacy_battle_actor_frame_case_five_draw_call(
             case_eight_view,
@@ -31358,9 +31455,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_five_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_five_draw_child_typed_stop &&
-            stopped_case_five_draw_child.eip == 0x004170E0U &&
-            stopped_case_five_draw_child.esp == case_five_draw_args.esp - 4U &&
-            stopped_case_five_draw_child.last_pushed_value == 0x0047A100U &&
+            matches_draw_deep_read_stop(
+                stopped_case_five_draw_child,
+                case_five_draw_args,
+                case_eight_forward_request
+            ) &&
             stopped_case_five_draw_actor.eip == 0x0047A100U &&
             stopped_case_five_draw_actor.esp == case_five_draw_args.esp &&
             stopped_case_five_draw_actor.eax == case_five_draw.reply.eax &&
@@ -31674,10 +31773,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_case_five_second_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_five_second_draw_child_typed_stop &&
-            stopped_case_five_second_child.eip == 0x004170E0U &&
-            stopped_case_five_second_child.esp ==
-                case_five_second_draw_args.esp - 4U &&
-            stopped_case_five_second_child.last_pushed_value == 0x0047A17AU &&
+            matches_draw_deep_read_stop(
+                stopped_case_five_second_child,
+                case_five_second_draw_args,
+                case_eight_forward_request
+            ) &&
             case_five_second_draw.arguments ==
                 std::array<u32, 6U>{
                     43U - case_five_draw_globals.ebp,
@@ -32110,8 +32210,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         );
     case_ten_draw.reply.returned = true;
     auto case_ten_read_fault = case_eight_forward_request;
-    case_ten_read_fault.stop_before_access =
-        case_ten_draw_args.accesses_completed + 8U;
+    case_ten_read_fault.actor_readable = false;
     const auto stopped_case_ten_read =
         openswd3::battle::continue_legacy_battle_actor_frame_case_ten_draw_call(
             case_eight_view,
@@ -32129,7 +32228,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     test.expect_true(
         stopped_case_ten_call.eip == 0x0047A88DU &&
             stopped_case_ten_call.stopped_instruction == 0x0047A88DU &&
-            stopped_case_ten_call.stopped_token == case_ten_draw_args.esp - 4U &&
+            stopped_case_ten_call.stopped_token ==
+                case_ten_draw_args.esp - 4U &&
             stopped_case_ten_call.stopped_access_kind ==
                 LegacyBattleActorFrameEntryAccessKind::stack_write &&
             stopped_case_ten_call.accesses_completed ==
@@ -32139,13 +32239,17 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 case_ten_draw_args.draw_argument_pushes &&
             stopped_case_ten_call.direction_flag ==
                 case_ten_draw_args.direction_flag &&
-            same_frame_flags(stopped_case_ten_call.flags, case_ten_draw_args.flags) &&
+            same_frame_flags(
+                stopped_case_ten_call.flags, case_ten_draw_args.flags
+            ) &&
             stopped_case_ten_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_ten_draw_child_typed_stop &&
-            stopped_case_ten_draw_child.eip == 0x004170E0U &&
-            stopped_case_ten_draw_child.esp == case_ten_draw_args.esp - 4U &&
-            stopped_case_ten_draw_child.last_pushed_value == 0x0047A892U &&
+            matches_draw_deep_read_stop(
+                stopped_case_ten_draw_child,
+                case_ten_draw_args,
+                case_eight_forward_request
+            ) &&
             stopped_case_ten_read.eip == 0x0047A892U &&
             stopped_case_ten_read.esp == case_ten_draw_args.esp &&
             stopped_case_ten_read.eax == case_ten_draw.reply.eax &&
@@ -32462,8 +32566,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         stopped_case_ten_second_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_ten_second_draw_child_typed_stop &&
-            stopped_case_ten_second_child.eip == 0x004170E0U &&
-            stopped_case_ten_second_child.last_pushed_value == 0x0047A90FU &&
+            matches_draw_deep_read_stop(
+                stopped_case_ten_second_child,
+                case_ten_second_draw_args,
+                case_eight_forward_request
+            ) &&
             case_ten_second_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_ten_clip_arguments_ready &&
@@ -34840,7 +34947,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_thirteen_first_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_first_draw_child_typed_stop &&
-            case_thirteen_first_draw_child.last_pushed_value == 0x0047ACA8U &&
+            matches_draw_deep_read_stop(
+                case_thirteen_first_draw_child,
+                case_thirteen_first_draw_args,
+                rle_request
+            ) &&
             case_thirteen_first_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_first_draw_return_ready &&
@@ -35266,7 +35377,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_thirteen_second_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_second_draw_child_typed_stop &&
-            case_thirteen_second_draw_child.last_pushed_value == 0x0047AD61U &&
+            matches_draw_deep_read_stop(
+                case_thirteen_second_draw_child,
+                case_thirteen_second_draw_args,
+                rle_request
+            ) &&
             case_thirteen_second_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_second_draw_return_ready &&
@@ -35724,7 +35839,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_thirteen_third_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_third_draw_child_typed_stop &&
-            case_thirteen_third_draw_child.last_pushed_value == 0x0047AE33U &&
+            matches_draw_deep_read_stop(
+                case_thirteen_third_draw_child,
+                case_thirteen_third_draw_args,
+                rle_request
+            ) &&
             case_thirteen_third_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_third_draw_return_ready &&
@@ -36166,7 +36285,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_thirteen_fourth_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_fourth_draw_child_typed_stop &&
-            case_thirteen_fourth_draw_child.last_pushed_value == 0x0047AEF9U &&
+            matches_draw_deep_read_stop(
+                case_thirteen_fourth_draw_child,
+                case_thirteen_fourth_draw_args,
+                rle_request
+            ) &&
             case_thirteen_fourth_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_thirteen_fourth_draw_return_ready &&
@@ -37295,8 +37418,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_fourteen_first_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fourteen_early_first_draw_child_typed_stop &&
-            case_fourteen_first_draw_child.eip == 0x004170E0U &&
-            case_fourteen_first_draw_child.last_pushed_value == 0x0047B020U &&
+            matches_draw_deep_read_stop(
+                case_fourteen_first_draw_child,
+                case_fourteen_first_draw,
+                rle_request
+            ) &&
             case_fourteen_first_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fourteen_early_first_draw_return_ready &&
@@ -37833,8 +37959,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_fourteen_second_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fourteen_early_second_draw_child_typed_stop &&
-            case_fourteen_second_draw_child.eip == 0x004170E0U &&
-            case_fourteen_second_draw_child.last_pushed_value == 0x0047B0DEU &&
+            matches_draw_deep_read_stop(
+                case_fourteen_second_draw_child,
+                case_fourteen_second_draw,
+                rle_request
+            ) &&
             case_fourteen_second_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fourteen_early_second_draw_return_ready &&
@@ -38666,8 +38795,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_fourteen_late_first_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fourteen_late_first_draw_child_typed_stop &&
-            case_fourteen_late_first_draw_child.last_pushed_value ==
-                0x0047B1ECU &&
+            matches_draw_deep_read_stop(
+                case_fourteen_late_first_draw_child,
+                case_fourteen_late_first_draw,
+                rle_request
+            ) &&
             case_fourteen_late_first_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fourteen_late_first_draw_return_ready &&
@@ -39163,8 +39295,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_fourteen_late_second_draw_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fourteen_late_second_draw_child_typed_stop &&
-            case_fourteen_late_second_draw_child.last_pushed_value ==
-                0x0047B2C0U &&
+            matches_draw_deep_read_stop(
+                case_fourteen_late_second_draw_child,
+                case_fourteen_late_second_draw,
+                rle_request
+            ) &&
             case_fourteen_late_second_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_fourteen_late_second_draw_return_ready &&
@@ -40188,7 +40323,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         case_hundred_draw_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_draw_child_typed_stop &&
-            case_hundred_draw_stop.esp == case_hundred_draw_args.esp - 4U &&
+            matches_draw_deep_read_stop(
+                case_hundred_draw_stop, case_hundred_draw_args, rle_request
+            ) &&
             case_hundred_draw_return.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_hundred_draw_return_ready &&
@@ -43396,8 +43533,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             same_frame_flags(
                 stopped_seven_draw_call.flags, case_seven_draw_args.flags
             ) &&
-            stopped_seven_draw_child.eip == 0x004170E0U &&
-            stopped_seven_draw_child.last_pushed_value == 0x0047A36DU &&
+            matches_draw_deep_read_stop(
+                stopped_seven_draw_child, case_seven_draw_args, rle_request
+            ) &&
             case_seven_draw.arguments ==
                 std::array<u32, 6U>{
                     44U - case_seven_global_ready.ebp,
@@ -43750,7 +43888,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_seven_second_draw_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_seven_second_draw_child_typed_stop &&
-            case_seven_second_draw_stop.last_pushed_value == 0x0047A446U &&
+            matches_draw_deep_read_stop(
+                case_seven_second_draw_stop,
+                case_seven_second_draw_args,
+                rle_request
+            ) &&
             case_seven_second_draw.arguments ==
                 std::array<u32, 6U>{
                     44U - case_seven_second_global_ready.ebp,
@@ -44102,7 +44244,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_seven_third_draw_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_seven_third_draw_child_typed_stop &&
-            case_seven_third_draw_stop.last_pushed_value == 0x0047A516U &&
+            matches_draw_deep_read_stop(
+                case_seven_third_draw_stop,
+                case_seven_third_draw_args,
+                rle_request
+            ) &&
             case_seven_third_draw.arguments ==
                 std::array<u32, 6U>{
                     42U - case_seven_third_global_ready.ebp,
@@ -44450,7 +44596,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_seven_fourth_draw_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_seven_fourth_draw_child_typed_stop &&
-            case_seven_fourth_draw_stop.last_pushed_value == 0x0047A5EFU &&
+            matches_draw_deep_read_stop(
+                case_seven_fourth_draw_stop,
+                case_seven_fourth_draw_args,
+                rle_request
+            ) &&
             case_seven_fourth_draw.arguments ==
                 std::array<u32, 6U>{
                     42U - case_seven_fourth_global_ready.ebp,

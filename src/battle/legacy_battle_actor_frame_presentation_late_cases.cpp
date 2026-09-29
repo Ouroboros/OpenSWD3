@@ -2332,11 +2332,27 @@ continue_legacy_battle_actor_frame_case_six_draw_call(
         : case_fifty                       ? 0x0047B7EDU
                                            : 0x0047A23FU;
     ++prefix.draw_calls;
-    const std::size_t pre_callee_accesses = prefix.accesses_completed;
     auto callee = prefix;
     if (!read_draw_callee_global(request, callee)) {
         return callee;
     }
+
+    const auto stop_status = case_eleven
+        ? LegacyBattleActorFrameEntryStatus::
+              case_eleven_first_draw_child_typed_stop
+        : case_eleven_second  ? LegacyBattleActorFrameEntryStatus::
+                                    case_eleven_second_draw_child_typed_stop
+        : case_fifteen        ? LegacyBattleActorFrameEntryStatus::
+                                    case_fifteen_first_draw_child_typed_stop
+        : case_fifteen_second ? LegacyBattleActorFrameEntryStatus::
+                                    case_fifteen_second_draw_child_typed_stop
+        : case_fifty
+        ? LegacyBattleActorFrameEntryStatus::case_fifty_draw_child_typed_stop
+        : LegacyBattleActorFrameEntryStatus::case_six_draw_child_typed_stop;
+    if (callee.accesses_completed == request.stop_before_access) {
+        return stop_draw_before_first_argument_read(callee, stop_status);
+    }
+
     prefix.accesses_completed = callee.accesses_completed;
     const std::array<u32, 6U> arguments{
         prefix.draw_argument_pushes[4U],
@@ -2350,27 +2366,11 @@ continue_legacy_battle_actor_frame_case_six_draw_call(
         arguments, prefix.eax, prefix.ecx, prefix.edx, prefix.flags
     );
     if (!prefix.draw_child.returned) {
-        prefix.accesses_completed = pre_callee_accesses;
-        prefix.status = case_eleven
-            ? LegacyBattleActorFrameEntryStatus::
-                  case_eleven_first_draw_child_typed_stop
-            : case_eleven_second ? LegacyBattleActorFrameEntryStatus::
-                                       case_eleven_second_draw_child_typed_stop
-            : case_fifteen       ? LegacyBattleActorFrameEntryStatus::
-                                       case_fifteen_first_draw_child_typed_stop
-            : case_fifteen_second
-            ? LegacyBattleActorFrameEntryStatus::
-                  case_fifteen_second_draw_child_typed_stop
-            : case_fifty
-            ? LegacyBattleActorFrameEntryStatus::
-                  case_fifty_draw_child_typed_stop
-            : LegacyBattleActorFrameEntryStatus::case_six_draw_child_typed_stop;
-        prefix.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::callee_call;
-        prefix.stopped_instruction = 0x004170E0U;
-        prefix.eip = 0x004170E0U;
-        return prefix;
+        return stop_draw_before_first_argument_read(
+            callee, stop_status, prefix.draw_child
+        );
     }
+
     prefix.esp += 4U;
     prefix.eax = prefix.draw_child.eax;
     prefix.ecx = prefix.draw_child.ecx;
