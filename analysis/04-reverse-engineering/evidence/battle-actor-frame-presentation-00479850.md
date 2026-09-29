@@ -1798,6 +1798,17 @@ FLAGS。`0x0048C9C1` 单独压计算出的字节数，再在
 `proc_ab74` core 200/200，阶段快照 `proc_d818`
 core／ASan 各200/200、app 206/206。
 
+已持有的池基址 `0x0053E7B8` 经 `0x0048C9C2`
+真实读取到 ECX，随后 `0x0048C9C8` 单独压入 ECX，
+在 `0x0048C9C9 CALL ds:IsBadWritePtr` 的 IAT
+`0x00499138` 目标读前停；相对原父 CALL 前 ESP 减476，
+末次 PUSH 是池基址，EAX 保持有符号乘后的低32位，
+未提交此间接 CALL 返回槽，未调用 Win32 后端。
+三处读/写前障分别核 IP、访问序号、token 与此前栈状态；
+`proc_a9ee` core 200/200，阶段快照 `proc_847d`
+core／ASan 各200/200、app 206/206。
+合成池基址不证明真实生产 owner 或原版内存池状态。
+
 case100 `0x0047B723` 的 reset CALL 另用已持有的独立 actor
 配置 owner 将 `+0x2AA0` 设为1，沿完整 `sub_478850` 子函数
 走过重复写入，再在 `0x00478A4D` 的随机子 CALL 停下；

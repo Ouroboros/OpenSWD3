@@ -530,15 +530,32 @@ stop_sound_before_deep_read(
             if (!save(0x0048C9C1U, callee.eax)) {
                 return false;
             }
-            callee.status = request.global_readable &&
-                    request.decoder_small_pool_base_owner != nullptr
-                ? opaque_status
-                : LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+            if (callee.accesses_completed == request.stop_before_access ||
+                !request.global_readable ||
+                request.decoder_small_pool_base_owner == nullptr) {
+                callee.status = request.global_readable &&
+                        request.decoder_small_pool_base_owner != nullptr
+                    ? opaque_status
+                    : LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+                callee.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::global_read;
+                callee.stopped_instruction = 0x0048C9C2U;
+                callee.stopped_token = 0x0053E7B8U;
+                callee.eip = 0x0048C9C2U;
+                return false;
+            }
+            callee.ecx = *request.decoder_small_pool_base_owner;
+            ++callee.accesses_completed;
+            if (!save(0x0048C9C8U, callee.ecx)) {
+                return false;
+            }
+            callee.status =
+                LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
             callee.stopped_access_kind =
                 LegacyBattleActorFrameEntryAccessKind::global_read;
-            callee.stopped_instruction = 0x0048C9C2U;
-            callee.stopped_token = 0x0053E7B8U;
-            callee.eip = 0x0048C9C2U;
+            callee.stopped_instruction = 0x0048C9C9U;
+            callee.stopped_token = 0x00499138U;
+            callee.eip = 0x0048C9C9U;
             return false;
         }
         callee.eax = 1U;

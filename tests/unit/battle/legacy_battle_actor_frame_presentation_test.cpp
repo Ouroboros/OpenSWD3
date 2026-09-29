@@ -9747,6 +9747,60 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 "case2 signed IMUL pool byte count retains only defined CF/OF and low32 result"
             );
         }
+        constexpr u32 kPoolBaseToken = 0x00A00000U;
+        auto pool_base_request = held_inner_pool;
+        pool_base_request.decoder_small_pool_base_owner = &kPoolBaseToken;
+        ReleasePort untouched_pool_base{};
+        const auto stopped_pool_iat = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                untouched_pool_base, pool_base_request, nonzero_emitter_release
+            );
+        pool_base_request.stop_before_access =
+            nonzero_emitter_release.accesses_completed + 28U;
+        const auto stopped_pool_base_read = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                untouched_pool_base, pool_base_request, nonzero_emitter_release
+            );
+        pool_base_request.stop_before_access =
+            nonzero_emitter_release.accesses_completed + 29U;
+        const auto stopped_pool_base_push = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                untouched_pool_base, pool_base_request, nonzero_emitter_release
+            );
+        test.expect_true(
+            stopped_pool_iat.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                stopped_pool_iat.eip == 0x0048C9C9U &&
+                stopped_pool_iat.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::global_read &&
+                stopped_pool_iat.stopped_token == 0x00499138U &&
+                stopped_pool_iat.esp == nonzero_emitter_release.esp - 476U &&
+                stopped_pool_iat.eax == 0U &&
+                stopped_pool_iat.ecx == kPoolBaseToken &&
+                stopped_pool_iat.last_pushed_value == kPoolBaseToken &&
+                !stopped_pool_iat.flags_known &&
+                stopped_pool_iat.accesses_completed ==
+                    nonzero_emitter_release.accesses_completed + 30U &&
+                stopped_pool_base_read.eip == 0x0048C9C2U &&
+                stopped_pool_base_read.stopped_token == 0x0053E7B8U &&
+                stopped_pool_base_read.esp ==
+                    nonzero_emitter_release.esp - 472U &&
+                stopped_pool_base_read.accesses_completed ==
+                    nonzero_emitter_release.accesses_completed + 28U &&
+                stopped_pool_base_push.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
+                stopped_pool_base_push.eip == 0x0048C9C8U &&
+                stopped_pool_base_push.stopped_token ==
+                    nonzero_emitter_release.esp - 476U &&
+                stopped_pool_base_push.esp ==
+                    nonzero_emitter_release.esp - 472U &&
+                stopped_pool_base_push.last_pushed_value == 0U &&
+                stopped_pool_base_push.ecx == kPoolBaseToken &&
+                stopped_pool_base_push.accesses_completed ==
+                    nonzero_emitter_release.accesses_completed + 29U &&
+                untouched_pool_base.calls == 0U,
+            "case2 inner heap check reads pool base, pushes it, and stops before IsBadWritePtr IAT fetch"
+        );
         constexpr std::array<u32, 5U> kDebugHeapSaveIps{
             0x00488BB0U,
             0x00488BB6U,
