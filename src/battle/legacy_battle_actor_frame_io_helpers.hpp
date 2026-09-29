@@ -496,15 +496,49 @@ stop_sound_before_deep_read(
             const u32 before_large_reservation = callee.esp;
             callee.esp -= 0x168U;
             callee.flags = subtract_flags(before_large_reservation, 0x168U);
+            if (callee.accesses_completed == request.stop_before_access ||
+                !request.global_readable ||
+                request.decoder_small_pool_index_owner == nullptr) {
+                callee.status = request.global_readable &&
+                        request.decoder_small_pool_index_owner != nullptr
+                    ? opaque_status
+                    : LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+                callee.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::global_read;
+                callee.stopped_instruction = 0x0048C9B9U;
+                callee.stopped_token = 0x0053E7B4U;
+                callee.eip = 0x0048C9B9U;
+                return false;
+            }
+            const u32 pool_index = *request.decoder_small_pool_index_owner;
+            ++callee.accesses_completed;
+            const std::int64_t pool_product =
+                static_cast<std::int64_t>(
+                    std::bit_cast<std::int32_t>(pool_index)
+                ) *
+                20;
+            callee.eax =
+                static_cast<u32>(static_cast<std::uint64_t>(pool_product));
+            const bool pool_overflow =
+                pool_product !=
+                static_cast<std::int64_t>(
+                    std::bit_cast<std::int32_t>(callee.eax)
+                );
+            callee.flags.carry = pool_overflow;
+            callee.flags.overflow = pool_overflow;
+            callee.flags_known = false;  // IMUL leaves SF/ZF/PF/AF undefined.
+            if (!save(0x0048C9C1U, callee.eax)) {
+                return false;
+            }
             callee.status = request.global_readable &&
-                    request.decoder_small_pool_index_owner != nullptr
+                    request.decoder_small_pool_base_owner != nullptr
                 ? opaque_status
                 : LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
             callee.stopped_access_kind =
                 LegacyBattleActorFrameEntryAccessKind::global_read;
-            callee.stopped_instruction = 0x0048C9B9U;
-            callee.stopped_token = 0x0053E7B4U;
-            callee.eip = 0x0048C9B9U;
+            callee.stopped_instruction = 0x0048C9C2U;
+            callee.stopped_token = 0x0053E7B8U;
+            callee.eip = 0x0048C9C2U;
             return false;
         }
         callee.eax = 1U;

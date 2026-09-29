@@ -9667,17 +9667,86 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             );
         test.expect_true(
             stopped_held_inner_pool.status ==
-                    LegacyBattleActorFrameEntryStatus::
-                        case_two_release_child_typed_stop &&
-                stopped_held_inner_pool.eip == 0x0048C9B9U &&
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                stopped_held_inner_pool.eip == 0x0048C9C2U &&
                 stopped_held_inner_pool.stopped_access_kind ==
                     LegacyBattleActorFrameEntryAccessKind::global_read &&
-                stopped_held_inner_pool.stopped_token == 0x0053E7B4U &&
+                stopped_held_inner_pool.stopped_token == 0x0053E7B8U &&
+                stopped_held_inner_pool.esp ==
+                    nonzero_emitter_release.esp - 472U &&
+                stopped_held_inner_pool.last_pushed_value == 0U &&
+                stopped_held_inner_pool.eax == 0U &&
+                !stopped_held_inner_pool.flags_known &&
+                !stopped_held_inner_pool.flags.carry &&
+                !stopped_held_inner_pool.flags.overflow &&
                 stopped_held_inner_pool.accesses_completed ==
-                    nonzero_emitter_release.accesses_completed + 26U &&
+                    nonzero_emitter_release.accesses_completed + 28U &&
                 held_inner_pool_port.calls == 0U,
-            "case2 debug flags5 held inner pool index still stops before an unmodelled read"
+            "case2 debug flags5 reads pool index and stops before unbound pool base read"
         );
+        auto pool_index_read_fault = held_inner_pool;
+        pool_index_read_fault.stop_before_access =
+            nonzero_emitter_release.accesses_completed + 26U;
+        ReleasePort untouched_pool_index{};
+        const auto stopped_pool_index_read = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                untouched_pool_index,
+                pool_index_read_fault,
+                nonzero_emitter_release
+            );
+        pool_index_read_fault.stop_before_access =
+            nonzero_emitter_release.accesses_completed + 27U;
+        const auto stopped_pool_size_push = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                untouched_pool_index,
+                pool_index_read_fault,
+                nonzero_emitter_release
+            );
+        test.expect_true(
+            stopped_pool_index_read.eip == 0x0048C9B9U &&
+                stopped_pool_index_read.stopped_token == 0x0053E7B4U &&
+                stopped_pool_index_read.esp ==
+                    nonzero_emitter_release.esp - 468U &&
+                stopped_pool_index_read.flags_known &&
+                stopped_pool_index_read.accesses_completed ==
+                    nonzero_emitter_release.accesses_completed + 26U &&
+                stopped_pool_size_push.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
+                stopped_pool_size_push.eip == 0x0048C9C1U &&
+                stopped_pool_size_push.stopped_token ==
+                    nonzero_emitter_release.esp - 472U &&
+                stopped_pool_size_push.esp ==
+                    nonzero_emitter_release.esp - 468U &&
+                stopped_pool_size_push.last_pushed_value ==
+                    nonzero_emitter_release.esp - 96U &&
+                !stopped_pool_size_push.flags_known &&
+                stopped_pool_size_push.accesses_completed ==
+                    nonzero_emitter_release.accesses_completed + 27U &&
+                untouched_pool_index.calls == 0U,
+            "case2 inner pool index read and computed size PUSH have distinct fault ordinals"
+        );
+        constexpr u32 kNegativePoolIndex = 0xFFFFFFFFU;
+        constexpr u32 kOverflowPoolIndex = 0x7FFFFFFFU;
+        for (const u32* const index : std::array<const u32*, 2U>{
+                 &kNegativePoolIndex, &kOverflowPoolIndex
+             }) {
+            auto wrap_request = held_inner_pool;
+            wrap_request.decoder_small_pool_index_owner = index;
+            ReleasePort untouched_wrap{};
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_release_call(
+                    untouched_wrap, wrap_request, nonzero_emitter_release
+                );
+            test.expect_true(
+                stopped.eip == 0x0048C9C2U && stopped.eax == 0xFFFFFFECU &&
+                    stopped.last_pushed_value == 0xFFFFFFECU &&
+                    !stopped.flags_known &&
+                    stopped.flags.carry == (index == &kOverflowPoolIndex) &&
+                    stopped.flags.overflow == (index == &kOverflowPoolIndex) &&
+                    untouched_wrap.calls == 0U,
+                "case2 signed IMUL pool byte count retains only defined CF/OF and low32 result"
+            );
+        }
         constexpr std::array<u32, 5U> kDebugHeapSaveIps{
             0x00488BB0U,
             0x00488BB6U,

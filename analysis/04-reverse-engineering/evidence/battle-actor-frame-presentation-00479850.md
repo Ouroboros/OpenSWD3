@@ -1787,6 +1787,17 @@ core／ASan 各200/200、app 206/206；`sub_48C9B0`
 `proc_93d9` core 200/200，阶段快照 `proc_f1a8`
 core／ASan 各200/200、app 206/206。
 
+已持有的池索引在 `0x0048C9B9` 真正读取后，
+`IMUL EAX,0x14` 以 signed32 输入计算低32位；仅 CF/OF
+有效，其余算术 FLAGS 未定义，不能继承预留局部栈的
+FLAGS。`0x0048C9C1` 单独压计算出的字节数，再在
+`0x0048C9C2 [0x0053E7B8]` 池基址读前停；索引0
+压0、−1 和 `0x7FFFFFFF` 均压 `0xFFFFFFEC`，
+但后两者 CF/OF 分别为0/1。缺基址 owner 与已持有
+基址的 opaque 停点不等价，且均未进入 `IsBadWritePtr`。
+`proc_ab74` core 200/200，阶段快照 `proc_d818`
+core／ASan 各200/200、app 206/206。
+
 case100 `0x0047B723` 的 reset CALL 另用已持有的独立 actor
 配置 owner 将 `+0x2AA0` 设为1，沿完整 `sub_478850` 子函数
 走过重复写入，再在 `0x00478A4D` 的随机子 CALL 停下；
