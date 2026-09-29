@@ -1711,6 +1711,23 @@ guest EIP=0 的取指入口停止；原版具体异常/SEH 路径
 `proc_8c12` core／ASan 各200/200、app 206/206，
 尚非316最终门禁。
 
+CRT 调试掩码0x4置位的分支从 `0x004885D3` 继续进入
+`sub_488BB0`：在 `0x00488BB0` 压旧 EBP，`0x00488BB3`
+以 `SUB ESP,0x18` 仅预留局部栈且重算 FLAGS，再于
+`0x00488BB6/BB7/BB8` 压 EBX/ESI/EDI，`0x00488BB9`
+向局部 `[EBP−4]` 写入1。此后停在第二次调试位全局读
+`0x00488BC0 [0x004A82F4]` 之前：相对父 CALL 前
+ESP 减88、EBP 减52、EAX 保持4，FLAGS 来自真实
+ESP 的 SUB，末次局部写和先前 CALL 返回槽均保留；
+`last_pushed_value` 仍为 BB8 保存的 EDI，不把 BB9 的 MOV 误记成 PUSH；
+未执行 heap-check 的任何分支或深层 hook。case2
+在五处栈写前分别核 token、ESP、EBP、FLAGS 和
+release port 零调用；`proc_427f/proc_db76` core 各200/200；阶段快照
+`proc_f8fe` core／ASan 各200/200、app 206/206；
+修正 BB9 MOV 与末次 PUSH 的区别后，最终阶段快照
+`proc_3444` core／ASan 各200/200、app 206/206。
+其余两处共享前缀尚未单独覆盖此分支。
+
 case100 `0x0047B723` 的 reset CALL 另用已持有的独立 actor
 配置 owner 将 `+0x2AA0` 设为1，沿完整 `sub_478850` 子函数
 走过重复写入，再在 `0x00478A4D` 的随机子 CALL 停下；

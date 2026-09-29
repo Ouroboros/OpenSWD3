@@ -431,12 +431,28 @@ stop_sound_before_deep_read(
         ++callee.accesses_completed;
         callee.esp = return_slot;
         callee.last_pushed_value = 0x004885D8U;
+        if (!save(0x00488BB0U, callee.ebp)) {
+            return false;
+        }
+        callee.ebp = callee.esp;
+        const u32 before_local_reservation = callee.esp;
+        callee.esp -= 0x18U;
+        callee.flags = subtract_flags(before_local_reservation, 0x18U);
+        if (!save(0x00488BB6U, callee.ebx) || !save(0x00488BB7U, callee.esi) ||
+            !save(0x00488BB8U, callee.edi)) {
+            return false;
+        }
+        if (callee.accesses_completed == request.stop_before_access ||
+            !request.call_stack_writable) {
+            return stop(0x00488BB9U, callee.ebp - 4U, true);
+        }
+        ++callee.accesses_completed;
         callee.status = opaque_status;
         callee.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::callee_call;
-        callee.stopped_instruction = 0x00488BB0U;
-        callee.stopped_token = 0U;
-        callee.eip = 0x00488BB0U;
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        callee.stopped_instruction = 0x00488BC0U;
+        callee.stopped_token = 0x004A82F4U;
+        callee.eip = 0x00488BC0U;
         return false;
     }
     const auto read_stack = [&](const u32 ip, const u32 token) {
