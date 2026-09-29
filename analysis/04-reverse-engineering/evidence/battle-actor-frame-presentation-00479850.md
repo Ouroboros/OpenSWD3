@@ -2268,6 +2268,8 @@ case12 的 `sub_422C70` 与 `sub_423020` 亦不能当成仅返回的四参函数
 均无内层 CALL、cdecl `retn`，但在循环中读取 `4A0698/4A069C/4A06A0/4A06A4` 的四个预发布变换全局，
 以及 `4A0E74/4CD2F8/4CD310/4CD720/4CD730/4CD734/4CD76C` 的绘图共享状态；分支和内存访问可产生多个实际停止点。
 
+现把 case12 两处生产 CALL 的受控停点移至首次未被局部模型读取的全局：设父 CALL 前 ESP=P，CALL 先压返回地址；正向 `0x00422C70 sub esp,20h` 后在 `0x00422C73` 读 `4A0698` 前 ESP=P−36，末次 PUSH 仍为父返回地址；反向 `0x00423020 sub esp,1Ch` 后 `0x00423023/24` 依次保存 EBX/EBP，再于 `0x00423025` 读 `4A06A0` 前 ESP=P−40、末次 PUSH 为旧 EBP。两路 FLAGS 由各自 SUB ESP 计算，DF 与其他寄存器仍为父入站值。首全局访问序号或缺可读 owner 不调用 raster port，反向两处保存写也能分别在提交前停止；窄 port 未返回时保留这些局部栈与 FLAGS，不回滚至 callee 入口。正常受控回复仅追加已知的反向两次栈写，不能据此认为像素循环或未建模全局已完成。两处父路由与直接停点的定向 `battle.actor_frame_316` 于 `proc_4d6a` 1/1 通过（首次 `proc_d7c8` 两处历史预期仍要求 callee 入口 IP，已修正）；阶段源码快照完整门禁 `proc_a410` 通过 Linux core 200/200、ASan core 200/200、Linux app 206/206。深层像素、裁剪、异常和原版差分仍为 partial；这不是 Workpack 316 最终门禁。
+
 仓库已有独立 `assembly_exact` 证据 `analysis/04-reverse-engineering/evidence/legacy-scaled-rle-writers-00422c70-00423020.md`、`rendering::write_legacy_scaled_rle_forward/reverse` 与定向 UT；
 callee 首部的四参、四项 transform 与共享画面访问已再对照 LST，case12 bit0=0 应转 forward，
 bit0=1 转 reverse。需要在调用**时**物化当前四项 transform、clip/source/surface 并复用该 typed writer，

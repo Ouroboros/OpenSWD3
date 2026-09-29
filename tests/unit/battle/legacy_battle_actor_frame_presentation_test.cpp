@@ -167,6 +167,19 @@ expected_add_esp_cleanup_flags(const u32 before, const u32 bytes) noexcept {
 }
 
 [[nodiscard]] constexpr openswd3::battle::LegacyBattleActorCoordinateFlags
+expected_sub_esp_flags(const u32 before, const u32 bytes) noexcept {
+    const u32 after = before - bytes;
+    return {
+        .carry = before < bytes,
+        .parity = (std::popcount(static_cast<u8>(after)) & 1) == 0,
+        .auxiliary_carry = ((before ^ bytes ^ after) & 0x10U) != 0U,
+        .zero = after == 0U,
+        .sign = (after & 0x80000000U) != 0U,
+        .overflow = (((before ^ bytes) & (before ^ after)) & 0x80000000U) != 0U,
+    };
+}
+
+[[nodiscard]] constexpr openswd3::battle::LegacyBattleActorCoordinateFlags
 expected_add_esp_14_flags(const u32 return_slot) noexcept {
     const u32 before = return_slot - 0x14U;
     return {
@@ -175,8 +188,8 @@ expected_add_esp_14_flags(const u32 return_slot) noexcept {
         .auxiliary_carry = (before & 0xFU) + 4U > 0xFU,
         .zero = return_slot == 0U,
         .sign = (return_slot & 0x80000000U) != 0U,
-        .overflow = (before & 0x80000000U) == 0U &&
-            (return_slot & 0x80000000U) != 0U,
+        .overflow =
+            (before & 0x80000000U) == 0U && (return_slot & 0x80000000U) != 0U,
     };
 }
 
@@ -2353,10 +2366,14 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                         LegacyBattleActorFrameEntryStatus::
                             case_twelve_raster_child_typed_stop &&
                     twelve_raster_stop.eip ==
-                        (mirrored == 0U ? 0x00422C70U : 0x00423020U) &&
+                        (mirrored == 0U ? 0x00422C73U : 0x00423025U) &&
+                    twelve_raster_stop.stopped_token ==
+                        (mirrored == 0U ? 0x004A0698U : 0x004A06A0U) &&
+                    twelve_raster_stop.stopped_access_kind ==
+                        LegacyBattleActorFrameEntryAccessKind::global_read &&
                     twelve_raster_stop.scaled_rle_argument_count == 4U &&
                     !twelve_raster_stop.returned,
-                "selector12 with transform backing pushes the four ordered scaled RLE arguments and CALL return before stopping at the selected raster callee"
+                "selector12 with transform backing retains the selected raster callee's stack prefix before its first global read"
             );
             route_startup->enemies[0U].progress.presentation_enabled = 1U;
             route_actor.runtime_reset.field_2a95 = 12U;
@@ -33852,15 +33869,106 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped_child.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_twelve_raster_child_typed_stop &&
-            stopped_child.eip == (path == 0U ? 0x00422C70U : 0x00423020U) &&
+            stopped_child.eip == (path == 0U ? 0x00422C73U : 0x00423025U) &&
+            stopped_child.stopped_instruction == stopped_child.eip &&
+            stopped_child.stopped_token ==
+                (path == 0U ? 0x004A0698U : 0x004A06A0U) &&
+            stopped_child.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::global_read &&
             stopped_child.last_pushed_value ==
-                (path == 0U ? 0x0047AB7EU : 0x0047AB48U) &&
-            stopped_child.esp == case_twelve_call_inputs[path].esp - 4U;
+                (path == 0U ? 0x0047AB7EU
+                            : case_twelve_call_inputs[path].ebp) &&
+            stopped_child.esp ==
+                case_twelve_call_inputs[path].esp - (path == 0U ? 36U : 40U) &&
+            stopped_child.accesses_completed ==
+                case_twelve_call_inputs[path].accesses_completed +
+                    (path == 0U ? 1U : 3U) &&
+            same_frame_flags(stopped_child.flags,
+                             expected_sub_esp_flags(
+                                 case_twelve_call_inputs[path].esp - 4U,
+                                 path == 0U ? 0x20U : 0x1CU
+                             ));
     }
 
     test.expect_true(
         case_twelve_call_stops_exact,
-        "case12 forward/reverse writer CALLs have distinct return addresses and stop at the real child entry"
+        "case12 forward/reverse writer CALLs have distinct return addresses and stop before their first unowned global"
+    );
+    bool case_twelve_raster_ordinals_exact = true;
+    for (std::size_t path = 0U; path < case_twelve_call_inputs.size(); ++path) {
+        const auto& before = case_twelve_call_inputs[path];
+        const std::size_t nested_count = path == 0U ? 0U : 2U;
+        for (std::size_t ordinal = 0U; ordinal <= nested_count; ++ordinal) {
+            auto stop_request = rle_request;
+            stop_request.stop_before_access =
+                before.accesses_completed + 1U + ordinal;
+            ScaledRlePort not_called{};
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_twelve_raster_entry(
+                    case_eight_view, stop_request, before, &not_called
+                );
+            const bool first_global = ordinal == nested_count;
+            const u32 expected_ip = first_global
+                ? (path == 0U ? 0x00422C73U : 0x00423025U)
+                : (ordinal == 0U ? 0x00423023U : 0x00423024U);
+            const u32 expected_token = first_global
+                ? (path == 0U ? 0x004A0698U : 0x004A06A0U)
+                : before.esp - (ordinal == 0U ? 36U : 40U);
+            case_twelve_raster_ordinals_exact =
+                case_twelve_raster_ordinals_exact &&
+                stopped.status ==
+                    (first_global ? LegacyBattleActorFrameEntryStatus::
+                                        case_twelve_raster_child_typed_stop
+                                  : LegacyBattleActorFrameEntryStatus::
+                                        stack_write_typed_stop) &&
+                stopped.eip == expected_ip &&
+                stopped.stopped_instruction == expected_ip &&
+                stopped.stopped_token == expected_token &&
+                stopped.stopped_access_kind ==
+                    (first_global
+                         ? LegacyBattleActorFrameEntryAccessKind::global_read
+                         : LegacyBattleActorFrameEntryAccessKind::
+                               stack_write) &&
+                stopped.accesses_completed == stop_request.stop_before_access &&
+                stopped.esp ==
+                    before.esp -
+                        (path == 0U          ? 36U
+                             : ordinal == 0U ? 32U
+                             : ordinal == 1U ? 36U
+                                             : 40U) &&
+                stopped.last_pushed_value ==
+                    (path == 0U || ordinal == 0U
+                         ? (path == 0U ? 0x0047AB7EU : 0x0047AB48U)
+                         : ordinal == 1U ? before.ebx
+                                         : before.ebp) &&
+                stopped.flags_known &&
+                same_frame_flags(
+                    stopped.flags,
+                    expected_sub_esp_flags(
+                        before.esp - 4U, path == 0U ? 0x20U : 0x1CU
+                    )
+                ) &&
+                stopped.direction_flag == before.direction_flag &&
+                not_called.calls == 0U;
+        }
+        auto missing_global = rle_request;
+        missing_global.global_readable = false;
+        ScaledRlePort not_called{};
+        const auto stopped = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_twelve_raster_entry(
+                case_eight_view, missing_global, before, &not_called
+            );
+        case_twelve_raster_ordinals_exact = case_twelve_raster_ordinals_exact &&
+            stopped.status ==
+                LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+            stopped.eip == (path == 0U ? 0x00422C73U : 0x00423025U) &&
+            stopped.stopped_token == (path == 0U ? 0x004A0698U : 0x004A06A0U) &&
+            stopped.esp == before.esp - (path == 0U ? 36U : 40U) &&
+            not_called.calls == 0U;
+    }
+    test.expect_true(
+        case_twelve_raster_ordinals_exact,
+        "case12 scaled-writer local allocation and two reverse-path saves precede first global read without invoking the port"
     );
     bool case_twelve_replies_exact = true;
     for (std::size_t path = 0U; path < case_twelve_call_inputs.size(); ++path) {
@@ -33885,14 +33993,29 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             child_stop.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_twelve_raster_child_typed_stop &&
-            child_stop.esp == case_twelve_call_inputs[path].esp - 4U &&
+            child_stop.eip == (path == 0U ? 0x00422C73U : 0x00423025U) &&
+            child_stop.stopped_token ==
+                (path == 0U ? 0x004A0698U : 0x004A06A0U) &&
+            child_stop.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::global_read &&
+            child_stop.esp ==
+                case_twelve_call_inputs[path].esp - (path == 0U ? 36U : 40U) &&
+            child_stop.accesses_completed ==
+                case_twelve_call_inputs[path].accesses_completed +
+                    (path == 0U ? 1U : 3U) &&
+            same_frame_flags(child_stop.flags,
+                             expected_sub_esp_flags(
+                                 case_twelve_call_inputs[path].esp - 4U,
+                                 path == 0U ? 0x20U : 0x1CU
+                             )) &&
             resumed.status ==
                 LegacyBattleActorFrameEntryStatus::
                     case_twelve_raster_return_ready &&
             resumed.eip == 0x0047AB7EU &&
             resumed.esp == case_twelve_call_inputs[path].esp &&
             resumed.accesses_completed ==
-                case_twelve_call_inputs[path].accesses_completed + 1U &&
+                case_twelve_call_inputs[path].accesses_completed +
+                    (path == 0U ? 1U : 3U) &&
             resumed.eax == raster.reply.eax &&
             resumed.ecx == raster.reply.ecx &&
             resumed.edx == raster.reply.edx &&
@@ -33911,7 +34034,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
 
     test.expect_true(
         case_twelve_replies_exact,
-        "case12 writer entry stop leaves CALL stack intact; only a returned reply reaches shared phase tail"
+        "case12 writer stops after its local stack prefix; only a returned reply reaches shared phase tail"
     );
     const std::array<u32, 4U> case_twelve_phase_fault_eips{
         0x0047AB7EU,

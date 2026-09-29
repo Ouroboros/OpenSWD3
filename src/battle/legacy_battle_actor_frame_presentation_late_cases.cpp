@@ -557,16 +557,56 @@ continue_legacy_battle_actor_frame_case_twelve_raster_entry(
     ++prefix.accesses_completed;
     prefix.esp = slot;
     prefix.last_pushed_value = reverse ? 0x0047AB48U : 0x0047AB7EU;
-    prefix.status =
-        LegacyBattleActorFrameEntryStatus::case_twelve_raster_child_typed_stop;
-    prefix.stopped_access_kind =
-        LegacyBattleActorFrameEntryAccessKind::callee_call;
-    prefix.stopped_instruction = reverse ? 0x00423020U : 0x00422C70U;
-    prefix.eip = prefix.stopped_instruction;
-    if (raster == nullptr || request.scaled_rle_transform == nullptr ||
-        actor.action_execution == nullptr) {
-        return prefix;
+    auto callee = prefix;
+    callee.scaled_rle_child = {};
+    const u32 local_size = reverse ? 0x1CU : 0x20U;
+    callee.flags = subtract_flags(callee.esp, local_size);
+    callee.flags_known = true;
+    callee.esp -= local_size;
+    if (reverse) {
+        const auto save = [&](const u32 ip, const u32 value) {
+            const u32 saved_slot = callee.esp - 4U;
+            if (callee.accesses_completed == request.stop_before_access ||
+                !request.call_stack_writable) {
+                callee.status =
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop;
+                callee.stopped_access_kind =
+                    LegacyBattleActorFrameEntryAccessKind::stack_write;
+                callee.stopped_instruction = ip;
+                callee.stopped_token = saved_slot;
+                callee.eip = ip;
+                return false;
+            }
+            ++callee.accesses_completed;
+            callee.esp = saved_slot;
+            callee.last_pushed_value = value;
+            return true;
+        };
+        if (!save(0x00423023U, callee.ebx) || !save(0x00423024U, callee.ebp)) {
+            return callee;
+        }
     }
+    const u32 first_global_ip = reverse ? 0x00423025U : 0x00422C73U;
+    const u32 first_global_token = reverse ? 0x004A06A0U : 0x004A0698U;
+    const auto stop_before_global = [&]() {
+        callee.status = !request.global_readable
+            ? LegacyBattleActorFrameEntryStatus::global_read_typed_stop
+            : LegacyBattleActorFrameEntryStatus::
+                  case_twelve_raster_child_typed_stop;
+        callee.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::global_read;
+        callee.stopped_instruction = first_global_ip;
+        callee.stopped_token = first_global_token;
+        callee.eip = first_global_ip;
+        return callee;
+    };
+    if (callee.accesses_completed == request.stop_before_access ||
+        !request.global_readable || raster == nullptr ||
+        request.scaled_rle_transform == nullptr ||
+        actor.action_execution == nullptr) {
+        return stop_before_global();
+    }
+    prefix.accesses_completed = callee.accesses_completed;
     const std::array<u32, 4U> arguments{
         prefix.scaled_rle_argument_pushes[3U],
         prefix.scaled_rle_argument_pushes[2U],
@@ -584,7 +624,8 @@ continue_legacy_battle_actor_frame_case_twelve_raster_entry(
         prefix.flags
     );
     if (!prefix.scaled_rle_child.returned) {
-        return prefix;
+        callee.scaled_rle_child = prefix.scaled_rle_child;
+        return stop_before_global();
     }
     prefix.esp += 4U;
     prefix.eax = prefix.scaled_rle_child.eax;
