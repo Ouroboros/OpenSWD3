@@ -447,12 +447,43 @@ stop_sound_before_deep_read(
             return stop(0x00488BB9U, callee.ebp - 4U, true);
         }
         ++callee.accesses_completed;
+        if (callee.accesses_completed == request.stop_before_access ||
+            !request.global_readable ||
+            request.decoder_heap_debug_flags_owner == nullptr) {
+            callee.status = request.global_readable &&
+                    request.decoder_heap_debug_flags_owner != nullptr
+                ? opaque_status
+                : LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+            callee.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::global_read;
+            callee.stopped_instruction = 0x00488BC0U;
+            callee.stopped_token = 0x004A82F4U;
+            callee.eip = 0x00488BC0U;
+            return false;
+        }
+        const u32 heap_check_flags = *request.decoder_heap_debug_flags_owner;
+        ++callee.accesses_completed;
+        callee.eax = heap_check_flags & 1U;
+        callee.flags = logical_result_flags(callee.eax);
+        if (callee.eax != 0U) {
+            if (!save(0x00488BD6U, 0x00488BDBU)) {
+                return false;
+            }
+            callee.status = opaque_status;
+            callee.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::callee_call;
+            callee.stopped_instruction = 0x0048B3E0U;
+            callee.stopped_token = 0U;
+            callee.eip = 0x0048B3E0U;
+            return false;
+        }
+        callee.eax = 1U;
         callee.status = opaque_status;
         callee.stopped_access_kind =
-            LegacyBattleActorFrameEntryAccessKind::global_read;
-        callee.stopped_instruction = 0x00488BC0U;
-        callee.stopped_token = 0x004A82F4U;
-        callee.eip = 0x00488BC0U;
+            LegacyBattleActorFrameEntryAccessKind::stack_read;
+        callee.stopped_instruction = 0x00488EEAU;
+        callee.stopped_token = callee.esp;
+        callee.eip = 0x00488EEAU;
         return false;
     }
     const auto read_stack = [&](const u32 ip, const u32 token) {

@@ -1728,6 +1728,20 @@ release port 零调用；`proc_427f/proc_db76` core 各200/200；阶段快照
 `proc_3444` core／ASan 各200/200、app 206/206。
 其余两处共享前缀尚未单独覆盖此分支。
 
+第二次 `0x00488BC0` 调试位重新读取 owner 并独立计数，
+不复用第一次全局读取的缓存值。合成掩码4
+经 `AND EAX,1` 和 `TEST EAX,EAX` 为零，`MOV EAX,1`
+后仅抵达 `0x00488EEA POP EDI` 首栈读前；仍未伪造
+heap-check RET 或外层释放返回。合成掩码5 则在
+`0x00488BD6 CALL sub_48B3E0` 返回槽写前可独立停；
+成功压入 `0x00488BDB` 后停在深层校验入口，ESP
+相对父 CALL 前减92，未执行下游校验。case2 对第二全局
+读序号、两个掩码及 CALL 槽均核 no-release-port；
+`proc_6cf5` core 200/200，初次阶段快照 `proc_d37c`
+core／ASan 各200/200、app 206/206；改为真正二次解引用后
+`proc_4279` core／ASan 各200/200、app 206/206。
+其余调用、CRT 内部与原版异常仍 partial。
+
 case100 `0x0047B723` 的 reset CALL 另用已持有的独立 actor
 配置 owner 将 `+0x2AA0` 设为1，沿完整 `sub_478850` 子函数
 走过重复写入，再在 `0x00478A4D` 的随机子 CALL 停下；
