@@ -1777,6 +1777,16 @@ release port 未调用。四处写前障均核已完成计数与
 core／ASan 各200/200、app 206/206；`sub_48C9B0`
 内部、后续堆验证 Win32 API 与原版异常尚未执行。
 
+`sub_48C9B0` 入口再压 EBP、`SUB ESP,0x168` 预留
+局部栈并更新 FLAGS；首次未绑定池索引全局读取
+`0x0048C9B9 [0x0053E7B4]` 前停，ESP 相对最初
+父 CALL 前减468、EBP 减108，末次 PUSH 为旧 EBP，
+不虚构索引值。独立测试在入口 PUSH 前障停下；
+即使合成 owner 已持有，也只以 opaque 子级状态停在
+同一读前边界，不提前使用索引或调用 Win32 检查。
+`proc_93d9` core 200/200，阶段快照 `proc_f1a8`
+core／ASan 各200/200、app 206/206。
+
 case100 `0x0047B723` 的 reset CALL 另用已持有的独立 actor
 配置 owner 将 `+0x2AA0` 设为1，沿完整 `sub_478850` 子函数
 走过重复写入，再在 `0x00478A4D` 的随机子 CALL 停下；

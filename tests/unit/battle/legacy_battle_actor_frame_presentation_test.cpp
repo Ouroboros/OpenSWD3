@@ -9545,18 +9545,28 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_nested_heap_call.eax == 1U &&
                 stopped_nested_heap_call.accesses_completed ==
                     nonzero_emitter_release.accesses_completed + 20U &&
-                stopped_nested_heap_entry.eip == 0x0048C9B0U &&
+                stopped_nested_heap_entry.status ==
+                    LegacyBattleActorFrameEntryStatus::global_read_typed_stop &&
+                stopped_nested_heap_entry.eip == 0x0048C9B9U &&
                 stopped_nested_heap_entry.stopped_access_kind ==
-                    LegacyBattleActorFrameEntryAccessKind::callee_call &&
+                    LegacyBattleActorFrameEntryAccessKind::global_read &&
+                stopped_nested_heap_entry.stopped_token == 0x0053E7B4U &&
                 stopped_nested_heap_entry.esp ==
-                    nonzero_emitter_release.esp - 104U &&
+                    nonzero_emitter_release.esp - 468U &&
                 stopped_nested_heap_entry.ebp ==
+                    nonzero_emitter_release.esp - 108U &&
+                stopped_nested_heap_entry.last_pushed_value ==
                     nonzero_emitter_release.esp - 96U &&
-                stopped_nested_heap_entry.last_pushed_value == 0x0048B3F0U &&
+                same_frame_flags(
+                    stopped_nested_heap_entry.flags,
+                    expected_sub_esp_flags(
+                        nonzero_emitter_release.esp - 108U, 0x168U
+                    )
+                ) &&
                 stopped_nested_heap_entry.accesses_completed ==
-                    nonzero_emitter_release.accesses_completed + 25U &&
+                    nonzero_emitter_release.accesses_completed + 26U &&
                 nested_heap_port.calls == 0U,
-            "case2 debug flags5 preserves the second heap verifier call stack without pretending it returned"
+            "case2 debug flags5 reaches the inner pool index global read only after its large stack reservation"
         );
         constexpr std::array<u32, 4U> kDeepHeapWriteIps{
             0x0048B3E0U,
@@ -9619,6 +9629,55 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     std::to_string(ordinal)
             );
         }
+        auto inner_pool_prologue_request = nested_heap_request;
+        inner_pool_prologue_request.stop_before_access =
+            nonzero_emitter_release.accesses_completed + 25U;
+        ReleasePort untouched_inner_pool{};
+        const auto stopped_inner_pool_push = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                untouched_inner_pool,
+                inner_pool_prologue_request,
+                nonzero_emitter_release
+            );
+        test.expect_true(
+            stopped_inner_pool_push.status ==
+                    LegacyBattleActorFrameEntryStatus::stack_write_typed_stop &&
+                stopped_inner_pool_push.eip == 0x0048C9B0U &&
+                stopped_inner_pool_push.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::stack_write &&
+                stopped_inner_pool_push.stopped_token ==
+                    nonzero_emitter_release.esp - 108U &&
+                stopped_inner_pool_push.esp ==
+                    nonzero_emitter_release.esp - 104U &&
+                stopped_inner_pool_push.ebp ==
+                    nonzero_emitter_release.esp - 96U &&
+                stopped_inner_pool_push.last_pushed_value == 0x0048B3F0U &&
+                stopped_inner_pool_push.accesses_completed ==
+                    inner_pool_prologue_request.stop_before_access &&
+                untouched_inner_pool.calls == 0U,
+            "case2 debug flags5 inner pool prologue EBP push is an independent fault before reserving locals"
+        );
+        constexpr u32 kHeldInnerPoolIndex = 0U;
+        auto held_inner_pool = nested_heap_request;
+        held_inner_pool.decoder_small_pool_index_owner = &kHeldInnerPoolIndex;
+        ReleasePort held_inner_pool_port{};
+        const auto stopped_held_inner_pool = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_release_call(
+                held_inner_pool_port, held_inner_pool, nonzero_emitter_release
+            );
+        test.expect_true(
+            stopped_held_inner_pool.status ==
+                    LegacyBattleActorFrameEntryStatus::
+                        case_two_release_child_typed_stop &&
+                stopped_held_inner_pool.eip == 0x0048C9B9U &&
+                stopped_held_inner_pool.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::global_read &&
+                stopped_held_inner_pool.stopped_token == 0x0053E7B4U &&
+                stopped_held_inner_pool.accesses_completed ==
+                    nonzero_emitter_release.accesses_completed + 26U &&
+                held_inner_pool_port.calls == 0U,
+            "case2 debug flags5 held inner pool index still stops before an unmodelled read"
+        );
         constexpr std::array<u32, 5U> kDebugHeapSaveIps{
             0x00488BB0U,
             0x00488BB6U,
