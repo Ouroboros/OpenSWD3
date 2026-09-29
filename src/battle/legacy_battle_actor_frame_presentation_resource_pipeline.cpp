@@ -655,8 +655,9 @@ continue_legacy_battle_actor_frame_resource_gate(
                     LegacyBattleActorFrameEntryAccessKind::actor_read,
                     LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
                     instruction,
-                    request.actor_token + offset,
+                    prefix.esi + offset,
                     full_actor && request.actor_readable &&
+                        prefix.esi == request.actor_token &&
                         (offset != 0x000CU ||
                          actor.actor_resource_token_owner != nullptr)
                 )) {
@@ -671,8 +672,9 @@ continue_legacy_battle_actor_frame_resource_gate(
                     LegacyBattleActorFrameEntryAccessKind::actor_write,
                     LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
                     instruction,
-                    request.actor_token + offset,
-                    full_actor && request.actor_writable
+                    prefix.esi + offset,
+                    full_actor && request.actor_writable &&
+                        prefix.esi == request.actor_token
                 )) {
                 return false;
             }
@@ -802,8 +804,9 @@ continue_legacy_battle_actor_frame_selector_header(
                     LegacyBattleActorFrameEntryAccessKind::actor_read,
                     LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
                     instruction,
-                    request.actor_token + offset,
-                    full_actor && request.actor_readable
+                    prefix.esi + offset,
+                    full_actor && request.actor_readable &&
+                        prefix.esi == request.actor_token
                 )) {
                 return false;
             }
@@ -817,8 +820,9 @@ continue_legacy_battle_actor_frame_selector_header(
                 LegacyBattleActorFrameEntryAccessKind::actor_write,
                 LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
                 instruction,
-                request.actor_token + offset,
-                full_actor && request.actor_writable
+                prefix.esi + offset,
+                full_actor && request.actor_writable &&
+                    prefix.esi == request.actor_token
             )) {
             return false;
         }
@@ -1027,13 +1031,14 @@ continue_legacy_battle_actor_frame_case_one_header(
         return prefix;
     }
     if (prefix.accesses_completed == request.stop_before_access ||
-        actor.action_execution == nullptr || !request.actor_readable) {
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
         prefix.status =
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
         prefix.stopped_access_kind =
             LegacyBattleActorFrameEntryAccessKind::actor_read;
         prefix.stopped_instruction = 0x004799DCU;
-        prefix.stopped_token = request.actor_token + 0x2958U;
+        prefix.stopped_token = prefix.esi + 0x2958U;
         prefix.eip = 0x004799DCU;
         return prefix;
     }
@@ -2105,9 +2110,10 @@ continue_legacy_battle_actor_frame_case_one_phase_increment(
         prefix.eip != 0x00479AF1U) {
         return prefix;
     }
-    const u32 token = request.actor_token + 0x2958U;
+    const u32 token = prefix.esi + 0x2958U;
     if (prefix.accesses_completed == request.stop_before_access ||
-        actor.action_execution == nullptr || !request.actor_readable) {
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
         prefix.status =
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
         prefix.stopped_access_kind =
@@ -2120,7 +2126,7 @@ continue_legacy_battle_actor_frame_case_one_phase_increment(
     ++prefix.accesses_completed;
     const u16 before = actor.action_execution->turn_threshold;
     if (prefix.accesses_completed == request.stop_before_access ||
-        !request.actor_writable) {
+        !request.actor_writable || prefix.esi != request.actor_token) {
         prefix.status =
             LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
         prefix.stopped_access_kind =
@@ -2212,13 +2218,14 @@ continue_legacy_battle_actor_frame_case_two_header(
         return prefix;
     }
     if (prefix.accesses_completed == request.stop_before_access ||
-        actor.action_execution == nullptr || !request.actor_readable) {
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
         prefix.status =
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
         prefix.stopped_access_kind =
             LegacyBattleActorFrameEntryAccessKind::actor_read;
         prefix.stopped_instruction = 0x00479B06U;
-        prefix.stopped_token = request.actor_token + 0x2958U;
+        prefix.stopped_token = prefix.esi + 0x2958U;
         prefix.eip = 0x00479B06U;
         return prefix;
     }
@@ -2234,13 +2241,13 @@ continue_legacy_battle_actor_frame_case_two_header(
     }
     if (prefix.accesses_completed == request.stop_before_access ||
         actor.particle_source_token_owner == nullptr ||
-        !request.actor_readable) {
+        !request.actor_readable || prefix.esi != request.actor_token) {
         prefix.status =
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
         prefix.stopped_access_kind =
             LegacyBattleActorFrameEntryAccessKind::actor_read;
         prefix.stopped_instruction = 0x00479B13U;
-        prefix.stopped_token = request.actor_token + 0x0E14U;
+        prefix.stopped_token = prefix.esi + 0x0E14U;
         prefix.eip = 0x00479B13U;
         return prefix;
     }

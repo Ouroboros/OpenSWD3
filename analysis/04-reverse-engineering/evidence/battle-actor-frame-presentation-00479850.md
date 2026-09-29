@@ -4823,6 +4823,41 @@ LST→C++ 与 C++→LST 的局部核对；98 CALL/22 RET 深层、生产 caller 
 修正生产源、motion、height、flags RMW、draw actor 访存为物理 ESI/backing；
 7+6+13站、CALL槽及外来ESI核 token/kind/ESP/FLAGS/DF/已提交前缀；
 子级深层与原版差分 partial，定向 core/ASan `proc_4979` 各1/1。
+跨块复查纠差：LST A973/A98B、AA15/AA1B/AA32/AA39/AA47/AA4E/AA58
+及 A242/AA6A/B3F8/B7F0 均以物理 ESI 为访存基址，不能用请求 actor token
+假定另一 actor 的 backing。已修 case11 源/第二绘图和 case6/11/15/50 共享相位
+RMW 的 token/背书；外来 ESI 分别在 case11 源首读、第二绘图首读、
+DEC 首读停下，不提交后续写入；其他正常读写与分支沿用原址。
+`proc_087d` 定向 core/ASan 各1/1。`proc_14ef` 对此前块030提交快照
+core/ASan 各200/200、app 206/206；**不覆盖本次跨块修正**。
+`proc_c961` 机械静态栈审计249块/98 CALL/22 RET 入口深度及
+汇合深度无错误，但84个 CALL 行仍标 partial，22个 RET 的深层前驱
+未整体审完；真实生产 caller 的缺省 port 与条件化 binding 未收敛。
+继续纠差块031–033：LST AF1 的 word ADD、B06 的 phase CMP、B13 的粒子源 CMP
+均取物理 ESI，而非请求 token；C++ 已修访存 token 和背书，外来 ESI 在
+AF1/B06 首读停下，原 word 与前缀保持；`proc_3725` core/ASan 各1/1。
+继续纠差块017–024、026：LST 资源门 9965–999C、选择器 A5/AB/B5/BD
+及 99DC 均以实际 ESI 访存；C++ actor image 的 read/write 从
+request actor token 改为 ESI+offset，且 backing 仅在 ESI 相等时放行。
+外来 ESI 在资源门首读、选择器资源+20已读而角色首写前、case1
+phase 首读前停止，保持先前物理写；`proc_e5d4` core/ASan 各1/1。
+共用 selector 入口 A1A0/A94D/B2E8/B747/B83E 各物理 ESI+2958 首读与
+A253/A25A terminal word 写改为 ESI+offset/backing；五个入口外来 ESI
+均未借用 actor 的相位字，`proc_a940` core/ASan 各1/1。
+case51 B8DA 属性调用返回后物理 ESI+0DE0 的 byte OR 分离读写，
+外来 ESI 在已完成 47CE70 子调用后、OR 首读前停止；
+`proc_16f9` core/ASan 各1/1。case2/8/100 属性 OR 的
+C26/A717/B63D 均物理 ESI+0E3C，case9 共享 terminal 写与 case8
+A60B 粒子读的停点亦已统一；case2 子级 RET 后外来 ESI
+不再借请求 backing 读 emitter，`proc_6978` core/ASan 各1/1。
+CALL #2 子级 sub_47E950 在 E95D `MOV ESI,ECX` 后 F0BF/C5/D0/D6
+均以真实 ESI 访问 actor；修正 list-release image 借用及停点，
+外来 ECX 在四次寄存器保存后停于 F0BF，已提交 caller 前缀不回滚，
+`proc_884d` core/ASan 各1/1。子级链表节点和 CRT 深层仍 partial。
+以上均为局部验证，未关闭跨块 caller。
+对上述同一源码／测试快照，`proc_1061` 完整 Linux core
+200/200、ASan 200/200、Linux app 206/206 均通过；
+不代替98 CALL/22 RET 深层和生产 caller 的最终 REVIEW。
 新增块094：case7 第四绘图 A577 三次 signed phase NEG 写三全局，A585 首写后 PUSH 字面零，压 flags|4/H/W/Y−Oy+P+16（LEA 不改 FLAGS）/X−Ox+P，A5EA CALL sub4170E0 压 A5EF，第二组20参仍在调用方栈。7全局+13绘图物理站及 CALL 核 token/kind/ESP/FLAGS/DF/已提交前缀；像素/原版 partial，core/ASan `proc_f19e` 各1/1。
 新增块093：case7 第四矩形 A516 一次 source 供 H/W，Oy/Y 各独立重读，压 Y+H−Oy+P、X+W−Ox+P、Y+(H>>1)−Oy+P、X+(W>>1)−Ox+P；A572 CALL sub416FF0 压 A577。13物理站及 CALL 核 token/kind/ESP/FLAGS/DF/已压前缀；clip 深层/原版 partial，core/ASan `proc_200b` 各1/1。
 新增块092：case7 第三绘图 A4A0 后三次 signed phase NEG 全部写全局后才在 A4DB PUSH 字面零（不同于前两轮首写后压零）；压 flags|4/H/W/Y−P−Oy/X+P−Ox，A511 CALL sub4170E0 压 A516。6全局+14绘图物理站与 CALL 区分辅助 PUSH/五参并核 token/kind/ESP/FLAGS/DF/已提交前缀；像素/原版 partial，core/ASan `proc_25ab` 各1/1。

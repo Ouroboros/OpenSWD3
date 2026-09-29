@@ -945,8 +945,9 @@ LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_release(
                     LegacyBattleActorFrameEntryAccessKind::actor_read,
                     LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
                     instruction,
-                    request.actor_token + offset,
-                    full_actor && request.actor_readable
+                    prefix.esi + offset,
+                    full_actor && request.actor_readable &&
+                        prefix.esi == request.actor_token
                 )) {
                 return false;
             }
@@ -959,8 +960,9 @@ LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_release(
                     LegacyBattleActorFrameEntryAccessKind::actor_write,
                     LegacyBattleActorFrameEntryStatus::actor_write_typed_stop,
                     instruction,
-                    request.actor_token + offset,
-                    full_actor && request.actor_writable
+                    prefix.esi + offset,
+                    full_actor && request.actor_writable &&
+                        prefix.esi == request.actor_token
                 )) {
                 return false;
             }

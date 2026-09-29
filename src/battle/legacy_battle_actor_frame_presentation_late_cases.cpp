@@ -1660,8 +1660,9 @@ continue_legacy_battle_actor_frame_case_eleven_source(
             LegacyBattleActorFrameEntryAccessKind::actor_read,
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
             0x0047A973U,
-            request.actor_token + 0x2548U,
-            actor.action_execution != nullptr
+            prefix.esi + 0x2548U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
         )) {
         return prefix;
     }
@@ -1699,8 +1700,9 @@ continue_legacy_battle_actor_frame_case_eleven_source(
             LegacyBattleActorFrameEntryAccessKind::actor_read,
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
             0x0047A98BU,
-            request.actor_token + 0x2958U,
-            actor.action_execution != nullptr
+            prefix.esi + 0x2958U,
+            actor.action_execution != nullptr &&
+                prefix.esi == request.actor_token
         )) {
         return prefix;
     }
@@ -2902,8 +2904,8 @@ continue_legacy_battle_actor_frame_case_eleven_second_draw_arguments(
                 LegacyBattleActorFrameEntryAccessKind::actor_read,
                 LegacyBattleActorFrameEntryStatus::actor_read_typed_stop,
                 instruction,
-                request.actor_token + offset,
-                backed
+                prefix.esi + offset,
+                backed && prefix.esi == request.actor_token
             )) {
             return false;
         }
@@ -3101,9 +3103,10 @@ continue_legacy_battle_actor_frame_case_six_finish(
     };
     const u32 phase_instruction =
         address(0x0047A242U, 0x0047AA6AU, 0x0047B3F8U, 0x0047B7F0U);
-    const u32 phase_token = request.actor_token + 0x2958U;
+    const u32 phase_token = prefix.esi + 0x2958U;
     if (prefix.accesses_completed == request.stop_before_access ||
-        actor.action_execution == nullptr || !request.actor_readable) {
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
         prefix.status =
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
         prefix.stopped_access_kind =
@@ -3116,7 +3119,7 @@ continue_legacy_battle_actor_frame_case_six_finish(
     ++prefix.accesses_completed;
     const u16 before = actor.action_execution->turn_threshold;
     if (prefix.accesses_completed == request.stop_before_access ||
-        !request.actor_writable) {
+        !request.actor_writable || prefix.esi != request.actor_token) {
         prefix.status =
             LegacyBattleActorFrameEntryStatus::actor_write_typed_stop;
         prefix.stopped_access_kind =

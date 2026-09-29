@@ -778,7 +778,7 @@ continue_legacy_battle_actor_frame_case_two_property(
                               : 1U
     );
     if (prefix.flags.zero) {
-        const u32 field_token = request.actor_token + 0x0E3CU;
+        const u32 field_token = prefix.esi + 0x0E3CU;
         const bool full_actor = actor.residual != nullptr &&
             actor.progress != nullptr && actor.action_execution != nullptr &&
             actor.primary_coordinates != nullptr &&
@@ -791,7 +791,8 @@ continue_legacy_battle_actor_frame_case_two_property(
                     : case_eight_call ? 0x0047A717U
                                       : 0x00479C26U,
                 field_token,
-                full_actor && request.actor_readable
+                full_actor && request.actor_readable &&
+                    prefix.esi == request.actor_token
             )) {
             return prefix;
         }
@@ -814,7 +815,7 @@ continue_legacy_battle_actor_frame_case_two_property(
                     : case_eight_call ? 0x0047A717U
                                       : 0x00479C26U,
                 field_token,
-                request.actor_writable
+                request.actor_writable && prefix.esi == request.actor_token
             )) {
             return prefix;
         }
@@ -1490,7 +1491,7 @@ continue_legacy_battle_actor_frame_case_nine_header(
                 prefix.stopped_access_kind =
                     LegacyBattleActorFrameEntryAccessKind::actor_write;
                 prefix.stopped_instruction = instruction;
-                prefix.stopped_token = request.actor_token + offset;
+                prefix.stopped_token = prefix.esi + offset;
                 prefix.eip = instruction;
                 return false;
             }
@@ -2167,13 +2168,13 @@ continue_legacy_battle_actor_frame_case_eight_header(
     }
     if (prefix.accesses_completed == request.stop_before_access ||
         actor.particle_source_token_owner == nullptr ||
-        !request.actor_readable) {
+        !request.actor_readable || prefix.esi != request.actor_token) {
         prefix.status =
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
         prefix.stopped_access_kind =
             LegacyBattleActorFrameEntryAccessKind::actor_read;
         prefix.stopped_instruction = 0x0047A60BU;
-        prefix.stopped_token = request.actor_token + 0x0E14U;
+        prefix.stopped_token = prefix.esi + 0x0E14U;
         prefix.eip = 0x0047A60BU;
         return prefix;
     }

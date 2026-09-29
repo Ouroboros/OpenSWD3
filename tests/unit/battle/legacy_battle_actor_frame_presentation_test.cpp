@@ -3646,6 +3646,27 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         "composed reset route executes real child, empty-list release and parent RET"
     );
 
+    auto foreign_release_actor = empty_release_call;
+    foreign_release_actor.ecx += 0x100U;
+    const u32 mode_before_foreign_release = progress.mode_gate;
+    const auto foreign_release_stop =
+        openswd3::battle::continue_legacy_battle_actor_frame_release(
+            actor, forward, foreign_release_actor
+        );
+    test.expect_true(
+        foreign_release_stop.eip == 0x0047F0BFU &&
+            foreign_release_stop.stopped_token ==
+                foreign_release_actor.ecx + 0x2584U &&
+            foreign_release_stop.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::actor_read &&
+            foreign_release_stop.accesses_completed ==
+                foreign_release_actor.accesses_completed + 6U &&
+            foreign_release_stop.esp == foreign_release_actor.esp - 20U &&
+            foreign_release_stop.esi == foreign_release_actor.ecx &&
+            progress.mode_gate == mode_before_foreign_release &&
+            !foreign_release_stop.returned,
+        "nested list release saves registers before refusing a foreign ECX-to-ESI actor"
+    );
     auto release_push_fault = forward;
     release_push_fault.stop_before_access =
         empty_release_call.accesses_completed;
@@ -5172,8 +5193,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             0x2B08U, 0x03E0U, 0x2548U
         };
         bool resource_gate_faults_exact = true;
-        for (std::size_t stage = 0U;
-             stage < resource_gate_fault_ips.size(); ++stage) {
+        for (std::size_t stage = 0U; stage < resource_gate_fault_ips.size();
+             ++stage) {
             auto gate_fault = forward;
             gate_fault.stop_before_access =
                 lookup_ready.accesses_completed + stage;
@@ -5186,15 +5207,13 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     LegacyBattleActorFrameEntryStatus::actor_read_typed_stop &&
                 stopped.eip == resource_gate_fault_ips[stage] &&
                 stopped.stopped_token ==
-                    input.actor_token + resource_gate_fault_offsets[stage] &&
+                    lookup_ready.esi + resource_gate_fault_offsets[stage] &&
                 stopped.accesses_completed ==
                     lookup_ready.accesses_completed + stage &&
-                stopped.esp == lookup_ready.esp &&
-                stopped.flags_known &&
+                stopped.esp == lookup_ready.esp && stopped.flags_known &&
                 stopped.flags.zero == (stage != 2U) &&
-                stopped.flags.parity == (stage != 2U) &&
-                !stopped.flags.carry && !stopped.flags.sign &&
-                !stopped.flags.overflow &&
+                stopped.flags.parity == (stage != 2U) && !stopped.flags.carry &&
+                !stopped.flags.sign && !stopped.flags.overflow &&
                 stopped.eax == (stage == 2U ? 0x23U : 1U) &&
                 progress.post_action_value == 1U &&
                 action_execution.presentation_render_flags == 0xFFFFFFFFU;
@@ -5677,6 +5696,24 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             "Group-B canonical +0x0C resource pointer is read after the render mask and before resource+0x20"
         );
 
+        auto foreign_resource_lookup = resource_lookup;
+        foreign_resource_lookup.esi += 0x100U;
+        const auto foreign_resource_stop =
+            openswd3::battle::continue_legacy_battle_actor_frame_resource_gate(
+                group_b, group_b_input, foreign_resource_lookup
+            );
+        test.expect_true(
+            foreign_resource_stop.eip == 0x00479965U &&
+                foreign_resource_stop.stopped_token ==
+                    foreign_resource_lookup.esi + 0x2B08U &&
+                foreign_resource_stop.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::actor_read &&
+                foreign_resource_stop.accesses_completed ==
+                    foreign_resource_lookup.accesses_completed &&
+                foreign_resource_stop.esp == foreign_resource_lookup.esp &&
+                first.action_execution.presentation_render_flags == 0x80000003U,
+            "post-lookup resource gate refuses foreign physical ESI before any actor read"
+        );
         constexpr std::array<u32, 3U> kResourceMaskFaultIps{
             0x00479986U, 0x00479996U, 0x0047999CU
         };
@@ -5695,22 +5732,18 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 );
             resource_mask_faults_exact = resource_mask_faults_exact &&
                 stopped_mask.status ==
-                    (ordinal == 1U
-                         ? LegacyBattleActorFrameEntryStatus::
-                               actor_write_typed_stop
-                         : LegacyBattleActorFrameEntryStatus::
-                               actor_read_typed_stop) &&
+                    (ordinal == 1U ? LegacyBattleActorFrameEntryStatus::
+                                         actor_write_typed_stop
+                                   : LegacyBattleActorFrameEntryStatus::
+                                         actor_read_typed_stop) &&
                 stopped_mask.eip == kResourceMaskFaultIps[ordinal] &&
                 stopped_mask.stopped_token ==
-                    group_b_input.actor_token +
-                        kResourceMaskFaultOffsets[ordinal] &&
+                    resource_lookup.esi + kResourceMaskFaultOffsets[ordinal] &&
                 stopped_mask.accesses_completed ==
                     mask_fault.stop_before_access &&
                 stopped_mask.esp == resource_lookup.esp &&
-                stopped_mask.flags_known &&
-                !stopped_mask.flags.zero &&
-                stopped_mask.flags.parity &&
-                stopped_mask.flags.sign &&
+                stopped_mask.flags_known && !stopped_mask.flags.zero &&
+                stopped_mask.flags.parity && stopped_mask.flags.sign &&
                 stopped_mask.flags.carry == (ordinal == 0U) &&
                 stopped_mask.eax ==
                     (ordinal == 0U ? resource_lookup.eax : 0x80000003U) &&
@@ -5739,6 +5772,26 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 first.runtime_reset.field_2a95 == 0U,
             "resource+0x20 bit5 sets selector 100 before checking the separate +0x2A95 override"
         );
+        auto foreign_selector_prefix = resource_gate;
+        foreign_selector_prefix.esi += 0x100U;
+        first.base_initialization.field_2a94 = 0x5AU;
+        const auto foreign_selector_stop = openswd3::battle::
+            continue_legacy_battle_actor_frame_selector_header(
+                group_b, group_b_input, foreign_selector_prefix
+            );
+        test.expect_true(
+            foreign_selector_stop.eip == 0x004799A5U &&
+                foreign_selector_stop.stopped_token ==
+                    foreign_selector_prefix.esi + 0x2A94U &&
+                foreign_selector_stop.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::actor_write &&
+                foreign_selector_stop.accesses_completed ==
+                    foreign_selector_prefix.accesses_completed + 1U &&
+                foreign_selector_stop.esp == foreign_selector_prefix.esp &&
+                first.base_initialization.field_2a94 == 0x5AU,
+            "selector resource bit test commits before foreign ESI prevents the actor write"
+        );
+        first.base_initialization.field_2a94 = 100U;
         auto selector_byte_read_fault = group_b_input;
         selector_byte_read_fault.stop_before_access =
             resource_gate.accesses_completed + 3U;
@@ -6241,6 +6294,64 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 group_b_input, selector_one
             );
         first.action_execution.turn_threshold = 480U;
+        auto foreign_case_one_header = case_one_target;
+        foreign_case_one_header.esi += 0x100U;
+        const auto foreign_case_one_header_stop = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_header(
+                group_b, group_b_input, foreign_case_one_header
+            );
+        test.expect_true(
+            foreign_case_one_header_stop.eip == 0x004799DCU &&
+                foreign_case_one_header_stop.stopped_token ==
+                    foreign_case_one_header.esi + 0x2958U &&
+                foreign_case_one_header_stop.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::actor_read &&
+                foreign_case_one_header_stop.accesses_completed ==
+                    foreign_case_one_header.accesses_completed &&
+                first.action_execution.turn_threshold == 480U,
+            "case1 header refuses foreign physical ESI before comparing phase"
+        );
+        using SignedHeader =
+            decltype(&openswd3::battle::
+                         continue_legacy_battle_actor_frame_case_six_header);
+        constexpr std::array<std::pair<u32, SignedHeader>, 5U>
+            physical_case_headers{{
+                {0x0047A1A0U,
+                 &openswd3::battle::
+                     continue_legacy_battle_actor_frame_case_six_header},
+                {0x0047A94DU,
+                 &openswd3::battle::
+                     continue_legacy_battle_actor_frame_case_eleven_header},
+                {0x0047B2E8U,
+                 &openswd3::battle::
+                     continue_legacy_battle_actor_frame_case_fifteen_header},
+                {0x0047B747U,
+                 &openswd3::battle::
+                     continue_legacy_battle_actor_frame_case_fifty_header},
+                {0x0047B83EU,
+                 &openswd3::battle::
+                     continue_legacy_battle_actor_frame_case_fifty_one_header},
+            }};
+        bool all_foreign_headers_stop = true;
+        for (const auto& [entry, header] : physical_case_headers) {
+            auto foreign = case_one_target;
+            foreign.eip = entry;
+            foreign.esi += 0x100U;
+            const auto stopped = header(group_b, group_b_input, foreign);
+            all_foreign_headers_stop = all_foreign_headers_stop &&
+                stopped.eip == entry && stopped.stopped_instruction == entry &&
+                stopped.stopped_token == foreign.esi + 0x2958U &&
+                stopped.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::actor_read &&
+                stopped.accesses_completed == foreign.accesses_completed &&
+                stopped.esp == foreign.esp &&
+                stopped.direction_flag == foreign.direction_flag &&
+                first.action_execution.turn_threshold == 480U;
+        }
+        test.expect_true(
+            all_foreign_headers_stop,
+            "cases6/11/15/50/51 reject foreign physical ESI before phase read or reset"
+        );
         const auto phase_equal = openswd3::battle::
             continue_legacy_battle_actor_frame_case_one_header(
                 group_b, group_b_input, case_one_target
@@ -8017,6 +8128,10 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     LegacyBattleActorFrameEntryStatus::actor_write_typed_stop &&
                 stopped_phase_read.eip == 0x00479AF1U &&
                 stopped_phase_write.eip == 0x00479AF1U &&
+                stopped_phase_read.stopped_token ==
+                    completed_draw.esi + 0x2958U &&
+                stopped_phase_write.stopped_token ==
+                    completed_draw.esi + 0x2958U &&
                 stopped_phase_read.accesses_completed ==
                     completed_draw.accesses_completed &&
                 stopped_phase_write.accesses_completed ==
@@ -8024,6 +8139,23 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 stopped_phase_write.flags.sign == completed_draw.flags.sign &&
                 first.action_execution.turn_threshold == 480U,
             "phase word ADD read and write faults independently retain the callee FLAGS and unmodified phase"
+        );
+        auto foreign_case_one_phase = completed_draw;
+        foreign_case_one_phase.esi += 0x100U;
+        const auto foreign_case_one_phase_stop = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_one_phase_increment(
+                group_b, group_b_input, foreign_case_one_phase
+            );
+        test.expect_true(
+            foreign_case_one_phase_stop.eip == 0x00479AF1U &&
+                foreign_case_one_phase_stop.stopped_token ==
+                    foreign_case_one_phase.esi + 0x2958U &&
+                foreign_case_one_phase_stop.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::actor_read &&
+                foreign_case_one_phase_stop.accesses_completed ==
+                    foreign_case_one_phase.accesses_completed &&
+                first.action_execution.turn_threshold == 480U,
+            "case1 phase increment refuses foreign physical ESI after draw return"
         );
         const auto incremented_phase = openswd3::battle::
             continue_legacy_battle_actor_frame_case_one_phase_increment(
@@ -8095,7 +8227,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                                    : incremented_phase.esp + 0x18U +
                              static_cast<u32>(4U * ordinal)) &&
                 stopped_tail.stopped_token == stopped_tail.esp &&
-                stopped_tail.stopped_instruction == return_fault_eips[ordinal] &&
+                stopped_tail.stopped_instruction ==
+                    return_fault_eips[ordinal] &&
                 stopped_tail.stopped_access_kind ==
                     LegacyBattleActorFrameEntryAccessKind::stack_read &&
                 stopped_tail.eax == 0U && !stopped_tail.returned &&
@@ -8142,6 +8275,23 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         missing_group_b_emitter.particle_source_token_owner = nullptr;
         missing_group_b_emitter.particle_phase_owner = nullptr;
         first.action_execution.turn_threshold = 100U;
+        auto foreign_case_two_header = case_two_target;
+        foreign_case_two_header.esi += 0x100U;
+        const auto foreign_case_two_header_stop = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_header(
+                group_b, group_b_input, foreign_case_two_header
+            );
+        test.expect_true(
+            foreign_case_two_header_stop.eip == 0x00479B06U &&
+                foreign_case_two_header_stop.stopped_token ==
+                    foreign_case_two_header.esi + 0x2958U &&
+                foreign_case_two_header_stop.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::actor_read &&
+                foreign_case_two_header_stop.accesses_completed ==
+                    foreign_case_two_header.accesses_completed &&
+                foreign_case_two_header_stop.esp == foreign_case_two_header.esp,
+            "case2 phase comparison refuses foreign physical ESI before emitter access"
+        );
         const auto case_two_release = openswd3::battle::
             continue_legacy_battle_actor_frame_case_two_header(
                 group_b, group_b_input, case_two_target
@@ -8173,7 +8323,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     LegacyBattleActorFrameEntryStatus::actor_read_typed_stop &&
                 missing_emitter.eip == 0x00479B13U &&
                 missing_emitter.stopped_token ==
-                    group_b_input.actor_token + 0x0E14U &&
+                    case_two_target.esi + 0x0E14U &&
                 missing_emitter.accesses_completed ==
                     case_two_target.accesses_completed + 1U &&
                 !missing_emitter.flags.zero,
@@ -19758,8 +19908,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             emitter_fields_ready.esp - 4U,
             group_a_initial_request.actor_token + 0x2694U,
             emitter_fields_ready.esp - 4U,
-            group_a_initial_request.actor_token + 0x0E3CU,
-            group_a_initial_request.actor_token + 0x0E3CU,
+            emitter_fields_ready.esi + 0x0E3CU,
+            emitter_fields_ready.esi + 0x0E3CU,
         };
         for (std::size_t ordinal = 0U; ordinal < property_fault_eips.size();
              ++ordinal) {
@@ -19792,8 +19942,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                  (stopped_property.flags_known ==
                       emitter_fields_ready.flags_known &&
                   same_frame_flags(
-                      stopped_property.flags,
-                      emitter_fields_ready.flags
+                      stopped_property.flags, emitter_fields_ready.flags
                   ))) &&
                 (ordinal == 0U ||
                  stopped_property.last_pushed_value == 0x00479C21U) &&
@@ -19808,6 +19957,27 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         test.expect_true(
             property_accesses_exact,
             "case2 property CALL push, callee byte read, RET pop and optional byte RMW each preserve their independent fault prefix"
+        );
+        auto foreign_property_emitter = emitter_fields_ready;
+        foreign_property_emitter.esi += 0x100U;
+        group_a_phase.emitter.flags = 0x16U;
+        const auto foreign_property_stop = openswd3::battle::
+            continue_legacy_battle_actor_frame_case_two_property(
+                group_a_emitter,
+                group_a_initial_request,
+                foreign_property_emitter
+            );
+        test.expect_true(
+            foreign_property_stop.eip == 0x00479C26U &&
+                foreign_property_stop.stopped_token ==
+                    foreign_property_emitter.esi + 0x0E3CU &&
+                foreign_property_stop.stopped_access_kind ==
+                    LegacyBattleActorFrameEntryAccessKind::actor_read &&
+                foreign_property_stop.accesses_completed ==
+                    foreign_property_emitter.accesses_completed + 3U &&
+                foreign_property_stop.esp == foreign_property_emitter.esp &&
+                group_a_phase.emitter.flags == 0x16U,
+            "case2 property CALL returns before physical ESI mismatch stops the byte OR"
         );
         action_execution.presentation_render_flags = 0U;
         const auto no_property_bit = openswd3::battle::
@@ -23848,11 +24018,11 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         0x0047A99EU,
     };
     const std::array<u32, 6U> case_eleven_source_fault_tokens{
-        case_eight_forward_request.actor_token + 0x2548U,
+        case_eleven_skip_audio.esi + 0x2548U,
         action_execution.resource.token,
         0x004CC2F0U,
         0x004CD730U,
-        case_eight_forward_request.actor_token + 0x2958U,
+        case_eleven_skip_audio.esi + 0x2958U,
         0x004CC2F0U,
     };
     bool case_eleven_source_faults_exact = true;
@@ -23892,6 +24062,30 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_nine_shared.turn_frame_source_token ==
                 (ordinal >= 4U ? 0xAABBCCDDU : 0x11111111U);
     }
+    auto foreign_case_eleven_source = case_eleven_skip_audio;
+    foreign_case_eleven_source.esi += 0x100U;
+    case_nine_shared.special_render_mode = 0xDEADBEEFU;
+    case_nine_shared.turn_frame_source_token = 0x11111111U;
+    const auto foreign_case_eleven_source_stop =
+        openswd3::battle::continue_legacy_battle_actor_frame_case_eleven_source(
+            case_eight_view,
+            case_eight_forward_request,
+            foreign_case_eleven_source
+        );
+    test.expect_true(
+        foreign_case_eleven_source_stop.eip == 0x0047A973U &&
+            foreign_case_eleven_source_stop.stopped_token ==
+                foreign_case_eleven_source.esi + 0x2548U &&
+            foreign_case_eleven_source_stop.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::actor_read &&
+            foreign_case_eleven_source_stop.accesses_completed ==
+                foreign_case_eleven_source.accesses_completed &&
+            foreign_case_eleven_source_stop.esp ==
+                foreign_case_eleven_source.esp &&
+            case_nine_shared.special_render_mode == 0xDEADBEEFU &&
+            case_nine_shared.turn_frame_source_token == 0x11111111U,
+        "case11 foreign physical ESI cannot borrow source actor before either global write"
+    );
     const auto case_eleven_source_negative =
         openswd3::battle::continue_legacy_battle_actor_frame_case_eleven_source(
             case_eight_view, case_eight_forward_request, case_eleven_skip_audio
@@ -24326,19 +24520,19 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         16U,
     };
     const std::array<u32, 14U> case_eleven_second_fault_tokens{
-        case_eight_forward_request.actor_token + 0x2694U,
-        case_eight_forward_request.actor_token + 0x2548U,
+        case_eleven_second_stage.esi + 0x2694U,
+        case_eleven_second_stage.esi + 0x2548U,
         case_eleven_second_stage.esp - 4U,
         action_execution.resource.token + 0x0EU,
         action_execution.resource.token + 0x0CU,
         case_eleven_second_stage.esp - 8U,
-        case_eight_forward_request.actor_token + 0x2958U,
-        case_eight_forward_request.actor_token + 0x02B4U,
+        case_eleven_second_stage.esi + 0x2958U,
+        case_eleven_second_stage.esi + 0x02B4U,
         case_eleven_second_stage.esp - 12U,
-        case_eight_forward_request.actor_token + 0x0D68U,
-        case_eight_forward_request.actor_token + 0x29B2U,
+        case_eleven_second_stage.esi + 0x0D68U,
+        case_eleven_second_stage.esi + 0x29B2U,
         case_eleven_second_stage.esp - 16U,
-        case_eight_forward_request.actor_token + 0x0D66U,
+        case_eleven_second_stage.esi + 0x0D66U,
         case_eleven_second_stage.esp - 20U,
     };
     bool case_eleven_second_faults_exact = true;
@@ -24393,6 +24587,27 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     test.expect_true(
         case_eleven_second_faults_exact,
         "case11 second draw has fourteen distinct actor/frame/stack stops preserving both draw argument stacks"
+    );
+    auto foreign_case_eleven_second = case_eleven_second_stage;
+    foreign_case_eleven_second.esi += 0x100U;
+    const auto foreign_case_eleven_second_stop = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_eleven_second_draw_arguments(
+            case_eight_view,
+            case_eight_forward_request,
+            foreign_case_eleven_second
+        );
+    test.expect_true(
+        foreign_case_eleven_second_stop.eip == 0x0047AA15U &&
+            foreign_case_eleven_second_stop.stopped_token ==
+                foreign_case_eleven_second.esi + 0x2694U &&
+            foreign_case_eleven_second_stop.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::actor_read &&
+            foreign_case_eleven_second_stop.accesses_completed ==
+                foreign_case_eleven_second.accesses_completed &&
+            foreign_case_eleven_second_stop.esp ==
+                foreign_case_eleven_second.esp &&
+            foreign_case_eleven_second_stop.draw_argument_count == 0U,
+        "case11 second draw rejects foreign physical ESI before the first argument"
     );
     DrawPort case_eleven_second_draw{};
     auto case_eleven_second_call_fault = case_eight_forward_request;
@@ -24515,6 +24730,13 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             );
         case_eleven_finish_faults_exact = case_eleven_finish_faults_exact &&
             stopped.eip == case_eleven_finish_fault_eips[ordinal] &&
+            (ordinal >= 2U ||
+             (stopped.stopped_token == case_eleven_carry_prefix.esi + 0x2958U &&
+              stopped.stopped_access_kind ==
+                  (ordinal == 0U
+                       ? LegacyBattleActorFrameEntryAccessKind::actor_read
+                       : LegacyBattleActorFrameEntryAccessKind::
+                             actor_write))) &&
             stopped.accesses_completed == finish_fault.stop_before_access &&
             stopped.esp ==
                 case_eleven_carry_prefix.esp +
@@ -24522,15 +24744,15 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             action_execution.turn_threshold ==
                 (ordinal <= 1U ? 0xFFF1U : 0xFFF0U) &&
             (ordinal != 2U ||
-             (stopped.eax == 0U && stopped.flags.zero && !stopped.flags.carry)) &&
+             (stopped.eax == 0U && stopped.flags.zero &&
+              !stopped.flags.carry)) &&
             (ordinal != 6U ||
              (stopped.status ==
                   LegacyBattleActorFrameEntryStatus::stack_read_typed_stop &&
               stopped.stopped_instruction == 0x0047AA7AU &&
               stopped.stopped_access_kind ==
                   LegacyBattleActorFrameEntryAccessKind::stack_read &&
-              stopped.stopped_token == stopped.esp &&
-              stopped.eax == 0U &&
+              stopped.stopped_token == stopped.esp && stopped.eax == 0U &&
               stopped.ebx == input.entry_ebx &&
               stopped.ebp == input.entry_ebp &&
               stopped.esi == input.entry_esi &&
@@ -24540,9 +24762,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
               stopped.flags_known &&
               same_frame_flags(
                   stopped.flags,
-                  expected_add_esp_14_flags(
-                      case_eleven_carry_prefix.esp + 36U
-                  )
+                  expected_add_esp_14_flags(case_eleven_carry_prefix.esp + 36U)
               ) &&
               stopped.direction_flag ==
                   case_eleven_carry_prefix.direction_flag &&
@@ -24551,6 +24771,28 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     test.expect_true(
         case_eleven_finish_faults_exact,
         "case11 DEC read/write and physical POP/RET ordinals preserve phase write, XOR flags and stack prefixes"
+    );
+    auto foreign_case_eleven_finish = case_eleven_second_return;
+    foreign_case_eleven_finish.esi += 0x100U;
+    action_execution.turn_threshold = 0xFFF1U;
+    const auto foreign_case_eleven_finish_stop =
+        openswd3::battle::continue_legacy_battle_actor_frame_case_eleven_finish(
+            case_eight_view,
+            case_eight_forward_request,
+            foreign_case_eleven_finish
+        );
+    test.expect_true(
+        foreign_case_eleven_finish_stop.eip == 0x0047AA6AU &&
+            foreign_case_eleven_finish_stop.stopped_token ==
+                foreign_case_eleven_finish.esi + 0x2958U &&
+            foreign_case_eleven_finish_stop.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::actor_read &&
+            foreign_case_eleven_finish_stop.accesses_completed ==
+                foreign_case_eleven_finish.accesses_completed &&
+            foreign_case_eleven_finish_stop.esp ==
+                foreign_case_eleven_finish.esp &&
+            action_execution.turn_threshold == 0xFFF1U,
+        "case11 physical phase DEC rejects foreign ESI without changing the old word"
     );
     action_execution.turn_threshold = 0U;
     const auto case_eleven_wrapped =
@@ -26819,8 +27061,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         case_fifty_one_geometry.esp - 4U,
         case_eight_forward_request.actor_token + 0x2694U,
         case_fifty_one_geometry.esp - 4U,
-        case_eight_forward_request.actor_token + 0x0DE0U,
-        case_eight_forward_request.actor_token + 0x0DE0U,
+        case_fifty_one_geometry.esi + 0x0DE0U,
+        case_fifty_one_geometry.esi + 0x0DE0U,
     };
     bool case_fifty_one_property_faults_exact = true;
     for (std::size_t ordinal = 0U;
@@ -26860,6 +27102,29 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
               !stopped.flags.carry)) &&
             action_execution.case_fifty_one_flags == 0x16U;
     }
+    auto foreign_case_fifty_one_property = case_fifty_one_geometry;
+    foreign_case_fifty_one_property.esi += 0x100U;
+    action_execution.case_fifty_one_flags = 0x16U;
+    const auto foreign_case_fifty_one_property_stop = openswd3::battle::
+        continue_legacy_battle_actor_frame_case_fifty_one_property(
+            case_eight_view,
+            case_eight_forward_request,
+            foreign_case_fifty_one_property
+        );
+    test.expect_true(
+        foreign_case_fifty_one_property_stop.eip == 0x0047B8DAU &&
+            foreign_case_fifty_one_property_stop.stopped_token ==
+                foreign_case_fifty_one_property.esi + 0x0DE0U &&
+            foreign_case_fifty_one_property_stop.stopped_access_kind ==
+                LegacyBattleActorFrameEntryAccessKind::actor_read &&
+            foreign_case_fifty_one_property_stop.accesses_completed ==
+                foreign_case_fifty_one_property.accesses_completed + 3U &&
+            foreign_case_fifty_one_property_stop.esp ==
+                foreign_case_fifty_one_property.esp &&
+            foreign_case_fifty_one_property_stop.flags.zero &&
+            action_execution.case_fifty_one_flags == 0x16U,
+        "case51 property sub-call returns before OR byte refuses foreign physical ESI"
+    );
     action_execution.case_fifty_one_flags = 0xAB16U;
     const auto case_fifty_one_property_one = openswd3::battle::
         continue_legacy_battle_actor_frame_case_fifty_one_property(
