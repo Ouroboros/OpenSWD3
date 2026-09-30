@@ -1637,7 +1637,8 @@ continue_legacy_battle_actor_frame_case_three_header(
         return prefix;
     }
     if (prefix.accesses_completed == request.stop_before_access ||
-        actor.action_execution == nullptr || !request.actor_readable) {
+        actor.action_execution == nullptr || !request.actor_readable ||
+        prefix.esi != request.actor_token) {
         prefix.status =
             LegacyBattleActorFrameEntryStatus::actor_read_typed_stop;
         prefix.stopped_access_kind =

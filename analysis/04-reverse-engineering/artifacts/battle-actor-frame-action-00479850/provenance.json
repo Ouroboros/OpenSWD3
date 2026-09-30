@@ -1,0 +1,1880 @@
+{
+  "scope": "17 action-record state pairs, not complete nondefault function replay",
+  "run_directory": "build/vm/battle-actor-frame-oracle-output/run-20260930-123416-10172",
+  "run_manifest_sha256": "e33f25f4016eda8fcc1273d60332e0effe8183bdcd69e5ce803686836f406d15",
+  "events_sha256": "e803e90d36d65318f193f098f0cb1e6eac91c1b84205b4b483f473e9e896b1f7",
+  "fixture_sha256": "1c96aa915b281bfc0e216ddd3df68b7eece84581f594cf5863523acda8e77713",
+  "record_range": [
+    "0x3d0",
+    "0x468"
+  ],
+  "record_bytes": 152,
+  "row_count": 17,
+  "parent_stores": {
+    "0x00479887": "record.action_id = captured actor+0x2A0C",
+    "0x00479889": "record.base_variant = 0x24"
+  },
+  "pointer_adapter": "record+0x54 retains observed pointer in fixture; C++ slot is 0/1. Compare 148 other bytes and pointer zero/nonzero only.",
+  "original_stream_cache_mode": "not captured; test both provider cache settings, do not infer original setting",
+  "local_act_assets": {
+    "all_char.act": "84ba74a6803cda319d0a56eb79ad120296b090398f9dd2d2e9ee63414d0e8742",
+    "all_item.act": "3c4ba54f0b7b0f8d3b939fe9214c10e4235de37a018feca6dce6f683f6824110",
+    "all_magic.act": "abc8ea90eaafb530374ad2e8deee5b5b47d594a6fe491c95a33c243ab013177f",
+    "all_sys.act": "0144db85050be4dcd86c421102cfad3badf26d9abe6b93519b0d9d783cedc326",
+    "all_map1.act": "e7dea1a61a8655e0d98d9468af0b1fabda638bcf1703cbd7ea682af9378c02af",
+    "all_map2.act": "0bec670bcc5fae4e7c77f5dd89f6d3c4ebbf0ad0971b65e4905a5ef9f0218ff1"
+  },
+  "original_vm_act_asset_hashes": "not captured",
+  "excluded_sequence": {
+    "372": "sub_479850 shared reset clears slot2 after updater; after image is not an updater output"
+  },
+  "not_compared": [
+    "sub_4321E0 GPR/FLAGS/stack/SEH",
+    "ACT stream pointer identity",
+    "callee internal control flow",
+    "TSW/audio/render outputs",
+    "all of sub_479850"
+  ],
+  "samples": [
+    {
+      "sequence": 337,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 0,
+      "phase_after": 2,
+      "enter_actor_file": "actor-000337-enter.bin",
+      "enter_actor_sha256": "2cb0c7210524a10a928da41f5c773ef244670e5a8b075fe0516b0c78b01fc872",
+      "leave_actor_file": "actor-000337-leave.bin",
+      "leave_actor_sha256": "9b3b4288a934fb5c890b616be6c6046d18a3e573c84cdecd5c2099cfa7f9fc30",
+      "before_record_sha256": "85ada57e1f601e962d705f389285adb4e74f450bc00672240dfef7399d82457f",
+      "parent_prepared_record_sha256": "80c762b30f793c6df1b779c88a433ee6846f1bef9b95b425208388cf3c85b2c2",
+      "after_record_sha256": "78a33902b21fdf0195bfd707fd06ee1ee721a43b9b194fed8562413c0d568f9b",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479cbc",
+          "0x479cca"
+        ],
+        [
+          "0x479cca",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 337,
+        "snapshot_file": "frame-header-000337-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 339,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 2,
+      "phase_after": 4,
+      "enter_actor_file": "actor-000339-enter.bin",
+      "enter_actor_sha256": "460e0cf83f1731e06f76d94f14032e5c9440429a743c0fc17a27dd95efc7fd78",
+      "leave_actor_file": "actor-000339-leave.bin",
+      "leave_actor_sha256": "a166caf08732f2f0975393f51578e2aa3e885fff54039f6288ac3de2fcbdfaa4",
+      "before_record_sha256": "78a33902b21fdf0195bfd707fd06ee1ee721a43b9b194fed8562413c0d568f9b",
+      "parent_prepared_record_sha256": "78a33902b21fdf0195bfd707fd06ee1ee721a43b9b194fed8562413c0d568f9b",
+      "after_record_sha256": "9e1c57e25fd1112724c9a9a4b3949e9e4bd9f4a83b30d983caed6244e2369b93",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 339,
+        "snapshot_file": "frame-header-000339-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 341,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 4,
+      "phase_after": 6,
+      "enter_actor_file": "actor-000341-enter.bin",
+      "enter_actor_sha256": "8cfe55ebb2753632233ae5b69787c1471bfbe9ad1eda82fecafac81277bf8e08",
+      "leave_actor_file": "actor-000341-leave.bin",
+      "leave_actor_sha256": "48f0bfe63fff5a430159c7ef1c8505bfdf4df635942207b453a45324cff054d9",
+      "before_record_sha256": "9e1c57e25fd1112724c9a9a4b3949e9e4bd9f4a83b30d983caed6244e2369b93",
+      "parent_prepared_record_sha256": "9e1c57e25fd1112724c9a9a4b3949e9e4bd9f4a83b30d983caed6244e2369b93",
+      "after_record_sha256": "3cea9296d3c05055b4bb9c992d0f432e2e85a2053afd1e3af3fcbe87e8ca32e8",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 341,
+        "snapshot_file": "frame-header-000341-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 343,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 6,
+      "phase_after": 8,
+      "enter_actor_file": "actor-000343-enter.bin",
+      "enter_actor_sha256": "7b0210d11b69b3e2b3772cd373f1f56e1ce573c4fa162702df55bd38072c6eb4",
+      "leave_actor_file": "actor-000343-leave.bin",
+      "leave_actor_sha256": "907e63e36b170962b4cd515af9cb42e985da0bf294256f8b3aa08187c12fda96",
+      "before_record_sha256": "3cea9296d3c05055b4bb9c992d0f432e2e85a2053afd1e3af3fcbe87e8ca32e8",
+      "parent_prepared_record_sha256": "3cea9296d3c05055b4bb9c992d0f432e2e85a2053afd1e3af3fcbe87e8ca32e8",
+      "after_record_sha256": "afaf65a7ba434fbf63bee8d75a5e003f30d65a102586157bb0e5eb88c7654c20",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 343,
+        "snapshot_file": "frame-header-000343-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 345,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 8,
+      "phase_after": 10,
+      "enter_actor_file": "actor-000345-enter.bin",
+      "enter_actor_sha256": "e07afc9388db216ea617c472a1e05c6540636ce4ab002b85bb58de44d62426da",
+      "leave_actor_file": "actor-000345-leave.bin",
+      "leave_actor_sha256": "392eeb98584de8363d633f192d8ab3087279316e01c78744befbabf443ae39df",
+      "before_record_sha256": "afaf65a7ba434fbf63bee8d75a5e003f30d65a102586157bb0e5eb88c7654c20",
+      "parent_prepared_record_sha256": "afaf65a7ba434fbf63bee8d75a5e003f30d65a102586157bb0e5eb88c7654c20",
+      "after_record_sha256": "19e8d41375710089af18d6315dd765ee6b356eb46e04ba322f82f206c7fe6460",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 345,
+        "snapshot_file": "frame-header-000345-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 347,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 10,
+      "phase_after": 12,
+      "enter_actor_file": "actor-000347-enter.bin",
+      "enter_actor_sha256": "56cdc14d950f66340f5ddc4b9ced70e5b0a01e5eef21efb5c960bf266868b332",
+      "leave_actor_file": "actor-000347-leave.bin",
+      "leave_actor_sha256": "6c10c3cb28edd20df84eb329c456baef55b1674524f91118b40e82a3a9ad7c26",
+      "before_record_sha256": "19e8d41375710089af18d6315dd765ee6b356eb46e04ba322f82f206c7fe6460",
+      "parent_prepared_record_sha256": "19e8d41375710089af18d6315dd765ee6b356eb46e04ba322f82f206c7fe6460",
+      "after_record_sha256": "703ac70de1b6c8c477eb081b1bccc965ad4490fe1fddefdee2ec5b30d4be6855",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 347,
+        "snapshot_file": "frame-header-000347-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 349,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 12,
+      "phase_after": 14,
+      "enter_actor_file": "actor-000349-enter.bin",
+      "enter_actor_sha256": "006c3e00947d650636b69b6a0beee8e7ac6a0585f6335914866e1a028133bd56",
+      "leave_actor_file": "actor-000349-leave.bin",
+      "leave_actor_sha256": "b9bd8bce778ffa06bf15482ce0799d1e9be1baa6af414d4265b7a918af5b3912",
+      "before_record_sha256": "703ac70de1b6c8c477eb081b1bccc965ad4490fe1fddefdee2ec5b30d4be6855",
+      "parent_prepared_record_sha256": "703ac70de1b6c8c477eb081b1bccc965ad4490fe1fddefdee2ec5b30d4be6855",
+      "after_record_sha256": "55af76bdbbe9dff1fe89ffbd66ad6e1a647fb37cdcb3a3a65b6fdac06dac450f",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 349,
+        "snapshot_file": "frame-header-000349-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 351,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 14,
+      "phase_after": 16,
+      "enter_actor_file": "actor-000351-enter.bin",
+      "enter_actor_sha256": "44f0e6d709451cb8952a670b574fd6475c3bfdfd4416b5bcbd5738862a1bf65e",
+      "leave_actor_file": "actor-000351-leave.bin",
+      "leave_actor_sha256": "0b8fa7673a7e8d494f4899a8dcb7200479295b46cdc0df3d18de93b540b54753",
+      "before_record_sha256": "55af76bdbbe9dff1fe89ffbd66ad6e1a647fb37cdcb3a3a65b6fdac06dac450f",
+      "parent_prepared_record_sha256": "55af76bdbbe9dff1fe89ffbd66ad6e1a647fb37cdcb3a3a65b6fdac06dac450f",
+      "after_record_sha256": "8c1b1dd3a519ea2febbcec628b17bbce66a32d64af3caf7fc1611310cf24c121",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 351,
+        "snapshot_file": "frame-header-000351-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 354,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 16,
+      "phase_after": 18,
+      "enter_actor_file": "actor-000354-enter.bin",
+      "enter_actor_sha256": "d18f9d45577488770c79fcc43151a16ef75cfcc2500eeeb69f3360a5c4a6810e",
+      "leave_actor_file": "actor-000354-leave.bin",
+      "leave_actor_sha256": "a90f412af24ab808aacbb3faaa681f6811d3cb2c480f5488563b31d31e582e91",
+      "before_record_sha256": "85ada57e1f601e962d705f389285adb4e74f450bc00672240dfef7399d82457f",
+      "parent_prepared_record_sha256": "80c762b30f793c6df1b779c88a433ee6846f1bef9b95b425208388cf3c85b2c2",
+      "after_record_sha256": "78a33902b21fdf0195bfd707fd06ee1ee721a43b9b194fed8562413c0d568f9b",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 354,
+        "snapshot_file": "frame-header-000354-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 356,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 18,
+      "phase_after": 20,
+      "enter_actor_file": "actor-000356-enter.bin",
+      "enter_actor_sha256": "bc8ea3d6c01cc7a990aa34ae724a25ee8647320c4c7f876e67661de67ef500d8",
+      "leave_actor_file": "actor-000356-leave.bin",
+      "leave_actor_sha256": "94404b4c83985a8d1ee1730ef97d82bbeb3129eeb6038fcc18db6864e015933f",
+      "before_record_sha256": "78a33902b21fdf0195bfd707fd06ee1ee721a43b9b194fed8562413c0d568f9b",
+      "parent_prepared_record_sha256": "78a33902b21fdf0195bfd707fd06ee1ee721a43b9b194fed8562413c0d568f9b",
+      "after_record_sha256": "9e1c57e25fd1112724c9a9a4b3949e9e4bd9f4a83b30d983caed6244e2369b93",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 356,
+        "snapshot_file": "frame-header-000356-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 358,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 20,
+      "phase_after": 22,
+      "enter_actor_file": "actor-000358-enter.bin",
+      "enter_actor_sha256": "b85f49b4c300fe12fc899df2483642406215d1ccc20847bbdc91f4c9bba2b492",
+      "leave_actor_file": "actor-000358-leave.bin",
+      "leave_actor_sha256": "a5548d96f6e1f0a750c5da43a0b0c02237f65cab5fe5d9bdccab9dbe133cd5ff",
+      "before_record_sha256": "9e1c57e25fd1112724c9a9a4b3949e9e4bd9f4a83b30d983caed6244e2369b93",
+      "parent_prepared_record_sha256": "9e1c57e25fd1112724c9a9a4b3949e9e4bd9f4a83b30d983caed6244e2369b93",
+      "after_record_sha256": "3cea9296d3c05055b4bb9c992d0f432e2e85a2053afd1e3af3fcbe87e8ca32e8",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 358,
+        "snapshot_file": "frame-header-000358-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 360,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 22,
+      "phase_after": 24,
+      "enter_actor_file": "actor-000360-enter.bin",
+      "enter_actor_sha256": "e09df58f270fc5892ada2ce1a2ab897d08909bd56f141a7e21c5ef4098eb397f",
+      "leave_actor_file": "actor-000360-leave.bin",
+      "leave_actor_sha256": "b95c04f3bba6603d06ab2d5d72a1343a3bbdea33798e54c07f243138531277c2",
+      "before_record_sha256": "3cea9296d3c05055b4bb9c992d0f432e2e85a2053afd1e3af3fcbe87e8ca32e8",
+      "parent_prepared_record_sha256": "3cea9296d3c05055b4bb9c992d0f432e2e85a2053afd1e3af3fcbe87e8ca32e8",
+      "after_record_sha256": "afaf65a7ba434fbf63bee8d75a5e003f30d65a102586157bb0e5eb88c7654c20",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 360,
+        "snapshot_file": "frame-header-000360-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 362,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 24,
+      "phase_after": 26,
+      "enter_actor_file": "actor-000362-enter.bin",
+      "enter_actor_sha256": "b861f508a97a0c169074e92c02015b46f398f71f301c738c0429abd98152882b",
+      "leave_actor_file": "actor-000362-leave.bin",
+      "leave_actor_sha256": "e3d27a4c11ad0f7fe6050476446b14ebb3ca3bd5989a1d90fb0fbece4fa972ef",
+      "before_record_sha256": "afaf65a7ba434fbf63bee8d75a5e003f30d65a102586157bb0e5eb88c7654c20",
+      "parent_prepared_record_sha256": "afaf65a7ba434fbf63bee8d75a5e003f30d65a102586157bb0e5eb88c7654c20",
+      "after_record_sha256": "19e8d41375710089af18d6315dd765ee6b356eb46e04ba322f82f206c7fe6460",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 362,
+        "snapshot_file": "frame-header-000362-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 364,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 26,
+      "phase_after": 28,
+      "enter_actor_file": "actor-000364-enter.bin",
+      "enter_actor_sha256": "d821d5819d816f83e79b56586c9a412a98684f7c947c4688054d11f56fa0f4a2",
+      "leave_actor_file": "actor-000364-leave.bin",
+      "leave_actor_sha256": "6f9c827d06da084e7d3a87983b035a63f56a7f35cbd8eca8124130ffeba9fcd9",
+      "before_record_sha256": "19e8d41375710089af18d6315dd765ee6b356eb46e04ba322f82f206c7fe6460",
+      "parent_prepared_record_sha256": "19e8d41375710089af18d6315dd765ee6b356eb46e04ba322f82f206c7fe6460",
+      "after_record_sha256": "703ac70de1b6c8c477eb081b1bccc965ad4490fe1fddefdee2ec5b30d4be6855",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 364,
+        "snapshot_file": "frame-header-000364-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 366,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 28,
+      "phase_after": 30,
+      "enter_actor_file": "actor-000366-enter.bin",
+      "enter_actor_sha256": "4b524b0c1ab6fcef5a127c239ce04d013bb5d585e2cc96474fd5be5f754e5f71",
+      "leave_actor_file": "actor-000366-leave.bin",
+      "leave_actor_sha256": "b508e4b6809fadcecdb11b9e0f84ac8b477b846d7a32ad59881b68a3cd0b4f5c",
+      "before_record_sha256": "703ac70de1b6c8c477eb081b1bccc965ad4490fe1fddefdee2ec5b30d4be6855",
+      "parent_prepared_record_sha256": "703ac70de1b6c8c477eb081b1bccc965ad4490fe1fddefdee2ec5b30d4be6855",
+      "after_record_sha256": "55af76bdbbe9dff1fe89ffbd66ad6e1a647fb37cdcb3a3a65b6fdac06dac450f",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 366,
+        "snapshot_file": "frame-header-000366-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 368,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 30,
+      "phase_after": 32,
+      "enter_actor_file": "actor-000368-enter.bin",
+      "enter_actor_sha256": "51b55c75f052cc9da936d24deec7b4bb8d51db58f426cd0e4d3afa088ef7436f",
+      "leave_actor_file": "actor-000368-leave.bin",
+      "leave_actor_sha256": "9fed10918ae8fc80fbbd015da79430111bbfc316536ef2abc3d39ac5b306ad01",
+      "before_record_sha256": "55af76bdbbe9dff1fe89ffbd66ad6e1a647fb37cdcb3a3a65b6fdac06dac450f",
+      "parent_prepared_record_sha256": "55af76bdbbe9dff1fe89ffbd66ad6e1a647fb37cdcb3a3a65b6fdac06dac450f",
+      "after_record_sha256": "8c1b1dd3a519ea2febbcec628b17bbce66a32d64af3caf7fc1611310cf24c121",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 368,
+        "snapshot_file": "frame-header-000368-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    },
+    {
+      "sequence": 370,
+      "site": "final_group_b",
+      "actor": "0x525508",
+      "profile": 408,
+      "phase_before": 32,
+      "phase_after": 34,
+      "enter_actor_file": "actor-000370-enter.bin",
+      "enter_actor_sha256": "49c06e31774e2e1dd9c73802798439ede063319375cbab23427441164b0a3fad",
+      "leave_actor_file": "actor-000370-leave.bin",
+      "leave_actor_sha256": "a0d5ae14d1e144ae28ee4c8760b12ac4cb750f3b63cd13233bb7333c036daf1a",
+      "before_record_sha256": "8c1b1dd3a519ea2febbcec628b17bbce66a32d64af3caf7fc1611310cf24c121",
+      "parent_prepared_record_sha256": "8c1b1dd3a519ea2febbcec628b17bbce66a32d64af3caf7fc1611310cf24c121",
+      "after_record_sha256": "cf9f5f648681cf929ec1632a526a67ca4ca27fa9374ea2a4e3023a8d155823d4",
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ],
+      "after_frame_header": {
+        "address": "0x3e6ee38",
+        "byte_count": 16,
+        "phase": "leave",
+        "problem": null,
+        "region": "frame-header",
+        "sequence": 370,
+        "snapshot_file": "frame-header-000370-leave.bin",
+        "snapshot_sha256": "782737281ea09fe2355b7d189f286705776028a8f736046d0cead72d7807e36b",
+        "type": "memory"
+      }
+    }
+  ]
+}

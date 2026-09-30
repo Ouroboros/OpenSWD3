@@ -137,7 +137,11 @@ LegacyBattleActorFrameEntryResult enter_legacy_battle_actor_frame_presentation(
                 result.status =
                     LegacyBattleActorFrameEntryStatus::reset_child_typed_stop;
                 break;
+
+            default:  // Other kinds do not occur in this entry's touches.
+                break;
             }
+
             return false;
         }
 

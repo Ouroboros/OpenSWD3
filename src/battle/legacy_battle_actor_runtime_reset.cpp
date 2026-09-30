@@ -1604,6 +1604,7 @@ LegacyBattleActorRuntimeResetResult reset_legacy_battle_actor_runtime(
     eax = 0U;
     flags = logical_flags(eax, 0x80000000U);
     edi = ebx + 0x0338U;
+    edx = ebx + 0x0630U;
     if (!repeat_store(1U, 0x004789C5U)) {
         return finish();
     }
@@ -1622,7 +1623,6 @@ LegacyBattleActorRuntimeResetResult reset_legacy_battle_actor_runtime(
     if (!repeat_store(4U, 0x004789ECU)) {
         return finish();
     }
-    edx = ebx + 0x0630U;
     ecx = 0x130U;
     edi = edx;
     if (!repeat_store(5U, 0x004789F5U)) {
@@ -1631,6 +1631,7 @@ LegacyBattleActorRuntimeResetResult reset_legacy_battle_actor_runtime(
     eax = ebx + 0x2630U;
     ecx = 0U;
     flags = logical_flags(ecx, 0x80000000U);
+    edi = edx;
     if (!write_dword(0x00478A01U, 0x2630U, ecx) ||
         !write_dword(0x00478A03U, 0x2634U, ecx) ||
         !write_dword(0x00478A06U, 0x2638U, ecx) ||
@@ -1640,7 +1641,6 @@ LegacyBattleActorRuntimeResetResult reset_legacy_battle_actor_runtime(
     ecx = 0x130U;
     eax = 0U;
     flags = logical_flags(eax, 0x80000000U);
-    edi = edx;
     if (!repeat_store(6U, 0x00478A13U)) {
         return finish();
     }

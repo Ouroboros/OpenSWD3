@@ -626,7 +626,7 @@ continue_legacy_battle_actor_frame_case_seven_second_rectangle_arguments(
     const auto read_resource = [&](const u32 instruction,
                                    const u32 base,
                                    const u32 offset,
-                                   const u16 value,
+                                   const u16 /* value */,
                                    const bool known) {
         if (!touch(
                 LegacyBattleActorFrameEntryAccessKind::frame_resource_read,
@@ -637,6 +637,7 @@ continue_legacy_battle_actor_frame_case_seven_second_rectangle_arguments(
             )) {
             return false;
         }
+
         return true;
     };
     const auto push = [&](const u32 instruction, const u32 value) {

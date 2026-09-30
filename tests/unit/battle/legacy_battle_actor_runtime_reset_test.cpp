@@ -682,6 +682,129 @@ void test_battle_actor_runtime_reset(openswd3::test::Context& test) {
         );
     }
 
+    {
+        // LST zero-gate path: 36 fixed accesses, three later reads,
+        // three PUSHes, then the first STOSD at ordinal 42.
+        // 0x004789BF sets EDX before all four 38-dword repetitions.
+        constexpr std::array<u32, 4U> rep_ips{
+            0x004789C5U, 0x004789D2U, 0x004789DFU, 0x004789ECU
+        };
+        constexpr std::array<u32, 4U> rep_offsets{
+            0x0338U, 0x03D0U, 0x0468U, 0x0500U
+        };
+        bool rep_registers_exact = true;
+        for (const bool reverse : {false, true}) {
+            for (std::size_t rep = 0U; rep < rep_ips.size(); ++rep) {
+                for (u32 index = 0U; index < 38U; ++index) {
+                    Fixture fixture;
+                    Random random;
+                    const u32 token =
+                        openswd3::battle::kLegacyBattleActorGroupBBaseToken;
+                    auto entry = request(token);
+                    entry.direction_flag = reverse;
+                    entry.stop_before_access = 42U + rep * 38U + index;
+                    const auto stopped =
+                        openswd3::battle::reset_legacy_battle_actor_runtime(
+                            openswd3::battle::
+                                resolve_legacy_battle_actor_runtime_reset(
+                                    fixture.owners(), token
+                                ),
+                            random,
+                            entry
+                        );
+                    const u32 delta = reverse ? 0U - index * 4U : index * 4U;
+                    rep_registers_exact = rep_registers_exact &&
+                        stopped.status ==
+                            LegacyBattleActorRuntimeResetStatus::
+                                actor_write_typed_stop &&
+                        stopped.return_eip == rep_ips[rep] &&
+                        stopped.stopped_token ==
+                            token + rep_offsets[rep] + delta &&
+                        stopped.accesses_completed ==
+                            entry.stop_before_access &&
+                        stopped.return_eax == 0U &&
+                        stopped.return_ecx == 38U - index &&
+                        stopped.return_edx == token + 0x0630U &&
+                        stopped.return_edi ==
+                            token + rep_offsets[rep] + delta &&
+                        stopped.return_ebx == token &&
+                        stopped.return_ebp == 1U &&
+                        stopped.return_esi == entry.entry_esi &&
+                        stopped.return_esp == entry.entry_esp - 12U &&
+                        stopped.direction_flag == reverse &&
+                        stopped.rep_iterations[rep + 1U] == index &&
+                        stopped.flags_known && stopped.flags.zero &&
+                        stopped.flags.parity && !stopped.flags.carry &&
+                        !stopped.flags.sign && !stopped.flags.overflow &&
+                        !stopped.flags.auxiliary_carry_defined &&
+                        !stopped.returned && random.calls == 0U;
+                }
+            }
+        }
+
+        test.expect_true(
+            rep_registers_exact,
+            "all four 38-dword reset REP faults preserve the EDX established before the first REP in both DF directions"
+        );
+    }
+
+    {
+        // Four 38-dword stores and the first 304-dword store precede
+        // text: ordinal 42 + 152 + 304 = 498. MOV EDI,EDX at 0x004789FF
+        // occurs before all four text writes, not after them.
+        constexpr std::array<u32, 4U> text_ips{
+            0x00478A01U, 0x00478A03U, 0x00478A06U, 0x00478A09U
+        };
+        bool text_registers_exact = true;
+        for (const bool reverse : {false, true}) {
+            for (std::size_t index = 0U; index < text_ips.size(); ++index) {
+                Fixture fixture;
+                Random random;
+                const u32 token =
+                    openswd3::battle::kLegacyBattleActorGroupBBaseToken;
+                auto entry = request(token);
+                entry.direction_flag = reverse;
+                entry.stop_before_access = 498U + index;
+                const auto stopped =
+                    openswd3::battle::reset_legacy_battle_actor_runtime(
+                        openswd3::battle::
+                            resolve_legacy_battle_actor_runtime_reset(
+                                fixture.owners(), token
+                            ),
+                        random,
+                        entry
+                    );
+                text_registers_exact = text_registers_exact &&
+                    stopped.status ==
+                        LegacyBattleActorRuntimeResetStatus::
+                            actor_write_typed_stop &&
+                    stopped.return_eip == text_ips[index] &&
+                    stopped.stopped_token == token + 0x2630U + index * 4U &&
+                    stopped.accesses_completed == entry.stop_before_access &&
+                    stopped.return_eax == token + 0x2630U &&
+                    stopped.return_ecx == 0U &&
+                    stopped.return_edx == token + 0x0630U &&
+                    stopped.return_edi == token + 0x0630U &&
+                    stopped.return_ebx == token && stopped.return_ebp == 1U &&
+                    stopped.return_esi == entry.entry_esi &&
+                    stopped.return_esp == entry.entry_esp - 12U &&
+                    stopped.direction_flag == reverse &&
+                    stopped.rep_iterations[5U] == 304U &&
+                    stopped.rep_iterations[6U] == 0U && stopped.flags_known &&
+                    stopped.flags.zero && stopped.flags.parity &&
+                    !stopped.flags.carry && !stopped.flags.sign &&
+                    !stopped.flags.overflow &&
+                    !stopped.flags.auxiliary_carry_defined &&
+                    !stopped.returned && random.calls == 0U;
+            }
+        }
+
+        test.expect_true(
+            text_registers_exact,
+            "four reset text-write faults preserve MOV EDI,EDX before the first write in both DF directions"
+        );
+    }
+
     LegacyBattleActorRuntimeResetRequest complete_entry{};
     std::size_t complete_accesses{};
     {

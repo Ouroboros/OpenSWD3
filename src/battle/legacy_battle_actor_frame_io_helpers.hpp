@@ -647,6 +647,162 @@ stop_sound_before_deep_read(
         callee.stopped_token = 0U;
         return false;
     }
+
+    if (hook_target == 0x0048AA70U) {
+        // Only this held target has the audited five-instruction leaf.
+        // Its RET is not a return from sub_4885C0 or sub_4885A0.
+        const u32 crt_frame_pointer = callee.ebp;
+        if (!save(0x0048AA70U, callee.ebp)) {
+            return false;
+        }
+
+        callee.ebp = callee.esp;  // MOV EBP,ESP.
+        callee.eax = 1U;
+        if (!read_stack(0x0048AA78U, callee.esp)) {
+            return false;
+        }
+
+        callee.ebp = crt_frame_pointer;
+        callee.esp += 4U;
+        if (!read_stack(0x0048AA79U, callee.esp)) {
+            return false;
+        }
+
+        callee.esp += 4U;
+        const u32 before_argument_discard = callee.esp;
+        callee.esp += 0x1CU;  // 0x00488626 ADD ESP,1Ch.
+        callee.flags = add_flags(before_argument_discard, 0x1CU);
+        callee.flags = logical_result_flags(callee.eax);  // TEST EAX,EAX.
+        callee.flags_known = true;
+        callee.eip = 0x00488658U;  // EAX=1 takes JNZ; no free has completed.
+        if (!read_stack(0x00488658U, callee.ebp + 8U)) {
+            return false;
+        }
+
+        callee.edx = argument_token;
+        if (!save(0x0048865BU, callee.edx) || !save(0x0048865CU, 0x00488661U) ||
+            !save(0x00488F90U, callee.ebp)) {
+            return false;
+        }
+
+        callee.ebp = callee.esp;
+        if (!save(0x00488F93U, callee.ecx) ||
+            !read_stack(0x00488F94U, callee.ebp + 8U)) {
+            return false;
+        }
+
+        // This stack argument is the nonzero token already checked at
+        // 0x00488603 and pushed unchanged at 0x0048865B.
+        callee.flags = subtract_flags(argument_token, 0U);
+        if (!save(0x00488F9EU, 1U) || !save(0x00488FA0U, 0x20U) ||
+            !read_stack(0x00488FA2U, callee.ebp + 8U)) {
+            return false;
+        }
+
+        callee.eax = argument_token;
+        callee.flags = subtract_flags(callee.eax, 0x20U);
+        callee.eax -= 0x20U;
+        const u32 header_token = callee.eax;
+        const u32 validation_frame_pointer = callee.ebp;
+        if (!save(0x00488FA8U, callee.eax) || !save(0x00488FA9U, 0x00488FAEU) ||
+            !save(0x00488F40U, callee.ebp)) {
+            return false;
+        }
+
+        callee.ebp = callee.esp;
+        if (!save(0x00488F43U, callee.ecx) ||
+            !read_stack(0x00488F44U, callee.ebp + 8U)) {
+            return false;
+        }
+
+        callee.flags = subtract_flags(header_token, 0U);
+        if (header_token == 0U) {
+            // JZ precedes all Win32 argument reads/pushes. This write is
+            // not a PUSH: it must not overwrite last_pushed_value.
+            if (callee.accesses_completed == request.stop_before_access ||
+                !request.call_stack_writable) {
+                return stop(0x00488F7DU, callee.ebp - 4U, true);
+            }
+
+            ++callee.accesses_completed;
+            if (!read_stack(0x00488F84U, callee.ebp - 4U)) {
+                return false;
+            }
+
+            callee.eax = 0U;
+            callee.esp = callee.ebp;  // MOV ESP,EBP precedes the POP read.
+            if (!read_stack(0x00488F89U, callee.esp)) {
+                return false;
+            }
+
+            callee.ebp = validation_frame_pointer;
+            callee.esp += 4U;
+            if (!read_stack(0x00488F8AU, callee.esp)) {
+                return false;
+            }
+
+            callee.esp += 4U;  // RET returns only to 0x00488FAE.
+            const u32 before_validation_discard = callee.esp;
+            callee.esp += 0x0CU;
+            callee.flags = add_flags(before_validation_discard, 0x0CU);
+            callee.flags = logical_result_flags(callee.eax);  // TEST 0,0.
+            callee.eax = 0U;  // XOR EAX,EAX; JMP 0x00489012.
+            callee.flags = logical_result_flags(callee.eax);
+            callee.esp = callee.ebp;
+            if (!read_stack(0x00489014U, callee.esp)) {
+                return false;
+            }
+
+            callee.ebp = crt_frame_pointer;
+            callee.esp += 4U;
+            if (!read_stack(0x00489015U, callee.esp)) {
+                return false;
+            }
+
+            callee.esp += 4U;  // RET returns only to 0x00488661.
+            const u32 before_token_discard = callee.esp;
+            callee.esp += 4U;
+            callee.flags = add_flags(before_token_discard, 4U);
+            callee.flags = logical_result_flags(callee.eax);  // TEST 0,0.
+            callee.eip = 0x00488668U;
+            // The zero validator result does not return from free. It
+            // reaches assertion reporting; no report PUSH has run yet.
+            if (callee.accesses_completed == request.stop_before_access ||
+                !request.call_stack_writable) {
+                return stop(0x00488668U, callee.esp - 4U, true);
+            }
+
+            return true;
+        }
+
+        if (!read_stack(0x00488F4AU, callee.ebp + 0x0CU)) {
+            return false;
+        }
+
+        callee.eax = 0x20U;
+        if (!save(0x00488F4DU, callee.eax) ||
+            !read_stack(0x00488F4EU, callee.ebp + 8U)) {
+            return false;
+        }
+
+        callee.ecx = header_token;
+        if (!save(0x00488F51U, callee.ecx)) {
+            return false;
+        }
+
+        callee.eip = 0x00488F52U;
+        if (callee.accesses_completed == request.stop_before_access ||
+            !request.global_readable) {
+            callee.status =
+                LegacyBattleActorFrameEntryStatus::global_read_typed_stop;
+            callee.stopped_access_kind =
+                LegacyBattleActorFrameEntryAccessKind::global_read;
+            callee.stopped_instruction = 0x00488F52U;
+            callee.stopped_token = 0x004990BCU;
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -658,10 +814,21 @@ stop_release_before_crt_global(
 ) noexcept {
     callee.release_child = reply;
     callee.status = status;
-    callee.stopped_access_kind =
-        LegacyBattleActorFrameEntryAccessKind::callee_call;
+    // An independently held hook can have either same EIP, but its ESP
+    // still includes seven hook arguments and its RET slot (EBP-0x30).
+    const bool before_bad_read_import =
+        callee.eip == 0x00488F52U && callee.esp == callee.ebp - 0x0CU;
+    const bool before_null_assertion_push =
+        callee.eip == 0x00488668U && callee.esp == callee.ebp - 0x10U;
+    callee.stopped_access_kind = before_bad_read_import
+        ? LegacyBattleActorFrameEntryAccessKind::global_read
+        : before_null_assertion_push
+        ? LegacyBattleActorFrameEntryAccessKind::stack_write
+        : LegacyBattleActorFrameEntryAccessKind::callee_call;
     callee.stopped_instruction = callee.eip;
-    callee.stopped_token = 0U;
+    callee.stopped_token = before_bad_read_import ? 0x004990BCU
+        : before_null_assertion_push              ? callee.esp - 4U
+                                                  : 0U;
     return callee;
 }
 

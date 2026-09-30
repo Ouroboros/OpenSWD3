@@ -14,7 +14,7 @@ namespace {
 ) noexcept {
     return {
         .carry = false,
-        .parity = std::popcount(tested & 0xFFU) % 2U == 0U,
+        .parity = (std::popcount(tested & 0xFFU) & 1) == 0,
         .auxiliary_carry = false,
         .auxiliary_carry_defined = false,
         .zero = tested == 0U,

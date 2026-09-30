@@ -4407,6 +4407,34 @@ progress完成分支已在Group-A frame与Transition携带`actor_frames`两处�
 `0x004CD730/0x004CD75C`，显式快照仍优先；Group-B激活绘图后因源字节无owner停在
 `0x004170E8`，不能视为生产绘图闭合。非空链释放、完整函数、四处caller与其它独立分支的
 完整测试及最终REVIEW仍未完成；阶段性Linux core/app/ASan通过不替代全量门禁。
+最新v2回传的404组完整样本只覆盖最终组A/B两处调用；386组零门默认返回已送入
+生产C++入口复放，所比通用寄存器、归一化ESP与已定义FLAGS零差异。
+18组非默认均进入效果3，其中17组绘制、1组共享重置；17组动作记录分别由真实ACT的
+direct/cached生产路径复放，148字节及stream可用性零差异。末组返回前清空动作记录，
+不冒充更新器输出；其效果3重置尾段另使用六个捕获读字段比较2010个写字节及父级返回
+寄存器／已定义FLAGS，三种未读状态扰动均零差异，不称为完整入口复放或子调用现场。
+继续LST复核发现效果3首读借用错误actor backing、重置EDX／EDI赋值延后的三处偏差，
+均先由独立断言失败，再最小修正；旧852个ordinal覆盖不足以证明每站GPR正确。
+绘图内存、部分全局及子调用现场未捕获，完整非默认联合差分尚未证明。
+`proc_7c70` 重置修正快照core/ASan各200/200、app206/206通过。
+本轮另对明确持有的默认释放hook执行实际叶函数和参数出栈，核两种DF方向、
+合成调试设置及异目标前障；不透明CRT停止保留叶返回后的现场，不把EAX1
+当作完整free。`proc_64a4` 定向1/1通过、diagnostic=0；重编译暴露的四项
+既有警告仅作无行为变更修正；本轮 `wp316-default-release-hook-full-gates`
+的core/ASan各200/200、app206/206通过。随后同址异目标反例单独失败，按LST
+栈关系修正分类，再由 `proc_0e1c / wp316-default-release-hook-collision-final-gates`
+通过定向1/1、core/ASan各200/200及app206/206；四日志diagnostic=0，动作与
+重置局部差分均实际执行。以上是默认叶与分类修正快照。
+本轮继续推进释放后的488F90/488F40校验栈前缀，408个独立LST故障向量通过；
+非零header停在IsBadReadPtr首个IAT读前，零header的上一快照停在局部写前。
+本轮再补局部零写及两层POP/RET，共36个新访问前障；保留前408个向量。
+零结果只返回到断言首PUSH前，不报告、INT3或返回完整free；同址异目标另核
+真实栈关系，不借EIP分类。资源私有堆不是CRT创建／销毁链的绑定替代。
+最新 `proc_b069 / wp316-null-validation-return-final-gates` 215秒退出0，
+定向1/1、core/ASan各200/200、app206/206；四日志诊断0，动作与重置局部差分
+实际执行，无跳过。两项heap owner的真实生产赋值和CRT/Win32/SEH深层仍未证明。
+当前生产修正、对应测试与局部差分作为已验证阶段共同审查和发布；
+316最终REVIEW仍未完成，不升级inventory。未验证的断言续段草稿不纳入发布。
 机器证据与剩余缺口见`../evidence/battle-actor-frame-presentation-00479850.md`；
 未完成316前不得开始317。
 

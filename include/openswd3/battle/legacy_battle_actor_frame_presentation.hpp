@@ -860,9 +860,11 @@ public:
 class LegacyBattleActorFrameReleasePort {
 public:
     virtual ~LegacyBattleActorFrameReleasePort() = default;
-    // A false reply denotes an entry-only stop at sub_4885A0, before its
-    // first PUSH. Deep allocator/CRT failures require a separate trace and
-    // must not be represented as an entry-only reply after side effects.
+    // This whole-CRT port receives the original caller ABI, not the live
+    // registers at the frontend's audited prefix. A false reply supplies no
+    // observation of the unmodeled suffix: retain all explicitly committed
+    // prefix state and do not fabricate its return. A controlled true reply
+    // alone does not prove the remaining CRT or Win32 body.
     [[nodiscard]] virtual LegacyBattleActorFrameUpdateReply release_emitter(
         compat::u32 token,
         compat::u32 entry_eax,

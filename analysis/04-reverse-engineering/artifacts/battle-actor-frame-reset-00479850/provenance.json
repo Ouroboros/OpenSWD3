@@ -1,0 +1,480 @@
+{
+  "scope": "sequence372: six captured actor reads, LST-derived reset suffix, captured leave write bytes and parent return registers; not complete sub_479850 replay",
+  "source_run": "build/vm/battle-actor-frame-oracle-output/run-20260930-123416-10172",
+  "sequence": 372,
+  "source_manifest_sha256": "e33f25f4016eda8fcc1273d60332e0effe8183bdcd69e5ce803686836f406d15",
+  "source_events_sha256": "e803e90d36d65318f193f098f0cb1e6eac91c1b84205b4b483f473e9e896b1f7",
+  "target_lst_sha256": "701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b",
+  "fixture_sha256": "57164b2f20d25a87af68ffb5b644fd0338f809a6180eed80dbf1a8e88069a090",
+  "actor_files": {
+    "enter": {
+      "file": "actor-000372-enter.bin",
+      "sha256": "d5ade67009b4a2d19dabfd4ff230ba389f419200785931a1da0f1e4efcb605f6"
+    },
+    "leave": {
+      "file": "actor-000372-leave.bin",
+      "sha256": "ad9b981905a88498c388221edb0ab41d4e948ad8367e54e03b664e172ea389b5"
+    }
+  },
+  "stack_files": {
+    "enter": {
+      "file": "stack-000372-enter.bin",
+      "sha256": "194426ce390ecd11a48499272f75d0878f0e4bd89d228f29caec1f4c6b40b2d1"
+    },
+    "leave": {
+      "file": "stack-000372-leave.bin",
+      "sha256": "194426ce390ecd11a48499272f75d0878f0e4bd89d228f29caec1f4c6b40b2d1"
+    }
+  },
+  "observed_blocks": [
+    [
+      "0x479855",
+      "0x479867"
+    ],
+    [
+      "0x479867",
+      "0x47989b"
+    ],
+    [
+      "0x47989b",
+      "0x4798a3"
+    ],
+    [
+      "0x479920",
+      "0x479926"
+    ],
+    [
+      "0x479926",
+      "0x47992d"
+    ],
+    [
+      "0x479937",
+      "0x479945"
+    ],
+    [
+      "0x479945",
+      "0x47995f"
+    ],
+    [
+      "0x479965",
+      "0x47996e"
+    ],
+    [
+      "0x479986",
+      "0x4799a5"
+    ],
+    [
+      "0x4799ab",
+      "0x4799b5"
+    ],
+    [
+      "0x4799bb",
+      "0x4799cd"
+    ],
+    [
+      "0x4799cd",
+      "0x4799dc"
+    ],
+    [
+      "0x479ca6",
+      "0x479cb7"
+    ],
+    [
+      "0x47b801",
+      "0x47b81f"
+    ],
+    [
+      "0x47b81f",
+      "0x47b83e"
+    ]
+  ],
+  "read_fields": [
+    {
+      "offset": "0x2958",
+      "width": 2,
+      "value": "0x22"
+    },
+    {
+      "offset": "0xd9c",
+      "width": 1,
+      "value": "0x0"
+    },
+    {
+      "offset": "0xd94",
+      "width": 1,
+      "value": "0x0"
+    },
+    {
+      "offset": "0x2b00",
+      "width": 4,
+      "value": "0x0"
+    },
+    {
+      "offset": "0x2b04",
+      "width": 4,
+      "value": "0x0"
+    },
+    {
+      "offset": "0x2aa0",
+      "width": 4,
+      "value": "0x0"
+    }
+  ],
+  "suffix_write_sites": [
+    {
+      "instruction": "0x478856",
+      "offset": "0x2a12",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47885d",
+      "offset": "0x2aac",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478869",
+      "offset": "0x2ab0",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47886f",
+      "offset": "0x2ab4",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478875",
+      "offset": "0x2aa8",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47887b",
+      "offset": "0x2ae0",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478881",
+      "offset": "0x2b14",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478887",
+      "offset": "0x2a8c",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47888e",
+      "offset": "0x2a86",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478895",
+      "offset": "0x2ac8",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788a0",
+      "offset": "0x2ad4",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788ab",
+      "offset": "0x2acc",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788b1",
+      "offset": "0x2b0c",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788b9",
+      "offset": "0x2af4",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788bf",
+      "offset": "0x2a6c",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788c6",
+      "offset": "0x2a70",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788cd",
+      "offset": "0x2a72",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788d4",
+      "offset": "0x2a7a",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788db",
+      "offset": "0x29a4",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788e2",
+      "offset": "0x2668",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788ec",
+      "offset": "0x266c",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788f2",
+      "offset": "0x2954",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4788f9",
+      "offset": "0x2a68",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478902",
+      "offset": "0x2a6a",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478909",
+      "offset": "0x2674",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47890f",
+      "offset": "0x2a0e",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478916",
+      "offset": "0x2690",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47891c",
+      "offset": "0x2670",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478922",
+      "offset": "0x2a8a",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478929",
+      "offset": "0x29a6",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478930",
+      "offset": "0x29a8",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478937",
+      "offset": "0x29aa",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47893e",
+      "offset": "0x316",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478945",
+      "offset": "0x318",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47894c",
+      "offset": "0x26cc",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x4789c5",
+      "offset": "0x338",
+      "width": 4,
+      "repetitions": 38
+    },
+    {
+      "instruction": "0x4789d2",
+      "offset": "0x3d0",
+      "width": 4,
+      "repetitions": 38
+    },
+    {
+      "instruction": "0x4789df",
+      "offset": "0x468",
+      "width": 4,
+      "repetitions": 38
+    },
+    {
+      "instruction": "0x4789ec",
+      "offset": "0x500",
+      "width": 4,
+      "repetitions": 38
+    },
+    {
+      "instruction": "0x4789f5",
+      "offset": "0x630",
+      "width": 4,
+      "repetitions": 304
+    },
+    {
+      "instruction": "0x478a13",
+      "offset": "0x630",
+      "width": 4,
+      "repetitions": 304
+    },
+    {
+      "instruction": "0x478a20",
+      "offset": "0xd90",
+      "width": 4,
+      "repetitions": 10
+    },
+    {
+      "instruction": "0x478a01",
+      "offset": "0x2630",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478a03",
+      "offset": "0x2634",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478a06",
+      "offset": "0x2638",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478a09",
+      "offset": "0x263c",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478a26",
+      "offset": "0x2a56",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478a2c",
+      "offset": "0x2a5a",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478a32",
+      "offset": "0x2a5e",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x478a38",
+      "offset": "0x2a62",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47b801",
+      "offset": "0x2958",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47b808",
+      "offset": "0x2a12",
+      "width": 2,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47b816",
+      "offset": "0x3d0",
+      "width": 4,
+      "repetitions": 38
+    },
+    {
+      "instruction": "0x47b824",
+      "offset": "0x2aac",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47b82a",
+      "offset": "0x2ab8",
+      "width": 4,
+      "repetitions": 1
+    },
+    {
+      "instruction": "0x47b830",
+      "offset": "0x2abc",
+      "width": 4,
+      "repetitions": 1
+    }
+  ],
+  "suffix_write_sites_order": "write-mask index, not execution order; both repeated REP sites retained",
+  "distinct_compared_bytes": 2010,
+  "suffix_live_register_derivation": {
+    "esi": "actor from 0x479856 MOV ESI,ECX; preceding callees preserve ESI",
+    "ebx": "zero from 0x479858 XOR EBX,EBX; preceding callees preserve EBX",
+    "edi": "actor+0x3D0 from 0x479881 LEA; preceding callees preserve EDI",
+    "eax_upper16": "zero from 0x4799BB XOR EAX,EAX; selector MOV AL/DEC leave the upper half zero",
+    "esp": "observed entry ESP-36, SUB ESP,0x14 plus four PUSHes; earlier call arguments balanced"
+  },
+  "unobserved_dead_registers": "EAX low16, ECX, EDX, EBP, arithmetic FLAGS at 0x479CA6 are not captured. Vary dead GPR sentinels; initial arithmetic FLAGS remain unknown. Neither is labeled original input or callee reply.",
+  "unread_old_actor_bytes": "Seed compared write ranges with test sentinels, then apply only six captured reads. Old bytes outside the six reads are not asserted as original.",
+  "normalization": "retain raw leave ESP; guest return ESP=raw+4 per Frida16.5.1 ia32 leave thunk. Parent return also directly checked against captured entry-stack first dword 0x45ACC4. Frida EIP not compared.",
+  "not_compared": [
+    "earlier ACT/TSW callee state and effects",
+    "earlier parent instructions",
+    "suffix instruction-by-instruction runtime trace",
+    "guest page faults and SEH",
+    "full function joint diff"
+  ]
+}

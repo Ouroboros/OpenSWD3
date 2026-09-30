@@ -690,6 +690,10 @@ add_executable(
     unit/battle/legacy_battle_actor_runtime_reset_test.cpp
     unit/battle/legacy_battle_actor_action_presentation_test.cpp
     unit/battle/legacy_battle_actor_frame_presentation_test.cpp
+    unit/battle/legacy_battle_actor_frame_oracle_default_test.cpp
+    unit/battle/legacy_battle_actor_frame_oracle_action_test.cpp
+    unit/battle/legacy_battle_actor_frame_oracle_reset_test.cpp
+    unit/battle/legacy_battle_actor_frame_free_validation_test.cpp
     unit/battle/legacy_battle_actor_frame_rectangle_calls_test.cpp
 )
 target_include_directories(
@@ -700,6 +704,19 @@ target_link_libraries(
     openswd3_battle_actor_frame_316_tests
     PRIVATE openswd3_battle
 )
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.act"
+)
+    target_compile_definitions(
+        openswd3_battle_actor_frame_316_tests
+        PRIVATE OPENSWD3_REAL_ACT_ROOT="${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
 if(WIN32)
     target_link_options(
         openswd3_battle_actor_frame_316_tests

@@ -158,6 +158,51 @@ using openswd3::compat::u32;
     const bool before_argument_read = stopped.eip == 0x00488603U;
     const bool before_hook_read = stopped.eip == 0x00488620U;
     const bool at_hook_entry = stopped.eip == 0x0048AA70U;
+    if (stopped.eip == 0x00488F52U) {
+        const u32 header = argument_token - 0x20U;
+        return stopped.stopped_instruction == stopped.eip &&
+            stopped.stopped_access_kind ==
+            LegacyBattleActorFrameEntryAccessKind::global_read &&
+            stopped.stopped_token == 0x004990BCU &&
+            stopped.esp == before_call.esp - 92U &&
+            stopped.ebp == before_call.esp - 80U &&
+            stopped.accesses_completed ==
+            before_call.accesses_completed + (linked_node ? 47U : 46U) &&
+            stopped.last_pushed_value == header && stopped.eax == 0x20U &&
+            stopped.ecx == header && stopped.edx == argument_token &&
+            stopped.ebx == before_call.ebx && stopped.esi == expected_esi &&
+            stopped.edi == before_call.edi && stopped.flags_known &&
+            same_frame_flags(
+                   stopped.flags,
+                   {.parity = (std::popcount(static_cast<u8>(header)) & 1) == 0,
+                    .zero = header == 0U,
+                    .sign = (header & 0x80000000U) != 0U}
+            ) &&
+            stopped.direction_flag == before_call.direction_flag &&
+            !stopped.release_child.returned;
+    }
+
+    if (stopped.eip == 0x00488658U) {
+        return stopped.stopped_instruction == stopped.eip &&
+            stopped.stopped_access_kind ==
+            LegacyBattleActorFrameEntryAccessKind::stack_read &&
+            stopped.stopped_token == before_call.esp - 20U &&
+            stopped.esp == before_call.esp - 44U &&
+            stopped.ebp == before_call.esp - 28U &&
+            stopped.accesses_completed ==
+            before_call.accesses_completed + (linked_node ? 29U : 28U) &&
+            stopped.last_pushed_value == before_call.esp - 28U &&
+            stopped.eax == 1U && stopped.ecx == before_call.ecx &&
+            stopped.edx == 1U && stopped.ebx == before_call.ebx &&
+            stopped.esi == expected_esi && stopped.edi == before_call.edi &&
+            stopped.flags_known &&
+            same_frame_flags(
+                   stopped.flags, {.auxiliary_carry_defined = false}
+            ) &&
+            stopped.direction_flag == before_call.direction_flag &&
+            !stopped.release_child.returned;
+    }
+
     const auto expected_flags = before_debug_read ? before_call.flags
         : before_argument_read
         ? openswd3::battle::
@@ -909,10 +954,9 @@ void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
             hit.resource_value_00 == loaded.resource_value_00 &&
             hit.decoder_source.frame_owner ==
                 loaded.decoder_source.frame_owner &&
-            hit.ecx == 1U && hit.edx == 0x004CF86CU &&
-            hit.flags_known && !hit.flags.zero &&
-            hit.flags.parity ==
-                (std::popcount(hit.eax & 0xFFU) % 2U == 0U) &&
+            hit.ecx == 1U && hit.edx == 0x004CF86CU && hit.flags_known &&
+            !hit.flags.zero &&
+            hit.flags.parity == (std::popcount(hit.eax & 0xFFU) % 2 == 0) &&
             hit.flags.sign == ((hit.eax & 0x80000000U) != 0U) &&
             !hit.flags.auxiliary_carry_defined,
         "real TSW cache hit returns the same record and the bucket/key registers"
@@ -934,10 +978,9 @@ void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
             moved.resource_value_00 == loaded.resource_value_00 &&
             moved.decoder_source.frame_owner ==
                 loaded.decoder_source.frame_owner &&
-            moved.ecx == newer_head.eax - 8U &&
-            moved.edx == 0x004CF86CU && moved.flags_known &&
-            moved.flags.parity ==
-                (std::popcount(moved.eax & 0xFFU) % 2U == 0U) &&
+            moved.ecx == newer_head.eax - 8U && moved.edx == 0x004CF86CU &&
+            moved.flags_known &&
+            moved.flags.parity == (std::popcount(moved.eax & 0xFFU) % 2 == 0) &&
             moved.flags.sign == ((moved.eax & 0x80000000U) != 0U),
         "real non-head hit exposes the former bucket head node in ECX after relink"
     );
@@ -4063,7 +4106,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             linked_next.esi == 0x701300U &&
             linked_next.esp == stopped_node.esp &&
             linked_next.accesses_completed ==
-                stopped_node.accesses_completed + 26U &&
+                stopped_node.accesses_completed + 47U &&
             linked_done.status ==
                 LegacyBattleActorFrameEntryStatus::reset_returned &&
             linked_done.returned && linked_done.eax == 1U &&
@@ -4334,7 +4377,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             terminal_return_fault.eip == 0x0047F0F3U &&
             terminal_return_fault.esp == linked_release_call.esp - 4U &&
             terminal_return_fault.accesses_completed ==
-                linked_next.accesses_completed + 30U &&
+                linked_next.accesses_completed + 51U &&
             terminal_return_fault_port.calls == 1U,
         "borrowed node snapshot cannot override actor alias after head clear; final callee RET read faults after committed node release and POPs"
     );
@@ -9348,6 +9391,190 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 missing_debug_port.calls == 0U,
             "case2 release CRT debug flag needs an actual owner before reading"
         );
+        // LST 0x488620 calls the held hook. Only its actual 0x48AA70
+        // target has the five-instruction leaf body audited here.
+        constexpr u32 kDefaultReleaseHook = 0x0048AA70U;
+        constexpr std::array<u32, 3U> kLeafReleaseDebugFlags{0U, 1U, 4U};
+        constexpr std::array<u32, 3U> kLeafReleaseIps{
+            0x0048AA70U, 0x0048AA78U, 0x0048AA79U
+        };
+        const openswd3::battle::LegacyBattleActorCoordinateFlags
+            leaf_incoming_flags{.parity = true};  // CMP 0x801000,0.
+        const openswd3::battle::LegacyBattleActorCoordinateFlags
+            leaf_test_one_flags{.auxiliary_carry_defined = false};
+        bool default_release_leaf_faults_exact = true;
+        bool default_release_leaf_frontier_exact = true;
+        for (const bool backward : {false, true}) {
+            for (const u32 debug_flags : kLeafReleaseDebugFlags) {
+                auto leaf_request = group_b_input;
+                leaf_request.decoder_heap_debug_flags_owner = &debug_flags;
+                leaf_request.decoder_heap_alloc_owner = &kDefaultReleaseHook;
+                auto leaf_prefix = nonzero_emitter_release;
+                leaf_prefix.direction_flag = backward;
+                const std::size_t hook_entry_ordinal =
+                    leaf_prefix.accesses_completed + 25U +
+                    (debug_flags == 4U ? 12U : 0U);
+                for (u32 ordinal = 0U; ordinal < 3U; ++ordinal) {
+                    leaf_request.stop_before_access =
+                        hook_entry_ordinal + ordinal;
+                    ReleasePort leaf_port{};
+                    leaf_port.reply.returned = false;
+                    const auto stopped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_case_two_release_call(
+                            leaf_port, leaf_request, leaf_prefix
+                        );
+                    const bool push = ordinal == 0U;
+                    default_release_leaf_faults_exact =
+                        default_release_leaf_faults_exact &&
+                        stopped.status ==
+                            (push ? LegacyBattleActorFrameEntryStatus::
+                                        stack_write_typed_stop
+                                  : LegacyBattleActorFrameEntryStatus::
+                                        stack_read_typed_stop) &&
+                        stopped.eip == kLeafReleaseIps[ordinal] &&
+                        stopped.stopped_instruction == stopped.eip &&
+                        stopped.stopped_access_kind ==
+                            (push ? LegacyBattleActorFrameEntryAccessKind::
+                                        stack_write
+                                  : LegacyBattleActorFrameEntryAccessKind::
+                                        stack_read) &&
+                        stopped.stopped_token ==
+                            leaf_prefix.esp - (ordinal == 2U ? 76U : 80U) &&
+                        stopped.esp ==
+                            leaf_prefix.esp - (ordinal == 1U ? 80U : 76U) &&
+                        stopped.ebp ==
+                            leaf_prefix.esp - (ordinal == 1U ? 80U : 28U) &&
+                        stopped.eax == (push ? 0x00801000U : 1U) &&
+                        stopped.ecx ==
+                            (debug_flags == 4U ? 0U : leaf_prefix.ecx) &&
+                        stopped.edx == 1U && stopped.ebx == leaf_prefix.ebx &&
+                        stopped.esi == leaf_prefix.esi &&
+                        stopped.edi == leaf_prefix.edi &&
+                        stopped.last_pushed_value ==
+                            (push ? 0x00488626U : leaf_prefix.esp - 28U) &&
+                        stopped.accesses_completed ==
+                            leaf_request.stop_before_access &&
+                        stopped.flags_known &&
+                        same_frame_flags(stopped.flags, leaf_incoming_flags) &&
+                        stopped.direction_flag == backward &&
+                        !stopped.returned && !stopped.release_child.returned &&
+                        stopped.release_calls == 1U && leaf_port.calls == 0U;
+                }
+
+                leaf_request.stop_before_access =
+                    std::numeric_limits<u32>::max();
+                ReleasePort opaque_leaf_port{};
+                opaque_leaf_port.reply.returned = false;
+                const auto opaque_leaf = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_release_call(
+                        opaque_leaf_port, leaf_request, leaf_prefix
+                    );
+                leaf_request.stop_before_access = hook_entry_ordinal + 3U;
+                ReleasePort next_read_port{};
+                const auto next_read = openswd3::battle::
+                    continue_legacy_battle_actor_frame_case_two_release_call(
+                        next_read_port, leaf_request, leaf_prefix
+                    );
+                const auto frontier_matches = [&](const auto& stopped) {
+                    return stopped.eip == 0x00488658U &&
+                        stopped.stopped_instruction == stopped.eip &&
+                        stopped.stopped_access_kind ==
+                        LegacyBattleActorFrameEntryAccessKind::stack_read &&
+                        stopped.stopped_token == leaf_prefix.esp - 20U &&
+                        stopped.esp == leaf_prefix.esp - 44U &&
+                        stopped.ebp == leaf_prefix.esp - 28U &&
+                        stopped.eax == 1U &&
+                        stopped.ecx ==
+                        (debug_flags == 4U ? 0U : leaf_prefix.ecx) &&
+                        stopped.edx == 1U && stopped.ebx == leaf_prefix.ebx &&
+                        stopped.esi == leaf_prefix.esi &&
+                        stopped.edi == leaf_prefix.edi &&
+                        stopped.last_pushed_value == leaf_prefix.esp - 28U &&
+                        stopped.accesses_completed == hook_entry_ordinal + 3U &&
+                        stopped.flags_known &&
+                        same_frame_flags(stopped.flags, leaf_test_one_flags) &&
+                        stopped.direction_flag == backward &&
+                        !stopped.returned && !stopped.release_child.returned &&
+                        stopped.release_calls == 1U;
+                };
+                default_release_leaf_frontier_exact =
+                    default_release_leaf_frontier_exact &&
+                    opaque_leaf.eip == 0x00488F52U &&
+                    opaque_leaf.stopped_instruction == opaque_leaf.eip &&
+                    opaque_leaf.stopped_access_kind ==
+                        LegacyBattleActorFrameEntryAccessKind::global_read &&
+                    opaque_leaf.stopped_token == 0x004990BCU &&
+                    opaque_leaf.esp == leaf_prefix.esp - 92U &&
+                    opaque_leaf.ebp == leaf_prefix.esp - 80U &&
+                    opaque_leaf.eax == 0x20U &&
+                    opaque_leaf.ecx == 0x00800FE0U &&
+                    opaque_leaf.edx == 0x00801000U &&
+                    opaque_leaf.last_pushed_value == 0x00800FE0U &&
+                    opaque_leaf.accesses_completed ==
+                        hook_entry_ordinal + 21U &&
+                    opaque_leaf.flags_known &&
+                    same_frame_flags(opaque_leaf.flags, {}) &&
+                    opaque_leaf.direction_flag == backward &&
+                    !opaque_leaf.returned &&
+                    !opaque_leaf.release_child.returned &&
+                    opaque_leaf.status ==
+                        LegacyBattleActorFrameEntryStatus::
+                            case_two_release_child_typed_stop &&
+                    opaque_leaf_port.calls == 1U &&
+                    frontier_matches(next_read) &&
+                    next_read.status ==
+                        LegacyBattleActorFrameEntryStatus::
+                            stack_read_typed_stop &&
+                    next_read_port.calls == 0U;
+            }
+        }
+
+        test.expect_true(
+            default_release_leaf_faults_exact,
+            "held default release hook commits PUSH/MOV/POP/RET prefixes in both DF directions and debug flags0/1/4"
+        );
+        test.expect_true(
+            default_release_leaf_frontier_exact,
+            "default release hook supports the next-argument read fault and deeper validation stop without fabricating complete free"
+        );
+        constexpr std::array<u32, 5U> kOtherReleaseHooks{
+            0x0076AA70U, 0x00488658U, 0x00488F52U, 0x00488F7DU, 0x00488668U
+        };
+        for (const u32 other_hook_target : kOtherReleaseHooks) {
+            auto other_hook_request = group_b_input;
+            other_hook_request.decoder_heap_alloc_owner = &other_hook_target;
+            ReleasePort other_hook_port{};
+            other_hook_port.reply.returned = false;
+            const auto other_hook = openswd3::battle::
+                continue_legacy_battle_actor_frame_case_two_release_call(
+                    other_hook_port, other_hook_request, nonzero_emitter_release
+                );
+            test.expect_true(
+                other_hook.status ==
+                        LegacyBattleActorFrameEntryStatus::
+                            case_two_release_child_typed_stop &&
+                    other_hook.eip == other_hook_target &&
+                    other_hook.stopped_instruction == other_hook_target &&
+                    other_hook.stopped_access_kind ==
+                        LegacyBattleActorFrameEntryAccessKind::callee_call &&
+                    other_hook.stopped_token == 0U &&
+                    other_hook.esp == nonzero_emitter_release.esp - 76U &&
+                    other_hook.ebp == nonzero_emitter_release.esp - 28U &&
+                    other_hook.eax == 0x00801000U &&
+                    other_hook.last_pushed_value == 0x00488626U &&
+                    other_hook.accesses_completed ==
+                        nonzero_emitter_release.accesses_completed + 25U &&
+                    other_hook.flags_known &&
+                    same_frame_flags(other_hook.flags, leaf_incoming_flags) &&
+                    other_hook.direction_flag ==
+                        nonzero_emitter_release.direction_flag &&
+                    !other_hook.returned &&
+                    !other_hook.release_child.returned &&
+                    other_hook_port.calls == 1U,
+                "held different release hook, including modeled-prefix frontier EIPs, is not interpreted as the static default leaf"
+            );
+        }
+
         constexpr u32 kDebugReleaseFlag = 4U;
         auto debug_release = group_b_input;
         debug_release.decoder_heap_debug_flags_owner = &kDebugReleaseFlag;
@@ -16869,7 +17096,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                             const auto& empty_prefix = format_index == 0U
                                 ? synthetic_zero_prefix
                                 : eight_zero_prefix;
-                            const u32 first_pop = format_index == 0U
+                            const std::size_t first_pop = format_index == 0U
                                 ? first_command_stop.accesses_completed
                                 : eight_next_stop.accesses_completed;
                             const u32 stack_origin = format_index == 0U
@@ -29989,6 +30216,31 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 input.actor_token + 0x2958U,
         "case3 signed >32 reset gate, equal and negative active branches, zero audio with AX-only replace"
     );
+    auto case_three_foreign_esi = selector_three;
+    case_three_foreign_esi.esi = input.actor_token + 0x10000U;
+    const auto case_three_foreign_read =
+        openswd3::battle::continue_legacy_battle_actor_frame_case_three_header(
+            case_eight_view, case_eight_forward_request, case_three_foreign_esi
+        );
+    test.expect_true(
+        case_three_foreign_read.status ==
+                LegacyBattleActorFrameEntryStatus::actor_read_typed_stop &&
+            case_three_foreign_read.eip == 0x00479CA6U &&
+            case_three_foreign_read.stopped_instruction == 0x00479CA6U &&
+            case_three_foreign_read.stopped_token ==
+                case_three_foreign_esi.esi + 0x2958U &&
+            case_three_foreign_read.accesses_completed ==
+                selector_three.accesses_completed &&
+            case_three_foreign_read.eax == selector_three.eax &&
+            case_three_foreign_read.esp == selector_three.esp &&
+            case_three_foreign_read.flags_known == selector_three.flags_known &&
+            same_frame_flags(
+                case_three_foreign_read.flags, selector_three.flags
+            ) &&
+            case_three_foreign_read.direction_flag ==
+                selector_three.direction_flag,
+        "case3 phase word uses physical ESI and does not borrow another actor backing"
+    );
     const std::array<u32, 3U> case_three_audio_fault_eips{
         0x00479CBCU,
         0x00479CC2U,
@@ -42519,7 +42771,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             continue_legacy_battle_actor_frame_case_hundred_geometry(
                 case_eight_view, geometry_fault, case_hundred_dimensions
             );
-        const bool write = ordinal == 1U || ordinal >= 4U && ordinal <= 6U;
+        const bool write = ordinal == 1U || (ordinal >= 4U && ordinal <= 6U);
         const bool stop_exact = stopped.eip ==
                 case_hundred_geometry_fault_ips[ordinal] &&
             stopped.stopped_instruction == stopped.eip &&

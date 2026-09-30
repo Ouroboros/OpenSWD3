@@ -1809,6 +1809,124 @@ core／ASan 各200/200、app 206/206。
 core／ASan 各200/200、app 206/206。
 合成池基址不证明真实生产 owner 或原版内存池状态。
 
+#### 已持有默认释放hook的真实叶函数前缀（WIP）
+
+LST `.data:004A8360` 的静态初值是 `0x0048AA70`，不代表运行时
+owner已经绑定；只有真正读取的目标等于该地址时才执行已核叶。
+`0x0048AA70/71/73/78/79` 依次为 `PUSH EBP; MOV EBP,ESP;
+MOV EAX,1; POP EBP; RET`，不按请求类别或token改变返回值。
+此RET只回到 `0x00488626`，**不是**CRT或外层释放wrapper的返回。
+其它非零目标仍保留实际入口，零目标仍先提交CALL槽再停EIP0；
+缺owner仍在IAT首读前停，不用静态初值补造绑定。
+
+三处共享release续段现追加默认叶的PUSH、POP、RET三个物理访问，
+各有独立序号前障。设外层wrapper入口ESP=C，叶入站ESP=C−68、
+内层CRT EBP=C−20；PUSH写C−72后才设置EBP=C−72、EAX=1。
+POP前故障保留该新EBP；POP成功后RET前故障恢复EBP=C−20、
+ESP=C−68。两次读不修改末次PUSH记录，它仍是保存的C−20。
+叶返回后 `0x00488626 ADD ESP,1Ch` 清七个hook参数，ESP=C−36；
+`0x00488629 TEST EAX,EAX` 留CF/OF/ZF/SF/PF=0、AF未定义，DF不变，
+`0x0048862B JNZ` 到下一实参读 `0x00488658 [EBP+8]`，token=C−12。
+该读的序号前障不调用release port。不透明整段CRT回包不返回时，
+也在此尚未建模的读前保留已执行叶的GPR/ESP/FLAGS/DF；没有把叶的
+EAX=1当作整个free成功。正常受控整段CRT回包仍只支持条件性父尾段
+检验，不能证明后续 `sub_488F90`、堆元数据、Win32 free或SEH已完成。
+独立台账为 `build/workpack316/release-default-hook-audit.tsv`。
+
+case2以DF两方向和合成debug flags0/1/4核18个叶访问前障、6个后续
+实参读前障及6个不透明尾段停点，另核异目标不套用默认叶；链节点和
+case100消费相同前缀。两处旧链节点计数仅追加这三个真实访问。
+`proc_30f1` 在旧源码下恰有两个新增断言失败；首次实现的
+`proc_3b55` 新断言均通过，但旧链节点两个计数断言失败。修正计数和
+重编译暴露的四处既有警告后，`proc_64a4` 定向1/1通过，diagnostic=0。
+警告修正只给固定1/2/4字节写宽使用guest域u32、声明不使用的值参数，
+并显式保留入口局部switch对未使用kind的旧缺省行为，不改变读写或分支。
+受管 `wp316-default-release-hook-full-gates`（本轮ID `proc_f527`）
+229秒退出0；`build/tmp/runtime/wp316-default-release-hook-{core,asan,app}-full.log`
+分别核core200/200、ASan200/200和app206/206，diagnostic均0。
+三份LastTest均实际执行17组动作数据与seq372受限差分，无资产缺失跳过。
+此ID与历史早期入口验证同名，不以裸ID替代本轮进程名和日志路径。
+上述是静态LST与UT证据，**没有**新原版释放差分，也未解决两项heap owner
+的生产赋值。
+
+门禁后继续独立审查发现，仅按EIP=`0x00488658`识别已返回叶不足：
+held异目标也可直接等于该地址，却仍持有CALL返回槽和七参数。
+新增同址反例的 `proc_d2b3` 恰有该一个断言失败，无编译诊断。
+现同时核LST栈关系：已返回叶并清参数后 `ESP=EBP−0x10`，
+而异目标入口 `ESP=EBP−0x30`；后者保留callee-call kind、token0、
+EAX=原资源token和未弹CALL槽，不错误归类为下一栈读。
+不新增推测owner或依赖静态全局初值。受管
+`wp316-default-release-hook-collision-final-gates`（`proc_0e1c`）
+264秒退出0；collision-directed-final及collision-{core,asan,app}-full
+四份正式日志分别核1/1、200/200、200/200、206/206，diagnostic均0。
+三份LastTest实际执行17组动作和seq372尾段局部差分，无条件跳过。
+这是默认叶与同址分类修正快照的门禁，仍不是316整包最终验收；
+后续校验前缀推进不能沿用它作为最新源码验证。
+堆owner的静态初值、唯一命名setter的直接查询路径与C++赋值缺口另记
+`build/workpack316/heap-owner-producer-navigation.md`；命名引用搜索不证明
+已经排除间接别名或运行时修改。全部仍为316最终REVIEW的WIP，CRT深层
+和inventory状态不升级。
+
+#### 默认释放后的堆指针校验栈前缀（WIP）
+
+继续从原始LST独立推导 `0x00488658` 的实参重读、PUSH及CALL，
+进入 `sub_488F90`，再进入 `sub_488F40`。普通case以父压参前ESP=P计，
+非零header路径新增18个物理栈访问，停在 `0x00488F52`
+`CALL ds:IsBadReadPtr` 的 `0x004990BC` IAT首读前；ESP=P−92，
+EBP=P−80，EAX=20h，ECX=token−20h，EDX=token。
+该IAT未读、Win32 CALL返回槽未写，也没有Win32返回值。
+末次PUSH是header；FLAGS来自 `CMP header,0`，不是先前SUB的CF/OF。
+`SUB EAX,20h` 按32位回绕并在下一CMP前保留其借位和有符号溢出。
+
+合成token=20h时header为零，`0x00488F48 JZ` 在任何Win32压参之前
+跳 `0x00488F7D MOV [EBP−4],0`。上一快照只执行前14个栈访问，
+在局部写前停，ESP=P−84，EBP=P−80，EAX=0。
+本轮追加该局部写、结果读、两个POP与两个RET共六个物理访问。
+MOV局部零不是PUSH，不覆盖末次PUSH；它仍为保存的ECX。
+`488F87 MOV ESP,EBP` 先于488F89 POP读，恢复488F90的EBP；
+488F8A RET只回488FAE，清12字节参数、TEST0、XOR0后跳489012，
+第二次MOV ESP,EBP再先于489014 POP，489015 RET只回488661。
+清最后4字节参数、TEST0后到488668断言首PUSH前；ESP=P−44、
+EBP=P−28，EAX0，ECX保留或debug4下0，EDX20h，ZF/PF1、AF未定义。
+没有断言PUSH、报告调用、INT3或完整free返回；不把两个内部RET当成释放成功。
+真实序号前障阻止release port调用，opaque停止保留全部已执行现场。
+显式held异目标等于488F52、488F7D或488668时，其ESP仍为EBP−30h；
+不借同址EIP冒充已完成前缀。真实零结果返回后的488668为ESP=EBP−10h。
+
+`tests/unit/battle/legacy_battle_actor_frame_free_validation_test.cpp`
+使用独立LST地址、栈偏移和算术FLAGS推导408个访问前障，覆盖DF两方向、
+debug masks0/1/4，以及普通、SUB溢出、SUB借位、header零四类token。
+这些值全是测试输入，不声称原版动态值。台账为
+`build/workpack316/free-validation-prefix-audit.tsv`。
+`proc_5799` 在旧源码下恰有两个新增断言失败，无编译诊断。
+首次推进的 `proc_e92e` 新向量全部通过；七个旧停点／计数断言失败，
+另暴露TSW指针TEST的popcount有符号警告。旧断言按LST校验前缀更新，
+两链节点计数再加18；parity仅改等价整数奇偶表达式，不改可观察行为。
+最终快照门禁由 `proc_e1e6 / wp316-free-validation-prefix-final-gates`
+342秒退出0；四份 `wp316-free-validation-prefix-{directed-final,core-full,
+asan-full,app-full}.log` 分别核1/1、200/200、200/200、206/206，
+耗时0.55s、20.93s、33.93s、81.93s，诊断计数均0。
+三份LastTest实际打印17组动作与seq372局部差分，scoped计数各2、跳过0。
+这是前一校验栈前缀源码快照门禁，不是316整包验收。
+
+零header续段的 `proc_db6a / wp316-null-validation-return-red` 在旧源码下
+恰有两个新增断言失败，编译诊断0。新增36个独立LST前障覆盖DF两方向、
+debug0/1/4的六访问；原408个前缀向量仍保留，共444个访问前障。
+另核六个断言首PUSH序号前障和六个opaque尾段现场，并增加488668异目标。
+最新 `proc_b069 / wp316-null-validation-return-final-gates` 215秒退出0；
+四份 `wp316-null-validation-return-{directed-final,core-full,asan-full,
+app-full}.log` 分别核1/1、200/200、200/200、206/206，耗时0.61s、
+23.46s、36.55s、84.94s，四日志诊断0；三LastTest各实际执行17动作与
+seq372局部差分，scoped输出2、跳过0。无新原版释放差分。
+六访问独立台账为 `build/workpack316/null-validation-return-audit.tsv`。
+
+release port的接口注释同步明确：仍传原caller ABI，不传深层活跃GPR；
+false回复没有未知续段的观察，不能回滚显式前缀；受控true也不证明CRT。
+没有新原版释放差分、Win32/SEH实现或两项heap owner生产赋值证明。
+三处释放消费者复用此前缀，不代表98 CALL/22 RET深层已经闭合。
+本次将已验证的生产修正、对应测试和局部差分共同作为阶段发布边界；
+316最终REVIEW仍未完成，inventory保持pending_audit。未验证的断言续段草稿不纳入提交。
+
 case100 `0x0047B723` 的 reset CALL 另用已持有的独立 actor
 配置 owner 将 `+0x2AA0` 设为1，沿完整 `sub_478850` 子函数
 走过重复写入，再在 `0x00478A4D` 的随机子 CALL 停下；
@@ -5418,3 +5536,145 @@ Windows打包与便携自检，以及core200/200、ASan200/200、app206/206。
 系统用户目录的违规缓存仍不存在；v2共68份打包文件的哈希清单保存在
 `build/tmp/runtime/wp316-oracle-v2-package.sha256`。
 这些工具测试不等于原版v2运行，316完整CALL/RET、生产绑定和联合差分仍未完成。
+
+### v2原版回传核验与默认返回复放
+
+新原版材料位于
+`build/vm/battle-actor-frame-oracle-output/run-20260930-123416-10172/`。
+`proc_392e` 只读核验实际注入来源与发布v2哈希一致，
+2424份角色、栈和帧头快照的大小、SHA-256、索引及事件引用全部一致。
+416次调用均有返回：最终组A398次、最终组B18次；
+其中404组完整样本为A386组、B18组，另12次明确按已捕获片段重复筛选，
+没有预算耗尽、未返回、异常、warning或采集错误。
+808次入口/返回状态均具有原生PUSHFD FLAGS；404条同步块序列
+合计1128块，接收计数、结束标记及无截断条件吻合。
+链头首字的808次 `null_pointer` 是观察到的空指针，不改写为节点内容。
+行动组B及对手组A仍未观测；这不是四处调用全覆盖或最终联合差分。
+
+按LST独立分离386组 `actor+2ABC==0` 输入：
+`0x00479850..0x00479861` 完成四个保存寄存器压栈与门比较，
+随后直接到 `0x0047A80B..0x0047A814` 四POP、XOR EAX、ADD ESP14h、RET。
+该路径不调用子函数，不写角色。386组实际角色0x2B28字节逐字节未变，
+实际Stalker序列均为 `[479855,479867)`、`[47A80B,47A815)`；
+入口最初五字节被Interceptor搬入跳板，不伪称已经动态追踪到这些原址。
+最小观察标量和逐样本来源哈希保存于
+`artifacts/battle-actor-frame-default-00479850/`，未提交原始游戏内存包。
+
+复放之前先核Frida16.5.1 `guminterceptor-x86.c` 和 `guminterceptor.c`：
+ia32 `gum_emit_leave_thunk` 的 `stack_displacement=-sizeof(gpointer)`
+使CpuContext.esp仍指向next-hop字，离开跳板的RET才消费它；
+所以原始leave ESP保留在夹具，实际父级返回ESP单独按 `raw+4` 换算。
+`gum_function_context_fixup_cpu_context` 在begin/end两处均将EIP设为函数地址，
+故采集中的leave EIP=479850不是游戏RET目标；返回地址只能由已核验的
+最终组A CALL锚点及真实调用方分类确定为45AA38，不称EIP动态零差异。
+这些观测归一化不写原始采集、不改寄存器、不改变游戏业务。
+
+`legacy_battle_actor_frame_oracle_default_test.cpp` 将全部386组真实入口标量
+送入生产 `advance_legacy_battle_actor_frame_entry_route`，不提供受控子回包。
+EAX/ECX/EDX/EBX/EBP/ESI/EDI、归一化后的ESP、CF/PF/AF/ZF/SF/OF及DF
+均与实际leave一致；RET状态、父级返回地址、角色门字段和零子调用同时核验。
+仅入口门字段被该路径读取，未捕获的完整组A尾部或嵌套输入不作为零值使用。
+`proc_3186` core200/200，`proc_dab2` ASan200/200与app206/206通过，
+其中 `battle.actor_frame_316` 实际编译并运行新增复放测试。
+该结论仅为这386组默认返回的标量/寄存器差分；
+原始summary的 `original_diff_verified=false` 不改写，
+18组非默认路径、另两处调用、完整CALL/RET与真实生产绑定仍待收敛。
+因此316仍为 `pending_audit`，不得将本测试单独作为最终REVIEW或发布完成。
+
+### 18组非默认路径与17组动作数据差分
+
+`proc_7ba4` 核18组最终组B非默认样本均进入selector=3，
+由LST的 signed phase 与20h比较分为三条实际轨迹：
+sequence337为phase0→2，21块、8次父级CALL，包含一次音频；
+另16组phase2..32每次加2，20块、7次父级CALL；
+sequence372为phase34→0，15块、3次父级CALL并进入共享重置。
+合计356块、123次父级CALL、9个独特CALL站，与386组默认路径的
+772块相加恰为回传的1128块。17条绘制轨迹各两次绘图和三次矩形；
+这只是动态路径事实，不能把这些调用的深层合同自动升级。
+
+LST `0x00479887/0x00479889` 在更新前仅对slot2动作记录
+写captured profile和base variant24h。绘图/矩形不以slot2为参数，
+父级后缀也不写此记录；相应17组返回记录可用于动作数据局部比较。
+sequence372在 `0x0047B816 REP STOSD` 清空整个0x98字节slot2，
+其返回记录不是 `sub_4321E0` 的输出，因此明确排除，不能拿零记录
+伪作更新器期望结果。`proc_f11e` 核各组原始角色大小/哈希并提取
+两份0x98字节记录，最小夹具、来源及本地六份ACT哈希保存于
+`artifacts/battle-actor-frame-action-00479850/`；夹具SHA-256为
+`1c96aa915b281bfc0e216ddd3df68b7eece84581f594cf5863523acda8e77713`。
+原版VM的ACT文件哈希及 `[0x004FB308]` 缓存设置未捕获，不推断与
+本地文件身份相同，也不将两个设置中的任何一个称为原版实际设置。
+
+新增 `legacy_battle_actor_frame_oracle_action_test.cpp` 使用生产
+`LegacyActRuntime / LegacyActActionStreamProvider / LegacyActionUpdater`，
+从原始before记录应用上述两条父写，再分别走cached/direct真实ACT路径。
+17组各比较148字节及stream-pointer可用性，全部零差异；
+`+0x54` 按既有64位指针适配只比较零/非零，不比较原版guest地址身份。
+没有注入受控子回包、命令流、缺失的通用寄存器或FLAGS。
+该测试不执行完整父函数，也不比较更新器的寄存器、FLAGS、栈、SEH或
+内部控制流，不能称18条非默认联合复放通过。
+
+`proc_a876` 初次定向1/1通过，但重编译暴露旧测试中五处类型/优先级警告。
+相同计数域改用size_t、parity测试保持popcount的整数域、条件加括号后，
+`proc_ef22` 对最新代码快照重新执行core200/200、ASan200/200、app206/206，
+均通过且没有编译警告、测试失败或sanitizer错误；三组LastTest日志均明确
+打印17条动作记录、两种ACT缓存设置的实际复放，不是条件编译跳过。
+该测试随当前已验证的生产修正共同进行阶段审查与发布，不独立作为316关闭提交。
+
+`proc_9fa5` 对18组输入再核LST及实际事件，保存 `nondefault-paths.json`：
+36份栈和36份帧头均可读且哈希一致；36次链头为空是原始观测。
+未捕获的直接依赖包括矩形宽/高限制 `[0x004A0E78/0x004A0E7C]`
+（`0x0041700A/0x00417019`）、首次音频参数 `[0x004AB784]`
+（`0x00479CBC`）、ACT缓存设置 `[0x004FB308]`（`0x0043240D`）。
+角色资源 `+0x0C` 指向的字节、ACT/TSW缓存节点、源图像流、目标像素及
+行存储、音频表/后端、子调用通用寄存器/FLAGS、深层栈和SEH也未捕获。
+`0x004799A3→0x004799AB` 只能约束资源字节的bit5，不能生成整个字节；
+宽高限制不默认为640×480，缺失数据不以零或合成回包替代。
+当前材料不足以证明完整非默认联合差分，但这些缺口不替代仍待进行的
+静态深层合同和生产绑定审查。316继续 `pending_audit`。
+
+### 效果3地址核验与原版重置尾段受限差分
+
+重新从LST核效果3 `0x00479CA6 MOV AX,[ESI+2958h]` 至共享重置返回，发现该首读
+没有核物理ESI与提供的actor backing是否相同。旧C++会借用错误角色的相位字段。
+现与其它相位入口一致，在没有对应backing时于真实首读前typed-stop；token仍是
+物理ESI+2958h，不消费访问、不覆盖AX、FLAGS、DF或ESP。这是既有非法地址平台边界，
+不是新增游戏逻辑nil guard。异角色ESI独立向量在 `proc_743c` 中先失败，
+随后 `proc_ecce` 定向1/1通过。相同审查另发现重置子函数两处寄存器赋值延后；
+304个REP写障和8个文本写障的两个DF方向寄存器检查、修正及旧证据更正见
+`battle-actor-runtime-reset-00478850.md` 第10节。正常写序与RNG消费不变。
+
+sequence372 的相位34经 signed `CMP AX,20h / JG` 到 `0x0047B801`；该段先写
+相位与进度、清slot2的38个dword、在 `0x0047B81A` 执行真实typed重置子函数，再按
+三次父写、四POP、ADD ESP14h和RET返回。尾段六个实际角色输入均已捕获：
+相位word34，`+0D9C/+0D94` byte0，`+2B00/+2B04/+2AA0` dword0。
+因此本尾段不复制坐标，也不调用RNG，不需要缺失的绘图、声音或ACT/TSW输出作为读入。
+本路径不读的旧角色字节不能被称为真实输入。
+
+`proc_678c` 先只读核这些字段；最终 `proc_bd7e` 从原始frame／stack文件核大小、哈希、
+真实父返回地址45ACC4，以及同步目标块，再按LST的35个固定写、7个独立STOSD、
+文本／哨兵写和父级后缀提取写掩码。两次304-dword REP在站点清单中分别保留，
+仅最终数据比较的地址集合去重，共2010个字节、34条期望字节游程。
+来源、六个读字段、56个写站点及原始标量保存于
+`artifacts/battle-actor-frame-reset-00479850/`；夹具SHA-256为
+`57164b2f20d25a87af68ffb5b644fd0338f809a6180eed80dbf1a8e88069a090`。
+首次提取对Stalker块边界的假定错误，随后又让LST续字节行覆盖指令行，两次断言失败；
+均按原始块边界及实际带opcode的指令行修正，未修改原始材料或降低真实字段断言。
+
+`legacy_battle_actor_frame_oracle_reset_test.cpp` 只从效果3相位入口执行上述生产尾段，
+不执行其前置ACT/TSW调用，不伪造子回包。ESI、EDI、EBX、ESP及EAX高16位由已核
+LST前缀、平衡实参栈与callee保存合同派生；这些不是捕获的479CA6寄存器现场。
+未观测且在尾段被覆盖的EAX低16位、ECX、EDX、EBP和FLAGS不冒充原版值。
+三个明确标记为测试数据的不同哨兵扰动这些死GPR及所有即将覆写的旧字节，
+初始算术FLAGS保持unknown，不把默认成员值称为观测；随后只导入六个真实读字段。
+RNG不可调用，若被实际调用则终止测试，不返回合成值。
+
+三种扰动下，2010个写字节、七个父级返回GPR、归一化ESP、已定义算术FLAGS与DF
+都与原始leave零差异。原始leave ESP仍保留，guest ESP按已核Frida16.5.1跳板消费
+next-hop字单独+4；EIP不以Frida修正值比较，父返回地址还实际核了原始入口栈首dword。
+`proc_bd7e` 定向1/1实际运行该尾段及既有17组动作数据差分，但编译有四处size_t到
+32-bit字段的警告；将夹具元数据按guest偏移／长度域定义为u32后，`proc_7c70` 对
+最新代码重跑core200/200、ASan200/200、app206/206全部通过，三份完整日志没有
+warning、测试错误或sanitizer报告；三份LastTest均实际打印17组动作数据及本尾段比较。
+源manifest／events和夹具哈希再次吻合，未改原始采集。
+这里不比较前置callee输出、内部逐指令trace、异常页或SEH，更不是18组完整非默认
+联合复放。这些修正、测试与夹具随已验证阶段共同审查与发布，不构成316最终REVIEW验收，inventory不升级。

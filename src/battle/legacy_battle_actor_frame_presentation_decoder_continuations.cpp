@@ -819,7 +819,7 @@ continue_legacy_battle_actor_frame_case_two_property(
             )) {
             return prefix;
         }
-        const std::size_t width =
+        const u32 width =
             (case_eight_call || case_hundred_call) ? sizeof(u16) : sizeof(u8);
         std::memcpy(image.data() + 0x0E3CU, &updated_flags, width);
         synchronize_legacy_battle_actor_image_write(
@@ -2409,7 +2409,7 @@ continue_legacy_battle_actor_frame_case_eight_fields(
     const auto write_field = [&](const u32 instruction,
                                  const u32 offset,
                                  const u32 value,
-                                 const std::size_t size) {
+                                 const u32 size) {
         if (!touch(true, instruction, prefix.esi + offset, full_actor)) {
             return false;
         }

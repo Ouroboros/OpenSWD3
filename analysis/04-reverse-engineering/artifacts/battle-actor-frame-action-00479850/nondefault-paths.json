@@ -1,0 +1,335 @@
+{
+  "scope": "18 observed final_group_b nondefault parent paths, not original joint diff",
+  "source": "build/vm/battle-actor-frame-oracle-output/run-20260930-123416-10172",
+  "source_events_sha256": "e803e90d36d65318f193f098f0cb1e6eac91c1b84205b4b483f473e9e896b1f7",
+  "target_lst_sha256": "701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b",
+  "sample_count": 18,
+  "block_count": 356,
+  "parent_call_count": 123,
+  "callsite_counts": {
+    "0x00479921": 18,
+    "0x00479940": 18,
+    "0x00479CC5": 1,
+    "0x00479D39": 17,
+    "0x00479DAE": 17,
+    "0x00479E07": 17,
+    "0x00479E7C": 17,
+    "0x00479E98": 17,
+    "0x0047B81A": 1
+  },
+  "paths": [
+    {
+      "sequences": [
+        337
+      ],
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479cbc",
+          "0x479cca"
+        ],
+        [
+          "0x479cca",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ]
+    },
+    {
+      "sequences": [
+        339,
+        341,
+        343,
+        345,
+        347,
+        349,
+        351,
+        354,
+        356,
+        358,
+        360,
+        362,
+        364,
+        366,
+        368,
+        370
+      ],
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x479cb7",
+          "0x479cbc"
+        ],
+        [
+          "0x479ccd",
+          "0x479d3e"
+        ],
+        [
+          "0x479d3e",
+          "0x479db3"
+        ],
+        [
+          "0x479db3",
+          "0x479e0c"
+        ],
+        [
+          "0x479e0c",
+          "0x479e81"
+        ],
+        [
+          "0x479e81",
+          "0x479e9d"
+        ],
+        [
+          "0x479e9d",
+          "0x479eaa"
+        ]
+      ]
+    },
+    {
+      "sequences": [
+        372
+      ],
+      "blocks": [
+        [
+          "0x479855",
+          "0x479867"
+        ],
+        [
+          "0x479867",
+          "0x47989b"
+        ],
+        [
+          "0x47989b",
+          "0x4798a3"
+        ],
+        [
+          "0x479920",
+          "0x479926"
+        ],
+        [
+          "0x479926",
+          "0x47992d"
+        ],
+        [
+          "0x479937",
+          "0x479945"
+        ],
+        [
+          "0x479945",
+          "0x47995f"
+        ],
+        [
+          "0x479965",
+          "0x47996e"
+        ],
+        [
+          "0x479986",
+          "0x4799a5"
+        ],
+        [
+          "0x4799ab",
+          "0x4799b5"
+        ],
+        [
+          "0x4799bb",
+          "0x4799cd"
+        ],
+        [
+          "0x4799cd",
+          "0x4799dc"
+        ],
+        [
+          "0x479ca6",
+          "0x479cb7"
+        ],
+        [
+          "0x47b801",
+          "0x47b81f"
+        ],
+        [
+          "0x47b81f",
+          "0x47b83e"
+        ]
+      ]
+    }
+  ],
+  "captured_globals": [
+    "0x00499138",
+    "0x004A82F4",
+    "0x004A8360",
+    "0x004CD304",
+    "0x004CD30C",
+    "0x004CD71C",
+    "0x004CD730",
+    "0x0053E7B4",
+    "0x0053E7B8"
+  ],
+  "captured_memory_region_events": {
+    "stack": 36,
+    "frame-header": 36,
+    "list-head-word": 36
+  },
+  "required_uncaptured_globals": {
+    "0x004A0E78": {
+      "instruction": "0x0041700A",
+      "meaning": "rectangle width limit",
+      "captured": false
+    },
+    "0x004A0E7C": {
+      "instruction": "0x00417019",
+      "meaning": "rectangle height limit",
+      "captured": false
+    },
+    "0x004AB784": {
+      "instruction": "0x00479CBC",
+      "meaning": "first-phase audio argument",
+      "captured": false
+    },
+    "0x004FB308": {
+      "instruction": "0x0043240D",
+      "meaning": "action stream cache setting",
+      "captured": false
+    }
+  },
+  "other_uncaptured_inputs": [
+    "actor+0x0C pointed resource bytes, including +0x20 test byte",
+    "ACT query cache nodes, original ACT asset hashes, and sub_4321E0 child GPR/FLAGS",
+    "TSW query cache nodes and sub_4315D0 child GPR/FLAGS",
+    "frame source stream contents beyond its pointer in the 16-byte frame header",
+    "drawing destination pixels, row backing, clip globals, indirect pixel backend",
+    "audio table/backend state for the single 0x00479CC5 call",
+    "full nested-call stack and SEH state"
+  ],
+  "not_inferred": [
+    "rectangle limits are not silently assumed as 640x480",
+    "missing source bytes, GPR, FLAGS, cache state are not replaced by zero or replies",
+    "recorded branch 0x004799A3 -> 0x004799AB constrains resource bit5 only, not its whole byte"
+  ],
+  "original_joint_diff_verified": false
+}

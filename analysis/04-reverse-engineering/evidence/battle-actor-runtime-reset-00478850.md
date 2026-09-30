@@ -23,8 +23,9 @@ EIP 为物理返回地址。函数不执行 `cld`，全部 REP 使用入口 DF�
 
 ## 2. 固定前缀与条件字段
 
-入口先保存寄存器并建立 `EBX=actor`、`EAX=0`。随后按 LST 顺序执行 37 项固定
-字段访问，不能按字段类别重排。关键写入包括：
+入口先保存寄存器并建立 `EBX=actor`、`EAX=0`。随后到 `0x0047894C` 为止按 LST
+顺序执行 36 项固定字段访问（35 次写、1 次 DL 读），不能按字段类别重排。
+`0x00478954` 是由 TEST 控制的额外写，不计入固定访问。关键写入包括：
 
 - `+0x2A12=0`、`+0x2AAC=0`、`+0x2AB0=0`、`+0x2AB4=0`；
 - `+0x2A8C/+0x2A86/+0x2A6C/+0x2A70/+0x2A72/+0x2A7A` 的 word 写；
@@ -59,8 +60,12 @@ bit 3；置位时额外清零 `+0x2AF0`。随后读取 `+0x0D94` byte 并检查 
 10 dwords  from actor+0x0D90
 ```
 
-两次 304-dword 清零之间，函数另把 `actor+0x2630..0x263F` 四个 dword 逐项写
-为零。两次 304-dword REP 是两个独立、顺序可观察的物理写序列，不能去重。
+`0x004789BF LEA EDX,[EBX+630h]` 在第一段38-dword REP之前完成，不能延后到
+第一段304-dword REP之前。任一前四段REP停点的EDX已经是actor+0x630。
+两次304-dword清零之间，`0x004789FF MOV EDI,EDX` 先完成，再把
+`actor+0x2630..0x263F` 四个dword逐项写为零；这些写前停点的EDI已经回到
+actor+0x630，而不是第一次304-dword REP推进后的地址。
+两次304-dword REP是两个独立、顺序可观察的物理写序列，不能去重。
 七段 STOSD 共 770 次 dword 写；加上条件 MOVSD 后共 8 个 REP 段。
 
 最后恢复入口 EDI，并依次把 `+0x2A56/+0x2A5A/+0x2A5E/+0x2A62` 四个 dword
@@ -76,7 +81,7 @@ RNG 正常结果范围为 50..189。ECX/EDX 保留 callee 返回 residue，不�
 ## 4. Canonical owner 与共享 backing
 
 实现不建立第二套完整 actor。`LegacyBattleActorRuntimeResetView` 只在调用时把现有
-canonical owner 物化成瞬时 `0x2B18` byte image；每个成功物理写立即同步回所有
+canonical owner 物化成瞬时 byte image（当前316扩展后为 `0x2B24`）；每个成功物理写立即同步回所有
 重叠 owner，因此后续读取、重复 REP、同址覆盖和 typed-stop 部分提交都观察到同一
 backing。
 
@@ -169,10 +174,11 @@ sub_47E880  0x0047E8B3
 
 ## 8. 双向追溯与测试范围
 
-LST 到 C++ 已覆盖完整 112 条指令、5 个条件跳转、8 个 REP、唯一 RNG CALL、寄存器
-保存/恢复、flags、DF、ESP/EIP 和全部退出。C++ 到 LST 反向追溯覆盖瞬时 byte image、
-canonical alias 同步、五类 typed-stop、17 个真实 caller 和 5 个延期 caller；没有
-无法反查到 LST 或已登记平台适配的生产行为。
+Workpack305 发布时记录了完整112条指令、5个条件跳转、8个REP、唯一RNG CALL、
+寄存器保存/恢复、flags、DF、ESP/EIP、canonical alias及caller追溯。
+316继续核父级重置路径时，实际发现两处寄存器赋值延后，说明当时的852个ordinal
+全扫没有充分验证每站寄存器值，不能沿用旧记录作为这些fault前缀已经正确的证明。
+本轮修正与独立向量见第10节；17个父CALL身份和5个延期边界不因该错误而扩大范围。
 
 测试覆盖：
 
@@ -201,7 +207,32 @@ SHA-256 为
 
 ## 9. 动态差分状态
 
-当前缺少原版完整 Group-A/Group-B actor backing、入口 DF=1、异常字段页、REP 中段
-异常页、异常栈页、RNG 联合状态及 22 个 caller 的寄存器/flags/SEH 捕获后端。原版
-动态差分登记为 `blocked_runtime_oracle`，不得写成 `original_diff_verified`。该阻塞
-不改变当前静态 LST 收敛、17 个已关闭 CALL 身份和 5 个延期边界。
+Workpack305发布时没有原版完整Group-A/Group-B backing与子调用现场。
+316后续取得的组B样本可以比较一个零门、无RNG重置尾段的数据及父级返回状态，
+但仍缺覆盖全部分支的输入、DF=1动态样本、异常字段页、REP中段异常页、异常栈页、
+RNG联合状态及22个caller的子调用寄存器/flags/SEH。
+整条重置函数原版差分仍不能写成 `original_diff_verified`。缺少后端也不自动证明
+所有fault前缀正确。17个已关闭CALL身份和5个延期边界仍按原范围记录。
+
+## 10. Workpack316发现的寄存器时序修正
+
+从LST入口重核上述五个条件和全部REP／返回段时，发现EDX和EDI的两次赋值在C++中
+晚于实际机器指令。普通无障返回最终值不受影响，但REP或文本写障时暴露错误寄存器。
+修正只移动这两次赋值，不改变字段写序、REP次数、DF、RNG或正常返回。
+
+独立向量按LST零条件路径计数：入口两次PUSH及36个固定访问，随后三个条件字段读与
+EDI PUSH，第一STOSD为ordinal42；四段38写后、第一段304写后，文本首写为ordinal498。
+前四段每个写停点分别在DF=0/1检查EDX、EDI、ECX、EAX、其余GPR、ESP、FLAGS和
+已完成迭代，共304个寄存器停点；另核四个文本写的两个DF方向，共8个停点。
+旧852个ordinal全扫继续保留，但不能将其仅有ordinal／停点断言等同于这些寄存器比较。
+
+`proc_743c` 修正前恰有两组上述重置断言失败，另有316效果3相位读取的独立地址核验
+断言失败。修正后 `proc_ecce` 定向1/1通过；原版默认386组和动作数据17组测试仍实际执行。
+`proc_7c70` 进一步对最终代码执行core200/200、ASan200/200、app206/206全部通过，
+没有编译warning、测试错误或sanitizer报告。
+本轮全部改动随316最终REVIEW保留WIP，不用局部修正重新宣称305或316整包验收。
+
+sequence372的六个尾段角色读字段、2010个独立写字节及父级返回寄存器／已定义FLAGS
+已取得受限差分，实际LST条件不触发复制或RNG。来源、未观测死寄存器扰动及范围见
+`battle-actor-frame-presentation-00479850.md` 的原版重置尾段章节；不将这些数据写成
+`sub_478850` 原始子调用现场，也不扩大成完整 `sub_479850` 复放。
