@@ -5333,3 +5333,41 @@ ADD/RET 的独立读障（不升级其深层 CALL）；
 `build/workpack316/block-audit.tsv` 和
 `bidirectional-review.md`；CALL/RET 的局部计数
 仍分别是9/98、22/22 局部尾部，不代表其上游闭合。
+
+## 原版诊断采集工具准备（不升级联合差分）
+
+`analysis/tools/battle-actor-frame-oracle/` 新增独立 spawn 工具，
+便携产物在 `build/vm/battle-actor-frame-oracle/`。
+四处父 CALL 的五字节锚点及 `0x00479850` 入口按 LST 校验；
+本地 `swd32.exe` SHA-256 为
+`4c4c226876fd2f3169bfe62c58ede86bba59e0036b7cef4cfaf7d49475c03f2a`。
+两份 EXE 的整体 `.text` 不同；四处 CALL、
+`0x00479850..0x0047B9CA` 本体以及当前释放链所比片段逐段相同，
+不能外推整份二进制等同。
+
+采集按真实返回地址区分四处父调用，保存 actor 0x2B00 字节、
+入口/正常返回通用寄存器、所列全局、栈128字节、帧头16字节及
+链头首dword。块事件启用 Frida `annotate:true`；逐批落盘，
+不因 leave 先发生而丢失随后排空的事件。异常回调返回 false，
+保存异常地址和当时 actor/栈快照，但不宣称完整 SEH 链可用。
+缺快照、重复文件、大小不符、空块或截断均不得计为有效完整采样。
+
+FLAGS 只有 context 实际暴露 `eflags` 才保存；缺失显式记录，
+绝不以零替代。全部嵌套记录、完整异常栈、SEH 分支及块队列
+完整排空仍未经原版验证，`summary.json` 固定不宣称
+`original_diff_verified` 或完整轨迹。本工具不写业务状态，
+但 Frida 插桩会改变代码与时序，不能称无侵入观测。
+
+最终快照离线证据：`proc_5cef` 的模拟 Frida 回调测试与8项
+记录器测试通过，Windows打包成功，打包EXE仅执行 `--self-test`，
+Frida16.5.1/device/agent 自检通过。打包 agent 与源码 SHA-256 同为
+`4a64886f19c0e614e7045d054c1cd782b1e0c12ddce34e3391843ea28ec9b8c3`。
+这些测试均未 spawn 或 attach 原版，不证明实际挂钩成功。
+构建脚本禁用 UPX，TEMP、Python缓存与 PyInstaller缓存均指向
+仓库内 `build/tmp/runtime/`。此前失败构建留下的61份用户目录
+缓存已迁到 `build/tmp/migrated-system-tmp/pyinstaller-20260930-wp316/`，
+清单哈希61/61核验，原位置不存在；失败便携目录保存在
+`build/tmp/runtime/oracle-partial-upx/`，未覆盖用户资产。
+`proc_5cef` 最终快照阶段门禁 core200/200、ASan200/200、app206/206
+全部通过，定向回调与8项记录器测试同样通过；这些不是原版运行证据。
+316 深层合同与真实生产绑定仍未收敛，inventory 保持 `pending_audit`。
