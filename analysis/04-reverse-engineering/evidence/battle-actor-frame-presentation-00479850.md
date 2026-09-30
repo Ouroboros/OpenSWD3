@@ -5371,3 +5371,50 @@ Frida16.5.1/device/agent 自检通过。打包 agent 与源码 SHA-256 同为
 `proc_5cef` 最终快照阶段门禁 core200/200、ASan200/200、app206/206
 全部通过，定向回调与8项记录器测试同样通过；这些不是原版运行证据。
 316 深层合同与真实生产绑定仍未收敛，inventory 保持 `pending_audit`。
+
+### 首次原版回传与v2修正
+
+用户交回
+`build/vm/battle-actor-frame-oracle/battle-actor-frame-oracle-output/run-20260930-094832-10840/`，
+操作为进入战斗、按A自动战斗、战斗结束、Alt+F4退出。
+`proc_8beb` 只读核验512对入口/返回和3072份快照的大小及SHA-256均一致，
+无记录到的异常、采集错误或丢块报告。仅覆盖最终组A476次、最终组B36次，
+行动组B及对手组A未采到；全部512样本缺FLAGS且达到总上限。
+组A476对角色字节未变，组B36对有变化；不能由此证明完整战斗覆盖。
+原始采集保留，不补造缺失数据，也未升级原版差分。
+
+LST重新确认目标读取 `+2B00/+2B04/+2B08/+2B20`，
+v1的0x2B00快照不够。v2扩为组B完整步长0x2B28的公共前缀，
+不冒充组A完整0x2F34或全部嵌套输入；相邻可读映射可连续读取，
+不可读缺口依旧明确标记。v2逐调用台账保留识别到的四处调用/返回，
+完整快照预算改为每处4096；捕获片段变化和每64次重复采样，
+预算耗尽、重复筛选不冒充完整场景采集。
+
+原生FLAGS桥严格限定Frida16.5.1 ia32，以该版
+`guminterceptor-x86.c` 的
+`GUM_FRAME_OFFSET_CPU_FLAGS=GUM_FRAME_OFFSET_CPU_CONTEXT+sizeof(GumCpuContext)`
+读取保存的PUSHFD字，即cpu指针后36字节，九dword上下文由编译期尺寸校验。
+`proc_5bc1` 独立自有32位PE的32对入口/返回验证
+CF/PF/AF/ZF/SF/DF/OF，不读取或启动原版。
+完整联测先暴露跨可读映射误判，再暴露Stalker默认可信内联缓存路径
+不能保持OF。修正映射扫描并设置 `Stalker.trustThreshold=-1` 后，
+`proc_0114` 实测32次调用都返回、四处各8次，故意设置每处预算2，
+得到8组完整快照、24次明确预算跳过及七项FLAGS精确匹配。
+同步块callout不依赖延迟队列，结束标记由接收块计数和截断状态核验。
+异常FLAGS只在可读、身份吻合的Win32 ia32 CONTEXT上观察，
+复制至独立对象，不能写入原始CpuContext；完整SEH链仍未捕获。
+
+v2输出独立 `build/vm/battle-actor-frame-oracle-v2/`，
+不重打包或清理含用户采集的v1目录。最终v2快照 `proc_b60a`
+通过模拟回调、13项记录器测试、原生桥32对测试、完整采集器32次调用联测、
+Windows打包与便携自检，以及core200/200、ASan200/200、app206/206。
+打包与源码agent SHA-256均为
+`f50932e1ab4b820500efeabc924737fc4ac5db7c81d743cf72aba5a7480bf01a`，
+桥源码与打包文件均为
+`cb07e93b98a76c355c25a8bd53930392e2e88afa82bad70a9ba4cbe6b3dabef3`。
+补强联测 `proc_e221` 还验证七个非EAX通用寄存器入口/返回一致、
+全部32次返回EAX=1，八组角色变化严格只含自有测试代码预设的单字节增量。
+同进程只读重核原始3072份快照哈希/大小及旧agent哈希均未变，
+系统用户目录的违规缓存仍不存在；v2共68份打包文件的哈希清单保存在
+`build/tmp/runtime/wp316-oracle-v2-package.sha256`。
+这些工具测试不等于原版v2运行，316完整CALL/RET、生产绑定和联合差分仍未完成。

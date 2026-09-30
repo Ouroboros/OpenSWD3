@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import hashlib
 import json
 import os
@@ -16,6 +17,29 @@ from pathlib import Path
 
 EXPECTED_SHA256 = "4c4c226876fd2f3169bfe62c58ede86bba59e0036b7cef4cfaf7d49475c03f2a"
 TARGET = "swd32.exe"
+ACTOR_BYTES = 0x2B28
+CALLER_SITES = {
+    "action_group_b", "opponent_group_a", "final_group_a", "final_group_b"
+}
+
+
+def agent_source(agent: Path, options: dict) -> str:
+    bridge = agent.with_name("flags_bridge.c")
+    if not bridge.is_file():
+        raise RuntimeError(f"找不到原生FLAGS桥：{bridge}")
+    return (
+        "const FRAME_NATIVE_BRIDGE_SOURCE="
+        + json.dumps(bridge.read_text(encoding="utf-8")) + ";\n"
+        + "const FRAME_CAPTURE_OPTIONS=" + json.dumps(options) + ";\n"
+        + agent.read_text(encoding="utf-8")
+    )
+
+
+def positive_int(value: str) -> int:
+    result = int(value)
+    if result <= 0:
+        raise argparse.ArgumentTypeError("采集参数必须为正整数")
+    return result
 
 
 def digest(path: Path) -> str:
@@ -42,6 +66,15 @@ class Recorder:
         self.incomplete: set[int] = set()
         self.flags_missing: set[int] = set()
         self.snapshot_files: set[str] = set()
+        self.calls_by_site = Counter()
+        self.returns_by_site = Counter()
+        self.samples_by_site = Counter()
+        self.skips = Counter()
+        self.call_ids: set[int] = set()
+        self.return_ids: set[int] = set()
+        self.trace_complete: set[int] = set()
+        self.block_counts = Counter()
+        self.limit_sites: set[str] = set()
 
     def close(self) -> None:
         self.events.close()
@@ -60,8 +93,21 @@ class Recorder:
             "snapshot_pairs_with_blocks": sorted(usable),
             "unreturned_sequences": sorted(self.entered - self.returned),
             "failure": self.failure,
+            "calls_by_site": dict(self.calls_by_site),
+            "returns_by_site": dict(self.returns_by_site),
+            "sampled_pairs_by_site": dict(self.samples_by_site),
+            "skipped_calls": dict(self.skips),
+            "sample_limit_sites": sorted(self.limit_sites),
+            "unreturned_call_ids": sorted(self.call_ids - self.return_ids),
+            "four_callers_observed": CALLER_SITES <= set(self.calls_by_site),
+            "trace_completed_sequences": sorted(self.trace_complete),
+            "normal_pairs_with_flags_and_trace": sorted(
+                usable & self.trace_complete - self.flags_missing
+            ),
             "original_diff_verified": False,
-            "trace_drain_completion_verified": False,
+            "trace_drain_completion_verified": bool(usable) and (
+                usable <= self.trace_complete and not self.entered - self.returned
+            ),
         }
 
     def record(self, payload: dict, data: bytes | None) -> None:
@@ -75,7 +121,29 @@ class Recorder:
                     self.failure = f"invalid event sequence: {sequence}"
                     return
 
-            if kind in ("frame", "memory"):
+            if kind in ("call", "call-return"):
+                call_id = payload.get("call_id")
+                site = payload.get("site")
+                if type(call_id) is not int or call_id <= 0 or site not in CALLER_SITES:
+                    self.failure = "invalid call ledger event"
+                    return
+                if kind == "call":
+                    if call_id in self.call_ids:
+                        self.failure = f"duplicate call id: {call_id}"
+                        return
+                    self.call_ids.add(call_id)
+                    self.calls_by_site[site] += 1
+                    if not payload.get("sampled", False):
+                        self.skips[payload.get("skip_reason")] += 1
+                        if payload.get("skip_reason") == "sample_limit":
+                            self.limit_sites.add(site)
+                else:
+                    if call_id not in self.call_ids or call_id in self.return_ids:
+                        self.failure = f"unmatched call return: {call_id}"
+                        return
+                    self.return_ids.add(call_id)
+                    self.returns_by_site[site] += 1
+            elif kind in ("frame", "memory"):
                 if not isinstance(phase, str) or not re.fullmatch(
                     r"enter|leave|exception-[1-9][0-9]*", phase
                 ):
@@ -86,7 +154,7 @@ class Recorder:
                 count = payload.get(count_field)
                 if type(count) is not int or count != len(data or b""):
                     self.failure = f"invalid snapshot size: {sequence}/{phase}"
-                elif kind == "frame" and (count != 0x2B00 or payload.get("problem")):
+                elif kind == "frame" and (count != ACTOR_BYTES or payload.get("problem")):
                     self.incomplete.add(sequence)
                 elif data:
                     region = "actor" if kind == "frame" else payload.get("region")
@@ -115,6 +183,7 @@ class Recorder:
                     elif phase == "leave":
                         self.leaves += 1
                         self.returned.add(sequence)
+                        self.samples_by_site[payload.get("site")] += 1
             elif kind == "blocks":
                 blocks = payload.get("blocks")
                 if not isinstance(blocks, list):
@@ -122,9 +191,18 @@ class Recorder:
                     return
 
                 self.blocks += len(blocks)
+                self.block_counts[sequence] += len(blocks)
                 if blocks:
                     self.traced.add(sequence)
                 if payload.get("dropped_total", 0) > 0:
+                    self.incomplete.add(sequence)
+            elif kind == "trace-end":
+                if (payload.get("capture_method") == "synchronous_callouts"
+                    and payload.get("drain_completion_verified") is True
+                    and payload.get("dropped_total") == 0
+                    and payload.get("block_count") == self.block_counts[sequence]):
+                    self.trace_complete.add(sequence)
+                else:
                     self.incomplete.add(sequence)
             elif kind == "exception":
                 self.exceptions += 1
@@ -141,6 +219,8 @@ def main() -> int:
     parser.add_argument("--game-dir", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--max-samples-per-site", type=positive_int, default=4096)
+    parser.add_argument("--repeat-interval", type=positive_int, default=64)
     args = parser.parse_args()
     try:
         import frida
@@ -150,6 +230,11 @@ def main() -> int:
     agent = Path(__file__).resolve().with_name("agent.js")
     if not agent.is_file():
         raise RuntimeError(f"找不到 Frida agent：{agent}")
+    options = {
+        "max_samples_per_site": args.max_samples_per_site,
+        "repeat_interval": args.repeat_interval,
+    }
+    source = agent_source(agent, options)
     device = frida.get_local_device()
     if args.self_test:
         if not callable(getattr(device, "spawn", None)) or not callable(
@@ -188,6 +273,12 @@ def main() -> int:
         "target": TARGET,
         "target_sha256": actual_hash,
         "agent_sha256": digest(agent),
+        "bridge_sha256": digest(agent.with_name("flags_bridge.c")),
+        "injected_source_sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
+        "schema_version": 2,
+        "actor_bytes": ACTOR_BYTES,
+        "sampling": options,
+        "full_snapshots_filtered": True,
         "capture_method": "frida_spawn_attach_hooks_resume",
         "entry": "0x00479850",
         "validation_scope": "diagnostic_capture_not_original_diff",
@@ -225,7 +316,7 @@ def main() -> int:
         (output / "run.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         session = device.attach(process_id)
         session.on("detached", on_detached)
-        script = session.create_script(agent.read_text(encoding="utf-8"))
+        script = session.create_script(source)
         script.on("message", on_message)
         script.load()
         if not ready.wait(timeout=10):
