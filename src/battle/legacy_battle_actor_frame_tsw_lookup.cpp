@@ -87,13 +87,14 @@ LegacyBattleActorFrameTswUpdatePort::lookup_frame(
         (!record_only_hit &&
          (owner->primary_stream_token == 0U ||
           !owner->auxiliary_stream.empty() || !owner->palette.empty()))) {
-        // Do not turn failed/unmodeled load and special-frame records into
-        // a fabricated normal return. Their interior effects remain open.
-        reply.stopped_instruction = 0x004315D0U;
+        // The host query may already have published/evicted nodes. We do
+        // not know its guest GPRs/ESP or physical stop; 4315D0 is not that
+        // failure position. Keep the reply explicitly unavailable.
         return reply;
     }
 
     reply.returned = true;
+    reply.physical_state_known = true;
     reply.eax = owner->record_token;
     reply.ecx = query.lookup_return_ecx;
     reply.edx = query.lookup_return_edx;

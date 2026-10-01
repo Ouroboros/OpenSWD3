@@ -660,12 +660,13 @@ LegacyBattleActorFrameCallerRunResult advance_legacy_battle_actor_frame_caller(
 
     result.child =
         advance_legacy_battle_actor_frame_entry_route(actor, request, ports);
+    result.physical_state_known = result.child.physical_state_known;
     result.eip = result.child.eip;
     result.esp = result.child.esp;
     result.eax = result.child.eax;
     result.ecx = result.child.ecx;
     result.edx = result.child.edx;
-    if (result.child.returned &&
+    if (result.physical_state_known && result.child.returned &&
         result.child.eip == static_cast<u32>(site) + 5U &&
         result.child.esp == parent_call_esp) {
         result.status = LegacyBattleActorFrameCallerRunStatus::returned;

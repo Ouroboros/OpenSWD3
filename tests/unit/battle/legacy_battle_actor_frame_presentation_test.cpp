@@ -395,6 +395,7 @@ public:
         .edx = 0x9876U,
         .flags = {.zero = true},
         .flags_known = true,
+        .physical_state_known = true,
     };
     u32 calls{};
     u32 last_token{};
@@ -926,7 +927,8 @@ void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
     openswd3::battle::LegacyBattleActorFrameTswUpdatePort port{tsw, updater};
     const auto loaded = port.lookup_frame(1U, 0U, 0U, 0U, 0U);
     test.expect_true(
-        loaded.returned && loaded.flags_known && !loaded.flags.zero &&
+        loaded.returned && loaded.physical_state_known &&
+            loaded.flags_known && !loaded.flags.zero &&
             !loaded.flags.parity && !loaded.flags.sign &&
             !loaded.flags.auxiliary_carry_defined &&
             loaded.resource_header_known && loaded.decoder_source_known &&
@@ -1031,6 +1033,12 @@ void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
         const auto stopped = unresolved_port.lookup_frame(
             0xFFFFU, 0U, 0x12345678U, 0xABCDEF01U, 0x87654321U
         );
+        test.expect_true(
+            !stopped.returned && !stopped.flags_known &&
+                !stopped.physical_state_known &&
+                stopped.stopped_instruction == 0U,
+            "an unresolved TSW load does not invent the callee entry as its physical failure position"
+        );
         const auto resident = unresolved.find_cached(0xFFFFU, 0U);
         const auto repeated = unresolved_port.lookup_frame(
             0xFFFFU, 0U, 0x12345678U, 0xABCDEF01U, 0x87654321U
@@ -1041,6 +1049,7 @@ void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
                 resident.frame_owner->record_token != 0U &&
                 unresolved.cache_entry_count() == 1U &&
                 unresolved.cached_primary_bytes() == 0U && repeated.returned &&
+                repeated.physical_state_known &&
                 repeated.eax == resident.frame_owner->record_token &&
                 repeated.ecx == 0xFFFFU && repeated.edx == 0x004CF84CU &&
                 repeated.flags_known && !repeated.flags.carry &&
@@ -2949,12 +2958,71 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 caller.status ==
                     openswd3::battle::LegacyBattleActorFrameCallerRunStatus::
                         returned &&
-                caller.returned && caller.eax == 0U &&
+                caller.returned && caller.physical_state_known &&
+                caller.eax == 0U &&
                 caller.eip == static_cast<u32>(site) + 5U &&
                 caller.esp == route_request.entry_esp &&
                 caller.child.status ==
                     LegacyBattleActorFrameEntryStatus::default_returned;
         }
+
+#ifdef OPENSWD3_REAL_TSW_ROOT
+        {
+            bool callers_preserve_unknown_state = true;
+            for (const auto site : caller_sites) {
+                auto startup = std::make_unique<
+                    openswd3::battle::LegacyBattleStartupState>();
+                auto action = std::make_unique<
+                    openswd3::battle::LegacyBattleActionDispatchState>();
+                startup->group_b_lifecycle = std::make_shared<std::array<
+                    openswd3::battle::LegacyBattleActorGroupBElementState,
+                    openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+                const openswd3::battle::LegacyBattleActorRuntimeResetOwners
+                    caller_owners{.action = action.get(),
+                                  .startup = startup.get()};
+                const auto admission = openswd3::battle::
+                    prepare_legacy_battle_actor_frame_caller(
+                        site, 0U, route_request
+                    );
+                const auto view = openswd3::battle::
+                    resolve_legacy_battle_actor_runtime_reset(
+                        caller_owners, admission.child_request.actor_token
+                    );
+                view.progress->presentation_enabled = 1U;
+                view.action_execution->reserved_action_record_02.field_4a =
+                    0xFFFFU;
+                openswd3::asset_runtime::LegacyTswRuntime unresolved{
+                    std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}
+                };
+                openswd3::battle::LegacyBattleActorFrameTswUpdatePort
+                    unresolved_port{unresolved, route_updater};
+                u32 argument{};
+                LegacyBattleActorFrameParentArgumentWord argument_owner{
+                    .token = route_request.entry_esp + 0x18U,
+                    .word = &argument,
+                };
+                const auto stopped = openswd3::battle::
+                    advance_legacy_battle_actor_frame_caller(
+                        site, 0U, caller_owners, route_request,
+                        {.updater = &unresolved_port}, &argument_owner
+                    );
+                callers_preserve_unknown_state =
+                    callers_preserve_unknown_state && !stopped.returned &&
+                    !stopped.physical_state_known &&
+                    !stopped.child.physical_state_known &&
+                    stopped.eip == 0U && stopped.child.eip == 0U &&
+                    stopped.child.frame_lookup_calls == 1U &&
+                    unresolved.cache_entry_count() == 1U;
+            }
+
+            test.expect_true(
+                callers_preserve_unknown_state,
+                "four typed frame callers propagate unavailable lookup state without resuming parent success tails; snapshots are not production binding"
+            );
+        }
+
+#endif
+
         auto caller_stack_fault = route_request;
         caller_stack_fault.call_stack_writable = false;
         const auto unwritable_call =
@@ -5068,6 +5136,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     LegacyBattleActorFrameEntryStatus::
                         update_frame_lookup_typed_stop &&
                 stopped_lookup_global.eip == 0x004315D0U &&
+                stopped_lookup_global.physical_state_known &&
                 stopped_lookup_global.esp == lookup_prefix.esp - 0x0CU &&
                 stopped_lookup_global.stopped_access_kind ==
                     LegacyBattleActorFrameEntryAccessKind::global_read &&
@@ -5182,6 +5251,96 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         action_execution.render_source_token = 0x00701000U;
 
 #ifdef OPENSWD3_REAL_TSW_ROOT
+        {
+            const u16 previous_frame_word =
+                action_execution.reserved_action_record_02.field_4a;
+            action_execution.reserved_action_record_02.field_4a = 0xFFFFU;
+            for (const bool df : {false, true}) {
+                for (const u32 esp : {0x0012FF00U, 0x20U, 0x80000044U}) {
+                    openswd3::asset_runtime::LegacyTswRuntime unresolved{
+                        std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}
+                    };
+                    openswd3::battle::LegacyBattleActorFrameTswUpdatePort
+                        unresolved_port{unresolved, updater};
+                    auto before = lookup_prefix;
+                    before.eax = 1U;
+                    before.ecx = 0xCAFE0000U;
+                    before.edx = 0xE1234567U;
+                    before.ebx = 0U;
+                    before.esp = esp;
+                    before.direction_flag = df;
+                    const auto stopped = openswd3::battle::
+                        continue_legacy_battle_actor_frame_lookup(
+                            actor, unresolved_port, forward, before
+                        );
+                    test.expect_true(
+                        !stopped.returned && !stopped.flags_known &&
+                            stopped.eip == 0U &&
+                            !stopped.physical_state_known &&
+                            !stopped.frame_lookup_child.physical_state_known &&
+                            stopped.stopped_instruction == 0U &&
+                            stopped.status == LegacyBattleActorFrameEntryStatus::
+                                update_frame_lookup_typed_stop &&
+                            stopped.eax == 1U &&
+                            stopped.ecx == 0xCAFEFFFFU &&
+                            stopped.edx == 0xE1234567U &&
+                            stopped.esp == esp - 12U &&
+                            stopped.ebp == before.ebp &&
+                            stopped.esi == before.esi &&
+                            stopped.edi == before.edi &&
+                            stopped.direction_flag == df &&
+                            stopped.last_pushed_value == 0x00479945U &&
+                            stopped.accesses_completed ==
+                                before.accesses_completed + 5U &&
+                            stopped.frame_lookup_calls == 1U &&
+                            unresolved.cache_entry_count() == 1U &&
+                            action_execution.render_source_token ==
+                                0x00701000U,
+                        "unknown TSW child state retains only the confirmed parent checkpoint and cache publication, not zero GPRs or an invented physical stop"
+                    );
+                }
+            }
+
+            // Explicit first-MOV snapshots: 4315D0 only loads EAX, so a
+            // stop at 4315D5 has no callee PUSH or FLAGS change. These are
+            // supplied inputs, not original captures or loader failures.
+            for (const u32 initialized : {0U, 1U, 0xFFFFFFFFU}) {
+                auto before = lookup_prefix;
+                before.eax = 1U;
+                before.ecx = 0xCAFE0000U;
+                before.edx = 0xE1234567U;
+                before.ebx = 0U;
+                UpdatePort known_stop;
+                known_stop.frame_reply.returned = false;
+                known_stop.frame_reply.eax = initialized;
+                known_stop.frame_reply.ecx = 0xCAFEFFFFU;
+                known_stop.frame_reply.edx = 0xE1234567U;
+                known_stop.frame_reply.flags = before.flags;
+                known_stop.frame_reply.flags_known = before.flags_known;
+                known_stop.frame_reply.stopped_instruction = 0x004315D5U;
+                const auto stopped = openswd3::battle::
+                    continue_legacy_battle_actor_frame_lookup(
+                        actor, known_stop, forward, before
+                    );
+                test.expect_true(
+                    !stopped.returned && stopped.physical_state_known &&
+                        stopped.eip == 0x004315D5U &&
+                        stopped.eax == initialized &&
+                        stopped.ecx == 0xCAFEFFFFU &&
+                        stopped.edx == 0xE1234567U &&
+                        stopped.esp == before.esp - 12U &&
+                        stopped.flags_known == before.flags_known &&
+                        same_frame_flags(stopped.flags, before.flags) &&
+                        known_stop.frame_calls == 1U &&
+                        action_execution.render_source_token == 0x00701000U,
+                    "a supplied first-global-MOV snapshot remains known, including an actual zero EAX, without pretending the child returned"
+                );
+            }
+
+            action_execution.reserved_action_record_02.field_4a =
+                previous_frame_word;
+        }
+
         {
             const auto previous_resource = action_execution.resource;
             const u32 previous_render_token =

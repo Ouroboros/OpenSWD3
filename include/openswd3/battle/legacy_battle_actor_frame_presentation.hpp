@@ -729,6 +729,9 @@ struct LegacyBattleActorFrameUpdateReply {
     compat::u32 edx{};
     LegacyBattleActorCoordinateFlags flags{};
     bool flags_known{};
+    // A non-returning lookup needs an explicitly supplied physical snapshot.
+    // Otherwise its GPRs and stop address are unavailable, not default zero.
+    bool physical_state_known{};
     compat::u32 stopped_instruction{};
     // The resource loader may publish source record bytes separately from
     // its pointer return. Without this explicit owner, nested reads stop.
@@ -943,6 +946,9 @@ struct LegacyBattleActorFrameEntryResult {
     compat::u32 edi{};
     compat::u32 esp{};
     compat::u32 eip{kLegacyBattleActorFramePresentationAddress};
+    // False means register/ESP/DF fields retain only the last confirmed
+    // checkpoint; EIP/stop address are unavailable (0), not a guest fault.
+    bool physical_state_known{true};
     LegacyBattleActorCoordinateFlags flags{};
     bool flags_known{};
     bool direction_flag{};
@@ -1085,6 +1091,7 @@ struct LegacyBattleActorFrameCallerRunResult {
     };
     LegacyBattleActorFrameCallerAdmission admission{};
     LegacyBattleActorFrameEntryResult child{};
+    bool physical_state_known{};
     compat::u32 eip{};
     compat::u32 esp{};
     compat::u32 eax{};

@@ -5884,3 +5884,54 @@ build/tmp/runtime/wp316-tsw-preload-source-freeze.sha256
 不闭合16位计数回绕、空桶错误、DF=1跨节点写、递归改变缓存与完整四free。
 另外两处原版caller、四caller生产绑定、249跨块与98 CALL/22 RET及联合差分仍待完成。
 316最终REVIEW未完成；不升级inventory，也不将局部门禁作为Goal完成证据。
+
+### 未恢复查帧现场的有效性与caller传播
+
+加载前登记阶段已发布。随后从LST重新核 `479937..479945` 与
+`4315D0..43175A`：父先改CX低16、两参数PUSH及479945返回槽；
+唯一正常callee RET在43175A。4315D0仅首全局4CF840读取，不是通用失败出口。
+host查询可能先初始化、淘汰或发布节点，其失败既不能证明入口停止，
+也不能证明默认EAX/ECX/EDX全零。原Native失败回复却指定4315D0，
+父又在检查returned前复制零GPR，因而将未恢复状态误报为物理现场。
+
+独立反例 `proc_93f5` 14秒exit8，定向1/1失败：仅七项新增断言失败，
+一项Native停止位置及两DF×三ESP的父checkpoint，无旧断言退化或编译诊断。
+五生产源与初版测试SHA前后相同；17动作及seq372局部差分实际执行。
+原red完整文件/SHA保留；此后新增的有效性断言、四caller与首MOV三输入不称为red。
+
+新回复以 `physical_state_known=false` 明确未知。实际TSW未知加载不造停止地址，
+正常loaded miss/record-only hit仍提供已知返回。父不复制未知回复的默认零，
+保留已确认的GPR/ESP/DF checkpoint，明确结果physical_state_known=false、
+flags_known=false；EIP/stop地址0表示不可用，不是guest在零地址发生故障。
+父不执行RET清栈或actor+2548写，不回滚已发生host缓存操作。
+保留的寄存器与访问计数不是失败后真实CPU捕获，不能拿entry代替深层现场。
+
+首全局不可读仍是精确4315D0/token4CF840，port未调用。
+另三个controlled输入供应首MOV读值0/1/FFFFFFFF，于4315D5、首PUSH前停止；
+MOV只改变EAX、不改ESP或FLAGS。显式有效零值不得被当成未知；
+这些是由LST推得的供应输入，不是原版运行差分或完整加载失败恢复。
+共享caller回收传播child有效性，只有已知RET目标/ESP才能续父正常路径。
+四caller用完整owned fixture和实际TSW适配器核未知传播；原三个调用方文件的
+!returned退出已有正确顺序，没有重复增加guard，也不将snapshot测试称为生产绑定。
+
+首新快照 `proc_1fe2` 的定向/core/ASan已完成，审查发现测试块空行问题后
+受管停止；实际状态killed，APP未形成完整通过证据。修正格式并补齐向量后
+另冻结v2，不能把首快照结果直接借给最终源码。
+`proc_67cb / wp316-tsw-opaque-state-final-frozen-gates` 192秒exit0：
+定向1/1（0.53秒）、core200/200（20.15秒）、ASan200/200（33.20秒）、
+app206/206（81.28秒）通过；四日志诊断0，六项SHA前后及完成后匹配。
+三LastTest各执行17动作及seq372局部差分，skip0；没有原版或Windows执行。
+
+```text
+build/tmp/runtime/wp316-tsw-opaque-state-red.log
+build/tmp/runtime/wp316-tsw-opaque-red-test-snapshot.cpp
+build/tmp/runtime/wp316-tsw-opaque-directed-v2.log
+build/tmp/runtime/wp316-tsw-opaque-core-full-v2.log
+build/tmp/runtime/wp316-tsw-opaque-asan-full-v2.log
+build/tmp/runtime/wp316-tsw-opaque-app-full-v2.log
+build/tmp/runtime/wp316-tsw-opaque-source-freeze-v2.sha256
+```
+
+本批次只纠正报告有效性，不恢复首次失败真实GPR/FLAGS/ESP、SEH、Win32/CRT内部。
+cursor/共享全局、DF=1别名、计数回绕、空桶四free、真实堆与四caller绑定仍待核。
+249跨块、98 CALL/22 RET、联合差分和316最终REVIEW尚未完成；inventory不变。

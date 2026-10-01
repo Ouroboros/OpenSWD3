@@ -555,6 +555,21 @@ LegacyBattleActorFrameEntryResult continue_legacy_battle_actor_frame_lookup(
         prefix.ecx, prefix.ebx, prefix.eax, prefix.ecx, prefix.edx
     );
     const auto& reply = prefix.frame_lookup_child;
+    if (!reply.returned && !reply.physical_state_known) {
+        // Retain the committed parent checkpoint, not the reply's unknown
+        // default registers. No RET/parent write or physical stop is known.
+        prefix.status =
+            LegacyBattleActorFrameEntryStatus::update_frame_lookup_typed_stop;
+        prefix.stopped_access_kind =
+            LegacyBattleActorFrameEntryAccessKind::callee_call;
+        prefix.physical_state_known = false;
+        prefix.flags_known = false;
+        prefix.stopped_instruction = 0U;
+        prefix.stopped_token = 0U;
+        prefix.eip = 0U;
+        return prefix;
+    }
+
     prefix.eax = reply.eax;
     prefix.ecx = reply.ecx;
     prefix.edx = reply.edx;

@@ -9,7 +9,8 @@ class LegacyTswRuntime;
 namespace openswd3::battle {
 
 // Bridges the existing action-record update and the real TSW cache lookup.
-// A failed/unmodeled frame load does not claim a normal sub_4315D0 return.
+// A failed/unmodeled frame load claims neither a normal sub_4315D0 return
+// nor its physical stop. Host cache side effects do not supply guest state.
 class LegacyBattleActorFrameTswUpdatePort final
     : public LegacyBattleActorFrameUpdatePort {
 public:
