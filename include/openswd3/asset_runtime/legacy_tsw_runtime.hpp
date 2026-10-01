@@ -61,6 +61,8 @@ enum class LegacyTswRuntimeStatus {
     cache_cursor_unavailable,
     // Host cleanup encountered an image length that has not been recovered.
     cache_balance_unavailable,
+    // Initial empty-bucket eviction needs unmodeled sentinel payload fields.
+    cache_bucket_payload_unavailable,
 };
 
 struct LegacyTswQueryResult {

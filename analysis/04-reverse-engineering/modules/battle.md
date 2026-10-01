@@ -4478,8 +4478,15 @@ DF/计数回绕/allocator物理游标及真实绑定仍未闭合，不能称为3
 既有查询端口与父consumer不重复改写，向量验证非返回传播，未知不伪写actor/lease/progress。
 关闭/重开不以默认零恢复未知量；回绕和不依赖计量的find/direct另有后补向量。
 冻结proc_75a6 407秒exit0：两定向各1/1、core/ASan各200/200、app206/206通过，
-五日志diagnostic0、七SHA匹配，动作/重置局部差分实际执行、skip0，当前阶段审查发布中；
+五日志diagnostic0、七SHA匹配，动作/重置局部差分实际执行、skip0，该批次已提交、推送及TG；
 不将宿主生命周期移除描述为原版CRT free/SEH完成，DF=1/count/别名及真实绑定仍待收敛。
+随后核初选空桶的原淘汰路径，head0仍处理桶哨兵，不等于零指针fault或正常跳过。
+旧源码两个定向恰五runtime/五真实查询端口新增失败，旧生产/初版tests SHA不变、诊断0。
+生产明确缺失哨兵载荷，不造正常淘汰或新图像；低于限额的空表正常加载仍保持。
+真实TSW adapter/父pipeline只读冻结，既有未知传播正确消费，后补五父向量保留检查点并恢复状态。
+冻结proc_6044 394秒exit0：两定向各1/1、core/ASan各200/200、app206/206通过，
+五日志diagnostic0、七SHA前后及完成后匹配，局部动作/重置差分各执行一次、skip0。
+当前阶段审查发布中；未运行原版/Windows，不称空桶完整free/count16/别名或四caller接线完成。
 机器证据与剩余缺口见`../evidence/battle-actor-frame-presentation-00479850.md`；
 未完成316前不得开始317。
 

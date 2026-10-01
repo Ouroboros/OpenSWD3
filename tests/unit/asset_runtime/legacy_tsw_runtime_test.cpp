@@ -796,6 +796,63 @@ void test_cached_frame_lease_outlives_eviction(
     );
 }
 
+void test_initial_empty_bucket_sentinel(openswd3::test::Context& test) {
+    const TestTree tree;
+    write_six_archives(tree);
+    for (const u32 limit : {0U, 0x80000000U, 0xFFFFFFFFU}) {
+        FakeSpecialLoader loader;
+        LegacyTswRuntime runtime{tree.root(), {}, &loader};
+        runtime.set_cache_limit(limit);
+        const auto query = runtime.query_cached(0xFFFFU, 0U);
+        test.expect_true(
+            query.status ==
+                    LegacyTswRuntimeStatus::cache_bucket_payload_unavailable &&
+                query.frame_owner == nullptr && !query.cache_hit &&
+                runtime.cache_entry_count() == 0U &&
+                runtime.cached_primary_bytes() == 0U &&
+                runtime.cached_primary_bytes_known() && loader.calls == 0U,
+            "TSW initial empty bucket cannot be skipped as successful eviction when its sentinel length and free arguments are unavailable"
+        );
+    }
+
+    for (const u32 limit : {0U, 4U, 5U}) {
+        NestedCursorLoader loader;
+        LegacyTswRuntime residual{tree.root(), {}, &loader};
+        loader.runtime = &residual;
+        residual.set_cache_limit(0x7FFFFFFFU);
+        const auto counted = residual.query_cached(0xFFFFU, 0U);
+        test.expect_true(
+            counted.status == LegacyTswRuntimeStatus::ready &&
+                residual.cached_primary_bytes() == 16U,
+            "empty sentinel fixture creates the repeated sixteen-byte total"
+        );
+        residual.clear_cache();
+        residual.set_cache_limit(limit);
+        const auto query = residual.query_cached(0xFFFFU, 30U);
+        if (limit == 5U) {
+            test.expect_true(
+                query.status == LegacyTswRuntimeStatus::ready &&
+                    query.lookup_return_ecx == 8U &&
+                    query.lookup_return_edx == 12U &&
+                    residual.cached_primary_bytes() == 12U &&
+                    residual.cache_entry_count() == 1U && loader.calls == 3U,
+                "signed capacity below the threshold bypasses sentinel processing and loads into an empty cache normally"
+            );
+            continue;
+        }
+
+        test.expect_true(
+            query.status ==
+                    LegacyTswRuntimeStatus::cache_bucket_payload_unavailable &&
+                query.frame_owner == nullptr && !query.cache_hit &&
+                residual.cached_primary_bytes() == 4U &&
+                residual.cached_primary_bytes_known() &&
+                residual.cache_entry_count() == 0U && loader.calls == 2U,
+            "TSW retained byte residual at or above the limit enters the empty bucket sentinel boundary instead of loading another frame"
+        );
+    }
+}
+
 void test_signed_cache_capacity(openswd3::test::Context& test) {
     // Independent LST: .data 4A6020=600000h, setter 4315C0..4315C9,
     // signed JL at 431723/431EDA and signed JGE at 431F76.
@@ -963,6 +1020,7 @@ int main() {
     test_cache_cleanup_balance(test);
     test_original_bucket_eviction(test);
     test_cached_frame_lease_outlives_eviction(test);
+    test_initial_empty_bucket_sentinel(test);
     test_signed_cache_capacity(test);
     return test.exit_code();
 }

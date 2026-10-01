@@ -6031,5 +6031,40 @@ ASan200/200（36.16秒）、app206/206（81.20秒），五日志diagnostic0，�
 三LastTest各action1/reset1/skip0，本轮没有原版或Windows运行，不是原版清理动态差分。
 材料前缀为`build/tmp/runtime/wp316-tsw-clear-balance-`：两个red日志/两个完整snapshot、
 old-production/red-tests/source-freeze SHA、source-review diff及五个directed/full日志均保留。
-本批次审查发布中；完整CRT/SEH、十桶物理游标/count/别名、DF=1、空桶错误、首次失败真实CPU、
-四caller接线、249跨块/98 CALL/22 RET、联合差分、316最终REVIEW与完整Goal仍未完成。
+该清理残余批次已提交、推送及TG；完整CRT/SEH、十桶物理游标/count/别名、DF=1、空桶错误、
+首次失败真实CPU、四caller接线、249跨块/98 CALL/22 RET、联合差分、316最终REVIEW与完整Goal未完成。
+
+### 初选空桶的哨兵输入不可用，不能续正常查帧
+
+按完整431EA0..431F7F独立复核：unsigned16最大计数只选择一次，平数保留低编号；
+431EDA signed JL退出，反侧进入431EEB桶base。431EF1/431EF3令EAX/共享游标=base，
+431EFA取base+4，head=0时431EFF跳431F11，仍从base+18减量并按+8/+C/+10/base四次free。
+后三次free参数来自前次之后重读的共享游标，不能用初始保存的bucket/node替代。
+桶0的base是4CF848，不是零；不能把这里称为guest零地址fault，也不声明原版一定不返回。
+真正非空桶尾删后431F56 DECword、431F67发现计数0即正常退出，不能误添第二轮哨兵释放。
+本阶段不补哨兵payload/page、四CRT回复、共享游标实际写/重读、count16回绕或首次失败CPU。
+
+基线ee4d6acd，五旧生产/两初版tests冻结。先用现有API编译的proc_5536 17秒exit8：
+两个定向各1/1失败，五runtime/五Native TSW端口新增断言失败，旧断言无退化、两日志diagnostic0，
+旧生产/初版tests SHA前后匹配；两个完整red snapshot保留，ACT17与seq372局部差分实际执行。
+反例是fresh total0/head0、limit0/80000000/FFFFFFFF，以及known清理残余4/head0、limit0/4。
+残余4/limit5的相反侧仍正常装载8bytes并得到ECX8/EDX12，不能把空表一律禁止。
+这些controlled状态验证生产adapter的使用，不是原版空桶捕获或递归发生证明。
+
+Runtime在初选空桶、缺少哨兵length/free载荷时显式cache_bucket_payload_unavailable，
+不跳过淘汰、不调用loader或发布新节点，不改确认容量。它表示模型在缺输入处停止，
+不是原版错误码；计量known表示停止前checkpoint，不是四free之后的原版物理内存。
+Native TSW lookup和父pipeline只读冻结，既有非返回传播已消费该状态，不重复加guard。
+不把回复零字段作为失败CPU：physical_state_known/flags_known=false，EIP/stop0是不可用标识。
+后补enum精确断言与五父continuation向量没参加red；fresh三例/残余两例均保留CALL三槽、
+ESP=prefix-12/last PUSH479945，不写actor+2548/render/resource/lease/progress，测试恢复保存状态。
+父仅有该controlled方向/检查点，不称四caller真实接线或全部DF/故障前缀已覆盖。
+
+源码差异265行/12878字节已逐项读完；七source冻结proc_6044 394秒exit0：
+runtime/battle定向各1/1（CTest总0.70/0.67秒）、core200/200（20.87秒）、ASan200/200（33.47秒）、
+app206/206（81.51秒），五日志diagnostic0、七SHA门禁前后/完成后匹配；
+三LastTest各action1/reset1/skip0，未运行原版/Windows，本范围不是原版空桶差分。
+材料前缀build/tmp/runtime/wp316-tsw-empty-sentinel-，包括旧生产/初版tests、新冻结SHA、
+两个完整red snapshot、两个red日志、五directed/full日志与source-review diff。
+本批次阶段审查发布中；count16/allocator暂存/物理别名、四free/SEH、首次失败真实现场、
+四caller接线、249跨块/98 CALL/22 RET、联合差分与316最终REVIEW仍未完成，315/422不变。

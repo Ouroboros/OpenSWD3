@@ -244,6 +244,16 @@ LegacyTswRuntimeStatus LegacyTswRuntime::evict_before_lookup() noexcept {
     }
 
     CacheBucket& bucket = buckets_[selected];
+    if (bucket.empty()) {
+        // 431EF1 starts at the bucket sentinel, not a null node. With no
+        // head, 431EFF still reaches its +18 length and four free inputs.
+        // Those fields are not supplied by an empty host list. Do not
+        // skip this path as successful eviction or invent a guest fault.
+        return LegacyTswRuntimeStatus::cache_bucket_payload_unavailable;
+    }
+
+    // 431F67 returns when the selected word count reaches zero; this
+    // nonempty-list path still needs separate count16/alias recovery.
     // 431F76 is signed JGE after each committed length subtraction.
     while (!bucket.empty() &&
            std::bit_cast<compat::i32>(cached_primary_bytes_) >=

@@ -1187,6 +1187,72 @@ void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
         );
     }
 
+    for (const u32 limit : {0U, 0x80000000U, 0xFFFFFFFFU}) {
+        openswd3::asset_runtime::LegacyTswRuntime empty{
+            std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}
+        };
+        empty.set_cache_limit(limit);
+        openswd3::battle::LegacyBattleActorFrameTswUpdatePort empty_port{
+            empty, updater
+        };
+        const auto reply = empty_port.lookup_frame(
+            1U, 0U, 0x11111111U, 0x22222222U, 0x33333333U
+        );
+        test.expect_true(
+            !reply.returned && !reply.physical_state_known &&
+                !reply.flags_known && reply.stopped_instruction == 0U &&
+                !reply.resource_header_known && !reply.decoder_source_known &&
+                empty.cache_entry_count() == 0U &&
+                empty.cached_primary_bytes() == 0U,
+            "battle TSW port does not fabricate a real frame or physical null fault after skipping an unavailable empty bucket sentinel"
+        );
+    }
+
+    for (const u32 limit : {0U, 4U, 5U}) {
+        NestedFrameLookupLoader loader;
+        openswd3::asset_runtime::LegacyTswRuntime residual{
+            std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}, {}, &loader
+        };
+        loader.runtime = &residual;
+        residual.set_cache_limit(0x7FFFFFFFU);
+        const auto counted = residual.query_cached(0xFFFFU, 0U);
+        test.expect_true(
+            counted.status ==
+                    openswd3::asset_runtime::LegacyTswRuntimeStatus::ready &&
+                residual.cached_primary_bytes() == 16U,
+            "battle empty sentinel fixture has sixteen previously counted bytes"
+        );
+        residual.clear_cache();
+        residual.set_cache_limit(limit);
+        openswd3::battle::LegacyBattleActorFrameTswUpdatePort residual_port{
+            residual, updater
+        };
+        const auto reply = residual_port.lookup_frame(
+            0xFFFFU, 30U, 0x11111111U, 0x22222222U, 0x33333333U
+        );
+        if (limit == 5U) {
+            test.expect_true(
+                reply.returned && reply.physical_state_known &&
+                    reply.flags_known && reply.ecx == 8U && reply.edx == 12U &&
+                    reply.resource_header_known &&
+                    reply.resource_value_0c == 31U &&
+                    reply.decoder_source_known &&
+                    reply.decoder_source.bytes.size() == 8U,
+                "battle TSW port keeps the normal loaded-miss return when the residual is signed below capacity"
+            );
+            continue;
+        }
+
+        test.expect_true(
+            !reply.returned && !reply.physical_state_known &&
+                !reply.flags_known && reply.stopped_instruction == 0U &&
+                !reply.resource_header_known && !reply.decoder_source_known &&
+                residual.cached_primary_bytes() == 4U &&
+                residual.cache_entry_count() == 0U,
+            "battle TSW port preserves the confirmed residual without inventing successful sentinel frees and a normal frame return"
+        );
+    }
+
     openswd3::asset_runtime::LegacyActionRecord action{};
     const auto idle = port.update(action, 0x12345678U, 1U, 2U, 3U);
     test.expect_true(
@@ -5374,6 +5440,77 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         action_execution.render_source_token = 0x00701000U;
 
 #ifdef OPENSWD3_REAL_TSW_ROOT
+        {
+            const auto saved_resource = action_execution.resource;
+            const u32 saved_render = action_execution.render_source_token;
+            const auto saved_started = progress.frame_started;
+            const auto saved_post = progress.post_action_value;
+            struct SentinelCase {
+                bool residual;
+                u32 limit;
+            };
+
+            constexpr std::array<SentinelCase, 5U> cases{{
+                {false, 0U},
+                {false, 0x80000000U},
+                {false, 0xFFFFFFFFU},
+                {true, 0U},
+                {true, 4U},
+            }};
+            for (const auto candidate : cases) {
+                NestedFrameLookupLoader loader;
+                openswd3::asset_runtime::LegacyTswRuntime empty{
+                    std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}, {}, &loader
+                };
+                loader.runtime = &empty;
+                if (candidate.residual) {
+                    empty.set_cache_limit(0x7FFFFFFFU);
+                    const auto counted = empty.query_cached(0xFFFFU, 0U);
+                    test.expect_true(
+                        counted.status == openswd3::asset_runtime::
+                                              LegacyTswRuntimeStatus::ready,
+                        "parent empty sentinel fixture finishes its nested load"
+                    );
+                    empty.clear_cache();
+                }
+
+                empty.set_cache_limit(candidate.limit);
+                openswd3::battle::LegacyBattleActorFrameTswUpdatePort
+                    empty_port{empty, updater};
+                action_execution.render_source_token = 0x00701000U;
+                progress.frame_started = 1U;
+                progress.post_action_value = 0x99U;
+                const auto stopped = openswd3::battle::
+                    continue_legacy_battle_actor_frame_lookup(
+                        actor, empty_port, forward, lookup_prefix
+                    );
+                test.expect_true(
+                    stopped.status == LegacyBattleActorFrameEntryStatus::
+                                          update_frame_lookup_typed_stop &&
+                        !stopped.returned && !stopped.physical_state_known &&
+                        !stopped.frame_lookup_child.physical_state_known &&
+                        !stopped.flags_known && stopped.eip == 0U &&
+                        stopped.esp == lookup_prefix.esp - 12U &&
+                        stopped.last_pushed_value == 0x00479945U &&
+                        action_execution.render_source_token == 0x00701000U &&
+                        action_execution.resource.frame_owner ==
+                            saved_resource.frame_owner &&
+                        progress.frame_started == 1U &&
+                        progress.post_action_value == 0x99U &&
+                        empty.cached_primary_bytes() ==
+                            (candidate.residual ? 4U : 0U) &&
+                        empty.cached_primary_bytes_known() &&
+                        empty.cache_entry_count() == 0U,
+                    "parent does not clear its CALL or write the actor when initial empty-bucket eviction needs an unavailable sentinel payload"
+                );
+            }
+
+            action_execution.resource = saved_resource;
+            action_execution.render_source_token = saved_render;
+            progress.frame_started = saved_started;
+            progress.post_action_value = saved_post;
+        }
+
         {
             const auto saved_resource = action_execution.resource;
             const u32 saved_render = action_execution.render_source_token;

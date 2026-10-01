@@ -264,7 +264,7 @@ DF=0，关闭/初始化REP范围[4DAD28,4FB0C8)、[4CF988,4DACD4)均不含4DAD0C
 均不冒充参加上述red。旧callback移除测试的零量断言改为prefix8/unknown；host保活仍非guest有效。
 新七source冻结的proc_75a6 407秒exit0：两定向各1/1（0.57/0.56秒）、core200/200（20.41秒）、
 ASan200/200（36.16秒）、app206/206（81.20秒），五日志diagnostic0、七SHA前后/完成后匹配。
-三LastTest动作/重置局部差分各执行一次、skip0；没有原版/Windows运行，本批次审查发布中。
+三LastTest动作/重置局部差分各执行一次、skip0；没有原版/Windows运行，该批次已提交、推送及TG。
 这是计量/已知性修正，不是完整原版清理、副作用或CRT正常回复；四free、count16、DF别名、
 allocator/系统调用仍待核，host移除测试不证明它们。
 淘汰碰到未知载荷时，在缺少 `0x00431F11` 长度及四次free输入处保留节点，
@@ -276,6 +276,33 @@ allocator/系统调用仍待核，host移除测试不证明它们。
 Linux core/ASan各200/200、app206/206通过，五日志诊断0、六项SHA匹配。
 动作17组与seq372局部差分实际执行，无跳过，不是查帧原版动态差分。
 空桶错误、16位计数回绕、DF=1物理写、递归改变缓存、首次失败ABI和完整CRT仍未闭合。
+
+### 初选空桶不能被跳过为淘汰成功
+
+完整`431EA0..431F7F`独立核对：`431EF1/431EF3`把bucket base写入EAX/共享游标，
+`431EFA`读取base+4。head为零时`431EFF`仍跳到`431F11`，读取base+18并减总量，
+随后从+8/+C/+10及base本身依次发四次free；前三次free之后均重读共享游标。
+此时EAX是`4CF848 + bucket_index*20h`哨兵，不是零节点。不能据head=0虚构零地址fault，
+也不能以empty list跳过此路径而正常查帧。哨兵载荷、共享游标写/重读及CRT合同仍缺输入。
+与此不同，初始非空桶正常尾删后`431F56`按word减量，`431F67`在计数0时跳正常RET；
+既有十五容量向量的删尽返回保持，不再挑第二个桶。list.size不能证明count16回绕。
+
+旧源码`proc_5536`17秒exit8，两定向各1/1失败，恰五runtime/五真实TSW端口新增断言失败；
+两日志diagnostic0，五旧生产/两初版tests SHA前后不变，两个完整red snapshot保留。
+fresh host total0/head0与limit0/80000000/FFFFFFFF，以及known清理残余4/head0与limit0/4，
+都先进入哨兵处理；残余4、limit5则走signed小于侧，正常新8字节miss得到total12。
+这些是LST条件推导的controlled逻辑输入，不是原版哨兵动态捕获。
+
+生产在缺哨兵载荷时返回`cache_bucket_payload_unavailable`，不是原版错误码或必然崩溃结论。
+不装载新图像、不分配节点、不假扣容量；存量仍是模型停止前确认的checkpoint。
+实际TSW adapter与父continuation已有未知非返回传播，不重复加guard，不造停点/FLAGS/图像头。
+后补enum精确断言与五父向量未参加上述red，父保留CALL/actor/resource/progress并恢复测试状态。
+新七source冻结`proc_6044`394秒exit0：两个定向各1/1（CTest总0.70/0.67秒），
+core200/200（20.87秒）、ASan200/200（33.47秒）、app206/206（81.51秒），五日志diagnostic0，
+七SHA前后/完成后匹配，三LastTest各action1/reset1/skip0；无原版/Windows运行。
+材料前缀`build/tmp/runtime/wp316-tsw-empty-sentinel-`保留red/green日志、旧/新SHA、snapshot及diff。
+本批次阶段审查发布中；仅修正缺输入时的可用性，不称哨兵释放、完整count16/DF/allocator、
+首次失败真实ABI、四caller真实接线或316最终REVIEW已经完成。
 
 ## 六个样本汇总
 
