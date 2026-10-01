@@ -985,13 +985,48 @@ void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
         "real non-head hit exposes the former bucket head node in ECX after relink"
     );
 
+    // 431723/431EDA/431F76 compare capacity as signed32. Prepare a
+    // nonempty real cache first; negative limits must drain its only bucket
+    // before looking up the requested frame, not turn this into a hit.
+    bool signed_eviction_exact = true;
+    for (const u32 limit : {0x80000000U, 0xFFFFFFFFU}) {
+        tsw.set_cache_limit(0x7FFFFFFFU);
+        const auto before = port.lookup_frame(1U, 0U, 0U, 0U, 0U);
+        tsw.set_cache_limit(limit);
+        const auto after = port.lookup_frame(1U, 0U, 0U, 0U, 0U);
+        signed_eviction_exact = signed_eviction_exact && before.returned &&
+            after.returned && before.decoder_source.frame_owner != nullptr &&
+            after.decoder_source.frame_owner != nullptr &&
+            after.eax != before.eax &&
+            after.resource_value_00 != before.resource_value_00 &&
+            after.decoder_source.frame_owner !=
+                before.decoder_source.frame_owner &&
+            after.ecx == after.decoder_source.bytes.size() &&
+            after.edx == tsw.cached_primary_bytes() &&
+            tsw.cached_primary_bytes() == after.decoder_source.bytes.size() &&
+            tsw.cache_entry_count() == 1U && tsw.bucket_entry_count(1U) == 1U &&
+            after.resource_header_known && after.decoder_source_known &&
+            after.resource_value_0c == 47U && after.resource_value_0e == 95U &&
+            after.flags_known && !after.flags.carry && !after.flags.parity &&
+            !after.flags.zero && !after.flags.sign && !after.flags.overflow &&
+            !after.flags.auxiliary_carry_defined &&
+            std::ranges::equal(after.decoder_source.bytes,
+                               before.decoder_source.bytes);
+    }
+
+    test.expect_true(
+        signed_eviction_exact,
+        "real battle TSW port evicts before lookup for high-bit capacity and returns loaded-miss registers, TEST-one flags and a fresh retained record"
+    );
+    // Keep the existing close/reload scenario outside empty-bucket eviction.
+    tsw.set_cache_limit(0x00400000U);
+
     openswd3::asset_runtime::LegacyActionRecord action{};
     const auto idle = port.update(action, 0x12345678U, 1U, 2U, 3U);
     test.expect_true(
-        idle.returned && idle.eax == 1U && idle.ecx == 2U &&
-            idle.edx == 3U && idle.flags_known && idle.flags.zero &&
-            idle.flags.parity && !idle.flags.carry &&
-            updater.calls == 0U && action.field_24 == 0U,
+        idle.returned && idle.eax == 1U && idle.ecx == 2U && idle.edx == 3U &&
+            idle.flags_known && idle.flags.zero && idle.flags.parity &&
+            !idle.flags.carry && updater.calls == 0U && action.field_24 == 0U,
         "zero action returns through sub_4321E0 without consulting the stream"
     );
     action.action_id = 7U;

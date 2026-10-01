@@ -487,6 +487,104 @@ void test_cached_frame_lease_outlives_eviction(
     );
 }
 
+void test_signed_cache_capacity(openswd3::test::Context& test) {
+    // Independent LST: .data 4A6020=600000h, setter 4315C0..4315C9,
+    // signed JL at 431723/431EDA and signed JGE at 431F76.
+    // All query fixtures below have nonempty buckets before eviction;
+    // they do not assert the invalid empty-bucket sentinel free ABI.
+    const TestTree tree;
+    write_six_archives(tree);
+    FakeSpecialLoader default_loader;
+    LegacyTswRuntime defaults{tree.root(), {}, &default_loader};
+    const auto first = defaults.query_cached(0xFFFFU, 0U);
+    const auto repeated = defaults.query_cached(0xFFFFU, 0U);
+    test.expect_true(
+        defaults.cache_limit() == 0x00600000U &&
+            first.status == LegacyTswRuntimeStatus::ready &&
+            repeated.status == LegacyTswRuntimeStatus::ready &&
+            repeated.cache_hit && repeated.frame_owner == first.frame_owner &&
+            default_loader.calls == 1U,
+        "default TSW capacity is the original six MiB and retains a small frame"
+    );
+
+    struct Expected {
+        u32 limit;
+        std::size_t removed;
+        u32 bytes_after_query;
+    };
+
+    constexpr std::array<Expected, 15U> cases{{
+        {0U, 2U, 8U},
+        {1U, 2U, 8U},
+        {4U, 2U, 8U},
+        {7U, 2U, 8U},
+        {8U, 2U, 8U},
+        {9U, 1U, 12U},
+        {11U, 1U, 12U},
+        {12U, 1U, 12U},
+        {13U, 0U, 12U},
+        {0x7FFFFFFEU, 0U, 12U},
+        {0x7FFFFFFFU, 0U, 12U},
+        {0x80000000U, 2U, 8U},
+        {0x80000001U, 2U, 8U},
+        {0xFFFFFFFEU, 2U, 8U},
+        {0xFFFFFFFFU, 2U, 8U},
+    }};
+    bool fixtures_exact = true;
+    bool thresholds_exact = true;
+    for (const auto expected : cases) {
+        FakeSpecialLoader loader;
+        LegacyTswRuntime runtime{tree.root(), {}, &loader};
+        runtime.set_cache_limit(0x7FFFFFFFU);
+        const auto tail = runtime.query_cached(0xFFFFU, 0U);
+        const auto other = runtime.query_cached(0xFFFFU, 1U);
+        const auto head = runtime.query_cached(0xFFFFU, 10U);
+        const bool fixture = tail.status == LegacyTswRuntimeStatus::ready &&
+            other.status == LegacyTswRuntimeStatus::ready &&
+            head.status == LegacyTswRuntimeStatus::ready &&
+            tail.frame_owner != nullptr && head.frame_owner != nullptr &&
+            tail.frame.primary_stream.size() == 4U &&
+            runtime.cached_primary_bytes() == 12U &&
+            runtime.bucket_entry_count(0U) == 2U &&
+            runtime.bucket_entry_count(1U) == 1U && loader.calls == 3U;
+        fixtures_exact = fixtures_exact && fixture;
+        if (!fixture) {
+            thresholds_exact = false;
+            continue;
+        }
+
+        runtime.set_cache_limit(expected.limit);
+        const auto query = runtime.query_cached(0xFFFFU, 0U);
+        const bool hit = expected.removed == 0U;
+        thresholds_exact = thresholds_exact &&
+            runtime.cache_limit() == expected.limit &&
+            query.status == LegacyTswRuntimeStatus::ready &&
+            query.frame_owner != nullptr && query.cache_hit == hit &&
+            (query.frame_owner == tail.frame_owner) == hit &&
+            runtime.cached_primary_bytes() == expected.bytes_after_query &&
+            runtime.cache_entry_count() ==
+                3U - expected.removed + (hit ? 0U : 1U) &&
+            runtime.bucket_entry_count(0U) ==
+                2U - expected.removed + (hit ? 0U : 1U) &&
+            runtime.bucket_entry_count(1U) == 1U &&
+            loader.calls == (hit ? 3U : 4U) &&
+            query.lookup_return_ecx ==
+                (hit ? head.frame_owner->record_token - 8U : 4U) &&
+            query.lookup_return_edx ==
+                (hit ? 0x004CF84CU : expected.bytes_after_query) &&
+            tail.frame.primary_stream[2U] == 0xAAU;
+    }
+
+    test.expect_true(
+        fixtures_exact,
+        "signed-capacity fixtures start with twelve bytes and a nonempty longest bucket"
+    );
+    test.expect_true(
+        thresholds_exact,
+        "TSW eviction follows fifteen independent signed JL/JGE limits before lookup and within the selected bucket"
+    );
+}
+
 void test_original_bucket_eviction(openswd3::test::Context& test) {
     const TestTree tree;
     write_six_archives(tree);
@@ -553,5 +651,6 @@ int main() {
     test_special_resource_and_failures(test);
     test_original_bucket_eviction(test);
     test_cached_frame_lease_outlives_eviction(test);
+    test_signed_cache_capacity(test);
     return test.exit_code();
 }

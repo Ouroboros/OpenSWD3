@@ -5770,3 +5770,61 @@ build/tmp/runtime/wp316-free-assertion-prefix-source-freeze.sha256
 不升级inventory，不把本阶段当作完整工作包REVIEW。
 该局部前缀不替代全部98 CALL／22 RET、真实caller与CRT创建／销毁绑定、
 完整非默认联合差分和最终双向REVIEW；316仍为 `pending_audit`。
+
+### 查帧缓存容量的初值与有符号淘汰条件
+
+从 `0x00479940` 的真实查帧依赖继续核LST。`0x004A6020` 的数据字节为
+`00 00 60 00`，默认限额是6 MiB，不是零。`0x004315C0..0x004315C9`
+只取四字节参数并原样写入限额，不清高位或钳制负值。
+`0x00431721 CMP ECX,EAX / 0x00431723 JL` 在查找之前决定是否淘汰；
+`0x00431ED8 CMP EDX,EAX / 0x00431EDA JL` 和
+`0x00431F74 CMP EDX,EAX / 0x00431F76 JGE` 也按signed32比较。
+`LegacyTswRuntime` 的原默认值零及unsigned条件与上述指令不同。
+最小修正仅恢复默认值并以 `bit_cast<i32>` 比较原u32存储；
+setter、u32长度加减、一次选桶、尾部删除及查找先后不改。
+
+独立合成向量先用正限额建立桶0的 `[10,0]` 和桶1的 `[1]`，每帧4字节，
+总计12字节。十五种限额为0、1、4、7、8、9、11、12、13、
+`7FFFFFFE/7FFFFFFF/80000000/80000001/FFFFFFFE/FFFFFFFF`。
+0..8及四个负限额删除桶0两项，9..12只删旧尾，13及两个最大正值不删。
+请求旧尾0后分别验证8／12字节总量、各桶节点数、加载次数、
+命中／重载身份和ECX／EDX。输入桶非空且计数小，不覆盖空桶错误释放、
+16位计数回绕或大于2 GiB的实际主流分配。
+
+真实TSW消费者仍用现有 `LegacyBattleActorFrameTswUpdatePort`，先在正限额下
+加载资源1和11，再用 `80000000/FFFFFFFF` 核淘汰先于查找。
+唯一非空桶排空后，请求1必须重载为新记录和主流token；验证ECX主流长度、
+EDX字节总量、miss的TEST1定义FLAGS、47×95尺寸及真实主流字节一致。
+旧host租约只证明宿主借用生命周期，不表示原版已释放指针仍有效。
+高位向量之后恢复正限额，避免把既有关闭重载测试变成空桶错误释放场景。
+
+`proc_98ed / wp316-tsw-signed-capacity-red` 16秒退出8，两次定向各退出8。
+旧生产源码两项SHA前后相同，恰三项新增断言失败：默认容量、十五阈值、
+真实战斗查询端口的高位限额；没有其它断言或编译诊断。
+本red是恢复测试容量之前的初版；新增断言本身未改，不把后续修订冒充旧快照。
+动作17组及sequence372局部原版差分均实际执行，不是查帧原版差分。
+
+首份冻结快照 `proc_0664` 389秒退出0：两个定向各1/1、core／ASan各200/200、
+app206/206，日志诊断0。停止请求到达时实际已经成功结束，输出和五项冻结SHA
+另核吻合，不称其被中途终止。该结果属于尚未恢复测试容量的旧测试快照。
+随后只修正测试隔离及格式，生产文件不再修改；
+`proc_0b5e / wp316-tsw-signed-capacity-isolated-final-gates` 198秒退出0。
+新快照的两个定向各1/1（0.40／0.55秒）、core200/200（22.64秒）、
+ASan200/200（33.30秒）、app206/206（81.05秒）通过，五份日志诊断0。
+五项源码／测试冻结SHA在门禁前后及完成后匹配；三个LastTest各实际执行
+一次17组动作与sequence372局部差分，skip=0。本轮未运行原版或Windows门禁。
+正式日志及新冻结清单：
+
+```text
+build/tmp/runtime/wp316-tsw-signed-capacity-runtime-directed-v2.log
+build/tmp/runtime/wp316-tsw-signed-capacity-battle-directed-v2.log
+build/tmp/runtime/wp316-tsw-signed-capacity-core-full-v2.log
+build/tmp/runtime/wp316-tsw-signed-capacity-asan-full-v2.log
+build/tmp/runtime/wp316-tsw-signed-capacity-app-full-v2.log
+build/tmp/runtime/wp316-tsw-signed-capacity-source-freeze-v2.sha256
+```
+
+本次不补造失败加载后的GPR／FLAGS、缓存cursor／共享全局或完整CRT释放。
+空桶首轮尾部操作、16位桶计数回绕、四次深层free与失败停点仍待闭合。
+两个原版caller缺口、四caller生产绑定、全部98 CALL／22 RET及最终REVIEW仍未完成；
+本次不升级inventory，316继续 `pending_audit`。

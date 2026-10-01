@@ -4,6 +4,7 @@
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <limits>
 #include <new>
@@ -194,8 +195,8 @@ LegacyTswQueryResult LegacyTswRuntime::find_low16(
         result.lookup_return_ecx = was_head
             ? (static_cast<compat::u32>(variant_index) << 16U) | resource_id
             : bucket.front().frame->record_token - 8U;
-        result.lookup_return_edx = 0x004CF84CU +
-            static_cast<compat::u32>(bucket_number) * 0x20U;
+        result.lookup_return_edx =
+            0x004CF84CU + static_cast<compat::u32>(bucket_number) * 0x20U;
         if (!was_head) {
             bucket.splice(bucket.begin(), bucket, iterator);
         }
@@ -218,7 +219,9 @@ LegacyTswQueryResult LegacyTswRuntime::find_cached(
 }
 
 void LegacyTswRuntime::evict_before_lookup() noexcept {
-    if (cached_primary_bytes_ < cache_limit_) {
+    // The dwords remain unsigned storage, but 431723/431EDA use JL.
+    if (std::bit_cast<compat::i32>(cached_primary_bytes_) <
+        std::bit_cast<compat::i32>(cache_limit_)) {
         return;
     }
 
@@ -230,7 +233,10 @@ void LegacyTswRuntime::evict_before_lookup() noexcept {
     }
 
     CacheBucket& bucket = buckets_[selected];
-    while (!bucket.empty() && cached_primary_bytes_ >= cache_limit_) {
+    // 431F76 is signed JGE after each committed length subtraction.
+    while (!bucket.empty() &&
+           std::bit_cast<compat::i32>(cached_primary_bytes_) >=
+               std::bit_cast<compat::i32>(cache_limit_)) {
         const std::size_t removed_size =
             bucket.back().frame->primary_stream.size();
         cached_primary_bytes_ -= static_cast<compat::u32>(removed_size);

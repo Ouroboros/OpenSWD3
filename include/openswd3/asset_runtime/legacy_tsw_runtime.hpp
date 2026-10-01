@@ -138,7 +138,8 @@ private:
     LegacyTswSpecialFrameLoader* special_loader_{};
     std::array<LegacyTswArchive, 6> archives_;
     std::array<CacheBucket, kLegacyTswCacheBucketCount> buckets_;
-    compat::u32 cache_limit_{};
+    // dword_4A6020 starts at 600000h; its setter retains all 32 bits.
+    compat::u32 cache_limit_{0x00600000U};
     compat::u32 cached_primary_bytes_{};
     bool initialized_{};
 };
