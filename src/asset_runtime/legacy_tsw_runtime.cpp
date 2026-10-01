@@ -273,6 +273,13 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
         return result;
     }
 
+    if (!cached_primary_bytes_known_) {
+        // 431716/431721 need the actual total. A confirmed cleanup prefix
+        // cannot substitute for it, including after DF-zero initialization.
+        result.status = LegacyTswRuntimeStatus::cache_balance_unavailable;
+        return result;
+    }
+
     result.status = evict_before_lookup();
     if (result.status != LegacyTswRuntimeStatus::ready) {
         return result;
@@ -378,13 +385,27 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
 void LegacyTswRuntime::clear_cache() noexcept {
     for (CacheBucket& bucket : buckets_) {
         for (const auto& node : bucket) {
+            if (cached_primary_bytes_known_) {
+                if (node->status == LegacyTswRuntimeStatus::ready) {
+                    // 431F9E/431FAC subtract each known length once;
+                    // duplicate accounting may leave a nonzero balance.
+                    cached_primary_bytes_ -= static_cast<compat::u32>(
+                        node->frame->primary_stream.size()
+                    );
+                } else {
+                    // Do not treat an unmodeled payload's empty host vector
+                    // as a guest length of zero, or derive later deductions.
+                    cached_primary_bytes_known_ = false;
+                }
+            }
+
+            // This is the existing host ownership invalidation, not proof
+            // that the guest's four CRT free calls completed or returned.
             node->resident = false;
         }
 
         bucket.clear();
     }
-
-    cached_primary_bytes_ = 0U;
 }
 
 void LegacyTswRuntime::close() noexcept {
@@ -405,6 +426,10 @@ compat::u32 LegacyTswRuntime::cache_limit() const noexcept {
 
 compat::u32 LegacyTswRuntime::cached_primary_bytes() const noexcept {
     return cached_primary_bytes_;
+}
+
+bool LegacyTswRuntime::cached_primary_bytes_known() const noexcept {
+    return cached_primary_bytes_known_;
 }
 
 std::size_t LegacyTswRuntime::cache_entry_count() const noexcept {

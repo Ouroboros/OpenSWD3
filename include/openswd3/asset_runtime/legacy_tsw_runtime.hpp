@@ -59,6 +59,8 @@ enum class LegacyTswRuntimeStatus {
     cache_load_in_progress,
     // A nested lookup/removal left no readable node for the loader suffix.
     cache_cursor_unavailable,
+    // Host cleanup encountered an image length that has not been recovered.
+    cache_balance_unavailable,
 };
 
 struct LegacyTswQueryResult {
@@ -110,7 +112,10 @@ public:
 
     [[nodiscard]] bool is_initialized() const noexcept;
     [[nodiscard]] compat::u32 cache_limit() const noexcept;
+    // If unknown, the stored bytes are only the last confirmed prefix,
+    // not the actual total after the unresolved cleanup length.
     [[nodiscard]] compat::u32 cached_primary_bytes() const noexcept;
+    [[nodiscard]] bool cached_primary_bytes_known() const noexcept;
     [[nodiscard]] std::size_t cache_entry_count() const noexcept;
     [[nodiscard]] std::size_t
     bucket_entry_count(std::size_t bucket_index) const noexcept;
@@ -157,6 +162,7 @@ private:
     // dword_4A6020 starts at 600000h; its setter retains all 32 bits.
     compat::u32 cache_limit_{0x00600000U};
     compat::u32 cached_primary_bytes_{};
+    bool cached_primary_bytes_known_{true};
     bool initialized_{};
 };
 

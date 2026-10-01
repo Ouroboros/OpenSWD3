@@ -4471,6 +4471,15 @@ TSW失败停点、空桶错误释放、计数回绕及四caller生产绑定仍�
 冻结proc_5ab4 394秒exit0：两定向各1/1、core/ASan各200/200、app206/206通过，
 五日志诊断0、七SHA匹配，动作/重置局部差分执行、skip0。完整clear/free的残余计数、
 DF/计数回绕/allocator物理游标及真实绑定仍未闭合，不能称为316验收。
+共享选择阶段已完成commit/push/TG。随后完整核缓存清理、关闭、重开和其它释放依赖，
+发现按项减量的残余不应强制归零；DF=0关闭/初始化清零范围不覆盖该累计量。
+旧源码两个定向恰七runtime/两TSW端口新增断言失败，五生产/两初版测试SHA不变，诊断0。
+当前候选按已知host payload减量，首未知长度之后明确总量不可恢复，停止依赖它的容量查询；
+既有查询端口与父consumer不重复改写，向量验证非返回传播，未知不伪写actor/lease/progress。
+关闭/重开不以默认零恢复未知量；回绕和不依赖计量的find/direct另有后补向量。
+冻结proc_75a6 407秒exit0：两定向各1/1、core/ASan各200/200、app206/206通过，
+五日志diagnostic0、七SHA匹配，动作/重置局部差分实际执行、skip0，当前阶段审查发布中；
+不将宿主生命周期移除描述为原版CRT free/SEH完成，DF=1/count/别名及真实绑定仍待收敛。
 机器证据与剩余缺口见`../evidence/battle-actor-frame-presentation-00479850.md`；
 未完成316前不得开始317。
 

@@ -552,8 +552,9 @@ void test_shared_cursor_after_nested_lookup(openswd3::test::Context& test) {
                         LegacyTswRuntimeStatus::cache_cursor_unavailable &&
                     !outer.cache_hit && !outer_record.cache_hit &&
                     runtime.cache_entry_count() == 0U &&
-                    runtime.cached_primary_bytes() == 0U && loader.calls == 2U,
-                "a callback-removed destination is not made guest-readable by keeping its host cache node alive"
+                    runtime.cached_primary_bytes() == 8U &&
+                    !runtime.cached_primary_bytes_known() && loader.calls == 2U,
+                "a callback-removed destination is not guest-readable; its pending length leaves the prior eight-byte balance unavailable instead of zero"
             );
             continue;
         }
@@ -587,6 +588,125 @@ void test_shared_cursor_after_nested_lookup(openswd3::test::Context& test) {
             "TSW reloads the shared cursor after nested load or hit, returns the inner record, and counts the inner length again instead of the original payload"
         );
     }
+}
+
+void test_cache_cleanup_balance(openswd3::test::Context& test) {
+    const TestTree tree;
+    write_six_archives(tree);
+    for (const bool close_files : {false, true}) {
+        NestedCursorLoader loader;
+        LegacyTswRuntime runtime{tree.root(), {}, &loader};
+        loader.runtime = &runtime;
+        runtime.set_cache_limit(0x7FFFFFFFU);
+        const auto outer = runtime.query_cached(0xFFFFU, 0U);
+        test.expect_true(
+            outer.status == LegacyTswRuntimeStatus::ready &&
+                runtime.cached_primary_bytes() == 16U &&
+                runtime.cache_entry_count() == 2U,
+            "cleanup balance fixture has eight and four byte nodes counted as sixteen"
+        );
+        if (close_files) {
+            runtime.close();
+        } else {
+            runtime.clear_cache();
+        }
+
+        test.expect_true(
+            runtime.cached_primary_bytes() == 4U &&
+                runtime.cached_primary_bytes_known() &&
+                runtime.cache_entry_count() == 0U &&
+                runtime.is_initialized() == !close_files,
+            "clearing or closing TSW subtracts each known payload once and preserves the four-byte residual instead of forcing zero"
+        );
+        const auto reopened = runtime.query_cached(0xFFFFU, 10U);
+        test.expect_true(
+            reopened.status == LegacyTswRuntimeStatus::ready &&
+                !reopened.cache_hit && reopened.lookup_return_ecx == 8U &&
+                reopened.lookup_return_edx == 12U &&
+                runtime.cached_primary_bytes() == 12U &&
+                runtime.cached_primary_bytes_known() &&
+                runtime.cache_entry_count() == 1U,
+            "TSW next load keeps the residual after cache clear or file reopen because the DF-zero REP ranges do not clear the byte total"
+        );
+    }
+
+    NestedCursorLoader missed_loader;
+    missed_loader.operation = NestedCursorLoader::Operation::miss;
+    LegacyTswRuntime underflow{tree.root(), {}, &missed_loader};
+    missed_loader.runtime = &underflow;
+    underflow.set_cache_limit(0x7FFFFFFFU);
+    const auto seed = underflow.query_cached(0xFFFFU, 10U);
+    const auto missed = underflow.query_cached(0xFFFFU, 0U);
+    test.expect_true(
+        seed.status == LegacyTswRuntimeStatus::ready &&
+            missed.status == LegacyTswRuntimeStatus::cache_cursor_unavailable &&
+            underflow.cached_primary_bytes() == 8U,
+        "cleanup underflow fixture preserves a four-byte uncounted payload after the nested cache-only miss"
+    );
+    underflow.clear_cache();
+    test.expect_true(
+        underflow.cached_primary_bytes() == 0xFFFFFFFCU &&
+            underflow.cached_primary_bytes_known() &&
+            underflow.cache_entry_count() == 0U,
+        "known cleanup subtracts all twelve payload bytes from eight modulo 32 bits instead of clamping the negative residual to zero"
+    );
+    const auto after_wrap = underflow.query_cached(0xFFFFU, 30U);
+    test.expect_true(
+        after_wrap.status == LegacyTswRuntimeStatus::ready &&
+            after_wrap.lookup_return_ecx == 8U &&
+            after_wrap.lookup_return_edx == 4U &&
+            underflow.cached_primary_bytes() == 4U &&
+            underflow.cached_primary_bytes_known(),
+        "signed capacity admits the negative residual and the next eight-byte load wraps the cache total back to four"
+    );
+
+    FakeSpecialLoader loader;
+    LegacyTswRuntime unknown{tree.root(), {}, &loader};
+    unknown.set_cache_limit(0x7FFFFFFFU);
+    const auto first = unknown.query_cached(0xFFFFU, 0U);
+    const auto later = unknown.query_cached(0xFFFFU, 3U);
+    const auto pending = unknown.query_cached(1U, 0xFFFFU);
+    test.expect_true(
+        first.status == LegacyTswRuntimeStatus::ready &&
+            later.status == LegacyTswRuntimeStatus::ready &&
+            pending.status == LegacyTswRuntimeStatus::physical_frame_failed &&
+            unknown.cached_primary_bytes() == 8U && loader.calls == 2U,
+        "cleanup unknown-length fixture has a known first bucket, unknown second bucket and a later known payload"
+    );
+    unknown.clear_cache();
+    test.expect_true(
+        unknown.cached_primary_bytes() == 4U &&
+            !unknown.cached_primary_bytes_known() &&
+            unknown.cache_entry_count() == 0U,
+        "host invalidation retains only the confirmed four-byte prefix before unknown cleanup length and does not assert total zero"
+    );
+    const auto blocked = unknown.query_cached(0xFFFFU, 20U);
+    test.expect_true(
+        blocked.status == LegacyTswRuntimeStatus::cache_balance_unavailable &&
+            blocked.frame_owner == nullptr && !blocked.cache_hit &&
+            unknown.cached_primary_bytes() == 4U &&
+            unknown.cache_entry_count() == 0U && loader.calls == 2U,
+        "cached lookup cannot use the retained cleanup prefix as a known capacity balance or call another loader"
+    );
+    unknown.close();
+    const auto blocked_reopen = unknown.query_cached(0xFFFFU, 20U);
+    test.expect_true(
+        blocked_reopen.status ==
+                LegacyTswRuntimeStatus::cache_balance_unavailable &&
+            blocked_reopen.frame_owner == nullptr &&
+            unknown.cached_primary_bytes() == 4U && loader.calls == 2U,
+        "close and DF-zero initialization do not repair an unavailable cache balance with a fabricated zero"
+    );
+    const auto miss = unknown.find_cached(0xFFFFU, 20U);
+    const auto direct = unknown.load_direct(0xFFFFU, 30U);
+    test.expect_true(
+        miss.status == LegacyTswRuntimeStatus::cache_miss && !miss.cache_hit &&
+            direct.status == LegacyTswRuntimeStatus::ready &&
+            unknown.cached_primary_bytes() == 4U &&
+            !unknown.cached_primary_bytes_known() &&
+            unknown.cache_entry_count() == 0U && loader.calls == 3U,
+        "cache-only and direct requests do not need the unavailable balance and do not repair or increment it"
+    );
 }
 
 void populate_eviction_shape(
@@ -840,6 +960,7 @@ int main() {
     test_special_resource_and_failures(test);
     test_cache_publication_before_load(test);
     test_shared_cursor_after_nested_lookup(test);
+    test_cache_cleanup_balance(test);
     test_original_bucket_eviction(test);
     test_cached_frame_lease_outlives_eviction(test);
     test_signed_cache_capacity(test);

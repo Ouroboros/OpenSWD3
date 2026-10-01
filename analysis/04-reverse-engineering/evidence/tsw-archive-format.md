@@ -251,8 +251,22 @@ B10后续独立审查又修正现场报告：失败回复显式physical_state_kn
 五个独立旧源码失败先行，新冻结proc_5ab4 394秒exit0，两定向各1/1、core/ASan各200/200、
 app206/206通过，五日志诊断0、七SHA匹配，父级实际写返回记录或保留未知停止。
 这是controlled callback和host所有权验证，不是原版递归捕获/完整4DACDC物理内存恢复。
-431F80清理逐项减长度：若16总量的两个8/4节点完整free返回，残余4不能无条件清零；
-该完整clear/free和16位count、DF别名、allocator/系统调用仍待核，host移除测试不证明它们。
+431F80清理逐项减长度：若16总量的两个8/4节点完整free返回，残余4不能无条件清零。
+后续B10独立反例在旧源码上恰七runtime/两实际TSW端口断言失败（proc_03fd，17秒exit8），
+五生产/两初版测试SHA前后一致，诊断0、旧断言无退化，ACT17/seq372局部差分实际执行。
+当前宿主owned清理按桶/节点顺序减已知长度，不再强制清零；首未知长度后保留最后可确认量，
+用cached_primary_bytes_known=false明确它不是实际总量，后续容量查询返回cache_balance_unavailable。
+现有端口/父continuation传播未知现场而不伪造GPR/FLAGS/停止地址或正常actor结果；它们只读冻结。
+DF=0，关闭/初始化REP范围[4DAD28,4FB0C8)、[4CF988,4DACD4)均不含4DAD0C；
+剩4保持到重新打开，下一8字节miss计12。关闭中433BF0的显式写也不是该total的复位；
+不据命名搜索排除未知alias/free回调。DF=1首REP反写覆盖total的分支仍未恢复。
+后加回绕8-12=FFFFFFFC、signed容量/再加8=4，独立find/direct与父continuation、已知性精确断言，
+均不冒充参加上述red。旧callback移除测试的零量断言改为prefix8/unknown；host保活仍非guest有效。
+新七source冻结的proc_75a6 407秒exit0：两定向各1/1（0.57/0.56秒）、core200/200（20.41秒）、
+ASan200/200（36.16秒）、app206/206（81.20秒），五日志diagnostic0、七SHA前后/完成后匹配。
+三LastTest动作/重置局部差分各执行一次、skip0；没有原版/Windows运行，本批次审查发布中。
+这是计量/已知性修正，不是完整原版清理、副作用或CRT正常回复；四free、count16、DF别名、
+allocator/系统调用仍待核，host移除测试不证明它们。
 淘汰碰到未知载荷时，在缺少 `0x00431F11` 长度及四次free输入处保留节点，
 不把空的宿主vector大小当作原版零长度，不减容量或伪造释放。
 

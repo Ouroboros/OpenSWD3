@@ -1146,6 +1146,47 @@ void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
         );
     }
 
+    for (const bool close_files : {false, true}) {
+        NestedFrameLookupLoader loader;
+        openswd3::asset_runtime::LegacyTswRuntime uncertain{
+            std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}, {}, &loader
+        };
+        loader.runtime = &uncertain;
+        uncertain.set_cache_limit(0x7FFFFFFFU);
+        const auto counted = uncertain.query_cached(0xFFFFU, 0U);
+        const auto unknown = uncertain.query_cached(1U, 0xFFFFU);
+        test.expect_true(
+            counted.status ==
+                    openswd3::asset_runtime::LegacyTswRuntimeStatus::ready &&
+                unknown.status == openswd3::asset_runtime::
+                                      LegacyTswRuntimeStatus::physical_frame_failed &&
+                uncertain.cached_primary_bytes() == 16U,
+            "battle cleanup balance fixture counts sixteen bytes before an unknown payload is published"
+        );
+        if (close_files) {
+            uncertain.close();
+        } else {
+            uncertain.clear_cache();
+        }
+
+        openswd3::battle::LegacyBattleActorFrameTswUpdatePort uncertain_port{
+            uncertain, updater
+        };
+        const auto stopped = uncertain_port.lookup_frame(
+            1U, 0U, 0x11111111U, 0x22222222U, 0x33333333U
+        );
+        test.expect_true(
+            !stopped.returned && !stopped.physical_state_known &&
+                !stopped.flags_known && stopped.stopped_instruction == 0U &&
+                !stopped.resource_header_known &&
+                !stopped.decoder_source_known &&
+                uncertain.cached_primary_bytes() == 4U &&
+                !uncertain.cached_primary_bytes_known() &&
+                uncertain.cache_entry_count() == 0U,
+            "battle TSW port cannot report a normal frame or physical failure address after cleanup loses the cache balance, including after file reopen"
+        );
+    }
+
     openswd3::asset_runtime::LegacyActionRecord action{};
     const auto idle = port.update(action, 0x12345678U, 1U, 2U, 3U);
     test.expect_true(
@@ -5333,6 +5374,68 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         action_execution.render_source_token = 0x00701000U;
 
 #ifdef OPENSWD3_REAL_TSW_ROOT
+        {
+            const auto saved_resource = action_execution.resource;
+            const u32 saved_render = action_execution.render_source_token;
+            const auto saved_started = progress.frame_started;
+            const auto saved_post = progress.post_action_value;
+            for (const bool close_files : {false, true}) {
+                NestedFrameLookupLoader loader;
+                openswd3::asset_runtime::LegacyTswRuntime uncertain{
+                    std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}, {}, &loader
+                };
+                loader.runtime = &uncertain;
+                uncertain.set_cache_limit(0x7FFFFFFFU);
+                const auto counted = uncertain.query_cached(0xFFFFU, 0U);
+                const auto unknown = uncertain.query_cached(1U, 0xFFFFU);
+                test.expect_true(
+                    counted.status == openswd3::asset_runtime::
+                                          LegacyTswRuntimeStatus::ready &&
+                        unknown.status == openswd3::asset_runtime::
+                                              LegacyTswRuntimeStatus::physical_frame_failed,
+                    "parent cleanup balance fixture has ready and unknown image lengths"
+                );
+                if (close_files) {
+                    uncertain.close();
+                } else {
+                    uncertain.clear_cache();
+                }
+
+                openswd3::battle::LegacyBattleActorFrameTswUpdatePort
+                    uncertain_port{uncertain, updater};
+                action_execution.render_source_token = 0x00701000U;
+                progress.frame_started = 1U;
+                progress.post_action_value = 0x99U;
+                const auto stopped = openswd3::battle::
+                    continue_legacy_battle_actor_frame_lookup(
+                        actor, uncertain_port, forward, lookup_prefix
+                    );
+                test.expect_true(
+                    stopped.status == LegacyBattleActorFrameEntryStatus::
+                                          update_frame_lookup_typed_stop &&
+                        !stopped.returned && !stopped.physical_state_known &&
+                        !stopped.frame_lookup_child.physical_state_known &&
+                        !stopped.flags_known && stopped.eip == 0U &&
+                        stopped.esp == lookup_prefix.esp - 12U &&
+                        stopped.last_pushed_value == 0x00479945U &&
+                        action_execution.render_source_token == 0x00701000U &&
+                        action_execution.resource.frame_owner ==
+                            saved_resource.frame_owner &&
+                        progress.frame_started == 1U &&
+                        progress.post_action_value == 0x99U &&
+                        uncertain.cached_primary_bytes() == 4U &&
+                        !uncertain.cached_primary_bytes_known() &&
+                        uncertain.cache_entry_count() == 0U,
+                    "parent keeps its CALL checkpoint and actor state when cleanup leaves capacity unknown; file reopen cannot manufacture a return"
+                );
+            }
+
+            action_execution.resource = saved_resource;
+            action_execution.render_source_token = saved_render;
+            progress.frame_started = saved_started;
+            progress.post_action_value = saved_post;
+        }
+
         {
             const auto saved_resource = action_execution.resource;
             const u32 saved_render = action_execution.render_source_token;

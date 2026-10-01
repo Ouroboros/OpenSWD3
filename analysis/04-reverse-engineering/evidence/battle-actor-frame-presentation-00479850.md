@@ -5988,8 +5988,48 @@ build/tmp/runtime/wp316-tsw-shared-cursor-source-freeze.sha256
 
 又完整核431F80..432006：431F9E读取长度，431FAC按项减总量，四free后431FEE写next游标。
 若上述两个ready节点的四次free全正常返回且无重入/别名，16减8减4应剩4，不是无条件0。
-现有host clear_cache重置总量不能证明此原版路径；新增移除向量只核host owned节点失效，
-不称为431F80整体副作用或四free验证。这一计数与完整clear/free边界仍需后续共同修正。
+本阶段当时host clear_cache仍重置总量，不能证明此原版路径；新增移除向量只核host owned节点失效，
+不称为431F80整体副作用或四free验证。后续计数修正单独记录如下，未反向修改本阶段冻结或red范围。
 40AD10已读至40AE1D，含AIL服务、allocator、文件/decoder/free；不据这些CALL推断实际递归。
 DF=1、count16回绕、空桶四free、首次失败实际CPU、四caller绑定、249跨块/98 CALL/22 RET、
 联合差分、316最终REVIEW与完整Goal均未完成；inventory保持pending_audit。
+
+### 宿主清缓存后的残余计量与未知量传播
+
+继续完整核431F80..432006、431960..431A10、433BF0..433C30与4315D0初始化。
+431F8F先清桶head，431F97发布游标；431F9E取+18长度，431FA7保存next，431FAC减总量。
+四次free及三次共享游标重读之后，431FE7减word count、431FEE写next；末尾没有total=0。
+若所有free正常返回且没有重入/别名，两个known节点8/4、此前total16应留4。
+关闭及重开DF=0 REP区域为[4DAD28,4FB0C8)、[4CF988,4DACD4)，均不含4DAD0C；
+下一8字节miss应ECX8/EDX12。433BF0显式写buffer/其它计数，不写该total，
+但不据此排除未知free回调或间接alias。DF=1首REP会反写经过该total，仍在未恢复物理范围。
+
+独立红向量先用既有API编译：clear/close残余与reopen各两例；known bucket0/unknown bucket1/
+known bucket3保留确认前缀4而非0，后续query不以它代capacity，close/reopen仍未知；
+实际TSW adapter的clear/close两个消费者反例。
+`proc_03fd / wp316-tsw-clear-balance-red` 17秒exit8，两定向各1/1失败：
+恰七runtime/两TSW端口新增断言失败，无旧断言退化、diagnostic0；五旧生产/两初版测试SHA
+前后匹配。ACT17与seq372局部差分实际执行。两个完整red测试snapshot保留。
+
+候选Runtime现在减每个已知host owned payload一次，保留重复计量与u32减法回绕；
+首未知长度后不推导其后扣量，stored bytes只是最后确认的prefix，known=false。
+query_cached在需要total的容量比较前以cache_balance_unavailable停止，不造CPU或恢复零量；
+close/reopen不重置未知性；find_cached/direct不依赖该量，不被无关禁用。
+保持原有host生命周期清理而非声称原版未知长度读/四free已执行；节点数表示host所有权。
+现有Native TSW查询和父pipeline只读冻结，已有非返回传播即可消费新状态，没有重复guard。
+
+后补known getter/新状态精确断言、8-12=FFFFFFFC及signed容量/再加8=4、find/direct非依赖，
+及两父continuation向量，没有参加上述red。旧移除向量的默认零量改为prefix8/unknown，
+不借此前宿主零量假设反改原指令。父未知例保留CALL三槽/last PUSH479945，不写actor+2548、
+resource/lease或progress，也不补实际停点；测试恢复原resource/render/progress。
+对应状态与callee数据来自controlled输入，不是原版递归/清理捕获或四caller真实生产接线。
+
+七项source冻结与362行/17864字节源码差异已完整审阅；
+`proc_75a6 / wp316-tsw-clear-balance-frozen-gates` 407秒exit0：
+runtime定向1/1（0.57秒）、battle定向1/1（0.56秒）、core200/200（20.41秒）、
+ASan200/200（36.16秒）、app206/206（81.20秒），五日志diagnostic0，七SHA门禁前后/完成后匹配。
+三LastTest各action1/reset1/skip0，本轮没有原版或Windows运行，不是原版清理动态差分。
+材料前缀为`build/tmp/runtime/wp316-tsw-clear-balance-`：两个red日志/两个完整snapshot、
+old-production/red-tests/source-freeze SHA、source-review diff及五个directed/full日志均保留。
+本批次审查发布中；完整CRT/SEH、十桶物理游标/count/别名、DF=1、空桶错误、首次失败真实CPU、
+四caller接线、249跨块/98 CALL/22 RET、联合差分、316最终REVIEW与完整Goal仍未完成。
