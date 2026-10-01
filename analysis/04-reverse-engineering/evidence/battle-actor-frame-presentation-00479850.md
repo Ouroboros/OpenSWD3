@@ -5678,3 +5678,95 @@ warning、测试错误或sanitizer报告；三份LastTest均实际打印17组动
 源manifest／events和夹具哈希再次吻合，未改原始采集。
 这里不比较前置callee输出、内部逐指令trace、异常页或SEH，更不是18组完整非默认
 联合复放。这些修正、测试与夹具随已验证阶段共同审查与发布，不构成316最终REVIEW验收，inventory不升级。
+
+### 资源释放默认回调、内部校验与报告栈前缀
+
+共享生产入口 `read_release_callee_prefix()` 由case2的 `0x00479C94`、
+case100的 `0x0047B6F9` 和链节点的 `0x0047F0E1` 释放路径使用。
+这里只推进明确持有的 `0x0048AA70` 默认回调；缺回调、持有零目标和
+其它目标继续保留各自真实前缀，不以静态初值补生产绑定。
+`0x0048AA79 RET` 只回到 `0x00488626`，不能当作完整CRT释放返回。
+
+前一已发布快照完成默认叶的保存／返回、七个实参出栈，以及
+`0x00488658..0x00488F44` 两层内部校验。非零header继续停在
+`0x00488F52` 的 `IsBadReadPtr` IAT `0x004990BC` 首读前。
+header零时，`0x00488F7D MOV [EBP-4],0` 不改变末次PUSH值；
+`0x00488F84` 读回零，两个独立POP／RET只返回到 `0x00488FAE`
+及 `0x00488661`，随后 `TEST EAX,EAX` 进入报告分支。
+这些校验保留408个独立访问前障及36个零header局部／POP／RET前障，
+DF不变；逻辑运算AF未定义，MOV／POP／RET不改FLAGS。
+前一源码快照的 `proc_b069` 定向1/1、core／ASan各200/200、app206/206
+通过，不据此宣称完整CRT、堆生命周期或316验收完成。
+
+本轮从上述断点独立核LST机器码，不用未验证草稿作为行为真值。
+以父级压释放实参之前的ESP为P，真实可达报告前缀为：
+
+```text
+访问  指令地址   动作及写值             ESP写前   写地址
+0     00488668   PUSH 0049B6EC          P-44      P-48
+1     0048866D   PUSH 0                 P-48      P-52
+2     0048866F   PUSH 000003F3          P-52      P-56
+3     00488674   PUSH 0049B5DC          P-56      P-60
+4     00488679   PUSH 2                 P-60      P-64
+5     0048867B   CALL；返回槽00488680   P-64      P-68
+6     0048AA90   PUSH CRT EBP=P-28      P-68      P-72
+7     0048AA98   CALL；返回槽0048AA9D   P-72      P-76
+8     00491FD0   PUSH ECX               P-76      P-80
+```
+
+`0x0048AA91 MOV EBP,ESP` 先设EBP=P-72；`0x0048AA93 MOV EAX,302Ch`
+先于第二次CALL。九次栈写之前的FLAGS均来自外层TEST零：ZF／PF为1，
+CF／SF／OF为0，AF未定义；每个前障保留先前已提交栈写与末次PUSH。
+写入两个地址常量并不读取字符串内容，也不表示已经输出报告。
+
+`0x00491FD1 CMP EAX,1000h` 的输入由前述MOV固定为302Ch；
+`0x00491FD6 LEA ECX,[ESP+8]` 得P-72，`0x00491FDA JB` 不跳。
+随后 `0x00491FDC SUB ECX,1000h` 得P-1048h，
+`0x00491FE2 SUB EAX,1000h` 得202Ch，均保持32位回绕。
+首个未建模读取是 `0x00491FE7 TEST dword [ECX],EAX`：
+ESP=P-80、EBP=P-72、EAX=202Ch、ECX=P-1048h、EDX=20h，
+末次PUSH仍为进入探测前保存的ECX；FLAGS来自末次SUB，
+CF／PF／AF／ZF／SF／OF均0、AF有定义、DF不变。
+未捕获栈页值，不能执行TEST、生成其FLAGS或宣称探测／报告返回。
+
+独立测试使用三种合成ESP `001AFE00/00000020/80000044`、两种DF和
+调试设置0／1／4，并分别走case2、case100和链节点三个现有生产continuation，
+形成486个栈写前障；这些不是原版观测值，不证明父级真实栈／堆绑定。
+链节点先按 `0x0047F0DE MOV ESI,[EAX]` 读取合成节点的canonical next，
+再压节点参数；所以访问序号另加1，ESI保留这次读取值，不借旧ESI。
+case2的38个清零写在释放之前，case100的后续清零在释放之后，
+本轮不重排或回滚这些已经由父路径验证的写序。
+同时核首读取的序号停止与不透明后缀停止，以及明确持有回调地址恰为
+`0x00491FE7` 的反例。后者仍有七个回调实参和返回槽，ESP=CRT EBP-30h，
+不能借用已经进入报告的ESP=报告EBP-8现场；EIP相等不足以分类。
+原版报告首栈页、报告返回、INT3和SEH未观测，不补造。
+
+`proc_680a / wp316-free-assertion-prefix-red` 13秒退出8：
+旧生产实现恰两项新增断言失败，分别是162写障现场和首栈页读取现场；
+同址异目标反例及既有测试未失败，编译无诊断。
+补齐生产前缀后，原408个内部校验前障、36个局部／POP／RET前障仍保留，
+零header的无序号不透明停止期望随实际前缀前移到 `0x00491FE7`；
+原六个断言首PUSH前障不跳过，新486写障及三入口同址异目标反例共同验证。
+独立机器码解析另拼接续字节、解码两次相对CALL和实际立即数，核三种ESP
+的32位回绕及202Ch的六项算术FLAGS；首轮解析未处理CRLF而未找到指令，
+修正只读解析器后吻合，不改LST、C++或测试，也不补读页值。
+
+`proc_6c50 / wp316-free-assertion-prefix-final-gates` 282秒退出0：
+定向1/1（0.56秒）、core200/200（21.24秒）、ASan200/200（34.49秒）、
+app206/206（81.32秒）全部通过，四份正式日志编译／测试／内存诊断0。
+三份LastTest均实际执行17组动作数据与sequence372重置尾段局部差分，没有跳过；
+本轮没有执行原版、Windows门禁或完整非默认联合差分。
+三个源码／测试文件的冻结SHA在门禁前后及完成后均匹配，文档状态另按实际结果同步。
+正式日志与源码冻结清单：
+
+```text
+build/tmp/runtime/wp316-free-assertion-prefix-directed-final.log
+build/tmp/runtime/wp316-free-assertion-prefix-core-full.log
+build/tmp/runtime/wp316-free-assertion-prefix-asan-full.log
+build/tmp/runtime/wp316-free-assertion-prefix-app-full.log
+build/tmp/runtime/wp316-free-assertion-prefix-source-freeze.sha256
+```
+本轮只对明确范围的生产修正、三处消费者测试和证据共同进行阶段审查与发布，
+不升级inventory，不把本阶段当作完整工作包REVIEW。
+该局部前缀不替代全部98 CALL／22 RET、真实caller与CRT创建／销毁绑定、
+完整非默认联合差分和最终双向REVIEW；316仍为 `pending_audit`。

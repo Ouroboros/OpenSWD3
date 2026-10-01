@@ -764,12 +764,37 @@ stop_sound_before_deep_read(
             callee.esp += 4U;
             callee.flags = add_flags(before_token_discard, 4U);
             callee.flags = logical_result_flags(callee.eax);  // TEST 0,0.
-            callee.eip = 0x00488668U;
-            // The zero validator result does not return from free. It
-            // reaches assertion reporting; no report PUSH has run yet.
+            // A zero validator result reaches assertion reporting, not
+            // the CRT epilogue. Each argument and CALL slot can fault.
+            if (!save(0x00488668U, 0x0049B6ECU) ||
+                !save(0x0048866DU, 0U) || !save(0x0048866FU, 0x3F3U) ||
+                !save(0x00488674U, 0x0049B5DCU) ||
+                !save(0x00488679U, 2U) || !save(0x0048867BU, 0x00488680U) ||
+                !save(0x0048AA90U, callee.ebp)) {
+                return false;
+            }
+
+            callee.ebp = callee.esp;  // 0x0048AA91 MOV EBP,ESP.
+            callee.eax = 0x302CU;  // 0x0048AA93 MOV EAX,302Ch.
+            if (!save(0x0048AA98U, 0x0048AA9DU) ||
+                !save(0x00491FD0U, callee.ecx)) {
+                return false;
+            }
+
+            callee.flags = subtract_flags(callee.eax, 0x1000U);
+            callee.ecx = callee.esp + 8U;  // 0x00491FD6 LEA.
+            // CMP 302Ch,1000h does not take 0x00491FDA JB.
+            const u32 before_page_subtract = callee.ecx;
+            callee.ecx -= 0x1000U;
+            callee.flags = subtract_flags(before_page_subtract, 0x1000U);
+            callee.flags = subtract_flags(callee.eax, 0x1000U);
+            callee.eax -= 0x1000U;
+            callee.eip = 0x00491FE7U;
+            // TEST [ECX],EAX has no backed page value here. Do not count
+            // its read, generate TEST flags or fabricate report return.
             if (callee.accesses_completed == request.stop_before_access ||
-                !request.call_stack_writable) {
-                return stop(0x00488668U, callee.esp - 4U, true);
+                !request.stack_readable) {
+                return stop(0x00491FE7U, callee.ecx, false);
             }
 
             return true;
@@ -818,16 +843,16 @@ stop_release_before_crt_global(
     // still includes seven hook arguments and its RET slot (EBP-0x30).
     const bool before_bad_read_import =
         callee.eip == 0x00488F52U && callee.esp == callee.ebp - 0x0CU;
-    const bool before_null_assertion_push =
-        callee.eip == 0x00488668U && callee.esp == callee.ebp - 0x10U;
+    const bool before_stack_probe_read =
+        callee.eip == 0x00491FE7U && callee.esp == callee.ebp - 8U;
     callee.stopped_access_kind = before_bad_read_import
         ? LegacyBattleActorFrameEntryAccessKind::global_read
-        : before_null_assertion_push
-        ? LegacyBattleActorFrameEntryAccessKind::stack_write
+        : before_stack_probe_read
+        ? LegacyBattleActorFrameEntryAccessKind::stack_read
         : LegacyBattleActorFrameEntryAccessKind::callee_call;
     callee.stopped_instruction = callee.eip;
     callee.stopped_token = before_bad_read_import ? 0x004990BCU
-        : before_null_assertion_push              ? callee.esp - 4U
+        : before_stack_probe_read                ? callee.ecx
                                                   : 0U;
     return callee;
 }

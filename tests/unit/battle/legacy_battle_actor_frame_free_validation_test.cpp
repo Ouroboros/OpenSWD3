@@ -265,36 +265,40 @@ void test_battle_actor_frame_free_validation_prefix(
                     const bool null_header = header == 0U;
                     const bool after_null_returns =
                         null_header && stopped == &opaque_stop;
-                    const LegacyBattleActorCoordinateFlags returned_zero_flags{
-                        .parity = true,
-                        .auxiliary_carry_defined = false,
-                        .zero = true,
-                    };
                     frontiers_exact = frontiers_exact &&
                         stopped->eip ==
-                            (after_null_returns ? 0x00488668U
+                            (after_null_returns ? 0x00491FE7U
                                  : null_header  ? 0x00488F7DU
                                                 : 0x00488F52U) &&
                         stopped->stopped_instruction == stopped->eip &&
                         stopped->stopped_access_kind ==
-                            (null_header
+                            (after_null_returns
+                                 ? LegacyBattleActorFrameEntryAccessKind::
+                                       stack_read
+                                 : null_header
                                  ? LegacyBattleActorFrameEntryAccessKind::
                                        stack_write
                                  : LegacyBattleActorFrameEntryAccessKind::
                                        global_read) &&
                         stopped->stopped_token ==
-                            (after_null_returns ? before.esp - 48U
+                            (after_null_returns ? before.esp - 0x1048U
                                  : null_header  ? before.esp - 84U
                                                 : 0x004990BCU) &&
                         stopped->esp ==
                             before.esp -
-                                (after_null_returns ? 44U
+                                (after_null_returns ? 80U
                                      : null_header  ? 84U
                                                     : 92U) &&
                         stopped->ebp ==
-                            before.esp - (after_null_returns ? 28U : 80U) &&
-                        stopped->eax == (null_header ? 0U : 0x20U) &&
-                        stopped->ecx == (null_header ? saved_ecx : header) &&
+                            before.esp - (after_null_returns ? 72U : 80U) &&
+                        stopped->eax ==
+                            (after_null_returns ? 0x202CU
+                                 : null_header  ? 0U
+                                                : 0x20U) &&
+                        stopped->ecx ==
+                            (after_null_returns ? before.esp - 0x1048U
+                                 : null_header  ? saved_ecx
+                                                : header) &&
                         stopped->edx == argument &&
                         stopped->ebx == before.ebx &&
                         stopped->esi == before.esi &&
@@ -303,11 +307,12 @@ void test_battle_actor_frame_free_validation_prefix(
                             (null_header ? saved_ecx : header) &&
                         stopped->accesses_completed ==
                             start + access_count +
-                                (after_null_returns ? 6U : 0U) &&
+                                (after_null_returns ? 15U : 0U) &&
                         stopped->flags_known &&
                         same_flags(stopped->flags,
-                                   after_null_returns ? returned_zero_flags
-                                                      : flags[3U]) &&
+                                   after_null_returns
+                                       ? LegacyBattleActorCoordinateFlags{}
+                                       : flags[3U]) &&
                         stopped->direction_flag == df && !stopped->returned &&
                         !stopped->release_child.returned &&
                         stopped->release_calls == 1U;
@@ -333,7 +338,9 @@ void test_battle_actor_frame_free_validation_prefix(
     );
     test.expect_true(
         frontiers_exact,
-        "free validation stops before IsBadReadPtr IAT, null-header write fault or post-return assertion PUSH, without executing Win32 or fabricating a free return"
+        "free validation stops before IsBadReadPtr IAT, null-header write "
+        "fault or the first report stack-page read, without executing Win32 "
+        "or fabricating a free return"
     );
 
     // Zero header writes its local result and returns through two distinct
@@ -486,5 +493,229 @@ void test_battle_actor_frame_free_validation_prefix(
     test.expect_true(
         null_fault_count == 36U && null_returns_exact,
         "null header has six independent local/POP/RET faults per DF/debug combination and cannot skip to complete free after returning zero"
+    );
+}
+
+void test_battle_actor_frame_free_assertion_prefix(
+    openswd3::test::Context& test
+) {
+    // Independent LST: 488668..48867B, 48AA90..48AA98, 491FD0..491FE7.
+    // Synthetic inputs below are not captured original stack-page values.
+    constexpr std::array<u32, 9U> ips{
+        0x00488668U,
+        0x0048866DU,
+        0x0048866FU,
+        0x00488674U,
+        0x00488679U,
+        0x0048867BU,
+        0x0048AA90U,
+        0x0048AA98U,
+        0x00491FD0U
+    };
+    constexpr u32 hook = 0x0048AA70U;
+    bool writes_exact = true;
+    bool frontiers_exact = true;
+    bool collisions_exact = true;
+    std::size_t write_fault_count{};
+    for (const std::size_t caller : {0U, 1U, 2U}) {
+        for (const u32 esp : {0x001AFE00U, 0x20U, 0x80000044U}) {
+            for (const bool df : {false, true}) {
+                for (const u32 debug : {0U, 1U, 4U}) {
+                    LegacyBattleActorFrameEntryRequest request{};
+                    request.decoder_heap_debug_flags_owner = &debug;
+                    request.decoder_heap_alloc_owner = &hook;
+                    LegacyBattleActorFrameEntryResult before{};
+                    request.actor_token = 0x00525508U;
+                    constexpr std::array<LegacyBattleActorFrameEntryStatus, 3U>
+                        caller_status{
+                            LegacyBattleActorFrameEntryStatus::
+                                case_two_release_call_ready,
+                            LegacyBattleActorFrameEntryStatus::
+                                case_hundred_release_call_ready,
+                            LegacyBattleActorFrameEntryStatus::
+                                linked_node_read_ready
+                        };
+                    constexpr std::array<u32, 3U> caller_ip{
+                        0x00479C93U, 0x0047B6F8U, 0x0047F0DEU
+                    };
+                    before.status = caller_status[caller];
+                    before.eip = caller_ip[caller];
+                    before.eax = 0x20U;
+                    before.ecx = 0xDECAF001U;
+                    before.edx = 0xE5541234U;
+                    before.ebp = 0x88996677U;
+                    before.esi = 0x00525508U;
+                    before.edi = 0x12121212U;
+                    before.esp = esp;
+                    before.accesses_completed = 41U;
+                    before.direction_flag = df;
+                    const u32 saved_ecx = debug == 4U ? 0U : before.ecx;
+                    // The node caller first reads its canonical next pointer;
+                    // all three then push the same argument and a CALL slot.
+                    constexpr std::array<LegacyBattleActorFrameLinkedNode, 1U>
+                        nodes{LegacyBattleActorFrameLinkedNode{
+                            .token = 0x20U, .next_token = 0x00601234U
+                        }};
+                    const u32 saved_esi =
+                        caller == 2U ? nodes[0U].next_token : before.esi;
+                    const std::size_t caller_reads = caller == 2U ? 1U : 0U;
+                    const std::size_t start = before.accesses_completed + 48U +
+                        (debug == 4U ? 12U : 0U) + caller_reads;
+                    constexpr std::array<LegacyBattleActorFrameEntryStatus, 3U>
+                        opaque_status{
+                            LegacyBattleActorFrameEntryStatus::
+                                case_two_release_child_typed_stop,
+                            LegacyBattleActorFrameEntryStatus::
+                                case_hundred_release_child_typed_stop,
+                            LegacyBattleActorFrameEntryStatus::
+                                linked_node_release_child_typed_stop
+                        };
+                    const auto invoke = [&](OpaqueRelease& port) {
+                        if (caller == 0U) {
+                            return continue_legacy_battle_actor_frame_case_two_release_call(
+                                port, request, before
+                            );
+                        }
+
+                        if (caller == 1U) {
+                            return continue_legacy_battle_actor_frame_case_hundred_release_call(
+                                port, request, before
+                            );
+                        }
+
+                        return continue_legacy_battle_actor_frame_release_node(
+                            nodes, port, request, before
+                        );
+                    };
+                    const std::array<u32, 9U> written{
+                        0x0049B6ECU,
+                        0U,
+                        0x3F3U,
+                        0x0049B5DCU,
+                        2U,
+                        0x00488680U,
+                        esp - 28U,
+                        0x0048AA9DU,
+                        saved_ecx
+                    };
+                    for (std::size_t i = 0U; i < ips.size(); ++i) {
+                        request.stop_before_access = start + i;
+                        OpaqueRelease port;
+                        const auto stopped = invoke(port);
+                        const u32 stack_delta = 44U + static_cast<u32>(i) * 4U;
+                        writes_exact = writes_exact &&
+                            stopped.status ==
+                                LegacyBattleActorFrameEntryStatus::
+                                    stack_write_typed_stop &&
+                            stopped.eip == ips[i] &&
+                            stopped.stopped_instruction == ips[i] &&
+                            stopped.stopped_access_kind ==
+                                LegacyBattleActorFrameEntryAccessKind::
+                                    stack_write &&
+                            stopped.stopped_token == esp - stack_delta - 4U &&
+                            stopped.esp == esp - stack_delta &&
+                            stopped.ebp == esp - (i < 7U ? 28U : 72U) &&
+                            stopped.eax == (i < 7U ? 0U : 0x302CU) &&
+                            stopped.ecx == saved_ecx && stopped.edx == 0x20U &&
+                            stopped.ebx == before.ebx &&
+                            stopped.esi == saved_esi &&
+                            stopped.edi == before.edi &&
+                            stopped.last_pushed_value ==
+                                (i == 0U ? saved_ecx : written[i - 1U]) &&
+                            stopped.accesses_completed == start + i &&
+                            stopped.flags_known &&
+                            same_flags(stopped.flags,
+                                       {.parity = true,
+                                        .auxiliary_carry_defined = false,
+                                        .zero = true}) &&
+                            stopped.direction_flag == df && !stopped.returned &&
+                            !stopped.release_child.returned &&
+                            stopped.release_calls == 1U && port.calls == 0U;
+                        ++write_fault_count;
+                    }
+
+                    request.stop_before_access = start + ips.size();
+                    OpaqueRelease ordinal_port;
+                    const auto ordinal = invoke(ordinal_port);
+                    request.stop_before_access = static_cast<std::size_t>(-1);
+                    OpaqueRelease opaque_port;
+                    const auto opaque = invoke(opaque_port);
+                    for (const auto* stopped : {&ordinal, &opaque}) {
+                        frontiers_exact = frontiers_exact &&
+                            stopped->eip == 0x00491FE7U &&
+                            stopped->stopped_instruction == stopped->eip &&
+                            stopped->stopped_access_kind ==
+                                LegacyBattleActorFrameEntryAccessKind::
+                                    stack_read &&
+                            stopped->stopped_token == esp - 0x1048U &&
+                            stopped->esp == esp - 80U &&
+                            stopped->ebp == esp - 72U &&
+                            stopped->eax == 0x202CU &&
+                            stopped->ecx == esp - 0x1048U &&
+                            stopped->edx == 0x20U &&
+                            stopped->ebx == before.ebx &&
+                            stopped->esi == saved_esi &&
+                            stopped->edi == before.edi &&
+                            stopped->last_pushed_value == saved_ecx &&
+                            stopped->accesses_completed == start + ips.size() &&
+                            stopped->flags_known &&
+                            same_flags(stopped->flags, {}) &&
+                            stopped->direction_flag == df &&
+                            !stopped->returned &&
+                            !stopped->release_child.returned &&
+                            stopped->release_calls == 1U;
+                    }
+
+                    frontiers_exact = frontiers_exact &&
+                        ordinal.status ==
+                            LegacyBattleActorFrameEntryStatus::
+                                stack_read_typed_stop &&
+                        ordinal_port.calls == 0U &&
+                        opaque.status == opaque_status[caller] &&
+                        opaque_port.calls == 1U;
+
+                    constexpr u32 held_probe_address = 0x00491FE7U;
+                    request.decoder_heap_alloc_owner = &held_probe_address;
+                    OpaqueRelease collision_port;
+                    const auto collision = invoke(collision_port);
+                    collisions_exact = collisions_exact &&
+                        collision.status == opaque_status[caller] &&
+                        collision.eip == held_probe_address &&
+                        collision.stopped_instruction == collision.eip &&
+                        collision.stopped_access_kind ==
+                            LegacyBattleActorFrameEntryAccessKind::
+                                callee_call &&
+                        collision.stopped_token == 0U &&
+                        collision.esp == esp - 76U &&
+                        collision.ebp == esp - 28U && collision.eax == 0x20U &&
+                        collision.ecx == saved_ecx && collision.edx == 1U &&
+                        collision.ebx == before.ebx &&
+                        collision.esi == saved_esi &&
+                        collision.edi == before.edi &&
+                        collision.last_pushed_value == 0x00488626U &&
+                        collision.accesses_completed ==
+                            before.accesses_completed + 25U +
+                                (debug == 4U ? 12U : 0U) + caller_reads &&
+                        collision.flags_known &&
+                        same_flags(collision.flags, {}) &&
+                        collision.direction_flag == df && !collision.returned &&
+                        !collision.release_child.returned &&
+                        collision_port.calls == 1U;
+                }
+            }
+        }
+    }
+
+    test.expect_true(
+        write_fault_count == 486U && writes_exact,
+        "null-header assertion has 486 independent write faults across " "all three release callers for five " "arguments, two direct CALL slots and two saved registers, " "including DF and wrapping stack addresses"
+    );
+    test.expect_true(
+        frontiers_exact,
+        "null-header assertion stops before the first stack-page TEST read " "with exact SUB flags, without a page value, report return or INT3"
+    );
+    test.expect_true(
+        collisions_exact,
+        "held hook at the stack-probe read address retains its actual " "CALL stack rather than borrowing the report prefix"
     );
 }
