@@ -301,8 +301,33 @@ fresh host total0/head0与limit0/80000000/FFFFFFFF，以及known清理残余4/he
 core200/200（20.87秒）、ASan200/200（33.47秒）、app206/206（81.51秒），五日志diagnostic0，
 七SHA前后/完成后匹配，三LastTest各action1/reset1/skip0；无原版/Windows运行。
 材料前缀`build/tmp/runtime/wp316-tsw-empty-sentinel-`保留red/green日志、旧/新SHA、snapshot及diff。
-本批次阶段审查发布中；仅修正缺输入时的可用性，不称哨兵释放、完整count16/DF/allocator、
+该空桶批次已提交、推送及TG；仅修正缺输入时的可用性，不称哨兵释放、完整count16/DF/allocator、
 首次失败真实ABI、四caller真实接线或316最终REVIEW已经完成。
+
+### 原word计数独立于宿主节点数
+
+`431C93`先INCword，再`431CA8`分配；`FFFF->0`模16，未提供节点不能撤销这个静态前缀。
+`431EB7/431EBF`按unsigned16最大值选桶，平数保留低桶，不能按host list.size选择。
+`431F56/431F67`减后word0先正常返回，即使仍有节点且总量等于限额；不继续删或重选。
+`431F80..432006`空head跳`431FF5`，不DECword；有head且正常free后才`431FE7`减word。
+DF0关闭/重开初始化两REP不覆盖`4DACE0..4DACF4`，残留不能被默认零修复。
+`431C9B/431CAD`分配前发布及返回后重读的桶游标、八STOSD/DF与四free重入/别名仍待恢复。
+
+基线e71232b0，`proc_9c41`17秒exit8，两个定向各1/1失败，恰五runtime/一真实TSW端口新增失败，
+两日志diagnostic0，七旧生产/两初版tests SHA前后相同，完整snapshot保留。
+临时外部登记剩余guest身份仅阻止身份分配，不提供物理页/字节，不是原版malloc回复或异常证据。
+桶5的1/FFFF/10001前缀及空head clear/close后应保持非零word；10000回绕为0，相反侧正常删桶6。
+生产独立u16计数在miss分配前递增，选桶与尾删用word；宿主已知payload清理逐项减，不按空表清零。
+未知长度后的计数是确认prefix，不是未知四free后的物理快照；累计量unknown既有边界仍阻止容量依赖。
+真实TSW adapter/父pipeline/身份登记实现只读冻结，既有非返回传播继续使用，不重复加guard。
+后补精确status、word1/host2的减后零返回、已知节点清理残留及三父向量未参加red。
+父保留CALL/actor/resource/progress与未知现场标识，不伪作图像正常返回。
+
+九source冻结`proc_4abf`399秒exit0，runtime/battle定向各1/1（CTest总0.84/0.69秒），
+core200/200（21.63秒）、ASan200/200（33.14秒）、app206/206（81.08秒），五日志diagnostic0。
+九SHA前后/完成后匹配，三LastTest各action1/reset1/skip0，无原版/Windows运行。
+材料前缀`build/tmp/runtime/wp316-tsw-count-prefix-`保留独立red、snapshot、freeze、diff与五green日志。
+本计数批次待阶段发布；不称完整word/DF/alias/allocator、CRT/SEH、真实失败CPU或四caller绑定已闭合。
 
 ## 六个样本汇总
 

@@ -2,6 +2,7 @@
 #include "openswd3/battle/legacy_battle_actor_frame_host_heap.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_tsw_lookup.hpp"
 
+#include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_base_initialization.hpp"
@@ -1250,6 +1251,68 @@ void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
                 residual.cached_primary_bytes() == 4U &&
                 residual.cache_entry_count() == 0U,
             "battle TSW port preserves the confirmed residual without inventing successful sentinel frees and a normal frame return"
+        );
+    }
+
+    {
+        NestedFrameLookupLoader loader;
+        openswd3::asset_runtime::LegacyTswRuntime counted{
+            std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}, {}, &loader
+        };
+        loader.runtime = &counted;
+        counted.set_cache_limit(0x7FFFFFFFU);
+        const auto probe =
+            openswd3::asset_runtime::reserve_legacy_guest_bytes(1U);
+        test.expect_true(
+            probe.has_value(), "battle count fixture reserves its identity probe"
+        );
+        if (!probe) {
+            return;
+        }
+
+        const u32 begin = *probe + 16U;
+        auto barrier = openswd3::asset_runtime::
+            register_legacy_external_guest_bytes(
+                begin, static_cast<std::size_t>(0x70000000U - begin)
+            );
+        test.expect_true(
+            barrier != nullptr,
+            "battle count fixture temporarily blocks remaining identities"
+        );
+        if (barrier == nullptr) {
+            return;
+        }
+
+        const auto failed = counted.query_cached(0xFFFFU, 5U);
+        test.expect_true(
+            failed.status == openswd3::asset_runtime::
+                                 LegacyTswRuntimeStatus::allocation_failed &&
+                counted.cache_entry_count() == 0U,
+            "battle fixture observes a controlled unavailable identity, not an original allocation return or fault"
+        );
+        barrier.reset();
+        const auto seed = counted.query_cached(0xFFFFU, 6U);
+        test.expect_true(
+            seed.status ==
+                    openswd3::asset_runtime::LegacyTswRuntimeStatus::ready &&
+                counted.cached_primary_bytes() == 8U,
+            "battle count fixture restores allocation and loads bucket six"
+        );
+        counted.set_cache_limit(8U);
+        openswd3::battle::LegacyBattleActorFrameTswUpdatePort counted_port{
+            counted, updater
+        };
+        const auto stopped = counted_port.lookup_frame(
+            1U, 0U, 0x11111111U, 0x22222222U, 0x33333333U
+        );
+        test.expect_true(
+            !stopped.returned && !stopped.physical_state_known &&
+                !stopped.flags_known && stopped.stopped_instruction == 0U &&
+                !stopped.resource_header_known && !stopped.decoder_source_known &&
+                counted.cached_primary_bytes() == 8U &&
+                counted.cache_entry_count() == 1U &&
+                counted.find_cached(0xFFFFU, 6U).frame_owner == seed.frame_owner,
+            "battle TSW port preserves the prefix count's selected empty bucket instead of evicting a real frame by host list size and manufacturing a normal return"
         );
     }
 
@@ -5440,6 +5503,99 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         action_execution.render_source_token = 0x00701000U;
 
 #ifdef OPENSWD3_REAL_TSW_ROOT
+        {
+            const auto saved_resource = action_execution.resource;
+            const u32 saved_render = action_execution.render_source_token;
+            const auto saved_started = progress.frame_started;
+            const auto saved_post = progress.post_action_value;
+            for (const u32 cleanup : {0U, 1U, 2U}) {
+                NestedFrameLookupLoader loader;
+                openswd3::asset_runtime::LegacyTswRuntime counted{
+                    std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}, {}, &loader
+                };
+                loader.runtime = &counted;
+                counted.set_cache_limit(0x7FFFFFFFU);
+                const auto probe =
+                    openswd3::asset_runtime::reserve_legacy_guest_bytes(1U);
+                test.expect_true(
+                    probe.has_value(), "parent count fixture reserves a probe"
+                );
+                if (!probe) {
+                    break;
+                }
+
+                const u32 begin = *probe + 16U;
+                auto barrier = openswd3::asset_runtime::
+                    register_legacy_external_guest_bytes(
+                        begin, static_cast<std::size_t>(0x70000000U - begin)
+                    );
+                test.expect_true(
+                    barrier != nullptr,
+                    "parent count fixture blocks remaining guest identities"
+                );
+                if (barrier == nullptr) {
+                    break;
+                }
+
+                const auto failed = counted.query_cached(0xFFFFU, 5U);
+                test.expect_true(
+                    failed.status == openswd3::asset_runtime::
+                                         LegacyTswRuntimeStatus::allocation_failed,
+                    "parent fixture keeps the counter prefix before an unavailable identity, not an original allocator reply"
+                );
+                barrier.reset();
+                if (cleanup == 1U) {
+                    counted.clear_cache();
+                }
+
+                if (cleanup == 2U) {
+                    counted.close();
+                }
+
+                const auto seed = counted.query_cached(0xFFFFU, 6U);
+                test.expect_true(
+                    seed.status == openswd3::asset_runtime::
+                                       LegacyTswRuntimeStatus::ready &&
+                        counted.cached_primary_bytes() == 8U,
+                    "parent count fixture loads bucket six after the retained empty-head prefix"
+                );
+                counted.set_cache_limit(8U);
+                openswd3::battle::LegacyBattleActorFrameTswUpdatePort
+                    counted_port{counted, updater};
+                action_execution.render_source_token = 0x00701000U;
+                progress.frame_started = 1U;
+                progress.post_action_value = 0x99U;
+                const auto stopped = openswd3::battle::
+                    continue_legacy_battle_actor_frame_lookup(
+                        actor, counted_port, forward, lookup_prefix
+                    );
+                test.expect_true(
+                    stopped.status == LegacyBattleActorFrameEntryStatus::
+                                          update_frame_lookup_typed_stop &&
+                        !stopped.returned && !stopped.physical_state_known &&
+                        !stopped.frame_lookup_child.physical_state_known &&
+                        !stopped.flags_known && stopped.eip == 0U &&
+                        stopped.esp == lookup_prefix.esp - 12U &&
+                        stopped.last_pushed_value == 0x00479945U &&
+                        action_execution.render_source_token == 0x00701000U &&
+                        action_execution.resource.frame_owner ==
+                            saved_resource.frame_owner &&
+                        progress.frame_started == 1U &&
+                        progress.post_action_value == 0x99U &&
+                        counted.cached_primary_bytes() == 8U &&
+                        counted.cache_entry_count() == 1U &&
+                        counted.find_cached(0xFFFFU, 6U).frame_owner ==
+                            seed.frame_owner,
+                    "parent preserves its CALL and actor state when a pre-allocation count selects an empty bucket; clear/close do not manufacture a normal return"
+                );
+            }
+
+            action_execution.resource = saved_resource;
+            action_execution.render_source_token = saved_render;
+            progress.frame_started = saved_started;
+            progress.post_action_value = saved_post;
+        }
+
         {
             const auto saved_resource = action_execution.resource;
             const u32 saved_render = action_execution.render_source_token;

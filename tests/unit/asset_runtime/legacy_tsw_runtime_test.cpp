@@ -1,5 +1,6 @@
 #include "test.hpp"
 
+#include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 #include "openswd3/resource_io/legacy_lzo1x.hpp"
@@ -796,6 +797,143 @@ void test_cached_frame_lease_outlives_eviction(
     );
 }
 
+void test_count_before_node_allocation(openswd3::test::Context& test) {
+    const TestTree tree;
+    write_six_archives(tree);
+    enum class CountOperation { retained_prefix, wrapped_nodes, clear_node };
+
+    struct CountCase {
+        u32 attempts;
+        bool clear;
+        bool close;
+        CountOperation operation{CountOperation::retained_prefix};
+    };
+
+    constexpr std::array<CountCase, 8U> cases{{
+        {1U, false, false},
+        {1U, true, false},
+        {1U, false, true},
+        {0xFFFFU, false, false},
+        {0x10000U, false, false},
+        {0x10001U, false, false},
+        {0xFFFFU, false, false, CountOperation::wrapped_nodes},
+        {1U, false, false, CountOperation::clear_node},
+    }};
+    for (const auto candidate : cases) {
+        FakeSpecialLoader loader;
+        LegacyTswRuntime runtime{tree.root(), {}, &loader};
+        runtime.set_cache_limit(0x7FFFFFFFU);
+        const auto probe =
+            openswd3::asset_runtime::reserve_legacy_guest_bytes(1U);
+        test.expect_true(
+            probe.has_value(), "count fixture reserves its identity probe"
+        );
+        if (!probe) {
+            return;
+        }
+
+        const u32 begin = *probe + 16U;
+        auto barrier = openswd3::asset_runtime::
+            register_legacy_external_guest_bytes(
+                begin, static_cast<std::size_t>(0x70000000U - begin)
+            );
+        test.expect_true(
+            barrier != nullptr,
+            "count fixture temporarily blocks remaining guest identities"
+        );
+        if (barrier == nullptr) {
+            return;
+        }
+
+        bool prefix_stopped = true;
+        for (u32 attempt = 0U; attempt < candidate.attempts; ++attempt) {
+            const auto failed = runtime.query_cached(0xFFFFU, 5U);
+            prefix_stopped = prefix_stopped &&
+                failed.status == LegacyTswRuntimeStatus::allocation_failed &&
+                failed.frame_owner == nullptr && !failed.cache_hit;
+        }
+
+        test.expect_true(
+            prefix_stopped && runtime.cache_entry_count() == 0U &&
+                runtime.cached_primary_bytes() == 0U && loader.calls == 0U,
+            "controlled identity allocation stops before publishing any node or calling the image loader; not an original malloc reply"
+        );
+        barrier.reset();
+        if (candidate.clear) {
+            runtime.clear_cache();
+        }
+
+        if (candidate.close) {
+            runtime.close();
+        }
+
+        if (candidate.operation == CountOperation::wrapped_nodes) {
+            const auto oldest = runtime.query_cached(0xFFFFU, 5U);
+            const auto newest = runtime.query_cached(0xFFFFU, 15U);
+            test.expect_true(
+                oldest.status == LegacyTswRuntimeStatus::ready &&
+                    newest.status == LegacyTswRuntimeStatus::ready &&
+                    runtime.cached_primary_bytes() == 8U &&
+                    runtime.cache_entry_count() == 2U && loader.calls == 2U,
+                "65535 retained prefixes plus two real publications wrap the word to one while the bucket has two nodes"
+            );
+            runtime.set_cache_limit(4U);
+            const auto hit = runtime.query_cached(0xFFFFU, 15U);
+            test.expect_true(
+                hit.status == LegacyTswRuntimeStatus::ready && hit.cache_hit &&
+                    hit.frame_owner == newest.frame_owner &&
+                    runtime.cached_primary_bytes() == 4U &&
+                    runtime.cache_entry_count() == 1U && loader.calls == 2U &&
+                    runtime.find_cached(0xFFFFU, 5U).status ==
+                        LegacyTswRuntimeStatus::cache_miss,
+                "431F67 returns when the decremented word is zero even with one host node remaining and total equal to capacity"
+            );
+            continue;
+        }
+
+        if (candidate.operation == CountOperation::clear_node) {
+            const auto published = runtime.query_cached(0xFFFFU, 5U);
+            test.expect_true(
+                published.status == LegacyTswRuntimeStatus::ready,
+                "count cleanup fixture publishes a node after the retained prefix"
+            );
+            runtime.clear_cache();
+        }
+
+        const u32 seed_calls =
+            candidate.operation == CountOperation::clear_node ? 2U : 1U;
+        const auto seed = runtime.query_cached(0xFFFFU, 6U);
+        test.expect_true(
+            seed.status == LegacyTswRuntimeStatus::ready &&
+                runtime.cached_primary_bytes() == 4U && loader.calls == seed_calls,
+            "count fixture restores identity allocation and loads one node in bucket six"
+        );
+        runtime.set_cache_limit(4U);
+        const auto queried = runtime.query_cached(0xFFFFU, 16U);
+        if (static_cast<u16>(candidate.attempts) == 0U) {
+            test.expect_true(
+                queried.status == LegacyTswRuntimeStatus::ready &&
+                    runtime.cached_primary_bytes() == 4U &&
+                    runtime.cache_entry_count() == 1U && loader.calls == 2U &&
+                    runtime.find_cached(0xFFFFU, 6U).status ==
+                        LegacyTswRuntimeStatus::cache_miss,
+                "sixteen-bit count wraps after 65536 prefixes so bucket six is selected and its normal eviction completes"
+            );
+            continue;
+        }
+
+        test.expect_true(
+            queried.status ==
+                    LegacyTswRuntimeStatus::cache_bucket_payload_unavailable &&
+                queried.frame_owner == nullptr && !queried.cache_hit &&
+                runtime.cached_primary_bytes() == 4U &&
+                runtime.cache_entry_count() == 1U && loader.calls == seed_calls &&
+                runtime.find_cached(0xFFFFU, 6U).frame_owner == seed.frame_owner,
+            "word count committed before allocation keeps empty bucket five selected, including after head-zero clear/close; host list size must not select bucket six"
+        );
+    }
+}
+
 void test_initial_empty_bucket_sentinel(openswd3::test::Context& test) {
     const TestTree tree;
     write_six_archives(tree);
@@ -1020,6 +1158,7 @@ int main() {
     test_cache_cleanup_balance(test);
     test_original_bucket_eviction(test);
     test_cached_frame_lease_outlives_eviction(test);
+    test_count_before_node_allocation(test);
     test_initial_empty_bucket_sentinel(test);
     test_signed_cache_capacity(test);
     return test.exit_code();

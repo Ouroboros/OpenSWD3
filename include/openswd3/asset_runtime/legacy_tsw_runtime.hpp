@@ -118,6 +118,7 @@ public:
     // not the actual total after the unresolved cleanup length.
     [[nodiscard]] compat::u32 cached_primary_bytes() const noexcept;
     [[nodiscard]] bool cached_primary_bytes_known() const noexcept;
+    // Host resident nodes, not the original independently written word counts.
     [[nodiscard]] std::size_t cache_entry_count() const noexcept;
     [[nodiscard]] std::size_t
     bucket_entry_count(std::size_t bucket_index) const noexcept;
@@ -158,6 +159,9 @@ private:
     LegacyTswSpecialFrameLoader* special_loader_{};
     std::array<LegacyTswArchive, 6> archives_;
     std::array<CacheBucket, kLegacyTswCacheBucketCount> buckets_;
+    // 431C93 commits INCword before allocation. An empty host list may
+    // retain a nonzero count, and successful publications may wrap it.
+    std::array<compat::u16, kLegacyTswCacheBucketCount> bucket_counts_{};
     // Shared node selection (4DACDC), not a saved per-query destination.
     // A cache-only miss clears it; callbacks can select a different node.
     std::weak_ptr<CacheNode> lookup_cursor_;

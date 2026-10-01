@@ -6066,5 +6066,41 @@ app206/206（81.51秒），五日志diagnostic0、七SHA门禁前后/完成后�
 三LastTest各action1/reset1/skip0，未运行原版/Windows，本范围不是原版空桶差分。
 材料前缀build/tmp/runtime/wp316-tsw-empty-sentinel-，包括旧生产/初版tests、新冻结SHA、
 两个完整red snapshot、两个red日志、五directed/full日志与source-review diff。
-本批次阶段审查发布中；count16/allocator暂存/物理别名、四free/SEH、首次失败真实现场、
-四caller接线、249跨块/98 CALL/22 RET、联合差分与316最终REVIEW仍未完成，315/422不变。
+该空桶批次已提交、推送及TG；当时count16/allocator暂存/物理别名、四free/SEH仍未完成。
+首次失败真实现场、四caller接线、249跨块/98 CALL/22 RET、联合差分与316最终REVIEW仍未完成，315/422不变。
+
+### 分配前独立16位计数及空head残留
+
+完整查帧登记、淘汰和清理路径再次按LST核对：431C93 INCword先于431CA8 allocator CALL；
+FFFF递增为0。431C9B发布桶游标、431CA1/431CA4保存旧head，431CAD在分配返回后重读游标。
+431EB7 CMPword/431EBF JBE按unsigned16选最大，平数保留低桶。431F56 DECword后，
+431F67先按减后word0返回，再决定是否继续容量比较；host list未空也不能继续删。
+431F80..432006空head直接跳431FF5，不DECword；正常四free之后才431FE7 DECword。
+DF0关闭/重开两REP不覆盖4DACE0..4DACF4，不能以close/clear把残留原计数归零。
+分配返回后的共享桶游标、STOSD/DF、free重入/别名与完整CRT合同仍未闭合。
+
+基线e71232b0，七旧生产/两初版tests独立冻结。proc_9c41 17秒exit8，两个定向各1/1失败，
+恰五runtime/一Native新增断言失败，无旧退化、两日志diagnostic0、旧生产/初版tests SHA前后匹配。
+六runtime场景为1次前缀、1次后clear、1次后close、FFFF/10000/10001次前缀；
+非零word让空桶5胜出或平数胜出，不能按host节点数删桶6；10000回绕0相反侧原测试通过。
+用guest身份登记临时阻止节点身份分配，只占身份、不提供physical页、不读该范围；释放lease后恢复。
+这检验allocator之前的静态计数前缀，不证明原版连续失败、malloc0、异常、实际堆页或失败CPU。
+两个完整red snapshot及SHA保留，限定ACT17/seq372差分实际执行，不冒称新计数的原版动态差分。
+
+生产按独立u16保存计数，miss分配前递增，不因身份不可用回滚；unsigned选桶不用list.size。
+已知payload/无别名宿主清理逐节点模16减量，空head不复位，close/reopen不补零。
+尾删按减后word0返回；word仍非零但host头空时停缺哨兵输入，不再伪作成功。
+host节点数getter仍只计驻留节点。首unknown长度后的计数只保留确认前缀，不是原版释放后word快照；
+既有unknown累计量阻止后续容量依赖。宿主移除不证明四free正常、原版游标/head或SEH完成。
+Native TSW/父pipeline/presentation header和guest身份登记实现均只读冻结，不增加重复传播guard。
+后补精确status、FFFF前缀加两节点使word1而host2、已知清理后残留及三父向量均未参加red。
+三父向量覆盖不清理/空head clear/close，保留CALL三槽、ESP=prefix-12/last PUSH479945及actor/lease/progress；
+physical_state_known/flags_known=false，EIP0仅标不可用，测试恢复保存状态，不称四caller真实绑定。
+
+新九source冻结proc_4abf 399秒exit0：runtime/battle定向各1/1（CTest总0.84/0.69秒），
+core200/200（21.63秒）、ASan200/200（33.14秒）、app206/206（81.08秒）。
+五日志diagnostic0，九SHA前后及完成后匹配，三LastTest各action1/reset1/skip0。
+当前源码差异470行/22530字节完整读取；未运行原版/Windows，未借旧空桶green。
+材料前缀build/tmp/runtime/wp316-tsw-count-prefix-保留red日志/snapshot、旧/新SHA、source diff和五green日志。
+本计数批次待阶段发布；完整共享全局/allocator游标、DF别名、四free/SEH、首次失败真实ABI、
+四caller接线、249跨块/98 CALL/22 RET、联合差分、I5及316最终REVIEW与完整Goal均未完成。

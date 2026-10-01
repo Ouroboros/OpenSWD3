@@ -237,27 +237,25 @@ LegacyTswRuntimeStatus LegacyTswRuntime::evict_before_lookup() noexcept {
     }
 
     std::size_t selected = 0U;
-    for (std::size_t index = 1U; index < buckets_.size(); ++index) {
-        if (buckets_[index].size() > buckets_[selected].size()) {
+    for (std::size_t index = 1U; index < bucket_counts_.size(); ++index) {
+        // 431EB7/JBE compares unsigned words; ties keep the earlier bucket.
+        if (bucket_counts_[index] > bucket_counts_[selected]) {
             selected = index;
         }
     }
 
     CacheBucket& bucket = buckets_[selected];
-    if (bucket.empty()) {
-        // 431EF1 starts at the bucket sentinel, not a null node. With no
-        // head, 431EFF still reaches its +18 length and four free inputs.
-        // Those fields are not supplied by an empty host list. Do not
-        // skip this path as successful eviction or invent a guest fault.
-        return LegacyTswRuntimeStatus::cache_bucket_payload_unavailable;
-    }
-
-    // 431F67 returns when the selected word count reaches zero; this
-    // nonempty-list path still needs separate count16/alias recovery.
     // 431F76 is signed JGE after each committed length subtraction.
-    while (!bucket.empty() &&
-           std::bit_cast<compat::i32>(cached_primary_bytes_) >=
-               std::bit_cast<compat::i32>(cache_limit_)) {
+    while (std::bit_cast<compat::i32>(cached_primary_bytes_) >=
+           std::bit_cast<compat::i32>(cache_limit_)) {
+        if (bucket.empty()) {
+            // 431EF1 starts at the bucket sentinel, not a null node. With
+            // no head, 431EFF still needs +18 and four free inputs, even
+            // when prior allocations left a nonzero count. Do not invent
+            // successful eviction or a guest fault from an empty list.
+            return LegacyTswRuntimeStatus::cache_bucket_payload_unavailable;
+        }
+
         const auto& node = bucket.back();
         if (node->status != LegacyTswRuntimeStatus::ready) {
             // 431F11 reads the payload length. An unmodeled load does not
@@ -269,6 +267,14 @@ LegacyTswRuntimeStatus LegacyTswRuntime::evict_before_lookup() noexcept {
         cached_primary_bytes_ -= static_cast<compat::u32>(removed_size);
         node->resident = false;
         bucket.pop_back();
+        bucket_counts_[selected] = static_cast<compat::u16>(
+            bucket_counts_[selected] - 1U
+        );
+        // 431F67 tests the decremented word before the next capacity CMP.
+        // A wrapped count can reach zero while host nodes remain.
+        if (bucket_counts_[selected] == 0U) {
+            return LegacyTswRuntimeStatus::ready;
+        }
     }
 
     return LegacyTswRuntimeStatus::ready;
@@ -303,6 +309,12 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
         return cached;
     }
 
+    const std::size_t bucket_number = bucket_index(resource_id, variant_index);
+    // 431C93 commits the word before the allocator CALL at 431CA8. A
+    // stopped identity reservation has no node, but must not erase it.
+    bucket_counts_[bucket_number] = static_cast<compat::u16>(
+        bucket_counts_[bucket_number] + 1U
+    );
     // 431CB6/431CDD/431CEA/431CF4 publish the node and key before
     // either loader CALL. Do not undo that prefix on an unmodeled load.
     const auto node_token = reserve_legacy_guest_bytes(0x20U);
@@ -319,7 +331,7 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
             variant_index,
             std::make_shared<const LegacyTswRuntimeFrame>(std::move(pending)),
         });
-        buckets_[bucket_index(resource_id, variant_index)].push_front(node);
+        buckets_[bucket_number].push_front(node);
         node->resident = true;
         lookup_cursor_ = node;  // 431CD8, before the loader CALL.
     } catch (const std::bad_alloc&) {
@@ -393,7 +405,8 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
 }
 
 void LegacyTswRuntime::clear_cache() noexcept {
-    for (CacheBucket& bucket : buckets_) {
+    for (std::size_t index = 0U; index < buckets_.size(); ++index) {
+        CacheBucket& bucket = buckets_[index];
         for (const auto& node : bucket) {
             if (cached_primary_bytes_known_) {
                 if (node->status == LegacyTswRuntimeStatus::ready) {
@@ -401,6 +414,11 @@ void LegacyTswRuntime::clear_cache() noexcept {
                     // duplicate accounting may leave a nonzero balance.
                     cached_primary_bytes_ -= static_cast<compat::u32>(
                         node->frame->primary_stream.size()
+                    );
+                    // The modeled ready/no-alias cleanup removes one
+                    // count per node (431FE7), never resets an empty head.
+                    bucket_counts_[index] = static_cast<compat::u16>(
+                        bucket_counts_[index] - 1U
                     );
                 } else {
                     // Do not treat an unmodeled payload's empty host vector
