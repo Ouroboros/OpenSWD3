@@ -57,6 +57,8 @@ enum class LegacyTswRuntimeStatus {
     allocation_failed,
     // A published node exists, but its loader has not completed yet.
     cache_load_in_progress,
+    // A nested lookup/removal left no readable node for the loader suffix.
+    cache_cursor_unavailable,
 };
 
 struct LegacyTswQueryResult {
@@ -122,6 +124,8 @@ private:
             LegacyTswRuntimeStatus::cache_load_in_progress
         };
         LegacyTswFrameStatus physical_status{LegacyTswFrameStatus::ready};
+        // Host leases do not keep a removed guest allocation readable.
+        bool resident{};
     };
 
     // Loading may call a port; hold the entry without borrowing a list node
@@ -147,6 +151,9 @@ private:
     LegacyTswSpecialFrameLoader* special_loader_{};
     std::array<LegacyTswArchive, 6> archives_;
     std::array<CacheBucket, kLegacyTswCacheBucketCount> buckets_;
+    // Shared node selection (4DACDC), not a saved per-query destination.
+    // A cache-only miss clears it; callbacks can select a different node.
+    std::weak_ptr<CacheNode> lookup_cursor_;
     // dword_4A6020 starts at 600000h; its setter retains all 32 bits.
     compat::u32 cache_limit_{0x00600000U};
     compat::u32 cached_primary_bytes_{};

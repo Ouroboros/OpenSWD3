@@ -5935,3 +5935,61 @@ build/tmp/runtime/wp316-tsw-opaque-source-freeze-v2.sha256
 本批次只纠正报告有效性，不恢复首次失败真实GPR/FLAGS/ESP、SEH、Win32/CRT内部。
 cursor/共享全局、DF=1别名、计数回绕、空桶四free、真实堆与四caller绑定仍待核。
 249跨块、98 CALL/22 RET、联合差分和316最终REVIEW尚未完成；inventory不变。
+
+### 装载返回后重新读取共享缓存节点
+
+随后重新完整读取 `4315D0..43175A`、`431C50..431DE6` 与 `431DF0..431E93`。
+431E4C/431E60逐次发布共享游标4DACDC，完整miss留0，hit停在命中节点。
+431CD8将已登记节点设为游标，431D0A把其+8传给特殊loader；
+431DBF在CALL后重读游标，431DCC从该节点+18取长度，431DCF/431DD4发布该节点+8，
+431DDA把重读长度加入当前4DAD0C，u32回绕。431DE0/外层43174A仍按miss TEST1。
+原C++虽以shared_ptr避免跨回调借list节点，却继续返回原节点、累计原payload长度，
+不能代替原共享游标被后续调用改变的行为。
+
+独立controlled输入：FFFF/0外层4字节，FFFF/10内层8字节，同桶0、限额7FFFFFFF。
+内层嵌套load或非头hit后，外层重新选中内层，又计8，结果为内层record、ECX8/EDX16，
+不是原record或总12；原外层payload仍按其key留存。嵌套FFFF/20完整miss清游标时，
+不能替换回原节点继续，已装载字段/两个节点与既有总8保留；未恢复零地址backing、
+故障或SEH，不造物理CPU。尺寸/stream是供应callee输入，不是原版40AD10捕获。
+
+`proc_98e8` 17秒exit8，两定向各1/1失败：恰五新增断言，runtime的load/hit/miss三项、
+实际TSW端口的load/miss两项；五生产与两初版测试SHA前后匹配，旧断言无退化、诊断0。
+ACT17与seq372局部差分实际执行。red完整文件保留；此后节点移除、父continuation两例与
+精确新状态断言没有参加该red，不扩写为所有最终向量都曾失败。
+
+Runtime现在持共享weak节点选择，查找推进/命中/miss和登记按上序更新。
+loader仍向原合法驻留节点发布字段，再重读选择，按它返回payload与重复计量，不修原BUG。
+节点实际移除前resident失效，Host lease不能使已删除guest地址可读。
+选择缺失/已删除/载荷未知时停止为不可恢复状态，不借零长度或正常旧节点回包。
+该模型只覆盖节点选择；不冒充allocator期间暂存的桶地址或完整物理内存/别名。
+
+实际TSW适配器与父pipeline本批次只读冻结：它们已从query.frame_owner消费返回，
+新两父向量实际调用现有production continuation，正常只写内层record并绑定其lease；
+未知不清CALL、不写actor、不回滚已提交cache。对应测试恢复field_4a、resource/lease、
+render与progress，不污染后续场景，也不称fixture为四caller真实生产绑定。
+
+`proc_5ab4 / wp316-tsw-shared-cursor-frozen-gates` 394秒exit0：
+runtime定向1/1（0.48秒）、battle定向1/1（0.54秒）、core200/200（20.18秒）、
+ASan200/200（32.85秒）、app206/206（82.32秒），五日志诊断0，七SHA前后及完成后匹配。
+三LastTest各实际执行ACT17/seq372，skip0；没有原版/Windows执行，不是查帧动态差分。
+
+```text
+build/tmp/runtime/wp316-tsw-shared-cursor-runtime-red.log
+build/tmp/runtime/wp316-tsw-shared-cursor-battle-red.log
+build/tmp/runtime/wp316-tsw-shared-cursor-runtime-red-snapshot.cpp
+build/tmp/runtime/wp316-tsw-shared-cursor-battle-red-snapshot.cpp
+build/tmp/runtime/wp316-tsw-shared-cursor-runtime-directed.log
+build/tmp/runtime/wp316-tsw-shared-cursor-battle-directed.log
+build/tmp/runtime/wp316-tsw-shared-cursor-core-full.log
+build/tmp/runtime/wp316-tsw-shared-cursor-asan-full.log
+build/tmp/runtime/wp316-tsw-shared-cursor-app-full.log
+build/tmp/runtime/wp316-tsw-shared-cursor-source-freeze.sha256
+```
+
+又完整核431F80..432006：431F9E读取长度，431FAC按项减总量，四free后431FEE写next游标。
+若上述两个ready节点的四次free全正常返回且无重入/别名，16减8减4应剩4，不是无条件0。
+现有host clear_cache重置总量不能证明此原版路径；新增移除向量只核host owned节点失效，
+不称为431F80整体副作用或四free验证。这一计数与完整clear/free边界仍需后续共同修正。
+40AD10已读至40AE1D，含AIL服务、allocator、文件/decoder/free；不据这些CALL推断实际递归。
+DF=1、count16回绕、空桶四free、首次失败实际CPU、四caller绑定、249跨块/98 CALL/22 RET、
+联合差分、316最终REVIEW与完整Goal均未完成；inventory保持pending_audit。

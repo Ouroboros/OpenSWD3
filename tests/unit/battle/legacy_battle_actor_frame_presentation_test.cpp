@@ -918,6 +918,33 @@ struct DecoderOutputBacking {
 };
 
 #ifdef OPENSWD3_REAL_TSW_ROOT
+class NestedFrameLookupLoader final
+    : public openswd3::asset_runtime::LegacyTswSpecialFrameLoader {
+public:
+    [[nodiscard]] bool load_special_frame(
+        const u16 variant,
+        openswd3::asset_runtime::LegacyTswRuntimeFrame& frame
+    ) override {
+        frame.primary_stream = {0xFFU, 0xFFU, 0U, 0U};
+        frame.width = static_cast<u16>(variant + 1U);
+        frame.height = 2U;
+        if (variant != 0U) {
+            frame.primary_stream.insert(
+                frame.primary_stream.end(), {0xFFU, 0xFFU, 0U, 0U}
+            );
+            return true;
+        }
+
+        nested = clear_cursor ? runtime->find_cached(0xFFFFU, 20U)
+                              : runtime->query_cached(0xFFFFU, 10U);
+        return true;
+    }
+
+    openswd3::asset_runtime::LegacyTswRuntime* runtime{};
+    openswd3::asset_runtime::LegacyTswQueryResult nested;
+    bool clear_cursor{};
+};
+
 void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
     openswd3::asset_runtime::LegacyTswRuntime tsw{
         std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}
@@ -1061,6 +1088,61 @@ void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
                 !repeated.resource_header_known &&
                 !repeated.decoder_source_known,
             "real TSW port retains the node before an unresolved load and returns only known cache-hit registers without invented image data"
+        );
+    }
+
+    for (const bool clear_cursor : {false, true}) {
+        NestedFrameLookupLoader loader;
+        loader.clear_cursor = clear_cursor;
+        openswd3::asset_runtime::LegacyTswRuntime nested_runtime{
+            std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}, {}, &loader
+        };
+        loader.runtime = &nested_runtime;
+        nested_runtime.set_cache_limit(0x7FFFFFFFU);
+        if (clear_cursor) {
+            const auto seed = nested_runtime.query_cached(0xFFFFU, 10U);
+            test.expect_true(
+                seed.status ==
+                        openswd3::asset_runtime::LegacyTswRuntimeStatus::ready &&
+                    nested_runtime.cached_primary_bytes() == 8U,
+                "battle nested cursor fixture has eight previously counted bytes"
+            );
+        }
+
+        openswd3::battle::LegacyBattleActorFrameTswUpdatePort nested_port{
+            nested_runtime, updater
+        };
+        const auto reply = nested_port.lookup_frame(
+            0xFFFFU, 0U, 0x11111111U, 0x22222222U, 0x33333333U
+        );
+        if (clear_cursor) {
+            test.expect_true(
+                !reply.returned && !reply.physical_state_known &&
+                    !reply.flags_known && reply.stopped_instruction == 0U &&
+                    !reply.resource_header_known &&
+                    !reply.decoder_source_known &&
+                    nested_runtime.cache_entry_count() == 2U &&
+                    nested_runtime.cached_primary_bytes() == 8U,
+                "battle TSW port does not invent a normal original-node return after a nested lookup clears the shared cursor"
+            );
+            continue;
+        }
+
+        test.expect_true(
+            reply.returned && reply.physical_state_known &&
+                reply.flags_known && !reply.flags.carry &&
+                !reply.flags.parity && !reply.flags.zero &&
+                !reply.flags.sign && !reply.flags.overflow &&
+                !reply.flags.auxiliary_carry_defined &&
+                loader.nested.frame_owner != nullptr &&
+                reply.eax == loader.nested.frame_owner->record_token &&
+                reply.ecx == 8U && reply.edx == 16U &&
+                reply.resource_header_known && reply.decoder_source_known &&
+                reply.resource_value_0c == 11U &&
+                reply.decoder_source.frame_owner == loader.nested.frame_owner &&
+                reply.decoder_source.bytes.size() == 8U &&
+                nested_runtime.cached_primary_bytes() == 16U,
+            "battle TSW port exposes the reloaded inner record and TEST-one miss ABI after a nested frame load, not the original node"
         );
     }
 
@@ -5251,6 +5333,84 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         action_execution.render_source_token = 0x00701000U;
 
 #ifdef OPENSWD3_REAL_TSW_ROOT
+        {
+            const auto saved_resource = action_execution.resource;
+            const u32 saved_render = action_execution.render_source_token;
+            const u16 saved_word =
+                action_execution.reserved_action_record_02.field_4a;
+            const auto saved_started = progress.frame_started;
+            const auto saved_post = progress.post_action_value;
+            action_execution.reserved_action_record_02.field_4a = 0xFFFFU;
+            for (const bool clear_cursor : {false, true}) {
+                NestedFrameLookupLoader loader;
+                loader.clear_cursor = clear_cursor;
+                openswd3::asset_runtime::LegacyTswRuntime nested_runtime{
+                    std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}, {}, &loader
+                };
+                loader.runtime = &nested_runtime;
+                nested_runtime.set_cache_limit(0x7FFFFFFFU);
+                if (clear_cursor) {
+                    const auto seed =
+                        nested_runtime.query_cached(0xFFFFU, 10U);
+                    test.expect_true(
+                        seed.status == openswd3::asset_runtime::
+                                           LegacyTswRuntimeStatus::ready,
+                        "parent nested cursor fixture loads its inner frame"
+                    );
+                }
+
+                openswd3::battle::LegacyBattleActorFrameTswUpdatePort
+                    nested_port{nested_runtime, updater};
+                action_execution.render_source_token = 0x00701000U;
+                progress.frame_started = 1U;
+                progress.post_action_value = 0x99U;
+                const auto result = openswd3::battle::
+                    continue_legacy_battle_actor_frame_lookup(
+                        actor, nested_port, forward, lookup_prefix
+                    );
+                if (clear_cursor) {
+                    test.expect_true(
+                        result.status == LegacyBattleActorFrameEntryStatus::
+                                             update_frame_lookup_typed_stop &&
+                            !result.physical_state_known &&
+                            !result.flags_known && result.eip == 0U &&
+                            result.esp == lookup_prefix.esp - 12U &&
+                            result.last_pushed_value == 0x00479945U &&
+                            action_execution.render_source_token ==
+                                0x00701000U &&
+                            progress.post_action_value == 0x99U &&
+                            nested_runtime.cached_primary_bytes() == 8U,
+                        "parent does not clear the CALL or write the actor after a nested miss leaves the loader suffix without a readable cursor"
+                    );
+                    continue;
+                }
+
+                test.expect_true(
+                    loader.nested.frame_owner != nullptr &&
+                        result.status == LegacyBattleActorFrameEntryStatus::
+                                             update_post_lookup_ready &&
+                        result.physical_state_known &&
+                        result.esp == lookup_prefix.esp &&
+                        result.frame_lookup_child.eax ==
+                            loader.nested.frame_owner->record_token &&
+                        action_execution.render_source_token ==
+                            loader.nested.frame_owner->record_token &&
+                        action_execution.resource.frame_owner ==
+                            loader.nested.frame_owner &&
+                        action_execution.resource.value_0c == 11U &&
+                        progress.post_action_value == 0U &&
+                        nested_runtime.cached_primary_bytes() == 16U,
+                    "parent writes the reselected inner record and retains its image lease after a nested load instead of publishing the original destination"
+                );
+            }
+
+            action_execution.resource = saved_resource;
+            action_execution.render_source_token = saved_render;
+            action_execution.reserved_action_record_02.field_4a = saved_word;
+            progress.frame_started = saved_started;
+            progress.post_action_value = saved_post;
+        }
+
         {
             const u16 previous_frame_word =
                 action_execution.reserved_action_record_02.field_4a;

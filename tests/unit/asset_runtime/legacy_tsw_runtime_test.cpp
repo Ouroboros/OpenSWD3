@@ -486,6 +486,109 @@ void test_cache_publication_before_load(openswd3::test::Context& test) {
     );
 }
 
+class NestedCursorLoader final : public LegacyTswSpecialFrameLoader {
+public:
+    enum class Operation { load, hit, miss, clear };
+
+    [[nodiscard]] bool load_special_frame(
+        const u16 variant_index, LegacyTswRuntimeFrame& frame
+    ) override {
+        ++calls;
+        frame.primary_stream = {0xFFU, 0xFFU, 0U, 0U};
+        frame.width = static_cast<u16>(variant_index + 1U);
+        frame.height = 2U;
+        if (variant_index != 0U) {
+            frame.primary_stream.insert(
+                frame.primary_stream.end(), {0xFFU, 0xFFU, 0U, 0U}
+            );
+            return true;
+        }
+
+        if (operation == Operation::clear) {
+            runtime->clear_cache();
+        } else if (operation == Operation::load) {
+            nested = runtime->query_cached(0xFFFFU, 10U);
+        } else {
+            nested = runtime->find_cached(
+                0xFFFFU, operation == Operation::hit ? 10U : 20U
+            );
+        }
+
+        return true;
+    }
+
+    LegacyTswRuntime* runtime{};
+    Operation operation{Operation::load};
+    LegacyTswQueryResult nested;
+    std::size_t calls{};
+};
+
+void test_shared_cursor_after_nested_lookup(openswd3::test::Context& test) {
+    const TestTree tree;
+    write_six_archives(tree);
+    for (const auto operation : {NestedCursorLoader::Operation::load,
+                                 NestedCursorLoader::Operation::hit,
+                                 NestedCursorLoader::Operation::miss,
+                                 NestedCursorLoader::Operation::clear}) {
+        NestedCursorLoader loader;
+        loader.operation = operation;
+        LegacyTswRuntime runtime{tree.root(), {}, &loader};
+        loader.runtime = &runtime;
+        runtime.set_cache_limit(0x7FFFFFFFU);
+        if (operation != NestedCursorLoader::Operation::load) {
+            const auto seed = runtime.query_cached(0xFFFFU, 10U);
+            test.expect_true(
+                seed.status == LegacyTswRuntimeStatus::ready &&
+                    runtime.cached_primary_bytes() == 8U,
+                "nested cursor fixture starts with an eight-byte inner frame"
+            );
+        }
+
+        const auto outer = runtime.query_cached(0xFFFFU, 0U);
+        const auto outer_record = runtime.find_cached(0xFFFFU, 0U);
+        if (operation == NestedCursorLoader::Operation::clear) {
+            test.expect_true(
+                outer.status ==
+                        LegacyTswRuntimeStatus::cache_cursor_unavailable &&
+                    !outer.cache_hit && !outer_record.cache_hit &&
+                    runtime.cache_entry_count() == 0U &&
+                    runtime.cached_primary_bytes() == 0U && loader.calls == 2U,
+                "a callback-removed destination is not made guest-readable by keeping its host cache node alive"
+            );
+            continue;
+        }
+
+        const bool payloads_preserved = outer_record.cache_hit &&
+            outer_record.status == LegacyTswRuntimeStatus::ready &&
+            outer_record.frame.primary_stream.size() == 4U &&
+            outer_record.frame.width == 1U && loader.calls == 2U &&
+            runtime.cache_entry_count() == 2U;
+        if (operation == NestedCursorLoader::Operation::miss) {
+            test.expect_true(
+                payloads_preserved && !loader.nested.cache_hit &&
+                    outer.status != LegacyTswRuntimeStatus::ready &&
+                    runtime.cached_primary_bytes() == 8U,
+                "TSW does not substitute its original node after a nested miss clears the shared cursor; loaded data and prior byte total remain committed"
+            );
+            continue;
+        }
+
+        test.expect_true(
+            payloads_preserved &&
+                loader.nested.status == LegacyTswRuntimeStatus::ready &&
+                outer.status == LegacyTswRuntimeStatus::ready &&
+                !outer.cache_hit && outer.frame_owner != nullptr &&
+                outer.frame_owner == loader.nested.frame_owner &&
+                outer.frame_owner != outer_record.frame_owner &&
+                outer.frame.primary_stream.size() == 8U &&
+                outer.frame.width == 11U && outer.lookup_return_ecx == 8U &&
+                outer.lookup_return_edx == 16U &&
+                runtime.cached_primary_bytes() == 16U,
+            "TSW reloads the shared cursor after nested load or hit, returns the inner record, and counts the inner length again instead of the original payload"
+        );
+    }
+}
+
 void populate_eviction_shape(
     LegacyTswRuntime& runtime,
     FakeSpecialLoader& loader,
@@ -736,6 +839,7 @@ int main() {
     test_lazy_open_route_and_conversion(test);
     test_special_resource_and_failures(test);
     test_cache_publication_before_load(test);
+    test_shared_cursor_after_nested_lookup(test);
     test_original_bucket_eviction(test);
     test_cached_frame_lease_outlives_eviction(test);
     test_signed_cache_capacity(test);

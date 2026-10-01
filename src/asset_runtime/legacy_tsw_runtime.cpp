@@ -184,8 +184,11 @@ LegacyTswQueryResult LegacyTswRuntime::find_low16(
     result.status = LegacyTswRuntimeStatus::cache_miss;
     const std::size_t bucket_number = bucket_index(resource_id, variant_index);
     CacheBucket& bucket = buckets_[bucket_number];
+    lookup_cursor_.reset();
     for (auto iterator = bucket.begin(); iterator != bucket.end(); ++iterator) {
         const auto& node = *iterator;
+        // 431E4C/431E60 publish each visited node, including the hit.
+        lookup_cursor_ = node;
         if (node->resource_id != resource_id ||
             node->variant_index != variant_index) {
             continue;
@@ -211,6 +214,9 @@ LegacyTswQueryResult LegacyTswRuntime::find_low16(
         result.cache_hit = true;
         return result;
     }
+
+    // A complete miss leaves the last next pointer (zero) in 4DACDC.
+    lookup_cursor_.reset();
     return result;
 }
 
@@ -251,6 +257,7 @@ LegacyTswRuntimeStatus LegacyTswRuntime::evict_before_lookup() noexcept {
 
         const std::size_t removed_size = node->frame->primary_stream.size();
         cached_primary_bytes_ -= static_cast<compat::u32>(removed_size);
+        node->resident = false;
         bucket.pop_back();
     }
 
@@ -296,6 +303,8 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
             std::make_shared<const LegacyTswRuntimeFrame>(std::move(pending)),
         });
         buckets_[bucket_index(resource_id, variant_index)].push_front(node);
+        node->resident = true;
+        lookup_cursor_ = node;  // 431CD8, before the loader CALL.
     } catch (const std::bad_alloc&) {
         result.status = LegacyTswRuntimeStatus::allocation_failed;
         return result;
@@ -309,6 +318,13 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
     result.physical_status = loaded.physical_status;
     if (loaded.status != LegacyTswRuntimeStatus::ready) {
         // The record identity is known; its failed-load payload is not.
+        return result;
+    }
+
+    if (!node->resident) {
+        // A callback removed the supplied destination. Keeping this host
+        // object alive does not prove the loader's guest writeback valid.
+        result.status = LegacyTswRuntimeStatus::cache_cursor_unavailable;
         return result;
     }
 
@@ -330,21 +346,44 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
         result.status = node->status;
         return result;
     }
-    // 431DD4 publishes the result before 431DDA updates the byte total.
-    result.frame_owner = node->frame;
-    cached_primary_bytes_ += static_cast<compat::u32>(primary_size);
-    result.status = LegacyTswRuntimeStatus::ready;
+    // 431DBF re-reads shared selection after the CALL. The destination
+    // above has its payload, but a nested load/hit can select another node.
+    const auto selected = lookup_cursor_.lock();
+    if (selected == nullptr || !selected->resident) {
+        // A lookup miss or callback removal makes the cursor unavailable;
+        // do not fall back to the original node or invent a guest fault.
+        result.status = LegacyTswRuntimeStatus::cache_cursor_unavailable;
+        return result;
+    }
+
+    result.status = selected->status;
+    result.physical_status = selected->physical_status;
+    result.frame_owner = selected->frame;
+    if (result.status != LegacyTswRuntimeStatus::ready) {
+        // 431DCC needs the selected payload's length, not a default zero.
+        return result;
+    }
+
+    const auto selected_size =
+        static_cast<compat::u32>(result.frame_owner->primary_stream.size());
+    // 431DD4 publishes the selected record before 431DDA adds its length,
+    // even if a nested miss already counted those same bytes once.
+    cached_primary_bytes_ += selected_size;
     result.frame = view_of(*result.frame_owner);
-    // sub_431C50 returns ECX=record+0x10 and EDX=new cached byte total.
-    result.lookup_return_ecx = static_cast<compat::u32>(primary_size);
+    result.lookup_return_ecx = selected_size;
     result.lookup_return_edx = cached_primary_bytes_;
     return result;
 }
 
 void LegacyTswRuntime::clear_cache() noexcept {
     for (CacheBucket& bucket : buckets_) {
+        for (const auto& node : bucket) {
+            node->resident = false;
+        }
+
         bucket.clear();
     }
+
     cached_primary_bytes_ = 0U;
 }
 
