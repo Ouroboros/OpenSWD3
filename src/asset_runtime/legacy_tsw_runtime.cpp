@@ -185,8 +185,9 @@ LegacyTswQueryResult LegacyTswRuntime::find_low16(
     const std::size_t bucket_number = bucket_index(resource_id, variant_index);
     CacheBucket& bucket = buckets_[bucket_number];
     for (auto iterator = bucket.begin(); iterator != bucket.end(); ++iterator) {
-        if (iterator->resource_id != resource_id ||
-            iterator->variant_index != variant_index) {
+        const auto& node = *iterator;
+        if (node->resource_id != resource_id ||
+            node->variant_index != variant_index) {
             continue;
         }
         // sub_431DF0 leaves ECX as the key for a head hit, but loads
@@ -194,15 +195,19 @@ LegacyTswQueryResult LegacyTswRuntime::find_low16(
         const bool was_head = iterator == bucket.begin();
         result.lookup_return_ecx = was_head
             ? (static_cast<compat::u32>(variant_index) << 16U) | resource_id
-            : bucket.front().frame->record_token - 8U;
+            : bucket.front()->frame->record_token - 8U;
         result.lookup_return_edx =
             0x004CF84CU + static_cast<compat::u32>(bucket_number) * 0x20U;
         if (!was_head) {
             bucket.splice(bucket.begin(), bucket, iterator);
         }
-        result.status = LegacyTswRuntimeStatus::ready;
-        result.frame_owner = bucket.front().frame;
-        result.frame = view_of(*result.frame_owner);
+        result.status = node->status;
+        result.physical_status = node->physical_status;
+        result.frame_owner = node->frame;
+        if (result.status == LegacyTswRuntimeStatus::ready) {
+            result.frame = view_of(*result.frame_owner);
+        }
+
         result.cache_hit = true;
         return result;
     }
@@ -218,11 +223,11 @@ LegacyTswQueryResult LegacyTswRuntime::find_cached(
     );
 }
 
-void LegacyTswRuntime::evict_before_lookup() noexcept {
+LegacyTswRuntimeStatus LegacyTswRuntime::evict_before_lookup() noexcept {
     // The dwords remain unsigned storage, but 431723/431EDA use JL.
     if (std::bit_cast<compat::i32>(cached_primary_bytes_) <
         std::bit_cast<compat::i32>(cache_limit_)) {
-        return;
+        return LegacyTswRuntimeStatus::ready;
     }
 
     std::size_t selected = 0U;
@@ -237,11 +242,19 @@ void LegacyTswRuntime::evict_before_lookup() noexcept {
     while (!bucket.empty() &&
            std::bit_cast<compat::i32>(cached_primary_bytes_) >=
                std::bit_cast<compat::i32>(cache_limit_)) {
-        const std::size_t removed_size =
-            bucket.back().frame->primary_stream.size();
+        const auto& node = bucket.back();
+        if (node->status != LegacyTswRuntimeStatus::ready) {
+            // 431F11 reads the payload length. An unmodeled load does not
+            // give us that value or the four free arguments; do not use 0.
+            return node->status;
+        }
+
+        const std::size_t removed_size = node->frame->primary_stream.size();
         cached_primary_bytes_ -= static_cast<compat::u32>(removed_size);
         bucket.pop_back();
     }
+
+    return LegacyTswRuntimeStatus::ready;
 }
 
 LegacyTswQueryResult LegacyTswRuntime::query_cached(
@@ -253,50 +266,74 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
         return result;
     }
 
-    evict_before_lookup();
+    result.status = evict_before_lookup();
+    if (result.status != LegacyTswRuntimeStatus::ready) {
+        return result;
+    }
 
     const compat::u16 resource_id = static_cast<compat::u16>(resource_id_slot);
     const compat::u16 variant_index =
         static_cast<compat::u16>(variant_index_slot);
     LegacyTswQueryResult cached = find_low16(resource_id, variant_index);
-    if (cached.status == LegacyTswRuntimeStatus::ready) {
+    if (cached.cache_hit) {
         return cached;
     }
 
+    // 431CB6/431CDD/431CEA/431CF4 publish the node and key before
+    // either loader CALL. Do not undo that prefix on an unmodeled load.
+    const auto node_token = reserve_legacy_guest_bytes(0x20U);
+    if (!node_token) {
+        result.status = LegacyTswRuntimeStatus::allocation_failed;
+        return result;
+    }
+    std::shared_ptr<CacheNode> node;
+    try {
+        LegacyTswRuntimeFrame pending;
+        pending.record_token = *node_token + 8U;
+        node = std::make_shared<CacheNode>(CacheNode{
+            resource_id,
+            variant_index,
+            std::make_shared<const LegacyTswRuntimeFrame>(std::move(pending)),
+        });
+        buckets_[bucket_index(resource_id, variant_index)].push_front(node);
+    } catch (const std::bad_alloc&) {
+        result.status = LegacyTswRuntimeStatus::allocation_failed;
+        return result;
+    }
+    result.frame_owner = node->frame;
+
     LegacyTswDirectResult loaded = load_low16(resource_id, variant_index);
+    node->status = loaded.status;
+    node->physical_status = loaded.physical_status;
     result.status = loaded.status;
     result.physical_status = loaded.physical_status;
     if (loaded.status != LegacyTswRuntimeStatus::ready) {
+        // The record identity is known; its failed-load payload is not.
         return result;
     }
 
-    CacheBucket& bucket = buckets_[bucket_index(resource_id, variant_index)];
     const std::size_t primary_size = loaded.frame.primary_stream.size();
-    const auto node_token = reserve_legacy_guest_bytes(0x20U);
     const auto source_token = reserve_legacy_guest_bytes(primary_size);
-    if (!node_token || !source_token) {
-        result.status = LegacyTswRuntimeStatus::allocation_failed;
+    if (!source_token) {
+        node->status = LegacyTswRuntimeStatus::allocation_failed;
+        result.status = node->status;
         return result;
     }
     loaded.frame.record_token = *node_token + 8U;
     loaded.frame.primary_stream_token = *source_token;
     try {
-        bucket.push_front(
-            CacheNode{
-                resource_id,
-                variant_index,
-                std::make_shared<const LegacyTswRuntimeFrame>(
-                    std::move(loaded.frame)
-                ),
-            }
+        node->frame = std::make_shared<const LegacyTswRuntimeFrame>(
+            std::move(loaded.frame)
         );
     } catch (const std::bad_alloc&) {
-        result.status = LegacyTswRuntimeStatus::allocation_failed;
+        node->status = LegacyTswRuntimeStatus::allocation_failed;
+        result.status = node->status;
         return result;
     }
+    // 431DD4 publishes the result before 431DDA updates the byte total.
+    result.frame_owner = node->frame;
     cached_primary_bytes_ += static_cast<compat::u32>(primary_size);
     result.status = LegacyTswRuntimeStatus::ready;
-    result.frame_owner = bucket.front().frame;
     result.frame = view_of(*result.frame_owner);
     // sub_431C50 returns ECX=record+0x10 and EDX=new cached byte total.
     result.lookup_return_ecx = static_cast<compat::u32>(primary_size);

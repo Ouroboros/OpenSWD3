@@ -400,6 +400,92 @@ void test_special_resource_and_failures(openswd3::test::Context& test) {
     );
 }
 
+class CachePublicationProbe final : public LegacyTswSpecialFrameLoader {
+public:
+    [[nodiscard]] bool load_special_frame(
+        const u16 variant_index, LegacyTswRuntimeFrame& frame
+    ) override {
+        const auto before = runtime->find_cached(0xFFFFU, variant_index);
+        observed = observed && runtime->cache_entry_count() == calls + 1U &&
+            runtime->bucket_entry_count(3U) == calls + 1U &&
+            runtime->cached_primary_bytes() == calls * 4U && before.cache_hit &&
+            before.frame_owner != nullptr &&
+            before.frame_owner->record_token != 0U &&
+            before.frame_owner->primary_stream_token == 0U;
+        if (before.frame_owner != nullptr) {
+            record_tokens[calls] = before.frame_owner->record_token;
+        }
+
+        ++calls;
+        frame.primary_stream = {0xFFU, 0xFFU, 0U, 0U};
+        frame.width = 1U;
+        frame.height = 2U;
+        return true;
+    }
+
+    LegacyTswRuntime* runtime{};
+    std::array<u32, 2U> record_tokens{};
+    std::size_t calls{};
+    bool observed{true};
+};
+
+void test_cache_publication_before_load(openswd3::test::Context& test) {
+    const TestTree tree;
+    write_six_archives(tree);
+    CachePublicationProbe loader;
+    LegacyTswRuntime runtime{tree.root(), {}, &loader};
+    loader.runtime = &runtime;
+    const auto first = runtime.query_cached(0xFFFFU, 13U);
+    const auto second = runtime.query_cached(0xFFFFU, 23U);
+    test.expect_true(
+        loader.observed && loader.calls == 2U &&
+            first.status == LegacyTswRuntimeStatus::ready &&
+            second.status == LegacyTswRuntimeStatus::ready &&
+            first.frame_owner != nullptr && second.frame_owner != nullptr &&
+            first.frame_owner->record_token == loader.record_tokens[0U] &&
+            second.frame_owner->record_token == loader.record_tokens[1U] &&
+            loader.record_tokens[0U] != loader.record_tokens[1U] &&
+            runtime.cached_primary_bytes() == 8U,
+        "TSW publishes each cache key and record identity before invoking the frame loader, and counts stream bytes only after load"
+    );
+
+    LegacyTswRuntime failed{tree.root()};
+    const auto miss = failed.query_cached(1U, 0xFFFFU);
+    const auto resident = failed.find_cached(1U, 0xFFFFU);
+    const auto repeated = failed.query_cached(1U, 0xFFFFU);
+    test.expect_true(
+        miss.status == LegacyTswRuntimeStatus::physical_frame_failed &&
+            resident.cache_hit && resident.frame_owner != nullptr &&
+            resident.frame_owner->record_token != 0U && repeated.cache_hit &&
+            repeated.frame_owner == resident.frame_owner &&
+            repeated.status == miss.status &&
+            failed.cache_entry_count() == 1U &&
+            failed.bucket_entry_count(1U) == 1U &&
+            failed.cached_primary_bytes() == 0U &&
+            resident.lookup_return_ecx == 0xFFFF0001U &&
+            resident.lookup_return_edx == 0x004CF86CU,
+        "TSW load failure retains the published cache node and later packed-key hits do not retry loading or invent image data"
+    );
+
+    LegacyTswRuntime unresolved{tree.root()};
+    const auto pending = unresolved.query_cached(0xFFFFU, 0U);
+    const auto known = unresolved.query_cached(1U, 0U);
+    const u32 known_bytes = unresolved.cached_primary_bytes();
+    unresolved.set_cache_limit(0xFFFFFFFFU);
+    const auto stopped = unresolved.query_cached(2U, 0U);
+    const auto retained = unresolved.find_cached(0xFFFFU, 0U);
+    test.expect_true(
+        pending.status == LegacyTswRuntimeStatus::special_loader_unavailable &&
+            known.status == LegacyTswRuntimeStatus::ready &&
+            known_bytes != 0U && stopped.status == pending.status &&
+            !stopped.cache_hit && stopped.frame_owner == nullptr &&
+            unresolved.cache_entry_count() == 2U &&
+            unresolved.cached_primary_bytes() == known_bytes &&
+            retained.cache_hit && retained.frame_owner == pending.frame_owner,
+        "TSW stops before evicting an unresolved payload instead of guessing zero length or free arguments"
+    );
+}
+
 void populate_eviction_shape(
     LegacyTswRuntime& runtime,
     FakeSpecialLoader& loader,
@@ -649,6 +735,7 @@ int main() {
     openswd3::test::Context test;
     test_lazy_open_route_and_conversion(test);
     test_special_resource_and_failures(test);
+    test_cache_publication_before_load(test);
     test_original_bucket_eviction(test);
     test_cached_frame_lease_outlives_eviction(test);
     test_signed_cache_capacity(test);

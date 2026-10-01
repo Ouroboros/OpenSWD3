@@ -55,12 +55,15 @@ enum class LegacyTswRuntimeStatus {
     special_loader_unavailable,
     special_frame_load_failed,
     allocation_failed,
+    // A published node exists, but its loader has not completed yet.
+    cache_load_in_progress,
 };
 
 struct LegacyTswQueryResult {
     LegacyTswRuntimeStatus status{LegacyTswRuntimeStatus::archive_open_failed};
     LegacyTswFrameStatus physical_status{LegacyTswFrameStatus::ready};
     LegacyTswFrameView frame;
+    // A key hit is independent of whether its image data is available.
     bool cache_hit{};
     std::shared_ptr<const LegacyTswRuntimeFrame> frame_owner{};
     // sub_431DF0 hit: ECX is the packed key or old bucket head and EDX
@@ -115,9 +118,15 @@ private:
         compat::u16 resource_id{};
         compat::u16 variant_index{};
         std::shared_ptr<const LegacyTswRuntimeFrame> frame;
+        LegacyTswRuntimeStatus status{
+            LegacyTswRuntimeStatus::cache_load_in_progress
+        };
+        LegacyTswFrameStatus physical_status{LegacyTswFrameStatus::ready};
     };
 
-    using CacheBucket = std::list<CacheNode>;
+    // Loading may call a port; hold the entry without borrowing a list node
+    // across that call. Image leases remain immutable snapshots.
+    using CacheBucket = std::list<std::shared_ptr<CacheNode>>;
 
     [[nodiscard]] LegacyTswRuntimeStatus ensure_initialized();
     [[nodiscard]] LegacyTswDirectResult
@@ -131,7 +140,7 @@ private:
     view_of(const LegacyTswRuntimeFrame& frame) noexcept;
     [[nodiscard]] LegacyTswQueryResult
     find_low16(compat::u16 resource_id, compat::u16 variant_index) noexcept;
-    void evict_before_lookup() noexcept;
+    [[nodiscard]] LegacyTswRuntimeStatus evict_before_lookup() noexcept;
 
     std::filesystem::path data_root_;
     rendering::LegacyPixelConversionState pixel_conversion_;

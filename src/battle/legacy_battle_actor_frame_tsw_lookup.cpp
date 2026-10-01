@@ -79,10 +79,14 @@ LegacyBattleActorFrameTswUpdatePort::lookup_frame(
     LegacyBattleActorFrameUpdateReply reply;
     const auto query = tsw_.query_cached(action_value, argument_zero);
     const auto& owner = query.frame_owner;
-    if (query.status != asset_runtime::LegacyTswRuntimeStatus::ready ||
+    const bool record_only_hit = query.cache_hit &&
+        query.status != asset_runtime::LegacyTswRuntimeStatus::ready;
+    if ((!record_only_hit &&
+         query.status != asset_runtime::LegacyTswRuntimeStatus::ready) ||
         owner == nullptr || owner->record_token == 0U ||
-        owner->primary_stream_token == 0U ||
-        !owner->auxiliary_stream.empty() || !owner->palette.empty()) {
+        (!record_only_hit &&
+         (owner->primary_stream_token == 0U ||
+          !owner->auxiliary_stream.empty() || !owner->palette.empty()))) {
         // Do not turn failed/unmodeled load and special-frame records into
         // a fabricated normal return. Their interior effects remain open.
         reply.stopped_instruction = 0x004315D0U;
@@ -97,6 +101,12 @@ LegacyBattleActorFrameTswUpdatePort::lookup_frame(
     // EAX=1 on a loaded miss, then loads the record from 0x004FB0C8.
     reply.flags = test_pointer_flags(query.cache_hit ? reply.eax : 1U);
     reply.flags_known = true;
+    if (record_only_hit) {
+        // 431DF0 checks the key, not payload validity. The hit's return is
+        // known even when the earlier loader stopped with unknown data.
+        return reply;
+    }
+
     reply.resource_header_known = true;
     reply.resource_value_00 = owner->primary_stream_token;
     reply.resource_value_04 = 0U;

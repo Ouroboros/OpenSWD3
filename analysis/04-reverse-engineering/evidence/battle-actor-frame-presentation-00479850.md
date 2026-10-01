@@ -5828,3 +5828,59 @@ build/tmp/runtime/wp316-tsw-signed-capacity-source-freeze-v2.sha256
 空桶首轮尾部操作、16位桶计数回绕、四次深层free与失败停点仍待闭合。
 两个原版caller缺口、四caller生产绑定、全部98 CALL／22 RET及最终REVIEW仍未完成；
 本次不升级inventory，316继续 `pending_audit`。
+
+### 查帧加载前的缓存登记与未知载荷命中
+
+从独立LST完整复核 `4315D0..43175A`、`431C50..431DE6` 与
+`433380..43353D` 的入口及出口。`431C93` 增桶计数，`431CB6` 发布新头；
+八次清零及完整key/next写在 `431D0A/431D85` 加载调用之前。
+普通零回复走 `431D91..431DA6`，不撤销节点、计数或头；外层只清返回全局。
+后续 `431DF0` 只比较packed key，即使载荷未知也可命中并返回node+8。
+`433380` 两条失败RET位于最终输出复制之前，但没有真实API及别名输入时，
+不将宿主安全失败直接等同于这些原版出口，更不填补失败图像内容。
+
+原 `LegacyTswRuntime::query_cached` 在装载成功后才分配/登记节点，
+失败则留下无节点；其顺序与已提交前缀不同。
+独立合成加载器只观察同桶variants13/23：进入时节点计数1/2，
+累计主流字节仍0/4；cache-only已命中相同record身份，完成后累计4/8。
+合成档案的未知变体先保留失败状态，再核节点与身份不被回滚，重复键不重载。
+真实TSW端口缺特殊绑定时，首次不伪作返回；后续已登记键的命中只发布
+记录身份、packed-key/bucket寄存器及TEST record定义FLAGS，资源头与解码源仍未知。
+
+`proc_1cd5 / wp316-tsw-preload-publication-red` 16秒退出8：两个定向各退出8。
+恰三项上述新增断言失败；没有旧断言失败或编译诊断。
+生产四项及初版测试两项SHA前后相同，动作17组及seq372局部差分实际执行。
+初版red测试包含整文件格式化；随后仅恢复无关格式，保留原快照与SHA，
+不将当前测试快照冒充red。最终又加未知尾节点回收前障，不能称该新增断言也经red。
+
+最小生产批次先登记缓存节点，再加载；节点的状态与图像可用性分开，
+未知装载不撤销登记，重复键仍命中原节点。宿主加载期间独立持有节点，
+图像租约仍是不可变快照，不代表原版物理缓存backing或释放地址保活。
+Native lookup的未知载荷命中只恢复已知返回ABI，不提供零图像头/解码源。
+现有actor+2548同步代码已在token改变时清除旧字段known位与旧lease，
+没有重复增加额外检查。淘汰若需读取未知载荷的 `431F11` 长度，
+保留此前前缀，不借空vector减零或补造四个free参数。
+
+`proc_ff24 / wp316-tsw-preload-publication-frozen-gates` 391秒退出0。
+冻结六项源码/测试在门禁前后及完成后SHA全部匹配。
+两个定向各1/1（0.40/0.51秒）、core200/200（20.49秒）、
+ASan200/200（33.04秒）、app206/206（81.20秒）通过，五日志诊断0。
+三个LastTest各执行一次17组动作与seq372局部差分，skip=0。
+没有运行原版或Windows门禁；不是查帧原版动态差分。
+正式日志及冻结清单：
+
+```text
+build/tmp/runtime/wp316-tsw-preload-runtime-red.log
+build/tmp/runtime/wp316-tsw-preload-battle-red.log
+build/tmp/runtime/wp316-tsw-preload-runtime-directed.log
+build/tmp/runtime/wp316-tsw-preload-battle-directed.log
+build/tmp/runtime/wp316-tsw-preload-core-full.log
+build/tmp/runtime/wp316-tsw-preload-asan-full.log
+build/tmp/runtime/wp316-tsw-preload-app-full.log
+build/tmp/runtime/wp316-tsw-preload-source-freeze.sha256
+```
+
+本阶段不模拟首次深层失败后的GPR/FLAGS/ESP、cursor/共享结果全局，
+不闭合16位计数回绕、空桶错误、DF=1跨节点写、递归改变缓存与完整四free。
+另外两处原版caller、四caller生产绑定、249跨块与98 CALL/22 RET及联合差分仍待完成。
+316最终REVIEW未完成；不升级inventory，也不将局部门禁作为Goal完成证据。

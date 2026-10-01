@@ -1021,6 +1021,40 @@ void test_real_frame_tsw_lookup_port(openswd3::test::Context& test) {
     // Keep the existing close/reload scenario outside empty-bucket eviction.
     tsw.set_cache_limit(0x00400000U);
 
+    {
+        openswd3::asset_runtime::LegacyTswRuntime unresolved{
+            std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}
+        };
+        openswd3::battle::LegacyBattleActorFrameTswUpdatePort unresolved_port{
+            unresolved, updater
+        };
+        const auto stopped = unresolved_port.lookup_frame(
+            0xFFFFU, 0U, 0x12345678U, 0xABCDEF01U, 0x87654321U
+        );
+        const auto resident = unresolved.find_cached(0xFFFFU, 0U);
+        const auto repeated = unresolved_port.lookup_frame(
+            0xFFFFU, 0U, 0x12345678U, 0xABCDEF01U, 0x87654321U
+        );
+        test.expect_true(
+            !stopped.returned && !stopped.flags_known && resident.cache_hit &&
+                resident.frame_owner != nullptr &&
+                resident.frame_owner->record_token != 0U &&
+                unresolved.cache_entry_count() == 1U &&
+                unresolved.cached_primary_bytes() == 0U && repeated.returned &&
+                repeated.eax == resident.frame_owner->record_token &&
+                repeated.ecx == 0xFFFFU && repeated.edx == 0x004CF84CU &&
+                repeated.flags_known && !repeated.flags.carry &&
+                !repeated.flags.zero && !repeated.flags.overflow &&
+                !repeated.flags.auxiliary_carry_defined &&
+                repeated.flags.parity ==
+                    ((std::popcount(repeated.eax & 0xFFU) & 1) == 0) &&
+                repeated.flags.sign == ((repeated.eax & 0x80000000U) != 0U) &&
+                !repeated.resource_header_known &&
+                !repeated.decoder_source_known,
+            "real TSW port retains the node before an unresolved load and returns only known cache-hit registers without invented image data"
+        );
+    }
+
     openswd3::asset_runtime::LegacyActionRecord action{};
     const auto idle = port.update(action, 0x12345678U, 1U, 2U, 3U);
     test.expect_true(
