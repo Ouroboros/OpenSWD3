@@ -280,6 +280,69 @@ void test_synthetic_frame(openswd3::test::Context& test) {
     );
 }
 
+void test_physical_variant_ignores_declared_count(
+    openswd3::test::Context& test
+) {
+    const TestTree tree;
+    for (const u16 declared : {u16{0U}, u16{1U}, u16{2U}}) {
+        SyntheticArchive synthetic = make_synthetic_archive();
+        synthetic.bytes.insert(
+            synthetic.bytes.begin() +
+                static_cast<std::ptrdiff_t>(synthetic.payload_offset),
+            kDescriptorSize,
+            u8{0U}
+        );
+        synthetic.payload_offset += kDescriptorSize;
+        const auto first = synthetic.bytes.begin() +
+            static_cast<std::ptrdiff_t>(synthetic.descriptor_offset);
+        std::copy_n(first, kDescriptorSize, first + kDescriptorSize);
+        write_u32(
+            synthetic.bytes,
+            kIndexOffset + 0x14U,
+            static_cast<u32>(synthetic.bytes.size() - kBlockOffset)
+        );
+        write_u16(synthetic.bytes, kBlockOffset + 6U, declared);
+        for (const u32 variant : {0U, 1U}) {
+            const std::size_t descriptor = synthetic.descriptor_offset +
+                variant * kDescriptorSize;
+            write_u32(
+                synthetic.bytes,
+                descriptor,
+                static_cast<u32>(synthetic.payload_offset - kBlockOffset)
+            );
+            write_u16(
+                synthetic.bytes, descriptor + 0x20U,
+                static_cast<u16>(47U + variant)
+            );
+            write_u16(
+                synthetic.bytes, descriptor + 0x22U,
+                static_cast<u16>(95U + variant)
+            );
+        }
+
+        tree.write("physical-variants.tsw", synthetic.bytes);
+        LegacyTswArchive archive;
+        test.expect_equal(
+            archive.open(tree.path("physical-variants.tsw")),
+            LegacyTswOpenStatus::ready,
+            "physical variant fixture opens"
+        );
+        for (const u32 variant : {0U, 1U}) {
+            const auto loaded = archive.read_frame(1U, variant);
+            test.expect_true(
+                loaded.status == LegacyTswFrameStatus::ready &&
+                    loaded.frame.frame_count == declared &&
+                    loaded.frame.descriptor.width == 47U + variant &&
+                    loaded.frame.descriptor.height == 95U + variant &&
+                    std::ranges::equal(
+                        loaded.frame.command_stream, synthetic.command_stream
+                    ),
+                "433540 reads the requested complete physical descriptor without rejecting it by the declared frame count"
+            );
+        }
+    }
+}
+
 void test_safety_boundaries(openswd3::test::Context& test) {
     const TestTree tree;
     const SyntheticArchive synthetic = make_synthetic_archive();
@@ -303,9 +366,9 @@ void test_safety_boundaries(openswd3::test::Context& test) {
         "zero index slot remains empty"
     );
     test.expect_equal(
-        archive.read_frame(1U, 1U).status,
-        LegacyTswFrameStatus::variant_out_of_range,
-        "variant outside valid caller range is isolated"
+        archive.read_frame(1U, 0xFFFFFFFFU).status,
+        LegacyTswFrameStatus::descriptor_out_of_block_range,
+        "physical descriptor offset overflow is isolated, not a declared count boundary"
     );
     archive.close();
 
@@ -588,6 +651,7 @@ void test_real_archives(
 int main(const int argument_count, char** arguments) {
     openswd3::test::Context test;
     test_synthetic_frame(test);
+    test_physical_variant_ignores_declared_count(test);
     test_safety_boundaries(test);
     if (argument_count == 2) {
         test_real_archives(test, std::filesystem::path{arguments[1]});

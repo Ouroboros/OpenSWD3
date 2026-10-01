@@ -215,10 +215,13 @@ TSW 三文件补丁与主工作树对应文件 SHA-256
 （`proc_06df`）、Linux app `205/205`
 （`proc_b760`）通过，结论只适用于该切片。
 
-`0x00431A50/0x00431AA0` 为 `all_magic.tsw` 维护的五项描述符磁盘读取加速层不拥有
-最终帧，也不改变外层十桶缓存、解压结果或借用 view。当前最小闭环直接从同一物理
-描述符读取，后续 78 地址有限收口时把这两项登记为内部 I/O 优化映射，而不复制其
-进程全局暂存布局。
+`0x00431A50/0x00431AA0`维护五项描述符磁盘缓存。既有宿主映射直接读取物理描述符，
+已验证的正常资产结果不能外推为完整I/O或共享状态等价。B10依据LST导航核出：
+准备调用提交key/age/存储位数，满槽选择使用signed32并保留平数旧槽，
+逐descriptor还把SetFilePointer返回值写回；433380/433540的缓存分支重读共享状态。
+这些调用顺序、stale descriptor、255边界、API失败/DF/重入仍待恢复；不能只用
+“内部I/O优化映射”关闭深层合同。此缺口留在当前316依赖审计，不据正常资产缺命中
+删除原分支，也不补造系统调用或未知字节。
 
 ### 加载之前发布节点，未知装载不撤销登记
 
@@ -327,7 +330,43 @@ DF0关闭/重开初始化两REP不覆盖`4DACE0..4DACF4`，残留不能被默认
 core200/200（21.63秒）、ASan200/200（33.14秒）、app206/206（81.08秒），五日志diagnostic0。
 九SHA前后/完成后匹配，三LastTest各action1/reset1/skip0，无原版/Windows运行。
 材料前缀`build/tmp/runtime/wp316-tsw-count-prefix-`保留独立red、snapshot、freeze、diff与五green日志。
-本计数批次待阶段发布；不称完整word/DF/alias/allocator、CRT/SEH、真实失败CPU或四caller绑定已闭合。
+该计数批次已提交、推送及TG；不称完整word/DF/alias/allocator、CRT/SEH、真实失败CPU或四caller绑定已闭合。
+
+### 普通加载不以声明帧数拒绝可读物理描述符
+
+完整4332A0..433311只检查magic及存储位数，没有比较块头+6帧数。
+433380普通分支在读取index/header后调用433540；433592/433596计算请求
+(variant+1)*24h字节，4335AE读取，4335B8/4335C4取variant*24h，4335C9复制九dword。
+在DF0、完整物理字节及正常I/O/分配/解压回复的限定输入下，声明count不是加载边界。
+计数字段仍保存为原始元数据；并不把未知descriptor、失败API或缓存五槽状态变成已知。
+
+基线7078c31e，两个旧生产定向proc_eaa5实际8秒exit8，恰Archive3/Runtime3新增失败，
+相反侧及旧断言通过，九旧生产/两初版tests SHA前后相同，完整red snapshot保留，无编译诊断。
+数据为两个完整物理descriptor，声明0/1/2×请求0/1；已知宽/高及完整主流不应被声明数拦截。
+生产仅移除声明count预检，保留物理范围/偏移和解压字节可用性检查；API枚举不删除或重排。
+Runtime/Native及父pipeline不加重复guard。后补FFFFFFFF物理偏移溢出向量替换旧声明钳制断言；
+六组16位受控资产实调用战斗查询端口，检验miss/hit ABI、宽高、decoder全部字节与lease，未参加初版red。
+
+十四source初版proc_ba33实际34秒exit1：Archive/Runtime定向通过，新增Native夹具缺纯虚方法实现，未进入完整门禁。补齐显式异常路径后另冻结v2，proc_19d5实际17秒exit8：前两定向通过，恰新增Native六组失败，无旧断言退化/编译诊断；原限定差分仍实际执行。
+按LST401C49再次核对夹具：零行命令后还读下一行头，初版16字节流缺最后零word；仅补成完整18字节并更新固定ECX/EDX，不修改生产或放宽断言。前两版SHA/log保留；当时另冻结v3完整门禁，不借部分green。
+第三版proc_e25a实际463秒exit0：三定向各1/1（0.19/1.15/0.92秒），core200/200（22.79秒）、ASan200/200（36.07秒）、app206/206（82.29秒），六日志无诊断、十四SHA前后/完成后相同，三配置限定动作/重置差分实际执行、skip0。
+但该版Native期望错误保留了16位descriptor尺寸；复查431DB1→401C70→401B70发现真实写回合同，不能把那份green当完整语义审核。
+本范围不是原版动态差分、magic缓存分支、真实堆/SEH或完整316验收。
+
+### 字流尺寸写回另经独立red
+
+431DA7/431DAD/431DB0传record地址，431DB1调用401C70。
+401C95/401C99/401C9F读取主流+6并mask7FFF，按流深度而非容器bpp分支。
+非8位路径401CA8/401CAC/401CAB传record+E/+C，401B90/401B94及401B9F/401BA3
+把主流头+2/+4宽高写回记录；正常16位流输出尺寸不再是descriptor的31/32×7/8。
+8位分支未写record+C/+E，仍保留descriptor尺寸；失败/未知API/DF别名不在此闭环内。
+
+纠正Native独立期望为流头1×1后，九旧production及初版新测试另冻结，proc_cda9实际13秒exit8，
+恰六项新增失败、旧断言无退化、无诊断，SHA前后相同、完整snapshot仍匹配，限定差分实际执行。
+随后仅改Runtime成功转换后的尺寸来源：成功转换已验证8/16位完整header，byte stream取descriptor，
+word stream取header；不加零/空回复、未知内存guard或修改renderer/Native/父pipeline。
+最终后补bit15及8位容器装16位流，使十二组Native输入强制区分存储bpp与流深度；未参加初版red。
+十四source第四版proc_94fb实际414秒exit0：Archive/Runtime/316三定向各1/1（0.19/1.16/1.11秒），core200/200（24.04秒）、ASan200/200（38.28秒）、app206/206（84.77秒）。六日志diagnostic0，十四SHA前后及完成后相同，三LastTest各action1/reset1/skip0，不借第三版green或初版部分结果。当前限定阶段审查待发布；不等同完整316/四caller/I5或全Goal完成。
 
 ## 六个样本汇总
 

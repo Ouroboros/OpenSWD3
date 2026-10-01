@@ -695,10 +695,15 @@ add_executable(
     unit/battle/legacy_battle_actor_frame_oracle_reset_test.cpp
     unit/battle/legacy_battle_actor_frame_free_validation_test.cpp
     unit/battle/legacy_battle_actor_frame_rectangle_calls_test.cpp
+    unit/battle/legacy_battle_actor_frame_tsw_declared_count_test.cpp
 )
 target_include_directories(
     openswd3_battle_actor_frame_316_tests
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_compile_definitions(
+    openswd3_battle_actor_frame_316_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${PROJECT_SOURCE_DIR}/build/tmp/runtime"
 )
 target_link_libraries(
     openswd3_battle_actor_frame_316_tests

@@ -163,6 +163,84 @@ void write_six_archives(const TestTree& tree) {
     }
 }
 
+void test_physical_variant_ignores_declared_count(
+    openswd3::test::Context& test
+) {
+    const TestTree tree;
+    constexpr std::size_t descriptor_base = kBlockOffset + 12U + kPaletteSize;
+    constexpr std::size_t descriptor_size = 36U;
+    constexpr std::size_t old_payload = descriptor_base + descriptor_size;
+    for (const u16 declared : {u16{0U}, u16{1U}, u16{2U}}) {
+        std::vector<u8> bytes = synthetic_archive();
+        bytes.insert(
+            bytes.begin() + static_cast<std::ptrdiff_t>(old_payload),
+            descriptor_size,
+            u8{0U}
+        );
+        const auto first = bytes.begin() +
+            static_cast<std::ptrdiff_t>(descriptor_base);
+        std::copy_n(first, descriptor_size, first + descriptor_size);
+        for (std::size_t record = 0U; record < 10U; ++record) {
+            write_u32(
+                bytes,
+                kIndexOffset + record * kRecordSize + 0x14U,
+                static_cast<u32>(bytes.size() - kBlockOffset)
+            );
+        }
+
+        write_u16(bytes, kBlockOffset + 6U, declared);
+        for (const u32 variant : {0U, 1U}) {
+            const std::size_t descriptor = descriptor_base +
+                variant * descriptor_size;
+            write_u32(
+                bytes, descriptor,
+                static_cast<u32>(old_payload + descriptor_size - kBlockOffset)
+            );
+            write_u16(
+                bytes, descriptor + 0x20U, static_cast<u16>(47U + variant)
+            );
+            write_u16(
+                bytes, descriptor + 0x22U, static_cast<u16>(95U + variant)
+            );
+        }
+
+        for (const char* const name : kArchiveNames) {
+            tree.write(name, bytes);
+        }
+
+        for (const u32 variant : {0U, 1U}) {
+            LegacyTswRuntime runtime{tree.root()};
+            const u32 variant_slot = 0xBEEF0000U | variant;
+            const auto direct = runtime.load_direct(0xCAFE0001U, variant_slot);
+            const auto loaded = runtime.query_cached(0xCAFE0001U, variant_slot);
+            const auto hit = runtime.query_cached(1U, variant);
+            test.expect_true(
+                direct.status == LegacyTswRuntimeStatus::ready &&
+                    direct.physical_status == LegacyTswFrameStatus::ready &&
+                    direct.frame.width == 47U + variant &&
+                    direct.frame.height == 95U + variant &&
+                    !direct.frame.primary_stream.empty() &&
+                    loaded.status == LegacyTswRuntimeStatus::ready &&
+                    loaded.physical_status == LegacyTswFrameStatus::ready &&
+                    !loaded.cache_hit && loaded.frame.width == 47U + variant &&
+                    loaded.frame.height == 95U + variant &&
+                    std::ranges::equal(
+                        loaded.frame.primary_stream, direct.frame.primary_stream
+                    ) &&
+                    hit.status == LegacyTswRuntimeStatus::ready &&
+                    hit.cache_hit &&
+                    hit.frame_owner == loaded.frame_owner &&
+                    runtime.cache_entry_count() == 1U &&
+                    runtime.cached_primary_bytes() ==
+                        direct.frame.primary_stream.size() &&
+                    loaded.lookup_return_ecx == runtime.cached_primary_bytes() &&
+                    loaded.lookup_return_edx == runtime.cached_primary_bytes(),
+                "ordinary TSW direct and cached queries load the complete requested physical descriptor despite a smaller declared count; low16 keys and normal hit remain"
+            );
+        }
+    }
+}
+
 class FakeSpecialLoader final : public LegacyTswSpecialFrameLoader {
 public:
     [[nodiscard]] bool load_special_frame(
@@ -1152,6 +1230,7 @@ void test_original_bucket_eviction(openswd3::test::Context& test) {
 int main() {
     openswd3::test::Context test;
     test_lazy_open_route_and_conversion(test);
+    test_physical_variant_ignores_declared_count(test);
     test_special_resource_and_failures(test);
     test_cache_publication_before_load(test);
     test_shared_cursor_after_nested_lookup(test);

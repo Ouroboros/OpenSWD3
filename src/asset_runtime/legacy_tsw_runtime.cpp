@@ -101,8 +101,14 @@ LegacyTswRuntimeStatus LegacyTswRuntime::normalize_physical_frame(
     runtime.primary_stream = std::move(converted.bytes);
     runtime.auxiliary_stream.clear();
     runtime.palette.clear();
-    runtime.width = physical.descriptor.width;
-    runtime.height = physical.descriptor.height;
+    // Completed conversion has verified an 8/16-bit stream header.
+    // 401C9F branches on the stream depth, not the container's storage bpp;
+    // 401B94/401BA3 overwrite record dimensions on the word-stream path.
+    const bool indexed_stream = physical.command_stream[6U] == 8U;
+    runtime.width = indexed_stream
+        ? physical.descriptor.width : converted.header.width;
+    runtime.height = indexed_stream
+        ? physical.descriptor.height : converted.header.height;
     return LegacyTswRuntimeStatus::ready;
 }
 

@@ -202,10 +202,8 @@ LegacyTswFrameResult LegacyTswArchive::read_frame(
         descriptor_base += kLegacyTswPaletteSize;
     }
 
-    if (variant_index >= result.frame.frame_count) {
-        result.status = LegacyTswFrameStatus::variant_out_of_range;
-        return result;
-    }
+    // 433592/4335C4 select the requested physical descriptor directly.
+    // The declared frame count is metadata, not a loading boundary.
     const std::uint64_t descriptor_relative_64 =
         static_cast<std::uint64_t>(descriptor_base) +
         static_cast<std::uint64_t>(variant_index) * kFrameDescriptorSize;

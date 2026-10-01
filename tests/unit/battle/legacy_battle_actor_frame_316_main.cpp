@@ -26,6 +26,7 @@ void test_battle_actor_frame_free_assertion_prefix(
     openswd3::test::Context& test
 );
 void test_battle_actor_frame_rectangle_calls(openswd3::test::Context& test);
+void test_battle_actor_frame_tsw_declared_count(openswd3::test::Context& test);
 void test_battle_final_actor_step(openswd3::test::Context& test);
 void test_battle_group_a_frame(openswd3::test::Context& test);
 void test_battle_group_b_frame(openswd3::test::Context& test);
@@ -46,6 +47,7 @@ int main() {
     test_battle_actor_frame_free_validation_prefix(test);
     test_battle_actor_frame_free_assertion_prefix(test);
     test_battle_actor_frame_rectangle_calls(test);
+    test_battle_actor_frame_tsw_declared_count(test);
     test_battle_final_actor_step(test);
     test_battle_group_a_frame(test);
     test_battle_group_b_frame(test);

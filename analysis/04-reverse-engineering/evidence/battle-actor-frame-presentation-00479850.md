@@ -6100,7 +6100,37 @@ physical_state_known/flags_known=false，EIP0仅标不可用，测试恢复保�
 新九source冻结proc_4abf 399秒exit0：runtime/battle定向各1/1（CTest总0.84/0.69秒），
 core200/200（21.63秒）、ASan200/200（33.14秒）、app206/206（81.08秒）。
 五日志diagnostic0，九SHA前后及完成后匹配，三LastTest各action1/reset1/skip0。
-当前源码差异470行/22530字节完整读取；未运行原版/Windows，未借旧空桶green。
+计数源码差异470行/22530字节；后续审计撤回此前单次/八段截断read的“完整无截断”声明。
+此前30段补读的121..140仍截断，“30段全部完整”声明也撤回。
+本轮以15个不截断范围重新读完全部602行，两条长行各独立返回；补审发生发布后，不证明历史提交前读完。
+未运行原版/Windows，未借旧空桶green。
 材料前缀build/tmp/runtime/wp316-tsw-count-prefix-保留red日志/snapshot、旧/新SHA、source diff和五green日志。
-本计数批次待阶段发布；完整共享全局/allocator游标、DF别名、四free/SEH、首次失败真实ABI、
+该计数批次已提交、推送及TG；完整共享全局/allocator游标、DF别名、四free/SEH、首次失败真实ABI、
 四caller接线、249跨块/98 CALL/22 RET、联合差分、I5及316最终REVIEW与完整Goal均未完成。
+
+### 普通物理帧选择与字流尺寸写回
+
+4332A0/433380/433540普通路径未按块头声明数拒绝完整descriptor；低层读取现不再以count作边界，
+仍保存声明元数据、保留物理偏移/字节与解压长度检查，不把缺字节/未知API/五槽缓存输入补齐。
+旧生产proc_eaa5实际8秒exit8，Archive/Runtime恰各三项新增失败，相反侧/旧断言通过，无诊断，
+九旧生产/两初版tests SHA相同，两完整snapshot保留。后补FFFFFFFF物理偏移边界未参加该red。
+
+Native后补夹具初版缺pure virtual方法而编译失败，v2漏最后zero row header而六组失败；
+LST401C49要求行命令结束后再读下一行头，修正为完整18-byte流，未放宽生产或期望。
+第三版六门禁虽成功，但人工核LST发现16位尺寸期望误按descriptor，不能用green证明错误合同。
+431DB1把record传401C70，401C9F按主流depth分支；401B94/401BA3把流宽高写回record+C/+E。
+独立期望从descriptor31/32×7/8改为流头1×1，proc_cda9实际13秒exit8，恰六新增失败、旧断言0、
+diagnostic0，九production/初版新测试SHA前后同，完整snapshot匹配，限定差分实际执行。
+
+Runtime成功转换后按已验证的流depth选尺寸来源，字节流保留descriptor、字流用header，
+不按容器bpp误判，不增零/空回复或未知地址guard。Native/父pipeline/renderer/registry仍只读。
+后补bit15与8位容器承载16位流，最终十二组实际查询端口检验miss/hit ABI、宽高、全部decoder字节/lease；
+这六组类型对照与bit15未参加初版red。受控资产/端口不是原版动态差分或四caller真实接线。
+
+十四source第四版proc_94fb实际414秒exit0：三定向各1/1（0.19/1.16/1.11秒），
+core200/200（24.04秒）、ASan200/200（38.28秒）、app206/206（84.77秒）。
+六日志diagnostic0、十四SHA前后/完成后同，三LastTest各action1/reset1/skip0，未运行原版/Windows。
+材料前缀build/tmp/runtime/wp316-tsw-declared-count-与wp316-tsw-word-dimensions-保留各版冻结、red/green、snapshot；
+不改写原始capture、旧freeze，也不借v3green关闭新增尺寸合同。当前限定阶段审查待发布。
+五槽缓存/I/O顺序、共享全局/allocator游标、DF/别名/四free/SEH、首次失败真实CPU、四caller、
+249跨块/98 CALL/22 RET、联合复放/I5及316最终REVIEW/完整Goal仍未完成，315/422不变。

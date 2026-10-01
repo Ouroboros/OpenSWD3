@@ -4496,7 +4496,21 @@ DF/计数回绕/allocator物理游标及真实绑定仍未闭合，不能称为3
 减后零而节点仍存、已知节点清理残留和精确状态另为后补向量，不冒称参加初版red。
 新九source冻结proc_4abf 399秒exit0：两定向各1/1、core/ASan各200/200、app206/206通过，
 五日志diagnostic0、九SHA前后/完成后匹配，局部动作/重置差分各执行一次、skip0。
-本计数批次待阶段发布，完整共享游标/DF/别名/CRT/SEH/真实调用方接线与316最终REVIEW仍未完成。
+该计数批次已提交、推送及TG，完整共享游标/DF/别名/CRT/SEH/真实调用方接线与316最终REVIEW仍未完成。
+随后普通加载的独立declared-count反例在旧Archive/Runtime两个定向上恰有六项新增失败，
+相反侧/旧断言通过，无诊断，九旧生产/两初版tests SHA不变，完整red snapshot保留。
+生产仅移除声明数预检，物理字节/偏移检查保留；后补Native夹具经纯虚方法及终止字修正。
+十四source第三版proc_e25a 463秒exit0：三定向各1/1、core/ASan各200/200、app206/206，
+日志无诊断、前后SHA相同，动作/重置限定差分实际执行、skip0。
+但随后LST复查发现Native夹具沿用了描述符宽高，而16位流在401B70写回自身宽高；
+既有green不足以覆盖此合同；另冻结独立期望，proc_cda9实际13秒exit8，恰六项新增失败、
+无旧断言退化/诊断，九旧生产/初版新测试SHA前后相同，完整red snapshot保留。
+生产按已验证的流头深度区分尺寸来源：字节流保留descriptor，字流使用header，不按容器bpp选分支。
+后补bit15与8位容器承载16位流，使最终十二组实际消费者同时验证类型来源，不称参加初版red。
+十四source第四版proc_94fb实际414秒exit0：三定向各1/1、core/ASan各200/200、app206/206，
+六日志diagnostic0、十四SHA前后/完成后相同，动作/重置限定差分各一次、skip0。
+当前限定阶段审查待发布；不复用第三版green关闭新增尺寸合同，不升级316状态。
+五槽缓存/API/DF/SEH、首次失败现场、四caller、联合复放/I5及316最终REVIEW继续待完成。
 机器证据与剩余缺口见`../evidence/battle-actor-frame-presentation-00479850.md`；
 未完成316前不得开始317。
 
