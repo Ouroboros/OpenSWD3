@@ -6345,3 +6345,24 @@ LST后缀、原版栈和动作记录；**没有**将这组原版寄存器数字�
 不声称生产CPU回复、四caller、完整联合复放或异常合同已通过。
 初版有2条默认等待误断言，修正后`proc_f8ab`定向1/1实际通过、
 四份夹具/测试前后8项SHA一致；不是全套门禁或生产回复验证。
+
+### 生产绑定与本地ACT缓存前态（源码/资产限定）
+
+`src/platform/sdl3/main.cpp:7698..7708`为生产实例建立ACT运行时、缓存额度
+`0x80000`、动作更新器和缓存设置1；它在世界等路径有消费者，但**不等于**
+`479850`战斗父函数已绑定。`LegacyBattleActionDispatchContext`的四个
+`actor_frame_*`绑定默认为空；`src/battle/legacy_battle_action_dispatch_cases_low.cpp`
+和`legacy_battle_opponent_action_dispatch.cpp`仅在提供caller现场时才调用
+`advance_legacy_battle_actor_frame_caller`，最终组A/B同理。
+`src/platform/sdl3/main.cpp`没有提供这些caller现场或`EntryRoutePorts`；
+当前战斗脚本`frame`回调只返回EAX=1，不能视为父函数执行。上述为源码
+接线审计，不从自有PE/宿主模拟反推原版四caller已覆盖。
+
+本地真实ACT限定测试在**同一新建运行时**先处理17个v2动作408/变体36
+样本，随后34个v3动作407样本，再处理18个v4动作408/变体36样本；
+更新器公开的`cache_hit`对这18次均为true，且原版记录148非指针字节、
+指针可用性及EAX语义1的既有差分仍通过。这核实了**本地预热后**的逻辑
+命中支，与v4观测的原版命中支同类；不证明本地新运行时第一次查询就
+命中，也不证明VM ACT资产字节身份、缓存节点布局/生命周期、guest地址
+或生产CPU/栈/FLAGS回复。无真实caller现场和宿主端口前不接线、不合成
+入口寄存器与异常回复；316最终REVIEW继续未闭合。

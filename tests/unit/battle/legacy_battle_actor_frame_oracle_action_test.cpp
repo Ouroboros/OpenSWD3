@@ -98,6 +98,14 @@ void test_battle_actor_frame_original_action_data(
             test.expect_equal(
                 result.return_value, 1U, sample + " updater succeeds"
             );
+            if (already_prepared) {
+                // V2 rows loaded the same 408/36 key into this real ACT
+                // runtime first. Match the original v4 logical cache-hit
+                // arm without equating either side's node or guest pointer.
+                test.expect_equal(
+                    result.cache_hit, true, sample + " local ACT cache hit"
+                );
+            }
             const auto* const actual = reinterpret_cast<const u8*>(&record);
             const auto* const expected =
                 reinterpret_cast<const u8*>(row.after.data());
@@ -145,8 +153,9 @@ void test_battle_actor_frame_original_action_data(
         << "both ACT cache settings, 148 bytes and stream availability "
         << "per sample; v3 profile407 34 samples with observed "
         << "entry/leave cache setting 1; v4 profile408 18 nested "
-        << "input/output samples with observed callsite cache setting 1; "
-        << "not CPU replies or complete sub_479850 replay.\n";
+        << "input/output samples with observed callsite cache setting 1 "
+        << "and 18 locally warmed ACT cache hits; not CPU replies "
+        << "or complete sub_479850 replay.\n";
 #else
     static_cast<void>(test);
     std::cout << "WP316 original action-data diff not run: "
