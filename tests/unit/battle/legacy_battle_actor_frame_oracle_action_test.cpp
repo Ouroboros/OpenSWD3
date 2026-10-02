@@ -22,11 +22,16 @@ struct ObservedActionRecord {
     std::array<u32, kLegacyActionRecordSize / sizeof(u32)> after;
 };
 
-constexpr ObservedActionRecord kObservedRecords[]{
+constexpr ObservedActionRecord kObservedV2Records[]{
 #include "../../../analysis/04-reverse-engineering/artifacts/battle-actor-frame-action-00479850/observed-records.inc"
 };
 
-static_assert(std::size(kObservedRecords) == 17U);
+constexpr ObservedActionRecord kObservedV3Records[]{
+#include "../../../analysis/04-reverse-engineering/artifacts/battle-actor-frame-action-v3-00479850/observed-records.inc"
+};
+
+static_assert(std::size(kObservedV2Records) == 17U);
+static_assert(std::size(kObservedV3Records) == 34U);
 static_assert(std::endian::native == std::endian::little);
 
 }  // namespace
@@ -36,15 +41,16 @@ void test_battle_actor_frame_original_action_data(
 ) {
 #ifdef OPENSWD3_REAL_ACT_ROOT
     using namespace openswd3::asset_runtime;
-    // The original global stream-cache setting was not captured. Run both
-    // production provider paths; neither setting is asserted as observed.
+    // V2 did not capture the original cache setting; test both provider paths.
+    // V3 observed setting 1 only at entry/leave, not at the inner callsite.
     for (const u32 cache_mode : {0U, 1U}) {
         LegacyActRuntime runtime{OPENSWD3_REAL_ACT_ROOT};
         runtime.set_cache_limit(0x00080000U);
         LegacyActActionStreamProvider provider{runtime};
         LegacyActionUpdater updater{provider};
         updater.set_stream_cache_mode(cache_mode);
-        for (const auto& row : kObservedRecords) {
+        const auto compare_record = [&](const ObservedActionRecord& row,
+                                        const char* const capture) {
             LegacyActionRecord record;
             std::memcpy(&record, row.before.data(), sizeof(record));
             // These are the two parent writes at 0x00479887/0x00479889.
@@ -53,8 +59,8 @@ void test_battle_actor_frame_original_action_data(
             record.action_id = row.profile;
             record.base_variant = 0x24U;
             const auto result = updater.update(record);
-            const std::string sample =
-                "original final_group_b action data seq " +
+            const std::string sample = std::string(capture) +
+                " final_group_b action data seq " +
                 std::to_string(row.sequence) + " cache " +
                 std::to_string(cache_mode);
             test.expect_equal(
@@ -90,12 +96,24 @@ void test_battle_actor_frame_original_action_data(
                 row.after[kStreamPointer / sizeof(u32)] != 0U ? 1U : 0U,
                 sample + " stream availability"
             );
+        };
+
+        for (const auto& row : kObservedV2Records) {
+            compare_record(row, "original v2");
+        }
+
+        if (cache_mode == 1U) {
+            for (const auto& row : kObservedV3Records) {
+                compare_record(row, "original v3");
+            }
         }
     }
 
-    std::cout << "WP316 original action-data diff: 17 samples, "
-              << "both ACT cache settings, 148 bytes and stream availability "
-              << "per sample; not complete sub_479850 replay.\n";
+    std::cout
+        << "WP316 original action-data diff: 17 samples, "
+        << "both ACT cache settings, 148 bytes and stream availability "
+        << "per sample; v3 profile407 34 samples with observed "
+        << "entry/leave cache setting 1; not complete sub_479850 replay.\n";
 #else
     static_cast<void>(test);
     std::cout << "WP316 original action-data diff not run: "
