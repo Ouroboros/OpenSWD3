@@ -114,8 +114,9 @@ void test_battle_actor_frame_tsw_declared_count(
         u16 storage_bpp;
     };
 
-    constexpr std::array<FixtureCase, 6U> cases{{
+    constexpr std::array<FixtureCase, 9U> cases{{
         {0U, 16U}, {1U, 16U}, {2U, 16U},
+        {0U, 24U}, {1U, 24U}, {2U, 24U},
         {0U, 8U}, {1U, 8U}, {2U, 8U},
     }};
     for (const auto candidate : cases) {
@@ -183,6 +184,37 @@ void test_battle_actor_frame_tsw_declared_count(
                         miss.decoder_source.frame_owner &&
                     std::ranges::equal(hit.decoder_source.bytes, kStream),
                 "battle TSW consumer reads the complete physical variant regardless of declared count, then 401B70 replaces descriptor dimensions with the word stream's dimensions; miss/hit ABI and decoder lease remain intact"
+            );
+        }
+        if (candidate.declared == 2U && candidate.storage_bpp != 8U) {
+            openswd3::asset_runtime::LegacyTswRuntime prepared{fixture.root};
+            prepared.set_cache_limit(0x00400000U);
+            UnexpectedActionUpdate update;
+            openswd3::battle::LegacyBattleActorFrameTswUpdatePort port{
+                prepared, update
+            };
+            const auto first = port.lookup_frame(6001U, 0U, 0U, 0U, 0U);
+            const auto second = port.lookup_frame(6001U, 1U, 0U, 0U, 0U);
+            const auto repeated = port.lookup_frame(6001U, 0U, 0U, 0U, 0U);
+            test.expect_true(
+                first.returned && first.resource_header_known &&
+                    first.decoder_source_known &&
+                    first.resource_value_0c == 1U &&
+                    first.resource_value_0e == 1U &&
+                    std::ranges::equal(first.decoder_source.bytes, kStream) &&
+                    second.returned && second.resource_header_known &&
+                    second.decoder_source_known &&
+                    std::ranges::equal(second.decoder_source.bytes, kStream) &&
+                    repeated.returned &&
+                    repeated.decoder_source.frame_owner ==
+                        first.decoder_source.frame_owner &&
+                    prepared.cache_entry_count() == 2U &&
+                    prepared.magic_preparation_slots()[0U].key == 1U &&
+                    prepared.magic_prepared_stream_position(0U, 0U) ==
+                        static_cast<u32>(payload) &&
+                    prepared.magic_prepared_stream_position(0U, 1U) ==
+                        static_cast<u32>(payload),
+                "synthetic non-palette magic descriptors are prepared once, consumed by two variants, and retained across a node hit"
             );
         }
     }

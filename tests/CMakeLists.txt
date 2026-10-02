@@ -2052,6 +2052,19 @@ target_link_libraries(
     openswd3_asset_runtime_legacy_tsw_runtime_tests
     PRIVATE openswd3_asset_runtime
 )
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.tsw"
+)
+    target_compile_definitions(
+        openswd3_asset_runtime_legacy_tsw_runtime_tests
+        PRIVATE OPENSWD3_REAL_TSW_ROOT="${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
 
 add_test(
     NAME asset_runtime.legacy_tsw_runtime

@@ -15,9 +15,9 @@ namespace openswd3::asset_runtime {
 namespace {
 
 constexpr compat::u32 kIndexOffset = 0x1CU;
-constexpr compat::u32 kIndexRecordSize = 0x2CU;
+constexpr compat::u32 kIndexRecordSize = kLegacyTswIndexRecordSize;
 constexpr compat::u32 kBlockHeaderSize = 0x0CU;
-constexpr compat::u32 kFrameDescriptorSize = 0x24U;
+constexpr compat::u32 kFrameDescriptorSize = kLegacyTswFrameDescriptorSize;
 constexpr compat::u16 kBlockMagic = 0xABCDU;
 
 [[nodiscard]] compat::u16 read_u16(
@@ -287,6 +287,139 @@ LegacyTswFrameResult LegacyTswArchive::read_frame(
     if (decompressed.bytes_written != descriptor.primary_decompressed_size) {
         result.frame.command_stream.clear();
         result.status = LegacyTswFrameStatus::decompressed_size_mismatch;
+        return result;
+    }
+
+    result.status = LegacyTswFrameStatus::ready;
+    return result;
+}
+
+bool LegacyTswArchive::seek_magic_begin(
+    const compat::u32 offset, compat::u32& actual
+) noexcept {
+    actual = std::numeric_limits<compat::u32>::max();
+    if (!open_ || !can_seek(offset)) {
+        return false;
+    }
+
+    // LegacyFile's public API is one-based. Undo the wrapper so the actual
+    // host seek reply, rather than an arithmetic block-offset guess, is used.
+    actual = file_.seek_begin_one_based(static_cast<compat::i32>(offset)) - 1U;
+    return actual == offset;
+}
+
+bool LegacyTswArchive::seek_magic_current(
+    const compat::u32 distance, compat::u32& actual
+) noexcept {
+    actual = std::numeric_limits<compat::u32>::max();
+    if (!open_ || !can_seek(distance)) {
+        return false;
+    }
+
+    actual =
+        file_.seek_current_one_based(static_cast<compat::i32>(distance)) - 1U;
+    return actual != std::numeric_limits<compat::u32>::max();
+}
+
+bool LegacyTswArchive::read_magic_exact(
+    const std::span<compat::u8> bytes
+) noexcept {
+    return open_ && !bytes.empty() && read_exact(file_, bytes);
+}
+
+bool LegacyTswArchive::read_magic_index(
+    const std::span<compat::u8> bytes
+) noexcept {
+    if (bytes.size() !=
+        kLegacyTswPhysicalSlotCount * kLegacyTswIndexRecordSize) {
+        return false;
+    }
+
+    for (std::size_t offset = 0U; offset < bytes.size();
+         offset += kIndexRecordSize) {
+        compat::u32 actual{};
+        if (!seek_magic_begin(
+                kIndexOffset + static_cast<compat::u32>(offset), actual
+            ) ||
+            !read_magic_exact(bytes.subspan(offset, kIndexRecordSize))) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+LegacyTswFrameResult LegacyTswArchive::read_prepared_magic_frame(
+    const LegacyTswIndexRecord& index,
+    const compat::u32 block_value,
+    const compat::u16 frame_count,
+    const compat::u16 storage_bpp,
+    const std::array<compat::u8, kLegacyTswFrameDescriptorSize>& descriptor
+) noexcept {
+    LegacyTswFrameResult result;
+    if (!open_) {
+        return result;
+    }
+
+    if (storage_bpp == 8U) {
+        result.status =
+            LegacyTswFrameStatus::prepared_magic_palette_unavailable;
+        return result;
+    }
+
+    result.frame.index = index;
+    result.frame.block_value = block_value;
+    result.frame.frame_count = frame_count;
+    result.frame.storage_bpp = storage_bpp;
+    result.frame.header_size = kBlockHeaderSize;
+    parse_frame_descriptor(descriptor, result.frame.descriptor);
+    const LegacyTswFrameDescriptor& prepared = result.frame.descriptor;
+    // 431C22 replaced the descriptor's relative first DWORD with the actual
+    // seek EAX. 433540 consumes that absolute position without re-reading a
+    // physical descriptor. Keep the original nine-DWORD cached selection.
+    if (index.block_size == 0U ||
+        !range_fits(index.block_offset, index.block_size, file_size_) ||
+        prepared.primary_relative_offset < index.block_offset ||
+        prepared.primary_compressed_size == 0U ||
+        prepared.primary_decompressed_size == 0U ||
+        !range_fits(
+            prepared.primary_relative_offset - index.block_offset,
+            prepared.primary_compressed_size,
+            index.block_size
+        )) {
+        result.status = LegacyTswFrameStatus::primary_stream_out_of_block_range;
+        return result;
+    }
+
+    std::vector<compat::u8> compressed;
+    try {
+        compressed.resize(prepared.primary_compressed_size);
+        result.frame.command_stream.resize(prepared.primary_decompressed_size);
+    } catch (const std::bad_alloc&) {
+        result.frame.command_stream.clear();
+        result.status = LegacyTswFrameStatus::allocation_failed;
+        return result;
+    }
+
+    compat::u32 actual{};
+    if (!seek_magic_begin(prepared.primary_relative_offset, actual)) {
+        result.status = LegacyTswFrameStatus::primary_stream_seek_failed;
+        return result;
+    }
+
+    if (!read_magic_exact(compressed)) {
+        result.status = LegacyTswFrameStatus::primary_stream_read_failed;
+        return result;
+    }
+
+    const resource_io::LegacyLzo1xResult decompressed =
+        resource_io::decompress_legacy_lzo1x(
+            compressed, result.frame.command_stream
+        );
+    if (decompressed.status != resource_io::LegacyLzo1xStatus::success ||
+        decompressed.bytes_written != prepared.primary_decompressed_size) {
+        result.frame.command_stream.clear();
+        result.status = LegacyTswFrameStatus::decompression_failed;
         return result;
     }
 

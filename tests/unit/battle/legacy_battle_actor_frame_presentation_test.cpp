@@ -5510,7 +5510,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 action_execution.reserved_action_record_02.field_4a;
             const auto saved_started = progress.frame_started;
             const auto saved_post = progress.post_action_value;
-            action_execution.reserved_action_record_02.field_4a = 6001U;
+            action_execution.reserved_action_record_02.field_4a = 9000U;
             action_execution.render_source_token = 0x00701000U;
             progress.frame_started = 1U;
             progress.post_action_value = 0x99U;
@@ -5539,8 +5539,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                     progress.frame_started == 1U &&
                     progress.post_action_value == 0x99U &&
                     magic.cache_entry_count() == 1U &&
-                    magic.magic_preparation_slots()[0U].key == 1U,
-                "parent keeps its CALL checkpoint before an unmodeled magic preparation I/O; no fabricated frame or stop CPU state"
+                    magic.magic_preparation_slots()[0U].key == 0U,
+                "parent keeps its CALL checkpoint before the unresolved zero-key magic I/O; no fabricated frame or stop CPU state"
             );
             action_execution.resource = saved_resource;
             action_execution.render_source_token = saved_render;
@@ -5548,6 +5548,33 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             progress.frame_started = saved_started;
             progress.post_action_value = saved_post;
         }
+
+        {
+            openswd3::asset_runtime::LegacyTswRuntime magic{
+                std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}
+            };
+            magic.set_cache_limit(0x00400000U);
+            openswd3::battle::LegacyBattleActorFrameTswUpdatePort magic_port{
+                magic, updater
+            };
+            const auto first = magic_port.lookup_frame(6001U, 0U, 0U, 0U, 0U);
+            const auto repeated =
+                magic_port.lookup_frame(6001U, 0U, 0U, 0U, 0U);
+            test.expect_true(
+                first.returned && first.physical_state_known &&
+                    first.resource_header_known && first.decoder_source_known &&
+                    first.resource_value_0c == 132U &&
+                    first.resource_value_0e == 132U &&
+                    !first.decoder_source.bytes.empty() &&
+                    first.decoder_source.frame_owner != nullptr &&
+                    repeated.returned && repeated.resource_header_known &&
+                    repeated.decoder_source.frame_owner ==
+                        first.decoder_source.frame_owner &&
+                    magic.magic_preparation_slots()[0U].key == 1U,
+                "battle TSW port consumes the prepared real 16-bit magic image on miss and reuses it on hit"
+            );
+        }
+
         {
             const auto saved_resource = action_execution.resource;
             const u32 saved_render = action_execution.render_source_token;

@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <span>
 #include <string>
 #include <system_error>
@@ -486,7 +487,144 @@ void test_magic_preparation_before_physical_load(
         LegacyTswRuntimeStatus::physical_frame_failed,
         "host direct physical-read API remains distinct from the cached 431C50 route"
     );
+
+    const TestTree overflow_tree;
+    std::vector<u8> overflow = synthetic_archive();
+    write_u16(overflow, kBlockOffset + 6U, 256U);
+    write_u16(overflow, kBlockOffset + 8U, 16U);
+    for (const char* const name : kArchiveNames) {
+        overflow_tree.write(name, overflow);
+    }
+
+    LegacyTswRuntime overflowing{overflow_tree.root()};
+    const auto boundary = overflowing.query_cached(6001U, 0U);
+    test.expect_true(
+        boundary.status ==
+                LegacyTswRuntimeStatus::magic_preparation_io_unavailable &&
+            overflowing.magic_preparation_slots()[0U].key == 1U &&
+            !overflowing.magic_prepared_stream_position(0U, 0U).has_value(),
+        "count 256 crosses the original 255-descriptor slot; do not treat a host buffer bound as a successful original reply"
+    );
 }
+
+#ifdef OPENSWD3_REAL_TSW_ROOT
+void test_real_magic_first_frame_requires_preparation(
+    openswd3::test::Context& test
+) {
+    const std::filesystem::path root{OPENSWD3_REAL_TSW_ROOT};
+    LegacyTswRuntime runtime{root};
+    runtime.set_cache_limit(0x00400000U);
+    const auto physical = runtime.load_direct(6001U, 0U);
+    test.expect_equal(
+        physical.status,
+        LegacyTswRuntimeStatus::ready,
+        "real magic first physical frame is a valid independent image input"
+    );
+    if (physical.status != LegacyTswRuntimeStatus::ready) {
+        return;
+    }
+
+    const auto prepared = runtime.query_cached(6001U, 0U);
+    test.expect_true(
+        prepared.status == LegacyTswRuntimeStatus::ready &&
+            prepared.frame_owner != nullptr &&
+            prepared.frame_owner->primary_stream_token != 0U &&
+            prepared.frame.width == physical.frame.width &&
+            prepared.frame.height == physical.frame.height &&
+            std::ranges::equal(
+                prepared.frame.primary_stream, physical.frame.primary_stream
+            ) &&
+            runtime.magic_preparation_slots()[0U].key == 1U,
+        "the original five-slot I/O path must yield the valid real magic image, not permanently stop at its first seek"
+    );
+    test.expect_equal(
+        runtime.magic_prepared_stream_position(0U, 0U),
+        std::optional<u32>{0x00020434U},
+        "431C22 stores the actual file seek reply rather than the descriptor's relative 0x78"
+    );
+    const auto second_physical = runtime.load_direct(6001U, 1U);
+    test.expect_equal(
+        second_physical.status,
+        LegacyTswRuntimeStatus::ready,
+        "real second magic frame is a valid physical comparison input"
+    );
+    if (second_physical.status != LegacyTswRuntimeStatus::ready) {
+        return;
+    }
+
+    const auto second = runtime.query_cached(6001U, 1U);
+    test.expect_true(
+        second.status == LegacyTswRuntimeStatus::ready &&
+            second.frame_owner != nullptr &&
+            second.frame.width == second_physical.frame.width &&
+            second.frame.height == second_physical.frame.height &&
+            std::ranges::equal(
+                second.frame.primary_stream,
+                second_physical.frame.primary_stream
+            ) &&
+            runtime.magic_preparation_slots()[0U].key == 1U &&
+            runtime.magic_preparation_slots()[0U].age == 0U &&
+            runtime.cache_entry_count() == 2U,
+        "a second variant reuses the prepared five-slot descriptors after the header read"
+    );
+    test.expect_equal(
+        runtime.magic_prepared_stream_position(0U, 1U),
+        std::optional<u32>{0x00023306U},
+        "cached variant one retains its actual absolute stream position"
+    );
+
+    for (const u32 resource : {6251U, 6331U}) {
+        LegacyTswRuntime additional{root};
+        additional.set_cache_limit(0x00400000U);
+        const auto direct = additional.load_direct(resource, 0U);
+        test.expect_equal(
+            direct.status,
+            LegacyTswRuntimeStatus::ready,
+            "real 24-bit magic archive record must first load independently"
+        );
+        if (direct.status != LegacyTswRuntimeStatus::ready) {
+            continue;
+        }
+
+        const auto cached = additional.query_cached(resource, 0U);
+        test.expect_true(
+            cached.status == LegacyTswRuntimeStatus::ready &&
+                cached.frame_owner != nullptr &&
+                cached.frame.width == direct.frame.width &&
+                cached.frame.height == direct.frame.height &&
+                std::ranges::equal(
+                    cached.frame.primary_stream, direct.frame.primary_stream
+                ),
+            "actual non-palette 24-bit magic descriptors must not be rejected as an 8-bit allocation request"
+        );
+    }
+
+    LegacyTswRuntime many{root};
+    many.set_cache_limit(0x00400000U);
+    const auto physical_last = many.load_direct(6137U, 130U);
+    test.expect_equal(
+        physical_last.status,
+        LegacyTswRuntimeStatus::ready,
+        "the real 131-frame magic record has a readable final descriptor"
+    );
+    if (physical_last.status == LegacyTswRuntimeStatus::ready) {
+        const auto prepared_last = many.query_cached(6137U, 130U);
+        test.expect_true(
+            prepared_last.status == LegacyTswRuntimeStatus::ready &&
+                prepared_last.frame_owner != nullptr &&
+                prepared_last.frame.width == physical_last.frame.width &&
+                prepared_last.frame.height == physical_last.frame.height &&
+                std::ranges::equal(
+                    prepared_last.frame.primary_stream,
+                    physical_last.frame.primary_stream
+                ) &&
+                many.magic_prepared_stream_position(0U, 130U) == 0x04A0B1FFU,
+            "descriptor 130 uses the actual seek reply after all 131 original-order header/descriptor reads"
+        );
+    }
+}
+
+#endif
 
 void test_special_resource_and_failures(openswd3::test::Context& test) {
     const TestTree tree;
@@ -1308,6 +1446,9 @@ int main() {
     test_lazy_open_route_and_conversion(test);
     test_physical_variant_ignores_declared_count(test);
     test_magic_preparation_before_physical_load(test);
+#ifdef OPENSWD3_REAL_TSW_ROOT
+    test_real_magic_first_frame_requires_preparation(test);
+#endif
     test_special_resource_and_failures(test);
     test_cache_publication_before_load(test);
     test_shared_cursor_after_nested_lookup(test);

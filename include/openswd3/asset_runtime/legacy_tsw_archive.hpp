@@ -5,11 +5,14 @@
 
 #include <array>
 #include <filesystem>
+#include <span>
 #include <vector>
 
 namespace openswd3::asset_runtime {
 
 inline constexpr compat::u32 kLegacyTswPhysicalSlotCount = 3000U;
+inline constexpr compat::u32 kLegacyTswIndexRecordSize = 0x2CU;
+inline constexpr compat::u32 kLegacyTswFrameDescriptorSize = 0x24U;
 inline constexpr compat::u32 kLegacyTswPaletteSize = 512U;
 
 struct LegacyTswIndexRecord {
@@ -65,6 +68,7 @@ enum class LegacyTswFrameStatus {
     block_header_read_failed,
     invalid_block_magic,
     palette_read_failed,
+    prepared_magic_palette_unavailable,
     variant_out_of_range,
     descriptor_out_of_block_range,
     descriptor_seek_failed,
@@ -92,6 +96,22 @@ public:
     [[nodiscard]] bool is_open() const noexcept;
     [[nodiscard]] LegacyTswFrameResult read_frame(
         compat::u32 one_based_physical_record, compat::u32 variant_index
+    ) noexcept;
+
+    // Host-backed calls for 431A50/431AA0/433540. Their replies are actual
+    // host file positions/bytes, not captures of the original Win32 calls.
+    [[nodiscard]] bool read_magic_index(std::span<compat::u8> bytes) noexcept;
+    [[nodiscard]] bool
+    seek_magic_begin(compat::u32 offset, compat::u32& actual) noexcept;
+    [[nodiscard]] bool
+    seek_magic_current(compat::u32 distance, compat::u32& actual) noexcept;
+    [[nodiscard]] bool read_magic_exact(std::span<compat::u8> bytes) noexcept;
+    [[nodiscard]] LegacyTswFrameResult read_prepared_magic_frame(
+        const LegacyTswIndexRecord& index,
+        compat::u32 block_value,
+        compat::u16 frame_count,
+        compat::u16 storage_bpp,
+        const std::array<compat::u8, kLegacyTswFrameDescriptorSize>& descriptor
     ) noexcept;
 
 private:

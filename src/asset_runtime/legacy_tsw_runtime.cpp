@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <cstddef>
@@ -24,6 +25,32 @@ constexpr std::array<std::string_view, 6> kArchiveNames{
     "all_map1.tsw",
     "all_map2.tsw",
 };
+
+[[nodiscard]] compat::u16 read_magic_u16(
+    const std::span<const compat::u8> bytes, const std::size_t offset
+) noexcept {
+    return static_cast<compat::u16>(
+        static_cast<compat::u16>(bytes[offset]) |
+        (static_cast<compat::u16>(bytes[offset + 1U]) << 8U)
+    );
+}
+
+[[nodiscard]] compat::u32 read_magic_u32(
+    const std::span<const compat::u8> bytes, const std::size_t offset
+) noexcept {
+    return static_cast<compat::u32>(bytes[offset]) |
+        (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
+        (static_cast<compat::u32>(bytes[offset + 2U]) << 16U) |
+        (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
+}
+
+void write_magic_u32(
+    const std::span<compat::u8> bytes, const compat::u32 value
+) noexcept {
+    for (std::size_t index = 0U; index < 4U; ++index) {
+        bytes[index] = static_cast<compat::u8>(value >> (index * 8U));
+    }
+}
 
 [[nodiscard]] std::array<compat::u16, 256> decode_palette(
     const std::array<compat::u8, kLegacyTswPaletteSize>& bytes
@@ -49,7 +76,7 @@ LegacyTswRuntime::LegacyTswRuntime(
     LegacyTswSpecialFrameLoader* const special_loader
 )
     : data_root_(std::move(data_root)), pixel_conversion_(pixel_conversion),
-      special_loader_(special_loader) {}
+      special_loader_(special_loader), magic_(std::make_unique<MagicState>()) {}
 
 void LegacyTswRuntime::set_cache_limit(const compat::u32 bytes) noexcept {
     cache_limit_ = bytes;
@@ -76,6 +103,12 @@ LegacyTswRuntimeStatus LegacyTswRuntime::ensure_initialized() {
         }
     }
 
+    // 4315D0/431760 clear the shared index and descriptor region before
+    // 431A50 loads the magic file's 3000 records. A short host read cannot
+    // become a normal 431AA0 reply; ordinary physical reads stay independent.
+    magic_->index.fill(0U);
+    magic_->descriptors = {};
+    magic_->index_known = archives_[2U].read_magic_index(magic_->index);
     initialized_ = true;
     return LegacyTswRuntimeStatus::ready;
 }
@@ -105,10 +138,10 @@ LegacyTswRuntimeStatus LegacyTswRuntime::normalize_physical_frame(
     // 401C9F branches on the stream depth, not the container's storage bpp;
     // 401B94/401BA3 overwrite record dimensions on the word-stream path.
     const bool indexed_stream = physical.command_stream[6U] == 8U;
-    runtime.width = indexed_stream
-        ? physical.descriptor.width : converted.header.width;
-    runtime.height = indexed_stream
-        ? physical.descriptor.height : converted.header.height;
+    runtime.width =
+        indexed_stream ? physical.descriptor.width : converted.header.width;
+    runtime.height =
+        indexed_stream ? physical.descriptor.height : converted.header.height;
     return LegacyTswRuntimeStatus::ready;
 }
 
@@ -273,9 +306,8 @@ LegacyTswRuntimeStatus LegacyTswRuntime::evict_before_lookup() noexcept {
         cached_primary_bytes_ -= static_cast<compat::u32>(removed_size);
         node->resident = false;
         bucket.pop_back();
-        bucket_counts_[selected] = static_cast<compat::u16>(
-            bucket_counts_[selected] - 1U
-        );
+        bucket_counts_[selected] =
+            static_cast<compat::u16>(bucket_counts_[selected] - 1U);
         // 431F67 tests the decremented word before the next capacity CMP.
         // A wrapped count can reach zero while host nodes remain.
         if (bucket_counts_[selected] == 0U) {
@@ -286,21 +318,27 @@ LegacyTswRuntimeStatus LegacyTswRuntime::evict_before_lookup() noexcept {
     return LegacyTswRuntimeStatus::ready;
 }
 
-LegacyTswRuntimeStatus LegacyTswRuntime::prepare_magic_prefix(
-    const compat::u16 resource_id
+std::size_t LegacyTswRuntime::select_magic_slot(
+    const compat::u16 resource_id, bool& hit
 ) noexcept {
     const compat::u32 key = resource_id % kResourcesPerArchive;
-    for (LegacyTswMagicPreparationSlot& slot : magic_slots_) {
+    hit = false;
+    for (std::size_t index = 0U; index < magic_slots_.size(); ++index) {
+        LegacyTswMagicPreparationSlot& slot = magic_slots_[index];
         // 431AAF/431AB6 compare the key before testing for an empty slot.
         // Key zero therefore hits an initially zero slot without insertion.
         if (slot.key == key) {
-            return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+            hit = true;
+            return index;
         }
+
         if (slot.key == 0U) {
             slot.key = key;  // 431B21, before SetFilePointer/ReadFile.
-            slot.age = 0U;  // 431B28.
-            return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+            slot.age = 0U;   // 431B28.
+            magic_->descriptors[index].prepared = false;
+            return index;
         }
+
         ++slot.age;  // 431AC5/431AC6: 32-bit wrap, including visited slots.
     }
 
@@ -312,8 +350,150 @@ LegacyTswRuntimeStatus LegacyTswRuntime::prepare_magic_prefix(
             selected = index;
         }
     }
+
     magic_slots_[selected] = {key, 0U};  // 431B55/431B5C.
-    return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+    magic_->descriptors[selected].prepared = false;
+    return selected;
+}
+
+LegacyTswRuntimeStatus LegacyTswRuntime::prepare_magic_frame(
+    const compat::u16 resource_id,
+    const compat::u16 variant_index,
+    LegacyTswDirectResult& loaded
+) {
+    bool hit{};
+    const std::size_t selected = select_magic_slot(resource_id, hit);
+    const compat::u32 key = resource_id % kResourcesPerArchive;
+    if (!magic_->index_known || key == 0U) {
+        // Key zero aliases the second cache key at 4DAD14, not an index
+        // record. Without an original API/allocator reply stop after the
+        // confirmed key/age prefix, including the initial all-zero hit.
+        return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+    }
+
+    const std::size_t index_offset =
+        static_cast<std::size_t>(key - 1U) * kLegacyTswIndexRecordSize;
+    const std::span<const compat::u8> index_bytes{
+        magic_->index.data() + index_offset, kLegacyTswIndexRecordSize
+    };
+    LegacyTswIndexRecord index;
+    std::ranges::copy_n(
+        index_bytes.begin(), index.raw_name.size(), index.raw_name.begin()
+    );
+    index.block_size = read_magic_u32(index_bytes, 0x14U);
+    index.block_offset = read_magic_u32(index_bytes, 0x18U);
+    index.metadata_id = read_magic_u32(index_bytes, 0x1CU);
+    index.field_20 = read_magic_u32(index_bytes, 0x20U);
+    index.field_24 = read_magic_u32(index_bytes, 0x24U);
+    index.field_28 = read_magic_u32(index_bytes, 0x28U);
+
+    LegacyTswArchive& archive = archives_[2U];
+    compat::u32 actual{};
+    std::array<compat::u8, 12> header{};
+    if (!archive.seek_magic_begin(index.block_offset, actual) ||
+        !archive.read_magic_exact(header)) {
+        return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+    }
+
+    // 4332A0 verifies magic; only its 8-bit branch requests the unbound
+    // 487C10 palette allocator. Non-palette host reads can proceed through
+    // the bounded descriptor path without fabricating that allocation.
+    if (read_magic_u16(header, 4U) != 0xABCDU ||
+        read_magic_u16(header, 8U) == 8U) {
+        return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+    }
+
+    const compat::u16 frame_count = read_magic_u16(header, 6U);
+    if (hit) {
+        // 431B09 resets age only after the header-reading CALL.
+        magic_slots_[selected].age = 0U;
+        if (!magic_->descriptors[selected].prepared) {
+            return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+        }
+    } else {
+        // The original loop has no 255 bound. Stop rather than writing past
+        // the host slot when the descriptor count overlaps a second slot.
+        if (frame_count == 0U || frame_count > 255U) {
+            return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+        }
+
+        MagicDescriptorSlot& descriptors = magic_->descriptors[selected];
+        descriptors.index = index;
+        descriptors.block_value = read_magic_u32(header, 0U);
+        descriptors.frame_count = frame_count;
+        for (compat::u32 frame = 0U; frame < frame_count; ++frame) {
+            std::array<compat::u8, 12> repeated_header{};
+            if (!archive.seek_magic_begin(index.block_offset, actual) ||
+                !archive.read_magic_exact(repeated_header) ||
+                read_magic_u16(repeated_header, 4U) != 0xABCDU ||
+                read_magic_u16(repeated_header, 8U) == 8U ||
+                !archive.seek_magic_current(
+                    frame * kLegacyTswFrameDescriptorSize, actual
+                )) {
+                return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+            }
+
+            const std::size_t byte_offset =
+                static_cast<std::size_t>(frame) * kLegacyTswFrameDescriptorSize;
+            std::span<compat::u8> descriptor{
+                descriptors.bytes.data() + byte_offset,
+                kLegacyTswFrameDescriptorSize
+            };
+            if (!archive.read_magic_exact(descriptor)) {
+                return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+            }
+
+            const compat::u32 relative = read_magic_u32(descriptor, 0U);
+            const std::uint64_t absolute =
+                static_cast<std::uint64_t>(index.block_offset) + relative;
+            if (absolute > static_cast<compat::u32>(
+                               std::numeric_limits<compat::i32>::max()
+                           ) ||
+                !archive.seek_magic_begin(
+                    static_cast<compat::u32>(absolute), actual
+                )) {
+                return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+            }
+
+            // 431C22 overwrites the first descriptor DWORD with the actual
+            // host SetFilePointer analogue EAX, not computed relative bytes.
+            write_magic_u32(descriptor, actual);
+        }
+
+        descriptors.prepared = true;
+    }
+
+    const MagicDescriptorSlot& descriptors = magic_->descriptors[selected];
+    if (variant_index >= descriptors.frame_count || variant_index >= 255U) {
+        // The original selects the shared buffer even outside its declared
+        // descriptors. Its stale bytes/alias and ensuing CPU path are not
+        // modeled by a direct physical lookup.
+        return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+    }
+
+    std::array<compat::u8, kLegacyTswFrameDescriptorSize> descriptor{};
+    const std::size_t byte_offset =
+        static_cast<std::size_t>(variant_index) * kLegacyTswFrameDescriptorSize;
+    std::ranges::copy_n(
+        descriptors.bytes.begin() + static_cast<std::ptrdiff_t>(byte_offset),
+        descriptor.size(),
+        descriptor.begin()
+    );
+    LegacyTswFrameResult physical = archive.read_prepared_magic_frame(
+        descriptors.index,
+        descriptors.block_value,
+        frame_count,
+        read_magic_u16(header, 8U),
+        descriptor
+    );
+    if (physical.status != LegacyTswFrameStatus::ready) {
+        return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+    }
+
+    loaded.physical_status = physical.status;
+    loaded.status =
+        normalize_physical_frame(std::move(physical.frame), loaded.frame);
+    return loaded.status;
 }
 
 LegacyTswQueryResult LegacyTswRuntime::query_cached(
@@ -348,9 +528,8 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
     const std::size_t bucket_number = bucket_index(resource_id, variant_index);
     // 431C93 commits the word before the allocator CALL at 431CA8. A
     // stopped identity reservation has no node, but must not erase it.
-    bucket_counts_[bucket_number] = static_cast<compat::u16>(
-        bucket_counts_[bucket_number] + 1U
-    );
+    bucket_counts_[bucket_number] =
+        static_cast<compat::u16>(bucket_counts_[bucket_number] + 1U);
     // 431CB6/431CDD/431CEA/431CF4 publish the node and key before
     // either loader CALL. Do not undo that prefix on an unmodeled load.
     const auto node_token = reserve_legacy_guest_bytes(0x20U);
@@ -377,16 +556,14 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
     result.frame_owner = node->frame;
 
     // 431D19..431D49 enters 431AA0 only after publishing the cache node.
-    // This implementation has no original SetFilePointer/ReadFile replies or
-    // 255x36 shared descriptor buffer. Stop at the first preparation I/O,
-    // rather than treating a direct Archive read as a completed preparation.
+    // For bounded non-palette input, consume actual host file replies and
+    // the prepared shared descriptor. Unmodeled I/O/alias remains a stop.
+    LegacyTswDirectResult loaded;
     if (resource_id >= 6001U && resource_id <= 9000U) {
-        node->status = prepare_magic_prefix(resource_id);
-        result.status = node->status;
-        return result;
+        loaded.status = prepare_magic_frame(resource_id, variant_index, loaded);
+    } else {
+        loaded = load_low16(resource_id, variant_index);
     }
-
-    LegacyTswDirectResult loaded = load_low16(resource_id, variant_index);
     node->status = loaded.status;
     node->physical_status = loaded.physical_status;
     result.status = loaded.status;
@@ -463,9 +640,8 @@ void LegacyTswRuntime::clear_cache() noexcept {
                     );
                     // The modeled ready/no-alias cleanup removes one
                     // count per node (431FE7), never resets an empty head.
-                    bucket_counts_[index] = static_cast<compat::u16>(
-                        bucket_counts_[index] - 1U
-                    );
+                    bucket_counts_[index] =
+                        static_cast<compat::u16>(bucket_counts_[index] - 1U);
                 } else {
                     // Do not treat an unmodeled payload's empty host vector
                     // as a guest length of zero, or derive later deductions.
@@ -525,6 +701,26 @@ std::size_t LegacyTswRuntime::bucket_entry_count(
 std::array<LegacyTswMagicPreparationSlot, 5>
 LegacyTswRuntime::magic_preparation_slots() const noexcept {
     return magic_slots_;
+}
+
+std::optional<compat::u32> LegacyTswRuntime::magic_prepared_stream_position(
+    const std::size_t slot, const compat::u16 variant_index
+) const noexcept {
+    if (slot >= magic_->descriptors.size()) {
+        return std::nullopt;
+    }
+    const MagicDescriptorSlot& descriptors = magic_->descriptors[slot];
+    if (!descriptors.prepared || variant_index >= descriptors.frame_count ||
+        variant_index >= 255U) {
+        return std::nullopt;
+    }
+    const std::span<const compat::u8> bytes{
+        descriptors.bytes.data() +
+            static_cast<std::size_t>(variant_index) *
+                kLegacyTswFrameDescriptorSize,
+        kLegacyTswFrameDescriptorSize
+    };
+    return read_magic_u32(bytes, 0U);
 }
 
 }  // namespace openswd3::asset_runtime

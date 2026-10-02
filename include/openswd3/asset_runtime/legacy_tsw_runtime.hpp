@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <list>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -132,6 +133,9 @@ public:
     bucket_entry_count(std::size_t bucket_index) const noexcept;
     [[nodiscard]] std::array<LegacyTswMagicPreparationSlot, 5>
     magic_preparation_slots() const noexcept;
+    [[nodiscard]] std::optional<compat::u32> magic_prepared_stream_position(
+        std::size_t slot, compat::u16 variant_index
+    ) const noexcept;
 
 private:
     struct CacheNode {
@@ -163,8 +167,13 @@ private:
     [[nodiscard]] LegacyTswQueryResult
     find_low16(compat::u16 resource_id, compat::u16 variant_index) noexcept;
     [[nodiscard]] LegacyTswRuntimeStatus evict_before_lookup() noexcept;
-    [[nodiscard]] LegacyTswRuntimeStatus
-    prepare_magic_prefix(compat::u16 resource_id) noexcept;
+    [[nodiscard]] std::size_t
+    select_magic_slot(compat::u16 resource_id, bool& hit) noexcept;
+    [[nodiscard]] LegacyTswRuntimeStatus prepare_magic_frame(
+        compat::u16 resource_id,
+        compat::u16 variant_index,
+        LegacyTswDirectResult& loaded
+    );
 
     std::filesystem::path data_root_;
     rendering::LegacyPixelConversionState pixel_conversion_;
@@ -174,8 +183,27 @@ private:
     // 431C93 commits INCword before allocation. An empty host list may
     // retain a nonzero count, and successful publications may wrap it.
     std::array<compat::u16, kLegacyTswCacheBucketCount> bucket_counts_{};
-    // 4DAD10..20 keys and 4DACF4..4DAD04 ages: pre-I/O prefix only.
+    // 4DAD10..20 keys and 4DACF4..4DAD04 ages.
     std::array<LegacyTswMagicPreparationSlot, 5> magic_slots_{};
+    struct MagicDescriptorSlot {
+        std::array<compat::u8, 255U * kLegacyTswFrameDescriptorSize> bytes{};
+        LegacyTswIndexRecord index{};
+        compat::u32 block_value{};
+        compat::u16 frame_count{};
+        bool prepared{};
+    };
+    struct MagicState {
+        // 431A50 loads only all_magic's 3000x2C index records. Keep this
+        // and the five descriptor buffers off the caller's stack: battle
+        // tests construct many independent Runtime instances in one frame.
+        std::array<
+            compat::u8,
+            kLegacyTswPhysicalSlotCount * kLegacyTswIndexRecordSize>
+            index{};
+        std::array<MagicDescriptorSlot, 5> descriptors{};
+        bool index_known{};
+    };
+    std::unique_ptr<MagicState> magic_;
     // Shared node selection (4DACDC), not a saved per-query destination.
     // A cache-only miss clears it; callbacks can select a different node.
     std::weak_ptr<CacheNode> lookup_cursor_;
