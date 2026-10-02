@@ -52,8 +52,10 @@ list-head-word-NNNNNN-enter.bin / list-head-word-NNNNNN-leave.bin
 - 对同一调用方/角色的**已捕获输入片段**，首次、片段变化和每64次重复保留快照。
   这不是全部外部输入相同的证明；被筛掉的调用没有完整状态或块轨迹。
   达到预算的调用明确标为 `sample_limit`，不能据此宣称覆盖整场战斗。
-- 异常可读的Win32 ia32 CONTEXT用于FLAGS观察，复制到独立对象，不写原始上下文；
-  异常回调返回false。完整SEH执行链仍不在当前采集范围。
+- 异常FLAGS仅在Win32 ia32 CONTEXT含完整`CONTEXT_CONTROL`（`0x10001`）且
+  EIP与Frida现场相等时可用；缺标记、不可读或EIP不符均不补造FLAGS。
+  只复制到独立对象，不写原始上下文，异常回调返回false。
+  完整SEH执行链仍不在当前采集范围。
 
 `summary.json`区分全部观察到的调用、完整快照、缺失FLAGS、未返回调用、
 截断、调用方预算耗尽和同步轨迹完整性。`original_diff_verified`始终为false；

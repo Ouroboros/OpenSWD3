@@ -316,7 +316,9 @@ function exceptionFlags(details) {
     const native = details.nativeContext;
     if (native !== undefined && !native.isNull()) {
         try {
-            if ((native.readU32() & 0x10000) !== 0 &&
+            // SDK CONTEXT_CONTROL = CONTEXT_i386 | 1; architecture alone
+            // does not declare EIP/FLAGS valid.
+            if ((native.readU32() & 0x10001) === 0x10001 &&
                 ptr(native.add(0xb8).readU32()).equals(details.context.eip)) {
                 context.eflags = ptr(native.add(0xc0).readU32());
                 context.flags_source = 'win32_ia32_context';

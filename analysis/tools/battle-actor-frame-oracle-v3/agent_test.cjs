@@ -195,7 +195,7 @@ f.leave(recursive);
 const before = f.unfollows.length;
 const originalContext = {eip: pointer(0x479850), esp: pointer(0x120000)};
 
-memory.set(0x140000, 0x10000);
+memory.set(0x140000, 0x10001); // SDK ia32 CONTEXT_CONTROL includes FLAGS.
 memory.set(0x140000 + 0xb8, 0x479850);
 memory.set(0x140000 + 0xc0, 0x603);
 assert.equal(f.exception({
@@ -206,6 +206,65 @@ assert.equal(originalContext.eflags, undefined); // Never modify the real CpuCon
 const exception = f.messages.find(m => m.payload.type === 'exception');
 assert.equal(exception.payload.registers.eflags, '0x603');
 assert.equal(exception.payload.registers.flags_source, 'win32_ia32_context');
+
+// SDK winnt.h: only CONTROL declares EIP/FLAGS valid, not the architecture bit.
+const contextFixture = fixture();
+const contextId = contextFixture.enter();
+for (const spec of [
+    {name: 'CONTROL', flags: 0x10001, available: true, reads: [0, 0xb8, 0xc0]},
+    {name: 'FULL', flags: 0x10007, available: true, reads: [0, 0xb8, 0xc0]},
+    {name: 'architecture only', flags: 0x10000, available: false, reads: [0]},
+    {name: 'INTEGER without CONTROL', flags: 0x10002, available: false, reads: [0]},
+    {name: 'CONTROL without ia32', flags: 1, available: false, reads: [0]},
+    {name: 'no flags', flags: 0, available: false, reads: [0]},
+    {name: 'wrong EIP', flags: 0x10001, eip: 0x479851,
+        available: false, reads: [0, 0xb8]},
+    {name: 'unreadable ContextFlags', flags: 0x10001, unreadable: true,
+        available: false, reads: [0]},
+]) {
+    const reads = [];
+    const nativeContext = {
+        isNull() { return false; },
+
+        readU32() {
+            reads.push(0);
+            if (spec.unreadable) {
+                throw new Error('unreadable native ContextFlags');
+            }
+
+            return spec.flags;
+        },
+
+        add(offset) {
+            assert.ok(offset === 0xb8 || offset === 0xc0);
+            return {
+                readU32() {
+                    reads.push(offset);
+                    return offset === 0xb8 ? (spec.eip ?? 0x479850) : 0xed7;
+                },
+            };
+        },
+    };
+
+    const context = {eip: pointer(0x479850), esp: pointer(0x120000)};
+    assert.equal(contextFixture.exception({
+        type: 'access-violation', address: pointer(0), context, nativeContext,
+    }), false, spec.name);
+    const event = contextFixture.messages.filter(m => m.payload.type === 'exception').at(-1);
+    assert.equal(event.payload.registers.flags_available, spec.available, spec.name);
+    assert.equal(event.payload.registers.eflags,
+        spec.available ? '0xed7' : undefined, spec.name);
+    assert.equal(event.payload.registers.flags_source,
+        spec.available ? 'win32_ia32_context' : 'unavailable', spec.name);
+    assert.deepEqual(reads, spec.reads, spec.name);
+    assert.equal(context.eflags, undefined, spec.name);
+    const snapshot = contextFixture.messages.filter(m => m.payload.type === 'frame' &&
+        m.payload.phase.startsWith('exception-')).at(-1);
+    assert.equal(snapshot.payload.registers.flags_available, spec.available, spec.name);
+}
+
+contextFixture.block(0);
+contextFixture.leave(contextId);
 f.block(3);
 f.leave(parent);
 assert.equal(f.unfollows.length, before + 1);
@@ -247,4 +306,4 @@ const gapId = gap.enter();
 gap.block(0);
 gap.leave(gapId);
 assert.equal(gap.messages.find(m => m.payload.type === 'frame').payload.actor_bytes, 0);
-console.log('agent synthetic tests passed: extra global snapshots and unreadable marker, FLAGS, synchronous trace, repeat sampling, caller quotas, recursion, exception context copy, version guard, contiguous mappings, unreadable gap');
+console.log('agent synthetic tests passed: extra global snapshots and unreadable marker, FLAGS, synchronous trace, repeat sampling, caller quotas, recursion, ia32 CONTROL/exception context copy, version guard, contiguous mappings, unreadable gap');
