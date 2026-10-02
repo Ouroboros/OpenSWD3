@@ -286,6 +286,36 @@ LegacyTswRuntimeStatus LegacyTswRuntime::evict_before_lookup() noexcept {
     return LegacyTswRuntimeStatus::ready;
 }
 
+LegacyTswRuntimeStatus LegacyTswRuntime::prepare_magic_prefix(
+    const compat::u16 resource_id
+) noexcept {
+    const compat::u32 key = resource_id % kResourcesPerArchive;
+    for (LegacyTswMagicPreparationSlot& slot : magic_slots_) {
+        // 431AAF/431AB6 compare the key before testing for an empty slot.
+        // Key zero therefore hits an initially zero slot without insertion.
+        if (slot.key == key) {
+            return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+        }
+        if (slot.key == 0U) {
+            slot.key = key;  // 431B21, before SetFilePointer/ReadFile.
+            slot.age = 0U;  // 431B28.
+            return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+        }
+        ++slot.age;  // 431AC5/431AC6: 32-bit wrap, including visited slots.
+    }
+
+    std::size_t selected = 0U;
+    for (std::size_t index = 1U; index < magic_slots_.size(); ++index) {
+        // 431B42/JGE uses signed32; ties preserve the earlier slot.
+        if (std::bit_cast<compat::i32>(magic_slots_[index].age) >
+            std::bit_cast<compat::i32>(magic_slots_[selected].age)) {
+            selected = index;
+        }
+    }
+    magic_slots_[selected] = {key, 0U};  // 431B55/431B5C.
+    return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+}
+
 LegacyTswQueryResult LegacyTswRuntime::query_cached(
     const compat::u32 resource_id_slot, const compat::u32 variant_index_slot
 ) {
@@ -345,6 +375,16 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
         return result;
     }
     result.frame_owner = node->frame;
+
+    // 431D19..431D49 enters 431AA0 only after publishing the cache node.
+    // This implementation has no original SetFilePointer/ReadFile replies or
+    // 255x36 shared descriptor buffer. Stop at the first preparation I/O,
+    // rather than treating a direct Archive read as a completed preparation.
+    if (resource_id >= 6001U && resource_id <= 9000U) {
+        node->status = prepare_magic_prefix(resource_id);
+        result.status = node->status;
+        return result;
+    }
 
     LegacyTswDirectResult loaded = load_low16(resource_id, variant_index);
     node->status = loaded.status;
@@ -480,6 +520,11 @@ std::size_t LegacyTswRuntime::bucket_entry_count(
     return bucket_index_value < buckets_.size()
         ? buckets_[bucket_index_value].size()
         : 0U;
+}
+
+std::array<LegacyTswMagicPreparationSlot, 5>
+LegacyTswRuntime::magic_preparation_slots() const noexcept {
+    return magic_slots_;
 }
 
 }  // namespace openswd3::asset_runtime

@@ -412,6 +412,82 @@ void test_lazy_open_route_and_conversion(openswd3::test::Context& test) {
     );
 }
 
+void test_magic_preparation_before_physical_load(
+    openswd3::test::Context& test
+) {
+    const TestTree tree;
+    write_six_archives(tree);
+
+    LegacyTswRuntime runtime{tree.root()};
+    runtime.set_cache_limit(0x00400000U);
+    const auto first = runtime.query_cached(6001U, 0U);
+    test.expect_true(
+        first.status != LegacyTswRuntimeStatus::ready &&
+            first.frame_owner != nullptr &&
+            first.frame_owner->record_token != 0U &&
+            first.frame_owner->primary_stream_token == 0U &&
+            runtime.cache_entry_count() == 1U &&
+            runtime.cached_primary_bytes() == 0U,
+        "magic lookup must not return a physical frame before its original five-slot preparation/I/O"
+    );
+    const auto hit = runtime.query_cached(6001U, 0U);
+    test.expect_true(
+        hit.cache_hit && hit.status == first.status &&
+            hit.frame_owner == first.frame_owner,
+        "a published but unresolved magic cache node remains a key hit"
+    );
+    const auto next_variant = runtime.query_cached(6001U, 1U);
+    const auto first_slots = runtime.magic_preparation_slots();
+    test.expect_true(
+        next_variant.status ==
+                LegacyTswRuntimeStatus::magic_preparation_io_unavailable &&
+            first_slots[0U].key == 1U && first_slots[0U].age == 0U &&
+            first_slots[1U].key == 0U && runtime.cache_entry_count() == 2U,
+        "same magic key reaches 431AAF hit across variant nodes; age reset awaits the unmodeled header read"
+    );
+    for (u32 resource = 6002U; resource <= 6006U; ++resource) {
+        const auto stopped = runtime.query_cached(resource, 0U);
+        test.expect_equal(
+            stopped.status,
+            LegacyTswRuntimeStatus::magic_preparation_io_unavailable,
+            "further magic records stop only after the key/age prefix"
+        );
+    }
+    const auto replaced = runtime.magic_preparation_slots();
+    test.expect_true(
+        replaced[0U].key == 6U && replaced[0U].age == 0U &&
+            replaced[1U].key == 2U && replaced[1U].age == 4U &&
+            replaced[2U].key == 3U && replaced[2U].age == 3U &&
+            replaced[3U].key == 4U && replaced[3U].age == 2U &&
+            replaced[4U].key == 5U && replaced[4U].age == 1U,
+        "full five-slot miss ages visited keys and replaces the signed32 maximum with earliest tie precedence"
+    );
+
+    LegacyTswRuntime zero_key{tree.root()};
+    zero_key.set_cache_limit(0x00400000U);
+    const auto zero = zero_key.query_cached(9000U, 0U);
+    test.expect_true(
+        zero.status != LegacyTswRuntimeStatus::physical_frame_failed &&
+            zero.status != LegacyTswRuntimeStatus::ready &&
+            zero.frame_owner != nullptr &&
+            zero_key.cache_entry_count() == 1U,
+        "resource 9000 reaches zero-key preparation before the ordinary physical-record-zero check"
+    );
+    const auto zero_slots = zero_key.magic_preparation_slots();
+    test.expect_true(
+        zero.status ==
+                LegacyTswRuntimeStatus::magic_preparation_io_unavailable &&
+            zero_slots[0U].key == 0U && zero_slots[0U].age == 0U &&
+            zero_slots[1U].key == 0U && zero_slots[1U].age == 0U,
+        "key zero hits the initial slot before the empty-key test; no host insertion"
+    );
+    test.expect_equal(
+        zero_key.load_direct(9000U, 0U).status,
+        LegacyTswRuntimeStatus::physical_frame_failed,
+        "host direct physical-read API remains distinct from the cached 431C50 route"
+    );
+}
+
 void test_special_resource_and_failures(openswd3::test::Context& test) {
     const TestTree tree;
     write_six_archives(tree);
@@ -1231,6 +1307,7 @@ int main() {
     openswd3::test::Context test;
     test_lazy_open_route_and_conversion(test);
     test_physical_variant_ignores_declared_count(test);
+    test_magic_preparation_before_physical_load(test);
     test_special_resource_and_failures(test);
     test_cache_publication_before_load(test);
     test_shared_cursor_after_nested_lookup(test);

@@ -63,6 +63,14 @@ enum class LegacyTswRuntimeStatus {
     cache_balance_unavailable,
     // Initial empty-bucket eviction needs unmodeled sentinel payload fields.
     cache_bucket_payload_unavailable,
+    // 431AA0 has committed its five-slot prefix, but the original file
+    // seek/read and shared descriptor writes have no bound reply here.
+    magic_preparation_io_unavailable,
+};
+
+struct LegacyTswMagicPreparationSlot {
+    compat::u32 key{};
+    compat::u32 age{};
 };
 
 struct LegacyTswQueryResult {
@@ -122,6 +130,8 @@ public:
     [[nodiscard]] std::size_t cache_entry_count() const noexcept;
     [[nodiscard]] std::size_t
     bucket_entry_count(std::size_t bucket_index) const noexcept;
+    [[nodiscard]] std::array<LegacyTswMagicPreparationSlot, 5>
+    magic_preparation_slots() const noexcept;
 
 private:
     struct CacheNode {
@@ -153,6 +163,8 @@ private:
     [[nodiscard]] LegacyTswQueryResult
     find_low16(compat::u16 resource_id, compat::u16 variant_index) noexcept;
     [[nodiscard]] LegacyTswRuntimeStatus evict_before_lookup() noexcept;
+    [[nodiscard]] LegacyTswRuntimeStatus
+    prepare_magic_prefix(compat::u16 resource_id) noexcept;
 
     std::filesystem::path data_root_;
     rendering::LegacyPixelConversionState pixel_conversion_;
@@ -162,6 +174,8 @@ private:
     // 431C93 commits INCword before allocation. An empty host list may
     // retain a nonzero count, and successful publications may wrap it.
     std::array<compat::u16, kLegacyTswCacheBucketCount> bucket_counts_{};
+    // 4DAD10..20 keys and 4DACF4..4DAD04 ages: pre-I/O prefix only.
+    std::array<LegacyTswMagicPreparationSlot, 5> magic_slots_{};
     // Shared node selection (4DACDC), not a saved per-query destination.
     // A cache-only miss clears it; callbacks can select a different node.
     std::weak_ptr<CacheNode> lookup_cursor_;

@@ -5506,6 +5506,51 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         {
             const auto saved_resource = action_execution.resource;
             const u32 saved_render = action_execution.render_source_token;
+            const u16 saved_frame =
+                action_execution.reserved_action_record_02.field_4a;
+            const auto saved_started = progress.frame_started;
+            const auto saved_post = progress.post_action_value;
+            action_execution.reserved_action_record_02.field_4a = 6001U;
+            action_execution.render_source_token = 0x00701000U;
+            progress.frame_started = 1U;
+            progress.post_action_value = 0x99U;
+            openswd3::asset_runtime::LegacyTswRuntime magic{
+                std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}
+            };
+            magic.set_cache_limit(0x00400000U);
+            openswd3::battle::LegacyBattleActorFrameTswUpdatePort magic_port{
+                magic, updater
+            };
+            const auto stopped = openswd3::battle::
+                continue_legacy_battle_actor_frame_lookup(
+                    actor, magic_port, forward, lookup_prefix
+                );
+            test.expect_true(
+                stopped.status == LegacyBattleActorFrameEntryStatus::
+                                      update_frame_lookup_typed_stop &&
+                    !stopped.returned && !stopped.physical_state_known &&
+                    !stopped.frame_lookup_child.physical_state_known &&
+                    !stopped.flags_known && stopped.eip == 0U &&
+                    stopped.esp == lookup_prefix.esp - 12U &&
+                    stopped.last_pushed_value == 0x00479945U &&
+                    action_execution.resource.frame_owner ==
+                        saved_resource.frame_owner &&
+                    action_execution.render_source_token == 0x00701000U &&
+                    progress.frame_started == 1U &&
+                    progress.post_action_value == 0x99U &&
+                    magic.cache_entry_count() == 1U &&
+                    magic.magic_preparation_slots()[0U].key == 1U,
+                "parent keeps its CALL checkpoint before an unmodeled magic preparation I/O; no fabricated frame or stop CPU state"
+            );
+            action_execution.resource = saved_resource;
+            action_execution.render_source_token = saved_render;
+            action_execution.reserved_action_record_02.field_4a = saved_frame;
+            progress.frame_started = saved_started;
+            progress.post_action_value = saved_post;
+        }
+        {
+            const auto saved_resource = action_execution.resource;
+            const u32 saved_render = action_execution.render_source_token;
             const auto saved_started = progress.frame_started;
             const auto saved_post = progress.post_action_value;
             for (const u32 cleanup : {0U, 1U, 2U}) {

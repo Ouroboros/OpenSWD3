@@ -186,4 +186,26 @@ void test_battle_actor_frame_tsw_declared_count(
             );
         }
     }
+
+    // The same complete physical record must not bypass the five-slot
+    // 431AA0 path when the resource lies in 6001..9000.
+    openswd3::asset_runtime::LegacyTswRuntime magic{fixture.root};
+    magic.set_cache_limit(0x00400000U);
+    UnexpectedActionUpdate update;
+    openswd3::battle::LegacyBattleActorFrameTswUpdatePort port{magic, update};
+    const auto unresolved = port.lookup_frame(6001U, 0U, 0U, 0U, 0U);
+    test.expect_true(
+        !unresolved.returned && !unresolved.physical_state_known &&
+            !unresolved.flags_known && !unresolved.resource_header_known &&
+            !unresolved.decoder_source_known && magic.cache_entry_count() == 1U,
+        "battle consumer must not manufacture a normal image return before magic descriptor preparation"
+    );
+    const auto record_only = port.lookup_frame(6001U, 0U, 0U, 0U, 0U);
+    test.expect_true(
+        record_only.returned && record_only.physical_state_known &&
+            record_only.flags_known && !record_only.resource_header_known &&
+            !record_only.decoder_source_known && record_only.eax != 0U &&
+            record_only.ecx == 6001U && record_only.edx == 0x004CF86CU,
+        "battle repeat key hit returns its published record but not an invented decoded image"
+    );
 }
