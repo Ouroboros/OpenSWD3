@@ -416,10 +416,15 @@ LegacyTswFrameResult LegacyTswArchive::read_prepared_magic_frame(
         resource_io::decompress_legacy_lzo1x(
             compressed, result.frame.command_stream
         );
-    if (decompressed.status != resource_io::LegacyLzo1xStatus::success ||
-        decompressed.bytes_written != prepared.primary_decompressed_size) {
+    if (decompressed.status != resource_io::LegacyLzo1xStatus::success) {
         result.frame.command_stream.clear();
         result.status = LegacyTswFrameStatus::decompression_failed;
+        return result;
+    }
+
+    if (decompressed.bytes_written != prepared.primary_decompressed_size) {
+        result.frame.command_stream.clear();
+        result.status = LegacyTswFrameStatus::decompressed_size_mismatch;
         return result;
     }
 

@@ -486,11 +486,13 @@ LegacyTswRuntimeStatus LegacyTswRuntime::prepare_magic_frame(
         read_magic_u16(header, 8U),
         descriptor
     );
+    // Keep the observed host failure reason without supplying a guest
+    // API reply, failure continuation or physical CPU state.
+    loaded.physical_status = physical.status;
     if (physical.status != LegacyTswFrameStatus::ready) {
         return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
     }
 
-    loaded.physical_status = physical.status;
     loaded.status =
         normalize_physical_frame(std::move(physical.frame), loaded.frame);
     return loaded.status;

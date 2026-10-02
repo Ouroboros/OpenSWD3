@@ -550,9 +550,163 @@ void test_magic_prepared_stream_short_read(openswd3::test::Context& test) {
                 static_cast<u32>(payload),
         "a short compressed host read cannot fabricate success after the actual prepared seek reply and published node"
     );
+    test.expect_equal(
+        stopped.physical_status,
+        LegacyTswFrameStatus::primary_stream_read_failed,
+        "prepared magic short read retains the actual host failure reason, not a ready default"
+    );
+    const auto hit = runtime.query_cached(6001U, 0U);
+    test.expect_true(
+        hit.cache_hit && hit.status == stopped.status &&
+            hit.physical_status == stopped.physical_status &&
+            hit.physical_status ==
+                LegacyTswFrameStatus::primary_stream_read_failed &&
+            hit.frame_owner == stopped.frame_owner &&
+            runtime.cached_primary_bytes() == 0U,
+        "published magic key hit preserves its host short-read reason without retrying or returning image data"
+    );
 }
 
 #endif
+
+void test_prepared_magic_host_failure_status(openswd3::test::Context& test) {
+    // 433678 compares the actual decoded length with descriptor+8. These
+    // are host diagnostics, not the original API/allocator/report replies.
+    const auto converted =
+        openswd3::rendering::convert_legacy_image_command_stream(
+            kStream8,
+            synthetic_palette_words(),
+            openswd3::rendering::LegacyPixelConversionState{}
+        );
+    test.expect_equal(
+        converted.status,
+        openswd3::rendering::LegacyImageCommandStreamStatus::completed,
+        "prepared magic diagnostic fixture has a valid non-palette word stream"
+    );
+    constexpr std::size_t descriptor_offset = kBlockOffset + 12U;
+    constexpr std::size_t payload_offset = descriptor_offset + 36U;
+    for (const LegacyTswFrameStatus expected : {
+             LegacyTswFrameStatus::ready,
+             LegacyTswFrameStatus::decompressed_size_mismatch,
+             LegacyTswFrameStatus::decompression_failed,
+         }) {
+        const TestTree tree;
+        std::vector<u8> compressed(
+            converted.bytes.size() + converted.bytes.size() / 16U + 67U
+        );
+        const auto compression =
+            openswd3::resource_io::compress_legacy_lzo1x_14(
+                converted.bytes, compressed
+            );
+        compressed.resize(compression.bytes_written);
+        if (expected == LegacyTswFrameStatus::decompression_failed) {
+            compressed = {0U};  // No complete LZO command or terminator.
+        }
+
+        std::vector<u8> bytes = synthetic_archive();
+        bytes.resize(payload_offset + compressed.size());
+        std::fill_n(
+            bytes.begin() + static_cast<std::ptrdiff_t>(descriptor_offset),
+            36U,
+            u8{0U}
+        );
+        write_u16(bytes, kBlockOffset + 8U, 16U);
+        const u32 block_size = static_cast<u32>(bytes.size() - kBlockOffset);
+        for (std::size_t record = 0U; record < 10U; ++record) {
+            write_u32(
+                bytes, kIndexOffset + record * kRecordSize + 0x14U, block_size
+            );
+        }
+
+        write_u32(
+            bytes,
+            descriptor_offset,
+            static_cast<u32>(payload_offset - kBlockOffset)
+        );
+        write_u32(
+            bytes, descriptor_offset + 4U, static_cast<u32>(compressed.size())
+        );
+        write_u32(
+            bytes,
+            descriptor_offset + 8U,
+            static_cast<u32>(converted.bytes.size()) +
+                (expected == LegacyTswFrameStatus::decompressed_size_mismatch
+                     ? 1U
+                     : 0U)
+        );
+        std::ranges::copy(
+            compressed,
+            bytes.begin() + static_cast<std::ptrdiff_t>(payload_offset)
+        );
+        for (const char* const name : kArchiveNames) {
+            tree.write(name, bytes);
+        }
+
+        openswd3::asset_runtime::LegacyTswArchive archive;
+        test.expect_equal(
+            archive.open(tree.root() / "all_magic.tsw"),
+            openswd3::asset_runtime::LegacyTswOpenStatus::ready,
+            "prepared magic diagnostic archive opens before the physical read"
+        );
+        openswd3::asset_runtime::LegacyTswIndexRecord index;
+        index.block_offset = static_cast<u32>(kBlockOffset);
+        index.block_size = block_size;
+        std::array<u8, 36U> prepared{};
+        std::ranges::copy_n(
+            bytes.begin() + static_cast<std::ptrdiff_t>(descriptor_offset),
+            prepared.size(),
+            prepared.begin()
+        );
+        write_u32(prepared, 0U, static_cast<u32>(payload_offset));
+        const auto physical = archive.read_prepared_magic_frame(
+            index, 0x12345678U, 1U, 16U, prepared
+        );
+        test.expect_equal(
+            physical.status,
+            expected,
+            "prepared host read distinguishes exact decoded length, length mismatch and invalid compressed data"
+        );
+
+        LegacyTswRuntime runtime{tree.root()};
+        const auto queried = runtime.query_cached(6001U, 0U);
+        const auto hit = runtime.query_cached(6001U, 0U);
+        const LegacyTswRuntimeStatus runtime_expected =
+            expected == LegacyTswFrameStatus::ready
+            ? LegacyTswRuntimeStatus::ready
+            : LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
+        test.expect_true(
+            queried.status == runtime_expected &&
+                queried.physical_status == expected && !queried.cache_hit &&
+                queried.frame_owner != nullptr &&
+                runtime.magic_prepared_stream_position(0U, 0U) ==
+                    static_cast<u32>(payload_offset),
+            "magic query retains the actual host physical reason while unresolved original failure remains unavailable"
+        );
+        test.expect_true(
+            hit.cache_hit && hit.status == runtime_expected &&
+                hit.physical_status == expected &&
+                hit.frame_owner == queried.frame_owner &&
+                runtime.cache_entry_count() == 1U,
+            "cached magic key preserves the diagnostic reason and published identity on success or failure"
+        );
+        if (expected == LegacyTswFrameStatus::ready) {
+            test.expect_true(
+                std::ranges::equal(
+                    queried.frame.primary_stream, converted.bytes
+                ) && runtime.cached_primary_bytes() == converted.bytes.size(),
+                "equal decoded length retains the normal image stream and byte accounting"
+            );
+        } else {
+            test.expect_true(
+                queried.frame.primary_stream.empty() &&
+                    queried.frame_owner != nullptr &&
+                    queried.frame_owner->primary_stream_token == 0U &&
+                    runtime.cached_primary_bytes() == 0U,
+                "host failure metadata cannot create an image pointer, decoded bytes or original return state"
+            );
+        }
+    }
+}
 
 #ifdef OPENSWD3_REAL_TSW_ROOT
 void test_real_magic_first_frame_requires_preparation(
@@ -1567,6 +1721,7 @@ int main() {
     test_lazy_open_route_and_conversion(test);
     test_physical_variant_ignores_declared_count(test);
     test_magic_preparation_before_physical_load(test);
+    test_prepared_magic_host_failure_status(test);
 #ifndef _WIN32
     test_magic_prepared_stream_short_read(test);
 #endif
