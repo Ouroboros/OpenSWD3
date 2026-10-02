@@ -507,6 +507,53 @@ void test_magic_preparation_before_physical_load(
     );
 }
 
+// The open archive permits truncation of the same inode only on POSIX;
+// Windows opens it without FILE_SHARE_WRITE.
+#ifndef _WIN32
+void test_magic_prepared_stream_short_read(openswd3::test::Context& test) {
+    const TestTree tree;
+    std::vector<u8> bytes = synthetic_archive();
+    constexpr std::size_t descriptor = kBlockOffset + 12U;
+    constexpr std::size_t old_descriptor = descriptor + kPaletteSize;
+    constexpr std::size_t payload = old_descriptor + 36U;
+    write_u16(bytes, kBlockOffset + 8U, 16U);
+    std::ranges::copy_n(
+        bytes.begin() + static_cast<std::ptrdiff_t>(old_descriptor),
+        36U,
+        bytes.begin() + static_cast<std::ptrdiff_t>(descriptor)
+    );
+    for (const char* const name : kArchiveNames) {
+        tree.write(name, bytes);
+    }
+
+    LegacyTswRuntime runtime{tree.root()};
+    runtime.set_cache_limit(0x00400000U);
+    const auto initialized = runtime.load_direct(0U, 0U);
+    test.expect_true(
+        initialized.status == LegacyTswRuntimeStatus::physical_frame_failed &&
+            initialized.physical_status ==
+                LegacyTswFrameStatus::physical_record_out_of_range,
+        "opening all six archives succeeds before the invalid record-zero probe"
+    );
+    bytes.resize(descriptor + 36U);
+    tree.write("all_magic.tsw", bytes);
+
+    const auto stopped = runtime.query_cached(6001U, 0U);
+    test.expect_true(
+        stopped.status ==
+                LegacyTswRuntimeStatus::magic_preparation_io_unavailable &&
+            stopped.frame_owner != nullptr &&
+            stopped.frame_owner->primary_stream_token == 0U &&
+            runtime.cache_entry_count() == 1U &&
+            runtime.magic_preparation_slots()[0U].key == 1U &&
+            runtime.magic_prepared_stream_position(0U, 0U) ==
+                static_cast<u32>(payload),
+        "a short compressed host read cannot fabricate success after the actual prepared seek reply and published node"
+    );
+}
+
+#endif
+
 #ifdef OPENSWD3_REAL_TSW_ROOT
 void test_real_magic_first_frame_requires_preparation(
     openswd3::test::Context& test
@@ -622,6 +669,80 @@ void test_real_magic_first_frame_requires_preparation(
             "descriptor 130 uses the actual seek reply after all 131 original-order header/descriptor reads"
         );
     }
+}
+
+void test_real_magic_slot_rotation_and_cached_node(
+    openswd3::test::Context& test
+) {
+    LegacyTswRuntime runtime{std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}};
+    runtime.set_cache_limit(0x00400000U);
+    const auto first = runtime.query_cached(6001U, 0U);
+    test.expect_true(
+        first.status == LegacyTswRuntimeStatus::ready &&
+            first.frame_owner != nullptr,
+        "real magic resource one has a resident frame before slot rotation"
+    );
+    if (first.status != LegacyTswRuntimeStatus::ready) {
+        return;
+    }
+
+    for (u32 resource = 6002U; resource <= 6006U; ++resource) {
+        const auto direct = runtime.load_direct(resource, 0U);
+        const auto cached = runtime.query_cached(resource, 0U);
+        test.expect_true(
+            direct.status == LegacyTswRuntimeStatus::ready &&
+                cached.status == LegacyTswRuntimeStatus::ready &&
+                cached.frame_owner != nullptr &&
+                std::ranges::equal(
+                    cached.frame.primary_stream, direct.frame.primary_stream
+                ),
+            "five real magic descriptors and the sixth replacement retain the physical first-frame stream"
+        );
+    }
+
+    const auto rotated = runtime.magic_preparation_slots();
+    test.expect_true(
+        rotated[0U].key == 6U && rotated[0U].age == 0U &&
+            rotated[1U].key == 2U && rotated[1U].age == 4U &&
+            rotated[2U].key == 3U && rotated[2U].age == 3U &&
+            rotated[3U].key == 4U && rotated[3U].age == 2U &&
+            rotated[4U].key == 5U && rotated[4U].age == 1U &&
+            runtime.magic_prepared_stream_position(0U, 0U) == 0x0003658BU,
+        "sixth valid magic record replaces the oldest descriptor slot without changing other ages"
+    );
+
+    const auto hit = runtime.query_cached(6001U, 0U);
+    const auto after_hit = runtime.magic_preparation_slots();
+    test.expect_true(
+        hit.cache_hit && hit.frame_owner == first.frame_owner &&
+            hit.status == LegacyTswRuntimeStatus::ready &&
+            std::ranges::equal(
+                hit.frame.primary_stream, first.frame.primary_stream
+            ) &&
+            after_hit[0U].key == rotated[0U].key &&
+            after_hit[0U].age == rotated[0U].age &&
+            after_hit[1U].age == rotated[1U].age,
+        "published frame-node hit bypasses the evicted five-slot descriptor without re-aging it"
+    );
+
+    const auto direct_second = runtime.load_direct(6001U, 1U);
+    const auto second = runtime.query_cached(6001U, 1U);
+    const auto reloaded = runtime.magic_preparation_slots();
+    test.expect_true(
+        direct_second.status == LegacyTswRuntimeStatus::ready &&
+            second.status == LegacyTswRuntimeStatus::ready &&
+            second.frame_owner != nullptr &&
+            std::ranges::equal(
+                second.frame.primary_stream, direct_second.frame.primary_stream
+            ) &&
+            reloaded[0U].key == 6U && reloaded[0U].age == 1U &&
+            reloaded[1U].key == 1U && reloaded[1U].age == 0U &&
+            reloaded[2U].key == 3U && reloaded[2U].age == 4U &&
+            reloaded[3U].key == 4U && reloaded[3U].age == 3U &&
+            reloaded[4U].key == 5U && reloaded[4U].age == 2U &&
+            runtime.magic_prepared_stream_position(1U, 1U) == 0x00023306U,
+        "uncached second variant reloads its resource into the oldest remaining slot and reads that slot's stream"
+    );
 }
 
 #endif
@@ -1446,8 +1567,12 @@ int main() {
     test_lazy_open_route_and_conversion(test);
     test_physical_variant_ignores_declared_count(test);
     test_magic_preparation_before_physical_load(test);
+#ifndef _WIN32
+    test_magic_prepared_stream_short_read(test);
+#endif
 #ifdef OPENSWD3_REAL_TSW_ROOT
     test_real_magic_first_frame_requires_preparation(test);
+    test_real_magic_slot_rotation_and_cached_node(test);
 #endif
     test_special_resource_and_failures(test);
     test_cache_publication_before_load(test);
