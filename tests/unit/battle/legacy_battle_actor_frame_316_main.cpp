@@ -16,6 +16,9 @@ void test_battle_actor_frame_original_default(openswd3::test::Context& test);
 void test_battle_actor_frame_original_action_data(
     openswd3::test::Context& test
 );
+void test_battle_actor_frame_original_action_cpu_branches(
+    openswd3::test::Context& test
+);
 void test_battle_actor_frame_original_reset_suffix(
     openswd3::test::Context& test
 );
@@ -43,6 +46,7 @@ int main() {
     test_battle_actor_frame_presentation_entry(test);
     test_battle_actor_frame_original_default(test);
     test_battle_actor_frame_original_action_data(test);
+    test_battle_actor_frame_original_action_cpu_branches(test);
     test_battle_actor_frame_original_reset_suffix(test);
     test_battle_actor_frame_free_validation_prefix(test);
     test_battle_actor_frame_free_assertion_prefix(test);

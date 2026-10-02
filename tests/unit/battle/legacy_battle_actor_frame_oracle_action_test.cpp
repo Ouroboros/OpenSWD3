@@ -22,6 +22,18 @@ struct ObservedActionRecord {
     std::array<u32, kLegacyActionRecordSize / sizeof(u32)> after;
 };
 
+struct ObservedActionCpu {
+    u32 sequence;
+    u32 loader_eax;
+    u32 loader_ecx;
+    u32 loader_edx;
+    u32 loader_eflags;
+    u32 updater_eax;
+    u32 updater_ecx;
+    u32 updater_edx;
+    u32 updater_eflags;
+};
+
 constexpr ObservedActionRecord kObservedV2Records[]{
 #include "../../../analysis/04-reverse-engineering/artifacts/battle-actor-frame-action-00479850/observed-records.inc"
 };
@@ -34,9 +46,14 @@ constexpr ObservedActionRecord kObservedV4NestedRecords[]{
 #include "../../../analysis/04-reverse-engineering/artifacts/battle-actor-frame-action-v4-00479850/observed-records.inc"
 };
 
+constexpr ObservedActionCpu kObservedV4NestedCpu[]{
+#include "../../../analysis/04-reverse-engineering/artifacts/battle-actor-frame-action-v4-00479850/observed-cpu.inc"
+};
+
 static_assert(std::size(kObservedV2Records) == 17U);
 static_assert(std::size(kObservedV3Records) == 34U);
 static_assert(std::size(kObservedV4NestedRecords) == 18U);
+static_assert(std::size(kObservedV4NestedCpu) == 18U);
 static_assert(std::endian::native == std::endian::little);
 
 }  // namespace
@@ -135,4 +152,81 @@ void test_battle_actor_frame_original_action_data(
     std::cout << "WP316 original action-data diff not run: "
               << "real ACT archives unavailable.\n";
 #endif
+}
+
+void test_battle_actor_frame_original_action_cpu_branches(
+    openswd3::test::Context& test
+) {
+    // LST 432B97/432B9C: a nonzero stream pointer with ZF=1 can only
+    // return from the cache-hit arm of sub_432A50. The miss arm's final
+    // AND would set ZF=0 for a nonzero pointer.
+    constexpr u32 kArithmeticFlags = 0x0CD5U;  // CF/PF/AF/ZF/SF/DF/OF.
+    u32 wait_returns = 0U;
+    u32 command_returns = 0U;
+    for (std::size_t i = 0U; i < std::size(kObservedV4NestedCpu); ++i) {
+        const auto& cpu = kObservedV4NestedCpu[i];
+        const auto& record = kObservedV4NestedRecords[i];
+        const std::string sample = "original v4 nested CPU seq " +
+            std::to_string(cpu.sequence);
+        test.expect_equal(cpu.sequence, record.sequence, sample + " record identity");
+        test.expect_equal(cpu.loader_eax != 0U, true, sample + " stream exists");
+        test.expect_equal(cpu.loader_eax, record.after[0x54U / 4U],
+                          sample + " original pointer publication");
+        test.expect_equal(cpu.loader_ecx, (record.before[0] % 10U) * 3U,
+                          sample + " cache bucket ECX at 432E72");
+        test.expect_equal(cpu.loader_eflags & kArithmeticFlags, 0x44U,
+                          sample + " cache-hit CMP return flags");
+        test.expect_equal(cpu.updater_eax, 1U, sample + " updater return EAX");
+
+        const u32 wait_before = record.before[0x44U / 4U] & 0xFFFFU;
+        const u32 wait_after = record.after[0x44U / 4U] & 0xFFFFU;
+        if (wait_before != 0U) {
+            ++wait_returns;
+            // 432450 MOV AX,wait; 432454 CMP AX,0; 432A0B DEC EAX;
+            // the upper half of EAX still comes from the loader pointer.
+            const u32 before_dec =
+                (cpu.loader_eax & 0xFFFF0000U) | wait_before;
+            const u32 after_dec = before_dec - 1U;
+            const u32 expected_flags =
+                (cpu.loader_eflags & 0x400U) |
+                ((std::popcount(after_dec & 0xFFU) & 1) == 0 ? 0x04U : 0U) |
+                ((before_dec & 0x0FU) == 0U ? 0x10U : 0U) |
+                (after_dec == 0U ? 0x40U : 0U) |
+                ((after_dec & 0x80000000U) != 0U ? 0x80U : 0U) |
+                (before_dec == 0x80000000U ? 0x800U : 0U);
+            test.expect_equal(wait_after, wait_before - 1U,
+                              sample + " 432A0B wait countdown");
+            test.expect_equal(cpu.updater_ecx, cpu.loader_ecx,
+                              sample + " wait ECX from loader");
+            test.expect_equal(cpu.updater_edx, cpu.loader_edx,
+                              sample + " wait EDX from loader");
+            test.expect_equal(cpu.updater_eflags & kArithmeticFlags,
+                              expected_flags, sample + " DEC EAX flags");
+        } else {
+            ++command_returns;
+            // 432479 recognizes DE (0x4544); 4329B4 compares external
+            // mode 0 against EBP=1 before jumping to the shared return.
+            // The first update also reads the default wait from the ACT
+            // stream before reaching DE; entry can still have default 0.
+            const u32 wait_default_after =
+                record.after[0x44U / 4U] >> 16U;
+            const u32 cursor_after = record.after[0x42U / 4U] >> 16U;
+            test.expect_equal(record.before[0x90U / 4U], 0U,
+                              sample + " original external mode");
+            test.expect_equal(wait_after, wait_default_after,
+                              sample + " loaded default wait on DE");
+            test.expect_equal(cpu.updater_ecx, 0x4544U,
+                              sample + " DE command word");
+            test.expect_equal(cpu.updater_edx, cursor_after,
+                              sample + " DE command cursor");
+            test.expect_equal(cpu.updater_eflags & kArithmeticFlags, 0x95U,
+                              sample + " CMP external mode flags");
+        }
+    }
+
+    test.expect_equal(wait_returns, 14U, "v4 observed wait-return count");
+    test.expect_equal(command_returns, 4U, "v4 observed DE-return count");
+    std::cout << "WP316 original v4 nested CPU/LST restricted suffix: "
+              << "18 cache-hit loader returns, 14 wait decrements, "
+              << "4 DE commands; not production CPU reply or parent replay.\n";
 }

@@ -1,0 +1,185 @@
+{
+  "scope": "18 original v4 paired nested returns with 18 verified direct-loader entry stacks; LST-only branch classification, no production CPU differential",
+  "run_directory": "build/vm/battle-actor-frame-oracle-v4-output/run-20261003-013720-9352",
+  "run_manifest_sha256": "f9109bf1db60a554f9467e19890ff6a2208cb9c7cee1223b66ef68c003a473c1",
+  "events_sha256": "ea36ba9dd1d1e9bcd1509fe034df88499dcbe481f97f303f66dd859656f1c2e0",
+  "summary_sha256": "7a6862b80f598c47ba91dc37bf80223e5af5bf8eee6af45508cf567d3aa05e96",
+  "record_fixture_sha256": "414ba98863544b734b4db1aa50c069f4568771e10c6336c02ea2661c0001ca16",
+  "fixture_sha256": "7a23a7df17bd3eb64c5f235fa4d3bfe9e47f6548fd765f075e4a67fce02d4eee",
+  "row_count": 18,
+  "lst_path": "../swd3.exe_export_for_ai/swd3.exe.lst",
+  "lst_boundaries": [
+    "432A50..432BBC; 432E40..432ED7",
+    "4321E0..432A16"
+  ],
+  "not_compared": [
+    "original VM ACT asset SHA",
+    "original cache-node physical identity",
+    "production CPU/stack/flags reply",
+    "complete four-caller parent replay"
+  ],
+  "samples": [
+    {
+      "sequence": 337,
+      "action_nested_id": 1,
+      "direct_nested_id": 2,
+      "direct_entry_stack": {
+        "file": "nested-stack-000002-enter.bin",
+        "sha256": "1bdda9ec0256e87981791a3910dec55532383a25c5cfa8e3842c8189c03ce26f"
+      }
+    },
+    {
+      "sequence": 339,
+      "action_nested_id": 3,
+      "direct_nested_id": 4,
+      "direct_entry_stack": {
+        "file": "nested-stack-000004-enter.bin",
+        "sha256": "1bdda9ec0256e87981791a3910dec55532383a25c5cfa8e3842c8189c03ce26f"
+      }
+    },
+    {
+      "sequence": 341,
+      "action_nested_id": 5,
+      "direct_nested_id": 6,
+      "direct_entry_stack": {
+        "file": "nested-stack-000006-enter.bin",
+        "sha256": "1bdda9ec0256e87981791a3910dec55532383a25c5cfa8e3842c8189c03ce26f"
+      }
+    },
+    {
+      "sequence": 343,
+      "action_nested_id": 7,
+      "direct_nested_id": 8,
+      "direct_entry_stack": {
+        "file": "nested-stack-000008-enter.bin",
+        "sha256": "1bdda9ec0256e87981791a3910dec55532383a25c5cfa8e3842c8189c03ce26f"
+      }
+    },
+    {
+      "sequence": 345,
+      "action_nested_id": 9,
+      "direct_nested_id": 10,
+      "direct_entry_stack": {
+        "file": "nested-stack-000010-enter.bin",
+        "sha256": "1bdda9ec0256e87981791a3910dec55532383a25c5cfa8e3842c8189c03ce26f"
+      }
+    },
+    {
+      "sequence": 347,
+      "action_nested_id": 11,
+      "direct_nested_id": 12,
+      "direct_entry_stack": {
+        "file": "nested-stack-000012-enter.bin",
+        "sha256": "1bdda9ec0256e87981791a3910dec55532383a25c5cfa8e3842c8189c03ce26f"
+      }
+    },
+    {
+      "sequence": 349,
+      "action_nested_id": 13,
+      "direct_nested_id": 14,
+      "direct_entry_stack": {
+        "file": "nested-stack-000014-enter.bin",
+        "sha256": "1bdda9ec0256e87981791a3910dec55532383a25c5cfa8e3842c8189c03ce26f"
+      }
+    },
+    {
+      "sequence": 351,
+      "action_nested_id": 15,
+      "direct_nested_id": 16,
+      "direct_entry_stack": {
+        "file": "nested-stack-000016-enter.bin",
+        "sha256": "1bdda9ec0256e87981791a3910dec55532383a25c5cfa8e3842c8189c03ce26f"
+      }
+    },
+    {
+      "sequence": 354,
+      "action_nested_id": 17,
+      "direct_nested_id": 18,
+      "direct_entry_stack": {
+        "file": "nested-stack-000018-enter.bin",
+        "sha256": "0f440ba9db51eeaf3f76c55531766a924ff7a8ba8617749e5e728c6877ec6b6b"
+      }
+    },
+    {
+      "sequence": 356,
+      "action_nested_id": 19,
+      "direct_nested_id": 20,
+      "direct_entry_stack": {
+        "file": "nested-stack-000020-enter.bin",
+        "sha256": "0f440ba9db51eeaf3f76c55531766a924ff7a8ba8617749e5e728c6877ec6b6b"
+      }
+    },
+    {
+      "sequence": 358,
+      "action_nested_id": 21,
+      "direct_nested_id": 22,
+      "direct_entry_stack": {
+        "file": "nested-stack-000022-enter.bin",
+        "sha256": "0f440ba9db51eeaf3f76c55531766a924ff7a8ba8617749e5e728c6877ec6b6b"
+      }
+    },
+    {
+      "sequence": 360,
+      "action_nested_id": 23,
+      "direct_nested_id": 24,
+      "direct_entry_stack": {
+        "file": "nested-stack-000024-enter.bin",
+        "sha256": "0f440ba9db51eeaf3f76c55531766a924ff7a8ba8617749e5e728c6877ec6b6b"
+      }
+    },
+    {
+      "sequence": 362,
+      "action_nested_id": 25,
+      "direct_nested_id": 26,
+      "direct_entry_stack": {
+        "file": "nested-stack-000026-enter.bin",
+        "sha256": "0f440ba9db51eeaf3f76c55531766a924ff7a8ba8617749e5e728c6877ec6b6b"
+      }
+    },
+    {
+      "sequence": 364,
+      "action_nested_id": 27,
+      "direct_nested_id": 28,
+      "direct_entry_stack": {
+        "file": "nested-stack-000028-enter.bin",
+        "sha256": "0f440ba9db51eeaf3f76c55531766a924ff7a8ba8617749e5e728c6877ec6b6b"
+      }
+    },
+    {
+      "sequence": 366,
+      "action_nested_id": 29,
+      "direct_nested_id": 30,
+      "direct_entry_stack": {
+        "file": "nested-stack-000030-enter.bin",
+        "sha256": "0f440ba9db51eeaf3f76c55531766a924ff7a8ba8617749e5e728c6877ec6b6b"
+      }
+    },
+    {
+      "sequence": 368,
+      "action_nested_id": 31,
+      "direct_nested_id": 32,
+      "direct_entry_stack": {
+        "file": "nested-stack-000032-enter.bin",
+        "sha256": "0f440ba9db51eeaf3f76c55531766a924ff7a8ba8617749e5e728c6877ec6b6b"
+      }
+    },
+    {
+      "sequence": 370,
+      "action_nested_id": 33,
+      "direct_nested_id": 34,
+      "direct_entry_stack": {
+        "file": "nested-stack-000034-enter.bin",
+        "sha256": "0f440ba9db51eeaf3f76c55531766a924ff7a8ba8617749e5e728c6877ec6b6b"
+      }
+    },
+    {
+      "sequence": 372,
+      "action_nested_id": 35,
+      "direct_nested_id": 36,
+      "direct_entry_stack": {
+        "file": "nested-stack-000036-enter.bin",
+        "sha256": "0f440ba9db51eeaf3f76c55531766a924ff7a8ba8617749e5e728c6877ec6b6b"
+      }
+    }
+  ]
+}
