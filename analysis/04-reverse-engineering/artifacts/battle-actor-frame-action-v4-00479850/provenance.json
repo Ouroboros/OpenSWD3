@@ -1,0 +1,260 @@
+{
+  "scope": "18 original v4 sub_4321E0 paired action-record inputs/outputs and EAX=1; not a parent or CPU reply replay",
+  "run_directory": "build/vm/battle-actor-frame-oracle-v4-output/run-20261003-013720-9352",
+  "run_manifest_sha256": "f9109bf1db60a554f9467e19890ff6a2208cb9c7cee1223b66ef68c003a473c1",
+  "events_sha256": "ea36ba9dd1d1e9bcd1509fe034df88499dcbe481f97f303f66dd859656f1c2e0",
+  "summary_sha256": "7a6862b80f598c47ba91dc37bf80223e5af5bf8eee6af45508cf567d3aa05e96",
+  "fixture_sha256": "414ba98863544b734b4db1aa50c069f4568771e10c6336c02ea2661c0001ca16",
+  "record_bytes": 152,
+  "row_count": 18,
+  "action_id": 408,
+  "original_inner_cache_global": "0x004FB308=1 at each observed nested entry and return; no cached loader call observed",
+  "input_timing": "sub_4321E0 enter after the parent writes action_id and base_variant; no extra parent writes in test",
+  "output_timing": "sub_4321E0 return before later parent reset; seq372 is a valid nested output but not parent leave output",
+  "pointer_adapter": "compare 148 non-pointer bytes and +0x54 pointer zero/nonzero; do not equate host and original pointer identity",
+  "local_act_assets": "six repository-root ../all_*.act files independently rehashed locally; hashes match existing v2 fixture provenance; original VM ACT asset hashes not captured",
+  "target_binary_identity": "repository-root ../swd32.exe independently rehashed locally as 4c4c226876fd2f3169bfe62c58ede86bba59e0036b7cef4cfaf7d49475c03f2a, equal to run manifest; VM game_directory is another path, not the same physical file",
+  "not_compared": [
+    "callee GPR/FLAGS/stack reply against production (no production model)",
+    "stream pointer identity",
+    "ACT file identity on original VM (local six asset hashes verified, VM hashes unavailable)",
+    "callee internal control flow",
+    "complete sub_479850 replay"
+  ],
+  "samples": [
+    {
+      "sequence": 337,
+      "nested_id": 1,
+      "direct_nested_id": 2,
+      "entry": {
+        "file": "nested-action-record-000001-enter.bin",
+        "sha256": "80c762b30f793c6df1b779c88a433ee6846f1bef9b95b425208388cf3c85b2c2"
+      },
+      "return": {
+        "file": "nested-action-record-000001-leave.bin",
+        "sha256": "66329267d3035a77fd78a6a6772284fcde6b272f7272f309fa15688f8ddc3281"
+      }
+    },
+    {
+      "sequence": 339,
+      "nested_id": 3,
+      "direct_nested_id": 4,
+      "entry": {
+        "file": "nested-action-record-000003-enter.bin",
+        "sha256": "66329267d3035a77fd78a6a6772284fcde6b272f7272f309fa15688f8ddc3281"
+      },
+      "return": {
+        "file": "nested-action-record-000003-leave.bin",
+        "sha256": "ef407554594bb9edd4c86d8509d32d50cd73ee6cf22222b838744d239cf113c6"
+      }
+    },
+    {
+      "sequence": 341,
+      "nested_id": 5,
+      "direct_nested_id": 6,
+      "entry": {
+        "file": "nested-action-record-000005-enter.bin",
+        "sha256": "ef407554594bb9edd4c86d8509d32d50cd73ee6cf22222b838744d239cf113c6"
+      },
+      "return": {
+        "file": "nested-action-record-000005-leave.bin",
+        "sha256": "d3cb66e78bb428d08ab3450490783bb27026be8306e2b57317bc8c8d0da45a16"
+      }
+    },
+    {
+      "sequence": 343,
+      "nested_id": 7,
+      "direct_nested_id": 8,
+      "entry": {
+        "file": "nested-action-record-000007-enter.bin",
+        "sha256": "d3cb66e78bb428d08ab3450490783bb27026be8306e2b57317bc8c8d0da45a16"
+      },
+      "return": {
+        "file": "nested-action-record-000007-leave.bin",
+        "sha256": "a9742233e55967b7b8ccc556e97b916617d3d8b540e125bc4606160f47697142"
+      }
+    },
+    {
+      "sequence": 345,
+      "nested_id": 9,
+      "direct_nested_id": 10,
+      "entry": {
+        "file": "nested-action-record-000009-enter.bin",
+        "sha256": "a9742233e55967b7b8ccc556e97b916617d3d8b540e125bc4606160f47697142"
+      },
+      "return": {
+        "file": "nested-action-record-000009-leave.bin",
+        "sha256": "9631fbe10d9c5ea07eaa56e1c4e9a7aae365856fc0f670d416e7843e8059071a"
+      }
+    },
+    {
+      "sequence": 347,
+      "nested_id": 11,
+      "direct_nested_id": 12,
+      "entry": {
+        "file": "nested-action-record-000011-enter.bin",
+        "sha256": "9631fbe10d9c5ea07eaa56e1c4e9a7aae365856fc0f670d416e7843e8059071a"
+      },
+      "return": {
+        "file": "nested-action-record-000011-leave.bin",
+        "sha256": "39f58712967487c6e08c08c66c33b41876f55992ec81603beede4a877da0c3f6"
+      }
+    },
+    {
+      "sequence": 349,
+      "nested_id": 13,
+      "direct_nested_id": 14,
+      "entry": {
+        "file": "nested-action-record-000013-enter.bin",
+        "sha256": "39f58712967487c6e08c08c66c33b41876f55992ec81603beede4a877da0c3f6"
+      },
+      "return": {
+        "file": "nested-action-record-000013-leave.bin",
+        "sha256": "4b8da2d60cfbbc3d3ab77753e8582c4521545022208ebd4224697840a20265dc"
+      }
+    },
+    {
+      "sequence": 351,
+      "nested_id": 15,
+      "direct_nested_id": 16,
+      "entry": {
+        "file": "nested-action-record-000015-enter.bin",
+        "sha256": "4b8da2d60cfbbc3d3ab77753e8582c4521545022208ebd4224697840a20265dc"
+      },
+      "return": {
+        "file": "nested-action-record-000015-leave.bin",
+        "sha256": "f199557bad3fdb6120bbd7fb82de6863eb1150ead68a9d585a2feb91733bb8b1"
+      }
+    },
+    {
+      "sequence": 354,
+      "nested_id": 17,
+      "direct_nested_id": 18,
+      "entry": {
+        "file": "nested-action-record-000017-enter.bin",
+        "sha256": "80c762b30f793c6df1b779c88a433ee6846f1bef9b95b425208388cf3c85b2c2"
+      },
+      "return": {
+        "file": "nested-action-record-000017-leave.bin",
+        "sha256": "66329267d3035a77fd78a6a6772284fcde6b272f7272f309fa15688f8ddc3281"
+      }
+    },
+    {
+      "sequence": 356,
+      "nested_id": 19,
+      "direct_nested_id": 20,
+      "entry": {
+        "file": "nested-action-record-000019-enter.bin",
+        "sha256": "66329267d3035a77fd78a6a6772284fcde6b272f7272f309fa15688f8ddc3281"
+      },
+      "return": {
+        "file": "nested-action-record-000019-leave.bin",
+        "sha256": "ef407554594bb9edd4c86d8509d32d50cd73ee6cf22222b838744d239cf113c6"
+      }
+    },
+    {
+      "sequence": 358,
+      "nested_id": 21,
+      "direct_nested_id": 22,
+      "entry": {
+        "file": "nested-action-record-000021-enter.bin",
+        "sha256": "ef407554594bb9edd4c86d8509d32d50cd73ee6cf22222b838744d239cf113c6"
+      },
+      "return": {
+        "file": "nested-action-record-000021-leave.bin",
+        "sha256": "d3cb66e78bb428d08ab3450490783bb27026be8306e2b57317bc8c8d0da45a16"
+      }
+    },
+    {
+      "sequence": 360,
+      "nested_id": 23,
+      "direct_nested_id": 24,
+      "entry": {
+        "file": "nested-action-record-000023-enter.bin",
+        "sha256": "d3cb66e78bb428d08ab3450490783bb27026be8306e2b57317bc8c8d0da45a16"
+      },
+      "return": {
+        "file": "nested-action-record-000023-leave.bin",
+        "sha256": "a9742233e55967b7b8ccc556e97b916617d3d8b540e125bc4606160f47697142"
+      }
+    },
+    {
+      "sequence": 362,
+      "nested_id": 25,
+      "direct_nested_id": 26,
+      "entry": {
+        "file": "nested-action-record-000025-enter.bin",
+        "sha256": "a9742233e55967b7b8ccc556e97b916617d3d8b540e125bc4606160f47697142"
+      },
+      "return": {
+        "file": "nested-action-record-000025-leave.bin",
+        "sha256": "9631fbe10d9c5ea07eaa56e1c4e9a7aae365856fc0f670d416e7843e8059071a"
+      }
+    },
+    {
+      "sequence": 364,
+      "nested_id": 27,
+      "direct_nested_id": 28,
+      "entry": {
+        "file": "nested-action-record-000027-enter.bin",
+        "sha256": "9631fbe10d9c5ea07eaa56e1c4e9a7aae365856fc0f670d416e7843e8059071a"
+      },
+      "return": {
+        "file": "nested-action-record-000027-leave.bin",
+        "sha256": "39f58712967487c6e08c08c66c33b41876f55992ec81603beede4a877da0c3f6"
+      }
+    },
+    {
+      "sequence": 366,
+      "nested_id": 29,
+      "direct_nested_id": 30,
+      "entry": {
+        "file": "nested-action-record-000029-enter.bin",
+        "sha256": "39f58712967487c6e08c08c66c33b41876f55992ec81603beede4a877da0c3f6"
+      },
+      "return": {
+        "file": "nested-action-record-000029-leave.bin",
+        "sha256": "4b8da2d60cfbbc3d3ab77753e8582c4521545022208ebd4224697840a20265dc"
+      }
+    },
+    {
+      "sequence": 368,
+      "nested_id": 31,
+      "direct_nested_id": 32,
+      "entry": {
+        "file": "nested-action-record-000031-enter.bin",
+        "sha256": "4b8da2d60cfbbc3d3ab77753e8582c4521545022208ebd4224697840a20265dc"
+      },
+      "return": {
+        "file": "nested-action-record-000031-leave.bin",
+        "sha256": "f199557bad3fdb6120bbd7fb82de6863eb1150ead68a9d585a2feb91733bb8b1"
+      }
+    },
+    {
+      "sequence": 370,
+      "nested_id": 33,
+      "direct_nested_id": 34,
+      "entry": {
+        "file": "nested-action-record-000033-enter.bin",
+        "sha256": "f199557bad3fdb6120bbd7fb82de6863eb1150ead68a9d585a2feb91733bb8b1"
+      },
+      "return": {
+        "file": "nested-action-record-000033-leave.bin",
+        "sha256": "348cb1e2152a5c49636e90f774149e622e7243dee4009b07c51d1fbb7bb45e9f"
+      }
+    },
+    {
+      "sequence": 372,
+      "nested_id": 35,
+      "direct_nested_id": 36,
+      "entry": {
+        "file": "nested-action-record-000035-enter.bin",
+        "sha256": "348cb1e2152a5c49636e90f774149e622e7243dee4009b07c51d1fbb7bb45e9f"
+      },
+      "return": {
+        "file": "nested-action-record-000035-leave.bin",
+        "sha256": "9a6c8bf7e6343c10eccbccdc12d56295cd48dcf0d616ee5903e08df4f88bda3f"
+      }
+    }
+  ]
+}

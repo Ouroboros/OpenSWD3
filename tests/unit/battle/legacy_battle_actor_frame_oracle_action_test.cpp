@@ -30,8 +30,13 @@ constexpr ObservedActionRecord kObservedV3Records[]{
 #include "../../../analysis/04-reverse-engineering/artifacts/battle-actor-frame-action-v3-00479850/observed-records.inc"
 };
 
+constexpr ObservedActionRecord kObservedV4NestedRecords[]{
+#include "../../../analysis/04-reverse-engineering/artifacts/battle-actor-frame-action-v4-00479850/observed-records.inc"
+};
+
 static_assert(std::size(kObservedV2Records) == 17U);
 static_assert(std::size(kObservedV3Records) == 34U);
+static_assert(std::size(kObservedV4NestedRecords) == 18U);
 static_assert(std::endian::native == std::endian::little);
 
 }  // namespace
@@ -43,6 +48,8 @@ void test_battle_actor_frame_original_action_data(
     using namespace openswd3::asset_runtime;
     // V2 did not capture the original cache setting; test both provider paths.
     // V3 observed setting 1 only at entry/leave, not at the inner callsite.
+    // V4 observed setting 1 at each nested call and return; only that path
+    // is compared with its already-prepared action-record input.
     for (const u32 cache_mode : {0U, 1U}) {
         LegacyActRuntime runtime{OPENSWD3_REAL_ACT_ROOT};
         runtime.set_cache_limit(0x00080000U);
@@ -50,14 +57,17 @@ void test_battle_actor_frame_original_action_data(
         LegacyActionUpdater updater{provider};
         updater.set_stream_cache_mode(cache_mode);
         const auto compare_record = [&](const ObservedActionRecord& row,
-                                        const char* const capture) {
+                                        const char* const capture,
+                                        const bool already_prepared) {
             LegacyActionRecord record;
             std::memcpy(&record, row.before.data(), sizeof(record));
-            // These are the two parent writes at 0x00479887/0x00479889.
-            // No child replies, stream bytes, or missing register state are
-            // synthesized. This is an action-data diff, not a parent replay.
-            record.action_id = row.profile;
-            record.base_variant = 0x24U;
+            // Only v2/v3 inputs precede these two parent writes. V4 inputs
+            // are captured at the actual nested call, after both writes.
+            // No CPU reply or missing register state is synthesized.
+            if (!already_prepared) {
+                record.action_id = row.profile;
+                record.base_variant = 0x24U;
+            }
             const auto result = updater.update(record);
             const std::string sample = std::string(capture) +
                 " final_group_b action data seq " +
@@ -99,12 +109,16 @@ void test_battle_actor_frame_original_action_data(
         };
 
         for (const auto& row : kObservedV2Records) {
-            compare_record(row, "original v2");
+            compare_record(row, "original v2", false);
         }
 
         if (cache_mode == 1U) {
             for (const auto& row : kObservedV3Records) {
-                compare_record(row, "original v3");
+                compare_record(row, "original v3", false);
+            }
+
+            for (const auto& row : kObservedV4NestedRecords) {
+                compare_record(row, "original v4 nested", true);
             }
         }
     }
@@ -113,7 +127,9 @@ void test_battle_actor_frame_original_action_data(
         << "WP316 original action-data diff: 17 samples, "
         << "both ACT cache settings, 148 bytes and stream availability "
         << "per sample; v3 profile407 34 samples with observed "
-        << "entry/leave cache setting 1; not complete sub_479850 replay.\n";
+        << "entry/leave cache setting 1; v4 profile408 18 nested "
+        << "input/output samples with observed callsite cache setting 1; "
+        << "not CPU replies or complete sub_479850 replay.\n";
 #else
     static_cast<void>(test);
     std::cout << "WP316 original action-data diff not run: "
