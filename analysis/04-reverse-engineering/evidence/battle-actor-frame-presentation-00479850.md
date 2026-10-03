@@ -6368,7 +6368,7 @@ LST后缀、原版栈和动作记录；**没有**将这组原版寄存器数字�
 入口寄存器与异常回复；316最终REVIEW继续未闭合。
 
 第二次v4原版run的78组407/36内层记录、46种原字节记录对、49次等待递减、
-24次DE和5次VO原版返回，以及两处仍缺失的case7父caller静态触发链，
+24次DE和5次VO原版返回，以及两处仍缺失的case7父caller静态调用链，
 见[`battle-actor-frame-v4b-407-audit.md`](battle-actor-frame-v4b-407-audit.md)。
 该run与先前408号run及旧v3 run分开；相关ACT本地受限差分和LST后缀核验
 不构成原版四caller联合复放、生产CPU回复或316验收，仍为`pending_audit`。
