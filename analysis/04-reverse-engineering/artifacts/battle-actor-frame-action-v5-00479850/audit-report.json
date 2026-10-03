@@ -1,0 +1,62 @@
+{
+  "run": "run-20261003-101109-6380",
+  "run_manifest_target_sha256_claim": "4c4c226876fd2f3169bfe62c58ede86bba59e0036b7cef4cfaf7d49475c03f2a",
+  "run_sha256": "52245e2be4e8d2af9d0595eb53737c29c3d6ea4970442c51099f47add0bfd26e",
+  "events_sha256": "639a2f38a7f034ca13d35df2c434c58c1a56959ea3a205ebfdc2d08c7e3540ce",
+  "summary_sha256": "345dfe38a6451aef954fb015fac49767524984cf1a9ab9b273fec52931ff1205",
+  "events": 5274,
+  "event_types": {
+    "call": 527,
+    "frame": 1054,
+    "memory": 3162,
+    "call-return": 527,
+    "list-node": 2,
+    "list-scan": 2
+  },
+  "unique_referenced_snapshots": 3164,
+  "total_files": 3167,
+  "sites": {
+    "final_group_a": 527
+  },
+  "actor_action_words_by_phase": [
+    {
+      "phase": "enter",
+      "main_2a6c": 0,
+      "fallback_2a70": 0,
+      "frames": 527
+    },
+    {
+      "phase": "leave",
+      "main_2a6c": 0,
+      "fallback_2a70": 0,
+      "frames": 527
+    }
+  ],
+  "list_scans": [
+    {
+      "id": 1,
+      "actor": "0x5029d0",
+      "root": "0x3e03470",
+      "complete": true,
+      "count": 2,
+      "values": [
+        32778,
+        0
+      ],
+      "addresses": [
+        "0x3e0f700",
+        "0x3e0f5c0"
+      ]
+    },
+    {
+      "id": 2,
+      "actor": "0x5029d0",
+      "root": "0x3e0f5c0",
+      "complete": true,
+      "count": 0,
+      "values": [],
+      "addresses": []
+    }
+  ],
+  "asset_identity_note": "VM EXE hash taken from manifest, not independently rehashed"
+}
