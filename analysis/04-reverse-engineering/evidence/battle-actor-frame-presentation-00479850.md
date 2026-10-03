@@ -1283,6 +1283,7 @@ CALL站点局部审计：`call-audit.tsv` 的98个物理CALL地址均在实现�
 
 `proc_fec7` LST静态栈检查：249/249可达块、98/98 CALL、22/22 RET、
 9处REP的额外栈字数为零；CALL/RET/CFG汇合栈错误均为零。
+另以[`verify_call_bytes.mjs`](../../tools/battle-actor-frame-call-audit/verify_call_bytes.mjs)直接读取原LST机器码及`build/workpack316/{call,return}-audit.tsv`：92处`E8 rel32`按有符号位移计算的目标、6处`FF D7`间接EDI调用、22处RET的opcode与栈清理量逐一匹配，实测0差异。分别把首条CALL台账目标地址末位加1及首个RET后ESP多写4字节的独立输入，均被校验器拒绝并定位到`0x4798F7/0x47991F`；原始台账未改。该校验仅覆盖物理目标和RET栈合同，不验证每处callee内部语义、异常、C++映射或同run原版差分。
 
 此检查只证明索引与栈深一致，不证明C++逐块语义相等。
 入口组合路由已串联已核对的reset、链节点逐轮解析、update、lookup和default；
