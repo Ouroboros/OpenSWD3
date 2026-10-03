@@ -18,6 +18,14 @@
   "sites": {
     "final_group_a": 527
   },
+  "final_group_a_entry": {
+    "frames_checked": 527,
+    "indices": {
+      "0": 527
+    },
+    "defined_shift_flags_mask": "0x00c5",
+    "stack_return_address": "0x0045aa38"
+  },
   "actor_action_words_by_phase": [
     {
       "phase": "enter",

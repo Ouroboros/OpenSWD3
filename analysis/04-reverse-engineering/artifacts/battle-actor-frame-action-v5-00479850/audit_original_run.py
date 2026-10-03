@@ -96,6 +96,39 @@ for ident, call in calls.items():
         for region in ('stack', 'frame-header', 'list-head-word'):
             assert (ident, phase, region) in regions[ident]
 assert {s['site'] for s in calls.values()} == {'final_group_a'}
+# Compare only this run's observed final-group-A entry state. The captured
+# index happens to be zero; this cannot validate nonzero-index arithmetic.
+entry_indices = Counter()
+for ident, call in calls.items():
+    entry = frames[ident]['enter']
+    registers = entry['registers']
+    actor = int(entry['actor'], 16)
+    offset = actor - 0x5029D0
+    assert offset >= 0 and offset % 0x2F34 == 0, (ident, actor)
+    index = offset // 0x2F34
+    assert index < 10 and call['actor'] == entry['actor'], ident
+    entry_indices[index] += 1
+    before_shift = (index * 3021) & 0xFFFFFFFF
+    shifted = (before_shift << 2) & 0xFFFFFFFF
+    expected_flags = (
+        (1 if before_shift & 0x40000000 else 0) |
+        (4 if bin(shifted & 0xFF).count('1') % 2 == 0 else 0) |
+        (0x40 if shifted == 0 else 0) |
+        (0x80 if shifted & 0x80000000 else 0)
+    )
+    assert int(registers['eip'], 16) == 0x479850, ident
+    assert int(registers['eax'], 16) == (index * 1007) & 0xFFFFFFFF, ident
+    assert int(registers['esi'], 16) == shifted, ident
+    assert int(registers['edi'], 16) == index, ident
+    assert int(registers['ebp'], 16) == actor, ident
+    assert int(registers['ecx'], 16) == actor, ident
+    # SHL leaves AF/OF undefined here; only its defined CF/PF/ZF/SF are tested.
+    assert int(registers['eflags'], 16) & 0xC5 == expected_flags, ident
+    stack_event = regions[ident][(ident, 'enter', 'stack')]
+    assert int(stack_event['address'], 16) == int(registers['esp'], 16), ident
+    stack = (run / stack_event['snapshot_file']).read_bytes()
+    assert int.from_bytes(stack[:4], 'little') == 0x45AA38, ident
+assert entry_indices == {0: 527}, entry_indices
 assert len(nodes) == 1 and len(scans) == 2
 for ident, scan in scans.items():
     these = sorted(nodes.get(ident, []), key=lambda e: e['index'])
@@ -118,6 +151,12 @@ report = {
     'events': len(events), 'event_types': dict(counts),
     'unique_referenced_snapshots': len(references), 'total_files': len(files),
     'sites': dict(Counter(event['site'] for event in calls.values())),
+    'final_group_a_entry': {
+        'frames_checked': sum(entry_indices.values()),
+        'indices': dict(sorted(entry_indices.items())),
+        'defined_shift_flags_mask': '0x00c5',
+        'stack_return_address': '0x0045aa38',
+    },
     'actor_action_words_by_phase': [
         {'phase': phase, 'main_2a6c': main, 'fallback_2a70': fallback,
          'frames': count}
