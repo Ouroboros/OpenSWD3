@@ -5601,8 +5601,9 @@ sequence372在 `0x0047B816 REP STOSD` 清空整个0x98字节slot2，
 两份0x98字节记录，最小夹具、来源及本地六份ACT哈希保存于
 `artifacts/battle-actor-frame-action-00479850/`；夹具SHA-256为
 `1c96aa915b281bfc0e216ddd3df68b7eece84581f594cf5863523acda8e77713`。
-原版VM的ACT文件哈希及 `[0x004FB308]` 缓存设置未捕获，不推断与
-本地文件身份相同，也不将两个设置中的任何一个称为原版实际设置。
+当时未采集原版VM的ACT文件哈希及`[0x004FB308]`缓存设置；用户现明确
+确认VM游戏文件由本地复制，不再将单独VM哈希回传列作前置条件。运行期
+缓存设置仍未捕获，不将两种本地设置中的任一个称为原版实际设置。
 
 新增 `legacy_battle_actor_frame_oracle_action_test.cpp` 使用生产
 `LegacyActRuntime / LegacyActActionStreamProvider / LegacyActionUpdater`，
@@ -6275,7 +6276,8 @@ Stalker的猜测已撤回。另两物理caller、完整子调用回复差分、�
 用户确认已有`build/vm/battle-actor-frame-oracle-v4-output/run-20261003-013720-9352/`。
 `run.json`记录schema4、目标`swd32.exe`及预期SHA、agent与bridge SHA匹配现有v4源码和
 便携包；另独立重算仓库父目录`../swd32.exe`得`4c4c2268…`，与run manifest相同，
-但VM采集路径不同，不能以本地候选证明VM上的同一物理文件。独立按`events.jsonl`
+当时VM采集路径不同，本地候选不能独立证明VM文件字节；用户现确认VM游戏
+由本地复制，不再要求重复计算VM哈希。独立按`events.jsonl`
 逐项核2532个bin文件的大小及SHA，
 4250个事件含419次父调用/返回、404组父帧双端、36次内层调用/返回；所有id、site、
 线程和被采样父序号配对，0文件差异、0捕获错误/异常、0缺失FLAGS。808个
@@ -6365,8 +6367,8 @@ LST后缀、原版栈和动作记录；**没有**将这组原版寄存器数字�
 更新器公开的`cache_hit`对这18次均为true，且原版记录148非指针字节、
 指针可用性及EAX语义1的既有差分仍通过。这核实了**本地预热后**的逻辑
 命中支，与v4观测的原版命中支同类；不证明本地新运行时第一次查询就
-命中，也不证明VM ACT资产字节身份、缓存节点布局/生命周期、guest地址
-或生产CPU/栈/FLAGS回复。无真实caller现场和宿主端口前不接线、不合成
+命中，也不证明原版运行期缓存节点布局/生命周期、guest地址或生产
+CPU/栈/FLAGS回复。无真实caller现场和宿主端口前不接线、不合成
 入口寄存器与异常回复；316最终REVIEW继续未闭合。
 
 第二次v4原版run的78组407/36内层记录、46种原字节记录对、49次等待递减、
