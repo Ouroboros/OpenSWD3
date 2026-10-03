@@ -1119,8 +1119,8 @@ struct LegacyBattleActorFrameCallerPhysicalStop {
 };
 
 struct LegacyBattleActorFrameCallerBinding {
-    // Absence retains the preexisting opaque-port caller for old host tests;
-    // it is not evidence that the typed production caller was exercised.
+    // Action-seven callers without a physical snapshot raise NOTIMPLEMENTED;
+    // controlled host tests must bind a snapshot to exercise their suffix.
     const LegacyBattleActorFrameEntryRequest* caller_snapshot{};
     const LegacyBattleActorFrameEntryRoutePorts* ports{};
     LegacyBattleActorFrameCallerRunResult* observed{};

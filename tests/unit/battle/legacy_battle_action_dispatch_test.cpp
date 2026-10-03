@@ -8,6 +8,7 @@
 #include <cstring>
 #include <deque>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -16,6 +17,9 @@ namespace {
 
 using openswd3::battle::LegacyBattleActionCallReply;
 using openswd3::battle::LegacyBattleActionCallRequest;
+using openswd3::battle::LegacyBattleActionDispatchContext;
+using openswd3::battle::LegacyBattleActorFrameEntryRequest;
+using openswd3::battle::LegacyBattleActorFrameEntryRoutePorts;
 using openswd3::battle::LegacyBattleActionMessageProfile;
 using openswd3::battle::LegacyBattleGroupAActionExecutionSharedState;
 using openswd3::battle::LegacyBattleGroupAActionExecutionState;
@@ -573,6 +577,23 @@ struct Fixture {
     return openswd3::battle::dispatch_legacy_battle_action(
         state, port, context, group_a_index, group_b_index
     );
+}
+
+void bind_ready_group_b_frame(
+    Fixture& fixture,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActorFrameEntryRequest& snapshot,
+    LegacyBattleActorFrameEntryRoutePorts& frame_ports
+) {
+    fixture.startup.enemies[0U].progress.presentation_enabled = 1U;
+    (*fixture.startup.group_b_lifecycle)[0U]
+        .action_configuration.source_runtime_value = 1U;
+    snapshot.entry_esp = 0x00123000U;
+    frame_ports.random = &context.bounded_random;
+    context.actor_frame_action_group_b = {
+        .caller_snapshot = &snapshot,
+        .ports = &frame_ports,
+    };
 }
 
 void set_summon_profile_word(
@@ -4627,6 +4648,32 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
+        state.group_a_count = 1U;
+        state.group_b_count = 1U;
+        Fixture fixture;
+        fixture.attack_order_records[0U].value_00 = 0U;
+        DispatchPort port;
+        port.action = 7U;
+        auto context = fixture.context();
+        bool not_implemented = false;
+        try {
+            static_cast<void>(dispatch(state, port, context, 0U, 0U));
+        } catch (const std::logic_error& error) {
+            not_implemented = std::string{error.what()}.starts_with(
+                "NOTIMPLEMENTED: unbound battle action 7 group-B actor frame"
+            );
+        }
+
+        test.expect_true(
+            not_implemented && port.count(0x00479850U) == 0U &&
+                fixture.attack_order_records[0U].value_00 == 0U &&
+                state.packed_actor_counter == 0U,
+            "unbound action seven raises NOTIMPLEMENTED before opaque frame reply or parent completion"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
         state.group_a_count = 1;
         state.group_b_count = 1;
         state.group_a_to_actor[0] = 0U;
@@ -4634,8 +4681,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         fixture.attack_order_records[0].value_00 = 0U;
         DispatchPort port;
         port.action = 7U;
-        port.push(0x00479850U, {.eax = 1U});
         auto context = fixture.context();
+        LegacyBattleActorFrameEntryRequest snapshot{};
+        LegacyBattleActorFrameEntryRoutePorts frame_ports{};
+        bind_ready_group_b_frame(fixture, context, snapshot, frame_ports);
 
         const auto result = dispatch(state, port, context, 0U, 0U);
 
@@ -4661,8 +4710,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.action = 7U;
-        port.push(0x00479850U, {.eax = 1U});
         auto context = fixture.context();
+        LegacyBattleActorFrameEntryRequest snapshot{};
+        LegacyBattleActorFrameEntryRoutePorts frame_ports{};
+        bind_ready_group_b_frame(fixture, context, snapshot, frame_ports);
         context.actor_action_mode_requests[0].access.argument_readable = false;
         const auto stopped = dispatch(state, port, context, 0U, 0U);
         test.expect_true(
@@ -4853,8 +4904,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         fixture.attack_order_records[0].value_00 = 0U;
         DispatchPort port;
         port.action = 7U;
-        port.push(0x00479850U, {.eax = 1U});
         auto context = fixture.context();
+        LegacyBattleActorFrameEntryRequest snapshot{};
+        LegacyBattleActorFrameEntryRoutePorts frame_ports{};
+        bind_ready_group_b_frame(fixture, context, snapshot, frame_ports);
         context.actor_action_mode_requests[0U].access.return_address_readable =
             false;
 
@@ -4882,8 +4935,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         fixture.attack_order_records[17].value_00 = 0U;
         DispatchPort port;
         port.action = 7U;
-        port.push(0x00479850U, {.eax = 1U});
         auto context = fixture.context();
+        LegacyBattleActorFrameEntryRequest snapshot{};
+        LegacyBattleActorFrameEntryRoutePorts frame_ports{};
+        bind_ready_group_b_frame(fixture, context, snapshot, frame_ports);
         context.attack_order_adjacent_record = nullptr;
 
         const auto result = dispatch(state, port, context, 0U, 0U);
@@ -7198,6 +7253,12 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
             DispatchPort port;
             port.action = action;
             auto context = fixture.context();
+            LegacyBattleActorFrameEntryRequest snapshot{};
+            LegacyBattleActorFrameEntryRoutePorts frame_ports{};
+            if (action == 7U) {
+                bind_ready_group_b_frame(fixture, context, snapshot, frame_ports);
+            }
+
             const auto result = dispatch(state, port, context, 0U, 0U);
             actions_complete = actions_complete &&
                 result.status == LegacyBattleActionDispatchStatus::completed &&

@@ -215,6 +215,7 @@ ZF/PF 置1、CF 置0，但 AF 不定义。`0x00456525 PUSH EBP`
 不改变 FLAGS；下一 `sub_478710` 参数读障应保留该 XOR
 结果，不能误继承 CMP 的 AF。生产
 `legacy_battle_opponent_action_dispatch.cpp` 传入逻辑零 FLAGS；
-定向测试由对手动作 dispatch 抵达参数读障，核返回地址、
-已定义位和 AF 未定义。本局部核对不等于
+定向宿主测试绑定合成父栈、组A角色及子端口，经typed caller返回
+抵达参数读障，核返回地址、已定义位和AF未定义；缺快照时直接抛
+`NOTIMPLEMENTED`，受控回放不作为原版证据。本局部核对不等于
 `sub_479850`、case7 其余后缀或原版差分完成。

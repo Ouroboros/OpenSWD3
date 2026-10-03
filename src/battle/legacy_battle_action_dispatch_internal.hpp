@@ -72,7 +72,6 @@ constexpr u32 kCallSummonMode = 0x0047DAB0U;
 constexpr u32 kCallActionTwentySevenSecondary = 0x004838D0U;
 constexpr u32 kCallSpecialActionUpdate = 0x004831C0U;
 constexpr u32 kCallSpecialTurnFrame = 0x00483B30U;
-constexpr u32 kCallActionSevenReady = 0x00479850U;
 constexpr u32 kCallSimpleActorUpdate = 0x00482310U;
 constexpr u32 kCallActorExit = 0x00482840U;
 constexpr u32 kCallActionFourDirectEffect = 0x0047F940U;

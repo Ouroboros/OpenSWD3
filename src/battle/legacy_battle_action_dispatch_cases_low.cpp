@@ -1,5 +1,7 @@
 #include "legacy_battle_action_dispatch_internal.hpp"
 
+#include <stdexcept>
+
 namespace openswd3::battle::action_dispatch_detail {
 
 LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
@@ -755,14 +757,11 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             reply.eax = caller.eax;
             reply.edx = caller.edx;
         } else {
-            reply = invoke(
-                state,
-                port,
-                result,
-                kCallActionSevenReady,
-                {group_b_token(group_b_index)}
-            );
+            throw std::logic_error{
+                "NOTIMPLEMENTED: unbound battle action 7 group-B actor frame"
+            };
         }
+
         if (reply.eax != 1U) {
             return result;
         }

@@ -6353,7 +6353,9 @@ LST后缀、原版栈和动作记录；**没有**将这组原版寄存器数字�
 `479850`战斗父函数已绑定。`LegacyBattleActionDispatchContext`的四个
 `actor_frame_*`绑定默认为空；`src/battle/legacy_battle_action_dispatch_cases_low.cpp`
 和`legacy_battle_opponent_action_dispatch.cpp`仅在提供caller现场时才调用
-`advance_legacy_battle_actor_frame_caller`，最终组A/B同理。
+`advance_legacy_battle_actor_frame_caller`，最终组A/B同理。当前case7
+两处缺现场时直接抛`NOTIMPLEMENTED`，不以不受原版确认的opaque回包
+假装父调用正常返回；受控宿主测试需绑定合成父栈和必要子端口。
 `src/platform/sdl3/main.cpp`没有提供这些caller现场或`EntryRoutePorts`；
 当前战斗脚本`frame`回调只返回EAX=1，不能视为父函数执行。上述为源码
 接线审计，不从自有PE/宿主模拟反推原版四caller已覆盖。

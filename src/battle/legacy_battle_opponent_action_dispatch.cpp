@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <bit>
 #include <cstring>
+#include <stdexcept>
 
 namespace openswd3::battle {
 namespace {
@@ -26,7 +27,6 @@ constexpr u32 kCallAllocate = 0x00489E90U;
 constexpr u32 kCallDelete = 0x00489D00U;
 constexpr u32 kCallFinishTargetPhase = 0x004841B0U;
 constexpr u32 kCallClearMode = 0x0047D870U;
-constexpr u32 kCallTargetComplete = 0x00479850U;
 constexpr u32 kCallActionTen = 0x0047F3C0U;
 constexpr u32 kCallQueryModeB = 0x0047C950U;
 constexpr u32 kCallQueryModeC = 0x0047C6B0U;
@@ -804,10 +804,11 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             target_complete.eax = caller.eax;
             target_complete.edx = caller.edx;
         } else {
-            target_complete = invoke(
-                state, port, result, kCallTargetComplete, {target_token}
-            );
+            throw std::logic_error{
+                "NOTIMPLEMENTED: unbound battle action 7 group-A opponent frame"
+            };
         }
+
         if (target_complete.eax != 1U) {
             return result;
         }

@@ -275,7 +275,9 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 `sub_478710` 的参数首读障时必须保持 ZF=1、CF=0、AF 已定义且为0，
 不能把 CMP 替换成 `TEST`/逻辑零标志（AF 未定义）。
 `legacy_battle_action_dispatch_cases_low.cpp` 在该物理 caller
-使用 `subtract_flags(reply.eax,1)`；定向用例由 dispatch
-生产入口抵达动作模式参数读障，并核返回地址和 FLAGS。
+使用 `subtract_flags(reply.eax,1)`；定向宿主用例绑定合成父栈、
+组B角色与子端口，由typed caller正常返回后抵达动作模式参数读障，
+并核返回地址和FLAGS。未绑定快照时直接抛`NOTIMPLEMENTED`；
+受控回放不作为原版动作7证据。
 此结论只覆盖该 caller 的局部后缀，不替代
 `sub_479850` 的完整 REVIEW 或原版差分。

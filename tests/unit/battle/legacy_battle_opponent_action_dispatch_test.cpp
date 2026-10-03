@@ -6,6 +6,7 @@
 #include <array>
 #include <deque>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -14,6 +15,9 @@ namespace {
 
 using openswd3::battle::LegacyBattleActionCallReply;
 using openswd3::battle::LegacyBattleActionCallRequest;
+using openswd3::battle::LegacyBattleActionDispatchContext;
+using openswd3::battle::LegacyBattleActorFrameEntryRequest;
+using openswd3::battle::LegacyBattleActorFrameEntryRoutePorts;
 using openswd3::battle::LegacyBattleMonDatabasePort;
 using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply;
 using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallRequest;
@@ -334,6 +338,24 @@ struct Fixture {
     return openswd3::battle::dispatch_legacy_battle_opponent_action(
         state, port, context, group_b_index, caller_group_a_index
     );
+}
+
+void bind_ready_group_a_frame(
+    Fixture& fixture,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActorFrameEntryRequest& snapshot,
+    LegacyBattleActorFrameEntryRoutePorts& frame_ports,
+    const u32 target_index
+) {
+    fixture.startup->party[target_index].progress.presentation_enabled = 1U;
+    fixture.startup->party[target_index]
+        .configuration.source_runtime_value = 1U;
+    snapshot.entry_esp = 0x00132000U;
+    frame_ports.random = &context.bounded_random;
+    context.actor_frame_opponent_group_a = {
+        .caller_snapshot = &snapshot,
+        .ports = &frame_ports,
+    };
 }
 
 [[nodiscard]] bool has_call_argument(
@@ -1189,6 +1211,29 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyBattleActionDispatchState state;
+        state.active_target_code = 4U;
+        Fixture fixture;
+        DispatchPort port;
+        port.action = 7U;
+        auto context = fixture.context();
+        bool not_implemented = false;
+        try {
+            static_cast<void>(dispatch(state, port, context, 0U, 0U));
+        } catch (const std::logic_error& error) {
+            not_implemented = std::string{error.what()}.starts_with(
+                "NOTIMPLEMENTED: unbound battle action 7 group-A opponent frame"
+            );
+        }
+
+        test.expect_true(
+            not_implemented && port.count(0x00479850U) == 0U &&
+                state.active_target_code == 4U,
+            "unbound opponent action seven raises NOTIMPLEMENTED before opaque frame reply or target completion"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
         state.active_target_code = 7U;
         state.active_effect_target = 7U;
         state.active_effect_gate = 9U;
@@ -1198,6 +1243,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 7U;
         auto context = fixture.context();
+        LegacyBattleActorFrameEntryRequest snapshot{};
+        LegacyBattleActorFrameEntryRoutePorts frame_ports{};
+        bind_ready_group_a_frame(fixture, context, snapshot, frame_ports, 3U);
         const auto result = dispatch(state, port, context, 0U, 3U);
         test.expect_true(
             result.return_value == 1U &&
@@ -1219,6 +1267,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 7U;
         auto context = fixture.context();
+        LegacyBattleActorFrameEntryRequest snapshot{};
+        LegacyBattleActorFrameEntryRoutePorts frame_ports{};
+        bind_ready_group_a_frame(fixture, context, snapshot, frame_ports, 0U);
         context.actor_action_mode_requests[0].access.argument_readable = false;
         const auto stopped = dispatch(state, port, context, 0U, 0U);
         test.expect_true(
@@ -1789,6 +1840,14 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             DispatchPort port;
             port.action = action;
             auto context = fixture.context();
+            LegacyBattleActorFrameEntryRequest snapshot{};
+            LegacyBattleActorFrameEntryRoutePorts frame_ports{};
+            if (action == 7U) {
+                bind_ready_group_a_frame(
+                    fixture, context, snapshot, frame_ports, 0U
+                );
+            }
+
             const auto result = dispatch(state, port, context, 0U, 0U);
             valid_cases_complete = valid_cases_complete &&
                 result.status == LegacyBattleActionDispatchStatus::completed &&
