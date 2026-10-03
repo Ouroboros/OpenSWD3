@@ -7,9 +7,9 @@
 #include <bit>
 #include <cstddef>
 #include <deque>
+#include <filesystem>
 #include <optional>
 #include <span>
-#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -230,7 +230,7 @@ public:
     u32 definition_text_size_query_calls{};
     u32 definition_text_allocation_calls{};
     u32 definition_text_release_calls{};
-    std::string opened_path;
+    std::filesystem::path opened_path;
     std::vector<u16> requested_profile_ids;
     std::vector<u32> requested_definition_ids;
     std::vector<battle::LegacyBattleMonDatabaseCallRequest> calls;

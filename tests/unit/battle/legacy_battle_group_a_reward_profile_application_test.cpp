@@ -5,6 +5,8 @@
 #include <array>
 #include <cstddef>
 #include <deque>
+#include <limits>
+#include <string>
 #include <vector>
 
 namespace {
@@ -355,6 +357,93 @@ void test_battle_group_a_reward_profile_application(
                 state.nodes.front().quantity == 21U &&
                 state.nodes.front().percentage == 419U,
             "reward percentage preserves the x87 intermediate division rounding below an exact mathematical integer"
+        );
+    }
+
+#if defined(__x86_64__) && !defined(_WIN32)
+    test.expect_true(
+        std::numeric_limits<long double>::digits == 64,
+        "Linux x86-64 supplies the x87-significand reference for the percentage grid"
+    );
+#endif
+
+    if (std::numeric_limits<long double>::digits == 64) {
+        bool matches_x87 = true;
+        u32 comparisons = 0U;
+        u32 failing_quantity = 0U;
+        u32 failing_maximum = 0U;
+        u32 actual = 0U;
+        u32 expected = 0U;
+        const auto compare = [&](const u16 quantity, const u16 maximum) {
+            ++comparisons;
+            const auto source = profiles(7U, maximum);
+            LegacyBattleGroupARewardProfileState state;
+            state.head.item_id = 1U;
+            AllocationPort port;
+            port.replies.push_back({.eax = 0x00600000U});
+            const auto result = apply_legacy_battle_group_a_reward_profiles(
+                &state,
+                &source,
+                actor_token,
+                kLegacyBattleGroupARewardProfileListToken,
+                port,
+                {.quantity = quantity}
+            );
+            volatile long double reference =
+                static_cast<long double>(quantity);
+            reference /= static_cast<long double>(maximum);
+            reference *= static_cast<long double>(100.0F);
+            expected = static_cast<u16>(static_cast<u32>(reference));
+            actual = state.nodes.empty()
+                ? 0U
+                : state.nodes.front().percentage;
+            if (result.status !=
+                    LegacyBattleGroupARewardProfileApplicationStatus::
+                        completed ||
+                state.nodes.size() != 1U || actual != expected) {
+                matches_x87 = false;
+                failing_quantity = quantity;
+                failing_maximum = maximum;
+            }
+        };
+
+        for (u32 maximum = 1U; maximum <= 255U && matches_x87;
+             ++maximum) {
+            for (u32 quantity = 0U; quantity <= 255U && matches_x87;
+                 ++quantity) {
+                compare(static_cast<u16>(quantity), static_cast<u16>(maximum));
+            }
+        }
+
+        constexpr std::array<u16, 10> high_maxima{
+            1U, 2U, 4U, 5U, 10U, 20U, 25U, 50U, 100U, 65535U,
+        };
+        for (const u16 maximum : high_maxima) {
+            for (u32 quantity = 257U; quantity <= 65535U && matches_x87;
+                 quantity += 257U) {
+                compare(static_cast<u16>(quantity), maximum);
+            }
+        }
+
+        constexpr std::array<u16, 5> power_quantities{
+            256U, 512U, 1024U, 32768U, 65535U,
+        };
+        for (const u16 maximum : high_maxima) {
+            for (const u16 quantity : power_quantities) {
+                if (matches_x87) {
+                    compare(quantity, maximum);
+                }
+            }
+        }
+
+        test.expect_true(
+            matches_x87 && comparisons == 67880U,
+            std::string{"portable x87 percentage grid comparisons="} +
+                std::to_string(comparisons) + " q=" +
+                std::to_string(failing_quantity) + " max=" +
+                std::to_string(failing_maximum) + " actual=" +
+                std::to_string(actual) + " expected=" +
+                std::to_string(expected)
         );
     }
 

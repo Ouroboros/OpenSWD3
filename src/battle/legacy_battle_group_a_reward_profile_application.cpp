@@ -1,7 +1,7 @@
 #include "openswd3/battle/legacy_battle_group_a_reward_profile_application.hpp"
 
+#include <bit>
 #include <cstddef>
-#include <cstdint>
 #include <new>
 
 namespace openswd3::battle {
@@ -43,14 +43,57 @@ percentage_registers(const u16 quantity, const u16 maximum) noexcept {
     if (maximum == 0U) {
         return {.eax = 0U, .edx = 0x80000000U};
     }
-    volatile long double value = static_cast<long double>(quantity);
-    value /= static_cast<long double>(maximum);
-    value *= static_cast<long double>(100.0F);
-    const auto truncated = static_cast<std::uint64_t>(value);
-    return {
-        .eax = static_cast<u32>(truncated),
-        .edx = static_cast<u32>(truncated >> 32U),
-    };
+
+    const u32 product = static_cast<u32>(quantity) * 100U;
+    u32 integer = product / maximum;
+    if (quantity == 0U || product % maximum != 0U) {
+        return {.eax = integer};
+    }
+
+    // FILD/FIDIV rounds the normalized quotient to 64 significand bits.
+    // Only an integral mathematical product can cross an integer boundary
+    // after FMUL 100; nonintegral products are farther from a boundary than
+    // either x87 rounding error for these 16-bit operands.
+    u32 numerator = quantity;
+    u32 denominator = maximum;
+    int exponent = 0;
+    while (numerator < denominator) {
+        numerator <<= 1U;
+        --exponent;
+    }
+
+    while (numerator >= denominator * 2U) {
+        denominator <<= 1U;
+        ++exponent;
+    }
+
+    u32 remainder = numerator - denominator;
+    u32 last_bit = 0U;
+    for (u32 bit = 0U; bit < 63U; ++bit) {
+        remainder <<= 1U;
+        last_bit = remainder >= denominator ? 1U : 0U;
+        if (last_bit != 0U) {
+            remainder -= denominator;
+        }
+    }
+
+    const u32 twice_remainder = remainder * 2U;
+    const bool division_rounded_down = remainder != 0U &&
+        (twice_remainder < denominator ||
+         (twice_remainder == denominator && last_bit == 0U));
+    if (division_rounded_down) {
+        const int result_exponent = std::bit_width(integer) - 1;
+        // At an exact power of two, the ULP immediately below is half the
+        // spacing above; FMUL ties round to the even integer significand.
+        const int half_ulp_shift = result_exponent - exponent -
+            (std::has_single_bit(integer) ? 2 : 1);
+        if (100U * remainder >
+            (denominator << static_cast<unsigned>(half_ulp_shift))) {
+            --integer;
+        }
+    }
+
+    return {.eax = integer};
 }
 
 [[nodiscard]] LegacyBattleGroupARewardProfileNode* find_node_by_token(
