@@ -10,6 +10,7 @@ namespace openswd3::battle {
 class LegacyBattleActionDispatchPort;
 class LegacyBattleFrameCoordinatorPort;
 class LegacyBattleStartupPort;
+struct LegacyBattleStartupState;
 
 struct LegacyBattleActorMetricState {
     std::array<compat::i32, 18> values{};
@@ -126,6 +127,32 @@ struct LegacyBattleActorOrderResult {
     compat::u32 mask_reads{};
     compat::u32 mask_writes{};
 };
+
+// SDL splits the original two physical 0x0053BCE0/E4 globals between
+// startup and metric views. Refresh only the metric view at the frame
+// boundary from the live startup owner, after any intervening script writes.
+void bind_legacy_battle_actor_counts_for_frame(
+    const LegacyBattleStartupState& startup,
+    LegacyBattleActorMetricState& metrics
+) noexcept;
+
+// 0x0045B0E4..0x0045B0FE: two forward 18-dword clears, before the
+// first group-B count read. The counts and adjacent state are untouched.
+void clear_legacy_battle_actor_metric_tables(
+    LegacyBattleActorMetricState& state
+) noexcept;
+
+enum class LegacyBattleMetricFirstCountStatus : compat::u8 {
+    read_group_a_count,
+    query_first_group_b_actor,
+};
+
+// 0x0045B0FE..0x0045B11F: read the live startup count, never the metric
+// port's unbound default copy. Both branches stop before their next read/CALL.
+[[nodiscard]] LegacyBattleMetricFirstCountStatus
+probe_legacy_battle_metric_first_count(
+    const compat::u32& group_b_count
+) noexcept;
 
 [[nodiscard]] LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
     LegacyBattleActionDispatchPort& port,

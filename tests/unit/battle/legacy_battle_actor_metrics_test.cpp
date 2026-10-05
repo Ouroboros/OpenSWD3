@@ -54,11 +54,68 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActorCoordinateQueryStatus;
     using openswd3::battle::LegacyBattleActorGroupBElementState;
     using openswd3::battle::LegacyBattleActorMetricStatus;
+    using openswd3::battle::LegacyBattleMetricFirstCountStatus;
     using openswd3::battle::LegacyBattleActorOrderStatus;
     using openswd3::battle::LegacyBattleStartupState;
+    using openswd3::battle::bind_legacy_battle_actor_counts_for_frame;
     using openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken;
+    using openswd3::battle::probe_legacy_battle_metric_first_count;
     using openswd3::battle::rebuild_legacy_battle_actor_metrics;
     using openswd3::battle::rebuild_legacy_battle_actor_order;
+
+    {
+        LegacyBattleStartupState startup;
+        openswd3::battle::LegacyBattleActorMetricState metrics;
+        metrics.values[0U] = 17;
+        metrics.selected_mask[0U] = 0x12345678U;
+        startup.enemy_count = 1U;
+        startup.party_count = 1U;
+        bind_legacy_battle_actor_counts_for_frame(startup, metrics);
+        const bool initial_counts =
+            metrics.group_b_count == 1U && metrics.group_a_count == 1U;
+        startup.enemy_count = 2U;
+        startup.party_count = 3U;
+        bind_legacy_battle_actor_counts_for_frame(startup, metrics);
+        test.expect_true(
+            initial_counts && metrics.group_b_count == 2U &&
+                metrics.group_a_count == 3U && metrics.values[0U] == 17 &&
+                metrics.selected_mask[0U] == 0x12345678U,
+            "battle frame uses live startup counts after script writes rather than default-zero metric copies"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorMetricState state;
+        state.values.fill(-17);
+        state.actor_order.fill(0xFFFFFFFFU);
+        state.selected_mask[0U] = 0x12345678U;
+        state.group_b_count = 1U;
+        state.group_a_count = 2U;
+        openswd3::battle::clear_legacy_battle_actor_metric_tables(state);
+        test.expect_true(
+            probe_legacy_battle_metric_first_count(state.group_b_count) ==
+                    LegacyBattleMetricFirstCountStatus::
+                        query_first_group_b_actor &&
+                probe_legacy_battle_metric_first_count(0U) ==
+                    LegacyBattleMetricFirstCountStatus::read_group_a_count &&
+                probe_legacy_battle_metric_first_count(0x80000000U) ==
+                    LegacyBattleMetricFirstCountStatus::
+                        query_first_group_b_actor,
+            "live group-B count selects the first coordinate call; zero branches to the group-A count and high-bit counts are unsigned"
+        );
+        test.expect_true(
+            std::ranges::all_of(
+                state.values, [](const auto value) { return value == 0; }
+            ) &&
+                std::ranges::all_of(
+                    state.actor_order,
+                    [](const auto value) { return value == 0U; }
+                ) &&
+                state.selected_mask[0U] == 0x12345678U &&
+                state.group_b_count == 1U && state.group_a_count == 2U,
+            "metric frame clears both eighteen-dword tables before reading counts without clearing adjacent state"
+        );
+    }
 
     {
         SharedActorMetricPort port;

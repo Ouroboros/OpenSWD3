@@ -72,8 +72,7 @@ template <typename Call>
 [[nodiscard]] LegacyBattleActorMetricResult
 rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
     LegacyBattleActorMetricResult result;
-    std::ranges::fill(state.values, 0);
-    std::ranges::fill(state.actor_order, 0U);
+    clear_legacy_battle_actor_metric_tables(state);
     state.local_word = static_cast<u16>(state.entry_ecx);
     state.local_byte = static_cast<u16>(state.entry_ecx >> 16U);
 
@@ -238,6 +237,29 @@ rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
 }
 
 }  // namespace
+
+void bind_legacy_battle_actor_counts_for_frame(
+    const LegacyBattleStartupState& startup,
+    LegacyBattleActorMetricState& metrics
+) noexcept {
+    metrics.group_b_count = startup.enemy_count;
+    metrics.group_a_count = startup.party_count;
+}
+
+void clear_legacy_battle_actor_metric_tables(
+    LegacyBattleActorMetricState& state
+) noexcept {
+    std::ranges::fill(state.values, 0);
+    std::ranges::fill(state.actor_order, 0U);
+}
+
+LegacyBattleMetricFirstCountStatus probe_legacy_battle_metric_first_count(
+    const compat::u32& group_b_count
+) noexcept {
+    return group_b_count == 0U
+        ? LegacyBattleMetricFirstCountStatus::read_group_a_count
+        : LegacyBattleMetricFirstCountStatus::query_first_group_b_actor;
+}
 
 LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
     LegacyBattleActionDispatchPort& port,
