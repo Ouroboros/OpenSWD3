@@ -107,6 +107,35 @@ void restore_legacy_save_controlled_role_words(
     destination.action.variant_delta = source.selected_role_words[4U];
 }
 
+LegacySaveWorldLoadResult prepare_legacy_save_world_load(
+    const resource_io::LegacySaveContainer& save,
+    const std::span<compat::u8> maps_payload,
+    LegacyMapsWorldDatabase& database
+) {
+    const auto entry = read_legacy_save_world_entry(save);
+    LegacySaveWorldLoadResult result{
+        .load = {
+            .logical_map_id = entry.logical_map_id,
+            .tile_x = entry.selected_role_words[0U],
+            .tile_y = entry.selected_role_words[1U],
+            .action_id =
+                static_cast<compat::u16>(entry.selected_role_words[2U]),
+            .base_variant =
+                static_cast<compat::u16>(entry.selected_role_words[3U]),
+            .variant_delta =
+                static_cast<compat::u16>(entry.selected_role_words[4U]),
+            .selected_guid = static_cast<compat::u16>(entry.selected_guid),
+            .load_flags = 0U,
+        },
+    };
+    result.role_sources =
+        restore_legacy_save_role_sources(save, maps_payload, database);
+    if (result.role_sources.status != LegacyMapsRolePatchStatus::ready) {
+        result.status = LegacySaveWorldLoadStatus::role_source_failed;
+    }
+    return result;
+}
+
 LegacySaveWorldExtensionA read_legacy_save_world_extension_a(
     const resource_io::LegacySaveContainer& save
 ) noexcept {
@@ -226,6 +255,17 @@ LegacySaveRoleSourcesResult restore_legacy_save_role_sources(
     return result;
 }
 
+LegacySaveStoryPrefixStatus restore_legacy_save_story_flags(
+    const resource_io::LegacySaveContainer& save, LegacyWorldStoryVmState& story
+) noexcept {
+    const auto& flags = save.blocks[0U].bytes;
+    if (flags.size() < story.flags.size()) {
+        return LegacySaveStoryPrefixStatus::missing_block_bytes;
+    }
+    std::copy_n(flags.begin(), story.flags.size(), story.flags.begin());
+    return LegacySaveStoryPrefixStatus::ready;
+}
+
 LegacySaveStoryPrefixStatus restore_legacy_save_story_prefix(
     const resource_io::LegacySaveContainer& save, LegacyWorldStoryVmState& story
 ) noexcept {
@@ -246,7 +286,7 @@ LegacySaveStoryPrefixStatus restore_legacy_save_story_prefix(
         return LegacySaveStoryPrefixStatus::missing_block_bytes;
     }
 
-    std::copy_n(flags.begin(), story.flags.size(), story.flags.begin());
+    static_cast<void>(restore_legacy_save_story_flags(save, story));
     story.script_clock = read_word(state, 0U);
     for (std::size_t index = 0U; index < story.script_variables.size();
          ++index) {
@@ -261,6 +301,12 @@ LegacySaveStoryPrefixStatus restore_legacy_save_story_prefix(
         kPartyResourcesSize
     );
     return LegacySaveStoryPrefixStatus::ready;
+}
+
+void reset_legacy_save_talk_context(LegacyWorldTalkContext& context) noexcept {
+    static_assert(std::is_trivially_copyable_v<LegacyWorldTalkContext>);
+    static_assert(sizeof(LegacyWorldTalkContext) == 0x36U * 4U);
+    std::memset(&context, 0xFF, sizeof(context));
 }
 
 }  // namespace openswd3::world_map

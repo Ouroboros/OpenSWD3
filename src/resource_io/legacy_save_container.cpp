@@ -95,6 +95,7 @@ read_legacy_save_container(const std::span<const compat::u8> bytes) {
     if (result.status != LegacySaveContainerStatus::ready) {
         return result;
     }
+    save.block_present[0U] = true;
     result.status = decode(1U);
     if (result.status != LegacySaveContainerStatus::ready ||
         !read_raw(bytes, offset, save.raw_after_primary)) {
@@ -103,15 +104,44 @@ read_legacy_save_container(const std::span<const compat::u8> bytes) {
         }
         return result;
     }
-    result.status = decode(2U, false, 2U);
-    if (result.status != LegacySaveContainerStatus::ready ||
-        !read_raw(bytes, offset, save.extension_a) ||
-        !read_raw(bytes, offset, save.extension_b)) {
-        if (result.status == LegacySaveContainerStatus::ready) {
-            result.status = LegacySaveContainerStatus::truncated;
-        }
+    save.block_present[1U] = true;
+    // 0x00408507 compares the end of the seven raw words with the file size.
+    if (offset == bytes.size()) {
+        save.consumed_bytes = offset;
         return result;
     }
+
+    result.status = decode(2U, false, 2U);
+    if (result.status != LegacySaveContainerStatus::ready) {
+        return result;
+    }
+    save.block_present[2U] = true;
+    if (offset == bytes.size()) {
+        save.consumed_bytes = offset;
+        return result;
+    }
+
+    // Each subsequent EOF gate skips the remaining version extensions.
+    if (!read_raw(bytes, offset, save.extension_a)) {
+        result.status = LegacySaveContainerStatus::truncated;
+        return result;
+    }
+    save.extension_a_present = true;
+    if (offset == bytes.size()) {
+        save.consumed_bytes = offset;
+        return result;
+    }
+
+    if (!read_raw(bytes, offset, save.extension_b)) {
+        result.status = LegacySaveContainerStatus::truncated;
+        return result;
+    }
+    save.extension_b_present = true;
+    if (offset == bytes.size()) {
+        save.consumed_bytes = offset;
+        return result;
+    }
+
     if (offset > bytes.size() || 4U > bytes.size() - offset) {
         result.status = LegacySaveContainerStatus::truncated;
         return result;
@@ -127,15 +157,27 @@ read_legacy_save_container(const std::span<const compat::u8> bytes) {
         result.status = LegacySaveContainerStatus::invalid_length;
         return result;
     }
+    save.block_present[3U] = true;
+    if (offset == bytes.size()) {
+        save.consumed_bytes = offset;
+        return result;
+    }
+
     if (!read_raw(bytes, offset, save.extension_c)) {
         result.status = LegacySaveContainerStatus::truncated;
         return result;
     }
-    result.status = decode(4U, false, 0U);
-    if (result.status != LegacySaveContainerStatus::ready) {
+    save.extension_c_present = true;
+    if (offset == bytes.size()) {
+        save.consumed_bytes = offset;
         return result;
     }
-    save.consumed_bytes = offset;
+
+    result.status = decode(4U, false, 0U);
+    if (result.status == LegacySaveContainerStatus::ready) {
+        save.block_present[4U] = true;
+        save.consumed_bytes = offset;
+    }
     return result;
 }
 

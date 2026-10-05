@@ -5,9 +5,12 @@
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
+#include "openswd3/resource_io/legacy_save_container.hpp"
+#include "openswd3/world_map/legacy_world_save_restore.hpp"
 #include "openswd3/world_map/legacy_world_direction_adjustment.hpp"
 #include "openswd3/world_map/legacy_world_direction_input.hpp"
 #include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
+#include "openswd3/world_map/legacy_world_player_control.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
 
@@ -1221,6 +1224,191 @@ void test_real_initial_world(
     );
 }
 
+void test_real_saved_world(
+    openswd3::test::Context& test,
+    const std::filesystem::path& data_root,
+    const unsigned slot
+) {
+    std::ifstream save_file(
+        data_root / "Save" / (std::to_string(slot) + ".sav"), std::ios::binary
+    );
+    const std::vector<u8> save_bytes{
+        std::istreambuf_iterator<char>{save_file},
+        std::istreambuf_iterator<char>{},
+    };
+    const auto save =
+        openswd3::resource_io::read_legacy_save_container(save_bytes);
+    test.expect_equal(
+        save.status,
+        openswd3::resource_io::LegacySaveContainerStatus::ready,
+        "real saved-world test decodes the selected original save"
+    );
+    if (save.status !=
+        openswd3::resource_io::LegacySaveContainerStatus::ready) {
+        return;
+    }
+
+    std::ifstream maps_file(data_root / "MAPS.DAT", std::ios::binary);
+    const std::vector<u8> maps_bytes{
+        std::istreambuf_iterator<char>{maps_file},
+        std::istreambuf_iterator<char>{},
+    };
+    if (maps_bytes.size() <= 0x200U) {
+        test.expect_true(false, "real saved world requires MAPS.DAT");
+        return;
+    }
+    std::vector<u8> payload(maps_bytes.begin() + 0x200, maps_bytes.end());
+    auto decoded = decode_legacy_maps_world_database(payload);
+    if (decoded.status != LegacyMapsWorldDatabaseStatus::ready) {
+        test.expect_true(false, "real saved MAPS database must decode");
+        return;
+    }
+    const auto prepared = openswd3::world_map::prepare_legacy_save_world_load(
+        save.container, payload, decoded.database
+    );
+    const auto items =
+        openswd3::world_map::read_legacy_save_u16_prefix(save.container);
+    if (prepared.status !=
+            openswd3::world_map::LegacySaveWorldLoadStatus::ready ||
+        !items.complete) {
+        test.expect_true(false, "real saved MAPS and items must parse");
+        return;
+    }
+    const auto overrides = openswd3::world_map::read_legacy_save_map_overrides(
+        save.container, items.prefix.consumed_bytes
+    );
+    if (!overrides.complete) {
+        test.expect_true(false, "real saved object list must parse");
+        return;
+    }
+    const auto applied = openswd3::world_map::apply_legacy_save_map_overrides(
+        payload, overrides.records
+    );
+    if (applied.status !=
+        openswd3::world_map::LegacySaveMapOverrideApplyStatus::ready) {
+        test.expect_true(false, "real saved MAPS objects must apply");
+        return;
+    }
+
+    TestTree tree;
+    openswd3::asset_runtime::LegacyActRuntime act_runtime{data_root};
+    openswd3::asset_runtime::LegacyActActionStreamProvider provider{
+        act_runtime
+    };
+    openswd3::asset_runtime::LegacyActionUpdater updater{provider};
+    LegacyWorldActionUpdaterInitializer action_initializer{updater};
+    auto loaded = load_legacy_world_runtime_session(
+        payload,
+        LegacyWorldRuntimeSessionRequest{
+            .archive_path = data_root / "huge.lmf",
+            .cache_directory = tree.root() / "cache" / "saved-map",
+            .load = prepared.load,
+            .cache_limit_megabytes = 60U,
+            .pixel_conversion = rgb565_conversion(),
+        },
+        action_initializer
+    );
+    test.expect_equal(
+        loaded.status,
+        LegacyWorldRuntimeSessionStatus::ready,
+        "original MAPS role and object changes load the saved map"
+    );
+    if (loaded.status != LegacyWorldRuntimeSessionStatus::ready) {
+        return;
+    }
+    auto& saved_map = loaded.session.render.map_load.session;
+    auto& roles = saved_map.business.state.roles;
+    auto& selected = roles[loaded.session.selected_role_index];
+    if (slot == 1U) {
+        test.expect_true(
+            loaded.session.logical_map_id == 24U && selected.guid == 1U &&
+                selected.world_x == 60U * 16U &&
+                selected.world_y == 29U * 16U &&
+                selected.action.action_id == 1U &&
+                selected.action.base_variant == 0U &&
+                selected.action.variant_delta == 3U,
+            "Save/1.sav restores the reported map and saved player position"
+        );
+        openswd3::world_map::LegacyWorldTalkContext talk;
+        openswd3::world_map::reset_legacy_save_talk_context(talk);
+        std::array<openswd3::input_time_rng::LegacyInputRecord, 20U> inputs{};
+        inputs[12U].rapid_press_multiplicity = 1U;
+        inputs[12U].held_sample_count = 1U;
+        inputs[6U].rapid_press_multiplicity = 1U;
+        inputs[6U].held_sample_count = 1U;
+        openswd3::world_map::LegacyWorldPlayerControlState control_state;
+        const auto control =
+            openswd3::world_map::prepare_legacy_world_player_control(
+                {}, inputs, control_state
+            );
+        test.expect_true(
+            control.control_allowed &&
+                openswd3::world_map::should_request_legacy_world_menu(
+                    control, talk
+                ),
+            "Save/1.sav idle Talk permits ordinary control and the game menu"
+        );
+        auto direction =
+            openswd3::world_map::apply_legacy_world_direction_input(
+                {.direction = selected.action.variant_delta}, inputs, false, 0U
+            );
+        const auto adjusted =
+            openswd3::world_map::adjust_legacy_world_direction_for_obstacles(
+                selected,
+                direction.delta_x,
+                direction.delta_y,
+                saved_map.header.width,
+                saved_map.header.height,
+                saved_map.surface_grid.surface_grid
+            );
+        direction.delta_x = adjusted.delta_x;
+        direction.delta_y = adjusted.delta_y;
+        const auto bounds =
+            openswd3::world_map::compute_legacy_world_movement_bounds(
+                selected,
+                loaded.session.camera,
+                saved_map.header.width,
+                saved_map.header.height
+            );
+        openswd3::world_map::LegacyWorldMovementRuntimeState movement;
+        openswd3::world_map::apply_legacy_world_player_motion_state(
+            selected,
+            direction,
+            bounds,
+            movement,
+            {.base_movement_step =
+                 loaded.session.map_descriptor_runtime.base_movement_step}
+        );
+        openswd3::world_map::advance_legacy_world_player_and_camera(
+            selected, loaded.session.camera, movement
+        );
+        test.expect_true(
+            direction.status ==
+                    openswd3::world_map::LegacyWorldDirectionInputStatus::
+                        completed &&
+                adjusted.status ==
+                    openswd3::world_map::LegacyWorldDirectionProbeStatus::
+                        completed &&
+                direction.delta_x == 0 && direction.delta_y == 1 &&
+                movement.movement_step != 0U && selected.world_x == 60U * 16U &&
+                selected.world_y == 29U * 16U + movement.movement_step,
+            "Save/1.sav accepts down input and advances the player on map 24"
+        );
+        return;
+    }
+
+    test.expect_true(
+        prepared.role_sources.records_matched == 1371U &&
+            applied.records_written == 324U &&
+            loaded.session.logical_map_id == 40U && selected.guid == 1U &&
+            selected.world_x == 17U * 16U && selected.world_y == 24U * 16U &&
+            selected.action.action_id == 1U &&
+            selected.action.base_variant == 0U &&
+            selected.action.variant_delta == 0U,
+        "Save/0.sav materializes selected GUID one at its saved map position"
+    );
+}
+
 }  // namespace
 
 int main(const int argc, char** argv) {
@@ -1231,6 +1419,16 @@ int main(const int argc, char** argv) {
     test_explicit_failure_boundaries(test);
     if (argc == 2) {
         test_real_initial_world(test, argv[1]);
+        if (std::filesystem::exists(
+                std::filesystem::path{argv[1]} / "Save" / "0.sav"
+            )) {
+            test_real_saved_world(test, argv[1], 0U);
+        }
+        if (std::filesystem::exists(
+                std::filesystem::path{argv[1]} / "Save" / "1.sav"
+            )) {
+            test_real_saved_world(test, argv[1], 1U);
+        }
     }
     return test.exit_code();
 }

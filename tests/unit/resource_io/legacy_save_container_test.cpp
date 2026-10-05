@@ -128,6 +128,65 @@ void test_original_saves(openswd3::test::Context& test) {
         }
     }
 
+    const auto read_size = [&source](const std::size_t offset) {
+        return static_cast<std::size_t>(source[offset]) |
+            (static_cast<std::size_t>(source[offset + 1U]) << 8U) |
+            (static_cast<std::size_t>(source[offset + 2U]) << 16U) |
+            (static_cast<std::size_t>(source[offset + 3U]) << 24U);
+    };
+    std::size_t section = 0x962CU;
+    const auto advance_block = [&](std::size_t& offset) {
+        offset += 8U + read_size(offset);
+    };
+    advance_block(section);
+    advance_block(section);
+    section += 0x1CU;
+    std::array<std::size_t, 6U> version_ends{};
+    version_ends[0U] = section;
+    advance_block(section);
+    version_ends[1U] = section;
+    section += 0x84U;
+    version_ends[2U] = section;
+    section += 0x180U;
+    version_ends[3U] = section;
+    section += 4U + read_size(section);
+    version_ends[4U] = section;
+    section += 0x84U;
+    version_ends[5U] = section;
+
+    for (std::size_t index = 0U; index < version_ends.size(); ++index) {
+        auto old_version = source;
+        old_version.resize(version_ends[index]);
+        const auto old = read_legacy_save_container(old_version);
+        test.expect_true(
+            old.status == LegacySaveContainerStatus::ready &&
+                old.container.consumed_bytes == version_ends[index] &&
+                old.container.block_present ==
+                    std::array<bool, 5U>{
+                        true, true, index >= 1U, index >= 4U, false
+                    } &&
+                old.container.extension_a_present == (index >= 2U) &&
+                old.container.extension_b_present == (index >= 3U) &&
+                old.container.extension_c_present == (index >= 5U),
+            "each original EOF gate accepts only the complete preceding version section"
+        );
+        old_version.push_back(0xFFU);
+        test.expect_equal(
+            read_legacy_save_container(old_version).status,
+            LegacySaveContainerStatus::truncated,
+            "a partial following version section cannot be accepted as EOF"
+        );
+    }
+    test.expect_true(
+        section < source.size() &&
+            parsed.container.block_present ==
+                std::array<bool, 5U>{true, true, true, true, true} &&
+            parsed.container.extension_a_present &&
+            parsed.container.extension_b_present &&
+            parsed.container.extension_c_present,
+        "complete Save/0.sav marks every decoded block and extension present"
+    );
+
     auto truncated = source;
     truncated.pop_back();
     test.expect_equal(

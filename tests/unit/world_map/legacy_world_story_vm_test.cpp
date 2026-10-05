@@ -16,6 +16,7 @@ int main(const int argument_count, char** arguments) {
     test_dialog_anchor_delay_flag_and_reset(test);
     test_dialog_checked_failure_order(test);
     test_initial_flags_and_alignment_gate(test);
+    test_saved_world_idle_talk_context(test);
     test_reinitialization_writes_only_owned_vm_fields(test);
     test_dialog_enqueue_and_wait_protocol(test);
     test_dialog_role_overlap_avoidance(test);

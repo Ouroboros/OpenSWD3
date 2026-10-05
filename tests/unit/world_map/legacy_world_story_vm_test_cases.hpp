@@ -17,6 +17,7 @@ void test_dialog_anchor_delay_flag_and_reset(openswd3::test::Context& test);
 void test_dialog_checked_failure_order(openswd3::test::Context& test);
 void test_default_invalid_opcode_protocol(openswd3::test::Context& test);
 void test_initial_flags_and_alignment_gate(openswd3::test::Context& test);
+void test_saved_world_idle_talk_context(openswd3::test::Context& test);
 void test_reinitialization_writes_only_owned_vm_fields(
     openswd3::test::Context& test
 );

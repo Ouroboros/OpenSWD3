@@ -1,6 +1,9 @@
 #include "legacy_world_story_vm_test_cases.hpp"
 #include "legacy_world_story_vm_test_support.hpp"
 
+#include "openswd3/world_map/legacy_world_player_control.hpp"
+#include "openswd3/world_map/legacy_world_save_restore.hpp"
+
 void test_shared_dialog_handler_variants(openswd3::test::Context& test) {
     constexpr std::array<u16, 8U> opcodes{1U, 2U, 3U, 4U, 5U, 6U, 89U, 90U};
     constexpr std::array<u8, 3U> text{'A', '%', 'Q'};
@@ -560,6 +563,63 @@ void test_default_invalid_opcode_protocol(openswd3::test::Context& test) {
             chained.ports.default_protocol_events ==
                 std::vector<u32>{1U, 2U, 1U, 2U},
         "default diagnostics observe the prior join value before publishing"
+    );
+}
+
+void test_saved_world_idle_talk_context(openswd3::test::Context& test) {
+    // TALK1.DAT entry zero points to relative 0x64; its first word at
+    // file offset 0x264 is 0x3289. The invalid-opcode path never advances.
+    Fixture previous;
+    previous.context = {};
+    previous.context.source_guid = 1U;
+    previous.roles[0].guid = 1U;
+    write_u16(previous.ports.initial_window, 0U, 0x3289U);
+    const auto first = previous.step();
+    const auto repeated = previous.step();
+    test.expect_true(
+        first.status == LegacyWorldStoryVmStatus::yielded &&
+            repeated.status == LegacyWorldStoryVmStatus::yielded &&
+            first.raw_word == 0x3289U && repeated.raw_word == 0x3289U &&
+            previous.ports.last_story_id == 0 &&
+            previous.ports.story_load_count == 1U &&
+            previous.context.instruction_offset == 0U &&
+            previous.dialogs.close.flagged_dialog_counter == 0x8000U &&
+            previous.dialogs.messages.empty(),
+        "starting script zero reproduces a permanent invisible dialog lock"
+    );
+
+    Fixture resumed;
+    const auto original_flags = resumed.state.flags;
+    openswd3::world_map::reset_legacy_save_talk_context(resumed.context);
+    const auto bytes = std::bit_cast<std::array<u8, 0xD8U>>(resumed.context);
+    test.expect_true(
+        std::ranges::all_of(bytes, [](const u8 byte) { return byte == 0xFFU; }),
+        "saved-world resume fills all 54 Talk dwords with FFFFFFFF"
+    );
+    const auto idle = resumed.step();
+    const auto next_idle = resumed.step();
+    test.expect_true(
+        idle.status == LegacyWorldStoryVmStatus::idle &&
+            next_idle.status == LegacyWorldStoryVmStatus::idle &&
+            idle.executed_instruction_count == 0U &&
+            next_idle.executed_instruction_count == 0U &&
+            resumed.ports.story_load_count == 0U &&
+            resumed.dialogs.close.flagged_dialog_counter == 0U &&
+            resumed.state.flags == original_flags,
+        "resuming an idle Talk never starts script zero or locks movement"
+    );
+    const openswd3::world_map::LegacyWorldPlayerControlResult menu_press{
+        .control_allowed = true,
+        .menu_fresh_press = true,
+    };
+    test.expect_true(
+        !openswd3::world_map::should_request_legacy_world_menu(
+            menu_press, previous.context
+        ) &&
+            openswd3::world_map::should_request_legacy_world_menu(
+                menu_press, resumed.context
+            ),
+        "the same menu input is blocked by script zero and allowed after resume"
     );
 }
 

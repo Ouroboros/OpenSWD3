@@ -39,7 +39,9 @@ public:
         calls.push_back(Call::scan_saves);
         return saves_exist_;
     }
-    openswd3::compat::i32 show_startup_dialog() override {
+    openswd3::compat::i32
+    show_startup_dialog(const bool any_save_exists) override {
+        dialog_save_exists = any_save_exists;
         calls.push_back(Call::dialog);
         return dialog_result_;
     }
@@ -60,6 +62,7 @@ public:
     }
 
     std::vector<Call> calls;
+    bool dialog_save_exists{};
 
 private:
     bool saves_exist_{};
@@ -86,6 +89,11 @@ void run_case(
         state.any_save_exists,
         saves_exist,
         "save-exists state is cleared and replaced by the scan result"
+    );
+    test.expect_equal(
+        ports.dialog_save_exists,
+        saves_exist,
+        "the startup dialog receives the scanned save-exists gate"
     );
 }
 

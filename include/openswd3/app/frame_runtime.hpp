@@ -35,6 +35,11 @@ enum class FrameRunOutcome {
     battle_typed_stop,
 };
 
+// 0x0040A4E2–0x0040A50A: startup dialog result one bypasses title mode.
+void enter_startup_load_menu(
+    FrameCoordinatorState& state, LegacyNewGameTransitionPorts& ports
+);
+
 [[nodiscard]] FrameRunOutcome
 run_accepted_frame(FrameCoordinatorState& state, FrameRuntimePorts& ports);
 

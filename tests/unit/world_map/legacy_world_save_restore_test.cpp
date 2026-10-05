@@ -34,6 +34,7 @@ using openswd3::world_map::LegacyWorldStoryVmState;
 using openswd3::world_map::apply_legacy_save_map_overrides;
 using openswd3::world_map::materialize_legacy_save_item_lists;
 using openswd3::world_map::materialize_legacy_save_role_definitions;
+using openswd3::world_map::prepare_legacy_save_world_load;
 using openswd3::world_map::read_legacy_save_map_overrides;
 using openswd3::world_map::read_legacy_save_u16_prefix;
 using openswd3::world_map::read_legacy_save_world_entry;
@@ -74,6 +75,7 @@ void test_story_prefix(openswd3::test::Context& test) {
 
     LegacyWorldStoryVmState story;
     story.world_music_request = 53U;
+    openswd3::world_map::set_legacy_world_story_flag(story, 70U);
     test.expect_equal(
         restore_legacy_save_story_prefix(save, story),
         LegacySaveStoryPrefixStatus::ready,
@@ -89,6 +91,10 @@ void test_story_prefix(openswd3::test::Context& test) {
             story.world_music_request == 53U,
         "no script-variable boundary, party tail or unrelated owner is lost"
     );
+    test.expect_true(
+        !openswd3::world_map::query_legacy_world_story_flag(story, 70U),
+        "saved bitset clears the initialized load-progress suppression"
+    );
     primary.pop_back();
     const auto before_clock = story.script_clock;
     story.flags[0U] = 0x33U;
@@ -97,6 +103,21 @@ void test_story_prefix(openswd3::test::Context& test) {
                 LegacySaveStoryPrefixStatus::missing_block_bytes &&
             story.script_clock == before_clock && story.flags[0U] == 0x33U,
         "truncated party record leaves every destination untouched"
+    );
+    primary.clear();
+    story.flags[0U] = 0U;
+    test.expect_true(
+        openswd3::world_map::restore_legacy_save_story_flags(save, story) ==
+                LegacySaveStoryPrefixStatus::ready &&
+            story.flags[0U] == 0xA5U && story.script_clock == before_clock,
+        "an older save retains the pre-extension story bitset"
+    );
+    flags[8U] = 0x40U;
+    test.expect_true(
+        openswd3::world_map::restore_legacy_save_story_flags(save, story) ==
+                LegacySaveStoryPrefixStatus::ready &&
+            openswd3::world_map::query_legacy_world_story_flag(story, 70U),
+        "a saved flag 70 can also keep load progress suppressed"
     );
 }
 
@@ -659,14 +680,25 @@ void test_original_story_prefix(openswd3::test::Context& test) {
             openswd3::world_map::decode_legacy_maps_world_database(maps);
         if (decoded.status ==
             openswd3::world_map::LegacyMapsWorldDatabaseStatus::ready) {
-            const auto restored = restore_legacy_save_role_sources(
+            const auto prepared = prepare_legacy_save_world_load(
                 parsed.container, maps, decoded.database
             );
             test.expect_true(
-                restored.status == LegacyMapsRolePatchStatus::ready &&
-                    restored.records_consumed == 1371U &&
-                    restored.records_matched == 1371U,
-                "Save/0.sav restores all 1371 real MAPS source records"
+                prepared.status ==
+                        openswd3::world_map::LegacySaveWorldLoadStatus::ready &&
+                    prepared.role_sources.status ==
+                        LegacyMapsRolePatchStatus::ready &&
+                    prepared.role_sources.records_consumed == 1371U &&
+                    prepared.role_sources.records_matched == 1371U &&
+                    prepared.load.logical_map_id == 40U &&
+                    prepared.load.selected_guid == 1U &&
+                    prepared.load.tile_x == 17U &&
+                    prepared.load.tile_y == 24U &&
+                    prepared.load.action_id == 1U &&
+                    prepared.load.base_variant == 0U &&
+                    prepared.load.variant_delta == 0U &&
+                    prepared.load.load_flags == 0U,
+                "Save/0.sav supplies the original map load arguments after all 1371 MAPS role patches"
             );
             const auto map_records = read_legacy_save_map_overrides(
                 parsed.container, prefix.prefix.consumed_bytes

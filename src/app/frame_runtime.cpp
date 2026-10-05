@@ -15,6 +15,16 @@ void run_common_tail(FrameCoordinatorState& state, FrameRuntimePorts& ports) {
 
 }  // namespace
 
+void enter_startup_load_menu(
+    FrameCoordinatorState& state, LegacyNewGameTransitionPorts& ports
+) {
+    state.battle.special_mode_state = 0U;
+    state.battle.high_priority_state = 3U;
+    ports.set_high_priority_submode(1U);
+    ports.set_high_priority_auxiliary(1U);
+    ports.reset_input_menu_and_save_previews();
+}
+
 FrameRunOutcome
 run_accepted_frame(FrameCoordinatorState& state, FrameRuntimePorts& ports) {
     if (state.battle.high_priority_state != 0U) {
@@ -59,6 +69,13 @@ run_accepted_frame(FrameCoordinatorState& state, FrameRuntimePorts& ports) {
         case SpecialModeHandler::standard_modes_1_3_4_5_6:
             switch (ports.step_standard_special_mode(state)) {
             case StandardSpecialModeEvent::none:
+                break;
+            case StandardSpecialModeEvent::commit_load_game_00449291:
+                // sub_4490C0+0x401: the first choice enters the load menu.
+                state.battle.high_priority_state = 3U;
+                ports.set_high_priority_submode(1U);
+                ports.set_high_priority_auxiliary(1U);
+                ports.reset_input_menu_and_save_previews();
                 break;
             case StandardSpecialModeEvent::commit_new_game_004492ba:
                 static_cast<void>(

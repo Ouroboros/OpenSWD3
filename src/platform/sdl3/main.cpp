@@ -48,6 +48,8 @@
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_runtime_shutdown.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_save_fame.hpp"
+#include "openswd3/battle/legacy_battle_save_party_extension.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
 #include "openswd3/diagnostics/log.hpp"
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
@@ -66,6 +68,7 @@
 #include "openswd3/resource_io/data_directory.hpp"
 #include "openswd3/resource_io/legacy_memory_manager.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
+#include "openswd3/resource_io/legacy_save_container.hpp"
 #include "openswd3/resource_io/legacy_save_slots.hpp"
 #include "openswd3/resource_io/window_configuration.hpp"
 #include "openswd3/special_modes/legacy_initial_menu.hpp"
@@ -94,6 +97,7 @@
 #include "openswd3/world_map/legacy_world_role_lifecycle.hpp"
 #include "openswd3/world_map/legacy_world_roles.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
+#include "openswd3/world_map/legacy_world_save_restore.hpp"
 #include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
 #include "openswd3/world_map/legacy_world_transient_reset.hpp"
@@ -955,8 +959,9 @@ public:
     bool scan_save_slots() override {
         return openswd3::resource_io::scan_legacy_save_slots(data_directory_);
     }
-    openswd3::compat::i32 show_startup_dialog() override {
-        return dialog_.run(false);
+    openswd3::compat::i32
+    show_startup_dialog(const bool any_save_exists) override {
+        return dialog_.run(any_save_exists);
     }
 
     void initialize_game() override {
@@ -967,6 +972,8 @@ public:
             initialization_state_.special_mode_state ==
                 openswd3::app::kInitialSpecialModeState;
     }
+    // Runtime result-one dispatch and the temporary previews are deferred
+    // until SdlSmokeIdlePorts exists; main calls enter_startup_load_menu.
     void reset_result_one_game_state() override {}
     void rebuild_result_one_slot_previews() override {}
     void select_result_one_recent_save_group() override {}
@@ -1682,6 +1689,7 @@ class SdlSmokeIdlePorts final
       public virtual openswd3::battle::
           LegacyBattleFrameInputResolutionStatePort,
       public openswd3::battle::LegacyBattleLevelProfilePort,
+      public virtual openswd3::battle::LegacyBattleFixedObjectStatePort,
       public openswd3::rendering::LegacyPresentationPorts,
       public openswd3::audio_video::LegacyVideoFramePorts,
       public openswd3::world_map::LegacyWorldLoadProgressPorts {
@@ -2639,6 +2647,8 @@ public:
     void release_display_and_world_for_battle_entry() override {}
     void close_world_map_view() override {}
     void initialize_battle(const openswd3::compat::u16 battle_id) override {
+        const auto saved_party_sources =
+            battle_runtime_.group_a_configuration_sources;
         battle_runtime_ = {};
         auto_dialog_input_state_ = {};
         battle_script_workspace_ = {};
@@ -2683,6 +2693,10 @@ public:
                 openswd3::battle::bind_legacy_battle_setup_party_owners(
                     battle_setup_, battle_runtime_
                 );
+                if (saved_party_extension_active_) {
+                    battle_runtime_.group_a_configuration_sources =
+                        saved_party_sources;
+                }
                 battle_runtime_.enemy_count = battle_setup_.enemy_count;
                 battle_runtime_.background_resource =
                     battle_setup_.background_resource_id;
@@ -3348,10 +3362,232 @@ public:
     void clear_result_three_internal_state() override {}
     void remap_world_after_result_three() override {}
 
-    void step_high_priority(openswd3::app::FrameCoordinatorState&) override {
+    void
+    step_high_priority(openswd3::app::FrameCoordinatorState& state) override {
+        if (state.battle.high_priority_state == 3U &&
+            high_priority_submode_ == 1U) {
+            step_save_load_menu(state);
+            return;
+        }
         request_presentation(
             openswd3::rendering::LegacyPresentationSite::steady_high_priority
         );
+    }
+
+    // Temporary SDL save-load menu: these three functions provide a slot
+    // picker for loading old saves. Preview, drawing, input, and confirmation
+    // are not a reverse-engineered port of sub_4070A0. Do not use this code
+    // as evidence of original menu behavior; recheck the LST and replace it
+    // when implementing the original menu.
+    void refresh_save_slot_previews() {
+        const auto page = save_slot_cursor_ / 3U;
+        if (page == save_preview_page_) {
+            return;
+        }
+        save_preview_page_ = page;
+        for (std::size_t column = 0U; column < save_slot_previews_.size();
+             ++column) {
+            auto& preview = save_slot_previews_[column];
+            preview.available = false;
+            const auto slot = page * 3U + static_cast<unsigned>(column);
+            if (slot > 98U) {
+                continue;
+            }
+            const auto path =
+                data_directory_ / "Save" / (std::to_string(slot) + ".sav");
+            const auto bytes = read_binary_file(path);
+            if (bytes.empty()) {
+                continue;
+            }
+            auto parsed =
+                openswd3::resource_io::read_legacy_save_container(bytes);
+            if (parsed.status ==
+                openswd3::resource_io::LegacySaveContainerStatus::ready) {
+                preview.available = true;
+                preview.pixels = parsed.container.preview;
+            }
+        }
+    }
+
+    void draw_save_load_menu() {
+        refresh_save_slot_previews();
+        std::ranges::fill(game_framebuffer_.physical_pixels(), 0U);
+        const auto binding = text_renderers_.binding(16U);
+        if (!binding.ready()) {
+            static_cast<void>(
+                report_error("save menu: text renderer unavailable")
+            );
+            ok_ = false;
+            running_ = false;
+            return;
+        }
+        const auto color = static_cast<openswd3::compat::u16>(
+            openswd3::rendering::legacy_pack_color_pair(
+                pixel_conversion_, 0x1D, 0x17, 0x10
+            )
+        );
+        const auto draw_label =
+            [&](const std::string& text, const int x, const int y) {
+                std::vector<openswd3::compat::u8> nul_terminated(
+                    text.begin(), text.end()
+                );
+                nul_terminated.push_back(0U);
+                const auto result = openswd3::rendering::draw_legacy_text(
+                    *binding.framebuffer,
+                    *binding.glyph_cache,
+                    *binding.glyph_provider,
+                    *binding.state,
+                    openswd3::rendering::LegacyTextDrawRequest{
+                        .destination_x = x,
+                        .destination_y = y,
+                        .nul_terminated_text = nul_terminated,
+                        .foreground_color = color,
+                        .flags = 4U,
+                    }
+                );
+                return result.status ==
+                    openswd3::rendering::LegacyTextDrawStatus::completed;
+            };
+        bool drawn =
+            draw_label("LOAD GAME", 32, 56) &&
+            draw_label(
+                "ARROWS: SLOT   PGUP/PGDN: PAGE   ENTER: LOAD   ESC: BACK",
+                32,
+                386
+            );
+        const auto first_slot = (save_slot_cursor_ / 3U) * 3U;
+        for (std::size_t column = 0U; column < save_slot_previews_.size();
+             ++column) {
+            const auto slot = first_slot + static_cast<unsigned>(column);
+            if (slot > 98U) {
+                continue;
+            }
+            const auto x = 32 + static_cast<int>(column) * 200;
+            const auto& preview = save_slot_previews_[column];
+            const auto label =
+                std::string{slot == save_slot_cursor_ ? "> " : "  "} + "Save/" +
+                std::to_string(slot) + ".sav" +
+                (preview.available ? "" : " (empty)");
+            drawn = draw_label(label, x, 105) && drawn;
+            if (!preview.available) {
+                continue;
+            }
+            for (std::size_t row = 0U; row < 120U; ++row) {
+                auto destination = game_framebuffer_.row_pixels(
+                    static_cast<unsigned>(142U + row)
+                );
+                for (std::size_t pixel = 0U; pixel < 160U; ++pixel) {
+                    const auto offset = 2U * (row * 160U + pixel);
+                    destination[static_cast<std::size_t>(x) + pixel] =
+                        static_cast<openswd3::compat::u16>(
+                            preview.pixels[offset] |
+                            (static_cast<unsigned>(preview.pixels[offset + 1U])
+                             << 8U)
+                        );
+                }
+                openswd3::rendering::legacy_convert_pixels_forward(
+                    pixel_conversion_, destination.data() + x, 160
+                );
+            }
+        }
+        if (!drawn) {
+            static_cast<void>(report_error("save menu: text draw failed"));
+            ok_ = false;
+            running_ = false;
+            return;
+        }
+        request_presentation(
+            openswd3::rendering::LegacyPresentationSite::steady_high_priority
+        );
+    }
+
+    void step_save_load_menu(openswd3::app::FrameCoordinatorState& state) {
+        const auto first_press = [this](const std::size_t index) {
+            const auto& key = input_state_.records[index];
+            return key.rapid_press_multiplicity != 0U &&
+                key.held_sample_count == 1U;
+        };
+        const auto repeat_press = [this](const std::size_t index) {
+            const auto& key = input_state_.records[index];
+            return key.rapid_press_multiplicity != 0U &&
+                (key.held_sample_count == 1U ||
+                 (key.held_sample_count > 7U &&
+                  (key.held_sample_count & 1U) == 0U));
+        };
+        if (first_press(0U)) {
+            state.battle.high_priority_state = 0U;
+            state.battle.special_mode_state =
+                openswd3::special_modes::kLegacySpecialModeInitializeFlag | 3U;
+            high_priority_submode_ = 0U;
+            high_priority_auxiliary_ = 0U;
+            openswd3::diagnostics::log_info("save menu cancelled");
+            return;
+        }
+        using openswd3::resource_io::LegacySaveSlotMove;
+        if (repeat_press(3U) || repeat_press(4U)) {
+            save_slot_cursor_ = openswd3::resource_io::move_legacy_save_slot(
+                save_slot_cursor_, LegacySaveSlotMove::previous
+            );
+        } else if (repeat_press(5U) || repeat_press(6U)) {
+            save_slot_cursor_ = openswd3::resource_io::move_legacy_save_slot(
+                save_slot_cursor_, LegacySaveSlotMove::next
+            );
+        } else if (repeat_press(7U)) {
+            save_slot_cursor_ = openswd3::resource_io::move_legacy_save_slot(
+                save_slot_cursor_, LegacySaveSlotMove::previous_page
+            );
+        } else if (repeat_press(8U)) {
+            save_slot_cursor_ = openswd3::resource_io::move_legacy_save_slot(
+                save_slot_cursor_, LegacySaveSlotMove::next_page
+            );
+        }
+        bool mouse_load_requested = false;
+        if (first_press(15U)) {
+            const auto x = input_state_.current_mouse.logical_x;
+            const auto y = input_state_.current_mouse.logical_y;
+            if (y >= 100 && y < 280) {
+                for (unsigned column = 0U; column < 3U; ++column) {
+                    const auto column_x = 32 + static_cast<int>(column) * 200;
+                    if (x < column_x || x >= column_x + 160) {
+                        continue;
+                    }
+                    const auto slot = (save_slot_cursor_ / 3U) * 3U + column;
+                    if (slot <= 98U) {
+                        mouse_load_requested = slot == save_slot_cursor_;
+                        save_slot_cursor_ = slot;
+                    }
+                    break;
+                }
+            }
+        }
+        if (first_press(1U) || mouse_load_requested) {
+            const auto path = data_directory_ / "Save" /
+                (std::to_string(save_slot_cursor_) + ".sav");
+            const auto bytes = read_binary_file(path);
+            if (!bytes.empty()) {
+                auto saved =
+                    openswd3::resource_io::read_legacy_save_container(bytes);
+                if (saved.status ==
+                    openswd3::resource_io::LegacySaveContainerStatus::ready) {
+                    if (!initialize_world_state_and_session(&saved.container)) {
+                        return;
+                    }
+                    state.battle.high_priority_state = 0U;
+                    state.battle.special_mode_state = 0U;
+                    high_priority_submode_ = 0U;
+                    high_priority_auxiliary_ = 0U;
+                    openswd3::diagnostics::log_info(
+                        "save menu loaded: " + path.string()
+                    );
+                    return;
+                }
+                openswd3::diagnostics::log_warning(
+                    "save menu cannot decode: " + path.string() + ", status=" +
+                    std::to_string(static_cast<unsigned>(saved.status))
+                );
+            }
+        }
+        draw_save_load_menu();
     }
     void
     update_background_music(openswd3::app::FrameCoordinatorState&) override {
@@ -6601,6 +6837,13 @@ public:
         }
         if (result.event ==
             openswd3::special_modes::LegacyInitialMenuEvent::
+                commit_choice_0_00449291) {
+            openswd3::diagnostics::log_info("initial menu committed load game");
+            return openswd3::app::StandardSpecialModeEvent::
+                commit_load_game_00449291;
+        }
+        if (result.event ==
+            openswd3::special_modes::LegacyInitialMenuEvent::
                 commit_new_game_004492ba) {
             openswd3::diagnostics::log_info("initial menu committed new game");
             return openswd3::app::StandardSpecialModeEvent::
@@ -6753,6 +6996,13 @@ public:
     }
 
     bool initialize_new_game_state_and_world() override {
+        return initialize_world_state_and_session(nullptr);
+    }
+
+    bool initialize_world_state_and_session(
+        const openswd3::resource_io::LegacySaveContainer* saved
+    ) {
+        saved_party_extension_active_ = false;
         tsw_runtime_.set_special_loader(nullptr);
         tsw_runtime_.clear_cache();
         world_special_frame_loader_.reset();
@@ -6795,7 +7045,7 @@ public:
         }
 
         auto payload = resource_databases_.mutable_maps_payload_bytes();
-        const auto decoded =
+        auto decoded =
             openswd3::world_map::decode_legacy_maps_world_database(payload);
         if (decoded.status !=
             openswd3::world_map::LegacyMapsWorldDatabaseStatus::ready) {
@@ -6807,6 +7057,24 @@ public:
             ok_ = false;
             running_ = false;
             return false;
+        }
+
+        auto world_load = decoded.database.initial_load;
+        if (saved != nullptr) {
+            const auto prepared =
+                openswd3::world_map::prepare_legacy_save_world_load(
+                    *saved, payload, decoded.database
+                );
+            if (prepared.status !=
+                openswd3::world_map::LegacySaveWorldLoadStatus::ready) {
+                static_cast<void>(
+                    report_error("saved world: MAPS role source restore failed")
+                );
+                ok_ = false;
+                running_ = false;
+                return false;
+            }
+            world_load = prepared.load;
         }
 
         // sub_40F160 calls sub_40E0B0 after replacing MAPS and before the
@@ -6851,6 +7119,224 @@ public:
             world_story_vm_state_
         );
         initialize_standard_special_modes();
+        if (saved != nullptr) {
+            if (openswd3::world_map::restore_legacy_save_story_flags(
+                    *saved, world_story_vm_state_
+                ) != openswd3::world_map::LegacySaveStoryPrefixStatus::ready) {
+                static_cast<void>(
+                    report_error("saved world: story flags are incomplete")
+                );
+                ok_ = false;
+                running_ = false;
+                return false;
+            }
+            if (saved->block_present[2U]) {
+                if (openswd3::world_map::restore_legacy_save_story_prefix(
+                        *saved, world_story_vm_state_
+                    ) !=
+                    openswd3::world_map::LegacySaveStoryPrefixStatus::ready) {
+                    static_cast<void>(report_error(
+                        "saved world: story and party data are incomplete"
+                    ));
+                    ok_ = false;
+                    running_ = false;
+                    return false;
+                }
+
+                const auto items =
+                    openswd3::world_map::read_legacy_save_u16_prefix(*saved);
+                if (!items.complete) {
+                    static_cast<void>(report_error(
+                        "saved world: party item lists are incomplete"
+                    ));
+                    ok_ = false;
+                    running_ = false;
+                    return false;
+                }
+                class SavedItemDefinitions final
+                    : public openswd3::world_map::LegacySaveItemDefinitionPort {
+                public:
+                    explicit SavedItemDefinitions(SdlSmokeIdlePorts& owner)
+                        : owner_{owner} {}
+
+                    [[nodiscard]] openswd3::world_map::
+                        LegacySaveItemDefinitionResult
+                        load_definition(
+                            const openswd3::compat::u16 item_id,
+                            const std::span<
+                                openswd3::compat::u8,
+                                openswd3::world_map::
+                                    kLegacyItemDefinitionSnapshotBytes>
+                                snapshot,
+                            std::vector<openswd3::compat::u8>& description
+                        ) override {
+                        std::array<
+                            openswd3::compat::u8,
+                            openswd3::battle::kLegacyBattleMonDefinitionBytes>
+                            definition{};
+                        std::vector<openswd3::compat::u8> loaded_description;
+                        const auto loaded =
+                            openswd3::battle::load_legacy_battle_mon_definition(
+                                definition,
+                                loaded_description,
+                                owner_,
+                                {.path = "mon.dat", .definition_id = item_id}
+                            );
+                        if (openswd3::battle::
+                                legacy_battle_mon_definition_load_stopped(
+                                    loaded.status
+                                )) {
+                            stopped = true;
+                        }
+                        if (loaded.status !=
+                                openswd3::battle::
+                                    LegacyBattleMonDefinitionLoadStatus::
+                                        completed ||
+                            !loaded.definition_found) {
+                            return {};
+                        }
+                        std::copy_n(
+                            definition.begin(),
+                            snapshot.size(),
+                            snapshot.begin()
+                        );
+                        description = std::move(loaded_description);
+                        return {
+                            .loaded = true,
+                            .description_token = loaded.definition_text_token,
+                        };
+                    }
+
+                    bool stopped{};
+
+                private:
+                    SdlSmokeIdlePorts& owner_;
+                } definitions{*this};
+
+                const auto roles = openswd3::world_map::
+                    materialize_legacy_save_role_definitions(
+                        items.prefix, world_item_lists_, definitions
+                    );
+                const auto inventory =
+                    openswd3::world_map::materialize_legacy_save_item_lists(
+                        items.prefix, world_item_lists_, definitions
+                    );
+                if (definitions.stopped ||
+                    roles.status !=
+                        openswd3::world_map::LegacySaveRoleDefinitionsStatus::
+                            ready ||
+                    inventory.status !=
+                        openswd3::world_map::LegacySaveItemListStatus::ready) {
+                    static_cast<void>(report_error(
+                        "saved world: MON definitions or item lists failed"
+                    ));
+                    ok_ = false;
+                    running_ = false;
+                    return false;
+                }
+                const auto overrides =
+                    openswd3::world_map::read_legacy_save_map_overrides(
+                        *saved, items.prefix.consumed_bytes
+                    );
+                if (!overrides.complete ||
+                    openswd3::world_map::apply_legacy_save_map_overrides(
+                        payload, overrides.records
+                    )
+                            .status !=
+                        openswd3::world_map::LegacySaveMapOverrideApplyStatus::
+                            ready) {
+                    static_cast<void>(
+                        report_error("saved world: MAPS objects are incomplete")
+                    );
+                    ok_ = false;
+                    running_ = false;
+                    return false;
+                }
+            }
+            if (saved->extension_a_present) {
+                const auto extension =
+                    openswd3::world_map::read_legacy_save_world_extension_a(
+                        *saved
+                    );
+                openswd3::world_map::
+                    restore_legacy_save_world_transition_and_countdown(
+                        extension,
+                        world_story_vm_state_,
+                        world_frame_state_.countdown
+                    );
+                saved_role_names_ = extension.role_names;
+                // The original String owner at 0x49E148 stores the two
+                // story-name substitutions in consecutive 16-byte fields.
+                std::copy_n(
+                    extension.role_names.begin(),
+                    initial_menu_state_.first_name.size(),
+                    initial_menu_state_.first_name.begin()
+                );
+                std::copy_n(
+                    extension.role_names.begin() + 0x10U,
+                    initial_menu_state_.second_name.size(),
+                    initial_menu_state_.second_name.begin()
+                );
+                accumulated_play_time_ = extension.elapsed_ticks;
+                play_time_origin_ =
+                    static_cast<openswd3::compat::u32>(std::time(nullptr));
+            }
+            if (saved->extension_b_present) {
+                openswd3::battle::restore_legacy_save_party_extension_b(
+                    *saved, battle_runtime_
+                );
+                saved_party_extension_active_ = true;
+            }
+            if (saved->block_present[3U]) {
+                const auto fame =
+                    openswd3::battle::restore_legacy_battle_save_fame(
+                        *saved, legacy_battle_fixed_object_state()
+                    );
+                if (fame.status !=
+                    openswd3::battle::LegacyBattleSaveFameStatus::ready) {
+                    static_cast<void>(report_error(
+                        "saved world: embedded Fame records failed"
+                    ));
+                    ok_ = false;
+                    running_ = false;
+                    return false;
+                }
+            }
+            if (saved->extension_c_present) {
+                openswd3::world_map::restore_legacy_save_selection_extension(
+                    *saved,
+                    world_selection_words_,
+                    world_frame_state_.selection_scroll
+                );
+            }
+            if (saved->block_present[4U] &&
+                openswd3::world_map::restore_legacy_save_tail_mode_texts(
+                    *saved, world_story_vm_state_
+                ) != openswd3::world_map::LegacySaveTailTextStatus::ready) {
+                static_cast<void>(
+                    report_error("saved world: mode text is incomplete")
+                );
+                ok_ = false;
+                running_ = false;
+                return false;
+            }
+        }
+        if (saved != nullptr) {
+            openswd3::world_map::reset_legacy_save_talk_context(
+                world_frame_state_.map_role_paths.talk_context
+            );
+        }
+
+        // The saved story bitset replaces flag 70 before the original
+        // sub_40C130 map load, so a saved game can show loading progress.
+        const auto expected_progress_status =
+            saved != nullptr &&
+                !openswd3::world_map::query_legacy_world_story_flag(
+                    world_story_vm_state_,
+                    openswd3::world_map::kLegacyWorldLoadProgressSuppressionFlag
+                )
+            ? openswd3::world_map::LegacyWorldLoadProgressStatus::completed
+            : openswd3::world_map::LegacyWorldLoadProgressStatus::suppressed;
         const auto progress_reset =
             openswd3::world_map::update_legacy_world_load_progress(
                 world_load_progress_,
@@ -6862,10 +7348,9 @@ public:
                 action_ports,
                 *this
             );
-        if (progress_reset.status !=
-            openswd3::world_map::LegacyWorldLoadProgressStatus::suppressed) {
+        if (progress_reset.status != expected_progress_status) {
             static_cast<void>(report_error(
-                "initial world: loading progress reset was not suppressed"
+                "initial world: loading progress reset failed"
             ));
             ok_ = false;
             running_ = false;
@@ -6896,7 +7381,7 @@ public:
             {
                 .archive_path = data_directory_ / "huge.lmf",
                 .cache_directory = world_cache_directory_,
-                .load = decoded.database.initial_load,
+                .load = world_load,
                 .cache_limit_megabytes = 60U,
                 .pixel_conversion = pixel_conversion_,
                 .random = &world_runtime_random_,
@@ -6951,9 +7436,7 @@ public:
                 action_ports,
                 *this
             );
-        if (progress_complete.status !=
-                openswd3::world_map::LegacyWorldLoadProgressStatus::
-                    suppressed ||
+        if (progress_complete.status != expected_progress_status ||
             !progress_complete.suppression_flag_cleared) {
             static_cast<void>(report_error(
                 "initial world: loading progress terminal gate failed"
@@ -7040,11 +7523,15 @@ public:
             world.role_post_materialization.party_role_count;
         world_frame_state_.party_object_slots =
             world.role_post_materialization.party_object_slots;
-        // sub_40F160 seeds the initial story owner from MAPS +0x0C and uses
-        // TALK entry 100 for a new game.
-        world_frame_state_.map_role_paths.talk_context.source_guid =
-            decoded.database.initial_load.selected_guid;
-        world_frame_state_.map_role_paths.talk_context.talk_script_id = 100U;
+        // Only sub_40F160 starts TALK 100. Saved games retain the idle
+        // context written before sub_40C130 at 0x00408B91–0x00408B9E.
+        if (saved == nullptr) {
+            world_frame_state_.map_role_paths.talk_context.source_guid =
+                world_load.selected_guid;
+            world_frame_state_.map_role_paths.talk_context.talk_script_id =
+                100U;
+        }
+
         world_frame_state_.selection_scroll.saved_left = world.camera.left;
         world_frame_state_.selection_scroll.saved_top = world.camera.top;
         world_frame_state_.tile_animation = {
@@ -7093,7 +7580,10 @@ public:
         high_priority_auxiliary_ = value;
     }
 
-    void reset_input_menu_and_save_previews() override {}
+    void reset_input_menu_and_save_previews() override {
+        save_slot_cursor_ = 0U;
+        save_preview_page_ = 99U;
+    }
     void apply_new_game_name_overrides() override {}
     void load_fame_table() override {}
 
@@ -7677,6 +8167,8 @@ private:
     openswd3::resource_io::LegacyResourceDatabases& resource_databases_;
     openswd3::world_map::LegacyWorldItemListState& world_item_lists_;
     openswd3::battle::LegacyBattleStartupState& battle_runtime_;
+    std::array<openswd3::compat::u8, 0x40U> saved_role_names_{};
+    bool saved_party_extension_active_{};
     static constexpr openswd3::compat::u32 kMonFileHandleToken = 1U;
     static constexpr openswd3::compat::u32 kMonStreamToken = 0x0053B810U;
     static constexpr openswd3::compat::u32 kLevelFileHandleToken = 2U;
@@ -7789,6 +8281,13 @@ private:
     openswd3::world_map::LegacyWorldDialogRuntimeState
         world_dialog_runtime_state_;
     openswd3::special_modes::LegacyInitialMenuState initial_menu_state_;
+    struct SaveSlotPreview {
+        bool available{};
+        std::array<openswd3::compat::u8, 0x9600U> pixels{};
+    };
+    std::array<SaveSlotPreview, 3U> save_slot_previews_{};
+    openswd3::compat::u32 save_slot_cursor_{};
+    openswd3::compat::u32 save_preview_page_{99U};
     openswd3::special_modes::LegacyStandardSpecialModeState
         legacy_standard_mode_state_;
     openswd3::special_modes::LegacyTitleMenuState title_menu_state_;
@@ -8082,6 +8581,7 @@ int main(const int argument_count, char** arguments) {
 
     bool game_initialized = false;
     bool startup_destroy_requested = false;
+    openswd3::compat::i32 startup_dialog_result = 6;
     SDL_Texture* texture = nullptr;
     openswd3::compat::u32 frame_interval = kInitialFrameIntervalMilliseconds;
     openswd3::app::InitializationState initialization_state{};
@@ -8154,9 +8654,9 @@ int main(const int argument_count, char** arguments) {
             startup_destroy_requested
         );
         openswd3::app::StartupState startup_state{};
-        static_cast<void>(openswd3::app::run_startup_custom_message(
+        startup_dialog_result = openswd3::app::run_startup_custom_message(
             startup_state, startup_ports
-        ));
+        );
     }
 
     openswd3::input_time_rng::LegacyCrtRng crt_rng;
@@ -8325,6 +8825,15 @@ int main(const int argument_count, char** arguments) {
     shutdown_ports.bind_moving_actions(idle_ports.moving_actions());
     shutdown_ports.bind_role_head_actions(idle_ports.role_head_actions());
     shutdown_ports.bind_dialogs(idle_ports.dialogs());
+    if (runtime_ready && startup_dialog_result == 1) {
+        // 0x0040A4E2–0x0040A50A enters the save menu without the title
+        // mode. Defer the temporary selector until its SDL owners exist.
+        openswd3::app::enter_startup_load_menu(
+            frame_coordinator_state, idle_ports
+        );
+        openswd3::diagnostics::log_info("startup dialog requested load game");
+    }
+
     while (running) {
         SDL_Event event{};
         while (SDL_PollEvent(&event)) {

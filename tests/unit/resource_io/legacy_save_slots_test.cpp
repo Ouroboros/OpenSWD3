@@ -9,6 +9,38 @@
 
 int main() {
     openswd3::test::Context test;
+    using openswd3::resource_io::LegacySaveSlotMove;
+    using openswd3::resource_io::move_legacy_save_slot;
+    test.expect_equal(
+        move_legacy_save_slot(0U, LegacySaveSlotMove::previous),
+        0U,
+        "previous clamps at first slot"
+    );
+    test.expect_equal(
+        move_legacy_save_slot(0U, LegacySaveSlotMove::next),
+        1U,
+        "next advances one slot"
+    );
+    test.expect_equal(
+        move_legacy_save_slot(2U, LegacySaveSlotMove::next_page),
+        5U,
+        "page down advances three slots"
+    );
+    test.expect_equal(
+        move_legacy_save_slot(2U, LegacySaveSlotMove::previous_page),
+        0U,
+        "page up clamps at zero"
+    );
+    test.expect_equal(
+        move_legacy_save_slot(98U, LegacySaveSlotMove::next),
+        98U,
+        "next clamps at final slot"
+    );
+    test.expect_equal(
+        move_legacy_save_slot(97U, LegacySaveSlotMove::next_page),
+        98U,
+        "page down clamps at final slot"
+    );
     const std::filesystem::path test_root =
         std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
         ("save-scan-" +

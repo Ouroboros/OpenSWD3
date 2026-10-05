@@ -88,14 +88,33 @@ struct LegacySaveWorldEntry {
     std::array<compat::u32, 5U> selected_role_words{};
 };
 
-// 0x004084B3–0x00408501. The first two words must be used when loading the
-// world; the remaining five are written to the selected role after it exists.
+// 0x004084B3–0x00408501. The original writes all seven words before
+// sub_40C130; that map load uses the saved coordinates and action values.
 [[nodiscard]] LegacySaveWorldEntry read_legacy_save_world_entry(
     const resource_io::LegacySaveContainer& save
 ) noexcept;
 void restore_legacy_save_controlled_role_words(
     const LegacySaveWorldEntry& source, LegacyWorldRoleRecord& destination
 ) noexcept;
+
+enum class LegacySaveWorldLoadStatus {
+    ready,
+    role_source_failed,
+};
+
+struct LegacySaveWorldLoadResult {
+    LegacySaveWorldLoadStatus status{LegacySaveWorldLoadStatus::ready};
+    LegacyWorldLoadRequest load;
+    LegacySaveRoleSourcesResult role_sources;
+};
+
+// 0x0040844E–0x004084C7 patches role sources before the 0x00408BDE load.
+// Saved role words are inputs to that load, not a post-load position patch.
+[[nodiscard]] LegacySaveWorldLoadResult prepare_legacy_save_world_load(
+    const resource_io::LegacySaveContainer& save,
+    std::span<compat::u8> maps_payload,
+    LegacyMapsWorldDatabase& database
+);
 
 struct LegacySaveWorldExtensionA {
     std::array<compat::u8, 0x40U> role_names{};
@@ -211,8 +230,17 @@ struct LegacySaveItemListResult {
     LegacyMapsWorldDatabase& database
 ) noexcept;
 
+// 0x00408366 precedes the block-2 EOF gate and also applies to older saves.
+[[nodiscard]] LegacySaveStoryPrefixStatus restore_legacy_save_story_flags(
+    const resource_io::LegacySaveContainer& save, LegacyWorldStoryVmState& story
+) noexcept;
+
 [[nodiscard]] LegacySaveStoryPrefixStatus restore_legacy_save_story_prefix(
     const resource_io::LegacySaveContainer& save, LegacyWorldStoryVmState& story
 ) noexcept;
+
+// 0x00408B91–0x00408B9E: fill the entire 0xD8-byte Talk context with FF
+// before loading the saved map. Script zero is not an idle context.
+void reset_legacy_save_talk_context(LegacyWorldTalkContext& context) noexcept;
 
 }  // namespace openswd3::world_map

@@ -12,7 +12,8 @@ run_startup_custom_message(StartupState& state, StartupPorts& ports) {
         state.any_save_exists = true;
     }
 
-    const compat::i32 dialog_result = ports.show_startup_dialog();
+    const compat::i32 dialog_result =
+        ports.show_startup_dialog(state.any_save_exists);
     switch (dialog_result) {
     case 1:
         ports.initialize_game();

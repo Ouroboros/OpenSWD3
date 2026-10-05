@@ -16,7 +16,7 @@ public:
     virtual void initialize_default_key_bindings() = 0;
     virtual void initialize_paths_and_directories() = 0;
     virtual bool scan_save_slots() = 0;
-    virtual compat::i32 show_startup_dialog() = 0;
+    virtual compat::i32 show_startup_dialog(bool any_save_exists) = 0;
 
     virtual void initialize_game() = 0;
     virtual void reset_result_one_game_state() = 0;

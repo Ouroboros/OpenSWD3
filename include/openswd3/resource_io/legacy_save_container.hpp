@@ -28,10 +28,14 @@ struct LegacySaveContainer {
     std::array<compat::u8, 0x20U> label{};
     // Block order: preview state, primary state, u16 state, Fame, tail pair.
     std::array<LegacySaveDecodedBlock, 5U> blocks{};
+    std::array<bool, 5U> block_present{};
     std::array<compat::u8, 0x1CU> raw_after_primary{};
     std::array<compat::u8, 0x84U> extension_a{};
     std::array<compat::u8, 0x180U> extension_b{};
     std::array<compat::u8, 0x84U> extension_c{};
+    bool extension_a_present{};
+    bool extension_b_present{};
+    bool extension_c_present{};
     std::size_t consumed_bytes{};
 };
 

@@ -193,6 +193,34 @@ FrameCoordinatorState make_state() {
     return {1, 0, 0, false, {0, 0, 0, 0}};
 }
 
+void test_startup_load_menu(openswd3::test::Context& test) {
+    auto state = make_state();
+    state.battle.special_mode_state = 0x80000003U;
+    RecordingPorts ports;
+    openswd3::app::enter_startup_load_menu(state, ports);
+    test.expect_true(
+        state.battle.special_mode_state == 0U &&
+            state.battle.high_priority_state == 3U,
+        "startup load bypasses the title and enters the save selector"
+    );
+    test.expect_equal(
+        ports.calls,
+        std::vector{
+            Call::set_high_priority_submode,
+            Call::set_high_priority_auxiliary,
+            Call::reset_menu_previews,
+        },
+        "startup load sets both selectors before rebuilding previews"
+    );
+    ports.calls.clear();
+    static_cast<void>(openswd3::app::run_accepted_frame(state, ports));
+    test.expect_equal(
+        ports.calls,
+        std::vector{Call::high_priority, Call::audio},
+        "the first startup-load frame runs the selector without title input"
+    );
+}
+
 void test_high_priority(openswd3::test::Context& test) {
     auto state = make_state();
     state.battle.high_priority_state = 1;
@@ -380,6 +408,43 @@ void test_special_modes(openswd3::test::Context& test) {
 
     state = make_state();
     state.battle.special_mode_state = 3U;
+    RecordingPorts load_ports;
+    load_ports.special_mode_event =
+        openswd3::app::StandardSpecialModeEvent::commit_load_game_00449291;
+    test.expect_equal(
+        openswd3::app::run_accepted_frame(state, load_ports),
+        openswd3::app::FrameRunOutcome::common_tail_completed,
+        "first menu choice enters the save menu"
+    );
+    test.expect_equal(
+        state.battle.high_priority_state,
+        3U,
+        "save menu owns subsequent high-priority frames"
+    );
+    test.expect_equal(
+        load_ports.calls,
+        std::vector{
+            Call::background_music,
+            Call::audio,
+            Call::prepare_special,
+            Call::standard_special,
+            Call::set_high_priority_submode,
+            Call::set_high_priority_auxiliary,
+            Call::reset_menu_previews,
+            Call::audio,
+        },
+        "save-menu commit preserves assembly initialization order"
+    );
+    load_ports.calls.clear();
+    static_cast<void>(openswd3::app::run_accepted_frame(state, load_ports));
+    test.expect_equal(
+        load_ports.calls,
+        std::vector{Call::high_priority, Call::audio},
+        "save-menu next frame bypasses the initial menu"
+    );
+
+    state = make_state();
+    state.battle.special_mode_state = 3U;
     RecordingPorts new_game_ports;
     new_game_ports.special_mode_event =
         openswd3::app::StandardSpecialModeEvent::commit_new_game_004492ba;
@@ -449,6 +514,7 @@ void test_special_modes(openswd3::test::Context& test) {
 
 int main() {
     openswd3::test::Context test;
+    test_startup_load_menu(test);
     test_high_priority(test);
     test_battle_early_return(test);
     test_battle_typed_stop(test);
