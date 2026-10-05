@@ -61,6 +61,28 @@ struct LegacyBattlePreFrameResult {
     compat::u32 group_b_iterations{};
 };
 
+enum class LegacyBattlePreFrameEntryStatus : compat::u8 {
+    returned_before_next_call,
+    read_source_actor,
+};
+
+struct LegacyBattlePreFrameEntryResult {
+    LegacyBattlePreFrameEntryStatus status{
+        LegacyBattlePreFrameEntryStatus::returned_before_next_call
+    };
+    compat::u32 return_eax{};
+    bool message_read{};
+};
+
+// 0x0045D490..0x0045D4C8. References keep later globals unread when
+// an earlier gate returns; callers bind the physical 0x0053C018 owner.
+[[nodiscard]] LegacyBattlePreFrameEntryResult
+run_legacy_battle_pre_frame_entry_prefix(
+    const compat::u32& terminal_latch,
+    const compat::u32& active_actor_code,
+    const compat::u32& message_state
+) noexcept;
+
 [[nodiscard]] LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
     LegacyBattleFinalActorStepState& final_actor,
     LegacyBattleActionDispatchState& action,

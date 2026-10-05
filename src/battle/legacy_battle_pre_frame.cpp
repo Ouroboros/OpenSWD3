@@ -33,6 +33,28 @@ group_b_token_from_one_based(const u32 index) noexcept {
 
 }  // namespace
 
+LegacyBattlePreFrameEntryResult run_legacy_battle_pre_frame_entry_prefix(
+    const u32& terminal_latch,
+    const u32& active_actor_code,
+    const u32& message_state
+) noexcept {
+    LegacyBattlePreFrameEntryResult result;
+    result.return_eax = terminal_latch;
+    if (result.return_eax != 1U) {
+        return result;
+    }
+    result.return_eax = active_actor_code;
+    if (result.return_eax == 0U) {
+        return result;
+    }
+    result.message_read = true;
+    if (message_state == 3U) {
+        return result;
+    }
+    result.status = LegacyBattlePreFrameEntryStatus::read_source_actor;
+    return result;
+}
+
 LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
     LegacyBattleFinalActorStepState& final_actor,
     LegacyBattleActionDispatchState& action,

@@ -49,6 +49,57 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
     using openswd3::battle::advance_legacy_battle_pre_frame;
 
     {
+        using openswd3::battle::LegacyBattlePreFrameEntryStatus;
+        using openswd3::battle::run_legacy_battle_pre_frame_entry_prefix;
+        u32 terminal = 7U;
+        u32 active_actor = 8U;
+        u32 message_state = 3U;
+        auto result = run_legacy_battle_pre_frame_entry_prefix(
+            terminal, active_actor, message_state
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattlePreFrameEntryStatus::
+                        returned_before_next_call &&
+                result.return_eax == 7U && !result.message_read,
+            "pre-frame terminal gate returns loaded non-one latch before actor and message reads"
+        );
+        terminal = 1U;
+        active_actor = 0U;
+        result = run_legacy_battle_pre_frame_entry_prefix(
+            terminal, active_actor, message_state
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattlePreFrameEntryStatus::
+                        returned_before_next_call &&
+                result.return_eax == 0U && !result.message_read,
+            "pre-frame empty active actor returns zero before message read"
+        );
+        active_actor = 8U;
+        result = run_legacy_battle_pre_frame_entry_prefix(
+            terminal, active_actor, message_state
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattlePreFrameEntryStatus::
+                        returned_before_next_call &&
+                result.return_eax == 8U && result.message_read,
+            "pre-frame message three returns the active actor code"
+        );
+        message_state = 2U;
+        result = run_legacy_battle_pre_frame_entry_prefix(
+            terminal, active_actor, message_state
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattlePreFrameEntryStatus::read_source_actor &&
+                result.return_eax == 8U && result.message_read,
+            "pre-frame active non-three branch stops before source actor read"
+        );
+    }
+
+    {
         LegacyBattleFinalActorStepState final_actor;
         LegacyBattleActionDispatchState action;
         PreFramePort port;
