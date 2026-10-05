@@ -455,6 +455,102 @@ void test_display_refresh_configuration(openswd3::test::Context& test) {
     );
 }
 
+void test_dialog_automation_configuration(openswd3::test::Context& test) {
+    using openswd3::resource_io::DialogConfiguration;
+    using openswd3::resource_io::DialogConfigurationStatus;
+    using openswd3::resource_io::WindowConfigurationStatus;
+
+    const TemporaryTree tree;
+    const auto missing = openswd3::resource_io::load_dialog_configuration(
+        tree.configuration_path()
+    );
+    test.expect_true(
+        missing.status == DialogConfigurationStatus::ready &&
+            missing.configuration == DialogConfiguration{} &&
+            !missing.loaded_from_file,
+        "missing dialog configuration leaves automation off"
+    );
+
+    tree.write_configuration("[dialog]\n" "auto_advance = true\n");
+    const auto enabled = openswd3::resource_io::load_dialog_configuration(
+        tree.configuration_path()
+    );
+    test.expect_true(
+        enabled.status == DialogConfigurationStatus::ready &&
+            enabled.configuration.auto_advance &&
+            enabled.configuration.interval_milliseconds == 120 &&
+            enabled.loaded_from_file,
+        "dialog auto-advance explicitly opts in with the default interval"
+    );
+
+    tree.write_configuration(
+        "[dialog]\n" "auto_advance = true\n" "interval_ms = 35\n"
+    );
+    const auto configured = openswd3::resource_io::load_dialog_configuration(
+        tree.configuration_path()
+    );
+    std::string detail;
+    const auto save = openswd3::resource_io::save_window_configuration(
+        tree.configuration_path(), {960, 720}, false, detail
+    );
+    const auto preserved = openswd3::resource_io::load_dialog_configuration(
+        tree.configuration_path()
+    );
+    test.expect_true(
+        configured.configuration == DialogConfiguration{true, 35} &&
+            save == WindowConfigurationStatus::ready &&
+            preserved.configuration == configured.configuration,
+        "window placement persistence preserves the dialog automation switch and interval"
+    );
+
+    tree.write_configuration("dialog = true\n");
+    const auto invalid_table = openswd3::resource_io::load_dialog_configuration(
+        tree.configuration_path()
+    );
+    test.expect_equal(
+        invalid_table.status,
+        DialogConfigurationStatus::invalid_dialog_table,
+        "dialog configuration rejects a scalar table replacement"
+    );
+
+    tree.write_configuration("[dialog]\n" "auto_advance = 'yes'\n");
+    const auto invalid_switch =
+        openswd3::resource_io::load_dialog_configuration(
+            tree.configuration_path()
+        );
+    test.expect_true(
+        invalid_switch.status ==
+                DialogConfigurationStatus::invalid_auto_advance &&
+            !invalid_switch.configuration.auto_advance,
+        "invalid dialog switch falls back to manual input"
+    );
+
+    tree.write_configuration(
+        "[dialog]\n" "auto_advance = true\n" "interval_ms = 0\n"
+    );
+    const auto invalid_interval =
+        openswd3::resource_io::load_dialog_configuration(
+            tree.configuration_path()
+        );
+    test.expect_true(
+        invalid_interval.status ==
+                DialogConfigurationStatus::invalid_interval_milliseconds &&
+            !invalid_interval.configuration.auto_advance,
+        "nonpositive dialog interval rejects automation rather than pressing every frame"
+    );
+    tree.write_configuration(
+        "[dialog]\n" "auto_advance = true\n" "interval_ms = 60001\n"
+    );
+    test.expect_equal(
+        openswd3::resource_io::load_dialog_configuration(
+            tree.configuration_path()
+        )
+            .status,
+        DialogConfigurationStatus::invalid_interval_milliseconds,
+        "dialog interval above the supported bound is rejected"
+    );
+}
+
 void test_legacy_existing_directory_is_selected(openswd3::test::Context& test) {
     const TemporaryTree tree;
     const CurrentDirectoryGuard directory_guard;
@@ -539,6 +635,7 @@ int main() {
     test_activation(test);
     test_window_size_configuration(test);
     test_display_refresh_configuration(test);
+    test_dialog_automation_configuration(test);
     test_legacy_existing_directory_is_selected(test);
     test_legacy_missing_directory_is_created_without_selection(test);
     test_legacy_directory_failures_are_ignored(test);

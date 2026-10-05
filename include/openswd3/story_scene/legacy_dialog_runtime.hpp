@@ -45,6 +45,22 @@ release_legacy_dialog_messages(LegacyDialogRuntimeState& state) noexcept;
 // the RAII ownership adaptation and unrelated dialog state remains untouched.
 void clear_legacy_dialog_choice_chain(LegacyDialogRuntimeState& state) noexcept;
 
+// Optional platform input adapter, not an original subroutine. Disabled mode
+// passes the physical primary-action input through unchanged.
+struct LegacyDialogAutoAdvanceState {
+    compat::u32 next_press_tick{};
+    bool armed{};
+};
+
+[[nodiscard]] compat::u32 choose_legacy_dialog_primary_press(
+    bool enabled,
+    compat::u32 interval_milliseconds,
+    const LegacyDialogRuntimeState& dialogs,
+    compat::u32 current_tick,
+    compat::u32 physical_press_state,
+    LegacyDialogAutoAdvanceState& state
+) noexcept;
+
 struct LegacyDialogRuntimeInput {
     compat::u32 current_tick{};
     compat::u32 primary_press_state{};

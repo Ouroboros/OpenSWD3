@@ -7,6 +7,15 @@
 namespace openswd3::resource_io {
 
 inline constexpr int kMaximumDisplayFramesPerSecond = 1000;
+inline constexpr int kDefaultDialogAutoAdvanceIntervalMilliseconds = 120;
+inline constexpr int kMaximumDialogAutoAdvanceIntervalMilliseconds = 60000;
+
+struct DialogConfiguration {
+    bool auto_advance{};
+    int interval_milliseconds{kDefaultDialogAutoAdvanceIntervalMilliseconds};
+
+    [[nodiscard]] bool operator==(const DialogConfiguration&) const = default;
+};
 
 struct DisplayConfiguration {
     int frames_per_second{};
@@ -20,6 +29,15 @@ struct WindowSize {
     int height{};
 
     [[nodiscard]] bool operator==(const WindowSize&) const = default;
+};
+
+enum class DialogConfigurationStatus {
+    ready,
+    read_failed,
+    parse_failed,
+    invalid_dialog_table,
+    invalid_auto_advance,
+    invalid_interval_milliseconds,
 };
 
 enum class DisplayConfigurationStatus {
@@ -41,6 +59,13 @@ enum class WindowConfigurationStatus {
     write_failed,
 };
 
+struct DialogConfigurationLoadResult {
+    DialogConfigurationStatus status{DialogConfigurationStatus::ready};
+    DialogConfiguration configuration;
+    bool loaded_from_file{};
+    std::string detail;
+};
+
 struct DisplayConfigurationLoadResult {
     DisplayConfigurationStatus status{DisplayConfigurationStatus::ready};
     DisplayConfiguration configuration;
@@ -55,6 +80,11 @@ struct WindowConfigurationLoadResult {
     bool loaded_from_file{};
     std::string detail;
 };
+
+[[nodiscard]] DialogConfigurationLoadResult load_dialog_configuration(
+    const std::filesystem::path& configuration_path,
+    DialogConfiguration fallback = {}
+);
 
 [[nodiscard]] DisplayConfigurationLoadResult load_display_configuration(
     const std::filesystem::path& configuration_path,
@@ -71,6 +101,9 @@ struct WindowConfigurationLoadResult {
     bool maximized,
     std::string& detail
 );
+
+[[nodiscard]] std::string_view
+dialog_configuration_status_message(DialogConfigurationStatus status) noexcept;
 
 [[nodiscard]] std::string_view display_configuration_status_message(
     DisplayConfigurationStatus status

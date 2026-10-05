@@ -14,6 +14,15 @@ width = 960
 height = 720
 maximized = false
 
+[dialog]
+
+# Optional test convenience: synthesize Space only for interactive dialog
+# messages without choices. Does not select menu options or affect battle input.
+# Disabled unless explicitly enabled.
+auto_advance = false
+# Delay before the first press and between subsequent presses (milliseconds).
+interval_ms = 120
+
 [display]
 
 # 0 keeps presentation coupled to the original 35/70 ms game clock.

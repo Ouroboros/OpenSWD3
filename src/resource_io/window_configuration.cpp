@@ -13,6 +13,18 @@ namespace openswd3::resource_io {
 
 namespace {
 
+[[nodiscard]] DialogConfigurationLoadResult dialog_load_error(
+    const DialogConfigurationStatus status,
+    const DialogConfiguration fallback,
+    std::string detail = {}
+) {
+    DialogConfigurationLoadResult result;
+    result.status = status;
+    result.configuration = fallback;
+    result.detail = std::move(detail);
+    return result;
+}
+
 [[nodiscard]] DisplayConfigurationLoadResult display_load_error(
     const DisplayConfigurationStatus status,
     const DisplayConfiguration fallback,
@@ -78,6 +90,55 @@ template <typename Status>
 }
 
 }  // namespace
+
+DialogConfigurationLoadResult load_dialog_configuration(
+    const std::filesystem::path& configuration_path,
+    const DialogConfiguration fallback
+) {
+    toml::table document;
+    DialogConfigurationStatus status = DialogConfigurationStatus::ready;
+    std::string detail;
+    if (!read_existing_document(configuration_path, document, status, detail)) {
+        return dialog_load_error(status, fallback, std::move(detail));
+    }
+
+    const toml::node* dialog_node = document.get("dialog");
+    if (dialog_node == nullptr) {
+        return {DialogConfigurationStatus::ready, fallback, false, {}};
+    }
+    const toml::table* dialog = dialog_node->as_table();
+    if (dialog == nullptr) {
+        return dialog_load_error(
+            DialogConfigurationStatus::invalid_dialog_table, fallback
+        );
+    }
+
+    DialogConfiguration configuration = fallback;
+    if (const toml::node* auto_node = dialog->get("auto_advance");
+        auto_node != nullptr) {
+        const std::optional<bool> value = auto_node->value<bool>();
+        if (!value.has_value()) {
+            return dialog_load_error(
+                DialogConfigurationStatus::invalid_auto_advance, fallback
+            );
+        }
+        configuration.auto_advance = *value;
+    }
+    if (const toml::node* interval_node = dialog->get("interval_ms");
+        interval_node != nullptr) {
+        const std::optional<std::int64_t> value =
+            interval_node->value<std::int64_t>();
+        if (!value.has_value() || *value < 1 ||
+            *value > kMaximumDialogAutoAdvanceIntervalMilliseconds) {
+            return dialog_load_error(
+                DialogConfigurationStatus::invalid_interval_milliseconds,
+                fallback
+            );
+        }
+        configuration.interval_milliseconds = static_cast<int>(*value);
+    }
+    return {DialogConfigurationStatus::ready, configuration, true, {}};
+}
 
 DisplayConfigurationLoadResult load_display_configuration(
     const std::filesystem::path& configuration_path,
@@ -242,6 +303,26 @@ WindowConfigurationStatus save_window_configuration(
         return WindowConfigurationStatus::write_failed;
     }
     return WindowConfigurationStatus::ready;
+}
+
+std::string_view dialog_configuration_status_message(
+    const DialogConfigurationStatus status
+) noexcept {
+    switch (status) {
+    case DialogConfigurationStatus::ready:
+        return "ready";
+    case DialogConfigurationStatus::read_failed:
+        return "cannot read openswd3.toml";
+    case DialogConfigurationStatus::parse_failed:
+        return "cannot parse openswd3.toml";
+    case DialogConfigurationStatus::invalid_dialog_table:
+        return "[dialog] must be a TOML table";
+    case DialogConfigurationStatus::invalid_auto_advance:
+        return "[dialog] auto_advance must be a boolean";
+    case DialogConfigurationStatus::invalid_interval_milliseconds:
+        return "[dialog] interval_ms must be an integer from 1 through 60000";
+    }
+    return "unknown dialog configuration status";
 }
 
 std::string_view display_configuration_status_message(

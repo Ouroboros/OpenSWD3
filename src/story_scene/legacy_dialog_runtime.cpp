@@ -1,5 +1,6 @@
 #include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 
+#include <bit>
 #include <list>
 #include <vector>
 
@@ -65,6 +66,46 @@ private:
 };
 
 }  // namespace
+
+compat::u32 choose_legacy_dialog_primary_press(
+    const bool enabled,
+    const compat::u32 interval_milliseconds,
+    const LegacyDialogRuntimeState& dialogs,
+    const compat::u32 current_tick,
+    const compat::u32 physical_press_state,
+    LegacyDialogAutoAdvanceState& state
+) noexcept {
+    bool eligible = enabled && interval_milliseconds != 0U &&
+        (dialogs.choice_chain_flags & kLegacyDialogChoiceChainReleaseOnPress) ==
+            0U;
+    bool has_active_message = false;
+    for (const auto& message : dialogs.messages) {
+        if (!message.active) {
+            continue;
+        }
+        has_active_message = true;
+        if ((message.record.flags & kLegacyDialogFlagInteractive) == 0U ||
+            (message.record.flags & kLegacyDialogFlagHasChoices) != 0U ||
+            !message.choices.empty()) {
+            eligible = false;
+            break;
+        }
+    }
+    if (!eligible || !has_active_message) {
+        state.armed = false;
+        return physical_press_state;
+    }
+    if (!state.armed || physical_press_state != 0U) {
+        state.armed = true;
+        state.next_press_tick = current_tick + interval_milliseconds;
+        return physical_press_state;
+    }
+    if (std::bit_cast<compat::i32>(current_tick - state.next_press_tick) < 0) {
+        return 0U;
+    }
+    state.next_press_tick = current_tick + interval_milliseconds;
+    return 1U;
+}
 
 LegacyDialogMessageReleaseResult
 release_legacy_dialog_messages(LegacyDialogRuntimeState& state) noexcept {

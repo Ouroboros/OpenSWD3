@@ -12,6 +12,7 @@ namespace {
 using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
+using openswd3::story_scene::LegacyDialogAutoAdvanceState;
 using openswd3::story_scene::LegacyDialogCaptionRequest;
 using openswd3::story_scene::LegacyDialogChoiceBackgroundRequest;
 using openswd3::story_scene::LegacyDialogCompositeRequest;
@@ -26,7 +27,10 @@ using openswd3::story_scene::LegacyDialogRuntimeState;
 using openswd3::story_scene::LegacyDialogRuntimeStatus;
 using openswd3::story_scene::LegacyDialogMessageReleaseResult;
 using openswd3::story_scene::LegacyDialogSegmentDrawRequest;
+using openswd3::story_scene::choose_legacy_dialog_primary_press;
 using openswd3::story_scene::clear_legacy_dialog_choice_chain;
+using openswd3::story_scene::kLegacyDialogFlagHasChoices;
+using openswd3::story_scene::kLegacyDialogFlagInteractive;
 using openswd3::story_scene::kLegacyDialogFlagTerminated;
 using openswd3::story_scene::kLegacyDialogSurfaceHeight;
 using openswd3::story_scene::kLegacyDialogSurfaceWidth;
@@ -417,6 +421,75 @@ void test_message_chain_release_lifecycle(openswd3::test::Context& test) {
     );
 }
 
+void test_optional_automatic_dialog_press(openswd3::test::Context& test) {
+    LegacyDialogRuntimeState dialogs;
+    LegacyDialogAutoAdvanceState state;
+    const auto choose =
+        [&](const bool enabled, const u32 tick, const u32 manual) {
+            return choose_legacy_dialog_primary_press(
+                enabled, 120U, dialogs, tick, manual, state
+            );
+        };
+    test.expect_true(
+        choose(true, 100U, 0U) == 0U && !state.armed,
+        "automation does not press Space outside a dialog"
+    );
+
+    dialogs.messages.emplace_back();
+    auto& message = dialogs.messages.back();
+    message.record.flags = kLegacyDialogFlagInteractive;
+    test.expect_true(
+        choose(false, 110U, 3U) == 3U && !state.armed &&
+            choose(true, 120U, 0U) == 0U && state.armed &&
+            choose(true, 239U, 0U) == 0U && choose(true, 240U, 0U) == 1U &&
+            choose(true, 241U, 0U) == 0U && choose(true, 360U, 0U) == 1U,
+        "automation passes manual input through and emits spaced one-frame presses only while enabled"
+    );
+    test.expect_true(
+        choose(true, 370U, 2U) == 2U && choose(true, 489U, 0U) == 0U &&
+            choose(true, 490U, 0U) == 1U,
+        "a manual press postpones the next automatic press"
+    );
+
+    message.record.flags |= kLegacyDialogFlagHasChoices;
+    test.expect_true(
+        choose(true, 610U, 0U) == 0U && !state.armed &&
+            choose(true, 610U, 1U) == 1U,
+        "dialog choices suppress only synthesized presses, not the player's action"
+    );
+    message.record.flags = kLegacyDialogFlagInteractive;
+    message.choices.push_back({1U, 2U, 3U, 4U, 5U});
+    test.expect_true(
+        choose(true, 730U, 0U) == 0U && !state.armed,
+        "a live choice hotspot also blocks automatic confirmation"
+    );
+    message.choices.clear();
+    dialogs.choice_chain_flags =
+        openswd3::story_scene::kLegacyDialogChoiceChainReleaseOnPress;
+    test.expect_true(
+        choose(true, 850U, 0U) == 0U && !state.armed,
+        "pending choice-chain release cannot be auto-confirmed"
+    );
+    dialogs.choice_chain_flags = 0U;
+    message.record.flags = 0U;
+    test.expect_true(
+        choose(true, 950U, 0U) == 0U && !state.armed,
+        "timed noninteractive messages remain on their own schedule"
+    );
+    message.record.flags = kLegacyDialogFlagInteractive;
+    test.expect_true(
+        choose(true, 0xFFFFFFF0U, 0U) == 0U &&
+            choose(true, 0x00000067U, 0U) == 0U &&
+            choose(true, 0x00000068U, 0U) == 1U,
+        "the press interval remains correct across the 32-bit tick wrap"
+    );
+    dialogs.messages.clear();
+    test.expect_true(
+        choose(true, 200U, 0U) == 0U && !state.armed,
+        "empty dialogs reset the pending automation interval"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -427,5 +500,6 @@ int main() {
     test_close_is_composited_then_removed(test);
     test_surface_and_anchor_failures_release_correctly(test);
     test_message_chain_release_lifecycle(test);
+    test_optional_automatic_dialog_press(test);
     return test.exit_code();
 }

@@ -1993,6 +1993,7 @@ public:
         openswd3::compat::u32& frame_interval,
         openswd3::compat::u32 display_frames_per_second,
         bool world_motion_interpolation_enabled,
+        const openswd3::resource_io::DialogConfiguration& dialog_configuration,
         bool display_frame_ready,
         openswd3::app::WindowEventState& window_state,
         const openswd3::app::DisplayLifecycleState& display_state,
@@ -2030,6 +2031,7 @@ public:
           world_motion_interpolation_enabled_(
               world_motion_interpolation_enabled
           ),
+          dialog_configuration_(dialog_configuration),
           display_frame_ready_(display_frame_ready),
           window_state_(window_state), display_state_(display_state),
           frame_preparation_state_(frame_preparation_state),
@@ -2631,6 +2633,7 @@ public:
     void close_world_map_view() override {}
     void initialize_battle(const openswd3::compat::u16 battle_id) override {
         battle_runtime_ = {};
+        auto_dialog_input_state_ = {};
         battle_script_workspace_ = {};
         battle_script_shared_ = {};
         battle_action_dispatch_ = {};
@@ -5155,8 +5158,19 @@ public:
                     {
                         .current_tick = frame_preparation_state_.frame_clock
                                             .sampled_milliseconds,
-                        .primary_press_state =
-                            input_state_.records[1U].rapid_press_multiplicity,
+                        .primary_press_state = openswd3::story_scene::
+                            choose_legacy_dialog_primary_press(
+                                dialog_configuration_.auto_advance,
+                                static_cast<openswd3::compat::u32>(
+                                    dialog_configuration_.interval_milliseconds
+                                ),
+                                world_dialogs_,
+                                frame_preparation_state_.frame_clock
+                                    .sampled_milliseconds,
+                                input_state_.records[1U]
+                                    .rapid_press_multiplicity,
+                                auto_dialog_input_state_
+                            ),
                         .selected_choice_index =
                             std::bit_cast<openswd3::compat::i32>(
                                 world_interaction_state_.selected_choice_index
@@ -7217,6 +7231,7 @@ private:
     std::optional<openswd3::rendering::LegacyPresentationSite>
         latest_presentation_site_;
     bool world_motion_interpolation_enabled_{};
+    openswd3::resource_io::DialogConfiguration dialog_configuration_{};
     bool display_frame_ready_{};
     bool texture_contains_world_interpolation_{};
     openswd3::app::WindowEventState& window_state_;
@@ -7335,6 +7350,8 @@ private:
     std::vector<openswd3::compat::u16> world_ani_scene_backup_;
     openswd3::world_map::LegacyWorldFrameEffectState world_frame_effects_;
     openswd3::story_scene::LegacyDialogRuntimeState world_dialogs_;
+    openswd3::story_scene::LegacyDialogAutoAdvanceState
+        auto_dialog_input_state_{};
     openswd3::world_map::LegacyWorldStoryVmState world_story_vm_state_;
     openswd3::world_map::LegacyWorldLoadProgressState world_load_progress_;
     openswd3::world_map::LegacyWorldInteractionState world_interaction_state_;
@@ -7537,6 +7554,29 @@ int main(const int argument_count, char** arguments) {
         }
         message.append("; using legacy coupled presentation");
         openswd3::diagnostics::log_warning(message);
+    }
+
+    const auto dialog_config =
+        openswd3::resource_io::load_dialog_configuration(configuration_path);
+    if (dialog_config.status !=
+        openswd3::resource_io::DialogConfigurationStatus::ready) {
+        std::string message{"dialog automation: "};
+        message.append(
+            openswd3::resource_io::dialog_configuration_status_message(
+                dialog_config.status
+            )
+        );
+        if (!dialog_config.detail.empty()) {
+            message.append(": ");
+            message.append(dialog_config.detail);
+        }
+        message.append("; using manual dialog input");
+        openswd3::diagnostics::log_warning(message);
+    } else if (dialog_config.configuration.auto_advance) {
+        openswd3::diagnostics::log_info(
+            std::string{"dialog auto-advance enabled: interval_ms="} +
+            std::to_string(dialog_config.configuration.interval_milliseconds)
+        );
     }
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -7819,6 +7859,7 @@ int main(const int argument_count, char** arguments) {
         frame_interval,
         static_cast<openswd3::compat::u32>(display_frames_per_second),
         world_motion_interpolation_enabled,
+        dialog_config.configuration,
         runtime_ready,
         window_state,
         display_state,
