@@ -41,7 +41,11 @@
 #include "openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
+#include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
+#include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
+#include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_mon_definition.hpp"
+#include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_runtime_shutdown.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
@@ -1674,6 +1678,9 @@ class SdlSmokeIdlePorts final
       public openswd3::app::FramePreparationPorts,
       public openswd3::app::FrameRuntimePorts,
       public openswd3::battle::LegacyBattleScriptDispatchPort,
+      public openswd3::battle::LegacyBattleFrameMusicPrefixPort,
+      public virtual openswd3::battle::
+          LegacyBattleFrameInputResolutionStatePort,
       public openswd3::battle::LegacyBattleLevelProfilePort,
       public openswd3::rendering::LegacyPresentationPorts,
       public openswd3::audio_video::LegacyVideoFramePorts,
@@ -2636,6 +2643,8 @@ public:
         auto_dialog_input_state_ = {};
         battle_script_workspace_ = {};
         battle_script_shared_ = {};
+        battle_frame_coordinator_state_ = {};
+        battle_frame_input_resolution_state() = {};
         battle_action_dispatch_ = {};
         battle_actor_metrics_ = {};
         battle_final_actor_ = {};
@@ -2671,19 +2680,12 @@ public:
                 openswd3::battle::LegacyBattleSetupStatus::ready;
             if (battle_setup_ready_) {
                 battle_runtime_.battle_id_word = battle_id;
-                battle_runtime_.party_count = battle_setup_.party_count;
+                openswd3::battle::bind_legacy_battle_setup_party_owners(
+                    battle_setup_, battle_runtime_
+                );
                 battle_runtime_.enemy_count = battle_setup_.enemy_count;
                 battle_runtime_.background_resource =
                     battle_setup_.background_resource_id;
-                for (std::size_t index = 0U; index < battle_setup_.party.size();
-                     ++index) {
-                    const auto& source = battle_setup_.party[index];
-                    auto& destination = battle_runtime_.party[index];
-                    destination.role_id = source.resource_id;
-                    destination.position_x = source.screen_x;
-                    destination.position_y = source.screen_y;
-                    destination.active = source.active ? 1U : 0U;
-                }
                 battle_runtime_.group_b_lifecycle = std::make_shared<std::array<
                     openswd3::battle::LegacyBattleActorGroupBElementState,
                     openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
@@ -2743,6 +2745,32 @@ public:
         }
     }
     void clear_party_battle_entry_bits() override {}
+
+    [[nodiscard]] openswd3::battle::LegacyBattleFrameMusicRegisters
+    query_music_gate() override {
+        return {
+            .eax = static_cast<openswd3::compat::u32>(
+                openswd3::audio_video::legacy_stream_absent(stream_manager_)
+            ),
+        };
+    }
+
+    void
+    start_music(const std::span<const openswd3::compat::u8> path) override {
+        static_cast<void>(play_battle_music_path(path));
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleFrameMusicRegisters
+    commit_music_volume(const openswd3::compat::u32 level_bits) override {
+        return {
+            .eax = std::bit_cast<openswd3::compat::u32>(
+                openswd3::audio_video::set_legacy_stream_volume(
+                    stream_manager_,
+                    std::bit_cast<openswd3::compat::i32>(level_bits)
+                )
+            ),
+        };
+    }
 
     openswd3::battle::LegacyBattleScriptDispatchCallReply invoke_battle_script(
         openswd3::battle::LegacyBattleScriptWorkspace& workspace,
@@ -2890,9 +2918,370 @@ public:
                     static_cast<openswd3::compat::u16>(request.arguments[1]);
             }
             break;
-        case LegacyBattleScriptDispatchCall::frame:
-            reply.eax = 1U;
+        case LegacyBattleScriptDispatchCall::stream_stop:
+            reply.eax = std::bit_cast<openswd3::compat::u32>(
+                openswd3::audio_video::stop_legacy_stream(stream_manager_)
+            );
             break;
+        case LegacyBattleScriptDispatchCall::stream_start:
+            reply.eax = std::bit_cast<openswd3::compat::u32>(
+                play_battle_music_path(battle_script_shared_.music_path)
+            );
+            break;
+        case LegacyBattleScriptDispatchCall::stream_set_volume:
+            reply.eax = std::bit_cast<openswd3::compat::u32>(
+                openswd3::audio_video::set_legacy_stream_volume(
+                    stream_manager_, music_mix_level_
+                )
+            );
+            break;
+        case LegacyBattleScriptDispatchCall::frame: {
+            openswd3::battle::bind_legacy_battle_actor_counts_for_frame(
+                battle_runtime_, battle_actor_metrics_
+            );
+            using openswd3::battle::LegacyBattleFrameInputCaseZeroGateStatus;
+            using openswd3::battle::LegacyBattleFrameInputGateStatus;
+            const auto selected_before =
+                battle_input_dispatch_.selected_option_word;
+            const auto menu_before = battle_input_dispatch_.menu_action;
+            const auto latch_before = battle_input_dispatch_.input_latch;
+            const auto record_zero_before = input_state_.records[0U];
+            const auto prefix =
+                openswd3::battle::run_legacy_battle_frame_music_prefix(
+                    battle_frame_coordinator_state_.active,
+                    battle_frame_input_resolution_state()
+                        .target_selection_suppression,
+                    battle_script_shared_.music_path,
+                    music_mix_level_,
+                    *this
+                );
+            const auto input_gate =
+                openswd3::battle::run_legacy_battle_frame_input_gate_prefix(
+                    battle_frame_input_resolution_state(),
+                    battle_final_actor_,
+                    input_state_
+                );
+            const bool returned_zero = input_gate.status ==
+                LegacyBattleFrameInputGateStatus::returned_zero;
+            openswd3::compat::u32 hotspot_queries{};
+            if (!returned_zero) {
+                const auto hotspots = dialog_choice_hotspots();
+                const auto hotspot = openswd3::battle::
+                    run_legacy_battle_frame_input_hotspot_prefix(
+                        battle_frame_input_resolution_state(),
+                        battle_input_dispatch_,
+                        input_state_,
+                        hotspots,
+                        input_gate.eax
+                    );
+                hotspot_queries = hotspot.hotspot_queries;
+            }
+            bool input_returned = returned_zero;
+            const char* stop_boundary = returned_zero
+                ? "0x0045323E -> sub_45F2A0"
+                : "0x0045FCEF -> message branch";
+            if (!returned_zero &&
+                openswd3::battle::is_legacy_battle_frame_input_default_message(
+                    battle_message_state_
+                )) {
+                input_returned = true;
+                stop_boundary = "0x0045323E -> sub_45F2A0";
+            } else if (!returned_zero && battle_message_state_ == 0U) {
+                const auto case_zero_gate = openswd3::battle::
+                    run_legacy_battle_frame_input_case_zero_gate_prefix(
+                        battle_actor_metrics_,
+                        battle_final_actor_,
+                        battle_input_dispatch_,
+                        static_cast<openswd3::compat::u32>(
+                            input_state_.current_mouse.logical_y
+                        )
+                    );
+                input_returned = true;
+                stop_boundary = "0x0045323E -> sub_45F2A0";
+                if (case_zero_gate ==
+                    LegacyBattleFrameInputCaseZeroGateStatus::
+                        continue_at_party_source) {
+                    const auto party = openswd3::battle::
+                        run_legacy_battle_frame_input_case_zero_party_prefix(
+                            battle_runtime_,
+                            battle_actor_metrics_,
+                            battle_input_dispatch_,
+                            static_cast<openswd3::compat::u32>(
+                                input_state_.current_mouse.logical_x
+                            ),
+                            battle_actor_metrics_.group_b_count
+                        );
+                    input_returned = party.status ==
+                        openswd3::battle::
+                            LegacyBattleFrameInputResolutionStatus::completed;
+                    if (party.status ==
+                        openswd3::battle::
+                            LegacyBattleFrameInputResolutionStatus::
+                                party_source_index_typed_stop) {
+                        stop_boundary = "0x0045FD49 -> party source";
+                    } else if (
+                        party.status ==
+                        openswd3::battle::
+                            LegacyBattleFrameInputResolutionStatus::
+                                party_offset_typed_stop
+                    ) {
+                        stop_boundary = "0x0045FD4B -> party offset";
+                    }
+                }
+            } else if (!returned_zero && battle_message_state_ == 1U) {
+                input_returned = battle_final_actor_.queued_actor_code == 0U;
+                stop_boundary = input_returned ? "0x0045323E -> sub_45F2A0"
+                                               : "0x0045FE44 -> panel origin";
+            } else if (!returned_zero && battle_message_state_ == 2U) {
+                openswd3::battle::
+                    reset_legacy_battle_frame_input_case_two_hover_prefix(
+                        battle_frame_input_resolution_state()
+                    );
+                stop_boundary = "0x0045FFD9 -> equipment Y branch";
+            } else if (!returned_zero && battle_message_state_ == 3U) {
+                input_returned = openswd3::battle::
+                    is_legacy_battle_frame_input_case_three_blocked(
+                        battle_frame_input_resolution_state()
+                    );
+                stop_boundary = input_returned
+                    ? "0x0045323E -> sub_45F2A0"
+                    : "0x00460556 -> actor action slot";
+            } else if (!returned_zero && battle_message_state_ == 4U) {
+                openswd3::battle::
+                    reset_legacy_battle_frame_input_case_four_hover_prefix(
+                        battle_frame_input_resolution_state()
+                    );
+                stop_boundary = "0x00460124 -> secondary Y branch";
+            } else if (
+                !returned_zero &&
+                (battle_message_state_ == 5U || battle_message_state_ == 8U)
+            ) {
+                input_returned = openswd3::battle::
+                    is_legacy_battle_frame_input_row_x_outside(
+                        battle_message_state_,
+                        static_cast<openswd3::compat::u32>(
+                            input_state_.current_mouse.logical_x
+                        )
+                    );
+                if (input_returned) {
+                    battle_input_dispatch_.mouse_action_gate = 0U;
+                }
+                stop_boundary = input_returned    ? "0x0045323E -> sub_45F2A0"
+                    : battle_message_state_ == 5U ? "0x00460280 -> row scan"
+                                                  : "0x004602F6 -> row scan";
+            }
+            openswd3::compat::u32 keyboard_queries = 0U;
+            bool input_record_ready = false;
+            bool input_dispatch_returned = false;
+            if (input_returned) {
+                const auto next = openswd3::battle::
+                    run_legacy_battle_input_dispatch_entry_prefix(
+                        battle_input_dispatch_,
+                        battle_frame_coordinator_state_.render_abort_latch
+                    );
+                if (next ==
+                    openswd3::battle::LegacyBattleInputDispatchEntryStatus::
+                        returned_render_abort_latch) {
+                    input_dispatch_returned = true;
+                } else if (
+                    openswd3::battle::
+                        should_legacy_battle_input_dispatch_query_keyboard(
+                            battle_message_state_,
+                            battle_final_actor_.queued_actor_code,
+                            world_dialogs_.messages.empty()
+                        )
+                ) {
+                    const auto probe = openswd3::battle::
+                        probe_legacy_battle_input_dispatch_keyboard_prefix(
+                            keyboard_snapshot_
+                        );
+                    keyboard_queries = probe.raw_key_queries;
+                    input_record_ready = probe.first_pressed_dik == 0U;
+                    stop_boundary = probe.stop_boundary;
+                } else {
+                    input_record_ready = true;
+                }
+            }
+            bool record_zero_written = false;
+            openswd3::compat::u32 idle_records_inspected = 0U;
+            if (input_record_ready) {
+                openswd3::battle::
+                    run_legacy_battle_input_dispatch_record_one_prefix(
+                        battle_input_dispatch_, input_state_.records[1U]
+                    );
+                record_zero_written = openswd3::battle::
+                    run_legacy_battle_input_dispatch_record_nine_prefix(
+                        input_state_.records[0U], input_state_.records[9U]
+                    );
+                const auto record_two = openswd3::battle::
+                    run_legacy_battle_input_dispatch_record_two_prefix(
+                        battle_input_dispatch_,
+                        input_state_.records[2U],
+                        battle_message_state_
+                    );
+                switch (record_two.status) {
+                case openswd3::battle::LegacyBattleInputRecordTwoStatus::
+                    continue_at_record_eighteen: {
+                    const auto record_eighteen = openswd3::battle::
+                        run_legacy_battle_input_dispatch_record_eighteen_prefix(
+                            battle_input_dispatch_, input_state_.records[18U]
+                        );
+                    switch (record_eighteen.status) {
+                    case openswd3::battle::
+                        LegacyBattleInputRecordEighteenStatus::
+                            continue_at_record_seventeen: {
+                        const auto idle_scan = openswd3::battle::
+                            scan_legacy_battle_input_dispatch_idle_suffix(
+                                input_state_.records
+                            );
+                        idle_records_inspected = idle_scan.inspected_records;
+                        stop_boundary = idle_scan.stop_boundary;
+                        input_dispatch_returned =
+                            idle_scan.first_active_record ==
+                            openswd3::input_time_rng::kLegacyInputRecordCount;
+                        break;
+                    }
+
+                    case openswd3::battle::
+                        LegacyBattleInputRecordEighteenStatus::
+                            return_from_pre_debug_gate:
+                        input_dispatch_returned = true;
+                        break;
+
+                    case openswd3::battle::
+                        LegacyBattleInputRecordEighteenStatus::
+                            read_actor_retarget_gate:
+                        stop_boundary = "0x0045F672 -> actor retarget gate";
+                        break;
+                    }
+                    break;
+                }
+
+                case openswd3::battle::LegacyBattleInputRecordTwoStatus::
+                    return_from_message_gate:
+                    input_dispatch_returned = true;
+                    break;
+
+                case openswd3::battle::LegacyBattleInputRecordTwoStatus::
+                    call_actor_action_cycle:
+                    stop_boundary = "0x0045F61D -> sub_462320";
+                    break;
+                }
+            }
+            if (input_dispatch_returned) {
+                const auto pre_frame =
+                    openswd3::battle::run_legacy_battle_pre_frame_entry_prefix(
+                        battle_input_dispatch_.selected_actor_cleanup_gate,
+                        battle_final_actor_.active_actor_code,
+                        battle_message_state_
+                    );
+                if (pre_frame.status ==
+                    openswd3::battle::LegacyBattlePreFrameEntryStatus::
+                        returned_before_next_call) {
+                    openswd3::battle::clear_legacy_battle_actor_metric_tables(
+                        battle_actor_metrics_
+                    );
+                    const auto first_count = openswd3::battle::
+                        probe_legacy_battle_metric_first_count(
+                            battle_runtime_.enemy_count
+                        );
+                    stop_boundary = first_count ==
+                            openswd3::battle::
+                                LegacyBattleMetricFirstCountStatus::
+                                    query_first_group_b_actor
+                        ? "0x0045B11F -> sub_4783B0 group B coordinates"
+                        : "0x0045B13E -> group A count owner";
+                } else {
+                    stop_boundary = "0x0045D4C8 -> source actor code";
+                }
+            }
+            std::string message{"battle frame typed stop before "};
+            message.append(stop_boundary);
+            message.append(": music_started=");
+            message.append(prefix.music_started ? "1" : "0");
+            message.append(", port_calls=");
+            message.append(std::to_string(prefix.port_calls));
+            message.append(", keyboard_queries=");
+            message.append(std::to_string(keyboard_queries));
+            message.append(", record_zero_written=");
+            message.append(record_zero_written ? "1" : "0");
+            message.append(", record2_rapid=");
+            message.append(
+                std::to_string(
+                    input_state_.records[2U].rapid_press_multiplicity
+                )
+            );
+            message.append(", record2_held=");
+            message.append(
+                std::to_string(input_state_.records[2U].held_sample_count)
+            );
+            message.append(", record18_snapshot_rapid=");
+            message.append(
+                std::to_string(
+                    input_state_.records[18U].rapid_press_multiplicity
+                )
+            );
+            message.append(", record18_snapshot_held=");
+            message.append(
+                std::to_string(input_state_.records[18U].held_sample_count)
+            );
+            message.append(", idle_records_inspected=");
+            message.append(std::to_string(idle_records_inspected));
+            message.append(", input_dispatch_returned=");
+            message.append(input_dispatch_returned ? "1" : "0");
+            message.append(", pre_frame_terminal_latch=");
+            message.append(
+                std::to_string(
+                    battle_input_dispatch_.selected_actor_cleanup_gate
+                )
+            );
+            message.append(", pre_frame_active_actor=");
+            message.append(
+                std::to_string(battle_final_actor_.active_actor_code)
+            );
+            message.append(", startup_group_b_count_snapshot=");
+            message.append(std::to_string(battle_runtime_.enemy_count));
+            message.append(", input_gate_eax=");
+            message.append(std::to_string(input_gate.eax));
+            message.append(", hotspot_queries=");
+            message.append(std::to_string(hotspot_queries));
+            message.append(", selected_option_before=");
+            message.append(std::to_string(selected_before));
+            message.append(", selected_option_after=");
+            message.append(
+                std::to_string(battle_input_dispatch_.selected_option_word)
+            );
+            message.append(", menu_action_before=");
+            message.append(std::to_string(menu_before));
+            message.append(", menu_action_after=");
+            message.append(std::to_string(battle_input_dispatch_.menu_action));
+            message.append(", input_latch_before=");
+            message.append(std::to_string(latch_before));
+            message.append(", input_latch_after=");
+            message.append(std::to_string(battle_input_dispatch_.input_latch));
+            message.append(", record0_rapid_before=");
+            message.append(
+                std::to_string(record_zero_before.rapid_press_multiplicity)
+            );
+            message.append(", record0_rapid_after=");
+            message.append(
+                std::to_string(
+                    input_state_.records[0U].rapid_press_multiplicity
+                )
+            );
+            message.append(", record0_held_before=");
+            message.append(
+                std::to_string(record_zero_before.held_sample_count)
+            );
+            message.append(", record0_held_after=");
+            message.append(
+                std::to_string(input_state_.records[0U].held_sample_count)
+            );
+            openswd3::diagnostics::log_error(message);
+            reply.eax = 0U;
+            reply.typed_stop = true;
+            break;
+        }
         default:
             break;
         }
@@ -2904,8 +3293,16 @@ public:
             openswd3::rendering::LegacyPresentationSite::steady_battle
         );
         if (!battle_assets_ready_ || !battle_setup_ready_) {
-            return 0;
+            openswd3::diagnostics::log_error(
+                "battle frame typed stop: battle assets or setup unavailable"
+            );
+            ok_ = false;
+            running_ = false;
+            return std::nullopt;
         }
+
+        auto asset_root_path = data_directory_.string();
+        asset_root_path.push_back(std::filesystem::path::preferred_separator);
         const auto result = openswd3::battle::run_legacy_battle_script_dispatch(
             battle_script_workspace_,
             {
@@ -2920,6 +3317,7 @@ public:
                 .victory = battle_victory_rewards_,
                 .shared = battle_script_shared_,
                 .message_state = battle_message_state_,
+                .asset_root_path = asset_root_path,
             },
             *this
         );
@@ -2969,8 +3367,7 @@ public:
                  story.music_first_stream,
                  story.music_second_stream,
                  0U},
-            .mix_level =
-                world_frame_state_.frame_runtime.spatial_audio.mix_level,
+            .mix_level = music_mix_level_,
         };
         const auto maps_payload = resource_databases_.maps_payload_bytes();
 
@@ -3167,18 +3564,7 @@ public:
         auto& world = *active_world_session_;
         auto& map = world.render.map_load.session;
         auto& roles = map.business.state.roles;
-        std::vector<openswd3::world_map::LegacyWorldInteractionHotspot>
-            hotspots;
-        for (const auto& message : world_dialogs_.messages) {
-            for (const auto& choice : message.choices) {
-                hotspots.push_back({
-                    .left = choice.left,
-                    .top = choice.top,
-                    .right = choice.right,
-                    .bottom = choice.bottom,
-                });
-            }
-        }
+        auto hotspots = dialog_choice_hotspots();
 
         // sub_40A6B0 resets the cursor to 13 immediately before invoking
         // sub_427300; the interaction routine only replaces that frame's
@@ -6796,6 +7182,45 @@ public:
     }
 
 private:
+    [[nodiscard]] std::vector<
+        openswd3::world_map::LegacyWorldInteractionHotspot>
+    dialog_choice_hotspots() const {
+        std::vector<openswd3::world_map::LegacyWorldInteractionHotspot>
+            hotspots;
+        for (const auto& message : world_dialogs_.messages) {
+            for (const auto& choice : message.choices) {
+                hotspots.push_back({
+                    .left = choice.left,
+                    .top = choice.top,
+                    .right = choice.right,
+                    .bottom = choice.bottom,
+                });
+            }
+        }
+        return hotspots;
+    }
+
+    [[nodiscard]] openswd3::compat::i32 play_battle_music_path(
+        const std::span<const openswd3::compat::u8> music_path
+    ) {
+        std::string path;
+        for (const auto value : music_path) {
+            if (value == 0U) {
+                break;
+            }
+            path.push_back(
+                value == '\\' ? std::filesystem::path::preferred_separator
+                              : static_cast<char>(value)
+            );
+        }
+        return openswd3::audio_video::play_legacy_stream(
+            stream_manager_,
+            path,
+            stream_manager_.stream_enabled() ? 1 : 0,
+            music_mix_level_
+        );
+    }
+
     class WorldInterpolationExternalPorts final
         : public openswd3::world_map::LegacyWorldRoleExternalPorts,
           public openswd3::world_map::LegacyWorldSpatialAudioPorts {
@@ -7294,6 +7719,8 @@ private:
     bool battle_setup_ready_{};
     openswd3::battle::LegacyBattleScriptWorkspace battle_script_workspace_;
     openswd3::battle::LegacyBattleScriptSharedState battle_script_shared_;
+    openswd3::battle::LegacyBattleFrameCoordinatorState
+        battle_frame_coordinator_state_;
     openswd3::battle::LegacyBattleActionDispatchState battle_action_dispatch_;
     openswd3::battle::LegacyBattleActorMetricState battle_actor_metrics_;
     openswd3::battle::LegacyBattleFinalActorStepState battle_final_actor_;
@@ -7390,6 +7817,7 @@ private:
     bool unsupported_world_path_opcode_notice_logged_{};
     bool unsupported_world_story_opcode_notice_logged_{};
     bool world_music_failure_logged_{};
+    openswd3::compat::i32 music_mix_level_{6};
     openswd3::app::ShutdownPorts& shutdown_ports_;
     openswd3::app::ProcessExitPorts& exit_ports_;
     openswd3::compat::u32 accumulated_play_time_{};
