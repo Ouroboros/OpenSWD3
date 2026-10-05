@@ -582,12 +582,12 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.message = 0x60U;
         fixture.state.entry_list_gate = 0x12345678U;
-        fixture.input_dispatch.selection_cache_gate_b = 3U;
+        fixture.action.selection_cache_gate_b = 3U;
         const auto result = run(fixture);
         test.expect_true(
             result.return_eax == 0x12345678U && result.port_calls == 0U &&
                 fixture.message == 0x60U &&
-                fixture.input_dispatch.selection_cache_gate_b == 3U,
+                fixture.action.selection_cache_gate_b == 3U,
             "message phase entry list gate returns before reading the battle message"
         );
 
@@ -612,12 +612,12 @@ void test_battle_message_phase(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 0x60U;
-        fixture.input_dispatch.selection_cache_gate_b = 5U;
+        fixture.action.selection_cache_gate_b = 5U;
         fixture.target_selection.selection_input_gate = 6U;
         const auto result = run(fixture);
         test.expect_true(
             result.return_eax == 0U && fixture.message == 0U &&
-                fixture.input_dispatch.selection_cache_gate_b == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.target_selection.selection_input_gate == 0U,
             "message 96 clears cache B, selection input and the message in order"
         );
@@ -778,7 +778,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         fixture.message = 0x63U;
         fixture.metrics.group_a_count = 2U;
         fixture.target_ready_gate = 9U;
-        fixture.selection_frame.display_gate = 9U;
+        fixture.action.resolution_latch = 9U;
         fixture.target_selection.special_action_count = 5U;
         fixture.startup.action_mode_source.actor_label_indices[1U] = 2U;
         fixture.action_profiles[112U] = 0x7AU;
@@ -865,7 +865,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 fixture.debug_hotkeys.committed_actor_code == 9U &&
                 fixture.final_actor.published_actor_code == 1U &&
                 fixture.startup.reset.block_520e90[5U] == 1U &&
-                fixture.selection_frame.display_gate == 0U &&
+                fixture.action.resolution_latch == 0U &&
                 fixture.target_ready_gate == 0U,
             "message 99 rebuilds records, publishes actor one and consumes one resolved player item"
         );
@@ -1130,7 +1130,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 timed.target_selection.transition_timer == 150U &&
                 timed.debug_hotkeys.actor_retarget_gate_53bf64 == 0U &&
                 timed.action.action_pending_aux == 1U &&
-                timed.input_dispatch.selection_cache_gate_b == 1U &&
+                timed.action.selection_cache_gate_b == 1U &&
                 timed.target_ready_gate == 1U &&
                 timed.final_actor.queued_actor_code == 0U,
             "message 100 directly distributes victory rewards and draws level-up state before publishing setup gates and entering target selection"
@@ -1698,7 +1698,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 debug.target_selection.transition_timer == 0U &&
                 debug.target_selection.completion_gate == 1U &&
                 debug.action.action_pending_aux == 1U &&
-                debug.input_dispatch.selection_cache_gate_b == 1U,
+                debug.action.selection_cache_gate_b == 1U,
             "message 103 debug bit completes at signed timer 30 without the normal frame"
         );
 
@@ -1745,14 +1745,15 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             over.target_selection_entry_calls == 1U &&
                 message_104.target_selection.transition_timer == 21U &&
                 message_104.action.action_pending_aux == 1U &&
-                message_104.input_dispatch.selection_cache_gate_b == 1U,
+                message_104.action.selection_cache_gate_b == 1U,
             "message 104 enters target selection only after signed timer exceeds twenty"
         );
 
         Fixture stopped;
         stopped.message = 0x68U;
         stopped.target_selection.transition_timer = 20U;
-        stopped.target_ready_gate = 1U;
+        stopped.target_ready_gate = 9U;
+        stopped.action.resolution_latch = 1U;
         stopped.final_actor.queued_actor_code = 7U;
         stopped.input_dispatch.selected_option_word = 0U;
         const auto stopped_result = run(stopped);
@@ -1764,7 +1765,9 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleTargetSelectionEntryStatus::
                         active_group_a_actor_typed_stop &&
                 stopped.action.action_pending_aux == 1U &&
-                stopped.input_dispatch.selection_cache_gate_b == 1U,
+                stopped.action.selection_cache_gate_b == 1U &&
+                stopped.action.resolution_latch == 1U &&
+                stopped.target_ready_gate == 9U,
             "message 104 propagates target-selection actor failure after preserving both cache writes"
         );
     }

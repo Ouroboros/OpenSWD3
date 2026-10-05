@@ -556,8 +556,10 @@ struct Fixture {
     openswd3::rendering::LegacyPixelConversionState pixel_conversion;
     BmpPorts bmp_ports;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor_step;
-    openswd3::battle::LegacyBattleActionDispatchState action_dispatch;
     openswd3::battle::LegacyBattleGroupBFrameState actor_frame_state;
+    openswd3::battle::LegacyBattleActionDispatchState& action_dispatch{
+        actor_frame_state.shared.action
+    };
     openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleIntensityEffectRecord
         attack_order_adjacent_record{};
@@ -808,6 +810,8 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
         auto port = std::make_unique<CoordinatorPort>();
         configure_common_port(*port);
         fixture->action_dispatch.action_pending_aux = 1U;
+        fixture->action_dispatch.selection_cache_gate_b = 2U;
+        fixture->action_dispatch.resolution_latch = 9U;
         port->actor_metric_state().priority_actor_index = 5U;
         port->battle_message_state() = 7U;
         state->selection_delay = 0x10U;
@@ -833,19 +837,64 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
             canceled.status ==
                     openswd3::battle::LegacyBattleMenuInputFinalizeStatus::
                         completed &&
-                fixture->action_dispatch.action_pending_aux == 0U,
-            "461F23 clears the same 53BFC0 owner read by the next battle frame"
+                fixture->action_dispatch.action_pending_aux == 0U &&
+                fixture->actor_frame_state.shared.action
+                        .selection_cache_gate_b == 0U &&
+                fixture->action_dispatch.resolution_latch == 9U,
+            "461F23/461F29 clear both waits without changing the result latch"
         );
+        port->actor_metric_state().group_b_count = 1U;
+        auto& enemy = (*fixture->startup.group_b_lifecycle)[0U];
+        enemy.action_execution.position_x = 1U;
+        enemy.action_execution.position_y = 1U;
+        enemy.resource_token = 0U;
+        fixture->actor_frame_state.frame_enabled = 1U;
+        fixture->actor_frame_state.update_gate_argument = 0x55U;
+        auto dispatch_context = fixture->action_context();
+        openswd3::battle::LegacyBattleActorFrameAdvanceContext actor_frames{
+            fixture->actor_frame_state, *port, dispatch_context
+        };
         auto context = fixture->context();
+        context.actor_frames = &actor_frames;
         const auto result = run_legacy_battle_frame_coordinator(
             *state, *port, context, base_request()
         );
         test.expect_true(
-            result.status == LegacyBattleFrameCoordinatorStatus::completed &&
-                result.selection_refresh_calls == 1U &&
+            result.status ==
+                    LegacyBattleFrameCoordinatorStatus::actor_frame_typed_stop &&
+                result.actor_frame_sequence.status ==
+                    openswd3::battle::LegacyBattleActorFrameSequenceStatus::
+                        group_b_typed_stop &&
+                result.actor_frame_sequence.frame_results[0U].status ==
+                    openswd3::battle::LegacyBattleActionDispatchStatus::
+                        group_b_opponent_mode_typed_stop &&
+                result.actor_frame_sequence.frame_results[0U]
+                        .group_b_opponent_mode_calls == 1U &&
+                result.frame_completion_calls == 0U &&
+                result.fixed_frame_calls == 0U,
+            "missing opponent resource stops after actor update and before frame completion or drawing"
+        );
+        test.expect_equal(
+            result.actor_frame_sequence.group_b_calls, 1U,
+            "menu cancellation frame invokes the group B actor"
+        );
+        test.expect_equal(
+            std::ranges::count_if(
+                port->action_calls,
+                [](const LegacyBattleActionCallRequest& call) {
+                    return call.callee_token == 0x0047DAD0U;
+                }
+            ),
+            1,
+            "menu cancellation releases the wait read by opponent update"
+        );
+        test.expect_true(
+            result.selection_refresh_calls == 1U &&
                 state->selection_delay == 0U &&
                 state->selection_auxiliary == 5U &&
-                fixture->final_actor_step.selection_gate == 1U,
+                fixture->final_actor_step.selection_gate == 1U &&
+                fixture->action_dispatch.selection_cache_gate_b == 0U &&
+                fixture->action_dispatch.resolution_latch == 9U,
             "45328C observes menu cancellation and resumes delayed actor selection"
         );
     }

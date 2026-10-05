@@ -530,7 +530,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 .dialogs = bindings.dialogs,
                 .one_shot_interaction_state =
                     bindings.one_shot_interaction_state,
-                .target_ready_gate = bindings.target_ready_gate,
                 .outcome_darkening_gate = bindings.outcome_darkening_gate,
                 .message_state = bindings.message_state,
             },
@@ -1009,7 +1008,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             bindings.final_actor.queued_actor_code = 0U;
             bindings.final_actor.pre_frame_gate_a = 0U;
             bindings.action.action_pending_aux = 1U;
-            bindings.final_actor.frame_gate_a = 1U;
+            bindings.action.selection_cache_gate_b = 1U;
             state.frame_value_a = 0U;
             state.action_kind = 0U;
             state.frame_value_b = 4U;

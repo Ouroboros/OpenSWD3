@@ -265,6 +265,33 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchStatus;
     using openswd3::battle::LegacyBattleGroupBFrameState;
 
+    // 004576EB tests the selection wait independently of 0053BF5C.
+    for (const u32 wait : {0U, 1U, 2U}) {
+        for (const u32 resolution : {0U, 7U, 9U}) {
+            LegacyBattleGroupBFrameState state;
+            state.frame_enabled = 1U;
+            state.update_gate_argument = 0x55U;
+            state.shared.action.selection_cache_gate_b = wait;
+            state.shared.action.resolution_latch = resolution;
+            Fixture fixture;
+            DispatchPort port;
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x004786A0U, {.eax = 0U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_b_frame(
+                    state, port, context, 2U
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    port.count(0x0047DAD0U) == (wait == 0U ? 1U : 0U) &&
+                    state.shared.action.selection_cache_gate_b == wait &&
+                    state.shared.action.resolution_latch == resolution,
+                "group B update tests the complete wait dword independently of the result latch"
+            );
+        }
+    }
+
     {
         LegacyBattleGroupBFrameState state;
         Fixture fixture;
@@ -1076,13 +1103,19 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const bool queue_complete : {false, true}) {
         LegacyBattleGroupBFrameState state;
         state.frame_enabled = 1U;
         state.shared.action.active_effect_target = 3U;
+        state.shared.action.resolution_latch = 9U;
+        state.shared.action.selection_cache_gate_b = 2U;
+        state.shared.selection_mode = 7U;
+        state.shared.final_actor_step.queued_actor_code = 9U;
         Fixture fixture;
         DispatchPort port;
-        port.push(0x0047F920U, {.eax = 1U});
+        port.push(0x0047CE80U, {.eax = 1U});
+        port.push(0x0047CE80U, {.eax = 1U});
+        port.push(0x0047F920U, {.eax = queue_complete ? 1U : 0U});
         port.push(0x00478850U, {.eax = 0xA5A55A5AU});
         auto context = fixture.context();
         const auto result =
@@ -1092,13 +1125,18 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 0U &&
                 result.actor_runtime_reset.calls == 1U &&
-                result.actor_runtime_reset.call_addresses[0U] == 0x00457791U &&
+                result.actor_runtime_reset.call_addresses[0U] ==
+                    (queue_complete ? 0x00457791U : 0x004577CCU) &&
                 result.actor_runtime_reset.last.return_edx == 0x0052DCB0U &&
                 port.count(0x00478850U) == 0U &&
-                state.shared.final_actor_step.queued_actor_code == 4U &&
+                state.shared.final_actor_step.queued_actor_code ==
+                    (queue_complete ? 4U : 9U) &&
+                state.shared.action.resolution_latch == 0U &&
+                state.shared.action.selection_cache_gate_b == 2U &&
+                state.shared.selection_mode == 7U &&
                 state.shared.action.active_effect_target == 0xFFFFFFFFU &&
                 port.count(0x004786D0U) == 0U,
-            "completed opponent queue path returns reset actor full EAX before common suffix"
+            "both opponent early returns clear BF5C while preserving BFC4 and the separate selection mode"
         );
     }
 

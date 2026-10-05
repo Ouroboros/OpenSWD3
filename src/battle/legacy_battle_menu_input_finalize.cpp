@@ -131,7 +131,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         return cleanup_active_group_a(index);
     };
     const auto reset_selection_workspace = [&]() {
-        input.selection_cache_gate_b = 0U;
+        bindings.action.selection_cache_gate_b = 0U;
         input.selection_workspace[0U] = 0U;
         bindings.action.action_pending_aux = 0U;
         input.selection_workspace[1U] = 0U;
@@ -162,7 +162,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         invoke(LegacyBattleInputDispatchCall::menu_finalize_reset_actor);
         ++result.actor_reset_calls;
         edx = 0U;
-        input.selection_cache_gate_b = 0U;
+        bindings.action.selection_cache_gate_b = 0U;
         startup.value_4ff0b0 = edx;
         bindings.action.action_pending_aux = 0U;
         startup.value_4ff0b4 = edx;
@@ -198,7 +198,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         input.selection_workspace[2U] = ecx;
         frame.target_selection_gate = eax;
         input.selection_workspace[3U] = ecx;
-        input.selection_cache_gate_b = 0U;
+        bindings.action.selection_cache_gate_b = 0U;
         input.selection_workspace[4U] = ecx;
         bindings.action.action_pending_aux = 0U;
         input.selection_cache_gate_c = 0U;
@@ -316,7 +316,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         bindings.message_state = eax;
         frame.panel_scroll_b = 0U;
         input.selection_animation_phase = 5U;
-        input.selection_cache_gate_b = 0U;
+        bindings.action.selection_cache_gate_b = 0U;
         bindings.action.action_pending_aux = 0U;
         input.selection_cache_gate_c = 0U;
         input.selection_runtime_gate = 0U;
@@ -337,7 +337,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
     case 7U:
         bindings.message_state = 0U;
         bindings.action.action_pending_aux = 0U;
-        input.selection_cache_gate_b = 0U;
+        bindings.action.selection_cache_gate_b = 0U;
         clear_animation();
         frame.alternate_selection_limit = 2U;
         frame.alternate_selection = eax;
@@ -366,7 +366,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         input.selection_workspace[0U] = eax;
         frame.panel_scroll_b = 0U;
         input.selection_workspace[1U] = eax;
-        input.selection_cache_gate_b = 0U;
+        bindings.action.selection_cache_gate_b = 0U;
         input.selection_workspace[2U] = eax;
         bindings.action.action_pending_aux = 0U;
         input.selection_workspace[3U] = eax;

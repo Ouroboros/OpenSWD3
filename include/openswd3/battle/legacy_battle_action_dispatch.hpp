@@ -1336,6 +1336,8 @@ struct LegacyBattleActionDispatchState {
     compat::i32 signed_action_value{};
     compat::u32 action_pending{};
     compat::u32 action_pending_aux{};  // 0x0053BFC0; shared selection gate.
+    compat::u32 selection_cache_gate_b{};  // 0x0053BFC4; actor update wait.
+    compat::u32 resolution_latch{};  // 0x0053BF5C; selection/result state.
     compat::u32 frame_refresh_pending{};
 
     compat::u32 action_runtime_flags{};

@@ -1045,7 +1045,8 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 port.count(0x004728D0U) == 0U &&
                 state.packed_actor_counter == 0xAABBCC12U &&
                 state.action_pending_aux == 1U &&
-                port.retreat_commit_state().completion_gate_b == 1U &&
+                state.selection_cache_gate_b == 1U &&
+                state.resolution_latch == 0U &&
                 port.battle_debug_hotkey_state().committed_actor_code == 0U &&
                 port.battle_debug_overlay_gate() == 0U &&
                 port.battle_message_state() == 0U &&

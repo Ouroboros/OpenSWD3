@@ -265,6 +265,61 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleGroupAFrameState;
     using openswd3::battle::LegacyBattleTurnAdvanceStatus;
 
+    // 004566EC/004566F9 test the two waits, not the result at 0053BF5C.
+    for (const u32 wait : {0U, 1U, 2U}) {
+        for (const u32 resolution : {0U, 7U, 9U}) {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.ai_coordination_enabled = 1U;
+            state.actor_progress_threshold = 100;
+            state.action.selection_cache_gate_b = wait;
+            state.action.resolution_latch = resolution;
+            Fixture fixture;
+            DispatchPort port;
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_equal(
+                result.status, LegacyBattleActionDispatchStatus::completed,
+                "group A independent wait vector completes"
+            );
+            test.expect_equal(
+                port.count(0x0047DAD0U), wait == 0U ? 1U : 0U,
+                "group A AI entry tests the complete wait dword"
+            );
+            test.expect_true(
+                state.action.selection_cache_gate_b == 1U &&
+                    state.action.action_pending_aux == 1U &&
+                    state.final_actor_step.removed_group_a_count == 1U &&
+                    port.battle_message_state() == 0x67U,
+                "45AC14/45AC19 publish both waits after final actor removal"
+            );
+            test.expect_equal(
+                state.action.resolution_latch, resolution,
+                "group A independent wait vector preserves the result latch"
+            );
+
+            // Model the next frame's 00453297 first-wait clear only.
+            // The second wait must still come from final actor's write.
+            state.action.action_pending_aux = 0U;
+            const auto calls_before = port.count(0x0047DAD0U);
+            const auto next =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                next.status == LegacyBattleActionDispatchStatus::completed &&
+                    port.count(0x0047DAD0U) == calls_before &&
+                    state.action.selection_cache_gate_b == 1U &&
+                    state.action.resolution_latch == resolution,
+                "final actor's second wait suppresses the next AI update after the first wait clears"
+            );
+        }
+    }
+
     [&] {
         {
             auto state_storage =
@@ -3375,7 +3430,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state.action.group_a_action_shared
                             .turn_frame_source_token == 0U &&
                     state.action.action_pending_aux == 1U &&
-                    port.outcome_resolution_state().resolution_latch == 1U &&
+                    state.action.selection_cache_gate_b == 1U &&
                     port.count(0x00478600U) == 0U &&
                     port.count(0x004785C0U) == 0U &&
                     port.count(0x004170E0U) == 0U,
@@ -3479,8 +3534,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state.final_actor_step.removed_group_a_count == 1U &&
                     port.battle_message_state() == 0x67U &&
                     state.action.action_pending_aux == 1U &&
-                    port.outcome_resolution_state().resolution_latch == 0U,
-                "457579 clears the failure gate before 45766F calls final actor and 45AC14 republishes one"
+                    state.action.selection_cache_gate_b == 1U &&
+                    state.action.resolution_latch == 0U,
+                "457579/45757F clear both waits before final actor republishes one at 45AC14/45AC19"
             );
         }
 

@@ -127,6 +127,37 @@ struct Fixture {
 }  // namespace
 
 void test_battle_outcome_resolution(openswd3::test::Context& test) {
+    // 0045E5B4 and 0045E62E publish BF5C without writing either wait.
+    for (const u32 wait : {0U, 1U, 2U}) {
+        for (const bool group_a_complete : {false, true}) {
+            Fixture fixture;
+            fixture.group_a_count = 2U;
+            fixture.group_b_count = 2U;
+            fixture.final_actor.removed_group_a_count =
+                static_cast<u16>(group_a_complete ? 2U : 0U);
+            fixture.action.packed_actor_counter =
+                group_a_complete ? 0U : 2U;
+            fixture.action.action_pending_aux = 5U;
+            fixture.action.selection_cache_gate_b = wait;
+            fixture.action.resolution_latch = 9U;
+            OutcomePort port;
+            port.shared_state = &fixture.state;
+            const auto result = update_legacy_battle_outcome_resolution(
+                fixture.bindings(), port
+            );
+            test.expect_true(
+                result.status == LegacyBattleOutcomeResolutionStatus::completed &&
+                    result.group_a_threshold_met == group_a_complete &&
+                    result.group_b_threshold_met == !group_a_complete &&
+                    fixture.action.resolution_latch == 1U &&
+                    fixture.action.action_pending_aux == 5U &&
+                    fixture.action.selection_cache_gate_b == wait &&
+                    result.darkening_calls == 0U && port.calls.empty(),
+                "both outcome thresholds publish only the result latch"
+            );
+        }
+    }
+
     {
         Fixture fixture;
         fixture.group_a_count = 10U;
@@ -147,7 +178,7 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
                 result.group_a_remaining == 7U &&
                 !result.group_b_threshold_met &&
                 result.group_b_difference == 2U && result.return_value == 4U &&
-                fixture.state.resolution_latch == 0U &&
+                fixture.action.resolution_latch == 0U &&
                 result.darkening_calls == 0U && port.calls.empty(),
             "neither side reaching its threshold returns the live group-B count without publishing the resolution latch"
         );
@@ -172,7 +203,7 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
                 !result.group_a_threshold_met &&
                 result.group_b_difference == 0xFFFFFFFFU &&
                 !result.group_b_threshold_met &&
-                fixture.state.resolution_latch == 0U,
+                fixture.action.resolution_latch == 0U,
             "group-A subtraction wraps unsigned while group-B difference compares signed and override accepts only exact one"
         );
     }
@@ -212,7 +243,7 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
                 port.requested_definition_ids ==
                     std::vector<u32>{0x0042U, 0x0300U} &&
                 fixture.group_b_count == 0U &&
-                fixture.state.resolution_latch == 1U &&
+                fixture.action.resolution_latch == 1U &&
                 fixture.state.darkening.channel_delta == 0 &&
                 fixture.frame_active == 2U && result.return_value == 0U,
             "group-A completion darkens to the terminal step then suspends audio resolves the outcome and publishes mode two"
@@ -386,7 +417,7 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
                     LegacyBattleOutcomeResolutionStatus::
                         full_frame_darkening_typed_stop &&
                 result.group_a_threshold_met &&
-                fixture.state.resolution_latch == 1U &&
+                fixture.action.resolution_latch == 1U &&
                 result.darkening_calls == 1U &&
                 result.first_darkening.status ==
                     openswd3::battle::LegacyBattleFullFrameDarkeningStatus::

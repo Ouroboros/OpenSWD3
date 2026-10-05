@@ -142,7 +142,7 @@ struct Fixture {
     u32 message{};
     u32 terminal{};
     u32 one_shot_interaction_state{};
-    u32 target_ready_gate{};
+    u32& target_ready_gate{action.resolution_latch};  // 0x0053BF5C
     u32 outcome_darkening_gate{};
     openswd3::input_time_rng::LegacyInputNormalizationState input;
     openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
@@ -180,7 +180,6 @@ struct Fixture {
             .message_state = message,
             .terminal_latch = terminal,
             .one_shot_interaction_state = one_shot_interaction_state,
-            .target_ready_gate = target_ready_gate,
             .outcome_darkening_gate = outcome_darkening_gate,
             .input_records = input.records,
             .keyboard = keyboard,
@@ -774,7 +773,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 fixture.final_actor.queued_actor_code == 0U &&
                 fixture.final_actor.published_actor_code == 2U &&
                 fixture.final_actor.auxiliary_gate == 1U &&
-                fixture.final_actor.frame_gate_a == 1U &&
+                fixture.action.selection_cache_gate_b == 1U &&
                 fixture.action.action_pending_aux == 1U &&
                 fixture.port.battle_input_dispatch_state().retreat_block_word ==
                     0x4000U,

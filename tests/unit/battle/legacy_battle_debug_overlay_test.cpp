@@ -461,7 +461,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
         fixture.startup.reset.records_524788[3].value_00 = 13U;
         fixture.final_actor.actor_order[0] = 21U;
         fixture.final_actor.actor_order[1] = 22U;
-        fixture.final_actor.frame_gate_a = 2U;
+        fixture.action.selection_cache_gate_b = 2U;
         fixture.action.action_pending_aux = 3U;
         fixture.effects.group_a_feedback_actor = 0xFFFFU;
         fixture.overlay.selection_order[0] = 31U;
@@ -516,7 +516,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                 port.texts[17].x == 240U && port.texts[17].y == 70U &&
                 port.texts[19].text == "fMenu:4 mMove5" &&
                 port.texts[20].text == "MsD:120 dRole1:65535 CanS:17185" &&
-                port.texts[21].text == "MS:6 Stop:2 mStop3" &&
+                port.texts[21].text == "MS:6 Stop:3 mStop2" &&
                 port.texts[23].text == "TswMem:12K" &&
                 port.texts[24].text == "wLl:-8 iMn:-9" &&
                 port.texts[26].text == "FRAME:50" &&

@@ -30,7 +30,6 @@ struct LegacyBattleTargetSelectionEntryBindings {
     LegacyBattleTargetSelectionRuntimeState& target_selection_runtime;
     story_scene::LegacyDialogRuntimeState& dialogs;
     compat::u32& one_shot_interaction_state;
-    compat::u32& target_ready_gate;
     compat::u32& outcome_darkening_gate;
     compat::u32& message_state;
 };

@@ -26,7 +26,6 @@ struct LegacyBattleTargetSelectionRefreshBindings {
     LegacyBattleInputDispatchState& input_dispatch;
     std::span<input_time_rng::LegacyInputRecord> input_records;
     LegacyBattleTargetSelectionRuntimeState& runtime;
-    compat::u32& target_ready_gate;
     compat::u32& message_state;
     std::span<LegacyBattlePartyStartupRecord> party{};
     bool scripted_resource_selection_test_compat{};

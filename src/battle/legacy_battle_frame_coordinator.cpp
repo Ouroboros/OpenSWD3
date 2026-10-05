@@ -235,7 +235,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .terminal_latch = port.battle_terminal_latch(),
             .one_shot_interaction_state =
                 context.player_control.one_shot_interaction_state,
-            .target_ready_gate = context.target_ready_gate,
             .outcome_darkening_gate =
                 port.outcome_resolution_state().darkening_gate,
             .input_records = context.input_normalization.records,

@@ -119,8 +119,8 @@ public:
             bindings_.final_actor.queued_actor_code = 0U;
         }
 
-        state_.display_gate = 1U;
         eax_ = bindings_.message_state;
+        bindings_.action.resolution_latch = 1U;
         --eax_;
         if (eax_ > 29U) {
             return finish();
@@ -416,7 +416,7 @@ private:
         edx_ = bindings_.final_actor.queued_actor_code;
         bindings_.input_dispatch.selection_workspace.fill(0U);
         bindings_.message_state = 0U;
-        state_input().selection_cache_gate_b = 0U;
+        bindings_.action.selection_cache_gate_b = 0U;
         bindings_.action.action_pending_aux = 0U;
         state_input().selection_cache_gate_c = 0U;
         state_input().selection_runtime_gate = 0U;
@@ -528,7 +528,7 @@ private:
     }
 
     void set_selection_cache_gates() noexcept {
-        state_input().selection_cache_gate_b = 1U;
+        bindings_.action.selection_cache_gate_b = 1U;
         bindings_.action.action_pending_aux = 1U;
     }
 
@@ -1185,7 +1185,7 @@ private:
             bindings_.input_dispatch.retreat_block_word | 0x4000U
         );
         bindings_.action.action_pending_aux = 1U;
-        state_input().selection_cache_gate_b = 1U;
+        bindings_.action.selection_cache_gate_b = 1U;
         bindings_.message_state = 0U;
         bindings_.final_actor.queued_actor_code = 0U;
     }

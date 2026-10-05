@@ -191,7 +191,7 @@ struct Fixture {
         input_records{};
     openswd3::story_scene::LegacyDialogRuntimeState dialogs;
     u32 one_shot_interaction_state{};
-    u32 target_ready_gate{};
+    u32& target_ready_gate{action.resolution_latch};  // 0x0053BF5C
     u32 outcome_darkening_gate{};
     u32 message{};
     TargetSelectionPort port;
@@ -225,7 +225,6 @@ struct Fixture {
                 port.battle_target_selection_runtime_state(),
             .dialogs = dialogs,
             .one_shot_interaction_state = one_shot_interaction_state,
-            .target_ready_gate = target_ready_gate,
             .outcome_darkening_gate = outcome_darkening_gate,
             .message_state = message,
         };

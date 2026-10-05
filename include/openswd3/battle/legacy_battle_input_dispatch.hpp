@@ -59,7 +59,6 @@ struct LegacyBattleInputDispatchState {
     compat::u32 fallback_action_kind{};                     // 0x0053BCF0
     compat::u32 selected_actor_cleanup_gate{};              // 0x0053C018
     compat::u32 selection_runtime_gate{};                   // 0x0053BFB0
-    compat::u32 selection_cache_gate_b{};                   // 0x0053BFC4
     compat::u32 selection_cache_gate_c{};                   // 0x0053BFC8
     compat::u32 selection_animation_frame_a{};              // 0x0053BD90
     compat::u32 selection_animation_frame_b{};              // 0x0053BD94
@@ -209,7 +208,6 @@ struct LegacyBattleInputDispatchBindings {
     compat::u32& message_state;
     compat::u32& terminal_latch;
     compat::u32& one_shot_interaction_state;
-    compat::u32& target_ready_gate;
     compat::u32& outcome_darkening_gate;
     std::span<input_time_rng::LegacyInputRecord> input_records;
     const input_time_rng::LegacyKeyboardSnapshot& keyboard;

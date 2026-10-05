@@ -113,7 +113,7 @@ public:
 
         switch (bindings_.message_state) {
         case 0x60U:
-            bindings_.input_dispatch.selection_cache_gate_b = 0U;
+            bindings_.action.selection_cache_gate_b = 0U;
             bindings_.target_selection.selection_input_gate = 0U;
             bindings_.message_state = 0U;
             return finish();
@@ -583,7 +583,7 @@ private:
 
         bindings_.startup.reset.value_53bfd0 = 1U;
         bindings_.target_selection.actor_commit_gate = 0U;
-        bindings_.selection_frame.display_gate = 0U;
+        bindings_.action.resolution_latch = 0U;
         bindings_.target_ready_gate = 0U;
         bindings_.metrics.priority_actor_index = actor_index + 8U;
         bindings_.debug_hotkeys.committed_actor_code = actor_index + 8U;
@@ -600,7 +600,7 @@ private:
         bindings_.target_selection.selection_input_gate = 0U;
         bindings_.final_actor.published_actor_code =
             static_cast<u16>(control >> 16U);
-        bindings_.input_dispatch.selection_cache_gate_b = 0U;
+        bindings_.action.selection_cache_gate_b = 0U;
         bindings_.action.action_pending_aux = 0U;
         bindings_.final_actor.queued_actor_code = 0U;
 
@@ -754,7 +754,6 @@ private:
                 .dialogs = bindings_.dialogs,
                 .one_shot_interaction_state =
                     bindings_.one_shot_interaction_state,
-                .target_ready_gate = bindings_.target_ready_gate,
                 .outcome_darkening_gate = bindings_.outcome_darkening_gate,
                 .message_state = bindings_.message_state,
             },
@@ -839,7 +838,7 @@ private:
 
         bindings_.debug_hotkeys.actor_retarget_gate_53bf64 = 0U;
         bindings_.action.action_pending_aux = 1U;
-        bindings_.input_dispatch.selection_cache_gate_b = 1U;
+        bindings_.action.selection_cache_gate_b = 1U;
         bindings_.target_ready_gate = 1U;
         bindings_.final_actor.queued_actor_code = 0U;
         return common_timer_150();
@@ -1326,7 +1325,7 @@ private:
             (bindings_.debug_hotkeys.battle_mode_flags_53bc24 & 0xFFU);
         ecx_ = 1U;
         bindings_.action.action_pending_aux = 1U;
-        bindings_.input_dispatch.selection_cache_gate_b = 1U;
+        bindings_.action.selection_cache_gate_b = 1U;
         if ((bindings_.debug_hotkeys.battle_mode_flags_53bc24 & 8U) != 0U) {
             eax_ = bindings_.target_selection.transition_timer + 1U;
             bindings_.target_selection.transition_timer = eax_;
@@ -1370,7 +1369,7 @@ private:
 
     [[nodiscard]] LegacyBattleMessagePhaseResult message_104() {
         bindings_.action.action_pending_aux = 1U;
-        bindings_.input_dispatch.selection_cache_gate_b = 1U;
+        bindings_.action.selection_cache_gate_b = 1U;
         eax_ = bindings_.target_selection.transition_timer + 1U;
         bindings_.target_selection.transition_timer = eax_;
         if (as_i32(eax_) > 0x14) {

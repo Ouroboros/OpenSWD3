@@ -239,7 +239,6 @@ void seed_state(
     port.battle_terminal_latch() = 9U;
     final_actor.pre_frame_gate_a = 9U;
     final_actor.pre_frame_gate_b = 9U;
-    final_actor.frame_gate_a = 9U;
     final_actor.selection_gate = 9U;
     final_actor.queued_actor_code = 9U;
     final_actor.removed_group_a_count = 9U;
@@ -254,7 +253,8 @@ void seed_state(
     action.selection_word = 0x1122U;
     action.selection_high_word = 0x3344U;
     action.opponent_workspace.fill(9U);
-    actor_frames.shared.selection_aux_gate = 9U;
+    actor_frames.shared.action.resolution_latch = 9U;
+    actor_frames.shared.action.selection_cache_gate_b = 9U;
     actor_frames.shared.target_ready_gate = 9U;
     actor_frames.shared.action_block_gate = 9U;
     actor_frames.shared.action.action_pending_aux = 9U;
@@ -273,8 +273,7 @@ void seed_state(
     debug_overlay.marker_x = -13;
     debug_overlay.marker_row = -15;
     debug_overlay.text_buffer[0] = 'x';
-    retreat_commit = {9U, 9U, 9U};
-    outcome_resolution.resolution_latch = 9U;
+    retreat_commit = {9U, 9U};
     outcome_resolution.darkening_gate = 9U;
     outcome_resolution.force_group_b_resolution = 9U;
     outcome_resolution.darkening.channel_delta = -30;
@@ -369,7 +368,6 @@ void seed_state(
     input.fallback_action_kind = 9U;
     input.selected_actor_cleanup_gate = 9U;
     input.selection_runtime_gate = 9U;
-    input.selection_cache_gate_b = 9U;
     input.selection_cache_gate_c = 9U;
     input.selection_animation_frame_a = 9U;
     input.selection_animation_frame_b = 9U;
@@ -429,7 +427,6 @@ void seed_state(
     auto& selection_frame = port.battle_selection_frame_state();
     startup.action_mode_source.actor_label_indices.fill(9U);
     selection_frame.pointer_origin.fill(9U);
-    selection_frame.display_gate = 9U;
     selection_frame.secondary_actor_gate = 9U;
 
     auto& frame_input = port.battle_frame_input_resolution_state();
@@ -466,8 +463,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         LegacyBattleGlobalResetState state;
         LegacyBattleStartupState startup;
         LegacyBattleFinalActorStepState final_actor;
-        LegacyBattleActionDispatchState action;
         LegacyBattleGroupBFrameState actor_frames;
+        auto& action = actor_frames.shared.action;
         LegacyBattleDebugOverlayState debug_overlay;
         ResetPort port;
         seed_state(
@@ -627,7 +624,6 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 port.battle_terminal_latch() == 0U &&
                 final_actor.pre_frame_gate_a == 0U &&
                 final_actor.pre_frame_gate_b == 0U &&
-                final_actor.frame_gate_a == 0U &&
                 final_actor.selection_gate == 0U &&
                 final_actor.queued_actor_code == 0U &&
                 final_actor.removed_group_a_count == 0U &&
@@ -640,7 +636,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 action.selection_high_word == 0x3344U &&
                 startup.mirror_mode == 0U &&
                 final_actor.actor_runtime_records[0][0] == 9U &&
-                actor_frames.shared.selection_aux_gate == 0U &&
+                actor_frames.shared.action.resolution_latch == 0U &&
+                actor_frames.shared.action.selection_cache_gate_b == 0U &&
                 actor_frames.shared.target_ready_gate == 0U &&
                 actor_frames.shared.action_block_gate == 0U &&
                 actor_frames.shared.action.action_pending_aux == 0U &&
@@ -743,7 +740,6 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 input.fallback_action_kind == 9U &&
                 input.selected_actor_cleanup_gate == 0U &&
                 input.selection_runtime_gate == 0U &&
-                input.selection_cache_gate_b == 0U &&
                 input.selection_cache_gate_c == 9U &&
                 input.selection_animation_frame_a == 0U &&
                 input.selection_animation_frame_b == 0U &&
@@ -793,8 +789,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         );
         const auto& selection_frame = port.battle_selection_frame_state();
         test.expect_true(
-            selection_frame.display_gate == 0U &&
-                selection_frame.secondary_actor_gate == 0U &&
+            selection_frame.secondary_actor_gate == 0U &&
                 startup.action_mode_source.actor_label_indices[0U] == 9U &&
                 selection_frame.pointer_origin[0U] == 9U &&
                 state.unmapped_bytes.contains(0x0053C184U) == false &&
@@ -889,10 +884,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             "global reset synchronizes the debug overlay write set and preserves the high bytes of its byte store"
         );
         test.expect_true(
-            retreat_commit.completion_gate_b == 0U &&
-                retreat_commit.auxiliary_latch == 9U &&
+            retreat_commit.auxiliary_latch == 9U &&
                 retreat_commit.selected_actor_token == 0U &&
-                outcome_resolution.resolution_latch == 0U &&
                 outcome_resolution.darkening_gate == 0U &&
                 outcome_resolution.force_group_b_resolution == 0U &&
                 outcome_resolution.darkening.channel_delta == -30 &&
@@ -1021,8 +1014,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         LegacyBattleGlobalResetState state;
         LegacyBattleStartupState startup;
         LegacyBattleFinalActorStepState final_actor;
-        LegacyBattleActionDispatchState action;
         LegacyBattleGroupBFrameState actor_frames;
+        auto& action = actor_frames.shared.action;
         LegacyBattleDebugOverlayState debug_overlay;
         ResetPort port;
         startup.reset.values_502940[0] = 0U;

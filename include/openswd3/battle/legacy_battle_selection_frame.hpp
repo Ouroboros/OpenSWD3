@@ -33,7 +33,6 @@ namespace openswd3::battle {
 
 struct LegacyBattleSelectionFrameState {
     std::array<compat::u32, 2> pointer_origin{};  // 0x004A9924
-    compat::u32 display_gate{};                   // 0x0053BF5C
     compat::u32 secondary_actor_gate{};           // 0x0053BF68
     LegacyBattleScaleFillPanelState scale_fill_panel{};
     LegacyBattleVerticalPanelState vertical_panel{};

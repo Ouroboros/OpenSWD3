@@ -75,6 +75,7 @@ public:
 
 struct Fixture {
     Fixture() {
+        action.resolution_latch = 9U;
         startup.group_b_lifecycle = std::make_shared<std::array<
             openswd3::battle::LegacyBattleActorGroupBElementState,
             8>>();
@@ -82,13 +83,15 @@ struct Fixture {
 
     openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
-    openswd3::battle::LegacyBattleActionDispatchState action;
+    openswd3::battle::LegacyBattleGroupBFrameState actor_frames;
+    openswd3::battle::LegacyBattleActionDispatchState& action{
+        actor_frames.shared.action
+    };
     Random random;
     openswd3::battle::LegacyBattleActorMetricState actor_metrics;
     openswd3::battle::LegacyBattleActorPublicationState actor_publication;
     openswd3::battle::LegacyBattleEffectCoordinatorState effect_coordinator;
     openswd3::battle::LegacyBattleEffectShiftState effect_shift;
-    openswd3::battle::LegacyBattleGroupBFrameState actor_frames;
     openswd3::world_map::LegacyWorldPlayerControlState player_control;
     u32 message_state{};
 
@@ -334,9 +337,10 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleDebugHotkeyStatus::
                         actor_runtime_reset_typed_stop &&
+                fixture.action.resolution_latch == 9U &&
                 state.selection_status_word_53c050 == 0xABCD0001U &&
                 state.actor_retarget_gate_53bf64 == 0U &&
-                fixture.final_actor.frame_gate_a == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.action.action_pending_aux == 0U &&
                 fixture.final_actor.selection_gate == 0U &&
                 fixture.actor_frames.shared.action_block_gate == 1U &&
@@ -395,9 +399,10 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleDebugHotkeyStatus::
                         actor_gate_decay_typed_stop &&
+                fixture.action.resolution_latch == 9U &&
                 state.selection_status_word_53c050 == 0xABCD0001U &&
                 state.actor_retarget_gate_53bf64 == 0U &&
-                fixture.final_actor.frame_gate_a == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.action.action_pending_aux == 0U &&
                 fixture.final_actor.selection_gate == 0U &&
                 fixture.actor_frames.shared.action_block_gate == 1U &&
@@ -463,8 +468,9 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                     LegacyBattleDebugHotkeyStatus::
                         actor_frame_state_typed_stop &&
                 fixture.actor_metrics.priority_actor_index == 0xFFFFFFFFU &&
-                fixture.final_actor.frame_gate_a == 0U &&
-                fixture.action.action_pending_aux == 0U,
+                fixture.action.selection_cache_gate_b == 0U &&
+                fixture.action.action_pending_aux == 0U &&
+                fixture.action.resolution_latch == 9U,
             "missing actor-frame state stops at the original action-block read after C prefix stores"
         );
     }
@@ -476,7 +482,7 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
         fixture.startup.reset.block_5242b0.fill(9U);
         fixture.final_actor.actor_order.fill(9U);
         fixture.message_state = 9U;
-        fixture.actor_frames.shared.selection_aux_gate = 9U;
+        fixture.action.resolution_latch = 9U;
         LegacyBattleDebugHotkeyState state;
         state.developer_tools_enabled = 1U;
         fixture.action.opponent_workspace.fill(9U);
@@ -511,7 +517,8 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                 fixture.effect_coordinator.completed_count == 0U &&
                 fixture.effect_coordinator.group_a_feedback_actor == 0xFFFFU &&
                 fixture.actor_frames.shared.target_ready_gate == 1U &&
-                fixture.final_actor.frame_gate_a == 1U &&
+                fixture.action.selection_cache_gate_b == 1U &&
+                fixture.action.resolution_latch == 0U &&
                 fixture.action.action_pending_aux == 1U &&
                 fixture.final_actor.queued_actor_code == 0U &&
                 fixture.actor_metrics.priority_actor_index == 0xFFFFFFFFU &&

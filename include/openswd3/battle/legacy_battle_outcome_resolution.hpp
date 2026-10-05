@@ -38,7 +38,7 @@ struct LegacyBattleOutcomeResolutionBindings {
     const compat::u32& group_a_count;
     compat::u32& group_b_count;
     const LegacyBattleFinalActorStepState& final_actor;
-    const LegacyBattleActionDispatchState& action;
+    LegacyBattleActionDispatchState& action;
     const compat::u32& message_state;
     const compat::u32& battle_mode_flags;
     rendering::LegacyFramebuffer& framebuffer;

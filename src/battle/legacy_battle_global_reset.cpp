@@ -404,7 +404,6 @@ void synchronize_typed_aliases(
     final_actor.auxiliary_gate = 0U;
     final_actor.pre_frame_gate_a = 0U;
     final_actor.pre_frame_gate_b = 0U;
-    final_actor.frame_gate_a = 0U;
     final_actor.selection_gate = 0U;
     final_actor.queued_actor_code = 0U;
     final_actor.actor_order.fill(0U);
@@ -419,10 +418,11 @@ void synchronize_typed_aliases(
     std::fill_n(action.opponent_workspace.begin(), 10U, 0U);
     std::fill_n(action.opponent_workspace.begin() + 16U, 80U, 0U);
 
-    actor_frames.shared.selection_aux_gate = 0U;
+    actor_frames.shared.action.resolution_latch = 0U;
     actor_frames.shared.target_ready_gate = 0U;
     actor_frames.shared.action_block_gate = 0U;
     actor_frames.shared.action.action_pending_aux = 0U;
+    actor_frames.shared.action.selection_cache_gate_b = 0U;
 
     color_accumulation = {};
 
@@ -477,10 +477,8 @@ void synchronize_typed_aliases(
     debug_overlay.initial_mode = -1;
     debug_overlay.battle_frame = 0U;
 
-    retreat_commit.completion_gate_b = 0U;
     retreat_commit.selected_actor_token = 0U;
 
-    outcome_resolution.resolution_latch = 0U;
     outcome_resolution.darkening_gate = 0U;
     outcome_resolution.force_group_b_resolution = 0U;
     outcome_finalization.completion_words.fill(0U);
@@ -503,7 +501,6 @@ void synchronize_typed_aliases(
     input_dispatch.selected_group_b_index = 0xFFFFU;
     input_dispatch.selected_actor_cleanup_gate = 0U;
     input_dispatch.selection_runtime_gate = 0U;
-    input_dispatch.selection_cache_gate_b = 0U;
     input_dispatch.selection_animation_frame_a = 0U;
     input_dispatch.selection_animation_frame_b = 0U;
     input_dispatch.selection_animation_phase = 0U;
@@ -559,7 +556,6 @@ void synchronize_typed_aliases(
     victory_rewards.experience_per_party_member = 0U;
     victory_rewards.reward_experience = 0U;
 
-    selection_frame.display_gate = 0U;
     selection_frame.secondary_actor_gate = 0U;
     startup.supplemental_count_word = 0U;
 }

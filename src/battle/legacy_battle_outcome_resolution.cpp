@@ -51,7 +51,7 @@ LegacyBattleOutcomeResolutionResult update_legacy_battle_outcome_resolution(
         group_a_completed >= result.group_a_remaining;
     if (result.group_a_threshold_met) {
         const u32 darkening_gate = state.darkening_gate;
-        state.resolution_latch = 1U;
+        bindings.action.resolution_latch = 1U;
         if (darkening_gate == 1U) {
             if (!run_darkening(
                     state, bindings, result, result.first_darkening
@@ -101,7 +101,7 @@ LegacyBattleOutcomeResolutionResult update_legacy_battle_outcome_resolution(
     }
 
     const u32 darkening_gate = state.darkening_gate;
-    state.resolution_latch = 1U;
+    bindings.action.resolution_latch = 1U;
     result.return_value = darkening_gate;
     if (darkening_gate != 1U) {
         return result;

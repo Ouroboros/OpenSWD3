@@ -109,7 +109,7 @@ public:
           ecx_(request.entry_ecx), edx_(request.entry_edx) {}
 
     [[nodiscard]] LegacyBattleTargetSelectionRefreshResult run() {
-        eax_ = bindings_.target_ready_gate;
+        eax_ = action_.resolution_latch;
         if (eax_ != 1U) {
             return finish();
         }
@@ -1022,11 +1022,11 @@ private:
         input_.selection_animation_frame_a = 0U;
         input_.selection_animation_frame_b = 0U;
         action_.action_pending_aux = 0U;
-        input_.selection_cache_gate_b = 0U;
         edx_ = actor_code * 5U - 40U;
         if (!write_runtime_record(actor_code, 0U, 1U)) {
             return false;
         }
+        action_.selection_cache_gate_b = 0U;
         return true;
     }
 
@@ -1533,7 +1533,7 @@ private:
         frame_.lower_panel_aux = 0U;
         frame_.grid_selection = 1U;
         action_.action_pending_aux = 0U;
-        input_.selection_cache_gate_b = 0U;
+        action_.selection_cache_gate_b = 0U;
         input_.selection_cache_gate_c = 0U;
         if (!prime_input_records()) {
             return;
@@ -1598,7 +1598,7 @@ private:
         if (!write_runtime_record(actor_code, 0U, 1U)) {
             return false;
         }
-        input_.selection_cache_gate_b = 0U;
+        action_.selection_cache_gate_b = 0U;
         if (!prime_input_records()) {
             return false;
         }
@@ -2097,7 +2097,7 @@ private:
                 sample(0x160U);
             }
             runtime_.transition_timer = 0U;
-            bindings_.target_ready_gate = 0U;
+            action_.resolution_latch = 0U;
             runtime_.transition_state = 0U;
             bindings_.message_state = 102U;
         } else {
@@ -2114,7 +2114,7 @@ private:
             runtime_.completion_gate = 1U;
             bindings_.message_state = 0U;
             runtime_.transition_timer = 0U;
-            bindings_.target_ready_gate = 0U;
+            action_.resolution_latch = 0U;
             runtime_.transition_stage = 0U;
         }
     }
@@ -2236,8 +2236,8 @@ private:
         input_.selection_animation_frame_a = 0U;
         input_.selection_animation_frame_b = 0U;
         action_.action_pending_aux = 0U;
-        input_.selection_cache_gate_b = 0U;
-        bindings_.target_ready_gate = 0U;
+        action_.selection_cache_gate_b = 0U;
+        action_.resolution_latch = 0U;
         if (!prime_input_records()) {
             return;
         }

@@ -533,7 +533,7 @@ mode 0两次直连已关闭固定帧绘制并回收共享source状态。raw/surf
 两次secondary捕获和两次临时surface copy。六个入口参数只有前两个被读，
 caller的`random(3)`结果保持未读；最终只释放screen surface并返回完整release EAX。
 
-`audit_order=59`的`0x00453200`历史登记为`platform_adapted`。B11续玩接线前重审发现四处条件方向、选择帧调用顺序及颜色更新重复端口错误；条件、顺序和两个输入callee的共享门修正已通过Linux core/ASan各205/205及app 211/211；随后五份共享选择等待存储已统一为动作状态的一处存储，并通过同组Linux门禁，见[共享选择等待状态](../evidence/battle-shared-selection-gate-0053bfc0.md)。相邻共享状态与SDL生产绑定仍待完成，原完成结论不能作为SDL可运行证据。详见对应evidence第14节；该重审不推进316/317游标。完整412行、44个静态call站点、18个标签、
+`audit_order=59`的`0x00453200`历史登记为`platform_adapted`。B11续玩接线前重审发现四处条件方向、选择帧调用顺序及颜色更新重复端口错误；条件、顺序和两个输入callee的共享门修正已通过Linux core/ASan各205/205及app 211/211；随后五份共享选择等待存储已统一为动作状态的一处存储，并通过同组Linux门禁，见[共享选择等待状态](../evidence/battle-shared-selection-gate-0053bfc0.md)。相邻角色等待BFC4与结果标志BF5C现已分开保存并回收重复存储；相关核心caller、跨调用测试及原版63处访问已复核，记录见[等待与结果标志](../evidence/battle-selection-wait-and-result-latch-0053bfc4-0053bf5c.md)。本次按影响范围分批验证战斗目标；SDL生产绑定仍待完成，核心结论不能作为SDL可运行证据。详见对应evidence第14节；该重审不推进316/317游标。完整412行、44个静态call站点、18个标签、
 无chunk；恢复活动发布、音乐门、六阶段零早退、target surface锁定/解锁、渲染中止、选择延迟刷新、
 UI低word、固定帧、选中角色面板、三类陈旧ECX snapshot、跨模块效果/头像/对话、双倒计时、
 内部bit17返回3、overlay/surface尾与截图回绕。已关闭固定帧、画面效果、动作更新、九宫格、独立帧、

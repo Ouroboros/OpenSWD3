@@ -330,6 +330,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             {
                 .packed_actor_counter = state.packed_actor_counter,
                 .selection_gate = state.action_pending_aux,
+                .selection_cache_gate = state.selection_cache_gate_b,
+                .resolution_latch = state.resolution_latch,
                 .text_messages = context.text_messages,
                 .text_message_head = context.startup_reset == nullptr
                     ? nullptr

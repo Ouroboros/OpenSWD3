@@ -120,7 +120,7 @@ struct Fixture {
         openswd3::input_time_rng::LegacyInputRecord,
         openswd3::input_time_rng::kLegacyInputRecordCount>
         input_records{};
-    u32 target_ready{};
+    u32& target_ready{action.resolution_latch};  // 0x0053BF5C
     u32 message{};
     TargetRefreshPort port;
     StreamProvider stream_provider;
@@ -147,7 +147,6 @@ struct Fixture {
             .input_dispatch = port.battle_input_dispatch_state(),
             .input_records = input_records,
             .runtime = port.battle_target_selection_runtime_state(),
-            .target_ready_gate = target_ready,
             .message_state = message,
             .party = party,
             .scripted_resource_selection_test_compat = true,

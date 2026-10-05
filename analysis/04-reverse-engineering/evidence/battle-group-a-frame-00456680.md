@@ -167,7 +167,7 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 
 ## 11. closed callee、端口与typed边界
 
-两个pending门中，第二项与战斗结果判定latch、组B帧和调试快捷键共用唯一`LegacyBattleOutcomeResolutionStatePort`，不再保留组A帧副本。最终尾activation latch也已回收到actor metric唯一state，由待执行动作提交置1、本函数成功尾清0、全局重置同步清0。
+两个pending门分别是BFC0与BFC4，当前由动作状态的`action_pending_aux`和`selection_cache_gate_b`保存，组A/组B及调试快捷键借用同一状态。结果判定BF5C另由动作状态的`resolution_latch`保存。此前将第二pending门与结果latch合并的结论错误，已按独立地址修正；本轮验证进度见[状态区分证据](battle-selection-wait-and-result-latch-0053bfc4-0053bf5c.md)。最终尾activation latch也已回收到actor metric唯一state，由待执行动作提交置1、本函数成功尾清0、全局重置同步清0。
 
 46个唯一callee中：
 

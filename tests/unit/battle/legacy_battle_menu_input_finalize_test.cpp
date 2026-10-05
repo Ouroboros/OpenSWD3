@@ -81,7 +81,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
         fixture.input.selected_actor_cleanup_gate = 1U;
         fixture.final_actor.published_actor_code = 1U;
         fixture.action.action_pending_aux = 9U;
-        fixture.input.selection_cache_gate_b = 9U;
+        fixture.action.selection_cache_gate_b = 9U;
         fixture.startup.value_4ff0b0 = 9U;
         fixture.startup.value_4ff0b4 = 9U;
         fixture.startup.value_4ff0b8 = 9U;
@@ -101,7 +101,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
                 fixture.input.mouse_action_gate == 0U &&
                 fixture.input.selected_actor_cleanup_gate == 0U &&
                 fixture.action.action_pending_aux == 0U &&
-                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.startup.value_4ff0b0 == 0U &&
                 fixture.startup.value_4ff0b4 == 0U &&
                 fixture.startup.value_4ff0b8 == 0U &&
@@ -383,7 +383,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.message = 7U;
         fixture.action.action_pending_aux = 9U;
-        fixture.input.selection_cache_gate_b = 9U;
+        fixture.action.selection_cache_gate_b = 9U;
         fixture.input.selection_animation_frame_a = 9U;
         const auto result = finalize_legacy_battle_menu_input(
             fixture.bindings(), fixture.port, {.entry_edx = 0x66U}
@@ -394,7 +394,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
                 fixture.frame.alternate_selection == 1U &&
                 fixture.input.action_kind == 1U &&
                 fixture.action.action_pending_aux == 0U &&
-                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.input.selection_animation_frame_a == 0U &&
                 result.return_eax == 1U && result.return_ecx == 7U &&
                 result.return_edx == 0x66U && fixture.port.calls.empty(),

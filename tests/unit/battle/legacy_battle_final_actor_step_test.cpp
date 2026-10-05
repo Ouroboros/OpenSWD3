@@ -751,7 +751,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.return_value == 1U && state.removed_group_a_count == 1U &&
-                state.frame_gate_a == 1U && action.action_pending_aux == 1U &&
+                action.selection_cache_gate_b == 1U &&
+                action.action_pending_aux == 1U &&
                 port.battle_message_state() == 0x67U &&
                 std::ranges::all_of(
                     action.opponent_workspace,
@@ -935,7 +936,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.return_value == 1U && action.group_b_count == 1 &&
-                state.frame_gate_a == 1U && action.action_pending_aux == 1U &&
+                action.selection_cache_gate_b == 1U &&
+                action.action_pending_aux == 1U &&
                 port.battle_message_state() == 0x63U &&
                 port.battle_terminal_latch() == 0U,
             "final group-B actor publishes shared message 99 and clears the terminal latch"

@@ -328,12 +328,14 @@ struct Fixture {
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleActorMetricState metrics;
     std::array<u32, 10> actor_label_indices{};
-    openswd3::battle::LegacyBattleActionDispatchState action;
+    openswd3::battle::LegacyBattleGroupBFrameState actor_frames;
+    openswd3::battle::LegacyBattleActionDispatchState& action{
+        actor_frames.shared.action
+    };
     openswd3::battle::LegacyBattleInputDispatchState input;
     openswd3::battle::LegacyBattleFrameInputResolutionState frame;
     openswd3::battle::LegacyBattleTargetSelectionRuntimeState target;
     openswd3::battle::LegacyBattleDebugHotkeyState debug;
-    openswd3::battle::LegacyBattleGroupBFrameState actor_frames;
     u32 message{};
     u32 target_ready{};
     openswd3::asset_runtime::LegacyActionRecord panel_action_record{};
@@ -408,7 +410,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
                         completed &&
                 result.return_eax == 103U && result.port_calls == 0U &&
-                fixture.port.battle_selection_frame_state().display_gate == 0U,
+                fixture.action.resolution_latch == 0U,
             "message one hundred three returns before queued actor and display state access"
         );
     }
@@ -466,7 +468,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 fixture.frame.target_selection_gate == 1U &&
                 fixture.input.selection_runtime_gate == 0U &&
                 fixture.action.action_pending_aux == 0U &&
-                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.input.selection_cache_gate_c == 0U &&
                 std::ranges::all_of(
                     fixture.input.selection_workspace,
@@ -679,7 +681,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 fixture.frame.lower_panel_aux == 0xFFFFFFFFU &&
                 fixture.frame.lower_panel_aux_index == 4U &&
                 fixture.action.action_pending_aux == 1U &&
-                fixture.input.selection_cache_gate_b == 1U &&
+                fixture.action.selection_cache_gate_b == 1U &&
                 fixture.input.selection_cache_gate_c == 1U &&
                 fixture.input.selection_animation_frame_a == 10U &&
                 fixture.input.selection_animation_frame_b == 7U &&
@@ -739,7 +741,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 result.list_frame.action_frame_calls == 1U &&
                 fixture.input.selection_cache_gate_c == 1U &&
                 fixture.action.action_pending_aux == 0U &&
-                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.input.selection_animation_frame_a == 2U &&
                 fixture.input.selection_animation_frame_b == 3U &&
                 fixture.panel_action_record.action_id == 0xAAAAAAAAU &&
@@ -781,7 +783,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 result.list_contents.completed_rows == 0U &&
                 fixture.input.selection_cache_gate_c == 1U &&
                 fixture.action.action_pending_aux == 0U &&
-                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.frame.lower_panel_aux == 0U &&
                 fixture.frame.lower_panel_aux_index == 0U &&
                 count_call(
@@ -828,7 +830,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 fixture.frame.lower_panel_aux == 8U &&
                 fixture.input.selection_cache_gate_c == 1U &&
                 fixture.action.action_pending_aux == 0U &&
-                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 count_call(
                     fixture.port,
                     LegacyBattleSelectionFrameCall::
@@ -857,7 +859,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 result.grid_frame.action_frame_calls == 1U &&
                 fixture.input.selection_cache_gate_c == 1U &&
                 fixture.action.action_pending_aux == 0U &&
-                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.frame.lower_panel_aux == 0U &&
                 count_call(
                     fixture.port,
@@ -885,7 +887,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 fixture.message == 0U &&
                 fixture.final_actor.queued_actor_code == 0U &&
                 fixture.action.action_pending_aux == 1U &&
-                fixture.input.selection_cache_gate_b == 1U,
+                fixture.action.selection_cache_gate_b == 1U,
             "message six ORs only the physical control byte and closes selection when both actor gates are clear"
         );
     }
@@ -1747,7 +1749,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                         completed &&
                 eight_result.narrow_grid_frame.row_query_calls == 1U &&
                 eight.action.action_pending_aux == 1U &&
-                eight.input.selection_cache_gate_b == 1U &&
+                eight.action.selection_cache_gate_b == 1U &&
                 eight.input.selection_cache_gate_c == 1U &&
                 count_call(
                     eight.port,
@@ -1828,7 +1830,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleNarrowGridFrameStatus::
                         first_tiled_frame_typed_stop &&
                 fixture.action.action_pending_aux == 0U &&
-                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.input.selection_cache_gate_c == 1U &&
                 count_call(
                     fixture.port,
@@ -1865,7 +1867,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 result.alternate_grid_frame.tiled_frame_calls == 2U &&
                 result.alternate_grid_frame.row_query_calls == 1U &&
                 fixture.action.action_pending_aux == 1U &&
-                fixture.input.selection_cache_gate_b == 1U &&
+                fixture.action.selection_cache_gate_b == 1U &&
                 fixture.input.selection_cache_gate_c == 1U &&
                 count_call(
                     fixture.port,
@@ -1894,7 +1896,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleAlternateGridFrameStatus::
                         first_tiled_frame_typed_stop &&
                 fixture.action.action_pending_aux == 0U &&
-                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.input.selection_cache_gate_c == 1U &&
                 count_call(
                     fixture.port,
@@ -1933,7 +1935,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 result.mode_grid_frame.text_copy_calls == 10U &&
                 mode_queries == 1 && fixture.target.target_argument == 0U &&
                 fixture.action.action_pending_aux == 1U &&
-                fixture.input.selection_cache_gate_b == 1U &&
+                fixture.action.selection_cache_gate_b == 1U &&
                 fixture.input.selection_cache_gate_c == 1U &&
                 count_call(
                     fixture.port,
@@ -1961,7 +1963,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleModeGridFrameStatus::
                         first_tiled_frame_typed_stop &&
                 fixture.action.action_pending_aux == 0U &&
-                fixture.input.selection_cache_gate_b == 0U &&
+                fixture.action.selection_cache_gate_b == 0U &&
                 fixture.input.selection_cache_gate_c == 1U &&
                 count_call(
                     fixture.port,

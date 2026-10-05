@@ -6,7 +6,6 @@
 namespace openswd3::battle {
 
 struct LegacyBattleOutcomeResolutionState {
-    compat::u32 resolution_latch{};
     compat::u32 darkening_gate{};
     compat::u32 force_group_b_resolution{};
     LegacyBattleFullFrameDarkeningState darkening{};

@@ -458,10 +458,7 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 bindings.actor_metrics.priority_actor_index = 0U;
                 state.selection_workspace_tail.fill(0U);
                 bindings.action.action_pending_aux = 0U;
-                bindings.final_actor.frame_gate_a = 0U;
-                if (bindings.actor_frames != nullptr) {
-                    port.outcome_resolution_state().resolution_latch = 0U;
-                }
+                bindings.action.selection_cache_gate_b = 0U;
                 bindings.actor_metrics.priority_actor_index = 0xFFFFFFFFU;
 
                 u32 current_index = 0xFFFFFFFFU;
@@ -629,8 +626,7 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 }
                 bindings.actor_frames->shared.target_ready_gate = 1U;
                 bindings.action.action_pending_aux = 1U;
-                bindings.final_actor.frame_gate_a = 1U;
-                port.outcome_resolution_state().resolution_latch = 1U;
+                bindings.action.selection_cache_gate_b = 1U;
                 bindings.final_actor.actor_order.fill(0U);
                 std::fill_n(
                     bindings.action.opponent_workspace.begin(), 10U, 0U
@@ -642,7 +638,7 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 bindings.effect_coordinator.group_a_feedback_actor = 0xFFFFU;
                 bindings.effect_coordinator.completed_count = 0U;
                 state.actor_retarget_gate_53bf64 = 0U;
-                bindings.actor_frames->shared.selection_aux_gate = 0U;
+                bindings.action.resolution_latch = 0U;
                 state.committed_actor_code = 0U;
                 bindings.final_actor.queued_actor_code = 0U;
                 bindings.actor_metrics.priority_actor_index = 0xFFFFFFFFU;

@@ -18,7 +18,7 @@
 
 frame enable完整值不等于1时跳过主体，仍执行公共画面效果、pending effect和最终actor尾。
 
-主体入口对当前组B对象执行terminal查询。仅terminal为0且两个pending dword都为0时调用update；第二pending dword现与组A帧、调试快捷键和结果判定latch共用唯一`LegacyBattleOutcomeResolutionStatePort`。当前对象post-update门为0时，直接复用startup enemy中的进度与共享八槽动态资源唯一owner调用已关闭`0x004755E0`；参数按原32位位形传入，EDX继承update callee。进度返回EAX精确为1且message state不等于103时，直接组合已关闭攻击顺序登记，以固定类型2把当前索引写入共享18条记录的首个全1槽。资源typed-stop保留update前缀并阻断余下角色帧；旧进度函数和攻击顺序callback token均删除。
+主体入口对当前组B对象执行terminal查询。仅terminal为0且两个pending dword都为0时调用update；第二pending dword是BFC4，现与组A帧、调试快捷键共用动作状态的`selection_cache_gate_b`；结果latch是另一个地址BF5C，由`resolution_latch`独立保存。此前合并两者的结论错误，本轮修正及未完成验证见[状态区分证据](battle-selection-wait-and-result-latch-0053bfc4-0053bf5c.md)。当前对象post-update门为0时，直接复用startup enemy中的进度与共享八槽动态资源唯一owner调用已关闭`0x004755E0`；参数按原32位位形传入，EDX继承update callee。进度返回EAX精确为1且message state不等于103时，直接组合已关闭攻击顺序登记，以固定类型2把当前索引写入共享18条记录的首个全1槽。资源typed-stop保留update前缀并阻断余下角色帧；旧进度函数和攻击顺序callback token均删除。
 
 随后仅检查action auxiliary dword和turn-resolution **低word**。两者均为0且active effect target等于当前组B索引时：
 

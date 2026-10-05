@@ -598,8 +598,8 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
             result,
             "MS:%d Stop:%d mStop%d",
             signed_bits(bindings.final_actor.published_actor_code),
-            signed_bits(bindings.final_actor.frame_gate_a),
-            signed_bits(bindings.action.action_pending_aux)
+            signed_bits(bindings.action.action_pending_aux),
+            signed_bits(bindings.action.selection_cache_gate_b)
         );
         runner.draw_buffer(240U, 110U);
         format_text(

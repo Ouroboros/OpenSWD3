@@ -837,7 +837,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
         if (invoke(port, result, kCallQueryTerminal, {source_token}).eax ==
                 0U &&
             action.action_pending_aux == 0U &&
-            port.outcome_resolution_state().resolution_latch == 0U) {
+            action.selection_cache_gate_b == 0U) {
             const auto update_reply =
                 invoke(port, result, kCallUpdateOpponent, {source_token});
             if (state.post_update_gate[group_b_index] == 0U) {
@@ -893,7 +893,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
             action.active_effect_target == group_b_index) {
             if (invoke(port, result, kCallQueryQueueCompletion, {source_token})
                     .eax == 1U) {
-                shared.selection_mode = 0U;
+                action.resolution_latch = 0U;
                 action.active_effect_gate = 0U;
                 shared.action_block_gate = 0U;
                 action.action_pending_aux = 0U;
@@ -916,7 +916,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
             const auto phase_terminal =
                 invoke(port, result, kCallQueryTerminal, {source_token});
             if (phase_terminal.eax == 1U) {
-                shared.selection_mode = 0U;
+                action.resolution_latch = 0U;
                 action.active_effect_gate = 0U;
                 shared.action_block_gate = 0U;
                 action.action_pending_aux = 0U;

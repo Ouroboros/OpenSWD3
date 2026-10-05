@@ -168,7 +168,6 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
                 .input_dispatch = input,
                 .input_records = bindings.input_records,
                 .runtime = bindings.target_selection_runtime,
-                .target_ready_gate = bindings.target_ready_gate,
                 .message_state = bindings.message_state,
                 .party = bindings.party,
             },
@@ -250,7 +249,7 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
         return finish();
     }
 
-    if (bindings.target_ready_gate != 1U) {
+    if (bindings.action.resolution_latch != 1U) {
         refresh_state();
         return finish();
     }

@@ -26,7 +26,6 @@ struct LegacyBattleGroupAFrameState {
     compat::u32 selected_opponent_one_based{1U};
     compat::u32 selected_actor_one_based{1U};
     compat::u32 selection_mode{};
-    compat::u32 selection_aux_gate{};
     compat::u32 target_ready_gate{};
     compat::u32 target_cleanup_gate{};
     compat::u32 ui_gate_a{};
