@@ -7,12 +7,12 @@
 namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionRuntimeState {
-    compat::u32 selection_input_gate{};        // 0x0053BFB8
-    compat::u32 selected_action_kind{};        // 0x0053BCE8
-    compat::u32 actor_commit_gate{};           // 0x0053BF60
-    compat::u32 action_mode_flags{};           // 0x0053BCDC
-    compat::u32 selection_aux_gate{};          // 0x0053BDA4
-    compat::u32 candidate_gate_a{};            // 0x0053BD9C
+    compat::u32 selection_input_gate{};  // 0x0053BFB8
+    compat::u32 selected_action_kind{};  // 0x0053BCE8
+    compat::u32 actor_commit_gate{};     // 0x0053BF60
+    compat::u32 action_mode_flags{};     // 0x0053BCDC
+    // 0x0053BDA4 is input_dispatch.input_latch, not separate state.
+    // 0x0053BD9C is input_dispatch.menu_action, not a separate gate.
     compat::u32 candidate_gate_b{};            // 0x0053BDA0
     compat::u32 candidate_argument{};          // 0x0053BD10
     compat::u32 target_argument{};             // 0x0053BD14

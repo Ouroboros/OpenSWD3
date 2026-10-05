@@ -350,6 +350,7 @@ void seed_state(
 
     auto& input = port.battle_input_dispatch_state();
     input.menu_action = 9U;
+    input.input_latch = 9U;
     input.action_kind = 9U;
     input.selection_index = 9U;
     input.input_gate = 9U;
@@ -385,8 +386,6 @@ void seed_state(
     target.selected_action_kind = 9U;
     target.actor_commit_gate = 9U;
     target.action_mode_flags = 9U;
-    target.selection_aux_gate = 9U;
-    target.candidate_gate_a = 9U;
     target.candidate_gate_b = 9U;
     target.candidate_argument = 9U;
     target.target_argument = 9U;
@@ -730,9 +729,9 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         );
         const auto& input = port.battle_input_dispatch_state();
         test.expect_true(
-            input.menu_action == 0U && input.action_kind == 1U &&
-                input.selection_index == 1U && input.input_gate == 9U &&
-                input.retreat_block_word == 0U &&
+            input.menu_action == 0U && input.input_latch == 9U &&
+                input.action_kind == 1U && input.selection_index == 1U &&
+                input.input_gate == 9U && input.retreat_block_word == 0U &&
                 input.selection_actor_origin_x == 9U &&
                 input.selection_actor_origin_y == 9U &&
                 input.retreat_target_word == 0xFFFFU &&
@@ -768,8 +767,6 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 target.selected_action_kind == 0U &&
                 target.actor_commit_gate == 0U &&
                 target.action_mode_flags == 0U &&
-                target.selection_aux_gate == 9U &&
-                target.candidate_gate_a == 0U &&
                 target.candidate_gate_b == 0U &&
                 target.candidate_argument == 0U &&
                 target.target_argument == 0U &&

@@ -69,6 +69,178 @@ private:
 
 }  // namespace
 
+LegacyBattleInputDispatchEntryStatus
+run_legacy_battle_input_dispatch_entry_prefix(
+    LegacyBattleInputDispatchState& state, const u32 render_abort_latch
+) noexcept {
+    state.menu_action = 0U;
+    return render_abort_latch == 1U
+        ? LegacyBattleInputDispatchEntryStatus::returned_render_abort_latch
+        : LegacyBattleInputDispatchEntryStatus::continue_at_message_state;
+}
+
+bool should_legacy_battle_input_dispatch_query_keyboard(
+    const u32 message_state,
+    const u32 queued_actor_code,
+    const bool dialog_chain_empty
+) noexcept {
+    return signed_bits(message_state) < 2 && queued_actor_code != 0U &&
+        dialog_chain_empty;
+}
+
+LegacyBattleInputDispatchKeyboardProbeResult
+probe_legacy_battle_input_dispatch_keyboard_prefix(
+    const input_time_rng::LegacyKeyboardSnapshot& keyboard
+) noexcept {
+    constexpr std::array<const char*, 8> pressed_branch_boundaries{
+        "0x0045F2FE -> DIK2 pressed branch",
+        "0x0045F351 -> DIK3 pressed branch",
+        "0x0045F3A3 -> DIK4 pressed branch",
+        "0x0045F3FE -> DIK5 pressed branch",
+        "0x0045F451 -> DIK6 pressed branch",
+        "0x0045F4AD -> DIK7 pressed branch",
+        "0x0045F4FF -> DIK8 pressed branch",
+        "0x0045F556 -> DIK9 pressed branch",
+    };
+    LegacyBattleInputDispatchKeyboardProbeResult result;
+    for (u32 index = 0U; index < pressed_branch_boundaries.size(); ++index) {
+        const u32 dik = index + 2U;
+        ++result.raw_key_queries;
+        if (input_time_rng::read_raw_key(keyboard, dik) != 0U) {
+            result.first_pressed_dik = dik;
+            result.stop_boundary = pressed_branch_boundaries[index];
+            return result;
+        }
+    }
+    return result;
+}
+
+void run_legacy_battle_input_dispatch_record_one_prefix(
+    LegacyBattleInputDispatchState& state,
+    const input_time_rng::LegacyInputRecord& record_one
+) noexcept {
+    if (state.input_gate == 1U && record_one.held_sample_count == 1U &&
+        record_one.rapid_press_multiplicity != 0U) {
+        state.input_latch |= 1U;
+    }
+}
+
+bool run_legacy_battle_input_dispatch_record_nine_prefix(
+    input_time_rng::LegacyInputRecord& record_zero,
+    const input_time_rng::LegacyInputRecord& record_nine
+) noexcept {
+    if (record_nine.rapid_press_multiplicity == 0U ||
+        signed_bits(record_nine.held_sample_count) < 1) {
+        return false;
+    }
+    record_zero.rapid_press_multiplicity = 1U;
+    record_zero.held_sample_count = record_nine.held_sample_count;
+    return true;
+}
+
+LegacyBattleInputRecordTwoPrefixResult
+run_legacy_battle_input_dispatch_record_two_prefix(
+    LegacyBattleInputDispatchState& state,
+    const input_time_rng::LegacyInputRecord& record_two,
+    const u32 message_state
+) noexcept {
+    LegacyBattleInputRecordTwoPrefixResult result;
+    if (record_two.rapid_press_multiplicity == 0U) {
+        return result;
+    }
+    result.loaded_held_count = true;
+    result.held_count = record_two.held_sample_count;
+    if (result.held_count != 1U) {
+        const i32 signed_count = signed_bits(result.held_count);
+        if (signed_count < 15) {
+            return result;
+        }
+        result.divided_held_count = true;
+        result.quotient_bits = std::bit_cast<u32>(signed_count / 3);
+        result.remainder_bits = std::bit_cast<u32>(signed_count % 3);
+        if (result.remainder_bits != 1U) {
+            return result;
+        }
+    }
+    if (signed_bits(message_state) > 1) {
+        result.status =
+            LegacyBattleInputRecordTwoStatus::return_from_message_gate;
+        return result;
+    }
+    state.selected_option_word = 0U;
+    state.action_kind = 1U;
+    result.status = LegacyBattleInputRecordTwoStatus::call_actor_action_cycle;
+    return result;
+}
+
+LegacyBattleInputRecordEighteenPrefixResult
+run_legacy_battle_input_dispatch_record_eighteen_prefix(
+    const LegacyBattleInputDispatchState& state,
+    const input_time_rng::LegacyInputRecord& record_eighteen
+) noexcept {
+    LegacyBattleInputRecordEighteenPrefixResult result;
+    if (record_eighteen.rapid_press_multiplicity == 0U) {
+        return result;
+    }
+    result.loaded_held_count = true;
+    result.held_count = record_eighteen.held_sample_count;
+    if (result.held_count != 1U) {
+        const i32 signed_count = signed_bits(result.held_count);
+        if (signed_count < 15) {
+            return result;
+        }
+        result.divided_held_count = true;
+        result.quotient_bits = std::bit_cast<u32>(signed_count / 3);
+        result.remainder_bits = std::bit_cast<u32>(signed_count % 3);
+        if (result.remainder_bits != 1U) {
+            return result;
+        }
+    }
+    if (state.retreat_block_word != 0U || state.action_block_gate == 1U) {
+        result.status =
+            LegacyBattleInputRecordEighteenStatus::return_from_pre_debug_gate;
+        return result;
+    }
+    result.status =
+        LegacyBattleInputRecordEighteenStatus::read_actor_retarget_gate;
+    return result;
+}
+
+LegacyBattleInputIdleSuffixResult scan_legacy_battle_input_dispatch_idle_suffix(
+    const std::array<
+        input_time_rng::LegacyInputRecord,
+        input_time_rng::kLegacyInputRecordCount>& records
+) noexcept {
+    struct RecordRead {
+        u32 index;
+        const char* stop_boundary;
+    };
+    constexpr std::array reads{
+        RecordRead{17U, "0x0045F80E -> record17 held"},
+        RecordRead{14U, "0x0045F881 -> record14 held"},
+        RecordRead{15U, "0x0045F8AD -> record15 held"},
+        RecordRead{12U, "0x0045F9E4 -> record12 held"},
+        RecordRead{1U, "0x0045FA1A -> record1 mode gate"},
+        RecordRead{4U, "0x0045FAB1 -> record4 held"},
+        RecordRead{6U, "0x0045FAEB -> record6 held"},
+        RecordRead{3U, "0x0045FB29 -> record3 held"},
+        RecordRead{5U, "0x0045FB8E -> record5 held"},
+        RecordRead{7U, "0x0045FBF4 -> record7 held"},
+        RecordRead{8U, "0x0045FC12 -> record8 held"},
+        RecordRead{0U, "0x0045FC30 -> record0 held"},
+    };
+    LegacyBattleInputIdleSuffixResult result;
+    for (const auto& read : reads) {
+        ++result.inspected_records;
+        if (records[read.index].rapid_press_multiplicity != 0U) {
+            result.first_active_record = read.index;
+            result.stop_boundary = read.stop_boundary;
+            return result;
+        }
+    }
+    return result;
+}
+
 LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     LegacyBattleInputDispatchBindings bindings,
     LegacyBattleInputDispatchPort& port,
@@ -559,15 +731,16 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         return true;
     };
 
-    state.menu_action = 0U;
-    if (eax == 1U) {
+    if (run_legacy_battle_input_dispatch_entry_prefix(state, eax) ==
+        LegacyBattleInputDispatchEntryStatus::returned_render_abort_latch) {
         return finish();
     }
 
     eax = bindings.message_state;
     ecx = bindings.final_actor.queued_actor_code;
-    if (signed_bits(eax) < 2 && ecx != 0U &&
-        bindings.dialogs.messages.empty()) {
+    if (should_legacy_battle_input_dispatch_query_keyboard(
+            eax, ecx, bindings.dialogs.messages.empty()
+        )) {
         for (u32 index = 0U; index < 8U; ++index) {
             const u32 dik = index + 2U;
             if (raw_key(dik) == 0U) {
@@ -616,10 +789,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         return finish();
     }
     u32 base_held = base_record->held_sample_count;
-    if (eax == 1U && base_held == 1U &&
-        base_record->rapid_press_multiplicity != 0U) {
-        state.input_latch |= 1U;
-    }
+    run_legacy_battle_input_dispatch_record_one_prefix(state, *base_record);
 
     auto* source = record(9U);
     if (source == nullptr) {
@@ -627,8 +797,16 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     }
     if (source->rapid_press_multiplicity != 0U) {
         eax = source->held_sample_count;
-        if (signed_bits(eax) >= 1 && !write_record_zero(eax)) {
-            return finish();
+        if (signed_bits(eax) >= 1) {
+            auto* target = record(0U);
+            if (target == nullptr) {
+                return finish();
+            }
+            if (run_legacy_battle_input_dispatch_record_nine_prefix(
+                    *target, *source
+                )) {
+                result.input_record_writes += 2U;
+            }
         }
     }
 
@@ -636,200 +814,212 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     if (source == nullptr) {
         return finish();
     }
-    if (source->rapid_press_multiplicity != 0U) {
-        eax = source->held_sample_count;
-        const u32 held_count = eax;
-        if (repeat(eax, 3)) {
-            if (signed_bits(bindings.message_state) > 1) {
-                return early();
-            }
-            state.selected_option_word = held_count == 1U ? 0U : 3U;
-            state.action_kind = 1U;
-            if (!invoke_operation(
-                    LegacyBattleInputDispatchCall::
-                        reserved_actor_action_cycle_slot
-                )) {
+    const auto record_two = run_legacy_battle_input_dispatch_record_two_prefix(
+        state, *source, bindings.message_state
+    );
+    if (record_two.loaded_held_count) {
+        eax = record_two.held_count;
+    }
+    if (record_two.divided_held_count) {
+        eax = record_two.quotient_bits;
+        edx = record_two.remainder_bits;
+    }
+    if (record_two.status ==
+        LegacyBattleInputRecordTwoStatus::return_from_message_gate) {
+        return early();
+    }
+    if (record_two.status ==
+        LegacyBattleInputRecordTwoStatus::call_actor_action_cycle) {
+        if (!invoke_operation(
+                LegacyBattleInputDispatchCall::reserved_actor_action_cycle_slot
+            )) {
+            return finish();
+        }
+        if (bindings.message_state == 1U) {
+            if (!enter_target_selection()) {
                 return finish();
             }
-            if (bindings.message_state == 1U) {
-                if (!enter_target_selection()) {
-                    return finish();
-                }
-            }
-            state.selected_option_word = 0xFFFFU;
-            return early();
         }
+        state.selected_option_word = 0xFFFFU;
+        return early();
     }
 
     source = record(18U);
     if (source == nullptr) {
         return finish();
     }
-    if (source->rapid_press_multiplicity != 0U) {
-        eax = source->held_sample_count;
-        if (repeat(eax, 3)) {
-            if (state.retreat_block_word != 0U ||
-                state.action_block_gate == 1U ||
-                bindings.debug_hotkeys.actor_retarget_gate_53bf64 == 1U ||
-                bindings.message_state == 99U ||
-                bindings.message_state == 100U ||
-                !bindings.dialogs.messages.empty()) {
-                return early();
+    const auto record_eighteen =
+        run_legacy_battle_input_dispatch_record_eighteen_prefix(state, *source);
+    if (record_eighteen.loaded_held_count) {
+        eax = record_eighteen.held_count;
+    }
+    if (record_eighteen.divided_held_count) {
+        eax = record_eighteen.quotient_bits;
+        edx = record_eighteen.remainder_bits;
+    }
+    if (record_eighteen.status ==
+        LegacyBattleInputRecordEighteenStatus::return_from_pre_debug_gate) {
+        return early();
+    }
+    if (record_eighteen.status ==
+        LegacyBattleInputRecordEighteenStatus::read_actor_retarget_gate) {
+        if (bindings.debug_hotkeys.actor_retarget_gate_53bf64 == 1U) {
+            return early();
+        }
+        eax = bindings.message_state;
+        if (eax == 99U || eax == 100U || !bindings.dialogs.messages.empty()) {
+            return early();
+        }
+        const u32 queried_actor = bindings.final_actor.queued_actor_code;
+        ecx = group_a_token(queried_actor);
+        static_cast<void>(call(
+            LegacyBattleInputDispatchCall::query_active_actor,
+            {ecx, queried_actor}
+        ));
+        if (eax == 1U) {
+            return early();
+        }
+        edx = bindings.metrics.group_b_count;
+        ecx = static_cast<u32>(
+            static_cast<compat::u8>(bindings.final_actor.excluded_group_a_count)
+        );
+        edx -= ecx;
+        if (edx == 1U && state.retreat_target_word != 0xFFFFU) {
+            return early();
+        }
+        const u32 retreat_actor = bindings.final_actor.queued_actor_code;
+        if (retreat_actor != 0U) {
+            ecx = group_a_token(retreat_actor);
+            const auto* actor =
+                retreat_actor < bindings.action.group_a_action_execution.size()
+                ? &bindings.action.group_a_action_execution[retreat_actor]
+                : nullptr;
+            result.actor_retreat_ready =
+                query_legacy_battle_actor_retreat_ready(
+                    actor,
+                    {
+                        .actor_token = ecx,
+                        .entry_eax = eax,
+                        .entry_edx = edx,
+                    }
+                );
+            ++result.actor_retreat_ready_calls;
+            if (result.actor_retreat_ready.status !=
+                LegacyBattleActorRetreatReadyStatus::completed) {
+                result.status = LegacyBattleInputDispatchStatus::
+                    actor_retreat_ready_typed_stop;
+                return result;
             }
-            const u32 queried_actor = bindings.final_actor.queued_actor_code;
-            ecx = group_a_token(queried_actor);
-            static_cast<void>(call(
-                LegacyBattleInputDispatchCall::query_active_actor,
-                {ecx, queried_actor}
-            ));
-            if (eax == 1U) {
-                return early();
-            }
-            edx = bindings.metrics.group_b_count;
-            ecx = static_cast<u32>(static_cast<compat::u8>(
-                bindings.final_actor.excluded_group_a_count
-            ));
-            edx -= ecx;
-            if (edx == 1U && state.retreat_target_word != 0xFFFFU) {
-                return early();
-            }
-            const u32 retreat_actor = bindings.final_actor.queued_actor_code;
-            if (retreat_actor != 0U) {
-                ecx = group_a_token(retreat_actor);
-                const auto* actor = retreat_actor <
-                        bindings.action.group_a_action_execution.size()
-                    ? &bindings.action.group_a_action_execution[retreat_actor]
-                    : nullptr;
-                result.actor_retreat_ready =
-                    query_legacy_battle_actor_retreat_ready(
-                        actor,
+            eax = result.actor_retreat_ready.return_eax;
+            ecx = result.actor_retreat_ready.return_ecx;
+            edx = result.actor_retreat_ready.return_edx;
+            if (eax == 0U ||
+                (bindings.debug_hotkeys.battle_mode_flags_53bc24 & 0x200U) !=
+                    0U) {
+                port.delay_input_milliseconds(20U);
+                ++result.delay_calls;
+                result.text_messages.push_back(
+                    enqueue_legacy_battle_text_message(
+                        bindings.text_messages,
+                        bindings.startup_reset.block_5214f8[0U],
+                        text_message_port,
                         {
-                            .actor_token = ecx,
-                            .entry_eax = eax,
-                            .entry_edx = edx,
+                            .value_04 = 0x118U,
+                            .value_08 = 10U,
+                            .kind = 5U,
+                            .text_token = kLegacyBattleInputWarningTextToken,
+                            .flags = 0x40000002U,
+                            .entry = {.eax = eax, .ecx = ecx, .edx = edx},
                         }
-                    );
-                ++result.actor_retreat_ready_calls;
-                if (result.actor_retreat_ready.status !=
-                    LegacyBattleActorRetreatReadyStatus::completed) {
+                    )
+                );
+                ++result.text_message_calls;
+                const auto& warning = result.text_messages.back();
+                result.port_calls +=
+                    warning.allocation_calls + warning.measure_calls;
+                eax = warning.return_registers.eax;
+                ecx = warning.return_registers.ecx;
+                edx = warning.return_registers.edx;
+                if (warning.status !=
+                    LegacyBattleTextMessageStatus::completed) {
                     result.status = LegacyBattleInputDispatchStatus::
-                        actor_retreat_ready_typed_stop;
+                        text_message_typed_stop;
                     return result;
                 }
-                eax = result.actor_retreat_ready.return_eax;
-                ecx = result.actor_retreat_ready.return_ecx;
-                edx = result.actor_retreat_ready.return_edx;
-                if (eax == 0U ||
-                    (bindings.debug_hotkeys.battle_mode_flags_53bc24 &
-                     0x200U) != 0U) {
-                    port.delay_input_milliseconds(20U);
-                    ++result.delay_calls;
-                    result.text_messages.push_back(
-                        enqueue_legacy_battle_text_message(
-                            bindings.text_messages,
-                            bindings.startup_reset.block_5214f8[0U],
-                            text_message_port,
-                            {
-                                .value_04 = 0x118U,
-                                .value_08 = 10U,
-                                .kind = 5U,
-                                .text_token =
-                                    kLegacyBattleInputWarningTextToken,
-                                .flags = 0x40000002U,
-                                .entry = {.eax = eax, .ecx = ecx, .edx = edx},
-                            }
-                        )
-                    );
-                    ++result.text_message_calls;
-                    const auto& warning = result.text_messages.back();
-                    result.port_calls +=
-                        warning.allocation_calls + warning.measure_calls;
-                    eax = warning.return_registers.eax;
-                    ecx = warning.return_registers.ecx;
-                    edx = warning.return_registers.edx;
-                    if (warning.status !=
-                        LegacyBattleTextMessageStatus::completed) {
-                        result.status = LegacyBattleInputDispatchStatus::
-                            text_message_typed_stop;
-                        return result;
-                    }
-                    edx = std::bit_cast<u32>(state.sample_mix_level);
-                    const auto sample = port.play_input_sample(
-                        kLegacyBattleInputWarningSample,
-                        state.sample_mix_level,
-                        eax,
-                        ecx,
-                        edx
-                    );
-                    eax = sample.eax;
-                    ecx = sample.ecx;
-                    edx = sample.edx;
-                    return early();
-                }
-                port.delay_input_milliseconds(50U);
-                ++result.delay_calls;
-                const u32 actor_code = bindings.final_actor.queued_actor_code;
-                const u32 workspace_index = actor_code + kWorkspaceActorOffset;
-                bindings.message_state = 0x11U;
-                if (workspace_index >=
-                    bindings.action.opponent_workspace.size()) {
-                    result.status =
-                        LegacyBattleInputDispatchStatus::workspace_typed_stop;
-                    return finish();
-                }
-                bindings.action.opponent_workspace[workspace_index] = 0x11U;
-                const u32 actor_index = actor_code - 8U;
-                edx = actor_index * 0xBCDU;
-                ecx = group_a_token(actor_code);
-                auto* const availability_block = actor_index <
-                        bindings.final_actor.group_a_availability_blocks.size()
-                    ? &bindings.final_actor
-                           .group_a_availability_blocks[actor_index]
-                    : nullptr;
-                result.actor_availability_block =
-                    set_legacy_battle_actor_availability_block(
-                        availability_block,
-                        {
-                            .value = 1U,
-                            .actor_token = ecx,
-                            .entry_eax = eax,
-                            .entry_edx = edx,
-                        }
-                    );
-                ++result.actor_availability_block_calls;
-                eax = result.actor_availability_block.return_eax;
-                ecx = result.actor_availability_block.return_ecx;
-                edx = result.actor_availability_block.return_edx;
-                if (result.actor_availability_block.status !=
-                    LegacyBattleActorAvailabilityBlockStatus::completed) {
-                    result.status = LegacyBattleInputDispatchStatus::
-                        actor_availability_block_typed_stop;
-                    return finish();
-                }
-                const u32 live_actor = bindings.final_actor.queued_actor_code;
-                eax = live_actor;
-                bindings.final_actor.auxiliary_gate = 1U;
-                bindings.final_actor.secondary_actor_code = live_actor;
-                bindings.message_state = 0U;
-                state.action_word = 0U;
-                bindings.final_actor.published_actor_code = live_actor - 7U;
-                state.retreat_block_word =
-                    static_cast<u16>(state.retreat_block_word | 0x4000U);
-                bindings.final_actor.queued_actor_code = 0U;
-                bindings.final_actor.pre_frame_gate_a = 0U;
-                bindings.final_actor.frame_gate_b = 1U;
-                bindings.final_actor.frame_gate_a = 1U;
-                state.frame_value_a = 0U;
-                state.action_kind = 0U;
-                state.frame_value_b = 4U;
-                ecx = 0U;
+                edx = std::bit_cast<u32>(state.sample_mix_level);
+                const auto sample = port.play_input_sample(
+                    kLegacyBattleInputWarningSample,
+                    state.sample_mix_level,
+                    eax,
+                    ecx,
+                    edx
+                );
+                eax = sample.eax;
+                ecx = sample.ecx;
+                edx = sample.edx;
+                return early();
             }
-            base_record = record(1U);
-            if (base_record == nullptr) {
+            port.delay_input_milliseconds(50U);
+            ++result.delay_calls;
+            const u32 actor_code = bindings.final_actor.queued_actor_code;
+            const u32 workspace_index = actor_code + kWorkspaceActorOffset;
+            bindings.message_state = 0x11U;
+            if (workspace_index >= bindings.action.opponent_workspace.size()) {
+                result.status =
+                    LegacyBattleInputDispatchStatus::workspace_typed_stop;
                 return finish();
             }
-            base_held = base_record->held_sample_count;
+            bindings.action.opponent_workspace[workspace_index] = 0x11U;
+            const u32 actor_index = actor_code - 8U;
+            edx = actor_index * 0xBCDU;
+            ecx = group_a_token(actor_code);
+            auto* const availability_block = actor_index <
+                    bindings.final_actor.group_a_availability_blocks.size()
+                ? &bindings.final_actor.group_a_availability_blocks[actor_index]
+                : nullptr;
+            result.actor_availability_block =
+                set_legacy_battle_actor_availability_block(
+                    availability_block,
+                    {
+                        .value = 1U,
+                        .actor_token = ecx,
+                        .entry_eax = eax,
+                        .entry_edx = edx,
+                    }
+                );
+            ++result.actor_availability_block_calls;
+            eax = result.actor_availability_block.return_eax;
+            ecx = result.actor_availability_block.return_ecx;
+            edx = result.actor_availability_block.return_edx;
+            if (result.actor_availability_block.status !=
+                LegacyBattleActorAvailabilityBlockStatus::completed) {
+                result.status = LegacyBattleInputDispatchStatus::
+                    actor_availability_block_typed_stop;
+                return finish();
+            }
+            const u32 live_actor = bindings.final_actor.queued_actor_code;
+            eax = live_actor;
+            bindings.final_actor.auxiliary_gate = 1U;
+            bindings.final_actor.secondary_actor_code = live_actor;
+            bindings.message_state = 0U;
+            state.action_word = 0U;
+            bindings.final_actor.published_actor_code = live_actor - 7U;
+            state.retreat_block_word =
+                static_cast<u16>(state.retreat_block_word | 0x4000U);
+            bindings.final_actor.queued_actor_code = 0U;
+            bindings.final_actor.pre_frame_gate_a = 0U;
+            bindings.final_actor.frame_gate_b = 1U;
+            bindings.final_actor.frame_gate_a = 1U;
+            state.frame_value_a = 0U;
+            state.action_kind = 0U;
+            state.frame_value_b = 4U;
+            ecx = 0U;
         }
+        base_record = record(1U);
+        if (base_record == nullptr) {
+            return finish();
+        }
+        base_held = base_record->held_sample_count;
     }
 
     source = record(17U);

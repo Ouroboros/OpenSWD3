@@ -32,8 +32,8 @@ struct LegacyBattleInputDispatchState {
     compat::u32 action_lookup_auxiliary{1U};  // 0x004A7554
     compat::u32 action_category_index{};      // 0x0053BD18
     compat::u32 selection_index{1U};
-    compat::u32 input_gate{};  // 0x0053C024
-    compat::u32 input_latch{};
+    compat::u32 input_gate{};                // 0x0053C024
+    compat::u32 input_latch{};               // 0x0053BDA4
     compat::u16 retreat_block_word{};        // 0x0053BF1C
     compat::u16 selection_actor_origin_x{};  // 0x0053BF4A
     compat::u16 selection_actor_origin_y{};  // 0x0053BF4E
@@ -284,6 +284,120 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 menu_context_retreat_calls{};
     bool returned_early{};
 };
+
+enum class LegacyBattleInputDispatchEntryStatus : compat::u8 {
+    returned_render_abort_latch,
+    continue_at_message_state,
+};
+
+// 0x0045F2A0..BE: read the render-abort latch, clear the shared menu word,
+// then return only when the latch is exactly one.
+[[nodiscard]] LegacyBattleInputDispatchEntryStatus
+run_legacy_battle_input_dispatch_entry_prefix(
+    LegacyBattleInputDispatchState& state, compat::u32 render_abort_latch
+) noexcept;
+
+// 0x0045F2BE..EF: signed message comparison, actor code and dialog-chain
+// gate before the first keyboard query; no state write in this interval.
+[[nodiscard]] bool should_legacy_battle_input_dispatch_query_keyboard(
+    compat::u32 message_state,
+    compat::u32 queued_actor_code,
+    bool dialog_chain_empty
+) noexcept;
+
+struct LegacyBattleInputDispatchKeyboardProbeResult {
+    compat::u32 raw_key_queries{};
+    compat::u32 first_pressed_dik{};
+    const char* stop_boundary{"0x0045F5A3 -> input record state"};
+};
+
+// 0x0045F2F5..0x0045F59D: query DIK 2..9 in physical order. Stop before
+// the first pressed-key mutation, or before the input-record state read.
+[[nodiscard]] LegacyBattleInputDispatchKeyboardProbeResult
+probe_legacy_battle_input_dispatch_keyboard_prefix(
+    const input_time_rng::LegacyKeyboardSnapshot& keyboard
+) noexcept;
+
+// 0x0045F5A3..C4: read input gate and record 1, then OR bit 0 of the
+// shared input latch only when the three physical conditions all hold.
+void run_legacy_battle_input_dispatch_record_one_prefix(
+    LegacyBattleInputDispatchState& state,
+    const input_time_rng::LegacyInputRecord& record_one
+) noexcept;
+
+// 0x0045F5C4..E0: a nonzero record-9 rapid dword and signed positive held
+// count publish rapid=1 and the held count to record 0 in this order.
+[[nodiscard]] bool run_legacy_battle_input_dispatch_record_nine_prefix(
+    input_time_rng::LegacyInputRecord& record_zero,
+    const input_time_rng::LegacyInputRecord& record_nine
+) noexcept;
+
+enum class LegacyBattleInputRecordTwoStatus : compat::u8 {
+    continue_at_record_eighteen,
+    return_from_message_gate,
+    call_actor_action_cycle,
+};
+
+struct LegacyBattleInputRecordTwoPrefixResult {
+    LegacyBattleInputRecordTwoStatus status{
+        LegacyBattleInputRecordTwoStatus::continue_at_record_eighteen
+    };
+    bool loaded_held_count{};
+    bool divided_held_count{};
+    compat::u32 held_count{};
+    compat::u32 quotient_bits{};
+    compat::u32 remainder_bits{};
+};
+
+// 0x0045F5E0..0x0045F629: signed repeat gate, signed message gate and
+// the two writes before sub_462320. A triggered repeat writes option zero
+// even when its held count is not one (BP was cleared at 0x0045F602).
+[[nodiscard]] LegacyBattleInputRecordTwoPrefixResult
+run_legacy_battle_input_dispatch_record_two_prefix(
+    LegacyBattleInputDispatchState& state,
+    const input_time_rng::LegacyInputRecord& record_two,
+    compat::u32 message_state
+) noexcept;
+
+enum class LegacyBattleInputRecordEighteenStatus : compat::u8 {
+    continue_at_record_seventeen,
+    return_from_pre_debug_gate,
+    read_actor_retarget_gate,
+};
+
+struct LegacyBattleInputRecordEighteenPrefixResult {
+    LegacyBattleInputRecordEighteenStatus status{
+        LegacyBattleInputRecordEighteenStatus::continue_at_record_seventeen
+    };
+    bool loaded_held_count{};
+    bool divided_held_count{};
+    compat::u32 held_count{};
+    compat::u32 quotient_bits{};
+    compat::u32 remainder_bits{};
+};
+
+// 0x0045F629..0x0045F672. The debug gate at 0x0045F672 requires its
+// actual owner; the prefix stops before reading it on the active route.
+[[nodiscard]] LegacyBattleInputRecordEighteenPrefixResult
+run_legacy_battle_input_dispatch_record_eighteen_prefix(
+    const LegacyBattleInputDispatchState& state,
+    const input_time_rng::LegacyInputRecord& record_eighteen
+) noexcept;
+
+struct LegacyBattleInputIdleSuffixResult {
+    const char* stop_boundary{"0x0045FC5B -> input dispatch RET"};
+    compat::u32 inspected_records{};
+    compat::u32 first_active_record{input_time_rng::kLegacyInputRecordCount};
+};
+
+// Follow only the zero-rapid edges from 0x0045F806 to 0x0045FC5B;
+// report the first nonzero read, never execute its unbound action branch.
+[[nodiscard]] LegacyBattleInputIdleSuffixResult
+scan_legacy_battle_input_dispatch_idle_suffix(
+    const std::array<
+        input_time_rng::LegacyInputRecord,
+        input_time_rng::kLegacyInputRecordCount>& records
+) noexcept;
 
 // Typed closure of legacy 0x0045F2A0.
 [[nodiscard]] LegacyBattleInputDispatchResult

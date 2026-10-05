@@ -798,7 +798,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.final_actor.queued_actor_code = 8U;
         fixture.message = 4U;
         fixture.frame.panel_row_limit_c = 8U;
-        fixture.target.candidate_gate_a = 6U;
+        fixture.input.menu_action = 1U;
         fixture.action_streams.fail = false;
         fixture.port
             .grid_frame_replies[LegacyBattleGridFrameCall::initialize_rows]
@@ -820,6 +820,8 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 result.vertical_panel.status ==
                     openswd3::battle::LegacyBattleVerticalPanelStatus::
                         action_update_failed &&
+                fixture.port.battle_selection_frame_state()
+                        .vertical_panel.base_variants[0U] == 0x1EU &&
                 result.grid_frame_calls == 1U &&
                 result.grid_frame.status ==
                     openswd3::battle::LegacyBattleGridFrameStatus::completed &&

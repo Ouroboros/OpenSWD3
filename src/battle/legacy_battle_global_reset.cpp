@@ -536,7 +536,6 @@ void synchronize_typed_aliases(
     target_selection.selected_action_kind = 0U;
     target_selection.actor_commit_gate = 0U;
     target_selection.action_mode_flags = 0U;
-    target_selection.candidate_gate_a = 0U;
     target_selection.candidate_gate_b = 0U;
     target_selection.candidate_argument = 0U;
     target_selection.target_argument = 0U;

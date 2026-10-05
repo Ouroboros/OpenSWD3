@@ -1106,9 +1106,7 @@ private:
         bindings_.frame_input.lower_panel_aux = ecx_;
         bindings_.frame_input.lower_panel_aux_index = edx_;
         if (static_cast<compat::i8>(eax_) > 7) {
-            if (!draw_vertical_panel(
-                    0x190U, bindings_.target_runtime.candidate_gate_a
-                )) {
+            if (!draw_vertical_panel(0x190U, state_input().menu_action)) {
                 return;
             }
         }
@@ -1128,9 +1126,7 @@ private:
         bindings_.frame_input.lower_panel_aux = ecx_;
         bindings_.frame_input.lower_panel_aux_index = edx_;
         if (static_cast<u16>(eax_) > 7U) {
-            if (!draw_vertical_panel(
-                    0x19EU, bindings_.target_runtime.candidate_gate_a
-                )) {
+            if (!draw_vertical_panel(0x19EU, state_input().menu_action)) {
                 return;
             }
         }
@@ -1150,9 +1146,7 @@ private:
         bindings_.frame_input.lower_panel_aux = edx_;
         bindings_.frame_input.lower_panel_aux_index = ecx_;
         if (static_cast<u16>(eax_) > 7U) {
-            if (!draw_vertical_panel(
-                    0x192U, bindings_.target_runtime.candidate_gate_a
-                )) {
+            if (!draw_vertical_panel(0x192U, state_input().menu_action)) {
                 return;
             }
         }

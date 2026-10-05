@@ -1223,7 +1223,7 @@ private:
                 break;
             case 26U:
                 bindings_.message_state = 3U;
-                runtime_.selection_aux_gate = 0U;
+                input_.input_latch = 0U;
                 break;
             case 27U:
                 ecx_ = kTargetPanelToken;
@@ -1310,7 +1310,7 @@ private:
         if (runtime_.selection_input_gate == 0U) {
             return;
         }
-        eax_ = runtime_.candidate_gate_a;
+        eax_ = input_.menu_action;
         runtime_.selection_input_gate = 0U;
         if (eax_ != 0U || runtime_.candidate_gate_b != 0U) {
             return;
@@ -1658,7 +1658,7 @@ private:
         if (runtime_.selection_input_gate == 0U) {
             return;
         }
-        eax_ = runtime_.candidate_gate_a;
+        eax_ = input_.menu_action;
         runtime_.selection_input_gate = 0U;
         if (eax_ != 0U || runtime_.candidate_gate_b != 0U) {
             return;
@@ -1976,7 +1976,7 @@ private:
         if (runtime_.selection_input_gate == 0U) {
             return;
         }
-        eax_ = runtime_.candidate_gate_a;
+        eax_ = input_.menu_action;
         runtime_.selection_input_gate = 0U;
         if (eax_ != 0U || runtime_.candidate_gate_b != 0U) {
             return;

@@ -1,8 +1,11 @@
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 
 #include <algorithm>
+#include <array>
 #include <map>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
@@ -190,6 +193,386 @@ struct Fixture {
 }  // namespace
 
 void test_battle_input_dispatch(openswd3::test::Context& test) {
+    {
+        openswd3::battle::LegacyBattleInputDispatchState state;
+        state.menu_action = 9U;
+        state.action_kind = 7U;
+        const auto continue_status =
+            openswd3::battle::run_legacy_battle_input_dispatch_entry_prefix(
+                state, 0U
+            );
+        test.expect_true(
+            continue_status ==
+                    openswd3::battle::LegacyBattleInputDispatchEntryStatus::
+                        continue_at_message_state &&
+                state.menu_action == 0U && state.action_kind == 7U,
+            "input-dispatch entry clears only the shared menu word before reading message state"
+        );
+        state.menu_action = 9U;
+        const auto abort_status =
+            openswd3::battle::run_legacy_battle_input_dispatch_entry_prefix(
+                state, 1U
+            );
+        test.expect_true(
+            abort_status ==
+                    openswd3::battle::LegacyBattleInputDispatchEntryStatus::
+                        returned_render_abort_latch &&
+                state.menu_action == 0U && state.action_kind == 7U,
+            "input-dispatch entry clears the same menu word even when abort latch returns"
+        );
+    }
+
+    for (const u32 message : {0U, 1U, 0x80000000U, 0xFFFFFFFFU}) {
+        test.expect_true(
+            openswd3::battle::
+                should_legacy_battle_input_dispatch_query_keyboard(
+                    message, 8U, true
+                ),
+            "input-dispatch signed message permits keyboard gate " +
+                std::to_string(message)
+        );
+    }
+    test.expect_true(
+        !openswd3::battle::should_legacy_battle_input_dispatch_query_keyboard(
+            2U, 8U, true
+        ) &&
+            !openswd3::battle::
+                should_legacy_battle_input_dispatch_query_keyboard(
+                    0U, 0U, true
+                ) &&
+            !openswd3::battle::
+                should_legacy_battle_input_dispatch_query_keyboard(
+                    0U, 8U, false
+                ),
+        "input-dispatch signed bound, zero actor and nonempty dialog separately bypass keyboard"
+    );
+
+    {
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        keyboard[2U] = 0x80U;
+        keyboard[9U] = 0x80U;
+        auto probe = openswd3::battle::
+            probe_legacy_battle_input_dispatch_keyboard_prefix(keyboard);
+        test.expect_true(
+            probe.raw_key_queries == 1U && probe.first_pressed_dik == 2U &&
+                std::string_view(probe.stop_boundary).starts_with("0x0045F2FE"),
+            "input-dispatch probes DIK2 first and stops before its pressed branch"
+        );
+        keyboard[2U] = 0U;
+        keyboard[6U] = 0x80U;
+        probe = openswd3::battle::
+            probe_legacy_battle_input_dispatch_keyboard_prefix(keyboard);
+        test.expect_true(
+            probe.raw_key_queries == 5U && probe.first_pressed_dik == 6U &&
+                std::string_view(probe.stop_boundary).starts_with("0x0045F451"),
+            "input-dispatch preserves earlier DIK query order before the distinct DIK6 branch"
+        );
+        keyboard[6U] = 0U;
+        keyboard[9U] = 0U;
+        probe = openswd3::battle::
+            probe_legacy_battle_input_dispatch_keyboard_prefix(keyboard);
+        test.expect_true(
+            probe.raw_key_queries == 8U && probe.first_pressed_dik == 0U &&
+                std::string_view(probe.stop_boundary).starts_with("0x0045F5A3"),
+            "input-dispatch queries all eight released keys before reading input records"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleInputDispatchState state;
+        openswd3::input_time_rng::LegacyInputRecord record;
+        state.input_latch = 0xA0U;
+        record.rapid_press_multiplicity = 0x80000000U;
+        record.held_sample_count = 1U;
+        openswd3::battle::run_legacy_battle_input_dispatch_record_one_prefix(
+            state, record
+        );
+        test.expect_true(
+            state.input_latch == 0xA0U,
+            "record-one prefix requires the input gate to equal one"
+        );
+        state.input_gate = 1U;
+        record.held_sample_count = 2U;
+        openswd3::battle::run_legacy_battle_input_dispatch_record_one_prefix(
+            state, record
+        );
+        test.expect_true(
+            state.input_latch == 0xA0U,
+            "record-one prefix requires the held count to equal one"
+        );
+        record.held_sample_count = 1U;
+        record.rapid_press_multiplicity = 0U;
+        openswd3::battle::run_legacy_battle_input_dispatch_record_one_prefix(
+            state, record
+        );
+        test.expect_true(
+            state.input_latch == 0xA0U,
+            "record-one prefix requires a nonzero rapid-press dword"
+        );
+        record.rapid_press_multiplicity = 0x80000000U;
+        openswd3::battle::run_legacy_battle_input_dispatch_record_one_prefix(
+            state, record
+        );
+        test.expect_true(
+            state.input_latch == 0xA1U &&
+                record.rapid_press_multiplicity == 0x80000000U &&
+                record.held_sample_count == 1U,
+            "record-one prefix ORs only bit zero and preserves other latch and record bits"
+        );
+    }
+
+    {
+        openswd3::input_time_rng::LegacyInputRecord zero;
+        openswd3::input_time_rng::LegacyInputRecord nine;
+        zero.rapid_press_multiplicity = 7U;
+        zero.held_sample_count = 55U;
+        nine.held_sample_count = 1U;
+        test.expect_true(
+            !openswd3::battle::
+                    run_legacy_battle_input_dispatch_record_nine_prefix(
+                        zero, nine
+                    ) &&
+                zero.rapid_press_multiplicity == 7U &&
+                zero.held_sample_count == 55U,
+            "record-nine prefix preserves record zero when its rapid dword is zero"
+        );
+        nine.rapid_press_multiplicity = 0x80000000U;
+        nine.held_sample_count = 0xFFFFFFFFU;
+        test.expect_true(
+            !openswd3::battle::
+                    run_legacy_battle_input_dispatch_record_nine_prefix(
+                        zero, nine
+                    ) &&
+                zero.rapid_press_multiplicity == 7U &&
+                zero.held_sample_count == 55U,
+            "record-nine prefix compares the held count as signed"
+        );
+        nine.held_sample_count = 1U;
+        test.expect_true(
+            openswd3::battle::
+                    run_legacy_battle_input_dispatch_record_nine_prefix(
+                        zero, nine
+                    ) &&
+                zero.rapid_press_multiplicity == 1U &&
+                zero.held_sample_count == 1U &&
+                nine.rapid_press_multiplicity == 0x80000000U,
+            "record-nine prefix publishes only two record-zero dwords"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleInputDispatchState state;
+        state.action_kind = 9U;
+        state.selected_option_word = 0xFFFFU;
+        openswd3::input_time_rng::LegacyInputRecord record;
+        record.held_sample_count = 16U;
+        auto result = openswd3::battle::
+            run_legacy_battle_input_dispatch_record_two_prefix(
+                state, record, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputRecordTwoStatus::
+                        continue_at_record_eighteen &&
+                !result.loaded_held_count && !result.divided_held_count &&
+                state.selected_option_word == 0xFFFFU &&
+                state.action_kind == 9U,
+            "record-two prefix skips held and option when rapid is zero"
+        );
+        record.rapid_press_multiplicity = 1U;
+        record.held_sample_count = 14U;
+        result = openswd3::battle::
+            run_legacy_battle_input_dispatch_record_two_prefix(
+                state, record, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputRecordTwoStatus::
+                        continue_at_record_eighteen &&
+                result.loaded_held_count && result.held_count == 14U &&
+                !result.divided_held_count &&
+                state.selected_option_word == 0xFFFFU,
+            "record-two prefix requires held one or signed held at least fifteen"
+        );
+        record.held_sample_count = 17U;
+        result = openswd3::battle::
+            run_legacy_battle_input_dispatch_record_two_prefix(
+                state, record, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputRecordTwoStatus::
+                        continue_at_record_eighteen &&
+                result.divided_held_count && result.quotient_bits == 5U &&
+                result.remainder_bits == 2U &&
+                state.selected_option_word == 0xFFFFU,
+            "record-two signed division retains quotient and non-one remainder before record eighteen"
+        );
+        record.held_sample_count = 16U;
+        result = openswd3::battle::
+            run_legacy_battle_input_dispatch_record_two_prefix(
+                state, record, 2U
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputRecordTwoStatus::
+                        return_from_message_gate &&
+                result.divided_held_count && result.quotient_bits == 5U &&
+                result.remainder_bits == 1U &&
+                state.selected_option_word == 0xFFFFU &&
+                state.action_kind == 9U,
+            "record-two message greater than one returns without publishing option or action"
+        );
+        result = openswd3::battle::
+            run_legacy_battle_input_dispatch_record_two_prefix(
+                state, record, 0xFFFFFFFFU
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputRecordTwoStatus::
+                        call_actor_action_cycle &&
+                state.selected_option_word == 0U && state.action_kind == 1U,
+            "record-two repeated held sixteen publishes BP zero before action call even for signed-negative message"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleInputDispatchState state;
+        openswd3::input_time_rng::LegacyInputRecord record;
+        record.held_sample_count = 16U;
+        auto result = openswd3::battle::
+            run_legacy_battle_input_dispatch_record_eighteen_prefix(
+                state, record
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputRecordEighteenStatus::
+                        continue_at_record_seventeen &&
+                !result.loaded_held_count,
+            "record-eighteen zero rapid reaches record seventeen without reading held"
+        );
+        record.rapid_press_multiplicity = 1U;
+        record.held_sample_count = 17U;
+        result = openswd3::battle::
+            run_legacy_battle_input_dispatch_record_eighteen_prefix(
+                state, record
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputRecordEighteenStatus::
+                        continue_at_record_seventeen &&
+                result.loaded_held_count && result.divided_held_count &&
+                result.quotient_bits == 5U && result.remainder_bits == 2U,
+            "record-eighteen signed remainder other than one continues"
+        );
+        record.held_sample_count = 16U;
+        state.retreat_block_word = 7U;
+        result = openswd3::battle::
+            run_legacy_battle_input_dispatch_record_eighteen_prefix(
+                state, record
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleInputRecordEighteenStatus::
+                        return_from_pre_debug_gate &&
+                result.quotient_bits == 5U && result.remainder_bits == 1U,
+            "record-eighteen word gate returns before debug read"
+        );
+        state.retreat_block_word = 0U;
+        state.action_block_gate = 1U;
+        result = openswd3::battle::
+            run_legacy_battle_input_dispatch_record_eighteen_prefix(
+                state, record
+            );
+        test.expect_true(
+            result.status ==
+                openswd3::battle::LegacyBattleInputRecordEighteenStatus::
+                    return_from_pre_debug_gate,
+            "record-eighteen action gate equal one returns before debug read"
+        );
+        state.action_block_gate = 0U;
+        result = openswd3::battle::
+            run_legacy_battle_input_dispatch_record_eighteen_prefix(
+                state, record
+            );
+        test.expect_true(
+            result.status ==
+                openswd3::battle::LegacyBattleInputRecordEighteenStatus::
+                    read_actor_retarget_gate,
+            "record-eighteen active branch stops at first unbound SDL debug gate"
+        );
+    }
+
+    {
+        constexpr std::array<u32, 12U> order{
+            17U, 14U, 15U, 12U, 1U, 4U, 6U, 3U, 5U, 7U, 8U, 0U
+        };
+        constexpr std::array<std::string_view, 12U> stop_boundaries{
+            "0x0045F80E -> record17 held",
+            "0x0045F881 -> record14 held",
+            "0x0045F8AD -> record15 held",
+            "0x0045F9E4 -> record12 held",
+            "0x0045FA1A -> record1 mode gate",
+            "0x0045FAB1 -> record4 held",
+            "0x0045FAEB -> record6 held",
+            "0x0045FB29 -> record3 held",
+            "0x0045FB8E -> record5 held",
+            "0x0045FBF4 -> record7 held",
+            "0x0045FC12 -> record8 held",
+            "0x0045FC30 -> record0 held",
+        };
+        std::array<
+            openswd3::input_time_rng::LegacyInputRecord,
+            openswd3::input_time_rng::kLegacyInputRecordCount>
+            records{};
+        auto result =
+            openswd3::battle::scan_legacy_battle_input_dispatch_idle_suffix(
+                records
+            );
+        test.expect_true(
+            result.inspected_records == order.size() &&
+                result.first_active_record ==
+                    openswd3::input_time_rng::kLegacyInputRecordCount &&
+                std::string_view(result.stop_boundary) ==
+                    "0x0045FC5B -> input dispatch RET",
+            "idle input scans all twelve original zero-rapid edges and stops before RET"
+        );
+        for (std::size_t index = 0U; index < order.size(); ++index) {
+            records[order[index]].rapid_press_multiplicity = 1U;
+            result =
+                openswd3::battle::scan_legacy_battle_input_dispatch_idle_suffix(
+                    records
+                );
+            test.expect_true(
+                result.inspected_records == index + 1U &&
+                    result.first_active_record == order[index] &&
+                    std::string_view(result.stop_boundary) ==
+                        stop_boundaries[index],
+                "idle input stops before first active branch in LST order at index " +
+                    std::to_string(index)
+            );
+            records[order[index]].rapid_press_multiplicity = 0U;
+        }
+    }
+
+    {
+        Fixture fixture;
+        fixture.message = 99U;
+        fixture.input.records[18U].rapid_press_multiplicity = 1U;
+        fixture.input.records[18U].held_sample_count = 16U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_input_dispatch(
+                fixture.bindings(), fixture.port, {}
+            );
+        test.expect_true(
+            result.returned_early && result.return_eax == 99U &&
+                fixture.port.count(
+                    LegacyBattleInputDispatchCall::query_active_actor
+                ) == 0U,
+            "record-eighteen message gate returns loaded message EAX after the signed repeat"
+        );
+    }
+
     {
         Fixture fixture;
         fixture.render_abort = 1U;
@@ -751,11 +1134,11 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             result.actor_action_cycle_calls == 1U &&
                 fixture.port.selected_option_snapshots.size() == 2U &&
-                fixture.port.selected_option_snapshots[0U] == 3U &&
-                fixture.port.selected_option_snapshots[1U] == 3U &&
+                fixture.port.selected_option_snapshots[0U] == 0U &&
+                fixture.port.selected_option_snapshots[1U] == 0U &&
                 fixture.port.battle_input_dispatch_state()
                         .selected_option_word == 0xFFFFU,
-            "long record-two repeat preserves divisor three in the option word during both action calls"
+            "long record-two repeat clears BP after signed division before both action calls"
         );
     }
 
