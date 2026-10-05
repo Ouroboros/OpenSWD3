@@ -97,6 +97,47 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
 
 }  // namespace
 
+LegacyTswFramePieceProvider::LegacyTswFramePieceProvider(
+    LegacyTswRuntime& runtime
+) noexcept
+    : runtime_(runtime) {}
+
+bool LegacyTswFramePieceProvider::load_frame_piece(
+    const u32 resource_id,
+    const u32 piece_index,
+    rendering::LegacyFramePiece& piece
+) noexcept {
+    try {
+        LegacyTswQueryResult loaded =
+            runtime_.query_cached(resource_id, piece_index);
+        if (loaded.status != LegacyTswRuntimeStatus::ready) {
+            piece = {};
+            return false;
+        }
+
+        leases_.push_back(std::move(loaded.frame_owner));
+        piece = rendering::LegacyFramePiece{
+            .source =
+                rendering::LegacyBlitSource{
+                    .bytes = loaded.frame.primary_stream,
+                    .layout = rendering::LegacyBlitSourceLayout::direct_16,
+                },
+            .legacy_source_token = leases_.back()->primary_stream_token,
+            .width = loaded.frame.width,
+            .height = loaded.frame.height,
+        };
+        return true;
+    } catch (...) {
+        host_exception_ = true;
+        piece = {};
+        return false;
+    }
+}
+
+bool LegacyTswFramePieceProvider::host_exception() const noexcept {
+    return host_exception_;
+}
+
 LegacyActionDrawRuntimePorts::LegacyActionDrawRuntimePorts(
     LegacyActionUpdater& action_updater,
     LegacyTswRuntime& tsw_runtime,

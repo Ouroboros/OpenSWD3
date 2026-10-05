@@ -7,6 +7,9 @@
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_tiled_frame.hpp"
 
+#include <memory>
+#include <vector>
+
 namespace openswd3::asset_runtime {
 
 class LegacyActionDrawPorts {
@@ -27,6 +30,26 @@ public:
         compat::u32 flags,
         compat::i32 opacity_step
     ) noexcept = 0;
+};
+
+// Keeps queried frame bytes alive across later cache eviction while a frame
+// coordinator is using its borrowed pixel spans.
+class LegacyTswFramePieceProvider final
+    : public rendering::LegacyFramePieceProvider {
+public:
+    explicit LegacyTswFramePieceProvider(LegacyTswRuntime& runtime) noexcept;
+
+    [[nodiscard]] bool load_frame_piece(
+        compat::u32 resource_id,
+        compat::u32 piece_index,
+        rendering::LegacyFramePiece& piece
+    ) noexcept override;
+    [[nodiscard]] bool host_exception() const noexcept;
+
+private:
+    LegacyTswRuntime& runtime_;
+    std::vector<std::shared_ptr<const LegacyTswRuntimeFrame>> leases_;
+    bool host_exception_{};
 };
 
 class LegacyActionDrawRuntimePorts final : public LegacyActionDrawPorts {

@@ -1,5 +1,6 @@
 #include "test.hpp"
 
+#include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
@@ -13,6 +14,7 @@
 #include <fstream>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -899,6 +901,35 @@ void test_real_magic_slot_rotation_and_cached_node(
     );
 }
 
+void test_real_tsw_frame_piece_provider(openswd3::test::Context& test) {
+    LegacyTswRuntime runtime{std::filesystem::path{OPENSWD3_REAL_TSW_ROOT}};
+    openswd3::asset_runtime::LegacyTswFramePieceProvider provider{runtime};
+    openswd3::rendering::LegacyFramePiece piece;
+    const bool loaded = provider.load_frame_piece(6001U, 0U, piece);
+    const auto physical = runtime.load_direct(6001U, 0U);
+    test.expect_true(
+        loaded && physical.status == LegacyTswRuntimeStatus::ready &&
+            piece.width == physical.frame.width &&
+            piece.height == physical.frame.height &&
+            piece.legacy_source_token != 0U &&
+            std::ranges::equal(
+                piece.source.bytes, physical.frame.primary_stream
+            ) &&
+            !provider.host_exception(),
+        "real TSW frame provider publishes the physical image bytes and dimensions"
+    );
+    if (!loaded || piece.source.bytes.empty()) {
+        return;
+    }
+
+    const u8 first_byte = piece.source.bytes.front();
+    runtime.close();
+    test.expect_true(
+        piece.source.bytes.front() == first_byte,
+        "real frame bytes remain available to the drawing call after cache closure"
+    );
+}
+
 #endif
 
 void test_special_resource_and_failures(openswd3::test::Context& test) {
@@ -1364,6 +1395,82 @@ void test_cached_frame_lease_outlives_eviction(
     );
 }
 
+void test_tsw_frame_piece_provider(openswd3::test::Context& test) {
+    const TestTree tree;
+    write_six_archives(tree);
+
+    FakeSpecialLoader loader;
+    LegacyTswRuntime runtime{tree.root(), {}, &loader};
+    runtime.set_cache_limit(8U);
+    openswd3::asset_runtime::LegacyTswFramePieceProvider provider{runtime};
+    openswd3::rendering::LegacyFramePiece first;
+    openswd3::rendering::LegacyFramePiece second;
+    openswd3::rendering::LegacyFramePiece replacement;
+    const bool first_loaded =
+        provider.load_frame_piece(0x1FFFFU, 0x10000U, first);
+    if (!first_loaded) {
+        test.expect_true(false, "TSW frame provider loads a low-16-bit key");
+        return;
+    }
+    const u8* const first_bytes = first.source.bytes.data();
+    const bool second_loaded = provider.load_frame_piece(0xFFFFU, 10U, second);
+    const bool replacement_loaded =
+        provider.load_frame_piece(0xFFFFU, 0U, replacement);
+    test.expect_true(
+        first.width == 1U && first.height == 2U &&
+            first.source.layout ==
+                openswd3::rendering::LegacyBlitSourceLayout::direct_16 &&
+            first.legacy_source_token != 0U &&
+            std::ranges::equal(
+                first.source.bytes, std::array<u8, 4U>{0U, 0U, 0xAAU, 0x55U}
+            ),
+        "TSW frame provider keeps the physical dimensions, source token, converted bytes and low-16-bit key"
+    );
+    test.expect_true(
+        second_loaded && replacement_loaded && loader.calls == 3U &&
+            replacement.source.bytes.data() != first_bytes &&
+            first.source.bytes.data() == first_bytes &&
+            first.source.bytes.size() == 4U &&
+            first.source.bytes[2U] == 0xAAU && !provider.host_exception(),
+        "later cache eviction does not invalidate a prior frame-piece lease"
+    );
+    runtime.close();
+    test.expect_true(
+        first.source.bytes.data() == first_bytes &&
+            first.source.bytes[3U] == 0x55U,
+        "provider lease keeps a frame piece readable after cache closure"
+    );
+
+    FakeSpecialLoader failing_loader;
+    failing_loader.fail = true;
+    LegacyTswRuntime unavailable{tree.root(), {}, &failing_loader};
+    openswd3::asset_runtime::LegacyTswFramePieceProvider failed{unavailable};
+    openswd3::rendering::LegacyFramePiece missing;
+    test.expect_true(
+        !failed.load_frame_piece(0xFFFFU, 0U, missing) &&
+            missing.source.bytes.empty() && !failed.host_exception(),
+        "unavailable TSW frame reports a failed load without a host exception"
+    );
+
+    class ThrowingFrameLoader final : public LegacyTswSpecialFrameLoader {
+    public:
+        bool load_special_frame(u16, LegacyTswRuntimeFrame&) override {
+            throw std::runtime_error{"frame host failure"};
+        }
+    } throwing_loader;
+    LegacyTswRuntime exceptional{tree.root(), {}, &throwing_loader};
+    openswd3::asset_runtime::LegacyTswFramePieceProvider exceptional_provider{
+        exceptional
+    };
+    openswd3::rendering::LegacyFramePiece interrupted;
+    test.expect_true(
+        !exceptional_provider.load_frame_piece(0xFFFFU, 0U, interrupted) &&
+            interrupted.source.bytes.empty() &&
+            exceptional_provider.host_exception(),
+        "host loader exception stops the noexcept frame provider without returning a frame"
+    );
+}
+
 void test_count_before_node_allocation(openswd3::test::Context& test) {
     const TestTree tree;
     write_six_archives(tree);
@@ -1728,6 +1835,7 @@ int main() {
 #ifdef OPENSWD3_REAL_TSW_ROOT
     test_real_magic_first_frame_requires_preparation(test);
     test_real_magic_slot_rotation_and_cached_node(test);
+    test_real_tsw_frame_piece_provider(test);
 #endif
     test_special_resource_and_failures(test);
     test_cache_publication_before_load(test);
@@ -1735,6 +1843,7 @@ int main() {
     test_cache_cleanup_balance(test);
     test_original_bucket_eviction(test);
     test_cached_frame_lease_outlives_eviction(test);
+    test_tsw_frame_piece_provider(test);
     test_count_before_node_allocation(test);
     test_initial_empty_bucket_sentinel(test);
     test_signed_cache_capacity(test);
