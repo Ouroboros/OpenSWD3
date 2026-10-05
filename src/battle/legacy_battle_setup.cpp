@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_setup.hpp"
 
+#include "openswd3/battle/legacy_battle_startup.hpp"
+
 #include <array>
 #include <bit>
 
@@ -163,6 +165,24 @@ LegacyBattleSetupResult prepare_legacy_battle_setup(
         mirror_party(state);
     }
     return {LegacyBattleSetupStatus::ready};
+}
+
+void bind_legacy_battle_setup_party_owners(
+    const LegacyBattleSetupState& setup, LegacyBattleStartupState& startup
+) noexcept {
+    startup.party_count = setup.party_count;
+    for (std::size_t index = 0U; index < setup.party.size(); ++index) {
+        const auto& source = setup.party[index];
+        auto& actor = startup.party[index];
+        startup.action_mode_source.actor_label_indices[index] =
+            setup.party_character_indices[index];
+        actor.role_id = source.resource_id;
+        actor.position_x = source.screen_x;
+        actor.position_y = source.screen_y;
+        actor.active = source.active ? 1U : 0U;
+        startup.party_offsets[index * 2U] = source.anchor_x;
+        startup.party_offsets[index * 2U + 1U] = source.anchor_y;
+    }
 }
 
 }  // namespace openswd3::battle

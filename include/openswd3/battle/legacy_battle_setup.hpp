@@ -9,6 +9,8 @@
 
 namespace openswd3::battle {
 
+struct LegacyBattleStartupState;
+
 inline constexpr std::size_t kLegacyBattlePartySourceCount = 4U;
 inline constexpr std::size_t kLegacyBattlePartySlotCount = 4U;
 inline constexpr std::size_t kLegacyBattleEnemySlotCount = 8U;
@@ -58,6 +60,13 @@ struct LegacyBattleSetupResult {
         party_source_flags,
     bool mirrored,
     LegacyBattleSetupState& state
+) noexcept;
+
+// Bind the partial asset setup's four formation slots and compact source
+// mapping to their existing battle-startup owners. Does not construct any
+// supplemental actors or claim that sub_451B10 has completed.
+void bind_legacy_battle_setup_party_owners(
+    const LegacyBattleSetupState& setup, LegacyBattleStartupState& startup
 ) noexcept;
 
 }  // namespace openswd3::battle

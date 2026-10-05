@@ -10,6 +10,7 @@
 #include "openswd3/battle/legacy_battle_particle_spawn.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_timing.hpp"
 
 #include <algorithm>
@@ -370,6 +371,23 @@ void test_party_selection_and_three_member_formation(
             state.party[1].anchor_x == 570 && state.party[1].anchor_y == 183 &&
             state.party[2].anchor_x == 472 && state.party[2].anchor_y == 69,
         "derived party anchors preserve signed word extension and offsets"
+    );
+    openswd3::battle::LegacyBattleStartupState startup;
+    openswd3::battle::bind_legacy_battle_setup_party_owners(state, startup);
+    test.expect_true(
+        startup.party_count == 3U &&
+            startup.action_mode_source.actor_label_indices[0U] == 0U &&
+            startup.action_mode_source.actor_label_indices[1U] == 2U &&
+            startup.action_mode_source.actor_label_indices[2U] == 3U &&
+            startup.party[1U].role_id == 8U &&
+            startup.party[1U].position_x == 565U &&
+            startup.party[1U].position_y == 353U &&
+            startup.party[1U].active == 1U &&
+            startup.party_offsets ==
+                std::array<openswd3::compat::i32, 8U>{
+                    514, 127, 570, 183, 472, 69, -5, -163
+                },
+        "partial startup binds all four formation anchors and compact source indices to the input-frame owners"
     );
 }
 
@@ -7215,6 +7233,16 @@ void test_real_battle_98_enemy(openswd3::test::Context& test) {
             state.enemies[0].screen_x == 175U &&
             state.enemies[0].screen_y == 303U,
         "real battle 98 resolves its initial player and enemy placement"
+    );
+    openswd3::battle::LegacyBattleStartupState startup;
+    openswd3::battle::bind_legacy_battle_setup_party_owners(state, startup);
+    test.expect_true(
+        startup.party_count == 1U && startup.party[0U].position_x == 527U &&
+            startup.party[0U].position_y == 287U &&
+            startup.action_mode_source.actor_label_indices[0U] == 0U &&
+            startup.party_offsets[0U] == 537 &&
+            startup.party_offsets[1U] == 142,
+        "real battle 98 passes its compact party source and anchors to the shared startup owner"
     );
 }
 #endif
