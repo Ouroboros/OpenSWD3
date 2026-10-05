@@ -61,6 +61,7 @@
 #include "openswd3/resource_io/data_directory.hpp"
 #include "openswd3/resource_io/legacy_memory_manager.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
+#include "openswd3/resource_io/legacy_save_slots.hpp"
 #include "openswd3/resource_io/window_configuration.hpp"
 #include "openswd3/special_modes/legacy_initial_menu.hpp"
 #include "openswd3/special_modes/legacy_standard_mode.hpp"
@@ -928,12 +929,14 @@ public:
         openswd3::app::InitializationState& initialization_state,
         openswd3::app::InitializationPorts& initialization_ports,
         openswd3::input_time_rng::LegacyKeyBindingBlock& key_bindings,
+        const std::filesystem::path& data_directory,
         bool& game_initialized,
         bool& destroy_requested
     )
         : dialog_(dialog), initialization_state_(initialization_state),
           initialization_ports_(initialization_ports),
-          key_bindings_(key_bindings), game_initialized_(game_initialized),
+          key_bindings_(key_bindings), data_directory_(data_directory),
+          game_initialized_(game_initialized),
           destroy_requested_(destroy_requested) {}
 
     void play_startup_sound() override {}
@@ -945,7 +948,7 @@ public:
 
     void initialize_paths_and_directories() override {}
     bool scan_save_slots() override {
-        return false;
+        return openswd3::resource_io::scan_legacy_save_slots(data_directory_);
     }
     openswd3::compat::i32 show_startup_dialog() override {
         return dialog_.run(false);
@@ -971,6 +974,7 @@ private:
     openswd3::app::InitializationState& initialization_state_;
     openswd3::app::InitializationPorts& initialization_ports_;
     openswd3::input_time_rng::LegacyKeyBindingBlock& key_bindings_;
+    const std::filesystem::path& data_directory_;
     bool& game_initialized_;
     bool& destroy_requested_;
 };
@@ -7654,6 +7658,7 @@ int main(const int argument_count, char** arguments) {
             initialization_state,
             initialization_ports,
             input_state.key_bindings,
+            data_directory.directory,
             game_initialized,
             startup_destroy_requested
         );

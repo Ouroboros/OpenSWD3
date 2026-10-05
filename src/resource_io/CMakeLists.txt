@@ -11,6 +11,8 @@ add_library(
         legacy_lmf_archive.cpp
         legacy_memory_manager.cpp
         legacy_resource_databases.cpp
+        legacy_save_container.cpp
+        legacy_save_slots.cpp
         window_configuration.cpp
 )
 target_include_directories(

@@ -1088,6 +1088,56 @@ add_test(
 )
 
 add_executable(
+    openswd3_resource_io_legacy_save_container_tests
+    unit/resource_io/legacy_save_container_test.cpp
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../Save/0.sav")
+    target_compile_definitions(
+        openswd3_resource_io_legacy_save_container_tests
+        PRIVATE OPENSWD3_GAME_DATA_ROOT="${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
+target_include_directories(
+    openswd3_resource_io_legacy_save_container_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_resource_io_legacy_save_container_tests
+    PRIVATE openswd3_resource_io
+)
+add_test(
+    NAME resource_io.legacy_save_container
+    COMMAND openswd3_resource_io_legacy_save_container_tests
+)
+
+add_executable(
+    openswd3_resource_io_legacy_save_slots_tests
+    unit/resource_io/legacy_save_slots_test.cpp
+)
+target_compile_definitions(
+    openswd3_resource_io_legacy_save_slots_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../Save/0.sav")
+    target_compile_definitions(
+        openswd3_resource_io_legacy_save_slots_tests
+        PRIVATE OPENSWD3_GAME_DATA_ROOT="${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
+target_include_directories(
+    openswd3_resource_io_legacy_save_slots_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_resource_io_legacy_save_slots_tests
+    PRIVATE openswd3_resource_io
+)
+add_test(
+    NAME resource_io.legacy_save_slots
+    COMMAND openswd3_resource_io_legacy_save_slots_tests
+)
+
+add_executable(
     openswd3_resource_io_data_directory_tests
     unit/resource_io/data_directory_test.cpp
 )
