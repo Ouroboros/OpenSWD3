@@ -1,6 +1,7 @@
 #include "legacy_battle_level_database_fixture.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
+#include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 
 #include <algorithm>
@@ -8,6 +9,8 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
+#include <string_view>
 #include <vector>
 
 #include "test.hpp"
@@ -135,10 +138,8 @@ public:
         return {.eax = eax, .ecx = ecx, .edx = edx};
     }
 
-    [[nodiscard]] u32
-    start_music(const std::filesystem::path& path, const u32 mode) override {
+    [[nodiscard]] u32 start_music(const std::span<const u8> path) override {
         music_paths.push_back(path);
-        music_modes.push_back(mode);
         return music_return;
     }
 
@@ -190,8 +191,7 @@ public:
         LegacyBattleFrameCoordinatorCall,
         LegacyBattleFrameCoordinatorCallReply>
         replies;
-    std::vector<std::filesystem::path> music_paths;
-    std::vector<u32> music_modes;
+    std::vector<std::span<const u8>> music_paths;
     std::vector<std::array<u32, 2>> surface_creates;
     std::vector<std::array<u32, 2>> surface_operations;
     std::vector<openswd3::battle::LegacyBattleSurfaceBlendOperation>
@@ -526,6 +526,8 @@ struct Fixture {
     openswd3::rendering::LegacyBlitEffectState effects;
     openswd3::rendering::LegacyRleRowJitterState jitter;
     openswd3::battle::LegacyBattleFrameDrawState frame_zero_state;
+    openswd3::battle::LegacyBattleMusicPath music_path{};
+    i32 music_mix_level{6};
     openswd3::battle::LegacyBattleFrameZeroContext frame_zero{
         frame_zero_state,
         framebuffer,
@@ -568,6 +570,8 @@ struct Fixture {
     openswd3::world_map::LegacyWorldStoryVmState story_vm;
 
     Fixture() {
+        constexpr std::string_view path{"music\\current.mp3"};
+        std::ranges::copy(path, music_path.begin());
         constexpr std::array<u16, 6> effect_pixels{
             0x001FU,
             0x03E0U,
@@ -638,6 +642,8 @@ struct Fixture {
         return {
             .frame_zero = frame_zero,
             .raster = raster,
+            .music_path = music_path,
+            .music_mix_level = music_mix_level,
             .frame_effect_port = frame_effect_port,
             .frame_effect_source = frame_effect_source,
             .frame_effect_surfaces = frame_effect_surfaces,
@@ -703,7 +709,97 @@ void configure_common_port(CoordinatorPort& port) {
 
 }  // namespace
 
+void test_battle_frame_music_prefix(openswd3::test::Context& test) {
+    class MusicPort final
+        : public openswd3::battle::LegacyBattleFrameMusicPrefixPort {
+    public:
+        u32 gate{};
+        std::array<char, 3> calls{};
+        u32 count{};
+        u32 committed_bits{};
+        const u8* path_data{};
+
+        [[nodiscard]] openswd3::battle::LegacyBattleFrameMusicRegisters
+        query_music_gate() override {
+            calls[count++] = 'q';
+            return {.eax = gate, .ecx = 0x1234U, .edx = 0x5678U};
+        }
+
+        void start_music(const std::span<const u8> path) override {
+            calls[count++] = 's';
+            path_data = path.data();
+        }
+
+        [[nodiscard]] openswd3::battle::LegacyBattleFrameMusicRegisters
+        commit_music_volume(const u32 bits) override {
+            calls[count++] = 'v';
+            committed_bits = bits;
+            return {.eax = 0x11U, .ecx = 0x22U, .edx = 0x33U};
+        }
+    };
+    openswd3::battle::LegacyBattleMusicPath path{};
+    path[0U] = 'm';
+
+    {
+        MusicPort port;
+        u32 active{};
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_music_prefix(
+                active, 0U, path, 6, port
+            );
+        test.expect_true(
+            active == 1U && result.port_calls == 1U &&
+                result.next_call_address == 0x00453239U &&
+                !result.music_started && result.music_commit_calls == 0U &&
+                result.registers.ecx == 0x1234U &&
+                result.registers.edx == 0x5678U && port.count == 1U &&
+                port.calls[0U] == 'q',
+            "frame music prefix skips playback when no stream is absent"
+        );
+    }
+
+    {
+        MusicPort port;
+        port.gate = 1U;
+        u32 active{};
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_music_prefix(
+                active, 1U, path, 6, port
+            );
+        test.expect_true(
+            active == 1U && result.port_calls == 1U && !result.music_started &&
+                result.music_commit_calls == 0U && port.count == 1U &&
+                port.calls[0U] == 'q',
+            "frame music prefix reads the shared suppression byte before playback"
+        );
+    }
+
+    {
+        MusicPort port;
+        port.gate = 1U;
+        u32 active{};
+        const auto result =
+            openswd3::battle::run_legacy_battle_frame_music_prefix(
+                active, 0U, path, -7, port
+            );
+        test.expect_true(
+            active == 1U && result.port_calls == 2U && result.music_started &&
+                result.music_commit_calls == 1U &&
+                result.next_call_address == 0x00453239U &&
+                result.registers.eax == 0x11U &&
+                result.registers.ecx == 0x22U &&
+                result.registers.edx == 0x33U &&
+                port.path_data == path.data() &&
+                port.committed_bits == 0xFFFFFFF9U && port.count == 3U &&
+                port.calls == std::array<char, 3>{'q', 's', 'v'},
+            "frame music prefix plays the borrowed path and commits signed volume before the first unbound call"
+        );
+    }
+}
+
 void test_battle_frame_coordinator(openswd3::test::Context& test) {
+    test_battle_frame_music_prefix(test);
+
     {
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
@@ -745,7 +841,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
-        state.music_path = "game-data/music/current.mp3";
         auto fixture = std::make_unique<Fixture>();
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
@@ -772,19 +867,95 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         pre_frame_returned_zero &&
                 result.return_value == 0U && state.active == 1U &&
                 result.music_started && result.music_commit_calls == 1U &&
-                port.music_paths ==
-                    std::vector<std::filesystem::path>{
-                        "game-data/music/current.mp3"
-                    } &&
+                port.music_paths.size() == 1U &&
+                port.music_paths.front().data() == fixture->music_path.data() &&
+                port.music_paths.front()[5U] == '\\' &&
                 result.fixed_frame_calls == 0U &&
                 result.frame_effect_calls == 0U && result.lock_calls == 0U &&
                 result.frame_input_resolution_calls == 1U &&
                 result.input_dispatch_calls == 1U &&
                 result.pre_frame_calls == 1U &&
-                result.debug_hotkey_calls == 1U && port.calls.size() == 2U,
-            "frame coordinator preserves music and typed input stages before the debug hotkey zero return"
+                result.debug_hotkey_calls == 1U && port.calls.size() == 2U &&
+                port.calls.back().call ==
+                    LegacyBattleFrameCoordinatorCall::music_commit &&
+                port.calls.back().arguments[0U] == 6U,
+            "frame coordinator borrows the script music path and sends the independent initial volume"
         );
     }
+
+    {
+        const auto state_storage = std::make_unique<
+            openswd3::battle::LegacyBattleFrameCoordinatorState>();
+        auto& state = *state_storage;
+        auto fixture = std::make_unique<Fixture>();
+        const auto port_storage = std::make_unique<CoordinatorPort>();
+        auto& port = *port_storage;
+        port.replies[LegacyBattleFrameCoordinatorCall::query_music_gate].eax =
+            1U;
+        port.battle_frame_input_resolution_state()
+            .target_selection_suppression = 1U;
+        auto context = fixture->context();
+
+        const auto result_storage = std::unique_ptr<
+            openswd3::battle::LegacyBattleFrameCoordinatorResult>(
+            new openswd3::battle::LegacyBattleFrameCoordinatorResult(
+                openswd3::battle::run_legacy_battle_frame_coordinator(
+                    state, port, context, base_request()
+                )
+            )
+        );
+        const auto& result = *result_storage;
+
+        test.expect_true(
+            state.active == 1U && !result.music_started &&
+                result.music_commit_calls == 0U && port.music_paths.empty() &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::query_music_gate
+                ) == 1U &&
+                port.count(LegacyBattleFrameCoordinatorCall::music_commit) ==
+                    0U,
+            "message-phase suppression byte prevents the frame's music-start and volume calls"
+        );
+    }
+
+    {
+        const auto state_storage = std::make_unique<
+            openswd3::battle::LegacyBattleFrameCoordinatorState>();
+        auto& state = *state_storage;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->music_mix_level = -7;
+        const auto port_storage = std::make_unique<CoordinatorPort>();
+        auto& port = *port_storage;
+        port.replies[LegacyBattleFrameCoordinatorCall::query_music_gate].eax =
+            1U;
+        port.battle_debug_hotkey_state().developer_tools_enabled = 1U;
+        fixture->keyboard[0x1DU] = 0x80U;
+        fixture->keyboard[0x12U] = 0x80U;
+        auto context = fixture->context();
+        fixture->music_path[6U] = 'b';
+        const auto result_storage = std::unique_ptr<
+            openswd3::battle::LegacyBattleFrameCoordinatorResult>(
+            new openswd3::battle::LegacyBattleFrameCoordinatorResult(
+                openswd3::battle::run_legacy_battle_frame_coordinator(
+                    state, port, context, base_request()
+                )
+            )
+        );
+        const auto& result = *result_storage;
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        pre_frame_returned_zero &&
+                result.music_started && result.music_commit_calls == 1U &&
+                port.music_paths.size() == 1U &&
+                port.music_paths.front().data() == fixture->music_path.data() &&
+                port.music_paths.front()[6U] == 'b' &&
+                port.calls.size() == 2U &&
+                port.calls.back().arguments[0U] == 0xFFFFFFF9U,
+            "frame coordinator reads the live script path and signed music dword at the original calls"
+        );
+    }
+
     {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();

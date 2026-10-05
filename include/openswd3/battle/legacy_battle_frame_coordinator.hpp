@@ -20,6 +20,7 @@
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
+#include "openswd3/battle/legacy_battle_music_path.hpp"
 #include "openswd3/battle/legacy_battle_text_message_frame.hpp"
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
@@ -1810,7 +1811,7 @@ public:
     }
 
     [[nodiscard]] virtual compat::u32
-    start_music(const std::filesystem::path& path, compat::u32 mode) = 0;
+    start_music(std::span<const compat::u8> path) = 0;
     [[nodiscard]] virtual compat::u32
     create_temporary_surface(compat::u32 owner_token, compat::u32 format) = 0;
     [[nodiscard]] virtual compat::u32
@@ -1919,9 +1920,6 @@ public:
 
 struct LegacyBattleFrameCoordinatorState {
     compat::u32 active{};
-    compat::u8 music_suppression{};
-    std::filesystem::path music_path;
-    compat::u32 music_runtime_handle{};
     compat::u32 target_surface_token{
         kLegacyBattleFrameCoordinatorTargetSurfaceToken
     };
@@ -1984,6 +1982,8 @@ struct LegacyBattleFrameCoordinatorRequest {
 struct LegacyBattleFrameCoordinatorContext {
     LegacyBattleFrameZeroContext& frame_zero;
     rendering::LegacyRasterGeometryState& raster;
+    const LegacyBattleMusicPath& music_path;
+    const compat::i32& music_mix_level;
     LegacyBattleFrameEffectPort& frame_effect_port;
     LegacyBattleFrameEffectSource& frame_effect_source;
     std::span<const compat::u32> frame_effect_surfaces;

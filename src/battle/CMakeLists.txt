@@ -131,6 +131,7 @@ add_library(
         legacy_battle_directional_scan.cpp
         legacy_battle_frame_completion.cpp
         legacy_battle_frame_coordinator.cpp
+        legacy_battle_frame_music_prefix.cpp
         legacy_battle_frame_effect.cpp
         legacy_battle_frame_draw.cpp
         legacy_battle_frame_refresh.cpp

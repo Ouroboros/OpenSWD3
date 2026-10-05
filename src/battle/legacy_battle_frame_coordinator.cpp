@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
+#include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
 
 #include <bit>
 #include <optional>
@@ -24,6 +25,36 @@ public:
 
 private:
     input_time_rng::LegacySecondaryRng& random_;
+};
+
+class CoordinatorMusicPrefixPort final
+    : public LegacyBattleFrameMusicPrefixPort {
+public:
+    explicit CoordinatorMusicPrefixPort(LegacyBattleFrameCoordinatorPort& port)
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleFrameMusicRegisters query_music_gate() override {
+        const auto reply = port_.invoke(
+            {.call = LegacyBattleFrameCoordinatorCall::query_music_gate}
+        );
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
+    void start_music(const std::span<const compat::u8> path) override {
+        port_.start_music(path);
+    }
+
+    [[nodiscard]] LegacyBattleFrameMusicRegisters
+    commit_music_volume(const u32 level_bits) override {
+        const auto reply = port_.invoke({
+            .call = LegacyBattleFrameCoordinatorCall::music_commit,
+            .arguments = {level_bits},
+        });
+        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+    }
+
+private:
+    LegacyBattleFrameCoordinatorPort& port_;
 };
 
 [[nodiscard]] LegacyBattleFrameCoordinatorCallReply invoke(
@@ -127,22 +158,22 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     const LegacyBattleFrameCoordinatorRequest& request
 ) {
     LegacyBattleFrameCoordinatorResult result;
-    state.active = 1U;
-
-    LegacyBattleFrameCoordinatorCallReply reply = invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::query_music_gate
+    CoordinatorMusicPrefixPort music_port{port};
+    const auto music = run_legacy_battle_frame_music_prefix(
+        state.active,
+        port.battle_frame_input_resolution_state().target_selection_suppression,
+        context.music_path,
+        context.music_mix_level,
+        music_port
     );
-    if (reply.eax == 1U && state.music_suppression == 0U) {
-        static_cast<void>(port.start_music(state.music_path, 0U));
-        result.music_started = true;
-        reply = invoke(
-            port,
-            result,
-            LegacyBattleFrameCoordinatorCall::music_commit,
-            {state.music_runtime_handle}
-        );
-        ++result.music_commit_calls;
-    }
+    result.port_calls += music.port_calls;
+    result.music_started = music.music_started;
+    result.music_commit_calls = music.music_commit_calls;
+    LegacyBattleFrameCoordinatorCallReply reply{
+        .eax = music.registers.eax,
+        .ecx = music.registers.ecx,
+        .edx = music.registers.edx,
+    };
 
     result.frame_input_resolution =
         coordinate_legacy_battle_frame_input_resolution(

@@ -3,8 +3,8 @@
 #include "test.hpp"
 
 #include <deque>
-#include <filesystem>
 #include <memory>
+#include <span>
 #include <vector>
 
 namespace {
@@ -62,7 +62,8 @@ public:
         return {};
     }
 
-    [[nodiscard]] u32 start_music(const std::filesystem::path&, u32) override {
+    [[nodiscard]] u32
+    start_music(std::span<const openswd3::compat::u8>) override {
         return 0U;
     }
 
