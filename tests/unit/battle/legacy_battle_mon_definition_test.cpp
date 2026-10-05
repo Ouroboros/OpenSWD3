@@ -407,6 +407,18 @@ void test_real_definition_load(openswd3::test::Context& test) {
             port.text_allocation_calls == 2U && port.text_release_calls == 1U,
         "real definition loads share one file session and release the prior dynamic description before replacement"
     );
+
+    auto saved_item_request = request();
+    saved_item_request.path = OPENSWD3_MON_DATA_PATH;
+    saved_item_request.definition_id = 829U;
+    const auto saved_item = openswd3::battle::load_legacy_battle_mon_definition(
+        definition, description, port, saved_item_request
+    );
+    test.expect_true(
+        saved_item.status == LegacyBattleMonDefinitionLoadStatus::completed &&
+            saved_item.definition_found && saved_item.definition_id == 829U,
+        "the first Save/0.sav inventory ID resolves through the real MON loader"
+    );
 #else
     static_cast<void>(test);
 #endif

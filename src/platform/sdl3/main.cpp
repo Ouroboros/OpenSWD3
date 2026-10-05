@@ -41,6 +41,7 @@
 #include "openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_runtime_shutdown.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
@@ -4163,16 +4164,36 @@ public:
             }
 
             [[nodiscard]] bool load_story_item_definition(
-                openswd3::compat::u16,
-                std::span<
+                const openswd3::compat::u16 item_id,
+                const std::span<
                     openswd3::compat::u8,
-                    openswd3::world_map::kLegacyItemDefinitionSnapshotBytes>,
-                std::vector<openswd3::compat::u8>&
+                    openswd3::world_map::kLegacyItemDefinitionSnapshotBytes>
+                    snapshot,
+                std::vector<openswd3::compat::u8>& description
             ) override {
-                // The MON definition owner belongs to the deferred special-mode
-                // module. Report the original loader-failure path rather than
-                // publishing an empty inventory node.
-                return false;
+                std::array<
+                    openswd3::compat::u8,
+                    openswd3::battle::kLegacyBattleMonDefinitionBytes>
+                    definition{};
+                std::vector<openswd3::compat::u8> loaded_description;
+                const auto loaded =
+                    openswd3::battle::load_legacy_battle_mon_definition(
+                        definition,
+                        loaded_description,
+                        owner_,
+                        {.path = "mon.dat", .definition_id = item_id}
+                    );
+                if (loaded.status !=
+                        openswd3::battle::LegacyBattleMonDefinitionLoadStatus::
+                            completed ||
+                    !loaded.definition_found) {
+                    return false;
+                }
+                std::copy_n(
+                    definition.begin(), snapshot.size(), snapshot.begin()
+                );
+                description = std::move(loaded_description);
+                return true;
             }
 
             void play_sound_effect(
