@@ -67,6 +67,12 @@ message 200先发布完整重置前缀，再按live group-B/group-A count清对�
 
 定向测试覆盖主跳表默认域、message 1阈值与物理重映射、live共享message门、组A/组B轮转及子typed-stop、动作5前缀停点、hovered 2/4、message 3提交与第九个group-B对象、message 5效果物理视图、message 7完整轮转/发布/记录尾部与第九项target map、message 8/27/30、98/101的AL行为、100/102–104、111–113的阈值差异、110符号扩展、200重置前缀、global reset字节范围、两处snapshot入口寄存器/正常早退/typed-stop后缀抑制、reserved snapshot槽零调用以及唯一caller传播。
 
+### B11共享选择门复核
+
+此前“菜单缓存复用唯一owner”的结论存在反例：`0x0053BFC0`被重复建模为input的`selection_cache_gate_a`与final actor的`frame_gate_b`。原LST在`0x00463069`、`0x00463361`、`0x00463A7C`、`0x00463DDF`向该地址写入零；现四处全部直接写帧协调器读取的`final_actor.frame_gate_b`，不维护同步副本。入口`0x00462750`把EBX清零；末段另一路目标搜索递增EBX，但该路自行返回，不流入message 200的清零块。
+
+message 5/action 15测试把门预置9并验证清零；现有主跳表、真实caller和typed-stop测试继续执行。当前修改通过Linux core/ASan各205/205、Linux app 211/211，日志为`build/tmp/runtime/battle-existing-publication-{core,asan,app}.log`。此阶段只回收本函数四处写入，选择帧、消息、脚本及全局重置等其余写入尚未统一，不代表完整战斗续玩通过。
+
 ## 8. `0x00478330`八处目标选择写入
 
 工作包278关闭`0x0046292B`、`0x004629F3`、`0x00462B02`、`0x00462ED5`、`0x00463108`、`0x00463335`、`0x00463A50`、`0x00463CF0`八处物理call。各分支都把完整dword `1`写入当前组A角色`+0x2AE4`，并直接复用最终角色状态中的availability owner。caller按原路径把目标码、角色索引或相邻callee残值线程化为leaf入口EDX；任何写停止都保留已到达的message、选择与缓存前缀，EAX为1、ECX为角色token，且阻断相应动作提交、轮转、动画与输入尾部。

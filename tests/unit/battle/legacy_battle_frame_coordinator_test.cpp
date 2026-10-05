@@ -2,6 +2,7 @@
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
+#include "openswd3/battle/legacy_battle_menu_input_finalize.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 
 #include <algorithm>
@@ -44,12 +45,6 @@ public:
     [[nodiscard]] LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) override {
         calls.push_back(request);
-        if (request.call ==
-                LegacyBattleFrameCoordinatorCall::post_render_stage_1 &&
-            publish_outcome_counts) {
-            actor_metric_state().group_b_count = outcome_group_b_count;
-            actor_metric_state().group_a_count = outcome_group_a_count;
-        }
         if (request.call ==
                 LegacyBattleFrameCoordinatorCall::
                     frame_completion_query_actor &&
@@ -113,6 +108,11 @@ public:
     [[nodiscard]] LegacyBattleHudCallReply
     invoke_hud(const LegacyBattleHudCallRequest& request) override {
         hud_calls.push_back(request);
+        if (publish_outcome_counts) {
+            actor_metric_state().group_b_count = outcome_group_b_count;
+            actor_metric_state().group_a_count = outcome_group_a_count;
+        }
+
         return {};
     }
 
@@ -797,7 +797,165 @@ void test_battle_frame_music_prefix(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_frame_original_gates(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleFrameCoordinatorState;
+    using openswd3::battle::LegacyBattleFrameCoordinatorStatus;
+    using openswd3::battle::run_legacy_battle_frame_coordinator;
+
+    {
+        auto state = std::make_unique<LegacyBattleFrameCoordinatorState>();
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<CoordinatorPort>();
+        configure_common_port(*port);
+        fixture->final_actor_step.frame_gate_b = 1U;
+        port->actor_metric_state().priority_actor_index = 5U;
+        port->battle_message_state() = 7U;
+        state->selection_delay = 0x10U;
+        fixture->startup.reset.records_524788[0].value_00 = 5U;
+        fixture->startup.reset.records_524788[1].value_00 = 0xFFFFFFFFU;
+        const auto canceled =
+            openswd3::battle::finalize_legacy_battle_menu_input(
+                {
+                    .startup_reset = fixture->startup.reset,
+                    .frame_input_resolution =
+                        port->battle_frame_input_resolution_state(),
+                    .final_actor = fixture->final_actor_step,
+                    .action = fixture->action_dispatch,
+                    .party = fixture->startup.party,
+                    .metrics = port->actor_metric_state(),
+                    .input_dispatch = port->battle_input_dispatch_state(),
+                    .message_state = port->battle_message_state(),
+                },
+                *port,
+                {}
+            );
+        test.expect_true(
+            canceled.status ==
+                    openswd3::battle::LegacyBattleMenuInputFinalizeStatus::
+                        completed &&
+                fixture->final_actor_step.frame_gate_b == 0U,
+            "461F23 clears the same 53BFC0 owner read by the next battle frame"
+        );
+        auto context = fixture->context();
+        const auto result = run_legacy_battle_frame_coordinator(
+            *state, *port, context, base_request()
+        );
+        test.expect_true(
+            result.status == LegacyBattleFrameCoordinatorStatus::completed &&
+                result.selection_refresh_calls == 1U &&
+                state->selection_delay == 0U &&
+                state->selection_auxiliary == 5U &&
+                fixture->final_actor_step.selection_gate == 1U,
+            "45328C observes menu cancellation and resumes delayed actor selection"
+        );
+    }
+
+    // 0x0045332F JE and 0x00453339 JNE: either word equal to one calls.
+    for (const u32 mode : {0U, 1U, 2U}) {
+        for (const u32 submode : {0U, 1U, 2U}) {
+            auto state = std::make_unique<LegacyBattleFrameCoordinatorState>();
+            auto fixture = std::make_unique<Fixture>();
+            auto port = std::make_unique<CoordinatorPort>();
+            configure_common_port(*port);
+            state->conditional_mode = mode;
+            state->conditional_submode = submode;
+            auto context = fixture->context();
+            const auto result = run_legacy_battle_frame_coordinator(
+                *state, *port, context, base_request()
+            );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleFrameCoordinatorStatus::completed &&
+                    result.actor_priority_calls ==
+                        ((mode == 1U || submode == 1U) ? 1U : 0U),
+                "45332F/453339 calls actor priority exactly when either gate is one"
+            );
+        }
+    }
+
+    // 0x00453354..58: only EAX==1 reaches the low-word OR.
+    for (const u32 completion : {0U, 1U}) {
+        auto state = std::make_unique<LegacyBattleFrameCoordinatorState>();
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<CoordinatorPort>();
+        configure_common_port(*port);
+        const u32 initial_ui = completion == 0U ? 0xABCD0000U : 0xABCD8000U;
+        state->ui_state = initial_ui;
+        port->actor_metric_state().priority_actor_index = 0U;
+        auto& effects = port->effect_coordinator_state();
+        effects.primary[0].complete = completion;
+        effects.primary_suppression = completion;
+        auto context = fixture->context();
+        const auto result = run_legacy_battle_frame_coordinator(
+            *state, *port, context, base_request()
+        );
+        test.expect_true(
+            result.status == LegacyBattleFrameCoordinatorStatus::completed &&
+                result.effect_coordinator_calls == 1U &&
+                result.effect_coordinator.return_value == completion &&
+                state->ui_state == (initial_ui | completion),
+            "453356 skips the low-word OR for zero and preserves the high word for one"
+        );
+    }
+
+    // 0x004534AE JG and 0x004534B6 JNE both bypass initialization.
+    for (const i32 countdown : {-1, 0, 1}) {
+        for (const u32 gate : {0U, 1U, 2U}) {
+            auto state = std::make_unique<LegacyBattleFrameCoordinatorState>();
+            auto fixture = std::make_unique<Fixture>();
+            auto port = std::make_unique<CoordinatorPort>();
+            configure_common_port(*port);
+            port->battle_color_accumulation_state().countdown = countdown;
+            port->battle_color_initialization_gate() = gate;
+            auto context = fixture->context();
+            const auto result = run_legacy_battle_frame_coordinator(
+                *state, *port, context, base_request()
+            );
+            const bool initialize = countdown <= 0 && gate == 1U;
+            test.expect_true(
+                result.status ==
+                        LegacyBattleFrameCoordinatorStatus::completed &&
+                    result.color_initialization_calls ==
+                        (initialize ? 1U : 0U) &&
+                    port->battle_color_initialization_gate() ==
+                        (initialize ? 0U : gate) &&
+                    result.color_accumulation_calls == 1U &&
+                    port->count(
+                        LegacyBattleFrameCoordinatorCall::finalize_overlay
+                    ) == 0U,
+                "4534AE/4534B6 initializes only a nonpositive countdown with gate exactly one"
+            );
+        }
+    }
+
+    // 0x004534E1 JE and 0x004534EB JNE select vertical shift.
+    for (const u32 gate : {0U, 1U, 2U}) {
+        for (const u32 mode : {0U, 0x100U}) {
+            auto state = std::make_unique<LegacyBattleFrameCoordinatorState>();
+            auto fixture = std::make_unique<Fixture>();
+            auto port = std::make_unique<CoordinatorPort>();
+            configure_common_port(*port);
+            state->special_surface_gate = gate;
+            port->battle_debug_hotkey_state().battle_mode_flags_53bc24 = mode;
+            auto context = fixture->context();
+            const auto result = run_legacy_battle_frame_coordinator(
+                *state, *port, context, base_request()
+            );
+            const bool vertical = gate == 1U || (mode & 0x100U) != 0U;
+            test.expect_true(
+                result.status ==
+                        LegacyBattleFrameCoordinatorStatus::completed &&
+                    result.vertical_shift_calls == (vertical ? 1U : 0U) &&
+                    result.temporary_surface_calls == (vertical ? 0U : 1U) &&
+                    result.surface_operation_calls == (vertical ? 0U : 1U),
+                "4534E1/4534EB distinguishes gate zero, one and two before surface submission"
+            );
+        }
+    }
+}
+
 void test_battle_frame_coordinator(openswd3::test::Context& test) {
+    test_battle_frame_original_gates(test);
     test_battle_frame_music_prefix(test);
 
     {
@@ -1124,13 +1282,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleFrameEffectStatus::
                         source_blit_typed_stop &&
                 result.fixed_frame_calls == 0U &&
-                result.selection_frame_calls == 1U &&
+                result.selection_frame_calls == 0U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         reserved_selection_frame_slot
                 ) == 0U &&
                 result.actor_priority_calls == 0U,
-            "frame effect typed stop preserves the typed selection frame and blocks all following frame stages"
+            "frame effect typed stop precedes actor updates, HUD and selection rendering"
         );
     }
 
@@ -1140,6 +1298,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         auto& state = *state_storage;
         auto fixture = std::make_unique<Fixture>();
         fixture->final_actor_step.queued_actor_code = 7U;
+        state.special_panel_suppression = 1U;
+        const std::array<u32, 8U> role_mapping{};
+        auto selection_request = base_request();
+        selection_request.role_index_map = role_mapping;
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         configure_common_port(port);
@@ -1149,7 +1311,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             openswd3::battle::LegacyBattleFrameCoordinatorResult>(
             new openswd3::battle::LegacyBattleFrameCoordinatorResult(
                 openswd3::battle::run_legacy_battle_frame_coordinator(
-                    state, port, context, base_request()
+                    state, port, context, selection_request
                 )
             )
         );
@@ -1163,12 +1325,15 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.selection_frame.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
                         group_a_actor_typed_stop &&
-                result.frame_effect_calls == 0U &&
+                result.frame_effect_calls == 1U &&
+                result.fixed_frame_calls == 1U &&
+                result.hud_frame_calls == 1U &&
+                result.message_phase_calls == 0U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         reserved_selection_frame_slot
                 ) == 0U,
-            "selection-frame actor stop preserves all prior frame side effects and blocks frame effect"
+            "selection-frame actor stop follows frame effect and HUD but blocks messages"
         );
     }
     {
@@ -1180,6 +1345,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         auto& port = *port_storage;
         configure_common_port(port);
         port.actor_metric_state().priority_actor_index = 18U;
+        state.conditional_mode = 1U;
         auto context = fixture->context();
 
         const auto result_storage = std::unique_ptr<
@@ -2385,7 +2551,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         completed &&
                 result.effect_coordinator.return_value == 1U &&
                 result.effect_coordinator.effect_frame_calls == 1U &&
-                state.ui_state == 0x8000U,
+                state.ui_state == 0x8001U,
             "main frame directly composes the closed effect coordinator and removes the opaque completion gate"
         );
     }
@@ -2462,7 +2628,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         action_profile_typed_stop &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::post_render_stage_1
-                ) == 1U &&
+                ) == 0U &&
+                result.selection_frame_calls == 1U &&
                 port.count(
                     LegacyBattleFrameCoordinatorCall::
                         reserved_message_phase_slot
@@ -2472,7 +2639,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         reserved_text_message_frame_slot
                 ) == 0U &&
                 result.text_message_frame_calls == 0U,
-            "message-phase typed stop preserves HUD and the first post-render prefix while blocking every later stage"
+            "message-phase typed stop preserves HUD and selection rendering without the old opaque call"
         );
     }
     {
@@ -2480,6 +2647,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
         state.ui_state = 0xABCD0000U;
+        state.conditional_mode = 1U;
         state.selection_delay = 0x10U;
         auto fixture = std::make_unique<Fixture>();
         fixture->startup.reset.records_524788[0] = {
@@ -2645,6 +2813,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         port.battle_debug_overlay_gate() = 1U;
+        port.battle_color_initialization_gate() = 1U;
         port.battle_debug_hotkey_state().screenshot_request = 1U;
         port.battle_terminal_latch() = 1U;
         port.battle_message_state() = 0U;
@@ -2739,6 +2908,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         configure_common_port(port);
         auto context = fixture->context();
         auto frame_request = base_request();
+        state.special_surface_gate = 1U;
         frame_request.mouse_x = 27;
         frame_request.mouse_y = 39;
         frame_request.context_prompt_action_update_edx_snapshot = 0xABCD1234U;
@@ -2904,6 +3074,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         port.temporary_surface_token = 0U;
+        state.special_surface_gate = 1U;
         port.battle_debug_hotkey_state().screenshot_request = 1U;
         configure_common_port(port);
         auto context = fixture->context();
@@ -3331,7 +3502,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
-        state.special_surface_gate = 1U;
+        state.special_surface_gate = 0U;
         auto fixture = std::make_unique<Fixture>();
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;

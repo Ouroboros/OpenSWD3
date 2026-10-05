@@ -133,7 +133,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
     const auto reset_selection_workspace = [&]() {
         input.selection_cache_gate_b = 0U;
         input.selection_workspace[0U] = 0U;
-        input.selection_cache_gate_a = 0U;
+        final_actor.frame_gate_b = 0U;
         input.selection_workspace[1U] = 0U;
         input.selection_cache_gate_c = 0U;
         input.selection_workspace[2U] = 0U;
@@ -164,7 +164,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         edx = 0U;
         input.selection_cache_gate_b = 0U;
         startup.value_4ff0b0 = edx;
-        input.selection_cache_gate_a = 0U;
+        final_actor.frame_gate_b = 0U;
         startup.value_4ff0b4 = edx;
         input.selected_actor_cleanup_gate = 0U;
         startup.value_53bf22 = 0U;
@@ -200,7 +200,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         input.selection_workspace[3U] = ecx;
         input.selection_cache_gate_b = 0U;
         input.selection_workspace[4U] = ecx;
-        input.selection_cache_gate_a = 0U;
+        final_actor.frame_gate_b = 0U;
         input.selection_cache_gate_c = 0U;
         input.selection_runtime_gate = 0U;
         input.selection_animation_phase = 5U;
@@ -317,7 +317,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         frame.panel_scroll_b = 0U;
         input.selection_animation_phase = 5U;
         input.selection_cache_gate_b = 0U;
-        input.selection_cache_gate_a = 0U;
+        final_actor.frame_gate_b = 0U;
         input.selection_cache_gate_c = 0U;
         input.selection_runtime_gate = 0U;
         if (!call_active_group_a(true)) {
@@ -336,7 +336,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
 
     case 7U:
         bindings.message_state = 0U;
-        input.selection_cache_gate_a = 0U;
+        final_actor.frame_gate_b = 0U;
         input.selection_cache_gate_b = 0U;
         clear_animation();
         frame.alternate_selection_limit = 2U;
@@ -368,7 +368,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         input.selection_workspace[1U] = eax;
         input.selection_cache_gate_b = 0U;
         input.selection_workspace[2U] = eax;
-        input.selection_cache_gate_a = 0U;
+        final_actor.frame_gate_b = 0U;
         input.selection_workspace[3U] = eax;
         input.selection_cache_gate_c = 0U;
         input.selection_runtime_gate = 0U;

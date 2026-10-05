@@ -41,7 +41,7 @@ public:
     }
 
     void start_music(const std::span<const compat::u8> path) override {
-        port_.start_music(path);
+        static_cast<void>(port_.start_music(path));
     }
 
     [[nodiscard]] LegacyBattleFrameMusicRegisters
@@ -408,47 +408,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     state.interaction_available =
         selection_value == 0xFFFFFFFFU && selection_source == 0U ? 1U : 0U;
 
-    result.selection_frame = draw_legacy_battle_selection_frame(
-        {
-            .startup = context.startup,
-            .final_actor = context.final_actor_step,
-            .metrics = port.actor_metric_state(),
-            .actor_label_indices =
-                context.startup.action_mode_source.actor_label_indices,
-            .action = context.action_dispatch,
-            .input_dispatch = port.battle_input_dispatch_state(),
-            .frame_input = port.battle_frame_input_resolution_state(),
-            .target_runtime = port.battle_target_selection_runtime_state(),
-            .debug_hotkeys = port.battle_debug_hotkey_state(),
-            .actor_frames = context.actor_frames == nullptr
-                ? nullptr
-                : &context.actor_frames->state,
-            .message_state = port.battle_message_state(),
-            .target_ready_gate = context.target_ready_gate,
-            .panel_action_record = state.panel_action_record,
-            .framebuffer = context.frame_zero.framebuffer,
-            .clip = context.frame_zero.clip,
-            .raster = context.raster,
-            .shared_request = context.frame_zero.shared_request,
-            .shared_effects = context.frame_zero.shared_effects,
-            .jitter = context.frame_zero.jitter,
-            .action_updater = context.action_updater,
-            .frame_provider = context.frame_provider,
-            .bounded_random = selection_random,
-            .maps_payload = context.maps_payload,
-            .shared_text = context.shared_text,
-        },
-        port,
-        request.selection_frame_request
-    );
-    ++result.selection_frame_calls;
-    result.port_calls += result.selection_frame.port_calls;
-    if (result.selection_frame.status !=
-        LegacyBattleSelectionFrameStatus::completed) {
-        result.status =
-            LegacyBattleFrameCoordinatorStatus::selection_frame_typed_stop;
-        return result;
-    }
     LegacyBattleFrameEffectContext frame_effect_context{
         .framebuffer = context.frame_zero.framebuffer,
         .raster = context.raster,
@@ -471,7 +430,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             LegacyBattleFrameCoordinatorStatus::frame_effect_typed_stop;
         return result;
     }
-    if (state.conditional_mode != 1U || state.conditional_submode == 1U) {
+    if (state.conditional_mode == 1U || state.conditional_submode == 1U) {
         result.actor_priority = update_legacy_battle_actor_priority(
             port,
             {.action = &context.action_dispatch, .startup = &context.startup},
@@ -577,7 +536,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             LegacyBattleFrameCoordinatorStatus::effect_coordinator_typed_stop;
         return result;
     }
-    if (result.effect_coordinator.return_value != 1U) {
+    if (result.effect_coordinator.return_value == 1U) {
         state.ui_state |= 1U;
     }
 
@@ -758,9 +717,48 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         result.status = LegacyBattleFrameCoordinatorStatus::hud_typed_stop;
         return result;
     }
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::post_render_stage_1
-    ));
+    // 0x00453441: selection rendering follows HUD and precedes messages.
+    result.selection_frame = draw_legacy_battle_selection_frame(
+        {
+            .startup = context.startup,
+            .final_actor = context.final_actor_step,
+            .metrics = port.actor_metric_state(),
+            .actor_label_indices =
+                context.startup.action_mode_source.actor_label_indices,
+            .action = context.action_dispatch,
+            .input_dispatch = port.battle_input_dispatch_state(),
+            .frame_input = port.battle_frame_input_resolution_state(),
+            .target_runtime = port.battle_target_selection_runtime_state(),
+            .debug_hotkeys = port.battle_debug_hotkey_state(),
+            .actor_frames = context.actor_frames == nullptr
+                ? nullptr
+                : &context.actor_frames->state,
+            .message_state = port.battle_message_state(),
+            .target_ready_gate = context.target_ready_gate,
+            .panel_action_record = state.panel_action_record,
+            .framebuffer = context.frame_zero.framebuffer,
+            .clip = context.frame_zero.clip,
+            .raster = context.raster,
+            .shared_request = context.frame_zero.shared_request,
+            .shared_effects = context.frame_zero.shared_effects,
+            .jitter = context.frame_zero.jitter,
+            .action_updater = context.action_updater,
+            .frame_provider = context.frame_provider,
+            .bounded_random = selection_random,
+            .maps_payload = context.maps_payload,
+            .shared_text = context.shared_text,
+        },
+        port,
+        request.selection_frame_request
+    );
+    ++result.selection_frame_calls;
+    result.port_calls += result.selection_frame.port_calls;
+    if (result.selection_frame.status !=
+        LegacyBattleSelectionFrameStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::selection_frame_typed_stop;
+        return result;
+    }
     const std::span<const compat::u8> message_action_profiles =
         context.actor_frames == nullptr
         ? std::span<const compat::u8>{}
@@ -1038,7 +1036,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
     if (port.battle_color_accumulation_state().countdown <= 0 &&
-        port.battle_color_initialization_gate() != 1U) {
+        port.battle_color_initialization_gate() == 1U) {
         result.color_initialization =
             initialize_legacy_battle_color_accumulation(
                 port.battle_color_accumulation_state(),
@@ -1055,10 +1053,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         ++result.color_initialization_calls;
         port.battle_color_initialization_gate() = 0U;
     }
-    static_cast<void>(invoke(
-        port, result, LegacyBattleFrameCoordinatorCall::finalize_overlay, {1U}
-    ));
-
     result.color_accumulation = update_legacy_battle_color_accumulation(
         port.battle_color_accumulation_state(),
         true,
@@ -1073,7 +1067,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
 
-    if (state.special_surface_gate != 0U &&
+    if (state.special_surface_gate != 1U &&
         (debug_state.battle_mode_flags_53bc24 & 0x00000100U) == 0U) {
         const u32 temporary = port.create_temporary_surface(
             kLegacyBattleFrameCoordinatorSurfaceOwnerToken,

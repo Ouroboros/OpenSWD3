@@ -80,14 +80,14 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     reserved_frame_completion_slot,
     reserved_pending_action_commit_slot,
     reserved_actor_field_26b8_high_bit_query_slot,
-    post_render_stage_1,
+    post_render_stage_1,  // Reserved: selection rendering is directly composed.
     reserved_message_phase_slot,
     reserved_text_message_frame_slot,
     reserved_post_dialog_stage_slot,
     reserved_debug_overlay_slot,
     reserved_outcome_resolution_slot,
     reserved_context_prompt_slot,
-    finalize_overlay,
+    finalize_overlay,  // Reserved: color accumulation is directly composed.
     reserved_vertical_shift_slot,
     pending_action_prepare_actor,
     pending_action_ready_query,

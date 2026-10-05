@@ -958,6 +958,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         fixture.final_actor.queued_actor_code = 8U;
         fixture.frame.current_equipment_selection = 2U;
         fixture.frame.group_b_row_selection = 1U;
+        fixture.final_actor.frame_gate_b = 9U;
         fixture.metrics.group_a_count = 2U;
         auto& runtime = fixture.port.battle_target_selection_runtime_state();
         runtime.target_argument = 7U;
@@ -974,6 +975,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 fixture.final_actor.queued_actor_code == 0U &&
                 fixture.debug.committed_actor_code == 8U &&
                 runtime.selected_action_kind == 15U &&
+                fixture.final_actor.frame_gate_b == 0U &&
                 fixture.action.opponent_workspace[10U] == 15U &&
                 workspace_word(fixture.action, 0x74U) == 0x123U &&
                 workspace_word(fixture.action, 0x76U) == 0x12CU &&

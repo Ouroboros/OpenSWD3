@@ -1,6 +1,6 @@
 # 战斗逐帧画面协调器 `0x00453200`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+状态：续玩接线前重审中。发现历史实现的条件方向及调用顺序错误，旧测试通过不能证明本函数收敛；条件、顺序及重复端口修正已通过定向和Linux core/ASan完整门禁；Linux app完整门禁亦通过；SDL生产绑定及共享状态复核仍未完成。
 
 ## 1. 完整LST范围
 
@@ -61,14 +61,14 @@ selection_value == 0xFFFFFFFF && selection_source == 0
 
 随后固定执行：
 
-1. 直接组合已关闭选择帧：处理完成角色替换、十类message绘制、目标轮转与角色标记；旧frame-stage槽只保留reserved数值且零调用；
-2. 直接调用已关闭`0x00453580`画面效果，以其共享pending rotation作入口参数；
-3. 当`conditional_mode != 1 || conditional_submode == 1`时执行条件stage；
+1. 直接调用`0x00453580`画面效果，以其共享pending rotation作入口参数；
+2. 当`conditional_mode == 1 || conditional_submode == 1`时调用`0x0045B280`角色优先级更新；
+3. 调用`0x0045B5E0`角色帧序列；
 4. 直接组合已关闭双方完成数协调：扫描组A对象双门和组B mask链，满足阈值后发布message及组门；
 5. 直接组合已关闭待执行动作提交：按入口总数遍历live角色顺序，处理ready标记、角色发布和记录移除；
 6. 直接调用已关闭`0x0045C010`效果总协调步进。
 
-选择帧typed-stop保留交互可用发布及此前全部帧副作用，并阻断画面效果；画面效果typed-stop保留已完成选择帧及效果内部真实前缀，并阻断全部后继stage。双方完成数协调复用当前角色、双方数量、最终角色计数、动作phase/packed计数、结果暗化门、启动组门与message唯一owner；前一角色帧的post-call ECX/EDX由显式snapshot进入，正常尾EDX成为待执行动作零角色早退快照。其子typed-stop阻断待执行动作和后续帧，旧第一后继stage只保留reserved枚举值且不再调用。待执行动作提交复用唯一metric顺序/数量、启动ready槽、actor publication和activation latch，并直接组合攻击顺序移除；移除左移尾源与效果总协调器`intensity_records[0]`共用同一物理owner，旧pending移除端口槽只保留reserved数值且不再调用。其typed-stop保留角色帧、完成数协调及publication前缀并阻断效果协调和固定帧。旧第二后继stage只保留reserved枚举值且不再调用。效果总协调器复用主帧端口内唯一角色metric、效果步进和18槽记录状态；子typed-stop阻断固定帧，普通返回值不等于1时只对共享UI dword的低word OR 1，高16位原样保留。旧opaque完成门枚举和测试桩已删除。
+画面效果typed-stop保留交互可用发布及效果内部真实前缀，阻断角色帧和全部后继stage；选择帧在HUD之后才执行，不能提前产生副作用。双方完成数协调复用当前角色、双方数量、最终角色计数、动作phase/packed计数、结果暗化门、启动组门与message唯一owner；前一角色帧的post-call ECX/EDX由显式snapshot进入，正常尾EDX成为待执行动作零角色早退快照。其子typed-stop阻断待执行动作和后续帧，旧第一后继stage只保留reserved枚举值且不再调用。待执行动作提交复用唯一metric顺序/数量、启动ready槽、actor publication和activation latch，并直接组合攻击顺序移除；移除左移尾源与效果总协调器`intensity_records[0]`共用同一物理owner，旧pending移除端口槽只保留reserved数值且不再调用。其typed-stop保留角色帧、完成数协调及publication前缀并阻断效果协调和固定帧。旧第二后继stage只保留reserved枚举值且不再调用。效果总协调器复用主帧端口内唯一角色metric、效果步进和18槽记录状态；子typed-stop阻断固定帧，普通返回值精确等于1时只对共享UI dword的低word OR 1，高16位原样保留。旧opaque完成门枚举和测试桩已删除。
 
 然后直接调用已关闭`0x00450270`，固定资源`0x234D`、帧0、坐标`(0,384)`。frame unavailable或blitter typed-stop在原首次访问/绘制点阻断后续流程；不伪造选中角色、跨模块队列、输入或截图尾。
 
@@ -122,7 +122,7 @@ y = selected position.y
 
 面板路径汇合后，LST只执行`mov cx, gameplay_word`。modern保留此前选定snapshot高16位并替换低16位，再把完整u32传给下一战斗stage。
 
-随后四个后置战斗stage中，HUD、消息阶段分派与文字消息逐帧协调均已直接组合，仅第一后置阶段保留后续工作包typed端口。消息阶段在HUD和第一后置阶段后执行，其中消息98直连炼符结果面板，消息99直连过渡控制选择，消息100继续依次直连胜利奖励、结算面板与升级提示面板，消息101在actor缺失时直连角色升级属性提交，消息102在战利品非零时直连战利品清单面板，消息103普通路径直连战败提示面板，消息110在transition存在时直连角色成长对照面板，消息111固定直连成长标题框，消息112在actor缺失时直连成长角色选择、actor有效后直连成长完成标题框，消息113在actor缺失时直连法宝成长结果角色选择并固定直连法宝完全成长提示框；任一typed-stop保留对应前缀并阻断第三后置阶段及全部跨模块链。主帧端口保留炼符结果面板的reserved stage槽，并映射成功标题、成功格式、成功详情、失败标题和失败详情六类服务，使用显式文字长度并回传live stage与结果byte；战利品清单的字体、标题、reserved stage槽、行格式和行绘制五类服务，使用独立发布位与显式长度区分合法空文字；战败提示另映射标题、reserved stage槽、字体和详情四类服务；成长角色选择映射组A完成查询、道具定义加载、道具存在查询与节点分配四类服务，并以固定256-byte说明载荷加显式长度避免复制第二份道具owner；成长结果选择另映射完成查询、结果选择、定义加载、说明释放和标题复制五类服务；法宝完成提示映射格式、长度、reserved stage槽、字体大小和文字五类服务。消息阶段正常完成后，主帧直接遍历共享文字消息链，先绘制活动节点并递减16-bit计时，再以第二轮完成滑出、原位摘链与释放；旧第三后置槽保留reserved数值且生产零调用。子typed-stop阻断全部跨模块链。之后立即直连已关闭跨模块helper，顺序不可交换：
+随后按LST直接组合四项：HUD、`0x00464270`选择帧、消息阶段分派与文字消息逐帧协调。选择帧处理完成角色替换、message绘制、目标轮转和角色标记；typed-stop保留HUD及此前副作用，阻断消息阶段。旧`post_render_stage_1`枚举只保留数值，不再调用。消息阶段在HUD和选择帧后执行，其中消息98直连炼符结果面板，消息99直连过渡控制选择，消息100继续依次直连胜利奖励、结算面板与升级提示面板，消息101在actor缺失时直连角色升级属性提交，消息102在战利品非零时直连战利品清单面板，消息103普通路径直连战败提示面板，消息110在transition存在时直连角色成长对照面板，消息111固定直连成长标题框，消息112在actor缺失时直连成长角色选择、actor有效后直连成长完成标题框，消息113在actor缺失时直连法宝成长结果角色选择并固定直连法宝完全成长提示框；任一typed-stop保留对应前缀并阻断第三后置阶段及全部跨模块链。主帧端口保留炼符结果面板的reserved stage槽，并映射成功标题、成功格式、成功详情、失败标题和失败详情六类服务，使用显式文字长度并回传live stage与结果byte；战利品清单的字体、标题、reserved stage槽、行格式和行绘制五类服务，使用独立发布位与显式长度区分合法空文字；战败提示另映射标题、reserved stage槽、字体和详情四类服务；成长角色选择映射组A完成查询、道具定义加载、道具存在查询与节点分配四类服务，并以固定256-byte说明载荷加显式长度避免复制第二份道具owner；成长结果选择另映射完成查询、结果选择、定义加载、说明释放和标题复制五类服务；法宝完成提示映射格式、长度、reserved stage槽、字体大小和文字五类服务。消息阶段正常完成后，主帧直接遍历共享文字消息链，先绘制活动节点并递减16-bit计时，再以第二轮完成滑出、原位摘链与释放；旧第三后置槽保留reserved数值且生产零调用。子typed-stop阻断全部跨模块链。之后立即直连已关闭跨模块helper，顺序不可交换：
 
 1. packed-row效果链更新/绘制；
 2. 角色头顶动作链更新/绘制；
@@ -152,15 +152,15 @@ bit未置位后：
 - 独立调试叠加门dword精确等于1时直接组合已关闭战斗调试叠加层；旧opaque模型的条件方向相反，现已按LST纠正；
 - 叠加层正常返回后直接组合已关闭结果判定前置流程；其双侧计数门可调用全帧暗化、暂停音频与尚未关闭的结果整理；
 - 结果判定正常返回后直接组合已关闭上下文提示绘制；叠加层、结果判定或提示typed-stop保留各自前缀并阻断后续颜色与surface阶段；
-- 共享颜色计数小于等于0且共享初始化门不等于1时，直接调用已关闭颜色初始化器并传入`24,24,24,0,0,0,8`，再把共享门写0；
-- 固定以参数1调用finalize callee。
+- 共享颜色计数小于等于0且共享初始化门精确等于1时，直接调用已关闭颜色初始化器并传入`24,24,24,0,0,0,8`，再把共享门写0；
+- `0x004534D2`固定以参数1直接调用三通道颜色累加，之前没有额外finalize调用；旧`finalize_overlay`槽只保留枚举数值且不再调用。
 
-finalize之后直接调用已关闭三通道颜色累加：固定递减请求，按共享九float与计数执行step零门、`current += step`或`step = target`、x87向零转换，并只调整framebuffer前`0x3C000`像素。overlay门与颜色累加读取同一typed计数；颜色framebuffer失败阻断surface与截图尾。
+三通道颜色累加：固定递减请求，按共享九float与计数执行step零门、`current += step`或`step = target`、x87向零转换，并只调整framebuffer前`0x3C000`像素。overlay门与颜色累加读取同一typed计数；颜色framebuffer失败阻断surface与截图尾。
 
 随后：
 
-- special surface gate任意非零且mode flags的bit`0x100`未置位：以固定selector`0x2711`解析primary surface并从target surface执行整surface虚操作；零token只在立即vtable访问点typed-stop；
-- gate为0或mode bit已置位：直接组合已关闭纵向位移，以16项signed表构造两组矩形Blt，中间按固定1280字节行宽清framebuffer暴露带，并按live节拍推进phase。
+- special surface gate不等于1且mode flags的bit`0x100`未置位：以固定selector`0x2711`解析primary surface并从target surface执行整surface虚操作；零token只在立即vtable访问点typed-stop；
+- gate精确等于1或mode bit已置位：直接组合已关闭纵向位移，以16项signed表构造两组矩形Blt，中间按固定1280字节行宽清framebuffer暴露带，并按live节拍推进phase。
 
 ## 11. 截图尾与最终返回
 
@@ -174,14 +174,14 @@ finalize之后直接调用已关闭三通道颜色累加：固定递减请求，
 
 截图编号不会携带陈旧EDX高字。测试锁定`0xFFFF -> 0 -> 1000`和精确路径。
 
-普通尾返回活动dword1。函数只有三类汇编正常返回：首阶段门返回0、内部bit返回3、其余路径返回活动dword1。
+普通尾在`0x00453569`重新读取活动dword；它在入口写1，但后续结果处理可以改写。三类汇编正常出口分别是调试快捷键门返回0、内部bit返回3、其余路径返回活动dword当前值。
 
 ## 12. 双向追溯
 
-- `0x00453200..0x0045325D`：活动、音乐、双opaque stage、角色预处理、metric、顺序、完成门与零早退；
+- `0x00453200..0x0045325D`：活动、音乐、鼠标解析与输入分派直连、角色预处理、metric、顺序、完成门与零早退；
 - `0x0045325E..0x00453286`：target lock/unlock、渲染门与返回1；
 - `0x0045328C..0x0045331C`：选择mode、延迟刷新和交互可用发布；
-- `0x0045331C..0x00453379`：选择帧直连、画面效果直连、条件阶段、角色帧顺序、双方完成数与待执行动作提交直连、效果协调、UI低word和固定帧；
+- `0x0045331C..0x00453379`：画面效果直连、条件阶段、角色帧顺序、双方完成数与待执行动作提交直连、效果协调、UI低word和固定帧；
 - `0x0045337F..0x00453431`：选中动作记录、双映射、九宫格、角色对象和独立帧；
 - `0x00453434..0x00453482`：ECX低word、HUD、选择帧、消息阶段分派、文字消息逐帧协调、三类跨模块队列和两倒计时；
 - `0x00453491..0x004534A3`：调试叠加精确门、结果判定前置流程及上下文提示typed直连；
@@ -189,17 +189,17 @@ finalize之后直接调用已关闭三通道颜色累加：固定递减请求，
 - `0x00453491..0x00453514`：可选/固定stage、overlay、三通道颜色累加直连、整surface提交与纵向位移分支；
 - `0x00453514..0x00453570`：截图word、路径、BMP写入、请求清零和活动返回。
 
-C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
+历史记录声称C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签；本轮发现下述反例，该完成结论撤回，须重新执行完整正反向核对。
 
 ## 13. 验证与动态差分
 
 定向测试覆盖：
 
-- 音乐启动/commit、双opaque、typed角色预处理与调试快捷键顺序，以及E键第六阶段零早退；
+- 音乐启动/commit、鼠标解析与输入分派直连、typed角色预处理与调试快捷键顺序，以及E键第六阶段零早退；
 - target lock/unlock后渲染门返回活动1；
 - 选择延迟、攻击顺序出队直连、七dword共享输出、角色查询转接、旧opaque槽清零、active/auxiliary发布与交互门，以及选择帧typed-stop传播与旧frame-stage槽零调用；
 - UI dword只改低word且保留高16位；
-- 主frame stage后画面效果直连及其typed-stop前缀；
+- 角色更新之前画面效果直连及其typed-stop前缀；
 - 角色帧后双方完成数协调直连、post-call寄存器snapshot、组A/组B消息发布与旧第一opaque槽清零；
 - 完成数协调后live数量/顺序改写、待执行动作提交直连、旧第二opaque槽清零及子typed-stop阻断效果与绘制；
 - 固定帧直连、ECX高字/低word组合；
@@ -211,10 +211,28 @@ C++到LST反向追溯覆盖完整412行、44个静态call站点和18个标签。
 - 上下文提示300帧门、30项switch、鼠标/角色四路提示、偏移动作帧直连及子typed-stop后续阻断；
 - 角色预处理工作区typed-stop阻断metric与后续帧；
 - 三通道颜色初始化、共享门与尾寄存器，以及同帧颜色累加、计数递减与`0x3C000`前缀；
-- 任意非零surface门、整surface零token typed-stop、纵向位移双矩形提交及子typed-stop截图阻断；
+- surface门0/1/2与mode bit两侧、整surface零token typed-stop、纵向位移双矩形提交及子typed-stop截图阻断；
 - 截图计数word回绕、路径、writer调用与请求清零；
 - 面板动作更新、双映射、九宫格、角色组A token、`actor+0x26B8`高位查询的入口EAX/EDX/SUB flags与真实返回地址、post-call TEST/JNZ、独立动作帧和第三类ECX snapshot；
 - 映射缺失发生在面板动作更新副作用之后；
 - battle聚合目标零warning，普通定向通过。
+
+## 14. 旧存档进入战斗后的重新核对
+
+用户确认读档正常，但战斗23在SDL输入前缀`0x0045FB29`停止。核对原版完整帧发现，不能直接将当前核心库视作已正确绑定的实现：
+
+- `0x0045332F/31`的相等跳转直接进入角色更新；不等时`0x00453333/39`仅在第二字不等于1时跳过。旧C++错误使用第一个字不等于1。
+- `0x00453354/56`的`JNZ`跳过`OR word,1`；旧C++对不等于1做OR，方向相反。
+- `0x004534AE`的`JG`和`0x004534B6`的`JNZ`均跳过颜色初始化；旧C++错误要求初始化门不等于1。
+- `0x004534DF/E1`的相等跳转进入纵向位移，`0x004534E8/EB`的位0x100非零也进入位移。整画面提交要求门不等于1且该位清除；旧C++将前者误写为非零。
+- `0x0045343C→sub_459D10`之后才在`0x00453441`调用`sub_464270`。旧C++在画面效果之前调用选择帧，并在HUD后额外调用旧opaque槽。现将真实选择帧整体移动到该物理调用处并移除额外调用。
+
+- `0x004534D2→sub_45D2F0`只有一次颜色更新。旧C++在真实颜色更新前仍调用`finalize_overlay`端口，缺少对应原版call；现移除该调用，新增旧槽零调用及真实颜色更新恰好一次断言。
+
+修正后首次定向测试暴露旧断言错误；新增门值0/1/2、计数负/零/正与位0x100的独立组合向量，并更新错误顺序导致的停止前缀断言。`build/tmp/runtime/battle-frame-lst-gates-retest.log`记录定向`battle.legacy_battle_setup`通过；新增颜色旧槽零调用检查后，`battle-frame-coordinator-core.log`与`battle-frame-coordinator-asan.log`分别记录205/205通过。构建同时发现音乐适配器忽略返回值警告，已以显式void转换保留原有忽略语义；该最终源码的Linux app门禁211/211通过，日志为`battle-frame-coordinator-linux-app.log`，未出现warning/error。尚未据此开放SDL完整战斗或关闭第316包。
+
+后续接线核对发现状态一致性风险：协调器在`0x0045328C`读取的`0x0053BFC0`当前借用`final_actor.frame_gate_b`；输入`0x0045F7A5`向该地址写1，也写入此成员。原菜单取消和目标刷新也曾写另一个`input_dispatch.selection_cache_gate_a`，其头文件标注同一地址。本阶段将菜单取消六处、目标刷新四处写入改用`final_actor.frame_gate_b`，直接影响现有输入调用链和下一次帧读取；跨函数测试验证取消后原延迟选择可以出队。选择帧、消息、脚本及全局重置等其余同址写入仍待逐调用点核对并收敛，旧字段尚未删除；不能以同步副本或默认初值相同代替共享状态。
+
+本阶段限定修正上述帧条件、调用顺序和两个现有输入callee的十处共享门写入，不包含SDL完整战斗绑定或全部共享状态回收。最终工作树经`./build.sh core --test`、`./build-asan.sh --test`、`./build.sh app --test`验证，依次205/205、205/205、211/211通过，无编译warning/error；日志为`build/tmp/runtime/battle-existing-publication-{core,asan,app}.log`。源码、测试和证据差异已重新完整审查。本轮未重建Windows，也不证明实机战斗生命周期通过。
 
 当前没有原版剩余战斗callee、攻击顺序出队角色查询与无界相邻内存轨迹、共享选择/队列/对话/倒计时状态、调试叠加字体/文字/角色查询状态、结果判定计数/音频/整理状态、上下文提示计数/鼠标/动作帧状态、九float与计数、DirectDraw target surface、内部bit表、寄存器snapshot与BMP文件联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
