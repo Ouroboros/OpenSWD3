@@ -3467,6 +3467,35 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_save_restore_tests
+    unit/world_map/legacy_world_save_restore_test.cpp
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../Save/0.sav")
+    target_compile_definitions(
+        openswd3_world_map_legacy_world_save_restore_tests
+        PRIVATE OPENSWD3_SAVE_ZERO_PATH="${PROJECT_SOURCE_DIR}/../Save/0.sav"
+    )
+endif()
+if(EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT")
+    target_compile_definitions(
+        openswd3_world_map_legacy_world_save_restore_tests
+        PRIVATE OPENSWD3_MAPS_DATA_PATH="${PROJECT_SOURCE_DIR}/../MAPS.DAT"
+    )
+endif()
+target_include_directories(
+    openswd3_world_map_legacy_world_save_restore_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_save_restore_tests
+    PRIVATE openswd3_world_map
+)
+add_test(
+    NAME world_map.legacy_world_save_restore
+    COMMAND openswd3_world_map_legacy_world_save_restore_tests
+)
+
+add_executable(
     openswd3_world_map_legacy_world_story_vm_tests
     unit/world_map/legacy_world_story_vm_test.cpp
     unit/world_map/legacy_world_story_vm_test_01.cpp
@@ -4139,6 +4168,9 @@ set(openswd3_shared_real_asset_tests
     battle.legacy_battle_setup
     special_modes.legacy_initial_menu
     resource_io.legacy_resource_databases_real
+    resource_io.legacy_save_slots
+    resource_io.legacy_save_container
+    world_map.legacy_world_save_restore
     rendering.legacy_image_command_stream_asset
     rendering.legacy_glyph_atlas_asset
     audio_video.legacy_snd_archive_real

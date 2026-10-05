@@ -56,6 +56,9 @@ add_library(
         legacy_world_player_post_frame.cpp
         legacy_world_roles.cpp
         legacy_world_selection_scroll.cpp
+        legacy_world_save_item_lists.cpp
+        legacy_world_save_map_overrides.cpp
+        legacy_world_save_restore.cpp
         legacy_world_spatial_audio.cpp
         legacy_world_special_frame_loader.cpp
         legacy_world_story_paths.cpp
