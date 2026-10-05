@@ -1595,7 +1595,7 @@ private:
             set_high_word(
                 workspace_.packed_actor_state, static_cast<u16>(actor | 0x8000U)
             );
-            bindings_.input_dispatch.selection_cache_gate_a = 1U;
+            bindings_.action.action_pending_aux = 1U;
             bindings_.shared.action_completion_gate = 0U;
             bindings_.shared.frame_gate = 1U;
             if (!run_frame()) {
@@ -1617,7 +1617,7 @@ private:
         workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
         bindings_.shared.frame_gate = 0U;
         set_high_word(workspace_.packed_actor_state, 0U);
-        bindings_.input_dispatch.selection_cache_gate_a = 0U;
+        bindings_.action.action_pending_aux = 0U;
         if (completion_runs_frame && !run_frame()) {
             return finish(eax_);
         }
@@ -1798,7 +1798,7 @@ private:
         workspace_.text_offset = workspace_.cursor;
         workspace_.short_text.fill(0U);
         bindings_.shared.frame_gate = 1U;
-        bindings_.input_dispatch.selection_cache_gate_a = 0U;
+        bindings_.action.action_pending_aux = 0U;
         workspace_.coordinate_x = 0;
         workspace_.coordinate_y = 0;
         workspace_.pair_x = 0U;

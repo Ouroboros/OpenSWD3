@@ -231,8 +231,8 @@ bit未置位后：
 
 修正后首次定向测试暴露旧断言错误；新增门值0/1/2、计数负/零/正与位0x100的独立组合向量，并更新错误顺序导致的停止前缀断言。`build/tmp/runtime/battle-frame-lst-gates-retest.log`记录定向`battle.legacy_battle_setup`通过；新增颜色旧槽零调用检查后，`battle-frame-coordinator-core.log`与`battle-frame-coordinator-asan.log`分别记录205/205通过。构建同时发现音乐适配器忽略返回值警告，已以显式void转换保留原有忽略语义；该最终源码的Linux app门禁211/211通过，日志为`battle-frame-coordinator-linux-app.log`，未出现warning/error。尚未据此开放SDL完整战斗或关闭第316包。
 
-后续接线核对发现状态一致性风险：协调器在`0x0045328C`读取的`0x0053BFC0`当前借用`final_actor.frame_gate_b`；输入`0x0045F7A5`向该地址写1，也写入此成员。原菜单取消和目标刷新也曾写另一个`input_dispatch.selection_cache_gate_a`，其头文件标注同一地址。本阶段将菜单取消六处、目标刷新四处写入改用`final_actor.frame_gate_b`，直接影响现有输入调用链和下一次帧读取；跨函数测试验证取消后原延迟选择可以出队。选择帧、消息、脚本及全局重置等其余同址写入仍待逐调用点核对并收敛，旧字段尚未删除；不能以同步副本或默认初值相同代替共享状态。
+上阶段先将菜单取消六处、目标刷新四处写入接到帧协调器当时读取的`final_actor.frame_gate_b`。随后完整扫描确认`0x0053BFC0`实际被拆成五份存储；当前统一借用`action.action_pending_aux`，原final-actor、input、撤退和转场副本均已删除。帧入口、菜单取消、角色更新和全部其余既有读写方的映射及本轮验证见[共享选择等待状态](battle-shared-selection-gate-0053bfc0.md)。不能以同步副本或默认初值相同代替共享状态。
 
-本阶段限定修正上述帧条件、调用顺序和两个现有输入callee的十处共享门写入，不包含SDL完整战斗绑定或全部共享状态回收。最终工作树经`./build.sh core --test`、`./build-asan.sh --test`、`./build.sh app --test`验证，依次205/205、205/205、211/211通过，无编译warning/error；日志为`build/tmp/runtime/battle-existing-publication-{core,asan,app}.log`。源码、测试和证据差异已重新完整审查。本轮未重建Windows，也不证明实机战斗生命周期通过。
+上一阶段限定修正上述帧条件、调用顺序和两个现有输入callee的十处共享门写入，不包含SDL完整战斗绑定或全部共享状态回收。当时工作树经`./build.sh core --test`、`./build-asan.sh --test`、`./build.sh app --test`验证，依次205/205、205/205、211/211通过，无编译warning/error；日志为`build/tmp/runtime/battle-existing-publication-{core,asan,app}.log`。源码、测试和证据差异已重新完整审查。本轮未重建Windows，也不证明实机战斗生命周期通过。
 
 当前没有原版剩余战斗callee、攻击顺序出队角色查询与无界相邻内存轨迹、共享选择/队列/对话/倒计时状态、调试叠加字体/文字/角色查询状态、结果判定计数/音频/整理状态、上下文提示计数/鼠标/动作帧状态、九float与计数、DirectDraw target surface、内部bit表、寄存器snapshot与BMP文件联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

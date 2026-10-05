@@ -357,7 +357,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         state.published_actor_code = 1U;
         port.battle_message_state() = 1U;
         state.frame_gate_a = 0U;
-        state.frame_gate_b = 0U;
+        action.action_pending_aux = 0U;
         state.selection_gate = 0U;
     }
 
@@ -392,7 +392,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         action.opponent_workspace.fill(0U);
         state.active_actor_code = 0xFFFFFFFFU;
         state.frame_gate_a = 1U;
-        state.frame_gate_b = 1U;
+        action.action_pending_aux = 1U;
         port.battle_message_state() = 0x67U;
         result.return_value = 1U;
         return result;
@@ -663,7 +663,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         port.battle_message_state() = 0x63U;
         port.battle_terminal_latch() = 0U;
         state.frame_gate_a = 1U;
-        state.frame_gate_b = 1U;
+        action.action_pending_aux = 1U;
     }
 
     if (state.group_b_reset_word != 0U &&

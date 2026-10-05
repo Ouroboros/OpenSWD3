@@ -405,7 +405,6 @@ void synchronize_typed_aliases(
     final_actor.pre_frame_gate_a = 0U;
     final_actor.pre_frame_gate_b = 0U;
     final_actor.frame_gate_a = 0U;
-    final_actor.frame_gate_b = 0U;
     final_actor.selection_gate = 0U;
     final_actor.queued_actor_code = 0U;
     final_actor.actor_order.fill(0U);
@@ -478,7 +477,6 @@ void synchronize_typed_aliases(
     debug_overlay.initial_mode = -1;
     debug_overlay.battle_frame = 0U;
 
-    retreat_commit.completion_gate_a = 0U;
     retreat_commit.completion_gate_b = 0U;
     retreat_commit.selected_actor_token = 0U;
 
@@ -505,7 +503,6 @@ void synchronize_typed_aliases(
     input_dispatch.selected_group_b_index = 0xFFFFU;
     input_dispatch.selected_actor_cleanup_gate = 0U;
     input_dispatch.selection_runtime_gate = 0U;
-    input_dispatch.selection_cache_gate_a = 0U;
     input_dispatch.selection_cache_gate_b = 0U;
     input_dispatch.selection_animation_frame_a = 0U;
     input_dispatch.selection_animation_frame_b = 0U;

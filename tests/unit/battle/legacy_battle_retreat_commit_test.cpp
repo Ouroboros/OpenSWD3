@@ -116,9 +116,12 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
             .edx = 0x55667788U,
         });
         u32 packed_counter = 0xAABBCCDDU;
+        u32 selection_gate = 9U;
 
         const auto result = commit_legacy_battle_retreat(
-            LegacyBattleRetreatCommitBindings{packed_counter}, port, 0xFFFFFFFFU
+            LegacyBattleRetreatCommitBindings{packed_counter, selection_gate},
+            port,
+            0xFFFFFFFFU
         );
 
         test.expect_true(
@@ -129,7 +132,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
                 result.final_edx == 0x55667788U && result.port_calls == 1U &&
                 port.calls.size() == 1U &&
                 port.calls[0].object_token == result.selected_object_token &&
-                packed_counter == 0xAABBCCDDU,
+                packed_counter == 0xAABBCCDDU && selection_gate == 9U,
             "selected actor index uses wrapping stride arithmetic and any readiness return other than exact one exits unchanged"
         );
     }
@@ -142,7 +145,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
             {.eax = 0x22222222U, .ecx = 0x33333333U, .edx = 0x44444444U},
         };
         auto& state = port.retreat_commit_state();
-        state = {9U, 9U, 9U, 9U};
+        state = {9U, 9U, 9U};
         port.actor_metric_state().group_b_count = 5U;
         port.battle_debug_hotkey_state().committed_actor_code = 9U;
         port.battle_debug_overlay_gate() = 9U;
@@ -150,6 +153,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
         port.outcome_resolution_state().darkening_gate = 9U;
         port.battle_message_state() = 9U;
         u32 packed_counter = 0xAABBCCDDU;
+        u32 selection_gate = 9U;
         openswd3::battle::LegacyBattleTextMessageState text_messages;
         u32 text_message_head = 0U;
         std::array<openswd3::battle::LegacyBattleGroupAActionExecutionState, 10>
@@ -157,7 +161,8 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
         actors[0U].retreat_ready_flags = 0x0800U;
 
         const auto result = commit_legacy_battle_retreat(
-            {packed_counter, &text_messages, &text_message_head, actors},
+            {packed_counter, selection_gate, &text_messages,
+             &text_message_head, actors},
             port,
             3U
         );
@@ -177,7 +182,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
                     LegacyBattleRetreatCommitCall::play_warning_sample &&
                 port.calls[3].arguments[0] == 0x8CU &&
                 port.calls[3].arguments[1] == 0xFFFFFFF9U &&
-                state.completion_gate_a == 9U &&
+                selection_gate == 9U &&
                 state.completion_gate_b == 9U && state.auxiliary_latch == 9U &&
                 state.selected_actor_token == 9U &&
                 packed_counter == 0xAABBCCDDU,
@@ -190,20 +195,23 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
         port.replies = {{.eax = 1U}, {}};
         port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x200U;
         u32 packed_counter = 0U;
+        u32 selection_gate = 9U;
         openswd3::battle::LegacyBattleTextMessageState text_messages;
         u32 text_message_head = 0U;
         std::array<openswd3::battle::LegacyBattleGroupAActionExecutionState, 10>
             actors{};
 
         const auto result = commit_legacy_battle_retreat(
-            {packed_counter, &text_messages, &text_message_head, actors},
+            {packed_counter, selection_gate, &text_messages,
+             &text_message_head, actors},
             port,
             0U
         );
 
         test.expect_true(
             result.branch == LegacyBattleRetreatCommitBranch::warning &&
-                result.mode_bit_blocked && result.port_calls == 4U,
+                result.mode_bit_blocked && result.port_calls == 4U &&
+                selection_gate == 9U,
             "battle mode bit nine forces the same warning branch after a nonzero primary actor query"
         );
     }
@@ -214,7 +222,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
             {.eax = 1U, .ecx = 0x01020304U, .edx = 0x05060708U},
         };
         auto& state = port.retreat_commit_state();
-        state = {9U, 9U, 9U, 9U};
+        state = {9U, 9U, 9U};
         port.actor_metric_state().group_b_count = 0x1234U;
         port.battle_debug_hotkey_state().committed_actor_code = 9U;
         port.battle_debug_overlay_gate() = 9U;
@@ -222,11 +230,12 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
         port.outcome_resolution_state().darkening_gate = 9U;
         port.battle_message_state() = 9U;
         u32 packed_counter = 0xA1B2C3D4U;
+        u32 selection_gate = 9U;
         std::array<openswd3::battle::LegacyBattleGroupAActionExecutionState, 10>
             actors{};
 
         const auto result = commit_legacy_battle_retreat(
-            {packed_counter, nullptr, nullptr, actors}, port, 2U
+            {packed_counter, selection_gate, nullptr, nullptr, actors}, port, 2U
         );
 
         test.expect_true(
@@ -235,7 +244,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
                 result.primary_actor_calls == 1U &&
                 result.return_value == 0U && result.final_ecx == 0x00502934U &&
                 result.final_edx == 0x05060708U &&
-                state.completion_gate_a == 1U &&
+                selection_gate == 1U &&
                 state.completion_gate_b == 1U &&
                 port.outcome_resolution_state().resolution_latch == 0U &&
                 state.auxiliary_latch == 0U &&
@@ -255,13 +264,15 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
         port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x200U;
         port.actor_metric_state().group_b_count = 0x77U;
         u32 packed_counter = 0x12345678U;
+        u32 selection_gate = 9U;
         openswd3::battle::LegacyBattleTextMessageState text_messages;
         u32 text_message_head = 0U;
         std::array<openswd3::battle::LegacyBattleGroupAActionExecutionState, 10>
             actors{};
 
         const auto result = commit_legacy_battle_retreat(
-            {packed_counter, &text_messages, &text_message_head, actors},
+            {packed_counter, selection_gate, &text_messages,
+             &text_message_head, actors},
             port,
             1U
         );

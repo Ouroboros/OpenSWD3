@@ -775,7 +775,7 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
                 fixture.final_actor.published_actor_code == 2U &&
                 fixture.final_actor.auxiliary_gate == 1U &&
                 fixture.final_actor.frame_gate_a == 1U &&
-                fixture.final_actor.frame_gate_b == 1U &&
+                fixture.action.action_pending_aux == 1U &&
                 fixture.port.battle_input_dispatch_state().retreat_block_word ==
                     0x4000U,
             "successful retreat preparation writes the actor workspace and all live transition gates in order"

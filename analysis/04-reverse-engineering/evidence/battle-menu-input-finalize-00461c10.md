@@ -32,7 +32,7 @@ live group-B count按i32判断；正数时从group-B物理首对象开始无现�
 
 selected group-B、active group-A、live group-B、十项marker、十项selection缓存和五dword攻击缓存均只在首次真实call或store处typed-stop。所有停止保留此前message、gate、workspace、角色call、marker和缓存写前缀，不执行原调用点后的动画或caller尾清理。
 
-状态由input dispatch、frame input、startup reset、final actor和actor metric持有。B11重审发现`0x0053BFC0`曾同时落入input的`selection_cache_gate_a`和final actor的`frame_gate_b`，原“没有复制物理全局”结论不成立；本函数现写帧协调器读取的`final_actor.frame_gate_b`，其余调用方仍在回收。相邻函数交叉审计进一步确认：当前菜单角色与既有queued owner同址，special group-B code与既有published owner同址；message 3读取的是独立group-A index word，不与逐帧option cache合并。全局reset把action kind恢复为权威值1并只同步原写集合内的group-B index；独立group-A index、workspace、fallback和cache C保持入口值。
+状态由input dispatch、frame input、startup reset、final actor和actor metric持有。B11重审发现`0x0053BFC0`曾同时落入input的`selection_cache_gate_a`和final actor的`frame_gate_b`，原“没有复制物理全局”结论不成立；上阶段先将本函数接到帧协调器读取的`final_actor.frame_gate_b`，本轮完整统一后改为借用`action.action_pending_aux`，并删除全部其他同址成员；见[共享选择等待状态](battle-shared-selection-gate-0053bfc0.md)。相邻函数交叉审计进一步确认：当前菜单角色与既有queued owner同址，special group-B code与既有published owner同址；message 3读取的是独立group-A index word，不与逐帧option cache合并。全局reset把action kind恢复为权威值1并只同步原写集合内的group-B index；独立group-A index、workspace、fallback和cache C保持入口值。
 
 唯一caller为逐帧输入分派record0三帧重复路径。旧`commit_final`操作槽保留稳定reserved值，caller现直连typed实现；普通返回后才清两个尾值，typed-stop阻断这两项尾清理。
 
@@ -47,9 +47,9 @@ selected group-B、active group-A、live group-B、十项marker、十项selectio
 - `0x00461F9E`：message 27清零。
 - `0x0046201B`：message 8/30的公共块清零。
 
-六处现写`final_actor.frame_gate_b`，与`0x0045328C`读取的对象相同，不同步两份副本。message 5及默认分支无该写入，保留入口值。新增测试把门预置为9，分别验证清零和保留；跨函数测试依次执行message 7取消与真实帧协调器，验证取消后延迟16帧的角色选择可以出队。定向验证通过，日志为`build/tmp/runtime/battle-selection-shared-gate-directed.log`；随后含目标刷新修正的完整工作树通过Linux core/ASan各205/205及Linux app 211/211，日志为`build/tmp/runtime/battle-existing-publication-{core,asan,app}.log`。
+六处现写`action.action_pending_aux`，与`0x0045328C`及角色更新读取的对象相同，不同步副本。message 5及默认分支无该写入，保留入口值。新增测试把门预置为9，分别验证清零和保留；跨函数测试依次执行message 7取消与真实帧协调器，验证取消后延迟16帧的角色选择可以出队。上一阶段定向验证通过，日志为`build/tmp/runtime/battle-selection-shared-gate-directed.log`；当时含目标刷新修正的完整工作树通过Linux core/ASan各205/205及Linux app 211/211，日志为`build/tmp/runtime/battle-existing-publication-{core,asan,app}.log`。
 
-此修改只完成本函数对共享门的接入；旧input字段及其他同址写入方尚未全部回收，不据此宣告战斗生命周期完成。
+本轮已删除旧input字段并回收其余同址读写；当前验证记录见共享选择等待状态证据。其他地址与SDL绑定仍未完成，不据此宣告战斗生命周期完成。
 
 ## 7. 验证与动态差分
 

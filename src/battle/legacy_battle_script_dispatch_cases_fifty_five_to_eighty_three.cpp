@@ -148,7 +148,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifty_nine() {
             workspace_.packed_actor_state,
             static_cast<u16>(high_word(workspace_.packed_actor_state) | 0x8000U)
         );
-        bindings_.input_dispatch.selection_cache_gate_a = 1U;
+        bindings_.action.action_pending_aux = 1U;
     }
     if (bindings_.message_phase.entry_list_gate != 0U) {
         if (!run_frame()) {
@@ -958,7 +958,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_eight() {
         }
         bindings_.target_selection.selected_action_kind = advance;
         bindings_.final_actor.active_actor_code = std::bit_cast<u32>(code);
-        bindings_.input_dispatch.selection_cache_gate_a = 1U;
+        bindings_.action.action_pending_aux = 1U;
         bindings_.shared.script_phase_gate = 1U;
         bindings_.shared.script_aux_gate = 0U;
         const u32 start_gate_actor_code =

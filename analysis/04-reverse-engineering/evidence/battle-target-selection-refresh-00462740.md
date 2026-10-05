@@ -69,9 +69,9 @@ message 200先发布完整重置前缀，再按live group-B/group-A count清对�
 
 ### B11共享选择门复核
 
-此前“菜单缓存复用唯一owner”的结论存在反例：`0x0053BFC0`被重复建模为input的`selection_cache_gate_a`与final actor的`frame_gate_b`。原LST在`0x00463069`、`0x00463361`、`0x00463A7C`、`0x00463DDF`向该地址写入零；现四处全部直接写帧协调器读取的`final_actor.frame_gate_b`，不维护同步副本。入口`0x00462750`把EBX清零；末段另一路目标搜索递增EBX，但该路自行返回，不流入message 200的清零块。
+此前“菜单缓存复用唯一owner”的结论存在反例：`0x0053BFC0`被重复建模为input的`selection_cache_gate_a`与final actor的`frame_gate_b`。原LST在`0x00463069`、`0x00463361`、`0x00463A7C`、`0x00463DDF`向该地址写入零；上阶段四处改接`final_actor.frame_gate_b`；本轮将同址五份存储完整统一后，四处均直接写`action.action_pending_aux`，不维护同步副本。入口`0x00462750`把EBX清零；末段另一路目标搜索递增EBX，但该路自行返回，不流入message 200的清零块。
 
-message 5/action 15测试把门预置9并验证清零；现有主跳表、真实caller和typed-stop测试继续执行。当前修改通过Linux core/ASan各205/205、Linux app 211/211，日志为`build/tmp/runtime/battle-existing-publication-{core,asan,app}.log`。此阶段只回收本函数四处写入，选择帧、消息、脚本及全局重置等其余写入尚未统一，不代表完整战斗续玩通过。
+message 5/action 15测试把门预置9并验证清零；现有主跳表、真实caller和typed-stop测试继续执行。上一阶段通过Linux core/ASan各205/205、Linux app 211/211，日志为`build/tmp/runtime/battle-existing-publication-{core,asan,app}.log`。本轮覆盖其余同址读写和重复字段删除，验证记录见[共享选择等待状态](battle-shared-selection-gate-0053bfc0.md)；仍不代表完整战斗续玩通过。
 
 ## 8. `0x00478330`八处目标选择写入
 

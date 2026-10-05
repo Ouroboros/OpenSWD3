@@ -132,7 +132,6 @@ struct LegacyBattleTransitionState {
     compat::u32 capture_source_token{0x004AB784U};
     compat::u32 target_surface_token{kLegacyBattleTransitionTargetSurfaceToken};
     compat::u32 music_runtime_handle{};
-    compat::u32 active{};
     LegacyBattleTransitionAllocation primary_buffer{};
     LegacyBattleTransitionAllocation secondary_buffer{};
     std::vector<compat::u8> primary_command_stream;
@@ -238,6 +237,7 @@ struct LegacyBattleTransitionResult {
 // optional battle-side events.
 [[nodiscard]] LegacyBattleTransitionResult run_legacy_battle_transition(
     LegacyBattleTransitionState& state,
+    compat::u32& selection_gate,
     LegacyBattleStartupState& startup,
     LegacyBattleTransitionPort& port,
     LegacyBattleTransitionBufferPort& buffer_port,

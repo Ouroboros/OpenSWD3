@@ -106,7 +106,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_two() {
             static_cast<u16>(actor_word | 0x8000U)
         );
         bindings_.message_state = 0U;
-        bindings_.input_dispatch.selection_cache_gate_a = 1U;
+        bindings_.action.action_pending_aux = 1U;
     }
 
     if (bindings_.message_phase.entry_list_gate != 0U) {
@@ -156,7 +156,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_two() {
     workspace_.text_offset = workspace_.cursor;
     workspace_.short_text.fill(0U);
     bindings_.shared.frame_gate = 1U;
-    bindings_.input_dispatch.selection_cache_gate_a = 0U;
+    bindings_.action.action_pending_aux = 0U;
     workspace_.pair_x = 0U;
     workspace_.pair_y = 0U;
     set_high_word(workspace_.packed_actor_state, 0U);
@@ -498,7 +498,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_ten() {
 
     workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
     set_high_word(workspace_.packed_actor_state, 0U);
-    bindings_.input_dispatch.selection_cache_gate_a = 0U;
+    bindings_.action.action_pending_aux = 0U;
     bindings_.shared.selection_gate_a = 0U;
     bindings_.shared.frame_gate = 1U;
     return finish(1U);
@@ -596,7 +596,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eleven() {
     }
     workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
     set_high_word(workspace_.packed_actor_state, 0U);
-    bindings_.input_dispatch.selection_cache_gate_a = 0U;
+    bindings_.action.action_pending_aux = 0U;
     return finish(1U);
 }
 

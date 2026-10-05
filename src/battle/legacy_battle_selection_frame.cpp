@@ -417,7 +417,7 @@ private:
         bindings_.input_dispatch.selection_workspace.fill(0U);
         bindings_.message_state = 0U;
         state_input().selection_cache_gate_b = 0U;
-        state_input().selection_cache_gate_a = 0U;
+        bindings_.action.action_pending_aux = 0U;
         state_input().selection_cache_gate_c = 0U;
         state_input().selection_runtime_gate = 0U;
         bindings_.frame_input.target_selection_gate = 1U;
@@ -529,7 +529,7 @@ private:
 
     void set_selection_cache_gates() noexcept {
         state_input().selection_cache_gate_b = 1U;
-        state_input().selection_cache_gate_a = 1U;
+        bindings_.action.action_pending_aux = 1U;
     }
 
     [[nodiscard]] bool draw_action_summary(
@@ -1184,7 +1184,7 @@ private:
         bindings_.input_dispatch.retreat_block_word = static_cast<u16>(
             bindings_.input_dispatch.retreat_block_word | 0x4000U
         );
-        state_input().selection_cache_gate_a = 1U;
+        bindings_.action.action_pending_aux = 1U;
         state_input().selection_cache_gate_b = 1U;
         bindings_.message_state = 0U;
         bindings_.final_actor.queued_actor_code = 0U;

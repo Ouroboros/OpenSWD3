@@ -351,6 +351,7 @@ copy_failure_status(const CopyStatus status, const bool primary) noexcept {
 
 LegacyBattleTransitionResult run_legacy_battle_transition(
     LegacyBattleTransitionState& state,
+    compat::u32& selection_gate,
     LegacyBattleStartupState& startup,
     LegacyBattleTransitionPort& port,
     LegacyBattleTransitionBufferPort& buffer_port,
@@ -397,7 +398,7 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
         LegacyBattleTransitionCall::prepare_capture,
         {0xC0U, state.capture_source_token, 0U, 0U, 0U, 0U}
     ));
-    state.active = 1U;
+    selection_gate = 1U;
     state.primary_buffer = {};
     state.secondary_buffer = {};
     state.primary_command_stream.clear();
@@ -695,7 +696,7 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
     state.secondary_buffer.released = state.secondary_buffer.token != 0U;
     release_token(buffer_port, result, state.primary_image_token);
     release_token(buffer_port, result, state.secondary_image_token);
-    state.active = 0U;
+    selection_gate = 0U;
     static_cast<void>(invoke(
         port,
         LegacyBattleTransitionCall::restore_clip,

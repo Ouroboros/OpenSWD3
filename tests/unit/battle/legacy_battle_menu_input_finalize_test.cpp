@@ -80,7 +80,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.input.selected_actor_cleanup_gate = 1U;
         fixture.final_actor.published_actor_code = 1U;
-        fixture.final_actor.frame_gate_b = 9U;
+        fixture.action.action_pending_aux = 9U;
         fixture.input.selection_cache_gate_b = 9U;
         fixture.startup.value_4ff0b0 = 9U;
         fixture.startup.value_4ff0b4 = 9U;
@@ -100,7 +100,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
                 fixture.message == 0U &&
                 fixture.input.mouse_action_gate == 0U &&
                 fixture.input.selected_actor_cleanup_gate == 0U &&
-                fixture.final_actor.frame_gate_b == 0U &&
+                fixture.action.action_pending_aux == 0U &&
                 fixture.input.selection_cache_gate_b == 0U &&
                 fixture.startup.value_4ff0b0 == 0U &&
                 fixture.startup.value_4ff0b4 == 0U &&
@@ -121,7 +121,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
         fixture.message = 9U;
         fixture.input.selected_actor_cleanup_gate = 1U;
         fixture.final_actor.published_actor_code = 0U;
-        fixture.final_actor.frame_gate_b = 9U;
+        fixture.action.action_pending_aux = 9U;
         const auto result = finalize_legacy_battle_menu_input(
             fixture.bindings(), fixture.port, {.entry_edx = 0x33U}
         );
@@ -132,7 +132,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
                 fixture.message == 0U &&
                 fixture.input.mouse_action_gate == 0U &&
                 fixture.input.selected_actor_cleanup_gate == 1U &&
-                fixture.final_actor.frame_gate_b == 9U &&
+                fixture.action.action_pending_aux == 9U &&
                 fixture.port.calls.empty() && result.return_eax == 0U &&
                 result.return_ecx == 0x005229E0U && result.return_edx == 0x33U,
             "selected group-B code zero stops at the one-before-base actor call after preserving prior writes"
@@ -355,7 +355,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
              }) {
             Fixture fixture;
             fixture.message = item.message;
-            fixture.final_actor.frame_gate_b = 9U;
+            fixture.action.action_pending_aux = 9U;
             fixture.input.fallback_action_kind = 27U;
             fixture.frame.panel_scroll_b = 9U;
             fixture.input.selection_workspace.fill(9U);
@@ -366,7 +366,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleMenuInputFinalizeStatus::completed &&
                     fixture.message == item.expected_message &&
-                    fixture.final_actor.frame_gate_b ==
+                    fixture.action.action_pending_aux ==
                         (item.message == 5U ? 9U : 0U) &&
                     fixture.input.selection_animation_frame_a == 0U &&
                     fixture.input.selection_animation_frame_b == 0U &&
@@ -382,7 +382,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.message = 7U;
-        fixture.final_actor.frame_gate_b = 9U;
+        fixture.action.action_pending_aux = 9U;
         fixture.input.selection_cache_gate_b = 9U;
         fixture.input.selection_animation_frame_a = 9U;
         const auto result = finalize_legacy_battle_menu_input(
@@ -393,7 +393,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
                 fixture.frame.alternate_selection_limit == 2U &&
                 fixture.frame.alternate_selection == 1U &&
                 fixture.input.action_kind == 1U &&
-                fixture.final_actor.frame_gate_b == 0U &&
+                fixture.action.action_pending_aux == 0U &&
                 fixture.input.selection_cache_gate_b == 0U &&
                 fixture.input.selection_animation_frame_a == 0U &&
                 result.return_eax == 1U && result.return_ecx == 7U &&
@@ -407,7 +407,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
         fixture.message = 6U;
         fixture.input.selection_animation_frame_a = 9U;
         fixture.input.selection_animation_frame_b = 9U;
-        fixture.final_actor.frame_gate_b = 9U;
+        fixture.action.action_pending_aux = 9U;
         const auto result = finalize_legacy_battle_menu_input(
             fixture.bindings(), fixture.port, {.entry_edx = 0x88U}
         );
@@ -415,7 +415,7 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
             fixture.message == 6U && fixture.input.mouse_action_gate == 1U &&
                 fixture.input.selection_animation_frame_a == 0U &&
                 fixture.input.selection_animation_frame_b == 0U &&
-                fixture.final_actor.frame_gate_b == 9U &&
+                fixture.action.action_pending_aux == 9U &&
                 result.return_eax == 1U && result.return_ecx == 6U &&
                 result.return_edx == 0x88U && fixture.port.calls.empty(),
             "default jump-table cases only clear animation frames after the entry gates"

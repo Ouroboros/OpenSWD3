@@ -457,11 +457,9 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 bindings.final_actor.selection_gate = 0U;
                 bindings.actor_metrics.priority_actor_index = 0U;
                 state.selection_workspace_tail.fill(0U);
-                bindings.final_actor.frame_gate_b = 0U;
+                bindings.action.action_pending_aux = 0U;
                 bindings.final_actor.frame_gate_a = 0U;
                 if (bindings.actor_frames != nullptr) {
-                    bindings.actor_frames->shared.action.action_pending_aux =
-                        0U;
                     port.outcome_resolution_state().resolution_latch = 0U;
                 }
                 bindings.actor_metrics.priority_actor_index = 0xFFFFFFFFU;
@@ -630,9 +628,8 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                     return result;
                 }
                 bindings.actor_frames->shared.target_ready_gate = 1U;
-                bindings.final_actor.frame_gate_b = 1U;
+                bindings.action.action_pending_aux = 1U;
                 bindings.final_actor.frame_gate_a = 1U;
-                bindings.actor_frames->shared.action.action_pending_aux = 1U;
                 port.outcome_resolution_state().resolution_latch = 1U;
                 bindings.final_actor.actor_order.fill(0U);
                 std::fill_n(

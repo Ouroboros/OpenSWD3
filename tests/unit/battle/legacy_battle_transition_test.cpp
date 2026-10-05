@@ -290,6 +290,7 @@ public:
 };
 
 struct FrameFixture {
+    u32 selection_gate{9U};
     openswd3::battle::LegacyBattleFrameDrawState state;
     openswd3::rendering::LegacyFramebuffer framebuffer;
     openswd3::rendering::LegacyRasterGeometryState raster;
@@ -439,6 +440,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
+            frame.selection_gate,
             startup,
             ports,
             ports,
@@ -484,7 +486,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                         0x20000000U,
                         0x20000001U,
                     } &&
-                result.release_calls == 4U && state.active == 0U &&
+                result.release_calls == 4U && frame.selection_gate == 0U &&
                 state.primary_buffer.released &&
                 state.secondary_buffer.released &&
                 state.primary_buffer.token == 0x10000000U &&
@@ -546,6 +548,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
+            actor_frames.state.shared.action.action_pending_aux,
             startup,
             ports,
             ports,
@@ -631,6 +634,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
+            actor_frames.state.shared.action.action_pending_aux,
             startup,
             ports,
             ports,
@@ -730,6 +734,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
+            actor_frames.state.shared.action.action_pending_aux,
             startup,
             ports,
             ports,
@@ -790,6 +795,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             FrameFixture frame;
             const auto result = openswd3::battle::run_legacy_battle_transition(
                 state,
+                frame.selection_gate,
                 startup,
                 ports,
                 ports,
@@ -819,6 +825,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
+            frame.selection_gate,
             startup,
             ports,
             ports,
@@ -847,6 +854,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
+            frame.selection_gate,
             startup,
             ports,
             ports,
@@ -869,7 +877,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                 ports.call_count(LegacyBattleTransitionCall::prepare_scene) ==
                     0U &&
                 result.frame_draw_calls == 0U && result.release_calls == 0U &&
-                state.active == 1U,
+                frame.selection_gate == 1U,
             "transition preserves capture and conversion then stops before scene preparation on frame effect cache fault"
         );
     }
@@ -885,6 +893,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
+            frame.selection_gate,
             startup,
             ports,
             ports,
@@ -899,7 +908,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleTransitionStatus::
                         primary_allocation_typed_stop &&
                 result.primary_copy_rows == 10U &&
-                result.secondary_copy_rows == 0U && state.active == 1U &&
+                result.secondary_copy_rows == 0U && frame.selection_gate == 1U &&
                 result.release_calls == 0U && ports.unlocked.empty(),
             "short primary allocation stops at eleventh row after both allocations without synthetic unlock or cleanup"
         );

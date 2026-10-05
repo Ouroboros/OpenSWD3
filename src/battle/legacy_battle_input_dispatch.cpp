@@ -1008,7 +1008,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 static_cast<u16>(state.retreat_block_word | 0x4000U);
             bindings.final_actor.queued_actor_code = 0U;
             bindings.final_actor.pre_frame_gate_a = 0U;
-            bindings.final_actor.frame_gate_b = 1U;
+            bindings.action.action_pending_aux = 1U;
             bindings.final_actor.frame_gate_a = 1U;
             state.frame_value_a = 0U;
             state.action_kind = 0U;

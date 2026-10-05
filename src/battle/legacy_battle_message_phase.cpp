@@ -601,7 +601,7 @@ private:
         bindings_.final_actor.published_actor_code =
             static_cast<u16>(control >> 16U);
         bindings_.input_dispatch.selection_cache_gate_b = 0U;
-        bindings_.input_dispatch.selection_cache_gate_a = 0U;
+        bindings_.action.action_pending_aux = 0U;
         bindings_.final_actor.queued_actor_code = 0U;
 
         set_group_a_registers(actor_index, true, false);
@@ -838,7 +838,7 @@ private:
         }
 
         bindings_.debug_hotkeys.actor_retarget_gate_53bf64 = 0U;
-        bindings_.input_dispatch.selection_cache_gate_a = 1U;
+        bindings_.action.action_pending_aux = 1U;
         bindings_.input_dispatch.selection_cache_gate_b = 1U;
         bindings_.target_ready_gate = 1U;
         bindings_.final_actor.queued_actor_code = 0U;
@@ -1244,7 +1244,7 @@ private:
     }
 
     [[nodiscard]] LegacyBattleMessagePhaseResult message_98() {
-        bindings_.input_dispatch.selection_cache_gate_a = 1U;
+        bindings_.action.action_pending_aux = 1U;
         auto panel_request = request_.talisman_result_panel_request;
         panel_request.entry_eax = eax_;
         panel_request.entry_ecx = ecx_;
@@ -1325,7 +1325,7 @@ private:
         eax_ = (eax_ & 0xFFFFFF00U) |
             (bindings_.debug_hotkeys.battle_mode_flags_53bc24 & 0xFFU);
         ecx_ = 1U;
-        bindings_.input_dispatch.selection_cache_gate_a = 1U;
+        bindings_.action.action_pending_aux = 1U;
         bindings_.input_dispatch.selection_cache_gate_b = 1U;
         if ((bindings_.debug_hotkeys.battle_mode_flags_53bc24 & 8U) != 0U) {
             eax_ = bindings_.target_selection.transition_timer + 1U;
@@ -1369,7 +1369,7 @@ private:
     }
 
     [[nodiscard]] LegacyBattleMessagePhaseResult message_104() {
-        bindings_.input_dispatch.selection_cache_gate_a = 1U;
+        bindings_.action.action_pending_aux = 1U;
         bindings_.input_dispatch.selection_cache_gate_b = 1U;
         eax_ = bindings_.target_selection.transition_timer + 1U;
         bindings_.target_selection.transition_timer = eax_;

@@ -1021,7 +1021,7 @@ private:
         runtime_.selection_input_gate = 0U;
         input_.selection_animation_frame_a = 0U;
         input_.selection_animation_frame_b = 0U;
-        final_actor_.frame_gate_b = 0U;
+        action_.action_pending_aux = 0U;
         input_.selection_cache_gate_b = 0U;
         edx_ = actor_code * 5U - 40U;
         if (!write_runtime_record(actor_code, 0U, 1U)) {
@@ -1532,7 +1532,7 @@ private:
         input_.selection_animation_frame_b = 0U;
         frame_.lower_panel_aux = 0U;
         frame_.grid_selection = 1U;
-        final_actor_.frame_gate_b = 0U;
+        action_.action_pending_aux = 0U;
         input_.selection_cache_gate_b = 0U;
         input_.selection_cache_gate_c = 0U;
         if (!prime_input_records()) {
@@ -1593,7 +1593,7 @@ private:
         runtime_.selection_input_gate = 0U;
         input_.selection_animation_frame_a = 0U;
         input_.selection_animation_frame_b = 0U;
-        final_actor_.frame_gate_b = 0U;
+        action_.action_pending_aux = 0U;
         ecx_ = actor_code * 5U - 40U;
         if (!write_runtime_record(actor_code, 0U, 1U)) {
             return false;
@@ -2235,7 +2235,7 @@ private:
         }
         input_.selection_animation_frame_a = 0U;
         input_.selection_animation_frame_b = 0U;
-        final_actor_.frame_gate_b = 0U;
+        action_.action_pending_aux = 0U;
         input_.selection_cache_gate_b = 0U;
         bindings_.target_ready_gate = 0U;
         if (!prime_input_records()) {

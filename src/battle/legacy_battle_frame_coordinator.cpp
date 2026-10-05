@@ -354,7 +354,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
 
-    auto& selection_mode = context.final_actor_step.frame_gate_b;
+    auto& selection_mode = context.action_dispatch.action_pending_aux;
     auto& selection_value = port.actor_metric_state().priority_actor_index;
     auto& input_source = context.startup.reset.records_524788[0].value_00;
     auto& selection_active = context.final_actor_step.selection_gate;

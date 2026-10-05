@@ -807,7 +807,7 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
         auto fixture = std::make_unique<Fixture>();
         auto port = std::make_unique<CoordinatorPort>();
         configure_common_port(*port);
-        fixture->final_actor_step.frame_gate_b = 1U;
+        fixture->action_dispatch.action_pending_aux = 1U;
         port->actor_metric_state().priority_actor_index = 5U;
         port->battle_message_state() = 7U;
         state->selection_delay = 0x10U;
@@ -833,7 +833,7 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
             canceled.status ==
                     openswd3::battle::LegacyBattleMenuInputFinalizeStatus::
                         completed &&
-                fixture->final_actor_step.frame_gate_b == 0U,
+                fixture->action_dispatch.action_pending_aux == 0U,
             "461F23 clears the same 53BFC0 owner read by the next battle frame"
         );
         auto context = fixture->context();
@@ -848,6 +848,41 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
                 fixture->final_actor_step.selection_gate == 1U,
             "45328C observes menu cancellation and resumes delayed actor selection"
         );
+    }
+
+    // 0x00453297..A2 clears only gate one without a priority actor.
+    // 0x004532C0..D3 dequeues only when the resulting shared gate is zero.
+    for (const u32 gate : {0U, 1U, 2U}) {
+        for (const u32 priority : {0xFFFFFFFFU, 5U}) {
+            auto state = std::make_unique<LegacyBattleFrameCoordinatorState>();
+            auto fixture = std::make_unique<Fixture>();
+            auto port = std::make_unique<CoordinatorPort>();
+            configure_common_port(*port);
+            fixture->action_dispatch.action_pending_aux = gate;
+            port->actor_metric_state().priority_actor_index = priority;
+            state->selection_delay = 0x10U;
+            fixture->startup.reset.records_524788[0].value_00 = 5U;
+            fixture->startup.reset.records_524788[1].value_00 = 0xFFFFFFFFU;
+            auto context = fixture->context();
+            const auto result = run_legacy_battle_frame_coordinator(
+                *state, *port, context, base_request()
+            );
+            const u32 expected_gate = gate == 1U && priority == 0xFFFFFFFFU
+                ? 0U
+                : gate;
+            const bool dequeued = expected_gate == 0U;
+            test.expect_true(
+                result.status ==
+                        LegacyBattleFrameCoordinatorStatus::completed &&
+                    fixture->action_dispatch.action_pending_aux ==
+                        expected_gate &&
+                    result.selection_refresh_calls == (dequeued ? 1U : 0U) &&
+                    state->selection_delay == (dequeued ? 0U : 0x10U) &&
+                    fixture->final_actor_step.selection_gate ==
+                        (dequeued ? 1U : 0U),
+                "453297/4532C0 uses the action owner's exact gate value for delayed selection"
+            );
+        }
     }
 
     // 0x0045332F JE and 0x00453339 JNE: either word equal to one calls.

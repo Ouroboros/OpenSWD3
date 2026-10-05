@@ -21,7 +21,6 @@ inline constexpr compat::u32 kLegacyBattleRetreatCommitWarningTextToken =
 inline constexpr compat::u32 kLegacyBattleRetreatCommitWarningSample = 0x008CU;
 
 struct LegacyBattleRetreatCommitState {
-    compat::u32 completion_gate_a{};
     compat::u32 completion_gate_b{};
     compat::u32 auxiliary_latch{};
     compat::u32 selected_actor_token{};
@@ -111,6 +110,7 @@ public:
 
 struct LegacyBattleRetreatCommitBindings {
     compat::u32& packed_actor_counter;
+    compat::u32& selection_gate;
     LegacyBattleTextMessageState* text_messages{};
     compat::u32* text_message_head{};
     std::span<const LegacyBattleGroupAActionExecutionState> group_a_actions{};

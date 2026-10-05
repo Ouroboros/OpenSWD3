@@ -240,7 +240,6 @@ void seed_state(
     final_actor.pre_frame_gate_a = 9U;
     final_actor.pre_frame_gate_b = 9U;
     final_actor.frame_gate_a = 9U;
-    final_actor.frame_gate_b = 9U;
     final_actor.selection_gate = 9U;
     final_actor.queued_actor_code = 9U;
     final_actor.removed_group_a_count = 9U;
@@ -274,7 +273,7 @@ void seed_state(
     debug_overlay.marker_x = -13;
     debug_overlay.marker_row = -15;
     debug_overlay.text_buffer[0] = 'x';
-    retreat_commit = {9U, 9U, 9U, 9U};
+    retreat_commit = {9U, 9U, 9U};
     outcome_resolution.resolution_latch = 9U;
     outcome_resolution.darkening_gate = 9U;
     outcome_resolution.force_group_b_resolution = 9U;
@@ -370,7 +369,6 @@ void seed_state(
     input.fallback_action_kind = 9U;
     input.selected_actor_cleanup_gate = 9U;
     input.selection_runtime_gate = 9U;
-    input.selection_cache_gate_a = 9U;
     input.selection_cache_gate_b = 9U;
     input.selection_cache_gate_c = 9U;
     input.selection_animation_frame_a = 9U;
@@ -630,7 +628,6 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 final_actor.pre_frame_gate_a == 0U &&
                 final_actor.pre_frame_gate_b == 0U &&
                 final_actor.frame_gate_a == 0U &&
-                final_actor.frame_gate_b == 0U &&
                 final_actor.selection_gate == 0U &&
                 final_actor.queued_actor_code == 0U &&
                 final_actor.removed_group_a_count == 0U &&
@@ -746,7 +743,6 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 input.fallback_action_kind == 9U &&
                 input.selected_actor_cleanup_gate == 0U &&
                 input.selection_runtime_gate == 0U &&
-                input.selection_cache_gate_a == 0U &&
                 input.selection_cache_gate_b == 0U &&
                 input.selection_cache_gate_c == 9U &&
                 input.selection_animation_frame_a == 0U &&
@@ -893,8 +889,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             "global reset synchronizes the debug overlay write set and preserves the high bytes of its byte store"
         );
         test.expect_true(
-            retreat_commit.completion_gate_a == 0U &&
-                retreat_commit.completion_gate_b == 0U &&
+            retreat_commit.completion_gate_b == 0U &&
                 retreat_commit.auxiliary_latch == 9U &&
                 retreat_commit.selected_actor_token == 0U &&
                 outcome_resolution.resolution_latch == 0U &&

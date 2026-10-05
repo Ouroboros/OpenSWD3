@@ -632,7 +632,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 message_98.talisman_result_panel_calls == 1U &&
                 message_98.talisman_result_panel.query_calls == 0U &&
                 message_98.talisman_result_panel.transition_stage_calls == 1U &&
-                fixture.input_dispatch.selection_cache_gate_a == 1U &&
+                fixture.action.action_pending_aux == 1U &&
                 fixture.port.message_calls.empty() &&
                 fixture.port.talisman_result_panel_calls.empty(),
             "message 98 publishes cache A then directly draws its talisman result panel without the reserved slot"
@@ -646,7 +646,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             stopped_result.status ==
                     openswd3::battle::LegacyBattleMessagePhaseStatus::
                         talisman_result_panel_typed_stop &&
-                stopped.input_dispatch.selection_cache_gate_a == 1U &&
+                stopped.action.action_pending_aux == 1U &&
                 stopped_result.talisman_result_panel_calls == 1U &&
                 stopped_result.talisman_result_panel.query_calls == 0U,
             "message 98 preserves cache A and propagates a talisman panel stop before later frame stages"
@@ -1129,7 +1129,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 ) == 0U &&
                 timed.target_selection.transition_timer == 150U &&
                 timed.debug_hotkeys.actor_retarget_gate_53bf64 == 0U &&
-                timed.input_dispatch.selection_cache_gate_a == 1U &&
+                timed.action.action_pending_aux == 1U &&
                 timed.input_dispatch.selection_cache_gate_b == 1U &&
                 timed.target_ready_gate == 1U &&
                 timed.final_actor.queued_actor_code == 0U,
@@ -1151,7 +1151,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleLevelUpPanelStatus::
                         title_frame_typed_stop &&
                 level_stopped.debug_hotkeys.actor_retarget_gate_53bf64 == 9U &&
-                level_stopped.input_dispatch.selection_cache_gate_a == 0U &&
+                level_stopped.action.action_pending_aux == 0U &&
                 level_stopped.target_selection.transition_timer == 0U,
             "message 100 propagates level-up panel failure after victory rewards and before caller-owned setup writes"
         );
@@ -1170,7 +1170,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleVictoryRewardStatus::
                         title_frame_typed_stop &&
                 stopped.debug_hotkeys.actor_retarget_gate_53bf64 == 9U &&
-                stopped.input_dispatch.selection_cache_gate_a == 0U &&
+                stopped.action.action_pending_aux == 0U &&
                 stopped.target_selection.transition_timer == 0U,
             "message 100 propagates victory panel failure before all caller-owned setup writes"
         );
@@ -1697,7 +1697,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             debug_result.port_calls == 0U && debug_result.return_ecx == 1U &&
                 debug.target_selection.transition_timer == 0U &&
                 debug.target_selection.completion_gate == 1U &&
-                debug.input_dispatch.selection_cache_gate_a == 1U &&
+                debug.action.action_pending_aux == 1U &&
                 debug.input_dispatch.selection_cache_gate_b == 1U,
             "message 103 debug bit completes at signed timer 30 without the normal frame"
         );
@@ -1744,7 +1744,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         test.expect_true(
             over.target_selection_entry_calls == 1U &&
                 message_104.target_selection.transition_timer == 21U &&
-                message_104.input_dispatch.selection_cache_gate_a == 1U &&
+                message_104.action.action_pending_aux == 1U &&
                 message_104.input_dispatch.selection_cache_gate_b == 1U,
             "message 104 enters target selection only after signed timer exceeds twenty"
         );
@@ -1763,7 +1763,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 stopped_result.target_selection_entry.status ==
                     openswd3::battle::LegacyBattleTargetSelectionEntryStatus::
                         active_group_a_actor_typed_stop &&
-                stopped.input_dispatch.selection_cache_gate_a == 1U &&
+                stopped.action.action_pending_aux == 1U &&
                 stopped.input_dispatch.selection_cache_gate_b == 1U,
             "message 104 propagates target-selection actor failure after preserving both cache writes"
         );

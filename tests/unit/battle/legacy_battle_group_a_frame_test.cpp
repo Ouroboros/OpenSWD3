@@ -3476,9 +3476,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     port.count(0x004714B0U) == 0U &&
                     port.count(0x00483FD0U) == 1U &&
                     port.count(0x00485610U) == 1U &&
-                    state.action.action_pending_aux == 0U &&
+                    state.final_actor_step.removed_group_a_count == 1U &&
+                    port.battle_message_state() == 0x67U &&
+                    state.action.action_pending_aux == 1U &&
                     port.outcome_resolution_state().resolution_latch == 0U,
-                "turn resolution preserves resolved maximum in stale low word and executes failure reset"
+                "457579 clears the failure gate before 45766F calls final actor and 45AC14 republishes one"
             );
         }
 

@@ -337,7 +337,7 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                 state.selection_status_word_53c050 == 0xABCD0001U &&
                 state.actor_retarget_gate_53bf64 == 0U &&
                 fixture.final_actor.frame_gate_a == 0U &&
-                fixture.final_actor.frame_gate_b == 0U &&
+                fixture.action.action_pending_aux == 0U &&
                 fixture.final_actor.selection_gate == 0U &&
                 fixture.actor_frames.shared.action_block_gate == 1U &&
                 fixture.actor_metrics.priority_actor_index == 0xFFFFFFFFU &&
@@ -398,7 +398,7 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                 state.selection_status_word_53c050 == 0xABCD0001U &&
                 state.actor_retarget_gate_53bf64 == 0U &&
                 fixture.final_actor.frame_gate_a == 0U &&
-                fixture.final_actor.frame_gate_b == 0U &&
+                fixture.action.action_pending_aux == 0U &&
                 fixture.final_actor.selection_gate == 0U &&
                 fixture.actor_frames.shared.action_block_gate == 1U &&
                 fixture.actor_metrics.priority_actor_index == 0xFFFFFFFFU &&
@@ -464,7 +464,7 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                         actor_frame_state_typed_stop &&
                 fixture.actor_metrics.priority_actor_index == 0xFFFFFFFFU &&
                 fixture.final_actor.frame_gate_a == 0U &&
-                fixture.final_actor.frame_gate_b == 0U,
+                fixture.action.action_pending_aux == 0U,
             "missing actor-frame state stops at the original action-block read after C prefix stores"
         );
     }
@@ -512,7 +512,7 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
                 fixture.effect_coordinator.group_a_feedback_actor == 0xFFFFU &&
                 fixture.actor_frames.shared.target_ready_gate == 1U &&
                 fixture.final_actor.frame_gate_a == 1U &&
-                fixture.final_actor.frame_gate_b == 1U &&
+                fixture.action.action_pending_aux == 1U &&
                 fixture.final_actor.queued_actor_code == 0U &&
                 fixture.actor_metrics.priority_actor_index == 0xFFFFFFFFU &&
                 fixture.message_state == 0U &&

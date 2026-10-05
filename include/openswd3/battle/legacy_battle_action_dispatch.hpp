@@ -1335,7 +1335,7 @@ struct LegacyBattleActionDispatchState {
     compat::u16 computed_selection_word{};
     compat::i32 signed_action_value{};
     compat::u32 action_pending{};
-    compat::u32 action_pending_aux{};
+    compat::u32 action_pending_aux{};  // 0x0053BFC0; shared selection gate.
     compat::u32 frame_refresh_pending{};
 
     compat::u32 action_runtime_flags{};

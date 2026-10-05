@@ -462,7 +462,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
         fixture.final_actor.actor_order[0] = 21U;
         fixture.final_actor.actor_order[1] = 22U;
         fixture.final_actor.frame_gate_a = 2U;
-        fixture.final_actor.frame_gate_b = 3U;
+        fixture.action.action_pending_aux = 3U;
         fixture.effects.group_a_feedback_actor = 0xFFFFU;
         fixture.overlay.selection_order[0] = 31U;
         fixture.overlay.selection_order[1] = 32U;

@@ -108,7 +108,7 @@ LegacyBattleRetreatCommitResult commit_legacy_battle_retreat(
 
     const u32 group_b_count = port.actor_metric_state().group_b_count;
     auto& state = port.retreat_commit_state();
-    state.completion_gate_a = 1U;
+    bindings.selection_gate = 1U;
     state.completion_gate_b = 1U;
     port.outcome_resolution_state().resolution_latch = 0U;
     state.auxiliary_latch = 0U;
