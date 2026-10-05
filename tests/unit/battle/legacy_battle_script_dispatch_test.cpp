@@ -8,6 +8,8 @@
 #include <bit>
 #include <cstddef>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -3560,14 +3562,90 @@ void test_battle_script_actor_target_selection_calls(
     }
 }
 
-void test_battle_script_dispatch(openswd3::test::Context& test) {
+void test_battle_script_frame_stop(openswd3::test::Context& test) {
     using openswd3::battle::run_legacy_battle_script_dispatch;
 
-    test_battle_script_actor_coordinate_calls(test);
-    test_battle_script_actor_target_selection_calls(test);
-    test_battle_script_current_coordinate_stops(test);
-    test_battle_script_current_coordinate_boundaries(test);
-    test_battle_script_current_coordinate_loops(test);
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(3);
+        port.frame_results = {0U};
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.return_eax == 1U && fixture.workspace.cursor == 2U &&
+                fixture.shared.frame_gate == 1U,
+            "case three ignores a completed frame callee EAX zero"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(3);
+        port.frame_results = {0U};
+        port.typed_stop_enabled = true;
+        port.typed_stop_call = LegacyBattleScriptDispatchCall::frame;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::frame_typed_stop &&
+                result.return_eax == 0U && result.stopped_offset == 0U &&
+                fixture.workspace.cursor == 0U &&
+                fixture.shared.frame_gate == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
+            "case three stops before its cursor and frame-gate success suffix"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(25);
+        port.frame_results = {0U};
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.return_eax == 1U && fixture.workspace.cursor == 2U &&
+                fixture.message_phase.group_b_bypass_gate == 0U,
+            "case twenty-five uses a completed frame EAX zero to release bypass"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(25);
+        port.frame_results = {0U};
+        port.typed_stop_enabled = true;
+        port.typed_stop_call = LegacyBattleScriptDispatchCall::frame;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::frame_typed_stop &&
+                result.return_eax == 0U && result.stopped_offset == 0U &&
+                fixture.workspace.cursor == 0U &&
+                fixture.message_phase.group_b_bypass_gate == 1U &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
+            "case twenty-five stops before its bypass-release suffix"
+        );
+    }
+}
+
+void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
+    using openswd3::battle::run_legacy_battle_script_dispatch;
 
     {
         Fixture fixture;
@@ -4280,6 +4358,33 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             fixture.workspace.cursor == 34U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
             "case forty-two stops its missing-marker scan at thirty-two bytes"
+        );
+    }
+
+    {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(42);
+        for (u32 index = 0U; index < 34U; ++index) {
+            fixture.assets.script[2U + index] = 0x41U;
+        }
+
+        port.typed_stop_enabled = true;
+        port.typed_stop_call = LegacyBattleScriptDispatchCall::frame;
+        port.frame_results = {0U};
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::frame_typed_stop &&
+                result.return_eax == 0U && result.stopped_offset == 2U &&
+                fixture.workspace.cursor == 2U &&
+                fixture.workspace.text_offset == 2U &&
+                fixture.shared.frame_gate == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
+            "unbound battle frame stops at its call instead of reporting script success"
         );
     }
 
@@ -5092,6 +5197,96 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         );
     }
 
+    [&] {
+        const auto fixture_storage = std::make_unique<Fixture>();
+        auto& fixture = *fixture_storage;
+        Port port;
+        fixture.opcode(60);
+        fixture.assets.script[2U] = 'a';
+        fixture.assets.script[3U] = '%';
+        fixture.assets.script[4U] = 'Q';
+        fixture.shared.music_path.fill(0xA5U);
+        auto bindings = fixture.bindings();
+        bindings.asset_root_path = "D:\\GAME\\";
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, bindings, port
+        );
+        constexpr std::string_view expected{"D:\\GAME\\music\\a"};
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                result.return_eax == 1U && fixture.workspace.cursor == 5U &&
+                std::ranges::equal(
+                    fixture.shared.music_path.begin(),
+                    fixture.shared.music_path.begin() + expected.size(),
+                    expected.begin(),
+                    expected.end()
+                ) &&
+                fixture.shared.music_path[expected.size()] == 0U &&
+                fixture.shared.music_path[expected.size() + 1U] == 0xA5U &&
+                port.count(LegacyBattleScriptDispatchCall::stream_stop) == 1U &&
+                port.count(LegacyBattleScriptDispatchCall::stream_start) ==
+                    1U &&
+                port.count(LegacyBattleScriptDispatchCall::stream_set_volume) ==
+                    1U,
+            "case sixty writes the shared music path and calls stop, start, then volume"
+        );
+    }();
+
+    [&] {
+        const auto fixture_storage = std::make_unique<Fixture>();
+        auto& fixture = *fixture_storage;
+        Port port;
+        fixture.opcode(60);
+        std::fill_n(fixture.assets.script.begin() + 2U, 255U, 'x');
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture.workspace.cursor == 259U &&
+                fixture.shared.music_path.size() == 0x300U &&
+                std::ranges::all_of(
+                    fixture.shared.music_path.begin() + 6U,
+                    fixture.shared.music_path.begin() + 261U,
+                    [](const auto value) { return value == 'x'; }
+                ) &&
+                fixture.shared.music_path[261U] == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::stream_stop) == 1U &&
+                port.count(LegacyBattleScriptDispatchCall::stream_start) ==
+                    1U &&
+                port.count(LegacyBattleScriptDispatchCall::stream_set_volume) ==
+                    1U,
+            "case sixty's 255-byte scan plus music prefix and NUL fits the original shared buffer"
+        );
+    }();
+
+    [&] {
+        const auto fixture_storage = std::make_unique<Fixture>();
+        auto& fixture = *fixture_storage;
+        Port port;
+        fixture.opcode(60);
+        fixture.assets.script[2U] = 'a';
+        fixture.assets.script[3U] = '%';
+        fixture.assets.script[4U] = 'Q';
+        std::string root(760U, 'p');
+        root.push_back('\\');
+        auto bindings = fixture.bindings();
+        bindings.asset_root_path = root;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, bindings, port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::string_typed_stop &&
+                result.stopped_offset == 0x300U &&
+                fixture.workspace.cursor == 5U &&
+                fixture.shared.music_path.back() == 'a' &&
+                port.count(LegacyBattleScriptDispatchCall::stream_stop) == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::stream_start) == 0U,
+            "case sixty stops at the first byte beyond the original shared buffer before audio calls"
+        );
+    }();
+
     {
         Fixture fixture;
         Port port;
@@ -5139,4 +5334,14 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             "terminal opcode cleans actors then resets only the authoritative script state"
         );
     }
+}
+
+void test_battle_script_dispatch(openswd3::test::Context& test) {
+    test_battle_script_frame_stop(test);
+    test_battle_script_actor_coordinate_calls(test);
+    test_battle_script_actor_target_selection_calls(test);
+    test_battle_script_current_coordinate_stops(test);
+    test_battle_script_current_coordinate_boundaries(test);
+    test_battle_script_current_coordinate_loops(test);
+    test_battle_script_dispatch_cases(test);
 }

@@ -40,7 +40,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_one() {
     }
 
     bindings_.shared.frame_gate = 1U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     workspace_.value_a = std::bit_cast<i32>(eax_);
     if (eax_ == 1U) {
         return finish(1U);
@@ -108,7 +111,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_two() {
 
     if (bindings_.message_phase.entry_list_gate != 0U) {
         bindings_.shared.frame_gate = 0U;
-        run_frame();
+        if (!run_frame()) {
+            return finish(eax_);
+        }
+
         return finish(1U);
     }
 
@@ -159,7 +165,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_two() {
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_three() {
     bindings_.shared.frame_gate = 0U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
     bindings_.shared.frame_gate = 1U;
     return finish(1U);
@@ -171,7 +180,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_four() {
         return finish();
     }
     bindings_.shared.frame_value = std::bit_cast<u32>(signed_word(value));
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
     return finish(1U);
 }
@@ -238,9 +250,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_five() {
     if (!rebuild_actor_order_direct()) {
         return finish(eax_);
     }
-    if (workspace_.frame_after_move_gate == 1U) {
-        run_frame();
+    if (workspace_.frame_after_move_gate == 1U && !run_frame()) {
+        return finish(eax_);
     }
+
     bindings_.shared.frame_gate = 1U;
     return finish(1U);
 }
@@ -256,25 +269,38 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_six() {
         state = (state & 0xFFFF0000U) |
             static_cast<u32>(static_cast<u16>(count | 0x8000U));
         workspace_.dynamic_wait_state = state;
-        run_frame();
+        if (!run_frame()) {
+            return finish(eax_);
+        }
+
         return finish(1U);
     }
+
     if ((state & 0x7FFFU) == 0U) {
         workspace_.dynamic_wait_state = 0U;
         workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
         bindings_.shared.frame_gate = 1U;
-        run_frame();
+        if (!run_frame()) {
+            return finish(eax_);
+        }
+
         return finish(1U);
     }
+
     workspace_.dynamic_wait_state = state - 1U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     return finish(1U);
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_eight() {
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
     bindings_.shared.frame_gate = 1U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
 
     u16 actor{};
     u16 selector{};
@@ -399,7 +425,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_nine() {
         return finish(eax_);
     }
     bindings_.shared.frame_gate = 0U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     bindings_.shared.frame_gate = 1U;
     workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
     return finish(1U);
@@ -463,7 +492,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_ten() {
         );
     }
     bindings_.shared.frame_gate = 0U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
     set_high_word(workspace_.packed_actor_state, 0U);
     bindings_.input_dispatch.selection_cache_gate_a = 0U;
@@ -547,12 +579,19 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eleven() {
         );
         bindings_.shared.action_completion_gate = 0U;
         bindings_.shared.frame_gate = 1U;
-        run_frame();
+        if (!run_frame()) {
+            return finish(eax_);
+        }
+
         return finish(1U);
     }
+
     if (bindings_.shared.action_completion_gate != 1U) {
         bindings_.shared.frame_gate = 1U;
-        run_frame();
+        if (!run_frame()) {
+            return finish(eax_);
+        }
+
         return finish(1U);
     }
     workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
@@ -575,7 +614,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twelve() {
         if (bindings_.shared
                 .actor_state_words[static_cast<std::size_t>(index)] !=
             0xFFFFFFFFU) {
-            run_frame();
+            if (!run_frame()) {
+                return finish(eax_);
+            }
+
             set_high_word(workspace_.packed_value_a, 1U);
             return finish(1U);
         }
@@ -652,7 +694,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_thirteen() {
     workspace_.value_b = 0;
     workspace_.position_x = 0U;
     invoke(LegacyBattleScriptDispatchCall::actor_metrics);
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     return finish(1U);
 }
 
@@ -788,13 +833,19 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixteen() {
             workspace_.packed_value_a,
             static_cast<u16>(low_word(workspace_.packed_value_a) - 1U)
         );
-        run_frame();
+        if (!run_frame()) {
+            return finish(eax_);
+        }
+
         bindings_.shared.frame_gate = 1U;
         return finish(1U);
     }
     workspace_.cursor = wrapping_add(workspace_.cursor, 8U);
     set_low_word(workspace_.packed_value_a, 0U);
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     bindings_.shared.frame_gate = 1U;
     return finish(1U);
 }
@@ -817,7 +868,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eighteen() {
     }
     workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
     bindings_.shared.frame_gate = 0U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     bindings_.shared.frame_gate = 1U;
     return finish(1U);
 }
@@ -1131,7 +1185,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_three() {
         }
     }
     bindings_.shared.frame_gate = 0U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     bindings_.shared.frame_gate = 1U;
     workspace_.cursor = wrapping_add(workspace_.cursor, 8U);
     return finish(1U);
@@ -1163,7 +1220,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_five() {
     bindings_.shared.published_group_b_aux = 0U;
     bindings_.message_phase.group_b_bypass_gate = 1U;
     bindings_.shared.frame_gate = 0U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     if (eax_ != 0U) {
         return finish(1U);
     }

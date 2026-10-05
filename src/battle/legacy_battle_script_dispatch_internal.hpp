@@ -871,10 +871,18 @@ private:
         edx_ = reply.edx;
         flags_ = reply.flags;
         if (reply.typed_stop) {
-            result_.status =
-                LegacyBattleScriptDispatchStatus::script_page_load_typed_stop;
+            if (call_kind == LegacyBattleScriptDispatchCall::frame) {
+                result_.status =
+                    LegacyBattleScriptDispatchStatus::frame_typed_stop;
+                result_.stopped_offset = request.cursor;
+            } else {
+                result_.status = LegacyBattleScriptDispatchStatus::
+                    script_page_load_typed_stop;
+            }
+
             return false;
         }
+
         return true;
     }
 
@@ -1128,8 +1136,8 @@ private:
         ScriptRunner& runner_;
     };
 
-    void run_frame() {
-        invoke(LegacyBattleScriptDispatchCall::frame);
+    [[nodiscard]] bool run_frame() {
+        return invoke(LegacyBattleScriptDispatchCall::frame);
     }
 
     [[nodiscard]] bool toggle_actor_binary_state(
@@ -1590,21 +1598,30 @@ private:
             bindings_.input_dispatch.selection_cache_gate_a = 1U;
             bindings_.shared.action_completion_gate = 0U;
             bindings_.shared.frame_gate = 1U;
-            run_frame();
+            if (!run_frame()) {
+                return finish(eax_);
+            }
+
             return finish(1U);
         }
+
         if (bindings_.shared.action_completion_gate != 1U) {
             bindings_.shared.frame_gate = 1U;
-            run_frame();
+            if (!run_frame()) {
+                return finish(eax_);
+            }
+
             return finish(1U);
         }
+
         workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
         bindings_.shared.frame_gate = 0U;
         set_high_word(workspace_.packed_actor_state, 0U);
         bindings_.input_dispatch.selection_cache_gate_a = 0U;
-        if (completion_runs_frame) {
-            run_frame();
+        if (completion_runs_frame && !run_frame()) {
+            return finish(eax_);
         }
+
         return finish(1U);
     }
 

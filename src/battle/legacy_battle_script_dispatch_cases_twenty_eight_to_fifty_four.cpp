@@ -100,7 +100,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_thirty() {
     }
     bindings_.shared.frame_gate = 0U;
     invoke(LegacyBattleScriptDispatchCall::sample_play, 0x004FF1E4U, {value});
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
     bindings_.shared.frame_gate = 1U;
     return finish(1U);
@@ -533,7 +536,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_thirty_nine() {
         workspace_.position_x = 0U;
     }
     invoke(LegacyBattleScriptDispatchCall::actor_metrics);
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     return finish(1U);
 }
 
@@ -684,7 +690,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_forty() {
         ++index;
     }
     invoke(LegacyBattleScriptDispatchCall::actor_metrics);
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     return finish(1U);
 }
 
@@ -731,7 +740,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_forty_two() {
         }
     }
     bindings_.shared.frame_gate = 0U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     workspace_.cursor = wrapping_add(workspace_.text_offset, length);
     workspace_.position_x = 0U;
     bindings_.shared.frame_gate = 1U;
@@ -747,7 +759,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_forty_three() {
     bindings_.input_dispatch.selected_actor_cleanup_gate = 0U;
     bindings_.message_phase.group_b_bypass_gate = 1U;
     bindings_.shared.frame_gate = 0U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
     return finish(1U);
 }
@@ -1163,8 +1178,12 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifty_four() {
         )) {
         return finish(eax_);
     }
+
     bindings_.shared.frame_gate = 0U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     workspace_.value_a = 0;
     workspace_.value_b = 0;
     workspace_.value_c = 0;

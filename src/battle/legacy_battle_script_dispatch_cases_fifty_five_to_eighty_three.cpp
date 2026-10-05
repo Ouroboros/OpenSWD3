@@ -151,7 +151,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifty_nine() {
         bindings_.input_dispatch.selection_cache_gate_a = 1U;
     }
     if (bindings_.message_phase.entry_list_gate != 0U) {
-        run_frame();
+        if (!run_frame()) {
+            return finish(eax_);
+        }
+
         return finish(1U);
     }
     return finish_dynamic_text();
@@ -175,9 +178,19 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty() {
     }
     workspace_.cursor = wrapping_add(workspace_.text_offset, length + 2U);
     workspace_.text_offset = workspace_.cursor;
-    bindings_.shared.music_path.fill(0U);
-    constexpr std::array<u8, 6> prefix{'m', 'u', 's', 'i', 'c', '\\'};
     u32 destination = 0U;
+    for (const char value : bindings_.asset_root_path) {
+        if (value == '\0') {
+            break;
+        }
+        if (destination >= bindings_.shared.music_path.size()) {
+            return stop(
+                LegacyBattleScriptDispatchStatus::string_typed_stop, destination
+            );
+        }
+        bindings_.shared.music_path[destination++] = static_cast<u8>(value);
+    }
+    constexpr std::array<u8, 6> prefix{'m', 'u', 's', 'i', 'c', '\\'};
     for (const u8 value : prefix) {
         if (destination >= bindings_.shared.music_path.size()) {
             return stop(
@@ -345,8 +358,12 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_three() {
     if (std::bit_cast<i32>(bindings_.shared.movement_frames) <= 0) {
         workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
     }
+
     bindings_.shared.frame_gate = 0U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     bindings_.shared.frame_gate = 1U;
     return finish(1U);
 }
@@ -370,7 +387,11 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_four() {
         set_high_word(workspace_.packed_actor_state, 0U);
         workspace_.word_a = 0U;
     }
-    run_frame();
+
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     set_high_word(workspace_.packed_actor_state, 0U);
     workspace_.word_a = 0U;
     return finish(1U);
@@ -417,7 +438,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_five() {
         }
         return finish(1U);
     }
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     set_high_word(workspace_.packed_value_a, 0U);
     set_low_word(workspace_.packed_value_b, 0U);
     workspace_.cursor = wrapping_add(workspace_.cursor, 10U);
@@ -464,7 +488,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_six() {
             {item_id}
         );
     }
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     set_high_word(workspace_.packed_value_a, 0U);
     set_low_word(workspace_.packed_value_b, 0U);
     workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
@@ -474,7 +501,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_six() {
 LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_seven() {
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
     workspace_.completion_gate = 1U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     return finish(1U);
 }
 
@@ -511,7 +541,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_eight() {
     workspace_.word_a = 0U;
     workspace_.word_b = 0U;
     bindings_.shared.frame_gate = 0U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     bindings_.shared.frame_gate = 1U;
     workspace_.cursor = wrapping_add(workspace_.cursor, 8U);
     return finish(1U);
@@ -710,7 +743,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_three() {
         ++index;
     }
     invoke(LegacyBattleScriptDispatchCall::actor_metrics);
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     return finish(1U);
 }
 
@@ -952,7 +988,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_eight() {
         workspace_.word_a = 0U;
     }
     bindings_.shared.frame_gate = 1U;
-    run_frame();
+    if (!run_frame()) {
+        return finish(eax_);
+    }
+
     if (bindings_.input_dispatch.selected_actor_reset_gate != 0U) {
         return finish(1U);
     }

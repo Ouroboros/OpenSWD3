@@ -23,6 +23,7 @@
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_level_advancement.hpp"
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
+#include "openswd3/battle/legacy_battle_music_path.hpp"
 #include "openswd3/battle/legacy_battle_party_item_definition.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
@@ -31,6 +32,7 @@
 
 #include <array>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 namespace openswd3::battle {
@@ -159,7 +161,7 @@ struct LegacyBattleScriptSharedState {
     std::array<float, 3> movement_step{};
     std::array<compat::u32, 10> actor_order_workspace{};  // 0x00520DD0
     std::array<compat::u32, 126> attack_order_workspace{};
-    std::array<compat::u8, 260> music_path{};  // 0x0053C198
+    LegacyBattleMusicPath music_path{};  // 0x0053C198
     std::vector<LegacyBattleScriptPlayerItemQuantity> player_items;
 };
 
@@ -175,6 +177,7 @@ struct LegacyBattleScriptDispatchBindings {
     LegacyBattleVictoryRewardState& victory;
     LegacyBattleScriptSharedState& shared;
     compat::u32& message_state;
+    std::string_view asset_root_path{};  // Buffer at 0x004A94BC
 };
 
 enum class LegacyBattleScriptDispatchCall : compat::u32 {
@@ -333,6 +336,7 @@ enum class LegacyBattleScriptDispatchStatus : compat::u8 {
     actor_target_selection_typed_stop,
     actor_target_selection_count_query_typed_stop,
     actor_start_gate_increment_typed_stop,
+    frame_typed_stop,
 };
 
 struct LegacyBattleScriptCurrentCoordinateAccess {
