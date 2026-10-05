@@ -70,3 +70,7 @@ callee返回后仍按LST重新读取共享group B数量，再执行store与循�
 定向测试覆盖双表固定清零、caller ECX双word别名、两组token与步长、primary/alternate坐标、i16符号扩展、跨角色保留、组A加8回绕、路径相关EAX/ECX/EDX与最终flags、首个group B `test`的未定义AF标记、首个group A及后续循环`cmp`入口flags、第二源读取停止后的第一次部分写入、缺失owner、第九个组B actor停止、第19次store时机、跨动作/启动端口的单一物理状态及七处已关闭caller回收。全部direct路径的`port_calls`为零，并独立记录`coordinate_query_calls`。
 
 当前缺少原版两组完整角色对象、metric与角色顺序两张物理表、栈地址和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 8. Workpack 316 SDL生产入口缺口
+
+用户第二次实际战斗日志`build/vm/wp316-sdl-frame-user-run-v2/openswd3-2026-10-03_19-14-31-66208.log`在输入分派`0x0045FC5B`RET前停下，未执行本函数。后续代码先按LST让预帧早退正常进入`0x00453248→sub_45B0E0`，共享`battle_actor_metrics_`的两张18-dword表在`0x0045B0E4..0x0045B0FE`被依序清零，随后`0x0045B0FE`从同址启动owner的`battle_runtime_.enemy_count`而非metric port默认0读取真实组B数量；非零停在首个坐标CALL`0x0045B11F→sub_4783B0`前，零停在`0x0045B13E`组A数量首读前，包含高位无符号反例。最新定向core 1/1、Linux core／ASan各200/200及Linux／Windows app各206/206通过，但没有第三次SDL实测。当前SDL启动仅部分执行`prepare_legacy_battle_setup`，资源id98显示敌方1／队伍1，不能因为只借用了组B数量owner，就宣称原版`sub_451B10`、后续组A额外成员或坐标callee已经绑定，也不能提前宣称角色metric完成。`0x0045B11F`首次CALLeffect还需要`sub_453200`音乐调用、`sub_45FC60`鼠标输入与`sub_45F2A0`分派及`sub_45D490`预帧依序留下的ECX/EDX，以及真实两字栈局部输出地址；SDL音乐端口目前只返回EAX，不能把默认0视作完整CPU现场，不能在坐标子函数中虚构正常返回。组B对象坐标当前由真实资源的`prepare_legacy_battle_setup`写入共享`battle_runtime_.group_b_lifecycle`，但这仅证明可定位字段，仍需严格绑定该次CALL前现场与完整启动生命周期。

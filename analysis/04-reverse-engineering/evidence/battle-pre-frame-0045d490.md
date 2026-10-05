@@ -101,3 +101,7 @@ D490涉及的active、secondary、published、action execution、auxiliary、事
 工作包278关闭`0x0045D51C`、`0x0045D5BB`、`0x0045D647`三处物理call，参数依次为完整dword `1`、`1`、`0`。三处均在按actor code定位组A对象后直连共享availability owner；第一处EDX保留入口流程刚读取的source actor code，第二处保留组A通知callee返回EDX，第三处EDX是重新读取的secondary actor code。写停止时EAX已装参数、ECX为实际组Atoken，并阻断各自后续配置、记录、workspace及terminal尾部。
 
 当前缺少原版角色对象、三类剩余callee、完整共享全局、动态数量修改和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 10. Workpack 316 的SDL实际入口前缀
+
+用户第二次开场战斗日志`build/vm/wp316-sdl-frame-user-run-v2/openswd3-2026-10-03_19-14-31-66208.log`只到`0x0045FC5B`输入分派RET前：记录2／18均零、后续12项rapid零、脚本status=32，不能宣称已经执行本函数。此后SDL生产前缀在可证实的输入正常返回后，依LST顺序读`0x0053C018`、active actor及message；前两个门的早退不读后续状态，活跃路径在`0x0045D4C8`source首读前停止，早退路径按下一CALL`0x00453248→sub_45B0E0`清metric两张表，并借用启动owner读取`0x0045B0FE`组B计数；非零停在`0x0045B11F→sub_4783B0`前，零停在`0x0045B13E`组A读前。SDL的`0x0053C018`借用已存在的`battle_input_dispatch_.selected_actor_cleanup_gate`，不能再给`LegacyBattleSharedPhaseStatePort::battle_terminal_latch()`保留独立生产副本。新门、metric清表与组B计数首读各自定向core 1/1、Linux core／ASan各200/200及Linux／Windows app各206/206通过；尚无新SDL实际回调记录，也未进入角色坐标CALL或到角色帧。

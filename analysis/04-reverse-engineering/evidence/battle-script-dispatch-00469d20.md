@@ -24,6 +24,8 @@
 - 公共帧出口`0x0046DF20..0x0046DF35`：先把入口EBP写入帧门，再调用`0x00453200`，随后返回1。调用返回寄存器在该公共出口不可见。
 - 结束出口`0x0046DEB7..0x0046DF1F`：按live signed组B数量逐项调用角色清理，再按live signed组A数量逐项清理；随后清等待word、调用全局重置和脚本收尾，返回0。两个循环每轮重读live数量，不使用入口快照。
 
+Workpack 316生产接线未完成：SDL战斗脚本的`frame`回调原先固定返回`EAX=1`，没有执行当次真实的`sub_453200` CALL（公共帧出口为`0x0046DF26`）。当前未绑定帧协调器所需owner和port时，回调改为明确`frame_typed_stop`；脚本调用方保留CALL前缀，禁止执行正常RET后的游标、帧门、清理后缀。SDL收到该状态后记错并置失败／停止运行，避免下一帧重复执行半成品状态。`step_battle`对所有非completed的脚本停点均以无返回值传给战斗父帧；战斗资产或setup未就绪时也显式停机，不再返回0触发正常返世界分支（现代失败边界，不是原版RET）。`run_battle_frame`在脚本未返回时不执行正常RET后音频维护或战斗结果分支，`run_accepted_frame`单独返回`battle_typed_stop`，不把停止伪装成EAX=1。此停点不属于原程序的返回路径，不能当作`sub_453200`已接入或1:1兼容。定向`battle.legacy_battle_setup`在case 3、25、42分别核正常EAX=0与typed-stop的区别及停点前状态，Linux core 1/1通过；父帧的`app.battle_transition`与`app.frame_runtime`单测分别核脚本未返回时没有音频维护、结果后缀或common tail，core均通过。父帧修改后的Linux core／ASan各200/200通过；上述SDL停点修正后，定向app 3/3及完整Linux app206/206通过。这些门禁不是最终316源码验证；尚无从实际SDL回调进入的测试或战斗帧调用轨迹，保持WIP。
+
 ## 4. 已审计case：`-1`、`0..10`
 
 ### case `-1`
@@ -322,7 +324,7 @@ case56把`script+2`作为组Bactor u16并写入packed状态高word。caller按`s
 
 ### case `60`
 
-从`script+2`最多扫描255 bytes寻找`%Q`，把长度前缀复制到255-byte临时缓冲；无标记时使用offset255并仍越过后续2 bytes。cursor更新到标记/上限后。随后以不带边界的旧字符串复制/追加顺序构造`music\\`加脚本文字的共享音乐路径，依次停止当前流、以参数0启动新路径、提交固定音量对象。现代实现只在原字符串首次真实越界访问点typed-stop，不预先截断或扩大缓冲。
+从`script+2`最多扫描255 bytes寻找`%Q`，把长度前缀复制到255-byte临时缓冲；无标记时使用offset255并仍越过后续2 bytes。cursor更新到标记/上限后。随后`0x0046D30A–0x0046D347`依次以`lstrcpyA`复制全局`Buffer`、以两次`lstrcatA`追加`music\\`与脚本文字，未先清空整块路径；终止字节后的旧字节保留。`Buffer`在`0x00425053–0x00425091`由`GetCurrentDirectoryA`与追加反斜杠形成，是独立于音乐路径的原版目录前缀。当前C++改从`LegacyBattleScriptDispatchBindings::asset_root_path`复制该前缀而不预清整块路径；SDL在`step_battle()`中以配置的数据目录及宿主目录分隔符提供借用前缀，这是独立目录配置的现代平台适配，不是原版`GetCurrentDirectoryA`字节等价。随后依次停止当前流、压入未被`sub_4856C0`读取的0并以共享路径启动、从`dword_4C9A0C`读取音乐音量提交。LST的`.data:0053C198`分配`0x300`字节，下一word起于`0x0053C498`；不含目录前缀时，扫描最大255字节加6字节字面前缀及NUL为262字节，落在该范围内；原版目录长度可使组合串超出`0x300`，现代实现于首次越过共享缓冲区处显式typed-stop，不能将该停点冒充原版RET。此前C++将此owner缩为260字节，会对合法长度过早停点；现恢复`0x300`字节共享容量。定向core 1/1覆盖短目录、旧尾字节保留、255字节文字与长目录首次越界；SDL的三个音频端口已绑定现有流管理器，Linux反斜杠仅在宿主路径输入前转换。该源码的完整Linux core／ASan各200/200及app206/206通过；没有实际SDL回调运行测试，亦非316最终门禁。
 
 ## 10. 已审计case：`61..66`
 
@@ -461,7 +463,7 @@ cursor前进2，设置独立脚本门为1，发布cursor后调用完整战斗帧
 
 `include/openswd3/battle/legacy_battle_script_dispatch.hpp`定义0x8000-byte脚本窗口、工作区、共享状态、窄调用ABI和停止状态；`src/battle/legacy_battle_script_dispatch.cpp`显式实现85个case。实现保留bit15跨帧状态、陈旧寄存器高位、u16/u32回绕、signed比较与除法、x87向零转换、变长扫描、动态链节点、释放顺序和每条不对称cursor路径。
 
-唯一caller`0x0040A570`对应SDL `SdlSmokeIdlePorts::step_battle()`。旧固定返回1占位已删除；初始化阶段把battle setup的双方数量、角色资源与坐标发布到同一`LegacyBattleStartupState`，逐帧调用typed分派器并把0/1/2/3原样交回既有`run_frame_iteration`战斗恢复分支。typed-stop记录状态、opcode和offset后保持战斗活动，不伪装成成功退出。生产源码不再含`0x00469D20`函数地址或固定`step_battle`返回1边界。
+唯一caller`0x0040A570`对应SDL `SdlSmokeIdlePorts::step_battle()`。旧固定返回1占位已删除；初始化阶段把battle setup的双方数量、角色资源与坐标发布到同一`LegacyBattleStartupState`，逐帧调用typed分派器并把0/1/2/3原样交回既有`run_frame_iteration`战斗恢复分支。typed-stop记录状态、opcode和offset后保持战斗活动；所有脚本停点均不发布普通战斗结果、也不执行父帧音频尾调用。生产源码不再含`0x00469D20`函数地址或固定`step_battle`返回1边界。
 
 ## 16. 验证与动态差分
 
