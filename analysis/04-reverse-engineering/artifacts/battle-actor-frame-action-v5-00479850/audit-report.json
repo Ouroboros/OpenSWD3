@@ -24,7 +24,12 @@
       "0": 527
     },
     "defined_shift_flags_mask": "0x00c5",
-    "stack_return_address": "0x0045aa38"
+    "stack_return_address": "0x0045aa38",
+    "gate_2abc": 0,
+    "selector_2a94": 0,
+    "main_action_2a6c": 0,
+    "return_eax": 0,
+    "unchanged_actor_frames": 527
   },
   "actor_action_words_by_phase": [
     {

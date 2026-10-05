@@ -99,6 +99,8 @@ assert {s['site'] for s in calls.values()} == {'final_group_a'}
 # Compare only this run's observed final-group-A entry state. The captured
 # index happens to be zero; this cannot validate nonzero-index arithmetic.
 entry_indices = Counter()
+entry_paths = Counter()
+unchanged_actor_frames = 0
 for ident, call in calls.items():
     entry = frames[ident]['enter']
     registers = entry['registers']
@@ -128,7 +130,18 @@ for ident, call in calls.items():
     assert int(stack_event['address'], 16) == int(registers['esp'], 16), ident
     stack = (run / stack_event['snapshot_file']).read_bytes()
     assert int.from_bytes(stack[:4], 'little') == 0x45AA38, ident
+    before = (run / entry['snapshot_file']).read_bytes()
+    after = (run / frames[ident]['leave']['snapshot_file']).read_bytes()
+    gate = int.from_bytes(before[0x2abc:0x2ac0], 'little')
+    selector = before[0x2a94]
+    main_action = int.from_bytes(before[0x2a6c:0x2a6e], 'little')
+    return_eax = int(returns[ident]['eax'], 16)
+    assert int(frames[ident]['leave']['registers']['eax'], 16) == return_eax, ident
+    entry_paths[(gate, selector, main_action, return_eax)] += 1
+    unchanged_actor_frames += before == after
 assert entry_indices == {0: 527}, entry_indices
+assert entry_paths == {(0, 0, 0, 0): 527}, entry_paths
+assert unchanged_actor_frames == 527, unchanged_actor_frames
 assert len(nodes) == 1 and len(scans) == 2
 for ident, scan in scans.items():
     these = sorted(nodes.get(ident, []), key=lambda e: e['index'])
@@ -156,6 +169,11 @@ report = {
         'indices': dict(sorted(entry_indices.items())),
         'defined_shift_flags_mask': '0x00c5',
         'stack_return_address': '0x0045aa38',
+        'gate_2abc': 0,
+        'selector_2a94': 0,
+        'main_action_2a6c': 0,
+        'return_eax': 0,
+        'unchanged_actor_frames': unchanged_actor_frames,
     },
     'actor_action_words_by_phase': [
         {'phase': phase, 'main_2a6c': main, 'fallback_2a70': fallback,
