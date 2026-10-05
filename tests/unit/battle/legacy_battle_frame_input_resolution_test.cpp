@@ -1,11 +1,14 @@
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 
 #include <algorithm>
 #include <array>
 #include <map>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "test.hpp"
@@ -15,6 +18,9 @@ namespace {
 using openswd3::battle::LegacyBattleFrameInputResolutionCall;
 using openswd3::battle::LegacyBattleFrameInputResolutionCallReply;
 using openswd3::battle::LegacyBattleFrameInputResolutionCallRequest;
+using openswd3::battle::LegacyBattleFrameInputGateStatus;
+using openswd3::battle::run_legacy_battle_frame_input_gate_prefix;
+using openswd3::battle::run_legacy_battle_frame_input_hotspot_prefix;
 using openswd3::battle::LegacyBattleInputDispatchCallReply;
 using openswd3::battle::LegacyBattleInputDispatchCallRequest;
 using openswd3::compat::i32;
@@ -192,6 +198,383 @@ struct Fixture {
 }  // namespace
 
 void test_battle_frame_input_resolution(openswd3::test::Context& test) {
+    // Original byte_460C20 at 0x00460C20; table index 9 targets
+    // def_45FD00. Keep this oracle separate from the runtime predicate.
+    constexpr std::array<openswd3::compat::u8, 31> kLstMessageIndices{
+        0U, 1U, 2U, 3U, 4U, 5U, 9U, 9U, 6U, 9U, 9U, 9U, 9U, 9U, 9U, 9U,
+        9U, 9U, 9U, 9U, 9U, 9U, 9U, 9U, 9U, 9U, 9U, 7U, 9U, 9U, 8U,
+    };
+    for (u32 message = 0U; message < kLstMessageIndices.size(); ++message) {
+        test.expect_true(
+            openswd3::battle::is_legacy_battle_frame_input_default_message(
+                message
+            ) == (kLstMessageIndices[message] == 9U),
+            "original message jump-table default classification " +
+                std::to_string(message)
+        );
+    }
+    test.expect_true(
+        openswd3::battle::is_legacy_battle_frame_input_default_message(
+            0x80000000U
+        ),
+        "message above unsigned jump-table bound uses the original default"
+    );
+    {
+        openswd3::battle::LegacyBattleFrameInputResolutionState state;
+        const auto blocked = [&] {
+            return openswd3::battle::
+                is_legacy_battle_frame_input_case_three_blocked(state);
+        };
+        test.expect_true(!blocked(), "case-three empty guards continue");
+        state.target_selection_block = 2U;
+        test.expect_true(
+            !blocked(), "case-three first guard compares exactly one"
+        );
+        state.target_selection_block = 1U;
+        test.expect_true(blocked(), "case-three first guard defaults at one");
+        state.target_selection_block = 0U;
+        state.target_selection_suppression = 1U;
+        test.expect_true(
+            blocked(), "case-three music suppression defaults at one"
+        );
+        state.target_selection_suppression = 0U;
+        state.selection_block_word = 1U;
+        test.expect_true(
+            blocked(), "case-three nonzero selection word defaults"
+        );
+    }
+    for (const auto [message, left, right] : std::array<std::array<u32, 3>, 2>{
+             {{5U, 0xC4U, 0x178U}, {8U, 0xE0U, 0x199U}}
+         }) {
+        const auto outside = [&](const u32 x) {
+            return openswd3::battle::is_legacy_battle_frame_input_row_x_outside(
+                message, x
+            );
+        };
+        test.expect_true(
+            outside(left) && outside(right) && !outside(left + 1U) &&
+                !outside(right - 1U),
+            "case-five/eight strict horizontal bound " + std::to_string(message)
+        );
+    }
+    {
+        openswd3::battle::LegacyBattleFrameInputResolutionState state;
+        state.hovered_equipment = 12U;
+        state.hovered_secondary = 34U;
+        openswd3::battle::reset_legacy_battle_frame_input_case_two_hover_prefix(
+            state
+        );
+        test.expect_true(
+            state.hovered_equipment == 0xFFFFFFFFU &&
+                state.hovered_secondary == 34U,
+            "case-two reset writes only the physical equipment hover slot"
+        );
+        state.hovered_equipment = 56U;
+        openswd3::battle::
+            reset_legacy_battle_frame_input_case_four_hover_prefix(state);
+        test.expect_true(
+            state.hovered_equipment == 56U &&
+                state.hovered_secondary == 0xFFFFFFFFU,
+            "case-four reset writes only the adjacent secondary hover slot"
+        );
+    }
+
+    [&] {
+        const auto fixture = std::make_unique<Fixture>();
+        auto& state = fixture->port.battle_frame_input_resolution_state();
+        state.pointer_activity_gate = 9U;
+        const auto unchanged = run_legacy_battle_frame_input_gate_prefix(
+            state, fixture->final_actor, fixture->input
+        );
+        test.expect_true(
+            unchanged.status ==
+                    LegacyBattleFrameInputGateStatus::returned_zero &&
+                unchanged.eax == 0U && state.pointer_activity_gate == 9U &&
+                fixture->final_actor.pre_frame_gate_b == 0U,
+            "unchanged mouse and zero pre-frame gate return before any write"
+        );
+
+        fixture->set_mouse(100, 400);
+        const auto moved = run_legacy_battle_frame_input_gate_prefix(
+            state, fixture->final_actor, fixture->input
+        );
+        test.expect_true(
+            moved.status ==
+                    LegacyBattleFrameInputGateStatus::
+                        continue_at_hotspot_head &&
+                moved.eax == 0U && state.previous_mouse_x == 0 &&
+                state.previous_mouse_y == 0 &&
+                state.pointer_activity_gate == 0U &&
+                fixture->final_actor.pre_frame_gate_b == 1U,
+            "moved mouse changes gates but stops before the later coordinate stores"
+        );
+
+        state.previous_mouse_x = 100;
+        state.previous_mouse_y = 400;
+        state.pointer_activity_gate = 8U;
+        fixture->final_actor.pre_frame_gate_b = 7U;
+        const auto repeated = run_legacy_battle_frame_input_gate_prefix(
+            state, fixture->final_actor, fixture->input
+        );
+        test.expect_true(
+            repeated.status ==
+                    LegacyBattleFrameInputGateStatus::
+                        continue_at_hotspot_head &&
+                repeated.eax == 7U && state.pointer_activity_gate == 8U &&
+                fixture->final_actor.pre_frame_gate_b == 7U,
+            "unchanged mouse with a nonzero gate preserves both gate owners"
+        );
+
+        fixture->set_mouse(100, 401);
+        const auto changed_y = run_legacy_battle_frame_input_gate_prefix(
+            state, fixture->final_actor, fixture->input
+        );
+        test.expect_true(
+            changed_y.status ==
+                    LegacyBattleFrameInputGateStatus::
+                        continue_at_hotspot_head &&
+                changed_y.eax == 100U && state.previous_mouse_y == 400 &&
+                state.pointer_activity_gate == 0U &&
+                fixture->final_actor.pre_frame_gate_b == 1U,
+            "Y-only motion retains the old X in EAX and stops before storing Y"
+        );
+
+        auto& selection = fixture->port.battle_input_dispatch_state();
+        selection.choice_guard = 9U;
+        const std::array<openswd3::world_map::LegacyWorldInteractionHotspot, 1>
+            hotspots{{{.left = 10U, .top = 10U, .right = 20U, .bottom = 20U}}};
+        const auto miss = run_legacy_battle_frame_input_hotspot_prefix(
+            state, selection, fixture->input, hotspots, changed_y.eax
+        );
+        test.expect_true(
+            miss.hotspot_queries == 1U && miss.eax == 1U &&
+                state.previous_mouse_x == 100 &&
+                state.previous_mouse_y == 401 && selection.choice_guard == 0U,
+            "hotspot miss writes old coordinates only after reading the chain head"
+        );
+
+        fixture->set_mouse(15, 15);
+        const auto moved_to_choice = run_legacy_battle_frame_input_gate_prefix(
+            state, fixture->final_actor, fixture->input
+        );
+        const auto hit = run_legacy_battle_frame_input_hotspot_prefix(
+            state, selection, fixture->input, hotspots, moved_to_choice.eax
+        );
+        test.expect_true(
+            hit.hotspot_queries == 1U && hit.eax == 0U &&
+                state.previous_mouse_x == 15 && state.previous_mouse_y == 15 &&
+                selection.choice_guard == 1U &&
+                selection.choice_selection_index == 0U,
+            "hotspot hit publishes the same dialog choice owner after the coordinate stores"
+        );
+
+        using openswd3::battle::LegacyBattleFrameInputCaseZeroGateStatus;
+        using openswd3::battle::
+            run_legacy_battle_frame_input_case_zero_gate_prefix;
+        selection.selected_option_word = 0x1234U;
+        const auto count_gate =
+            run_legacy_battle_frame_input_case_zero_gate_prefix(
+                fixture->metrics, fixture->final_actor, selection, 400U
+            );
+        test.expect_true(
+            count_gate ==
+                    LegacyBattleFrameInputCaseZeroGateStatus::
+                        returned_zero_preserving_selection &&
+                selection.selected_option_word == 0x1234U,
+            "case-zero count gate retains the same input-dispatch selection owner"
+        );
+        fixture->startup.enemy_count = 1U;
+        fixture->startup.party_count = 1U;
+        openswd3::battle::bind_legacy_battle_actor_counts_for_frame(
+            fixture->startup, fixture->metrics
+        );
+        const auto live_count_gate =
+            run_legacy_battle_frame_input_case_zero_gate_prefix(
+                fixture->metrics, fixture->final_actor, selection, 400U
+            );
+        test.expect_true(
+            live_count_gate ==
+                    LegacyBattleFrameInputCaseZeroGateStatus::
+                        continue_at_party_source &&
+                selection.selected_option_word == 0x1234U,
+            "case-zero battle frame must not take the stale zero-count return when the startup owner has one enemy and one party actor"
+        );
+        fixture->metrics.group_b_count = 2U;
+        fixture->metrics.group_a_count = 1U;
+        const auto lower = run_legacy_battle_frame_input_case_zero_gate_prefix(
+            fixture->metrics, fixture->final_actor, selection, 0x182U
+        );
+        test.expect_true(
+            lower ==
+                    LegacyBattleFrameInputCaseZeroGateStatus::
+                        returned_zero_clearing_selection &&
+                selection.selected_option_word == 0xFFFFU,
+            "case-zero Y lower boundary clears the selection before returning"
+        );
+        selection.selected_option_word = 0x1234U;
+        const auto inside = run_legacy_battle_frame_input_case_zero_gate_prefix(
+            fixture->metrics, fixture->final_actor, selection, 0x183U
+        );
+        const auto upper_inside =
+            run_legacy_battle_frame_input_case_zero_gate_prefix(
+                fixture->metrics, fixture->final_actor, selection, 0x1DFU
+            );
+        test.expect_true(
+            inside ==
+                    LegacyBattleFrameInputCaseZeroGateStatus::
+                        continue_at_party_source &&
+                upper_inside ==
+                    LegacyBattleFrameInputCaseZeroGateStatus::
+                        continue_at_party_source &&
+                selection.selected_option_word == 0x1234U,
+            "case-zero interior Y values require the real party-source mapping"
+        );
+        const auto upper = run_legacy_battle_frame_input_case_zero_gate_prefix(
+            fixture->metrics, fixture->final_actor, selection, 0x1E0U
+        );
+        test.expect_true(
+            upper ==
+                    LegacyBattleFrameInputCaseZeroGateStatus::
+                        returned_zero_clearing_selection &&
+                selection.selected_option_word == 0xFFFFU,
+            "case-zero Y upper boundary clears the selection before returning"
+        );
+        fixture->metrics.group_b_count = 0x80000000U;
+        selection.selected_option_word = 0x1234U;
+        const auto signed_gate =
+            run_legacy_battle_frame_input_case_zero_gate_prefix(
+                fixture->metrics, fixture->final_actor, selection, 400U
+            );
+        test.expect_true(
+            signed_gate ==
+                    LegacyBattleFrameInputCaseZeroGateStatus::
+                        returned_zero_preserving_selection &&
+                selection.selected_option_word == 0x1234U,
+            "case-zero negative group-B count takes the signed default return"
+        );
+
+        using openswd3::battle::
+            run_legacy_battle_frame_input_case_zero_party_prefix;
+        fixture->metrics.group_b_count = 2U;
+        fixture->metrics.group_a_count = 1U;
+        fixture->startup.action_mode_source.actor_label_indices[0U] = 2U;
+        fixture->startup.party_offsets[2U] = 100;
+        const auto party_hit =
+            run_legacy_battle_frame_input_case_zero_party_prefix(
+                fixture->startup, fixture->metrics, selection, 100U, 2U
+            );
+        test.expect_true(
+            party_hit.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        completed &&
+                party_hit.eax == 1U && party_hit.ecx == 8U &&
+                party_hit.edx == 0x004A75C8U &&
+                selection.selected_option_word == 8U,
+            "case-zero first mapped party hit preserves the source pointer in EDX"
+        );
+        for (const auto [mouse_x, expected_hit] :
+             std::array<std::pair<u32, bool>, 4>{
+                 {{76U, false}, {77U, true}, {215U, true}, {216U, false}}
+             }) {
+            selection.selected_option_word = 0x1234U;
+            const auto edge =
+                run_legacy_battle_frame_input_case_zero_party_prefix(
+                    fixture->startup, fixture->metrics, selection, mouse_x, 2U
+                );
+            test.expect_true(
+                edge.eax == static_cast<u32>(expected_hit) &&
+                    selection.selected_option_word ==
+                        (expected_hit ? 8U : 0xFFFFU),
+                "case-zero horizontal strict bound x=" + std::to_string(mouse_x)
+            );
+        }
+        selection.selected_option_word = 0x1234U;
+        const auto party_miss =
+            run_legacy_battle_frame_input_case_zero_party_prefix(
+                fixture->startup, fixture->metrics, selection, 0U, 2U
+            );
+        test.expect_true(
+            party_miss.eax == 0U && party_miss.ecx == 1U &&
+                party_miss.edx == 0x004A75CCU &&
+                selection.selected_option_word == 0xFFFFU,
+            "case-zero exhausted party scan advances EDX and clears selection"
+        );
+        fixture->metrics.group_a_count = 5U;
+        for (std::size_t index = 0U; index < 5U; ++index) {
+            fixture->startup.action_mode_source.actor_label_indices[index] =
+                static_cast<u32>(index);
+            fixture->startup.party_offsets[index] = index == 4U ? 500 : 100;
+        }
+        const auto fifth = run_legacy_battle_frame_input_case_zero_party_prefix(
+            fixture->startup, fixture->metrics, selection, 500U, 2U
+        );
+        test.expect_true(
+            fifth.eax == 1U && fifth.ecx == 12U && fifth.edx == 0x004A75D8U &&
+                selection.selected_option_word == 12U,
+            "case-zero fifth adjacent party-source dword remains readable"
+        );
+        fixture->metrics.group_a_count = 1U;
+        fixture->startup.action_mode_source.actor_label_indices[0U] = 9U;
+        fixture->startup.action_mode_source.actor_label_indices[1U] = 100U;
+        const auto adjacent_offset =
+            run_legacy_battle_frame_input_case_zero_party_prefix(
+                fixture->startup, fixture->metrics, selection, 100U, 2U
+            );
+        test.expect_true(
+            adjacent_offset.eax == 1U && adjacent_offset.ecx == 8U &&
+                adjacent_offset.edx == 0x004A75C8U &&
+                selection.selected_option_word == 8U,
+            "case-zero offset index nine aliases the second adjacent source dword"
+        );
+        fixture->startup.action_mode_source.actor_label_indices[0U] = 18U;
+        selection.selected_option_word = 0x1234U;
+        const auto bad_offset =
+            run_legacy_battle_frame_input_case_zero_party_prefix(
+                fixture->startup, fixture->metrics, selection, 500U, 2U
+            );
+        test.expect_true(
+            bad_offset.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        party_offset_typed_stop &&
+                bad_offset.eax == 18U && bad_offset.ecx == 0U &&
+                bad_offset.edx == 0x004A75C8U &&
+                selection.selected_option_word == 0x1234U,
+            "case-zero offset stops only after its eight dwords and ten adjacent mapped dwords"
+        );
+        fixture->metrics.group_a_count = 11U;
+        for (auto& source :
+             fixture->startup.action_mode_source.actor_label_indices) {
+            source = 0U;
+        }
+        fixture->startup.party_offsets[0U] = 100;
+        const auto bad_source =
+            run_legacy_battle_frame_input_case_zero_party_prefix(
+                fixture->startup, fixture->metrics, selection, 5000U, 2U
+            );
+        test.expect_true(
+            bad_source.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        party_source_index_typed_stop &&
+                bad_source.eax == 216U && bad_source.ecx == 10U &&
+                bad_source.edx == 0x004A75F0U &&
+                selection.selected_option_word == 0x1234U,
+            "case-zero upper miss retains the added EAX on the next unbound read"
+        );
+        const auto lower_miss_source =
+            run_legacy_battle_frame_input_case_zero_party_prefix(
+                fixture->startup, fixture->metrics, selection, 0U, 2U
+            );
+        test.expect_true(
+            lower_miss_source.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        party_source_index_typed_stop &&
+                lower_miss_source.eax == 100U && lower_miss_source.ecx == 10U &&
+                lower_miss_source.edx == 0x004A75F0U &&
+                selection.selected_option_word == 0x1234U,
+            "case-zero lower miss retains the unadjusted EAX on the next unbound read"
+        );
+    }();
+
     {
         Fixture fixture;
         const auto result =
@@ -213,6 +596,102 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.set_mouse(100, 400);
+        fixture.message = 31U;
+        fixture.port.battle_input_dispatch_state().selected_option_word =
+            0x1234U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        completed &&
+                result.return_eax == 0U && fixture.port.calls.empty() &&
+                fixture.port.battle_input_dispatch_state()
+                        .selected_option_word == 0x1234U,
+            "message value above thirty takes the default return without clearing selection"
+        );
+    }
+
+    for (const u32 message : {6U, 7U, 9U, 26U, 28U, 29U}) {
+        Fixture fixture;
+        fixture.set_mouse(100, 400);
+        fixture.message = message;
+        fixture.port.battle_input_dispatch_state().selected_option_word =
+            0x1234U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameInputResolutionStatus::
+                        completed &&
+                result.return_eax == 0U && fixture.port.calls.empty() &&
+                fixture.port.battle_input_dispatch_state()
+                        .selected_option_word == 0x1234U,
+            "original in-range default message preserves selection " +
+                std::to_string(message)
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(100, 400);
+        fixture.port.battle_input_dispatch_state().selected_option_word =
+            0x1234U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.return_eax == 0U &&
+                fixture.port.battle_input_dispatch_state()
+                        .selected_option_word == 0x1234U,
+            "case zero count gate jumps directly to the default return without clearing the selection word"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(100, 400);
+        fixture.metrics.group_b_count = 0x80000000U;
+        fixture.port.battle_input_dispatch_state().selected_option_word =
+            0x1234U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.return_eax == 0U &&
+                fixture.port.battle_input_dispatch_state()
+                        .selected_option_word == 0x1234U,
+            "case zero signed count comparison rejects a negative group-B count before the selection clear"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(100, 400);
+        fixture.metrics.group_b_count = 2U;
+        fixture.port.battle_input_dispatch_state().selected_option_word =
+            0x1234U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture.bindings(), fixture.port
+            );
+        test.expect_true(
+            result.return_eax == 0U &&
+                fixture.port.battle_input_dispatch_state()
+                        .selected_option_word == 0xFFFFU,
+            "case zero vertical-range gate reaches the distinct selection-word clear and returns zero"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.set_mouse(100, 400);
         fixture.metrics.group_b_count = 2U;
         fixture.metrics.group_a_count = 1U;
         fixture.startup.action_mode_source.actor_label_indices[0U] = 2U;
@@ -225,7 +704,8 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
                 fixture.bindings(), fixture.port
             );
         test.expect_true(
-            result.return_eax == 1U &&
+            result.return_eax == 1U && result.return_ecx == 8U &&
+                result.return_edx == 0x004A75C8U &&
                 fixture.port.battle_input_dispatch_state()
                         .selected_option_word == 8U &&
                 fixture.final_actor.pre_frame_gate_b == 1U &&
@@ -286,6 +766,27 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
         );
     }
 
+    for (const u32 message : {2U, 4U}) {
+        const auto fixture = std::make_unique<Fixture>();
+        fixture->set_mouse(10, 0);
+        fixture->message = message;
+        auto& state = fixture->port.battle_frame_input_resolution_state();
+        state.hovered_equipment = 12U;
+        state.hovered_secondary = 34U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture->bindings(), fixture->port
+            );
+        test.expect_true(
+            result.return_eax == 0U && fixture->port.calls.empty() &&
+                state.hovered_equipment ==
+                    (message == 2U ? 0xFFFFFFFFU : 12U) &&
+                state.hovered_secondary == (message == 4U ? 0xFFFFFFFFU : 34U),
+            "case-two/four hover reset precedes the vertical scan " +
+                std::to_string(message)
+        );
+    }
+
     {
         Fixture fixture;
         fixture.set_mouse(0x193, 0xA0);
@@ -343,6 +844,69 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
                         .choice_selection_index == 0U,
             "nonempty choice owner directly performs the strict hotspot query and publishes its first hit"
         );
+    }
+
+    {
+        const auto fixture = std::make_unique<Fixture>();
+        fixture->set_mouse(100, 400);
+        fixture->message = 1U;
+        fixture->port.battle_input_dispatch_state().selected_option_word =
+            0x1234U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture->bindings(), fixture->port
+            );
+        test.expect_true(
+            result.return_eax == 0U && fixture->port.calls.empty() &&
+                fixture->port.battle_input_dispatch_state()
+                        .selected_option_word == 0x1234U,
+            "case-one zero queued actor returns through the default without a panel read"
+        );
+    }
+    for (const u32 blocked_by : {0U, 1U, 2U}) {
+        const auto fixture = std::make_unique<Fixture>();
+        fixture->set_mouse(100, 400);
+        fixture->message = 3U;
+        fixture->final_actor.queued_actor_code = 8U;
+        auto& state = fixture->port.battle_frame_input_resolution_state();
+        if (blocked_by == 0U) {
+            state.target_selection_block = 1U;
+        } else if (blocked_by == 1U) {
+            state.target_selection_suppression = 1U;
+        } else {
+            state.selection_block_word = 1U;
+        }
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture->bindings(), fixture->port
+            );
+        test.expect_true(
+            result.return_eax == 0U && fixture->port.calls.empty(),
+            "case-three first guarded default skips the actor slot " +
+                std::to_string(blocked_by)
+        );
+    }
+    for (const auto [message, left, right] : std::array<std::array<u32, 3>, 2>{
+             {{5U, 0xC4U, 0x178U}, {8U, 0xE0U, 0x199U}}
+         }) {
+        for (const u32 x : {left, right}) {
+            const auto fixture = std::make_unique<Fixture>();
+            fixture->set_mouse(static_cast<i32>(x), 220);
+            fixture->message = message;
+            fixture->port.battle_input_dispatch_state().mouse_action_gate =
+                0x1234U;
+            const auto result = openswd3::battle::
+                coordinate_legacy_battle_frame_input_resolution(
+                    fixture->bindings(), fixture->port
+                );
+            test.expect_true(
+                result.return_eax == 0U && fixture->port.calls.empty() &&
+                    fixture->port.battle_input_dispatch_state()
+                            .mouse_action_gate == 0U,
+                "case-five/eight horizontal boundary clears input gate " +
+                    std::to_string(message) + ":" + std::to_string(x)
+            );
+        }
     }
 
     {

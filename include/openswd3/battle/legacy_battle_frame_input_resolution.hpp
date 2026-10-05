@@ -172,6 +172,79 @@ struct LegacyBattleFrameInputResolutionRequest {
     std::array<bool, 3> actor_frame_resource_object_readable{true, true, true};
 };
 
+enum class LegacyBattleFrameInputGateStatus : compat::u8 {
+    returned_zero,
+    continue_at_hotspot_head,
+};
+
+struct LegacyBattleFrameInputGateResult {
+    LegacyBattleFrameInputGateStatus status{
+        LegacyBattleFrameInputGateStatus::returned_zero
+    };
+    compat::u32 eax{};
+};
+
+[[nodiscard]] LegacyBattleFrameInputGateResult
+run_legacy_battle_frame_input_gate_prefix(
+    LegacyBattleFrameInputResolutionState& state,
+    LegacyBattleFinalActorStepState& final_actor,
+    const input_time_rng::LegacyInputNormalizationState& input
+) noexcept;
+
+struct LegacyBattleFrameInputHotspotResult {
+    compat::u32 eax{};
+    compat::u32 mouse_x{};
+    compat::u32 mouse_y{};
+    compat::u32 hotspot_queries{};
+};
+
+[[nodiscard]] LegacyBattleFrameInputHotspotResult
+run_legacy_battle_frame_input_hotspot_prefix(
+    LegacyBattleFrameInputResolutionState& state,
+    LegacyBattleInputDispatchState& input_dispatch,
+    const input_time_rng::LegacyInputNormalizationState& input,
+    std::span<const world_map::LegacyWorldInteractionHotspot> choice_hotspots,
+    compat::u32 gate_eax
+) noexcept;
+
+// 0x0045FCEF..0x0045FD00: values mapped to the no-side-effect
+// 0x004602A3 default return (including values above the 31-entry table).
+[[nodiscard]] bool is_legacy_battle_frame_input_default_message(
+    compat::u32 message_state
+) noexcept;
+
+// 0x00460527..0x0046054D: ESI=1 and EDI=0 after the mouse/hotspot prefix.
+[[nodiscard]] bool is_legacy_battle_frame_input_case_three_blocked(
+    const LegacyBattleFrameInputResolutionState& state
+) noexcept;
+
+// Case 5/8 horizontal guards; call only for these two message values.
+[[nodiscard]] bool is_legacy_battle_frame_input_row_x_outside(
+    compat::u32 message_state, compat::u32 mouse_x
+) noexcept;
+
+// Case 2/4 reset their separate hovered slots before the vertical branch.
+void reset_legacy_battle_frame_input_case_two_hover_prefix(
+    LegacyBattleFrameInputResolutionState& state
+) noexcept;
+void reset_legacy_battle_frame_input_case_four_hover_prefix(
+    LegacyBattleFrameInputResolutionState& state
+) noexcept;
+
+enum class LegacyBattleFrameInputCaseZeroGateStatus : compat::u8 {
+    returned_zero_preserving_selection,
+    returned_zero_clearing_selection,
+    continue_at_party_source,
+};
+
+[[nodiscard]] LegacyBattleFrameInputCaseZeroGateStatus
+run_legacy_battle_frame_input_case_zero_gate_prefix(
+    const LegacyBattleActorMetricState& metrics,
+    const LegacyBattleFinalActorStepState& final_actor,
+    LegacyBattleInputDispatchState& input_dispatch,
+    compat::u32 mouse_y
+) noexcept;
+
 enum class LegacyBattleFrameInputResolutionStatus : compat::u8 {
     completed,
     party_source_index_typed_stop,
@@ -188,6 +261,26 @@ enum class LegacyBattleFrameInputResolutionStatus : compat::u8 {
     actor_frame_resource_object_typed_stop,
     image_source_typed_stop,
 };
+
+struct LegacyBattleFrameInputCaseZeroPartyResult {
+    LegacyBattleFrameInputResolutionStatus status{
+        LegacyBattleFrameInputResolutionStatus::completed
+    };
+    compat::u32 eax{};
+    compat::u32 ecx{};
+    compat::u32 edx{};
+};
+
+// Call only after the case-zero count/Y gate. The physical offset read begins
+// at 0x004A75A8: indices 8..17 alias the adjacent party-source dwords.
+[[nodiscard]] LegacyBattleFrameInputCaseZeroPartyResult
+run_legacy_battle_frame_input_case_zero_party_prefix(
+    const LegacyBattleStartupState& startup,
+    const LegacyBattleActorMetricState& metrics,
+    LegacyBattleInputDispatchState& input_dispatch,
+    compat::u32 mouse_x,
+    compat::u32 entry_eax
+) noexcept;
 
 struct LegacyBattleFrameInputResolutionResult {
     LegacyBattleFrameInputResolutionStatus status{

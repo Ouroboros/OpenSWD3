@@ -75,6 +75,178 @@ strict_inside(const u32 value, const u32 lower, const u32 upper) noexcept {
 
 }  // namespace
 
+LegacyBattleFrameInputGateResult run_legacy_battle_frame_input_gate_prefix(
+    LegacyBattleFrameInputResolutionState& state,
+    LegacyBattleFinalActorStepState& final_actor,
+    const input_time_rng::LegacyInputNormalizationState& input
+) noexcept {
+    const u32 mouse_x = unsigned_bits(input.current_mouse.logical_x);
+    const u32 mouse_y = unsigned_bits(input.current_mouse.logical_y);
+    u32 eax = unsigned_bits(state.previous_mouse_x);
+    if (eax == mouse_x && unsigned_bits(state.previous_mouse_y) == mouse_y) {
+        eax = final_actor.pre_frame_gate_b;
+        if (eax == 0U) {
+            return {LegacyBattleFrameInputGateStatus::returned_zero, eax};
+        }
+    } else {
+        final_actor.pre_frame_gate_b = 1U;
+        state.pointer_activity_gate = 0U;
+    }
+    return {LegacyBattleFrameInputGateStatus::continue_at_hotspot_head, eax};
+}
+
+LegacyBattleFrameInputHotspotResult
+run_legacy_battle_frame_input_hotspot_prefix(
+    LegacyBattleFrameInputResolutionState& state,
+    LegacyBattleInputDispatchState& input_dispatch,
+    const input_time_rng::LegacyInputNormalizationState& input,
+    const std::span<const world_map::LegacyWorldInteractionHotspot>
+        choice_hotspots,
+    const u32 gate_eax
+) noexcept {
+    LegacyBattleFrameInputHotspotResult result{
+        .eax = gate_eax,
+        .mouse_x = unsigned_bits(input.current_mouse.logical_x),
+        .mouse_y = unsigned_bits(input.current_mouse.logical_y),
+    };
+    const bool hotspots_present = !choice_hotspots.empty();
+    state.previous_mouse_x = input.current_mouse.logical_x;
+    state.previous_mouse_y = input.current_mouse.logical_y;
+    if (hotspots_present) {
+        const auto hit = world_map::find_legacy_world_choice_hotspot(
+            choice_hotspots, result.mouse_x, result.mouse_y
+        );
+        ++result.hotspot_queries;
+        result.eax = hit.index;
+        input_dispatch.choice_guard =
+            hit.hotspot == nullptr ? 0U : hit.index + 1U;
+        if (input_dispatch.choice_guard != 0U) {
+            input_dispatch.choice_selection_index = result.eax;
+        }
+        result.mouse_x = unsigned_bits(input.current_mouse.logical_x);
+        result.mouse_y = unsigned_bits(input.current_mouse.logical_y);
+    }
+    return result;
+}
+
+bool is_legacy_battle_frame_input_default_message(
+    const u32 message_state
+) noexcept {
+    return message_state > 30U || message_state == 6U || message_state == 7U ||
+        (message_state >= 9U && message_state <= 26U) || message_state == 28U ||
+        message_state == 29U;
+}
+
+bool is_legacy_battle_frame_input_case_three_blocked(
+    const LegacyBattleFrameInputResolutionState& state
+) noexcept {
+    return state.target_selection_block == 1U ||
+        state.target_selection_suppression == 1U ||
+        state.selection_block_word != 0U;
+}
+
+bool is_legacy_battle_frame_input_row_x_outside(
+    const u32 message_state, const u32 mouse_x
+) noexcept {
+    if (message_state == 5U) {
+        return mouse_x <= 0xC4U || mouse_x >= 0x178U;
+    }
+    if (message_state == 8U) {
+        return mouse_x <= 0xE0U || mouse_x >= 0x199U;
+    }
+    return false;
+}
+
+void reset_legacy_battle_frame_input_case_two_hover_prefix(
+    LegacyBattleFrameInputResolutionState& state
+) noexcept {
+    state.hovered_equipment = 0xFFFFFFFFU;
+}
+
+void reset_legacy_battle_frame_input_case_four_hover_prefix(
+    LegacyBattleFrameInputResolutionState& state
+) noexcept {
+    state.hovered_secondary = 0xFFFFFFFFU;
+}
+
+LegacyBattleFrameInputCaseZeroGateStatus
+run_legacy_battle_frame_input_case_zero_gate_prefix(
+    const LegacyBattleActorMetricState& metrics,
+    const LegacyBattleFinalActorStepState& final_actor,
+    LegacyBattleInputDispatchState& input_dispatch,
+    const u32 mouse_y
+) noexcept {
+    const u32 excluded = static_cast<u8>(final_actor.excluded_group_a_count);
+    if (signed_bits(excluded) >= signed_bits(metrics.group_b_count)) {
+        return LegacyBattleFrameInputCaseZeroGateStatus::
+            returned_zero_preserving_selection;
+    }
+    if (mouse_y <= 0x182U || mouse_y >= 0x1E0U ||
+        signed_bits(metrics.group_a_count) <= 0) {
+        input_dispatch.selected_option_word = 0xFFFFU;
+        return LegacyBattleFrameInputCaseZeroGateStatus::
+            returned_zero_clearing_selection;
+    }
+    return LegacyBattleFrameInputCaseZeroGateStatus::continue_at_party_source;
+}
+
+LegacyBattleFrameInputCaseZeroPartyResult
+run_legacy_battle_frame_input_case_zero_party_prefix(
+    const LegacyBattleStartupState& startup,
+    const LegacyBattleActorMetricState& metrics,
+    LegacyBattleInputDispatchState& input_dispatch,
+    const u32 mouse_x,
+    const u32 entry_eax
+) noexcept {
+    constexpr u32 kPartySourceBase = 0x004A75C8U;
+    LegacyBattleFrameInputCaseZeroPartyResult result{
+        .eax = entry_eax,
+        .edx = kPartySourceBase,
+    };
+    const i32 count = signed_bits(metrics.group_a_count);
+    while (signed_bits(result.ecx) < count) {
+        if (result.ecx >=
+            startup.action_mode_source.actor_label_indices.size()) {
+            result.status = LegacyBattleFrameInputResolutionStatus::
+                party_source_index_typed_stop;
+            return result;
+        }
+        const u32 source =
+            startup.action_mode_source.actor_label_indices[result.ecx];
+        result.eax = source;
+        if (source < startup.party_offsets.size()) {
+            result.eax = unsigned_bits(startup.party_offsets[source]);
+        } else {
+            const u32 adjacent =
+                source - static_cast<u32>(startup.party_offsets.size());
+            if (adjacent >=
+                startup.action_mode_source.actor_label_indices.size()) {
+                result.status = LegacyBattleFrameInputResolutionStatus::
+                    party_offset_typed_stop;
+                return result;
+            }
+            result.eax =
+                startup.action_mode_source.actor_label_indices[adjacent];
+        }
+        const u32 left_edge = result.eax - 0x18U;
+        if (mouse_x > left_edge) {
+            result.eax += 0x74U;
+            if (mouse_x < result.eax) {
+                result.ecx += 8U;
+                input_dispatch.selected_option_word =
+                    static_cast<u16>(result.ecx);
+                result.eax = 1U;
+                return result;
+            }
+        }
+        ++result.ecx;
+        result.edx += 4U;
+    }
+    input_dispatch.selected_option_word = 0xFFFFU;
+    result.eax = 0U;
+    return result;
+}
+
 LegacyBattleFrameInputResolutionResult
 coordinate_legacy_battle_frame_input_resolution(
     LegacyBattleFrameInputResolutionBindings bindings,
@@ -148,36 +320,22 @@ coordinate_legacy_battle_frame_input_resolution(
         edx = reply.edx;
     };
 
-    u32 mouse_x = unsigned_bits(bindings.input.current_mouse.logical_x);
-    u32 mouse_y = unsigned_bits(bindings.input.current_mouse.logical_y);
-    eax = unsigned_bits(state.previous_mouse_x);
-    if (eax == mouse_x && unsigned_bits(state.previous_mouse_y) == mouse_y) {
-        eax = bindings.final_actor.pre_frame_gate_b;
-        if (eax == 0U) {
-            return return_zero();
-        }
-    } else {
-        bindings.final_actor.pre_frame_gate_b = 1U;
-        state.pointer_activity_gate = 0U;
+    const auto gate = run_legacy_battle_frame_input_gate_prefix(
+        state, bindings.final_actor, bindings.input
+    );
+    eax = gate.eax;
+    if (gate.status == LegacyBattleFrameInputGateStatus::returned_zero) {
+        return return_zero();
     }
-    state.previous_mouse_x = bindings.input.current_mouse.logical_x;
-    state.previous_mouse_y = bindings.input.current_mouse.logical_y;
+    const auto hotspot = run_legacy_battle_frame_input_hotspot_prefix(
+        state, input_state, bindings.input, bindings.choice_hotspots, gate.eax
+    );
+    eax = hotspot.eax;
+    result.hotspot_queries = hotspot.hotspot_queries;
+    u32 mouse_x = hotspot.mouse_x;
+    u32 mouse_y = hotspot.mouse_y;
 
-    if (!bindings.choice_hotspots.empty()) {
-        const auto hit = world_map::find_legacy_world_choice_hotspot(
-            bindings.choice_hotspots, mouse_x, mouse_y
-        );
-        ++result.hotspot_queries;
-        eax = hit.index;
-        input_state.choice_guard = hit.hotspot == nullptr ? 0U : hit.index + 1U;
-        if (input_state.choice_guard != 0U) {
-            input_state.choice_selection_index = eax;
-        }
-        mouse_x = unsigned_bits(bindings.input.current_mouse.logical_x);
-        mouse_y = unsigned_bits(bindings.input.current_mouse.logical_y);
-    }
-
-    const auto party_hover = [&](const bool stop_on_first_match) {
+    const auto party_hover = [&]() {
         ecx = 0U;
         const i32 count = signed_bits(bindings.metrics.group_a_count);
         if (count <= 0) {
@@ -200,10 +358,6 @@ coordinate_legacy_battle_frame_input_resolution(
             const bool hit = strict_inside(mouse_x, eax - 0x18U, eax + 0x74U);
             if (hit) {
                 input_state.selected_option_word = static_cast<u16>(ecx + 8U);
-                if (stop_on_first_match) {
-                    ecx += 8U;
-                    return true;
-                }
             }
             ++ecx;
         }
@@ -455,25 +609,33 @@ coordinate_legacy_battle_frame_input_resolution(
     if (bindings.message_state <= 30U) {
         ecx = kSwitchIndices[bindings.message_state];
     }
+    if (is_legacy_battle_frame_input_default_message(bindings.message_state)) {
+        return return_zero();
+    }
 
     switch (bindings.message_state) {
     case 0U: {
-        edx = static_cast<u32>(
-            static_cast<u8>(bindings.final_actor.excluded_group_a_count)
-        );
+        edx = static_cast<u8>(bindings.final_actor.excluded_group_a_count);
         eax = bindings.metrics.group_b_count;
-        if (edx >= eax || mouse_y <= 0x182U || mouse_y >= 0x1E0U) {
-            input_state.selected_option_word = 0xFFFFU;
+        const auto case_zero_gate =
+            run_legacy_battle_frame_input_case_zero_gate_prefix(
+                bindings.metrics, bindings.final_actor, input_state, mouse_y
+            );
+        if (case_zero_gate !=
+            LegacyBattleFrameInputCaseZeroGateStatus::
+                continue_at_party_source) {
             return return_zero();
         }
-        if (!party_hover(true)) {
-            return stop(result.status);
+        const auto party = run_legacy_battle_frame_input_case_zero_party_prefix(
+            bindings.startup, bindings.metrics, input_state, mouse_x, eax
+        );
+        eax = party.eax;
+        ecx = party.ecx;
+        edx = party.edx;
+        if (party.status != LegacyBattleFrameInputResolutionStatus::completed) {
+            return stop(party.status);
         }
-        if (ecx < 8U) {
-            input_state.selected_option_word = 0xFFFFU;
-            return return_zero();
-        }
-        return return_one();
+        return eax == 1U ? return_one() : return_zero();
     }
     case 1U: {
         const u32 active_actor = bindings.final_actor.queued_actor_code;
@@ -540,14 +702,14 @@ coordinate_legacy_battle_frame_input_resolution(
         input_state.selected_option_word = 0xFFFFU;
         if (mouse_y > 0x182U && mouse_y < 0x1E0U &&
             signed_bits(bindings.metrics.group_a_count) > 0) {
-            if (!party_hover(false)) {
+            if (!party_hover()) {
                 return stop(result.status);
             }
         }
         return return_zero();
     }
     case 2U: {
-        state.hovered_equipment = 0xFFFFFFFFU;
+        reset_legacy_battle_frame_input_case_two_hover_prefix(state);
         if (strict_inside(mouse_y, 0x82U, 0xA0U)) {
             ecx = 0U;
             eax = 0x10AU;
@@ -617,7 +779,7 @@ coordinate_legacy_battle_frame_input_resolution(
     case 3U:
         break;
     case 4U: {
-        state.hovered_secondary = 0xFFFFFFFFU;
+        reset_legacy_battle_frame_input_case_four_hover_prefix(state);
         if (strict_inside(mouse_y, 0x82U, 0xA0U)) {
             ecx = 0U;
             eax = 0x10AU;
@@ -695,6 +857,10 @@ coordinate_legacy_battle_frame_input_resolution(
         return return_zero();
     }
     case 5U: {
+        if (is_legacy_battle_frame_input_row_x_outside(5U, mouse_x)) {
+            input_state.mouse_action_gate = 0U;
+            return return_zero();
+        }
         if (select_row(
                 0xECU,
                 0x16U,
@@ -714,6 +880,10 @@ coordinate_legacy_battle_frame_input_resolution(
         return return_zero();
     }
     case 8U: {
+        if (is_legacy_battle_frame_input_row_x_outside(8U, mouse_x)) {
+            input_state.mouse_action_gate = 0U;
+            return return_zero();
+        }
         if (select_row(
                 0xBAU,
                 0x18U,
@@ -836,9 +1006,7 @@ coordinate_legacy_battle_frame_input_resolution(
         return return_zero();
     }
 
-    if (state.target_selection_block == 1U ||
-        state.target_selection_suppression == 1U ||
-        state.selection_block_word != 0U) {
+    if (is_legacy_battle_frame_input_case_three_blocked(state)) {
         return return_zero();
     }
     const u32 active_actor = bindings.final_actor.queued_actor_code;
