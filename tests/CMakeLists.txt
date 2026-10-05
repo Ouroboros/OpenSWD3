@@ -356,6 +356,52 @@ add_test(
 )
 
 add_executable(
+    openswd3_battle_legacy_battle_save_fame_tests
+    unit/battle/legacy_battle_save_fame_test.cpp
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../Save/0.sav")
+    target_compile_definitions(
+        openswd3_battle_legacy_battle_save_fame_tests
+        PRIVATE OPENSWD3_SAVE_ZERO_PATH="${PROJECT_SOURCE_DIR}/../Save/0.sav"
+    )
+endif()
+target_include_directories(
+    openswd3_battle_legacy_battle_save_fame_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_battle_legacy_battle_save_fame_tests
+    PRIVATE openswd3_battle
+)
+add_test(
+    NAME battle.legacy_battle_save_fame
+    COMMAND openswd3_battle_legacy_battle_save_fame_tests
+)
+
+add_executable(
+    openswd3_battle_legacy_battle_save_party_extension_tests
+    unit/battle/legacy_battle_save_party_extension_test.cpp
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../Save/0.sav")
+    target_compile_definitions(
+        openswd3_battle_legacy_battle_save_party_extension_tests
+        PRIVATE OPENSWD3_SAVE_ZERO_PATH="${PROJECT_SOURCE_DIR}/../Save/0.sav"
+    )
+endif()
+target_include_directories(
+    openswd3_battle_legacy_battle_save_party_extension_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_battle_legacy_battle_save_party_extension_tests
+    PRIVATE openswd3_battle
+)
+add_test(
+    NAME battle.legacy_battle_save_party_extension
+    COMMAND openswd3_battle_legacy_battle_save_party_extension_tests
+)
+
+add_executable(
     openswd3_battle_legacy_battle_level_requirement_tests
     unit/battle/legacy_battle_level_requirement_test.cpp
 )

@@ -18,7 +18,10 @@ inline constexpr compat::u32 kLegacyBattleGroupAMissingPlacementSourceLine =
     0xDEU;
 
 struct LegacyBattleGroupAConfigurationSourceRecord {
+    // 0x004ACF50 + index*0x60: group-A configuration copies the first 0x38
+    // bytes; the save loader restores the entire 0x60-byte source record.
     std::array<compat::u32, 14> dwords{};
+    std::array<compat::u32, 10> saved_tail_dwords{};
 };
 
 struct LegacyBattleGroupAPlacementRecord {

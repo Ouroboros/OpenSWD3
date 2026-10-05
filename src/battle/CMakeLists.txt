@@ -225,6 +225,8 @@ add_library(
         legacy_battle_single_effect_frame.cpp
         legacy_battle_status_indicator.cpp
         legacy_battle_startup.cpp
+        legacy_battle_save_fame.cpp
+        legacy_battle_save_party_extension.cpp
         legacy_battle_surface_blend.cpp
         legacy_battle_talisman_result_panel.cpp
         legacy_battle_target_ready.cpp
