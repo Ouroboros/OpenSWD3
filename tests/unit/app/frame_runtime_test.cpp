@@ -3,6 +3,7 @@
 #include "openswd3/app/frame_dispatch.hpp"
 #include "openswd3/app/frame_runtime.hpp"
 
+#include <optional>
 #include <vector>
 
 namespace {
@@ -52,7 +53,7 @@ enum class Call {
 
 class RecordingPorts final : public openswd3::app::FrameRuntimePorts {
 public:
-    explicit RecordingPorts(const i32 battle_result = 1)
+    explicit RecordingPorts(const std::optional<i32> battle_result = 1)
         : battle_result_(battle_result) {}
 
     void release_display_and_world_for_battle_entry() override {
@@ -67,7 +68,7 @@ public:
     void clear_party_battle_entry_bits() override {
         calls.push_back(Call::battle_clear_party);
     }
-    i32 step_battle() override {
+    std::optional<i32> step_battle() override {
         calls.push_back(Call::battle_step);
         return battle_result_;
     }
@@ -185,7 +186,7 @@ public:
     std::vector<Call> calls;
 
 private:
-    i32 battle_result_{};
+    std::optional<i32> battle_result_{};
 };
 
 FrameCoordinatorState make_state() {
@@ -231,6 +232,27 @@ void test_battle_early_return(openswd3::test::Context& test) {
         ports.calls,
         expected,
         "battle does not reach common close check even when close bit is set"
+    );
+}
+
+void test_battle_typed_stop(openswd3::test::Context& test) {
+    auto state = make_state();
+    state.battle.battle_active = 1U;
+    RecordingPorts ports{std::nullopt};
+    test.expect_equal(
+        openswd3::app::run_accepted_frame(state, ports),
+        openswd3::app::FrameRunOutcome::battle_typed_stop,
+        "frame typed stop cannot become an accepted battle result"
+    );
+    test.expect_equal(
+        ports.calls,
+        std::vector{Call::battle_step},
+        "frame typed stop skips audio maintenance and common tail"
+    );
+    test.expect_equal(
+        state.battle.battle_active,
+        1U,
+        "frame typed stop does not complete the battle"
     );
 }
 
@@ -429,6 +451,7 @@ int main() {
     openswd3::test::Context test;
     test_high_priority(test);
     test_battle_early_return(test);
+    test_battle_typed_stop(test);
     test_world(test);
     test_world_gate_mutations(test);
     test_special_modes(test);

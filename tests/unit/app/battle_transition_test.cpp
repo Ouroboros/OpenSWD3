@@ -2,6 +2,7 @@
 
 #include "openswd3/app/battle_transition.hpp"
 
+#include <optional>
 #include <vector>
 
 namespace {
@@ -42,7 +43,8 @@ struct Event {
 class RecordingPorts final : public openswd3::app::BattleTransitionPorts {
 public:
     RecordingPorts(
-        openswd3::app::BattleTransitionState& state, const i32 result
+        openswd3::app::BattleTransitionState& state,
+        const std::optional<i32> result
     )
         : state_(state), result_(result) {}
 
@@ -58,7 +60,7 @@ public:
     void clear_party_battle_entry_bits() override {
         record(Call::clear_party_bits);
     }
-    i32 step_battle() override {
+    std::optional<i32> step_battle() override {
         record(Call::step_battle);
         return result_;
     }
@@ -108,7 +110,7 @@ private:
     }
 
     openswd3::app::BattleTransitionState& state_;
-    i32 result_{};
+    std::optional<i32> result_{};
 };
 
 void test_entry_guards(openswd3::test::Context& test) {
@@ -168,7 +170,7 @@ void test_result_zero(openswd3::test::Context& test) {
     RecordingPorts ports(state, 0);
     test.expect_equal(
         openswd3::app::run_battle_frame(state, ports),
-        0,
+        std::optional<i32>{0},
         "result zero is returned unchanged"
     );
     const std::vector<Event> expected{
@@ -187,7 +189,7 @@ void test_result_two(openswd3::test::Context& test) {
     RecordingPorts ports(state, 2);
     test.expect_equal(
         openswd3::app::run_battle_frame(state, ports),
-        2,
+        std::optional<i32>{2},
         "result two is returned unchanged"
     );
     const std::vector<Event> expected{
@@ -205,7 +207,7 @@ void test_result_three(openswd3::test::Context& test) {
     RecordingPorts ports(state, 3);
     test.expect_equal(
         openswd3::app::run_battle_frame(state, ports),
-        3,
+        std::optional<i32>{3},
         "result three is returned unchanged"
     );
     const std::vector<Event> expected{
@@ -217,12 +219,43 @@ void test_result_three(openswd3::test::Context& test) {
     test.expect_equal(ports.events, expected, "result three transition order");
 }
 
+void test_typed_stop(openswd3::test::Context& test) {
+    openswd3::app::BattleTransitionState state{9, 1, 7, 8};
+    RecordingPorts ports(state, std::nullopt);
+    test.expect_equal(
+        openswd3::app::run_battle_frame(state, ports),
+        std::optional<i32>{},
+        "an unreturned frame has no battle result"
+    );
+    test.expect_equal(
+        ports.events,
+        std::vector{Event{Call::step_battle, 0, 9, 1, 7, 8}},
+        "unreturned frame skips audio maintenance and result suffixes"
+    );
+    test.expect_equal(
+        state.battle_request_value, 9U, "unreturned frame preserves the request"
+    );
+    test.expect_equal(
+        state.battle_active, 1U, "unreturned frame preserves battle activity"
+    );
+    test.expect_equal(
+        state.special_mode_state,
+        7U,
+        "unreturned frame preserves the special mode"
+    );
+    test.expect_equal(
+        state.high_priority_state,
+        8U,
+        "unreturned frame preserves the priority state"
+    );
+}
+
 void test_other_result(openswd3::test::Context& test) {
     openswd3::app::BattleTransitionState state{9, 1, 7, 8};
     RecordingPorts ports(state, -1);
     test.expect_equal(
         openswd3::app::run_battle_frame(state, ports),
-        -1,
+        std::optional<i32>{-1},
         "other results are returned unchanged"
     );
     const std::vector<Event> expected{
@@ -246,6 +279,7 @@ int main() {
     test_result_zero(test);
     test_result_two(test);
     test_result_three(test);
+    test_typed_stop(test);
     test_other_result(test);
     return test.exit_code();
 }

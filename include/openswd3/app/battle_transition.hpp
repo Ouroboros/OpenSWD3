@@ -2,6 +2,8 @@
 
 #include "openswd3/compat/types.hpp"
 
+#include <optional>
+
 namespace openswd3::app {
 
 inline constexpr compat::u32 kBattleRequestTag = 0x80000000U;
@@ -24,7 +26,8 @@ public:
     virtual void initialize_battle(compat::u16 battle_id) = 0;
     virtual void clear_party_battle_entry_bits() = 0;
 
-    virtual compat::i32 step_battle() = 0;
+    // No value means that the battle script stopped before its frame call returned.
+    virtual std::optional<compat::i32> step_battle() = 0;
     virtual void maintain_audio() = 0;
 
     virtual void rebuild_display_after_result_zero() = 0;
@@ -46,7 +49,7 @@ public:
     BattleTransitionPorts& ports
 );
 
-[[nodiscard]] compat::i32
+[[nodiscard]] std::optional<compat::i32>
 run_battle_frame(BattleTransitionState& state, BattleTransitionPorts& ports);
 
 }  // namespace openswd3::app

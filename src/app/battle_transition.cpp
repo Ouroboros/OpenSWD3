@@ -27,12 +27,16 @@ bool consume_battle_request(
     return true;
 }
 
-compat::i32
+std::optional<compat::i32>
 run_battle_frame(BattleTransitionState& state, BattleTransitionPorts& ports) {
-    const compat::i32 result = ports.step_battle();
+    const auto result = ports.step_battle();
+    if (!result.has_value()) {
+        return std::nullopt;
+    }
+
     ports.maintain_audio();
 
-    switch (result) {
+    switch (*result) {
     case 0:
         state.battle_request_value = 0U;
         state.battle_active = 0U;

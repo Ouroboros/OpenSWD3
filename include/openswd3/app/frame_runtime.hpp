@@ -32,6 +32,7 @@ public:
 enum class FrameRunOutcome {
     common_tail_completed,
     battle_early_return,
+    battle_typed_stop,
 };
 
 [[nodiscard]] FrameRunOutcome

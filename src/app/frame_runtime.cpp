@@ -27,7 +27,10 @@ run_accepted_frame(FrameCoordinatorState& state, FrameRuntimePorts& ports) {
         consume_battle_request(state.battle, state.battle_entry_blocked, ports)
     );
     if (state.battle.battle_active != 0U) {
-        static_cast<void>(run_battle_frame(state.battle, ports));
+        if (!run_battle_frame(state.battle, ports).has_value()) {
+            return FrameRunOutcome::battle_typed_stop;
+        }
+
         return FrameRunOutcome::battle_early_return;
     }
 

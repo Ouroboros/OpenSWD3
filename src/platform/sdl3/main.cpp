@@ -2896,7 +2896,7 @@ public:
         return reply;
     }
 
-    openswd3::compat::i32 step_battle() override {
+    std::optional<openswd3::compat::i32> step_battle() override {
         request_presentation(
             openswd3::rendering::LegacyPresentationSite::steady_battle
         );
@@ -2931,7 +2931,9 @@ public:
             message.append(", offset=");
             message.append(std::to_string(result.stopped_offset));
             openswd3::diagnostics::log_error(message);
-            return 1;
+            ok_ = false;
+            running_ = false;
+            return std::nullopt;
         }
         return std::bit_cast<openswd3::compat::i32>(result.return_eax);
     }
