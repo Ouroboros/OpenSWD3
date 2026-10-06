@@ -44,7 +44,7 @@ constexpr compat::u16 kCommandYx = 0x5859U;
 
 [[nodiscard]] bool read_word(
     const std::span<const compat::u8> stream,
-    const compat::u16 word_index,
+    const std::size_t word_index,
     compat::u16& value
 ) noexcept {
     const std::size_t offset = static_cast<std::size_t>(word_index) * 2U;
@@ -68,6 +68,23 @@ constexpr compat::u16 kCommandYx = 0x5859U;
     if (!read_word(stream, record.command_cursor, value)) {
         return false;
     }
+    record.command_cursor =
+        static_cast<compat::u16>(record.command_cursor + 1U);
+    return true;
+}
+
+[[nodiscard]] bool consume_byte_operand(
+    LegacyActionRecord& record,
+    const std::span<const compat::u8> stream,
+    compat::u8& value
+) noexcept {
+    const std::size_t offset =
+        static_cast<std::size_t>(record.command_cursor) * 2U;
+    if (offset >= stream.size()) {
+        return false;
+    }
+
+    value = stream[offset];
     record.command_cursor =
         static_cast<compat::u16>(record.command_cursor + 1U);
     return true;
@@ -109,11 +126,133 @@ void reset_changed_key(
     record.mode_flags &= mode_mask;
 }
 
+void write_dx(
+    std::optional<compat::u32>& edx, const compat::u16 value
+) noexcept {
+    if (edx.has_value()) {
+        *edx = (*edx & 0xFFFF0000U) | value;
+    }
+}
+
+void publish_command_edx(
+    std::optional<compat::u32>& edx,
+    const compat::u16 command,
+    const compat::u16 operand_index,
+    const LegacyActionRecord& record
+) noexcept {
+    // 4324FD..432505 also clears the high word for table-default entries.
+    constexpr std::array<compat::u8, 21> dispatch{
+        0, 7, 7, 1, 7, 7, 7, 7, 2, 3, 7, 7, 7, 7, 7, 4, 7, 7, 7, 5, 6,
+    };
+    if (command >= kCommandEa && command <= kCommandYa) {
+        edx = dispatch[command - kCommandEa];
+    }
+
+    switch (command) {
+    case kCommandEa:
+
+    case kCommandTa:
+
+    case kCommandXa:
+
+    case kCommandYa:
+
+    case kCommandSg:
+        edx = operand_index;
+        break;
+
+    case kCommandMa:
+        edx = record.mode_flags;
+        break;
+
+    case kCommandBc:
+        edx = record.field_68;
+        break;
+
+    case kCommandGc:
+        edx = record.field_66;
+        break;
+
+    case kCommandRc:
+        edx = record.field_64;
+        break;
+
+    case kCommandLf:
+        write_dx(edx, operand_index);
+        if (edx.has_value()) {
+            *edx += 7U;
+        }
+
+        break;
+
+    case kCommandDl:
+        edx = record.field_62;
+        break;
+
+    case kCommandAo:
+        edx = record.field_50;
+        break;
+
+    case kCommandXo:
+        edx = record.field_5e;
+        break;
+
+    case kCommandYo:
+        edx = record.field_60;
+        break;
+
+    case kCommandAp:
+
+    case kCommandNt:
+        edx = record.packed_ap_state;
+        break;
+
+    case kCommandEq:
+        edx = record.field_28;
+        break;
+
+    case kCommandFr:
+        edx = record.field_4a;
+        break;
+
+    case kCommandOr:
+        edx = record.field_4e;
+        break;
+
+    case kCommandDs:
+        if ((record.wait_override & 0x8000U) != 0U) {
+            edx = record.wait_override & 0x7FFFU;
+        }
+
+        break;
+
+    case kCommandWt:
+        edx = (operand_index & 0xFF00U) | record.field_88;
+        break;
+
+    case kCommandHw:
+        edx = record.field_30;
+        break;
+
+    case kCommandVw:
+        write_dx(edx, record.field_58);
+        break;
+
+    case kCommandYx:
+        edx = record.draw_offset_y;
+        break;
+
+    default:
+        break;
+    }
+}
+
 [[nodiscard]] LegacyActionUpdateResult
 malformed_result(const LegacyActionUpdateResult& base) noexcept {
     LegacyActionUpdateResult result = base;
     result.status = LegacyActionUpdateStatus::malformed_stream;
     result.return_value = 0U;
+    result.return_edx.reset();
     return result;
 }
 
@@ -184,8 +323,11 @@ compat::u32 LegacyActionUpdater::stream_cache_mode() const noexcept {
 }
 
 LegacyActionUpdateResult
-LegacyActionUpdater::update(LegacyActionRecord& record) {
+LegacyActionUpdater::update(
+    LegacyActionRecord& record, const std::optional<compat::u32> entry_edx
+) {
     LegacyActionUpdateResult result;
+    result.return_edx = entry_edx;
     if (record.external_mode == 1U && record.command_cursor != 0U) {
         return result;
     }
@@ -220,9 +362,11 @@ LegacyActionUpdater::update(LegacyActionRecord& record) {
         result.status = LegacyActionUpdateStatus::stream_load_stopped;
         result.return_value = 0U;
         result.stream_stop = loaded.stop;
+        result.return_edx.reset();
         return result;
     }
 
+    result.return_edx = loaded.return_edx;
     record.stream_pointer_32 =
         loaded.status == LegacyActionStreamStatus::ready ? 1U : 0U;
     result.cache_hit = loaded.cache_hit;
@@ -244,8 +388,20 @@ LegacyActionUpdater::update(LegacyActionRecord& record) {
     while (dispatch_count < safe_dispatch_limit) {
         ++dispatch_count;
         compat::u16 command{};
+        write_dx(result.return_edx, record.command_cursor);
+        if (result.return_edx.has_value()) {
+            ++*result.return_edx;
+        }
+
         if (!consume_word(record, loaded.stream, command)) {
             return malformed_result(result);
+        }
+
+        const bool rewind = command == kCommand2O ||
+            ((command == kCommandDe || command == kCommandVo) &&
+             record.external_mode == 1U);
+        if (rewind && result.return_edx.has_value()) {
+            --*result.return_edx;
         }
 
         if (command == kCommandDe) {
@@ -280,8 +436,11 @@ LegacyActionUpdater::update(LegacyActionRecord& record) {
                 static_cast<compat::u16>(record.wait_override & 0x7FFFU);
         }
 
+        write_dx(result.return_edx, record.wait_override);
+        const compat::u16 operand_index = record.command_cursor;
         compat::u16 first{};
         compat::u16 second{};
+        compat::u8 byte_operand{};
         switch (command) {
         case kCommandEa:
             if (!consume_word(record, loaded.stream, first)) {
@@ -313,35 +472,52 @@ LegacyActionUpdater::update(LegacyActionRecord& record) {
                 return malformed_result(result);
             }
             break;
+
         case kCommandBc:
-            if (!consume_word(record, loaded.stream, first) ||
-                !read_word(loaded.stream, record.command_cursor, second)) {
+            if (!consume_word(record, loaded.stream, first)) {
                 return malformed_result(result);
             }
+
             record.field_68 = first;
+            if (!read_word(loaded.stream, record.command_cursor, second)) {
+                return malformed_result(result);
+            }
+
             record.field_74 = second;
             break;
+
         case kCommandGc:
-            if (!consume_word(record, loaded.stream, first) ||
-                !read_word(loaded.stream, record.command_cursor, second)) {
+            if (!consume_word(record, loaded.stream, first)) {
                 return malformed_result(result);
             }
+
             record.field_66 = first;
+            if (!read_word(loaded.stream, record.command_cursor, second)) {
+                return malformed_result(result);
+            }
+
             record.field_72 = second;
             break;
+
         case kCommandLc:
             record.field_70 = 0U;
             record.field_72 = 0U;
             record.field_74 = 0U;
             break;
+
         case kCommandRc:
-            if (!consume_word(record, loaded.stream, first) ||
-                !read_word(loaded.stream, record.command_cursor, second)) {
+            if (!consume_word(record, loaded.stream, first)) {
                 return malformed_result(result);
             }
+
             record.field_64 = first;
+            if (!read_word(loaded.stream, record.command_cursor, second)) {
+                return malformed_result(result);
+            }
+
             record.field_70 = second;
             break;
+
         case kCommandLf: {
             std::array<compat::u16*, 7> fields{
                 &record.field_7a,
@@ -352,27 +528,41 @@ LegacyActionUpdater::update(LegacyActionRecord& record) {
                 &record.field_84,
                 &record.field_86,
             };
-            for (compat::u16* const field : fields) {
-                if (!consume_word(record, loaded.stream, *field)) {
+
+            // 432662 masks the base once. The seven reads are physically
+            // contiguous; only the final cursor store at 4326B7 truncates.
+            const std::size_t first_word = record.command_cursor;
+            for (std::size_t index = 0U; index < fields.size(); ++index) {
+                if (!read_word(
+                        loaded.stream, first_word + index, *fields[index]
+                    )) {
                     return malformed_result(result);
                 }
             }
+
+            record.command_cursor =
+                static_cast<compat::u16>(first_word + fields.size());
             break;
         }
+
         case kCommandSg:
-            if (!consume_word(record, loaded.stream, first)) {
-                return malformed_result(result);
-            }
             record.mode_flags = (record.mode_flags & 0x80000017U) | 0x14U;
-            record.field_8a = static_cast<compat::u8>(first);
-            break;
-        case kCommandDl:
-            if (!consume_word(record, loaded.stream, first)) {
+            if (!consume_byte_operand(record, loaded.stream, byte_operand)) {
                 return malformed_result(result);
             }
-            record.mode_flags = (record.mode_flags & 0x80000013U) | 0x10U;
-            record.field_62 = static_cast<compat::u8>(first);
+
+            record.field_8a = byte_operand;
             break;
+
+        case kCommandDl:
+            record.mode_flags = (record.mode_flags & 0x80000013U) | 0x10U;
+            if (!consume_byte_operand(record, loaded.stream, byte_operand)) {
+                return malformed_result(result);
+            }
+
+            record.field_62 = byte_operand;
+            break;
+
         case kCommandOn:
             record.mode_flags &= 0xFFFFFFFEU;
             break;
@@ -442,40 +632,60 @@ LegacyActionUpdater::update(LegacyActionRecord& record) {
                 return malformed_result(result);
             }
             break;
+
         case kCommandWt:
-            if (!consume_word(record, loaded.stream, first)) {
+            if (!consume_byte_operand(record, loaded.stream, byte_operand)) {
                 return malformed_result(result);
             }
-            record.field_88 = static_cast<compat::u8>(first);
+
+            record.field_88 = byte_operand;
             break;
+
         case kCommandIv:
             record.mode_flags |= 1U;
             break;
+
         case kCommandHw:
-            if (!consume_word(record, loaded.stream, first) ||
-                !read_word(loaded.stream, record.command_cursor, second)) {
+            if (!consume_word(record, loaded.stream, first)) {
                 return malformed_result(result);
             }
+
             record.field_2c = first;
+            if (!read_word(loaded.stream, record.command_cursor, second)) {
+                return malformed_result(result);
+            }
+
             record.field_30 = second;
             break;
+
         case kCommandVw:
             if (!consume_word(record, loaded.stream, record.field_58)) {
                 return malformed_result(result);
             }
             break;
+
         case kCommandYx:
-            if (!consume_word(record, loaded.stream, first) ||
-                !read_word(loaded.stream, record.command_cursor, second)) {
+            if (!consume_word(record, loaded.stream, first)) {
                 return malformed_result(result);
             }
+
             record.draw_offset_x = first;
+            if (!read_word(loaded.stream, record.command_cursor, second)) {
+                return malformed_result(result);
+            }
+
             record.draw_offset_y = second;
             break;
+
         default:
             break;
         }
+
+        publish_command_edx(
+            result.return_edx, command, operand_index, record
+        );
     }
+
     return malformed_result(result);
 }
 

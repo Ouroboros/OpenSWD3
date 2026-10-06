@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstring>
 #include <filesystem>
@@ -46,12 +47,14 @@ public:
             };
         }
         if (fail) {
-            return {};
+            return {.stream = {}, .return_edx = return_edx};
         }
         return LegacyActionStreamLoadResult{
             LegacyActionStreamStatus::ready,
             bytes,
             cache_hit,
+            {},
+            return_edx,
         };
     }
 
@@ -72,6 +75,7 @@ public:
     bool fail{};
     bool stop{};
     bool cache_hit{};
+    std::optional<u32> return_edx{};
 };
 
 [[nodiscard]] LegacyActionRecord zero_record() {
@@ -464,6 +468,262 @@ void test_malformed_stream_guard(openswd3::test::Context& test) {
     );
 }
 
+void test_lf_contiguous_read_and_cursor_commit(openswd3::test::Context& test) {
+    for (const std::size_t command_index : {0U, 0xFFFEU}) {
+        for (std::size_t available = 0U; available <= 7U; ++available) {
+            const std::size_t operand_start = command_index + 1U;
+            std::vector<u16> words(operand_start + available, 0xEEEEU);
+            words[command_index] = 0x464CU;
+            for (std::size_t index = 0U; index < available; ++index) {
+                words[operand_start + index] =
+                    static_cast<u16>(0x1000U + index);
+            }
+
+            if (available == 7U) {
+                const auto next = static_cast<u16>(operand_start + 7U);
+                if (next == words.size()) {
+                    words.push_back(0x4544U);
+                } else {
+                    words[next] = 0x4544U;
+                }
+            }
+
+            for (const bool partial_word : {false, true}) {
+                FakeStreamProvider provider;
+                provider.return_edx = 0xA1235566U;
+                provider.set_words(words);
+                if (partial_word) {
+                    provider.bytes.push_back(0x55U);
+                }
+
+                LegacyActionUpdater updater{provider};
+                LegacyActionRecord record = zero_record();
+                make_keys_stable(record);
+                record.command_cursor = static_cast<u16>(command_index);
+                const std::array<u16*, 7> fields{
+                    &record.field_7a, &record.field_7c, &record.field_7e,
+                    &record.field_80, &record.field_82, &record.field_84,
+                    &record.field_86,
+                };
+                for (std::size_t index = 0U; index < fields.size(); ++index) {
+                    *fields[index] = static_cast<u16>(0xA500U + index);
+                }
+
+                const auto result = updater.update(record);
+                test.expect_true(
+                    result.status == (available == 7U
+                        ? LegacyActionUpdateStatus::completed
+                        : LegacyActionUpdateStatus::malformed_stream) &&
+                        record.command_cursor == static_cast<u16>(
+                            operand_start + (available == 7U ? 8U : 0U)
+                        ),
+                    "LF publishes cursor only after seven contiguous reads"
+                );
+                test.expect_true(
+                    available == 7U
+                        ? result.return_edx == (command_index == 0U
+                              ? 0xA1230009U : 0xA1240007U)
+                        : !result.return_edx.has_value(),
+                    "LF carries into EDX high word only on normal return"
+                );
+                for (std::size_t index = 0U; index < fields.size(); ++index) {
+                    test.expect_equal(
+                        *fields[index],
+                        static_cast<u16>(
+                            (index < available ? 0x1000U : 0xA500U) + index
+                        ),
+                        "LF preserves completed stores and unread suffix"
+                    );
+                }
+            }
+        }
+    }
+}
+
+void test_operand_fault_prefixes(openswd3::test::Context& test) {
+    const auto check_pair = [&](const u16 command, auto first, auto second) {
+        for (const bool present : {false, true}) {
+            FakeStreamProvider provider;
+            const u16 words[]{command, 0x4567U};
+            provider.set_words(std::span{words}.first(present ? 2U : 1U));
+            LegacyActionUpdater updater{provider};
+            auto record = zero_record();
+            make_keys_stable(record);
+            record.*first = 0xA111U;
+            record.*second = 0xB222U;
+            const auto result = updater.update(record);
+            test.expect_true(
+                result.status == LegacyActionUpdateStatus::malformed_stream &&
+                    !result.return_edx.has_value() &&
+                    record.command_cursor == (present ? 2U : 1U) &&
+                    record.*first == (present ? 0x4567U : 0xA111U) &&
+                    record.*second == 0xB222U,
+                "paired operand fault retains first store before second read"
+            );
+        }
+    };
+    check_pair(
+        0x4342U, &LegacyActionRecord::field_68, &LegacyActionRecord::field_74
+    );
+    check_pair(
+        0x4347U, &LegacyActionRecord::field_66, &LegacyActionRecord::field_72
+    );
+    check_pair(
+        0x4352U, &LegacyActionRecord::field_64, &LegacyActionRecord::field_70
+    );
+    check_pair(
+        0x5748U, &LegacyActionRecord::field_2c, &LegacyActionRecord::field_30
+    );
+    check_pair(
+        0x5859U, &LegacyActionRecord::draw_offset_x,
+        &LegacyActionRecord::draw_offset_y
+    );
+
+    for (const u16 command : std::array<u16, 3>{0x4753U, 0x4C44U, 0x5457U}) {
+        for (const bool present : {false, true}) {
+            FakeStreamProvider provider;
+            provider.set_words(std::span{&command, 1U});
+            if (present) {
+                provider.bytes.push_back(0xABU);
+            }
+
+            LegacyActionUpdater updater{provider};
+            auto record = zero_record();
+            make_keys_stable(record);
+            record.mode_flags = 0x80000000U;
+            record.field_8a = 0xA5U;
+            record.field_62 = 0x5A5AU;
+            record.field_88 = 0x5AU;
+            const auto result = updater.update(record);
+            const u32 value = command == 0x4753U ? record.field_8a
+                : command == 0x4C44U ? record.field_62 : record.field_88;
+            const u32 initial = command == 0x4753U ? 0xA5U
+                : command == 0x4C44U ? 0x5A5AU : 0x5AU;
+            const u32 flags = command == 0x4753U ? 0x80000014U
+                : command == 0x4C44U ? 0x80000010U : 0x80000000U;
+            test.expect_true(
+                result.status == LegacyActionUpdateStatus::malformed_stream &&
+                    !result.return_edx.has_value() &&
+                    record.command_cursor == (present ? 2U : 1U) &&
+                    value == (present ? 0xABU : initial) &&
+                    record.mode_flags == flags,
+                "byte operand needs one byte and retains mode-before-read prefix"
+            );
+        }
+    }
+}
+
+void test_return_edx(openswd3::test::Context& test) {
+    struct Case {
+        std::vector<u16> words;
+        u32 expected;
+        u16 wait_override{};
+    };
+    const Case cases[]{
+        {{0x4544U}, 0xA1230001U},
+        {{0x4F56U}, 0xA1230001U},
+        {{0x4F32U}, 0xA1230000U},
+        {{0x4146U, 0x4544U}, 2U},
+        {{0x4148U, 0x4544U}, 2U},
+        {{0x414EU, 0x4544U}, 2U},
+        {{0x414DU, 0x4544U}, 0x80000002U},
+        {{0x434CU, 0x4544U}, 0xA1230002U},
+        {{0x4E4FU, 0x4544U}, 0xA1230002U},
+        {{0x5649U, 0x4544U}, 0xA1230002U},
+        {{0x534DU, 0x4544U}, 0xA1230002U},
+        {{0x1234U, 0x4544U}, 0xA1230002U},
+        {{0x5344U, 5U, 0x4544U}, 0xA1230003U},
+        {{0x5344U, 5U, 0x4544U}, 3U, 0x8007U},
+        {{0x5756U, 0xFFFFU, 0x4544U}, 0xA1230003U},
+    };
+    for (const auto& item : cases) {
+        FakeStreamProvider provider;
+        provider.return_edx = 0xA1235566U;
+        provider.set_words(item.words);
+        LegacyActionUpdater updater{provider};
+        auto record = zero_record();
+        make_keys_stable(record);
+        record.mode_flags = 0x80000000U;
+        record.wait_override = item.wait_override;
+        const auto result = updater.update(record, 0xDEADBEEFU);
+        test.expect_true(
+            result.status == LegacyActionUpdateStatus::completed &&
+                result.return_edx == item.expected,
+            "EDX follows command writes rather than final action cursor"
+        );
+    }
+
+    for (const u16 command : std::array<u16, 15>{
+             0x4145U, 0x4154U, 0x4158U, 0x4159U, 0x4753U, 0x4C44U,
+             0x4F41U, 0x4F58U, 0x4F59U, 0x5041U, 0x5145U, 0x5246U,
+             0x524FU, 0x544EU, 0x5457U,
+         }) {
+        FakeStreamProvider provider;
+        const u16 words[]{command, 0xF123U, 0x4544U};
+        provider.set_words(words);
+        LegacyActionUpdater updater{provider};
+        auto record = zero_record();
+        make_keys_stable(record);
+        const auto result = updater.update(record);
+        test.expect_true(
+            result.status == LegacyActionUpdateStatus::completed &&
+                result.return_edx == 3U,
+            "full register writes recover known EDX after unknown loader"
+        );
+    }
+
+    for (const u16 marker : std::array<u16, 3>{0x4544U, 0x4F56U, 0x4F32U}) {
+        FakeStreamProvider provider;
+        provider.return_edx = 0xFFFF1234U;
+        std::vector<u16> words(0x10000U, 0U);
+        words.back() = marker;
+        provider.set_words(words);
+        LegacyActionUpdater updater{provider};
+        auto record = zero_record();
+        make_keys_stable(record);
+        record.command_cursor = 0xFFFFU;
+        const auto result = updater.update(record);
+        test.expect_true(
+            result.return_edx == (marker == 0x4F32U ? 0xFFFFFFFFU : 0U),
+            "marker increment and decrement wrap the complete EDX"
+        );
+    }
+
+    FakeStreamProvider provider;
+    LegacyActionUpdater updater{provider};
+    auto record = zero_record();
+    test.expect_true(
+        updater.update(record, 0xABCD1234U).return_edx == 0xABCD1234U,
+        "empty action preserves entry EDX without invoking the loader"
+    );
+    make_keys_stable(record);
+    const u16 marker[]{0x4544U};
+    provider.set_words(marker);
+    test.expect_true(
+        !updater.update(record, 0xABCD1234U).return_edx.has_value(),
+        "unknown loader EDX does not inherit caller EDX"
+    );
+    record.wait_remaining = 3U;
+    for (const auto loaded_edx : {0xABCD1234U, 0x9876FEDCU}) {
+        provider.return_edx = loaded_edx;
+        test.expect_true(
+            updater.update(record).return_edx == loaded_edx,
+            "waiting reloads and retains this call's loader EDX"
+        );
+    }
+
+    provider.fail = true;
+    test.expect_true(
+        updater.update(record).return_edx == provider.return_edx,
+        "normal null loader retains its EDX"
+    );
+    provider.stop = true;
+    test.expect_true(
+        !updater.update(record, 0xABCD1234U).return_edx.has_value(),
+        "stopped loader has no normal return EDX"
+    );
+}
+
 void test_real_act_provider(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -577,6 +837,9 @@ int main(const int argument_count, char** arguments) {
     test_field_and_mode_commands(test);
     test_wait_and_terminator_commands(test);
     test_malformed_stream_guard(test);
+    test_lf_contiguous_read_and_cursor_commit(test);
+    test_return_edx(test);
+    test_operand_fault_prefixes(test);
     if (argument_count == 2) {
         test_real_act_provider(test, std::filesystem::path{arguments[1]});
     }

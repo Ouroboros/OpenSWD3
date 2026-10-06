@@ -110,6 +110,8 @@ struct LegacyActionStreamLoadResult {
     std::span<const compat::u8> stream;
     bool cache_hit{};
     std::optional<LegacyActionStreamStop> stop{};
+    // Unknown when no legacy loader register evidence is available.
+    std::optional<compat::u32> return_edx{};
 };
 
 class LegacyActionStreamProvider {
@@ -147,6 +149,8 @@ struct LegacyActionUpdateResult {
     bool key_changed{};
     bool cache_hit{};
     std::optional<LegacyActionStreamStop> stream_stop{};
+    // Present only when the complete normally returned EDX is known.
+    std::optional<compat::u32> return_edx{};
 };
 
 class LegacyActionUpdater final {
@@ -156,7 +160,10 @@ public:
     void set_stream_cache_mode(compat::u32 value) noexcept;
     [[nodiscard]] compat::u32 stream_cache_mode() const noexcept;
 
-    [[nodiscard]] LegacyActionUpdateResult update(LegacyActionRecord& record);
+    [[nodiscard]] LegacyActionUpdateResult update(
+        LegacyActionRecord& record,
+        std::optional<compat::u32> entry_edx = std::nullopt
+    );
 
 private:
     LegacyActionStreamProvider& provider_;
