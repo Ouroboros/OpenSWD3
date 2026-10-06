@@ -208,7 +208,7 @@ materialize_legacy_battle_group_a_npc(
     state->placement_primary = packed_source;
     state->placement_secondary = packed_source;
     result.placement_dwords_copied = 16U;
-    state->placement_tail = source->active;
+    state->source_runtime_value = source->active;
     state->placement_word = role_id;
     if (role_id == 0U) {
         static_cast<void>(invoke(

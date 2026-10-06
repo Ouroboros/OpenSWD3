@@ -40,6 +40,16 @@ class StartupPorts final
       public openswd3::battle::LegacyBattleMutableFrameImagePort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
+    std::array<openswd3::battle::LegacyBattleGroupAConfigurationSourceRecord, 4>
+        primary_party_sources{};
+
+    std::span<std::byte>
+    party_configuration_source(const u32 index) noexcept override {
+        return std::as_writable_bytes(
+            std::span{primary_party_sources[index].dwords}
+        );
+    }
+
     std::array<openswd3::asset_runtime::LegacyActionRecord, 3> dialog_actions{};
     std::vector<openswd3::asset_runtime::LegacyActionRecord> control_snapshots;
     std::vector<std::array<i32, 4>> mouse_rebase_snapshots;
@@ -1278,9 +1288,6 @@ void test_battle_startup(openswd3::test::Context& test) {
             std::byte{0xCA};
         state.group_a_description_record_tokens.fill(0xDEADBEEFU);
         state.group_a_description_text_indices.fill(0xBEEFU);
-        state.group_a_configuration_sources[0U].dwords[1U] = 12000U;
-        state.group_a_configuration_sources[0U].dwords[4U] = 0x56781234U;
-        state.group_a_configuration_sources[1U].dwords[1U] = 9000U;
         state.party[0U].progress.progress = 0xAAAA0000U;
         state.party[1U].progress.progress = 0xBBBB0000U;
         state.party[2U].progress.progress = 0xCCCC0000U;
@@ -1303,6 +1310,9 @@ void test_battle_startup(openswd3::test::Context& test) {
             .derived_words = {0xFFFFU, 0x3333U, 0x4444U, 0x5555U},
         };
         StartupPorts ports;
+        ports.primary_party_sources[0U].dwords[1U] = 12000U;
+        ports.primary_party_sources[0U].dwords[4U] = 0x56781234U;
+        ports.primary_party_sources[1U].dwords[1U] = 9000U;
         ports.archive_open_replies.push_back({
             .eax = 0xFFFFFFFFU,
             .ecx = 0x77777777U,
@@ -1439,9 +1449,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                     0x004AB790U &&
                 state.party[1U].configuration.source_record_token ==
                     0x004AB7C8U &&
-                static_cast<u16>(
-                    state.group_a_configuration_sources[0U].dwords[1U]
-                ) == 9999U &&
+                static_cast<u16>(ports.primary_party_sources[0U].dwords[1U]) ==
+                    9999U &&
                 static_cast<u16>(
                     state.party[0U].configuration.actor_record[1U]
                 ) == 12000U &&
@@ -1684,8 +1693,8 @@ void test_battle_startup(openswd3::test::Context& test) {
         LegacyBattleStartupState state;
         state.supplemental_count_word = 1U;
         state.party[0U].configuration.source_record_token = 0x004AB790U;
-        state.group_a_configuration_sources[0U].dwords[4U] = 0x12345678U;
         StartupPorts ports;
+        ports.primary_party_sources[0U].dwords[4U] = 0x12345678U;
         ports.query_values = {{34U, 1U}, {35U, 1U}};
         ports.random_values = {0U, 1U, 1U, 0U, 0U};
         ports.definition.enemy_count = 1U;

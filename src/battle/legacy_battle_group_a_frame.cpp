@@ -1607,11 +1607,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             auto& startup_actor = context.startup->party[group_a_index];
             const u32 source_record_token =
                 startup_actor.configuration.source_record_token;
-            const std::array<u32, 14>* source_record = nullptr;
+            std::span<const std::byte> source_record;
             if (source_record_token != 0U &&
                 source_record_token ==
                     startup_actor.configuration.actor_record_token) {
-                source_record = &startup_actor.configuration.actor_record;
+                source_record = std::as_bytes(
+                    std::span{startup_actor.configuration.actor_record}
+                );
             } else {
                 for (u32 source_index = 0U; source_index <
                      context.startup->group_a_configuration_sources.size();
@@ -1619,9 +1621,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     if (source_record_token ==
                         0x004AB790U + source_index * 0x38U) {
                         source_record =
-                            &context.startup
-                                 ->group_a_configuration_sources[source_index]
-                                 .dwords;
+                            context.startup
+                                ->group_a_configuration_sources[source_index];
                         break;
                     }
                 }

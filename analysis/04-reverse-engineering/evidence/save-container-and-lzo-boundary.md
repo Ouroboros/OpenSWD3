@@ -22,7 +22,14 @@
 
 `restore_legacy_save_selection_extension` 将 Fame 后 0x84 字节扩展 C 的前两个有符号 `i16` 分别恢复到选择滚动间隔与剩余帧数，并将后续 64 个 `i16` 原样写入现有选择字 owner；不修改滚动 cursor 和视口快照。独立物理偏移核对 `Save/0.sav` 的前四字节 `02 00 02 00`、两端选择字均 `0xCFCF`，`Save1/0.sav` 前四字节全零。`restore_legacy_save_tail_mode_texts` 按 `0x00408B18–0x00408B65` 将最后一个普通解压块的前两条 0x34 字节记录以首字节非零为可分配条件，写入剧情 VM 已有的两条文字 owner。当前两份独立原版样本的尾块均恰好 0x68 字节且全零；合成测试另覆盖非空文字复制、旧 owner 释放及截断拒绝。SDL 读档入口现在依段存在性调用上述函数；缺失段的默认状态还需实机及原版对照。
 
-`restore_legacy_save_party_extension_b` 依 `0x00408A52–0x00408A6E` 将原样扩展 B 的四条连续 0x60 字节队员状态写回现有 `LegacyBattleStartupState::group_a_configuration_sources`，每条此前供战斗组 A 配置复制的前 14 个 dword 仍在原 owner，新增同址记录余下 10 个 dword，不创建第二个战斗快照。独立提取 `Save/0.sav` 扩展 B 起点 `0xE887`、第一条前四个 dword `0x38/0x90/0xB4/0x80000663`；`Save1/0.sav` 起点 `0xE6D3`。真实字节及填充尾段的合成测试均通过；SDL 读档入口现在把它写入战斗启动的既有队员状态。
+`restore_legacy_save_party_extension_b`依`0x00408A52–0x00408A6E`恢复扩展B的
+四条`0x60`字节辅助记录，完整保存于`group_a_auxiliary_sources`。
+此前将其前14个DWORD当作配置基础来源的解释错误，现已撤销。
+`004AB790`基础记录仍由世界/剧情状态唯一持有，战斗只借用其字节视图；
+`004ACF50`辅助扩展不覆盖基础记录。来源及测试见
+[队伍基础记录接线证据](battle-party-source-runtime-binding.md)。
+
+独立提取 `Save/0.sav` 扩展 B 起点 `0xE887`、第一条前四个 dword `0x38/0x90/0xB4/0x80000663`；`Save1/0.sav` 起点 `0xE6D3`。真实字节及填充尾段的合成测试均通过；SDL 读档入口现在把它写入战斗启动的既有队员状态。
 
 `read_legacy_save_world_entry` 依据 `0x004084B3–0x00408501` 读取块 1 后的七个原样 dword：第一字是 `0x004B7BC4` 的选中 GUID，第二字才是 `ArgList/0x004A9A10` 的当前逻辑地图号，后五字按受控角色索引依次写入角色表 `0x004BABA8 + index * 0xD8` 的 `+4/+8/+0x40/+0x48/+0x74`，即世界坐标 X/Y 和动作编号、基础变体、变体差值。`restore_legacy_save_controlled_role_words` 将后五字写回已有 0xD8 字节角色记录，不伪造新角色；必须以角色表基址 `0x004BABA8` 而非 `0x004BAB80` 计算这些字段。独立物理样本 `Save/0.sav` 的七字为 `(1,40,17,24,1,0,0)`；`Save1/0.sav` 为 `(1,31,23,35,1,0,2)`。SDL 读档入口已用这七字在 MAPS 来源恢复之后请求地图会话，真实 `Save/0.sav` 地图核心测试确认选中角色在 `(17*16,24*16)`；尚无游戏窗口验收。
 

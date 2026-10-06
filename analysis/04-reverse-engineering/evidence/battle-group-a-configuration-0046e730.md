@@ -1,6 +1,8 @@
 # 战斗组A角色配置 `0x0046E730`
 
-状态：`platform_adapted`。完整LST、typed配置状态、两类callee、startup唯一caller、验证和inventory双生成均已收敛。
+状态：`platform_adapted`。函数合同及早期验证见下；B11来源归属修正见
+[队伍基础记录接线证据](battle-party-source-runtime-binding.md)。
+完整SDL队伍初始化与实际续玩尚未完成。
 
 ## 1. 完整权威范围与ABI
 
@@ -24,13 +26,13 @@ placement `+0x14`的u16同时写入角色`+0x2A0C`；值为零时，以窗口tok
 
 ## 4. typed owner、停止点与callee
 
-`LegacyBattleGroupAConfigurationState`承接角色内14-dword基础记录、两份placement副本、两个源token和发布字段；四份可写源记录由startup状态唯一持有。placement的角色编号、坐标和active继续复用startup组A角色记录，调用时只构造只读32-byte值视图。
+`LegacyBattleGroupAConfigurationState`承接角色内14-dword基础记录、两份placement副本、两个源token和发布字段；四份基础源记录由世界/剧情状态唯一持有，startup通过字节视图借用；存档辅助扩展单独保存。placement的角色编号、坐标和active继续复用startup组A角色记录，调用时只构造只读32-byte值视图。
 
-placement token、源记录token或角色基础记录token为零时，typed-stop分别放在原始首次placement读、源读或目标写位置。工作区零化和此前完成的placement复制保持不回滚。
+placement token、源记录token或角色基础记录token为零时，typed-stop分别放在原始首次placement读、源读或目标写位置。工作区零化和此前完成的placement复制保持不回滚。借用来源不足56字节时，按DWORD逐次检查并保留已完成的复制前缀；EAX保持来源地址，ECX保留剩余次数，失败不发布来源指针。
 
 `0x0046E6A0`已直接组合，旧地址不再经过端口。`0x00431150`是尚无通用typed实现的公共诊断边界，仅保留窄诊断port，并完整传播其EDX到后续寄存器链。
 
-## 5. startup caller回收与验证状态
+## 5. startup caller回收与历史验证状态
 
 startup唯一caller不再调用`configure_party_actor`旧业务槽；原枚举值改为reserved，新诊断服务追加到枚举尾。caller把实际组A actor token、四份源记录、角色placement owner和窗口token传给typed配置器；typed-stop会阻断后续角色mode查询，并保留此前startup副作用。
 

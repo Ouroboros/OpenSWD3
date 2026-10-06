@@ -2705,8 +2705,19 @@ public:
     }
 
     bool initialize_battle(const openswd3::compat::u16 battle_id) override {
+        for (std::size_t index = 0U;
+             index < battle_runtime_.group_a_configuration_sources.size();
+             ++index) {
+            battle_runtime_.group_a_configuration_sources[index] =
+                std::as_writable_bytes(
+                    std::span{
+                        &world_story_vm_state_.party_member_resources[index], 1U
+                    }
+                );
+        }
+
         const auto saved_party_sources =
-            battle_runtime_.group_a_configuration_sources;
+            battle_runtime_.group_a_auxiliary_sources;
         battle_runtime_.battle_id_word = battle_id;
         openswd3::battle::reset_legacy_battle_startup_blocks(
             battle_runtime_,
@@ -2884,7 +2895,7 @@ public:
                     battle_setup_, battle_runtime_
                 );
                 if (saved_party_extension_active_) {
-                    battle_runtime_.group_a_configuration_sources =
+                    battle_runtime_.group_a_auxiliary_sources =
                         saved_party_sources;
                 }
                 for (std::size_t index = 0U; index < battle_setup_.enemy_count;

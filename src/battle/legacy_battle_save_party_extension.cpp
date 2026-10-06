@@ -20,14 +20,13 @@ void restore_legacy_save_party_extension_b(
     const resource_io::LegacySaveContainer& save,
     LegacyBattleStartupState& battle
 ) noexcept {
-    static_assert(sizeof(LegacyBattleGroupAConfigurationSourceRecord) == 0x60U);
+    static_assert(sizeof(LegacyBattleGroupAAuxiliarySourceRecord) == 0x60U);
     static_assert(
-        sizeof(LegacyBattleGroupAConfigurationSourceRecord) * 4U == 0x180U
+        sizeof(LegacyBattleGroupAAuxiliarySourceRecord) * 4U == 0x180U
     );
-    for (std::size_t role = 0U;
-         role < battle.group_a_configuration_sources.size();
+    for (std::size_t role = 0U; role < battle.group_a_auxiliary_sources.size();
          ++role) {
-        auto& destination = battle.group_a_configuration_sources[role];
+        auto& destination = battle.group_a_auxiliary_sources[role];
         const std::size_t base = role * 0x60U;
         for (std::size_t word = 0U; word < destination.dwords.size(); ++word) {
             destination.dwords[word] =

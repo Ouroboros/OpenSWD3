@@ -79,6 +79,13 @@ class ResetPort final : public LegacyBattleGlobalResetRuntimePort {
 public:
     ResetPort() : samples(sample_backend, archive) {}
 
+    std::array<std::array<u32, 14>, 4> primary_party_sources{};
+
+    std::span<std::byte>
+    party_configuration_source(const u32 index) noexcept override {
+        return std::as_writable_bytes(std::span{primary_party_sources[index]});
+    }
+
     u32 unresolved_display_token{};
 
     [[nodiscard]] std::optional<u32>

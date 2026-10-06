@@ -27,8 +27,19 @@ void test_four_complete_records(openswd3::test::Context& test) {
     bytes[0x60U] = 6U;
     bytes[0x180U - 1U] = 7U;
     auto battle = std::make_unique<LegacyBattleStartupState>();
+    std::array<u8, 0x38U> primary{};
+    primary.fill(0x5AU);
+    const auto primary_before = primary;
+    const auto primary_view = std::as_writable_bytes(std::span{primary});
+    battle->group_a_configuration_sources[0U] = primary_view;
     restore_legacy_save_party_extension_b(save, *battle);
-    const auto& records = battle->group_a_configuration_sources;
+    test.expect_true(
+        primary == primary_before &&
+            battle->group_a_configuration_sources[0U].data() ==
+                primary_view.data(),
+        "restoring auxiliary records preserves the primary source and its live binding"
+    );
+    const auto& records = battle->group_a_auxiliary_sources;
     test.expect_true(
         records[0U].dwords[0U] == 0x04030201U &&
             records[0U].saved_tail_dwords[0U] == 0xAAAAAA05U &&
@@ -57,12 +68,12 @@ void test_original_party_records(openswd3::test::Context& test) {
     }
     auto battle = std::make_unique<LegacyBattleStartupState>();
     restore_legacy_save_party_extension_b(parsed.container, *battle);
-    const auto& first = battle->group_a_configuration_sources[0U];
+    const auto& first = battle->group_a_auxiliary_sources[0U];
     test.expect_true(
         first.dwords[0U] == 0x38U && first.dwords[1U] == 0x90U &&
             first.dwords[2U] == 0xB4U && first.dwords[3U] == 0x80000663U &&
             first.saved_tail_dwords[0U] == 0U &&
-            battle->group_a_configuration_sources[1U].dwords[0U] == 0U,
+            battle->group_a_auxiliary_sources[1U].dwords[0U] == 0U,
         "Save/0.sav writes independently measured party source bytes into the existing battle owner"
     );
 #else

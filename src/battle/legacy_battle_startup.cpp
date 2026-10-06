@@ -925,6 +925,11 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     }
     publish_party_positions(state);
     publish_party_offsets(state);
+    for (u32 index = 0U; index < state.group_a_configuration_sources.size();
+         ++index) {
+        state.group_a_configuration_sources[index] =
+            port.party_configuration_source(index);
+    }
 
     StartupGroupAConfigurationDiagnosticPort configuration_diagnostic(port);
     for (u32 index = 0U; index < state.actor_metrics.group_a_count; ++index) {

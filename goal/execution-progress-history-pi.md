@@ -27,6 +27,18 @@ SDL接入真实分配和释放。解析停止保留此前分配，后续加载�
 [解析流接线证据](../analysis/04-reverse-engineering/evidence/battle-mon-stream-runtime-binding.md)。
 没有启动游戏，B10及完整续玩验收状态不变。
 
+## B11：队伍基础记录与存档辅助扩展分离
+
+战斗配置与属性效果借用世界/剧情的基础记录，读档扩展B独立保存完整
+辅助记录。配置先复制再对原来源限幅；诊断回调后的读取保留实时性。
+配置、召唤与护援统一写同一个活动值，短来源停止保留逐DWORD复制前缀。
+
+core启动聚合与存档扩展各1/1、ASan对应两组各1/1及SDL构建通过。
+没有启动游戏；队伍构造、重置、实际SDL配置、模式计数和完整续玩仍待完成。
+REVIEW边界、原始证据及日志见
+[队伍基础记录接线证据](../analysis/04-reverse-engineering/evidence/battle-party-source-runtime-binding.md)。
+B10保持315/422，Workpack316仍为pending_audit。
+
 ## B1–B6与日志基础设施详细完成记录
 
 6. `[x]` B1：`compat + platform_sdl3 + app` 已完成接口级逆向、实现、逐基本块复核、Windows LLVM `core`/`app` 构建、23 项 CTest 和真实 SDL3 窗口创建/关闭 smoke；状态为 `module_closed_pending_oracle`，只保留已登记的原程序动态差分阻塞。

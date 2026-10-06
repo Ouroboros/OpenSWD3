@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstddef>
+#include <span>
 #include <vector>
 
 namespace openswd3::battle {
@@ -19,8 +20,12 @@ inline constexpr compat::u32 kLegacyBattleGroupAMissingPlacementSourceLine =
     0xDEU;
 
 struct LegacyBattleGroupAConfigurationSourceRecord {
-    // 0x004ACF50 + index*0x60: group-A configuration copies the first 0x38
-    // bytes; the save loader restores the entire 0x60-byte source record.
+    // 0x004AB790 + index*0x38: the complete primary configuration record.
+    std::array<compat::u32, 14> dwords{};
+};
+
+struct LegacyBattleGroupAAuxiliarySourceRecord {
+    // 0x004ACF50 + index*0x60: separately restored save extension.
     std::array<compat::u32, 14> dwords{};
     std::array<compat::u32, 10> saved_tail_dwords{};
 };
@@ -41,7 +46,6 @@ struct LegacyBattleGroupAConfigurationState {
     std::array<compat::u32, 8> placement_secondary{};
     compat::u32 source_record_token{};
     compat::u32 auxiliary_record_token{};
-    compat::u32 placement_tail{};
     compat::u8 field_2a93{};
     compat::u16 placement_word{};
     compat::u32 profile_token{};
@@ -97,7 +101,23 @@ struct LegacyBattleGroupAConfigurationResult {
     compat::u32 return_edx{};
 };
 
-// sub_46E730.
+// sub_46E730. The byte view borrows the live 0x38-byte world/story record;
+// diagnostics and subsequent clamps observe the same storage.
+[[nodiscard]] LegacyBattleGroupAConfigurationResult
+configure_legacy_battle_group_a_actor(
+    LegacyBattleGroupAWorkspaceState& workspace,
+    LegacyBattleGroupAConfigurationState& state,
+    LegacyBattleActorProgressState& progress,
+    std::span<std::byte> source,
+    const LegacyBattleGroupAPlacementRecord& placement,
+    compat::u32 source_record_token,
+    compat::u32 auxiliary_record_token,
+    compat::u32 placement_token,
+    compat::u32 window_token,
+    LegacyBattleGroupAConfigurationDiagnosticPort& diagnostic_port
+);
+
+// Owned-record adapter for standalone callers.
 [[nodiscard]] LegacyBattleGroupAConfigurationResult
 configure_legacy_battle_group_a_actor(
     LegacyBattleGroupAWorkspaceState& workspace,

@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
 #include "test.hpp"
+#include "openswd3/world_map/legacy_world_story_vm.hpp"
 
 #include <array>
 #include <bit>
@@ -53,6 +54,26 @@ public:
     u32 calls{};
 };
 
+class LiveSourceDiagnostic final
+    : public LegacyBattleGroupAConfigurationDiagnosticPort {
+public:
+    explicit LiveSourceDiagnostic(
+        openswd3::world_map::LegacyWorldStoryPartyMemberResources& source
+    )
+        : source_(source) {}
+
+    LegacyBattleGroupAConfigurationDiagnosticReply report_missing_placement(
+        const LegacyBattleGroupAConfigurationDiagnosticRequest&
+    ) override {
+        observed_current = source_.current_first;
+        source_.current_first = 1U;
+        return {};
+    }
+
+    u16 observed_current{};
+    openswd3::world_map::LegacyWorldStoryPartyMemberResources& source_;
+};
+
 }  // namespace
 
 void test_battle_group_a_configuration(openswd3::test::Context& test) {
@@ -63,6 +84,113 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleGroupAPlacementRecord;
     using openswd3::battle::LegacyBattleGroupAWorkspaceState;
     using openswd3::battle::configure_legacy_battle_group_a_actor;
+
+    for (const std::size_t readable : {0U, 3U, 4U, 55U}) {
+        std::array<std::byte, 0x38U> source;
+        source.fill(std::byte{0x44});
+        LegacyBattleGroupAWorkspaceState workspace{.object_token = 0x005029D0U};
+        LegacyBattleGroupAConfigurationState state{
+            .actor_record_token = 0x71110000U,
+            .source_record_token = 0xAAAAAAAAU,
+            .auxiliary_record_token = 0xBBBBBBBBU,
+        };
+        state.actor_record.fill(0xCCCCCCCCU);
+        LegacyBattleActorProgressState progress;
+        DiagnosticPort diagnostic;
+        const auto result = configure_legacy_battle_group_a_actor(
+            workspace,
+            state,
+            progress,
+            std::span{source}.first(readable),
+            {.active = 0xABCD1234U},
+            0x004AB790U,
+            0x004ACF50U,
+            0x0053AF70U,
+            0U,
+            diagnostic
+        );
+        bool prefix_matches = true;
+        for (std::size_t index = 0U; index < state.actor_record.size();
+             ++index) {
+            prefix_matches &= state.actor_record[index] ==
+                (index < readable / 4U ? 0x44444444U : 0xCCCCCCCCU);
+        }
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupAConfigurationStatus::
+                        source_record_typed_stop &&
+                result.placement_dwords_copied == 16U &&
+                result.actor_record_dwords_copied == readable / 4U &&
+                result.return_eax == 0x004AB790U &&
+                result.return_ecx == 14U - readable / 4U &&
+                result.return_edx == 0x0053AF70U && prefix_matches &&
+                state.source_record_token == 0xAAAAAAAAU &&
+                state.auxiliary_record_token == 0xBBBBBBBBU &&
+                state.source_runtime_value == 0xABCD1234U &&
+                diagnostic.calls == 0U,
+            "short borrowed source retains each completed REP dword and stops before publishing source pointers"
+        );
+    }
+
+    {
+        openswd3::world_map::LegacyWorldStoryPartyMemberResources source{};
+        source.current_first = 12000U;
+        source.tail_2d_to_37.fill(0x44U);
+        LegacyBattleGroupAWorkspaceState workspace{.object_token = 0x005029D0U};
+        LegacyBattleGroupAConfigurationState state{
+            .actor_record_token = 0x71110000U
+        };
+        LegacyBattleActorProgressState progress;
+        LegacyBattleGroupAPlacementRecord placement{.active = 0xABCD1234U};
+        LiveSourceDiagnostic diagnostic{source};
+        const auto result = configure_legacy_battle_group_a_actor(
+            workspace,
+            state,
+            progress,
+            std::as_writable_bytes(std::span{&source, 1U}),
+            placement,
+            0x004AB790U,
+            0x004ACF50U,
+            0x0053AF70U,
+            0U,
+            diagnostic
+        );
+        test.expect_true(
+            result.status == LegacyBattleGroupAConfigurationStatus::completed &&
+                result.diagnostic_calls == 1U &&
+                diagnostic.observed_current == 12000U &&
+                static_cast<u16>(state.actor_record[1U]) == 12000U &&
+                state.actor_record[13U] == 0x44444444U &&
+                source.current_first == 1U &&
+                result.source_clamp_writes == 0U &&
+                state.source_runtime_value == 0xABCD1234U,
+            "configuration copies the live world record before diagnostics and " "clamps the callback-modified source without stale copyback"
+        );
+
+        source.current_first = 12000U;
+        placement.role_id = 101U;
+        const auto repeated = configure_legacy_battle_group_a_actor(
+            workspace,
+            state,
+            progress,
+            std::as_writable_bytes(std::span{&source, 1U}),
+            placement,
+            0x004AB790U,
+            0x004ACF50U,
+            0x0053AF70U,
+            0U,
+            diagnostic
+        );
+        test.expect_true(
+            repeated.status ==
+                    LegacyBattleGroupAConfigurationStatus::completed &&
+                repeated.source_clamp_writes == 1U &&
+                static_cast<u16>(state.actor_record[1U]) == 12000U &&
+                source.current_first == 9999U,
+            "configuration clamps the world owner while retaining the earlier actor copy"
+        );
+    }
 
     {
         LegacyBattleGroupAWorkspaceState workspace{
@@ -116,7 +244,7 @@ void test_battle_group_a_configuration(openswd3::test::Context& test) {
                 state.placement_primary == state.placement_secondary &&
                 state.placement_primary[5U] == 0x23450065U &&
                 state.placement_primary[6U] == 0x45673456U &&
-                state.placement_tail == 1U &&
+                state.source_runtime_value == 1U &&
                 state.source_record_token == 0x004AB790U &&
                 state.auxiliary_record_token == 0x004ACF50U &&
                 state.field_2a93 == 0xABU && state.placement_word == 101U &&

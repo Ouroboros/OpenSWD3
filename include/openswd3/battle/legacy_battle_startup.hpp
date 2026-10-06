@@ -162,6 +162,11 @@ public:
     [[nodiscard]] virtual LegacyBattleStartupCallReply
     invoke(const LegacyBattleStartupCallRequest& request) = 0;
 
+    // Borrow the live 0x004AB790 + index*0x38 record for the session.
+    // An empty view means the source is unavailable, never a zero record.
+    [[nodiscard]] virtual std::span<std::byte>
+    party_configuration_source(compat::u32 index) noexcept = 0;
+
     [[nodiscard]] std::optional<compat::u32>
     release_battle_display_surface(compat::u32 token) override;
     [[nodiscard]] compat::u32 battle_display_height() override;
@@ -320,8 +325,9 @@ struct LegacyBattleStartupState {
     std::shared_ptr<std::array<LegacyBattleActorRuntimeResetState, 10>>
         group_a_runtime_reset{std::make_shared<
             std::array<LegacyBattleActorRuntimeResetState, 10>>()};
-    std::array<LegacyBattleGroupAConfigurationSourceRecord, 4>
-        group_a_configuration_sources{};
+    std::array<std::span<std::byte>, 4> group_a_configuration_sources{};
+    std::array<LegacyBattleGroupAAuxiliarySourceRecord, 4>
+        group_a_auxiliary_sources{};
     std::array<compat::u32, 4> group_a_auxiliary_profile_kinds{
         0x38U, 0x38U, 0x38U, 0x38U
     };

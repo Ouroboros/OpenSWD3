@@ -28,6 +28,10 @@ class SharedActorMetricPort final : public LegacyBattleActionDispatchPort,
 public:
     SharedActorMetricPort() = default;
 
+    std::span<std::byte> party_configuration_source(u32) noexcept override {
+        return {};  // This metrics-only fixture has no party source binding.
+    }
+
     explicit SharedActorMetricPort(
         openswd3::battle::LegacyBattleActorMetricState& state
     )

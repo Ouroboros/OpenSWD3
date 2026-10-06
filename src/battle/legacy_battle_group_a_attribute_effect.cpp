@@ -29,15 +29,13 @@ inline constexpr std::array<u32, 3> kResourceSlotWriteReturnAddresses{
 };
 
 [[nodiscard]] constexpr u8 record_byte(
-    const std::array<u32, 14>& record, const std::size_t offset
+    const std::span<const std::byte> record, const std::size_t offset
 ) noexcept {
-    return static_cast<u8>(
-        record[offset / 4U] >> static_cast<u32>((offset & 3U) * 8U)
-    );
+    return std::to_integer<u8>(record[offset]);
 }
 
 [[nodiscard]] constexpr u16 record_word(
-    const std::array<u32, 14>& record, const std::size_t offset
+    const std::span<const std::byte> record, const std::size_t offset
 ) noexcept {
     return static_cast<u16>(record_byte(record, offset)) |
         static_cast<u16>(
@@ -55,7 +53,7 @@ LegacyBattleGroupAAttributeEffectResult
 apply_legacy_battle_group_a_attribute_effects(
     LegacyBattleGroupAAttributeEffectState* state,
     const LegacyBattleGroupAWorkspaceState& workspace,
-    const std::array<u32, 14>* source_record,
+    const std::span<const std::byte> source_record,
     const u32 actor_token,
     const u32 source_record_token,
     LegacyBattleGroupAAttributeEffectPort& port,
@@ -73,12 +71,12 @@ apply_legacy_battle_group_a_attribute_effects(
     }
 
     result.return_ecx = source_record_token;
-    if (source_record_token == 0U || source_record == nullptr) {
+    if (source_record_token == 0U || source_record.size() < 0x38U) {
         result.status =
             LegacyBattleGroupAAttributeEffectStatus::source_record_typed_stop;
         return result;
     }
-    if ((record_byte(*source_record, 0x25U) & 0x80U) != 0U) {
+    if ((record_byte(source_record, 0x25U) & 0x80U) != 0U) {
         return result;
     }
 
@@ -113,7 +111,7 @@ apply_legacy_battle_group_a_attribute_effects(
         }
 
         const i16 coefficient = std::bit_cast<i16>(
-            record_word(*source_record, 0x0AU + channel_index * 2U)
+            record_word(source_record, 0x0AU + channel_index * 2U)
         );
         const i32 product =
             static_cast<i32>(coefficient) * static_cast<i32>(total);
@@ -222,6 +220,24 @@ apply_legacy_battle_group_a_attribute_effects(
     result.return_ecx = ecx;
     result.return_edx = edx;
     return result;
+}
+
+LegacyBattleGroupAAttributeEffectResult
+apply_legacy_battle_group_a_attribute_effects(
+    LegacyBattleGroupAAttributeEffectState* state,
+    const LegacyBattleGroupAWorkspaceState& workspace,
+    const std::array<u32, 14>* source_record,
+    const u32 actor_token,
+    const u32 source_record_token,
+    LegacyBattleGroupAAttributeEffectPort& port,
+    const LegacyBattleGroupAAttributeEffectRequest& request
+) {
+    const auto bytes = source_record != nullptr
+        ? std::as_bytes(std::span{*source_record})
+        : std::span<const std::byte>{};
+    return apply_legacy_battle_group_a_attribute_effects(
+        state, workspace, bytes, actor_token, source_record_token, port, request
+    );
 }
 
 }  // namespace openswd3::battle

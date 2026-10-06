@@ -185,6 +185,7 @@ struct Fixture {
     SoundPort sound;
     CountdownFlags countdown_flags;
     std::array<u8, 16> flags{};
+    std::array<std::array<u32, 14>, 4> primary_party_sources{};
     openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleStartupResetBlocks startup_reset;
     openswd3::battle::LegacyBattleTextMessageState text_messages;
@@ -205,6 +206,12 @@ struct Fixture {
                 raster, framebuffer.geometry().surface
             )
         );
+        for (std::size_t index = 0U; index < primary_party_sources.size();
+             ++index) {
+            startup.group_a_configuration_sources[index] =
+                std::as_writable_bytes(std::span{primary_party_sources[index]});
+        }
+
         for (auto& actor : startup.party) {
             actor.configuration.source_record_token = 0x004AB790U;
             actor.configuration.actor_record_token = 0x005029D0U;
@@ -1372,8 +1379,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             state.actor_ai_primary[0U] = 1U;
             Fixture fixture;
             fixture.startup.party[0U].workspace.tail_words[7U] = 200U;
-            fixture.startup.group_a_configuration_sources[0U].dwords[2U] = 25U
-                << 16U;
+            std::array<u32, 14> primary_source{};
+            primary_source[2U] = 25U << 16U;
+            fixture.startup.group_a_configuration_sources[0U] =
+                std::as_writable_bytes(std::span{primary_source});
             DispatchPort port;
             auto context = fixture.context();
 

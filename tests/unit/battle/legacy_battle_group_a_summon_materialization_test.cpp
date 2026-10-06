@@ -159,7 +159,8 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
                 state.placement_primary == state.placement_secondary &&
                 state.placement_primary[5U] == 0x23450123U &&
                 state.placement_primary[6U] == 0x45673456U &&
-                state.placement_tail == 1U && state.placement_word == 0x123U &&
+                state.source_runtime_value == 1U &&
+                state.placement_word == 0x123U &&
                 actor_word(state.actor_record, 0x26U) == 0x1111U &&
                 actor_word(state.actor_record, 0x28U) == 0x2222U &&
                 actor_word(state.actor_record, 0x16U) == 0x3333U &&
@@ -271,7 +272,7 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
                         actor_record_typed_stop &&
                 result.port_calls == 4U && result.diagnostic_calls == 1U &&
                 result.placement_dwords_copied == 16U &&
-                state.placement_tail == 7U &&
+                state.source_runtime_value == 7U &&
                 std::ranges::all_of(
                     state.actor_record,
                     [](const u32 value) { return value == 0xDDDDDDDDU; }

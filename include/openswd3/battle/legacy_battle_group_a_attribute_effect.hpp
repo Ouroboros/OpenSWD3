@@ -5,6 +5,8 @@
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <cstddef>
+#include <span>
 
 namespace openswd3::battle {
 
@@ -80,7 +82,19 @@ struct LegacyBattleGroupAAttributeEffectResult {
     compat::u32 return_edx{};
 };
 
-// sub_46EE60.
+// sub_46EE60. Borrow the live source so channel callbacks cannot stale it.
+[[nodiscard]] LegacyBattleGroupAAttributeEffectResult
+apply_legacy_battle_group_a_attribute_effects(
+    LegacyBattleGroupAAttributeEffectState* state,
+    const LegacyBattleGroupAWorkspaceState& workspace,
+    std::span<const std::byte> source_record,
+    compat::u32 actor_token,
+    compat::u32 source_record_token,
+    LegacyBattleGroupAAttributeEffectPort& port,
+    const LegacyBattleGroupAAttributeEffectRequest& request = {}
+);
+
+// Owned-record adapter; a null pointer denotes an unavailable source.
 [[nodiscard]] LegacyBattleGroupAAttributeEffectResult
 apply_legacy_battle_group_a_attribute_effects(
     LegacyBattleGroupAAttributeEffectState* state,
