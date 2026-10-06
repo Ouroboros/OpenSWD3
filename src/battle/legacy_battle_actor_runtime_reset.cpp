@@ -835,7 +835,6 @@ void synchronize_actor_write(
     if (changed(0x2A12U, sizeof(u16))) {
         const u16 value = load_value<u16>(image, 0x2A12U);
         replace_low_word(actor.progress->progress, value);
-        actor.action_execution->completion_delay_word = value;
     }
     if (changed(0x2AACU, sizeof(u32))) {
         actor.action_execution->turn_completion_latch =

@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "test.hpp"
 
 #include <algorithm>
@@ -22,7 +23,14 @@ public:
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
         if (request.callee_token == 0x00439070U) {
-            return {.eax = random_value};
+            if (random_progress != nullptr) {
+                random_progress->progress = random_progress_value;
+            }
+            return {
+                .eax = random_value,
+                .ecx = random_ecx,
+                .edx = random_edx,
+            };
         }
         if (request.callee_token == 0x0047CD60U) {
             return {.eax = effect_gate};
@@ -112,6 +120,10 @@ public:
 
     u32 actor_token{0x00525508U};
     u32 random_value{7U};
+    u32 random_ecx{};
+    u32 random_edx{};
+    openswd3::battle::LegacyBattleActorProgressState* random_progress{};
+    u32 random_progress_value{};
     u32 effect_gate{1U};
     u32 calculated_effect{};
     u32 commit_effect{1U};
@@ -562,7 +574,8 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
         bind_resource(actor);
         actor.action_execution.profile_value = 0x456U;
         actor.action_execution.motion_word = 0xFFFEU;
-        actor.action_execution.completion_delay_word = 3U;
+        openswd3::battle::LegacyBattleActorProgressState progress;
+        progress.progress = 0xA5A50003U;
         actor.action_configuration.profile_buffer[0x0CU] = std::byte{1U};
         LegacyBattleActionDispatchState dispatch;
         LegacyBattleGroupAActionExecutionSharedState shared;
@@ -577,7 +590,11 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
                 dispatch,
                 port,
                 context,
-                {.actor_token = port.actor_token, .target_token = 0x005029D0U}
+                {
+                    .actor_token = port.actor_token,
+                    .target_token = 0x005029D0U,
+                    .progress = &progress,
+                }
             );
         test.expect_true(
             result.status == LegacyBattleGroupBActionExecutionStatus::completed &&
@@ -603,7 +620,7 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.action_record_clears == 5U &&
-                actor.action_execution.completion_delay_word == 20U &&
+                progress.progress == 0xA5A50014U &&
                 actor.action_execution.turn_completion_latch == 1U &&
                 actor.action_execution.primary_action_record.field_8c == 0U,
             "group B execution clears five records while preserving the original completion latch and random delay"
@@ -622,11 +639,90 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
         );
     }
 
+    for (u32 fault = 0U; fault < 4U; ++fault) {
+        LegacyBattleActorGroupBElementState actor;
+        bind_resource(actor);
+        actor.action_configuration.profile_buffer[0x0CU] = std::byte{1U};
+        LegacyBattleActionDispatchState dispatch;
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        openswd3::battle::LegacyBattleActorProgressState progress;
+        progress.progress = 0xFACEFFFFU;
+        progress.progress_read_accessible = fault != 1U;
+        progress.progress_write_accessible = fault != 2U;
+        Port port;
+        port.populate_primary = true;
+        port.complete_records = true;
+        port.complete_actor = true;
+        port.random_ecx = 0x12345678U;
+        port.random_edx = 0x87654321U;
+        if (fault == 3U) {
+            port.random_progress = &progress;
+            port.random_progress_value = 0xFACEFFF8U;
+        }
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_action_execution(
+                &actor,
+                shared,
+                dispatch,
+                port,
+                context,
+                {
+                    .actor_token = port.actor_token,
+                    .target_token = 0x005029D0U,
+                    .progress = fault == 0U ? nullptr : &progress,
+                }
+            );
+        test.expect_true(
+            result.action_record_clears == 5U &&
+                port.count(0x00439070U) == 1U &&
+                actor.action_execution.primary_action_record.field_8c == 0U &&
+                actor.action_execution.special_four_hundred_workspace !=
+                    nullptr &&
+                actor.action_execution.target_indices[0U] == 0xFFFFFFFFU &&
+                actor.action_execution.action_runtime_gate == 0U &&
+                result.return_edx == 0x87654321U,
+            "progress access follows record clears, target reset and the single RNG call"
+        );
+        if (fault != 3U) {
+            const auto expected = fault == 2U
+                ? LegacyBattleGroupBActionExecutionStatus::
+                      actor_progress_write_typed_stop
+                : LegacyBattleGroupBActionExecutionStatus::
+                      actor_progress_read_typed_stop;
+            test.expect_true(
+                result.status == expected &&
+                    result.stopped_instruction == 0x00476024U &&
+                    result.return_eax == 17U &&
+                    result.return_ecx == 0x12345678U &&
+                    progress.progress == 0xFACEFFFFU,
+                "progress read/write stop preserves RNG residues plus ten without committing the word or return suffix"
+            );
+        } else {
+            const openswd3::battle::LegacyBattleTimingState timing{
+                .action_threshold = 1,
+            };
+            const auto width = openswd3::battle::
+                query_legacy_battle_actor_progress_width(
+                    &progress, &timing, {.actor_token = port.actor_token}
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleGroupBActionExecutionStatus::completed &&
+                    result.return_eax == 1U &&
+                    result.return_ecx == port.actor_token &&
+                    progress.progress == 0xFACE0009U &&
+                    width.progress_value == 9U && width.return_eax == 558U,
+                "completion rereads the RNG-mutated progress, wraps only its low word and exposes it directly to the width query"
+            );
+        }
+    }
+
     {
         LegacyBattleActorGroupBElementState actor;
         bind_resource(actor);
         actor.action_execution.profile_value = 0x789U;
         actor.action_execution.special_mode = 1U;
+        openswd3::battle::LegacyBattleActorProgressState progress;
         actor.action_configuration.profile_buffer[0x0CU] = std::byte{1U};
         LegacyBattleActionDispatchState dispatch;
         LegacyBattleGroupAActionExecutionSharedState shared;
@@ -641,12 +737,16 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
                 dispatch,
                 port,
                 context,
-                {.actor_token = port.actor_token, .target_token = 0x005029D0U}
+                {
+                    .actor_token = port.actor_token,
+                    .target_token = 0x005029D0U,
+                    .progress = &progress,
+                }
             );
         test.expect_true(
             result.return_eax == 1U &&
                 actor.action_execution.special_mode == 1U &&
-                actor.action_execution.completion_delay_word == 17U &&
+                progress.progress == 17U &&
                 port.count(0x00439070U) == 1U,
             "group B special mode consumes the shared completion bit and preserves the bounded random delay"
         );

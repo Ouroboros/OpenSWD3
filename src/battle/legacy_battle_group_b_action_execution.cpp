@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 
@@ -701,10 +702,26 @@ advance_legacy_battle_group_b_action_execution(
     registers.eax = 0U;
     registers.ecx = 0U;
     registers.edx = 0xFFFFFFFFU;
-    const auto random = invoke_generic(kCallRandomBounded, {0x78U});
-    state.completion_delay_word = static_cast<u16>(
-        state.completion_delay_word + random.eax + 10U
+    static_cast<void>(invoke_generic(kCallRandomBounded, {0x78U}));
+    registers.eax += 10U;
+    if (request.progress == nullptr ||
+        !request.progress->progress_read_accessible) {
+        result.status = LegacyBattleGroupBActionExecutionStatus::
+            actor_progress_read_typed_stop;
+        result.stopped_instruction = 0x00476024U;
+        return publish();
+    }
+    const auto next_progress = static_cast<u16>(
+        request.progress->progress + registers.eax
     );
+    if (!request.progress->progress_write_accessible) {
+        result.status = LegacyBattleGroupBActionExecutionStatus::
+            actor_progress_write_typed_stop;
+        result.stopped_instruction = 0x00476024U;
+        return publish();
+    }
+    request.progress->progress =
+        (request.progress->progress & 0xFFFF0000U) | next_progress;
     registers.eax = 1U;
     registers.ecx = request.actor_token;
     return publish();

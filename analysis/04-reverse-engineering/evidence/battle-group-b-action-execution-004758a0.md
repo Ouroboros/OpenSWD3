@@ -51,11 +51,19 @@ profile mode不等于1时，函数先调用次记录准备callee，再按上述�
 
 ## 5. 完成尾、唯一owner与caller回收
 
-主记录`+0x8C`等于1时，函数按固定顺序清五个152-byte记录：`+0x338`主记录、`+0x3D0`次记录、`+0x468`回合记录、`+0x500`目标记录和`+0x6C8`效果记录；再无条件物化并清`+0xFCC`开始的`0x4C0`唯一工作区，把`+0x2A56`开始四个dword写全一。随后清action runtime、`+0x2AB0` auxiliary、early latch与`+0x26D6` completion word，但不清special mode或`+0x2AAC` turn completion latch。最后固定以bound 120调用随机callee，把AX加10后以u16回绕累加到`+0x2A12`完成延迟，并返回1。
+主记录`+0x8C`等于1时，函数按固定顺序清五个152-byte记录：`+0x338`主记录、`+0x3D0`次记录、`+0x468`回合记录、`+0x500`目标记录和`+0x6C8`效果记录；再无条件物化并清`+0xFCC`开始的`0x4C0`唯一工作区，把`+0x2A56`开始四个dword写全一。随后清action runtime、`+0x2AB0` auxiliary、early latch与`+0x26D6` completion word，但不清special mode或`+0x2AAC` turn completion latch。最后固定以bound 120调用随机callee，把EAX加10后取AX，以u16回绕累加到`+0x2A12`进度字，并返回1。
 
 组B状态直接扩展`LegacyBattleActorGroupBElementState::action_execution`；配置函数写同一`profile_value`，动作29也从同一组B lifecycle槽取得执行状态。已删除配置结构中的重复action id和动作分派中的八槽平行执行数组。颜色与画面刷新为typed直连，其余16个未关闭callee保持窄记录/actor/generic port，不恢复整函数opaque入口。
 
 对手动作1的组A、组B两条caller都直接调用typed入口。typed-stop映射到`group_b_action_execution_typed_stop`并阻断全部caller后缀；返回0同样阻断pending、pair transition、视觉提交和side尾。生产源码不再包含`0x004758A0`整函数token。
+
+### B11生产接线期间的进度存储修正
+
+原typed实现曾在action-execution中另存`completion_delay_word`，而角色图像与进度宽度读取`LegacyBattleActorProgressState::progress`。该重复字段现已删除，图像写回也不再同步第二份值。两处对手动作caller把同槽的进度对象通过请求借给执行函数，所有早退路径均不读取它。
+
+`00476024`的读改写使用随机回调返回后对象中的低word，保留逻辑u32存储的高word。缺少对象或访问被拒绝时返回专门的read/write typed-stop，并记录该物理指令；此时五条记录、工作区及标量清理已经执行，随机已调用一次，EAX已加10，ECX/EDX仍为随机返回值。不得提前检查进度对象，也不得在停止时执行成功尾的ECX恢复。
+
+新增测试覆盖清理前缀、无对象/不可读/不可写、随机调用后的字段重读、低word回绕、高word保留及进度宽度跨调用可见性；角色帧case51/12/14/100的已有故障断言转向唯一进度存储。本次`battle-single-progress-owner-{core,frame-core,asan,frame-asan,sdl}.log`确认战斗聚合及角色帧目标在core/ASan下分别1/1通过，SDL链接通过。聚合编译仅保留既有结果测试的窄化警告，角色帧与SDL无warning/error；不以以下历史门禁替代本次结果。
 
 ## 6. 验证与动态阻塞
 

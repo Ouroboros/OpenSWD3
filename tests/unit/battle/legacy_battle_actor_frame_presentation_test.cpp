@@ -30770,7 +30770,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         "case51 child source faults retain mirrored/nonmirrored read EIP, stack and token after committed globals"
     );
     action_execution.turn_threshold = 100U;
-    action_execution.completion_delay_word = 0x55U;
+    case_eight_view.progress->progress = 0x55U;
     auto case_fifty_one_reset_write_fault = case_eight_forward_request;
     case_fifty_one_reset_write_fault.stop_before_access =
         case_fifty_one_hundred.accesses_completed;
@@ -30782,9 +30782,9 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         );
     const bool case_fifty_one_first_write_untouched =
         action_execution.turn_threshold == 100U &&
-        action_execution.completion_delay_word == 0x55U;
+        case_eight_view.progress->progress == 0x55U;
     action_execution.turn_threshold = 100U;
-    action_execution.completion_delay_word = 0x55U;
+    case_eight_view.progress->progress = 0x55U;
     auto case_fifty_one_rep_fault = case_eight_forward_request;
     case_fifty_one_rep_fault.stop_before_access =
         case_fifty_one_hundred.accesses_completed + 2U;
@@ -30810,7 +30810,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 case_fifty_one_hundred.edi + 0x98U &&
             case_fifty_one_reset_cleared.accesses_completed ==
                 case_fifty_one_hundred.accesses_completed + 40U &&
-            action_execution.completion_delay_word == 0U,
+            case_eight_view.progress->progress == 0U,
         "case51 signed phase100 writes two words before 38 ordered REP dwords and reset child entry"
     );
     Random case_fifty_one_random{};
@@ -36558,7 +36558,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     twelve_reset_fresh_view.coordinate_alias = &twelve_reset_fresh_execution;
     bool twelve_reset_all_stops_exact = true;
     for (u32 ordinal = 0U; ordinal < 39U; ++ordinal) {
-        twelve_reset_fresh_execution.completion_delay_word = 9U;
+        twelve_reset_fresh_progress.progress = 9U;
         auto reset_fault = rle_request;
         reset_fault.stop_before_access =
             twelve_reset_forward.accesses_completed + ordinal;
@@ -36583,7 +36583,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             stopped.eax == 0U && stopped.flags_known &&
             same_frame_flags(stopped.flags, case_fifty_xor_zero_flags) &&
             stopped.direction_flag == twelve_reset_forward.direction_flag &&
-            twelve_reset_fresh_execution.completion_delay_word ==
+            twelve_reset_fresh_progress.progress ==
                 (ordinal == 0U ? 9U : 0U);
         test.expect_true(
             stop_exact,
@@ -36595,7 +36595,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     }
     auto twelve_reset_bad_esi = twelve_reset_forward;
     twelve_reset_bad_esi.esi += 0x10000U;
-    twelve_reset_fresh_execution.completion_delay_word = 9U;
+    twelve_reset_fresh_progress.progress = 9U;
     const auto twelve_reset_wrong_actor = openswd3::battle::
         continue_legacy_battle_actor_frame_case_twelve_reset_prefix(
             twelve_reset_fresh_view, rle_request, twelve_reset_bad_esi
@@ -36607,7 +36607,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 twelve_reset_bad_esi.esi + 0x2A12U &&
             twelve_reset_wrong_actor.accesses_completed ==
                 twelve_reset_forward.accesses_completed &&
-            twelve_reset_fresh_execution.completion_delay_word == 9U,
+            twelve_reset_fresh_progress.progress == 9U,
         "case12 shared reset rejects wrong physical ESI before first word"
     );
     auto twelve_reset_reverse = twelve_reset_forward;
@@ -36615,7 +36615,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     auto twelve_reset_reverse_fault = rle_request;
     twelve_reset_reverse_fault.stop_before_access =
         twelve_reset_forward.accesses_completed + 2U;
-    twelve_reset_fresh_execution.completion_delay_word = 9U;
+    twelve_reset_fresh_progress.progress = 9U;
     const auto twelve_reset_reverse_stopped = openswd3::battle::
         continue_legacy_battle_actor_frame_case_twelve_reset_prefix(
             twelve_reset_fresh_view,
@@ -36636,7 +36636,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             same_frame_flags(
                 twelve_reset_reverse_stopped.flags, case_fifty_xor_zero_flags
             ) &&
-            twelve_reset_fresh_execution.completion_delay_word == 0U,
+            twelve_reset_fresh_progress.progress == 0U,
         "case12 DF1 reset preserves physical EDI and first committed dword"
     );
     const auto twelve_reset_call = openswd3::battle::
@@ -39074,7 +39074,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     case_fourteen_reset_view.coordinate_alias = &case_fourteen_reset_execution;
     bool case_fourteen_common_reset_faults_exact = true;
     for (u32 ordinal = 0U; ordinal < 39U; ++ordinal) {
-        case_fourteen_reset_execution.completion_delay_word = 9U;
+        case_fourteen_reset_progress.progress = 9U;
         auto reset_fault = rle_request;
         reset_fault.stop_before_access =
             case_fourteen_reset_ready.accesses_completed + ordinal;
@@ -39107,7 +39107,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                                            : case_fifty_xor_zero_flags) &&
             stopped.direction_flag ==
                 case_fourteen_reset_ready.direction_flag &&
-            case_fourteen_reset_execution.completion_delay_word ==
+            case_fourteen_reset_progress.progress ==
                 (ordinal == 0U ? 9U : 0U);
         test.expect_true(
             stop_exact,
@@ -39119,7 +39119,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     }
     auto case_fourteen_reset_bad_esi = case_fourteen_reset_ready;
     case_fourteen_reset_bad_esi.esi += 0x10000U;
-    case_fourteen_reset_execution.completion_delay_word = 9U;
+    case_fourteen_reset_progress.progress = 9U;
     const auto case_fourteen_reset_wrong_actor = openswd3::battle::
         continue_legacy_battle_actor_frame_common_reset_prefix(
             case_fourteen_reset_view, rle_request, case_fourteen_reset_bad_esi
@@ -39131,7 +39131,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 case_fourteen_reset_bad_esi.esi + 0x2A12U &&
             case_fourteen_reset_wrong_actor.accesses_completed ==
                 case_fourteen_reset_ready.accesses_completed &&
-            case_fourteen_reset_execution.completion_delay_word == 9U,
+            case_fourteen_reset_progress.progress == 9U,
         "case14 reset rejects wrong physical ESI before progress write"
     );
     action_execution.motion_word = case_fourteen_saved_motion;
@@ -45069,10 +45069,10 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
         action_execution.reserved_action_record_02;
     const u16 case_hundred_saved_phase_before_reset =
         action_execution.turn_threshold;
-    const u16 case_hundred_saved_delay_before_reset =
-        action_execution.completion_delay_word;
+    const u32 case_hundred_saved_progress_before_reset =
+        case_eight_view.progress->progress;
     action_execution.turn_threshold = 100U;
-    action_execution.completion_delay_word = 9U;
+    case_eight_view.progress->progress = 9U;
     case_eight_phase.decoded_resource_token = 0x78001000U;
     const auto case_hundred_reset_ready = openswd3::battle::
         continue_legacy_battle_actor_frame_case_hundred_reset_prefix(
@@ -45092,7 +45092,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
             case_hundred_reset_ready.edi ==
                 case_hundred_particle_request.actor_token + 0x0E6CU &&
             action_execution.turn_threshold == 0U &&
-            action_execution.completion_delay_word == 0U &&
+            case_eight_view.progress->progress == 0U &&
             case_eight_phase.decoded_resource_token == 0U,
         "case100 phase100 release writes two words then performs separate 38- and 22-dword REP STOSD"
     );
@@ -45161,7 +45161,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     bool case_hundred_reset_prefix_faults_exact = true;
     for (u32 ordinal = 0U; ordinal < 62U; ++ordinal) {
         case_hundred_fresh_execution.turn_threshold = 100U;
-        case_hundred_fresh_execution.completion_delay_word = 9U;
+        case_hundred_fresh_progress.progress = 9U;
         case_hundred_fresh_particle.decoded_resource_token = 0xABCD7890U;
         case_hundred_fresh_particle.emitter.source_width = 0x1234U;
         auto reset_fault = case_hundred_particle_request;
@@ -45214,7 +45214,7 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
                 case_hundred_release_return.direction_flag &&
             case_hundred_fresh_execution.turn_threshold ==
                 (ordinal == 0U ? 100U : 0U) &&
-            case_hundred_fresh_execution.completion_delay_word ==
+            case_hundred_fresh_progress.progress ==
                 (ordinal <= 1U ? 9U : 0U) &&
             case_hundred_fresh_particle.decoded_resource_token ==
                 (ordinal >= 41U ? 0U : 0xABCD7890U) &&
@@ -45474,8 +45474,8 @@ void test_battle_actor_frame_presentation_entry(openswd3::test::Context& test) {
     action_execution.reserved_action_record_02 =
         case_hundred_saved_record_before_reset;
     action_execution.turn_threshold = case_hundred_saved_phase_before_reset;
-    action_execution.completion_delay_word =
-        case_hundred_saved_delay_before_reset;
+    case_eight_view.progress->progress =
+        case_hundred_saved_progress_before_reset;
     case_eight_view.primary_coordinates->position_x = case_hundred_saved_tail_x;
     action_execution.presentation_render_flags =
         case_hundred_saved_property_flags;

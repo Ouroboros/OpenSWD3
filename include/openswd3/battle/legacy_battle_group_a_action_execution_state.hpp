@@ -170,7 +170,6 @@ struct LegacyBattleGroupAActionExecutionState
     compat::u32 render_source_token{};              // actor + 0x2548
     compat::u32 render_source_value_04{};           // *(actor + 0x2548) + 0x04
     compat::u16 render_source_value_0c{};           // *(actor + 0x2548) + 0x0C
-    compat::u16 completion_delay_word{};            // actor + 0x2A12
     compat::u16 completion_word{};                  // actor + 0x26D6
     compat::u16 special_four_hundred_marker{};      // actor + 0x2A8E
     compat::u32 overlay_render_enabled{};           // actor + 0x2AC0

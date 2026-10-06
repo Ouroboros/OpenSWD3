@@ -10,6 +10,7 @@ class LegacyBattleActionDispatchPort;
 struct LegacyBattleActionDispatchContext;
 struct LegacyBattleActionDispatchState;
 struct LegacyBattleActorGroupBElementState;
+struct LegacyBattleActorProgressState;
 struct LegacyBattleGroupAActionExecutionSharedState;
 
 enum class LegacyBattleGroupBActionExecutionStatus : compat::u8 {
@@ -19,6 +20,8 @@ enum class LegacyBattleGroupBActionExecutionStatus : compat::u8 {
     render_source_typed_stop,
     actor_field_26b8_high_bit_set_typed_stop,
     actor_effect_resource_slot_write_typed_stop,
+    actor_progress_read_typed_stop,
+    actor_progress_write_typed_stop,
 };
 
 struct LegacyBattleGroupBActionExecutionRequest {
@@ -30,12 +33,15 @@ struct LegacyBattleGroupBActionExecutionRequest {
         actor_field_26b8_high_bit_set_requests{};
     LegacyBattleActorEffectResourceSlotWriteCallRequests
         effect_resource_slot_write_requests{};
+    // Borrowed actor + 0x2A12; accessed only after the completion RNG call.
+    LegacyBattleActorProgressState* progress{};
 };
 
 struct LegacyBattleGroupBActionExecutionResult {
     LegacyBattleGroupBActionExecutionStatus status{
         LegacyBattleGroupBActionExecutionStatus::completed
     };
+    compat::u32 stopped_instruction{};
     compat::u32 port_calls{};
     compat::u32 actor_update_calls{};
     compat::u32 action_record_calls{};

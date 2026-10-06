@@ -422,6 +422,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                             context.actor_field_26b8_high_bit_set_requests,
                         .effect_resource_slot_write_requests =
                             context.effect_resource_slot_write_requests,
+                        .progress = context.startup == nullptr
+                            ? nullptr
+                            : &context.startup->enemies[group_b_index].progress,
                     }
                 );
             ++result.group_b_action_execution_calls;
@@ -527,6 +530,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                     context.actor_field_26b8_high_bit_set_requests,
                 .effect_resource_slot_write_requests =
                     context.effect_resource_slot_write_requests,
+                .progress = context.startup == nullptr
+                    ? nullptr
+                    : &context.startup->enemies[group_b_index].progress,
             }
         );
         ++result.group_b_action_execution_calls;
