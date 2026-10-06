@@ -1,6 +1,7 @@
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_action_rotation_resources.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
+#include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 
 #include <algorithm>
 #include <array>
@@ -28,6 +29,7 @@ using openswd3::compat::u32;
 
 class StartupPorts final
     : public openswd3::battle::LegacyBattleStartupPort,
+      public virtual openswd3::battle::LegacyBattleTargetSelectionRuntimeStatePort,
       public openswd3::battle::LegacyBattleDefinitionArchiveFilePort,
       public openswd3::battle::LegacyBattleBackgroundImageLoadPort,
       public openswd3::battle::LegacyBattleActionRotationReleasePort,
@@ -48,6 +50,10 @@ public:
         LegacyBattleStartupCallReply reply;
         switch (request.call) {
         case LegacyBattleStartupCall::initialize_control_block:
+            reset_observations.push_back({
+                actor_metric_state().group_b_count,
+                battle_target_selection_runtime_state().special_action_count,
+            });
             reply.outputs[0] = 0x12345678;
             break;
         case LegacyBattleStartupCall::query_value: {
@@ -327,6 +333,7 @@ public:
     u32 created_surface_count{};
     u32 profile_allocation_count{};
     u32 no_enemy_return{0x87654321U};
+    std::vector<std::array<u32, 2>> reset_observations;
     u32 party_actor_mode_return{};
     u16 enemy_progress_base_speed{400U};
     bool publish_enemy_progress_resource{true};
@@ -427,7 +434,7 @@ template <typename Range>
         all_equal(reset.block_524268, 0U) &&
         all_equal(reset.block_520e90, 0U) &&
         all_equal(reset.block_4ff0bc, 0U) &&
-        all_equal(reset.block_5242b0, 0xFFFFFFFFU) &&
+        all_equal(reset.block_5242b0, 0U) &&
         all_equal(port.actor_publication_state().slots, 0xFFFFFFFFU) &&
         all_equal(reset.block_524420, 0xFFFFFFFFU) &&
         all_equal(reset.block_53ae90, 0xFFFFFFFFU) &&
@@ -457,6 +464,31 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    {
+        LegacyBattleStartupState state;
+        StartupPorts ports;
+        auto& selection = ports.battle_target_selection_runtime_state();
+        for (const u32 count : {0U, 0x12345678U, 0xFFFFFFFFU}) {
+            state.actor_metrics.group_b_count = count;
+            selection.special_action_count = 0xABCD1234U;
+            selection.transition_stage = 0x76543210U;
+            state.reset.block_5242b0.fill(0xA5A5A5A5U);
+            const auto result = openswd3::battle::initialize_legacy_battle_startup(
+                state, ports, ports, ports, ports, ports, ports, request(1U)
+            );
+            test.expect_true(
+                ports.reset_observations.back() == std::array<u32, 2>{count, 0U} &&
+                    selection.special_action_count == 0U &&
+                    selection.transition_stage == 0x76543210U &&
+                    all_equal(state.reset.block_5242b0, 0U) &&
+                    result.status == openswd3::battle::LegacyBattleStartupStatus::
+                        no_enemies && state.actor_metrics.group_b_count == 0U,
+                "startup resets special count before callbacks; enemy count "
+                "changes only when the definition is published on every entry"
+            );
+        }
+    }
+
 #ifdef OPENSWD3_GAME_DATA_ROOT
     {
         LegacyBattleStartupState state;

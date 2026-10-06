@@ -274,7 +274,7 @@ void reset_startup_blocks(
     reset.block_4ff0bc.fill(0U);
     reset.values_502940.fill(0U);
     reset.values_5244d8.fill(0U);
-    reset.block_5242b0.fill(0xFFFFFFFFU);
+    reset.block_5242b0.fill(0U);
     reset.value_524418 = 0U;
     port.actor_publication_state().slots.fill(0xFFFFFFFFU);
     reset.block_524420.fill(0xFFFFFFFFU);
@@ -287,7 +287,7 @@ void reset_startup_blocks(
     reset.value_53c048 = 0U;
     port.actor_metric_state().priority_actor_index = 0xFFFFFFFFU;
     reset.value_53bf22 = 0U;
-    port.actor_metric_state().group_b_count = 0U;
+    port.battle_target_selection_runtime_state().special_action_count = 0U;
     for (auto& record : reset.records_524788) {
         record.value_00 = 0xFFFFFFFFU;
         record.value_0a = 0U;

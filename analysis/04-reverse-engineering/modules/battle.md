@@ -529,6 +529,10 @@ signed `640/divisor`、mode3循环右移、
 陈旧队伍总数与补位word、窗口与几何、`battle.ffd`零敌人早退、已关闭背景初始化直连、
 组B敌人与组A队伍物化、1–4人固定坐标、缺席槽陈旧坐标、三组x87比率、随机/顺序补位、
 敌方随机动作及最终u32回绕判定。第九敌人在首次对象访问typed-stop；镜像敌方保留callee后陈旧ECX高word。
+B11接线复核修正入口两处写入：18项状态块清零，共享特殊行动计数清零，
+旧敌人数保留到定义发布。重复初始化测试先复现失败，修正后core/ASan各1/1、
+SDL链接通过。详见[启动证据](../evidence/battle-startup-coordinator-00451b10.md)
+的入口清零复核；完整SDL初始化仍待接通。
 
 `audit_order=57`的`0x004527E0`已关闭为`platform_adapted`。完整1002行、74个静态call站点、37个标签、
 无chunk；严格恢复640×480双raw快照、每块`0x96000`字节、第二display槽先复制、

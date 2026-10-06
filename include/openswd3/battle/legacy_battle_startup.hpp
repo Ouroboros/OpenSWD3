@@ -25,6 +25,7 @@
 #include "openswd3/battle/legacy_battle_player_item_order.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_shared_phase.hpp"
+#include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/battle/legacy_battle_text_message.hpp"
 #include "openswd3/battle/legacy_battle_timing.hpp"
 #include "openswd3/compat/types.hpp"
@@ -141,6 +142,7 @@ class LegacyBattleStartupPort
       public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleFixedObjectStatePort,
       public virtual LegacyBattleSharedPhaseStatePort,
+      public virtual LegacyBattleTargetSelectionRuntimeStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:
     virtual ~LegacyBattleStartupPort() = default;
