@@ -62,9 +62,11 @@ public:
     void close_world_map_view() override {
         calls.push_back(Call::battle_entry_close_map);
     }
-    void initialize_battle(const u16) override {
+    bool initialize_battle(const u16) override {
         calls.push_back(Call::battle_initialize);
+        return initialization_completed;
     }
+
     void clear_party_battle_entry_bits() override {
         calls.push_back(Call::battle_clear_party);
     }
@@ -113,10 +115,12 @@ public:
     void step_world_interaction(FrameCoordinatorState&) override {
         calls.push_back(Call::world_interaction);
     }
-    void step_world_player(FrameCoordinatorState& state) override {
+    bool step_world_player(FrameCoordinatorState& state) override {
         calls.push_back(Call::world_player);
         state.battle.special_mode_state = special_mode_set_by_world_player;
+        return world_player_completed;
     }
+
     void step_story(FrameCoordinatorState& state) override {
         calls.push_back(Call::story);
         state.process_flags |= flags_set_by_story;
@@ -177,6 +181,8 @@ public:
         calls.push_back(Call::load_fame);
     }
 
+    bool initialization_completed{true};
+    bool world_player_completed{true};
     openswd3::compat::u32 flags_set_by_high_priority{};
     openswd3::compat::u32 flags_set_by_story{};
     openswd3::compat::u32 flags_set_by_special{};
@@ -219,6 +225,43 @@ void test_startup_load_menu(openswd3::test::Context& test) {
         ports.calls,
         std::vector{Call::high_priority, Call::audio},
         "the first startup-load frame runs the selector without title input"
+    );
+}
+
+void test_initialization_stops(openswd3::test::Context& test) {
+    auto requested = make_state();
+    requested.battle.battle_request_value = 0x80000005U;
+    RecordingPorts requested_ports;
+    requested_ports.initialization_completed = false;
+    const auto request_result =
+        openswd3::app::run_accepted_frame(requested, requested_ports);
+    test.expect_true(
+        request_result == openswd3::app::FrameRunOutcome::battle_typed_stop &&
+            requested.battle.battle_active == 0U &&
+            requested.battle.battle_request_value == 5U &&
+            requested_ports.calls ==
+                std::vector{
+                    Call::battle_entry_release,
+                    Call::battle_entry_close_map,
+                    Call::battle_initialize,
+                },
+        "failed requested initialization skips battle frame and common tail"
+    );
+
+    auto encountered = make_state();
+    RecordingPorts encounter_ports;
+    encounter_ports.world_player_completed = false;
+    const auto encounter_result =
+        openswd3::app::run_accepted_frame(encountered, encounter_ports);
+    test.expect_true(
+        encounter_result == openswd3::app::FrameRunOutcome::world_typed_stop &&
+            encounter_ports.calls ==
+                std::vector{
+                    Call::background_music,
+                    Call::world_interaction,
+                    Call::world_player,
+                },
+        "stopped world callback skips story and common tail"
     );
 }
 
@@ -552,6 +595,7 @@ void test_special_modes(openswd3::test::Context& test) {
 int main() {
     openswd3::test::Context test;
     test_startup_load_menu(test);
+    test_initialization_stops(test);
     test_high_priority(test);
     test_battle_early_return(test);
     test_battle_result_two_reset_order(test);

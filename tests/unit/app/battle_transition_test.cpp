@@ -54,9 +54,11 @@ public:
     void close_world_map_view() override {
         record(Call::close_world_map);
     }
-    void initialize_battle(const u16 battle_id) override {
+    bool initialize_battle(const u16 battle_id) override {
         record(Call::initialize_battle, battle_id);
+        return initialization_completed;
     }
+
     void clear_party_battle_entry_bits() override {
         record(Call::clear_party_bits);
     }
@@ -96,6 +98,7 @@ public:
         record(Call::remap_result_three);
     }
 
+    bool initialization_completed{true};
     bool result_two_reset_completed{true};
     std::vector<Event> events;
 
@@ -129,8 +132,9 @@ void test_entry_guards(openswd3::test::Context& test) {
          }) {
         auto state = state_value;
         RecordingPorts ports(state, 1);
-        test.expect_false(
+        test.expect_equal(
             openswd3::app::consume_battle_request(state, blocked, ports),
+            std::optional<bool>{false},
             "inactive, unblocked and tagged are all required"
         );
         test.expect_true(
@@ -140,8 +144,9 @@ void test_entry_guards(openswd3::test::Context& test) {
 
     openswd3::app::BattleTransitionState tag_only{0x80000000U, 0, 0, 0};
     RecordingPorts tag_only_ports(tag_only, 1);
-    test.expect_false(
+    test.expect_equal(
         openswd3::app::consume_battle_request(tag_only, false, tag_only_ports),
+        std::optional<bool>{false},
         "zero low request does not enter battle"
     );
     test.expect_equal(
@@ -153,7 +158,7 @@ void test_entry_sequence(openswd3::test::Context& test) {
     openswd3::app::BattleTransitionState state{0x80012345U, 0, 0, 0};
     RecordingPorts ports(state, 1);
     test.expect_true(
-        openswd3::app::consume_battle_request(state, false, ports),
+        openswd3::app::consume_battle_request(state, false, ports) == true,
         "valid tagged request enters battle"
     );
     const std::vector<Event> expected{
@@ -164,6 +169,23 @@ void test_entry_sequence(openswd3::test::Context& test) {
     };
     test.expect_equal(
         ports.events, expected, "battle entry sequence and state timing"
+    );
+
+    openswd3::app::BattleTransitionState stopped{0x80012345U, 0U, 7U, 8U};
+    RecordingPorts stopped_ports(stopped, 1);
+    stopped_ports.initialization_completed = false;
+    const auto outcome =
+        openswd3::app::consume_battle_request(stopped, false, stopped_ports);
+    const std::vector<Event> stopped_expected{
+        {Call::release_entry_objects, 0U, 0x12345U, 0U, 7U, 8U},
+        {Call::close_world_map, 0U, 0x12345U, 0U, 7U, 8U},
+        {Call::initialize_battle, 0x2345U, 0x12345U, 0U, 7U, 8U},
+    };
+    test.expect_true(
+        !outcome.has_value() && stopped.battle_request_value == 0x12345U &&
+            stopped.battle_active == 0U &&
+            stopped_ports.events == stopped_expected,
+        "initialization stop retains entry prefix without activating battle"
     );
 }
 

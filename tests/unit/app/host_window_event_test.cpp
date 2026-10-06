@@ -32,7 +32,14 @@ public:
     void suspend_audio_output() override {}
     void suspend_audio_streams() override {}
     void maintain_audio() override {}
-    void suspend_battle_display() override {}
+    u32 battle_active() const noexcept override {
+        return 0U;
+    }
+
+    bool suspend_battle_display() override {
+        return true;
+    }
+
     void release_font(u32) override {}
     void minimize_window() override {
         ++minimizations;
@@ -57,7 +64,7 @@ void test_dispatch(openswd3::test::Context& test) {
     using openswd3::app::dispatch_host_window_event;
 
     openswd3::app::WindowEventState window_state{1U, 0U, 1U};
-    openswd3::app::DisplayLifecycleState display_state{1U, 0U, 0U};
+    openswd3::app::DisplayLifecycleState display_state{1U, 0U};
     RecordingWindowPorts window_ports;
     RecordingDisplayPorts display_ports;
 

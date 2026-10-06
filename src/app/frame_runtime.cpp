@@ -33,9 +33,11 @@ run_accepted_frame(FrameCoordinatorState& state, FrameRuntimePorts& ports) {
         return FrameRunOutcome::common_tail_completed;
     }
 
-    static_cast<void>(
-        consume_battle_request(state.battle, state.battle_entry_blocked, ports)
-    );
+    if (!consume_battle_request(state.battle, state.battle_entry_blocked, ports)
+             .has_value()) {
+        return FrameRunOutcome::battle_typed_stop;
+    }
+
     if (state.battle.battle_active != 0U) {
         if (!run_battle_frame(state.battle, ports).has_value()) {
             return FrameRunOutcome::battle_typed_stop;
@@ -47,7 +49,10 @@ run_accepted_frame(FrameCoordinatorState& state, FrameRuntimePorts& ports) {
     ports.update_background_music(state);
     if (state.battle.special_mode_state == 0U) {
         ports.step_world_interaction(state);
-        ports.step_world_player(state);
+        if (!ports.step_world_player(state)) {
+            return FrameRunOutcome::world_typed_stop;
+        }
+
         if (should_step_story({
                 state.frame_execution_gate,
                 state.transition_suppression,

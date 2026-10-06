@@ -1,5 +1,6 @@
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_action_rotation_resources.hpp"
+#include "openswd3/battle/legacy_battle_display_surface_runtime.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 
@@ -7,6 +8,8 @@
 #include <array>
 #include <bit>
 #include <deque>
+#include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -40,6 +43,20 @@ public:
     std::array<openswd3::asset_runtime::LegacyActionRecord, 3> dialog_actions{};
     std::vector<openswd3::asset_runtime::LegacyActionRecord> control_snapshots;
     std::vector<std::array<i32, 4>> mouse_rebase_snapshots;
+    LegacyBattleStartupState* observed_display_state{};
+    std::vector<std::array<u32, 5>> display_snapshots;
+    std::deque<u32> display_create_replies;
+    u32 unresolved_display_token{};
+
+    [[nodiscard]] std::optional<u32>
+    release_battle_display_surface(const u32 token) override {
+        if (token == unresolved_display_token) {
+            return std::nullopt;
+        }
+
+        return LegacyBattleStartupPort::release_battle_display_surface(token);
+    }
+
     openswd3::input_time_rng::LegacyMouseState mouse_device{
         .sensitivity_scale = 20,
     };
@@ -63,6 +80,19 @@ public:
     [[nodiscard]] LegacyBattleStartupCallReply
     invoke(const LegacyBattleStartupCallRequest& request) override {
         requests.push_back(request);
+        if (observed_display_state != nullptr &&
+            (request.call == LegacyBattleStartupCall::release_display_surface ||
+             request.call == LegacyBattleStartupCall::create_display_surface)) {
+            const auto& state = *observed_display_state;
+            display_snapshots.push_back({
+                state.display_surfaces[0],
+                state.display_surfaces[1],
+                state.background.completion_words[0],
+                state.background.completion_words[1],
+                state.background.completion_words[2],
+            });
+        }
+
         LegacyBattleStartupCallReply reply;
         switch (request.call) {
         case LegacyBattleStartupCall::read_transparent_pixel_pair:
@@ -109,8 +139,15 @@ public:
             reply.return_value = 1920U;
             break;
         case LegacyBattleStartupCall::create_display_surface:
-            reply.return_value = 0x70000000U + created_surface_count++;
+            if (display_create_replies.empty()) {
+                reply.return_value = 0x70000000U + created_surface_count++;
+            } else {
+                reply.return_value = display_create_replies.front();
+                display_create_replies.pop_front();
+            }
+
             break;
+
         case LegacyBattleStartupCall::notify_no_enemies:
             reply.return_value = no_enemy_return;
             break;
@@ -497,6 +534,279 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    {
+        LegacyBattleStartupState state;
+        StartupPorts ports;
+        state.display_surfaces = {11U, 22U};
+        state.actor_metrics.group_b_count = 7U;
+        state.reset.value_4ff0b0 = 9U;
+        state.render_geometry.primary_row_offsets = std::make_unique<u32[]>(2U);
+        state.render_geometry.primary_row_offsets[0] = 0x1234U;
+        const auto* const rows =
+            state.render_geometry.primary_row_offsets.get();
+        const auto actors = state.group_a_runtime_reset;
+        ports.battle_target_selection_runtime_state().special_action_count = 9U;
+        openswd3::battle::reset_legacy_battle_startup_blocks(
+            state,
+            ports.actor_publication_state(),
+            state.actor_metrics,
+            ports.battle_target_selection_runtime_state()
+        );
+        test.expect_true(
+            state.display_surfaces == std::array<u32, 2>{11U, 22U} &&
+                state.render_geometry.primary_row_offsets.get() == rows &&
+                state.render_geometry.primary_row_offsets[0] == 0x1234U &&
+                state.group_a_runtime_reset == actors &&
+                state.actor_metrics.group_b_count == 7U &&
+                state.actor_metrics.priority_actor_index == 0xFFFFFFFFU &&
+                state.reset.value_4ff0b0 == 0U &&
+                ports.battle_target_selection_runtime_state()
+                        .special_action_count == 0U,
+            "startup selective reset retains old display and actor owners"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacySurfaceGeometry display{
+            .pitch_bytes = 6,
+            .width = 3,
+            .height = 2,
+        };
+        openswd3::battle::LegacyBattleDisplaySurfaceRuntime surfaces(display);
+        LegacyBattleStartupState state;
+        std::array<u32, 2> retired{};
+        for (u32 cycle = 0U; cycle < 2U; ++cycle) {
+            const auto created =
+                openswd3::battle::create_legacy_battle_display_surfaces(
+                    state, surfaces
+                );
+            auto* first = surfaces.find(state.display_surfaces[0]);
+            auto* second = surfaces.find(state.display_surfaces[1]);
+            test.expect_true(
+                created.create_calls == 2U &&
+                    created.return_value == 0xFFFFFFFFU &&
+                    created.completion_write_order ==
+                        std::array<openswd3::compat::u8, 3>{0U, 1U, 2U} &&
+                    first != nullptr && second != nullptr && first != second &&
+                    surfaces.live_surface_count() == 2U &&
+                    surfaces.allocated_bytes() == 24U * (cycle + 1U) &&
+                    surfaces.find(retired[0]) == nullptr &&
+                    surfaces.find(retired[1]) == nullptr,
+                "display surfaces own distinct storage across battle entries"
+            );
+            if (first != nullptr && second != nullptr) {
+                test.expect_true(
+                    first->geometry.width == 3 && first->geometry.height == 2 &&
+                        first->geometry.pitch_bytes == 6 &&
+                        first->pixels.size() == 6U &&
+                        second->pixels.size() == 6U,
+                    "display storage uses the requested 16-bit geometry"
+                );
+                first->pixels[0] = 0x1234U;
+                second->pixels[0] = 0xABCDU;
+                test.expect_true(
+                    first->pixels[0] == 0x1234U && second->pixels[0] == 0xABCDU,
+                    "display snapshots do not alias each other's pixels"
+                );
+            }
+
+            retired = state.display_surfaces;
+            const auto released =
+                openswd3::battle::release_legacy_battle_display_surfaces(
+                    state, surfaces
+                );
+            test.expect_true(
+                !released.typed_stop && released.release_calls == 2U &&
+                    state.display_surfaces == std::array<u32, 2>{0U, 0U} &&
+                    surfaces.live_surface_count() == 0U &&
+                    surfaces.find(retired[0]) == nullptr &&
+                    surfaces.find(retired[1]) == nullptr &&
+                    surfaces.allocated_bytes() == 24U * (cycle + 1U),
+                "display release destroys backing storage without decrementing"
+            );
+        }
+
+        // A failed creation is published as zero in both slots and still
+        // performs the completion writes. Metrics come from the same owner.
+        display.height = 0;
+        state.background.completion_words = {1U, 2U, 3U};
+        const auto failed =
+            openswd3::battle::create_legacy_battle_display_surfaces(
+                state, surfaces
+            );
+        test.expect_true(
+            failed.create_calls == 2U &&
+                state.display_surfaces == std::array<u32, 2>{0U, 0U} &&
+                state.background.completion_words ==
+                    std::array<u16, 3>{0xFFFFU, 0xFFFFU, 0xFFFFU} &&
+                surfaces.allocated_bytes() == 48U &&
+                surfaces.live_surface_count() == 0U &&
+                surfaces.create_battle_display_surface(0xFFFFFFFFU, 2U) == 0U &&
+                surfaces.create_battle_display_surface(3U, 0xFFFFFFFFU) == 0U,
+            "failed display creation publishes zero without a backing object"
+        );
+        state.display_surfaces = {
+            surfaces.create_battle_display_surface(3U, 2U),
+            retired[1],
+        };
+        const auto stopped =
+            openswd3::battle::release_legacy_battle_display_surfaces(
+                state, surfaces
+            );
+        test.expect_true(
+            stopped.typed_stop && stopped.release_calls == 1U &&
+                state.display_surfaces == std::array<u32, 2>{0U, retired[1]} &&
+                surfaces.live_surface_count() == 0U,
+            "retired display token stops release after its completed prefix"
+        );
+
+        // 451A90 overwrites its slots without releasing old objects. A
+        // repeated recovery must not introduce an extra Release operation.
+        display.height = 2;
+        static_cast<void>(
+            openswd3::battle::create_legacy_battle_display_surfaces(
+                state, surfaces
+            )
+        );
+        const auto overwritten = state.display_surfaces;
+        static_cast<void>(
+            openswd3::battle::create_legacy_battle_display_surfaces(
+                state, surfaces
+            )
+        );
+        test.expect_true(
+            surfaces.live_surface_count() == 4U &&
+                surfaces.find(overwritten[0]) != nullptr &&
+                surfaces.find(overwritten[1]) != nullptr &&
+                state.display_surfaces[0] != overwritten[0] &&
+                state.display_surfaces[1] != overwritten[1],
+            "repeated display creation preserves unreleased old objects"
+        );
+        static_cast<void>(
+            openswd3::battle::release_legacy_battle_display_surfaces(
+                state, surfaces
+            )
+        );
+        test.expect_true(
+            surfaces.live_surface_count() == 2U &&
+                surfaces.find(overwritten[0]) != nullptr &&
+                surfaces.find(overwritten[1]) != nullptr,
+            "release touches only the two currently published display slots"
+        );
+    }
+
+    for (const u32 stopped_slot : {0U, 1U}) {
+        LegacyBattleStartupState state;
+        StartupPorts ports;
+        state.display_surfaces = {11U, 22U};
+        state.background.completion_words = {1U, 2U, 3U};
+        ports.unresolved_display_token = state.display_surfaces[stopped_slot];
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            state, ports, ports, ports, ports, ports, ports, request(1U)
+        );
+        const std::array<u32, 2> expected{
+            stopped_slot == 0U ? 11U : 0U,
+            22U,
+        };
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        display_surface_typed_stop &&
+                result.released_display_surfaces == stopped_slot &&
+                result.created_display_surfaces == 0U &&
+                state.display_surfaces == expected &&
+                state.background.completion_words ==
+                    std::array<u16, 3>{1U, 2U, 3U} &&
+                std::none_of(
+                    ports.requests.begin(),
+                    ports.requests.end(),
+                    [](const auto& call) {
+                        return call.call ==
+                            LegacyBattleStartupCall::system_metric_height;
+                    }
+                ),
+            "unresolved display release stops before clearing or creating"
+        );
+    }
+
+    // 451AE6..451AF2 releases before clearing. 451A9D..451ACE creates
+    // both slots, including zero results, before publishing completion words.
+    for (u32 old_mask = 0U; old_mask < 4U; ++old_mask) {
+        for (u32 created_mask = 0U; created_mask < 4U; ++created_mask) {
+            LegacyBattleStartupState state;
+            StartupPorts ports;
+            state.display_surfaces = {
+                (old_mask & 1U) != 0U ? 11U : 0U,
+                (old_mask & 2U) != 0U ? 22U : 0U,
+            };
+            state.background.completion_words = {1U, 2U, 3U};
+            const std::array<u32, 2> created{
+                (created_mask & 1U) != 0U ? 111U : 0U,
+                (created_mask & 2U) != 0U ? 222U : 0U,
+            };
+            ports.observed_display_state = &state;
+            ports.display_create_replies = {created[0], created[1]};
+            std::vector<std::array<u32, 5>> expected_snapshots;
+            std::vector<LegacyBattleStartupCall> expected_calls;
+            auto live = state.display_surfaces;
+            u32 releases = 0U;
+            for (auto& token : live) {
+                if (token != 0U) {
+                    expected_snapshots.push_back(
+                        {live[0], live[1], 1U, 2U, 3U}
+                    );
+                    expected_calls.push_back(
+                        LegacyBattleStartupCall::release_display_surface
+                    );
+                    token = 0U;
+                    ++releases;
+                }
+            }
+
+            for (std::size_t index = 0U; index < created.size(); ++index) {
+                expected_snapshots.push_back({live[0], live[1], 1U, 2U, 3U});
+                expected_calls.push_back(
+                    LegacyBattleStartupCall::system_metric_height
+                );
+                expected_calls.push_back(
+                    LegacyBattleStartupCall::system_metric_width
+                );
+                expected_calls.push_back(
+                    LegacyBattleStartupCall::create_display_surface
+                );
+                live[index] = created[index];
+            }
+
+            const auto result =
+                openswd3::battle::initialize_legacy_battle_startup(
+                    state, ports, ports, ports, ports, ports, ports, request(1U)
+                );
+            std::vector<LegacyBattleStartupCall> actual_calls;
+            for (const auto& call : ports.requests) {
+                if (call.call ==
+                        LegacyBattleStartupCall::release_display_surface ||
+                    call.call ==
+                        LegacyBattleStartupCall::system_metric_height ||
+                    call.call == LegacyBattleStartupCall::system_metric_width ||
+                    call.call ==
+                        LegacyBattleStartupCall::create_display_surface) {
+                    actual_calls.push_back(call.call);
+                }
+            }
+
+            test.expect_true(
+                ports.display_snapshots == expected_snapshots &&
+                    actual_calls == expected_calls &&
+                    result.released_display_surfaces == releases &&
+                    result.created_display_surfaces == 2U &&
+                    state.display_surfaces == created &&
+                    state.background.completion_words ==
+                        std::array<u16, 3>{0xFFFFU, 0xFFFFU, 0xFFFFU},
+                "display lifecycle preserves release and failed-create prefixes"
+            );
+        }
+    }
+
     {
         using Record = openswd3::asset_runtime::LegacyActionRecord;
         using Bytes = std::array<openswd3::compat::u8, sizeof(Record)>;

@@ -2,6 +2,7 @@
 
 #include "openswd3/app/display_lifecycle.hpp"
 
+#include <algorithm>
 #include <vector>
 
 namespace {
@@ -56,9 +57,17 @@ public:
     void maintain_audio() override {
         record(DisplayCall::maintain_audio);
     }
-    void suspend_battle_display() override {
-        record(DisplayCall::suspend_battle_display);
+    u32 battle_active() const noexcept override {
+        ++battle_queries;
+        suppression_when_battle_read = state_.transition_suppression;
+        return battle_active_value;
     }
+
+    bool suspend_battle_display() override {
+        record(DisplayCall::suspend_battle_display);
+        return display_release_completed;
+    }
+
     void release_font(const u32 point_size) override {
         record(DisplayCall::release_font, point_size);
     }
@@ -85,6 +94,10 @@ public:
     }
 
     bool backend_available{true};
+    u32 battle_active_value{1U};
+    mutable u32 battle_queries{};
+    mutable u32 suppression_when_battle_read{0xFFFFFFFFU};
+    bool display_release_completed{true};
     std::vector<DisplayEvent> events;
 
 private:
@@ -165,7 +178,7 @@ ShutdownEvent close_event(const openswd3::app::ShutdownCloseOperation value) {
 }
 
 void test_deactivate(openswd3::test::Context& test) {
-    openswd3::app::DisplayLifecycleState state{1, 0, 1};
+    openswd3::app::DisplayLifecycleState state{1, 0};
     RecordingDisplayPorts ports(state);
     openswd3::app::deactivate_display(state, ports);
 
@@ -195,7 +208,7 @@ void test_deactivate(openswd3::test::Context& test) {
 }
 
 void test_reactivate(openswd3::test::Context& test) {
-    openswd3::app::DisplayLifecycleState state{0, 1, 1};
+    openswd3::app::DisplayLifecycleState state{0, 1};
     RecordingDisplayPorts ports(state);
     openswd3::app::reactivate_display(state, ports);
 
@@ -222,11 +235,49 @@ void test_reactivate(openswd3::test::Context& test) {
         0U,
         "reactivation clears transition suppression before battle resume"
     );
+    test.expect_true(
+        ports.battle_queries == 1U &&
+            ports.suppression_when_battle_read == 1U,
+        "reactivation reads battle flag before clearing transition suppression"
+    );
+}
+
+void test_battle_display_boundaries(openswd3::test::Context& test) {
+    // 40AB8C and 40ACA9 compare the shared dword with exactly one.
+    for (const u32 value : {0U, 1U, 2U, 0xFFFFFFFFU}) {
+        openswd3::app::DisplayLifecycleState state{1U, 0U};
+        RecordingDisplayPorts ports(state);
+        ports.battle_active_value = value;
+        openswd3::app::deactivate_display(state, ports);
+        openswd3::app::reactivate_display(state, ports);
+        const auto battle_calls = std::count_if(
+            ports.events.begin(), ports.events.end(), [](const auto& event) {
+                return event.call == DisplayCall::suspend_battle_display ||
+                    event.call == DisplayCall::resume_battle_display;
+            }
+        );
+        test.expect_true(
+            battle_calls == (value == 1U ? 2 : 0),
+            "display lifecycle requires battle flag exactly one"
+        );
+    }
+
+    openswd3::app::DisplayLifecycleState state{1U, 0U};
+    RecordingDisplayPorts ports(state);
+    ports.display_release_completed = false;
+    openswd3::app::deactivate_display(state, ports);
+    test.expect_true(
+        ports.events.size() == 6U &&
+            ports.events.back().call == DisplayCall::suspend_battle_display &&
+            state.display_active == 1U && state.transition_suppression == 0U,
+        "failed battle display release stops before fonts and window changes"
+    );
 }
 
 void test_missing_display_backend(openswd3::test::Context& test) {
-    openswd3::app::DisplayLifecycleState state{7U, 8U, 9U};
+    openswd3::app::DisplayLifecycleState state{7U, 8U};
     RecordingDisplayPorts ports(state);
+    ports.battle_active_value = 9U;
     ports.backend_available = false;
 
     openswd3::app::deactivate_display(state, ports);
@@ -250,7 +301,7 @@ void test_missing_display_backend(openswd3::test::Context& test) {
         "missing backend preserves transition suppression"
     );
     test.expect_equal(
-        state.battle_active, 9U, "missing backend preserves battle"
+        ports.battle_active_value, 9U, "missing backend preserves battle"
     );
 }
 
@@ -352,6 +403,7 @@ int main() {
     openswd3::test::Context test;
     test_deactivate(test);
     test_reactivate(test);
+    test_battle_display_boundaries(test);
     test_missing_display_backend(test);
     test_shutdown(test);
     return test.exit_code();

@@ -42,6 +42,7 @@
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
+#include "openswd3/battle/legacy_battle_display_surface_runtime.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
@@ -1003,6 +1004,9 @@ public:
         SDL_Texture*& texture,
         const openswd3::rendering::LegacyFramebuffer& primary_surface,
         openswd3::rendering::LegacyFramebuffer& game_framebuffer,
+        openswd3::battle::LegacyBattleStartupState& battle_runtime,
+        openswd3::battle::LegacyBattleDisplaySurfaceRuntime& battle_surfaces,
+        const openswd3::compat::u32& battle_active,
         openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider,
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
         openswd3::audio_video::LegacyStreamManager& stream_manager,
@@ -1015,9 +1019,10 @@ public:
     )
         : window_(window), renderer_(renderer), texture_(texture),
           primary_surface_(primary_surface),
-          game_framebuffer_(game_framebuffer), glyph_provider_(glyph_provider),
-          text_renderers_(text_renderers), stream_manager_(stream_manager),
-          sample_manager_(sample_manager),
+          game_framebuffer_(game_framebuffer), battle_runtime_(battle_runtime),
+          battle_surfaces_(battle_surfaces), battle_active_(battle_active),
+          glyph_provider_(glyph_provider), text_renderers_(text_renderers),
+          stream_manager_(stream_manager), sample_manager_(sample_manager),
           audio_maintenance_(audio_maintenance),
           frame_interval_(frame_interval),
           backend_available_(backend_available), ok_(ok), running_(running) {}
@@ -1052,7 +1057,27 @@ public:
     void maintain_audio() override {
         service_audio(audio_maintenance_);
     }
-    void suspend_battle_display() override {}
+    openswd3::compat::u32 battle_active() const noexcept override {
+        return battle_active_;
+    }
+
+    bool suspend_battle_display() override {
+        const auto released =
+            openswd3::battle::release_legacy_battle_display_surfaces(
+                battle_runtime_, battle_surfaces_
+            );
+        if (released.typed_stop) {
+            openswd3::diagnostics::log_error(
+                "battle display suspension: surface release stopped"
+            );
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+
+        return true;
+    }
+
     void release_font(const openswd3::compat::u32 point_size) override {
         static_cast<void>(text_renderers_.release(point_size));
     }
@@ -1100,7 +1125,18 @@ public:
             running_ = false;
         }
     }
-    void resume_battle_display() override {}
+    void resume_battle_display() override {
+        if (!running_) {
+            return;
+        }
+
+        static_cast<void>(
+            openswd3::battle::create_legacy_battle_display_surfaces(
+                battle_runtime_, battle_surfaces_
+            )
+        );
+    }
+
     void finish_display_recovery() override {
         if (!running_ || texture_ == nullptr) {
             return;
@@ -1122,6 +1158,9 @@ private:
     SDL_Texture*& texture_;
     const openswd3::rendering::LegacyFramebuffer& primary_surface_;
     openswd3::rendering::LegacyFramebuffer& game_framebuffer_;
+    openswd3::battle::LegacyBattleStartupState& battle_runtime_;
+    openswd3::battle::LegacyBattleDisplaySurfaceRuntime& battle_surfaces_;
+    const openswd3::compat::u32& battle_active_;
     openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider_;
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
     openswd3::audio_video::LegacyStreamManager& stream_manager_;
@@ -1692,6 +1731,7 @@ class SdlSmokeIdlePorts final
       public virtual openswd3::input_time_rng::LegacyMouseFrameStatePort,
       public virtual openswd3::battle::LegacyBattlePreFramePort,
       public virtual openswd3::battle::LegacyBattleActorMetricStatePort,
+      public virtual openswd3::battle::LegacyBattleActorPublicationStatePort,
       public virtual openswd3::battle::LegacyBattleInputDispatchStatePort,
       public virtual openswd3::battle::LegacyBattleSharedPhaseStatePort,
       public virtual openswd3::battle::LegacyBattleMessagePhaseStatePort,
@@ -1996,8 +2036,8 @@ public:
             // The paired DirectDraw owner is likewise represented by a
             // persistent typed framebuffer.
         }
-        void initialize_battle(const openswd3::compat::u16 battle_id) override {
-            owner_.initialize_battle(battle_id);
+        bool initialize_battle(const openswd3::compat::u16 battle_id) override {
+            return owner_.initialize_battle(battle_id);
         }
         bool close_world_map_view() override {
             // unk_4CAA28 maps data/<map>.cm, not MAPS.DAT. The active
@@ -2047,6 +2087,7 @@ public:
         openswd3::resource_io::LegacyResourceDatabases& resource_databases,
         openswd3::world_map::LegacyWorldItemListState& world_item_lists,
         openswd3::battle::LegacyBattleStartupState& battle_runtime,
+        openswd3::battle::LegacyBattleDisplaySurfaceRuntime& battle_surfaces,
         std::filesystem::path data_directory,
         std::filesystem::path launch_directory,
         std::filesystem::path world_cache_directory,
@@ -2084,6 +2125,7 @@ public:
           stream_manager_(stream_manager), sample_manager_(sample_manager),
           video_player_(video_player), resource_databases_(resource_databases),
           world_item_lists_(world_item_lists), battle_runtime_(battle_runtime),
+          battle_surfaces_(battle_surfaces),
           data_directory_(std::move(data_directory)),
           launch_directory_(std::move(launch_directory)),
           world_cache_directory_(std::move(world_cache_directory)),
@@ -2703,10 +2745,16 @@ public:
         // sub_4382E0/sub_438230 only release the old Win32 CM mapping.
     }
 
-    void initialize_battle(const openswd3::compat::u16 battle_id) override {
+    bool initialize_battle(const openswd3::compat::u16 battle_id) override {
         const auto saved_party_sources =
             battle_runtime_.group_a_configuration_sources;
-        battle_runtime_ = {};
+        battle_runtime_.battle_id_word = battle_id;
+        openswd3::battle::reset_legacy_battle_startup_blocks(
+            battle_runtime_,
+            actor_publication_state(),
+            actor_metric_state(),
+            battle_target_selection_runtime_state()
+        );
         auto_dialog_input_state_ = {};
         battle_script_workspace_ = {};
         battle_script_shared_ = {};
@@ -2762,7 +2810,7 @@ public:
             battle_setup_ready_ = false;
             ok_ = false;
             running_ = false;
-            return;
+            return false;
         }
 
         // 451E28..451E44 publishes mouse coordinates, then rebases input.
@@ -2775,6 +2823,27 @@ public:
             );
         openswd3::input_time_rng::rebase_mouse_coordinates(
             mouse_state_, mouse_sample, 320, 200
+        );
+
+        const auto released =
+            openswd3::battle::release_legacy_battle_display_surfaces(
+                battle_runtime_, battle_surfaces_
+            );
+        if (released.typed_stop) {
+            openswd3::diagnostics::log_error(
+                "battle initialization: display surface release stopped"
+            );
+            battle_assets_ready_ = false;
+            battle_setup_ready_ = false;
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+
+        static_cast<void>(
+            openswd3::battle::create_legacy_battle_display_surfaces(
+                battle_runtime_, battle_surfaces_
+            )
         );
 
         const auto loaded = openswd3::battle::load_legacy_battle_assets(
@@ -2870,7 +2939,10 @@ public:
         } else {
             openswd3::diagnostics::log_error(message);
         }
+
+        return true;
     }
+
     void clear_party_battle_entry_bits() override {}
 
     [[nodiscard]] openswd3::battle::LegacyBattleFrameMusicRegisters
@@ -4061,9 +4133,16 @@ public:
             running_ = false;
         }
     }
-    void step_world_player(
+    bool step_world_player(
         openswd3::app::FrameCoordinatorState& frame_state
     ) override {
+        step_world_player_control(frame_state);
+        return running_;
+    }
+
+    void step_world_player_control(
+        openswd3::app::FrameCoordinatorState& frame_state
+    ) {
         if (!active_world_session_.has_value()) {
             return;
         }
@@ -4446,6 +4525,12 @@ public:
             std::bit_cast<openswd3::compat::i32>(
                 world_encounter_state_.movement_state_4a9488
             );
+        if (encounter.outcome ==
+            openswd3::world_map::LegacyWorldEncounterOutcome::
+                initialization_typed_stop) {
+            return;
+        }
+
         openswd3::world_map::finish_legacy_world_player_motion_frame(
             player, world_frame_state_.movement
         );
@@ -8421,6 +8506,7 @@ private:
     openswd3::resource_io::LegacyResourceDatabases& resource_databases_;
     openswd3::world_map::LegacyWorldItemListState& world_item_lists_;
     openswd3::battle::LegacyBattleStartupState& battle_runtime_;
+    openswd3::battle::LegacyBattleDisplaySurfaceRuntime& battle_surfaces_;
     std::array<openswd3::compat::u8, 0x40U> saved_role_names_{};
     bool saved_party_extension_active_{};
     static constexpr openswd3::compat::u32 kMonFileHandleToken = 1U;
@@ -8992,8 +9078,23 @@ int main(const int argument_count, char** arguments) {
     openswd3::app::DisplayLifecycleState display_state{
         runtime_ready ? 1U : 0U,
         initialization_state.transition_suppression,
-        0U,
     };
+    openswd3::app::FrameCoordinatorState frame_coordinator_state{
+        window_state.frame_execution_gate,
+        window_state.process_flags,
+        display_state.transition_suppression,
+        false,
+        {
+            0U,
+            0U,
+            runtime_ready ? initialization_state.special_mode_state : 0U,
+            0U,
+        },
+    };
+    openswd3::battle::LegacyBattleStartupState battle_runtime;
+    openswd3::battle::LegacyBattleDisplaySurfaceRuntime battle_surfaces(
+        framebuffer.geometry().surface
+    );
     bool ok = true;
     bool running = true;
     SmokeWindowEventPorts window_ports(
@@ -9005,6 +9106,9 @@ int main(const int argument_count, char** arguments) {
         texture,
         primary_surface,
         framebuffer,
+        battle_runtime,
+        battle_surfaces,
+        frame_coordinator_state.battle.battle_active,
         glyph_provider,
         text_renderers,
         stream_manager,
@@ -9016,7 +9120,6 @@ int main(const int argument_count, char** arguments) {
         running
     );
     openswd3::world_map::LegacyWorldItemListState world_item_lists;
-    openswd3::battle::LegacyBattleStartupState battle_runtime;
     SmokeShutdownPorts shutdown_ports(
         text_renderers,
         stream_manager,
@@ -9035,18 +9138,6 @@ int main(const int argument_count, char** arguments) {
         );
     }
     openswd3::app::FramePreparationState frame_preparation_state{};
-    openswd3::app::FrameCoordinatorState frame_coordinator_state{
-        window_state.frame_execution_gate,
-        window_state.process_flags,
-        display_state.transition_suppression,
-        false,
-        {
-            0U,
-            0U,
-            runtime_ready ? initialization_state.special_mode_state : 0U,
-            0U,
-        },
-    };
     SdlSmokeIdlePorts idle_ports(
         *window,
         *renderer,
@@ -9072,6 +9163,7 @@ int main(const int argument_count, char** arguments) {
         resource_databases,
         world_item_lists,
         battle_runtime,
+        battle_surfaces,
         data_directory.directory,
         launch_directory,
         executable_directory / "cache" / "maps",
@@ -9106,7 +9198,7 @@ int main(const int argument_count, char** arguments) {
 
     while (running) {
         SDL_Event event{};
-        while (SDL_PollEvent(&event)) {
+        while (running && SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_WINDOW_RESIZED &&
                 (SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) == 0U &&
                 event.window.data1 > 0 && event.window.data2 > 0) {

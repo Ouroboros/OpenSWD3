@@ -74,7 +74,14 @@ public:
     void set_frame_interval(openswd3::compat::u32) override {}
     void suspend_audio_output() override {}
     void suspend_audio_streams() override {}
-    void suspend_battle_display() override {}
+    openswd3::compat::u32 battle_active() const noexcept override {
+        return 0U;
+    }
+
+    bool suspend_battle_display() override {
+        return true;
+    }
+
     void release_font(openswd3::compat::u32) override {}
     void minimize_window() override {}
     void show_and_position_window() override {}
@@ -133,7 +140,7 @@ void test_normal_lifecycle(openswd3::test::Context& test) {
     openswd3::app::run_idle_iteration({1U, 0U, 0U, 1U}, ports);
 
     openswd3::app::WindowEventState window_state{1U, 0U, 1U};
-    openswd3::app::DisplayLifecycleState display_state{1U, 0U, 0U};
+    openswd3::app::DisplayLifecycleState display_state{1U, 0U};
     test.expect_equal(
         openswd3::app::dispatch_host_window_event(
             {

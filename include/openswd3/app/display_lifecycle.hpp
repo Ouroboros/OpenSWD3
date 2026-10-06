@@ -7,7 +7,6 @@ namespace openswd3::app {
 struct DisplayLifecycleState {
     compat::u32 display_active{};
     compat::u32 transition_suppression{};
-    compat::u32 battle_active{};
 };
 
 class DisplayLifecyclePorts {
@@ -19,7 +18,8 @@ public:
     virtual void suspend_audio_output() = 0;
     virtual void suspend_audio_streams() = 0;
     virtual void maintain_audio() = 0;
-    virtual void suspend_battle_display() = 0;
+    [[nodiscard]] virtual compat::u32 battle_active() const noexcept = 0;
+    [[nodiscard]] virtual bool suspend_battle_display() = 0;
     virtual void release_font(compat::u32 point_size) = 0;
     virtual void minimize_window() = 0;
 

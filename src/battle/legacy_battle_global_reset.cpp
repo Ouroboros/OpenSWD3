@@ -585,6 +585,9 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
     record_call(result, LegacyBattleGlobalResetCallStage::display_surfaces);
     result.display_surfaces =
         release_legacy_battle_display_surfaces(startup, port);
+    if (result.display_surfaces.typed_stop) {
+        return result;
+    }
 
     record_call(result, LegacyBattleGlobalResetCallStage::rotation_cache);
     result.rotation_cache = release_legacy_battle_action_rotation_cache(

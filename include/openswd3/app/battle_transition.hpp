@@ -23,7 +23,8 @@ public:
 
     virtual void release_display_and_world_for_battle_entry() = 0;
     virtual void close_world_map_view() = 0;
-    virtual void initialize_battle(compat::u16 battle_id) = 0;
+    // False is a host typed stop, not the original initializer's EAX value.
+    [[nodiscard]] virtual bool initialize_battle(compat::u16 battle_id) = 0;
     virtual void clear_party_battle_entry_bits() = 0;
 
     // No value means that the battle script stopped before its frame call returned.
@@ -45,7 +46,8 @@ public:
     virtual void remap_world_after_result_three() = 0;
 };
 
-[[nodiscard]] bool consume_battle_request(
+// No value means initialization stopped before publishing battle activity.
+[[nodiscard]] std::optional<bool> consume_battle_request(
     BattleTransitionState& state,
     bool battle_entry_blocked,
     BattleTransitionPorts& ports

@@ -10,6 +10,7 @@
 #include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
+#include "openswd3/battle/legacy_battle_display_surfaces.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_attribute_aggregation.hpp"
 #include "openswd3/battle/legacy_battle_group_a_attribute_effect.hpp"
@@ -140,7 +141,8 @@ struct LegacyBattleStartupCallReply {
 };
 
 class LegacyBattleStartupPort
-    : public virtual input_time_rng::LegacyMouseFrameStatePort,
+    : public LegacyBattleDisplaySurfacePort,
+      public virtual input_time_rng::LegacyMouseFrameStatePort,
       public virtual LegacyBattleFrameInputResolutionStatePort,
       public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleActorMetricStatePort,
@@ -158,6 +160,14 @@ public:
 
     [[nodiscard]] virtual LegacyBattleStartupCallReply
     invoke(const LegacyBattleStartupCallRequest& request) = 0;
+
+    [[nodiscard]] std::optional<compat::u32>
+    release_battle_display_surface(compat::u32 token) override;
+    [[nodiscard]] compat::u32 battle_display_height() override;
+    [[nodiscard]] compat::u32 battle_display_width() override;
+    [[nodiscard]] compat::u32 create_battle_display_surface(
+        compat::u32 width, compat::u32 height
+    ) override;
 
     [[nodiscard]] virtual bool group_b_action_configuration_typed_stop(
         LegacyBattleStartupCall call
@@ -374,11 +384,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     enemy_action_configuration_typed_stop,
     enemy_progress_typed_stop,
     party_progress_initialization_typed_stop,
-};
-
-struct LegacyBattleDisplaySurfaceReleaseResult {
-    compat::u32 release_calls{};
-    compat::u32 return_value{};
+    display_surface_typed_stop,
 };
 
 struct LegacyBattleStartupResult {
@@ -429,11 +435,13 @@ struct LegacyBattleStartupResult {
     compat::u32 return_value{};
 };
 
-// sub_451AE0.
-[[nodiscard]] LegacyBattleDisplaySurfaceReleaseResult
-release_legacy_battle_display_surfaces(
-    LegacyBattleStartupState& state, LegacyBattleStartupPort& port
-);
+// sub_451B10 reset prefix: display and actor resources stay owned.
+void reset_legacy_battle_startup_blocks(
+    LegacyBattleStartupState& state,
+    LegacyBattleActorPublicationState& publication,
+    LegacyBattleActorMetricState& metrics,
+    LegacyBattleTargetSelectionRuntimeState& target_selection
+) noexcept;
 
 // sub_451B10 with adjacent display-surface helper sub_451A90.
 [[nodiscard]] LegacyBattleStartupResult initialize_legacy_battle_startup(

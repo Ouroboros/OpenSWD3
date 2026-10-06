@@ -22,9 +22,10 @@ void deactivate_display(
     ports.suspend_audio_output();
     ports.suspend_audio_streams();
     ports.maintain_audio();
-    if (state.battle_active != 0U) {
-        ports.suspend_battle_display();
+    if (ports.battle_active() == 1U && !ports.suspend_battle_display()) {
+        return;
     }
+
     ports.release_font(kLargeFontSize);
     ports.release_font(kMediumFontSize);
     ports.release_font(kSmallFontSize);
@@ -47,10 +48,12 @@ void reactivate_display(
     ports.rebuild_font(kLargeFontSize);
     ports.rebuild_font(kMediumFontSize);
     ports.rebuild_font(kSmallFontSize);
+    const auto battle_active = ports.battle_active();
     state.transition_suppression = 0U;
-    if (state.battle_active != 0U) {
+    if (battle_active == 1U) {
         ports.resume_battle_display();
     }
+
     ports.finish_display_recovery();
     ports.set_frame_interval(kRestoredFrameInterval);
 }

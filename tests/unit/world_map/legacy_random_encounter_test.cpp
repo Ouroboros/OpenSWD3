@@ -506,10 +506,12 @@ public:
     void release_pre_battle_resource_431960() override {
         calls.push_back(EncounterCall::release_431960);
     }
-    void initialize_battle(const u16 battle_id) override {
+    bool initialize_battle(const u16 battle_id) override {
         calls.push_back(EncounterCall::initialize_battle);
         initialized_battle = battle_id;
+        return initialization_completed;
     }
+
     bool close_world_map_view() override {
         calls.push_back(EncounterCall::close_view);
         return close_view_result;
@@ -529,6 +531,7 @@ public:
     u32 selected_counter{};
     u32 selected_force{99U};
     u16 initialized_battle{};
+    bool initialization_completed{true};
     bool clear_counter_during_selection{};
     bool close_view_result{true};
 };
@@ -776,6 +779,44 @@ void test_world_encounter_selection_and_entry(openswd3::test::Context& test) {
                 EncounterCall::report_close_failure &&
             close_failure_ports.calls.back() == EncounterCall::close_handle,
         "close failure reports diagnostics but still closes the handle object"
+    );
+
+    state = {};
+    state.encounter_step_counter = 5U;
+    state.movement_state_4b7920 = 1U;
+    state.movement_state_4b7518 = 2U;
+    state.movement_state_4a948c = 3U;
+    state.movement_state_4a9488 = 4U;
+    roles[1].flags = kLegacyEncounterPartyEntryFlag | 0x20U;
+    RecordingEncounterPorts stopped_ports;
+    stopped_ports.selection.battle_id = 0x3456U;
+    stopped_ports.initialization_completed = false;
+    const auto stopped = coordinate_legacy_world_encounter(
+        state, idle_talk(), roles, stopped_ports
+    );
+    test.expect_true(
+        stopped.outcome ==
+                LegacyWorldEncounterOutcome::initialization_typed_stop &&
+            state.battle_active == 0U &&
+            state.temporary_battle_request == 0x3456U &&
+            state.encounter_step_counter == 6U &&
+            state.movement_state_4b7920 == 1U &&
+            state.movement_state_4b7518 == 2U &&
+            state.movement_state_4a948c == 3U &&
+            state.movement_state_4a9488 == 4U &&
+            roles[1].flags == (kLegacyEncounterPartyEntryFlag | 0x20U) &&
+            stopped_ports.calls ==
+                std::vector<EncounterCall>{
+                    EncounterCall::query_suppression,
+                    EncounterCall::query_flag,
+                    EncounterCall::select,
+                    EncounterCall::stop_stream,
+                    EncounterCall::stop_samples,
+                    EncounterCall::release_433010,
+                    EncounterCall::release_431960,
+                    EncounterCall::initialize_battle,
+                },
+        "stopped encounter initialization preserves movement and pending request"
     );
 }
 

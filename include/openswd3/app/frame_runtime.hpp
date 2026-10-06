@@ -19,7 +19,8 @@ public:
     virtual void step_high_priority(FrameCoordinatorState& state) = 0;
     virtual void update_background_music(FrameCoordinatorState& state) = 0;
     virtual void step_world_interaction(FrameCoordinatorState& state) = 0;
-    virtual void step_world_player(FrameCoordinatorState& state) = 0;
+    [[nodiscard]] virtual bool
+    step_world_player(FrameCoordinatorState& state) = 0;
     virtual void step_story(FrameCoordinatorState& state) = 0;
     virtual void finish_world_frame(FrameCoordinatorState& state) = 0;
     virtual void prepare_special_mode_objects(FrameCoordinatorState& state) = 0;
@@ -33,6 +34,7 @@ enum class FrameRunOutcome {
     common_tail_completed,
     battle_early_return,
     battle_typed_stop,
+    world_typed_stop,
 };
 
 // 0x0040A4E2–0x0040A50A: startup dialog result one bypasses title mode.

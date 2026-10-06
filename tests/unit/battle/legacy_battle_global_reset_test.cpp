@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -77,6 +78,18 @@ public:
 class ResetPort final : public LegacyBattleGlobalResetRuntimePort {
 public:
     ResetPort() : samples(sample_backend, archive) {}
+
+    u32 unresolved_display_token{};
+
+    [[nodiscard]] std::optional<u32>
+    release_battle_display_surface(const u32 token) override {
+        if (token == unresolved_display_token) {
+            return std::nullopt;
+        }
+
+        return LegacyBattleGlobalResetRuntimePort::
+            release_battle_display_surface(token);
+    }
 
     [[nodiscard]] openswd3::asset_runtime::LegacyActionRecord&
     battle_control_action() noexcept override {
@@ -466,6 +479,39 @@ void seed_state(
 }  // namespace
 
 void test_battle_global_reset(openswd3::test::Context& test) {
+    for (const u32 stopped_slot : {0U, 1U}) {
+        LegacyBattleGlobalResetState state;
+        LegacyBattleStartupState startup;
+        LegacyBattleFinalActorStepState final_actor;
+        LegacyBattleGroupBFrameState actor_frames;
+        auto& action = actor_frames.shared.action;
+        LegacyBattleDebugOverlayState debug_overlay;
+        ResetPort port;
+        startup.display_surfaces = {11U, 22U};
+        port.unresolved_display_token = startup.display_surfaces[stopped_slot];
+        const auto result = openswd3::battle::reset_legacy_battle_globals(
+            state,
+            startup,
+            final_actor,
+            action,
+            actor_frames,
+            debug_overlay,
+            port
+        );
+        const std::array<u32, 2> expected{
+            stopped_slot == 0U ? 11U : 0U,
+            22U,
+        };
+        test.expect_true(
+            result.display_surfaces.typed_stop &&
+                result.display_surfaces.release_calls == stopped_slot &&
+                startup.display_surfaces == expected &&
+                result.call_count == 1U && result.write_operations == 0U &&
+                state.write_trace.empty(),
+            "global reset preserves the failed release and skips all suffixes"
+        );
+    }
+
     {
         LegacyBattleGlobalResetState state;
         LegacyBattleStartupState startup;

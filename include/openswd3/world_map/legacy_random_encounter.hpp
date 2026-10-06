@@ -159,7 +159,8 @@ public:
     virtual void stop_all_legacy_samples() = 0;
     virtual void release_pre_battle_resource_433010() = 0;
     virtual void release_pre_battle_resource_431960() = 0;
-    virtual void initialize_battle(compat::u16 battle_id) = 0;
+    // False preserves the prefix when the host initializer cannot return.
+    [[nodiscard]] virtual bool initialize_battle(compat::u16 battle_id) = 0;
     [[nodiscard]] virtual bool close_world_map_view() = 0;
     virtual void report_world_map_view_close_failure() = 0;
     virtual void close_world_map_handle() = 0;
@@ -174,6 +175,7 @@ enum class LegacyWorldEncounterOutcome {
     no_encounter,
     selection_failed,
     battle_entered,
+    initialization_typed_stop,
 };
 
 struct LegacyWorldEncounterResult {

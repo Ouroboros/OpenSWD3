@@ -130,6 +130,7 @@ add_library(
         legacy_battle_defeat_panel.cpp
         legacy_battle_definition_archive.cpp
         legacy_battle_directional_scan.cpp
+        legacy_battle_display_surface_runtime.cpp
         legacy_battle_frame_completion.cpp
         legacy_battle_frame_coordinator.cpp
         legacy_battle_frame_music_prefix.cpp

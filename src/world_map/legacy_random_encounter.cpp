@@ -352,7 +352,13 @@ LegacyWorldEncounterResult coordinate_legacy_world_encounter(
     ports.stop_all_legacy_samples();
     ports.release_pre_battle_resource_433010();
     ports.release_pre_battle_resource_431960();
-    ports.initialize_battle(selection.battle_id);
+    if (!ports.initialize_battle(selection.battle_id)) {
+        return {
+            .outcome = LegacyWorldEncounterOutcome::initialization_typed_stop,
+            .selection_status = selection.status,
+            .battle_id = selection.battle_id,
+        };
+    }
 
     state.battle_active = 1U;
     state.movement_state_4b7920 = 0U;

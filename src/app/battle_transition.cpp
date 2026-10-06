@@ -2,7 +2,7 @@
 
 namespace openswd3::app {
 
-bool consume_battle_request(
+std::optional<bool> consume_battle_request(
     BattleTransitionState& state,
     const bool battle_entry_blocked,
     BattleTransitionPorts& ports
@@ -19,9 +19,12 @@ bool consume_battle_request(
 
     ports.release_display_and_world_for_battle_entry();
     ports.close_world_map_view();
-    ports.initialize_battle(
-        static_cast<compat::u16>(state.battle_request_value & 0xFFFFU)
-    );
+    if (!ports.initialize_battle(
+            static_cast<compat::u16>(state.battle_request_value & 0xFFFFU)
+        )) {
+        return std::nullopt;
+    }
+
     state.battle_active = 1U;
     ports.clear_party_battle_entry_bits();
     return true;

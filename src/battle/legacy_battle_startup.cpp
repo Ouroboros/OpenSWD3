@@ -251,8 +251,13 @@ private:
     return kEnemyStartupBaseToken + index * 0x20U;
 }
 
-void reset_startup_blocks(
-    LegacyBattleStartupState& state, LegacyBattleStartupPort& port
+}  // namespace
+
+void reset_legacy_battle_startup_blocks(
+    LegacyBattleStartupState& state,
+    LegacyBattleActorPublicationState& publication,
+    LegacyBattleActorMetricState& metrics,
+    LegacyBattleTargetSelectionRuntimeState& target_selection
 ) noexcept {
     auto& reset = state.reset;
     reset.block_525470.fill(0U);
@@ -276,7 +281,7 @@ void reset_startup_blocks(
     reset.values_5244d8.fill(0U);
     reset.block_5242b0.fill(0U);
     reset.value_524418 = 0U;
-    port.actor_publication_state().slots.fill(0xFFFFFFFFU);
+    publication.slots.fill(0xFFFFFFFFU);
     reset.block_524420.fill(0xFFFFFFFFU);
     reset.block_53ae90.fill(0xFFFFFFFFU);
     reset.block_5244e8.fill(0xFFFFFFFFU);
@@ -285,9 +290,9 @@ void reset_startup_blocks(
     state.supplemental_used.fill(0U);
     reset.block_524268.fill(0U);
     reset.value_53c048 = 0U;
-    port.actor_metric_state().priority_actor_index = 0xFFFFFFFFU;
+    metrics.priority_actor_index = 0xFFFFFFFFU;
     reset.value_53bf22 = 0U;
-    port.battle_target_selection_runtime_state().special_action_count = 0U;
+    target_selection.special_action_count = 0U;
     for (auto& record : reset.records_524788) {
         record.value_00 = 0xFFFFFFFFU;
         record.value_0a = 0U;
@@ -296,6 +301,8 @@ void reset_startup_blocks(
         record.value_18 = 0U;
     }
 }
+
+namespace {
 
 [[nodiscard]] u32
 ratio_low_dword(const i32 numerator, const i32 denominator) noexcept {
@@ -503,24 +510,79 @@ struct SupplementalAddResult {
 
 }  // namespace
 
+std::optional<u32>
+LegacyBattleStartupPort::release_battle_display_surface(const u32 token) {
+    return invoke({
+                      .call = LegacyBattleStartupCall::release_display_surface,
+                      .arguments = {token, 0U, 0U, 0U},
+                  })
+        .return_value;
+}
+
+u32 LegacyBattleStartupPort::battle_display_height() {
+    return invoke({.call = LegacyBattleStartupCall::system_metric_height})
+        .return_value;
+}
+
+u32 LegacyBattleStartupPort::battle_display_width() {
+    return invoke({.call = LegacyBattleStartupCall::system_metric_width})
+        .return_value;
+}
+
+u32 LegacyBattleStartupPort::create_battle_display_surface(
+    const u32 width, const u32 height
+) {
+    return invoke({
+                      .call = LegacyBattleStartupCall::create_display_surface,
+                      .arguments =
+                          {kLegacyBattleStartupSurfaceOwnerToken,
+                           width,
+                           height,
+                           0U},
+                  })
+        .return_value;
+}
+
 LegacyBattleDisplaySurfaceReleaseResult release_legacy_battle_display_surfaces(
-    LegacyBattleStartupState& state, LegacyBattleStartupPort& port
+    LegacyBattleStartupState& state, LegacyBattleDisplaySurfacePort& port
 ) {
     LegacyBattleDisplaySurfaceReleaseResult result;
     for (u32& surface : state.display_surfaces) {
         result.return_value = surface;
         if (surface != 0U) {
-            result.return_value =
-                invoke(
-                    port,
-                    LegacyBattleStartupCall::release_display_surface,
-                    {surface, 0U, 0U, 0U}
-                )
-                    .return_value;
+            const auto released = port.release_battle_display_surface(surface);
+            if (!released.has_value()) {
+                result.typed_stop = true;
+                return result;
+            }
+
+            result.return_value = *released;
             surface = 0U;
             ++result.release_calls;
         }
     }
+
+    return result;
+}
+
+LegacyBattleDisplaySurfaceCreationResult create_legacy_battle_display_surfaces(
+    LegacyBattleStartupState& state, LegacyBattleDisplaySurfacePort& port
+) {
+    LegacyBattleDisplaySurfaceCreationResult result;
+    for (u32& surface : state.display_surfaces) {
+        const u32 height = port.battle_display_height();
+        const u32 width = port.battle_display_width();
+        surface = port.create_battle_display_surface(width, height);
+        ++result.create_calls;
+    }
+
+    result.return_value = 0xFFFFFFFFU;
+    state.background.completion_words[0] = 0xFFFFU;
+    result.completion_write_order[0] = 0U;
+    state.background.completion_words[1] = 0xFFFFU;
+    result.completion_write_order[1] = 1U;
+    state.background.completion_words[2] = 0xFFFFU;
+    result.completion_write_order[2] = 2U;
     return result;
 }
 
@@ -552,7 +614,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     result.action_threshold = publish_legacy_battle_action_threshold(
         state.timing, request.speed_setting
     );
-    reset_startup_blocks(state, port);
+    reset_legacy_battle_startup_blocks(
+        state,
+        port.actor_publication_state(),
+        port.actor_metric_state(),
+        port.battle_target_selection_runtime_state()
+    );
 
     state.control_switches.fill(1U);
     auto& control_action = port.battle_control_action();
@@ -651,30 +718,17 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         {0x004B8748U, 320U, 200U, 0U}
     ));
 
-    result.released_display_surfaces =
-        release_legacy_battle_display_surfaces(state, port).release_calls;
-    for (u32& surface : state.display_surfaces) {
-        const u32 height =
-            invoke(port, LegacyBattleStartupCall::system_metric_height)
-                .return_value;
-        const u32 width =
-            invoke(port, LegacyBattleStartupCall::system_metric_width)
-                .return_value;
-        surface = invoke(
-                      port,
-                      LegacyBattleStartupCall::create_display_surface,
-                      {kLegacyBattleStartupSurfaceOwnerToken, width, height, 0U}
-        )
-                      .return_value;
-        ++result.created_display_surfaces;
+    const auto released = release_legacy_battle_display_surfaces(state, port);
+    result.released_display_surfaces = released.release_calls;
+    if (released.typed_stop) {
+        result.status = LegacyBattleStartupStatus::display_surface_typed_stop;
+        return result;
     }
-    result.display_surface_return_snapshot = 0xFFFFFFFFU;
-    state.background.completion_words[0] = 0xFFFFU;
-    result.display_completion_write_order[0] = 0U;
-    state.background.completion_words[1] = 0xFFFFU;
-    result.display_completion_write_order[1] = 1U;
-    state.background.completion_words[2] = 0xFFFFU;
-    result.display_completion_write_order[2] = 2U;
+
+    const auto created = create_legacy_battle_display_surfaces(state, port);
+    result.created_display_surfaces = created.create_calls;
+    result.display_surface_return_snapshot = created.return_value;
+    result.display_completion_write_order = created.completion_write_order;
 
     static_cast<void>(invoke(
         port,
