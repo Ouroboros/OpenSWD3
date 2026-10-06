@@ -524,6 +524,16 @@ LegacyBattleDisplaySurfaceReleaseResult release_legacy_battle_display_surfaces(
     return result;
 }
 
+void publish_legacy_battle_startup_mouse_position(
+    input_time_rng::LegacyMouseFrame& mouse,
+    LegacyBattleFrameInputResolutionState& frame_input
+) noexcept {
+    mouse.logical_x = 320;
+    frame_input.previous_mouse_x = 320;
+    mouse.logical_y = 200;
+    frame_input.previous_mouse_y = 200;
+}
+
 LegacyBattleStartupResult initialize_legacy_battle_startup(
     LegacyBattleStartupState& state,
     LegacyBattleStartupPort& port,
@@ -632,11 +642,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         return result;
     }
 
-    state.logical_width = 320U;
-    state.logical_height = 200U;
+    publish_legacy_battle_startup_mouse_position(
+        port.mouse_frame_state(), port.battle_frame_input_resolution_state()
+    );
     static_cast<void>(invoke(
         port,
-        LegacyBattleStartupCall::configure_output,
+        LegacyBattleStartupCall::rebase_mouse_coordinates,
         {0x004B8748U, 320U, 200U, 0U}
     ));
 

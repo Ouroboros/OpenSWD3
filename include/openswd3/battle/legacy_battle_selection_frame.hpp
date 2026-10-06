@@ -26,13 +26,13 @@
 #include "openswd3/battle/legacy_battle_selection_hint_frame.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/battle/legacy_battle_vertical_panel.hpp"
+#include "openswd3/input_time_rng/legacy_mouse_frame_state.hpp"
 
 #include <array>
 
 namespace openswd3::battle {
 
 struct LegacyBattleSelectionFrameState {
-    std::array<compat::u32, 2> pointer_origin{};  // 0x004A9924
     compat::u32 secondary_actor_gate{};           // 0x0053BF68
     LegacyBattleScaleFillPanelState scale_fill_panel{};
     LegacyBattleVerticalPanelState vertical_panel{};
@@ -51,7 +51,8 @@ struct LegacyBattleSelectionFrameState {
     std::array<compat::u8, 0x120> prepared_action_overlap_tail{};
 };
 
-class LegacyBattleSelectionFrameStatePort {
+class LegacyBattleSelectionFrameStatePort
+    : public virtual input_time_rng::LegacyMouseFrameStatePort {
 public:
     [[nodiscard]] virtual LegacyBattleSelectionFrameState&
     battle_selection_frame_state() noexcept {
@@ -77,7 +78,7 @@ enum class LegacyBattleSelectionFrameCall : compat::u8 {
     query_selected_actor_release,
     release_selected_actor,
     reset_actor_selection,
-    draw_mouse_anchor,
+    rebase_mouse_coordinates,
     configure_text_row,
     configure_text_color,
     query_text_length,

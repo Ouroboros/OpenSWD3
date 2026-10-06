@@ -122,7 +122,7 @@ battle协调测试覆盖：
 修正后定向core与AddressSanitizer各1/1、SDL链接通过，日志为同目录
 `battle-render-rectangle-{core,asan,sdl}.log`。ASan构建仅出现既有
 `legacy_battle_outcome_resolution_test.cpp:137`的u16到u8窄化警告。
-唯一核心caller仍在初始化中直接调用该入口，typed-stop继续阻止后续输出配置；
+唯一核心caller仍在初始化中直接调用该入口，typed-stop继续阻止后续鼠标重定位；
 本轮没有证明完整SDL初始化或实机画面。
 
 当前没有可用原版DirectDraw描述符、战斗owner行表和矩形的联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整60行跨模块LST、字段来源、typed实现与固定状态已经闭环。

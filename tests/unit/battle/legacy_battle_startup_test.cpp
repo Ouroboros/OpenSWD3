@@ -39,6 +39,14 @@ class StartupPorts final
 public:
     std::array<openswd3::asset_runtime::LegacyActionRecord, 3> dialog_actions{};
     std::vector<openswd3::asset_runtime::LegacyActionRecord> control_snapshots;
+    std::vector<std::array<i32, 4>> mouse_rebase_snapshots;
+    openswd3::input_time_rng::LegacyMouseState mouse_device{
+        .sensitivity_scale = 20,
+    };
+    openswd3::input_time_rng::LegacyMouseDeviceSample mouse_sample{
+        .absolute_x = -400,
+        .absolute_y = 800,
+    };
 
     [[nodiscard]] openswd3::asset_runtime::LegacyActionRecord&
     battle_control_action() noexcept override {
@@ -78,6 +86,22 @@ public:
             reply.return_value =
                 request.arguments[0] == 0x1FU ? 0xAAAA1234U : 0xBBBB5678U;
             break;
+
+        case LegacyBattleStartupCall::rebase_mouse_coordinates:
+            mouse_rebase_snapshots.push_back({
+                mouse_frame_state().logical_x,
+                battle_frame_input_resolution_state().previous_mouse_x,
+                mouse_frame_state().logical_y,
+                battle_frame_input_resolution_state().previous_mouse_y,
+            });
+            openswd3::input_time_rng::rebase_mouse_coordinates(
+                mouse_device,
+                mouse_sample,
+                std::bit_cast<i32>(request.arguments[1]),
+                std::bit_cast<i32>(request.arguments[2])
+            );
+            break;
+
         case LegacyBattleStartupCall::system_metric_height:
             reply.return_value = 1080U;
             break;
@@ -692,6 +716,9 @@ void test_battle_startup(openswd3::test::Context& test) {
         StartupPorts ports;
         poison_reset_blocks(state, ports);
         state.display_surfaces = {0x11110000U, 0x22220000U};
+        ports.mouse_frame_state() = {-123, 456, 0xA5U};
+        ports.battle_frame_input_resolution_state().previous_mouse_x = -77;
+        ports.battle_frame_input_resolution_state().previous_mouse_y = 88;
         state.mode_flags = 0xA5000000U;
         ports.query_values = {
             {30U, 1U},
@@ -740,7 +767,11 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.window_rectangle == std::array<i32, 4>{1, 2, 641, 482} &&
                 state.primary_text_color == 0x1234U &&
                 state.secondary_text_color == 0x5678U &&
-                state.logical_width == 320U && state.logical_height == 200U &&
+                ports.mouse_rebase_snapshots ==
+                    std::vector<std::array<i32, 4>>{{320, 320, 200, 200}} &&
+                ports.mouse_frame_state().button_mask == 0xA5U &&
+                ports.mouse_device.absolute_x_baseline == -560 &&
+                ports.mouse_device.absolute_y_baseline == 700 &&
                 result.released_display_surfaces == 2U &&
                 result.created_display_surfaces == 2U &&
                 state.display_surfaces ==

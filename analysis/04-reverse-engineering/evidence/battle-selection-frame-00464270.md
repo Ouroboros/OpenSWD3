@@ -24,7 +24,14 @@ message完整dword等于103时立即返回。否则读取queued角色；queued�
 
 ## 3. message 1：比例面板、文字与动作摘要
 
-queued为0直接返回。animation frame B不等于6时，runtime gate为0会从两项pointer origin减16/48发布面板原点；pointer activity signed不小于150或上一鼠标坐标落在`[50,570] x [30,360]`外时，把原点夹到`(290,160)`，越界鼠标路径额外调用anchor绘制。
+queued为0直接返回。animation frame B不等于6时，runtime gate为0会从当前鼠标坐标减16/48发布面板原点；pointer activity signed不小于150或上一鼠标坐标落在`[50,570] x [30,360]`外时，把原点设为`(290,160)`，越界鼠标路径额外调用鼠标输入重定位。
+
+B11按`0046445C..00464478`复核：当前坐标来自`004A9924/004A9928`，
+通过共享鼠标端口读取，不再由选择帧的私有`pointer_origin`保存副本。
+减法保留u32回绕；上一帧坐标仍独立来自`005028A0/005028A4`。
+`004644D5`实际调用`sub_437430`，旧“绘制锚点”名称已在选择帧及主帧映射中
+统一改为鼠标重定位。测试覆盖三组当前坐标读取，以及上一帧越界时传入
+`0x004B8748,290,160`的重定位请求。
 
 frame B按signed域上限6，animation phase按signed域下限0。随后直连已关闭六级比例填充面板；typed-stop保留此前原点、gate和夹值。frame B signed小于6时递增frame并递减phase后立即返回，保留callee之后的寄存器覆盖顺序。
 

@@ -539,6 +539,64 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         );
     }
 
+    for (const auto mouse :
+         std::array<openswd3::input_time_rng::LegacyMouseFrame, 3>{{
+             {320, 200, 0U}, {100, 100, 1U}, {-10, -20, 2U}
+         }}) {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 1U;
+        fixture.input.selection_animation_frame_b = 5U;
+        fixture.input.selection_animation_phase = 2U;
+        fixture.port.mouse_frame_state() = mouse;
+        // 4644A0..4644C0 tests the previous coordinates independently.
+        fixture.frame.previous_mouse_x = 320;
+        fixture.frame.previous_mouse_y = 200;
+        static_cast<void>(
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            )
+        );
+        test.expect_true(
+            fixture.frame.panel_origin_x ==
+                    static_cast<u32>(mouse.logical_x) - 16U &&
+                fixture.frame.panel_origin_y ==
+                    static_cast<u32>(mouse.logical_y) - 48U &&
+                fixture.input.selection_runtime_gate == 1U,
+            "selection panel reads shared mouse coordinates with dword wrap"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.message = 1U;
+        fixture.input.selection_animation_frame_b = 5U;
+        fixture.port.mouse_frame_state() = {320, 200, 1U};
+        // Previous coordinates remain zero, outside the original bounds.
+        static_cast<void>(
+            openswd3::battle::draw_legacy_battle_selection_frame(
+                fixture.bindings(), fixture.port
+            )
+        );
+        const auto rebase = std::find_if(
+            fixture.port.calls.begin(), fixture.port.calls.end(),
+            [](const auto& call) {
+                return call.call ==
+                    LegacyBattleSelectionFrameCall::rebase_mouse_coordinates;
+            }
+        );
+        test.expect_true(
+            fixture.frame.panel_origin_x == 290U &&
+                fixture.frame.panel_origin_y == 160U &&
+                rebase != fixture.port.calls.end() &&
+                rebase->object_token == 0x004B8748U &&
+                rebase->arguments[0] == 290U &&
+                rebase->arguments[1] == 160U,
+            "out-of-bounds previous mouse coordinates request input rebase"
+        );
+    }
+
     {
         Fixture fixture;
         fixture.final_actor.queued_actor_code = 8U;

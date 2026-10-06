@@ -100,7 +100,7 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_frame_query_selected_actor_release,
     selection_frame_release_selected_actor,
     selection_frame_reset_actor_selection,
-    selection_frame_draw_mouse_anchor,
+    selection_frame_rebase_mouse_coordinates,
     selection_frame_configure_text_row,
     selection_frame_configure_text_color,
     selection_frame_query_text_length,
@@ -479,9 +479,9 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 selection_frame_reset_actor_selection;
             break;
-        case LegacyBattleSelectionFrameCall::draw_mouse_anchor:
+        case LegacyBattleSelectionFrameCall::rebase_mouse_coordinates:
             call = LegacyBattleFrameCoordinatorCall::
-                selection_frame_draw_mouse_anchor;
+                selection_frame_rebase_mouse_coordinates;
             break;
         case LegacyBattleSelectionFrameCall::configure_text_row:
             call = LegacyBattleFrameCoordinatorCall::

@@ -1689,6 +1689,7 @@ class SdlSmokeIdlePorts final
       public openswd3::app::FrameRuntimePorts,
       public openswd3::battle::LegacyBattleScriptDispatchPort,
       public openswd3::battle::LegacyBattleFrameMusicPrefixPort,
+      public virtual openswd3::input_time_rng::LegacyMouseFrameStatePort,
       public virtual openswd3::battle::LegacyBattlePreFramePort,
       public virtual openswd3::battle::LegacyBattleActorMetricStatePort,
       public virtual openswd3::battle::LegacyBattleInputDispatchStatePort,
@@ -1705,6 +1706,16 @@ class SdlSmokeIdlePorts final
       public openswd3::audio_video::LegacyVideoFramePorts,
       public openswd3::world_map::LegacyWorldLoadProgressPorts {
 public:
+    [[nodiscard]] openswd3::input_time_rng::LegacyMouseFrame&
+    mouse_frame_state() noexcept override {
+        return input_state_.current_mouse;
+    }
+
+    [[nodiscard]] const openswd3::input_time_rng::LegacyMouseFrame&
+    mouse_frame_state() const noexcept override {
+        return input_state_.current_mouse;
+    }
+
     class WorldInteractionPorts final
         : public openswd3::world_map::LegacyWorldInteractionPorts {
     public:
@@ -2736,6 +2747,35 @@ public:
                     pixel_conversion_, 15, 14, 11
                 )
             );
+
+        const auto rebuilt =
+            openswd3::battle::rebuild_legacy_battle_render_surface(
+                battle_runtime_.render_geometry,
+                game_framebuffer_.geometry().surface
+            );
+        if (rebuilt.status != openswd3::battle::
+                LegacyBattleRenderSurfaceRebuildStatus::completed) {
+            openswd3::diagnostics::log_error(
+                "battle initialization: render surface rebuild stopped"
+            );
+            battle_assets_ready_ = false;
+            battle_setup_ready_ = false;
+            ok_ = false;
+            running_ = false;
+            return;
+        }
+
+        // 451E28..451E44 publishes mouse coordinates, then rebases input.
+        openswd3::battle::publish_legacy_battle_startup_mouse_position(
+            mouse_frame_state(), battle_frame_input_resolution_state()
+        );
+        const auto mouse_sample =
+            openswd3::platform_sdl3::sample_sdl_mouse_state(
+                renderer_, mouse_device_state_
+            );
+        openswd3::input_time_rng::rebase_mouse_coordinates(
+            mouse_state_, mouse_sample, 320, 200
+        );
 
         const auto loaded = openswd3::battle::load_legacy_battle_assets(
             data_directory_, battle_id, 0, battle_assets_

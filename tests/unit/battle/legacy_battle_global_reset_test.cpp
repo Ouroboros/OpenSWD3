@@ -433,7 +433,7 @@ void seed_state(
 
     auto& selection_frame = port.battle_selection_frame_state();
     startup.action_mode_source.actor_label_indices.fill(9U);
-    selection_frame.pointer_origin.fill(9U);
+    port.mouse_frame_state() = {9, 9, 9U};
     selection_frame.secondary_actor_gate = 9U;
 
     auto& frame_input = port.battle_frame_input_resolution_state();
@@ -798,7 +798,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         test.expect_true(
             selection_frame.secondary_actor_gate == 0U &&
                 startup.action_mode_source.actor_label_indices[0U] == 9U &&
-                selection_frame.pointer_origin[0U] == 9U &&
+                port.mouse_frame_state() ==
+                    openswd3::input_time_rng::LegacyMouseFrame{9, 9, 9U} &&
                 state.unmapped_bytes.contains(0x0053C184U) == false &&
                 state.unmapped_bytes.contains(0x0053BF1CU) == false &&
                 state.unmapped_bytes.contains(0x0053BF5CU) == false &&

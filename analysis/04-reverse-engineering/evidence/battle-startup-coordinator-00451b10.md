@@ -91,7 +91,8 @@ RGB555的`0x026B`恰为这三个分量。转换器对两个相同word分别转�
 2. `00451DE4`将16点文字renderer的横向步进写为`0x10`；
 3. 依次转换RGB555分量`(31,29,23)`与`(15,14,11)`，只发布两个返回值的低word；
 4. 对固定几何owner与surface源调用已关闭`0x00433DC0`；
-5. 写两组逻辑尺寸`320×200`并调用输出配置；
+5. 按当前X、上一帧X、当前Y、上一帧Y顺序写鼠标坐标`320,320,200,200`，
+   再调用`0x00437430`重定位鼠标输入；
 6. 调用`0x00451AE0`释放两个旧surface；
 7. 调用`0x00451A90`，每槽均按height→width→create顺序；
 8. EAX snapshot为`0xFFFFFFFF`，完成word按索引`0→1→2`发布。
@@ -110,6 +111,36 @@ SDL入口现调用已有`set_horizontal_advance(16,16)`，随后依次生成并�
 `build/tmp/runtime/battle-startup-text-colors-{core,asan}.log`。
 
 modern直接调用`rebuild_legacy_battle_render_surface`；其typed-stop阻断后续原本会访问无效行表的路径。显示surface由typed token保存，零token仍占一次创建调用。
+
+### 鼠标坐标职责与共享状态
+
+`00451E28/00451E2E/00451E3A/00451E3F`分别写入
+`004A9924/005028A0/004A9928/005028A4`。这些是当前鼠标X、上一帧X、
+当前鼠标Y、上一帧Y；不是两组画面尺寸。`00451E44`的`sub_437430`
+完整范围为`00437430..004374B5`：夹住目标坐标，查询设备绝对轴，
+按先除灵敏度、再乘十的顺序调整两个基准，不修改显示分辨率。
+
+当前坐标使用`LegacyMouseFrameStatePort`，SDL借用输入归一化的`current_mouse`。
+上一帧坐标仍由`LegacyBattleFrameInputResolutionState`持有，状态定义单独成头文件
+以避免startup与帧输入接口循环包含。删除startup中的`logical_width/height`
+及选择绘制中的`pointer_origin`重复字段；选择面板在`0046445C/00464462`
+直接读取同一鼠标状态，保留减16/48的32位回绕。
+
+核心startup与SDL入口复用同一四次写入函数，之后才调用现有鼠标重定位。
+SDL在文字初始化后先按真实framebuffer几何重建绘制行表，再发布鼠标坐标并采样设备。
+重建typed-stop阻断坐标发布、设备采样和后续资源加载。
+鼠标按钮不被四次写入清除。完整startup与旧显示资源生命周期仍未接通。
+
+定向测试观察重定位回调时的四个坐标，使用真实重定位接口检查设备基准，
+并验证选择面板读取共享坐标及全局重置保留该状态。
+选择面板的上一帧坐标必须独立设置：其越界分支会把面板移到固定位置，
+不能用默认零值作为验证当前坐标读取的前置状态。
+
+本批最终定向core、AddressSanitizer各1/1及SDL链接通过，三个日志无warning/error：
+`build/tmp/runtime/battle-mouse-binding-{core,asan,sdl}.log`。
+状态定义从旧头文件到新头文件的文本逐字比较一致；没有改变成员或默认值。
+验证覆盖核心startup、选择绘制、全局重置与实际调用的输入原语，
+SDL证据为真实引用绑定的源码追溯和构建，不冒充完整战斗或实机鼠标验收。
 
 ## 5. `battle.ffd`加载与唯一普通早退
 
@@ -225,7 +256,7 @@ remaining -= low16(supplemental_count_word)
 
 - `0x00451B10..0x00451C53`：参数lowword、阈值、零/全1块与固定latch；
 - `0x00451C55..0x00451D8A`：presence、控制块、四ID队伍扫描及映射；
-- `0x00451D8A..0x00451E53`：flags、延迟、窗口、几何、逻辑尺寸和两个surface附件；
+- `0x00451D8A..0x00451E53`：flags、延迟、窗口、几何、鼠标重定位和两个surface附件；
 - `0x00451E53..0x00451EEC`：battle ID、`battle.ffd`及零敌人唯一普通早退；
 - `0x00451EED..0x00452018`：随机背景、已关闭背景helper与组B物化；
 - `0x00452018..0x0045227D`：队伍记录、1–4人坐标、陈旧槽偏移及组A配置；

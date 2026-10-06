@@ -572,8 +572,12 @@ private:
         ecx_ = state_input().selection_animation_frame_b;
         if (ecx_ != 6U) {
             if (state_input().selection_runtime_gate == 0U) {
-                edx_ = state_.pointer_origin[0U] - 16U;
-                eax_ = state_.pointer_origin[1U] - 48U;
+                edx_ = static_cast<u32>(
+                           port_.mouse_frame_state().logical_x
+                       ) - 16U;
+                eax_ = static_cast<u32>(
+                           port_.mouse_frame_state().logical_y
+                       ) - 48U;
                 bindings_.frame_input.panel_origin_x = edx_;
                 bindings_.frame_input.panel_origin_y = eax_;
                 state_input().selection_runtime_gate = 1U;
@@ -593,7 +597,7 @@ private:
                 bindings_.frame_input.panel_origin_x = edi_;
                 bindings_.frame_input.panel_origin_y = edx_;
                 ecx_ = kMouseAnchorToken;
-                invoke(Call::draw_mouse_anchor, ecx_, {edi_, edx_});
+                invoke(Call::rebase_mouse_coordinates, ecx_, {edi_, edx_});
                 ecx_ = state_input().selection_animation_frame_b;
             }
         }

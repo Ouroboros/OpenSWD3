@@ -10,6 +10,7 @@
 #include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
+#include "openswd3/battle/legacy_battle_frame_input_resolution_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_attribute_aggregation.hpp"
 #include "openswd3/battle/legacy_battle_group_a_attribute_effect.hpp"
 #include "openswd3/battle/legacy_battle_group_a_configuration.hpp"
@@ -29,6 +30,7 @@
 #include "openswd3/battle/legacy_battle_text_message.hpp"
 #include "openswd3/battle/legacy_battle_timing.hpp"
 #include "openswd3/compat/types.hpp"
+#include "openswd3/input_time_rng/legacy_mouse_frame_state.hpp"
 
 #include <array>
 #include <filesystem>
@@ -75,7 +77,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     get_window_rectangle,
     initialize_word_object,
     lookup_triplet,
-    configure_output,
+    rebase_mouse_coordinates,
     release_display_surface,
     system_metric_height,
     system_metric_width,
@@ -138,7 +140,9 @@ struct LegacyBattleStartupCallReply {
 };
 
 class LegacyBattleStartupPort
-    : public virtual LegacyBattleMonDatabasePort,
+    : public virtual input_time_rng::LegacyMouseFrameStatePort,
+      public virtual LegacyBattleFrameInputResolutionStatePort,
+      public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleFixedObjectStatePort,
@@ -296,8 +300,6 @@ struct LegacyBattleStartupState {
     compat::u32 transparent_pixel_pair{};  // 0x004AB8F8
     compat::u16 primary_text_color{};    // 0x004FF104
     compat::u16 secondary_text_color{};  // 0x005240BC
-    compat::u32 logical_width{};
-    compat::u32 logical_height{};
     compat::u32 definition_secondary_count{};
     compat::u16 background_resource{};
     std::array<LegacyBattleEnemyStartupRecord, 8> enemies{};
@@ -325,6 +327,12 @@ struct LegacyBattleStartupState {
     compat::u8 party_actor_mode_count{};
     compat::u16 final_subtract_word{};
 };
+
+// 00451E28..00451E3F, before the mouse device rebase at 00451E44.
+void publish_legacy_battle_startup_mouse_position(
+    input_time_rng::LegacyMouseFrame& mouse,
+    LegacyBattleFrameInputResolutionState& frame_input
+) noexcept;
 
 struct LegacyBattleStartupRequest {
     compat::u32 battle_id{};
