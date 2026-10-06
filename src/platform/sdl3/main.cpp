@@ -50,6 +50,7 @@
 #include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_stream_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
+#include "openswd3/battle/legacy_battle_group_b_storage.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_runtime_shutdown.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
@@ -2141,6 +2142,16 @@ public:
           world_effects_{.pixel_conversion = pixel_conversion},
           shutdown_ports_(shutdown_ports), exit_ports_(exit_ports), ok_(ok),
           running_(running) {
+        battle_runtime_.group_b_lifecycle = battle_group_b_storage_.actors();
+        if (!battle_group_b_storage_.construct()) {
+            openswd3::diagnostics::log_error(
+                "battle enemy static construction stopped"
+            );
+            ok_ = false;
+            running_ = false;
+            return;
+        }
+
         openswd3::app::configure_display_refresh_clock(
             display_refresh_clock_,
             display_frames_per_second,
@@ -2705,7 +2716,9 @@ public:
         battle_script_shared_ = {};
         battle_frame_coordinator_state_ = {};
         battle_frame_input_resolution_state() = {};
-        battle_action_dispatch_ = {};
+        openswd3::battle::reset_legacy_battle_dispatch_preserving_enemies(
+            battle_action_dispatch_
+        );
         battle_final_actor_ = {};
         battle_input_dispatch_ = {};
         battle_target_selection_ = {};
@@ -2827,31 +2840,28 @@ public:
                     battle_setup_.enemy_count;
                 battle_runtime_.background_resource =
                     battle_setup_.background_resource_id;
-                battle_runtime_.group_b_lifecycle = std::make_shared<std::array<
-                    openswd3::battle::LegacyBattleActorGroupBElementState,
-                    openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
-                for (std::size_t index = 0U;
-                     index < battle_setup_.enemies.size();
+                for (std::size_t index = 0U; index < battle_setup_.enemy_count;
                      ++index) {
-                    const auto& source = battle_setup_.enemies[index];
-                    auto& destination =
-                        (*battle_runtime_.group_b_lifecycle)[index];
-                    destination.object_token =
-                        openswd3::battle::kLegacyBattleActorGroupBBaseToken +
-                        static_cast<openswd3::compat::u32>(index) *
-                            openswd3::battle::
-                                kLegacyBattleActorGroupBElementSize;
-                    destination.resource_token =
+                    const auto initialized =
+                        battle_group_b_storage_.initialize_enemy(
+                            index,
+                            battle_setup_.enemies[index],
+                            battle_setup_.mirrored,
+                            battle_runtime_,
+                            battle_action_dispatch_,
+                            *this
+                        );
+                    if (initialized !=
                         openswd3::battle::
-                            kLegacyBattleActorGroupBResourceStateBaseToken +
-                        static_cast<openswd3::compat::u32>(index) * 0xA4U;
-                    destination.action_record.action_id = source.resource_id;
-                    destination.action_record.position_x = source.screen_x;
-                    destination.action_record.position_y = source.screen_y;
-                    destination.action_execution.position_x = source.screen_x;
-                    destination.action_execution.position_y = source.screen_y;
-                    destination.action_record.runtime_value =
-                        source.active ? 1U : 0U;
+                            LegacyBattleGroupBStartupBindingStatus::completed) {
+                        openswd3::diagnostics::log_error(
+                            "battle enemy reset or MON configuration stopped"
+                        );
+                        battle_setup_ready_ = false;
+                        ok_ = false;
+                        running_ = false;
+                        return false;
+                    }
                 }
             }
         } else {
@@ -8467,6 +8477,7 @@ private:
     static constexpr openswd3::compat::u32 kLevelStreamToken = 0x0053BC10U;
     openswd3::battle::LegacyBattleMonFileRuntime mon_files_;
     openswd3::battle::LegacyBattleMonStreamRuntime mon_streams_;
+    openswd3::battle::LegacyBattleGroupBStorage battle_group_b_storage_;
     std::ifstream level_file_;
     openswd3::battle::LegacyBattleMonTextRuntime mon_text_;
     std::filesystem::path data_directory_;

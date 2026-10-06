@@ -1,14 +1,22 @@
 #include "test.hpp"
+#include "legacy_battle_mon_database_fixture.hpp"
 
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_group_b_startup_reset.hpp"
+#include "openswd3/battle/legacy_battle_group_b_storage.hpp"
+#include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
+#include "openswd3/battle/legacy_battle_mon_stream_runtime.hpp"
+#include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
+#include "openswd3/battle/legacy_battle_setup.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_reward_scale.hpp"
 
 #include <algorithm>
 #include <array>
 #include <memory>
+#include <stdexcept>
 
 namespace {
 
@@ -77,9 +85,301 @@ void seed_actor(LegacyBattleActorGroupBElementState& actor) {
     actor.action_execution.early_latch = 0xDEADBEEFU;
 }
 
+class StorageMonPort final : public LegacyBattleMonDatabasePort {
+public:
+    LegacyBattleMonDatabaseCallReply invoke_legacy_battle_mon_database(
+        const LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<openswd3::compat::u8> destination
+    ) override {
+        using Call = LegacyBattleMonDatabaseCall;
+        switch (request.call) {
+        case Call::open_file:
+        case Call::seek_file:
+        case Call::read_file:
+            return files.invoke(request, destination, root);
+
+        case Call::allocate_stream:
+        case Call::release_stream:
+            return streams.invoke(request);
+
+        case Call::allocate_definition_text:
+        case Call::query_definition_text_size:
+        case Call::release_definition_text:
+            return texts.invoke(request);
+        }
+
+        throw std::invalid_argument("unexpected MON storage test request");
+    }
+
+    LegacyBattleMonDefinitionTextReleaseCallReply
+    release_legacy_battle_mon_definition_text(
+        const LegacyBattleMonDefinitionTextReleaseCallRequest& request
+    ) override {
+        return texts.release(request);
+    }
+
+    LegacyBattleMonFileRuntime files;
+    LegacyBattleMonStreamRuntime streams;
+    LegacyBattleMonTextRuntime texts;
+    std::filesystem::path root;
+};
+
+void test_persistent_enemy_storage(openswd3::test::Context& test) {
+    LegacyBattleGroupBStorage storage;
+    test.expect_true(storage.construct(), "construct all eight static enemies");
+    const auto actors = storage.actors();
+    const auto first_token = (*actors)[0].resource_token;
+    for (std::size_t index = 0U; index < actors->size(); ++index) {
+        auto& actor = (*actors)[index];
+        test.expect_equal(
+            actor.object_token,
+            kLegacyBattleActorGroupBBaseToken +
+                static_cast<u32>(index) * kLegacyBattleActorGroupBElementSize,
+            "static enemy identity follows original vector stride"
+        );
+        const auto bytes = storage.resource_bytes(actor.resource_token);
+        test.expect_equal(
+            bytes.size(),
+            std::size_t{0xA4U},
+            "each constructor reserves its complete record"
+        );
+        test.expect_true(
+            bytes.data() == actor.resource_bytes.data(),
+            "guest resource borrows the sole actor record"
+        );
+        for (std::size_t earlier = 0U; earlier < index; ++earlier) {
+            test.expect_true(
+                actor.resource_token != (*actors)[earlier].resource_token,
+                "enemy allocations have distinct guest identities"
+            );
+        }
+    }
+
+    (*actors)[0].resource_bytes[5] = 0x78U;
+    (*actors)[0].resource_bytes[6] = 0x56U;
+    (*actors)[0].resource_bytes[7] = 0x34U;
+    (*actors)[0].resource_bytes[8] = 0x12U;
+    test.expect_equal(
+        storage.read_linked_action_next(first_token + 5U),
+        std::optional<u32>{0x12345678U},
+        "linked read uses live bytes even at an interior address"
+    );
+    test.expect_false(
+        storage.read_linked_action_next(first_token + 0xA1U).has_value(),
+        "linked dword read cannot cross the allocated extent"
+    );
+
+    LegacyBattleGroupBStorage interrupted;
+    (*interrupted.actors())[3].object_writable_bytes = 0U;
+    test.expect_false(
+        interrupted.construct(), "constructor stops on the failing actor"
+    );
+    test.expect_true(
+        (*interrupted.actors())[2].resource_token != 0U,
+        "completed constructor prefix retains its allocations"
+    );
+    test.expect_equal(
+        (*interrupted.actors())[4].object_token,
+        0U,
+        "construction failure does not enter the next actor"
+    );
+    test.expect_false(
+        interrupted.construct(), "construction stop is not retried as success"
+    );
+
+    (*actors)[7].runtime_reset.field_2b10 = 0xAABBCCDDU;
+    (*actors)[7].resource_bytes[0] = 0x5AU;
+    test.expect_true(
+        storage.construct(), "repeated construction is not a new vector"
+    );
+    test.expect_equal(
+        (*actors)[0].resource_token,
+        first_token,
+        "repeated construction retains the original allocation"
+    );
+    test.expect_equal(
+        (*actors)[7].resource_bytes[0],
+        openswd3::compat::u8{0x5AU},
+        "repeated construction does not clear stored bytes"
+    );
+
+    auto startup = std::make_unique<LegacyBattleStartupState>();
+    startup->group_b_lifecycle = actors;
+    auto action = std::make_unique<LegacyBattleActionDispatchState>();
+    (*action->group_b_fixed_particle_phases)[7].render_toggle_gate = 123U;
+    action->group_b_reward_scale[7].status_bits = 0xA5U;
+    const auto* phases = action->group_b_fixed_particle_phases.get();
+    const auto node = action->target_phase_particle_nodes.allocate_zeroed();
+    reset_legacy_battle_dispatch_preserving_enemies(*action);
+    test.expect_true(
+        action->group_b_fixed_particle_phases.get() == phases,
+        "dispatch reset preserves enemy phase ownership"
+    );
+    test.expect_true(
+        action->target_phase_particle_nodes.node(node) != nullptr,
+        "dispatch reset retains referenced particle allocations"
+    );
+
+    LegacyBattleEnemySlot source{};
+    source.active = true;
+    source.resource_id = 1U;
+    source.screen_x = 77U;
+    source.screen_y = 88U;
+    source.record_flag = true;
+    openswd3::test::LegacyBattleMonDatabaseFixture mon;
+    for (unsigned entry = 0U; entry < 2U; ++entry) {
+        const auto result =
+            storage.initialize_enemy(0U, source, true, *startup, *action, mon);
+        test.expect_equal(
+            result,
+            LegacyBattleGroupBStartupBindingStatus::completed,
+            "first and repeated entry configure the same enemy"
+        );
+        test.expect_equal(
+            (*actors)[0].resource_token,
+            first_token,
+            "ordinary entry retains the static MON allocation"
+        );
+        test.expect_equal(
+            (*actors)[0].action_record.runtime_value,
+            0U,
+            "enemy source record is not an active-slot boolean"
+        );
+        test.expect_equal(
+            (*actors)[0].runtime_reset.field_2af0,
+            1U,
+            "record flag setter runs after MON configuration"
+        );
+        test.expect_equal(
+            (*action->group_b_fixed_particle_phases)[0].render_toggle_gate,
+            1U,
+            "mirror setter uses shared actor field 2B08"
+        );
+    }
+
+    test.expect_equal(
+        (*actors)[7].runtime_reset.field_2b10,
+        0xAABBCCDDU,
+        "inactive actor fields survive entry"
+    );
+    test.expect_equal(
+        (*action->group_b_fixed_particle_phases)[7].render_toggle_gate,
+        123U,
+        "inactive enemy phase survives entry"
+    );
+    test.expect_equal(
+        action->group_b_reward_scale[7].status_bits,
+        openswd3::compat::u8{0xA5U},
+        "inactive reward fields survive entry"
+    );
+
+    mon.allocation_succeeds = false;
+    test.expect_equal(
+        storage.initialize_enemy(0U, source, false, *startup, *action, mon),
+        LegacyBattleGroupBStartupBindingStatus::action_configuration_typed_stop,
+        "MON allocation fault stops enemy initialization"
+    );
+    test.expect_equal(
+        (*actors)[0].runtime_reset.field_2af0,
+        0U,
+        "MON failure does not execute the later flag setter"
+    );
+
+    mon.reset_mon_calls();
+    startup->enemy_scratch.fill(0xABCDU);
+    (*actors)[0].base_initialization.linked_action_head_token = 0x12345678U;
+    test.expect_equal(
+        storage.initialize_enemy(0U, source, false, *startup, *action, mon),
+        LegacyBattleGroupBStartupBindingStatus::actor_reset_typed_stop,
+        "unmapped linked node stops at the actual reset read"
+    );
+    test.expect_equal(mon.open_calls, 0U, "reset failure does not open MON");
+    test.expect_equal(
+        startup->enemy_scratch[0],
+        0xABCDU,
+        "reset failure precedes scratch clear"
+    );
+
+    test.expect_true(
+        storage.release_heap_block(first_token).has_value(),
+        "release removes the allocated resource mapping"
+    );
+    test.expect_true(
+        storage.resource_bytes(first_token).empty(),
+        "released guest record is no longer accessible"
+    );
+    test.expect_true(
+        !storage.release_heap_block(first_token).has_value(),
+        "repeated free is rejected"
+    );
+
+    (*actors)[0].action_configuration.source_runtime_value = 1U;
+    test.expect_equal(
+        storage.initialize_enemy(0U, source, false, *startup, *action, mon),
+        LegacyBattleGroupBStartupBindingStatus::actor_reset_typed_stop,
+        "release failure stops before configuration and scratch clear"
+    );
+    test.expect_equal(mon.open_calls, 0U, "failed release does not read MON");
+    test.expect_equal(
+        startup->enemy_scratch[0],
+        0xABCDU,
+        "failed release preserves scratch suffix"
+    );
+    test.expect_equal(
+        storage.initialize_enemy(8U, source, false, *startup, *action, mon),
+        LegacyBattleGroupBStartupBindingStatus::actor_index_typed_stop,
+        "enemy index cannot cross the eight static objects"
+    );
+
+#ifdef OPENSWD3_GAME_DATA_ROOT
+    LegacyBattleGroupBStorage real_storage;
+    test.expect_true(
+        real_storage.construct(), "construct real MON test enemies"
+    );
+    startup->group_b_lifecycle = real_storage.actors();
+    StorageMonPort real_mon;
+    real_mon.root = OPENSWD3_GAME_DATA_ROOT;
+    LegacyBattleAssets assets;
+    const auto loaded =
+        load_legacy_battle_assets(real_mon.root, 98U, 0, assets);
+    test.expect_equal(
+        loaded.status,
+        LegacyBattleAssetStatus::ready,
+        "load original battle 98 placement data"
+    );
+    LegacyBattleSetupState setup;
+    const std::array<openswd3::compat::u8, 4> party{1U, 0U, 0U, 0U};
+    const auto prepared =
+        prepare_legacy_battle_setup(assets, party, false, setup);
+    test.expect_equal(
+        prepared.status,
+        LegacyBattleSetupStatus::ready,
+        "prepare original enemy placement"
+    );
+    for (unsigned entry = 0U; entry < 2U; ++entry) {
+        for (std::size_t index = 0U; index < setup.enemy_count; ++index) {
+            test.expect_equal(
+                real_storage.initialize_enemy(
+                    index,
+                    setup.enemies[index],
+                    setup.mirrored,
+                    *startup,
+                    *action,
+                    real_mon
+                ),
+                LegacyBattleGroupBStartupBindingStatus::completed,
+                "original MON file configures persistent enemies across entries"
+            );
+        }
+    }
+#endif
+}
+
 }  // namespace
 
 void test_battle_group_b_startup_reset(openswd3::test::Context& test) {
+    test_persistent_enemy_storage(test);
+
     for (const bool fail_release : {false, true}) {
         LegacyBattleActorGroupBElementState actor;
         seed_actor(actor);

@@ -55,6 +55,7 @@ add_library(
         legacy_battle_actor_runtime_reset.cpp
         legacy_battle_actor_startup_reset.cpp
         legacy_battle_group_b_startup_reset.cpp
+        legacy_battle_group_b_storage.cpp
         legacy_battle_mon_file_runtime.cpp
         legacy_battle_mon_stream_runtime.cpp
         legacy_battle_mon_text_runtime.cpp

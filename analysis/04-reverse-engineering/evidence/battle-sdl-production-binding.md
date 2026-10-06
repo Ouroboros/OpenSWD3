@@ -229,7 +229,7 @@ case51、case12、case14和case100的既有角色帧停止前缀断言已改为�
 
 ## 完整帧之前的初始化缺口
 
-当前`app/battle_transition.cpp`调用SDL的`initialize_battle`，后者仅加载资产、调用`prepare_legacy_battle_setup`、绑定部分队伍数据并手工写入组B坐标及动作记录。当前SDL文件没有调用`initialize_legacy_battle_startup`，也没有构造`LegacyBattleFrameZeroContext`或`LegacyBattleFrameCoordinatorContext`。因此不能把核心启动测试通过当作真实初始化已执行，也不能直接用默认背景、显示面或角色资源构造完整帧。
+当前`app/battle_transition.cpp`调用SDL的`initialize_battle`。该入口加载资产、调用`prepare_legacy_battle_setup`、绑定部分队伍数据，并使用持久敌方对象执行活动槽重置与MON配置。敌方配置与核心startup共用同一业务顺序，详见[敌方入战接线](battle-enemy-startup-runtime-binding.md)。SDL仍没有调用完整`initialize_legacy_battle_startup`，也没有构造`LegacyBattleFrameZeroContext`或`LegacyBattleFrameCoordinatorContext`。因此不能把局部初始化测试当作完整真实初始化已执行，也不能直接用默认背景、显示面或角色资源构造完整帧。
 
 已有核心启动入口需要定义归档文件、背景图像载入、旋转缓存释放、动作更新及可变帧图像端口。下一步须从这些真实资源生产者接通初始化，再构造完整帧；不得在SDL继续复制另一套初始化业务流程。当前只核对了这些接口及部分源码，完整初始化端口、状态借用及生命周期仍未收敛。
 

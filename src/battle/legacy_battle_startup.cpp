@@ -31,6 +31,32 @@ constexpr u32 kPartySourceCount = 4U;
     );
 }
 
+class StartupEnemyModePort final : public LegacyBattleGroupBStartupModePort {
+public:
+    explicit StartupEnemyModePort(LegacyBattleStartupPort& port)
+        : port_(port) {}
+
+    u32 apply_mirror(const u32 actor_token) override {
+        return invoke(
+                   port_,
+                   LegacyBattleStartupCall::apply_actor_mode,
+                   {actor_token, 1U, 0U, 0U}
+        )
+            .ecx_snapshot;
+    }
+
+    void set_extra_mode(const u32 actor_token) override {
+        static_cast<void>(invoke(
+            port_,
+            LegacyBattleStartupCall::set_enemy_mode,
+            {actor_token, 1U, 0U, 0U}
+        ));
+    }
+
+private:
+    LegacyBattleStartupPort& port_;
+};
+
 class StartupActorProgressRandomPort final
     : public LegacyBattleBoundedRandomPort {
 public:
@@ -860,42 +886,26 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             element.resource_token =
                 kLegacyBattleActorGroupBResourceStateBaseToken + index * 0xA4U;
         }
-        auto& record = element.action_record;
-        record.action_id = source.role_id;
-        record.position_x = source.position_x;
-        record.position_y = source.position_y;
-        record.runtime_value = 0U;
-        u32 role_argument = source.role_id;
-        if (state.mirror_mode == 1U) {
-            const auto mode_reply = invoke(
+        StartupEnemyModePort modes{port};
+        const auto configuration =
+            configure_legacy_battle_group_b_startup_placement(
+                element,
+                {
+                    .role_id = source.role_id,
+                    .position_x = source.position_x,
+                    .position_y = source.position_y,
+                    .mirrored = state.mirror_mode == 1U,
+                    .extra_mode = source.mode_flag == 1U,
+                },
                 port,
-                LegacyBattleStartupCall::apply_actor_mode,
-                {actor_token, 1U, 0U, 0U}
+                modes,
+                enemy_startup_token(index)
             );
-            record.position_x = static_cast<u16>(0x0280U - record.position_x);
-            role_argument =
-                (mode_reply.ecx_snapshot & 0xFFFF0000U) | source.role_id;
-        }
-        const auto configuration = configure_legacy_battle_group_b_action(
-            &element,
-            &record,
-            port,
-            role_argument,
-            actor_token,
-            enemy_startup_token(index)
-        );
         if (configuration.status !=
             LegacyBattleGroupBActionConfigurationStatus::completed) {
             result.status = LegacyBattleStartupStatus::
                 enemy_action_configuration_typed_stop;
             return result;
-        }
-        if (source.mode_flag == 1U) {
-            static_cast<void>(invoke(
-                port,
-                LegacyBattleStartupCall::set_enemy_mode,
-                {actor_token, 1U, 0U, 0U}
-            ));
         }
         ++result.enemy_actor_count;
     }

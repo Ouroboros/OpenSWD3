@@ -43,6 +43,38 @@ void write_dword(
 }  // namespace
 
 LegacyBattleGroupBActionConfigurationResult
+configure_legacy_battle_group_b_startup_placement(
+    LegacyBattleActorGroupBElementState& actor,
+    const LegacyBattleGroupBStartupPlacement& placement,
+    LegacyBattleMonDatabasePort& mon,
+    LegacyBattleGroupBStartupModePort& modes,
+    const u32 source_token
+) {
+    auto& record = actor.action_record;
+    record.action_id = placement.role_id;
+    record.position_x = placement.position_x;
+    record.position_y = placement.position_y;
+    record.runtime_value = 0U;
+    u32 role_argument = placement.role_id;
+    if (placement.mirrored) {
+        const auto ecx = modes.apply_mirror(actor.object_token);
+        record.position_x = static_cast<u16>(0x0280U - record.position_x);
+        role_argument = (ecx & 0xFFFF0000U) | placement.role_id;
+    }
+
+    const auto result = configure_legacy_battle_group_b_action(
+        &actor, &record, mon, role_argument, actor.object_token, source_token
+    );
+    if (result.status ==
+            LegacyBattleGroupBActionConfigurationStatus::completed &&
+        placement.extra_mode) {
+        modes.set_extra_mode(actor.object_token);
+    }
+
+    return result;
+}
+
+LegacyBattleGroupBActionConfigurationResult
 configure_legacy_battle_group_b_action(
     LegacyBattleActorGroupBElementState* const actor,
     const LegacyBattleGroupBActionRecord* const source,
