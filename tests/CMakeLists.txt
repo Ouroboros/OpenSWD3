@@ -102,7 +102,7 @@ target_include_directories(
 )
 target_link_libraries(
     openswd3_special_modes_legacy_initial_menu_tests
-    PRIVATE openswd3_special_modes
+    PRIVATE openswd3_special_modes openswd3_battle
 )
 if(WIN32)
     # 该聚合测试包含多组大型原始状态快照；仅提高测试进程的栈保留量。

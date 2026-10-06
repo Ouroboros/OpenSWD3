@@ -1,5 +1,6 @@
 #include "legacy_battle_level_database_fixture.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
+#include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
 #include "openswd3/special_modes/legacy_initial_menu.hpp"
 #include "openswd3/special_modes/legacy_standard_mode.hpp"
 
@@ -10333,9 +10334,11 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
             queried_item_ids.push_back(item_id);
             return item_present;
         }
-        void release_runtime_value(u32 value) noexcept override {
+        bool release_runtime_value(u32 value) noexcept override {
             released_runtime_values.push_back(value);
+            return runtime_release_succeeds;
         }
+
         void release_database_inline_value(u32 value) noexcept override {
             released_inline_values.push_back(value);
         }
@@ -10391,6 +10394,7 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
         std::vector<u8> events;
         std::vector<u32> released_forward_values;
         std::vector<LegacyStandardModeForwardNode*> released_forward_nodes;
+        bool runtime_release_succeeds{true};
         std::vector<u32> released_runtime_values;
         std::vector<u32> released_inline_values;
         std::vector<u32> cloned_inline_values;
@@ -10420,6 +10424,68 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
     state.interface_source_value = 0x12345678U;
     CyclePorts ports;
     ports.forward_head = &first;
+
+    for (unsigned caller = 0U; caller < 6U; ++caller) {
+        LegacyStandardModeForwardNode stopped_tail{nullptr, 0xFFDCU};
+        LegacyStandardModeForwardNode stopped_head{&stopped_tail, 0xFFDCU};
+        auto stopped = std::make_unique<
+            openswd3::special_modes::
+                LegacyStandardModeDatabaseInitializationState>();
+        stopped->interaction_phase = 1U;
+        stopped->forward_head = &stopped_head;
+        stopped->current_forward_head = &stopped_head;
+        stopped->first_runtime_record[0U] = 0xA5U;
+        stopped->first_runtime_record[0xACU] = 0x11U;
+        CyclePorts stopped_ports;
+        stopped_ports.forward_head = &stopped_head;
+        stopped_ports.runtime_release_succeeds = false;
+        const auto run = [&]() {
+            switch (caller) {
+            case 0U:
+                return advance_legacy_standard_mode_database(
+                           *stopped, stopped_ports
+                )
+                    .runtime_refresh_stopped;
+
+            case 1U:
+                return retreat_legacy_standard_mode_database(
+                           *stopped, stopped_ports
+                )
+                    .runtime_refresh_stopped;
+
+            case 2U:
+                return advance_legacy_standard_mode_database_page(
+                           *stopped, stopped_ports
+                )
+                    .runtime_refresh_stopped;
+
+            case 3U:
+                return retreat_legacy_standard_mode_database_page(
+                           *stopped, stopped_ports
+                )
+                    .runtime_refresh_stopped;
+
+            case 4U:
+                return advance_legacy_standard_mode_database_page_source(
+                           *stopped, {}, stopped_ports
+                )
+                    .runtime_refresh_stopped;
+
+            default:
+                return cycle_legacy_standard_mode_database_page(
+                           *stopped, {}, stopped_ports
+                )
+                    .runtime_refresh_stopped;
+            }
+        };
+        test.expect_true(
+            run() && stopped_ports.sample_ids.empty() &&
+                stopped_ports.released_runtime_values ==
+                    std::vector<u32>{0x11U} &&
+                stopped->first_runtime_record[0U] == 0xA5U,
+            "navigation stops before sound and record clearing after failed free"
+        );
+    }
 
     {
         const auto write_u16 =
@@ -10795,6 +10861,123 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 pair_ports.runtime_text_keys.empty(),
             "0x43F1E0 pair-table fast path releases tokens and writes fixed outputs"
         );
+
+        // 0x43F28C/0x43F2A5 both precede the record clears at 0x43F2C1.
+        for (const unsigned failure : {0U, 1U, 2U}) {
+            using State = openswd3::special_modes::
+                LegacyStandardModeDatabaseInitializationState;
+            using Text = openswd3::battle::LegacyBattleMonText;
+            using Request = openswd3::battle::
+                LegacyBattleMonDefinitionTextReleaseCallRequest;
+            using Reply =
+                openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply;
+            struct HeapPorts final
+                : openswd3::special_modes::
+                      LegacyStandardModeDatabaseRecordRefreshPorts {
+                State* state{};
+                openswd3::battle::LegacyBattleMonTextRuntime heap;
+                std::vector<u32> releases;
+                bool records_intact{true};
+
+                Reply release_legacy_battle_mon_definition_text(
+                    const Request& request
+                ) override {
+                    records_intact = records_intact &&
+                        state->first_runtime_record[0U] == 0xA5U &&
+                        state->second_runtime_record[0U] == 0xB5U;
+                    releases.push_back(request.block_token);
+                    return heap.release(request);
+                }
+            } heap_ports;
+            State heap_state;
+            heap_ports.state = &heap_state;
+            heap_state.first_runtime_record.fill(0xA5U);
+            heap_state.second_runtime_record.fill(0xB5U);
+            const auto first = heap_ports.heap.invoke({
+                .call = openswd3::battle::LegacyBattleMonDatabaseCall::
+                    allocate_definition_text,
+                .allocation_size = 4U,
+            });
+            const auto second = failure == 2U
+                ? first
+                : heap_ports.heap.invoke({
+                      .call = openswd3::battle::LegacyBattleMonDatabaseCall::
+                          allocate_definition_text,
+                      .allocation_size = 4U,
+                  });
+            const auto bind_record =
+                [](auto& record, Text& text, const auto& allocation) {
+                    for (unsigned byte = 0U; byte < 4U; ++byte) {
+                        record[0xACU + byte] =
+                            static_cast<u8>(allocation.eax >> (byte * 8U));
+                    }
+
+                    text.bind(
+                        allocation.definition_text_storage,
+                        allocation.definition_text_release
+                    );
+                };
+            bind_record(
+                heap_state.first_runtime_record,
+                heap_state.first_runtime_record_description,
+                first
+            );
+            bind_record(
+                heap_state.second_runtime_record,
+                heap_state.second_runtime_record_description,
+                second
+            );
+            const auto first_before = heap_state.first_runtime_record;
+            const auto second_before = heap_state.second_runtime_record;
+            if (failure == 1U) {
+                static_cast<void>(heap_ports.heap.release({
+                    .block_token = first.eax,
+                }));
+            }
+
+            const auto refreshed = openswd3::special_modes::
+                refresh_legacy_standard_mode_database_runtime_records(
+                    heap_state, heap_ports
+                );
+            test.expect_true(
+                heap_ports.records_intact &&
+                    heap_ports.releases.size() == (failure == 1U ? 1U : 2U),
+                "both runtime records stay intact until both frees succeed"
+            );
+            test.expect_true(
+                first.definition_text_storage->empty(),
+                "refresh releases actual heap storage and invalidates aliases"
+            );
+            if (failure == 0U) {
+                test.expect_true(
+                    refreshed.status ==
+                            openswd3::special_modes::
+                                LegacyStandardModeDatabaseRecordRefreshStatus::
+                                    completed &&
+                        refreshed.released_token_count == 2U &&
+                        second.definition_text_storage->empty() &&
+                        heap_state.first_runtime_record[0U] == 0U &&
+                        heap_state.second_runtime_record[0U] == 0U &&
+                        get_u16(heap_state.first_runtime_record, 4U) ==
+                            0xFFDCU &&
+                        get_u16(heap_state.second_runtime_record, 4U) ==
+                            0xFFDCU,
+                    "successful frees precede clearing and missing-ID writes"
+                );
+            } else {
+                test.expect_true(
+                    refreshed.status !=
+                            openswd3::special_modes::
+                                LegacyStandardModeDatabaseRecordRefreshStatus::
+                                    completed &&
+                        refreshed.released_token_count ==
+                            (failure == 1U ? 0U : 1U) &&
+                        heap_state.first_runtime_record == first_before &&
+                        heap_state.second_runtime_record == second_before,
+                    "failed first or second free stops before either record clear"
+                );
+            }
+        }
 
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
             fallback_state;
@@ -11707,6 +11890,20 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             return static_cast<i32>(100U + targets.size());
         }
 
+        openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply
+        release_legacy_battle_mon_definition_text(
+            const openswd3::battle::
+                LegacyBattleMonDefinitionTextReleaseCallRequest& request
+        ) override {
+            if (stop_runtime_release) {
+                return {.typed_stop = true};
+            }
+
+            return LegacyBattleMonDatabasePort::
+                release_legacy_battle_mon_definition_text(request);
+        }
+
+        bool stop_runtime_release{};
         bool item_present{true};
         bool exit_item_present{};
         i32 callback_story_flag{};
@@ -11744,6 +11941,43 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
     std::vector<openswd3::special_modes::LegacyStandardModeAvailabilityRecord>
         availability(16U);
     availability[15U] = {.enabled = 1, .state = 1};
+    for (const bool confirm : {false, true}) {
+        auto stopped = std::make_unique<
+            openswd3::special_modes::
+                LegacyStandardModeDatabaseInitializationState>();
+        InputPorts stopped_ports;
+        stopped_ports.stop_runtime_release = true;
+        stopped->interaction_phase = 1U;
+        stopped->forward_count = 17U;
+        stopped->forward_head = &stopped_ports.cycle_node;
+        stopped->current_forward_head = &stopped_ports.cycle_node;
+        stopped->first_dynamic_min_x = 80;
+        stopped->first_dynamic_max_x = 90;
+        stopped->first_runtime_record[0U] = 0xA5U;
+        stopped->first_runtime_record[0xACU] = 0x11U;
+        Input stopped_input;
+        stopped_input.mouse_x = confirm ? 0x152U : 85U;
+        stopped_input.mouse_y = confirm ? 0x1A0U : 200U;
+        stopped_input.buttons = confirm ? 1U : 4U;
+        const auto stopped_result = handle_legacy_standard_mode_database_input(
+            *stopped, stopped_input, availability, {}, stopped_ports
+        );
+        using Status =
+            openswd3::special_modes::LegacyStandardModeDatabaseInputStatus;
+        test.expect_true(
+            stopped_result.status ==
+                    (confirm ? Status::database_commit_stopped
+                             : Status::runtime_refresh_stopped) &&
+                stopped_result.callback_count == 1U &&
+                stopped->interaction_phase == 1U &&
+                stopped->first_runtime_record[0U] == 0xA5U &&
+                stopped_ports.database_sample_ids.empty() &&
+                stopped_ports.original_surface_requests.empty() &&
+                stopped_ports.cleanup_released_values.empty(),
+            "failed runtime free stops confirmation and later overlapping input callbacks"
+        );
+    }
+
     const auto exit =
         [](openswd3::special_modes::
                LegacyStandardModeDatabaseInitializationState& state,

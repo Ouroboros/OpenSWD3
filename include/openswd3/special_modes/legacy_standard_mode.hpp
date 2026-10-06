@@ -5772,6 +5772,7 @@ enum class LegacyStandardModeDatabaseAdvancePath : compat::u8 {
 };
 
 struct LegacyStandardModeDatabaseAdvanceResult {
+    bool runtime_refresh_stopped{};
     LegacyStandardModeDatabaseAdvancePath path{
         LegacyStandardModeDatabaseAdvancePath::ignored
     };
@@ -5824,7 +5825,14 @@ class LegacyStandardModeDatabaseRecordRefreshPorts
     : public virtual battle::LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyStandardModeDatabaseRecordRefreshPorts() = default;
-    virtual void release_runtime_value(compat::u32) noexcept {}
+    [[nodiscard]] virtual bool release_runtime_value(compat::u32 token) {
+        return !release_legacy_battle_mon_definition_text({
+                                                              .block_token =
+                                                                  token,
+                                                          })
+                    .typed_stop;
+    }
+
     [[nodiscard]] virtual std::optional<LegacyStandardModeDatabaseRecordPair>
     lookup_database_record_pair(compat::u16, compat::u16) noexcept {
         return std::nullopt;
@@ -5843,6 +5851,7 @@ enum class LegacyStandardModeDatabaseRecordRefreshStatus : compat::u8 {
     completed,
     category_index_out_of_range,
     definition_load_typed_stop,
+    description_release_typed_stop,
 };
 
 enum class LegacyStandardModeDatabaseRecordRefreshPath : compat::u8 {
@@ -5902,6 +5911,7 @@ enum class LegacyStandardModeDatabasePageRetreatPath : compat::u8 {
 };
 
 struct LegacyStandardModeDatabasePageRetreatResult {
+    bool runtime_refresh_stopped{};
     LegacyStandardModeDatabasePageRetreatPath path{
         LegacyStandardModeDatabasePageRetreatPath::ignored
     };
@@ -5918,6 +5928,7 @@ enum class LegacyStandardModeDatabasePageAdvancePath : compat::u8 {
 };
 
 struct LegacyStandardModeDatabasePageAdvanceResult {
+    bool runtime_refresh_stopped{};
     LegacyStandardModeDatabasePageAdvancePath path{
         LegacyStandardModeDatabasePageAdvancePath::ignored
     };
@@ -5934,6 +5945,7 @@ enum class LegacyStandardModeDatabaseRetreatPath : compat::u8 {
 };
 
 struct LegacyStandardModeDatabaseRetreatResult {
+    bool runtime_refresh_stopped{};
     LegacyStandardModeDatabaseRetreatPath path{
         LegacyStandardModeDatabaseRetreatPath::ignored
     };
@@ -5980,6 +5992,7 @@ enum class LegacyStandardModeDatabaseCyclePath : compat::u8 {
 };
 
 struct LegacyStandardModeDatabaseCycleResult {
+    bool runtime_refresh_stopped{};
     LegacyStandardModeDatabaseCycleStatus status{
         LegacyStandardModeDatabaseCycleStatus::completed
     };
@@ -6086,6 +6099,7 @@ enum class LegacyStandardModeDatabaseCommitStatus : compat::u8 {
     completed,
     window_selection_stopped,
     original_surface_stopped,
+    runtime_refresh_stopped,
 };
 
 enum class LegacyStandardModeDatabaseCommitPath : compat::u8 {
@@ -6189,6 +6203,7 @@ enum class LegacyStandardModeDatabaseInputStatus : compat::u8 {
     availability_index_out_of_range,
     database_commit_stopped,
     database_exit_stopped,
+    runtime_refresh_stopped,
 };
 
 struct LegacyStandardModeDatabaseInputResult {

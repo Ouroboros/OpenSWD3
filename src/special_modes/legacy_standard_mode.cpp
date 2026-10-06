@@ -15422,10 +15422,15 @@ LegacyStandardModeDatabaseAdvanceResult advance_legacy_standard_mode_database(
             refresh_legacy_standard_mode_database_window(state, ports)
         );
         ++result.helper_call_count;
-        static_cast<void>(
-            refresh_legacy_standard_mode_database_runtime_records(state, ports)
-        );
+        const auto refresh =
+            refresh_legacy_standard_mode_database_runtime_records(state, ports);
         ++result.helper_call_count;
+        if (refresh.status !=
+            LegacyStandardModeDatabaseRecordRefreshStatus::completed) {
+            result.runtime_refresh_stopped = true;
+            return result;
+        }
+
         state.display_flags |= 0x30U;
         result.legacy_return_value = ports.initialize_database_sample(
             0x002EU, state.interface_source_value
@@ -15865,25 +15870,24 @@ refresh_legacy_standard_mode_database_runtime_records(
         write_u16(record, 8U, 0U);
         write_u16(record, 0x0AU, 0U);
     };
-    const auto release_and_clear = [&ports, &result](
-                                       std::array<compat::u8, 0xB0U>& record,
-                                       battle::LegacyBattleMonText& description
-                                   ) {
-        const compat::u32 token = read_u32_le(record, 0xACU);
+    for (const auto* record :
+         {&state.first_runtime_record, &state.second_runtime_record}) {
+        const compat::u32 token = read_u32_le(*record, 0xACU);
         if (token != 0U) {
-            ports.release_runtime_value(token);
+            if (!ports.release_runtime_value(token)) {
+                result.status = LegacyStandardModeDatabaseRecordRefreshStatus::
+                    description_release_typed_stop;
+                return result;
+            }
+
             ++result.released_token_count;
         }
-        record.fill(0U);
-        description.clear();
-    };
+    }
 
-    release_and_clear(
-        state.first_runtime_record, state.first_runtime_record_description
-    );
-    release_and_clear(
-        state.second_runtime_record, state.second_runtime_record_description
-    );
+    state.first_runtime_record.fill(0U);
+    state.first_runtime_record_description.clear();
+    state.second_runtime_record.fill(0U);
+    state.second_runtime_record_description.clear();
     write_u16(state.first_runtime_record, 4U, 0xFFDCU);
     write_u16(state.second_runtime_record, 4U, 0xFFDCU);
 
@@ -17136,6 +17140,13 @@ commit_legacy_standard_mode_database_interaction(
             refresh_legacy_standard_mode_database_runtime_records(state, ports);
         result.legacy_return_value = refresh.legacy_return_value;
         ++result.helper_call_count;
+        if (refresh.status !=
+            LegacyStandardModeDatabaseRecordRefreshStatus::completed) {
+            result.status =
+                LegacyStandardModeDatabaseCommitStatus::runtime_refresh_stopped;
+            return result;
+        }
+
         if (result.legacy_return_value == 0) {
             state.interaction_phase = 5U;
             return result;
@@ -17547,10 +17558,15 @@ advance_legacy_standard_mode_database_page_source(
             refresh_legacy_standard_mode_database_window(state, ports)
         );
         ++result.helper_call_count;
-        static_cast<void>(
-            refresh_legacy_standard_mode_database_runtime_records(state, ports)
-        );
+        const auto refresh =
+            refresh_legacy_standard_mode_database_runtime_records(state, ports);
         ++result.helper_call_count;
+        if (refresh.status !=
+            LegacyStandardModeDatabaseRecordRefreshStatus::completed) {
+            result.runtime_refresh_stopped = true;
+            return result;
+        }
+
         result.legacy_return_value = ports.initialize_database_sample(
             0x002EU, state.interface_source_value
         );
@@ -17641,10 +17657,15 @@ LegacyStandardModeDatabaseCycleResult cycle_legacy_standard_mode_database_page(
             refresh_legacy_standard_mode_database_window(state, ports)
         );
         ++result.helper_call_count;
-        static_cast<void>(
-            refresh_legacy_standard_mode_database_runtime_records(state, ports)
-        );
+        const auto refresh =
+            refresh_legacy_standard_mode_database_runtime_records(state, ports);
         ++result.helper_call_count;
+        if (refresh.status !=
+            LegacyStandardModeDatabaseRecordRefreshStatus::completed) {
+            result.runtime_refresh_stopped = true;
+            return result;
+        }
+
         result.legacy_return_value = ports.initialize_database_sample(
             0x002EU, state.interface_source_value
         );
@@ -17714,10 +17735,15 @@ retreat_legacy_standard_mode_database_page(
             refresh_legacy_standard_mode_database_window(state, ports)
         );
         ++result.helper_call_count;
-        static_cast<void>(
-            refresh_legacy_standard_mode_database_runtime_records(state, ports)
-        );
+        const auto refresh =
+            refresh_legacy_standard_mode_database_runtime_records(state, ports);
         ++result.helper_call_count;
+        if (refresh.status !=
+            LegacyStandardModeDatabaseRecordRefreshStatus::completed) {
+            result.runtime_refresh_stopped = true;
+            return result;
+        }
+
         state.display_flags |= 3U;
         result.legacy_return_value = ports.initialize_database_sample(
             0x002EU, state.interface_source_value
@@ -17796,10 +17822,15 @@ advance_legacy_standard_mode_database_page(
             refresh_legacy_standard_mode_database_window(state, ports)
         );
         ++result.helper_call_count;
-        static_cast<void>(
-            refresh_legacy_standard_mode_database_runtime_records(state, ports)
-        );
+        const auto refresh =
+            refresh_legacy_standard_mode_database_runtime_records(state, ports);
         ++result.helper_call_count;
+        if (refresh.status !=
+            LegacyStandardModeDatabaseRecordRefreshStatus::completed) {
+            result.runtime_refresh_stopped = true;
+            return result;
+        }
+
         state.display_flags |= 0x30U;
         result.legacy_return_value = ports.initialize_database_sample(
             0x002EU, state.interface_source_value
@@ -17866,10 +17897,15 @@ LegacyStandardModeDatabaseRetreatResult retreat_legacy_standard_mode_database(
             refresh_legacy_standard_mode_database_window(state, ports)
         );
         ++result.helper_call_count;
-        static_cast<void>(
-            refresh_legacy_standard_mode_database_runtime_records(state, ports)
-        );
+        const auto refresh =
+            refresh_legacy_standard_mode_database_runtime_records(state, ports);
         ++result.helper_call_count;
+        if (refresh.status !=
+            LegacyStandardModeDatabaseRecordRefreshStatus::completed) {
+            result.runtime_refresh_stopped = true;
+            return result;
+        }
+
         state.display_flags |= 3U;
         result.legacy_return_value = ports.initialize_database_sample(
             0x002EU, state.interface_source_value
@@ -17924,6 +17960,13 @@ handle_legacy_standard_mode_database_input(
     result.legacy_return_value =
         std::bit_cast<compat::i32>(state.interaction_phase);
     state.hover_flag = 0U;
+    const auto accept_refresh = [&](const auto& step) {
+        result.legacy_return_value = step.legacy_return_value;
+        if (step.runtime_refresh_stopped) {
+            result.status =
+                LegacyStandardModeDatabaseInputStatus::runtime_refresh_stopped;
+        }
+    };
     const auto invoke = [&](
                             const LegacyStandardModeDatabaseInputTarget target
                         ) {
@@ -17943,19 +17986,15 @@ handle_legacy_standard_mode_database_input(
         } else if (
             target == LegacyStandardModeDatabaseInputTarget::address_0043E080
         ) {
-            result.legacy_return_value =
-                cycle_legacy_standard_mode_database_page(
-                    state, maps_payload, ports
-                )
-                    .legacy_return_value;
+            accept_refresh(cycle_legacy_standard_mode_database_page(
+                state, maps_payload, ports
+            ));
         } else if (
             target == LegacyStandardModeDatabaseInputTarget::address_0043E170
         ) {
-            result.legacy_return_value =
-                advance_legacy_standard_mode_database_page_source(
-                    state, maps_payload, ports
-                )
-                    .legacy_return_value;
+            accept_refresh(advance_legacy_standard_mode_database_page_source(
+                state, maps_payload, ports
+            ));
         } else if (
             target == LegacyStandardModeDatabaseInputTarget::address_0043E3D0
         ) {
@@ -17980,27 +18019,23 @@ handle_legacy_standard_mode_database_input(
         } else if (
             target == LegacyStandardModeDatabaseInputTarget::address_0043DD20
         ) {
-            result.legacy_return_value =
-                advance_legacy_standard_mode_database(state, ports)
-                    .legacy_return_value;
+            accept_refresh(advance_legacy_standard_mode_database(state, ports));
         } else if (
             target == LegacyStandardModeDatabaseInputTarget::address_0043DDF0
         ) {
-            result.legacy_return_value =
-                retreat_legacy_standard_mode_database(state, ports)
-                    .legacy_return_value;
+            accept_refresh(retreat_legacy_standard_mode_database(state, ports));
         } else if (
             target == LegacyStandardModeDatabaseInputTarget::address_0043DED0
         ) {
-            result.legacy_return_value =
+            accept_refresh(
                 advance_legacy_standard_mode_database_page(state, ports)
-                    .legacy_return_value;
+            );
         } else if (
             target == LegacyStandardModeDatabaseInputTarget::address_0043DFA0
         ) {
-            result.legacy_return_value =
+            accept_refresh(
                 retreat_legacy_standard_mode_database_page(state, ports)
-                    .legacy_return_value;
+            );
         } else {
             result.legacy_return_value = ports.invoke(target, state, input);
         }
@@ -18081,6 +18116,11 @@ handle_legacy_standard_mode_database_input(
                             LegacyStandardModeDatabaseInputTarget::
                                 address_0043DDF0
                         );
+                        if (result.status !=
+                            LegacyStandardModeDatabaseInputStatus::completed) {
+                            return result;
+                        }
+
                         x = input.mouse_x;
                         result.legacy_return_value =
                             std::bit_cast<compat::i32>(x);
@@ -18090,6 +18130,11 @@ handle_legacy_standard_mode_database_input(
                             LegacyStandardModeDatabaseInputTarget::
                                 address_0043DD20
                         );
+                        if (result.status !=
+                            LegacyStandardModeDatabaseInputStatus::completed) {
+                            return result;
+                        }
+
                         x = input.mouse_x;
                         result.legacy_return_value =
                             std::bit_cast<compat::i32>(x);
@@ -18101,6 +18146,11 @@ handle_legacy_standard_mode_database_input(
                             LegacyStandardModeDatabaseInputTarget::
                                 address_0043DFA0
                         );
+                        if (result.status !=
+                            LegacyStandardModeDatabaseInputStatus::completed) {
+                            return result;
+                        }
+
                         x = input.mouse_x;
                         result.legacy_return_value =
                             std::bit_cast<compat::i32>(x);
