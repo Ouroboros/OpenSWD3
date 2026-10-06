@@ -37,6 +37,14 @@ class StartupPorts final
       public openswd3::battle::LegacyBattleMutableFrameImagePort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
+    std::array<openswd3::asset_runtime::LegacyActionRecord, 3> dialog_actions{};
+    std::vector<openswd3::asset_runtime::LegacyActionRecord> control_snapshots;
+
+    [[nodiscard]] openswd3::asset_runtime::LegacyActionRecord&
+    battle_control_action() noexcept override {
+        return dialog_actions[1];
+    }
+
     StartupPorts() {
         for (auto& enemy : definition.enemies) {
             enemy.position_x = 1U;
@@ -49,7 +57,8 @@ public:
         requests.push_back(request);
         LegacyBattleStartupCallReply reply;
         switch (request.call) {
-        case LegacyBattleStartupCall::initialize_control_block:
+        case LegacyBattleStartupCall::read_runtime_handle:
+            control_snapshots.push_back(battle_control_action());
             reset_observations.push_back({
                 actor_metric_state().group_b_count,
                 battle_target_selection_runtime_state().special_action_count,
@@ -465,6 +474,46 @@ template <typename Range>
 
 void test_battle_startup(openswd3::test::Context& test) {
     {
+        using Record = openswd3::asset_runtime::LegacyActionRecord;
+        using Bytes = std::array<openswd3::compat::u8, sizeof(Record)>;
+        LegacyBattleStartupState state;
+        StartupPorts ports;
+        for (const auto seed : {0U, 0xA5U, 0xFFU}) {
+            Bytes original;
+            original.fill(static_cast<openswd3::compat::u8>(seed));
+            ports.dialog_actions.fill(std::bit_cast<Record>(original));
+            auto reset = original;
+            // Independent stores in 40DC07..40DC22.
+            for (const auto offset : {0x1CU, 0x20U, 0x3CU}) {
+                std::fill_n(reset.begin() + offset, 4U, 0xFFU);
+            }
+
+            std::fill_n(reset.begin() + 0x42U, 8U, 0U);
+            std::fill_n(reset.begin() + 0x90U, 4U, 0U);
+            auto published = reset;
+            // 451CE5 and 451CEF publish the id and base variant.
+            std::fill_n(published.begin(), 4U, 0U);
+            published[0] = 0x29U;
+            published[1] = 0x23U;
+            std::fill_n(published.begin() + 8U, 4U, 0U);
+            published[8] = 0x0CU;
+            const auto result = openswd3::battle::initialize_legacy_battle_startup(
+                state, ports, ports, ports, ports, ports, ports, request(1U)
+            );
+            test.expect_true(
+                result.status == openswd3::battle::LegacyBattleStartupStatus::
+                    no_enemies &&
+                    std::bit_cast<Bytes>(ports.control_snapshots.back()) == reset &&
+                    std::bit_cast<Bytes>(ports.dialog_actions[1]) == published &&
+                    std::bit_cast<Bytes>(ports.dialog_actions[0]) == original &&
+                    std::bit_cast<Bytes>(ports.dialog_actions[2]) == original,
+                "startup resets only the shared dialog-end action fields before "
+                "reading the runtime handle, then publishes id and variant"
+            );
+        }
+    }
+
+    {
         constexpr u32 unused = 0xFFFFFFFFU;
         // Independent paths through 451D36..451D88, ending after AX > 3.
         constexpr std::array<std::array<u32, 4>, 16> scan_paths{{
@@ -684,8 +733,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.mode_flags == 0xA5000002U &&
                 state.action_delay == 0x12U &&
                 state.control_switches == std::array<u32, 4>{1U, 1U, 1U, 1U} &&
-                state.control_value_a == 0x2329U &&
-                state.control_value_b == 0x0CU &&
+                ports.battle_control_action().action_id == 0x2329U &&
+                ports.battle_control_action().base_variant == 0x0CU &&
                 state.runtime_handle == 0x12345678U &&
                 state.window_rectangle == std::array<i32, 4>{1, 2, 641, 482} &&
                 state.primary_text_color == 0x1234U &&

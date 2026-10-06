@@ -2710,6 +2710,12 @@ public:
         battle_message_state_ = 0U;
         next_battle_script_token_ = 0x01000000U;
 
+        // 451CCD..451CEF resets the shared dialog-end button (4C9708).
+        auto& control_action = world_dialog_runtime_state_.end_dialog_action;
+        openswd3::asset_runtime::initialize_legacy_action_record(control_action);
+        control_action.action_id = 0x2329U;
+        control_action.base_variant = 0x0CU;
+
         const auto loaded = openswd3::battle::load_legacy_battle_assets(
             data_directory_, battle_id, 0, battle_assets_
         );

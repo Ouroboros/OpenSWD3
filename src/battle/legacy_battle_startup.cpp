@@ -545,13 +545,13 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     reset_startup_blocks(state, port);
 
     state.control_switches.fill(1U);
+    auto& control_action = port.battle_control_action();
+    asset_runtime::initialize_legacy_action_record(control_action);
     const auto control_reply = invoke(
-        port,
-        LegacyBattleStartupCall::initialize_control_block,
-        {kLegacyBattleStartupControlBlockToken, 0U, 0U, 0U}
+        port, LegacyBattleStartupCall::read_runtime_handle
     );
-    state.control_value_a = 0x2329U;
-    state.control_value_b = 0x0CU;
+    control_action.action_id = 0x2329U;
+    control_action.base_variant = 0x0CU;
     state.runtime_handle = static_cast<u32>(control_reply.outputs[0]);
 
     for (u32 index = 0U; index < state.party_presence.size(); ++index) {

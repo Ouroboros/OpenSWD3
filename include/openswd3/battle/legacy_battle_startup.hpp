@@ -70,7 +70,7 @@ inline constexpr std::array<compat::u16, 8> kLegacyBattleSupplementalRoleIds{
 
 enum class LegacyBattleStartupCall : compat::u16 {
     prepare_runtime,
-    initialize_control_block,
+    reserved_initialize_control_block,
     query_value,
     get_window_rectangle,
     initialize_word_object,
@@ -112,6 +112,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     group_b_load_resource_definition,
     reserved_group_b_load_action_profile,
     reserved_group_b_release_resource_text,
+    read_runtime_handle,
 };
 
 struct LegacyBattleStartupCallRequest {
@@ -146,6 +147,10 @@ class LegacyBattleStartupPort
       public virtual world_map::LegacyWorldItemListStatePort {
 public:
     virtual ~LegacyBattleStartupPort() = default;
+
+    // 0x004C9708: shared dialog-end button, not the world cursor.
+    [[nodiscard]] virtual asset_runtime::LegacyActionRecord&
+    battle_control_action() noexcept = 0;
 
     [[nodiscard]] virtual LegacyBattleStartupCallReply
     invoke(const LegacyBattleStartupCallRequest& request) = 0;
@@ -288,8 +293,6 @@ struct LegacyBattleStartupState {
     std::array<compat::i32, 4> window_rectangle{};
     std::array<compat::u32, 2> display_surfaces{};
     std::array<compat::u32, 4> control_switches{};
-    compat::u32 control_value_a{};
-    compat::u32 control_value_b{};
     compat::u32 runtime_handle{};
     compat::u16 primary_text_color{};    // 0x004FF104
     compat::u16 secondary_text_color{};  // 0x005240BC

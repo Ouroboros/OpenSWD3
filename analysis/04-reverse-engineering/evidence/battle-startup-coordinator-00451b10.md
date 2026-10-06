@@ -30,7 +30,30 @@ modern以定长typed数组和字段建模全部块，不以宿主指针模拟旧
 
 ## 3. 控制块与队伍发现
 
-四个控制switch先写1，再调用pending控制块初始化；调用后才写固定值`0x2329`、`0x0C`并snapshot运行时handle。
+四个控制switch先写1，`00451CCD`直接调用公共动作初始化`0040DC00`。
+目标`0x004C9708`是对话结束按钮，世界初始化`0040E372..0040E3C5`及对话尾部
+`004300D3..0043011A`使用同一记录。它不是`00414AA7`传入的世界光标
+`0x004ACD18`，也不是下一页按钮`0x004CADE0`。
+
+初始化只把`+1C/+20/+3C`三个dword置全1，把`+42/+44/+46/+48`四个word
+及`+90`dword清零；其余字节保持。`00451CD2`随后读取运行句柄，
+`00451CE5/00451CEF`才发布完整dword动作ID `0x2329`和基本variant `0x0C`，
+最后`00451CF9`保存句柄。
+
+核心通过必需的`battle_control_action()`借用真实记录，删除启动状态的两个私有副本。
+旧初始化opaque槽保留为reserved且零调用；`read_runtime_handle`仅提供句柄快照，
+不能承担动作初始化。SDL现有初始化入口直接修改
+`world_dialog_runtime_state_.end_dialog_action`，不清整个对话状态、不改下一页动作
+或世界光标。完整startup与SDL其余端口仍待接通。
+
+独立测试用0、A5、FF污染记录及相邻记录，逐字节校验指定store、未写字节和邻居保留，
+并在读取句柄的回调处验证只完成reset、尚未发布ID/variant。旧实现三项均失败，
+红测日志为`build/tmp/runtime/battle-startup-control-action-red.log`。
+修正后战斗聚合core/ASan各1/1及SDL链接通过，日志为
+`build/tmp/runtime/battle-startup-control-action-{core,asan,sdl}.log`。
+core/ASan仅报告既有结果测试137行的u16到u8窄化警告，SDL无warning/error。
+逐字节测试验证核心借用与写入顺序；SDL接线目前只有源码追溯和编译证据，
+不据此宣告实际按钮显示、完整战斗或续玩验收完成。
 
 函数清零四字节presence表，但**不清零队伍总数**。它依次查询ID 30、31、32、33；仅返回严格等于1时写presence字节并递增旧总数。之后按累加后的总数门扫描四字节presence，把命中源索引顺序写入映射表。若本轮扫描耗尽仍无命中，先写来源索引4再退出；若已命中最后一槽3，则写3后直接退出，不追加4。
 

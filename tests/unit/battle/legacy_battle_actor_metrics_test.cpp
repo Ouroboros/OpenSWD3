@@ -49,6 +49,12 @@ public:
         return {};
     }
 
+    [[nodiscard]] openswd3::asset_runtime::LegacyActionRecord&
+    battle_control_action() noexcept override {
+        return control_action;
+    }
+
+    openswd3::asset_runtime::LegacyActionRecord control_action{};
     u32 action_invoke_calls{};
     u32 startup_invoke_calls{};
 };

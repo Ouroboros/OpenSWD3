@@ -78,6 +78,13 @@ class ResetPort final : public LegacyBattleGlobalResetRuntimePort {
 public:
     ResetPort() : samples(sample_backend, archive) {}
 
+    [[nodiscard]] openswd3::asset_runtime::LegacyActionRecord&
+    battle_control_action() noexcept override {
+        return control_action;
+    }
+
+    openswd3::asset_runtime::LegacyActionRecord control_action{};
+
     [[nodiscard]] LegacyBattleStartupCallReply
     invoke(const LegacyBattleStartupCallRequest& request) override {
         startup_calls.push_back(request);
