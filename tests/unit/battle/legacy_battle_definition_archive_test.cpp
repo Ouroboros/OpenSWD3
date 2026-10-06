@@ -1,7 +1,16 @@
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
 
 #include <algorithm>
+#include <array>
+#include <chrono>
+#include <fstream>
+#include <string>
+#include <system_error>
 #include <vector>
+
+#ifndef OPENSWD3_TEST_ARTIFACT_ROOT
+#error OPENSWD3_TEST_ARTIFACT_ROOT must name a build-tree directory
+#endif
 
 #include "test.hpp"
 
@@ -30,6 +39,264 @@ void write_u32(std::vector<u8>& bytes, const u32 offset, const u32 value) {
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
     bytes[offset + 2U] = static_cast<u8>(value >> 16U);
     bytes[offset + 3U] = static_cast<u8>(value >> 24U);
+}
+
+class ArchiveTestFiles {
+public:
+    ArchiveTestFiles() {
+        root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
+            ("battle-archive-" +
+             std::to_string(
+                 std::chrono::steady_clock::now().time_since_epoch().count()
+             ));
+        std::filesystem::create_directories(root_);
+    }
+
+    ~ArchiveTestFiles() {
+        std::error_code ignored;
+        std::filesystem::remove_all(root_, ignored);
+    }
+
+    [[nodiscard]] std::filesystem::path path(const char* name) const {
+        return root_ / name;
+    }
+
+    void write(const char* name, const std::span<const u8> bytes) const {
+        std::ofstream file{path(name), std::ios::binary | std::ios::trunc};
+        for (const u8 byte : bytes) {
+            file.put(static_cast<char>(byte));
+        }
+    }
+
+private:
+    std::filesystem::path root_;
+};
+
+void test_archive_file_runtime(openswd3::test::Context& test) {
+    const ArchiveTestFiles files;
+    const std::array<u8, 3> short_data{0x10U, 0x20U, 0x30U};
+    files.write("short.ffd", short_data);
+    std::vector<u8> data(0x2714U, 0U);
+    data[0x1F45U] = 1U;
+    data.insert(data.end(), short_data.begin(), short_data.end());
+    files.write("record.ffd", data);
+    write_u32(data, 4U, 0x00800000U);
+    files.write("failed-seek.ffd", data);
+    write_u32(data, 4U, 1U);
+    files.write("eof-record.ffd", data);
+
+    openswd3::battle::LegacyBattleDefinitionArchiveFileRuntime port;
+    openswd3::battle::LegacyBattleRenderGeometryBindingObject object;
+    object.battle_header_bytes.fill(0xCCU);
+    u32 published = 0U;
+    const auto header =
+        openswd3::battle::load_legacy_battle_definition_archive_header(
+            object, published, port, {.path = files.path("short.ffd")}
+        );
+    test.expect_true(
+        header.return_eax == 1U && header.return_ecx == 3U &&
+            header.bytes_read == 3U && published == 0x00501500U &&
+            object.battle_header_bytes[0] == 0x10U &&
+            object.battle_header_bytes[2] == 0x30U &&
+            object.battle_header_bytes[3] == 0xCCU,
+        "filesystem header short read keeps the untouched suffix and publishes"
+    );
+
+    openswd3::battle::LegacyBattleDefinitionArchiveRecord record;
+    record.bytes.fill(0xCCU);
+    const auto loaded =
+        openswd3::battle::load_legacy_battle_definition_archive_record(
+            object,
+            record,
+            port,
+            {.path = files.path("record.ffd"), .battle_id = 1U}
+        );
+    test.expect_true(
+        loaded.return_eax == 1U && loaded.return_ecx == 3U &&
+            loaded.prefix_bytes_read == 0x2714U &&
+            loaded.file_offset == 0x2714U && loaded.record_bytes_read == 3U &&
+            record.bytes[0] == 0x10U && record.bytes[2] == 0x30U &&
+            record.bytes[3] == 0xCCU && record.bytes.back() == 0xCCU,
+        "filesystem record loader seeks to the selected record and keeps " "the unread tail"
+    );
+
+    record.bytes.fill(0xA5U);
+    const auto failed_seek_record =
+        openswd3::battle::load_legacy_battle_definition_archive_record(
+            object,
+            record,
+            port,
+            {.path = files.path("failed-seek.ffd"), .battle_id = 1U}
+        );
+    test.expect_true(
+        failed_seek_record.return_eax == 1U &&
+            failed_seek_record.file_offset == 0x86002714U &&
+            failed_seek_record.return_ecx == 3U &&
+            failed_seek_record.read_calls == 2U &&
+            failed_seek_record.close_calls == 1U && record.bytes[0] == 0x10U &&
+            record.bytes[2] == 0x30U && record.bytes[3] == 0xA5U,
+        "record loader ignores failed seek and reads from the header end"
+    );
+
+    record.bytes.fill(0xA5U);
+    const auto eof_record =
+        openswd3::battle::load_legacy_battle_definition_archive_record(
+            object,
+            record,
+            port,
+            {.path = files.path("eof-record.ffd"), .battle_id = 1U}
+        );
+    test.expect_true(
+        eof_record.return_eax == 1U && eof_record.return_ecx == 0U &&
+            eof_record.file_offset == 0x2820U &&
+            eof_record.record_bytes_read == 0U &&
+            eof_record.close_calls == 1U &&
+            std::all_of(
+                record.bytes.begin(),
+                record.bytes.end(),
+                [](u8 byte) { return byte == 0xA5U; }
+            ),
+        "record loader returns success at EOF without replacing old bytes"
+    );
+
+    const auto missing =
+        openswd3::battle::load_legacy_battle_definition_archive_header(
+            object, published, port, {.path = files.path("missing.ffd")}
+        );
+    test.expect_true(
+        missing.status ==
+                LegacyBattleDefinitionArchiveHeaderLoadStatus::open_failed &&
+            missing.return_ecx == 0U && missing.close_calls == 1U,
+        "missing filesystem archive still reaches the invalid-handle close"
+    );
+
+    const auto opened =
+        port.open_archive_file({.path = files.path("short.ffd")});
+    const auto second =
+        port.open_archive_file({.path = files.path("record.ffd")});
+    test.expect_true(
+        opened.eax != 0xFFFFFFFFU && second.eax != 0xFFFFFFFFU &&
+            opened.eax != second.eax,
+        "simultaneous archive handles own distinct real files"
+    );
+    std::array<u8, 2> bytes{0xCCU, 0xCCU};
+    const auto first = port.read_archive_file(
+        {.handle = opened.eax, .requested_bytes = 1U}, bytes
+    );
+    const auto failed_seek =
+        port.seek_archive_file({.handle = opened.eax, .distance = 0xFFFFFFFFU});
+    const auto next = port.read_archive_file(
+        {.handle = opened.eax, .requested_bytes = 1U}, bytes
+    );
+    test.expect_true(
+        first.eax == 1U && first.bytes_read == 1U &&
+            failed_seek.eax == 0xFFFFFFFFU && next.eax == 1U &&
+            next.bytes_read == 1U && bytes[0] == 0x20U,
+        "negative absolute seek fails without resetting the current position"
+    );
+    const auto seek =
+        port.seek_archive_file({.handle = opened.eax, .distance = 100U});
+    const auto eof = port.read_archive_file(
+        {.handle = opened.eax, .requested_bytes = 2U}, bytes
+    );
+    test.expect_true(
+        seek.eax == 100U && eof.eax == 1U && eof.bytes_read == 0U &&
+            bytes[0] == 0x20U && bytes[1] == 0xCCU,
+        "seek return is zero-based and EOF leaves the destination untouched"
+    );
+    test.expect_equal(
+        port.close_archive_file({.handle = opened.eax}).eax,
+        1U,
+        "closing a live archive releases its file"
+    );
+    const auto stale = port.read_archive_file(
+        {.handle = opened.eax, .requested_bytes = 2U}, bytes
+    );
+    test.expect_true(
+        stale.eax == 0U && stale.bytes_read == 0U &&
+            port.close_archive_file({.handle = opened.eax}).eax == 0U &&
+            port.close_archive_file({.handle = 0xFFFFFFFFU}).eax == 0U,
+        "closed and invalid archive handles fail instead of supplying data"
+    );
+    const auto independent = port.read_archive_file(
+        {.handle = second.eax, .requested_bytes = 1U}, bytes
+    );
+    test.expect_true(
+        independent.eax == 1U && independent.bytes_read == 1U &&
+            bytes[0] == 0U &&
+            port.close_archive_file({.handle = second.eax}).eax == 1U,
+        "closing one archive does not move or release another file"
+    );
+
+#ifdef _WIN32
+    const auto path = files.path("short.ffd");
+    const auto permissions = std::filesystem::status(path).permissions();
+    const auto write_bits = std::filesystem::perms::owner_write |
+        std::filesystem::perms::group_write |
+        std::filesystem::perms::others_write;
+    std::filesystem::permissions(
+        path, write_bits, std::filesystem::perm_options::remove
+    );
+    const auto readonly = std::filesystem::status(path).permissions();
+    const auto readonly_header =
+        openswd3::battle::load_legacy_battle_definition_archive_header(
+            object, published, port, {.path = path}
+        );
+    const auto after = std::filesystem::status(path).permissions();
+    std::filesystem::permissions(path, permissions);
+    test.expect_true(
+        (readonly & write_bits) == std::filesystem::perms::none &&
+            after == readonly && readonly_header.bytes_read == 3U,
+        "direct archive open preserves the Windows read-only attribute"
+    );
+#endif
+
+#ifdef OPENSWD3_GAME_DATA_ROOT
+    const auto asset_path =
+        std::filesystem::path{OPENSWD3_GAME_DATA_ROOT} / "battle.ffd";
+    std::array<u8, 0x2714U> expected_header{};
+    std::array<u8, 0x10CU> expected_record{};
+    u32 offset = 0U;
+    {
+        std::ifstream file{asset_path, std::ios::binary};
+        file.exceptions(std::ios::failbit | std::ios::badbit);
+        file.read(
+            reinterpret_cast<char*>(expected_header.data()),
+            static_cast<std::streamsize>(expected_header.size())
+        );
+        for (u32 index = 0U; index < 4U; ++index) {
+            offset |= static_cast<u32>(expected_header[4U + index])
+                << (index * 8U);
+        }
+
+        offset = 0x2714U + offset * 0x10CU;
+        file.seekg(static_cast<std::streamoff>(offset));
+        file.read(
+            reinterpret_cast<char*>(expected_record.data()),
+            static_cast<std::streamsize>(expected_record.size())
+        );
+    }
+
+    const auto asset_header =
+        openswd3::battle::load_legacy_battle_definition_archive_header(
+            object, published, port, {.path = asset_path}
+        );
+    test.expect_true(
+        asset_header.return_ecx == 0x2714U &&
+            object.battle_header_bytes == expected_header,
+        "real battle.ffd header matches the source file byte for byte"
+    );
+    const auto asset_record =
+        openswd3::battle::load_legacy_battle_definition_archive_record(
+            object, record, port, {.path = asset_path, .battle_id = 1U}
+        );
+    test.expect_true(
+        asset_record.return_eax == 1U && asset_record.return_ecx == 0x10CU &&
+            asset_record.file_offset == offset &&
+            record.bytes == expected_record,
+        "real battle.ffd first battle record matches its physical file range"
+    );
+#endif
 }
 
 class HeaderPort final : public LegacyBattleDefinitionArchiveFilePort {
@@ -156,6 +423,85 @@ public:
 }  // namespace
 
 void test_battle_definition_archive(openswd3::test::Context& test) {
+    test_archive_file_runtime(test);
+
+    // Both epilogues pop the NumberOfBytesRead stack local, not this.
+    for (const u32 count : {0U, 3U}) {
+        for (const bool reject_variant : {false, true}) {
+            openswd3::battle::LegacyBattleRenderGeometryBindingObject object;
+            openswd3::battle::LegacyBattleDefinitionArchiveRecord record;
+            object.battle_header_bytes[0x1F45U] =
+                reject_variant ? u8{1U} : u8{0x80U};
+            RecordPort port;
+            port.header_data.assign(count, 0U);
+            const auto result =
+                openswd3::battle::load_legacy_battle_definition_archive_record(
+                    object,
+                    record,
+                    port,
+                    {
+                        .path = "data/battle.ffd",
+                        .battle_id = 1U,
+                        .variant = 2U,
+                    }
+                );
+            const auto expected_status = reject_variant
+                ? LegacyBattleDefinitionArchiveRecordLoadStatus::
+                      rejected_variant
+                : LegacyBattleDefinitionArchiveRecordLoadStatus::
+                      rejected_count;
+            test.expect_true(
+                result.status == expected_status &&
+                    result.return_eax == 0U && result.return_ecx == count &&
+                    result.read_calls == 1U && result.close_calls == 1U,
+                "rejected records pop the short header count, including zero"
+            );
+        }
+    }
+
+    for (const u32 count : {0U, 1U, 0x2714U}) {
+        openswd3::battle::LegacyBattleRenderGeometryBindingObject object;
+        u32 published = 0U;
+        HeaderPort port;
+        port.open_reply.eax = 0x70000001U;
+        port.read_reply.ecx = 0x12345678U;
+        port.close_reply.ecx = 0x87654321U;
+        port.data.assign(count, 0xA5U);
+        const auto result =
+            openswd3::battle::load_legacy_battle_definition_archive_header(
+                object, published, port, {.path = "data/battle.ffd"}
+            );
+        test.expect_true(
+            result.return_eax == 1U && result.return_ecx == count &&
+                result.bytes_read == count && result.close_calls == 1U,
+            "header ECX is the actual read count even when ReadFile "
+            "returns zero"
+        );
+    }
+
+    for (const u32 count : {0U, 1U, 0x10CU}) {
+        openswd3::battle::LegacyBattleRenderGeometryBindingObject object;
+        openswd3::battle::LegacyBattleDefinitionArchiveRecord record;
+        RecordPort port;
+        port.header_data.assign(0x2714U, 0U);
+        port.header_data[0x1F45U] = 1U;
+        port.record_data.assign(count, 0xA5U);
+        const auto result =
+            openswd3::battle::load_legacy_battle_definition_archive_record(
+                object,
+                record,
+                port,
+                {.path = "data/battle.ffd", .battle_id = 1U}
+            );
+        test.expect_true(
+            result.return_eax == 1U && result.return_ecx == count &&
+                result.prefix_bytes_read == 0x2714U &&
+                result.record_bytes_read == count && result.close_calls == 1U,
+            "record ECX uses the second read count rather than the header "
+            "count or API register"
+        );
+    }
+
     {
         openswd3::battle::LegacyBattleRenderGeometryBindingObject object;
         object.battle_header_bytes.fill(0xA5U);
@@ -208,7 +554,7 @@ void test_battle_definition_archive(openswd3::test::Context& test) {
                 port.close_request.entry_edx == 0x23456789U &&
                 published == 0x11223344U &&
                 object.battle_header_bytes.front() == 0xA5U &&
-                result.return_eax == 0U && result.return_ecx == 0x004FF5B8U &&
+                result.return_eax == 0U && result.return_ecx == 0U &&
                 result.return_edx == 0x56789ABCU,
             "an invalid handle is still closed before the header loader returns zero"
         );
@@ -279,7 +625,7 @@ void test_battle_definition_archive(openswd3::test::Context& test) {
                 object.index_records[0].ordinal == 0xAAAAAAAAU &&
                 published == 0x00501500U && result.header_index_published &&
                 result.published_header_index_token == 0x00501500U &&
-                result.return_eax == 1U && result.return_ecx == 0x004FF5B8U &&
+                result.return_eax == 1U && result.return_ecx == 3U &&
                 result.return_edx == 0x77777777U,
             "a short failed ReadFile result is ignored after preserving its written prefix and publishing the header index"
         );
@@ -315,7 +661,7 @@ void test_battle_definition_archive(openswd3::test::Context& test) {
                 result.seek_calls == 0U && result.close_calls == 1U &&
                 port.events == std::vector<u32>{1U, 4U} &&
                 port.close_request.handle == 0xFFFFFFFFU &&
-                result.return_eax == 0U && result.return_ecx == 0x004FF5B8U &&
+                result.return_eax == 0U && result.return_ecx == 0U &&
                 result.return_edx == 0xAAAAAAAAU,
             "a failed record open still closes the all-ones handle before returning zero"
         );
@@ -350,7 +696,7 @@ void test_battle_definition_archive(openswd3::test::Context& test) {
                 result.seek_calls == 0U && result.close_calls == 1U &&
                 port.events == std::vector<u32>{1U, 2U, 4U} &&
                 record.bytes.front() == 0xCCU && result.return_eax == 0U &&
-                result.return_ecx == 0x004FF5B8U &&
+                result.return_ecx == 0x2714U &&
                 result.return_edx == 0xAAAAAAAAU,
             "a signed nonpositive record count closes the file and preserves the destination"
         );
@@ -381,7 +727,7 @@ void test_battle_definition_archive(openswd3::test::Context& test) {
                     LegacyBattleDefinitionArchiveRecordLoadStatus::
                         rejected_variant &&
                 result.read_calls == 1U && result.seek_calls == 0U &&
-                result.close_calls == 1U &&
+                result.close_calls == 1U && result.return_ecx == 0x2714U &&
                 port.events == std::vector<u32>{1U, 2U, 4U},
             "a signed variant greater than the positive count closes without seeking"
         );
@@ -458,7 +804,7 @@ void test_battle_definition_archive(openswd3::test::Context& test) {
                 port.close_request.entry_eax == 0U &&
                 port.close_request.entry_ecx == 0x33333333U &&
                 port.close_request.entry_edx == 0x44444444U &&
-                result.return_eax == 1U && result.return_ecx == 0x004FF5B8U &&
+                result.return_eax == 1U && result.return_ecx == 0xF2U &&
                 result.return_edx == 0xAAAAAAAAU &&
                 definition.rotation_divisor == -4 &&
                 definition.secondary_count == 5U &&

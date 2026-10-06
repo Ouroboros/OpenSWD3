@@ -2,6 +2,9 @@
 
 #include <bit>
 #include <cstddef>
+#include <limits>
+#include <stdexcept>
+#include <utility>
 
 namespace openswd3::battle {
 namespace {
@@ -64,6 +67,134 @@ signed_byte_bits(const compat::u8 value) noexcept {
 
 }  // namespace
 
+resource_io::LegacyFile* LegacyBattleDefinitionArchiveFileRuntime::find_file(
+    const compat::u32 handle
+) noexcept {
+    // The legacy callers also close INVALID_HANDLE_VALUE after failed opens.
+    if (handle == 0U || handle > files_.size()) {
+        return nullptr;
+    }
+
+    return files_[handle - 1U].get();
+}
+
+LegacyBattleDefinitionArchiveApiReply
+LegacyBattleDefinitionArchiveFileRuntime::open_archive_file(
+    const LegacyBattleDefinitionArchiveOpenRequest& request
+) {
+    if (request.desired_access != 0x80000000U || request.share_mode != 0U ||
+        request.security_attributes_token != 0U ||
+        request.creation_disposition != 3U ||
+        request.flags_and_attributes != 0x80U ||
+        request.template_file_token != 0U) {
+        throw std::invalid_argument("unsupported battle archive open request");
+    }
+
+    LegacyBattleDefinitionArchiveApiReply reply{
+        .eax = 0xFFFFFFFFU,
+        .ecx = request.entry_ecx,
+        .edx = request.entry_edx,
+    };
+    auto file = std::make_unique<resource_io::LegacyFile>();
+    if (!file->open(
+            request.path,
+            resource_io::LegacyFileCreation::open_existing,
+            resource_io::LegacyFileAccess::read,
+            resource_io::LegacyFileSharing::exclusive,
+            resource_io::LegacyFileOpenBehavior::direct_api
+        )) {
+        return reply;
+    }
+
+    for (std::size_t index = 0U; index < files_.size(); ++index) {
+        if (!files_[index]) {
+            files_[index] = std::move(file);
+            reply.eax = static_cast<compat::u32>(index + 1U);
+            return reply;
+        }
+    }
+
+    if (files_.size() >= std::numeric_limits<compat::u32>::max() - 1U) {
+        return reply;
+    }
+
+    files_.push_back(std::move(file));
+    reply.eax = static_cast<compat::u32>(files_.size());
+    return reply;
+}
+
+LegacyBattleDefinitionArchiveReadReply
+LegacyBattleDefinitionArchiveFileRuntime::read_archive_file(
+    const LegacyBattleDefinitionArchiveReadRequest& request,
+    const std::span<compat::u8> destination
+) {
+    if (request.overlapped_token != 0U ||
+        request.requested_bytes > destination.size()) {
+        throw std::invalid_argument("unsupported battle archive read request");
+    }
+
+    LegacyBattleDefinitionArchiveReadReply reply{
+        .ecx = request.entry_ecx,
+        .edx = request.entry_edx,
+    };
+    auto* const file = find_file(request.handle);
+    if (file == nullptr) {
+        return reply;
+    }
+
+    compat::u32 count = request.requested_bytes;
+    const bool read = count == 0U ||
+        file->read(
+            destination,
+            count,
+            resource_io::LegacyFileReadBehavior::preserve_api_count
+        );
+    reply.eax = read ? 1U : 0U;
+    reply.bytes_read = count;
+    return reply;
+}
+
+LegacyBattleDefinitionArchiveApiReply
+LegacyBattleDefinitionArchiveFileRuntime::seek_archive_file(
+    const LegacyBattleDefinitionArchiveSeekRequest& request
+) {
+    if (request.distance_high_token != 0U || request.move_method != 0U) {
+        throw std::invalid_argument("unsupported battle archive seek request");
+    }
+
+    LegacyBattleDefinitionArchiveApiReply reply{
+        .eax = 0xFFFFFFFFU,
+        .ecx = request.entry_ecx,
+        .edx = request.entry_edx,
+    };
+    auto* const file = find_file(request.handle);
+    if (file != nullptr) {
+        reply.eax = file->seek_begin_one_based(
+                        std::bit_cast<compat::i32>(request.distance)
+                    ) -
+            1U;
+    }
+
+    return reply;
+}
+
+LegacyBattleDefinitionArchiveApiReply
+LegacyBattleDefinitionArchiveFileRuntime::close_archive_file(
+    const LegacyBattleDefinitionArchiveCloseRequest& request
+) {
+    LegacyBattleDefinitionArchiveApiReply reply{
+        .ecx = request.entry_ecx,
+        .edx = request.entry_edx,
+    };
+    auto* const file = find_file(request.handle);
+    if (file != nullptr && file->close()) {
+        files_[request.handle - 1U].reset();
+        reply.eax = 1U;
+    }
+
+    return reply;
+}
+
 LegacyBattleDefinitionArchiveHeaderLoadResult
 load_legacy_battle_definition_archive_header(
     LegacyBattleRenderGeometryBindingObject& object,
@@ -92,7 +223,7 @@ load_legacy_battle_definition_archive_header(
         result.status =
             LegacyBattleDefinitionArchiveHeaderLoadStatus::open_failed;
         result.return_eax = 0U;
-        result.return_ecx = request.binding_object_token;
+        result.return_ecx = 0U;
         result.return_edx = close_reply.edx;
         return result;
     }
@@ -125,7 +256,8 @@ load_legacy_battle_definition_archive_header(
     });
     result.close_calls = 1U;
     result.return_eax = 1U;
-    result.return_ecx = request.binding_object_token;
+    // 0045F1A1 pops the overwritten NumberOfBytesRead local.
+    result.return_ecx = read_reply.bytes_read;
     result.return_edx = close_reply.edx;
     return result;
 }
@@ -158,7 +290,7 @@ load_legacy_battle_definition_archive_record(
         result.status =
             LegacyBattleDefinitionArchiveRecordLoadStatus::open_failed;
         result.return_eax = 0U;
-        result.return_ecx = request.binding_object_token;
+        result.return_ecx = 0U;
         result.return_edx = close_reply.edx;
         return result;
     }
@@ -209,7 +341,7 @@ load_legacy_battle_definition_archive_record(
             result.close_calls = 1U;
             result.status = status;
             result.return_eax = 0U;
-            result.return_ecx = request.binding_object_token;
+            result.return_ecx = header_reply.bytes_read;
             result.return_edx = close_reply.edx;
             return result;
         };
@@ -310,7 +442,8 @@ load_legacy_battle_definition_archive_record(
     });
     result.close_calls = 1U;
     result.return_eax = 1U;
-    result.return_ecx = request.binding_object_token;
+    // 0045F28C pops the local overwritten by the second ReadFile.
+    result.return_ecx = record_reply.bytes_read;
     result.return_edx = close_reply.edx;
     return result;
 }

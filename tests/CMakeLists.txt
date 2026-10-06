@@ -703,6 +703,11 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/../MON.DAT")
         PRIVATE OPENSWD3_MON_DATA_PATH="${PROJECT_SOURCE_DIR}/../MON.DAT"
     )
 endif()
+set_source_files_properties(
+    unit/battle/legacy_battle_definition_archive_test.cpp
+    PROPERTIES COMPILE_DEFINITIONS
+        "OPENSWD3_TEST_ARTIFACT_ROOT=\"${PROJECT_SOURCE_DIR}/build/tmp/runtime\""
+)
 target_include_directories(
     openswd3_battle_legacy_battle_setup_tests
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support

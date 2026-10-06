@@ -1,9 +1,12 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
+#include "openswd3/resource_io/legacy_file.hpp"
 
 #include <filesystem>
+#include <memory>
 #include <span>
+#include <vector>
 
 namespace openswd3::battle {
 
@@ -91,6 +94,36 @@ public:
     close_archive_file(
         const LegacyBattleDefinitionArchiveCloseRequest& request
     ) = 0;
+};
+
+// Filesystem boundary for the fixed open/read/seek/close requests below.
+// Handles identify owned open files; they are not truncated host pointers.
+// ECX/EDX pass through as diagnostic snapshots, not native Win32 captures.
+class LegacyBattleDefinitionArchiveFileRuntime final
+    : public LegacyBattleDefinitionArchiveFilePort {
+public:
+    [[nodiscard]] LegacyBattleDefinitionArchiveApiReply open_archive_file(
+        const LegacyBattleDefinitionArchiveOpenRequest& request
+    ) override;
+
+    [[nodiscard]] LegacyBattleDefinitionArchiveReadReply read_archive_file(
+        const LegacyBattleDefinitionArchiveReadRequest& request,
+        std::span<compat::u8> destination
+    ) override;
+
+    [[nodiscard]] LegacyBattleDefinitionArchiveApiReply seek_archive_file(
+        const LegacyBattleDefinitionArchiveSeekRequest& request
+    ) override;
+
+    [[nodiscard]] LegacyBattleDefinitionArchiveApiReply close_archive_file(
+        const LegacyBattleDefinitionArchiveCloseRequest& request
+    ) override;
+
+private:
+    [[nodiscard]] resource_io::LegacyFile*
+    find_file(compat::u32 handle) noexcept;
+
+    std::vector<std::unique_ptr<resource_io::LegacyFile>> files_;
 };
 
 struct LegacyBattleDefinitionArchiveHeaderLoadRequest {

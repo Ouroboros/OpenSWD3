@@ -99,14 +99,19 @@ bool LegacyFile::open(
     const std::filesystem::path& path,
     const LegacyFileCreation creation,
     const LegacyFileAccess access,
-    const LegacyFileSharing sharing
+    const LegacyFileSharing sharing,
+    const LegacyFileOpenBehavior behavior
 ) {
 #ifdef _WIN32
     if (state_->file != INVALID_HANDLE_VALUE) {
         static_cast<void>(CloseHandle(state_->file));
     }
 
-    static_cast<void>(SetFileAttributesW(path.c_str(), FILE_ATTRIBUTE_NORMAL));
+    if (behavior == LegacyFileOpenBehavior::legacy_wrapper) {
+        static_cast<void>(
+            SetFileAttributesW(path.c_str(), FILE_ATTRIBUTE_NORMAL)
+        );
+    }
 
     DWORD desired_access{};
     switch (access) {
@@ -130,7 +135,10 @@ bool LegacyFile::open(
         sharing == LegacyFileSharing::read ? FILE_SHARE_READ : 0U,
         nullptr,
         creation_disposition,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
+        FILE_ATTRIBUTE_NORMAL |
+            (behavior == LegacyFileOpenBehavior::legacy_wrapper
+                 ? FILE_FLAG_SEQUENTIAL_SCAN
+                 : 0U),
         nullptr
     );
     if (state_->file == INVALID_HANDLE_VALUE) {
@@ -140,7 +148,10 @@ bool LegacyFile::open(
 
     state_->path = path;
     state_->access = access;
-    static_cast<void>(SetFilePointer(state_->file, 0, nullptr, FILE_BEGIN));
+    if (behavior == LegacyFileOpenBehavior::legacy_wrapper) {
+        static_cast<void>(SetFilePointer(state_->file, 0, nullptr, FILE_BEGIN));
+    }
+
 #else
     static_cast<void>(sharing);
     if (state_->file != -1) {
@@ -171,7 +182,10 @@ bool LegacyFile::open(
 
     state_->path = path;
     state_->access = access;
-    static_cast<void>(::lseek(state_->file, 0, SEEK_SET));
+    if (behavior == LegacyFileOpenBehavior::legacy_wrapper) {
+        static_cast<void>(::lseek(state_->file, 0, SEEK_SET));
+    }
+
 #endif
     return true;
 }
@@ -390,7 +404,9 @@ bool LegacyFile::truncate_at_current_position() noexcept {
 }
 
 bool LegacyFile::read(
-    const std::span<compat::u8> buffer, compat::u32& in_out_size
+    const std::span<compat::u8> buffer,
+    compat::u32& in_out_size,
+    const LegacyFileReadBehavior behavior
 ) noexcept {
 #ifdef _WIN32
     if (state_->file == INVALID_HANDLE_VALUE || buffer.empty() ||
@@ -408,12 +424,15 @@ bool LegacyFile::read(
     if (ReadFile(
             state_->file, buffer.data(), in_out_size, &actual_size, nullptr
         ) == 0) {
-        in_out_size = 0U;
+        in_out_size = behavior == LegacyFileReadBehavior::preserve_api_count
+            ? actual_size
+            : 0U;
         set_system_error();
         return false;
     }
     in_out_size = actual_size;
 #else
+    static_cast<void>(behavior);
     const ssize_t actual_size =
         ::read(state_->file, buffer.data(), in_out_size);
     if (actual_size == -1) {

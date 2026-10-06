@@ -29,6 +29,16 @@ enum class LegacyFileSharing {
     read,
 };
 
+enum class LegacyFileOpenBehavior {
+    legacy_wrapper,
+    direct_api,
+};
+
+enum class LegacyFileReadBehavior {
+    legacy_wrapper,
+    preserve_api_count,
+};
+
 struct LegacyFileTime {
     compat::u32 low{};
     compat::u32 high{};
@@ -48,7 +58,8 @@ public:
         const std::filesystem::path& path,
         LegacyFileCreation creation,
         LegacyFileAccess access,
-        LegacyFileSharing sharing = LegacyFileSharing::exclusive
+        LegacyFileSharing sharing = LegacyFileSharing::exclusive,
+        LegacyFileOpenBehavior behavior = LegacyFileOpenBehavior::legacy_wrapper
     );
     [[nodiscard]] bool close() noexcept;
 
@@ -60,8 +71,11 @@ public:
 
     [[nodiscard]] compat::u32 size() const noexcept;
     [[nodiscard]] bool truncate_at_current_position() noexcept;
-    [[nodiscard]] bool
-    read(std::span<compat::u8> buffer, compat::u32& in_out_size) noexcept;
+    [[nodiscard]] bool read(
+        std::span<compat::u8> buffer,
+        compat::u32& in_out_size,
+        LegacyFileReadBehavior behavior = LegacyFileReadBehavior::legacy_wrapper
+    ) noexcept;
     [[nodiscard]] bool write(
         std::span<const compat::u8> buffer, compat::u32& in_out_size
     ) noexcept;
