@@ -92,7 +92,8 @@ std::vector<u8> make_ffd() {
 
     const std::size_t record =
         kLegacyBattleFfdHeaderSize + kLegacyBattleFfdRecordSize;
-    write_u16(bytes, record + 0x24U, 0x1234U);
+    write_u32(bytes, record + 0x04U, 0xABCD1234U);
+    write_u16(bytes, record + 0x24U, 0x5678U);
     write_u16(bytes, record + 0x98U, 3U);
     return bytes;
 }
@@ -184,7 +185,7 @@ void test_load_sequence_and_offsets(openswd3::test::Context& test) {
         "FFD sums signed counts from battle one and resolves the record ordinal"
     );
     test.expect_true(
-        assets.background_resource_id() == 0x1234U &&
+        assets.background_resource_id() == 0xABCD1234U &&
             assets.enemy_count() == 3U,
         "known battle setup fields keep their exact record offsets"
     );

@@ -331,7 +331,9 @@ void write_u16(
 
 LegacyBattleAssets make_assets(const u16 enemy_count) {
     LegacyBattleAssets assets;
-    write_u16(assets.ffd_record, 0x24U, 0x3456U);
+    write_u16(assets.ffd_record, 0x04U, 0x3456U);
+    write_u16(assets.ffd_record, 0x06U, 0xABCDU);
+    write_u16(assets.ffd_record, 0x24U, 0x5678U);
     write_u16(assets.ffd_record, 0x98U, enemy_count);
     return assets;
 }
@@ -454,7 +456,7 @@ void test_enemy_record_layout(openswd3::test::Context& test) {
     test.expect_true(
         result.status == LegacyBattleSetupStatus::ready &&
             state.enemy_count == 2U &&
-            state.background_resource_id == 0x3456U &&
+            state.background_resource_id == 0xABCD3456U &&
             state.enemies[0].resource_id == 400U &&
             state.enemies[0].screen_x == 465U &&
             state.enemies[0].screen_y == 303U && state.enemies[0].record_flag &&

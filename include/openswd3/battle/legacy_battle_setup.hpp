@@ -46,7 +46,7 @@ struct LegacyBattleSetupState {
     std::array<LegacyBattlePartySlot, kLegacyBattlePartySlotCount> party{};
     compat::u32 enemy_count{};
     std::array<LegacyBattleEnemySlot, kLegacyBattleEnemySlotCount> enemies{};
-    compat::u16 background_resource_id{};
+    compat::u32 background_resource_id{};
     bool mirrored{};
 };
 

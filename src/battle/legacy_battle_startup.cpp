@@ -833,7 +833,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         result.status = LegacyBattleStartupStatus::random_result_out_of_range;
         return result;
     }
-    state.background_resource = static_cast<u16>(background_random + 1U);
+    const auto background_request =
+        make_legacy_battle_startup_background_request(
+            result.definition, request.data_root, background_random
+        );
+    state.background_rotation_divisor =
+        static_cast<u16>(background_request.rotation_divisor);
     result.background = initialize_legacy_battle_background(
         state.background,
         state.background_rotation_cache,
@@ -842,15 +847,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         action_update_port,
         frame_image_port,
         request.pixel_conversion,
-        LegacyBattleBackgroundInitializationRequest{
-            .data_root = request.data_root,
-            .one_based_resource = state.background_resource,
-            .initial_action_id = result.definition.background_action_id,
-            .field_b4 = result.definition.background_field_b4,
-            .field_b8 = result.definition.background_field_b8,
-            .rotation_divisor = result.definition.rotation_divisor,
-            .background_action_gate = result.definition.secondary_count,
-        }
+        background_request
     );
     if (background_status_is_typed_stop(result.background.status)) {
         result.status = LegacyBattleStartupStatus::background_typed_stop;

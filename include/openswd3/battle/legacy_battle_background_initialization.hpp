@@ -57,6 +57,17 @@ struct LegacyBattleBackgroundInitializationRequest {
     compat::u16 background_action_gate{};
 };
 
+struct LegacyBattleDefinition;
+
+// 451EF4..451F22: the definition supplies argument one; the random result
+// plus one supplies argument five. random_below_four is the caller's draw.
+[[nodiscard]] LegacyBattleBackgroundInitializationRequest
+make_legacy_battle_startup_background_request(
+    const LegacyBattleDefinition& definition,
+    const std::filesystem::path& data_root,
+    compat::u32 random_below_four
+);
+
 struct LegacyBattleBackgroundState {
     std::vector<compat::u8> image;
     std::array<compat::u16, 3> completion_words{};

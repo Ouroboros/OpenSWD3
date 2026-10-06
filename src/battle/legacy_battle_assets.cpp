@@ -290,8 +290,8 @@ LegacyBattleAssets::record_u16(const std::size_t offset) const noexcept {
     );
 }
 
-compat::u16 LegacyBattleAssets::background_resource_id() const noexcept {
-    return record_u16(0x24U);
+compat::u32 LegacyBattleAssets::background_resource_id() const noexcept {
+    return read_u32(ffd_record, 0x04U);
 }
 
 compat::u16 LegacyBattleAssets::enemy_count() const noexcept {

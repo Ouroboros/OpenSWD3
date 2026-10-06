@@ -1,11 +1,30 @@
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 
 #include "openswd3/asset_runtime/legacy_tsw_archive.hpp"
+#include "openswd3/battle/legacy_battle_definition_archive.hpp"
 
 #include <span>
 #include <utility>
 
 namespace openswd3::battle {
+
+LegacyBattleBackgroundInitializationRequest
+make_legacy_battle_startup_background_request(
+    const LegacyBattleDefinition& definition,
+    const std::filesystem::path& data_root,
+    const compat::u32 random_below_four
+) {
+    return {
+        .data_root = data_root,
+        .one_based_resource = definition.background_resource,
+        .initial_action_id = definition.background_action_id,
+        .field_b4 = definition.background_field_b4,
+        .field_b8 = definition.background_field_b8,
+        .rotation_divisor = static_cast<compat::u16>(random_below_four + 1U),
+        .background_action_gate = definition.secondary_count,
+    };
+}
+
 LegacyBattleBackgroundImageLoadResult
 LegacyBattleArchiveBackgroundImageLoadPort::load_image(
     const std::filesystem::path& archive_path,

@@ -177,7 +177,7 @@ struct LegacyBattleDefinitionEnemyRecord {
 };
 
 struct LegacyBattleDefinition {
-    compat::i32 rotation_divisor{};
+    compat::u32 background_resource{};
     compat::u16 secondary_count{};
     compat::u16 background_action_id{};
     compat::u32 background_field_b4{};

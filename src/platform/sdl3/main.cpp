@@ -51,6 +51,9 @@
 #include "openswd3/battle/legacy_battle_mon_stream_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
 #include "openswd3/battle/legacy_battle_group_b_storage.hpp"
+#include "openswd3/battle/legacy_battle_background_initialization.hpp"
+#include "openswd3/battle/legacy_battle_action_rotation_resources.hpp"
+#include "openswd3/battle/legacy_battle_definition_archive.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_runtime_shutdown.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
@@ -2828,6 +2831,54 @@ public:
             battle_setup_ready_ = prepared.status ==
                 openswd3::battle::LegacyBattleSetupStatus::ready;
             if (battle_setup_ready_) {
+                const auto definition =
+                    openswd3::battle::decode_legacy_battle_definition(
+                        {.bytes = battle_assets_.ffd_record}
+                    );
+                battle_runtime_.actor_metrics.group_b_count =
+                    definition.enemy_count;
+                battle_runtime_.definition_secondary_count =
+                    definition.secondary_count;
+                if (definition.enemy_count != 0U) {
+                    const auto background_request = openswd3::battle::
+                        make_legacy_battle_startup_background_request(
+                            definition,
+                            data_directory_,
+                            secondary_rng_.next_bounded(4U)
+                        );
+                    battle_runtime_.background_rotation_divisor =
+                        static_cast<openswd3::compat::u16>(
+                            background_request.rotation_divisor
+                        );
+                    openswd3::battle::LegacyBattleActionUpdaterRotationPort
+                        background_actions{action_updater_, 1U};
+                    const auto background =
+                        openswd3::battle::initialize_legacy_battle_background(
+                            battle_runtime_.background,
+                            battle_runtime_.background_rotation_cache,
+                            battle_rotation_resources_,
+                            background_actions,
+                            battle_rotation_resources_,
+                            pixel_conversion_,
+                            background_request
+                        );
+                    using BackgroundStatus = openswd3::battle::
+                        LegacyBattleBackgroundInitializationStatus;
+                    if (background.status != BackgroundStatus::completed &&
+                        background.status !=
+                            BackgroundStatus::image_load_failed) {
+                        openswd3::diagnostics::log_error(
+                            "battle background initialization stopped"
+                        );
+                        battle_setup_ready_ = false;
+                        ok_ = false;
+                        running_ = false;
+                        return false;
+                    }
+
+                    battle_runtime_.reset.block_525470.fill(0U);
+                }
+
                 battle_runtime_.battle_id_word = battle_id;
                 openswd3::battle::bind_legacy_battle_setup_party_owners(
                     battle_setup_, battle_runtime_
@@ -2836,10 +2887,6 @@ public:
                     battle_runtime_.group_a_configuration_sources =
                         saved_party_sources;
                 }
-                battle_runtime_.actor_metrics.group_b_count =
-                    battle_setup_.enemy_count;
-                battle_runtime_.background_resource =
-                    battle_setup_.background_resource_id;
                 for (std::size_t index = 0U; index < battle_setup_.enemy_count;
                      ++index) {
                     const auto initialized =
@@ -8490,6 +8537,8 @@ private:
         world_action_initializer_;
     openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
     openswd3::asset_runtime::LegacyTswRuntime& tsw_runtime_;
+    openswd3::battle::LegacyBattleActionRotationResources
+        battle_rotation_resources_{tsw_runtime_};
     openswd3::input_time_rng::LegacyCrtRng& crt_rng_;
     openswd3::input_time_rng::LegacySecondaryRng& secondary_rng_;
     class SecondaryWorldRuntimeRandom final

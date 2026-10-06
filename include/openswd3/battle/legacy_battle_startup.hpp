@@ -312,7 +312,7 @@ struct LegacyBattleStartupState {
     compat::u16 primary_text_color{};    // 0x004FF104
     compat::u16 secondary_text_color{};  // 0x005240BC
     compat::u32 definition_secondary_count{};
-    compat::u16 background_resource{};
+    compat::u16 background_rotation_divisor{};  // low word at 0x0053BF10
     std::array<LegacyBattleEnemyStartupRecord, 8> enemies{};
     std::shared_ptr<std::array<LegacyBattleActorGroupBElementState, 8>>
         group_b_lifecycle;

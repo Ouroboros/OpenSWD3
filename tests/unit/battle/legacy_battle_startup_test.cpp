@@ -265,7 +265,7 @@ public:
                 destination[offset + 3U] =
                     static_cast<openswd3::compat::u8>(value >> 24U);
             };
-            write_u32(0x04U, std::bit_cast<u32>(definition.rotation_divisor));
+            write_u32(0x04U, definition.background_resource);
             write_u16(0x24U, definition.secondary_count);
             write_u16(0x28U, definition.background_action_id);
             write_u32(0x58U, definition.background_field_b4);
@@ -540,6 +540,33 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    {
+        const openswd3::battle::LegacyBattleDefinition definition{
+            .background_resource = 0xFEDC1234U,
+            .secondary_count = 0xABCDU,
+            .background_action_id = 0x9876U,
+            .background_field_b4 = 0x13572468U,
+            .background_field_b8 = 0x24681357U,
+        };
+        for (u32 random_value = 0U; random_value < 4U; ++random_value) {
+            const auto background =
+                openswd3::battle::make_legacy_battle_startup_background_request(
+                    definition, "game-data", random_value
+                );
+            test.expect_true(
+                background.data_root == std::filesystem::path("game-data") &&
+                    background.one_based_resource == 0xFEDC1234U &&
+                    background.initial_action_id == 0x9876U &&
+                    background.field_b4 == 0x13572468U &&
+                    background.field_b8 == 0x24681357U &&
+                    background.rotation_divisor ==
+                        static_cast<i32>(random_value + 1U) &&
+                    background.background_action_gate == 0xABCDU,
+                "startup keeps the full definition resource and varies only " "the fifth background argument for all four random draws"
+            );
+        }
+    }
+
     for (const bool stop_enemy : {true, false}) {
         LegacyBattleStartupState state;
         StartupPorts ports;
@@ -1023,7 +1050,7 @@ void test_battle_startup(openswd3::test::Context& test) {
             result.background.status ==
                     openswd3::battle::
                         LegacyBattleBackgroundInitializationStatus::completed &&
-                result.background.rotation_shift == 160 &&
+                result.background.rotation_shift == 640 &&
                 result.background.image_rotation.width == 640U &&
                 result.background.image_rotation.height == 400U &&
                 !state.background.image.empty() &&
@@ -1052,6 +1079,42 @@ void test_battle_startup(openswd3::test::Context& test) {
                       << " frame="
                       << result.background.action_rotation.last_frame_index
                       << '\n';
+        }
+
+        for (u32 random_value = 1U; random_value < 4U; ++random_value) {
+            const auto previous_owners = frames.live_owner_count();
+            const auto background_request =
+                openswd3::battle::make_legacy_battle_startup_background_request(
+                    result.definition, startup_request.data_root, random_value
+                );
+            const auto repeated =
+                openswd3::battle::initialize_legacy_battle_background(
+                    state.background,
+                    state.background_rotation_cache,
+                    frames,
+                    action_port,
+                    frames,
+                    startup_request.pixel_conversion,
+                    background_request
+                );
+            test.expect_true(
+                repeated.status ==
+                        openswd3::battle::
+                            LegacyBattleBackgroundInitializationStatus::
+                                completed &&
+                    repeated.previous_image_released &&
+                    repeated.cache_release.image_release_calls ==
+                        previous_owners &&
+                    repeated.cache_release.owner_release_calls ==
+                        previous_owners &&
+                    repeated.rotation_shift ==
+                        640 / static_cast<i32>(random_value + 1U) &&
+                    background_request.one_based_resource == 4U &&
+                    frames.live_owner_count() ==
+                        repeated.action_rotation.frame_query_calls &&
+                    frames.live_image_count() == frames.live_owner_count(),
+                "repeated real background entry releases the prior cache and " "uses the same resource for divisors two through four"
+            );
         }
 
         static_cast<void>(openswd3::battle::
@@ -1253,7 +1316,7 @@ void test_battle_startup(openswd3::test::Context& test) {
             {35U, 1U},
         };
         ports.random_values = {1U, 2U, 0U, 0U, 1U, 2U, 8U};
-        ports.definition.rotation_divisor = 4U;
+        ports.definition.background_resource = 4U;
         ports.definition.enemy_count = 2U;
         ports.definition.enemies[0] = {
             .role_id = 11U,
@@ -1335,7 +1398,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                             image_load_failed &&
                 ports.background_path ==
                     std::filesystem::path("game-data/all_map2.tsw") &&
-                ports.background_resource == 2U &&
+                ports.background_resource == 4U &&
                 ports.background_variant == 0U &&
                 result.enemy_actor_count == 2U &&
                 state.group_b_lifecycle != nullptr &&
@@ -1563,8 +1626,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                     LegacyBattleStartupCall::reserved_group_a_profile_release
                 ) == 0U &&
                 state.actor_metrics.group_a_count == 4U &&
-                state.party[2].role_id == 3U &&
-                state.party[3].role_id == 4U &&
+                state.party[2].role_id == 3U && state.party[3].role_id == 4U &&
                 state.party[2].position_x == 0xFF92U &&
                 state.party[3].position_x == 0xFF92U &&
                 state.party[2].configuration.profile_token == 0x71000000U &&

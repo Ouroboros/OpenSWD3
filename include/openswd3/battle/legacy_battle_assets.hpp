@@ -62,7 +62,7 @@ struct LegacyBattleAssets {
     std::array<compat::u8, kLegacyBattleFfdRecordSize> ffd_record{};
 
     [[nodiscard]] compat::u16 record_u16(std::size_t offset) const noexcept;
-    [[nodiscard]] compat::u16 background_resource_id() const noexcept;
+    [[nodiscard]] compat::u32 background_resource_id() const noexcept;
     [[nodiscard]] compat::u16 enemy_count() const noexcept;
 };
 

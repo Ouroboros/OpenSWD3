@@ -167,7 +167,7 @@ caller随后无条件从live raw记录按原物理offset投影definition；enemy
 
 ## 6. 背景初始化直连
 
-有敌人时先调用无偏随机`random(4)`，结果加1后只写低word背景资源号。随后把definition中的signed旋转除数、动作lowword、B4、B8、随机资源号传给已关闭`0x00451940`。
+有敌人时调用`random(4)`，结果加1后写入`0053BF10`低word，随后零扩展作为第五参数（旋转除数）。第一参数是战斗记录`+4`的完整dword图像资源号；第二到第四参数分别来自记录`+28`动作lowword、`+58`和`+78`。原证据把资源号与除数反用了，现按`00451EED..00451F22`压栈顺序修正。核心与SDL共用`make_legacy_battle_startup_background_request`，详见[背景初始化证据](battle-background-initialization-00451940.md)。
 
 modern直接调用`initialize_legacy_battle_background`，不保留opaque entry。原caller忽略callee返回，因此普通image load失败仍继续；除零、命令流、旋转或动作缓存typed-stop则在原故障域阻断。返回后再次清零`0x26`项scratch块。
 

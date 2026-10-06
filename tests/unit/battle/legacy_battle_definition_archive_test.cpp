@@ -806,7 +806,7 @@ void test_battle_definition_archive(openswd3::test::Context& test) {
                 port.close_request.entry_edx == 0x44444444U &&
                 result.return_eax == 1U && result.return_ecx == 0xF2U &&
                 result.return_edx == 0xAAAAAAAAU &&
-                definition.rotation_divisor == -4 &&
+                definition.background_resource == 0xFFFFFFFCU &&
                 definition.secondary_count == 5U &&
                 definition.background_action_id == 0x1234U &&
                 definition.background_field_b4 == 0x11112222U &&

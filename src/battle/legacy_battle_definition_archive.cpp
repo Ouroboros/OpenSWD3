@@ -452,8 +452,7 @@ LegacyBattleDefinition decode_legacy_battle_definition(
     const LegacyBattleDefinitionArchiveRecord& record
 ) noexcept {
     LegacyBattleDefinition definition;
-    definition.rotation_divisor =
-        std::bit_cast<compat::i32>(read_record_u32(record, 0x04U));
+    definition.background_resource = read_record_u32(record, 0x04U);
     definition.secondary_count = read_record_u16(record, 0x24U);
     definition.background_action_id = read_record_u16(record, 0x28U);
     definition.background_field_b4 = read_record_u32(record, 0x58U);

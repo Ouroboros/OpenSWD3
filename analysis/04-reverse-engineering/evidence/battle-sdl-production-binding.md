@@ -229,13 +229,13 @@ case51、case12、case14和case100的既有角色帧停止前缀断言已改为�
 
 ## 完整帧之前的初始化缺口
 
-当前`app/battle_transition.cpp`调用SDL的`initialize_battle`。该入口加载资产、调用`prepare_legacy_battle_setup`、绑定部分队伍数据，并使用持久敌方对象执行活动槽重置与MON配置。敌方配置与核心startup共用同一业务顺序，详见[敌方入战接线](battle-enemy-startup-runtime-binding.md)。SDL仍没有调用完整`initialize_legacy_battle_startup`，也没有构造`LegacyBattleFrameZeroContext`或`LegacyBattleFrameCoordinatorContext`。因此不能把局部初始化测试当作完整真实初始化已执行，也不能直接用默认背景、显示面或角色资源构造完整帧。
+当前`app/battle_transition.cpp`调用SDL的`initialize_battle`。该入口加载资产、调用`prepare_legacy_battle_setup`，按记录资源号与随机旋转除数初始化真实背景，再绑定部分队伍数据，并使用持久敌方对象执行活动槽重置与MON配置。背景参数与重复进入的回收顺序见[背景初始化证据](battle-background-initialization-00451940.md)，本批资产与启动定向测试、ASan各2/2通过；共享次级随机源修正后的SDL编译链接通过。敌方配置与核心startup共用同一业务顺序，详见[敌方入战接线](battle-enemy-startup-runtime-binding.md)。SDL仍没有调用完整`initialize_legacy_battle_startup`，也没有构造`LegacyBattleFrameZeroContext`或`LegacyBattleFrameCoordinatorContext`。因此不能把局部初始化测试当作完整真实初始化已执行，也不能直接用默认背景、显示面或角色资源构造完整帧。
 
 已有核心启动入口需要定义归档文件、背景图像载入、旋转缓存释放、动作更新及可变帧图像端口。下一步须从这些真实资源生产者接通初始化，再构造完整帧；不得在SDL继续复制另一套初始化业务流程。当前只核对了这些接口及部分源码，完整初始化端口、状态借用及生命周期仍未收敛。
 
 重读两项归档读取的完整LST时发现既有ECX返回合同错误：入口push分配的是后来被清零和ReadFile覆盖的局部计数槽。已修正打开失败、成功及两种拒绝的返回来源，保留typed-stop故障点寄存器；独立补充零字节、短读与完整读取测试。详见`battle-definition-archive-header-load-0045f130.md`与`battle-definition-archive-record-load-0045f1b0.md`。`battle-archive-return-register-{core,asan,sdl}.log`确认core/ASan聚合目标各1/1通过，SDL链接通过，三个日志无warning/error。随后已实现真实归档文件端口，每个活动句柄对应实际文件及独立游标；补充直接API打开方式，避免额外改写Windows文件属性、增加顺序读取标志或归零seek。新增真实文件短读、失败寻址、EOF、句柄释放及原始battle.ffd字节对照；首批战斗与文件模块core/ASan各1/1、SDL链接通过，只有既有存档恢复及结果测试警告；原始资产测试宏已核对。追加真实寻址失败与EOF调用链的core/ASan复验各1/1通过，无warning/error。随后隔离API失败计数行为，保留现有文件包装器默认语义；`battle-archive-api-count-*`复验确认战斗与文件目标core/ASan分别1/1、SDL链接通过，仍仅有上述既有警告，`git diff --check`通过。Windows只读属性及API失败计数分支尚未在Windows运行。端口尚未接入SDL完整初始化；背景、旋转缓存、动作及帧图像端口仍待接线。
 
-背景物理载入器已从匿名实现提升为`LegacyBattleArchiveBackgroundImageLoadPort`，默认背景入口复用同一实现。新增完整核心初始化的真实资产用例：实际文件端口读取`battle.ffd`第1项，实际背景端口读取`all_map2.tsw`，核对640×400背景、右移160、三个完成word及动作号15003。测试显式让动作更新返回原正常停止，并在后续敌人资源分配处停止；没有用夹具证明完整角色或SDL接线成功。`battle-startup-real-background-{core,asan,sdl}.log`确认core/ASan聚合目标各1/1、SDL链接通过，仅既有结果测试窄化警告。已检查Debug Ninja编译定义，真实资产分支启用。
+背景物理载入器已从匿名实现提升为`LegacyBattleArchiveBackgroundImageLoadPort`，默认背景入口复用同一实现。新增完整核心初始化的真实资产用例：实际文件端口读取`battle.ffd`第1项，实际背景端口读取`all_map2.tsw`，核对640×400背景、三个完成word及动作号15003；当时的右移160断言沿用了错误的启动参数映射，本轮已按LST修正，见背景初始化证据。测试显式让动作更新返回原正常停止，并在后续敌人资源分配处停止；没有用夹具证明完整角色或SDL接线成功。`battle-startup-real-background-{core,asan,sdl}.log`确认core/ASan聚合目标各1/1、SDL链接通过，仅既有结果测试窄化警告。已检查Debug Ninja编译定义，真实资产分支启用。
 
 旋转帧资源的下一处边界已核对：`004318A7..004318EB`在分配独立0x14字节记录前，对低16位资源6001..9000调用魔法准备；`004318EC..00431903`随后分配并发布记录，再选择物理读取。现有`LegacyTswRuntime::load_direct`明确是物理读取API，其测试要求不执行魔法准备，不能直接把它当作完整`sub_431760`。普通缓存返回不可变快照，也不能作为原版独立可写旋转帧。完整`00431760..00431952`还确认：该入口没有物理API的0xFFFF专用loader分支；先在`004318F3`发布独立记录到共享返回槽，物理读取及转换后重新读取该槽；末尾才清魔法标志。新入口不能直接套用带专用分支的`load_low16`，也不能丢弃失败前缀或共享返回槽语义。该入口已新增`load_owned`有界实现及独立旋转资源端口。核心旋转缓存借用真实图像，并在两次加载与释放测试中回收图像、记录及借用视图；加载停止在caller发布前传播，背景父调用不再写完成word。TSW与战斗聚合目标的core/ASan分别1/1通过，SDL链接通过；仅既有存档恢复及结果测试警告。完整实现边界、真实资产和原版失败ABI缺口见`tsw-owned-frame-00431760.md`。尚未接入SDL完整初始化，动作更新的寄存器有效范围与停止传播仍需收敛。
 

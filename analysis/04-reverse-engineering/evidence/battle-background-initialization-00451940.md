@@ -94,4 +94,39 @@ C++到LST反向追溯覆盖108行完整函数、五参数、四个closed callee�
 
 真实资产测试读取`all_map2.tsw`物理槽1，完成真实palette/命令流转换和640×400图像shift 160循环右移；该CTest加入`legacy_real_assets`全局锁。普通定向与独立ASan定向均`1/1`通过。
 
-当前没有原版路径缓冲、TSW loader、共享图像token、记录门、动作缓存与framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整LST、typed实现、synthetic与真实资产状态已闭环。
+当前没有原版路径缓冲、TSW loader、共享图像token、记录门、动作缓存与framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。上述验证针对callee，不证明启动caller参数或SDL完整初始化正确。
+
+## 10. B11 启动参数与SDL接线修正
+
+重新核对`00451EED..00451F22`发现旧启动caller把资源号与旋转除数反用：
+
+- `00451EF4`完成`random(4)`，加一后写`0053BF10`低word。
+- `00451F11`首先压入零扩展后的word，成为第五参数旋转除数。
+- 随后压入记录`+78`、`+58`与`+28`动作号，分别成为第四至第二参数。
+- 最后压入`004FF1E4`的完整dword（记录`+4`），成为第一参数图像资源号。
+- `00451986..00451997`把第一参数传给TSW图像加载。
+- `004519AE..004519B8`读取第五参数，执行signed `640 / divisor`。
+
+因此四种随机值只选择除数1、2、3、4，不选择四张背景图。
+`LegacyBattleDefinition.background_resource`和资产/布局接口均保留完整u32。
+记录`+24`是背景动作门，不是背景物理资源号。
+核心与SDL共用背景请求构造函数，避免再次交换参数。
+
+SDL使用会话内的`LegacyBattleActionRotationResources`持有可写旋转帧，
+借用现有ACT updater。入战时读取同一FFD记录，先公布敌人数与背景动作门，
+有敌人时才调用共享`LegacySecondaryRng::next_bounded(4)`，再初始化背景。
+`00439070..004390E0`使用次级随机表和拒绝采样：界限为65532，
+大于等于界限则继续抽取，接受后取模4。不能替换成CRT随机数取模。
+此处一次有界调用可能消耗多个原始随机值。
+之后才清敌方scratch并继续既有角色接线。重复进入复用同一缓存与资源端口，
+由背景初始化先释放旧图像及owner，再加载新背景。
+普通`image_load_failed`仍继续角色配置；typed-stop保留已完成副作用并停止宿主。
+
+修正前的对照测试已在`background-arguments-red.log`得到两项预期失败。
+新增向量覆盖资源高位、全部四个除数，以及真实资产重复进入时的旧缓存回收。
+`background-binding-core-{assets,startup}.log`与对应ASan日志确认各2/2通过。
+SDL首次构建通过；随后把新接线的CRT取模改为共享次级随机源，
+`background-binding-final-sdl.log`再次确认编译链接通过。
+核心和ASan仅报告既有`legacy_battle_outcome_resolution_test.cpp:137`
+窄化警告；SDL最终构建无warning/error。未修改该无关测试。
+完整战斗初始化、帧绘制、结束返回和实际续玩仍未完成；没有启动游戏。
