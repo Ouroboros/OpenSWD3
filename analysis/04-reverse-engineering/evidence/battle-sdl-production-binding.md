@@ -20,7 +20,9 @@ SDL战斗初始化现直接重置`world_dialog_runtime_state_.end_dialog_action`
 动作ID与基本variant，保持其余字段、下一页按钮和世界光标不变。
 
 完整核心startup也改为通过必需引用借用动作记录，删除旧私有ID/variant副本，
-把原opaque初始化替换为真实动作初始化；句柄快照仍在reset之后、ID/variant写入之前。
+把原opaque初始化替换为真实动作初始化；透明像素双字快照仍在reset之后、
+ID/variant写入之前。原运行句柄命名已按颜色转换和双word复制的LST纠正；
+SDL完整初始化尚需传入当前像素格式对应的颜色，不能用资源token替代。
 详见[启动证据](battle-startup-coordinator-00451b10.md)第3节。
 这项接线不等于SDL已调用完整startup，也不证明完整生命周期或实机续玩通过。
 

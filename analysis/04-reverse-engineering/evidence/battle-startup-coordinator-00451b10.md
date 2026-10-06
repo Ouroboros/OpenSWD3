@@ -36,18 +36,29 @@ modern以定长typed数组和字段建模全部块，不以宿主指针模拟旧
 `0x004ACD18`，也不是下一页按钮`0x004CADE0`。
 
 初始化只把`+1C/+20/+3C`三个dword置全1，把`+42/+44/+46/+48`四个word
-及`+90`dword清零；其余字节保持。`00451CD2`随后读取运行句柄，
+及`+90`dword清零；其余字节保持。`00451CD2`随后读取透明像素双字，
 `00451CE5/00451CEF`才发布完整dword动作ID `0x2329`和基本variant `0x0C`，
-最后`00451CF9`保存句柄。
+最后`00451CF9`把该双字保存到`0x004AB8F8`。
+
+原先把这个值称为运行句柄是错误的：`00423752`写入`0x026B`，
+`00423773/00423778`按当前像素格式转换它，`0042378B..004237B3`取低word并
+复制到高word后写回`0x004CD784`。普通显示初始化`00424CC8/00424CD6`也复制
+同一个双字。现更名为`transparent_pixel_pair`及`read_transparent_pixel_pair`；
+只纠正命名，保持字段位宽、枚举值、调用顺序及完整32位复制不变。
+SDL完整初始化的颜色输入仍需接通，不得把它当成surface或其他资源句柄。
+该独立更名的完整代码差异只有标识符、注释和断言文案变化，未改变表达式、常量或布局。
+定向core 1/1及SDL链接通过，日志为
+`build/tmp/runtime/battle-startup-color-naming-{core,sdl}.log`；
+core仅有既有结果测试137行窄化警告。未扩大测试范围或重复无内存行为改动的ASan验证。
 
 核心通过必需的`battle_control_action()`借用真实记录，删除启动状态的两个私有副本。
-旧初始化opaque槽保留为reserved且零调用；`read_runtime_handle`仅提供句柄快照，
+旧初始化opaque槽保留为reserved且零调用；`read_transparent_pixel_pair`仅提供颜色快照，
 不能承担动作初始化。SDL现有初始化入口直接修改
 `world_dialog_runtime_state_.end_dialog_action`，不清整个对话状态、不改下一页动作
 或世界光标。完整startup与SDL其余端口仍待接通。
 
 独立测试用0、A5、FF污染记录及相邻记录，逐字节校验指定store、未写字节和邻居保留，
-并在读取句柄的回调处验证只完成reset、尚未发布ID/variant。旧实现三项均失败，
+并在读取颜色的回调处验证只完成reset、尚未发布ID/variant。旧实现三项均失败，
 红测日志为`build/tmp/runtime/battle-startup-control-action-red.log`。
 修正后战斗聚合core/ASan各1/1及SDL链接通过，日志为
 `build/tmp/runtime/battle-startup-control-action-{core,asan,sdl}.log`。

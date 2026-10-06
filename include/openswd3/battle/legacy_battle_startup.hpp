@@ -112,7 +112,7 @@ enum class LegacyBattleStartupCall : compat::u16 {
     group_b_load_resource_definition,
     reserved_group_b_load_action_profile,
     reserved_group_b_release_resource_text,
-    read_runtime_handle,
+    read_transparent_pixel_pair,
 };
 
 struct LegacyBattleStartupCallRequest {
@@ -293,7 +293,7 @@ struct LegacyBattleStartupState {
     std::array<compat::i32, 4> window_rectangle{};
     std::array<compat::u32, 2> display_surfaces{};
     std::array<compat::u32, 4> control_switches{};
-    compat::u32 runtime_handle{};
+    compat::u32 transparent_pixel_pair{};  // 0x004AB8F8
     compat::u16 primary_text_color{};    // 0x004FF104
     compat::u16 secondary_text_color{};  // 0x005240BC
     compat::u32 logical_width{};

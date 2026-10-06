@@ -548,11 +548,11 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     auto& control_action = port.battle_control_action();
     asset_runtime::initialize_legacy_action_record(control_action);
     const auto control_reply = invoke(
-        port, LegacyBattleStartupCall::read_runtime_handle
+        port, LegacyBattleStartupCall::read_transparent_pixel_pair
     );
     control_action.action_id = 0x2329U;
     control_action.base_variant = 0x0CU;
-    state.runtime_handle = static_cast<u32>(control_reply.outputs[0]);
+    state.transparent_pixel_pair = static_cast<u32>(control_reply.outputs[0]);
 
     for (u32 index = 0U; index < state.party_presence.size(); ++index) {
         const u32 query = invoke(

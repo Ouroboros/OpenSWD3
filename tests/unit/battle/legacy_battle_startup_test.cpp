@@ -57,7 +57,7 @@ public:
         requests.push_back(request);
         LegacyBattleStartupCallReply reply;
         switch (request.call) {
-        case LegacyBattleStartupCall::read_runtime_handle:
+        case LegacyBattleStartupCall::read_transparent_pixel_pair:
             control_snapshots.push_back(battle_control_action());
             reset_observations.push_back({
                 actor_metric_state().group_b_count,
@@ -508,7 +508,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                     std::bit_cast<Bytes>(ports.dialog_actions[0]) == original &&
                     std::bit_cast<Bytes>(ports.dialog_actions[2]) == original,
                 "startup resets only the shared dialog-end action fields before "
-                "reading the runtime handle, then publishes id and variant"
+                "reading the transparent pixel pair, then publishes id "
+                "and variant"
             );
         }
     }
@@ -735,7 +736,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.control_switches == std::array<u32, 4>{1U, 1U, 1U, 1U} &&
                 ports.battle_control_action().action_id == 0x2329U &&
                 ports.battle_control_action().base_variant == 0x0CU &&
-                state.runtime_handle == 0x12345678U &&
+                state.transparent_pixel_pair == 0x12345678U &&
                 state.window_rectangle == std::array<i32, 4>{1, 2, 641, 482} &&
                 state.primary_text_color == 0x1234U &&
                 state.secondary_text_color == 0x5678U &&
