@@ -8,7 +8,9 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iterator>
+#include <new>
 #include <vector>
 
 namespace {
@@ -217,6 +219,10 @@ public:
             openswd3::world_map::kLegacyItemDefinitionSnapshotBytes> snapshot,
         std::vector<u8>& description
     ) override {
+        if (before_load) {
+            before_load();
+        }
+
         requested.push_back(item_id);
         if (item_id == 777U || item_id == 999U) {
             return {};
@@ -232,6 +238,7 @@ public:
     }
 
     std::vector<openswd3::compat::u16> requested;
+    std::function<void()> before_load;
 };
 
 void test_saved_role_definitions(openswd3::test::Context& test) {
@@ -267,6 +274,52 @@ void test_saved_role_definitions(openswd3::test::Context& test) {
                 std::vector<openswd3::compat::u16>{11U, 777U},
         "64 saved role roots distinguish loaded MON, failed MON and explicit sentinel"
     );
+}
+
+void test_role_rebuild_before_loading(openswd3::test::Context& test) {
+    for (const bool stop_loading : {false, true}) {
+        LegacySaveU16Prefix prefix;
+        prefix.monster_ids.fill(0xFFDCU);
+        prefix.monster_ids[0U] = 11U;
+        LegacyWorldItemListState state;
+        for (auto& slot : state.role_item_lists) {
+            slot->nodes.emplace_back().item_id = 900U;
+            slot->sentinel.description = {0xA5U};
+        }
+
+        state.role_item_lists[31U].reset();
+        SavedItemDefinitions definitions;
+        bool rebuilt_before_load = false;
+        definitions.before_load = [&] {
+            rebuilt_before_load = std::ranges::all_of(
+                state.role_item_lists, [](const auto& slot) {
+                    return slot && slot->nodes.empty() &&
+                        slot->sentinel.description.empty() &&
+                        slot->legacy_head_token == slot->sentinel.legacy_token;
+                }
+            );
+            if (stop_loading) {
+                throw std::bad_alloc{};
+            }
+        };
+        const auto result = materialize_legacy_save_role_definitions(
+            prefix, state, definitions
+        );
+        test.expect_true(
+            rebuilt_before_load,
+            "LOAD rebuilds all 64 roots before any MON definition is read"
+        );
+        test.expect_equal(
+            result.status,
+            stop_loading ? LegacySaveRoleDefinitionsStatus::allocation_failed
+                         : LegacySaveRoleDefinitionsStatus::ready,
+            "definition failure preserves the completed root rebuild phase"
+        );
+        test.expect_equal(
+            result.definitions_loaded, stop_loading ? 0U : 1U,
+            "only completed definitions are counted"
+        );
+    }
 }
 
 void test_saved_item_nodes(openswd3::test::Context& test) {
@@ -743,6 +796,7 @@ int main() {
     test_role_source_records(test);
     test_u16_prefix(test);
     test_saved_role_definitions(test);
+    test_role_rebuild_before_loading(test);
     test_saved_item_nodes(test);
     test_map_overrides(test);
     test_world_entry(test);

@@ -7463,14 +7463,23 @@ public:
                     materialize_legacy_save_role_definitions(
                         items.prefix, world_item_lists_, definitions
                     );
+                if (definitions.stopped ||
+                    roles.status !=
+                        openswd3::world_map::LegacySaveRoleDefinitionsStatus::
+                            ready) {
+                    static_cast<void>(report_error(
+                        "saved world: role item definitions failed"
+                    ));
+                    ok_ = false;
+                    running_ = false;
+                    return false;
+                }
+
                 const auto inventory =
                     openswd3::world_map::materialize_legacy_save_item_lists(
                         items.prefix, world_item_lists_, definitions
                     );
                 if (definitions.stopped ||
-                    roles.status !=
-                        openswd3::world_map::LegacySaveRoleDefinitionsStatus::
-                            ready ||
                     inventory.status !=
                         openswd3::world_map::LegacySaveItemListStatus::ready) {
                     static_cast<void>(report_error(

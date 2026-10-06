@@ -73,6 +73,12 @@ LegacySaveRoleDefinitionsResult materialize_legacy_save_role_definitions(
             list.sentinel.legacy_token = kLegacyRoleItemSentinelTokenBase +
                 static_cast<u32>(index) * kLegacyWorldItemNodeBytes;
             list.legacy_head_token = list.sentinel.legacy_token;
+        }
+
+        // 0x0040865A completes all 64 roots before 0x004086C2 loads MON.
+        for (std::size_t index = 0U; index < source.monster_ids.size();
+             ++index) {
+            auto& list = *destination.role_item_lists[index];
             const u16 item_id = source.monster_ids[index];
             if (item_id == kLegacyItemSentinelId) {
                 list.sentinel.item_id = kLegacyItemSentinelId;
