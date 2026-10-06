@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <new>
 
 namespace openswd3::resource_io {
 namespace {
@@ -35,7 +36,8 @@ namespace {
     std::size_t& offset,
     LegacySaveDecodedBlock& block,
     const bool embedded_fame,
-    const std::size_t destination_multiplier
+    const std::size_t destination_multiplier,
+    const bool mapped_preview = false
 ) {
     const std::size_t prefix = embedded_fame ? 2U : 0U;
     if (offset > bytes.size() || prefix + 8U > bytes.size() - offset) {
@@ -46,10 +48,10 @@ namespace {
     const compat::u32 declared_size =
         read_word(bytes, offset + prefix + (embedded_fame ? 0U : 4U));
     const std::size_t header_size = prefix + 8U;
-    if (packed_size > bytes.size() - offset - header_size) {
+    if (!mapped_preview && packed_size > bytes.size() - offset - header_size) {
         return LegacySaveContainerStatus::truncated;
     }
-    if (destination_multiplier != 0U &&
+    if (!mapped_preview && destination_multiplier != 0U &&
         declared_size >
             std::numeric_limits<std::size_t>::max() / destination_multiplier) {
         return LegacySaveContainerStatus::invalid_length;
@@ -57,19 +59,27 @@ namespace {
 
     block.declared_size = declared_size;
     block.bytes.resize(
-        destination_multiplier == 0U
+        mapped_preview
+            ? static_cast<std::size_t>(declared_size * compat::u32{2U})
+            : destination_multiplier == 0U
             ? 0xA8U
             : static_cast<std::size_t>(declared_size) * destination_multiplier
     );
-    const LegacyLzo1xResult decoded = decompress_legacy_lzo1x(
-        bytes.subspan(offset + header_size, packed_size), block.bytes
-    );
+    // The native decoder only compares the packed end after reaching EOF.
+    // Preview callers ignore that return code and keep the decoded prefix.
+    const auto packed = mapped_preview
+        ? bytes.subspan(offset + header_size)
+        : bytes.subspan(offset + header_size, packed_size);
+    const LegacyLzo1xResult decoded =
+        decompress_legacy_lzo1x(packed, block.bytes);
     offset += header_size + packed_size;
-    if (decoded.status != LegacyLzo1xStatus::success ||
-        decoded.bytes_written != declared_size) {
+    if ((decoded.status != LegacyLzo1xStatus::success &&
+         !(mapped_preview &&
+           decoded.status == LegacyLzo1xStatus::input_not_consumed)) ||
+        (!mapped_preview && decoded.bytes_written != declared_size)) {
         return LegacySaveContainerStatus::decompression_failed;
     }
-    block.bytes.resize(declared_size);
+    block.bytes.resize(decoded.bytes_written);
     return LegacySaveContainerStatus::ready;
 }
 
@@ -179,6 +189,112 @@ read_legacy_save_container(const std::span<const compat::u8> bytes) {
         save.consumed_bytes = offset;
     }
     return result;
+}
+
+LegacySavePreviewPayloadResult
+read_legacy_save_preview_payload(const std::span<const compat::u8> bytes) {
+    LegacySavePreviewPayloadResult result;
+    auto& preview = result.payload;
+    std::size_t offset{};
+    try {
+        if (!read_raw(bytes, offset, preview.timestamp)) {
+            return result;
+        }
+
+        result.next_read = LegacySavePreviewReadStage::pixels;
+        preview.preview_bytes_read =
+            std::min(preview.preview.size(), bytes.size() - offset) &
+            ~std::size_t{3U};
+        std::copy_n(
+            bytes.data() + offset,
+            preview.preview_bytes_read,
+            preview.preview.data()
+        );
+        if (preview.preview_bytes_read != preview.preview.size()) {
+            return result;
+        }
+
+        offset += preview.preview.size();
+        result.next_read = LegacySavePreviewReadStage::label;
+        // lstrlenA scans the mapped bytes, not a bounded 32-byte string.
+        const auto label = bytes.subspan(offset);
+        const auto terminator = std::find(label.begin(), label.end(), 0U);
+        if (terminator == label.end()) {
+            return result;
+        }
+
+        preview.nul_terminated_label.assign(label.begin(), terminator + 1);
+        offset += 0x20U;
+        result.next_read = LegacySavePreviewReadStage::flags;
+        result.status =
+            read_block(bytes, offset, preview.flags, false, 2U, true);
+        if (result.status != LegacySaveContainerStatus::ready) {
+            return result;
+        }
+
+        result.next_read = LegacySavePreviewReadStage::primary;
+        // 004097DA..004097E6 advances by block 1's packed length. Its
+        // declared output length and compressed contents are not consumed.
+        result.status = LegacySaveContainerStatus::truncated;
+        if (offset > bytes.size() || bytes.size() - offset < 8U) {
+            return result;
+        }
+
+        const auto skipped_size = read_word(bytes, offset);
+        if (skipped_size > bytes.size() - offset - 8U) {
+            return result;
+        }
+
+        offset += 8U + static_cast<std::size_t>(skipped_size);
+        if (offset > bytes.size() || bytes.size() - offset < 8U) {
+            return result;
+        }
+
+        // Only the word at fixed-prefix +4 is read before advancing 0x1C.
+        // Missing later bytes must not erase that already-available map value.
+        std::copy_n(
+            bytes.data() + offset,
+            std::min(preview.raw_after_primary.size(), bytes.size() - offset),
+            preview.raw_after_primary.data()
+        );
+        offset += preview.raw_after_primary.size();
+        result.next_read = LegacySavePreviewReadStage::party;
+        result.status =
+            read_block(bytes, offset, preview.party, false, 2U, true);
+        if (result.status != LegacySaveContainerStatus::ready) {
+            return result;
+        }
+
+        result.status = LegacySaveContainerStatus::truncated;
+        result.next_read = LegacySavePreviewReadStage::role_names;
+        preview.role_name_bytes_read =
+            std::min(preview.role_names.size(), bytes.size() - offset) &
+            ~std::size_t{3U};
+        std::copy_n(
+            bytes.data() + offset,
+            preview.role_name_bytes_read,
+            preview.role_names.data()
+        );
+        if (preview.role_name_bytes_read != preview.role_names.size()) {
+            return result;
+        }
+
+        offset += preview.role_names.size();
+        result.next_read = LegacySavePreviewReadStage::elapsed_seconds;
+        if (offset > bytes.size() || bytes.size() - offset < 4U) {
+            return result;
+        }
+
+        preview.elapsed_seconds = read_word(bytes, offset);
+        offset += 4U;
+        preview.consumed_bytes = offset;
+        result.next_read = LegacySavePreviewReadStage::complete;
+        result.status = LegacySaveContainerStatus::ready;
+        return result;
+    } catch (const std::bad_alloc&) {
+        result.status = LegacySaveContainerStatus::allocation_failed;
+        return result;
+    }
 }
 
 LegacySaveFameGroupsResult

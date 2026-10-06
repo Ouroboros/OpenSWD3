@@ -124,6 +124,29 @@ add_test(
 )
 
 add_executable(
+    openswd3_special_modes_legacy_save_preview_tests
+    unit/special_modes/legacy_save_preview_test.cpp
+)
+target_include_directories(
+    openswd3_special_modes_legacy_save_preview_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_special_modes_legacy_save_preview_tests
+    PRIVATE openswd3_special_modes
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../Save/0.sav")
+    target_compile_definitions(
+        openswd3_special_modes_legacy_save_preview_tests
+        PRIVATE OPENSWD3_GAME_DATA_ROOT="${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
+add_test(
+    NAME special_modes.legacy_save_preview
+    COMMAND openswd3_special_modes_legacy_save_preview_tests
+)
+
+add_executable(
     openswd3_app_frame_dispatch_tests
     unit/app/frame_dispatch_test.cpp
 )

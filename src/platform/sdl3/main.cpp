@@ -72,6 +72,7 @@
 #include "openswd3/resource_io/legacy_save_slots.hpp"
 #include "openswd3/resource_io/window_configuration.hpp"
 #include "openswd3/special_modes/legacy_initial_menu.hpp"
+#include "openswd3/special_modes/legacy_save_preview.hpp"
 #include "openswd3/special_modes/legacy_standard_mode.hpp"
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
 #include "openswd3/world_map/legacy_movement_collision.hpp"
@@ -117,6 +118,7 @@
 #include <fstream>
 #include <limits>
 #include <list>
+#include <new>
 #include <optional>
 #include <source_location>
 #include <span>
@@ -3379,38 +3381,82 @@ public:
     // are not a reverse-engineered port of sub_4070A0. Do not use this code
     // as evidence of original menu behavior; recheck the LST and replace it
     // when implementing the original menu.
-    void refresh_save_slot_previews() {
-        const auto page = save_slot_cursor_ / 3U;
-        if (page == save_preview_page_) {
-            return;
-        }
-        save_preview_page_ = page;
-        for (std::size_t column = 0U; column < save_slot_previews_.size();
-             ++column) {
-            auto& preview = save_slot_previews_[column];
-            preview.available = false;
-            const auto slot = page * 3U + static_cast<unsigned>(column);
-            if (slot > 98U) {
-                continue;
-            }
+    bool load_save_slot_preview(
+        openswd3::special_modes::LegacySavePreviewRecord& preview,
+        const openswd3::compat::i32 slot
+    ) {
+        try {
             const auto path =
                 data_directory_ / "Save" / (std::to_string(slot) + ".sav");
-            const auto bytes = read_binary_file(path);
-            if (bytes.empty()) {
+            std::ifstream file(path, std::ios::binary);
+            if (!file) {
+                preview.bytes[0x30U] = 1U;
+                preview.bytes[0x31U] = 0U;
+                return true;
+            }
+
+            const std::vector<openswd3::compat::u8> bytes{
+                std::istreambuf_iterator<char>{file},
+                std::istreambuf_iterator<char>{},
+            };
+            const auto parsed =
+                openswd3::resource_io::read_legacy_save_preview_payload(bytes);
+            const auto populated =
+                openswd3::special_modes::populate_legacy_save_preview(
+                    preview, parsed.payload, pixel_conversion_, parsed.next_read
+                );
+            if (!file.bad() && parsed.status ==
+                    openswd3::resource_io::LegacySaveContainerStatus::ready &&
+                populated == openswd3::special_modes::
+                    LegacySavePreviewPopulateStatus::completed) {
+                return true;
+            }
+        } catch (const std::bad_alloc&) {
+        }
+
+        openswd3::diagnostics::log_error(
+            "save preview: payload or record population stopped"
+        );
+        ok_ = false;
+        running_ = false;
+        return false;
+    }
+
+    bool refresh_save_slot_previews() {
+        const auto page = save_slot_cursor_ / 3;
+        if (page == save_preview_page_) {
+            return true;
+        }
+
+        for (auto& preview : save_slot_previews_) {
+            openswd3::special_modes::reset_legacy_save_preview(preview);
+        }
+
+        for (std::size_t column = 0U; column < save_slot_previews_.size();
+             ++column) {
+            const auto slot = page * 3 +
+                static_cast<openswd3::compat::i32>(column);
+            if (slot > 98) {
                 continue;
             }
-            auto parsed =
-                openswd3::resource_io::read_legacy_save_container(bytes);
-            if (parsed.status ==
-                openswd3::resource_io::LegacySaveContainerStatus::ready) {
-                preview.available = true;
-                preview.pixels = parsed.container.preview;
+
+            if (!load_save_slot_preview(save_slot_previews_[column], slot)) {
+                return false;
             }
         }
+
+        openswd3::special_modes::refresh_legacy_save_preview_actions(
+            save_preview_state_
+        );
+        save_preview_page_ = page;
+        return true;
     }
 
     void draw_save_load_menu() {
-        refresh_save_slot_previews();
+        if (!refresh_save_slot_previews()) {
+            return;
+        }
+
         std::ranges::fill(game_framebuffer_.physical_pixels(), 0U);
         const auto binding = text_renderers_.binding(16U);
         if (!binding.ready()) {
@@ -3455,21 +3501,24 @@ public:
                 32,
                 386
             );
-        const auto first_slot = (save_slot_cursor_ / 3U) * 3U;
+        const auto first_slot = (save_slot_cursor_ / 3) * 3;
         for (std::size_t column = 0U; column < save_slot_previews_.size();
              ++column) {
-            const auto slot = first_slot + static_cast<unsigned>(column);
-            if (slot > 98U) {
+            const auto slot = first_slot +
+                static_cast<openswd3::compat::i32>(column);
+            if (slot > 98) {
                 continue;
             }
             const auto x = 32 + static_cast<int>(column) * 200;
             const auto& preview = save_slot_previews_[column];
+            const bool available = preview.bytes[0x30U] == 2U &&
+                preview.bytes[0x31U] == 0U;
             const auto label =
                 std::string{slot == save_slot_cursor_ ? "> " : "  "} + "Save/" +
                 std::to_string(slot) + ".sav" +
-                (preview.available ? "" : " (empty)");
+                (available ? "" : " (empty)");
             drawn = draw_label(label, x, 105) && drawn;
-            if (!preview.available) {
+            if (!available) {
                 continue;
             }
             for (std::size_t row = 0U; row < 120U; ++row) {
@@ -3477,17 +3526,9 @@ public:
                     static_cast<unsigned>(142U + row)
                 );
                 for (std::size_t pixel = 0U; pixel < 160U; ++pixel) {
-                    const auto offset = 2U * (row * 160U + pixel);
                     destination[static_cast<std::size_t>(x) + pixel] =
-                        static_cast<openswd3::compat::u16>(
-                            preview.pixels[offset] |
-                            (static_cast<unsigned>(preview.pixels[offset + 1U])
-                             << 8U)
-                        );
+                        preview.pixels[row * 160U + pixel];
                 }
-                openswd3::rendering::legacy_convert_pixels_forward(
-                    pixel_conversion_, destination.data() + x, 160
-                );
             }
         }
         if (!drawn) {
@@ -3524,22 +3565,21 @@ public:
             return;
         }
         using openswd3::resource_io::LegacySaveSlotMove;
+        const auto move_slot = [this](const LegacySaveSlotMove move) {
+            save_slot_cursor_ = static_cast<openswd3::compat::i32>(
+                openswd3::resource_io::move_legacy_save_slot(
+                    static_cast<openswd3::compat::u32>(save_slot_cursor_), move
+                )
+            );
+        };
         if (repeat_press(3U) || repeat_press(4U)) {
-            save_slot_cursor_ = openswd3::resource_io::move_legacy_save_slot(
-                save_slot_cursor_, LegacySaveSlotMove::previous
-            );
+            move_slot(LegacySaveSlotMove::previous);
         } else if (repeat_press(5U) || repeat_press(6U)) {
-            save_slot_cursor_ = openswd3::resource_io::move_legacy_save_slot(
-                save_slot_cursor_, LegacySaveSlotMove::next
-            );
+            move_slot(LegacySaveSlotMove::next);
         } else if (repeat_press(7U)) {
-            save_slot_cursor_ = openswd3::resource_io::move_legacy_save_slot(
-                save_slot_cursor_, LegacySaveSlotMove::previous_page
-            );
+            move_slot(LegacySaveSlotMove::previous_page);
         } else if (repeat_press(8U)) {
-            save_slot_cursor_ = openswd3::resource_io::move_legacy_save_slot(
-                save_slot_cursor_, LegacySaveSlotMove::next_page
-            );
+            move_slot(LegacySaveSlotMove::next_page);
         }
         bool mouse_load_requested = false;
         if (first_press(15U)) {
@@ -3551,8 +3591,9 @@ public:
                     if (x < column_x || x >= column_x + 160) {
                         continue;
                     }
-                    const auto slot = (save_slot_cursor_ / 3U) * 3U + column;
-                    if (slot <= 98U) {
+                    const auto slot = (save_slot_cursor_ / 3) * 3 +
+                        static_cast<openswd3::compat::i32>(column);
+                    if (slot <= 98) {
                         mouse_load_requested = slot == save_slot_cursor_;
                         save_slot_cursor_ = slot;
                     }
@@ -7580,10 +7621,58 @@ public:
         high_priority_auxiliary_ = value;
     }
 
-    void reset_input_menu_and_save_previews() override {
-        save_slot_cursor_ = 0U;
-        save_preview_page_ = 99U;
+    bool reset_save_preview_state() {
+        class PreviewPorts final
+            : public openswd3::special_modes::
+                  LegacyInputMenuSavePreviewResetPorts {
+        public:
+            explicit PreviewPorts(SdlSmokeIdlePorts& owner) : owner_(owner) {}
+
+            bool reset_save_preview(
+                openswd3::special_modes::LegacySavePreviewRecord& preview
+            ) noexcept override {
+                openswd3::special_modes::reset_legacy_save_preview(preview);
+                return true;
+            }
+
+            bool load_save_preview(
+                openswd3::special_modes::LegacySavePreviewRecord& preview,
+                const openswd3::compat::i32 slot
+            ) noexcept override {
+                return owner_.load_save_slot_preview(preview, slot);
+            }
+
+            bool finalize_save_previews(
+                std::array<openswd3::special_modes::LegacySavePreviewRecord, 3U>&
+            ) noexcept override {
+                openswd3::special_modes::refresh_legacy_save_preview_actions(
+                    owner_.save_preview_state_
+                );
+                return true;
+            }
+
+        private:
+            SdlSmokeIdlePorts& owner_;
+        } ports{*this};
+        const auto result =
+            openswd3::special_modes::reset_legacy_input_menu_and_save_previews(
+                save_preview_state_, ports
+            );
+        if (result.status != openswd3::special_modes::
+                LegacyInputMenuSavePreviewResetStatus::completed) {
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+
+        save_preview_page_ = save_slot_cursor_ / 3;
+        return true;
     }
+
+    void reset_input_menu_and_save_previews() override {
+        static_cast<void>(reset_save_preview_state());
+    }
+
     void apply_new_game_name_overrides() override {}
     void load_fame_table() override {}
 
@@ -8281,13 +8370,14 @@ private:
     openswd3::world_map::LegacyWorldDialogRuntimeState
         world_dialog_runtime_state_;
     openswd3::special_modes::LegacyInitialMenuState initial_menu_state_;
-    struct SaveSlotPreview {
-        bool available{};
-        std::array<openswd3::compat::u8, 0x9600U> pixels{};
+    openswd3::special_modes::LegacyInputMenuSavePreviewResetState
+        save_preview_state_;
+    std::array<openswd3::special_modes::LegacySavePreviewRecord, 3U>&
+        save_slot_previews_{save_preview_state_.previews};
+    openswd3::compat::i32& save_slot_cursor_{
+        save_preview_state_.selected_save_slot
     };
-    std::array<SaveSlotPreview, 3U> save_slot_previews_{};
-    openswd3::compat::u32 save_slot_cursor_{};
-    openswd3::compat::u32 save_preview_page_{99U};
+    openswd3::compat::i32 save_preview_page_{99};
     openswd3::special_modes::LegacyStandardSpecialModeState
         legacy_standard_mode_state_;
     openswd3::special_modes::LegacyTitleMenuState title_menu_state_;

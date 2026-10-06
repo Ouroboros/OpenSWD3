@@ -17,6 +17,7 @@ using openswd3::resource_io::LegacySaveContainer;
 using openswd3::resource_io::LegacySaveContainerStatus;
 using openswd3::resource_io::read_legacy_save_container;
 using openswd3::resource_io::read_legacy_save_fame_groups;
+using openswd3::resource_io::read_legacy_save_preview_payload;
 
 [[nodiscard]] std::vector<u8> read_file(const std::filesystem::path& path) {
     std::ifstream file(path, std::ios::binary);
@@ -68,6 +69,17 @@ void test_original_saves(openswd3::test::Context& test) {
                 parsed.status == LegacySaveContainerStatus::ready &&
                     parsed.container.consumed_bytes == source.size(),
                 "real original save has five completely decoded blocks"
+            );
+            const auto preview = read_legacy_save_preview_payload(source);
+            test.expect_true(
+                preview.status == LegacySaveContainerStatus::ready &&
+                    preview.payload.timestamp == parsed.container.timestamp &&
+                    preview.payload.preview == parsed.container.preview &&
+                    preview.payload.flags.bytes ==
+                        parsed.container.blocks[0U].bytes &&
+                    preview.payload.party.bytes ==
+                        parsed.container.blocks[2U].bytes,
+                "forty original previews read the same physical fields"
             );
             if (parsed.status == LegacySaveContainerStatus::ready) {
                 const auto fame =
@@ -153,6 +165,96 @@ void test_original_saves(openswd3::test::Context& test) {
     version_ends[4U] = section;
     section += 0x84U;
     version_ends[5U] = section;
+
+    // sub_409600 reads only 0x40 name bytes and one time dword after
+    // block 2. No complete extension, Fame block or tail is required.
+    const auto preview_end = version_ends[1U] + 0x44U;
+    auto preview_only = source;
+    preview_only.resize(preview_end);
+    const auto preview = read_legacy_save_preview_payload(preview_only);
+    test.expect_true(
+        preview.status == LegacySaveContainerStatus::ready &&
+            preview.payload.consumed_bytes == preview_end &&
+            preview.payload.elapsed_seconds ==
+                read_size(version_ends[1U] + 0x40U) &&
+            std::equal(
+                preview.payload.role_names.begin(),
+                preview.payload.role_names.end(),
+                source.data() + version_ends[1U]
+            ),
+        "preview ends exactly after the names and elapsed-time dword"
+    );
+    test.expect_equal(
+        read_legacy_save_container(preview_only).status,
+        LegacySaveContainerStatus::truncated,
+        "the same preview-only bytes cannot restore a complete game"
+    );
+    preview_only.pop_back();
+    test.expect_equal(
+        read_legacy_save_preview_payload(preview_only).status,
+        LegacySaveContainerStatus::truncated,
+        "preview requires all four elapsed-time bytes"
+    );
+    auto skipped_primary = source;
+    const auto primary_header = 0x962CU + 8U + read_size(0x962CU);
+    std::fill_n(
+        skipped_primary.data() + primary_header + 8U,
+        read_size(primary_header),
+        0U
+    );
+    std::fill_n(skipped_primary.data() + primary_header + 4U, 4U, 0xFFU);
+    test.expect_equal(
+        read_legacy_save_preview_payload(skipped_primary).status,
+        LegacySaveContainerStatus::ready,
+        "preview ignores block 1 output length and compressed contents"
+    );
+    std::fill_n(skipped_primary.data() + primary_header, 4U, 0xFFU);
+    test.expect_equal(
+        read_legacy_save_preview_payload(skipped_primary).status,
+        LegacySaveContainerStatus::truncated,
+        "skipped block still needs an in-range packed extent"
+    );
+    auto long_label = source;
+    std::fill_n(long_label.data() + 0x960CU, 0x20U, 0x41U);
+    const auto label_preview = read_legacy_save_preview_payload(long_label);
+    test.expect_true(
+        label_preview.status == LegacySaveContainerStatus::ready &&
+            label_preview.payload.nul_terminated_label.size() > 0x20U,
+        "label scan may cross the nominal label field into mapped bytes"
+    );
+    std::fill(
+        long_label.data() + 0x960CU,
+        long_label.data() + long_label.size(),
+        0xFFU
+    );
+    test.expect_equal(
+        read_legacy_save_preview_payload(long_label).status,
+        LegacySaveContainerStatus::truncated,
+        "missing mapped label terminator stops before reading block lengths"
+    );
+    const std::array<u8, 4U> invalid_back_reference{
+        0x12U, 0xA5U, 0x40U, 0xFFU
+    };
+    auto invalid_flags = source;
+    std::copy(
+        invalid_back_reference.begin(), invalid_back_reference.end(),
+        invalid_flags.data() + 0x962CU + 8U
+    );
+    test.expect_equal(
+        read_legacy_save_preview_payload(invalid_flags).status,
+        LegacySaveContainerStatus::decompression_failed,
+        "preview does decode the flags block"
+    );
+    auto invalid_party = source;
+    std::copy(
+        invalid_back_reference.begin(), invalid_back_reference.end(),
+        invalid_party.data() + version_ends[0U] + 8U
+    );
+    test.expect_equal(
+        read_legacy_save_preview_payload(invalid_party).status,
+        LegacySaveContainerStatus::decompression_failed,
+        "preview does decode the party block"
+    );
 
     for (std::size_t index = 0U; index < version_ends.size(); ++index) {
         auto old_version = source;

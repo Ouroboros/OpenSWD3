@@ -3460,7 +3460,14 @@ render_legacy_special_mode_mode_one_frame(
 inline constexpr std::size_t kLegacySavePreviewRecordSize = 0x2A8U;
 
 struct LegacySavePreviewRecord {
-    std::array<compat::u8, kLegacySavePreviewRecordSize> bytes{};
+    // The final five legacy dwords own resources, not serialized values.
+    // Keep their ownership typed rather than storing truncated host pointers.
+    std::array<compat::u8, 0x294U> bytes{};
+    std::vector<compat::u16> pixels;
+    std::vector<compat::u8> timestamp;
+    std::vector<compat::u8> map_name;
+    std::vector<compat::u8> role_names;
+    std::vector<compat::u8> play_time;
 };
 
 struct LegacyInputMenuSavePreviewResetState {
@@ -3472,6 +3479,7 @@ struct LegacyInputMenuSavePreviewResetState {
     compat::i32 selected_save_slot{};
     asset_runtime::LegacyActionRecord common_action{};
     std::array<LegacySavePreviewRecord, 3U> previews{};
+    std::array<asset_runtime::LegacyActionRecord, 12U> preview_actions{};
 };
 
 class LegacyInputMenuSavePreviewResetPorts {
