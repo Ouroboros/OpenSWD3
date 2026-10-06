@@ -456,6 +456,53 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+#ifdef OPENSWD3_GAME_DATA_ROOT
+    {
+        LegacyBattleStartupState state;
+        StartupPorts ports;
+        openswd3::battle::LegacyBattleDefinitionArchiveFileRuntime archive;
+        openswd3::battle::LegacyBattleArchiveBackgroundImageLoadPort images;
+        // Stop at the following actor-resource boundary. This fixture does
+        // not stand in for the missing SDL action/actor resource ports.
+        ports.publish_enemy_progress_resource = false;
+        ports.allocation_succeeds = false;
+        ports.random_values = {0U, 1U};
+        auto startup_request = request(1U);
+        startup_request.data_root = OPENSWD3_GAME_DATA_ROOT;
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            state, ports, archive, images, ports, ports, ports, startup_request
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        enemy_action_configuration_typed_stop &&
+                result.definition_archive_header.bytes_read == 0x2714U &&
+                result.definition_archive_record.record_bytes_read == 0x10CU &&
+                result.definition.enemy_count == 1U &&
+                result.definition.enemies[0U].role_id == 109U &&
+                ports.archive_open_calls == 0U &&
+                ports.background_load_calls == 0U,
+            "startup reads the real battle definition and background before " "the controlled actor-resource stop"
+        );
+        test.expect_true(
+            result.background.status ==
+                    openswd3::battle::
+                        LegacyBattleBackgroundInitializationStatus::completed &&
+                result.background.rotation_shift == 160 &&
+                result.background.image_rotation.width == 640U &&
+                result.background.image_rotation.height == 400U &&
+                !state.background.image.empty() &&
+                state.background.completion_words ==
+                    std::array<u16, 3>{0xFFFFU, 0xFFFFU, 0xFFFFU} &&
+                state.background_rotation_cache.stored_action_id == 15003U &&
+                result.background.action_rotation.status ==
+                    openswd3::battle::LegacyBattleActionRotationCacheStatus::
+                        initial_action_update_stopped,
+            "real background bytes and definition parameters reach startup " "without calling the synthetic archive/image ports"
+        );
+    }
+#endif
+
     {
         LegacyBattleStartupState state;
         StartupPorts ports;

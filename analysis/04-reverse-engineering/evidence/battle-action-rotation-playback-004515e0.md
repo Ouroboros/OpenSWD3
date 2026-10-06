@@ -4,9 +4,9 @@
 
 ## 1. 范围、ABI与调用图
 
-权威LST完整范围为`0x004515E0..0x0045171F`，从`proc`到`endp`共169行，没有外部`FUNCTION CHUNK`。ABI为thiscall，ECX指向`0x00451420`建立的扩展动作状态，callee清理两个栈参数；两个caller均位于`0x00453580`。
+权威LST完整范围为`0x004515E0..0x0045171F`，从`proc`到`endp`共164行，没有外部`FUNCTION CHUNK`。ABI为thiscall，ECX指向`0x00451420`建立的扩展动作状态，callee清理两个栈参数；两个caller均位于`0x00453580`。
 
-callee为动作更新`0x004321E0`两个callsite、已关闭literal循环平移`0x00433F70`一个循环callsite和通用blitter `0x004170E0`一个循环callsite。typed实现复用同一扩展状态、三owner/frame缓存、更新端口和closed rotation helper。
+callee为动作更新`0x004321E0`两个callsite、已关闭literal循环平移`0x00433F70`一个循环callsite和通用blitter `0x004170E0`一个循环callsite。typed实现复用同一扩展状态、六owner/frame缓存、更新端口和closed rotation helper。
 
 ## 2. 零动作门与入口清零
 
@@ -19,9 +19,12 @@ callee为动作更新`0x004321E0`两个callsite、已关闭literal循环平移`0
 
 第一个栈参数只装入EBX，并在调用stdcall旋转callee前复制到ECX；closed callee不读取ECX，因此typed签名保留但不消费该snapshot。
 
-## 3. 三个局部FFFF槽
+## 3. 六个局部FFFF槽
 
-栈上三个u16槽初始化为FFFF。每轮把`record.field_4c`低word作为索引；只有0、1、2可访问，其他值在首次局部槽读取点typed-stop。
+栈上`0x0C`字节由三次dword写置FF，`0x0045164C`以`index*2`读取word，
+所以有六个u16槽。每轮用`record.field_4c`低word索引，0..5全部可访问。
+索引6及以上需要外围栈值，当前在首次未知栈word读取处typed-stop，
+不把这个宿主边界冒充原版必然异常。
 
 首次遇到某索引时，函数立即把该索引写入局部槽，然后执行可选旋转和绘制。重复索引直接跳过旋转、owner访问和绘制，但仍进入等待word清零、command cursor和后续更新流程。
 
@@ -78,8 +81,8 @@ accepted blit才执行公共后缀，清target height、水平位移、纵向pha
 原循环无迭代上限。modern只在以下完整状态于循环顶部重复后返回`action_loop_nonterminating`：
 
 - 152字节动作record；
-- 三个局部槽；
-- 三个owner token；
+- 六个局部槽；
+- 六个owner token；
 - 扩展`field_bc`；
 - 更新端口完整domain token。
 
@@ -95,7 +98,7 @@ accepted blit才执行公共后缀，清target height、水平位移、纵向pha
 - `0x004516CF..0x004516F6`：等待word清零、动作重置和后续更新循环；
 - `0x004516FC..0x0045171F`：更新失败返回0或完成record清零返回1。
 
-C++到LST反向追溯覆盖169行全部基本块、三个callee、两个更新callsite、局部槽、signed方向、等待字段和0/1出口。
+C++到LST反向追溯覆盖164行全部基本块、三个callee、两个更新callsite、局部槽、signed方向、等待字段和0/1出口。
 
 ## 9. 验证与动态差分
 
@@ -107,12 +110,15 @@ C++到LST反向追溯覆盖169行全部基本块、三个callee、两个更新ca
 - 零旋转、重复帧跳过及重复轮等待清零；
 - 首更新失败保留入口清零后的更新前缀；
 - 后续更新失败保留下一record前缀；
-- 帧索引3首局部访问停止；
+- 六帧各旋转、绘制一次，第六帧重复时跳过；
+- 帧索引6首次未知局部栈访问停止；
 - 空owner在局部槽写后停止；
 - 短literal图像传播closed callee typed-stop；
 - indexed固定空tail在wait清零前typed-stop；
 - 完整播放状态重复后的非终止停止。
 
-battle聚合目标零warning构建及定向测试通过。
+旧三槽测试不能证明索引3..5正确。本次六槽修订已加入战斗聚合测试。
+`battle-rotation-six-slots-{core,asan,sdl}.log`确认core/ASan各1/1通过，
+SDL链接通过；仅既有结果测试窄化警告。Windows和实机未验证。
 
-当前没有原版动作更新后record、三owner/frame/mutable image、局部槽、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整169行LST、两个caller及closed rotation callee已完成固定状态闭环。
+当前没有原版动作更新后record、六owner/frame/mutable image、局部槽、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。真实SDL动作更新端口仍待接入。

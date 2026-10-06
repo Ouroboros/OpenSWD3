@@ -1,6 +1,7 @@
 #include "test.hpp"
 
 #include "openswd3/battle/legacy_battle_action_rotation_cache.hpp"
+#include "openswd3/battle/legacy_battle_action_rotation_resources.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 
 #include <array>
@@ -111,6 +112,9 @@ public:
     query_frame_image(const u32 resource_id, const u32 frame_index) override {
         resource_ids.push_back(resource_id);
         frame_indices.push_back(frame_index);
+        if (record_to_modify != nullptr) {
+            record_to_modify->field_4c = returned_frame_index;
+        }
         const u16 slot = static_cast<u16>(frame_index);
         if (slot >= images.size()) {
             return {};
@@ -120,18 +124,23 @@ public:
             .image_token = static_cast<u32>(0x200U + slot),
             .pointer_valid = pointer_valid,
             .bytes = images[slot],
-            .frame = {
-                .source = {.bytes = images[slot]},
-                .width = 12U,
-                .height = 1U,
-            },
+            .frame =
+                {
+                    .source = {.bytes = images[slot]},
+                    .width = 12U,
+                    .height = 1U,
+                },
+            .typed_stop = typed_stop,
         };
     }
 
-    std::array<std::vector<u8>, 3> images;
+    std::array<std::vector<u8>, 6> images;
+    openswd3::asset_runtime::LegacyActionRecord* record_to_modify{};
+    u16 returned_frame_index{};
     std::vector<u32> resource_ids;
     std::vector<u32> frame_indices;
     bool pointer_valid{true};
+    bool typed_stop{};
 };
 
 class TrackingRotationReleasePort final
@@ -242,6 +251,238 @@ struct RotationPlaybackFixture {
 void test_battle_action_rotation_cache(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleActionRotationCacheState state;
+        ScriptedRotationUpdatePort updater{{UpdateStep{}}};
+        updater.steps.clear();
+        for (u16 slot = 0U; slot < 6U; ++slot) {
+            updater.steps.push_back(
+                UpdateStep{
+                    .field_4a = static_cast<u16>(15001U + slot),
+                    .field_4c = slot,
+                    .command_cursor = static_cast<u16>(slot == 5U ? 0U : 1U),
+                    .eax = 1U,
+                    .domain_token = slot,
+                }
+            );
+        }
+        MutableRotationFramePort frames;
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_action_rotation_cache(
+                state, updater, frames, 0U, 0U, 0U, 1U, 64U
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationCacheStatus::
+                        completed &&
+                result.frame_query_calls == 6U && result.rotation_calls == 6U &&
+                result.action_update_calls == 6U &&
+                result.local_frame_slots ==
+                    std::array<u16, 6>{0U, 1U, 2U, 3U, 4U, 5U} &&
+                state.frame_owner_tokens ==
+                    std::array<u32, 6>{
+                        0x100U, 0x101U, 0x102U, 0x103U, 0x104U, 0x105U
+                    } &&
+                action_record_is_zero(state.action_record),
+            "three initialized dwords expose six independent word slots"
+        );
+    }
+
+    {
+        RotationPlaybackFixture fixture;
+        ScriptedRotationUpdatePort updater{{UpdateStep{}}};
+        updater.steps.clear();
+        for (u16 step = 0U; step < 7U; ++step) {
+            updater.steps.push_back(
+                UpdateStep{
+                    .field_4c = static_cast<u16>(step == 6U ? 5U : step),
+                    .command_cursor = static_cast<u16>(step == 6U ? 0U : 1U),
+                    .eax = 1U,
+                    .domain_token = step,
+                }
+            );
+        }
+        const auto result = fixture.play(updater, 1);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        completed &&
+                result.return_value == 1U && result.frame_draw_calls == 6U &&
+                result.rotation_calls == 6U &&
+                result.action_update_calls == 7U &&
+                result.skipped_cached_frames == 1U &&
+                result.local_frame_slots ==
+                    std::array<u16, 6>{0U, 1U, 2U, 3U, 4U, 5U},
+            "playback rotates all six word slots and skips a repeated sixth"
+        );
+    }
+
+    for (const u16 changed_index : std::array<u16, 5>{5U, 6U, 7U, 8U, 9U}) {
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        state.field_bc = 0x33333333U;
+        ScriptedRotationUpdatePort updater{{UpdateStep{
+            .field_4a = 1U,
+            .field_4c = 0U,
+            .command_cursor = 0U,
+            .eax = 1U,
+        }}};
+        MutableRotationFramePort frames;
+        frames.record_to_modify = &state.action_record;
+        frames.returned_frame_index = changed_index;
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_action_rotation_cache(
+                state, updater, frames, 0U, 0x11111111U, 0x22222222U, 1U, 64U
+            );
+        test.expect_true(
+            frames.frame_indices == std::vector<u32>{0U} &&
+                result.frame_query_calls == 1U &&
+                result.local_frame_slots[0U] == 0xFFFFU &&
+                state.frame_owner_tokens[0U] == 0U,
+            "loader receives the old frame index before caller reloads it"
+        );
+        if (changed_index == 5U) {
+            test.expect_true(
+                result.status ==
+                        openswd3::battle::
+                            LegacyBattleActionRotationCacheStatus::completed &&
+                    result.rotation_calls == 1U &&
+                    result.local_frame_slots[5U] == 5U &&
+                    state.frame_owner_tokens[5U] == 0x100U &&
+                    state.cached_frames[5U].source.bytes.data() ==
+                        frames.images[0U].data(),
+                "post-load frame word chooses owner and local publication slots"
+            );
+        } else {
+            test.expect_true(
+                result.status ==
+                        openswd3::battle::
+                            LegacyBattleActionRotationCacheStatus::
+                                frame_index_out_of_range &&
+                    result.stopped_instruction ==
+                        (changed_index == 9U ? 0x004514C3U : 0x004514D6U) &&
+                    result.rotation_calls == 0U &&
+                    result.record_clear_calls == 0U &&
+                    state.action_record.field_4c == changed_index &&
+                    state.field_b4 ==
+                        (changed_index == 6U ? 0x100U : 0x11111111U) &&
+                    state.field_b8 ==
+                        (changed_index == 7U ? 0x100U : 0x22222222U) &&
+                    state.field_bc ==
+                        (changed_index == 8U ? 0x100U : 0x33333333U) &&
+                    state.stored_action_id == 1U,
+                "owner aliases publish before unsupported stack write; wider store stops"
+            );
+        }
+    }
+
+    {
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        state.frame_owner_tokens[0U] = 0xA000U;
+        state.cached_image_tokens[0U] = 0xB000U;
+        MutableRotationFramePort frames;
+        frames.typed_stop = true;
+        ScriptedRotationUpdatePort updater{{
+            .field_4a = 3U,
+            .field_4c = 0U,
+            .eax = 1U,
+        }};
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_action_rotation_cache(
+                state, updater, frames, 0U, 1U, 2U, 15003U, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleActionRotationCacheStatus::
+                        frame_query_typed_stop &&
+                result.frame_query_calls == 1U && result.rotation_calls == 0U &&
+                result.local_frame_slots[0U] == 0xFFFFU &&
+                state.frame_owner_tokens[0U] == 0xA000U &&
+                state.cached_image_tokens[0U] == 0xB000U &&
+                state.stored_action_id == 15003U &&
+                result.record_clear_calls == 0U,
+            "a stopped frame call precedes publication and even zero division"
+        );
+    }
+
+#ifdef OPENSWD3_GAME_DATA_ROOT
+    {
+        openswd3::asset_runtime::LegacyTswRuntime runtime{
+            OPENSWD3_GAME_DATA_ROOT
+        };
+        openswd3::battle::LegacyBattleActionRotationResources resources{
+            runtime
+        };
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        u32 previous_owner{};
+        for (u32 entry = 0U; entry < 2U; ++entry) {
+            ScriptedRotationUpdatePort updater{{
+                .field_4a = 15001U,
+                .field_4c = 0U,
+                .eax = 1U,
+                .edx = 0xABCD0000U,
+            }};
+            const auto initialized = openswd3::battle::
+                initialize_legacy_battle_action_rotation_cache(
+                    state, updater, resources, 0U, 0U, 0U, 15003U, 4U
+                );
+            test.expect_true(
+                initialized.status ==
+                        openswd3::battle::
+                            LegacyBattleActionRotationCacheStatus::completed &&
+                    initialized.rotation_calls == 1U &&
+                    initialized.rotation_shift == 160 &&
+                    state.frame_owner_tokens[0U] != previous_owner &&
+                    state.cached_frames[0U].width == 640U &&
+                    state.cached_frames[0U].height == 400U &&
+                    state.cached_frames[0U].source.bytes.data() ==
+                        state.cached_mutable_images[0U].data() &&
+                    resources.live_owner_count() == 1U &&
+                    resources.live_image_count() == 1U &&
+                    runtime.cache_entry_count() == 0U,
+                "rotation borrows the real independently owned image"
+            );
+            previous_owner = state.frame_owner_tokens[0U];
+            const auto released =
+                openswd3::battle::release_legacy_battle_action_rotation_cache(
+                    state, resources
+                );
+            test.expect_true(
+                released.image_release_calls == 1U &&
+                    released.owner_release_calls == 1U &&
+                    resources.live_owner_count() == 0U &&
+                    resources.live_image_count() == 0U &&
+                    state.frame_owner_tokens[0U] == 0U &&
+                    state.cached_mutable_images[0U].empty() &&
+                    state.cached_frames[0U].source.bytes.empty(),
+                "release frees image then owner before another entry"
+            );
+        }
+
+        ScriptedRotationUpdatePort stopped_updater{{
+            .field_4a = 0xFFFFU,
+            .field_4c = 0U,
+            .eax = 1U,
+        }};
+        const auto stopped =
+            openswd3::battle::initialize_legacy_battle_action_rotation_cache(
+                state, stopped_updater, resources, 0U, 0U, 0U, 15003U, 0U
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleActionRotationCacheStatus::
+                        frame_query_typed_stop &&
+                resources.last_load_status() ==
+                    openswd3::asset_runtime::LegacyTswRuntimeStatus::
+                        resource_group_out_of_range &&
+                resources.live_owner_count() == 1U &&
+                resources.live_image_count() == 0U &&
+                state.frame_owner_tokens[0U] == 0U &&
+                stopped.local_frame_slots[0U] == 0xFFFFU,
+            "a stopped real load retains its record without cache publication"
+        );
+    }
+#endif
+
+    {
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
         state.action_record.field_24 = 0xDEADBEEFU;
         ScriptedRotationUpdatePort updater{
             {
@@ -285,7 +526,9 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
                 result.rotation_shift == 10 &&
                 result.record_clear_calls == 1U &&
                 result.local_frame_slots ==
-                    std::array<u16, 3>{0U, 1U, 0xFFFFU} &&
+                    std::array<u16, 6>{
+                        0U, 1U, 0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU
+                    } &&
                 frames.resource_ids ==
                     std::vector<u32>{0xB2B22345U, 0xD4D43456U} &&
                 frames.frame_indices ==
@@ -405,7 +648,7 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
         ScriptedRotationUpdatePort updater{
             {UpdateStep{
                 .field_4a = 1U,
-                .field_4c = 3U,
+                .field_4c = 6U,
                 .command_cursor = 0U,
                 .eax = 1U,
                 .edx = 2U,
@@ -421,8 +664,9 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleActionRotationCacheStatus::
                         frame_index_out_of_range &&
-                result.frame_query_calls == 0U && result.rotation_calls == 0U,
-            "frame index outside three local slots stops at first stack access"
+                result.frame_query_calls == 0U && result.rotation_calls == 0U &&
+                result.stopped_instruction == 0x0045149FU,
+            "frame index six stops at the first unknown stack word read"
         );
     }
 
@@ -889,7 +1133,9 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
                 result.wait_clear_calls == 2U &&
                 result.record_clear_calls == 2U &&
                 result.local_frame_slots ==
-                    std::array<u16, 3>{0U, 1U, 0xFFFFU} &&
+                    std::array<u16, 6>{
+                        0U, 1U, 0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU
+                    } &&
                 result.rotation_mode ==
                     openswd3::battle::LegacyBattleImageRotationMode::
                         pixels_right &&
@@ -1022,7 +1268,7 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
     {
         RotationPlaybackFixture fixture;
         ScriptedRotationUpdatePort updater{{UpdateStep{
-            .field_4c = 3U,
+            .field_4c = 6U,
             .command_cursor = 0U,
             .eax = 1U,
             .domain_token = 1U,
@@ -1033,7 +1279,7 @@ void test_battle_action_rotation_cache(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
                         frame_index_out_of_range &&
                 result.frame_draw_calls == 0U && result.wait_clear_calls == 0U,
-            "frame index three stops at first local slot access"
+            "frame index six stops at the first unknown stack word read"
         );
     }
 

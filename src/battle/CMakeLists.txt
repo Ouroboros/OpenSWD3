@@ -11,6 +11,7 @@ add_library(
         legacy_battle_action_mode_refresh.cpp
         legacy_battle_action_summary.cpp
         legacy_battle_action_rotation_cache.cpp
+        legacy_battle_action_rotation_resources.cpp
         legacy_battle_actor_action_candidate_availability.cpp
         legacy_battle_actor_action_commit.cpp
         legacy_battle_actor_action_cycle.cpp

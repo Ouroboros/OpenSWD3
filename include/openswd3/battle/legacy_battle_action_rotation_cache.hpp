@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <span>
 
 namespace openswd3::battle {
@@ -31,6 +32,8 @@ struct LegacyBattleMutableFrameImage {
     bool pointer_valid{};
     std::span<compat::u8> bytes{};
     rendering::LegacyFramePiece frame{};
+    // The callee did not return normally; no caller publication may follow.
+    bool typed_stop{};
 };
 
 class LegacyBattleMutableFrameImagePort {
@@ -70,6 +73,7 @@ enum class LegacyBattleActionRotationCacheStatus : compat::u8 {
     frame_image_pointer_invalid,
     rotation_typed_stop,
     action_loop_nonterminating,
+    frame_query_typed_stop,
 };
 
 struct LegacyBattleActionRotationCacheResult {
@@ -85,8 +89,11 @@ struct LegacyBattleActionRotationCacheResult {
     compat::u32 record_clear_calls{};
     compat::u32 last_resource_id{};
     compat::u32 last_frame_index{};
+    std::optional<compat::u32> stopped_instruction;
     compat::i32 rotation_shift{};
-    std::array<compat::u16, 3> local_frame_slots{0xFFFFU, 0xFFFFU, 0xFFFFU};
+    std::array<compat::u16, 6> local_frame_slots{
+        0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU
+    };
     LegacyBattleImageRotationResult rotation{};
 };
 
@@ -118,7 +125,9 @@ struct LegacyBattleActionRotationPlaybackResult {
     LegacyBattleImageRotationMode rotation_mode{
         LegacyBattleImageRotationMode::pixels_right
     };
-    std::array<compat::u16, 3> local_frame_slots{0xFFFFU, 0xFFFFU, 0xFFFFU};
+    std::array<compat::u16, 6> local_frame_slots{
+        0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU
+    };
     LegacyBattleImageRotationResult rotation{};
     rendering::LegacyBlitExecutionStatus blit_status{
         rendering::LegacyBlitExecutionStatus::completed
@@ -155,7 +164,7 @@ struct LegacyBattleActionRotationDrawResult {
     };
 };
 
-// sub_451420: initialize and rotate up to three cached battle action frames.
+// sub_451420: initialize and rotate up to six cached battle action frames.
 [[nodiscard]] LegacyBattleActionRotationCacheResult
 initialize_legacy_battle_action_rotation_cache(
     LegacyBattleActionRotationCacheState& state,

@@ -1,10 +1,10 @@
-# 战斗三帧动作旋转缓存初始化 `0x00451420`
+# 战斗六帧动作旋转缓存初始化 `0x00451420`
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 
 ## 1. 范围、ABI与调用图
 
-权威LST完整范围为`0x00451420..0x0045153B`，从`proc`到`endp`共140行，没有外部`FUNCTION CHUNK`。ABI为thiscall，ECX指向扩展动作状态，callee清理五个栈参数；唯一caller位于`0x00451940`。
+权威LST完整范围为`0x00451420..0x0045153B`，从`proc`到`endp`共135行，没有外部`FUNCTION CHUNK`。ABI为thiscall，ECX指向扩展动作状态，callee清理五个栈参数；唯一caller位于`0x00451940`。
 
 callee为动作更新`0x004321E0`两个callsite、帧图像查询`0x00431760`一个循环callsite，以及已关闭的literal图像循环平移`0x00433F70`一个循环callsite。typed实现直接调用`rotate_legacy_battle_literal_image`，不再保留opaque旋转边界。
 
@@ -12,7 +12,7 @@ callee为动作更新`0x004321E0`两个callsite、帧图像查询`0x00431760`一
 
 扩展状态前`0x98`字节直接复用`LegacyActionRecord`。额外typed字段映射：
 
-- `+0x9C,+0xA0,+0xA4`：三个帧owner token缓存；
+- `+0x9C..+0xB0`：六个帧owner token缓存；
 - `+0xB4,+0xB8`：入口两个完整dword；
 - `+0xBC`：条件发布的byte扩展值；
 - `+0xC0`：初始动作号低word。
@@ -57,9 +57,12 @@ frame_index = EAX
 
 `field_88!=0`时，`and eax,0xFF`先清全部高位，再由`mov ax`写帧索引，所以完整帧号只有u16低word；同时`field_bc`写入该非零byte。测试分别锁定两条路径。
 
-## 5. 三个局部FFFF槽
+## 5. 六个局部FFFF槽
 
-栈上三个u16槽入口均为`0xFFFF`，按`record.field_4c`零扩展索引。只有索引0、1、2落在原局部数组；其他值在首次栈word访问处typed-stop，不提前查询帧。
+入口分配`0x0C`字节，并用三次dword写把全部字节置FF；`0x0045149F`按
+`index*2`读取word，因此是六个u16槽，而非三个。索引0..5全部位于局部区。
+索引6及以上越过已建模的局部区，缺少外围栈值时在该读取点typed-stop，
+不能据此宣称原版必然访问异常。
 
 若槽已非FFFF，本轮跳过帧查询、owner写、除法和旋转，但仍继续检查command cursor并可能再次动作更新。
 
@@ -67,13 +70,19 @@ frame_index = EAX
 
 1. 形成资源号；
 2. 查询帧图像；
-3. 把查询返回owner token写到扩展状态对应缓存；
-4. 把当前u16帧索引写入局部槽；
+3. `0x004514B6`重读帧号，再在`0x004514C3`发布owner；
+4. `0x004514CA`再次重读帧号，在`0x004514D6`写局部word槽；
 5. 执行除法；
 6. 重新读取owner并解引用图像；
 7. 调用literal旋转。
 
 这意味着除零发生在owner与局部槽发布之后、图像指针解引用之前。测试以invalid pointer和低word零除数证明先触发除零，且两个缓存副作用均保留。
+
+若加载端口把帧号从0改成5，查询参数仍为0，而owner及局部槽均发布到5。
+若改成6、7、8，`+0x9C+index*4`分别别名到完整dword字段`+B4/+B8/+BC`，
+先保留该写，再在未知局部栈word写`0x004514D6`停止。索引9的dword跨越
+`+C0`已建模word与未建模尾部，故在`0x004514C3`停止，不伪造低word部分写。
+结果用可选`stopped_instruction`标明这些访问边界。
 
 ## 6. 陈旧EDX资源号与帧查询
 
@@ -84,6 +93,8 @@ resource_id = (post_update_edx & 0xFFFF0000) | record.field_4a
 ```
 
 帧号使用第4节的完整EAX。typed帧端口返回owner token、指针有效性和可写literal图像span。
+端口的`typed_stop`表示callee尚未正常返回，立即向父调用传播，不写owner或局部槽；
+这与原版正常返回空指针的路径不同。独立帧资源端口的边界见`tsw-owned-frame-00431760.md`。
 
 原查询返回值即使为空也会先写owner缓存和局部槽；现代只在除法后原`mov eax,[owner]`解引用点以`frame_image_pointer_invalid`停止。
 
@@ -123,8 +134,8 @@ rotate_legacy_battle_literal_image(image, pixels_right, shift)
 每次循环顶部保存完整：
 
 - 152字节动作record；
-- 三个局部槽；
-- 三个owner token；
+- 六个局部槽；
+- 六个owner token；
 - `field_bc`；
 - 动作更新端口完整domain token。
 
@@ -133,13 +144,13 @@ rotate_legacy_battle_literal_image(image, pixels_right, shift)
 ## 10. 双向追溯
 
 - `0x00451420..0x00451470`：扩展字段、动作号/base variant与首更新门；
-- `0x00451476..0x0045149F`：`field_88`、陈旧EAX和三槽FFFF读取；
-- `0x004514A7..0x004514D6`：陈旧EDX资源号、帧查询、三owner缓存和局部槽发布；
+- `0x00451476..0x0045149F`：`field_88`、陈旧EAX和六槽FFFF读取；
+- `0x004514A7..0x004514D6`：陈旧EDX资源号、帧查询、重读索引、owner与局部槽发布；
 - `0x004514DB..0x004514F2`：640 signed除法、owner解引用与模式3 literal旋转；
 - `0x004514F7..0x0045151B`：command cursor、动作号/base variant重置和更新循环；
 - `0x00451521..0x0045153B`：更新失败返回或record `rep stosd`清零返回。
 
-C++到LST反向追溯覆盖140行全部基本块、两个更新callsite、寄存器部分写、局部栈槽、缓存、除法、closed callee和两个返回族。
+C++到LST反向追溯覆盖135行全部基本块、两个更新callsite、寄存器部分写、局部栈槽、缓存、除法、closed callee和两个返回族。
 
 ## 11. 验证与动态差分
 
@@ -149,13 +160,16 @@ C++到LST反向追溯覆盖140行全部基本块、两个更新callsite、寄存
 - `field_88`非零清EAX高位并发布`field_bc`；
 - 首更新EAX零保留入口/更新前缀；
 - 低word零除数在owner和局部槽发布后停止；
-- 帧索引3在首次三槽访问停止；
+- 六帧独立查询/旋转；索引6在首次未知栈word访问停止；
+- 加载后帧号改成5时重新选择发布位置；6..8保留邻接dword写，9在未知宽写前停止；
 - invalid image pointer在除法后停止；
 - 短literal图像传播closed callee typed-stop；
 - 后续更新EAX零保留旋转缓存；
 - shift 0的callee正常早退与record清零；
 - 完整record/槽/owner/端口token重复后的非终止停止。
 
-battle聚合目标零warning构建及定向测试通过。
+旧三槽测试不能证明索引3..5正确。本次六槽及回读修订已加入战斗聚合测试。
+`battle-rotation-six-slots-{core,asan,sdl}.log`确认core/ASan各1/1通过，
+SDL链接通过；仅既有结果测试窄化警告。Windows和实机未验证。
 
-当前没有原版动作更新后EAX/EDX、三帧owner、扩展动作状态、可写literal图像和分配器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整140行LST、唯一caller及已关闭rotation callee已完成固定状态闭环。
+当前没有原版动作更新后EAX/EDX、六帧owner、扩展动作状态、可写literal图像和分配器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。真实SDL动作更新端口仍待接入。

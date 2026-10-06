@@ -10,7 +10,7 @@ namespace {
 
 struct CycleSnapshot {
     asset_runtime::LegacyActionRecord action_record{};
-    std::array<compat::u16, 3> local_frame_slots{};
+    std::array<compat::u16, 6> local_frame_slots{};
     std::array<compat::u32, 6> frame_owner_tokens{};
     compat::u32 field_bc{};
     std::uint64_t domain_token{};
@@ -135,6 +135,7 @@ initialize_legacy_battle_action_rotation_cache(
         const compat::u16 local_index = state.action_record.field_4c;
         result.last_frame_index = frame_index;
         if (local_index >= result.local_frame_slots.size()) {
+            result.stopped_instruction = 0x0045149FU;
             result.status =
                 LegacyBattleActionRotationCacheStatus::frame_index_out_of_range;
             return result;
@@ -147,11 +148,51 @@ initialize_legacy_battle_action_rotation_cache(
             LegacyBattleMutableFrameImage image =
                 image_port.query_frame_image(resource_id, frame_index);
             ++result.frame_query_calls;
-            state.frame_owner_tokens[local_index] = image.owner_token;
-            state.cached_image_tokens[local_index] = image.image_token;
-            state.cached_frames[local_index] = image.frame;
-            state.cached_mutable_images[local_index] = image.bytes;
-            result.local_frame_slots[local_index] = local_index;
+            if (image.typed_stop) {
+                result.status = LegacyBattleActionRotationCacheStatus::
+                    frame_query_typed_stop;
+                return result;
+            }
+
+            // 4514B6 reloads the word after the frame loader returns.
+            const compat::u16 owner_index = state.action_record.field_4c;
+            if (owner_index < state.frame_owner_tokens.size()) {
+                state.frame_owner_tokens[owner_index] = image.owner_token;
+                state.cached_image_tokens[owner_index] = image.image_token;
+                state.cached_frames[owner_index] = image.frame;
+                state.cached_mutable_images[owner_index] = image.bytes;
+            } else {
+                // 4514C3 writes through +9C+index*4. These three aliases
+                // precede the unsupported local stack write at 4514D6.
+                switch (owner_index) {
+                case 6U:
+                    state.field_b4 = image.owner_token;
+                    break;
+
+                case 7U:
+                    state.field_b8 = image.owner_token;
+                    break;
+
+                case 8U:
+                    state.field_bc = image.owner_token;
+                    break;
+
+                default:
+                    result.stopped_instruction = 0x004514C3U;
+                    result.status = LegacyBattleActionRotationCacheStatus::
+                        frame_index_out_of_range;
+                    return result;
+                }
+            }
+
+            const compat::u16 written_index = state.action_record.field_4c;
+            if (written_index >= result.local_frame_slots.size()) {
+                result.stopped_instruction = 0x004514D6U;
+                result.status = LegacyBattleActionRotationCacheStatus::
+                    frame_index_out_of_range;
+                return result;
+            }
+            result.local_frame_slots[written_index] = written_index;
 
             const compat::u16 divisor =
                 static_cast<compat::u16>(rotation_divisor);

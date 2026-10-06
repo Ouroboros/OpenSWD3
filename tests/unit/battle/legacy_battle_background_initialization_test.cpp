@@ -121,10 +121,11 @@ public:
     [[nodiscard]] LegacyBattleMutableFrameImage
     query_frame_image(const u32, const u32) override {
         ++calls;
-        return {};
+        return {.typed_stop = typed_stop};
     }
 
     u32 calls{};
+    bool typed_stop{};
 };
 
 struct Ports {
@@ -146,6 +147,46 @@ struct Ports {
 
 void test_battle_background_initialization(openswd3::test::Context& test) {
     const openswd3::rendering::LegacyPixelConversionState pixel_conversion;
+
+    {
+        LegacyBattleBackgroundState background;
+        background.completion_words = {1U, 2U, 3U};
+        LegacyBattleActionRotationCacheState rotation_cache;
+        Ports ports{background};
+        ports.loader.next = make_loaded_image();
+        ports.updater.snapshot.eax = 1U;
+        ports.images.typed_stop = true;
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_background(
+                background,
+                rotation_cache,
+                ports.loader,
+                ports.releaser,
+                ports.updater,
+                ports.images,
+                pixel_conversion,
+                LegacyBattleBackgroundInitializationRequest{
+                    .data_root = "game-data",
+                    .one_based_resource = 1U,
+                    .initial_action_id = 1U,
+                    .rotation_divisor = 640,
+                    .background_action_gate = 1U,
+                }
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleBackgroundInitializationStatus::
+                        action_rotation_cache_typed_stop &&
+                result.action_rotation.status ==
+                    openswd3::battle::LegacyBattleActionRotationCacheStatus::
+                        frame_query_typed_stop &&
+                !result.completion_words_published &&
+                background.completion_words == std::array<u16, 3>{1U, 2U, 3U} &&
+                !background.image.empty() &&
+                rotation_cache.frame_owner_tokens[0U] == 0U,
+            "background retains its loaded image but stops before completion"
+        );
+    }
 
     {
         LegacyBattleBackgroundState background{

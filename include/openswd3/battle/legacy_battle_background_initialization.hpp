@@ -37,6 +37,16 @@ public:
     ) = 0;
 };
 
+class LegacyBattleArchiveBackgroundImageLoadPort final
+    : public LegacyBattleBackgroundImageLoadPort {
+public:
+    [[nodiscard]] LegacyBattleBackgroundImageLoadResult load_image(
+        const std::filesystem::path& archive_path,
+        compat::u32 one_based_resource,
+        compat::u32 variant_index
+    ) override;
+};
+
 struct LegacyBattleBackgroundInitializationRequest {
     std::filesystem::path data_root;
     compat::u32 one_based_resource{};

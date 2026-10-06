@@ -6,7 +6,7 @@
 
 权威LST完整范围为`0x00451540..0x004515D7`，从`proc`到`endp`共70行，没有外部`FUNCTION CHUNK`。ABI为thiscall且无栈参数，ECX指向`0x00451420`同一扩展动作状态；唯一caller位于`0x00453580`。
 
-callee只有动作更新`0x004321E0`和通用blitter `0x004170E0`各一次。typed实现复用前一工作包的`LegacyBattleActionRotationCacheState`与动作更新端口，直接消费已建立的三个owner/frame缓存，不创建平行record模型。
+callee只有动作更新`0x004321E0`和通用blitter `0x004170E0`各一次。typed实现复用前一工作包的`LegacyBattleActionRotationCacheState`与动作更新端口，直接消费已建立的六个owner/frame缓存，不创建平行record模型。
 
 ## 2. 零动作门
 
@@ -32,7 +32,7 @@ callee只有动作更新`0x004321E0`和通用blitter `0x004170E0`各一次。typ
 
 后续`0x00451730`完整LST证明扩展状态从`+0x9C`起实际有六个owner槽。现代允许索引0..5；索引6及以上在首次owner槽访问处typed-stop，不发布source、不写共享位移。有效槽owner为0时，在原`mov edx,[ecx]`解引用点以`cached_owner_invalid`停止；动作更新前缀保留。
 
-owner有效时，从对应typed frame record发布source。初始化工作包的三个局部FFFF槽只会填充前三槽，但owner数组本体保留六槽供其他路径使用；typed状态按六槽统一，caller/callee边界现已直接闭合。
+owner有效时，从对应typed frame record发布source。初始化和播放的局部区均为三次dword置FF、六次可能的word索引，支持全部六槽。此前文档将三次dword写误解成三槽，该结论已撤回；详见初始化及播放证据的六槽修订。
 
 ## 5. 共享水平位移
 

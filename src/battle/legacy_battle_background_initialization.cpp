@@ -6,46 +6,44 @@
 #include <utility>
 
 namespace openswd3::battle {
-namespace {
-
-class ArchiveBackgroundImageLoadPort final
-    : public LegacyBattleBackgroundImageLoadPort {
-public:
-    [[nodiscard]] LegacyBattleBackgroundImageLoadResult load_image(
-        const std::filesystem::path& archive_path,
-        const compat::u32 one_based_resource,
-        const compat::u32 variant_index
-    ) override {
-        asset_runtime::LegacyTswArchive archive;
-        if (archive.open(archive_path) !=
-            asset_runtime::LegacyTswOpenStatus::ready) {
-            return {};
-        }
-
-        asset_runtime::LegacyTswFrameResult loaded =
-            archive.read_frame(one_based_resource, variant_index);
-        if (loaded.status != asset_runtime::LegacyTswFrameStatus::ready) {
-            return {};
-        }
-
-        LegacyBattleBackgroundImageLoadResult result{
-            .ready = true,
-            .has_palette = loaded.frame.has_palette,
-            .command_stream = std::move(loaded.frame.command_stream),
-        };
-        for (std::size_t index = 0U; index < result.palette.size(); ++index) {
-            const std::size_t offset = index * 2U;
-            result.palette[index] = static_cast<compat::u16>(
-                static_cast<compat::u16>(loaded.frame.palette[offset]) |
-                static_cast<compat::u16>(
-                    static_cast<compat::u16>(loaded.frame.palette[offset + 1U])
-                    << 8U
-                )
-            );
-        }
-        return result;
+LegacyBattleBackgroundImageLoadResult
+LegacyBattleArchiveBackgroundImageLoadPort::load_image(
+    const std::filesystem::path& archive_path,
+    const compat::u32 one_based_resource,
+    const compat::u32 variant_index
+) {
+    asset_runtime::LegacyTswArchive archive;
+    if (archive.open(archive_path) !=
+        asset_runtime::LegacyTswOpenStatus::ready) {
+        return {};
     }
-};
+
+    asset_runtime::LegacyTswFrameResult loaded =
+        archive.read_frame(one_based_resource, variant_index);
+    if (loaded.status != asset_runtime::LegacyTswFrameStatus::ready) {
+        return {};
+    }
+
+    LegacyBattleBackgroundImageLoadResult result{
+        .ready = true,
+        .has_palette = loaded.frame.has_palette,
+        .command_stream = std::move(loaded.frame.command_stream),
+    };
+    for (std::size_t index = 0U; index < result.palette.size(); ++index) {
+        const std::size_t offset = index * 2U;
+        result.palette[index] = static_cast<compat::u16>(
+            static_cast<compat::u16>(loaded.frame.palette[offset]) |
+            static_cast<compat::u16>(
+                static_cast<compat::u16>(loaded.frame.palette[offset + 1U])
+                << 8U
+            )
+        );
+    }
+
+    return result;
+}
+
+namespace {
 
 [[nodiscard]] bool is_image_rotation_typed_stop(
     const LegacyBattleImageRotationStatus status
@@ -79,6 +77,7 @@ public:
     case LegacyBattleActionRotationCacheStatus::frame_index_out_of_range:
     case LegacyBattleActionRotationCacheStatus::division_by_zero:
     case LegacyBattleActionRotationCacheStatus::frame_image_pointer_invalid:
+    case LegacyBattleActionRotationCacheStatus::frame_query_typed_stop:
     case LegacyBattleActionRotationCacheStatus::rotation_typed_stop:
     case LegacyBattleActionRotationCacheStatus::action_loop_nonterminating:
         return true;
@@ -192,7 +191,7 @@ LegacyBattleBackgroundInitializationResult initialize_legacy_battle_background(
     const rendering::LegacyPixelConversionState& pixel_conversion,
     const LegacyBattleBackgroundInitializationRequest& request
 ) {
-    ArchiveBackgroundImageLoadPort image_load_port;
+    LegacyBattleArchiveBackgroundImageLoadPort image_load_port;
     return initialize_legacy_battle_background(
         background,
         rotation_cache,
