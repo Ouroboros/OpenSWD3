@@ -33,6 +33,18 @@ public:
         last_action_id = action_id;
         last_variant_index = variant_index;
         last_cached = cached;
+        if (stop) {
+            return {
+                .status = LegacyActionStreamStatus::load_stopped,
+                .stream = {},
+                .stop = openswd3::asset_runtime::LegacyActionStreamStop{
+                    openswd3::asset_runtime::LegacyActRuntimeStatus::
+                        allocation_failed,
+                    openswd3::asset_runtime::LegacyActVariantStatus::
+                        allocation_failed,
+                },
+            };
+        }
         if (fail) {
             return {};
         }
@@ -58,6 +70,7 @@ public:
     u32 last_variant_index{};
     bool last_cached{};
     bool fail{};
+    bool stop{};
     bool cache_hit{};
 };
 
@@ -147,6 +160,41 @@ void test_early_returns_and_stream_failure(openswd3::test::Context& test) {
         0U,
         "failed load writes a null legacy pointer slot"
     );
+}
+
+void test_stream_stop_prefix(openswd3::test::Context& test) {
+    FakeStreamProvider provider;
+    provider.stop = true;
+    LegacyActionUpdater updater{provider};
+    for (const bool changed : {false, true}) {
+        LegacyActionRecord record = zero_record();
+        make_keys_stable(record);
+        if (changed) {
+            record.action_id = 2U;
+        }
+        record.stream_pointer_32 = 0xCAFEBABEU;
+        record.wait_remaining = 7U;
+        record.command_cursor = 9U;
+        record.field_50 = 0x1234U;
+        const auto result = updater.update(record);
+        test.expect_true(
+            result.status == LegacyActionUpdateStatus::stream_load_stopped &&
+                result.stream_stop.has_value() &&
+                result.stream_stop->runtime_status ==
+                    openswd3::asset_runtime::LegacyActRuntimeStatus::
+                        allocation_failed &&
+                result.stream_stop->physical_status ==
+                    openswd3::asset_runtime::LegacyActVariantStatus::
+                        allocation_failed &&
+                result.key_changed == changed &&
+                record.cached_action_id == record.action_id &&
+                record.stream_pointer_32 == 0xCAFEBABEU &&
+                record.wait_remaining == (changed ? 0U : 7U) &&
+                record.command_cursor == (changed ? 0U : 9U) &&
+                record.field_50 == 0x1234U,
+            "unfinished loader preserves +54 and only earlier key-reset writes"
+        );
+    }
 }
 
 void test_key_reset_order_and_wait(openswd3::test::Context& test) {
@@ -492,6 +540,29 @@ void test_real_act_provider(
         first.cache_hit, "first real cached updater query misses"
     );
     test.expect_true(second.cache_hit, "second real cached updater query hits");
+    for (const bool use_cache : {false, true}) {
+        updater.set_stream_cache_mode(use_cache ? 1U : 0U);
+        LegacyActionRecord stopped = zero_record();
+        make_keys_stable(stopped);
+        stopped.base_variant = 0x7FFFFFFFU;
+        stopped.cached_base_variant = stopped.base_variant;
+        stopped.stream_pointer_32 = 0x12345678U;
+        stopped.wait_remaining = 7U;
+        const auto result = updater.update(stopped);
+        test.expect_true(
+            result.status == LegacyActionUpdateStatus::stream_load_stopped &&
+                result.stream_stop.has_value() &&
+                result.stream_stop->runtime_status ==
+                    openswd3::asset_runtime::LegacyActRuntimeStatus::
+                        physical_variant_failed &&
+                result.stream_stop->physical_status ==
+                    openswd3::asset_runtime::LegacyActVariantStatus::
+                        variant_out_of_range &&
+                stopped.stream_pointer_32 == 0x12345678U &&
+                stopped.wait_remaining == 7U,
+            "real direct and cached loaders preserve their failure reasons before pointer store"
+        );
+    }
     runtime.close();
 }
 
@@ -501,6 +572,7 @@ int main(const int argument_count, char** arguments) {
     openswd3::test::Context test;
     test_initializer_is_selective(test);
     test_early_returns_and_stream_failure(test);
+    test_stream_stop_prefix(test);
     test_key_reset_order_and_wait(test);
     test_field_and_mode_commands(test);
     test_wait_and_terminator_commands(test);

@@ -4,6 +4,7 @@
 #include "openswd3/compat/types.hpp"
 
 #include <cstddef>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -93,13 +94,22 @@ void initialize_legacy_action_record(LegacyActionRecord& record) noexcept;
 
 enum class LegacyActionStreamStatus {
     ready,
+    // A completed legacy loader reply carrying a null pointer.
     load_failed,
+    // The bounded host loader has not produced a legacy return reply.
+    load_stopped,
+};
+
+struct LegacyActionStreamStop {
+    LegacyActRuntimeStatus runtime_status;
+    LegacyActVariantStatus physical_status;
 };
 
 struct LegacyActionStreamLoadResult {
     LegacyActionStreamStatus status{LegacyActionStreamStatus::load_failed};
     std::span<const compat::u8> stream;
     bool cache_hit{};
+    std::optional<LegacyActionStreamStop> stop{};
 };
 
 class LegacyActionStreamProvider {
@@ -128,6 +138,7 @@ enum class LegacyActionUpdateStatus {
     completed,
     stream_load_failed,
     malformed_stream,
+    stream_load_stopped,
 };
 
 struct LegacyActionUpdateResult {
@@ -135,6 +146,7 @@ struct LegacyActionUpdateResult {
     compat::u32 return_value{1U};
     bool key_changed{};
     bool cache_hit{};
+    std::optional<LegacyActionStreamStop> stream_stop{};
 };
 
 class LegacyActionUpdater final {

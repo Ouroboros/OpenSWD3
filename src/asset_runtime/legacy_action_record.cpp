@@ -145,6 +145,8 @@ LegacyActionStreamLoadResult LegacyActActionStreamProvider::load_action_stream(
         const LegacyActQueryResult loaded =
             runtime_.query_cached(action_id, variant_index);
         if (loaded.status != LegacyActRuntimeStatus::ready) {
+            result.status = LegacyActionStreamStatus::load_stopped;
+            result.stop = {loaded.status, loaded.physical_status};
             return result;
         }
         result.status = LegacyActionStreamStatus::ready;
@@ -156,7 +158,8 @@ LegacyActionStreamLoadResult LegacyActActionStreamProvider::load_action_stream(
     LegacyActDirectResult loaded =
         runtime_.load_direct(action_id, variant_index);
     if (loaded.status != LegacyActRuntimeStatus::ready) {
-        direct_stream_.clear();
+        result.status = LegacyActionStreamStatus::load_stopped;
+        result.stop = {loaded.status, loaded.physical_status};
         return result;
     }
     direct_stream_ = std::move(loaded.stream);
@@ -211,6 +214,15 @@ LegacyActionUpdater::update(LegacyActionRecord& record) {
     const LegacyActionStreamLoadResult loaded = provider_.load_action_stream(
         record.action_id, selected_variant, stream_cache_mode_ == 1U
     );
+    if (loaded.status == LegacyActionStreamStatus::load_stopped) {
+        // 43243E stores +54 only after the loader has returned normally.
+        // Preserve the key-reset prefix and the previous pointer on a stop.
+        result.status = LegacyActionUpdateStatus::stream_load_stopped;
+        result.return_value = 0U;
+        result.stream_stop = loaded.stop;
+        return result;
+    }
+
     record.stream_pointer_32 =
         loaded.status == LegacyActionStreamStatus::ready ? 1U : 0U;
     result.cache_hit = loaded.cache_hit;
