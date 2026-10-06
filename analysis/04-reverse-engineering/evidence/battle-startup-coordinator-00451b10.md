@@ -88,13 +88,26 @@ RGB555的`0x026B`恰为这三个分量。转换器对两个相同word分别转�
 顺序固定为：
 
 1. snapshot窗口矩形；
-2. 对固定word对象执行参数`0x10`初始化；
-3. 两组三参数查询，低word分别发布；
+2. `00451DE4`将16点文字renderer的横向步进写为`0x10`；
+3. 依次转换RGB555分量`(31,29,23)`与`(15,14,11)`，只发布两个返回值的低word；
 4. 对固定几何owner与surface源调用已关闭`0x00433DC0`；
 5. 写两组逻辑尺寸`320×200`并调用输出配置；
 6. 调用`0x00451AE0`释放两个旧surface；
 7. 调用`0x00451A90`，每槽均按height→width→create顺序；
 8. EAX snapshot为`0xFFFFFFFF`，完成word按索引`0→1→2`发布。
+
+`sub_435650`完整范围`00435650..0043565A`只把完整参数dword写到对象`+FE0`。
+这里的`0x004C9A28`是16点文字renderer：普通世界`0040AA78..0040AA7F`为同一对象
+设18像素步进；战斗入口设16。它不是word字段初始化，也不重建字体或释放缓存。
+SDL入口现调用已有`set_horizontal_advance(16,16)`，随后依次生成并发布两个颜色word，
+全部位于战斗资源加载之前。20点和12点renderer保持原状态。
+
+测试覆盖16→18→16步进切换、同一glyph cache及已有字形保留、字号和颜色字段保留、
+其他两套renderer步进不变。另以五种转换的固定预期验证两种颜色的低word。
+这些测试验证实际使用的核心接口，不等于SDL完整初始化或实机显示已验收。
+文字runtime与颜色转换的core/ASan分别1/1及SDL链接通过；五份日志均无warning/error：
+`build/tmp/runtime/battle-startup-text-style-{core,asan,sdl}.log`和
+`build/tmp/runtime/battle-startup-text-colors-{core,asan}.log`。
 
 modern直接调用`rebuild_legacy_battle_render_surface`；其typed-stop阻断后续原本会访问无效行表的路径。显示surface由typed token保存，零token仍占一次创建调用。
 

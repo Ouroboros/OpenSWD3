@@ -197,6 +197,32 @@ void test_gameplay_advance_override(openswd3::test::Context& test) {
         16,
         "sub_40A570 keeps the gameplay 12-point advance at 16"
     );
+    auto medium = runtime.binding(16U);
+    static_cast<void>(medium.glyph_cache->insert_empty(0x0041U));
+    medium.glyph_cache->finish_miss_after_draw();
+    medium.state->secondary_color = 0x1234U;
+    medium.state->background_color = 0x5678U;
+    for (const auto advance : {16, 18, 16}) {
+        test.expect_equal(
+            runtime.set_horizontal_advance(16U, advance),
+            LegacyTextRendererRuntimeStatus::completed,
+            "battle/world/battle changes only the 16-point advance"
+        );
+        const auto current = runtime.binding(16U);
+        test.expect_true(
+            current.state == medium.state &&
+                current.glyph_cache == medium.glyph_cache &&
+                current.glyph_cache->count() == 1U &&
+                current.glyph_cache->glyph_width() == 16 &&
+                current.state->horizontal_advance == advance &&
+                current.state->secondary_color == 0x1234U &&
+                current.state->background_color == 0x5678U &&
+                runtime.state(20U)->horizontal_advance == 22 &&
+                runtime.state(12U)->horizontal_advance == 16,
+            "advance changes preserve the shared cache, colors and other sizes"
+        );
+    }
+
     test.expect_equal(
         runtime.set_horizontal_advance(14U, 14),
         LegacyTextRendererRuntimeStatus::unsupported_point_size,

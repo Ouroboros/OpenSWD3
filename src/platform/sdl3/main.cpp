@@ -2722,6 +2722,21 @@ public:
         control_action.base_variant = 0x0CU;
         battle_runtime_.transparent_pixel_pair = transparent_pixel_pair;
 
+        // 451DDD..451E0D: 16-point text advance, then both palette words.
+        static_cast<void>(text_renderers_.set_horizontal_advance(16U, 16));
+        battle_runtime_.primary_text_color =
+            static_cast<openswd3::compat::u16>(
+                openswd3::rendering::legacy_pack_color_pair(
+                    pixel_conversion_, 31, 29, 23
+                )
+            );
+        battle_runtime_.secondary_text_color =
+            static_cast<openswd3::compat::u16>(
+                openswd3::rendering::legacy_pack_color_pair(
+                    pixel_conversion_, 15, 14, 11
+                )
+            );
+
         const auto loaded = openswd3::battle::load_legacy_battle_assets(
             data_directory_, battle_id, 0, battle_assets_
         );

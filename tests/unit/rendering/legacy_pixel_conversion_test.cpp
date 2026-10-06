@@ -266,6 +266,13 @@ void test_color_pair_packing(openswd3::test::Context& test) {
     constexpr std::array<u32, 5> transparent_pairs{
         0x026B026BU, 0x04D604D6U, 0x04CB04CBU, 0x012B012BU, 0x026B026BU,
     };
+    // 451DE9..451E0D publishes only AX for the two RGB555 colors.
+    constexpr std::array<u16, 5> primary_colors{
+        0x7FB7U, 0xFF6EU, 0xFF57U, 0x3FD7U, 0xFBB7U,
+    };
+    constexpr std::array<u16, 5> secondary_colors{
+        0x3DCBU, 0x7B96U, 0x7B8BU, 0x1EEBU, 0x79CBU,
+    };
     for (std::size_t index = 0U; index < transforms.size(); ++index) {
         LegacyPixelConversionState format;
         format.forward = transforms[index];
@@ -273,6 +280,20 @@ void test_color_pair_packing(openswd3::test::Context& test) {
             openswd3::rendering::legacy_pack_color_pair(format, 0, 19, 11),
             transparent_pairs[index],
             "battle startup packs the converted 0x026B color in both lanes"
+        );
+        test.expect_equal(
+            static_cast<u16>(openswd3::rendering::legacy_pack_color_pair(
+                format, 31, 29, 23
+            )),
+            primary_colors[index],
+            "battle primary text color publishes the converted low word"
+        );
+        test.expect_equal(
+            static_cast<u16>(openswd3::rendering::legacy_pack_color_pair(
+                format, 15, 14, 11
+            )),
+            secondary_colors[index],
+            "battle secondary text color publishes the converted low word"
         );
     }
 
