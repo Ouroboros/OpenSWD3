@@ -160,12 +160,35 @@ struct LegacyBattleGroupBActionCompositionState {
     compat::u16 profile_mode_selector{};         // actor + 0x2A8C
 };
 
+// Storage for Group-B bytes written by 0x0047D350 that have no existing
+// action, coordinate, progress, resource, or particle-state owner.
+struct LegacyBattleGroupBStartupResetFields {
+    std::array<std::byte, 0x118> bytes_283c_2953{};
+    std::array<std::byte, 0x46> bytes_295a_299f{};
+    compat::u32 field_2660{};
+    compat::u32 field_2664{};
+    // The low byte at 0x26C8 belongs to the shared reward-scale state.
+    std::array<std::byte, 3> bytes_26c9_26cb{};
+    compat::u16 field_2a14{};
+    compat::u16 field_2a6e{};
+    compat::u16 field_2a7e{};
+    compat::u16 field_2a82{};
+    compat::u16 field_2a84{};
+    compat::u8 field_2a92{};
+    std::array<std::byte, 4> bytes_2a97_2a9a{};
+    compat::u32 field_2aa4{};
+    compat::u32 field_2adc{};
+    compat::u32 field_2ae4{};
+    compat::u32 field_2ae8{};
+};
+
 struct LegacyBattleActorGroupBElementState {
     compat::u32 object_token{};
     compat::u32 object_readable_bytes{kLegacyBattleActorGroupBElementSize};
     compat::u32 object_writable_bytes{kLegacyBattleActorGroupBElementSize};
     LegacyBattleActorBaseInitializationFields base_initialization{};
     LegacyBattleActorRuntimeResetState runtime_reset{};
+    LegacyBattleGroupBStartupResetFields startup_reset{};
     compat::u32 live_record_token{};     // actor + 0x04
     compat::u32 live_record_value_04{};  // *(actor + 0x04) + 0x04
     compat::u32 resource_token{};

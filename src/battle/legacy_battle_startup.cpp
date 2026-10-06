@@ -838,11 +838,15 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             return result;
         }
         const u32 actor_token = group_b_actor_token(index);
-        static_cast<void>(invoke(
-            port,
-            LegacyBattleStartupCall::reset_actor,
-            {actor_token, 0U, 0U, 0U}
-        ));
+        if (invoke(
+                port,
+                LegacyBattleStartupCall::reset_actor,
+                {actor_token, 0U, 0U, 0U}
+            ).typed_stop) {
+            result.status = LegacyBattleStartupStatus::actor_reset_typed_stop;
+            return result;
+        }
+
         state.enemy_scratch.fill(0U);
         const auto& source = result.definition.enemies[index];
         if (state.group_b_lifecycle == nullptr) {
@@ -935,11 +939,15 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         if (party.configuration.actor_record_token == 0U) {
             party.configuration.actor_record_token = actor_token;
         }
-        static_cast<void>(invoke(
-            port,
-            LegacyBattleStartupCall::reset_actor,
-            {actor_token, 0U, 0U, 0U}
-        ));
+        if (invoke(
+                port,
+                LegacyBattleStartupCall::reset_actor,
+                {actor_token, 0U, 0U, 0U}
+            ).typed_stop) {
+            result.status = LegacyBattleStartupStatus::actor_reset_typed_stop;
+            return result;
+        }
+
         party.actor_list = {};
         party.final_processing = {};
         party.attribute_aggregation.embedded_profile_application.status_bits =

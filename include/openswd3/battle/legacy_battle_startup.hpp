@@ -138,6 +138,7 @@ struct LegacyBattleStartupCallReply {
     compat::u32 group_a_count{};
     bool publish_group_a_profile_record{};
     LegacyBattleGroupASummonProfileRecord group_a_profile_record{};
+    bool typed_stop{};
 };
 
 class LegacyBattleStartupPort
@@ -385,6 +386,7 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     enemy_progress_typed_stop,
     party_progress_initialization_typed_stop,
     display_surface_typed_stop,
+    actor_reset_typed_stop,
 };
 
 struct LegacyBattleStartupResult {

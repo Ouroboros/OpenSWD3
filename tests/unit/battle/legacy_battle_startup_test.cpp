@@ -47,6 +47,7 @@ public:
     std::vector<std::array<u32, 5>> display_snapshots;
     std::deque<u32> display_create_replies;
     u32 unresolved_display_token{};
+    u32 stopped_actor_reset_token{};
 
     [[nodiscard]] std::optional<u32>
     release_battle_display_surface(const u32 token) override {
@@ -161,6 +162,11 @@ public:
         case LegacyBattleStartupCall::reserved_group_b_load_action_profile:
         case LegacyBattleStartupCall::reserved_group_b_release_resource_text:
             break;
+        case LegacyBattleStartupCall::reset_actor:
+            reply.typed_stop =
+                request.arguments[0] == stopped_actor_reset_token;
+            break;
+
         case LegacyBattleStartupCall::apply_actor_mode:
             reply.ecx_snapshot = 0xBEEF0000U;
             break;
@@ -534,6 +540,44 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    for (const bool stop_enemy : {true, false}) {
+        LegacyBattleStartupState state;
+        StartupPorts ports;
+        ports.definition.enemy_count = 1U;
+        ports.query_values = {{30U, 1U}, {31U, 1U}};
+        ports.stopped_actor_reset_token = stop_enemy
+            ? openswd3::battle::kLegacyBattleActorGroupBBaseToken
+            : openswd3::battle::kLegacyBattleActorGroupABaseToken;
+        state.enemy_scratch.fill(0xA5U);
+        state.party[0].final_processing.completion_latch = 0x12345678U;
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            state, ports, ports, ports, ports, ports, ports, request(1U)
+        );
+        test.expect_equal(
+            result.status,
+            openswd3::battle::LegacyBattleStartupStatus::actor_reset_typed_stop,
+            "startup propagates enemy and party reset stops"
+        );
+        test.expect_equal(
+            ports.requests.back().call, LegacyBattleStartupCall::reset_actor,
+            "no subsequent host call follows reset stop"
+        );
+        test.expect_equal(result.enemy_actor_count, stop_enemy ? 0U : 1U,
+                          "only configured enemy prefix is counted");
+        test.expect_equal(result.party_configuration_calls, 0U,
+                          "party configuration does not follow stopped reset");
+        test.expect_equal(
+            state.party[0].final_processing.completion_latch, 0x12345678U,
+            "party reset suffix remains untouched"
+        );
+        if (stop_enemy) {
+            test.expect_true(all_equal(state.enemy_scratch, 0xA5U),
+                             "enemy scratch clear follows successful reset");
+            test.expect_true(state.group_b_lifecycle == nullptr,
+                             "stopped reset does not create replacement actors");
+        }
+    }
+
     {
         LegacyBattleStartupState state;
         StartupPorts ports;
