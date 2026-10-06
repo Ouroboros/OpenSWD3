@@ -197,6 +197,98 @@ LegacyTswDirectResult LegacyTswRuntime::load_direct(
     );
 }
 
+LegacyTswOwnedFrameResult LegacyTswRuntime::load_owned(
+    const compat::u32 resource_id_slot, const compat::u32 variant_index_slot
+) {
+    LegacyTswOwnedFrameResult result;
+    result.status = ensure_initialized();
+    if (result.status != LegacyTswRuntimeStatus::ready) {
+        return result;
+    }
+
+    const auto resource_id = static_cast<compat::u16>(resource_id_slot);
+    const auto variant_index = static_cast<compat::u16>(variant_index_slot);
+    magic_loading_flag_ = 0U;  // 4318AB.
+    const bool magic = resource_id >= 6001U && resource_id <= 9000U;
+    PreparedMagicFrame prepared;
+    if (magic) {
+        magic_loading_flag_ = 1U;  // 4318CF precedes 431AA0.
+        result.status = prepare_magic_resource(resource_id, prepared);
+        if (result.status != LegacyTswRuntimeStatus::ready) {
+            return result;
+        }
+    }
+
+    // 4318EC..4318F3: this is an independent record, not a cache-node
+    // interior. Keep it published when a later physical operation stops.
+    const auto record_token = reserve_legacy_guest_bytes(0x14U);
+    if (!record_token) {
+        result.status = LegacyTswRuntimeStatus::allocation_failed;
+        return result;
+    }
+
+    try {
+        result.frame = std::make_unique<LegacyTswRuntimeFrame>();
+    } catch (const std::bad_alloc&) {
+        result.status = LegacyTswRuntimeStatus::allocation_failed;
+        return result;
+    }
+
+    result.frame->record_token = *record_token;
+    published_owned_record_token_ = *record_token;
+    if (magic) {
+        result.status = load_prepared_magic_frame(
+            prepared, variant_index, *result.frame, result.physical_status
+        );
+    } else {
+        // 431927 indexes the six handles directly. FFFF has no special
+        // callback here; that branch belongs to the cached query path.
+        const std::size_t archive_index = resource_id / kResourcesPerArchive;
+        if (archive_index >= archives_.size()) {
+            result.status = LegacyTswRuntimeStatus::resource_group_out_of_range;
+            return result;
+        }
+
+        auto physical = archives_[archive_index].read_frame(
+            resource_id % kResourcesPerArchive, variant_index
+        );
+        result.physical_status = physical.status;
+        if (physical.status != LegacyTswFrameStatus::ready) {
+            result.status = LegacyTswRuntimeStatus::physical_frame_failed;
+            return result;
+        }
+
+        result.status =
+            normalize_physical_frame(std::move(physical.frame), *result.frame);
+    }
+
+    if (result.status != LegacyTswRuntimeStatus::ready) {
+        return result;
+    }
+
+    const auto image_token =
+        reserve_legacy_guest_bytes(result.frame->primary_stream.size());
+    if (!image_token) {
+        result.status = LegacyTswRuntimeStatus::allocation_failed;
+        return result;
+    }
+
+    result.frame->primary_stream_token = *image_token;
+    // No host callback runs between publication and conversion on this
+    // bounded loader path. Preserve the distinct shared return-slot read.
+    result.return_record_token = published_owned_record_token_;  // 43193F.
+    magic_loading_flag_ = 0U;  // 431947, only after conversion returned.
+    return result;
+}
+
+compat::u32 LegacyTswRuntime::published_owned_record_token() const noexcept {
+    return published_owned_record_token_;
+}
+
+compat::u32 LegacyTswRuntime::magic_loading_flag() const noexcept {
+    return magic_loading_flag_;
+}
+
 std::size_t LegacyTswRuntime::bucket_index(
     const compat::u16 resource_id, const compat::u16 variant_index
 ) noexcept {
@@ -356,10 +448,8 @@ std::size_t LegacyTswRuntime::select_magic_slot(
     return selected;
 }
 
-LegacyTswRuntimeStatus LegacyTswRuntime::prepare_magic_frame(
-    const compat::u16 resource_id,
-    const compat::u16 variant_index,
-    LegacyTswDirectResult& loaded
+LegacyTswRuntimeStatus LegacyTswRuntime::prepare_magic_resource(
+    const compat::u16 resource_id, PreparedMagicFrame& prepared
 ) {
     bool hit{};
     const std::size_t selected = select_magic_slot(resource_id, hit);
@@ -463,7 +553,17 @@ LegacyTswRuntimeStatus LegacyTswRuntime::prepare_magic_frame(
         descriptors.prepared = true;
     }
 
-    const MagicDescriptorSlot& descriptors = magic_->descriptors[selected];
+    prepared = {selected, frame_count, read_magic_u16(header, 8U)};
+    return LegacyTswRuntimeStatus::ready;
+}
+
+LegacyTswRuntimeStatus LegacyTswRuntime::load_prepared_magic_frame(
+    const PreparedMagicFrame& prepared,
+    const compat::u16 variant_index,
+    LegacyTswRuntimeFrame& destination,
+    LegacyTswFrameStatus& physical_status
+) {
+    const MagicDescriptorSlot& descriptors = magic_->descriptors[prepared.slot];
     if (variant_index >= descriptors.frame_count || variant_index >= 255U) {
         // The original selects the shared buffer even outside its declared
         // descriptors. Its stale bytes/alias and ensuing CPU path are not
@@ -479,23 +579,37 @@ LegacyTswRuntimeStatus LegacyTswRuntime::prepare_magic_frame(
         descriptor.size(),
         descriptor.begin()
     );
-    LegacyTswFrameResult physical = archive.read_prepared_magic_frame(
+    LegacyTswFrameResult physical = archives_[2U].read_prepared_magic_frame(
         descriptors.index,
         descriptors.block_value,
-        frame_count,
-        read_magic_u16(header, 8U),
+        prepared.frame_count,
+        prepared.storage_bpp,
         descriptor
     );
     // Keep the observed host failure reason without supplying a guest
     // API reply, failure continuation or physical CPU state.
-    loaded.physical_status = physical.status;
+    physical_status = physical.status;
     if (physical.status != LegacyTswFrameStatus::ready) {
         return LegacyTswRuntimeStatus::magic_preparation_io_unavailable;
     }
 
-    loaded.status =
-        normalize_physical_frame(std::move(physical.frame), loaded.frame);
-    return loaded.status;
+    return normalize_physical_frame(std::move(physical.frame), destination);
+}
+
+LegacyTswRuntimeStatus LegacyTswRuntime::prepare_magic_frame(
+    const compat::u16 resource_id,
+    const compat::u16 variant_index,
+    LegacyTswDirectResult& loaded
+) {
+    PreparedMagicFrame prepared;
+    const auto status = prepare_magic_resource(resource_id, prepared);
+    if (status != LegacyTswRuntimeStatus::ready) {
+        return status;
+    }
+
+    return load_prepared_magic_frame(
+        prepared, variant_index, loaded.frame, loaded.physical_status
+    );
 }
 
 LegacyTswQueryResult LegacyTswRuntime::query_cached(
@@ -561,11 +675,22 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
     // For bounded non-palette input, consume actual host file replies and
     // the prepared shared descriptor. Unmodeled I/O/alias remains a stop.
     LegacyTswDirectResult loaded;
+    if (resource_id != kSpecialResourceId) {
+        magic_loading_flag_ = 0U;  // 431D1E; FFFF skips this write.
+    }
+
     if (resource_id >= 6001U && resource_id <= 9000U) {
+        magic_loading_flag_ = 1U;  // 431D37, before preparation.
         loaded.status = prepare_magic_frame(resource_id, variant_index, loaded);
     } else {
         loaded = load_low16(resource_id, variant_index);
     }
+
+    if (resource_id != kSpecialResourceId &&
+        loaded.status == LegacyTswRuntimeStatus::ready) {
+        magic_loading_flag_ = 0U;  // 431DB9, after conversion.
+    }
+
     node->status = loaded.status;
     node->physical_status = loaded.physical_status;
     result.status = loaded.status;

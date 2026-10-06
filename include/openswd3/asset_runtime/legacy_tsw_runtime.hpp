@@ -19,7 +19,8 @@ inline constexpr std::size_t kLegacyTswCacheBucketCount = 10U;
 
 struct LegacyTswRuntimeFrame {
     // 32-bit guest allocation identities, not truncated host pointers.
-    // The record is the +8 interior of a 0x20-byte cache node.
+    // Cached records are the +8 interior of a 0x20-byte node; owned
+    // records have their own 0x14-byte allocation.
     compat::u32 record_token{};
     compat::u32 primary_stream_token{};
     std::vector<compat::u8> primary_stream;
@@ -94,6 +95,15 @@ struct LegacyTswDirectResult {
     LegacyTswRuntimeFrame frame;
 };
 
+struct LegacyTswOwnedFrameResult {
+    LegacyTswRuntimeStatus status{LegacyTswRuntimeStatus::archive_open_failed};
+    LegacyTswFrameStatus physical_status{LegacyTswFrameStatus::ready};
+    // A stopped load may already have allocated/published this record.
+    // Only ready proves that its image payload is available.
+    std::unique_ptr<LegacyTswRuntimeFrame> frame;
+    compat::u32 return_record_token{};
+};
+
 class LegacyTswRuntime final {
 public:
     explicit LegacyTswRuntime(
@@ -117,6 +127,15 @@ public:
     ) noexcept;
     [[nodiscard]] LegacyTswDirectResult
     load_direct(compat::u32 resource_id_slot, compat::u32 variant_index_slot);
+
+    // 431760's independently owned, writable frame path. Unlike the host
+    // physical API above, prepare magic before record allocation and do
+    // not dispatch FFFF to the cached-query special loader. Host I/O and
+    // allocation failures remain explicit stops, not original API replies.
+    [[nodiscard]] LegacyTswOwnedFrameResult
+    load_owned(compat::u32 resource_id_slot, compat::u32 variant_index_slot);
+    [[nodiscard]] compat::u32 published_owned_record_token() const noexcept;
+    [[nodiscard]] compat::u32 magic_loading_flag() const noexcept;
 
     void clear_cache() noexcept;
     void close() noexcept;
@@ -169,6 +188,20 @@ private:
     [[nodiscard]] LegacyTswRuntimeStatus evict_before_lookup() noexcept;
     [[nodiscard]] std::size_t
     select_magic_slot(compat::u16 resource_id, bool& hit) noexcept;
+    struct PreparedMagicFrame {
+        std::size_t slot{};
+        compat::u16 frame_count{};
+        compat::u16 storage_bpp{};
+    };
+    [[nodiscard]] LegacyTswRuntimeStatus prepare_magic_resource(
+        compat::u16 resource_id, PreparedMagicFrame& prepared
+    );
+    [[nodiscard]] LegacyTswRuntimeStatus load_prepared_magic_frame(
+        const PreparedMagicFrame& prepared,
+        compat::u16 variant_index,
+        LegacyTswRuntimeFrame& destination,
+        LegacyTswFrameStatus& physical_status
+    );
     [[nodiscard]] LegacyTswRuntimeStatus prepare_magic_frame(
         compat::u16 resource_id,
         compat::u16 variant_index,
@@ -209,6 +242,11 @@ private:
     std::weak_ptr<CacheNode> lookup_cursor_;
     // dword_4A6020 starts at 600000h; its setter retains all 32 bits.
     compat::u32 cache_limit_{0x00600000U};
+    // 4CF844 is distinct from the cached result slot at 4FB0C8. It is a
+    // non-owning guest pointer; releasing its record does not clear it.
+    compat::u32 published_owned_record_token_{};
+    // 4DACD4 is shared by cached and independently owned loading.
+    compat::u32 magic_loading_flag_{};
     compat::u32 cached_primary_bytes_{};
     bool cached_primary_bytes_known_{true};
     bool initialized_{};

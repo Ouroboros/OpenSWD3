@@ -28,11 +28,11 @@ address	closure_disposition	target_owner	implementation_mapping	evidence	remaini
 0x004311C0	transferred	runtime_platform	legacy DirectDraw HRESULT diagnostic adapter	asset-runtime-closure-audit.md	platform_adapter
 0x004315C0	implemented	asset_runtime	LegacyTswRuntime::set_cache_limit	asset-cache-limits-00424330.md	original_diff
 0x004315D0	implemented	asset_runtime	LegacyTswRuntime::query_cached	tsw-archive-format.md	original_diff
-0x00431760	implemented	asset_runtime	LegacyTswRuntime::load_direct	tsw-archive-format.md	original_diff
+0x00431760	implemented	asset_runtime	LegacyTswRuntime::load_owned bounded host path	tsw-owned-frame-00431760.md	B11_SDL_binding;failure_ABI;reentry;original_diff
 0x00431960	implemented	asset_runtime	LegacyTswRuntime::close	tsw-archive-format.md	original_diff
 0x00431A20	implemented	asset_runtime	LegacyTswRuntime::find_cached	tsw-archive-format.md	original_diff
 0x00431A50	implemented_internal_optimization	asset_runtime	LegacyTswArchive indexed descriptor read	tsw-archive-format.md	original_diff
-0x00431AA0	implemented_internal_optimization	asset_runtime	LegacyTswArchive indexed descriptor read	tsw-archive-format.md	original_diff
+0x00431AA0	implemented_internal_optimization	asset_runtime	LegacyTswRuntime::prepare_magic_resource	tsw-archive-format.md	original_diff
 0x00431C50	implemented	asset_runtime	LegacyTswRuntime::query_cached ordinary-resource path	tsw-archive-format.md	original_diff
 0x00431DF0	implemented	asset_runtime	LegacyTswRuntime::find_low16	tsw-archive-format.md	original_diff
 0x00431EA0	implemented	asset_runtime	LegacyTswRuntime::evict_before_lookup	tsw-archive-format.md	original_diff

@@ -268,6 +268,138 @@ public:
     bool fail{};
 };
 
+void test_owned_frames(openswd3::test::Context& test) {
+    const TestTree tree;
+    write_six_archives(tree);
+    FakeSpecialLoader special;
+    LegacyTswRuntime runtime{tree.root(), {}, &special};
+    runtime.set_cache_limit(0U);
+    auto first = runtime.load_owned(0xABCD0001U, 0x98760000U);
+    auto second = runtime.load_owned(1U, 0U);
+    test.expect_true(
+        first.status == LegacyTswRuntimeStatus::ready &&
+            second.status == LegacyTswRuntimeStatus::ready &&
+            first.frame != nullptr && second.frame != nullptr,
+        "owned loads truncate both slots and bypass cache eviction"
+    );
+    if (first.frame == nullptr || second.frame == nullptr ||
+        first.status != LegacyTswRuntimeStatus::ready ||
+        second.status != LegacyTswRuntimeStatus::ready) {
+        return;
+    }
+
+    const u32 second_token = second.frame->record_token;
+    const auto expected = second.frame->primary_stream;
+    test.expect_true(
+        first.return_record_token == first.frame->record_token &&
+            second.return_record_token == second_token &&
+            first.frame->record_token != second_token &&
+            first.frame->primary_stream_token != 0U &&
+            first.frame->primary_stream_token !=
+                second.frame->primary_stream_token &&
+            first.frame->width == 47U && first.frame->height == 95U &&
+            expected.size() > 8U && expected[6U] == 16U &&
+            first.frame->primary_stream == expected &&
+            runtime.published_owned_record_token() == second_token &&
+            runtime.cache_entry_count() == 0U &&
+            runtime.cached_primary_bytes() == 0U,
+        "each owned record has a separate converted writable image"
+    );
+    first.frame->primary_stream[0U] = 0U;
+    runtime.set_cache_limit(0x00400000U);
+    const auto cached = runtime.query_cached(1U, 0U);
+    test.expect_true(
+        cached.status == LegacyTswRuntimeStatus::ready &&
+            std::ranges::equal(cached.frame.primary_stream, expected) &&
+            second.frame->primary_stream == expected &&
+            runtime.published_owned_record_token() == second_token,
+        "owned mutations do not affect another owner or the cache"
+    );
+    runtime.clear_cache();
+    runtime.close();
+    test.expect_equal(
+        second.frame->primary_stream,
+        expected,
+        "closing archives and cache does not release caller-owned bytes"
+    );
+    first.frame.reset();
+    second.frame.reset();
+    test.expect_equal(
+        runtime.published_owned_record_token(),
+        second_token,
+        "freeing an owned record leaves the non-owning return slot stale"
+    );
+
+    // 6001 and 9000 prepare before allocation; 6000 and 9001 do not.
+    for (const u32 resource : {6000U, 6001U, 9000U, 9001U, 0xFFFFU}) {
+        const auto previous = runtime.published_owned_record_token();
+        const auto loaded = runtime.load_owned(resource, 0U);
+        const bool magic = resource == 6001U || resource == 9000U;
+        if (magic) {
+            test.expect_true(
+                loaded.status ==
+                        LegacyTswRuntimeStatus::
+                            magic_preparation_io_unavailable &&
+                    loaded.frame == nullptr &&
+                    runtime.published_owned_record_token() == previous &&
+                    runtime.magic_loading_flag() == 1U,
+                "unbound magic preparation stops before record allocation"
+            );
+        } else {
+            test.expect_true(
+                loaded.frame != nullptr &&
+                    runtime.published_owned_record_token() ==
+                        loaded.frame->record_token &&
+                    runtime.published_owned_record_token() != previous &&
+                    runtime.magic_loading_flag() == 0U,
+                "ordinary loading publishes the record before physical access"
+            );
+            if (resource == 9001U) {
+                test.expect_equal(
+                    loaded.status,
+                    LegacyTswRuntimeStatus::ready,
+                    "9001 follows the normal fourth archive route"
+                );
+            } else {
+                test.expect_true(
+                    loaded.status != LegacyTswRuntimeStatus::ready &&
+                        loaded.return_record_token == 0U,
+                    "unavailable payload is not a normal owned-frame return"
+                );
+            }
+        }
+    }
+
+    test.expect_equal(
+        special.calls,
+        std::size_t{0U},
+        "431760 does not route FFFF to the cached special loader"
+    );
+
+    const auto cached_normal = runtime.query_cached(1U, 0U);
+    const auto stopped_magic = runtime.load_owned(6001U, 0U);
+    const auto owned_slot = runtime.published_owned_record_token();
+    const auto special_cached = runtime.query_cached(0xFFFFU, 0U);
+    const auto normal_hit = runtime.query_cached(1U, 0U);
+    test.expect_true(
+        cached_normal.status == LegacyTswRuntimeStatus::ready &&
+            stopped_magic.status ==
+                LegacyTswRuntimeStatus::magic_preparation_io_unavailable &&
+            special_cached.status == LegacyTswRuntimeStatus::ready &&
+            special.calls == 1U && normal_hit.cache_hit &&
+            runtime.magic_loading_flag() == 1U &&
+            runtime.published_owned_record_token() == owned_slot,
+        "special loads and cache hits preserve the shared magic flag"
+    );
+    const auto ordinary_miss = runtime.query_cached(2U, 0U);
+    test.expect_true(
+        ordinary_miss.status == LegacyTswRuntimeStatus::ready &&
+            runtime.magic_loading_flag() == 0U &&
+            runtime.published_owned_record_token() == owned_slot,
+        "an ordinary cache miss clears only the shared loading flag"
+    );
+}
+
 void test_lazy_open_route_and_conversion(openswd3::test::Context& test) {
     const TestTree tree;
     write_six_archives(tree);
@@ -711,6 +843,55 @@ void test_prepared_magic_host_failure_status(openswd3::test::Context& test) {
 }
 
 #ifdef OPENSWD3_REAL_TSW_ROOT
+void test_real_owned_frames(openswd3::test::Context& test) {
+    LegacyTswRuntime runtime{OPENSWD3_REAL_TSW_ROOT};
+    for (const u32 resource : {15001U, 6001U}) {
+        const auto physical = runtime.load_direct(resource, 0U);
+        auto owned = runtime.load_owned(resource, 0U);
+        test.expect_true(
+            physical.status == LegacyTswRuntimeStatus::ready &&
+                owned.status == LegacyTswRuntimeStatus::ready &&
+                owned.frame != nullptr,
+            "real background and magic frames have independent owners"
+        );
+        if (physical.status != LegacyTswRuntimeStatus::ready ||
+            owned.status != LegacyTswRuntimeStatus::ready ||
+            owned.frame == nullptr) {
+            continue;
+        }
+
+        test.expect_true(
+            owned.frame->primary_stream == physical.frame.primary_stream &&
+                owned.frame->width == physical.frame.width &&
+                owned.frame->height == physical.frame.height &&
+                owned.frame->primary_stream_token != 0U &&
+                owned.return_record_token == owned.frame->record_token &&
+                runtime.cache_entry_count() == 0U &&
+                runtime.magic_loading_flag() == 0U,
+            "owned real bytes match physical decoding without cache nodes"
+        );
+    }
+
+    test.expect_equal(
+        runtime.magic_prepared_stream_position(0U, 0U),
+        std::optional<u32>{0x00020434U},
+        "owned magic loading uses the actual prepared absolute position"
+    );
+    const auto prior = runtime.published_owned_record_token();
+    const auto stopped = runtime.load_owned(6001U, 0x1234FFFFU);
+    test.expect_true(
+        stopped.status ==
+                LegacyTswRuntimeStatus::magic_preparation_io_unavailable &&
+            stopped.frame != nullptr && stopped.frame->record_token != prior &&
+            runtime.published_owned_record_token() ==
+                stopped.frame->record_token &&
+            runtime.magic_loading_flag() == 1U &&
+            stopped.return_record_token == 0U &&
+            runtime.cache_entry_count() == 0U,
+        "descriptor unavailability follows preparation and owner publication"
+    );
+}
+
 void test_real_magic_first_frame_requires_preparation(
     openswd3::test::Context& test
 ) {
@@ -1825,6 +2006,7 @@ void test_original_bucket_eviction(openswd3::test::Context& test) {
 
 int main() {
     openswd3::test::Context test;
+    test_owned_frames(test);
     test_lazy_open_route_and_conversion(test);
     test_physical_variant_ignores_declared_count(test);
     test_magic_preparation_before_physical_load(test);
@@ -1833,6 +2015,7 @@ int main() {
     test_magic_prepared_stream_short_read(test);
 #endif
 #ifdef OPENSWD3_REAL_TSW_ROOT
+    test_real_owned_frames(test);
     test_real_magic_first_frame_requires_preparation(test);
     test_real_magic_slot_rotation_and_cached_node(test);
     test_real_tsw_frame_piece_provider(test);

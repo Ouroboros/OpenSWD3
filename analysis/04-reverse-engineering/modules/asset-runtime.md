@@ -39,7 +39,11 @@
 - runtime 拥有六个包句柄、索引/帧缓存节点、解压命令流和 8 位包调色板。
 - 返回给 rendering/world/battle 的是借用帧视图：主命令流、可选调色板、宽、高和
   主流字节数；不是提前转换的 RGBA 位图。
-- 资源号 `0xFFFF` 的特殊分支保留，不在公共入口提前判无效。
+- 缓存查询及宿主物理API保留资源号`0xFFFF`的特殊分支；原`431760`独立入口没有此分支。
+- B11接线复核新增`LegacyTswRuntime::load_owned`，先执行魔法准备，再分配独立可写帧。
+  旋转资源端口持有记录，缓存只借用图像；载入停止不得继续执行caller发布后缀。
+  当前仍是未结束的完整SDL接线REVIEW，失败ABI与重入边界见
+  [`tsw-owned-frame-00431760.md`](../evidence/tsw-owned-frame-00431760.md)。
 - TSW默认限额为6 MiB，setter保留原四字节；淘汰入口和循环按signed32比较。
   工作包316复核修正原零初值及unsigned偏差，十五个非空桶阈值和真实战斗查询
   端口检验通过。异常尾部释放、16位计数回绕及物理失败ABI仍归316深层合同；
@@ -286,6 +290,7 @@ asset_runtime sound request  → audio_video port
 
 - [`asset-cache-limits-00424330.md`](../evidence/asset-cache-limits-00424330.md)
 - [`tsw-archive-format.md`](../evidence/tsw-archive-format.md)
+- [`tsw-owned-frame-00431760.md`](../evidence/tsw-owned-frame-00431760.md)
 - [`resource-entry-abi.md`](../evidence/resource-entry-abi.md)
 - [`act-action-stream-format.md`](../evidence/act-action-stream-format.md)
 - [`action-field-state-machine.md`](../evidence/action-field-state-machine.md)
