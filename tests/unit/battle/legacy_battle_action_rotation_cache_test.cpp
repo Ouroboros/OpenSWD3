@@ -46,6 +46,27 @@ read_word(const std::vector<u8>& bytes, const std::size_t offset) {
     );
 }
 
+class RotationStreamProvider final
+    : public openswd3::asset_runtime::LegacyActionStreamProvider {
+public:
+    explicit RotationStreamProvider(std::initializer_list<u16> words) {
+        for (const auto word : words) {
+            append_word(bytes, word);
+        }
+    }
+
+    openswd3::asset_runtime::LegacyActionStreamLoadResult load_action_stream(
+        u32, u32, bool
+    ) override {
+        return {.status = status, .stream = bytes};
+    }
+
+    openswd3::asset_runtime::LegacyActionStreamStatus status{
+        openswd3::asset_runtime::LegacyActionStreamStatus::ready
+    };
+    std::vector<u8> bytes;
+};
+
 struct UpdateStep {
     u16 field_4a{};
     u16 field_4c{};
@@ -58,8 +79,9 @@ struct UpdateStep {
     u32 mode_flags{};
     u32 field_8c{};
     u32 eax{};
-    u32 edx{};
+    std::optional<u32> edx{0U};
     std::uint64_t domain_token{};
+    bool typed_stop{};
 };
 
 class ScriptedRotationUpdatePort final
@@ -92,6 +114,7 @@ public:
             .eax = step.eax,
             .edx = step.edx,
             .domain_token = step.domain_token,
+            .typed_stop = step.typed_stop,
         };
     }
 
@@ -249,6 +272,223 @@ struct RotationPlaybackFixture {
 }  // namespace
 
 void test_battle_action_rotation_cache(openswd3::test::Context& test) {
+    {
+        RotationStreamProvider provider{0x4544U};
+        openswd3::asset_runtime::LegacyActionUpdater updater{provider};
+        openswd3::battle::LegacyBattleActionUpdaterRotationPort port{updater, 9U};
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        state.action_record.cached_action_id = 99U;
+        state.action_record.field_88 = 7U;
+        MutableRotationFramePort frames;
+        const auto result = openswd3::battle::
+            initialize_legacy_battle_action_rotation_cache(
+                state, port, frames, 0U, 11U, 12U, 99U, 640U
+            );
+        test.expect_true(
+            result.status == openswd3::battle::
+                LegacyBattleActionRotationCacheStatus::
+                    action_update_edx_unavailable &&
+                result.action_update_calls == 1U &&
+                result.frame_query_calls == 0U && state.field_bc == 7U &&
+                state.action_record.command_cursor == 1U,
+            "unknown loader EDX stops at first resource query after prefix"
+        );
+    }
+
+    {
+        RotationStreamProvider provider{0x5246U, 12U, 0x5041U, 0U, 0x4F56U};
+        openswd3::asset_runtime::LegacyActionUpdater updater{provider};
+        openswd3::battle::LegacyBattleActionUpdaterRotationPort port{updater, 9U};
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        MutableRotationFramePort frames;
+        const auto result = openswd3::battle::
+            initialize_legacy_battle_action_rotation_cache(
+                state, port, frames, 0U, 11U, 12U, 99U, 640U
+            );
+        test.expect_true(
+            result.status == openswd3::battle::
+                LegacyBattleActionRotationCacheStatus::completed &&
+                frames.resource_ids == std::vector<u32>{12U} &&
+                result.rotation_calls == 1U && result.record_clear_calls == 1U,
+            "real updater recovers known EDX before rotation resource lookup"
+        );
+    }
+
+    for (const auto status : {
+             openswd3::asset_runtime::LegacyActionStreamStatus::ready,
+             openswd3::asset_runtime::LegacyActionStreamStatus::load_failed,
+             openswd3::asset_runtime::LegacyActionStreamStatus::load_stopped,
+         }) {
+        RotationStreamProvider provider{};
+        provider.status = status;
+        openswd3::asset_runtime::LegacyActionUpdater updater{provider};
+        openswd3::battle::LegacyBattleActionUpdaterRotationPort port{updater, 9U};
+        openswd3::asset_runtime::LegacyActionRecord record{};
+        record.action_id = 99U;
+        const auto result = port.update_action(record);
+        test.expect_true(
+            result.eax == 0U && result.domain_token == 9U &&
+                result.typed_stop == (status != openswd3::asset_runtime::
+                    LegacyActionStreamStatus::load_failed),
+            "runtime port distinguishes normal null from load and decode stops"
+        );
+    }
+
+    {
+        ScriptedRotationUpdatePort updater{
+            {.command_cursor = 1U, .eax = 1U, .edx = 1U},
+            {.command_cursor = 1U, .eax = 1U, .edx = 2U},
+            {.command_cursor = 1U, .eax = 1U, .edx = 3U},
+            {.command_cursor = 0U, .eax = 1U, .edx = std::nullopt},
+        };
+        openswd3::battle::LegacyBattleActionRotationCacheState state;
+        MutableRotationFramePort frames;
+        const auto result = openswd3::battle::
+            initialize_legacy_battle_action_rotation_cache(
+                state, updater, frames, 0U, 0U, 0U, 99U, 640U
+            );
+        test.expect_true(
+            result.status == openswd3::battle::
+                LegacyBattleActionRotationCacheStatus::completed &&
+                result.action_update_calls == 4U &&
+                result.frame_query_calls == 1U &&
+                result.skipped_cached_frames == 3U,
+            "cycle snapshots retain EDX and cached frames do not consume it"
+        );
+    }
+
+#ifdef OPENSWD3_GAME_DATA_ROOT
+    {
+        openswd3::asset_runtime::LegacyActRuntime runtime{
+            OPENSWD3_GAME_DATA_ROOT
+        };
+        openswd3::asset_runtime::LegacyActActionStreamProvider provider{runtime};
+        openswd3::asset_runtime::LegacyActionUpdater updater{provider};
+        openswd3::battle::LegacyBattleActionUpdaterRotationPort port{updater, 9U};
+        openswd3::asset_runtime::LegacyActionRecord record{};
+        record.action_id = 1U;
+        const auto ready = port.update_action(record);
+        test.expect_true(
+            !ready.typed_stop && ready.eax == 1U && ready.edx.has_value() &&
+                record.field_4a == 0x0171U,
+            "real ACT stream reaches rotation port with known decoded EDX"
+        );
+        record.base_variant = 0x7FFFFFFFU;
+        record.stream_pointer_32 = 0x12345678U;
+        const auto stopped = port.update_action(record);
+        test.expect_true(
+            stopped.typed_stop && !stopped.edx.has_value() &&
+                record.stream_pointer_32 == 0x12345678U,
+            "real ACT physical stop reaches rotation port without pointer store"
+        );
+    }
+#endif
+
+    for (const auto stop_at : {0U, 1U}) {
+        for (const auto eax : {0U, 1U}) {
+            const UpdateStep stopped{
+                .field_4c = 6U,
+                .command_cursor = 3U,
+                .wait_remaining = 7U,
+                .wait_default = 8U,
+                .field_88 = 9U,
+                .eax = eax,
+                .typed_stop = true,
+            };
+            ScriptedRotationUpdatePort updater{{
+                .field_4a = 1U,
+                .command_cursor = 1U,
+                .eax = 1U,
+            }};
+            if (stop_at == 0U) {
+                updater.steps[0U] = stopped;
+            } else {
+                updater.steps.push_back(stopped);
+            }
+
+            openswd3::battle::LegacyBattleActionRotationCacheState state;
+            state.field_bc = 0xABCDU;
+            MutableRotationFramePort frames;
+            const auto initialized = openswd3::battle::
+                initialize_legacy_battle_action_rotation_cache(
+                    state, updater, frames, 0U, 11U, 12U, 15003U, 64U
+                );
+            test.expect_true(
+                initialized.status == openswd3::battle::
+                    LegacyBattleActionRotationCacheStatus::
+                        action_update_typed_stop &&
+                    initialized.action_update_calls == stop_at + 1U &&
+                    initialized.frame_query_calls == stop_at &&
+                    initialized.rotation_calls == stop_at &&
+                    initialized.record_clear_calls == 0U &&
+                    state.field_bc == 0xABCDU && state.field_b4 == 11U &&
+                    state.field_b8 == 12U &&
+                    state.action_record.field_4c == 6U &&
+                    state.action_record.wait_remaining == 7U &&
+                    state.action_record.wait_default == 8U,
+                "update stop preserves entry and callee writes before next frame"
+            );
+
+            updater.calls = 0U;
+            RotationPlaybackFixture fixture;
+            const auto played = fixture.play(updater, 1);
+            test.expect_true(
+                played.status == openswd3::battle::
+                    LegacyBattleActionRotationPlaybackStatus::
+                        action_update_typed_stop &&
+                    played.action_update_calls == stop_at + 1U &&
+                    played.frame_draw_calls == stop_at &&
+                    played.rotation_calls == stop_at &&
+                    played.wait_clear_calls == stop_at &&
+                    played.record_clear_calls == 1U &&
+                    fixture.state.action_record.field_4c == 6U &&
+                    fixture.state.action_record.wait_remaining == 7U &&
+                    fixture.state.action_record.wait_default == 8U,
+                "playback stop retains completed frames and skips later clearing"
+            );
+        }
+    }
+
+    for (const bool stopped : {false, true}) {
+        for (const auto eax : {0U, 1U}) {
+            RotationPlaybackFixture fixture;
+            fixture.request.horizontal_resample_displacement = 23;
+            fixture.request.target_height = 17;
+            ScriptedRotationUpdatePort updater{{
+                .field_4c = 0U,
+                .field_8c = 0x1234U,
+                .eax = eax,
+                .typed_stop = stopped,
+            }};
+            const auto drawn =
+                openswd3::battle::draw_legacy_battle_action_rotation_frame(
+                    fixture.state, updater, fixture.framebuffer,
+                    {.left = 0, .top = 0, .width = 80, .height = 60},
+                    fixture.request, fixture.effects, fixture.jitter
+                );
+            if (stopped) {
+                test.expect_true(
+                    drawn.status == openswd3::battle::
+                        LegacyBattleActionRotationDrawStatus::
+                            action_update_typed_stop &&
+                        !drawn.source_published && drawn.frame_draw_calls == 0U &&
+                        fixture.request.horizontal_resample_displacement == 23 &&
+                        fixture.request.target_height == 17 &&
+                        fixture.state.action_record.field_8c == 0x1234U,
+                    "draw stop does not publish source or run blitter suffix"
+                );
+            } else {
+                test.expect_true(
+                    drawn.status == openswd3::battle::
+                        LegacyBattleActionRotationDrawStatus::completed &&
+                        drawn.source_published && drawn.frame_draw_calls == 1U &&
+                        drawn.return_value == 0x1234U,
+                    "draw ignores a normally returned zero, not a stopped call"
+                );
+            }
+        }
+    }
+
     {
         openswd3::battle::LegacyBattleActionRotationCacheState state;
         ScriptedRotationUpdatePort updater{{UpdateStep{}}};

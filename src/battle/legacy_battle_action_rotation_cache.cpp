@@ -14,6 +14,8 @@ struct CycleSnapshot {
     std::array<compat::u32, 6> frame_owner_tokens{};
     compat::u32 field_bc{};
     std::uint64_t domain_token{};
+    compat::u32 update_eax{};
+    std::optional<compat::u32> update_edx{};
 };
 
 [[nodiscard]] bool same_cycle_snapshot(
@@ -27,7 +29,9 @@ struct CycleSnapshot {
         left.local_frame_slots == right.local_frame_slots &&
         left.frame_owner_tokens == right.frame_owner_tokens &&
         left.field_bc == right.field_bc &&
-        left.domain_token == right.domain_token;
+        left.domain_token == right.domain_token &&
+        left.update_eax == right.update_eax &&
+        left.update_edx == right.update_edx;
 }
 
 [[nodiscard]] compat::i32
@@ -70,6 +74,29 @@ void publish_blitter_normal_epilogue(
 
 }  // namespace
 
+LegacyBattleActionUpdaterRotationPort::LegacyBattleActionUpdaterRotationPort(
+    asset_runtime::LegacyActionUpdater& updater,
+    const std::uint64_t domain_token
+) noexcept
+    : updater_(updater), domain_token_(domain_token) {}
+
+LegacyBattleActionRotationUpdateSnapshot
+LegacyBattleActionUpdaterRotationPort::update_action(
+    asset_runtime::LegacyActionRecord& record
+) {
+    const auto result = updater_.update(record);
+    return {
+        .eax = result.return_value,
+        .edx = result.return_edx,
+        .domain_token = domain_token_,
+        .typed_stop =
+            result.status == asset_runtime::LegacyActionUpdateStatus::
+                stream_load_stopped ||
+            result.status == asset_runtime::LegacyActionUpdateStatus::
+                malformed_stream,
+    };
+}
+
 LegacyBattleActionRotationCacheResult
 initialize_legacy_battle_action_rotation_cache(
     LegacyBattleActionRotationCacheState& state,
@@ -92,6 +119,12 @@ initialize_legacy_battle_action_rotation_cache(
     LegacyBattleActionRotationUpdateSnapshot update =
         update_port.update_action(state.action_record);
     ++result.action_update_calls;
+    if (update.typed_stop) {
+        result.status =
+            LegacyBattleActionRotationCacheStatus::action_update_typed_stop;
+        return result;
+    }
+
     if (update.eax == 0U) {
         result.status = LegacyBattleActionRotationCacheStatus::
             initial_action_update_stopped;
@@ -106,6 +139,8 @@ initialize_legacy_battle_action_rotation_cache(
             .frame_owner_tokens = state.frame_owner_tokens,
             .field_bc = state.field_bc,
             .domain_token = update.domain_token,
+            .update_eax = update.eax,
+            .update_edx = update.edx,
         };
         bool repeated = false;
         for (const CycleSnapshot& prior : seen) {
@@ -142,7 +177,13 @@ initialize_legacy_battle_action_rotation_cache(
         }
 
         if (result.local_frame_slots[local_index] == 0xFFFFU) {
-            const compat::u32 resource_id = (update.edx & 0xFFFF0000U) |
+            if (!update.edx.has_value()) {
+                result.status = LegacyBattleActionRotationCacheStatus::
+                    action_update_edx_unavailable;
+                return result;
+            }
+
+            const compat::u32 resource_id = (*update.edx & 0xFFFF0000U) |
                 static_cast<compat::u32>(state.action_record.field_4a);
             result.last_resource_id = resource_id;
             LegacyBattleMutableFrameImage image =
@@ -236,6 +277,12 @@ initialize_legacy_battle_action_rotation_cache(
             static_cast<compat::u32>(state.stored_action_id);
         update = update_port.update_action(state.action_record);
         ++result.action_update_calls;
+        if (update.typed_stop) {
+            result.status =
+                LegacyBattleActionRotationCacheStatus::action_update_typed_stop;
+            return result;
+        }
+
         if (update.eax == 0U) {
             result.status =
                 LegacyBattleActionRotationCacheStatus::action_update_stopped;
@@ -292,8 +339,13 @@ LegacyBattleActionRotationDrawResult draw_legacy_battle_action_rotation_frame(
     state.action_record.action_id =
         static_cast<compat::u32>(state.stored_action_id);
     state.action_record.base_variant = 0U;
-    static_cast<void>(update_port.update_action(state.action_record));
+    const auto update = update_port.update_action(state.action_record);
     ++result.action_update_calls;
+    if (update.typed_stop) {
+        result.status =
+            LegacyBattleActionRotationDrawStatus::action_update_typed_stop;
+        return result;
+    }
 
     result.frame_index = static_cast<compat::u32>(state.action_record.field_4c);
     if (result.frame_index >= state.frame_owner_tokens.size()) {
@@ -369,6 +421,12 @@ play_legacy_battle_action_rotation_cache(
     LegacyBattleActionRotationUpdateSnapshot update =
         update_port.update_action(state.action_record);
     ++result.action_update_calls;
+    if (update.typed_stop) {
+        result.status =
+            LegacyBattleActionRotationPlaybackStatus::action_update_typed_stop;
+        return result;
+    }
+
     if (update.eax == 0U) {
         result.status = LegacyBattleActionRotationPlaybackStatus::
             initial_action_update_stopped;
@@ -383,6 +441,8 @@ play_legacy_battle_action_rotation_cache(
             .frame_owner_tokens = state.frame_owner_tokens,
             .field_bc = state.field_bc,
             .domain_token = update.domain_token,
+            .update_eax = update.eax,
+            .update_edx = update.edx,
         };
         bool repeated = false;
         for (const CycleSnapshot& prior : seen) {
@@ -500,6 +560,12 @@ play_legacy_battle_action_rotation_cache(
             static_cast<compat::u32>(state.stored_action_id);
         update = update_port.update_action(state.action_record);
         ++result.action_update_calls;
+        if (update.typed_stop) {
+            result.status = LegacyBattleActionRotationPlaybackStatus::
+                action_update_typed_stop;
+            return result;
+        }
+
         if (update.eax == 0U) {
             result.status =
                 LegacyBattleActionRotationPlaybackStatus::action_update_stopped;

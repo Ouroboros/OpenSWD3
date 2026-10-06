@@ -14,8 +14,10 @@ namespace openswd3::battle {
 
 struct LegacyBattleActionRotationUpdateSnapshot {
     compat::u32 eax{};
-    compat::u32 edx{};
+    std::optional<compat::u32> edx{0U};
     std::uint64_t domain_token{};
+    // No normal callee return; eax/edx must not drive caller suffixes.
+    bool typed_stop{};
 };
 
 class LegacyBattleActionRotationUpdatePort {
@@ -24,6 +26,24 @@ public:
 
     [[nodiscard]] virtual LegacyBattleActionRotationUpdateSnapshot
     update_action(asset_runtime::LegacyActionRecord& record) = 0;
+};
+
+// The caller supplies the identity of its stable ACT execution domain.
+// Unknown loader registers remain unknown; no host pointer is substituted.
+class LegacyBattleActionUpdaterRotationPort final
+    : public LegacyBattleActionRotationUpdatePort {
+public:
+    LegacyBattleActionUpdaterRotationPort(
+        asset_runtime::LegacyActionUpdater& updater,
+        std::uint64_t domain_token
+    ) noexcept;
+
+    [[nodiscard]] LegacyBattleActionRotationUpdateSnapshot
+    update_action(asset_runtime::LegacyActionRecord& record) override;
+
+private:
+    asset_runtime::LegacyActionUpdater& updater_;
+    std::uint64_t domain_token_;
 };
 
 struct LegacyBattleMutableFrameImage {
@@ -74,6 +94,8 @@ enum class LegacyBattleActionRotationCacheStatus : compat::u8 {
     rotation_typed_stop,
     action_loop_nonterminating,
     frame_query_typed_stop,
+    action_update_typed_stop,
+    action_update_edx_unavailable,
 };
 
 struct LegacyBattleActionRotationCacheResult {
@@ -106,6 +128,7 @@ enum class LegacyBattleActionRotationPlaybackStatus : compat::u8 {
     rotation_typed_stop,
     blit_typed_stop,
     action_loop_nonterminating,
+    action_update_typed_stop,
 };
 
 struct LegacyBattleActionRotationPlaybackResult {
@@ -139,6 +162,7 @@ enum class LegacyBattleActionRotationDrawStatus : compat::u8 {
     frame_index_out_of_range,
     cached_owner_invalid,
     blit_typed_stop,
+    action_update_typed_stop,
 };
 
 struct LegacyBattleActionRotationReleaseResult {

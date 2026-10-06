@@ -1,4 +1,5 @@
 #include "legacy_battle_mon_database_fixture.hpp"
+#include "openswd3/battle/legacy_battle_action_rotation_resources.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
@@ -462,6 +463,20 @@ void test_battle_startup(openswd3::test::Context& test) {
         StartupPorts ports;
         openswd3::battle::LegacyBattleDefinitionArchiveFileRuntime archive;
         openswd3::battle::LegacyBattleArchiveBackgroundImageLoadPort images;
+        openswd3::asset_runtime::LegacyActRuntime act_runtime{
+            OPENSWD3_GAME_DATA_ROOT
+        };
+        openswd3::asset_runtime::LegacyActActionStreamProvider act_provider{
+            act_runtime
+        };
+        openswd3::asset_runtime::LegacyActionUpdater updater{act_provider};
+        openswd3::battle::LegacyBattleActionUpdaterRotationPort action_port{
+            updater, 1U
+        };
+        openswd3::asset_runtime::LegacyTswRuntime tsw_runtime{
+            OPENSWD3_GAME_DATA_ROOT
+        };
+        openswd3::battle::LegacyBattleActionRotationResources frames{tsw_runtime};
         // Stop at the following actor-resource boundary. This fixture does
         // not stand in for the missing SDL action/actor resource ports.
         ports.publish_enemy_progress_resource = false;
@@ -470,7 +485,8 @@ void test_battle_startup(openswd3::test::Context& test) {
         auto startup_request = request(1U);
         startup_request.data_root = OPENSWD3_GAME_DATA_ROOT;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, archive, images, ports, ports, ports, startup_request
+            state, ports, archive, images, frames, action_port, frames,
+            startup_request
         );
         test.expect_true(
             result.status ==
@@ -497,8 +513,35 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.background_rotation_cache.stored_action_id == 15003U &&
                 result.background.action_rotation.status ==
                     openswd3::battle::LegacyBattleActionRotationCacheStatus::
-                        initial_action_update_stopped,
+                        completed &&
+                result.background.action_rotation.frame_query_calls > 0U &&
+                frames.live_owner_count() ==
+                    result.background.action_rotation.frame_query_calls &&
+                frames.live_image_count() == frames.live_owner_count(),
             "real background bytes and definition parameters reach startup " "without calling the synthetic archive/image ports"
+        );
+        if (result.status != openswd3::battle::LegacyBattleStartupStatus::
+                enemy_action_configuration_typed_stop) {
+            std::cerr << "real startup status="
+                      << static_cast<unsigned>(result.status)
+                      << " rotation="
+                      << static_cast<unsigned>(
+                             result.background.action_rotation.status
+                         )
+                      << " resource="
+                      << result.background.action_rotation.last_resource_id
+                      << " frame="
+                      << result.background.action_rotation.last_frame_index
+                      << '\n';
+        }
+
+        static_cast<void>(openswd3::battle::
+            release_legacy_battle_action_rotation_cache(
+                state.background_rotation_cache, frames
+            ));
+        test.expect_true(
+            frames.live_owner_count() == 0U && frames.live_image_count() == 0U,
+            "real startup releases every rotation image and record"
         );
     }
 #endif

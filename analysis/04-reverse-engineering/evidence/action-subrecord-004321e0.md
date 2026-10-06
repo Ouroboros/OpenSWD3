@@ -2,7 +2,7 @@
 
 最后更新：2026-10-06
 
-状态：通用更新已实现；已修正返回EDX及参数读取前缀，生产caller传播仍待接通
+状态：通用更新已实现；旋转caller已接通停止及可选EDX合同，其他caller仍待回收
 
 来源：`swd3.exe` 完整汇编
 
@@ -111,7 +111,10 @@ SG/DL在读取前写入模式标志。对应LST范围为`004325B1..004329A5`。
 日志为`build/tmp/runtime/action-lf-boundary-red.log`、
 `action-operand-prefix-red.log`和`action-operand-prefix-`各验证日志。
 EDX定向测试另覆盖表内默认项、未知命令、高位保留、完整赋值、回绕及等待加载。
-未做Windows运行或原版动态差分；生产caller停止传播及SDL完整接线仍待完成。
+未做Windows运行或原版动态差分。旋转初始化、播放和单帧绘制已接通停止传播，
+实际动作适配传递可选EDX；完整合同及真实资产组合测试见
+[旋转动作接线](battle-rotation-action-update-binding.md)。
+其他生产caller停止传播及SDL完整接线仍待完成。
 
 ## 全局调用覆盖
 

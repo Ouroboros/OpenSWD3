@@ -26,6 +26,7 @@ public:
             .eax = action_eax,
             .edx = action_edx,
             .domain_token = action_domain,
+            .typed_stop = action_typed_stop,
         };
     }
 
@@ -40,6 +41,7 @@ public:
     u32 action_eax{};
     u32 action_edx{};
     std::uint64_t action_domain{1U};
+    bool action_typed_stop{};
     u32 surface_return{0xABCDEF01U};
     std::vector<LegacyBattleFrameEffectSurfaceRequest> surface_requests;
 };
@@ -111,6 +113,44 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleFrameEffectStatus;
 
     constexpr std::array<u32, 3> surfaces{0xB000U, 0xB100U, 0xB200U};
+
+    for (const auto branch : {0U, 1U, 2U}) {
+        LegacyBattleFrameEffectState state;
+        state.rotation_cache.stored_action_id = 1U;
+        state.pending_rotation = 77;
+        state.split_extent = 10U;
+        state.color_cycle_active = 1U;
+        state.stage = 1;
+        state.cadence = 2;
+        state.current_encounter_id = 9;
+        state.expected_encounter_id = 9;
+        if (branch == 2U) {
+            state.primary_suppression = 1U;
+            state.alternate_surface_mode = 1U;
+        }
+
+        Fixture fixture;
+        EffectPort port;
+        port.action_typed_stop = true;
+        auto context = fixture.context();
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, fixture.source(), surfaces,
+            branch == 0U ? 0 : 1
+        );
+        test.expect_true(
+            result.status == (branch == 0U
+                ? LegacyBattleFrameEffectStatus::rotation_frame_typed_stop
+                : LegacyBattleFrameEffectStatus::rotation_playback_typed_stop) &&
+                port.action_updates == 1U &&
+                result.source_blit_calls == (branch == 2U ? 0U : 1U) &&
+                result.color_adjustment_calls == 0U &&
+                result.cadence_updates == 0U && result.reset_calls == 0U &&
+                state.pending_rotation == 77 && state.split_extent == 10U &&
+                state.color_cycle_active == 1U && state.stage == 1 &&
+                state.cadence == 2,
+            "effect caller preserves its prefix and stops before later effects"
+        );
+    }
 
     {
         LegacyBattleFrameEffectState state;

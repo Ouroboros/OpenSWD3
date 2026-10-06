@@ -148,13 +148,50 @@ struct Ports {
 void test_battle_background_initialization(openswd3::test::Context& test) {
     const openswd3::rendering::LegacyPixelConversionState pixel_conversion;
 
-    {
+    for (const bool stopped : {false, true}) {
+        LegacyBattleBackgroundState background;
+        background.completion_words = {1U, 2U, 3U};
+        LegacyBattleActionRotationCacheState rotation_cache;
+        Ports ports{background};
+        ports.loader.next = make_loaded_image();
+        ports.updater.snapshot.typed_stop = stopped;
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_background(
+                background, rotation_cache, ports.loader, ports.releaser,
+                ports.updater, ports.images, pixel_conversion,
+                LegacyBattleBackgroundInitializationRequest{
+                    .data_root = "game-data",
+                    .one_based_resource = 1U,
+                    .initial_action_id = 1U,
+                    .rotation_divisor = 640,
+                    .background_action_gate = 1U,
+                }
+            );
+        test.expect_true(
+            result.status == (stopped
+                ? LegacyBattleBackgroundInitializationStatus::
+                      action_rotation_cache_typed_stop
+                : LegacyBattleBackgroundInitializationStatus::completed) &&
+                result.completion_words_published == !stopped &&
+                background.completion_words == (stopped
+                    ? std::array<u16, 3>{1U, 2U, 3U}
+                    : std::array<u16, 3>{0xFFFFU, 0xFFFFU, 0xFFFFU}) &&
+                !background.image.empty() && ports.images.calls == 0U &&
+                ports.updater.calls == 1U &&
+                rotation_cache.action_record.action_id == 1U,
+            "background distinguishes a stopped action call from normal zero"
+        );
+    }
+
+    for (const bool unknown_edx : {false, true}) {
         LegacyBattleBackgroundState background;
         background.completion_words = {1U, 2U, 3U};
         LegacyBattleActionRotationCacheState rotation_cache;
         Ports ports{background};
         ports.loader.next = make_loaded_image();
         ports.updater.snapshot.eax = 1U;
+        ports.updater.snapshot.edx = unknown_edx
+            ? std::nullopt : std::optional<u32>{0U};
         ports.images.typed_stop = true;
         const auto result =
             openswd3::battle::initialize_legacy_battle_background(
@@ -177,9 +214,12 @@ void test_battle_background_initialization(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleBackgroundInitializationStatus::
                         action_rotation_cache_typed_stop &&
-                result.action_rotation.status ==
-                    openswd3::battle::LegacyBattleActionRotationCacheStatus::
-                        frame_query_typed_stop &&
+                result.action_rotation.status == (unknown_edx
+                    ? openswd3::battle::LegacyBattleActionRotationCacheStatus::
+                          action_update_edx_unavailable
+                    : openswd3::battle::LegacyBattleActionRotationCacheStatus::
+                          frame_query_typed_stop) &&
+                ports.images.calls == (unknown_edx ? 0U : 1U) &&
                 !result.completion_words_published &&
                 background.completion_words == std::array<u16, 3>{1U, 2U, 3U} &&
                 !background.image.empty() &&

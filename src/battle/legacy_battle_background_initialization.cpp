@@ -78,6 +78,8 @@ namespace {
     case LegacyBattleActionRotationCacheStatus::division_by_zero:
     case LegacyBattleActionRotationCacheStatus::frame_image_pointer_invalid:
     case LegacyBattleActionRotationCacheStatus::frame_query_typed_stop:
+    case LegacyBattleActionRotationCacheStatus::action_update_typed_stop:
+    case LegacyBattleActionRotationCacheStatus::action_update_edx_unavailable:
     case LegacyBattleActionRotationCacheStatus::rotation_typed_stop:
     case LegacyBattleActionRotationCacheStatus::action_loop_nonterminating:
         return true;

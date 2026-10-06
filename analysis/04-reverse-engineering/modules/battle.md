@@ -432,7 +432,8 @@ indexed或非法缓存typed-stop不得提前清理或发布返回。
 六个FFFF局部word槽只让每个u16帧索引旋转和绘制一次。signed旋转量正值直连模式3，
 负值低32位取负后直连模式2，零跳过；随后从同一owner/frame缓存以偏移坐标、
 record flags和固定空tail绘制。每轮draw正常或缓存跳过后无条件清两个等待word，
-cursor为0再清record返回1，否则继续更新；更新失败返回0，完整状态重复才判非终止。
+cursor为0再清record返回1，否则继续更新；更新正常返回零时退出，
+宿主停止则保留已执行前缀。循环判断同时比较动作状态、执行域及返回寄存器。
 
 `audit_order=42`的`0x00451730`已关闭为`platform_adapted`。
 函数固定遍历扩展状态从`+0x9C`开始的六个owner槽：owner非空时先读取并释放嵌套image，
@@ -443,6 +444,13 @@ cursor为0再清record返回1，否则继续更新；更新失败返回0，完�
 跨到相邻已建模dword时保留写前缀；超出局部栈模型才停止。
 六槽、重复帧及加载后改帧号用例的战斗core/ASan各1/1通过，SDL链接通过。
 仅既有结果测试窄化警告；完整SDL动作更新及初始化仍待接入。
+
+B11已增加实际ACT更新器的旋转适配，保留可选EDX及独立停止状态。
+背景父调用和帧效果父调用传播停止；未知EDX仅在需要查询未缓存图像时消费。
+完整startup测试现从真实战斗定义取得动作15003，连用真实ACT、独立TSW图像及
+释放端口，到达后续角色资源边界；core/ASan各1/1通过。
+这不证明SDL完整初始化已运行。合同、追加截断测试与最终验证见
+[动作更新接线](../evidence/battle-rotation-action-update-binding.md)。
 
 `audit_order=43`的`0x004517A0`已关闭为`platform_adapted`。
 完整范围含13行主体与`0x004517D0..0x004517DB`十行外部FUNCTION CHUNK：先调用组A构造包装器，

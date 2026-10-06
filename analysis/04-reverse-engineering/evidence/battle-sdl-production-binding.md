@@ -172,8 +172,12 @@ case51、case12、case14和case100的既有角色帧停止前缀断言已改为�
 动作加载现已区分正常NULL与宿主停止：`LegacyActActionStreamProvider`保留runtime
 及物理状态，更新器在`stream_load_stopped`时保留原命令流指针和此前键重置写入。
 固定状态与真实六包测试的core/ASan各2/2、SDL链接通过，详见
-`action-subrecord-004321e0.md`。旋转及其他生产caller对停止状态的传播仍未接通，
-不能仅取返回字段中的0作为正常回复，也不能从当前结果伪造EDX快照。
+`action-subrecord-004321e0.md`。旋转初始化、播放和单帧绘制现已接通停止传播，
+实际动作适配传递可选EDX，未知地址不伪装为零。完整startup真实资产测试已连用
+战斗定义1、ACT动作15003及独立TSW图像，旋转完成后到达预定角色资源边界，
+全部图像及记录可释放；core/ASan各1/1通过。具体合同及追加验证见
+[旋转动作更新接线](battle-rotation-action-update-binding.md)。
+SDL仍未调用完整startup；其他生产caller不得仅取返回字段中的0作为正常回复。
 
 ## 提交审查发现的剩余边界
 
