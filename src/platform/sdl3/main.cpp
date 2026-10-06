@@ -2713,8 +2713,14 @@ public:
         // 451CCD..451CEF resets the shared dialog-end button (4C9708).
         auto& control_action = world_dialog_runtime_state_.end_dialog_action;
         openswd3::asset_runtime::initialize_legacy_action_record(control_action);
+        // RGB555 0x026B is (0, 19, 11), converted into two identical pixels.
+        const auto transparent_pixel_pair =
+            openswd3::rendering::legacy_pack_color_pair(
+                pixel_conversion_, 0, 19, 11
+            );
         control_action.action_id = 0x2329U;
         control_action.base_variant = 0x0CU;
+        battle_runtime_.transparent_pixel_pair = transparent_pixel_pair;
 
         const auto loaded = openswd3::battle::load_legacy_battle_assets(
             data_directory_, battle_id, 0, battle_assets_

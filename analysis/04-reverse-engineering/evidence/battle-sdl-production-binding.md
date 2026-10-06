@@ -22,7 +22,11 @@ SDL战斗初始化现直接重置`world_dialog_runtime_state_.end_dialog_action`
 完整核心startup也改为通过必需引用借用动作记录，删除旧私有ID/variant副本，
 把原opaque初始化替换为真实动作初始化；透明像素双字快照仍在reset之后、
 ID/variant写入之前。原运行句柄命名已按颜色转换和双word复制的LST纠正；
-SDL完整初始化尚需传入当前像素格式对应的颜色，不能用资源token替代。
+SDL现有入口已借用当前像素转换格式，把`0x026B`对应的RGB555分量`(0,19,11)`
+送入既有双像素颜色生成器；按钮ID/variant发布之后才保存完整双字。
+此处不增加资源token或独立像素格式。五种转换的定向core/ASan各1/1及SDL链接通过，
+日志为`build/tmp/runtime/battle-startup-color-binding-{core,asan,sdl}.log`，无warning/error。
+测试验证颜色生成，不代替SDL实际生命周期验收。
 详见[启动证据](battle-startup-coordinator-00451b10.md)第3节。
 这项接线不等于SDL已调用完整startup，也不证明完整生命周期或实机续玩通过。
 

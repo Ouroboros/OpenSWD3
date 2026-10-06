@@ -45,7 +45,8 @@ modern以定长typed数组和字段建模全部块，不以宿主指针模拟旧
 复制到高word后写回`0x004CD784`。普通显示初始化`00424CC8/00424CD6`也复制
 同一个双字。现更名为`transparent_pixel_pair`及`read_transparent_pixel_pair`；
 只纠正命名，保持字段位宽、枚举值、调用顺序及完整32位复制不变。
-SDL完整初始化的颜色输入仍需接通，不得把它当成surface或其他资源句柄。
+该值不是surface或其他资源句柄。SDL现有入口已用当前像素格式构造同一双字，
+完整startup端口仍需接通。
 该独立更名的完整代码差异只有标识符、注释和断言文案变化，未改变表达式、常量或布局。
 定向core 1/1及SDL链接通过，日志为
 `build/tmp/runtime/battle-startup-color-naming-{core,sdl}.log`；
@@ -63,6 +64,16 @@ core仅有既有结果测试137行窄化警告。未扩大测试范围或重复�
 修正后战斗聚合core/ASan各1/1及SDL链接通过，日志为
 `build/tmp/runtime/battle-startup-control-action-{core,asan,sdl}.log`。
 core/ASan仅报告既有结果测试137行的u16到u8窄化警告，SDL无warning/error。
+SDL颜色来源使用既有`legacy_pack_color_pair(pixel_conversion_, 0, 19, 11)`：
+RGB555的`0x026B`恰为这三个分量。转换器对两个相同word分别转换，等价于原初始化
+先转换单个word再复制；函数只访问局部像素，转换格式只读，没有额外业务副作用。
+计算放在按钮reset之后、ID/variant发布之前，双字写入放在发布之后。
+原SDL清零整个战斗状态后没有写入这个颜色，本次补齐该写入。
+新增五种转换的独立预期为`026B026B/04D604D6/04CB04CB/012B012B/026B026B`。
+这些向量验证颜色生成；不是SDL整条初始化路径或实机像素差分。
+颜色定向core/ASan各1/1及SDL链接通过，日志为
+`build/tmp/runtime/battle-startup-color-binding-{core,asan,sdl}.log`，无warning/error。
+
 逐字节测试验证核心借用与写入顺序；SDL接线目前只有源码追溯和编译证据，
 不据此宣告实际按钮显示、完整战斗或续玩验收完成。
 

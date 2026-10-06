@@ -255,6 +255,27 @@ void test_selector_state(openswd3::test::Context& test) {
 }
 
 void test_color_pair_packing(openswd3::test::Context& test) {
+    // 423752..4237B3: convert 0x026B, then duplicate its low word.
+    constexpr std::array transforms{
+        LegacyPixelTransform::identity,
+        LegacyPixelTransform::shift_whole_word_left,
+        LegacyPixelTransform::rgb555_to_rgb565,
+        LegacyPixelTransform::rgb565_to_rgb555,
+        LegacyPixelTransform::shift_red_field_left,
+    };
+    constexpr std::array<u32, 5> transparent_pairs{
+        0x026B026BU, 0x04D604D6U, 0x04CB04CBU, 0x012B012BU, 0x026B026BU,
+    };
+    for (std::size_t index = 0U; index < transforms.size(); ++index) {
+        LegacyPixelConversionState format;
+        format.forward = transforms[index];
+        test.expect_equal(
+            openswd3::rendering::legacy_pack_color_pair(format, 0, 19, 11),
+            transparent_pairs[index],
+            "battle startup packs the converted 0x026B color in both lanes"
+        );
+    }
+
     LegacyPixelConversionState state;
     test.expect_equal(
         openswd3::rendering::legacy_pack_color_pair(state, 25, 23, 17),
