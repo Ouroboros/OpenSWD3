@@ -9,6 +9,8 @@
 
 namespace openswd3::battle {
 
+struct LegacyBattleActorRuntimeResetView;
+
 enum class LegacyBattlePreFrameCall : compat::u8 {
     query_group_a_actor,
     notify_group_a_actor,
@@ -17,8 +19,10 @@ enum class LegacyBattlePreFrameCall : compat::u8 {
 
 struct LegacyBattlePreFrameCallRequest {
     LegacyBattlePreFrameCall call{};
-    compat::u32 actor_token{};
+    compat::u32 actor_token{};  // ECX at the physical call.
     compat::u32 argument{};
+    compat::u32 entry_eax{};
+    compat::u32 entry_edx{};
 };
 
 struct LegacyBattlePreFrameCallReply {
@@ -31,7 +35,17 @@ struct LegacyBattlePreFrameCallReply {
     compat::u32 secondary_actor_code{};
     bool publish_source_actor_code{};
     compat::u32 source_actor_code{};
+    bool typed_stop{};
+    compat::u32 stopped_instruction{};
 };
+
+// Physical callees 0x00481FC0, 0x0047D7D0 and 0x0047CE80.
+// The view borrows the live actor fields; no actor image is copied.
+[[nodiscard]] LegacyBattlePreFrameCallReply
+invoke_legacy_battle_pre_frame_actor_call(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattlePreFrameCallRequest& request
+) noexcept;
 
 class LegacyBattlePreFramePort
     : public virtual LegacyBattleActorMetricStatePort,
@@ -48,6 +62,7 @@ enum class LegacyBattlePreFrameStatus : compat::u8 {
     opponent_workspace_typed_stop,
     actor_availability_block_typed_stop,
     actor_runtime_record_typed_stop,
+    actor_call_typed_stop,
 };
 
 struct LegacyBattlePreFrameResult {
@@ -59,6 +74,7 @@ struct LegacyBattlePreFrameResult {
     LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
     compat::u32 actor_availability_block_calls{};
     compat::u32 group_b_iterations{};
+    LegacyBattlePreFrameCallReply actor_call{};
 };
 
 enum class LegacyBattlePreFrameEntryStatus : compat::u8 {

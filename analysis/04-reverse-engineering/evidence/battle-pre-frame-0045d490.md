@@ -105,3 +105,30 @@ D490涉及的active、secondary、published、action execution、auxiliary、事
 ## 10. Workpack 316 的SDL实际入口前缀
 
 用户第二次开场战斗日志`build/vm/wp316-sdl-frame-user-run-v2/openswd3-2026-10-03_19-14-31-66208.log`只到`0x0045FC5B`输入分派RET前：记录2／18均零、后续12项rapid零、脚本status=32，不能宣称已经执行本函数。此后SDL生产前缀在可证实的输入正常返回后，依LST顺序读`0x0053C018`、active actor及message；前两个门的早退不读后续状态，活跃路径在`0x0045D4C8`source首读前停止，早退路径按下一CALL`0x00453248→sub_45B0E0`清metric两张表，并借用启动owner读取`0x0045B0FE`组B计数；非零停在`0x0045B11F→sub_4783B0`前，零停在`0x0045B13E`组A读前。SDL的`0x0053C018`借用已存在的`battle_input_dispatch_.selected_actor_cleanup_gate`，不能再给`LegacyBattleSharedPhaseStatePort::battle_terminal_latch()`保留独立生产副本。新门、metric清表与组B计数首读各自定向core 1/1、Linux core／ASan各200/200及Linux／Windows app各206/206通过；尚无新SDL实际回调记录，也未进入角色坐标CALL或到角色帧。
+
+## 11. SDL接线前的真实callee寄存器入口
+
+再次完整读取本函数218行LST及三个callee：`00481FC0..00481FCD`读取`actor+26D0`低byte的bit 1；`0047D7D0..0047D7E9`依次写`+2AEC` dword 1、`+2A12` word 0、`+2670` dword 0；`0047CE80..0047CE9A`先读取`+2AB8`到EDX，精确等于1时短路，否则读取`+26D1` byte的bit 0x20。不能交换组A资格查询与组B资格查询的callee。
+
+旧端口请求只携带actor token和逻辑参数，缺少真实callee保留的EAX/EDX。当前补充入口寄存器，actor token即物理CALL时的ECX：
+
+- `0045D55E`：EAX为`(secondary-8)*3021`，EDX仍为secondary。
+- `0045D597`：EAX为`(secondary-8)*1007`，EDX为该值乘3；此处LEA的目标是EDX。
+- `0045D5F3`：EAX为一基published数量乘345，EDX保留前次callee结果。
+- `0045D60E`：EAX为动态重读的组B数量，EDX保留上一调用结果，ECX为当前物理角色token。
+
+所有算术保留u32回绕。另修正`0045D575..0045D57A`第二次工作区store停止时的寄存器前缀：EAX已为5，ECX已为`secondary-8`，不能保留上次callee返回值。
+
+独立测试检查组A查询/通知的不同缩放值、组B预查询与扫描的不同EAX、跨调用非零EDX、0x80000000一基值的独立EAX/ECX回绕，以及第二次store停止前缀。`battle-pre-frame-register-binding-{core,asan,sdl}.log`确认core/ASan战斗聚合目标各1/1通过，SDL链接通过，三个日志无warning/error；这些改动补齐端口合同；当时尚未接入三个真实SDL回调或完整战斗帧，后续实现见下节。
+
+## 12. 三个角色callee的生产借用与失败传播
+
+再次逐指令核对三个短callee后，实现`invoke_legacy_battle_pre_frame_actor_call`，直接借用角色view中的progress与residual，不物化临时角色图像，不新增游戏字段副本。组A查询先清EAX，再读低byte bit 1，保留ECX/EDX；组B查询先把完整special-ready dword读到EDX，再把EAX置1，精确等于1时短路，否则检查`mode_gate`的0x2000位。通知先清EAX，再按`+2AEC`、`+2A12`、`+2670`顺序写入，进度只清低word。
+
+回调请求缺少真实对象或已有访问门拒绝访问时，返回typed-stop和原物理指令。通知的第二、第三次写入失败分别保留第一写和前两写。预帧四个物理调用点均传播停止，不能继续第二次availability写、组B扫描发布、运行记录或最终清理；结果保存最后一次角色调用的诊断。
+
+SDL现在继承预帧端口，并通过真实动作/启动状态解析角色token后调用上述实现。该方法已接线，但完整帧调用仍未替换手工入口，不能把新增override当作SDL运行证据。
+
+跨层检查还发现角色图像缺少`+2AEC`字段；现已加入`transition_value`的序列化与按范围写回。测试用与SDL相同的角色解析器验证通知三次写入均出现在同一图像，再验证该dword写回原progress对象且不改进度字。其他新增测试覆盖byte选择、完整dword比较、入口寄存器、通知写入前缀，以及四个调用点失败后阻断后缀。
+
+`battle-pre-frame-live-callback-{core,frame-core,asan,frame-asan,sdl}.log`确认战斗聚合和角色帧目标在core/ASan下分别1/1通过，SDL链接通过，五个日志均无warning/error。由于新增字段映射会影响角色帧快照，除战斗聚合外同时覆盖角色帧目标；`git diff --check`通过。完整SDL帧和实机生命周期仍未验证。

@@ -273,6 +273,7 @@ void materialize_actor(
     store_value(image, 0x2AB8U, actor.progress->special_ready);
     store_value(image, 0x2ABCU, actor.progress->presentation_enabled);
     store_value(image, 0x2AC0U, actor.action_execution->overlay_render_enabled);
+    store_value(image, 0x2AECU, actor.progress->transition_value);
     store_value(image, 0x2AF8U, actor.progress->script_binary_state);
     store_value(image, 0x2B04U, actor.progress->scene_identity);
     store_value(image, 0x2B08U, actor.progress->post_action_value);
@@ -802,6 +803,9 @@ void synchronize_actor_write(
     if (changed(0x2AC0U, sizeof(u32))) {
         actor.action_execution->overlay_render_enabled =
             load_value<u32>(image, 0x2AC0U);
+    }
+    if (changed(0x2AECU, sizeof(u32))) {
+        actor.progress->transition_value = load_value<u32>(image, 0x2AECU);
     }
     if (changed(0x2AF8U, sizeof(u32))) {
         const u32 value = load_value<u32>(image, 0x2AF8U);

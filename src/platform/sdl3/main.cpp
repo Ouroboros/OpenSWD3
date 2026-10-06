@@ -40,6 +40,7 @@
 #include "openswd3/asset_runtime/legacy_ani_follower_effect.hpp"
 #include "openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
+#include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
@@ -1688,6 +1689,7 @@ class SdlSmokeIdlePorts final
       public openswd3::app::FrameRuntimePorts,
       public openswd3::battle::LegacyBattleScriptDispatchPort,
       public openswd3::battle::LegacyBattleFrameMusicPrefixPort,
+      public virtual openswd3::battle::LegacyBattlePreFramePort,
       public virtual openswd3::battle::LegacyBattleActorMetricStatePort,
       public virtual openswd3::battle::LegacyBattleInputDispatchStatePort,
       public virtual openswd3::battle::LegacyBattleSharedPhaseStatePort,
@@ -2659,8 +2661,37 @@ public:
         );
     }
 
+    openswd3::compat::u32& battle_terminal_latch() noexcept override {
+        return battle_input_dispatch_state().selected_actor_cleanup_gate;
+    }
+
+    const openswd3::compat::u32&
+    battle_terminal_latch() const noexcept override {
+        return battle_input_dispatch_state().selected_actor_cleanup_gate;
+    }
+
+    openswd3::battle::LegacyBattlePreFrameCallReply invoke_pre_frame(
+        const openswd3::battle::LegacyBattlePreFrameCallRequest& request
+    ) override {
+        const auto actor =
+            openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                {
+                    .action = &battle_action_dispatch_,
+                    .startup = &battle_runtime_,
+                },
+                request.actor_token
+            );
+        return openswd3::battle::invoke_legacy_battle_pre_frame_actor_call(
+            actor, request
+        );
+    }
+
     void release_display_and_world_for_battle_entry() override {}
-    void close_world_map_view() override {}
+    void close_world_map_view() override {
+        // The active world retains cm_cache.cache_bytes across battle.
+        // sub_4382E0/sub_438230 only release the old Win32 CM mapping.
+    }
+
     void initialize_battle(const openswd3::compat::u16 battle_id) override {
         const auto saved_party_sources =
             battle_runtime_.group_a_configuration_sources;

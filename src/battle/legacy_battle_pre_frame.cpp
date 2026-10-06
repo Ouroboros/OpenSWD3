@@ -1,5 +1,8 @@
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 
+#include "openswd3/battle/legacy_battle_actor_progress.hpp"
+#include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
+
 #include <bit>
 
 namespace openswd3::battle {
@@ -32,6 +35,63 @@ group_b_token_from_one_based(const u32 index) noexcept {
 }
 
 }  // namespace
+
+LegacyBattlePreFrameCallReply invoke_legacy_battle_pre_frame_actor_call(
+    const LegacyBattleActorRuntimeResetView& actor,
+    const LegacyBattlePreFrameCallRequest& request
+) noexcept {
+    LegacyBattlePreFrameCallReply reply{
+        .eax = request.entry_eax,
+        .ecx = request.actor_token,
+        .edx = request.entry_edx,
+    };
+    const auto stop = [&](const u32 instruction) {
+        reply.typed_stop = true;
+        reply.stopped_instruction = instruction;
+        return reply;
+    };
+    switch (request.call) {
+    case LegacyBattlePreFrameCall::query_group_a_actor:
+        reply.eax = 0U;
+        if (actor.progress == nullptr) {
+            return stop(0x00481FC2U);
+        }
+        reply.eax = (actor.progress->mode_gate >> 1U) & 1U;
+        return reply;
+
+    case LegacyBattlePreFrameCall::notify_group_a_actor:
+        reply.eax = 0U;
+        if (actor.progress == nullptr) {
+            return stop(0x0047D7D2U);
+        }
+        actor.progress->transition_value = 1U;
+        if (!actor.progress->progress_write_accessible) {
+            return stop(0x0047D7DCU);
+        }
+        actor.progress->progress &= 0xFFFF0000U;
+        if (actor.residual == nullptr) {
+            return stop(0x0047D7E3U);
+        }
+        actor.residual->field_2670 = 0U;
+        return reply;
+
+    case LegacyBattlePreFrameCall::query_group_b_actor:
+        if (actor.progress == nullptr ||
+            !actor.progress->special_ready_read_accessible) {
+            return stop(0x0047CE80U);
+        }
+        reply.edx = actor.progress->special_ready;
+        reply.eax = 1U;
+        if (reply.edx == 1U) {
+            return reply;
+        }
+        if ((actor.progress->mode_gate & 0x2000U) == 0U) {
+            reply.eax = 0U;
+        }
+        return reply;
+    }
+    return stop(0U);
+}
 
 LegacyBattlePreFrameEntryResult run_legacy_battle_pre_frame_entry_prefix(
     const u32& terminal_latch,
@@ -76,9 +136,14 @@ LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
                             const u32 actor_token,
                             const u32 argument = 0U) {
         ++result.port_calls;
-        const auto reply = port.invoke_pre_frame(
-            {.call = call, .actor_token = actor_token, .argument = argument}
-        );
+        ecx = actor_token;
+        const auto reply = port.invoke_pre_frame({
+            .call = call,
+            .actor_token = actor_token,
+            .argument = argument,
+            .entry_eax = eax,
+            .entry_edx = edx,
+        });
         if (reply.publish_group_b_count) {
             port.actor_metric_state().group_b_count = reply.group_b_count;
         }
@@ -91,6 +156,10 @@ LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
         eax = reply.eax;
         ecx = reply.ecx;
         edx = reply.edx;
+        result.actor_call = reply;
+        if (reply.typed_stop) {
+            result.status = LegacyBattlePreFrameStatus::actor_call_typed_stop;
+        }
         return reply;
     };
     const auto set_availability_block = [&](const u32 actor_code,
@@ -169,23 +238,36 @@ LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
     port.battle_message_state() = 0U;
     final_actor.pre_frame_gate_b = 0U;
     final_actor.pre_frame_gate_a = 0U;
+    // 0x0045D539..0x0045D55E: EDX retains the actor code.
+    eax = (edx - 8U) * 3021U;
     const auto current = invoke(
         LegacyBattlePreFrameCall::query_group_a_actor, group_a_token(edx)
     );
+    if (current.typed_stop) {
+        return finish();
+    }
     if (current.eax == 1U) {
         const u32 current_actor = final_actor.secondary_actor_code;
         const u32 current_workspace_index = current_actor + 2U;
-        final_actor.action_execution_active = 5U;
+        eax = 5U;
+        ecx = current_actor - 8U;
+        final_actor.action_execution_active = eax;
         if (current_workspace_index >= action.opponent_workspace.size()) {
             result.status =
                 LegacyBattlePreFrameStatus::opponent_workspace_typed_stop;
             return finish();
         }
-        action.opponent_workspace[current_workspace_index] = 5U;
-        static_cast<void>(invoke(
+        action.opponent_workspace[current_workspace_index] = eax;
+        // 0x0045D581..0x0045D597: the last LEA writes EDX, not EAX.
+        eax = ecx * 1007U;
+        edx = eax * 3U;
+        const auto notified = invoke(
             LegacyBattlePreFrameCall::notify_group_a_actor,
             group_a_token(current_actor)
-        ));
+        );
+        if (notified.typed_stop) {
+            return finish();
+        }
         if (!set_availability_block(final_actor.secondary_actor_code, 1U)) {
             return finish();
         }
@@ -200,11 +282,13 @@ LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
         return finish();
     }
 
+    // 0x0045D5D5..0x0045D5F3: preserve the one-based scale in EAX.
+    eax = final_actor.published_actor_code * 345U;
     const auto selected = invoke(
         LegacyBattlePreFrameCall::query_group_b_actor,
         group_b_token_from_one_based(final_actor.published_actor_code)
     );
-    if (selected.eax != 1U) {
+    if (selected.typed_stop || selected.eax != 1U) {
         return finish();
     }
 
@@ -217,6 +301,9 @@ LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
                 group_b_token(index)
             );
             ++result.group_b_iterations;
+            if (actor.typed_stop) {
+                return finish();
+            }
             if (actor.eax == 0U) {
                 ++index;
                 final_actor.published_actor_code = index;

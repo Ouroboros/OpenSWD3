@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 
+#include "openswd3/battle/legacy_battle_actor_progress.hpp"
+#include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "test.hpp"
 
 #include <map>
@@ -47,6 +49,129 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleFinalActorStepState;
     using openswd3::battle::LegacyBattlePreFrameStatus;
     using openswd3::battle::advance_legacy_battle_pre_frame;
+    using openswd3::battle::invoke_legacy_battle_pre_frame_actor_call;
+
+    {
+        openswd3::battle::LegacyBattleActorProgressState progress;
+        const openswd3::battle::LegacyBattleActorRuntimeResetView actor{
+            .progress = &progress,
+        };
+        LegacyBattlePreFrameCallRequest request{
+            .call = LegacyBattlePreFrameCall::query_group_a_actor,
+            .actor_token = 0x005029D0U,
+            .entry_eax = 0xAAAAAAAAU,
+            .entry_edx = 0xBBBBBBBBU,
+        };
+        progress.mode_gate = 0xAABBCC02U;
+        const auto set = invoke_legacy_battle_pre_frame_actor_call(actor, request);
+        progress.mode_gate = 0xAABBCCFDU;
+        const auto clear = invoke_legacy_battle_pre_frame_actor_call(actor, request);
+        const auto absent = invoke_legacy_battle_pre_frame_actor_call({}, request);
+        test.expect_true(
+            set.eax == 1U && clear.eax == 0U && !set.typed_stop &&
+                set.ecx == request.actor_token && set.edx == request.entry_edx &&
+                absent.typed_stop && absent.eax == 0U &&
+                absent.stopped_instruction == 0x00481FC2U,
+            "group-A query reads low-byte bit one after clearing EAX and preserves ECX/EDX"
+        );
+        request.call = LegacyBattlePreFrameCall::query_group_b_actor;
+        progress.special_ready = 0x00010001U;
+        progress.mode_gate = 0xFFFF2000U;
+        const auto mode = invoke_legacy_battle_pre_frame_actor_call(actor, request);
+        progress.mode_gate = 0x20000020U;
+        const auto wrong_byte =
+            invoke_legacy_battle_pre_frame_actor_call(actor, request);
+        progress.special_ready = 1U;
+        const auto ready = invoke_legacy_battle_pre_frame_actor_call(actor, request);
+        progress.special_ready_read_accessible = false;
+        const auto unreadable =
+            invoke_legacy_battle_pre_frame_actor_call(actor, request);
+        test.expect_true(
+            mode.eax == 1U && mode.edx == 0x00010001U &&
+                wrong_byte.eax == 0U && ready.eax == 1U && ready.edx == 1U &&
+                unreadable.typed_stop &&
+                unreadable.stopped_instruction == 0x0047CE80U &&
+                unreadable.eax == request.entry_eax &&
+                unreadable.edx == request.entry_edx,
+            "group-B query compares the full ready dword then tests bit 0x20 in byte 0x26D1"
+        );
+    }
+
+    for (u32 fault = 0U; fault < 4U; ++fault) {
+        openswd3::battle::LegacyBattleActorProgressState progress;
+        openswd3::battle::LegacyBattleActorRuntimeResetState residual;
+        progress.progress = 0xBEEF1234U;
+        progress.transition_value = 7U;
+        progress.progress_read_accessible = false;
+        progress.progress_write_accessible = fault != 1U;
+        residual.field_2670 = 55U;
+        const auto reply = invoke_legacy_battle_pre_frame_actor_call(
+            {
+                .residual = fault == 2U ? nullptr : &residual,
+                .progress = fault == 0U ? nullptr : &progress,
+            },
+            {
+                .call = LegacyBattlePreFrameCall::notify_group_a_actor,
+                .actor_token = 0x005029D0U,
+                .entry_eax = 0xAAAAAAAAU,
+                .entry_edx = 0xBBBBBBBBU,
+            }
+        );
+        const u32 instruction = fault == 0U ? 0x0047D7D2U
+            : fault == 1U ? 0x0047D7DCU : fault == 2U ? 0x0047D7E3U : 0U;
+        test.expect_true(
+            reply.typed_stop == (fault != 3U) &&
+                reply.stopped_instruction == instruction &&
+                reply.eax == 0U && reply.ecx == 0x005029D0U &&
+                reply.edx == 0xBBBBBBBBU &&
+                progress.transition_value == (fault == 0U ? 7U : 1U) &&
+                progress.progress == (fault < 2U ? 0xBEEF1234U : 0xBEEF0000U) &&
+                residual.field_2670 == (fault == 3U ? 0U : 55U),
+            "notification writes transition, progress word and residual in order with exact stop prefixes"
+        );
+    }
+
+    for (u32 fault = 0U; fault < 4U; ++fault) {
+        LegacyBattleFinalActorStepState final_actor;
+        LegacyBattleActionDispatchState action;
+        PreFramePort port;
+        port.battle_terminal_latch() = 1U;
+        port.actor_metric_state().group_b_count = 2U;
+        final_actor.active_actor_code = 9U;
+        final_actor.source_actor_code = 2U;
+        final_actor.actor_runtime_records[1U][0U] = 77U;
+        port.push(LegacyBattlePreFrameCall::query_group_a_actor, {
+            .eax = fault < 2U ? 1U : 0U,
+            .typed_stop = fault == 0U,
+            .stopped_instruction = fault == 0U ? 0x00481FC2U : 0U,
+        });
+        port.push(LegacyBattlePreFrameCall::notify_group_a_actor, {
+            .typed_stop = true,
+            .stopped_instruction = 0x0047D7DCU,
+        });
+        port.push(LegacyBattlePreFrameCall::query_group_b_actor, {
+            .eax = 1U,
+            .typed_stop = fault == 2U,
+            .stopped_instruction = fault == 2U ? 0x0047CE80U : 0U,
+        });
+        port.push(LegacyBattlePreFrameCall::query_group_b_actor, {
+            .typed_stop = true,
+            .stopped_instruction = 0x0047CE80U,
+        });
+        const auto result =
+            advance_legacy_battle_pre_frame(final_actor, action, port);
+        const u32 expected_calls = fault == 0U ? 1U : fault == 3U ? 3U : 2U;
+        test.expect_true(
+            result.status == LegacyBattlePreFrameStatus::actor_call_typed_stop &&
+                result.port_calls == expected_calls &&
+                result.actor_availability_block_calls == 1U &&
+                result.actor_call.typed_stop &&
+                final_actor.actor_runtime_records[1U][0U] == 77U &&
+                final_actor.published_actor_code == 2U &&
+                port.battle_terminal_latch() == 1U,
+            "all four physical callback stops suppress their pre-frame suffix without rolling back earlier writes"
+        );
+    }
 
     {
         using openswd3::battle::LegacyBattlePreFrameEntryStatus;
@@ -216,8 +341,13 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
                 port.calls[0].call ==
                     LegacyBattlePreFrameCall::query_group_a_actor &&
                 port.calls[0].actor_token == 0x00505904U &&
+                port.calls[0].entry_eax == 3021U &&
+                port.calls[0].entry_edx == 9U &&
                 port.calls[1].call ==
-                    LegacyBattlePreFrameCall::notify_group_a_actor,
+                    LegacyBattlePreFrameCall::notify_group_a_actor &&
+                port.calls[1].actor_token == 0x00505904U &&
+                port.calls[1].entry_eax == 1007U &&
+                port.calls[1].entry_edx == 3021U,
             "current group-A actor success performs both typed writes around the remaining query and notify calls"
         );
     }
@@ -294,6 +424,7 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
                     LegacyBattlePreFrameStatus::opponent_workspace_typed_stop &&
                 result.port_calls == 1U &&
                 result.actor_availability_block_calls == 1U &&
+                result.return_value == 5U && result.return_ecx == 116U &&
                 final_actor.action_execution_active == 5U &&
                 final_actor.secondary_actor_code == 124U &&
                 action.opponent_workspace[10U] == 1U,
@@ -309,9 +440,18 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
         final_actor.active_actor_code = 8U;
         final_actor.source_actor_code = 1U;
         port.actor_metric_state().group_b_count = 3U;
-        port.push(LegacyBattlePreFrameCall::query_group_a_actor, {.eax = 0U});
-        port.push(LegacyBattlePreFrameCall::query_group_b_actor, {.eax = 1U});
-        port.push(LegacyBattlePreFrameCall::query_group_b_actor, {.eax = 2U});
+        port.push(
+            LegacyBattlePreFrameCall::query_group_a_actor,
+            {.eax = 0U, .edx = 0xAABBCCDDU}
+        );
+        port.push(
+            LegacyBattlePreFrameCall::query_group_b_actor,
+            {.eax = 1U, .edx = 0x12345678U}
+        );
+        port.push(
+            LegacyBattlePreFrameCall::query_group_b_actor,
+            {.eax = 2U, .edx = 0xFFFFFFFFU}
+        );
         port.push(LegacyBattlePreFrameCall::query_group_b_actor, {.eax = 0U});
         const auto result =
             advance_legacy_battle_pre_frame(final_actor, action, port);
@@ -323,8 +463,14 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
                 final_actor.published_actor_code == 2U &&
                 action.opponent_workspace[10U] == 1U &&
                 port.calls[1].actor_token == 0x00525508U &&
+                port.calls[1].entry_eax == 345U &&
+                port.calls[1].entry_edx == 0xAABBCCDDU &&
                 port.calls[2].actor_token == 0x00525508U &&
-                port.calls[3].actor_token == 0x00528030U,
+                port.calls[2].entry_eax == 3U &&
+                port.calls[2].entry_edx == 0x12345678U &&
+                port.calls[3].actor_token == 0x00528030U &&
+                port.calls[3].entry_eax == 3U &&
+                port.calls[3].entry_edx == 0xFFFFFFFFU,
             "the source code drives the one-based group-B query before the zero-based scan and first zero publishes index plus one"
         );
     }
@@ -389,6 +535,30 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
                 port.battle_terminal_latch() == 0U &&
                 action.opponent_workspace[10U] == 0U,
             "zero live group-B count reaches the typed clear and completes the teardown suffix"
+        );
+    }
+
+    {
+        LegacyBattleFinalActorStepState final_actor;
+        LegacyBattleActionDispatchState action;
+        PreFramePort port;
+        port.battle_terminal_latch() = 1U;
+        final_actor.active_actor_code = 8U;
+        final_actor.source_actor_code = 0x80000000U;
+        port.push(
+            LegacyBattlePreFrameCall::query_group_a_actor,
+            {.eax = 0U, .edx = 0xCAFEBABEU}
+        );
+        port.push(LegacyBattlePreFrameCall::query_group_b_actor, {.eax = 0U});
+        const auto result =
+            advance_legacy_battle_pre_frame(final_actor, action, port);
+        test.expect_true(
+            result.status == LegacyBattlePreFrameStatus::completed &&
+                port.calls.size() == 2U &&
+                port.calls[1].actor_token == 0x005229E0U &&
+                port.calls[1].entry_eax == 0x80000000U &&
+                port.calls[1].entry_edx == 0xCAFEBABEU,
+            "one-based group-B address arithmetic wraps EAX and ECX independently while preserving EDX"
         );
     }
 

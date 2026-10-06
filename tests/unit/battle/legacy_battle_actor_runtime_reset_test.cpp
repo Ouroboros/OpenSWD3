@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_actor_frame_raw_block.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
+#include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_status_indicator.hpp"
 #include "test.hpp"
 
@@ -139,6 +140,56 @@ void fill_group_a(Fixture& fixture, const std::size_t index) {
 }  // namespace
 
 void test_battle_actor_runtime_reset(openswd3::test::Context& test) {
+    {
+        Fixture fixture;
+        const u32 token = openswd3::battle::kLegacyBattleActorGroupABaseToken;
+        const auto actor =
+            openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                fixture.owners(), token
+            );
+        actor.progress->progress = 0xBEEF1234U;
+        actor.progress->transition_value = 0x1234FFFFU;
+        actor.residual->field_2670 = 0x76543210U;
+        const auto reply = openswd3::battle::
+            invoke_legacy_battle_pre_frame_actor_call(
+                actor,
+                {
+                    .call = openswd3::battle::LegacyBattlePreFrameCall::
+                        notify_group_a_actor,
+                    .actor_token = token,
+                }
+            );
+        openswd3::battle::LegacyBattleActorImage image;
+        openswd3::battle::materialize_legacy_battle_actor_image(actor, image);
+        const auto word = [&](const std::size_t offset) {
+            u32 value = 0U;
+            for (u32 byte = 0U; byte < 4U; ++byte) {
+                value |= std::to_integer<u32>(image[offset + byte]) <<
+                    (byte * 8U);
+            }
+            return value;
+        };
+        test.expect_true(
+            !reply.typed_stop && actor.progress->progress == 0xBEEF0000U &&
+                image[0x2A12U] == std::byte{0U} &&
+                image[0x2A13U] == std::byte{0U} &&
+                word(0x2AECU) == 1U && word(0x2670U) == 0U,
+            "the SDL actor view publishes all three notification writes to the same actor image"
+        );
+        image[0x2AECU] = std::byte{0x98U};
+        image[0x2AEDU] = std::byte{0xBAU};
+        image[0x2AEEU] = std::byte{0xDCU};
+        image[0x2AEFU] = std::byte{0xFEU};
+        openswd3::battle::synchronize_legacy_battle_actor_image_write(
+            actor, image, 0x2AECU, 4U
+        );
+        test.expect_true(
+            fixture.startup->party[0U].progress.transition_value ==
+                    0xFEDCBA98U &&
+                actor.progress->progress == 0xBEEF0000U,
+            "transition dword image writes return to the original progress owner without altering its progress word"
+        );
+    }
     {
         Fixture fixture;
         const u32 group_a =
