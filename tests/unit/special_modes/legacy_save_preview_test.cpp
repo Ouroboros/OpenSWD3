@@ -521,6 +521,102 @@ void test_read_failure_prefixes(test::Context& test) {
         );
     }
 
+    LegacySavePreviewRecord reference;
+    reference.bytes.fill(0x5AU);
+    test.expect_equal(
+        populate_legacy_save_preview(reference, complete.payload, conversion),
+        LegacySavePreviewPopulateStatus::completed,
+        "reference preview reaches the final status write"
+    );
+    const auto remaining = source.size() - party - 8U;
+    struct NameBoundary {
+        std::size_t packed_size;
+        std::size_t copied;
+        Stage stage;
+    };
+    const std::array name_boundaries{
+        NameBoundary{remaining - 68U, 64U, Stage::complete},
+        NameBoundary{remaining - 67U, 64U, Stage::elapsed_seconds},
+        NameBoundary{remaining - 64U, 64U, Stage::elapsed_seconds},
+        NameBoundary{remaining - 63U, 60U, Stage::role_names},
+        NameBoundary{remaining - 4U, 4U, Stage::role_names},
+        NameBoundary{remaining - 3U, 0U, Stage::role_names},
+        NameBoundary{remaining, 0U, Stage::role_names},
+        NameBoundary{remaining + 1U, 0U, Stage::role_names},
+        NameBoundary{0x7FFFFFFFU, 0U, Stage::role_names},
+        NameBoundary{0xFFFFFFFFU, 64U, Stage::complete},
+        NameBoundary{
+            static_cast<compat::u32>(0U - static_cast<compat::u32>(party + 8U)),
+            64U,
+            Stage::complete,
+        },
+    };
+    for (const auto& boundary : name_boundaries) {
+        auto changed = source;
+        for (std::size_t index = 0U; index < 4U; ++index) {
+            changed[party + index] = static_cast<compat::u8>(
+                boundary.packed_size >> (index * 8U)
+            );
+        }
+
+        const auto parsed =
+            resource_io::read_legacy_save_preview_payload(changed);
+        const bool completed = boundary.stage == Stage::complete;
+        const auto expected_read = completed
+            ? resource_io::LegacySaveContainerStatus::ready
+            : resource_io::LegacySaveContainerStatus::truncated;
+        const auto expected_populate = completed
+            ? LegacySavePreviewPopulateStatus::completed
+            : LegacySavePreviewPopulateStatus::payload_unavailable;
+        test.expect_true(
+            parsed.status == expected_read &&
+                parsed.next_read == boundary.stage &&
+                parsed.payload.party.bytes == complete.payload.party.bytes &&
+                parsed.payload.role_name_bytes_read == boundary.copied,
+            "name mapping boundary retains decoded party and complete dwords"
+        );
+        LegacySavePreviewRecord record;
+        record.bytes.fill(0x5AU);
+        record.role_names.assign(0x40U, 0xA5U);
+        test.expect_true(
+            populate_legacy_save_preview(
+                record, parsed.payload, conversion, parsed.next_read
+            ) == expected_populate &&
+                std::equal(
+                    record.bytes.data(), record.bytes.data() + 0x2CU,
+                    reference.bytes.data()
+                ) &&
+                record.pixels[0U] == 0xF800U &&
+                record.role_names.size() == 0x40U &&
+                record.play_time.empty() == !completed &&
+                record.bytes[0x30U] == (completed ? 2U : 0x5AU) &&
+                record.bytes[0x31U] == (completed ? 0U : 0x5AU),
+            "name stop keeps prior record writes and does not publish completion"
+        );
+        if (boundary.copied != 0U) {
+            const auto name_offset = static_cast<compat::u32>(
+                party + 8U + boundary.packed_size
+            );
+            const auto* expected = source.data() + name_offset;
+            test.expect_true(
+                std::equal(
+                    expected, expected + boundary.copied,
+                    record.role_names.data()
+                ),
+                "only mapped complete name dwords are copied"
+            );
+        }
+
+        test.expect_true(
+            std::all_of(
+                record.role_names.data() + boundary.copied,
+                record.role_names.data() + record.role_names.size(),
+                [](const compat::u8 value) { return value == 0xA5U; }
+            ),
+            "name bytes after the stopped dword retain their previous contents"
+        );
+    }
+
     auto oversized = source;
     std::fill_n(oversized.data() + 0x962CU, 4U, 0xFFU);
     const auto outside =

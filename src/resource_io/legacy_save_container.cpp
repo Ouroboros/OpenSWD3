@@ -73,6 +73,11 @@ namespace {
     const LegacyLzo1xResult decoded =
         decompress_legacy_lzo1x(packed, block.bytes);
     offset += header_size + packed_size;
+    if (mapped_preview) {
+        // 004097DE/00409813 form the next mapped address with a 32-bit LEA.
+        offset = static_cast<compat::u32>(offset);
+    }
+
     if ((decoded.status != LegacyLzo1xStatus::success &&
          !(mapped_preview &&
            decoded.status == LegacyLzo1xStatus::input_not_consumed)) ||
@@ -267,6 +272,12 @@ read_legacy_save_preview_payload(const std::span<const compat::u8> bytes) {
 
         result.status = LegacySaveContainerStatus::truncated;
         result.next_read = LegacySavePreviewReadStage::role_names;
+        // 00409898 is the next mapped read after the declared-size advance.
+        // Keep the decoded party so the caller can publish its earlier writes.
+        if (offset > bytes.size()) {
+            return result;
+        }
+
         preview.role_name_bytes_read =
             std::min(preview.role_names.size(), bytes.size() - offset) &
             ~std::size_t{3U};
