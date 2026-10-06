@@ -1980,18 +1980,19 @@ public:
             owner_.initialize_battle(battle_id);
         }
         bool close_world_map_view() override {
-            // MAPS.DAT is an owned byte vector rather than a borrowed Win32
-            // mapped view; the logical close succeeds without invalidating it.
+            // unk_4CAA28 maps data/<map>.cm, not MAPS.DAT. The active
+            // world's cm_cache owns these pixels across battle; there is
+            // no borrowed Win32 view to invalidate.
             return true;
         }
         void report_world_map_view_close_failure() override {
             openswd3::diagnostics::log_warning(
-                "random encounter: MAPS view close failed"
+                "random encounter: CM view close failed"
             );
         }
         void close_world_map_handle() override {
-            // The LegacyFile owner is shared with later remap/reload paths and
-            // closes by RAII; no raw mapping handle exists here.
+            // The original closes the CM mapping handle, not the file.
+            // The typed CM cache has no mapping handle to release.
         }
 
     private:
@@ -2031,6 +2032,7 @@ public:
         std::filesystem::path world_cache_directory,
         const openswd3::rendering::LegacyPixelConversionState& pixel_conversion,
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
+        openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider,
         openswd3::world_map::LegacyWorldRoleActionInitializer&
             world_action_initializer,
         openswd3::asset_runtime::LegacyActionUpdater& action_updater,
@@ -2063,6 +2065,7 @@ public:
           launch_directory_(std::move(launch_directory)),
           world_cache_directory_(std::move(world_cache_directory)),
           pixel_conversion_(pixel_conversion), text_renderers_(text_renderers),
+          glyph_provider_(glyph_provider),
           world_action_initializer_(world_action_initializer),
           action_updater_(action_updater), tsw_runtime_(tsw_runtime),
           crt_rng_(crt_rng), secondary_rng_(secondary_rng),
@@ -3354,15 +3357,70 @@ public:
         }
         return std::bit_cast<openswd3::compat::i32>(result.return_eax);
     }
-    void rebuild_display_after_result_zero() override {}
-    void set_result_zero_world_state() override {}
-    void reopen_world_map_after_result_zero() override {}
-    void resume_audio_after_result_zero() override {}
-    void prepare_result_two_internal_state() override {}
-    void clear_result_two_auxiliary_state() override {}
-    void finish_result_two_mode_transition() override {}
-    void clear_result_three_internal_state() override {}
-    void remap_world_after_result_three() override {}
+    void rebuild_display_after_result_zero() override {
+        for (const openswd3::compat::u32 point_size : {20U, 16U, 12U}) {
+            if (text_renderers_.rebuild(
+                    point_size, game_framebuffer_, glyph_provider_
+                ) != openswd3::rendering::LegacyTextRendererRuntimeStatus::
+                         completed) {
+                openswd3::diagnostics::log_error(
+                    "battle return: text renderer rebuild failed"
+                );
+                ok_ = false;
+                running_ = false;
+            }
+        }
+    }
+
+    void set_result_zero_world_state() override {
+        world_story_vm_state_.dialog_scale = 11U;
+    }
+
+    void reopen_world_map_after_result_zero() override {
+        // sub_4381E0/sub_438290 remap the retained read-only CM file.
+        // background_source() borrows the still-owned cm_cache.cache_bytes;
+        // neither the world nor its pixel cache needs to be reloaded.
+    }
+
+    void fade_out_audio_after_result_zero() override {
+        static_cast<void>(
+            openswd3::audio_video::stop_legacy_stream(stream_manager_)
+        );
+    }
+
+    void prepare_result_two_internal_state() override {
+        openswd3::world_map::clear_legacy_world_story_flag(
+            world_story_vm_state_, 16U
+        );
+        openswd3::world_map::clear_legacy_world_story_flag(
+            world_story_vm_state_, 18U
+        );
+        openswd3::world_map::set_legacy_world_story_flag(
+            world_story_vm_state_, 17U
+        );
+    }
+
+    void clear_result_two_auxiliary_state() override {
+        high_priority_submode_ = 0U;
+        high_priority_auxiliary_ = 0U;
+        special_input_mode_ = 0U;
+    }
+
+    bool finish_result_two_mode_transition() override {
+        return reset_save_preview_state();
+    }
+
+    void clear_result_three_internal_state() override {
+        openswd3::world_map::clear_legacy_world_story_flag(
+            world_story_vm_state_, 17U
+        );
+    }
+
+    void remap_world_after_result_three() override {
+        // This exit uses the same retained CM pixels as result zero, without
+        // rebuilding fonts or fading audio.
+        reopen_world_map_after_result_zero();
+    }
 
     void
     step_high_priority(openswd3::app::FrameCoordinatorState& state) override {
@@ -8272,6 +8330,7 @@ private:
     std::filesystem::path world_cache_directory_;
     openswd3::rendering::LegacyPixelConversionState pixel_conversion_;
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
+    openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider_;
     openswd3::world_map::LegacyWorldRoleActionInitializer&
         world_action_initializer_;
     openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
@@ -8898,6 +8957,7 @@ int main(const int argument_count, char** arguments) {
         executable_directory / "cache" / "maps",
         pixel_conversion,
         text_renderers,
+        glyph_provider,
         world_action_initializer,
         action_updater,
         tsw_runtime,

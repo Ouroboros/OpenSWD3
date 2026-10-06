@@ -43,20 +43,23 @@ run_battle_frame(BattleTransitionState& state, BattleTransitionPorts& ports) {
         ports.rebuild_display_after_result_zero();
         ports.set_result_zero_world_state();
         ports.reopen_world_map_after_result_zero();
-        ports.resume_audio_after_result_zero();
+        ports.fade_out_audio_after_result_zero();
         return result;
     case 2:
         ports.prepare_result_two_internal_state();
-        state.battle_request_value = 0U;
         state.battle_active = 0U;
+        state.battle_request_value = 0U;
         state.special_mode_state = kBattleResultTwoSpecialMode;
         state.high_priority_state = 0U;
+        if (!ports.finish_result_two_mode_transition()) {
+            return std::nullopt;
+        }
+
         ports.clear_result_two_auxiliary_state();
-        ports.finish_result_two_mode_transition();
         return result;
     case 3:
-        state.battle_request_value = 0U;
         state.battle_active = 0U;
+        state.battle_request_value = 0U;
         ports.clear_result_three_internal_state();
         ports.remap_world_after_result_three();
         return result;

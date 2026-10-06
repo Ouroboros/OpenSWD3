@@ -21,7 +21,7 @@ enum class Call {
     rebuild_display_zero,
     set_world_state_zero,
     reopen_world_map_zero,
-    resume_audio_zero,
+    fade_out_audio_zero,
     prepare_result_two,
     clear_result_two_auxiliary,
     finish_result_two,
@@ -76,8 +76,8 @@ public:
     void reopen_world_map_after_result_zero() override {
         record(Call::reopen_world_map_zero);
     }
-    void resume_audio_after_result_zero() override {
-        record(Call::resume_audio_zero);
+    void fade_out_audio_after_result_zero() override {
+        record(Call::fade_out_audio_zero);
     }
     void prepare_result_two_internal_state() override {
         record(Call::prepare_result_two);
@@ -85,8 +85,9 @@ public:
     void clear_result_two_auxiliary_state() override {
         record(Call::clear_result_two_auxiliary);
     }
-    void finish_result_two_mode_transition() override {
+    bool finish_result_two_mode_transition() override {
         record(Call::finish_result_two);
+        return result_two_reset_completed;
     }
     void clear_result_three_internal_state() override {
         record(Call::clear_result_three);
@@ -95,6 +96,7 @@ public:
         record(Call::remap_result_three);
     }
 
+    bool result_two_reset_completed{true};
     std::vector<Event> events;
 
 private:
@@ -179,7 +181,7 @@ void test_result_zero(openswd3::test::Context& test) {
         {Call::rebuild_display_zero, 0, 0, 0, 7, 8},
         {Call::set_world_state_zero, 0, 0, 0, 7, 8},
         {Call::reopen_world_map_zero, 0, 0, 0, 7, 8},
-        {Call::resume_audio_zero, 0, 0, 0, 7, 8},
+        {Call::fade_out_audio_zero, 0, 0, 0, 7, 8},
     };
     test.expect_equal(ports.events, expected, "result zero transition order");
 }
@@ -196,10 +198,32 @@ void test_result_two(openswd3::test::Context& test) {
         {Call::step_battle, 0, 9, 1, 7, 8},
         {Call::maintain_audio, 0, 9, 1, 7, 8},
         {Call::prepare_result_two, 0, 9, 1, 7, 8},
-        {Call::clear_result_two_auxiliary, 0, 0, 0, 0x80000004U, 0},
+        // 0040A95C calls sub_406D30 before 0040A962..0040A96E.
         {Call::finish_result_two, 0, 0, 0, 0x80000004U, 0},
+        {Call::clear_result_two_auxiliary, 0, 0, 0, 0x80000004U, 0},
     };
     test.expect_equal(ports.events, expected, "result two transition order");
+}
+
+void test_result_two_reset_stop(openswd3::test::Context& test) {
+    openswd3::app::BattleTransitionState state{9, 1, 7, 8};
+    RecordingPorts ports(state, 2);
+    ports.result_two_reset_completed = false;
+    test.expect_equal(
+        openswd3::app::run_battle_frame(state, ports),
+        std::optional<i32>{},
+        "unreturned preview reset is a typed stop, not result two completion"
+    );
+    const std::vector<Event> expected{
+        {Call::step_battle, 0, 9, 1, 7, 8},
+        {Call::maintain_audio, 0, 9, 1, 7, 8},
+        {Call::prepare_result_two, 0, 9, 1, 7, 8},
+        {Call::finish_result_two, 0, 0, 0, 0x80000004U, 0},
+    };
+    test.expect_equal(
+        ports.events, expected,
+        "0040A95C stop retains mode writes and skips later auxiliary clears"
+    );
 }
 
 void test_result_three(openswd3::test::Context& test) {
@@ -278,6 +302,7 @@ int main() {
     test_entry_sequence(test);
     test_result_zero(test);
     test_result_two(test);
+    test_result_two_reset_stop(test);
     test_result_three(test);
     test_typed_stop(test);
     test_other_result(test);

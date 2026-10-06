@@ -33,11 +33,13 @@ public:
     virtual void rebuild_display_after_result_zero() = 0;
     virtual void set_result_zero_world_state() = 0;
     virtual void reopen_world_map_after_result_zero() = 0;
-    virtual void resume_audio_after_result_zero() = 0;
+    // sub_485710: begin fading stream 100 with divisor 1.
+    virtual void fade_out_audio_after_result_zero() = 0;
 
     virtual void prepare_result_two_internal_state() = 0;
+    // sub_406D30 runs before the three auxiliary dwords are cleared.
+    [[nodiscard]] virtual bool finish_result_two_mode_transition() = 0;
     virtual void clear_result_two_auxiliary_state() = 0;
-    virtual void finish_result_two_mode_transition() = 0;
 
     virtual void clear_result_three_internal_state() = 0;
     virtual void remap_world_after_result_three() = 0;

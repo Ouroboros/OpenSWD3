@@ -84,7 +84,7 @@ public:
     void reopen_world_map_after_result_zero() override {
         calls.push_back(Call::battle_zero_map);
     }
-    void resume_audio_after_result_zero() override {
+    void fade_out_audio_after_result_zero() override {
         calls.push_back(Call::battle_zero_audio);
     }
     void prepare_result_two_internal_state() override {
@@ -93,8 +93,9 @@ public:
     void clear_result_two_auxiliary_state() override {
         calls.push_back(Call::battle_two_clear);
     }
-    void finish_result_two_mode_transition() override {
+    bool finish_result_two_mode_transition() override {
         calls.push_back(Call::battle_two_finish);
+        return true;
     }
     void clear_result_three_internal_state() override {
         calls.push_back(Call::battle_three_clear);
@@ -260,6 +261,42 @@ void test_battle_early_return(openswd3::test::Context& test) {
         ports.calls,
         expected,
         "battle does not reach common close check even when close bit is set"
+    );
+}
+
+void test_battle_result_two_reset_order(openswd3::test::Context& test) {
+    auto state = make_state();
+    state.process_flags = 0x04U;
+    state.battle.battle_request_value = 9U;
+    state.battle.battle_active = 1U;
+    state.battle.special_mode_state = 7U;
+    RecordingPorts ports{2};
+    test.expect_equal(
+        openswd3::app::run_accepted_frame(state, ports),
+        openswd3::app::FrameRunOutcome::battle_early_return,
+        "result two returns before the world or common close tail"
+    );
+    test.expect_equal(
+        ports.calls,
+        std::vector{
+            Call::battle_step,
+            Call::audio,
+            Call::battle_two_prepare,
+            Call::battle_two_finish,
+            Call::battle_two_clear,
+        },
+        "0040A95C resets input before 0040A962 clears auxiliary state"
+    );
+    test.expect_equal(
+        state.battle.special_mode_state,
+        0x80000004U,
+        "result two publishes the original special mode"
+    );
+    test.expect_equal(
+        state.battle.battle_active, 0U, "result two leaves battle"
+    );
+    test.expect_equal(
+        state.battle.battle_request_value, 0U, "result two clears the request"
     );
 }
 
@@ -517,6 +554,7 @@ int main() {
     test_startup_load_menu(test);
     test_high_priority(test);
     test_battle_early_return(test);
+    test_battle_result_two_reset_order(test);
     test_battle_typed_stop(test);
     test_world(test);
     test_world_gate_mutations(test);
