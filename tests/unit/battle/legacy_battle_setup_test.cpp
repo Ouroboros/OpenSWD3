@@ -6477,6 +6477,49 @@ void test_render_resource_cleanup(openswd3::test::Context& test) {
 }
 
 void test_render_surface_rebuild_coordination(openswd3::test::Context& test) {
+    // 00433DE8 stores pitch / 2 in the caller's argument slot. After
+    // 00433EFC pops eight bytes, 00433DF5 reloads that slot as rectangle width.
+    struct RectangleCase {
+        i32 pitch_bytes;
+        i32 height;
+        i32 expected_width;
+    };
+
+    constexpr std::array<RectangleCase, 7> rectangle_cases{{
+        {1281, 3, 640},
+        {7, 5, 3},
+        {-5, 0, -2},
+        {0, 2, 0},
+        {-1, 1, 0},
+        {std::numeric_limits<i32>::min(), 0, -1073741824},
+        {std::numeric_limits<i32>::max(), 1, 1073741823},
+    }};
+
+    for (const auto& sample : rectangle_cases) {
+        LegacyBattleRenderGeometry geometry;
+        SequencedRowOffsetAllocator allocator;
+        allocator.capacities = {-2, -2};
+        const auto result =
+            openswd3::battle::rebuild_legacy_battle_render_surface(
+                geometry,
+                openswd3::rendering::LegacySurfaceGeometry{
+                    .pitch_bytes = sample.pitch_bytes,
+                    .width = 999,
+                    .height = sample.height,
+                },
+                allocator
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleRenderSurfaceRebuildStatus::completed &&
+                result.rectangle_published && geometry.left == 0 &&
+                geometry.top == 0 &&
+                geometry.right == sample.expected_width &&
+                geometry.bottom == sample.height,
+            "rectangle consumes saved signed half pitch and original height"
+        );
+    }
+
     {
         LegacyBattleRenderGeometry geometry;
         SequencedRowOffsetAllocator allocator;
@@ -6505,12 +6548,12 @@ void test_render_surface_rebuild_coordination(openswd3::test::Context& test) {
                 geometry.surface_width == 640 &&
                 geometry.surface_height == 480 &&
                 geometry.surface_row_offsets[479U] == 0x4AD80U &&
-                geometry.left == 0 && geometry.top == -800 &&
-                geometry.right == 480 && geometry.bottom == 480 &&
+                geometry.left == 0 && geometry.top == 0 &&
+                geometry.right == 640 && geometry.bottom == 480 &&
                 geometry.primary_row_stride == 1280 &&
                 geometry.primary_row_count == 768 &&
                 geometry.primary_row_offsets[767U] == 0xEFB00U,
-            "surface rebuild uses half pitch for rows but height and raw pitch for the legacy rectangle"
+            "surface rebuild uses half pitch and source height for rows and rectangle"
         );
     }
 
@@ -6547,8 +6590,8 @@ void test_render_surface_rebuild_coordination(openswd3::test::Context& test) {
                 geometry.primary_row_offsets == nullptr &&
                 geometry.surface_width == 10 && geometry.surface_height == 20 &&
                 geometry.primary_row_stride == 7 &&
-                geometry.primary_row_count == 8 && geometry.left == -470 &&
-                geometry.top == -1260 && geometry.right == 10 &&
+                geometry.primary_row_count == 8 && geometry.left == -630 &&
+                geometry.top == -460 && geometry.right == 10 &&
                 geometry.bottom == 20,
             "ordinary allocation failures continue through rectangle and primary rebuild while preserving old metadata"
         );
@@ -6611,8 +6654,8 @@ void test_render_surface_rebuild_coordination(openswd3::test::Context& test) {
                         primary_row_offsets_write_out_of_range &&
                 result.rectangle_published && allocator.call_index == 2U &&
                 geometry.surface_row_offsets[479U] == 0x4AD80U &&
-                geometry.left == 0 && geometry.top == -800 &&
-                geometry.right == 480 && geometry.bottom == 480 &&
+                geometry.left == 0 && geometry.top == 0 &&
+                geometry.right == 640 && geometry.bottom == 480 &&
                 geometry.primary_row_offsets != nullptr &&
                 geometry.primary_row_offsets[0U] == 0U &&
                 geometry.primary_row_stride == 1280 &&

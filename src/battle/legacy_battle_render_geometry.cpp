@@ -195,7 +195,7 @@ LegacyBattleRenderSurfaceRebuildResult rebuild_legacy_battle_render_surface(
     }
 
     static_cast<void>(set_legacy_battle_render_rectangle(
-        geometry, 0, 0, result.source.height, result.source.pitch_bytes
+        geometry, 0, 0, row_stride, result.source.height
     ));
     result.rectangle_published = true;
 

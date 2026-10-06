@@ -3578,6 +3578,11 @@ B7 P0 有限收口完成。
 
 - 模块10战斗绘制资源整体清理`0x00433D70`完成。先直接组合已关闭附属缓冲释放，再按surface行表、主行表顺序执行两个独立非空释放分支，并分别在释放返回后清零；尺寸、矩形、方向表和其他owner状态不变。两个主动caller和一个CRT退出回调均不消费旧EAX残值，现代三分支结果只作typed观测。定向测试锁定全空短路、附属回调期间两张行表仍存在、三项释放后为空及其他状态不变；零warning目标构建、独立ASan、Linux core`188/188`及Linux app`194/194`通过。工作包连续两次生成逐字节一致，当前`13/422`，即`10 platform_adapted + 3 assembly_exact + 409 pending_audit`，SHA256为`985059244669b9c60835a7cb09549c1bf52425aa01318190513b5137b3f55db1`。原版三条清理路径联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
+以下历史条目的矩形参数结论已被B11复核撤销：`00433DE8`先把半pitch
+写回栈槽，`00433DF5`再读取它作为矩形宽度；高度保持原值。
+默认矩形应为0、0、640、480。旧测试通过记录不证明被撤销的参数结论；
+当前依据见战斗surface重建证据。
+
 - 模块10战斗绘制surface协调重建`0x00433DC0`完成，并恢复渲染模块拥有的跨模块pitch/高度getter`0x00437E90`。旧DirectDraw字段来源证明getter首值是字节pitch、次值是高度；协调函数以pitch向零除二和高度重建surface行表，但矩形故意把高度作宽、未除二pitch作高，最后固定重建1280×768主行表。普通申请失败继续，surface与主表原写点分别typed-stop。定向测试锁定getter忽略现代逻辑宽、默认两表、交换矩形、申请失败前缀、两个typed-stop和负奇数pitch；零warning目标构建、独立ASan`2/2`、Linux core`188/188`及Linux app`194/194`通过。跨模块getter不增加battle计数；工作包连续两次生成逐字节一致，当前`14/422`，即`11 platform_adapted + 3 assembly_exact + 408 pending_audit`，SHA256为`c3cbb1b7497642e23191971bb1f0b97d679d124652cda8fb1c768dd1aaa812e3`。原版DirectDraw描述符与battle owner联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
 
 - 模块10战斗literal图像四方向循环平移`0x00433F70`完成。完整378行LST证明该函数不是“四个owner缓冲分配”，而是每次为一张固定literal字图像申请一个临时块：模式0/1循环移动完整行记录，模式2/3只循环移动每行像素负载。入口保留首行bit15先清除、再检查高flag与模式的副作用顺序；垂直申请保留低32位乘法，所有copy按原`rep movsd; rep movsb`逐dword、逐byte执行。申请失败、短图像、容量不足和移位超过宽高均不提前夹值，只在首次真实图像或临时读写点typed-stop，并保留此前flag及写前缀。定向测试锁定四方向精确像素序列、早退、失败与不安全域前缀；零warning目标构建、独立ASan`1/1`、Linux core`188/188`及Linux app`194/194`通过。工作包连续两次生成逐字节一致，当前`15/422`，即`12 platform_adapted + 3 assembly_exact + 407 pending_audit`，SHA256为`0b4b8992e4497d609d1a143436d82f69b2422ad98227593215f6dbbf25186268`。原版战斗literal图像变形联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。

@@ -36,15 +36,24 @@ ABI为thiscall：ECX是战斗绘制owner，唯一栈参数是旧DirectDraw owner
 1. 调用getter，取得入口`pitch_bytes`与`height`；
 2. 以x86有符号向零除二计算`row_stride = pitch_bytes / 2`；
 3. 调用surface行表重建，参数为`row_stride, height`；
-4. 调用矩形callee，参数为`left=0, top=0, width=height, height=pitch_bytes`；
+4. 调用矩形callee，参数为`left=0, top=0, width=row_stride, height=height`；
 5. 调用主行表重建，固定参数为`0x500, 0x300`。
 
-第四步不是现代常规宽高：旧汇编确实把第二个getter输出`height`压作矩形宽，把第一个输出的未除二`pitch_bytes`压作矩形高。现代实现明确保留，不修正为`pitch/2 × height`。
+B11复核撤销了此前“交换宽高并使用原始pitch”的错误结论。以函数入口ESP为S：
+
+- 两次push后，getter的pitch输出槽是`S+4`，高度输出槽是`S-4`；
+- `00433DE8`在两个行表实参已压栈时写`[esp+14h]`，即把`pitch/2`写回`S+4`；
+- 行表callee在`00433EFC`执行`retn 8`，caller的ESP恢复为`S-8`；
+- `00433DF1/00433DF5`分别从`S-4/S+4`读取高度与已经除二的pitch；
+- 随后依次push高度、半pitch、0、0，矩形callee得到`0,0,row_stride,height`。
+
+旧实现、旧测试与旧证据共同漏读了栈槽回写及压栈方向。修正依据是完整LST，
+不是按现代尺寸习惯归一化。源逻辑width仍不参与计算。
 
 默认pitch1280、高480时：
 
 - surface行表为640×480，最后偏移`0x4AD80`；
-- 矩形在640×480 surface边界下变为左0、上`-800`、右480、下480；
+- 矩形为左0、上0、右640、下480；
 - 主行表随后固定为1280×768，最后偏移`0xEFB00`。
 
 ## 4. 申请失败与typed-stop
@@ -79,7 +88,8 @@ LST到C++：
 - `0x00437E90..0x00437EA0`：pitch、高度两次原样复制；
 - `0x00433DC4..0x00433DD2`：建立输出槽并调用typed getter；
 - `0x00433DD7..0x00433DEC`：pitch向零除二，以高度重建surface行表；
-- `0x00433DF1..0x00433E01`：按旧压栈顺序发布交换参数矩形；
+- `0x00433DE8`：保存有符号半pitch，后续矩形宽度从该槽读取；
+- `0x00433DF1..0x00433E01`：以半pitch和原高度发布矩形；
 - `0x00433E06..0x00433E12`：固定1280×768主行表；
 - `0x00433E17..0x00433E19`：返回并清理一个栈参数。
 
@@ -100,12 +110,19 @@ C++到LST：
 battle协调测试覆盖：
 
 - 默认pitch/高度的两张完整行表及请求字节；
-- 旧交换矩形得到的0、-800、480、480；
+- 默认矩形为0、0、640、480；
 - 两次普通申请失败仍继续并保留旧元数据；
 - surface写越界阻断矩形与主表；
 - 主表写越界保留已完成surface与矩形；
-- 负奇数pitch向零除二。
+- 七组额外pitch/高度向量覆盖奇数、零、负数与i32上下界，直接断言四边；
+- 普通申请失败保留旧10×20尺寸时，矩形为-630、-460、10、20。
 
-本函数不消费物理游戏资产。两个定向目标与零warning构建通过。
+本函数不消费物理游戏资产。B11新增断言已在旧实现复现10处失败，
+日志为`build/tmp/runtime/battle-render-rectangle-red.log`。
+修正后定向core与AddressSanitizer各1/1、SDL链接通过，日志为同目录
+`battle-render-rectangle-{core,asan,sdl}.log`。ASan构建仅出现既有
+`legacy_battle_outcome_resolution_test.cpp:137`的u16到u8窄化警告。
+唯一核心caller仍在初始化中直接调用该入口，typed-stop继续阻止后续输出配置；
+本轮没有证明完整SDL初始化或实机画面。
 
 当前没有可用原版DirectDraw描述符、战斗owner行表和矩形的联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整60行跨模块LST、字段来源、typed实现与固定状态已经闭环。

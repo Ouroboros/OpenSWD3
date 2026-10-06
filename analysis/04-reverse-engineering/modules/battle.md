@@ -247,8 +247,9 @@ I5最终必须锁定：
 
 `audit_order=4`的`0x00433DC0`已关闭为`platform_adapted`。
 它先直接调用渲染模块`0x00437E90`的typed pitch/高度getter，再以pitch向零除二和高度重建surface行表；
-矩形故意保留宽取高度、高取未除二pitch的旧参数非对称，最后固定重建1280×768主行表。普通申请失败继续，
-两个原行表写点分别typed-stop。
+矩形使用同一半pitch与原高度，最后固定重建1280×768主行表。普通申请失败继续，
+两个原行表写点分别typed-stop。B11复核栈槽回写后修正了此前错误的宽高交换结论；
+默认矩形为0、0、640、480，旧元数据与失败前缀仍按原callee保留。
 
 `audit_order=7`的`0x00433F00`已关闭为`platform_adapted`。它对附属缓冲空token直接返回；
 非空时以入口snapshot调用释放端口，回调期间owner仍保留旧token，只有回调返回后才清零。
