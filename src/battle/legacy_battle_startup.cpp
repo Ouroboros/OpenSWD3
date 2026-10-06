@@ -1250,7 +1250,8 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 stale_edx
             );
             ++result.enemy_action_advance_calls;
-            stale_edx = progress.return_edx;
+            // 45274D..45274F replaces EDX before the next iteration.
+            stale_edx = static_cast<u16>(count + 1U);
             if (progress.status !=
                 LegacyBattleActorGroupBProgressStatus::completed) {
                 result.status =

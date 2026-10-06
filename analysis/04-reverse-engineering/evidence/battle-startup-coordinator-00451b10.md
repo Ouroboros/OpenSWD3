@@ -84,7 +84,7 @@ enemy count按signed正数门进入循环，因已mask为u16，只有零跳过�
 7. 直接调用已关闭组B行动配置`0x00475720`，依次执行双记录复制、资源加载、字段发布、profile加载与资源文本释放；
 8. mode word严格等于1时调用额外模式callee。
 
-固定记录表`0x005213A0 + index*0x20`由组B元素生命周期八槽唯一持有，startup不再保留role/坐标/runtime副本。caller只写LST实际覆盖的`+0x14/+0x18/+0x1A/+0x1C`，保留未知20-byte前缀与`+0x16`。镜像路径在actor mode返回后只用`mov cx`覆盖下一定义参数低word，因此ECX高word为callee陈旧snapshot；modern组合为`stale_high | role_low`并直接送typed配置。资源加载、profile或释放typed-stop保留此前reset、scratch、记录和mirror副作用，并阻断额外mode、随机进度与后续组A阶段；旧整函数opaque槽保留为reserved且零调用。
+固定记录表`0x005213A0 + index*0x20`由组B元素生命周期八槽唯一持有，startup不再保留role/坐标/runtime副本。caller只写LST实际覆盖的`+0x14/+0x16/+0x18/+0x1C`，保留未知20-byte前缀与`+0x1A`。镜像路径在actor mode返回后只用`mov cx`覆盖下一定义参数低word，因此ECX高word为callee陈旧snapshot；modern组合为`stale_high | role_low`并直接送typed配置。资源加载、profile或释放typed-stop保留此前reset、scratch、记录和mirror副作用，并阻断额外mode、随机进度与后续组A阶段；旧整函数opaque槽保留为reserved且零调用。
 
 definition与组B都只有八槽。第九项在首次actor对象访问处typed-stop，保留前八项全部副作用。
 
@@ -142,7 +142,7 @@ modern以80位`long double`执行同序计算，有限域向零转i64并取低32
 
 初始组A角色配置后的两个全局阶段均已回收。第一阶段对玩家道具链按u16 item id稳定升序，每次比较先清当前selected count，交换后从head重扫；第二阶段接收第一阶段EAX，依次稳定排序四个队伍道具sentinel链，不清selected count，交换后只重扫当前根。第一阶段typed-stop阻断第二阶段，第二阶段typed-stop阻断资料绑定和补位。
 
-补位后固定调用三个pending全局阶段。每名敌人调用`random(6)`，结果为N就对该组B对象直接调用N次已关闭`0x004755E0`，固定参数零并使用本次动作阈值。第一次调用的EDX继承random callee，后续迭代继承前一次进度返回；整函数旧opaque枚举槽保留为reserved且零调用。资源typed-stop保留此前全部启动副作用和已完成迭代，并阻断组A随机进度初始化。之后按补位后的队伍总数，对每个组A对象直连已关闭`0x00478380`：以固定上界9调用第二套RNG，计算`300 + 150 / (random + 1)`，并只写角色`+0x2A12`低word。startup直接使用`state.party[index].progress`唯一owner；旧`finalize_party_actor` opaque槽改为reserved且零调用。角色进度写typed-stop保留当前RNG、商余数和此前角色写入，并阻断后续角色和正常尾部；固定组A owner越界也在完成本轮RNG与除法后才于原word写访问停止。
+补位后固定调用三个pending全局阶段。每名敌人调用`random(6)`，结果为N就对该组B对象直接调用N次已关闭`0x004755E0`，固定参数零并使用本次动作阈值。第一次调用的EDX继承random callee；`0045274D..0045274F`在后续调用前将EDX替换为已完成次数的低16位，不继承前一次进度返回；整函数旧opaque枚举槽保留为reserved且零调用。资源typed-stop保留此前全部启动副作用和已完成迭代，并阻断组A随机进度初始化。之后按补位后的队伍总数，对每个组A对象直连已关闭`0x00478380`：以固定上界9调用第二套RNG，计算`300 + 150 / (random + 1)`，并只写角色`+0x2A12`低word。startup直接使用`state.party[index].progress`唯一owner；旧`finalize_party_actor` opaque槽改为reserved且零调用。角色进度写typed-stop保留当前RNG、商余数和此前角色写入，并阻断后续角色和正常尾部；固定组A owner越界也在完成本轮RNG与除法后才于原word写访问停止。
 
 正常返回EAX按u32顺序计算：
 
@@ -153,6 +153,15 @@ remaining -= low16(supplemental_count_word)
 ```
 
 再以unsigned比较：若陈旧party actor mode byte不小于`remaining`，把唯一共享战斗消息/阶段写`0x67`。相邻角色预处理关闭后，该dword与动作、效果和逐帧路径共用`LegacyBattleSharedPhaseStatePort`，不再保留startup副本。该写不改变EAX；无论条件真假都返回同一个回绕`remaining`。测试覆盖等于零时成立及正数域。
+
+该循环的EDX输入已按调用点修正。callee仅在两条状态早退中原样返回入口EDX，
+其他路径都会覆盖它；启动caller不消费这个返回。因此现有角色字段结果不受此修正影响。
+该结论来自完整callee `004755E0..0047570E`及caller `0045270C..00452769`，
+不以字段回归测试冒充寄存器动态差分。敌方记录偏移说明同时按实际store和结构静态断言
+修正；结构布局与坐标写入代码原本正确，无须改动。
+回归战斗聚合core/ASan各1/1及SDL链接通过，三份日志无warning/error：
+`build/tmp/runtime/battle-startup-progress-register-{core,asan,sdl}.log`。
+这些回归包含既有重复敌方进度调用及真实资源组合测试，未新增寄存器动态采集。
 
 ## 12. 双向追溯
 
