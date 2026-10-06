@@ -602,7 +602,8 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eleven() {
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_twelve() {
     i32 index = 0;
-    while (index < static_cast<i32>(bindings_.startup.enemy_count)) {
+    while (index < static_cast<i32>(
+                       bindings_.startup.actor_metrics.group_b_count)) {
         if (index < 0 ||
             index >=
                 static_cast<i32>(bindings_.shared.actor_state_words.size())) {
@@ -625,7 +626,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twelve() {
     }
     if (bindings_.message_phase.group_b_bypass_gate == 0U) {
         bindings_.shared.published_group_b_count =
-            static_cast<u8>(bindings_.startup.enemy_count);
+            static_cast<u8>(bindings_.startup.actor_metrics.group_b_count);
         bindings_.shared.published_group_b_aux = 0U;
         if (bindings_.message_state != 98U &&
             static_cast<i32>(bindings_.message_state) < 99) {
@@ -953,12 +954,13 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_two() {
     const u32 delta = std::bit_cast<u32>(signed_word(delta_word));
     workspace_.position_x = delta_word;
     i32 index = 0;
-    while (index < static_cast<i32>(bindings_.startup.party_count)) {
+    while (index < static_cast<i32>(
+                       bindings_.startup.actor_metrics.group_a_count)) {
         const auto token = group_a_token(index + 8);
         if (!token.has_value()) {
             return finish(eax_);
         }
-        const u32 count = bindings_.startup.party_count;
+        const u32 count = bindings_.startup.actor_metrics.group_a_count;
         const auto query_flags = index == 0
             ? test_flags(count)
             : subtract_flags(static_cast<u32>(index), count);
@@ -995,12 +997,13 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_two() {
         ++index;
     }
     index = 0;
-    while (index < static_cast<i32>(bindings_.startup.enemy_count)) {
+    while (index < static_cast<i32>(
+                       bindings_.startup.actor_metrics.group_b_count)) {
         const auto token = group_b_token(index);
         if (!token.has_value()) {
             return finish(eax_);
         }
-        const u32 count = bindings_.startup.enemy_count;
+        const u32 count = bindings_.startup.actor_metrics.group_b_count;
         const auto query_flags = index == 0
             ? test_flags(count)
             : subtract_flags(static_cast<u32>(index), count);
@@ -1216,7 +1219,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_five() {
         bindings_.target_selection.completion_gate = 1U;
     }
     bindings_.shared.published_group_b_count =
-        static_cast<u8>(bindings_.startup.enemy_count);
+        static_cast<u8>(bindings_.startup.actor_metrics.group_b_count);
     bindings_.shared.published_group_b_aux = 0U;
     bindings_.message_phase.group_b_bypass_gate = 1U;
     bindings_.shared.frame_gate = 0U;

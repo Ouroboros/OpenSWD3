@@ -238,14 +238,6 @@ rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
 
 }  // namespace
 
-void bind_legacy_battle_actor_counts_for_frame(
-    const LegacyBattleStartupState& startup,
-    LegacyBattleActorMetricState& metrics
-) noexcept {
-    metrics.group_b_count = startup.enemy_count;
-    metrics.group_a_count = startup.party_count;
-}
-
 void clear_legacy_battle_actor_metric_tables(
     LegacyBattleActorMetricState& state
 ) noexcept {
@@ -285,13 +277,9 @@ LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
 
 LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
     LegacyBattleStartupPort& port,
-    const compat::u32 group_b_count,
-    const compat::u32 group_a_count,
     const LegacyBattleActorCoordinateOwners& owners
 ) {
     auto& state = port.actor_metric_state();
-    state.group_b_count = group_b_count;
-    state.group_a_count = group_a_count;
     auto call = [&state, &owners](
                     const u32 actor_token,
                     const u32 byte_token,

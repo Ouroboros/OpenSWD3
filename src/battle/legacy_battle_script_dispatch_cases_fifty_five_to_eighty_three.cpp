@@ -579,7 +579,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy() {
 LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_one() {
     bindings_.shared.control_flags |= 0x10U;
     bindings_.shared.captured_group_a_count =
-        static_cast<u8>(bindings_.startup.party_count);
+        static_cast<u8>(bindings_.startup.actor_metrics.group_a_count);
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
     bindings_.message_state = 103U;
     return finish(1U);
@@ -655,12 +655,13 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_three() {
         return finish(1U);
     }
     i32 index = 0;
-    while (index < static_cast<i32>(bindings_.startup.party_count)) {
+    while (index < static_cast<i32>(
+                       bindings_.startup.actor_metrics.group_a_count)) {
         const auto token = group_a_token(index + 8);
         if (!token.has_value()) {
             return finish(eax_);
         }
-        const u32 count_eax = bindings_.startup.party_count;
+        const u32 count_eax = bindings_.startup.actor_metrics.group_a_count;
         const auto query_flags = index == 0
             ? subtract_flags(count_eax, 0U)
             : subtract_flags(static_cast<u32>(index), count_eax);
@@ -699,12 +700,13 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_three() {
         ++index;
     }
     index = 0;
-    while (index < static_cast<i32>(bindings_.startup.enemy_count)) {
+    while (index < static_cast<i32>(
+                       bindings_.startup.actor_metrics.group_b_count)) {
         const auto token = group_b_token(index);
         if (!token.has_value()) {
             return finish(eax_);
         }
-        const u32 count_eax = bindings_.startup.enemy_count;
+        const u32 count_eax = bindings_.startup.actor_metrics.group_b_count;
         const auto query_flags = index == 0
             ? subtract_flags(count_eax, 0U)
             : subtract_flags(static_cast<u32>(index), count_eax);

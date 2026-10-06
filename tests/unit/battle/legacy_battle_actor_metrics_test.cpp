@@ -17,9 +17,26 @@ using openswd3::battle::LegacyBattleStartupCallRequest;
 using openswd3::battle::LegacyBattleStartupPort;
 using openswd3::compat::u32;
 
+class ActorMetricStatePort final
+    : public openswd3::battle::LegacyBattleActorMetricStatePort {
+public:
+    ActorMetricStatePort() = default;
+};
+
 class SharedActorMetricPort final : public LegacyBattleActionDispatchPort,
                                     public LegacyBattleStartupPort {
 public:
+    SharedActorMetricPort() = default;
+
+    explicit SharedActorMetricPort(
+        openswd3::battle::LegacyBattleActorMetricState& state
+    )
+        : LegacyBattleActorMetricStatePort(state) {}
+
+    openswd3::battle::LegacyBattleActorMetricState& metric_reference{
+        actor_metric_state()
+    };
+
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest&) override {
         ++action_invoke_calls;
@@ -57,7 +74,6 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleMetricFirstCountStatus;
     using openswd3::battle::LegacyBattleActorOrderStatus;
     using openswd3::battle::LegacyBattleStartupState;
-    using openswd3::battle::bind_legacy_battle_actor_counts_for_frame;
     using openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken;
     using openswd3::battle::probe_legacy_battle_metric_first_count;
     using openswd3::battle::rebuild_legacy_battle_actor_metrics;
@@ -65,22 +81,86 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
 
     {
         LegacyBattleStartupState startup;
-        openswd3::battle::LegacyBattleActorMetricState metrics;
+        auto& metrics = startup.actor_metrics;
         metrics.values[0U] = 17;
         metrics.selected_mask[0U] = 0x12345678U;
-        startup.enemy_count = 1U;
-        startup.party_count = 1U;
-        bind_legacy_battle_actor_counts_for_frame(startup, metrics);
+        startup.actor_metrics.group_b_count = 1U;
+        startup.actor_metrics.group_a_count = 1U;
         const bool initial_counts =
             metrics.group_b_count == 1U && metrics.group_a_count == 1U;
-        startup.enemy_count = 2U;
-        startup.party_count = 3U;
-        bind_legacy_battle_actor_counts_for_frame(startup, metrics);
+        startup.actor_metrics.group_b_count = 2U;
+        startup.actor_metrics.group_a_count = 3U;
         test.expect_true(
             initial_counts && metrics.group_b_count == 2U &&
                 metrics.group_a_count == 3U && metrics.values[0U] == 17 &&
                 metrics.selected_mask[0U] == 0x12345678U,
-            "battle frame uses live startup counts after script writes rather than default-zero metric copies"
+            "battle frame observes script counts directly through the shared owner"
+        );
+        metrics.group_a_count = 0xFFFFFFFFU;
+        metrics.group_b_count = 0x80000000U;
+        test.expect_true(
+            startup.actor_metrics.group_a_count == 0xFFFFFFFFU &&
+                startup.actor_metrics.group_b_count == 0x80000000U,
+            "metric count writes reach the startup owner without narrowing"
+        );
+        startup = {};
+        test.expect_true(
+            &metrics == &startup.actor_metrics &&
+                metrics.group_a_count == 0U && metrics.group_b_count == 0U,
+            "battle re-entry preserves the borrowed metric object identity"
+        );
+    }
+
+    {
+        ActorMetricStatePort port;
+        auto& owned = port.actor_metric_state();
+        owned.values[0U] = 17;
+        port.borrow_actor_metric_state(owned);
+        auto owned_copy = port;
+        owned_copy.actor_metric_state().values[0U] = 23;
+        test.expect_true(
+            &port.actor_metric_state() == &owned && owned.values[0U] == 17 &&
+                &owned_copy.actor_metric_state() != &owned &&
+                owned_copy.actor_metric_state().values[0U] == 23,
+            "self borrowing retains owned state and copying an owner is independent"
+        );
+
+        LegacyBattleStartupState first;
+        LegacyBattleStartupState second;
+        first.actor_metrics.group_b_count = 0x80000000U;
+        second.actor_metrics.group_b_count = 7U;
+        auto constructed_borrower =
+            std::make_unique<SharedActorMetricPort>(first.actor_metrics);
+        test.expect_true(
+            &constructed_borrower->metric_reference == &first.actor_metrics &&
+                &static_cast<LegacyBattleActionDispatchPort&>(
+                     *constructed_borrower).actor_metric_state() ==
+                    &first.actor_metrics &&
+                &static_cast<LegacyBattleStartupPort&>(
+                     *constructed_borrower).actor_metric_state() ==
+                    &first.actor_metrics &&
+                constructed_borrower->metric_reference.group_b_count ==
+                    0x80000000U,
+            "most-derived borrow construction binds member references and both virtual-base paths to the supplied owner"
+        );
+        port.borrow_actor_metric_state(first.actor_metrics);
+        auto borrowed_copy = port;
+        borrowed_copy.actor_metric_state().group_a_count = 0xFFFFFFFFU;
+        const auto& const_port = port;
+        test.expect_true(
+            &const_port.actor_metric_state() == &first.actor_metrics &&
+                &borrowed_copy.actor_metric_state() == &first.actor_metrics &&
+                first.actor_metrics.group_a_count == 0xFFFFFFFFU &&
+                const_port.actor_metric_state().group_b_count == 0x80000000U,
+            "borrowed mutable const and copied ports access the same full-width fields"
+        );
+        port.borrow_actor_metric_state(second.actor_metrics);
+        port.actor_metric_state().group_b_count = 3U;
+        test.expect_true(
+            second.actor_metrics.group_b_count == 3U &&
+                first.actor_metrics.group_b_count == 0x80000000U &&
+                &borrowed_copy.actor_metric_state() == &first.actor_metrics,
+            "rebinding changes only the selected borrower without copying game fields"
         );
     }
 
@@ -127,6 +207,15 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
                     &startup_port.actor_metric_state() &&
                 startup_port.actor_metric_state().values[0] == 123,
             "action and startup ports share one physical actor metric storage"
+        );
+        LegacyBattleStartupState startup;
+        startup.actor_metrics.values[0U] = 456;
+        startup_port.borrow_actor_metric_state(startup.actor_metrics);
+        test.expect_true(
+            &action_port.actor_metric_state() == &startup.actor_metrics &&
+                &startup_port.actor_metric_state() == &startup.actor_metrics &&
+                action_port.actor_metric_state().values[0U] == 456,
+            "startup binding reaches the action port through the shared virtual base"
         );
     }
 

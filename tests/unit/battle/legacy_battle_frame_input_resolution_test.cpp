@@ -117,7 +117,9 @@ struct Fixture {
     openswd3::battle::LegacyBattleStartupState startup;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleActionDispatchState action;
-    openswd3::battle::LegacyBattleActorMetricState metrics;
+    openswd3::battle::LegacyBattleActorMetricState& metrics{
+        startup.actor_metrics
+    };
     openswd3::input_time_rng::LegacyInputNormalizationState input;
     u32 message{};
     std::vector<openswd3::world_map::LegacyWorldInteractionHotspot> hotspots;
@@ -383,11 +385,8 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
                 selection.selected_option_word == 0x1234U,
             "case-zero count gate retains the same input-dispatch selection owner"
         );
-        fixture->startup.enemy_count = 1U;
-        fixture->startup.party_count = 1U;
-        openswd3::battle::bind_legacy_battle_actor_counts_for_frame(
-            fixture->startup, fixture->metrics
-        );
+        fixture->startup.actor_metrics.group_b_count = 1U;
+        fixture->startup.actor_metrics.group_a_count = 1U;
         const auto live_count_gate =
             run_legacy_battle_frame_input_case_zero_gate_prefix(
                 fixture->metrics, fixture->final_actor, selection, 400U

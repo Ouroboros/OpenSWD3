@@ -224,8 +224,8 @@ void seed_state(
         openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
     (*startup.group_b_lifecycle)[0U].action_record.action_id = 9U;
     startup.party[0].role_id = 9U;
-    startup.enemy_count = 8U;
-    startup.party_count = 10U;
+    startup.actor_metrics.group_b_count = 8U;
+    startup.actor_metrics.group_a_count = 10U;
     startup.mirror_mode = 7U;
     startup.supplemental_count_word = 9U;
     startup.reset.value_524413 = 9U;
@@ -983,8 +983,9 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 startup.group_b_lifecycle != nullptr &&
                 (*startup.group_b_lifecycle)[0U].action_record.action_id ==
                     0U &&
-                startup.party[0].role_id == 0U && startup.enemy_count == 0U &&
-                startup.party_count == 0U,
+                startup.party[0].role_id == 0U &&
+                startup.actor_metrics.group_b_count == 0U &&
+                startup.actor_metrics.group_a_count == 0U,
             "existing startup typed aliases share the fixed global reset stores"
         );
 

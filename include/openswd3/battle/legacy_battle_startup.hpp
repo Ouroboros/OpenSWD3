@@ -278,7 +278,7 @@ struct LegacyBattleStartupState {
     compat::u32 window_token{};
     compat::u16 battle_id_word{};
     std::array<compat::u8, 4> party_presence{};
-    compat::u32 party_count{};
+    LegacyBattleActorMetricState actor_metrics{};
     LegacyBattleActionModeSourceState action_mode_source{};
     compat::u32 mode_flags{};
     compat::u32 mirror_mode{};
@@ -293,7 +293,6 @@ struct LegacyBattleStartupState {
     compat::u16 secondary_text_color{};  // 0x005240BC
     compat::u32 logical_width{};
     compat::u32 logical_height{};
-    compat::u32 enemy_count{};
     compat::u32 definition_secondary_count{};
     compat::u16 background_resource{};
     std::array<LegacyBattleEnemyStartupRecord, 8> enemies{};

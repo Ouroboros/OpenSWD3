@@ -4,6 +4,9 @@
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <functional>
+#include <utility>
+#include <variant>
 
 namespace openswd3::battle {
 
@@ -71,20 +74,54 @@ class LegacyBattleActorMetricStatePort {
 public:
     [[nodiscard]] virtual LegacyBattleActorMetricState&
     actor_metric_state() noexcept {
-        return actor_metric_state_;
+        if (auto* state = std::get_if<LegacyBattleActorMetricState>(
+                &actor_metric_state_)) {
+            return *state;
+        }
+
+        return std::get<std::reference_wrapper<LegacyBattleActorMetricState>>(
+                   actor_metric_state_)
+            .get();
     }
 
     [[nodiscard]] virtual const LegacyBattleActorMetricState&
     actor_metric_state() const noexcept {
-        return actor_metric_state_;
+        if (const auto* state = std::get_if<LegacyBattleActorMetricState>(
+                &actor_metric_state_)) {
+            return *state;
+        }
+
+        return std::get<std::reference_wrapper<LegacyBattleActorMetricState>>(
+                   actor_metric_state_)
+            .get();
+    }
+
+    // Bind before retaining state references. The borrowed object must
+    // outlive subsequent port calls; binding never copies game fields.
+    void borrow_actor_metric_state(LegacyBattleActorMetricState& state) noexcept {
+        if (std::get_if<LegacyBattleActorMetricState>(&actor_metric_state_) ==
+            &state) {
+            return;
+        }
+
+        actor_metric_state_.emplace<1U>(std::ref(state));
     }
 
 protected:
     LegacyBattleActorMetricStatePort() = default;
+
+    explicit LegacyBattleActorMetricStatePort(
+        LegacyBattleActorMetricState& state
+    ) noexcept
+        : actor_metric_state_(std::in_place_index<1U>, std::ref(state)) {}
+
     ~LegacyBattleActorMetricStatePort() = default;
 
 private:
-    LegacyBattleActorMetricState actor_metric_state_{};
+    std::variant<
+        LegacyBattleActorMetricState,
+        std::reference_wrapper<LegacyBattleActorMetricState>>
+        actor_metric_state_{};
 };
 
 enum class LegacyBattleActorMetricStatus : compat::u8 {
@@ -128,14 +165,6 @@ struct LegacyBattleActorOrderResult {
     compat::u32 mask_writes{};
 };
 
-// SDL splits the original two physical 0x0053BCE0/E4 globals between
-// startup and metric views. Refresh only the metric view at the frame
-// boundary from the live startup owner, after any intervening script writes.
-void bind_legacy_battle_actor_counts_for_frame(
-    const LegacyBattleStartupState& startup,
-    LegacyBattleActorMetricState& metrics
-) noexcept;
-
 // 0x0045B0E4..0x0045B0FE: two forward 18-dword clears, before the
 // first group-B count read. The counts and adjacent state are untouched.
 void clear_legacy_battle_actor_metric_tables(
@@ -163,8 +192,6 @@ probe_legacy_battle_metric_first_count(
 
 [[nodiscard]] LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
     LegacyBattleStartupPort& port,
-    compat::u32 group_b_count,
-    compat::u32 group_a_count,
     const LegacyBattleActorCoordinateOwners& owners
 );
 

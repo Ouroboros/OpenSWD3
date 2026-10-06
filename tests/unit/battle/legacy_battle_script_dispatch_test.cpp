@@ -46,7 +46,7 @@ struct Fixture {
     LegacyBattleAssets assets;
     LegacyBattleStartupState startup;
     LegacyBattleActionDispatchState action;
-    LegacyBattleActorMetricState metrics;
+    LegacyBattleActorMetricState& metrics{startup.actor_metrics};
     LegacyBattleFinalActorStepState final_actor;
     LegacyBattleInputDispatchState input_dispatch;
     LegacyBattleTargetSelectionRuntimeState target_selection;
@@ -1888,7 +1888,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.write_u16(2U, 8U);
         fixture.write_u16(4U, 10U);
         fixture.write_u16(6U, static_cast<u16>(-45));
-        fixture.startup.enemy_count = 1U;
+        fixture.startup.actor_metrics.group_b_count = 1U;
         fixture.metrics.values[0U] = 1;
         prepare_group_b(fixture);
         seed_current_coordinates(fixture);
@@ -2013,8 +2013,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         Port port;
         fixture.opcode(22);
         fixture.write_u16(2U, static_cast<u16>(-1));
-        fixture.startup.party_count = 2U;
-        fixture.startup.enemy_count = 1U;
+        fixture.startup.actor_metrics.group_a_count = 2U;
+        fixture.startup.actor_metrics.group_b_count = 1U;
         prepare_group_b(fixture);
         seed_current_coordinates(fixture);
         const auto result = run_legacy_battle_script_dispatch(
@@ -2065,8 +2065,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         Port port;
         fixture.opcode(40);
         fixture.write_u16(2U, 0U);
-        fixture.startup.party_count = 1U;
-        fixture.startup.enemy_count = 1U;
+        fixture.startup.actor_metrics.group_a_count = 1U;
+        fixture.startup.actor_metrics.group_b_count = 1U;
         prepare_group_b(fixture);
         seed_current_coordinates(fixture);
         const auto result = run_legacy_battle_script_dispatch(
@@ -2106,8 +2106,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(45);
-        fixture.startup.party_count = 1U;
-        fixture.startup.enemy_count = 1U;
+        fixture.startup.actor_metrics.group_a_count = 1U;
+        fixture.startup.actor_metrics.group_b_count = 1U;
         prepare_group_b(fixture);
         seed_current_coordinates(fixture);
         port.override_pending_coordinate_callee_reply = true;
@@ -2286,8 +2286,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.write_u16(4U, 2U);
         fixture.workspace.position_x = 20U;
         fixture.workspace.position_y = 20U;
-        fixture.startup.party_count = 1U;
-        fixture.startup.enemy_count = 1U;
+        fixture.startup.actor_metrics.group_a_count = 1U;
+        fixture.startup.actor_metrics.group_b_count = 1U;
         prepare_group_b(fixture);
         seed_current_coordinates(fixture);
         const auto result = run_legacy_battle_script_dispatch(
@@ -2322,7 +2322,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         Port port;
         fixture.opcode(22);
         fixture.write_u16(2U, static_cast<u16>(-1));
-        fixture.startup.party_count = 2U;
+        fixture.startup.actor_metrics.group_a_count = 2U;
         seed_current_coordinates(fixture);
         auto& previous_actor = fixture.startup.party[0U];
         auto& actor = fixture.startup.party[1U];
@@ -2498,8 +2498,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         Port port;
         fixture.opcode(40);
         fixture.write_u16(2U, 0U);
-        fixture.startup.party_count = 0x12340001U;
-        fixture.startup.enemy_count = 1U;
+        fixture.startup.actor_metrics.group_a_count = 0x12340001U;
+        fixture.startup.actor_metrics.group_b_count = 1U;
         prepare_group_b(fixture);
         seed_current_coordinates(fixture);
         auto& actor = fixture.startup.party[0U];
@@ -2534,8 +2534,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         Fixture& fixture = *fixture_owner;
         Port port;
         fixture.opcode(45);
-        fixture.startup.party_count = 1U;
-        fixture.startup.enemy_count = 1U;
+        fixture.startup.actor_metrics.group_a_count = 1U;
+        fixture.startup.actor_metrics.group_b_count = 1U;
         prepare_group_b(fixture);
         seed_current_coordinates(fixture);
         auto& actor = (*fixture.startup.group_b_lifecycle)[0U].action_execution;
@@ -2637,8 +2637,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.write_u16(4U, 2U);
         fixture.workspace.position_x = 20U;
         fixture.workspace.position_y = 20U;
-        fixture.startup.party_count = 0x12340001U;
-        fixture.startup.enemy_count = 1U;
+        fixture.startup.actor_metrics.group_a_count = 0x12340001U;
+        fixture.startup.actor_metrics.group_b_count = 1U;
         prepare_group_b(fixture);
         seed_current_coordinates(fixture);
         auto& actor = fixture.startup.party[0U];
@@ -2768,26 +2768,26 @@ void test_battle_script_current_coordinate_stops(
                 break;
             case 0x0046BA42U:
                 fixture.opcode(45);
-                fixture.startup.enemy_count = 1U;
+                fixture.startup.actor_metrics.group_b_count = 1U;
                 mark_target(
                     (*fixture.startup.group_b_lifecycle)[0U].action_execution
                 );
                 break;
             case 0x0046BAB5U:
                 fixture.opcode(45);
-                fixture.startup.party_count = 1U;
+                fixture.startup.actor_metrics.group_a_count = 1U;
                 mark_target(fixture.startup.party[0U]);
                 break;
             case 0x0046BB44U:
                 fixture.opcode(22);
                 fixture.write_u16(2U, 1U);
-                fixture.startup.party_count = 1U;
+                fixture.startup.actor_metrics.group_a_count = 1U;
                 mark_target(fixture.startup.party[0U]);
                 break;
             case 0x0046BB9DU:
                 fixture.opcode(22);
                 fixture.write_u16(2U, 1U);
-                fixture.startup.enemy_count = 1U;
+                fixture.startup.actor_metrics.group_b_count = 1U;
                 mark_target(
                     (*fixture.startup.group_b_lifecycle)[0U].action_execution
                 );
@@ -2809,13 +2809,13 @@ void test_battle_script_current_coordinate_stops(
             case 0x0046C929U:
                 fixture.opcode(40);
                 fixture.write_u16(2U, 1U);
-                fixture.startup.party_count = 1U;
+                fixture.startup.actor_metrics.group_a_count = 1U;
                 mark_target(fixture.startup.party[0U]);
                 break;
             case 0x0046C97DU:
                 fixture.opcode(40);
                 fixture.write_u16(2U, 1U);
-                fixture.startup.enemy_count = 1U;
+                fixture.startup.actor_metrics.group_b_count = 1U;
                 mark_target(
                     (*fixture.startup.group_b_lifecycle)[0U].action_execution
                 );
@@ -2824,14 +2824,14 @@ void test_battle_script_current_coordinate_stops(
                 fixture.opcode(73);
                 fixture.write_u16(2U, 0x2222U);
                 fixture.write_u16(4U, 2U);
-                fixture.startup.party_count = 1U;
+                fixture.startup.actor_metrics.group_a_count = 1U;
                 mark_target(fixture.startup.party[0U]);
                 break;
             case 0x0046CACBU:
                 fixture.opcode(73);
                 fixture.write_u16(2U, 0x2222U);
                 fixture.write_u16(4U, 2U);
-                fixture.startup.enemy_count = 1U;
+                fixture.startup.actor_metrics.group_b_count = 1U;
                 mark_target(
                     (*fixture.startup.group_b_lifecycle)[0U].action_execution
                 );
@@ -2968,7 +2968,7 @@ void test_battle_script_current_coordinate_stops(
         Port port;
         fixture.opcode(22);
         fixture.write_u16(2U, 10U);
-        fixture.startup.party_count = 2U;
+        fixture.startup.actor_metrics.group_a_count = 2U;
         fixture.startup.party[0U].position_x = 100U;
         fixture.startup.party[0U].position_y = 40U;
         fixture.startup.party[1U].position_x = 200U;
@@ -3058,7 +3058,7 @@ void test_battle_script_current_coordinate_boundaries(
         if (scenario.opcode == 5U) {
             fixture.write_u16(4U, 0U);
             fixture.write_u16(6U, 0U);
-            fixture.startup.enemy_count = 1U;
+            fixture.startup.actor_metrics.group_b_count = 1U;
             fixture.metrics.values[0U] = 1;
         } else if (scenario.opcode == 13U) {
             fixture.write_u16(4U, 0U);
@@ -3218,9 +3218,9 @@ void test_battle_script_current_coordinate_loops(
         }
         fixture.opcode(scenario.opcode);
         if (scenario.party_domain) {
-            fixture.startup.party_count = 2U;
+            fixture.startup.actor_metrics.group_a_count = 2U;
         } else {
-            fixture.startup.enemy_count = 2U;
+            fixture.startup.actor_metrics.group_b_count = 2U;
         }
         if (scenario.opcode == 22U) {
             fixture.write_u16(2U, 1U);
@@ -3297,7 +3297,7 @@ void test_battle_script_current_coordinate_loops(
         Port port;
         fixture.opcode(22);
         fixture.write_u16(2U, 1U);
-        fixture.startup.party_count = scenario.initial_count;
+        fixture.startup.actor_metrics.group_a_count = scenario.initial_count;
         fixture.startup.party[0U].position_x = 100U;
         fixture.startup.party[0U].position_y = 40U;
         fixture.startup.party[1U].position_x = 100U;
@@ -5291,8 +5291,8 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
         Fixture fixture;
         Port port;
         fixture.opcode(-1);
-        fixture.startup.enemy_count = 1U;
-        fixture.startup.party_count = 1U;
+        fixture.startup.actor_metrics.group_b_count = 1U;
+        fixture.startup.actor_metrics.group_a_count = 1U;
         fixture.workspace.waiting_state = 0xCAFE1234U;
         fixture.workspace.value_a = 77;
         fixture.workspace.value_b = 88;

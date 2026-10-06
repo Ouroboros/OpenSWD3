@@ -1688,6 +1688,13 @@ class SdlSmokeIdlePorts final
       public openswd3::app::FrameRuntimePorts,
       public openswd3::battle::LegacyBattleScriptDispatchPort,
       public openswd3::battle::LegacyBattleFrameMusicPrefixPort,
+      public virtual openswd3::battle::LegacyBattleActorMetricStatePort,
+      public virtual openswd3::battle::LegacyBattleInputDispatchStatePort,
+      public virtual openswd3::battle::LegacyBattleSharedPhaseStatePort,
+      public virtual openswd3::battle::LegacyBattleMessagePhaseStatePort,
+      public virtual openswd3::battle::LegacyBattleVictoryRewardStatePort,
+      public virtual openswd3::battle::
+          LegacyBattleTargetSelectionRuntimeStatePort,
       public virtual openswd3::battle::
           LegacyBattleFrameInputResolutionStatePort,
       public openswd3::battle::LegacyBattleLevelProfilePort,
@@ -2044,7 +2051,10 @@ public:
         bool& ok,
         bool& running
     )
-        : window_(window), renderer_(renderer), texture_(texture),
+        : openswd3::battle::LegacyBattleActorMetricStatePort(
+              battle_runtime.actor_metrics
+          ),
+          window_(window), renderer_(renderer), texture_(texture),
           game_framebuffer_(game_framebuffer),
           primary_surface_(primary_surface), frame_interval_(frame_interval),
           world_motion_interpolation_enabled_(
@@ -2661,7 +2671,6 @@ public:
         battle_frame_coordinator_state_ = {};
         battle_frame_input_resolution_state() = {};
         battle_action_dispatch_ = {};
-        battle_actor_metrics_ = {};
         battle_final_actor_ = {};
         battle_input_dispatch_ = {};
         battle_target_selection_ = {};
@@ -2702,7 +2711,8 @@ public:
                     battle_runtime_.group_a_configuration_sources =
                         saved_party_sources;
                 }
-                battle_runtime_.enemy_count = battle_setup_.enemy_count;
+                battle_runtime_.actor_metrics.group_b_count =
+                    battle_setup_.enemy_count;
                 battle_runtime_.background_resource =
                     battle_setup_.background_resource_id;
                 battle_runtime_.group_b_lifecycle = std::make_shared<std::array<
@@ -2955,9 +2965,6 @@ public:
             );
             break;
         case LegacyBattleScriptDispatchCall::frame: {
-            openswd3::battle::bind_legacy_battle_actor_counts_for_frame(
-                battle_runtime_, battle_actor_metrics_
-            );
             using openswd3::battle::LegacyBattleFrameInputCaseZeroGateStatus;
             using openswd3::battle::LegacyBattleFrameInputGateStatus;
             const auto selected_before =
@@ -3202,7 +3209,7 @@ public:
                     );
                     const auto first_count = openswd3::battle::
                         probe_legacy_battle_metric_first_count(
-                            battle_runtime_.enemy_count
+                            battle_runtime_.actor_metrics.group_b_count
                         );
                     stop_boundary = first_count ==
                             openswd3::battle::
@@ -3259,7 +3266,9 @@ public:
                 std::to_string(battle_final_actor_.active_actor_code)
             );
             message.append(", startup_group_b_count_snapshot=");
-            message.append(std::to_string(battle_runtime_.enemy_count));
+            message.append(std::to_string(
+                battle_runtime_.actor_metrics.group_b_count
+            ));
             message.append(", input_gate_eax=");
             message.append(std::to_string(input_gate.eax));
             message.append(", hotspot_queries=");
@@ -8361,15 +8370,28 @@ private:
     openswd3::battle::LegacyBattleScriptSharedState battle_script_shared_;
     openswd3::battle::LegacyBattleFrameCoordinatorState
         battle_frame_coordinator_state_;
-    openswd3::battle::LegacyBattleActionDispatchState battle_action_dispatch_;
-    openswd3::battle::LegacyBattleActorMetricState battle_actor_metrics_;
-    openswd3::battle::LegacyBattleFinalActorStepState battle_final_actor_;
-    openswd3::battle::LegacyBattleInputDispatchState battle_input_dispatch_;
-    openswd3::battle::LegacyBattleTargetSelectionRuntimeState
-        battle_target_selection_;
-    openswd3::battle::LegacyBattleMessagePhaseState battle_message_phase_;
-    openswd3::battle::LegacyBattleVictoryRewardState battle_victory_rewards_;
-    openswd3::compat::u32 battle_message_state_{};
+    openswd3::battle::LegacyBattleGroupBFrameState battle_actor_frames_;
+    openswd3::battle::LegacyBattleActionDispatchState& battle_action_dispatch_{
+        battle_actor_frames_.shared.action
+    };
+    openswd3::battle::LegacyBattleActorMetricState& battle_actor_metrics_{
+        actor_metric_state()
+    };
+    openswd3::battle::LegacyBattleFinalActorStepState& battle_final_actor_{
+        battle_actor_frames_.shared.final_actor_step
+    };
+    openswd3::battle::LegacyBattleInputDispatchState& battle_input_dispatch_{
+        battle_input_dispatch_state()
+    };
+    openswd3::battle::LegacyBattleTargetSelectionRuntimeState&
+        battle_target_selection_{battle_target_selection_runtime_state()};
+    openswd3::battle::LegacyBattleMessagePhaseState& battle_message_phase_{
+        battle_message_phase_state()
+    };
+    openswd3::battle::LegacyBattleVictoryRewardState& battle_victory_rewards_{
+        battle_victory_reward_state()
+    };
+    openswd3::compat::u32& battle_message_state_{battle_message_state()};
     openswd3::compat::u32 next_battle_script_token_{0x01000000U};
     openswd3::rendering::LegacyRasterGeometryState world_raster_;
     openswd3::rendering::LegacyFramebuffer world_interpolation_current_base_;

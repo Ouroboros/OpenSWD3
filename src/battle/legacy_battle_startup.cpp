@@ -312,7 +312,7 @@ ratio_low_dword(const i32 numerator, const i32 denominator) noexcept {
 }
 
 void publish_party_positions(LegacyBattleStartupState& state) noexcept {
-    switch (state.party_count) {
+    switch (state.actor_metrics.group_a_count) {
     case 1U:
         state.party[0].position_x = 0x020FU;
         state.party[0].position_y = 0x011FU;
@@ -401,7 +401,7 @@ struct SupplementalAddResult {
             .status = LegacyBattleStartupStatus::random_result_out_of_range
         };
     }
-    const u32 actor_index = state.party_count;
+    const u32 actor_index = state.actor_metrics.group_a_count;
     if (actor_index >= kLegacyBattleActorGroupAElementCount) {
         return {
             .status = LegacyBattleStartupStatus::party_actor_index_out_of_range
@@ -489,7 +489,7 @@ struct SupplementalAddResult {
         ));
     }
 
-    state.party_count += 1U;
+    state.actor_metrics.group_a_count += 1U;
     state.supplemental_count_word =
         static_cast<u16>(state.supplemental_count_word + 1U);
     return {
@@ -535,6 +535,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     const LegacyBattleStartupRequest& request
 ) {
     LegacyBattleStartupResult result;
+    port.borrow_actor_metric_state(state.actor_metrics);
     state.window_token = request.window_token;
     state.battle_id_word = static_cast<u16>(request.battle_id);
     static_cast<void>(invoke(port, LegacyBattleStartupCall::prepare_runtime));
@@ -562,13 +563,13 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                               .return_value;
         if (query == 1U) {
             state.party_presence[index] = 1U;
-            state.party_count += 1U;
+            state.actor_metrics.group_a_count += 1U;
         }
     }
 
     u32 mapped_count = 0U;
     for (u32 source = 0U; source < state.party_presence.size() &&
-         mapped_count < state.party_count;
+         mapped_count < state.actor_metrics.group_a_count;
          ++source) {
         if (state.party_presence[source] != 0U) {
             state.action_mode_source.actor_label_indices[mapped_count] = source;
@@ -708,9 +709,9 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     result.definition =
         decode_legacy_battle_definition(state.definition_record);
     result.definition_load_calls = 1U;
-    state.enemy_count = result.definition.enemy_count;
+    state.actor_metrics.group_b_count = result.definition.enemy_count;
     state.definition_secondary_count = result.definition.secondary_count;
-    if (state.enemy_count == 0U) {
+    if (state.actor_metrics.group_b_count == 0U) {
         result.no_enemy_notification_calls = 1U;
         result.return_value = invoke(
                                   port,
@@ -756,7 +757,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         return result;
     }
     state.reset.block_525470.fill(0U);
-    for (u32 index = 0U; index < state.enemy_count; ++index) {
+    for (u32 index = 0U; index < state.actor_metrics.group_b_count; ++index) {
         if (index >= kLegacyBattleActorGroupBElementCount ||
             index >= result.definition.enemies.size()) {
             result.status = LegacyBattleStartupStatus::enemy_index_out_of_range;
@@ -821,7 +822,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         ++result.enemy_actor_count;
     }
 
-    for (u32 index = 0U; index < state.party_count; ++index) {
+    for (u32 index = 0U; index < state.actor_metrics.group_a_count; ++index) {
         if (index >= kPartySourceCount ||
             index >= kLegacyBattleActorGroupAElementCount) {
             result.status =
@@ -841,7 +842,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     publish_party_offsets(state);
 
     StartupGroupAConfigurationDiagnosticPort configuration_diagnostic(port);
-    for (u32 index = 0U; index < state.party_count; ++index) {
+    for (u32 index = 0U; index < state.actor_metrics.group_a_count; ++index) {
         if (index >= kLegacyBattleActorGroupAElementCount ||
             index >= kPartySourceCount) {
             result.status =
@@ -946,7 +947,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     }
 
     StartupGroupAAttributeAggregationPort attribute_aggregation_port(port);
-    for (u32 index = 0U; index < state.party_count; ++index) {
+    for (u32 index = 0U; index < state.actor_metrics.group_a_count; ++index) {
         if (index >= kLegacyBattleActorGroupAElementCount ||
             index >= kPartySourceCount) {
             result.status =
@@ -1027,7 +1028,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         ));
     }
 
-    for (u32 index = 0U; index < state.party_count; ++index) {
+    for (u32 index = 0U; index < state.actor_metrics.group_a_count; ++index) {
         if (index >= kLegacyBattleActorGroupAElementCount) {
             result.status =
                 LegacyBattleStartupStatus::party_actor_index_out_of_range;
@@ -1178,11 +1179,9 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     }
 
     const auto metrics = rebuild_legacy_battle_actor_metrics(
-        port, state.enemy_count, state.party_count, {.startup = &state}
+        port, {.startup = &state}
     );
     result.actor_metric_calls += metrics.coordinate_query_calls;
-    state.enemy_count = port.actor_metric_state().group_b_count;
-    state.party_count = port.actor_metric_state().group_a_count;
     if (metrics.status != LegacyBattleActorMetricStatus::completed) {
         result.status = LegacyBattleStartupStatus::actor_metric_typed_stop;
         return result;
@@ -1207,7 +1206,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         return result;
     }
 
-    for (u32 index = 0U; index < state.enemy_count; ++index) {
+    for (u32 index = 0U; index < state.actor_metrics.group_b_count; ++index) {
         if (index >= kLegacyBattleActorGroupBElementCount) {
             result.status = LegacyBattleStartupStatus::enemy_index_out_of_range;
             return result;
@@ -1253,7 +1252,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     }
 
     StartupActorProgressRandomPort progress_random(port);
-    for (u32 index = 0U; index < state.party_count; ++index) {
+    for (u32 index = 0U; index < state.actor_metrics.group_a_count; ++index) {
         LegacyBattleActorProgressState* const actor =
             index < kLegacyBattleActorGroupAElementCount
             ? &state.party[index].progress
@@ -1273,7 +1272,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         }
     }
 
-    result.return_value = state.party_count;
+    result.return_value = state.actor_metrics.group_a_count;
     result.return_value -= state.final_subtract_word;
     result.return_value -= static_cast<u16>(state.supplemental_count_word);
     if (static_cast<u32>(state.party_actor_mode_count) >= result.return_value) {

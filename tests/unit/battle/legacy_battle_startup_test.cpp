@@ -347,6 +347,7 @@ protected:
 };
 
 void poison_reset_blocks(LegacyBattleStartupState& state, StartupPorts& port) {
+    port.borrow_actor_metric_state(state.actor_metrics);
     auto& reset = state.reset;
     reset.block_525470.fill(1U);
     reset.block_4ff168.fill(1U);
@@ -492,7 +493,9 @@ void test_battle_startup(openswd3::test::Context& test) {
                 result.action_threshold == 900 &&
                 state.window_token == 0x12340000U &&
                 state.battle_id_word == 0x0001U &&
-                reset_blocks_match(state, ports) && state.party_count == 2U &&
+                reset_blocks_match(state, ports) &&
+                &ports.actor_metric_state() == &state.actor_metrics &&
+                state.actor_metrics.group_a_count == 2U &&
                 state.party_presence ==
                     std::array<openswd3::compat::u8, 4>{1U, 0U, 1U, 0U} &&
                 state.action_mode_source.actor_label_indices[0] == 0U &&
@@ -943,7 +946,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ports.call_count(
                     LegacyBattleStartupCall::reserved_group_a_profile_release
                 ) == 0U &&
-                state.party_count == 4U && state.party[2].role_id == 3U &&
+                state.actor_metrics.group_a_count == 4U &&
+                state.party[2].role_id == 3U &&
                 state.party[3].role_id == 4U &&
                 state.party[2].position_x == 0xFF92U &&
                 state.party[3].position_x == 0xFF92U &&
@@ -1044,7 +1048,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                 result.supplemental_materializations[1U].status ==
                     openswd3::battle::
                         LegacyBattleGroupANpcMaterializationStatus::completed &&
-                state.party_count == 2U && state.party[0].role_id == 4U &&
+                state.actor_metrics.group_a_count == 2U &&
+                state.party[0].role_id == 4U &&
                 state.party[1].role_id == 3U &&
                 state.supplemental_used[1] == 1U &&
                 state.supplemental_used[0] == 1U &&
@@ -1126,7 +1131,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                     2U &&
                 !result.supplemental_record_selections[0U].returned &&
                 result.supplemental_materialization_calls == 0U &&
-                state.party_count == 0U && state.party[0].role_id == 3U &&
+                state.actor_metrics.group_a_count == 0U &&
+                state.party[0].role_id == 3U &&
                 state.party[0].configuration.actor_record_token ==
                     0x005029D0U &&
                 state.party[0].configuration.profile_token == 0U &&

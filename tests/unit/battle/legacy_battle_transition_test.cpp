@@ -516,8 +516,8 @@ void test_battle_transition(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleTransitionState state;
         auto startup = startup_state();
-        startup.enemy_count = 2U;
-        startup.party_count = 2U;
+        startup.actor_metrics.group_b_count = 2U;
+        startup.actor_metrics.group_a_count = 2U;
         TransitionPorts ports;
         add_default_surfaces(ports);
         ports.actor_metric_state().values[0] = 1;
@@ -607,8 +607,8 @@ void test_battle_transition(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleTransitionState state;
         auto startup = startup_state();
-        startup.enemy_count = 2U;
-        startup.party_count = 2U;
+        startup.actor_metrics.group_b_count = 2U;
+        startup.actor_metrics.group_a_count = 2U;
         TransitionPorts ports;
         add_default_surfaces(ports);
         ports.actor_metric_state().values[0] = 1;
@@ -718,7 +718,7 @@ void test_battle_transition(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleTransitionState state;
         auto startup = startup_state();
-        startup.party_count = 1U;
+        startup.actor_metrics.group_a_count = 1U;
         startup.timing.action_threshold_read_accessible = false;
         startup.party[0].progress.progress = 0xFACE0011U;
         TransitionPorts ports;

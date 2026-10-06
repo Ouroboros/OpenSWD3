@@ -669,9 +669,9 @@ private:
             LegacyBattleActorCoordinatePublicationStatus::completed) {
             if (live_count_control_.publication_call ==
                 result_.coordinate_publication_calls) {
-                bindings_.startup.party_count =
+                bindings_.startup.actor_metrics.group_a_count =
                     live_count_control_.party_count_after_publication;
-                bindings_.startup.enemy_count =
+                bindings_.startup.actor_metrics.group_b_count =
                     live_count_control_.enemy_count_after_publication;
             }
             return true;
@@ -1343,8 +1343,8 @@ private:
     [[nodiscard]] bool rebuild_actor_order_direct() {
         const auto order = rebuild_legacy_battle_actor_order(
             bindings_.metrics,
-            bindings_.startup.enemy_count,
-            bindings_.startup.party_count,
+            bindings_.startup.actor_metrics.group_b_count,
+            bindings_.startup.actor_metrics.group_a_count,
             edx_
         );
         eax_ = order.return_value;
@@ -1431,7 +1431,8 @@ private:
 
     void cleanup_all_actors() {
         i32 index = 0;
-        while (index < static_cast<i32>(bindings_.startup.enemy_count)) {
+        while (index < static_cast<i32>(
+                           bindings_.startup.actor_metrics.group_b_count)) {
             const auto token = group_b_token(index);
             if (!token.has_value()) {
                 return;
@@ -1447,7 +1448,8 @@ private:
             ++index;
         }
         index = 0;
-        while (index < static_cast<i32>(bindings_.startup.party_count)) {
+        while (index < static_cast<i32>(
+                           bindings_.startup.actor_metrics.group_a_count)) {
             const auto token = group_a_token(index + 8);
             if (!token.has_value()) {
                 return;

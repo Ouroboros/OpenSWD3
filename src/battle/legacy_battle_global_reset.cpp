@@ -392,8 +392,8 @@ void synchronize_typed_aliases(
         }
     }
     clear_records(startup.party);
-    startup.enemy_count = 0U;
-    startup.party_count = 0U;
+    startup.actor_metrics.group_b_count = 0U;
+    startup.actor_metrics.group_a_count = 0U;
     startup.mirror_mode = 0U;
 
     final_actor.active_actor_code = 0U;

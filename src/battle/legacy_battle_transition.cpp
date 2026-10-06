@@ -305,8 +305,8 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
 ) {
     const auto order = rebuild_legacy_battle_actor_order(
         port.actor_metric_state(),
-        startup.enemy_count,
-        startup.party_count,
+        startup.actor_metrics.group_b_count,
+        startup.actor_metrics.group_a_count,
         port.actor_metric_state().entry_edx
     );
     ++result.actor_order_calls;
@@ -747,7 +747,9 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
             result.return_value = chance;
             return result;
         }
-        for (u32 index = 0U; index < startup.enemy_count; ++index) {
+        for (u32 index = 0U;
+             index < startup.actor_metrics.group_b_count;
+             ++index) {
             if (index >= kLegacyBattleActorGroupBElementCount) {
                 result.status =
                     LegacyBattleTransitionStatus::enemy_index_out_of_range;
@@ -774,7 +776,9 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                 latest_eax = result.attack_order.return_eax;
             }
         }
-        for (u32 index = 0U; index < startup.party_count; ++index) {
+        for (u32 index = 0U;
+             index < startup.actor_metrics.group_a_count;
+             ++index) {
             if (index >= kLegacyBattleActorGroupAElementCount) {
                 result.status =
                     LegacyBattleTransitionStatus::party_index_out_of_range;
@@ -808,7 +812,9 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
             result.return_value = chance;
             return result;
         }
-        for (u32 index = 0U; index < startup.party_count; ++index) {
+        for (u32 index = 0U;
+             index < startup.actor_metrics.group_a_count;
+             ++index) {
             if (index >= kLegacyBattleActorGroupAElementCount) {
                 result.status =
                     LegacyBattleTransitionStatus::party_index_out_of_range;
@@ -872,7 +878,9 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                 ++result.rare_slot_writes;
             }
         }
-        for (u32 index = 0U; index < startup.enemy_count; ++index) {
+        for (u32 index = 0U;
+             index < startup.actor_metrics.group_b_count;
+             ++index) {
             if (index >= kLegacyBattleActorGroupBElementCount) {
                 result.status =
                     LegacyBattleTransitionStatus::enemy_index_out_of_range;

@@ -170,7 +170,7 @@ LegacyBattleSetupResult prepare_legacy_battle_setup(
 void bind_legacy_battle_setup_party_owners(
     const LegacyBattleSetupState& setup, LegacyBattleStartupState& startup
 ) noexcept {
-    startup.party_count = setup.party_count;
+    startup.actor_metrics.group_a_count = setup.party_count;
     for (std::size_t index = 0U; index < setup.party.size(); ++index) {
         const auto& source = setup.party[index];
         auto& actor = startup.party[index];
