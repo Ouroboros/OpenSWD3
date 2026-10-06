@@ -465,6 +465,65 @@ template <typename Range>
 
 void test_battle_startup(openswd3::test::Context& test) {
     {
+        constexpr u32 unused = 0xFFFFFFFFU;
+        // Independent paths through 451D36..451D88, ending after AX > 3.
+        constexpr std::array<std::array<u32, 4>, 16> scan_paths{{
+            {4U, unused, unused, unused},
+            {0U, 4U, unused, unused},
+            {1U, 4U, unused, unused},
+            {0U, 1U, 4U, unused},
+            {2U, 4U, unused, unused},
+            {0U, 2U, 4U, unused},
+            {1U, 2U, 4U, unused},
+            {0U, 1U, 2U, 4U},
+            {3U, unused, unused, unused},
+            {0U, 3U, unused, unused},
+            {1U, 3U, unused, unused},
+            {0U, 1U, 3U, unused},
+            {2U, 3U, unused, unused},
+            {0U, 2U, 3U, unused},
+            {1U, 2U, 3U, unused},
+            {0U, 1U, 2U, 3U},
+        }};
+
+        for (u32 mask = 0U; mask < scan_paths.size(); ++mask) {
+            for (const u32 old_count :
+                 {0U, 1U, 7U, 0xFFFFFFFEU, 0xFFFFFFFFU}) {
+                LegacyBattleStartupState state;
+                StartupPorts ports;
+                state.actor_metrics.group_a_count = old_count;
+                state.action_mode_source.actor_label_indices.fill(0xABCD1234U);
+                auto expected = state.action_mode_source.actor_label_indices;
+                for (u32 source = 0U; source < 4U; ++source) {
+                    ports.query_values[30U + source] = (mask >> source) & 1U;
+                }
+
+                const u32 count =
+                    old_count + static_cast<u32>(std::popcount(mask));
+                for (std::size_t index = 0U;
+                     index < scan_paths[mask].size(); ++index) {
+                    if (index < count && scan_paths[mask][index] != unused) {
+                        expected[index] = scan_paths[mask][index];
+                    }
+                }
+
+                const auto result =
+                    openswd3::battle::initialize_legacy_battle_startup(
+                        state, ports, ports, ports, ports, ports, ports,
+                        request(1U)
+                    );
+                test.expect_true(
+                    result.status == openswd3::battle::LegacyBattleStartupStatus::
+                        no_enemies && state.actor_metrics.group_a_count == count &&
+                        state.action_mode_source.actor_label_indices == expected,
+                    "startup preserves the exhausted source index store, "
+                    "wrapped party count, and untouched mapping suffix"
+                );
+            }
+        }
+    }
+
+    {
         LegacyBattleStartupState state;
         StartupPorts ports;
         auto& selection = ports.battle_target_selection_runtime_state();

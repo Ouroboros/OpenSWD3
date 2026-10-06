@@ -567,13 +567,22 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         }
     }
 
-    u32 mapped_count = 0U;
-    for (u32 source = 0U; source < state.party_presence.size() &&
+    u32 party_source_cursor = 0U;
+    for (u32 mapped_count = 0U;
          mapped_count < state.actor_metrics.group_a_count;
-         ++source) {
-        if (state.party_presence[source] != 0U) {
-            state.action_mode_source.actor_label_indices[mapped_count] = source;
-            ++mapped_count;
+         ++mapped_count) {
+        while (party_source_cursor < state.party_presence.size() &&
+               state.party_presence[party_source_cursor] == 0U) {
+            ++party_source_cursor;
+        }
+
+        // 451D74 publishes source 4 after an exhausted scan, before the
+        // 451D7B exit. A stale party count must not suppress that store.
+        state.action_mode_source.actor_label_indices[mapped_count] =
+            party_source_cursor;
+        ++party_source_cursor;
+        if (party_source_cursor >= state.party_presence.size()) {
+            break;
         }
     }
 
