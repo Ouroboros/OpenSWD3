@@ -4,6 +4,18 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：MON文件读取接线
+
+SDL的MON打开、定位、读取已接入实际文件端口，保留只读共享读、
+OPEN_ALWAYS、有符号定位、短读后缀及失败返回。该独立批次不包含
+尚未完成的解析存储迁移与敌方重置。
+
+仅含发布内容的隔离快照中，最终core和ASan各1/1通过，SDL链接通过；
+未启动游戏。首次SDL配置缺少隔离目录的FFmpeg依赖，接入仓库已有包后
+复验通过。详细边界及日志见
+[MON文件接线证据](../analysis/04-reverse-engineering/evidence/battle-mon-file-runtime-binding.md)。
+B10保持315/422，B11完整续玩仍未验收。
+
 ## B1–B6与日志基础设施详细完成记录
 
 6. `[x]` B1：`compat + platform_sdl3 + app` 已完成接口级逆向、实现、逐基本块复核、Windows LLVM `core`/`app` 构建、23 项 CTest 和真实 SDL3 窗口创建/关闭 smoke；状态为 `module_closed_pending_oracle`，只保留已登记的原程序动态差分阻塞。

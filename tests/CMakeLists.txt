@@ -622,6 +622,7 @@ add_executable(
     unit/battle/legacy_battle_group_b_target_cycle_test.cpp
     unit/battle/legacy_battle_group_effect_frame_test.cpp
     unit/battle/legacy_battle_mon_profile_test.cpp
+    unit/battle/legacy_battle_mon_file_runtime_test.cpp
     unit/battle/legacy_battle_grid_frame_test.cpp
     unit/battle/legacy_battle_growth_actor_selection_test.cpp
     unit/battle/legacy_battle_growth_caption_test.cpp
@@ -728,6 +729,7 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/../MON.DAT")
 endif()
 set_source_files_properties(
     unit/battle/legacy_battle_definition_archive_test.cpp
+    unit/battle/legacy_battle_mon_file_runtime_test.cpp
     PROPERTIES COMPILE_DEFINITIONS
         "OPENSWD3_TEST_ARTIFACT_ROOT=\"${PROJECT_SOURCE_DIR}/build/tmp/runtime\""
 )

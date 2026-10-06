@@ -124,6 +124,7 @@ void test_battle_group_b_opponent_wave_parameters(
 );
 void test_battle_group_b_resource_cleanup(openswd3::test::Context& test);
 void test_battle_mon_profile(openswd3::test::Context& test);
+void test_battle_mon_file_runtime(openswd3::test::Context& test);
 void test_battle_group_b_script_action_item_parameters(
     openswd3::test::Context& test
 );
@@ -7447,6 +7448,7 @@ int main() {
     test_battle_group_b_opponent_wave_parameters(test);
     test_battle_group_b_resource_cleanup(test);
     test_battle_mon_profile(test);
+    test_battle_mon_file_runtime(test);
     test_battle_group_b_script_action_item_parameters(test);
     test_battle_group_b_script_resource_parameters(test);
     test_battle_group_b_script_special_action_item_parameters(test);
