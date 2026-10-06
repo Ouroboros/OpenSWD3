@@ -1,5 +1,7 @@
 #include "test.hpp"
 #include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition.hpp"
+#include "openswd3/battle/legacy_battle_mon_stream_runtime.hpp"
 
 #include <array>
 #include <chrono>
@@ -11,6 +13,47 @@
 #endif
 
 namespace {
+
+class RuntimeMonPort final
+    : public openswd3::battle::LegacyBattleMonDatabasePort {
+public:
+    openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<openswd3::compat::u8> destination
+    ) override {
+        using Call = openswd3::battle::LegacyBattleMonDatabaseCall;
+        switch (request.call) {
+        case Call::open_file:
+        case Call::seek_file:
+        case Call::read_file:
+            if (request.call == Call::read_file &&
+                request.requested_bytes == 0x400U) {
+                borrowed_storage = borrowed_storage &&
+                    destination.data() == allocation.stream_bytes.data();
+            }
+
+            return files.invoke(request, destination);
+
+        case Call::allocate_stream:
+            allocation = streams.invoke(request);
+            return allocation;
+
+        case Call::release_stream:
+            ++release_calls;
+            return streams.invoke(request);
+
+        default:
+            throw std::invalid_argument("unexpected MON runtime test request");
+        }
+    }
+
+    openswd3::battle::LegacyBattleMonFileRuntime files;
+    openswd3::battle::LegacyBattleMonStreamRuntime streams;
+    openswd3::battle::LegacyBattleMonDatabaseCallReply allocation;
+    unsigned release_calls{};
+    bool borrowed_storage{true};
+};
 
 class MonTestFiles {
 public:
@@ -166,5 +209,63 @@ void test_battle_mon_file_runtime(openswd3::test::Context& test) {
 
     test.expect_true(
         rejected, "undersized typed destination is not silently truncated"
+    );
+
+    RuntimeMonPort port;
+    LegacyBattleMonProfile profile{};
+    const auto stopped =
+        load_legacy_battle_mon_profile(profile, port, {.path = created_path});
+    test.expect_equal(
+        stopped.status,
+        LegacyBattleMonProfileLoadStatus::stream_access_typed_stop,
+        "unterminated real empty-file profile stops parsing"
+    );
+    test.expect_equal(
+        port.release_calls, 0U, "stopped parser retains its allocation"
+    );
+    const auto retained = port.allocation;
+    test.expect_equal(
+        retained.stream_bytes.size(),
+        0x400U,
+        "allocation reply borrows actual complete storage"
+    );
+    retained.stream_bytes[12U] = 0xA5U;
+    std::array<openswd3::compat::u8, 0xA4U> definition{};
+    std::vector<openswd3::compat::u8> description;
+    const auto failed_tag = load_legacy_battle_mon_definition(
+        definition, description, port, {.path = created_path}
+    );
+    test.expect_equal(
+        failed_tag.return_eax, 0U, "bad definition tag returns zero"
+    );
+    test.expect_equal(
+        port.release_calls, 1U, "bad tag releases its own allocation"
+    );
+    test.expect_true(
+        port.allocation.eax != retained.eax,
+        "a second live stream receives a distinct guest range"
+    );
+    test.expect_equal(
+        retained.stream_bytes[12U],
+        0xA5U,
+        "stopped stream remains alive after another loader returns"
+    );
+    test.expect_true(
+        port.borrowed_storage, "ReadFile writes the actual allocated block"
+    );
+    static_cast<void>(port.streams.invoke(
+        {.call = Call::release_stream, .block_token = retained.eax}
+    ));
+    rejected = false;
+    try {
+        static_cast<void>(port.streams.invoke(
+            {.call = Call::release_stream, .block_token = retained.eax}
+        ));
+    } catch (const std::invalid_argument&) {
+        rejected = true;
+    }
+
+    test.expect_true(
+        rejected, "duplicate stream release cannot return success"
     );
 }

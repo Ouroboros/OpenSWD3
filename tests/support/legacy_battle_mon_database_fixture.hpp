@@ -112,6 +112,7 @@ public:
                 .eax = succeeds ? stream_token : 0U,
                 .ecx = request.ecx,
                 .edx = request.edx,
+                .stream_bytes = allocated_stream,
             };
         }
 
@@ -216,6 +217,7 @@ public:
     std::deque<u32> definition_text_allocation_tokens;
     bool definition_text_allocation_succeeds{true};
     u32 file_handle{0x11223344U};
+    std::array<u8, battle::kLegacyBattleMonStreamBytes> allocated_stream{};
     u32 stream_token{0x55667788U};
     u32 auxiliary_root{0x1AECU};
     u32 profile_relative_offset{0x2000U};

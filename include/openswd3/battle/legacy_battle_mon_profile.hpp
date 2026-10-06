@@ -70,6 +70,8 @@ struct LegacyBattleMonDatabaseCallReply {
     compat::u32 ecx{};
     compat::u32 edx{};
     compat::u32 bytes_read{};
+    // Borrow the allocation until release_stream, including across typed stops.
+    std::span<compat::u8> stream_bytes{};
 };
 
 struct LegacyBattleMonDefinitionTextReleaseCallRequest {

@@ -6,7 +6,9 @@
 
 B11的MON文件端口已接入实际打开、定位与读取，独立发布验证见
 [文件接线证据](../evidence/battle-mon-file-runtime-binding.md)。
-这不关闭新的战斗函数，也不代表解析存储、敌方初始化或续玩已经完成。
+MON解析流另按[解析流接线证据](../evidence/battle-mon-stream-runtime-binding.md)
+独立验证；说明存储、敌方初始化与实际续玩仍未完成。
+这些接线不关闭新的战斗函数。
 
 ## 1. 唯一真值与模块目标
 

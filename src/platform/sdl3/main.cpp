@@ -48,6 +48,7 @@
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
+#include "openswd3/battle/legacy_battle_mon_stream_runtime.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_runtime_shutdown.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
@@ -2188,14 +2189,8 @@ public:
             return mon_files_.invoke(request, destination, data_directory_);
 
         case Call::allocate_stream:
-            return {
-                .eax = kMonStreamToken,
-                .ecx = request.ecx,
-                .edx = request.edx,
-            };
-
         case Call::release_stream:
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+            return mon_streams_.invoke(request);
 
         case Call::query_definition_text_size: {
             const auto found =
@@ -8469,10 +8464,10 @@ private:
     openswd3::battle::LegacyBattleDisplaySurfaceRuntime& battle_surfaces_;
     std::array<openswd3::compat::u8, 0x40U> saved_role_names_{};
     bool saved_party_extension_active_{};
-    static constexpr openswd3::compat::u32 kMonStreamToken = 0x0053B810U;
     static constexpr openswd3::compat::u32 kLevelFileHandleToken = 2U;
     static constexpr openswd3::compat::u32 kLevelStreamToken = 0x0053BC10U;
     openswd3::battle::LegacyBattleMonFileRuntime mon_files_;
+    openswd3::battle::LegacyBattleMonStreamRuntime mon_streams_;
     std::ifstream level_file_;
     openswd3::compat::u32 next_mon_definition_text_token_{0x73000000U};
     std::unordered_map<openswd3::compat::u32, openswd3::compat::u32>

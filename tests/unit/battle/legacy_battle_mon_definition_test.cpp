@@ -117,6 +117,7 @@ public:
                 .eax = stream_token,
                 .ecx = request.ecx,
                 .edx = request.edx,
+                .stream_bytes = allocated_stream,
             };
 
         case LegacyBattleMonDatabaseCall::release_stream:
@@ -150,6 +151,8 @@ public:
     }
 
     std::ifstream file;
+    std::array<u8, openswd3::battle::kLegacyBattleMonStreamBytes>
+        allocated_stream{};
     std::unordered_map<u32, u32> text_sizes;
     u32 file_handle{0x77U};
     u32 stream_token{0x71000000U};
@@ -206,6 +209,8 @@ public:
             return {.eax = 1U, .ecx = request.ecx, .edx = request.edx};
 
         case LegacyBattleMonDatabaseCall::allocate_stream:
+            stream_allocation_reply.stream_bytes =
+                std::span{allocated_stream}.first(stream_writable_bytes);
             return stream_allocation_reply;
 
         case LegacyBattleMonDatabaseCall::release_stream:
@@ -289,6 +294,9 @@ public:
     std::size_t directory_probe_bytes_written{4U};
     std::size_t relative_bytes_written{4U};
     std::vector<u8> stream;
+    std::array<u8, openswd3::battle::kLegacyBattleMonStreamBytes>
+        allocated_stream{};
+    std::size_t stream_writable_bytes{allocated_stream.size()};
     std::vector<LegacyBattleMonDatabaseCallRequest> calls;
     std::unordered_map<u32, u32> text_sizes;
     std::size_t read_index{};
@@ -743,6 +751,51 @@ void test_access_and_stale_boundaries(openswd3::test::Context& test) {
     }
 }
 
+void test_allocated_stream_extent(openswd3::test::Context& test) {
+    for (const std::size_t extent : {0U, 2U, 6U, 1023U}) {
+        MonDefinitionPort port;
+        port.allocated_stream.fill(0xA5U);
+        port.stream_writable_bytes = extent;
+        std::array<u8, 0xA4U> output{};
+        std::vector<u8> description;
+        const auto result = openswd3::battle::load_legacy_battle_mon_definition(
+            output, description, port, request()
+        );
+        const auto stopped = static_cast<u32>(extent / 4U * 4U);
+        test.expect_equal(
+            result.status,
+            LegacyBattleMonDefinitionLoadStatus::stream_access_typed_stop,
+            "definition stops at the original inaccessible STOSD"
+        );
+        test.expect_equal(
+            result.stopped_stream_offset,
+            stopped,
+            "definition stops before a partial dword store"
+        );
+        test.expect_equal(
+            result.return_ecx,
+            (0x400U - stopped) / 4U,
+            "definition retains remaining REP count"
+        );
+        test.expect_equal(
+            result.read_calls, 2U, "no stream read after failed memset"
+        );
+        test.expect_equal(
+            result.stream_release_calls,
+            0U,
+            "definition does not release on memset stop"
+        );
+        for (std::size_t index = 0U; index < port.allocated_stream.size();
+             ++index) {
+            test.expect_equal(
+                port.allocated_stream[index],
+                index < stopped ? 0U : 0xA5U,
+                "definition preserves the exact STOSD prefix"
+            );
+        }
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -751,5 +804,6 @@ int main() {
     test_complete_definition_load(test);
     test_failure_prefixes(test);
     test_access_and_stale_boundaries(test);
+    test_allocated_stream_extent(test);
     return test.exit_code();
 }

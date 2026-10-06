@@ -16,6 +16,17 @@ OPEN_ALWAYS、有符号定位、短读后缀及失败返回。该独立批次不
 [MON文件接线证据](../analysis/04-reverse-engineering/evidence/battle-mon-file-runtime-binding.md)。
 B10保持315/422，B11完整续玩仍未验收。
 
+## B11：MON解析流分配与释放接线
+
+profile与definition加载器直接清零并读取分配端口持有的1024字节存储，
+SDL接入真实分配和释放。解析停止保留此前分配，后续加载不覆盖旧流。
+说明存储与物品链改动未混入本批。
+
+独立快照的setup、definition两组core及两组ASan各1/1通过，SDL构建通过。
+最终暂存测试另作增量复验；日志和结果见
+[解析流接线证据](../analysis/04-reverse-engineering/evidence/battle-mon-stream-runtime-binding.md)。
+没有启动游戏，B10及完整续玩验收状态不变。
+
 ## B1–B6与日志基础设施详细完成记录
 
 6. `[x]` B1：`compat + platform_sdl3 + app` 已完成接口级逆向、实现、逐基本块复核、Windows LLVM `core`/`app` 构建、23 项 CTest 和真实 SDL3 窗口创建/关闭 smoke；状态为 `module_closed_pending_oracle`，只保留已登记的原程序动态差分阻塞。

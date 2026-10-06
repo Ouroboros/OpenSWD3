@@ -92,6 +92,8 @@ public:
         }
 
         case LegacyBattleMonDatabaseCall::allocate_stream:
+            allocation_reply.stream_bytes =
+                std::span{allocated_stream}.first(stream_writable_bytes);
             return allocation_reply;
 
         case LegacyBattleMonDatabaseCall::release_stream:
@@ -181,6 +183,9 @@ public:
     std::size_t root_bytes_written{4U};
     std::size_t relative_bytes_written{4U};
     std::vector<u8> stream;
+    std::array<u8, openswd3::battle::kLegacyBattleMonStreamBytes>
+        allocated_stream{};
+    std::size_t stream_writable_bytes{allocated_stream.size()};
     std::vector<LegacyBattleMonDatabaseCallRequest> calls;
     std::size_t seek_index{};
     std::size_t read_index{};
@@ -229,6 +234,7 @@ public:
                 .eax = stream_token,
                 .ecx = request.ecx,
                 .edx = request.edx,
+                .stream_bytes = allocated_stream,
             };
 
         case LegacyBattleMonDatabaseCall::release_stream:
@@ -244,6 +250,8 @@ public:
     }
 
     std::ifstream file;
+    std::array<u8, openswd3::battle::kLegacyBattleMonStreamBytes>
+        allocated_stream{};
     u32 file_handle{0x00000077U};
     u32 stream_token{0x71000000U};
     u32 open_calls{};
@@ -313,6 +321,46 @@ std::vector<u8> full_stream() {
 }  // namespace
 
 void test_battle_mon_profile(openswd3::test::Context& test) {
+    for (const std::size_t extent : {0U, 2U, 6U, 1023U}) {
+        MonPort port;
+        port.allocated_stream.fill(0xA5U);
+        port.stream_writable_bytes = extent;
+        LegacyBattleMonProfile profile{};
+        const auto result = openswd3::battle::load_legacy_battle_mon_profile(
+            profile, port, request()
+        );
+        const auto stopped = static_cast<u32>(extent / 4U * 4U);
+        test.expect_equal(
+            result.status,
+            LegacyBattleMonProfileLoadStatus::stream_access_typed_stop,
+            "missing allocated storage stops at original STOSD"
+        );
+        test.expect_equal(
+            result.stopped_stream_offset,
+            stopped,
+            "profile stops before a partial dword store"
+        );
+        test.expect_equal(
+            result.return_ecx,
+            (0x400U - stopped) / 4U,
+            "profile retains remaining REP count"
+        );
+        test.expect_equal(
+            result.read_calls, 2U, "no stream read after failed memset"
+        );
+        test.expect_equal(
+            result.release_calls, 0U, "no premature stream release"
+        );
+        for (std::size_t index = 0U; index < port.allocated_stream.size();
+             ++index) {
+            test.expect_equal(
+                port.allocated_stream[index],
+                index < stopped ? 0U : 0xA5U,
+                "profile preserves the exact STOSD prefix"
+            );
+        }
+    }
+
 #ifdef OPENSWD3_MON_DATA_PATH
     {
         RealMonPort port;

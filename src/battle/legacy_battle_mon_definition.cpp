@@ -800,7 +800,25 @@ LegacyBattleMonDefinitionLoadResult load_legacy_battle_mon_definition(
         return result;
     }
 
-    std::array<u8, kLegacyBattleMonStreamBytes> stream{};
+    for (u32 offset = 0U; offset < kLegacyBattleMonStreamBytes; offset += 4U) {
+        if (offset > allocation.stream_bytes.size() ||
+            allocation.stream_bytes.size() - offset < 4U) {
+            result.status =
+                LegacyBattleMonDefinitionLoadStatus::stream_access_typed_stop;
+            result.stopped_stream_offset = offset;
+            result.return_eax = 0U;
+            result.return_ecx = (kLegacyBattleMonStreamBytes - offset) / 4U;
+            result.return_edx = allocation.edx;
+            return result;
+        }
+
+        for (auto& byte : allocation.stream_bytes.subspan(offset, 4U)) {
+            byte = 0U;
+        }
+    }
+
+    const auto stream =
+        allocation.stream_bytes.first(kLegacyBattleMonStreamBytes);
     reply = port.invoke_legacy_battle_mon_database(
         {
             .call = LegacyBattleMonDatabaseCall::read_file,
