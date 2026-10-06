@@ -33,7 +33,7 @@ public:
     DefinitionParser(
         const std::span<const u8> stream,
         const std::span<u8> output,
-        std::vector<u8>& owned_description,
+        LegacyBattleMonText& owned_description,
         LegacyBattleMonDatabasePort& port,
         LegacyBattleMonDatabaseState& database,
         const LegacyBattleMonDefinitionLoadRequest& request,
@@ -527,7 +527,42 @@ private:
             return false;
         }
 
-        owned_description_.assign(length + 1U, 0U);
+        owned_description_.bind(
+            allocation.definition_text_storage,
+            allocation.definition_text_release
+        );
+        u32 cleared = 0U;
+        ecx_ = allocation_size / 4U;
+        while (ecx_ != 0U) {
+            if (cleared > owned_description_.size() ||
+                owned_description_.size() - cleared < 4U) {
+                result_.status = LegacyBattleMonDefinitionLoadStatus::
+                    definition_text_access_typed_stop;
+                result_.stopped_definition_text_offset = cleared;
+                return false;
+            }
+
+            for (u32 byte = 0U; byte < 4U; ++byte) {
+                owned_description_[cleared + byte] = 0U;
+            }
+
+            cleared += 4U;
+            --ecx_;
+        }
+
+        ecx_ = allocation_size & 3U;
+        while (ecx_ != 0U) {
+            if (cleared >= owned_description_.size()) {
+                result_.status = LegacyBattleMonDefinitionLoadStatus::
+                    definition_text_access_typed_stop;
+                result_.stopped_definition_text_offset = cleared;
+                return false;
+            }
+
+            owned_description_[cleared++] = 0U;
+            --ecx_;
+        }
+
         for (std::size_t index = 0U; index < length; ++index) {
             u8 value = 0U;
             if (!read_stream_byte(source + index, value)) {
@@ -577,7 +612,7 @@ private:
 
     std::span<const u8> stream_;
     std::span<u8> output_;
-    std::vector<u8>& owned_description_;
+    LegacyBattleMonText& owned_description_;
     LegacyBattleMonDatabasePort& port_;
     LegacyBattleMonDatabaseState& database_;
     const LegacyBattleMonDefinitionLoadRequest& request_;
@@ -592,7 +627,7 @@ private:
 
 LegacyBattleMonDefinitionLoadResult load_legacy_battle_mon_definition(
     const std::span<u8> output,
-    std::vector<u8>& owned_description,
+    LegacyBattleMonText& owned_description,
     LegacyBattleMonDatabasePort& port,
     const LegacyBattleMonDefinitionLoadRequest& request
 ) {

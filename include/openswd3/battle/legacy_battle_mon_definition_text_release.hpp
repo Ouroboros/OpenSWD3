@@ -52,7 +52,7 @@ struct LegacyBattleMonDefinitionTextReleaseResult {
 [[nodiscard]] LegacyBattleMonDefinitionTextReleaseResult
 release_legacy_battle_mon_definition_text(
     std::span<compat::u8> definition,
-    std::vector<compat::u8>& owned_text,
+    LegacyBattleMonText& owned_text,
     LegacyBattleMonDatabasePort& port,
     const LegacyBattleMonDefinitionTextReleaseRequest& request
 );

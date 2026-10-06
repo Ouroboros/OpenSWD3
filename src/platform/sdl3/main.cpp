@@ -49,6 +49,7 @@
 #include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_stream_runtime.hpp"
+#include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_runtime_shutdown.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
@@ -2192,30 +2193,19 @@ public:
         case Call::release_stream:
             return mon_streams_.invoke(request);
 
-        case Call::query_definition_text_size: {
-            const auto found =
-                mon_definition_text_sizes_.find(request.block_token);
-            return {
-                .eax = found == mon_definition_text_sizes_.end()
-                    ? 0U
-                    : found->second,
-                .ecx = request.ecx,
-                .edx = request.edx,
-            };
-        }
-
-        case Call::allocate_definition_text: {
-            const auto token = next_mon_definition_text_token_;
-            next_mon_definition_text_token_ += 0x100U;
-            mon_definition_text_sizes_[token] = request.allocation_size;
-            return {.eax = token, .ecx = request.ecx, .edx = request.edx};
-        }
-
+        case Call::query_definition_text_size:
+        case Call::allocate_definition_text:
         case Call::release_definition_text:
-            mon_definition_text_sizes_.erase(request.block_token);
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+            return mon_text_.invoke(request);
         }
         return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply
+    release_legacy_battle_mon_definition_text(
+        const openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallRequest& request
+    ) override {
+        return mon_text_.release(request);
     }
 
     [[nodiscard]] openswd3::world_map::LegacyWorldItemListState*
@@ -5042,13 +5032,13 @@ public:
                     openswd3::compat::u8,
                     openswd3::world_map::kLegacyItemDefinitionSnapshotBytes>
                     snapshot,
-                std::vector<openswd3::compat::u8>& description
+                openswd3::battle::LegacyBattleMonText& description
             ) override {
                 std::array<
                     openswd3::compat::u8,
                     openswd3::battle::kLegacyBattleMonDefinitionBytes>
                     definition{};
-                std::vector<openswd3::compat::u8> loaded_description;
+                openswd3::battle::LegacyBattleMonText loaded_description;
                 const auto loaded =
                     openswd3::battle::load_legacy_battle_mon_definition(
                         definition,
@@ -7414,13 +7404,13 @@ public:
                                 openswd3::world_map::
                                     kLegacyItemDefinitionSnapshotBytes>
                                 snapshot,
-                            std::vector<openswd3::compat::u8>& description
+                            openswd3::battle::LegacyBattleMonText& description
                         ) override {
                         std::array<
                             openswd3::compat::u8,
                             openswd3::battle::kLegacyBattleMonDefinitionBytes>
                             definition{};
-                        std::vector<openswd3::compat::u8> loaded_description;
+                        openswd3::battle::LegacyBattleMonText loaded_description;
                         const auto loaded =
                             openswd3::battle::load_legacy_battle_mon_definition(
                                 definition,
@@ -8478,9 +8468,7 @@ private:
     openswd3::battle::LegacyBattleMonFileRuntime mon_files_;
     openswd3::battle::LegacyBattleMonStreamRuntime mon_streams_;
     std::ifstream level_file_;
-    openswd3::compat::u32 next_mon_definition_text_token_{0x73000000U};
-    std::unordered_map<openswd3::compat::u32, openswd3::compat::u32>
-        mon_definition_text_sizes_;
+    openswd3::battle::LegacyBattleMonTextRuntime mon_text_;
     std::filesystem::path data_directory_;
     std::filesystem::path launch_directory_;
     std::filesystem::path world_cache_directory_;

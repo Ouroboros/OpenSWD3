@@ -31,7 +31,7 @@ inline constexpr compat::u32 kLegacyBattleGrowthItemPresenceId = 0x1BB0U;
 struct LegacyBattleGrowthItemDefinitionState {
     std::array<compat::u8, world_map::kLegacyItemDefinitionSnapshotBytes>
         bytes{};
-    std::vector<compat::u8> description;
+    LegacyBattleMonText description;
     compat::u32 description_token{};
 };
 

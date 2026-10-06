@@ -28,7 +28,7 @@ void relink_inventory(LegacyWorldItemListState& state) noexcept {
     *next = 0U;
 }
 
-void apply_existing_inventory_quantity(
+bool apply_existing_inventory_quantity(
     LegacyWorldItemListState& state,
     const std::list<LegacyWorldItemNode>::iterator existing,
     const u16 quantity,
@@ -40,16 +40,29 @@ void apply_existing_inventory_quantity(
     if (std::bit_cast<i16>(selected) > 99) {
         selected = 99U;
         opposite = 0U;
-        return;
+        return true;
     }
     if (std::bit_cast<i16>(selected) <= 0) {
         selected = 0U;
         if (second_bucket ? opposite == 0U
                           : std::bit_cast<i16>(opposite) <= 0) {
+            u32* link = &state.player_inventory_head_token;
+            for (auto node = state.player_inventory.begin(); node != existing;
+                 ++node) {
+                link = &node->legacy_next_token;
+            }
+
+            *link = existing->legacy_next_token;
+            if (!existing->description.release()) {
+                return false;
+            }
+
             state.player_inventory.erase(existing);
             relink_inventory(state);
         }
     }
+
+    return true;
 }
 
 }  // namespace
@@ -64,21 +77,42 @@ LegacySaveRoleDefinitionsResult materialize_legacy_save_role_definitions(
         for (std::size_t index = 0U; index < source.monster_ids.size();
              ++index) {
             auto& slot = destination.role_item_lists[index];
-            if (!slot.has_value()) {
-                slot.emplace();
+            // 0x004085D5..0x0040865A: rebuild every root before loading
+            // any MON definition. Each unlink precedes its text/node free.
+            if (slot.has_value()) {
+                while (!slot->nodes.empty()) {
+                    slot->sentinel.legacy_next_token =
+                        slot->nodes.front().legacy_next_token;
+                    if (!slot->nodes.front().description.release()) {
+                        result.status = LegacySaveRoleDefinitionsStatus::
+                            description_release_typed_stop;
+                        return result;
+                    }
+
+                    slot->nodes.pop_front();
+                }
+
+                if (!slot->sentinel.description.release()) {
+                    result.status = LegacySaveRoleDefinitionsStatus::
+                        description_release_typed_stop;
+                    return result;
+                }
+
+                slot.reset();
             }
-            auto& list = *slot;
-            list.nodes.clear();
-            list.sentinel = {};
+
+            auto& list = slot.emplace();
             list.sentinel.legacy_token = kLegacyRoleItemSentinelTokenBase +
                 static_cast<u32>(index) * kLegacyWorldItemNodeBytes;
             list.legacy_head_token = list.sentinel.legacy_token;
         }
 
-        // 0x0040865A completes all 64 roots before 0x004086C2 loads MON.
         for (std::size_t index = 0U; index < source.monster_ids.size();
              ++index) {
             auto& list = *destination.role_item_lists[index];
+            const auto node_token = list.sentinel.legacy_token;
+            list.sentinel = {};
+            list.sentinel.legacy_token = node_token;
             const u16 item_id = source.monster_ids[index];
             if (item_id == kLegacyItemSentinelId) {
                 list.sentinel.item_id = kLegacyItemSentinelId;
@@ -99,8 +133,15 @@ LegacySaveRoleDefinitionsResult materialize_legacy_save_role_definitions(
                         loaded.description_token;
                     ++result.definitions_loaded;
                 } else {
+                    // 0x004086FB frees text before clearing its slot/ID.
+                    if (!list.sentinel.description.release()) {
+                        result.status = LegacySaveRoleDefinitionsStatus::
+                            description_release_typed_stop;
+                        return result;
+                    }
+
+                    list.sentinel.legacy_description_token = 0U;
                     list.sentinel.item_id = kLegacyItemSentinelId;
-                    std::vector<compat::u8>{}.swap(list.sentinel.description);
                     ++result.definitions_missing;
                 }
             }
@@ -125,12 +166,21 @@ LegacySaveItemListResult materialize_legacy_save_item_lists(
         }
     }
 
-    destination.player_inventory.clear();
-    destination.player_inventory_head_token = 0U;
-    destination.player_inventory_head_alias = {};
+    // 0x00408779..0x004087B8 clears all party children first, retaining roots.
     for (auto& optional : destination.party_item_lists) {
         auto& list = *optional;
-        list.nodes.clear();
+        while (!list.nodes.empty()) {
+            list.sentinel.legacy_next_token =
+                list.nodes.front().legacy_next_token;
+            if (!list.nodes.front().description.release()) {
+                result.status =
+                    LegacySaveItemListStatus::description_release_typed_stop;
+                return result;
+            }
+
+            list.nodes.pop_front();
+        }
+
         list.sentinel.legacy_next_token = 0U;
         list.legacy_head_token = list.sentinel.legacy_token;
     }
@@ -150,6 +200,12 @@ LegacySaveItemListResult materialize_legacy_save_item_lists(
                 );
                 if (!loaded.loaded) {
                     ++result.definition_failures;
+                    if (!node.description.release()) {
+                        result.status = LegacySaveItemListStatus::
+                            description_release_typed_stop;
+                        return result;
+                    }
+
                     continue;
                 }
                 node.legacy_description_token = loaded.description_token;
@@ -164,6 +220,22 @@ LegacySaveItemListResult materialize_legacy_save_item_lists(
             }
         }
 
+        // 0x0040888C..0x004088BB: ordinary inventory is freed only after
+        // all four party lists have been rebuilt.
+        while (!destination.player_inventory.empty()) {
+            destination.player_inventory_head_token =
+                destination.player_inventory.front().legacy_next_token;
+            if (!destination.player_inventory.front().description.release()) {
+                result.status =
+                    LegacySaveItemListStatus::description_release_typed_stop;
+                return result;
+            }
+
+            destination.player_inventory.pop_front();
+        }
+
+        destination.player_inventory_head_token = 0U;
+        destination.player_inventory_head_alias = {};
         for (const LegacySaveInventoryEntry& entry : source.player_inventory) {
             const bool second_bucket = (entry.raw_item_id & 0x8000U) != 0U;
             const u16 item_id = second_bucket
@@ -177,9 +249,14 @@ LegacySaveItemListResult materialize_legacy_save_item_lists(
                 }
             );
             if (existing != destination.player_inventory.end()) {
-                apply_existing_inventory_quantity(
-                    destination, existing, entry.quantity, second_bucket
-                );
+                if (!apply_existing_inventory_quantity(
+                        destination, existing, entry.quantity, second_bucket
+                    )) {
+                    result.status = LegacySaveItemListStatus::
+                        description_release_typed_stop;
+                    return result;
+                }
+
                 continue;
             }
             if (std::bit_cast<i16>(entry.quantity) <= 0) {
@@ -191,6 +268,12 @@ LegacySaveItemListResult materialize_legacy_save_item_lists(
             );
             if (!loaded.loaded) {
                 ++result.definition_failures;
+                if (!node.description.release()) {
+                    result.status = LegacySaveItemListStatus::
+                        description_release_typed_stop;
+                    return result;
+                }
+
                 continue;
             }
             node.legacy_description_token = loaded.description_token;

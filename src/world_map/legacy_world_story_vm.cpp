@@ -1728,6 +1728,7 @@ release_legacy_world_story_role_path(
 
 [[nodiscard]] LegacyWorldStoryVmStatus adjust_player_item_quantity(
     std::list<LegacyWorldItemNode>& inventory,
+    std::list<LegacyWorldItemNode>& unlinked_nodes,
     const u16 item_id,
     const i16 delta,
     LegacyWorldStoryVmPorts& ports
@@ -1752,7 +1753,15 @@ release_legacy_world_story_role_path(
                 existing->quantity_a + static_cast<u16>(quantity_b)
             );
             if (std::bit_cast<i16>(existing->quantity_a) <= 0) {
-                inventory.erase(existing);
+                // 0x0044D35B unlinks before the 0x0044D364 text free.
+                unlinked_nodes.splice(
+                    unlinked_nodes.end(), inventory, existing
+                );
+                if (!existing->description.release()) {
+                    return LegacyWorldStoryVmStatus::item_update_failed;
+                }
+
+                unlinked_nodes.erase(existing);
                 return LegacyWorldStoryVmStatus::idle;
             }
         }
@@ -1768,20 +1777,27 @@ release_legacy_world_story_role_path(
     }
 
     try {
-        LegacyWorldItemNode item;
+        // 0x0044D414 allocates before MON loading; 0x0044D4B9 publishes it.
+        const auto allocated = unlinked_nodes.emplace(unlinked_nodes.end());
+        auto& item = *allocated;
         if (item_id == kLegacyItemSentinelId) {
             item.definition_snapshot[0U] = kLegacyItemSentinelNameBytes[0U];
             item.definition_snapshot[1U] = kLegacyItemSentinelNameBytes[1U];
         } else if (!ports.load_story_item_definition(
                        item_id, item.definition_snapshot, item.description
                    )) {
+            if (!item.description.release()) {
+                return LegacyWorldStoryVmStatus::item_update_failed;
+            }
+
+            unlinked_nodes.erase(allocated);
             return LegacyWorldStoryVmStatus::idle;
         }
         item.item_id = item_id;
         item.quantity_b =
             item_id == kLegacyItemSentinelId ? 1U : static_cast<u16>(delta);
         item.definition_snapshot[0x21U] |= 0x80U;
-        inventory.emplace_front(std::move(item));
+        inventory.splice(inventory.begin(), unlinked_nodes, allocated);
     } catch (const std::bad_alloc&) {
         return LegacyWorldStoryVmStatus::item_allocation_failed;
     } catch (...) {
@@ -1797,6 +1813,7 @@ struct LegacyStoryPartyItemUpsertResult {
 
 [[nodiscard]] LegacyStoryPartyItemUpsertResult upsert_party_item(
     std::list<LegacyWorldItemNode>& items,
+    std::list<LegacyWorldItemNode>& unlinked_nodes,
     const u16 item_id,
     LegacyWorldStoryVmPorts& ports
 ) noexcept {
@@ -1816,7 +1833,12 @@ struct LegacyStoryPartyItemUpsertResult {
         if (quantity_a <= 0) {
             existing->quantity_a = 0U;
             if (std::bit_cast<i16>(existing->quantity_b) <= 0) {
-                items.erase(existing);
+                unlinked_nodes.splice(unlinked_nodes.end(), items, existing);
+                if (!existing->description.release()) {
+                    return {.status = LegacyWorldStoryVmStatus::item_update_failed};
+                }
+
+                unlinked_nodes.erase(existing);
                 return {};
             }
         }
@@ -1830,19 +1852,25 @@ struct LegacyStoryPartyItemUpsertResult {
     }
 
     try {
-        LegacyWorldItemNode item;
+        const auto allocated = unlinked_nodes.emplace(unlinked_nodes.end());
+        auto& item = *allocated;
         if (item_id == kLegacyItemSentinelId) {
             item.definition_snapshot[0U] = kLegacyItemSentinelNameBytes[0U];
             item.definition_snapshot[1U] = kLegacyItemSentinelNameBytes[1U];
         } else if (!ports.load_story_item_definition(
                        item_id, item.definition_snapshot, item.description
                    )) {
+            if (!item.description.release()) {
+                return {.status = LegacyWorldStoryVmStatus::item_update_failed};
+            }
+
+            unlinked_nodes.erase(allocated);
             return {};
         }
 
         item.item_id = item_id;
         item.quantity_a = 1U;
-        items.emplace_front(std::move(item));
+        items.splice(items.begin(), unlinked_nodes, allocated);
     } catch (const std::bad_alloc&) {
         return {.status = LegacyWorldStoryVmStatus::item_allocation_failed};
     } catch (...) {
@@ -1852,17 +1880,27 @@ struct LegacyStoryPartyItemUpsertResult {
     return {.item = &items.front()};
 }
 
-void decrement_party_item(
-    std::list<LegacyWorldItemNode>& items, const u16 item_id
+[[nodiscard]] bool decrement_party_item(
+    std::list<LegacyWorldItemNode>& items,
+    std::list<LegacyWorldItemNode>& unlinked_nodes,
+    const u16 item_id
 ) noexcept {
-    const auto decrement = [&items, item_id](const auto selected) {
+    const auto decrement = [&items, &unlinked_nodes, item_id](
+                               const auto selected, const i16 delta
+                           ) -> std::optional<i16> {
         selected->quantity_a =
-            static_cast<u16>(selected->quantity_a + u16{0xFFFFU});
+            static_cast<u16>(selected->quantity_a + static_cast<u16>(delta));
         const i16 quantity_a = std::bit_cast<i16>(selected->quantity_a);
         if (quantity_a > 99) {
             selected->quantity_a = 99U;
         } else if (quantity_a <= 0) {
-            items.erase(selected);
+            // 0x0044D143/0x0044D1B8 unlink before the two frees.
+            unlinked_nodes.splice(unlinked_nodes.end(), items, selected);
+            if (!selected->description.release()) {
+                return std::nullopt;
+            }
+
+            unlinked_nodes.erase(selected);
             return quantity_a;
         }
 
@@ -1878,8 +1916,18 @@ void decrement_party_item(
             return item.item_id == item_id &&
                 (item.definition_snapshot[0x21U] & 0x80U) != 0U;
         });
-    if (flagged != items.end() && decrement(flagged) >= 0) {
-        return;
+    i16 delta{-1};
+    if (flagged != items.end()) {
+        const auto remaining = decrement(flagged, delta);
+        if (!remaining.has_value()) {
+            return false;
+        }
+
+        if (*remaining >= 0) {
+            return true;
+        }
+
+        delta = *remaining;
     }
 
     const auto unflagged =
@@ -1888,8 +1936,10 @@ void decrement_party_item(
                 (item.definition_snapshot[0x21U] & 0x80U) == 0U;
         });
     if (unflagged != items.end()) {
-        static_cast<void>(decrement(unflagged));
+        return decrement(unflagged, delta).has_value();
     }
+
+    return true;
 }
 
 [[nodiscard]] bool party_items_have_masked_item(
@@ -1960,6 +2010,7 @@ struct LegacyStoryRoleRootItemLookup {
 
 [[nodiscard]] LegacyWorldStoryVmStatus swap_player_item_into_role_slot(
     std::list<LegacyWorldItemNode>& inventory,
+    std::list<LegacyWorldItemNode>& unlinked_nodes,
     LegacyWorldSentinelItemList& role_slot,
     LegacyWorldItemNode& source,
     LegacyWorldItemNode& displaced,
@@ -1967,6 +2018,12 @@ struct LegacyStoryRoleRootItemLookup {
 ) noexcept {
     try {
         displaced = role_slot.sentinel;
+        // 0x0042C0CA/0x0042C0FA allocate and copy a separate description.
+        displaced.description.bind(
+            std::make_shared<battle::LegacyBattleMonText::Storage>(
+                role_slot.sentinel.description.bytes()
+            )
+        );
     } catch (const std::bad_alloc&) {
         return LegacyWorldStoryVmStatus::item_allocation_failed;
     } catch (...) {
@@ -1985,9 +2042,14 @@ struct LegacyStoryRoleRootItemLookup {
     role_slot.sentinel.quantity_a = 1U;
     role_slot.sentinel.quantity_b = 0U;
     role_slot.sentinel.selected_count = 0U;
-    std::vector<u8>{}.swap(role_slot.sentinel.description);
+    role_slot.sentinel.description.clear();
     try {
-        role_slot.sentinel.description = source.description;
+        // 0x0042C178/0x0042C1C0 allocate and copy again for the new root.
+        role_slot.sentinel.description.bind(
+            std::make_shared<battle::LegacyBattleMonText::Storage>(
+                source.description.bytes()
+            )
+        );
     } catch (const std::bad_alloc&) {
         return LegacyWorldStoryVmStatus::item_allocation_failed;
     } catch (...) {
@@ -1996,7 +2058,7 @@ struct LegacyStoryRoleRootItemLookup {
 
     const auto source_address = reinterpret_cast<std::uintptr_t>(&source);
     const auto add_displaced_status = adjust_player_item_quantity(
-        inventory, displaced.item_id, i16{1}, ports
+        inventory, unlinked_nodes, displaced.item_id, i16{1}, ports
     );
     if (add_displaced_status != LegacyWorldStoryVmStatus::idle) {
         return add_displaced_status;
@@ -2009,7 +2071,7 @@ struct LegacyStoryRoleRootItemLookup {
     }
 
     return adjust_player_item_quantity(
-        inventory, live_source->item_id, i16{-1}, ports
+        inventory, unlinked_nodes, live_source->item_id, i16{-1}, ports
     );
 }
 
@@ -6250,7 +6312,8 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 return result;
             }
             result.status = adjust_player_item_quantity(
-                *runtime.player_inventory, item_id, delta, ports
+                *runtime.player_inventory, state.unlinked_item_nodes,
+                item_id, delta, ports
             );
             if (result.status != LegacyWorldStoryVmStatus::idle) {
                 return result;
@@ -6361,8 +6424,9 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 }
 
                 if (!party_items_have_masked_item(party_list->nodes, item_id)) {
-                    const auto upserted =
-                        upsert_party_item(party_list->nodes, item_id, ports);
+                    const auto upserted = upsert_party_item(
+                        party_list->nodes, state.unlinked_item_nodes, item_id, ports
+                    );
                     if (upserted.status != LegacyWorldStoryVmStatus::idle) {
                         result.status = upserted.status;
                         return result;
@@ -6389,9 +6453,14 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     const u16 party_mask =
                         static_cast<u16>(0x8000U >> party_index);
                     if ((restriction & party_mask) == 0U) {
-                        decrement_party_item(
-                            party_list->nodes, upserted.item->item_id
-                        );
+                        if (!decrement_party_item(
+                                party_list->nodes,
+                                state.unlinked_item_nodes,
+                                upserted.item->item_id
+                            )) {
+                            result.status = LegacyWorldStoryVmStatus::item_update_failed;
+                            return result;
+                        }
                     }
                 }
             }
@@ -6464,6 +6533,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
                     result.status = swap_player_item_into_role_slot(
                         *runtime.player_inventory,
+                        state.unlinked_item_nodes,
                         *selected_root,
                         *source,
                         *displaced,

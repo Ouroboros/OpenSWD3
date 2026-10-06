@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/compat/types.hpp"
+#include "openswd3/battle/legacy_battle_mon_text.hpp"
 
 #include <array>
 #include <cstddef>
@@ -24,7 +25,7 @@ inline constexpr std::array<compat::u8, 2U> kLegacyItemSentinelNameBytes{
 
 // The raw 0xB0-byte ItemNode stores its link at +0x00, four u16 fields at
 // +0x04..+0x0A, definition bytes at +0x0C..+0xAB and an owned description
-// pointer at +0xAC. std::list and std::vector replace the two raw pointers;
+// pointer at +0xAC. std::list and a shared text view replace the raw pointers;
 // legacy_token/legacy_next_token/legacy_description_token retain their 32-bit
 // physical identities as metadata.
 struct LegacyWorldItemNode {
@@ -34,7 +35,7 @@ struct LegacyWorldItemNode {
     compat::u16 quantity_b{};
     std::array<compat::u8, kLegacyItemDefinitionSnapshotBytes>
         definition_snapshot{};
-    std::vector<compat::u8> description;
+    battle::LegacyBattleMonText description;
     compat::u32 legacy_token{};
     compat::u32 legacy_next_token{};
     compat::u32 legacy_description_token{};
@@ -92,6 +93,7 @@ private:
 enum class LegacyWorldItemListReleaseStatus {
     ready,
     required_party_sentinel_missing,
+    description_release_typed_stop,
 };
 
 struct LegacyWorldItemListReleaseResult {

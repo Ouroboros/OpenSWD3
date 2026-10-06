@@ -466,18 +466,26 @@ public:
         const std::
             span<u8, openswd3::world_map::kLegacyItemDefinitionSnapshotBytes>
                 definition_snapshot,
-        std::vector<u8>& description
+        openswd3::battle::LegacyBattleMonText& description
     ) override {
         ++item_definition_load_count;
         last_item_definition_id = item_id;
         story_protocol_events.push_back(13U);
+        if (item_definition_hook) {
+            item_definition_hook(description);
+        }
+
         if (!item_definition_load_success) {
             return false;
         }
+
         std::ranges::copy(
             prepared_item_definition, definition_snapshot.begin()
         );
-        description = prepared_item_description;
+        description.bind(std::make_shared<
+            openswd3::battle::LegacyBattleMonText::Storage>(
+            prepared_item_description
+        ));
         return true;
     }
 
@@ -721,6 +729,8 @@ public:
     bool last_data_clear_before_read{};
     bool dialog_text_prepare_success{};
     bool item_definition_load_success{true};
+    std::function<void(openswd3::battle::LegacyBattleMonText&)>
+        item_definition_hook;
     bool world_session_reload_success{true};
     bool input_menu_reset_success{true};
     bool story_file_operation_success{true};
@@ -848,7 +858,7 @@ public:
         const std::
             span<u8, openswd3::world_map::kLegacyItemDefinitionSnapshotBytes>
                 definition_snapshot,
-        std::vector<u8>& description
+        openswd3::battle::LegacyBattleMonText& description
     ) override {
         definition_snapshot[0U] = static_cast<u8>(item_id);
         definition_snapshot[1U] = static_cast<u8>(item_id >> 8U);

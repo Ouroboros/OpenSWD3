@@ -175,13 +175,14 @@ public:
     [[nodiscard]] virtual LegacySaveItemDefinitionResult load_definition(
         compat::u16 item_id,
         std::span<compat::u8, kLegacyItemDefinitionSnapshotBytes> snapshot,
-        std::vector<compat::u8>& description
+        battle::LegacyBattleMonText& description
     ) = 0;
 };
 
 enum class LegacySaveRoleDefinitionsStatus {
     ready,
     allocation_failed,
+    description_release_typed_stop,
 };
 
 struct LegacySaveRoleDefinitionsResult {
@@ -205,6 +206,7 @@ enum class LegacySaveItemListStatus {
     ready,
     missing_party_sentinel,
     allocation_failed,
+    description_release_typed_stop,
 };
 
 struct LegacySaveItemListResult {

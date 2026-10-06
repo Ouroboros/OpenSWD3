@@ -18,7 +18,7 @@ public:
     [[nodiscard]] virtual LegacyBattleMonDefinitionTextReleaseResult
     release_group_b_action_resource_text(
         std::span<compat::u8> definition,
-        std::vector<compat::u8>& owned_text,
+        LegacyBattleMonText& owned_text,
         LegacyBattleMonDatabasePort& mon_port,
         const LegacyBattleMonDefinitionTextReleaseRequest& request
     ) = 0;

@@ -4916,7 +4916,7 @@ LegacyStandardModeQuantityResult update_legacy_standard_mode_quantity(
     if (stored_id == 0xFFDCU) {
         ports.initialize_missing_quantity_name(*record);
     } else {
-        std::vector<compat::u8> record_description;
+        battle::LegacyBattleMonText record_description;
         const auto definition_result =
             battle::load_legacy_battle_mon_definition(
                 std::span<compat::u8>{record->record_bytes}.subspan(0x0CU),
@@ -5090,7 +5090,7 @@ LegacyPlayerItemQuantityResult update_legacy_player_item_quantities(
         result.sentinel_forced_to_one = true;
         ports.initialize_missing_quantity_name(*record);
     } else {
-        std::vector<compat::u8> record_description;
+        battle::LegacyBattleMonText record_description;
         const auto definition_result =
             battle::load_legacy_battle_mon_definition(
                 std::span<compat::u8>{record->record_bytes}.subspan(0x0CU),
@@ -14467,7 +14467,7 @@ dispatch_legacy_standard_mode_selected_record(
     }
 
     std::array<compat::u8, 0xB0U> temporary{};
-    std::vector<compat::u8> temporary_description;
+    battle::LegacyBattleMonText temporary_description;
     const std::array<compat::u16, 3U> related_ids{
         read_u16_le(std::span<const compat::u8>{state.scratch_record}, 0x72U),
         read_u16_le(std::span<const compat::u8>{state.scratch_record}, 0x76U),
@@ -15867,7 +15867,7 @@ refresh_legacy_standard_mode_database_runtime_records(
     };
     const auto release_and_clear = [&ports, &result](
                                        std::array<compat::u8, 0xB0U>& record,
-                                       std::vector<compat::u8>& description
+                                       battle::LegacyBattleMonText& description
                                    ) {
         const compat::u32 token = read_u32_le(record, 0xACU);
         if (token != 0U) {

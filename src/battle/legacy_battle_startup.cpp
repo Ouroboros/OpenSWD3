@@ -115,7 +115,7 @@ public:
         return port_.legacy_battle_mon_definition_scratch();
     }
 
-    [[nodiscard]] std::vector<u8>&
+    [[nodiscard]] LegacyBattleMonText&
     legacy_battle_mon_definition_scratch_description() noexcept override {
         return port_.legacy_battle_mon_definition_scratch_description();
     }

@@ -4711,10 +4711,53 @@ void test_adjust_player_item_quantity_protocol(openswd3::test::Context& test) {
     remove.player_inventory.emplace_back();
     remove.player_inventory.front().item_id = 0x0202U;
     remove.player_inventory.front().quantity_a = 1U;
+    using Text = openswd3::battle::LegacyBattleMonText;
+    bool unlinked_before_free = false;
+    remove.player_inventory.front().description.bind(
+        std::make_shared<Text::Storage>(2U, 0xA5U),
+        std::make_shared<const Text::Release>([&] {
+            unlinked_before_free = remove.player_inventory.empty() &&
+                remove.state.unlinked_item_nodes.size() == 1U;
+            return true;
+        })
+    );
     prime_loaded_instruction(remove, OP_128_ADJUST_PLAYER_ITEM_QUANTITY);
     write_u16(remove.state.window, 2U, 0x0202U);
     write_u16(remove.state.window, 4U, 0xFFFFU);
     const auto remove_result = remove.step();
+    test.expect_true(
+        unlinked_before_free && remove.state.unlinked_item_nodes.empty(),
+        "opcode 128 unlinks, frees text, then destroys the node"
+    );
+
+    Fixture failed_free;
+    auto& failed_node = failed_free.player_inventory.emplace_back();
+    failed_node.item_id = 0x0202U;
+    failed_node.quantity_a = 1U;
+    failed_free.player_inventory.emplace_back().item_id = 0x0777U;
+    bool observed_unlink = false;
+    failed_node.description.bind(
+        std::make_shared<Text::Storage>(2U, 0xB5U),
+        std::make_shared<const Text::Release>([&] {
+            observed_unlink = failed_free.player_inventory.size() == 1U &&
+                failed_free.player_inventory.front().item_id == 0x0777U;
+            return false;
+        })
+    );
+    prime_loaded_instruction(failed_free, OP_128_ADJUST_PLAYER_ITEM_QUANTITY);
+    write_u16(failed_free.state.window, 2U, 0x0202U);
+    write_u16(failed_free.state.window, 4U, 0xFFFFU);
+    const auto previous = failed_free.state.previous_opcode;
+    const auto free_failure = failed_free.step();
+    test.expect_true(
+        free_failure.status == LegacyWorldStoryVmStatus::item_update_failed &&
+            observed_unlink && failed_free.context.instruction_offset == 0U &&
+            failed_free.state.previous_opcode == previous &&
+            failed_free.state.unlinked_item_nodes.size() == 1U &&
+            failed_node.quantity_a == 0U &&
+            failed_node.description[0U] == 0xB5U,
+        "failed text free retains the detached node and does not advance the VM"
+    );
 
     Fixture wrapped_remove;
     wrapped_remove.player_inventory.emplace_back();
@@ -4823,6 +4866,38 @@ void test_adjust_player_item_quantity_protocol(openswd3::test::Context& test) {
     write_u16(definition_failure.state.window, 2U, 0x0301U);
     write_u16(definition_failure.state.window, 4U, 1U);
     const auto definition_failure_result = definition_failure.step();
+    test.expect_true(
+        definition_failure.state.unlinked_item_nodes.empty(),
+        "failed MON load frees its unpublished node after successful text cleanup"
+    );
+
+    Fixture failed_new_cleanup;
+    failed_new_cleanup.ports.item_definition_load_success = false;
+    bool allocated_before_load = false;
+    failed_new_cleanup.ports.item_definition_hook = [&](Text& description) {
+        allocated_before_load = failed_new_cleanup.player_inventory.empty() &&
+            failed_new_cleanup.state.unlinked_item_nodes.size() == 1U;
+        description.bind(
+            std::make_shared<Text::Storage>(2U, 0xC5U),
+            std::make_shared<const Text::Release>([] { return false; })
+        );
+    };
+    prime_loaded_instruction(
+        failed_new_cleanup, OP_128_ADJUST_PLAYER_ITEM_QUANTITY
+    );
+    write_u16(failed_new_cleanup.state.window, 2U, 0x0301U);
+    write_u16(failed_new_cleanup.state.window, 4U, 1U);
+    const auto new_cleanup_result = failed_new_cleanup.step();
+    test.expect_true(
+        new_cleanup_result.status ==
+                LegacyWorldStoryVmStatus::item_update_failed &&
+            allocated_before_load &&
+            failed_new_cleanup.player_inventory.empty() &&
+            failed_new_cleanup.state.unlinked_item_nodes.size() == 1U &&
+            failed_new_cleanup.state.unlinked_item_nodes.front()
+                    .description[0U] == 0xC5U,
+        "failed MON cleanup retains the allocated node without publishing it"
+    );
 
     Fixture missing_owner;
     missing_owner.runtime.player_inventory = nullptr;
@@ -5597,6 +5672,7 @@ void test_swap_player_item_into_role_slot_protocol(
             write_u16(fixture.state.window, 8U, OP_59_PLAY_SOUND_EFFECT);
             write_u16(fixture.state.window, 10U, 0x0073U);
 
+            auto source_description = source.description;
             const auto result = fixture.step();
             const auto& inventory = fixture.player_inventory;
             const auto& equipped =
@@ -5637,6 +5713,11 @@ void test_swap_player_item_into_role_slot_protocol(
                     fixture.ports.sound_effect_requests ==
                         std::vector<u16>{0x0073U},
                 "opcode 132 aliases swap a masked player item into slot 11 of each role group and return the old root item"
+            );
+            test.expect_true(
+                source_description.empty() && !equipped.description.empty() &&
+                    equipped.description[0U] == 1U,
+                "opcode 132 retains independent root text after freeing source text"
             );
         }
     }

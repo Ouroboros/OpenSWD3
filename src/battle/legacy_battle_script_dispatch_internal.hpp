@@ -1013,7 +1013,7 @@ private:
             return runner_.port_.legacy_battle_mon_definition_scratch();
         }
 
-        [[nodiscard]] std::vector<u8>&
+        [[nodiscard]] LegacyBattleMonText&
         legacy_battle_mon_definition_scratch_description() noexcept override {
             return runner_.port_
                 .legacy_battle_mon_definition_scratch_description();
@@ -1032,7 +1032,7 @@ private:
         [[nodiscard]] LegacyBattleMonDefinitionTextReleaseResult
         release_group_b_action_resource_text(
             const std::span<u8>,
-            std::vector<u8>&,
+            LegacyBattleMonText&,
             LegacyBattleMonDatabasePort&,
             const LegacyBattleMonDefinitionTextReleaseRequest& request
         ) override {

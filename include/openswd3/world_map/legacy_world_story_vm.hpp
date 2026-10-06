@@ -319,6 +319,9 @@ struct LegacyWorldStoryVmState {
     // Shop mode 2 consumes the nonzero u16 ids and releases that owner on exit;
     // sub_40E0B0 does not reset it.
     std::vector<compat::u16> shop_item_ids;
+    // sub_44D2D0 unlinks before freeing text. Retain an unlinked allocation
+    // if that free stops; it must not reappear in the live inventory chain.
+    std::list<LegacyWorldItemNode> unlinked_item_nodes;
     // Opcodes 170..173 own the nullable 0x34-byte blocks at
     // dword_4B751C/dword_4B74F4. Special modes 17/18 consume these bytes and
     // persistence serializes the two blocks in this order.
@@ -478,7 +481,7 @@ public:
         compat::u16 item_id,
         std::span<compat::u8, kLegacyItemDefinitionSnapshotBytes>
             definition_snapshot,
-        std::vector<compat::u8>& description
+        battle::LegacyBattleMonText& description
     ) = 0;
     virtual void play_sound_effect(compat::u16 sound_id) noexcept = 0;
     virtual void apply_music_stream_transition(

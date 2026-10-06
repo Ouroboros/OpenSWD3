@@ -21,7 +21,7 @@ using openswd3::world_map::release_legacy_world_item_lists;
 [[nodiscard]] LegacyWorldItemNode
 node_with_description(const std::initializer_list<u8> bytes) {
     LegacyWorldItemNode node;
-    node.description.assign(bytes);
+    node.description = openswd3::battle::LegacyBattleMonText(bytes);
     return node;
 }
 

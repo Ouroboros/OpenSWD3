@@ -217,7 +217,7 @@ public:
         const std::span<
             u8,
             openswd3::world_map::kLegacyItemDefinitionSnapshotBytes> snapshot,
-        std::vector<u8>& description
+        openswd3::battle::LegacyBattleMonText& description
     ) override {
         if (before_load) {
             before_load();
@@ -229,6 +229,10 @@ public:
         }
         snapshot[0U] = static_cast<u8>(item_id);
         description = {0x51U, 0U};
+        if (on_description) {
+            on_description(description);
+        }
+
         return {
             .loaded = true,
             .description_token = static_cast<openswd3::compat::u32>(
@@ -239,6 +243,7 @@ public:
 
     std::vector<openswd3::compat::u16> requested;
     std::function<void()> before_load;
+    std::function<void(openswd3::battle::LegacyBattleMonText&)> on_description;
 };
 
 void test_saved_role_definitions(openswd3::test::Context& test) {
@@ -320,6 +325,173 @@ void test_role_rebuild_before_loading(openswd3::test::Context& test) {
             "only completed definitions are counted"
         );
     }
+}
+
+void test_role_definition_release_order(openswd3::test::Context& test) {
+    using Text = openswd3::battle::LegacyBattleMonText;
+    LegacySaveU16Prefix prefix;
+    prefix.monster_ids.fill(0xFFDCU);
+    prefix.monster_ids[0U] = 11U;
+    LegacyWorldItemListState state;
+    std::vector<std::size_t> frees;
+    for (std::size_t index = 0U; index < state.role_item_lists.size();
+         ++index) {
+        auto& slot = *state.role_item_lists[index];
+        auto& child = slot.nodes.emplace_back();
+        child.description.bind(
+            std::make_shared<Text::Storage>(1U, 0xA5U),
+            std::make_shared<const Text::Release>([&, index] {
+                frees.push_back(index * 2U);
+                return true;
+            })
+        );
+        slot.sentinel.description.bind(
+            std::make_shared<Text::Storage>(1U, 0xB5U),
+            std::make_shared<const Text::Release>([&, index] {
+                frees.push_back(index * 2U + 1U);
+                return true;
+            })
+        );
+    }
+
+    SavedItemDefinitions definitions;
+    bool rebuilt_before_load = false;
+    definitions.before_load = [&] {
+        rebuilt_before_load = frees.size() == 128U &&
+            std::ranges::all_of(state.role_item_lists, [](const auto& slot) {
+                                  return slot && slot->nodes.empty() &&
+                                      slot->sentinel.description.empty();
+                              });
+    };
+    const auto result =
+        materialize_legacy_save_role_definitions(prefix, state, definitions);
+    test.expect_true(
+        result.status == LegacySaveRoleDefinitionsStatus::ready &&
+            rebuilt_before_load,
+        "LOAD rebuilds all 64 roots before the first definition load"
+    );
+    for (std::size_t index = 0U; index < frees.size(); ++index) {
+        test.expect_equal(
+            frees[index],
+            index,
+            "LOAD frees each child before its root in slot order"
+        );
+    }
+
+    LegacyWorldItemListState stopped_state;
+    auto& failed_slot = *stopped_state.role_item_lists[1U];
+    auto& failed_child = failed_slot.nodes.emplace_back();
+    failed_child.legacy_next_token = 0x1234U;
+    failed_child.description.bind(
+        std::make_shared<Text::Storage>(1U, 0xC5U),
+        std::make_shared<const Text::Release>([] { return false; })
+    );
+    failed_slot.sentinel.description = {0xD5U};
+    stopped_state.role_item_lists[2U]->sentinel.description = {0xE5U};
+    SavedItemDefinitions stopped_definitions;
+    const auto stopped = materialize_legacy_save_role_definitions(
+        prefix, stopped_state, stopped_definitions
+    );
+    test.expect_true(
+        stopped.status ==
+                LegacySaveRoleDefinitionsStatus::
+                    description_release_typed_stop &&
+            stopped_definitions.requested.empty() &&
+            failed_slot.sentinel.legacy_next_token == 0x1234U &&
+            failed_slot.nodes.size() == 1U &&
+            failed_child.description[0U] == 0xC5U &&
+            failed_slot.sentinel.description[0U] == 0xD5U &&
+            stopped_state.role_item_lists[2U]->sentinel.description[0U] ==
+                0xE5U,
+        "LOAD text-free stop preserves unlink and leaves later roots untouched"
+    );
+}
+
+void test_saved_inventory_release_order(openswd3::test::Context& test) {
+    using Text = openswd3::battle::LegacyBattleMonText;
+    LegacySaveU16Prefix prefix;
+    prefix.party_item_ids[0U] = {11U};
+    LegacyWorldItemListState state;
+    std::vector<unsigned> events;
+    auto& party = *state.party_item_lists[0U];
+    party.sentinel.description = {0x55U};
+    party.nodes.emplace_back().description.bind(
+        std::make_shared<Text::Storage>(1U, 0xA5U),
+        std::make_shared<const Text::Release>([&] {
+            events.push_back(1U);
+            return true;
+        })
+    );
+    state.player_inventory.emplace_back().description.bind(
+        std::make_shared<Text::Storage>(1U, 0xB5U),
+        std::make_shared<const Text::Release>([&] {
+            events.push_back(3U);
+            return true;
+        })
+    );
+    SavedItemDefinitions definitions;
+    definitions.before_load = [&] {
+        test.expect_true(
+            state.player_inventory.size() == 1U &&
+                state.player_inventory.front().description[0U] == 0xB5U,
+            "old inventory remains live while saved party definitions load"
+        );
+        events.push_back(2U);
+    };
+    const auto result =
+        materialize_legacy_save_item_lists(prefix, state, definitions);
+    test.expect_true(
+        result.status == LegacySaveItemListStatus::ready &&
+            events == std::vector<unsigned>{1U, 2U, 3U} &&
+            party.sentinel.description[0U] == 0x55U,
+        "LOAD frees party children, rebuilds parties, then frees inventory"
+    );
+
+    LegacyWorldItemListState stopped_state;
+    auto& failed = stopped_state.player_inventory.emplace_back();
+    failed.legacy_next_token = 0x66U;
+    failed.description.bind(
+        std::make_shared<Text::Storage>(1U, 0xC5U),
+        std::make_shared<const Text::Release>([] { return false; })
+    );
+    SavedItemDefinitions stopped_definitions;
+    const auto stopped = materialize_legacy_save_item_lists(
+        prefix, stopped_state, stopped_definitions
+    );
+    test.expect_true(
+        stopped.status ==
+                LegacySaveItemListStatus::description_release_typed_stop &&
+            stopped.party_nodes == 1U && stopped.player_nodes == 0U &&
+            stopped_state.party_item_lists[0U]->nodes.front().item_id == 11U &&
+            stopped_state.player_inventory_head_token == 0x66U &&
+            stopped_state.player_inventory.size() == 1U &&
+            failed.description[0U] == 0xC5U,
+        "inventory free failure preserves rebuilt parties and the unlink prefix"
+    );
+
+    LegacySaveU16Prefix removal_prefix;
+    removal_prefix.player_inventory = {{11U, 1U}, {11U, 0xFFFFU}, {12U, 1U}};
+    LegacyWorldItemListState removal_state;
+    SavedItemDefinitions removal_definitions;
+    removal_definitions.on_description = [](Text& description) {
+        description.bind(
+            std::make_shared<Text::Storage>(2U, 0xD5U),
+            std::make_shared<const Text::Release>([] { return false; })
+        );
+    };
+    const auto removal = materialize_legacy_save_item_lists(
+        removal_prefix, removal_state, removal_definitions
+    );
+    test.expect_true(
+        removal.status ==
+                LegacySaveItemListStatus::description_release_typed_stop &&
+            removal_state.player_inventory_head_token == 0U &&
+            removal_state.player_inventory.size() == 1U &&
+            removal_state.player_inventory.front().quantity_a == 0U &&
+            removal_definitions.requested ==
+                std::vector<openswd3::compat::u16>{11U},
+        "quantity deletion unlinks before text free and stops later saved items"
+    );
 }
 
 void test_saved_item_nodes(openswd3::test::Context& test) {
@@ -797,6 +969,8 @@ int main() {
     test_u16_prefix(test);
     test_saved_role_definitions(test);
     test_role_rebuild_before_loading(test);
+    test_role_definition_release_order(test);
+    test_saved_inventory_release_order(test);
     test_saved_item_nodes(test);
     test_map_overrides(test);
     test_world_entry(test);

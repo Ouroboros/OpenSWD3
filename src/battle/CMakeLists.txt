@@ -55,6 +55,7 @@ add_library(
         legacy_battle_actor_runtime_reset.cpp
         legacy_battle_mon_file_runtime.cpp
         legacy_battle_mon_stream_runtime.cpp
+        legacy_battle_mon_text_runtime.cpp
         legacy_battle_actor_target_selection.cpp
         legacy_battle_actor_target_selection_latch_set.cpp
         legacy_battle_actor_target_selection_latch_query.cpp

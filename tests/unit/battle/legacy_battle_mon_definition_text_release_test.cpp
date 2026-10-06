@@ -46,7 +46,7 @@ public:
 
 void test_zero_token(openswd3::test::Context& context) {
     LegacyBattleMonDefinitionBytes definition{};
-    std::vector<u8> text{1U, 2U};
+    openswd3::battle::LegacyBattleMonText text{1U, 2U};
     FakePort port;
     const auto result =
         openswd3::battle::release_legacy_battle_mon_definition_text(
@@ -80,7 +80,7 @@ void test_zero_token(openswd3::test::Context& context) {
 void test_release_and_clear(openswd3::test::Context& context) {
     LegacyBattleMonDefinitionBytes definition{};
     write_token(definition, 0x71002000U);
-    std::vector<u8> text{3U, 4U, 5U};
+    openswd3::battle::LegacyBattleMonText text{3U, 4U, 5U};
     FakePort port;
     port.reply = {
         .eax = 0x10101010U,
@@ -132,7 +132,7 @@ void test_release_and_clear(openswd3::test::Context& context) {
 void test_typed_stops(openswd3::test::Context& context) {
     LegacyBattleMonDefinitionBytes definition{};
     write_token(definition, 0x72003000U);
-    std::vector<u8> text{6U, 7U};
+    openswd3::battle::LegacyBattleMonText text{6U, 7U};
     FakePort port;
 
     auto result = openswd3::battle::release_legacy_battle_mon_definition_text(

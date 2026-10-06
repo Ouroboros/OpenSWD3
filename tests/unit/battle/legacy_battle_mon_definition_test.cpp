@@ -139,7 +139,13 @@ public:
             const u32 token = next_text_token;
             next_text_token += 0x100U;
             text_sizes[token] = request.allocation_size;
-            return {.eax = token, .ecx = request.ecx, .edx = request.edx};
+            return {
+                .eax = token,
+                .ecx = request.ecx,
+                .edx = request.edx,
+                .definition_text_storage = std::make_shared<
+                    openswd3::battle::LegacyBattleMonText::Storage>(request.allocation_size),
+            };
         }
 
         case LegacyBattleMonDatabaseCall::release_definition_text:
@@ -151,8 +157,7 @@ public:
     }
 
     std::ifstream file;
-    std::array<u8, openswd3::battle::kLegacyBattleMonStreamBytes>
-        allocated_stream{};
+    std::array<u8, openswd3::battle::kLegacyBattleMonStreamBytes> allocated_stream{};
     std::unordered_map<u32, u32> text_sizes;
     u32 file_handle{0x77U};
     u32 stream_token{0x71000000U};
@@ -229,7 +234,12 @@ public:
         case LegacyBattleMonDatabaseCall::allocate_definition_text:
             if (text_allocation_reply.eax != 0U) {
                 text_sizes[text_allocation_reply.eax] = request.allocation_size;
+                text_allocation_reply.definition_text_storage = std::make_shared<
+                    openswd3::battle::LegacyBattleMonText::Storage>(
+                    std::min(request.allocation_size, text_allocation_limit), 0xA5U
+                );
             }
+
             return text_allocation_reply;
 
         case LegacyBattleMonDatabaseCall::release_definition_text:
@@ -291,6 +301,7 @@ public:
     u32 directory_probe{0x1AECU};
     u32 relative_offset{0x2244U};
     u32 queried_text_size{5U};
+    u32 text_allocation_limit{0xFFFFFFFFU};
     std::size_t directory_probe_bytes_written{4U};
     std::size_t relative_bytes_written{4U};
     std::vector<u8> stream;
@@ -368,7 +379,7 @@ void test_real_definition_load(openswd3::test::Context& test) {
 #ifdef OPENSWD3_MON_DATA_PATH
     RealMonDefinitionPort port;
     LegacyBattleMonDefinitionBytes definition{};
-    std::vector<u8> description;
+    openswd3::battle::LegacyBattleMonText description;
 
     auto first_request = request();
     first_request.path = OPENSWD3_MON_DATA_PATH;
@@ -440,7 +451,7 @@ void test_complete_definition_load(openswd3::test::Context& test) {
     definition.fill(0x5AU);
     write_dword(definition, 0xA0U, 0x70000000U);
     port.text_sizes[0x70000000U] = 5U;
-    std::vector<u8> description{'o', 'l', 'd', 0U};
+    openswd3::battle::LegacyBattleMonText description{'o', 'l', 'd', 0U};
 
     const auto result = openswd3::battle::load_legacy_battle_mon_definition(
         definition, description, port, request()
@@ -516,7 +527,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
         };
         LegacyBattleMonDefinitionBytes definition{};
         definition.fill(0xA5U);
-        std::vector<u8> description{'x'};
+        openswd3::battle::LegacyBattleMonText description{'x'};
 
         const auto result = openswd3::battle::load_legacy_battle_mon_definition(
             definition, description, port, request()
@@ -540,7 +551,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
         port.stream = {0U, 0U};
         LegacyBattleMonDefinitionBytes definition{};
         definition.fill(0xA5U);
-        std::vector<u8> description;
+        openswd3::battle::LegacyBattleMonText description;
 
         const auto result = openswd3::battle::load_legacy_battle_mon_definition(
             definition, description, port, request()
@@ -566,7 +577,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
             .edx = 0x22220000U,
         };
         LegacyBattleMonDefinitionBytes definition{};
-        std::vector<u8> description;
+        openswd3::battle::LegacyBattleMonText description;
 
         const auto result = openswd3::battle::load_legacy_battle_mon_definition(
             definition, description, port, request()
@@ -588,7 +599,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
         port.stream = full_stream();
         port.text_allocation_reply.eax = 0U;
         LegacyBattleMonDefinitionBytes definition{};
-        std::vector<u8> description;
+        openswd3::battle::LegacyBattleMonText description;
 
         const auto result = openswd3::battle::load_legacy_battle_mon_definition(
             definition, description, port, request()
@@ -616,7 +627,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
         append_word(port.stream, 5U);
         port.text_allocation_reply.eax = 0U;
         LegacyBattleMonDefinitionBytes definition{};
-        std::vector<u8> description;
+        openswd3::battle::LegacyBattleMonText description;
 
         const auto result = openswd3::battle::load_legacy_battle_mon_definition(
             definition, description, port, request()
@@ -638,7 +649,7 @@ void test_access_and_stale_boundaries(openswd3::test::Context& test) {
         MonDefinitionPort port;
         port.stream = full_stream();
         std::array<u8, 0xA3U> partial{};
-        std::vector<u8> description{'x'};
+        openswd3::battle::LegacyBattleMonText description{'x'};
 
         const auto result = openswd3::battle::load_legacy_battle_mon_definition(
             partial, description, port, request()
@@ -660,7 +671,7 @@ void test_access_and_stale_boundaries(openswd3::test::Context& test) {
         port.relative_bytes_written = 2U;
         port.stream = full_stream();
         LegacyBattleMonDefinitionBytes definition{};
-        std::vector<u8> description;
+        openswd3::battle::LegacyBattleMonText description;
 
         const auto result = openswd3::battle::load_legacy_battle_mon_definition(
             definition, description, port, request()
@@ -681,7 +692,7 @@ void test_access_and_stale_boundaries(openswd3::test::Context& test) {
         port.stream.push_back(0x24U);
         port.stream.push_back(0x24U);
         LegacyBattleMonDefinitionBytes definition{};
-        std::vector<u8> description;
+        openswd3::battle::LegacyBattleMonText description;
 
         const auto result = openswd3::battle::load_legacy_battle_mon_definition(
             definition, description, port, request()
@@ -710,7 +721,7 @@ void test_access_and_stale_boundaries(openswd3::test::Context& test) {
         port.stream.insert(port.stream.end(), 0xFFU, static_cast<u8>('D'));
         append_word(port.stream, 5U);
         LegacyBattleMonDefinitionBytes definition{};
-        std::vector<u8> description;
+        openswd3::battle::LegacyBattleMonText description;
 
         const auto result = openswd3::battle::load_legacy_battle_mon_definition(
             definition, description, port, request()
@@ -733,7 +744,7 @@ void test_access_and_stale_boundaries(openswd3::test::Context& test) {
         port.stream[2U] = 0x24U;
         port.stream[3U] = 0x24U;
         LegacyBattleMonDefinitionBytes definition{};
-        std::vector<u8> description;
+        openswd3::battle::LegacyBattleMonText description;
 
         const auto result = openswd3::battle::load_legacy_battle_mon_definition(
             definition, description, port, request()
@@ -751,13 +762,77 @@ void test_access_and_stale_boundaries(openswd3::test::Context& test) {
     }
 }
 
+void test_allocated_text_extent(openswd3::test::Context& test) {
+    // 0x0047707B clears whole dwords; 0x00477085 clears the byte tail.
+    constexpr std::array<std::array<u32, 4U>, 6U> cases{{
+        {11U, 0U, 0U, 3U},
+        {11U, 2U, 0U, 3U},
+        {11U, 6U, 4U, 2U},
+        {11U, 11U, 8U, 1U},
+        {4U, 4U, 4U, 1U},
+        {2U, 1U, 1U, 2U},
+    }};
+    for (const auto& [length, extent, stopped, remaining] : cases) {
+        MonDefinitionPort port;
+        append_word(port.stream, 1000U);
+        append_text(port.stream, {});
+        append_word(port.stream, 30U);
+        append_text(port.stream, std::vector<u8>(length, 'D'));
+        append_word(port.stream, 5U);
+        port.text_allocation_limit = extent;
+        LegacyBattleMonDefinitionBytes definition{};
+        openswd3::battle::LegacyBattleMonText description;
+        const auto result = openswd3::battle::load_legacy_battle_mon_definition(
+            definition, description, port, request()
+        );
+        test.expect_equal(
+            result.status,
+            LegacyBattleMonDefinitionLoadStatus::
+                definition_text_access_typed_stop,
+            "text clear stops at its first inaccessible store"
+        );
+        test.expect_equal(
+            result.stopped_definition_text_offset,
+            stopped,
+            "text stop preserves the instruction boundary"
+        );
+        test.expect_equal(
+            result.return_ecx,
+            remaining,
+            "text stop preserves remaining REP count"
+        );
+        test.expect_equal(
+            result.stream_release_calls,
+            0U,
+            "text access stop does not release the stream"
+        );
+        test.expect_equal(
+            read_dword(definition, 0xA0U),
+            port.text_allocation_reply.eax,
+            "text identity is published before zeroing"
+        );
+        test.expect_true(
+            description.data() ==
+                port.text_allocation_reply.definition_text_storage->data(),
+            "text writes target the allocation returned by the heap port"
+        );
+        for (std::size_t index = 0U; index < description.size(); ++index) {
+            test.expect_equal(
+                description[index],
+                index < stopped ? 0U : 0xA5U,
+                "failed text clear preserves its exact prefix"
+            );
+        }
+    }
+}
+
 void test_allocated_stream_extent(openswd3::test::Context& test) {
     for (const std::size_t extent : {0U, 2U, 6U, 1023U}) {
         MonDefinitionPort port;
         port.allocated_stream.fill(0xA5U);
         port.stream_writable_bytes = extent;
         std::array<u8, 0xA4U> output{};
-        std::vector<u8> description;
+        openswd3::battle::LegacyBattleMonText description;
         const auto result = openswd3::battle::load_legacy_battle_mon_definition(
             output, description, port, request()
         );
@@ -805,5 +880,6 @@ int main() {
     test_failure_prefixes(test);
     test_access_and_stale_boundaries(test);
     test_allocated_stream_extent(test);
+    test_allocated_text_extent(test);
     return test.exit_code();
 }

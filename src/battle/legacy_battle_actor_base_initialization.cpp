@@ -31,7 +31,7 @@ LegacyBattleActorBaseInitializationResult initialize_legacy_battle_actor_base(
     LegacyBattleActorBaseInitializationFields& fields,
     LegacyBattleGroupAActionExecutionState& action_execution,
     const std::span<compat::u8> resource_definition,
-    std::vector<compat::u8>& resource_definition_description,
+    LegacyBattleMonText& resource_definition_description,
     const std::span<compat::u8> action_text,
     compat::u16& action_kind,
     const LegacyBattleActorBaseInitializationRequest request

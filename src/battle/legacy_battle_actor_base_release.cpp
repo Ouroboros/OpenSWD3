@@ -20,7 +20,7 @@ read_dword(const std::span<const u8> bytes, const std::size_t offset) noexcept {
 
 LegacyBattleActorBaseReleaseResult release_legacy_battle_actor_base(
     const std::span<u8> resource_definition,
-    std::vector<u8>& resource_definition_description,
+    LegacyBattleMonText& resource_definition_description,
     LegacyBattleActorBaseReleasePort& port,
     const LegacyBattleActorBaseReleaseRequest& request
 ) {

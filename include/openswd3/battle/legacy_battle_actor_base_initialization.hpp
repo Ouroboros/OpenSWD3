@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
 #include "openswd3/compat/types.hpp"
+#include "openswd3/battle/legacy_battle_mon_text.hpp"
 
 #include <array>
 #include <span>
@@ -28,7 +29,7 @@ struct LegacyBattleActorBaseInitializationOwner {
     LegacyBattleActorBaseInitializationFields fields{};
     std::array<compat::u8, kLegacyBattleActorBaseDefinitionBytes>
         resource_definition{};  // actor + 0x0010
-    std::vector<compat::u8> resource_definition_description;
+    LegacyBattleMonText resource_definition_description;
     std::array<compat::u8, kLegacyBattleActorBaseActionTextBytes>
         action_text{};  // actor + 0x2630
     LegacyBattleGroupAActionExecutionState action_execution{};
@@ -64,7 +65,7 @@ initialize_legacy_battle_actor_base(
     LegacyBattleActorBaseInitializationFields& fields,
     LegacyBattleGroupAActionExecutionState& action_execution,
     std::span<compat::u8> resource_definition,
-    std::vector<compat::u8>& resource_definition_description,
+    LegacyBattleMonText& resource_definition_description,
     std::span<compat::u8> action_text,
     compat::u16& action_kind,
     LegacyBattleActorBaseInitializationRequest request

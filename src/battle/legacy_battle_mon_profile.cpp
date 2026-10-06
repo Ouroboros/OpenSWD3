@@ -463,7 +463,7 @@ LegacyBattleMonDatabasePort::legacy_battle_mon_definition_scratch() noexcept {
     return mon_definition_scratch_;
 }
 
-std::vector<compat::u8>& LegacyBattleMonDatabasePort::
+LegacyBattleMonText& LegacyBattleMonDatabasePort::
     legacy_battle_mon_definition_scratch_description() noexcept {
     return mon_definition_scratch_description_;
 }

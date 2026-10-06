@@ -5305,11 +5305,11 @@ struct LegacyStandardModeDatabaseInitializationState {
     std::array<compat::i32, kLegacyStandardModeDatabaseRecordCount>
         field_a7_table{};
     std::array<compat::u8, 0xB0U> scan_record{};
-    std::vector<compat::u8> scan_record_description;
+    battle::LegacyBattleMonText scan_record_description;
     std::array<compat::u8, 0xB0U> first_runtime_record{};
-    std::vector<compat::u8> first_runtime_record_description;
+    battle::LegacyBattleMonText first_runtime_record_description;
     std::array<compat::u8, 0xB0U> second_runtime_record{};
-    std::vector<compat::u8> second_runtime_record_description;
+    battle::LegacyBattleMonText second_runtime_record_description;
     compat::u32 first_runtime_record_legacy_address_high_word{0x004F0000U};
     compat::u32 second_runtime_record_legacy_address_high_word{0x004F0000U};
     LegacyStandardModeForwardNode* adjustment_head{};
@@ -6398,7 +6398,7 @@ public:
 
 struct LegacyStandardModeRuntimeInitializationState {
     std::array<compat::u8, 0xB0U> scratch_record{};
-    std::vector<compat::u8> scratch_record_description;
+    battle::LegacyBattleMonText scratch_record_description;
     std::array<compat::u8, 0x200U> loaded_status{};
     std::array<compat::u8, 0x200U> queried_status{};
     std::array<std::array<compat::u8, 0x20U>, 0x10U> long_text_slots{};

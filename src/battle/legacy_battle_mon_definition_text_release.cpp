@@ -21,7 +21,7 @@ using compat::u32;
 LegacyBattleMonDefinitionTextReleaseResult
 release_legacy_battle_mon_definition_text(
     const std::span<compat::u8> definition,
-    std::vector<compat::u8>& owned_text,
+    LegacyBattleMonText& owned_text,
     LegacyBattleMonDatabasePort& port,
     const LegacyBattleMonDefinitionTextReleaseRequest& request
 ) {

@@ -86,7 +86,7 @@ struct LegacyBattleActorBaseReleaseResult {
 [[nodiscard]] LegacyBattleActorBaseReleaseResult
 release_legacy_battle_actor_base(
     std::span<compat::u8> resource_definition,
-    std::vector<compat::u8>& resource_definition_description,
+    LegacyBattleMonText& resource_definition_description,
     LegacyBattleActorBaseReleasePort& port,
     const LegacyBattleActorBaseReleaseRequest& request
 );

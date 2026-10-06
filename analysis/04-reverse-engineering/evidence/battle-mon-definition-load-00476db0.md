@@ -12,7 +12,7 @@
 
 入口先读取输出`+0xA0`的旧说明token。token非零时严格依次执行块大小查询、从共享说明字节计数减去查询值、释放旧块、清零`+0xA0..+0xA3`并丢弃对应typed owner。减法保持32位回绕，不新增下溢保护。随后函数无条件只清零输出前`0xA4`字节；更长caller对象的后缀不得被触碰。
 
-文件会话尚未打开时，以只读、共享读、open-existing合同打开`MON.DAT`；失败保留句柄哨兵并返回EAX零。成功后每次固定执行三次seek和三次read：
+文件会话尚未打开时，以只读、共享读、open-always合同打开`MON.DAT`（`0x00476E2D`压入4，`0x00476E3D`调用`CreateFileA`）；失败保留句柄哨兵并返回EAX零。成功后每次固定执行三次seek和三次read：
 
 - 绝对seek到`+0x204`并读取4字节目录probe；该值只保留读取副作用，不参与后续寻址；
 - 原版`0x00476E9F`先把逻辑definition参数与`0xFFFF`，再从当前文件位置相对seek `low16_id * 4 - 4`并读取4字节相对偏移；
@@ -42,7 +42,9 @@
 
 tag 30找到终止符后以`length+1`请求说明块，把返回token先写入输出`+0xA0`，再到原版首次memset目标访问点判断零token。零token typed-stop保留已写零token、EAX零、EDX为分配长度；ECX保持原版`rep stosd`/`rep stosb`入口状态：长度小于4时为余数字节数，因此一字节空说明固定为ECX一。
 
-成功时typed owner建立`length+1`字节缓冲，末字节为零；共享说明字节计数按u32累加，EAX为新总计数、ECX为块token、EDX为累加前计数。正常tag 5路径释放1024字节临时流并强制返回EAX一；首tag失败路径释放后强制EAX零。解析输出或流访问typed-stop不提前释放临时流，不越过原版故障点。
+分配端口提供实际说明存储，加载器直接绑定`LegacyBattleMonText`，不另外建立持久字节副本。`0x0047707B`按DWORD清零，`0x00477085`清余数字节；可写范围不足时在对应store前停止，保留已写前缀及剩余ECX。正文复制成功后末字节为零；共享说明字节计数按u32累加，EAX为新总计数、ECX为块token、EDX为累加前计数。正常tag 5路径释放1024字节临时流并强制返回EAX一；首tag失败路径释放后强制EAX零。解析输出、说明或流访问typed-stop不提前释放临时流，不越过原版故障点。
+
+SDL的`LegacyBattleMonTextRuntime`将动态guest reservation与实际存储登记在一起。大小查询返回CRT调试堆头的请求长度（`0x00488B02`），未知块不返回伪造零值。复制typed view共享存储；原版明确分配副本的caller仍须独立复制。丢弃view不等于原版free，端口继续保留未释放分配。显式释放移除登记并使所有别名的字节存储失效；物品清理使用同一释放绑定，重复释放报告停止。
 
 ## 5. caller回收与待审隔离
 
@@ -69,6 +71,8 @@ tag 30找到终止符后以`length+1`请求说明块，把返回token先写入�
 
 独立definition测试覆盖open失败、共享句柄、短目录read陈旧字节、低16位索引、1024字节分配零、首tag失败、tag 1、6..22、25..30、100、1000、2000、default、全部字段偏移、寄存器线程、说明旧块释放、空说明一字节分配、两种无终止符推进、输出/流访问typed-stop和三个返回路径。caller回归现覆盖36个已关闭站点对应的生产投影、失败前缀、说明生命周期和reserved槽稳定性；`0x00477400`另有真实LEVEL物品1501到真实MON名称的联合回归。
 
-最终Linux core为`189/189`，完整AddressSanitizer为`189/189`，Linux app为`195/195`；日志均为零OpenSWD3源码warning、零测试失败和零sanitizer finding。触碰行clang-format门禁与`git diff --check`通过。
+原函数审计批次的历史门禁为Linux core `189/189`、完整AddressSanitizer `189/189`、Linux app `195/195`；该批日志记录零源码warning、零测试失败和零sanitizer finding。这些历史结果不覆盖当前SDL资源接线改动。
+
+当前未提交批次已取得MON定义、战斗setup、世界物品生命周期及剧情VM的定向core/ASan通过和SDL链接通过。新增向量覆盖说明STOSD/STOSB停止边界、真实文件解析对分配存储的写入、解析停止后的存储保留、显式释放与重复释放、独立说明复制。读档物品重建另有core/ASan及SDL链接验证。部分日志含既有编译警告，不宣称零warning。剧情新建节点失败保留也已通过core/ASan及SDL链接验证。完整敌方初始化、重复进入及实际续玩尚未完成；本批不能据上述局部门禁发布为完整行为。
 
 当前缺少原版文件句柄、相对seek返回值、堆token、陈旧短读、说明块计数、全部caller及callee寄存器联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整LST静态闭环、typed故障隔离、真实资产只读验证和Linux构建验证。

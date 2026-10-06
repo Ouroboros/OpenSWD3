@@ -151,7 +151,7 @@ struct LegacyBattleGroupBActionConfigurationState {
 
 struct LegacyBattleGroupBActionCompositionState {
     std::array<compat::u8, 0xA4> resource_definition{};  // actor + 0x0010
-    std::vector<compat::u8> resource_definition_description;
+    LegacyBattleMonText resource_definition_description;
     std::array<compat::u8, 0x10> action_text{};  // actor + 0x2630
     std::array<compat::u16, 4> derived_words{};  // actor + 0x29A4..0x29AA
     compat::u16 action_kind{};                   // actor + 0x2A6C
@@ -170,7 +170,7 @@ struct LegacyBattleActorGroupBElementState {
     compat::u32 live_record_value_04{};  // *(actor + 0x04) + 0x04
     compat::u32 resource_token{};
     std::array<compat::u8, 0xA4> resource_bytes{};
-    std::vector<compat::u8> resource_description{};
+    LegacyBattleMonText resource_description{};
     LegacyBattleGroupBActionRecord action_record{};
     LegacyBattleGroupBActionConfigurationState action_configuration{};
     LegacyBattleGroupBActionCompositionState action_composition{};

@@ -145,7 +145,15 @@ public:
                 next_definition_text_token += 0x100U;
             }
             definition_text_sizes[token] = request.allocation_size;
-            return {.eax = token, .ecx = request.ecx, .edx = request.edx};
+            return {
+                .eax = token,
+                .ecx = request.ecx,
+                .edx = request.edx,
+                .definition_text_storage =
+                    std::make_shared<battle::LegacyBattleMonText::Storage>(
+                        request.allocation_size
+                    ),
+            };
         }
 
         case battle::LegacyBattleMonDatabaseCall::release_definition_text:

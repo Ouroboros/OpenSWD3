@@ -16,7 +16,7 @@ using LegacyBattleMonDefinitionBytes =
 
 struct LegacyBattleMonDefinitionOwner {
     LegacyBattleMonDefinitionBytes bytes{};
-    std::vector<compat::u8> description;
+    LegacyBattleMonText description;
 };
 
 struct LegacyBattleMonDefinitionLoadRequest {
@@ -40,6 +40,7 @@ enum class LegacyBattleMonDefinitionLoadStatus : compat::u8 {
     stream_zero_typed_stop,
     stream_access_typed_stop,
     definition_text_zero_typed_stop,
+    definition_text_access_typed_stop,
 };
 
 [[nodiscard]] constexpr bool legacy_battle_mon_definition_load_stopped(
@@ -51,7 +52,8 @@ enum class LegacyBattleMonDefinitionLoadStatus : compat::u8 {
         status ==
         LegacyBattleMonDefinitionLoadStatus::stream_access_typed_stop ||
         status ==
-        LegacyBattleMonDefinitionLoadStatus::definition_text_zero_typed_stop;
+        LegacyBattleMonDefinitionLoadStatus::definition_text_zero_typed_stop ||
+        status == LegacyBattleMonDefinitionLoadStatus::definition_text_access_typed_stop;
 }
 
 struct LegacyBattleMonDefinitionLoadResult {
@@ -71,6 +73,7 @@ struct LegacyBattleMonDefinitionLoadResult {
     compat::u32 definition_text_bytes{};
     compat::u32 stopped_stream_offset{};
     compat::u32 stopped_output_offset{};
+    compat::u32 stopped_definition_text_offset{};
     compat::u32 open_calls{};
     compat::u32 seek_calls{};
     compat::u32 read_calls{};
@@ -89,7 +92,7 @@ struct LegacyBattleMonDefinitionLoadResult {
 [[nodiscard]] LegacyBattleMonDefinitionLoadResult
 load_legacy_battle_mon_definition(
     std::span<compat::u8> output,
-    std::vector<compat::u8>& owned_description,
+    LegacyBattleMonText& owned_description,
     LegacyBattleMonDatabasePort& port,
     const LegacyBattleMonDefinitionLoadRequest& request
 );

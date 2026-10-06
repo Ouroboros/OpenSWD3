@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/compat/types.hpp"
+#include "openswd3/battle/legacy_battle_mon_text.hpp"
 
 #include <array>
 #include <cstddef>
@@ -70,8 +71,12 @@ struct LegacyBattleMonDatabaseCallReply {
     compat::u32 ecx{};
     compat::u32 edx{};
     compat::u32 bytes_read{};
-    // Borrow the allocation until release_stream, including across typed stops.
+    // allocate_stream lends its actual storage until release_stream. The port
+    // retains ownership when parsing stops before the original release call.
     std::span<compat::u8> stream_bytes{};
+    std::shared_ptr<LegacyBattleMonText::Storage> definition_text_storage{};
+    std::shared_ptr<const LegacyBattleMonText::Release>
+        definition_text_release{};
 };
 
 struct LegacyBattleMonDefinitionTextReleaseCallRequest {
@@ -102,7 +107,7 @@ public:
         array<compat::u8, kLegacyBattleMonDefinitionScratchBytes>&
         legacy_battle_mon_definition_scratch() noexcept;
 
-    [[nodiscard]] virtual std::vector<compat::u8>&
+    [[nodiscard]] virtual LegacyBattleMonText&
     legacy_battle_mon_definition_scratch_description() noexcept;
 
     [[nodiscard]] virtual LegacyBattleMonDatabaseCallReply
@@ -121,7 +126,7 @@ private:
     LegacyBattleMonProfile mon_profile_scratch_{};
     std::array<compat::u8, kLegacyBattleMonDefinitionScratchBytes>
         mon_definition_scratch_{};
-    std::vector<compat::u8> mon_definition_scratch_description_;
+    LegacyBattleMonText mon_definition_scratch_description_;
 };
 
 struct LegacyBattleMonProfileLoadRequest {

@@ -4,38 +4,63 @@ namespace openswd3::world_map {
 
 namespace {
 
-void release_description(
+bool release_description(
     LegacyWorldItemNode& node, LegacyWorldItemListReleaseResult& result
 ) noexcept {
     ++result.description_release_calls;
-    if (node.description.capacity() != 0U) {
+    const bool had_storage = node.description.bytes().capacity() != 0U;
+    if (!node.description.release()) {
+        result.status =
+            LegacyWorldItemListReleaseStatus::description_release_typed_stop;
+        return false;
+    }
+
+    if (had_storage) {
         ++result.description_owners_released;
     }
-    std::vector<compat::u8>{}.swap(node.description);
+
+    return true;
 }
 
-void drain_nodes(
+bool drain_nodes(
     std::list<LegacyWorldItemNode>& nodes,
+    compat::u32& head_token,
     compat::u32& released_count,
     LegacyWorldItemListReleaseResult& result
 ) noexcept {
     while (!nodes.empty()) {
-        release_description(nodes.front(), result);
+        // 0x0040F41E/0x0040F451/0x0040F4AD unlink before freeing text.
+        head_token = nodes.front().legacy_next_token;
+        if (!release_description(nodes.front(), result)) {
+            return false;
+        }
+
         nodes.pop_front();
         ++released_count;
     }
+
+    return true;
 }
 
-void release_sentinel_list(
+bool release_sentinel_list(
     std::optional<LegacyWorldSentinelItemList>& list,
     compat::u32& released_node_count,
     compat::u32& released_sentinel_count,
     LegacyWorldItemListReleaseResult& result
 ) noexcept {
-    drain_nodes(list->nodes, released_node_count, result);
-    release_description(list->sentinel, result);
+    if (!drain_nodes(
+            list->nodes,
+            list->sentinel.legacy_next_token,
+            released_node_count,
+            result
+        ) ||
+        !release_description(list->sentinel, result)) {
+        return false;
+    }
+
     list.reset();
     ++released_sentinel_count;
+    return true;
 }
 
 }  // namespace
@@ -76,28 +101,40 @@ release_legacy_world_item_lists(LegacyWorldItemListState& state) noexcept {
         }
     }
 
-    drain_nodes(state.player_inventory, result.player_nodes_released, result);
+    if (!drain_nodes(
+            state.player_inventory,
+            state.player_inventory_head_token,
+            result.player_nodes_released,
+            result
+        )) {
+        return result;
+    }
+
     state.player_inventory_head_token = 0U;
 
     for (auto& list : state.party_item_lists) {
-        release_sentinel_list(
-            list,
-            result.party_nodes_released,
-            result.party_sentinels_released,
-            result
-        );
+        if (!release_sentinel_list(
+                list,
+                result.party_nodes_released,
+                result.party_sentinels_released,
+                result
+            )) {
+            return result;
+        }
     }
 
     for (auto& list : state.role_item_lists) {
         if (!list.has_value()) {
             continue;
         }
-        release_sentinel_list(
-            list,
-            result.role_nodes_released,
-            result.role_sentinels_released,
-            result
-        );
+        if (!release_sentinel_list(
+                list,
+                result.role_nodes_released,
+                result.role_sentinels_released,
+                result
+            )) {
+            return result;
+        }
     }
 
     result.status = LegacyWorldItemListReleaseStatus::ready;
