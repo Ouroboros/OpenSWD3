@@ -416,20 +416,20 @@ typed-stop不提前恢复clip或清opacity。
 
 `audit_order=39`的`0x00451420`已关闭为`platform_adapted`。它映射扩展动作record，
 入口写动作号和两个dword后进入动作更新循环；
-每轮精确保留`mov al/mov ax`后的EAX高字和`mov dx`后的EDX高字，以三项FFFF局部槽去重帧查询。
+每轮精确保留`mov al/mov ax`后的EAX高字和`mov dx`后的EDX高字，以六项FFFF局部word槽去重帧查询；局部区由三次dword写初始化。
 未缓存帧按查询→owner缓存→局部槽→640/低word除数→指针解引用顺序，直接调用已关闭literal图像模式3右移；
 command cursor为0时只清前0x98字节record，否则重置动作号/base variant继续更新。只有record、槽、
 owner和端口完整token全部重复才判非终止。
 
 `audit_order=40`的`0x00451540`已关闭为`platform_adapted`。存储动作号低word为0时直接返回0；
 非零时重写动作号/base variant并调用更新器，但精确忽略更新EAX。
-更新后的u16帧索引访问扩展状态的六owner/frame缓存；上一项的三槽局部表只填充前三槽，
+更新后的u16帧索引访问扩展状态的六owner/frame缓存；初始化局部表同样覆盖六槽，
 先发布source再写共享水平位移；绘制坐标为入口扩展坐标减record偏移，使用record flags和固定空tail。
 正常公共后缀后显式再次清水平位移并返回`field_8c`，
 indexed或非法缓存typed-stop不得提前清理或发布返回。
 
 `audit_order=41`的`0x004515E0`已关闭为`platform_adapted`。存储动作非零时先完整清0x98 record再更新；
-三个FFFF局部槽只让每个u16帧索引旋转和绘制一次。signed旋转量正值直连模式3，
+六个FFFF局部word槽只让每个u16帧索引旋转和绘制一次。signed旋转量正值直连模式3，
 负值低32位取负后直连模式2，零跳过；随后从同一owner/frame缓存以偏移坐标、
 record flags和固定空tail绘制。每轮draw正常或缓存跳过后无条件清两个等待word，
 cursor为0再清record返回1，否则继续更新；更新失败返回0，完整状态重复才判非终止。
@@ -438,8 +438,11 @@ cursor为0再清record返回1，否则继续更新；更新失败返回0，完�
 函数固定遍历扩展状态从`+0x9C`开始的六个owner槽：owner非空时先读取并释放嵌套image，
 回调返回后清内部指针，再释放owner并清外部槽；owner空则连孤立image payload也不触及。
 六轮后只清存储动作低word、`field_bc`与0x98 record，保留`field_b4/field_b8`并返回EAX 0。
-该完整LST同时把单帧绘制的typed owner边界从三槽修正为六槽，
-初始化/播放的三个局部FFFF槽仍只触及前三槽。
+该完整LST确认六owner槽。B11复核进一步修正初始化/播放的局部表：
+12字节、三次dword置FF对应六个word槽。加载返回后重新读取帧号并发布，
+跨到相邻已建模dword时保留写前缀；超出局部栈模型才停止。
+六槽、重复帧及加载后改帧号用例的战斗core/ASan各1/1通过，SDL链接通过。
+仅既有结果测试窄化警告；完整SDL动作更新及初始化仍待接入。
 
 `audit_order=43`的`0x004517A0`已关闭为`platform_adapted`。
 完整范围含13行主体与`0x004517D0..0x004517DB`十行外部FUNCTION CHUNK：先调用组A构造包装器，
@@ -504,7 +507,7 @@ modern以`std::optional<LegacyFile>`在原时点真实建立和销毁typed文件
 `audit_order=54`的`0x00451940`已关闭为`platform_adapted`。完整108行、无chunk；
 严格恢复`all_map2.tsw`路径、旋转缓存与旧背景释放、固定variant零加载、命令流转换、
 signed `640/divisor`、mode3循环右移、
-双word门下的三帧动作缓存初始化及三个完成word高地址到低地址发布。load失败唯一返回0；
+双word门下的六帧动作缓存初始化及三个完成word高地址到低地址发布。load失败唯一返回0；
 成功与正常跳过路径返回全1；除零和closed callee故障域按原访问点typed-stop。
 真实物理槽1完成640×400转换与shift160旋转。
 
@@ -1014,9 +1017,10 @@ wrapper返回固定绑定对象token。
 完整权威LST主体`0x0045F130..0x0045F1A2`从proc到endp共62行、52条实际指令、4个call、1个跳转、
 1个局部标签且无外部chunk。双参数thiscall以绑定对象token、
 ANSI文件名和输出地址执行固定只读独占`CreateFileA`；全1handle失败时仍调用`CloseHandle`并返回EAX0、
-恢复ECX this及关闭EDX，不读对象也不发布输出。成功时固定把`0x2714`字节读入第106项同一对象`+4`，
+返回ECX0及关闭EDX，不读对象也不发布输出。成功时固定把`0x2714`字节读入第106项同一对象`+4`，
 完全忽略`ReadFile`返回和实际长度，短读仅覆盖前缀；随后发布`this+0x1F48`索引token，
-关闭handle并强制返回EAX1、ECX this及关闭EDX。Windows open/read/close保留三项窄平台端口。
+关闭handle并强制返回EAX1；ECX从局部已读字节数弹出，EDX保持关闭回复。
+Windows open/read/close保留三项窄平台端口。
 唯一启动caller删除旧高层archive-open伪边界并直连；打开失败、短读或读失败都不阻断后续定义记录读取。
 
 `audit_order=108`的`0x0045F1B0`已关闭为`platform_adapted`。
@@ -1026,7 +1030,9 @@ battle ID和variant低byte重新打开并读取`0x2714`头部；全1handle仍关
 `this+0x1F48+id`的count按i8 signed非正拒绝，variant也按i8与count作strict-greater拒绝；
 随后把索引1到id-1的byte逐项i8符号扩展并u32累计，加signed variant后从`this+8+index*4`读取偏移dword。
 文件位置按`0x2714 + value*0x10C`低32位计算，seek返回忽略，再固定读`0x10C`记录并关闭；
-读取返回和短读均忽略。count和offset table只在首次真实越界访问typed-stop且故障路径不关闭。
+读取返回和短读均忽略。打开失败返回ECX0；两种拒绝返回第一遍读取计数，正常返回第二遍读取计数。
+2026-10-06接线复核已修正两项读取函数误恢复this的合同；core/ASan聚合目标各1/1及SDL链接通过。
+count和offset table只在首次真实越界访问typed-stop且故障路径不关闭。
 唯一启动caller删除最后高层definition load端口，直接持有raw记录唯一owner并按原offset投影背景、
 数量和八名敌人字段；普通0返回仍读取入口陈旧record，typed-stop阻断后续启动。
 
