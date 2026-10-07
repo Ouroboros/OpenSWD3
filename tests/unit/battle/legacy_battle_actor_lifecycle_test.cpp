@@ -11,6 +11,7 @@
 namespace {
 
 using openswd3::compat::u8;
+using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 void write_actor_base_description_token(
@@ -361,6 +362,83 @@ public:
 }  // namespace
 
 void test_battle_actor_lifecycle(openswd3::test::Context& test) {
+    for (const std::size_t writable : {0U, 3U, 4U, 55U, 56U}) {
+        openswd3::battle::LegacyBattleActorBaseInitializationOwner base;
+        std::array<u8, 0x38U> record;
+        record.fill(0xA5U);
+        u16 field_2f18 = 3U;
+        u16 field_2f26 = 4U;
+        u32 primary_token = 0xDEADBEEFU;
+        TrackingGroupAElementPort port;
+        port.allocation_reply = {.eax = 0x71000000U, .edx = 0x12345678U};
+        const auto result =
+            openswd3::battle::construct_legacy_battle_actor_group_a_element(
+                {
+                    .object_token = 0x005029D0U,
+                    .base_initialization = base.fields,
+                    .action_execution = base.action_execution,
+                    .resource_definition = base.resource_definition,
+                    .resource_definition_description =
+                        base.resource_definition_description,
+                    .action_text = base.action_text,
+                    .action_kind = base.action_execution.action_kind,
+                    .field_2f18 = field_2f18,
+                    .field_2f26 = field_2f26,
+                    .primary_resource_token = primary_token,
+                    .description_bytes = std::span{record}.first(writable),
+                },
+                port
+            );
+        bool prefix_matches = true;
+        for (std::size_t index = 0U; index < record.size(); ++index) {
+            prefix_matches &=
+                record[index] == (index < writable / 4U * 4U ? 0U : 0xA5U);
+        }
+
+        using Status =
+            openswd3::battle::LegacyBattleActorGroupAElementConstructionStatus;
+        test.expect_true(
+            result.status ==
+                    (writable == 56U ? Status::completed
+                                     : Status::description_write_typed_stop) &&
+                field_2f18 == 0U && field_2f26 == 0U &&
+                primary_token == 0x71000000U && prefix_matches &&
+                result.allocation_calls == 1U &&
+                port.allocation_size == 0x38U &&
+                result.description_bytes_written == writable / 4U * 4U &&
+                result.return_ecx == 14U - writable / 4U &&
+                result.return_eax == (writable == 56U ? 0x005029D0U : 0U) &&
+                result.return_edx == 0x12345678U,
+            "borrowed construction publishes allocation and preserves each completed record-clear DWORD"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorGroupAElementState state{
+            .object_token = 0x005029D0U,
+            .object_writable_bytes = 0x2F27U,
+            .field_2f18 = 3U,
+            .field_2f26 = 4U,
+        };
+        TrackingGroupAElementPort port;
+        const auto result =
+            openswd3::battle::construct_legacy_battle_actor_group_a_element(
+                state, port
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorGroupAElementConstructionStatus::
+                            object_write_typed_stop &&
+                result.stopped_object_offset == 0x2F26U &&
+                result.base_constructor_calls == 1U && port.events.empty() &&
+                state.field_2f18 == 3U && state.field_2f26 == 4U &&
+                result.return_eax == 0U && result.return_ecx == 0U &&
+                result.return_edx == state.object_token,
+            "group-A constructor stops at the first field write before allocation"
+        );
+    }
+
     {
         openswd3::battle::LegacyBattleActorGroupAElementState state{
             .object_token = 0x005029D0U,

@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_group_b_startup_reset.hpp"
 #include "openswd3/battle/legacy_battle_group_b_storage.hpp"
+#include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_stream_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
@@ -210,7 +211,8 @@ void test_persistent_enemy_storage(openswd3::test::Context& test) {
     action->group_b_reward_scale[7].status_bits = 0xA5U;
     const auto* phases = action->group_b_fixed_particle_phases.get();
     const auto node = action->target_phase_particle_nodes.allocate_zeroed();
-    reset_legacy_battle_dispatch_preserving_enemies(*action);
+    LegacyBattleFinalActorStepState final_actor;
+    reset_legacy_battle_dispatch_preserving_actors(*action, final_actor);
     test.expect_true(
         action->group_b_fixed_particle_phases.get() == phases,
         "dispatch reset preserves enemy phase ownership"

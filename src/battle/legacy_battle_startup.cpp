@@ -347,33 +347,37 @@ ratio_low_dword(const i32 numerator, const i32 denominator) noexcept {
 void publish_party_positions(LegacyBattleStartupState& state) noexcept {
     switch (state.actor_metrics.group_a_count) {
     case 1U:
-        state.party[0].position_x = 0x020FU;
-        state.party[0].position_y = 0x011FU;
+        state.party[0].placement_position_x = 0x020FU;
+        state.party[0].placement_position_y = 0x011FU;
         break;
+
     case 2U:
-        state.party[0].position_x = 0x01EAU;
-        state.party[0].position_y = 0x0113U;
-        state.party[1].position_x = 0x022BU;
-        state.party[1].position_y = 0x0172U;
+        state.party[0].placement_position_x = 0x01EAU;
+        state.party[0].placement_position_y = 0x0113U;
+        state.party[1].placement_position_x = 0x022BU;
+        state.party[1].placement_position_y = 0x0172U;
         break;
+
     case 3U:
-        state.party[0].position_x = 0x01F8U;
-        state.party[0].position_y = 0x0110U;
-        state.party[1].position_x = 0x0235U;
-        state.party[1].position_y = 0x0161U;
-        state.party[2].position_x = 0x01CEU;
-        state.party[2].position_y = 0x00E0U;
+        state.party[0].placement_position_x = 0x01F8U;
+        state.party[0].placement_position_y = 0x0110U;
+        state.party[1].placement_position_x = 0x0235U;
+        state.party[1].placement_position_y = 0x0161U;
+        state.party[2].placement_position_x = 0x01CEU;
+        state.party[2].placement_position_y = 0x00E0U;
         break;
+
     case 4U:
-        state.party[0].position_x = 0x020EU;
-        state.party[0].position_y = 0x012AU;
-        state.party[1].position_x = 0x01F1U;
-        state.party[1].position_y = 0x0115U;
-        state.party[2].position_x = 0x01D0U;
-        state.party[2].position_y = 0x00D9U;
-        state.party[3].position_x = 0x024CU;
-        state.party[3].position_y = 0x0167U;
+        state.party[0].placement_position_x = 0x020EU;
+        state.party[0].placement_position_y = 0x012AU;
+        state.party[1].placement_position_x = 0x01F1U;
+        state.party[1].placement_position_y = 0x0115U;
+        state.party[2].placement_position_x = 0x01D0U;
+        state.party[2].placement_position_y = 0x00D9U;
+        state.party[3].placement_position_x = 0x024CU;
+        state.party[3].placement_position_y = 0x0167U;
         break;
+
     default:
         break;
     }
@@ -381,28 +385,44 @@ void publish_party_positions(LegacyBattleStartupState& state) noexcept {
 
 void publish_party_offsets(LegacyBattleStartupState& state) noexcept {
     state.party_offsets[0] =
-        static_cast<i32>(static_cast<compat::i16>(state.party[0].position_x)) +
+        static_cast<i32>(
+            static_cast<compat::i16>(state.party[0].placement_position_x)
+        ) +
         10;
     state.party_offsets[1] =
-        static_cast<i32>(static_cast<compat::i16>(state.party[0].position_y)) -
+        static_cast<i32>(
+            static_cast<compat::i16>(state.party[0].placement_position_y)
+        ) -
         145;
     state.party_offsets[2] =
-        static_cast<i32>(static_cast<compat::i16>(state.party[1].position_x)) +
+        static_cast<i32>(
+            static_cast<compat::i16>(state.party[1].placement_position_x)
+        ) +
         5;
     state.party_offsets[3] =
-        static_cast<i32>(static_cast<compat::i16>(state.party[1].position_y)) -
+        static_cast<i32>(
+            static_cast<compat::i16>(state.party[1].placement_position_y)
+        ) -
         170;
     state.party_offsets[4] =
-        static_cast<i32>(static_cast<compat::i16>(state.party[2].position_x)) +
+        static_cast<i32>(
+            static_cast<compat::i16>(state.party[2].placement_position_x)
+        ) +
         10;
     state.party_offsets[5] =
-        static_cast<i32>(static_cast<compat::i16>(state.party[2].position_y)) -
+        static_cast<i32>(
+            static_cast<compat::i16>(state.party[2].placement_position_y)
+        ) -
         155;
     state.party_offsets[6] =
-        static_cast<i32>(static_cast<compat::i16>(state.party[3].position_x)) -
+        static_cast<i32>(
+            static_cast<compat::i16>(state.party[3].placement_position_x)
+        ) -
         5;
     state.party_offsets[7] =
-        static_cast<i32>(static_cast<compat::i16>(state.party[3].position_y)) -
+        static_cast<i32>(
+            static_cast<compat::i16>(state.party[3].placement_position_y)
+        ) -
         163;
 }
 
@@ -977,10 +997,14 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 LegacyBattleStartupCall::apply_actor_mode,
                 {actor_token, 1U, 0U, 0U}
             ));
-            party.position_x = static_cast<u16>(0x0280U - party.position_x);
+            party.placement_position_x =
+                static_cast<u16>(0x0280U - party.placement_position_x);
             state.party_offsets[index * 2U] =
                 static_cast<i32>(0x0270U) - state.party_offsets[index * 2U];
         }
+        std::array<LegacyBattleActorCoordinatesState*, 1> coordinate_owners{
+            &party
+        };
         result.party_configurations[index] =
             configure_legacy_battle_group_a_actor(
                 party.workspace,
@@ -990,8 +1014,8 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 {
                     .prefix = party.placement_prefix,
                     .role_id = party.role_id,
-                    .position_x = party.position_x,
-                    .position_y = party.position_y,
+                    .position_x = party.placement_position_x,
+                    .position_y = party.placement_position_y,
                     .field_1a = party.placement_field_1a,
                     .active = party.active,
                 },
@@ -999,7 +1023,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 0x004ACF50U + source * 0x60U,
                 party_placement_token(index),
                 request.window_token,
-                configuration_diagnostic
+                configuration_diagnostic,
+                coordinate_owners,
+                {
+                    .final_processing = &party.final_processing,
+                    .item_effect = &party.item_effect_application,
+                }
             );
         ++result.party_configuration_calls;
         if (result.party_configurations[index].status !=

@@ -20,6 +20,7 @@
 #include "openswd3/battle/legacy_battle_group_a_npc_materialization.hpp"
 #include "openswd3/battle/legacy_battle_group_a_resource_cleanup.hpp"
 #include "openswd3/battle/legacy_battle_group_a_resource_pair.hpp"
+#include "openswd3/battle/legacy_battle_group_a_startup_reset.hpp"
 #include "openswd3/battle/legacy_battle_group_a_value_pair.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
@@ -242,10 +243,17 @@ struct LegacyBattlePartyStartupRecord
     LegacyBattleActorRenderOffsetState render_offsets;
     std::array<compat::u32, 5> placement_prefix{};
     compat::u16 role_id{};
+    // Initial formation at 0x0053AF70, separate from actor +0x0D50.
+    compat::u16 placement_position_x{};
+    compat::u16 placement_position_y{};
     compat::u16 placement_field_1a{};
     compat::u32 active{};
-    LegacyBattleGroupAResourceCleanupState resource_cleanup;
+    compat::u32 secondary_resource_token{};  // actor + 0x2BC4
     LegacyBattleActorBaseInitializationFields base_initialization;
+    LegacyBattleGroupAStartupResetFields startup_reset;
+    std::array<compat::u8, kLegacyBattleActorBaseDefinitionBytes>
+        base_resource_definition{};  // actor + 0x0010, not the +0x0C allocation
+    LegacyBattleMonText base_resource_definition_description;
     LegacyBattleActorProgressState progress;
     LegacyBattleGroupAWorkspaceState workspace;
     LegacyBattleGroupAConfigurationState configuration;

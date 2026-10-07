@@ -67,7 +67,16 @@ struct LegacyBattleGroupAResourceCleanupResult {
     compat::u32 return_edx{};
 };
 
-// Typed closure of legacy 0x00475180.
+// Typed closure of legacy 0x00475180, borrowing the existing pointer fields.
+[[nodiscard]] LegacyBattleGroupAResourceCleanupResult
+release_legacy_battle_group_a_resources(
+    compat::u32& primary_resource_token,
+    compat::u32& secondary_resource_token,
+    LegacyBattleGroupAResourceReleasePort& port,
+    const LegacyBattleGroupAResourceCleanupRequest& request
+);
+
+// Standalone state adapter; null denotes an unavailable actor.
 [[nodiscard]] LegacyBattleGroupAResourceCleanupResult
 release_legacy_battle_group_a_resources(
     LegacyBattleGroupAResourceCleanupState* state,

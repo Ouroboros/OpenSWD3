@@ -4,12 +4,17 @@ namespace openswd3::battle {
 
 LegacyBattleActorGroupAElementConstructionResult
 construct_legacy_battle_actor_group_a_element(
-    LegacyBattleActorGroupAElementState& state,
+    const LegacyBattleActorGroupAElementConstructionView state,
     LegacyBattleActorGroupAElementConstructionPort& port
 ) {
     LegacyBattleActorGroupAElementConstructionResult result;
     result.base_initialization = initialize_legacy_battle_actor_base(
         state.base_initialization,
+        state.action_execution,
+        state.resource_definition,
+        state.resource_definition_description,
+        state.action_text,
+        state.action_kind,
         {
             .object_token = state.object_token,
             .writable_bytes = state.object_writable_bytes,
@@ -26,15 +31,25 @@ construct_legacy_battle_actor_group_a_element(
         return result;
     }
 
+    if (state.object_writable_bytes < 0x2F28U) {
+        result.status = LegacyBattleActorGroupAElementConstructionStatus::
+            object_write_typed_stop;
+        result.stopped_object_offset = 0x2F26U;
+        result.return_eax = 0U;
+        result.return_ecx = result.base_initialization.return_ecx;
+        result.return_edx = result.base_initialization.return_edx;
+        return result;
+    }
+
     state.field_2f26 = 0U;
     state.field_2f18 = 0U;
 
     const auto allocation = port.allocate(0x38U);
     ++result.allocation_calls;
-    state.resource_cleanup.primary_resource_token = allocation.eax;
+    state.primary_resource_token = allocation.eax;
     result.return_ecx = allocation.ecx;
     result.return_edx = allocation.edx;
-    if (state.resource_cleanup.primary_resource_token == 0U) {
+    if (state.primary_resource_token == 0U) {
         result.status = LegacyBattleActorGroupAElementConstructionStatus::
             description_write_typed_stop;
         result.return_eax = 0U;
@@ -42,12 +57,53 @@ construct_legacy_battle_actor_group_a_element(
         return result;
     }
 
-    state.description_bytes.fill(0U);
-    result.description_bytes_written =
-        static_cast<compat::u32>(state.description_bytes.size());
+    for (compat::u32 index = 0U; index < 14U; ++index) {
+        const auto offset = index * 4U;
+        if (state.description_bytes.size() < offset + 4U) {
+            result.status = LegacyBattleActorGroupAElementConstructionStatus::
+                description_write_typed_stop;
+            result.return_eax = 0U;
+            result.return_ecx = 14U - index;
+            return result;
+        }
+
+        for (compat::u32 byte = 0U; byte < 4U; ++byte) {
+            state.description_bytes[offset + byte] = 0U;
+        }
+
+        result.description_bytes_written += 4U;
+    }
+
     result.return_eax = state.object_token;
     result.return_ecx = 0U;
     return result;
+}
+
+LegacyBattleActorGroupAElementConstructionResult
+construct_legacy_battle_actor_group_a_element(
+    LegacyBattleActorGroupAElementState& state,
+    LegacyBattleActorGroupAElementConstructionPort& port
+) {
+    auto& base = state.base_initialization;
+    return construct_legacy_battle_actor_group_a_element(
+        {
+            .object_token = state.object_token,
+            .object_writable_bytes = state.object_writable_bytes,
+            .base_initialization = base.fields,
+            .action_execution = base.action_execution,
+            .resource_definition = base.resource_definition,
+            .resource_definition_description =
+                base.resource_definition_description,
+            .action_text = base.action_text,
+            .action_kind = base.action_execution.action_kind,
+            .field_2f18 = state.field_2f18,
+            .field_2f26 = state.field_2f26,
+            .primary_resource_token =
+                state.resource_cleanup.primary_resource_token,
+            .description_bytes = state.description_bytes,
+        },
+        port
+    );
 }
 
 LegacyBattleActorGroupBElementConstructionResult

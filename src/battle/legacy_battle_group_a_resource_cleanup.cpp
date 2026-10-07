@@ -37,7 +37,8 @@ void release_resource(
 }  // namespace
 
 LegacyBattleGroupAResourceCleanupResult release_legacy_battle_group_a_resources(
-    LegacyBattleGroupAResourceCleanupState* const state,
+    compat::u32& primary_resource_token,
+    compat::u32& secondary_resource_token,
     LegacyBattleGroupAResourceReleasePort& port,
     const LegacyBattleGroupAResourceCleanupRequest& request
 ) {
@@ -46,14 +47,14 @@ LegacyBattleGroupAResourceCleanupResult release_legacy_battle_group_a_resources(
         .return_ecx = request.entry_ecx,
         .return_edx = request.entry_edx,
     };
-    if (state == nullptr || request.actor_token == 0U) {
+    if (request.actor_token == 0U) {
         result.status =
             LegacyBattleGroupAResourceCleanupStatus::actor_state_typed_stop;
         return result;
     }
 
     release_resource(
-        state->secondary_resource_token,
+        secondary_resource_token,
         kLegacyBattleGroupASecondaryResourceOffset,
         port,
         request,
@@ -61,7 +62,7 @@ LegacyBattleGroupAResourceCleanupResult release_legacy_battle_group_a_resources(
         result.secondary_resource_released
     );
     release_resource(
-        state->primary_resource_token,
+        primary_resource_token,
         kLegacyBattleGroupAPrimaryResourceOffset,
         port,
         request,
@@ -69,6 +70,29 @@ LegacyBattleGroupAResourceCleanupResult release_legacy_battle_group_a_resources(
         result.primary_resource_released
     );
     return result;
+}
+
+LegacyBattleGroupAResourceCleanupResult release_legacy_battle_group_a_resources(
+    LegacyBattleGroupAResourceCleanupState* const state,
+    LegacyBattleGroupAResourceReleasePort& port,
+    const LegacyBattleGroupAResourceCleanupRequest& request
+) {
+    if (state == nullptr) {
+        return {
+            .status =
+                LegacyBattleGroupAResourceCleanupStatus::actor_state_typed_stop,
+            .return_eax = request.entry_eax,
+            .return_ecx = request.entry_ecx,
+            .return_edx = request.entry_edx,
+        };
+    }
+
+    return release_legacy_battle_group_a_resources(
+        state->primary_resource_token,
+        state->secondary_resource_token,
+        port,
+        request
+    );
 }
 
 }  // namespace openswd3::battle

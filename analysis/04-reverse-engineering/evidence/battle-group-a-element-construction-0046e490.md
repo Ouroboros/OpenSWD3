@@ -24,6 +24,11 @@
 
 物理对象地址和分配地址均为`compat::u32` token，不转换为主机指针。记录使用单一内嵌typed存储，不与角色startup摘要或结算字段复制。
 
+B11生产接线新增临时借用构造视图，直接写startup/action既有字段；旧owned
+接口仅为适配。SDL会话只构造一次十个对象，完整分配范围及字节直接由
+configuration.actor_record提供。逐DWORD短目标与首派生字段写失败均保留前缀。
+当前验证与宿主分配边界见[队伍入战接线](battle-party-startup-runtime-binding.md)。
+
 ## 3. vector caller边界
 
 本函数没有普通call caller，只有组A编译器向量构造迭代器DATA XREF。既有`0x004517B0`包装器仍按`base,size,count,constructor,destructor`传递10项固定边界。

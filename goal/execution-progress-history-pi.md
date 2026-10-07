@@ -39,6 +39,19 @@ REVIEW边界、原始证据及日志见
 [队伍基础记录接线证据](../analysis/04-reverse-engineering/evidence/battle-party-source-runtime-binding.md)。
 B10保持315/422，Workpack316仍为pending_audit。
 
+## B11：初始队伍构造与入战配置
+
+SDL会话一次性构造十份队员基础记录；初始队员按重置、镜像、配置、
+模式计数的顺序准备。阵形来源与角色坐标分离，诊断前即时发布坐标，
+重复进入保留构造专属字段。退出通过同一登记释放基础记录。
+
+REVIEW纠正workspace派生字段绑定、2F0E旧保留结论、来源索引停止点及
+原版诊断三按钮行为。core与ASan定向聚合各1/1、SDL构建通过；追加
+不计数分支断言后core与ASan各1/1再次通过。未运行游戏或弹窗。
+详细映射、失败记录和日志见
+[队伍入战接线证据](../analysis/04-reverse-engineering/evidence/battle-party-startup-runtime-binding.md)。
+完整初始化、帧、返回与实际续玩仍未完成；B10保持315/422。
+
 ## B1–B6与日志基础设施详细完成记录
 
 6. `[x]` B1：`compat + platform_sdl3 + app` 已完成接口级逆向、实现、逐基本块复核、Windows LLVM `core`/`app` 构建、23 项 CTest 和真实 SDL3 窗口创建/关闭 smoke；状态为 `module_closed_pending_oracle`，只保留已登记的原程序动态差分阻塞。

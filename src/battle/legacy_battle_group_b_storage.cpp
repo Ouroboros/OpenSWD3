@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
 #include "openswd3/battle/legacy_battle_group_b_startup_reset.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
@@ -56,11 +57,14 @@ private:
 
 }  // namespace
 
-void reset_legacy_battle_dispatch_preserving_enemies(
-    LegacyBattleActionDispatchState& action
+void reset_legacy_battle_dispatch_preserving_actors(
+    LegacyBattleActionDispatchState& action,
+    LegacyBattleFinalActorStepState& final_actor
 ) {
     LegacyBattleActionDispatchState replacement;
     using std::swap;
+    swap(replacement.group_a_action_execution, action.group_a_action_execution);
+    swap(replacement.group_a_target_phases, action.group_a_target_phases);
     swap(replacement.group_b_message_profiles, action.group_b_message_profiles);
     swap(replacement.group_b_reward_scale, action.group_b_reward_scale);
     swap(replacement.group_b_target_phases, action.group_b_target_phases);
@@ -84,6 +88,13 @@ void reset_legacy_battle_dispatch_preserving_enemies(
         replacement.target_phase_particle_rng, action.target_phase_particle_rng
     );
     action = std::move(replacement);
+
+    LegacyBattleFinalActorStepState replacement_final;
+    swap(
+        replacement_final.group_a_availability_blocks,
+        final_actor.group_a_availability_blocks
+    );
+    final_actor = std::move(replacement_final);
 }
 
 LegacyBattleGroupBStorage::LegacyBattleGroupBStorage()

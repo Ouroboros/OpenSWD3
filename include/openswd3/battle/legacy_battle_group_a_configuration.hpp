@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
+#include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/battle/legacy_battle_mon_text.hpp"
@@ -102,7 +103,9 @@ struct LegacyBattleGroupAConfigurationResult {
 };
 
 // sub_46E730. The byte view borrows the live 0x38-byte world/story record;
-// diagnostics and subsequent clamps observe the same storage.
+// diagnostics and subsequent clamps observe the same storage. Each optional
+// coordinate owner is a complete writable actor view; placement stores publish
+// to those views before any source failure or diagnostic callback.
 [[nodiscard]] LegacyBattleGroupAConfigurationResult
 configure_legacy_battle_group_a_actor(
     LegacyBattleGroupAWorkspaceState& workspace,
@@ -114,7 +117,9 @@ configure_legacy_battle_group_a_actor(
     compat::u32 auxiliary_record_token,
     compat::u32 placement_token,
     compat::u32 window_token,
-    LegacyBattleGroupAConfigurationDiagnosticPort& diagnostic_port
+    LegacyBattleGroupAConfigurationDiagnosticPort& diagnostic_port,
+    std::span<LegacyBattleActorCoordinatesState* const> coordinate_owners = {},
+    LegacyBattleGroupAWorkspaceResetBindings workspace_bindings = {}
 );
 
 // Owned-record adapter for standalone callers.

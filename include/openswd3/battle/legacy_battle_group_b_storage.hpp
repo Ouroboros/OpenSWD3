@@ -10,6 +10,7 @@ namespace openswd3::battle {
 
 struct LegacyBattleStartupState;
 struct LegacyBattleActionDispatchState;
+struct LegacyBattleFinalActorStepState;
 struct LegacyBattleEnemySlot;
 class LegacyBattleMonDatabasePort;
 
@@ -20,10 +21,11 @@ enum class LegacyBattleGroupBStartupBindingStatus : compat::u8 {
     action_configuration_typed_stop,
 };
 
-// Reset the existing dispatch globals without destroying persistent enemy
-// fields or the particle allocations referenced by their phase objects.
-void reset_legacy_battle_dispatch_preserving_enemies(
-    LegacyBattleActionDispatchState& action
+// Reset dispatch/final-step globals while preserving persistent actor fields
+// and the particle allocations referenced by their phase objects.
+void reset_legacy_battle_dispatch_preserving_actors(
+    LegacyBattleActionDispatchState& action,
+    LegacyBattleFinalActorStepState& final_actor
 );
 
 // Session-lifetime storage for the eight statically constructed enemy actors.

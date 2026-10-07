@@ -2,6 +2,7 @@
 
 #include <bit>
 #include <cstddef>
+#include <cstring>
 
 namespace openswd3::battle {
 namespace {
@@ -79,10 +80,13 @@ LegacyBattleGroupAConfigurationResult configure_legacy_battle_group_a_actor(
     const u32 auxiliary_record_token,
     const u32 placement_token,
     const u32 window_token,
-    LegacyBattleGroupAConfigurationDiagnosticPort& diagnostic_port
+    LegacyBattleGroupAConfigurationDiagnosticPort& diagnostic_port,
+    const std::span<LegacyBattleActorCoordinatesState* const> coordinate_owners,
+    const LegacyBattleGroupAWorkspaceResetBindings workspace_bindings
 ) {
     LegacyBattleGroupAConfigurationResult result;
-    result.workspace_reset = reset_legacy_battle_group_a_workspace(workspace);
+    result.workspace_reset =
+        reset_legacy_battle_group_a_workspace(workspace, workspace_bindings);
 
     if (placement_token == 0U) {
         result.status =
@@ -93,7 +97,25 @@ LegacyBattleGroupAConfigurationResult configure_legacy_battle_group_a_actor(
     }
 
     state.placement_primary = pack_placement(placement);
+    for (auto* const coordinates : coordinate_owners) {
+        std::memcpy(
+            static_cast<LegacyBattleActorCoordinateSourceRecord*>(coordinates),
+            state.placement_primary.data(),
+            sizeof(state.placement_primary)
+        );
+    }
+
     state.placement_secondary = state.placement_primary;
+    for (auto* const coordinates : coordinate_owners) {
+        std::memcpy(
+            static_cast<LegacyBattleActorCoordinateDestinationRecord*>(
+                coordinates
+            ),
+            state.placement_secondary.data(),
+            sizeof(state.placement_secondary)
+        );
+    }
+
     state.source_runtime_value = state.placement_primary[7U];
     result.placement_dwords_copied = 16U;
 

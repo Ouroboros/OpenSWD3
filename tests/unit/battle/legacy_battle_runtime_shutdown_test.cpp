@@ -61,10 +61,9 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
         startup.render_geometry.surface_row_offsets =
             std::make_unique<u32[]>(3U);
         for (u32 index = 0U; index < kLegacyBattleGroupAObjectCount; ++index) {
-            startup.party[index].resource_cleanup.primary_resource_token =
+            startup.party[index].configuration.actor_record_token =
                 0xA1000000U + index;
-            startup.party[index].resource_cleanup.secondary_resource_token =
-                0xA2000000U + index;
+            startup.party[index].secondary_resource_token = 0xA2000000U + index;
         }
         startup.group_b_lifecycle = std::make_shared<std::array<
             LegacyBattleActorGroupBElementState,
@@ -100,10 +99,8 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
                 secondary.resource_offset == 0x2BC4U &&
                 primary.resource_token == 0xA1000000U + index &&
                 primary.resource_offset == 0U &&
-                startup.party[index].resource_cleanup.primary_resource_token ==
-                    0U &&
-                startup.party[index]
-                        .resource_cleanup.secondary_resource_token == 0U;
+                startup.party[index].configuration.actor_record_token == 0U &&
+                startup.party[index].secondary_resource_token == 0U;
         }
         for (u32 index = 0U; index < kLegacyBattleGroupBObjectCount; ++index) {
             const auto& call =

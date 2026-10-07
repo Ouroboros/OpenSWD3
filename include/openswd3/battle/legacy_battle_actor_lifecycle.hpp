@@ -9,6 +9,7 @@
 
 #include <array>
 #include <cstddef>
+#include <span>
 #include <vector>
 
 namespace openswd3::battle {
@@ -87,6 +88,22 @@ struct LegacyBattleActorGroupAElementState {
     std::array<compat::u8, 0x38> description_bytes{};
     compat::u16 field_2f18{};
     compat::u16 field_2f26{};
+};
+
+// Instruction-local bindings to the existing group-A owners.
+struct LegacyBattleActorGroupAElementConstructionView {
+    compat::u32 object_token{};
+    compat::u32 object_writable_bytes{kLegacyBattleActorGroupAElementSize};
+    LegacyBattleActorBaseInitializationFields& base_initialization;
+    LegacyBattleGroupAActionExecutionState& action_execution;
+    std::span<compat::u8> resource_definition;
+    LegacyBattleMonText& resource_definition_description;
+    std::span<compat::u8> action_text;
+    compat::u16& action_kind;
+    compat::u16& field_2f18;
+    compat::u16& field_2f26;
+    compat::u32& primary_resource_token;
+    std::span<compat::u8> description_bytes;
 };
 
 struct LegacyBattleActorGroupAElementCallReply {
@@ -235,6 +252,7 @@ enum class LegacyBattleActorGroupAElementConstructionStatus : compat::u8 {
     completed,
     base_construction_typed_stop,
     description_write_typed_stop,
+    object_write_typed_stop,
 };
 
 struct LegacyBattleActorGroupAElementConstructionResult {
@@ -245,6 +263,7 @@ struct LegacyBattleActorGroupAElementConstructionResult {
     compat::u32 base_constructor_calls{};
     compat::u32 allocation_calls{};
     compat::u32 description_bytes_written{};
+    compat::u32 stopped_object_offset{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -369,7 +388,14 @@ struct LegacyBattleActorSingletonStaticInitializationResult {
     compat::u32 return_value{};
 };
 
-// sub_46E490.
+// sub_46E490, borrowing the session's existing actor fields and record.
+[[nodiscard]] LegacyBattleActorGroupAElementConstructionResult
+construct_legacy_battle_actor_group_a_element(
+    LegacyBattleActorGroupAElementConstructionView state,
+    LegacyBattleActorGroupAElementConstructionPort& port
+);
+
+// Standalone owned-state adapter.
 [[nodiscard]] LegacyBattleActorGroupAElementConstructionResult
 construct_legacy_battle_actor_group_a_element(
     LegacyBattleActorGroupAElementState& state,

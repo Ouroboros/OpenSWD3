@@ -6,6 +6,20 @@
 
 namespace openswd3::battle {
 
+struct LegacyBattleGroupAActionExecutionState;
+struct LegacyBattleGroupAFinalProcessingState;
+struct LegacyBattleGroupAItemEffectApplicationState;
+struct LegacyBattleTargetPhaseState;
+
+// Optional views when the workspace belongs to a live actor. Standalone
+// callers retain their owned workspace without these additional typed views.
+struct LegacyBattleGroupAWorkspaceResetBindings {
+    LegacyBattleGroupAActionExecutionState* action{};
+    LegacyBattleGroupAFinalProcessingState* final_processing{};
+    LegacyBattleGroupAItemEffectApplicationState* item_effect{};
+    LegacyBattleTargetPhaseState* particle{};
+};
+
 struct LegacyBattleGroupAWorkspaceState {
     compat::u32 object_token{};
     // actor + 0x0AF0 .. +0x0C1F
@@ -15,7 +29,6 @@ struct LegacyBattleGroupAWorkspaceState {
     // actor + 0x2B24 .. +0x2EBF; the upper 0xBE dwords are cleared first.
     std::array<compat::u32, 0xE7> late_workspace{};
     compat::u32 field_2f0c{};
-    compat::u16 untouched_field_2f0e{};
     // actor + 0x2F10 .. +0x2F24
     std::array<compat::u16, 11> tail_words{};
     compat::u16 untouched_field_2f26{};
@@ -35,7 +48,8 @@ struct LegacyBattleGroupAWorkspaceResetResult {
 // sub_46E6A0.
 [[nodiscard]] LegacyBattleGroupAWorkspaceResetResult
 reset_legacy_battle_group_a_workspace(
-    LegacyBattleGroupAWorkspaceState& state
+    LegacyBattleGroupAWorkspaceState& state,
+    LegacyBattleGroupAWorkspaceResetBindings bindings = {}
 ) noexcept;
 
 }  // namespace openswd3::battle

@@ -18,6 +18,12 @@ runtime shutdown固定十个group-A对象改为直接调用typed helper，并把
 
 group-A元素析构的正常与SEH展开路径也回收整函数opaque边界。正常路径执行typed双资源清理后再调用基础析构；primary资源释放后清除宿主description bytes。释放端口抛出时当前token保持、此前已完成的token清零仍保留，并由既有catch路径调用一次基础析构后原样重抛；资源typed-stop也先执行基础析构，再向外层传播停止状态。
 
+B11接线将startup的primary指针收敛到configuration.actor_record_token，
+secondary单独保存；引用重载直接操作这两项，旧独立state入口保留适配。
+SDL在窄释放入口转发会话分配登记，不经过render辅助缓冲release接口。
+测试验证十条登记失效与canonical指针清零；详见
+[队伍入战接线](battle-party-startup-runtime-binding.md)。
+
 ## 测试与oracle
 
 独立单元测试覆盖双非零顺序、字段offset、固定callee token、第一次callee陈旧寄存器传入第二次、secondary-only最终EAX归零、primary-only、双零零调用、typed owner缺失、零legacy token、第一释放异常与第二释放异常的部分副作用。runtime shutdown回归覆盖十槽双token共二十次窄释放、每槽secondary→primary顺序、全部清零、空token十次cleanup不省略、group-B八槽位置和尾寄存器；元素析构回归覆盖正常typed清理、description失效和SEH异常顺序。

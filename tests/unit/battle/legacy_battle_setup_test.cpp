@@ -46,6 +46,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test);
 void test_battle_actor_frame_sequence(openswd3::test::Context& test);
 void test_battle_actor_lifecycle(openswd3::test::Context& test);
 void test_battle_actor_startup_reset(openswd3::test::Context& test);
+void test_battle_group_a_startup_reset(openswd3::test::Context& test);
 void test_battle_group_b_startup_reset(openswd3::test::Context& test);
 void test_battle_actor_list_index_commit(openswd3::test::Context& test);
 void test_battle_actor_list_query(openswd3::test::Context& test);
@@ -385,8 +386,10 @@ void test_party_selection_and_three_member_formation(
             startup.action_mode_source.actor_label_indices[1U] == 2U &&
             startup.action_mode_source.actor_label_indices[2U] == 3U &&
             startup.party[1U].role_id == 8U &&
-            startup.party[1U].position_x == 565U &&
-            startup.party[1U].position_y == 353U &&
+            startup.party[1U].placement_position_x == 565U &&
+            startup.party[1U].placement_position_y == 353U &&
+            startup.party[1U].position_x == 0U &&
+            startup.party[1U].position_y == 0U &&
             startup.party[1U].active == 1U &&
             startup.party_offsets ==
                 std::array<openswd3::compat::i32, 8U>{
@@ -7286,8 +7289,9 @@ void test_real_battle_98_enemy(openswd3::test::Context& test) {
     openswd3::battle::bind_legacy_battle_setup_party_owners(state, startup);
     test.expect_true(
         startup.actor_metrics.group_a_count == 1U &&
-        startup.party[0U].position_x == 527U &&
-            startup.party[0U].position_y == 287U &&
+            startup.party[0U].placement_position_x == 527U &&
+            startup.party[0U].placement_position_y == 287U &&
+            startup.party[0U].position_x == 0U &&
             startup.action_mode_source.actor_label_indices[0U] == 0U &&
             startup.party_offsets[0U] == 537 &&
             startup.party_offsets[1U] == 142,
@@ -7345,6 +7349,7 @@ int main() {
     test_battle_actor_frame_sequence(test);
     test_battle_actor_lifecycle(test);
     test_battle_actor_startup_reset(test);
+    test_battle_group_a_startup_reset(test);
     test_battle_group_b_startup_reset(test);
     test_battle_actor_list_index_commit(test);
     test_battle_actor_list_query(test);

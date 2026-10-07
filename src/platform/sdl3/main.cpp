@@ -50,6 +50,7 @@
 #include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_stream_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
+#include "openswd3/battle/legacy_battle_group_a_storage.hpp"
 #include "openswd3/battle/legacy_battle_group_b_storage.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_action_rotation_resources.hpp"
@@ -1194,6 +1195,12 @@ public:
           sample_manager_(sample_manager), world_item_lists_(world_item_lists),
           battle_runtime_(battle_runtime) {}
 
+    void bind_battle_party_storage(
+        openswd3::battle::LegacyBattleGroupAStorage& storage
+    ) noexcept {
+        battle_party_storage_ = &storage;
+    }
+
     void bind_packed_row_effects(
         std::list<openswd3::rendering::LegacyPackedRowEffect>& effects
     ) noexcept {
@@ -1333,8 +1340,22 @@ public:
 
     [[nodiscard]] openswd3::battle::LegacyBattleRuntimeShutdownCallReply
     invoke_battle_runtime_shutdown(
-        const openswd3::battle::LegacyBattleRuntimeShutdownCallRequest&
+        const openswd3::battle::LegacyBattleRuntimeShutdownCallRequest& request
     ) override {
+        if (request.call ==
+            openswd3::battle::LegacyBattleRuntimeShutdownCall::
+                release_group_a_resource) {
+            // A nonzero party allocation requires the bound session registry.
+            // Missing or already released leases are invalid releases.
+            const auto released =
+                battle_party_storage_
+                    ->release_heap_block(request.resource_token)
+                    .value();
+            return {
+                .eax = released.eax, .ecx = released.ecx, .edx = released.edx
+            };
+        }
+
         return {};
     }
 
@@ -1353,6 +1374,7 @@ private:
     openswd3::audio_video::LegacySampleManager& sample_manager_;
     openswd3::world_map::LegacyWorldItemListState& world_item_lists_;
     openswd3::battle::LegacyBattleStartupState& battle_runtime_;
+    openswd3::battle::LegacyBattleGroupAStorage* battle_party_storage_{};
     openswd3::world_map::LegacyPictureActionLists* picture_actions_{};
     std::list<openswd3::rendering::LegacyPackedRowEffect>*
         packed_row_effects_{};
@@ -1734,6 +1756,7 @@ class SdlSmokeIdlePorts final
       public openswd3::app::FramePreparationPorts,
       public openswd3::app::FrameRuntimePorts,
       public openswd3::battle::LegacyBattleScriptDispatchPort,
+      public openswd3::battle::LegacyBattleGroupAConfigurationDiagnosticPort,
       public openswd3::battle::LegacyBattleFrameMusicPrefixPort,
       public virtual openswd3::input_time_rng::LegacyMouseFrameStatePort,
       public virtual openswd3::battle::LegacyBattlePreFramePort,
@@ -2145,6 +2168,15 @@ public:
           world_effects_{.pixel_conversion = pixel_conversion},
           shutdown_ports_(shutdown_ports), exit_ports_(exit_ports), ok_(ok),
           running_(running) {
+        if (!battle_group_a_storage_.construct()) {
+            openswd3::diagnostics::log_error(
+                "battle party static construction stopped"
+            );
+            ok_ = false;
+            running_ = false;
+            return;
+        }
+
         battle_runtime_.group_b_lifecycle = battle_group_b_storage_.actors();
         if (!battle_group_b_storage_.construct()) {
             openswd3::diagnostics::log_error(
@@ -2730,10 +2762,9 @@ public:
         battle_script_shared_ = {};
         battle_frame_coordinator_state_ = {};
         battle_frame_input_resolution_state() = {};
-        openswd3::battle::reset_legacy_battle_dispatch_preserving_enemies(
-            battle_action_dispatch_
+        openswd3::battle::reset_legacy_battle_dispatch_preserving_actors(
+            battle_action_dispatch_, battle_final_actor_
         );
-        battle_final_actor_ = {};
         battle_input_dispatch_ = {};
         battle_target_selection_ = {};
         battle_message_phase_ = {};
@@ -2891,13 +2922,6 @@ public:
                 }
 
                 battle_runtime_.battle_id_word = battle_id;
-                openswd3::battle::bind_legacy_battle_setup_party_owners(
-                    battle_setup_, battle_runtime_
-                );
-                if (saved_party_extension_active_) {
-                    battle_runtime_.group_a_auxiliary_sources =
-                        saved_party_sources;
-                }
                 for (std::size_t index = 0U; index < battle_setup_.enemy_count;
                      ++index) {
                     const auto initialized =
@@ -2914,6 +2938,36 @@ public:
                             LegacyBattleGroupBStartupBindingStatus::completed) {
                         openswd3::diagnostics::log_error(
                             "battle enemy reset or MON configuration stopped"
+                        );
+                        battle_setup_ready_ = false;
+                        ok_ = false;
+                        running_ = false;
+                        return false;
+                    }
+                }
+
+                openswd3::battle::bind_legacy_battle_setup_party_owners(
+                    battle_setup_, battle_runtime_
+                );
+                if (saved_party_extension_active_) {
+                    battle_runtime_.group_a_auxiliary_sources =
+                        saved_party_sources;
+                }
+
+                for (std::size_t index = 0U; index < battle_setup_.party_count;
+                     ++index) {
+                    const auto initialized =
+                        battle_group_a_storage_.initialize_party(
+                            index,
+                            battle_final_actor_,
+                            *this,
+                            battle_runtime_.window_token
+                        );
+                    if (initialized !=
+                        openswd3::battle::
+                            LegacyBattleGroupAStartupBindingStatus::completed) {
+                        openswd3::diagnostics::log_error(
+                            "battle party reset or configuration stopped"
                         );
                         battle_setup_ready_ = false;
                         ok_ = false;
@@ -2954,6 +3008,57 @@ public:
         }
 
         return true;
+    }
+
+    openswd3::battle::LegacyBattleGroupAStorage&
+    battle_party_storage() noexcept {
+        return battle_group_a_storage_;
+    }
+
+    openswd3::battle::LegacyBattleGroupAConfigurationDiagnosticReply
+    report_missing_placement(
+        const openswd3::battle::
+            LegacyBattleGroupAConfigurationDiagnosticRequest& request
+    ) override {
+        // 431150 formats source/line/text and uses MB_ABORTRETRYIGNORE|ICONHAND.
+        const std::string message =
+            "\n檔案: C:\\Project\\swd102aDVD\\manrole.cpp\n行數: 第" +
+            std::to_string(request.source_line) +
+            "行\n錯誤: 戰鬥角色actNumber為0!!";
+        const SDL_MessageBoxButtonData buttons[]{
+            {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "中止"},
+            {0U, 4, "重試"},
+            {0U, 5, "忽略"},
+        };
+        const SDL_MessageBoxData dialog{
+            .flags = SDL_MESSAGEBOX_ERROR,
+            .window = &window_,
+            .title = "維護錯誤",
+            .message = message.c_str(),
+            .numbuttons = 3,
+            .buttons = buttons,
+            .colorScheme = nullptr,
+        };
+        int button_id{};
+        do {
+            if (!SDL_ShowMessageBox(&dialog, &button_id)) {
+                openswd3::diagnostics::log_error(SDL_GetError());
+                button_id = 0;
+                break;
+            }
+        } while (button_id <
+                 0);  // Native Abort/Retry/Ignore cannot be dismissed.
+
+        if (button_id == 3) {
+            request_synchronous_close();
+        }
+
+        if (button_id == 3 || button_id == 4) {
+            SDL_TriggerBreakpoint();
+            return {};
+        }
+
+        return {.eax = static_cast<openswd3::compat::u32>(button_id) - 4U};
     }
 
     void clear_party_battle_entry_bits() override {}
@@ -8580,6 +8685,9 @@ private:
     openswd3::battle::LegacyBattleActionDispatchState& battle_action_dispatch_{
         battle_actor_frames_.shared.action
     };
+    openswd3::battle::LegacyBattleGroupAStorage battle_group_a_storage_{
+        battle_runtime_, battle_action_dispatch_
+    };
     openswd3::battle::LegacyBattleActorMetricState& battle_actor_metrics_{
         actor_metric_state()
     };
@@ -9202,6 +9310,7 @@ int main(const int argument_count, char** arguments) {
         ok,
         running
     );
+    shutdown_ports.bind_battle_party_storage(idle_ports.battle_party_storage());
     shutdown_ports.bind_picture_actions(idle_ports.picture_actions());
     shutdown_ports.bind_role_particle_effect(idle_ports.role_particle_effect());
     shutdown_ports.bind_ani_drift_effect(idle_ports.ani_drift_effect());

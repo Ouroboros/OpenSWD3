@@ -18,7 +18,8 @@ LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
          ++index) {
         result.group_a_resource_cleanups[index] =
             release_legacy_battle_group_a_resources(
-                &startup.party[index].resource_cleanup,
+                startup.party[index].configuration.actor_record_token,
+                startup.party[index].secondary_resource_token,
                 port,
                 {
                     .actor_token = object_token,

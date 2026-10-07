@@ -548,6 +548,7 @@ add_executable(
     unit/battle/legacy_battle_actor_frame_sequence_test.cpp
     unit/battle/legacy_battle_actor_lifecycle_test.cpp
     unit/battle/legacy_battle_actor_startup_reset_test.cpp
+    unit/battle/legacy_battle_group_a_startup_reset_test.cpp
     unit/battle/legacy_battle_group_b_startup_reset_test.cpp
     unit/battle/legacy_battle_actor_list_index_commit_test.cpp
     unit/battle/legacy_battle_actor_list_query_test.cpp

@@ -1,6 +1,7 @@
 # 战斗组A角色工作区零化 `0x0046E6A0`
 
-状态：`platform_adapted`。完整LST、typed物理视图、唯一caller边界、验证和inventory双生成均已收敛。
+状态：`platform_adapted`。B11实际字段绑定及本页旧2F0E结论的修正见
+[队伍入战接线](battle-party-startup-runtime-binding.md)。下述全量数字为历史验证。
 
 ## 1. 完整权威范围与ABI
 
@@ -16,16 +17,22 @@
 - `+0x0AF0`起的`0x4C`个dword；
 - `+0x2B24`起的`0x29`个dword。
 
-前后两段恰好组成`+0x2B24..+0x2EBF`连续`0xE7`个dword，但typed实现仍保持先高段、再早期工作区、最后低段的原顺序。`+0x2F0E`和`+0x2F26`不在写入集合，不扩大清零范围。
+前后两段恰好组成`+0x2B24..+0x2EBF`连续`0xE7`个dword，但typed实现仍保持先高段、再早期工作区、最后低段的原顺序。`+0x2F0E`属于`+0x2F0C`的DWORD，随之清零；只有`+0x2F26`不在写入集合。
 
 ## 3. typed物理owner与caller边界
 
-`LegacyBattleGroupAWorkspaceState`以`0x4C`个早期dword、`0xE7`个后期dword、显式u32和十一项尾u16承接完整写集，并保留两个相邻未写word用于回归。该状态挂入`LegacyBattleStartupState::party`的每个组A角色记录，作为后续构造、帧处理和关闭路径可复用的唯一物理视图；对象地址只作为`compat::u32` token返回，不转换为主机指针。
+`LegacyBattleGroupAWorkspaceState`保存早期、后期工作区及显式字段，挂入startup.party。
+删除独立2F0E字段，避免与2F0C DWORD相矛盾。临时bindings同时借用实际action、
+final_processing、item_effect、particle字段，在原清零位置发布对应写入。
+包括七条动作记录、派生字段和缓存物品ID；保留2EF8计数与2F26 tick。
+对象地址只作为compat::u32 token返回，不转换为主机指针。
 
-唯一caller是尚未审计的`0x0046E730`，它在保存EBX/ESI/EDI并把this移入EBX后立即调用本函数，随后完全重建EDX/EAX/ECX，因此不消费返回寄存器。当前已关闭startup只通过`configure_party_actor`窄端口隔离整个caller；本项不穿透或伪造caller余下复制、字段夹值和诊断行为。第172项审计caller时必须直接组合本typed零化器并删除对应内部opaque边界。
+唯一caller为0046E730，已直接组合本函数；核心startup及SDL入战配置均传入
+对应的临时字段bindings。workspace写入早于placement复制、来源读取和诊断。
+caller随后重建EDX/EAX/ECX，不消费本函数返回寄存器。
 
 ## 4. 验证状态
 
-定向测试用非零模式填满全部触及范围，验证三段精确清零、十二项显式清零、两个相邻word保持、各段计数和固定返回寄存器；另通过startup组A角色记录直接调用，验证写入的是startup唯一物理视图而非孤立副本。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning；app仅出现既有ALSA开发库CMake提示。
+定向测试用非零模式填满全部触及范围，验证三段精确清零、十二项显式清零、相邻word保持、各段计数和固定返回寄存器（旧2F0E保持断言错误，当前已修正）；另通过startup组A角色记录直接调用，验证写入的是startup唯一物理视图而非孤立副本。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning；app仅出现既有ALSA开发库CMake提示。
 
 inventory生成器连续双跑逐字节一致，正式计数为`171/422 = 162 platform_adapted + 9 assembly_exact + 251 pending_audit`，SHA256为`d879fea89c0e09f1ae20585691376351145d022eae2143669394d4c03e2c0aa0`。原版完整组A对象、三段物理内存和caller寄存器联合捕获后端缺失，`original_diff_verified`登记为`blocked_runtime_oracle`。

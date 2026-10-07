@@ -171,16 +171,25 @@ void bind_legacy_battle_setup_party_owners(
     const LegacyBattleSetupState& setup, LegacyBattleStartupState& startup
 ) noexcept {
     startup.actor_metrics.group_a_count = setup.party_count;
+    startup.mirror_mode = setup.mirrored ? 1U : 0U;
     for (std::size_t index = 0U; index < setup.party.size(); ++index) {
         const auto& source = setup.party[index];
         auto& actor = startup.party[index];
         startup.action_mode_source.actor_label_indices[index] =
             setup.party_character_indices[index];
         actor.role_id = source.resource_id;
-        actor.position_x = source.screen_x;
-        actor.position_y = source.screen_y;
+        // Setup exposes final coordinates. The actor caller performs the
+        // original mirror stores only after its reset has returned.
+        actor.placement_position_x = setup.mirrored
+            ? static_cast<compat::u16>(0x0280U - source.screen_x)
+            : source.screen_x;
+        actor.placement_position_y = source.screen_y;
         actor.active = source.active ? 1U : 0U;
-        startup.party_offsets[index * 2U] = source.anchor_x;
+        startup.party_offsets[index * 2U] = setup.mirrored
+            ? std::bit_cast<compat::i32>(
+                  0x0270U - std::bit_cast<compat::u32>(source.anchor_x)
+              )
+            : source.anchor_x;
         startup.party_offsets[index * 2U + 1U] = source.anchor_y;
     }
 }
