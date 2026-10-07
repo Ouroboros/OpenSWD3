@@ -490,6 +490,7 @@ struct Fixture {
         attack_order_adjacent_record{};
 
     Fixture() {
+        startup.window_rectangle = {0, 0, 640, 480};
         startup.group_b_lifecycle = std::make_unique<std::array<
             openswd3::battle::LegacyBattleActorGroupBElementState,
             openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
@@ -1876,7 +1877,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         state.action_runtime_flags = 0x8000U;
         state.group_a_action_execution[0U].primary_action_record.field_8c = 1U;
         Fixture fixture;
-        fixture.raster.surface.width = 641;
+        fixture.startup.window_rectangle[2U] = 641;
         DispatchPort port;
         port.battle_pair_primary_value() = 9U;
         port.action = 1U;

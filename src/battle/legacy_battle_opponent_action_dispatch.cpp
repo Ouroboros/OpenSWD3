@@ -205,9 +205,15 @@ private:
     LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result
 ) noexcept {
-    const u32 width = static_cast<u32>(context.raster.surface.width);
-    const u32 height = static_cast<u32>(context.raster.surface.height);
-    const u32 requested_pixels = width * height;
+    // This path reads startup globals; an absent optional binding is a stop.
+    if (context.startup == nullptr) {
+        result.status =
+            LegacyBattleActionDispatchStatus::framebuffer_typed_stop;
+        return false;
+    }
+
+    const u32 requested_pixels =
+        legacy_battle_window_fill_byte_count(*context.startup) >> 1U;
     state.frame_refresh_pending = 1U;
     auto pixels = context.framebuffer.physical_pixels();
     const std::size_t prefix =
@@ -488,8 +494,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 context
                     .actor_action_mode_requests[result.actor_action_mode_calls];
             const u32 mode_edx = result.framebuffer_clear_calls != 0U
-                ? static_cast<u32>(context.raster.surface.width) *
-                    static_cast<u32>(context.raster.surface.height) * 2U
+                ? legacy_battle_window_fill_byte_count(*context.startup)
                 : seeded_mode.entry_edx;
             if (!apply_legacy_battle_actor_action_mode_call(
                     state,

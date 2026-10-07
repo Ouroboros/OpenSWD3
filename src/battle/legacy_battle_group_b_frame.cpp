@@ -753,24 +753,25 @@ void merge_nested(
 }
 
 [[nodiscard]] bool fill_completion_surface(
-    LegacyBattleGroupBFrameState& state,
+    LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result
 ) noexcept {
-    const u32 pixels = to_bits(state.completion_rect_right) *
-        to_bits(state.completion_rect_bottom);
-    const u32 byte_count = pixels * 2U;
-    const u32 word_count = byte_count >> 1U;
-    if (word_count == 0U) {
-        return true;
-    }
-    if (state.completion_surface_token == 0U) {
+    // The optional startup binding is required at this original global read.
+    if (context.startup == nullptr) {
         result.status =
             LegacyBattleActionDispatchStatus::framebuffer_typed_stop;
         return false;
     }
-    const std::size_t owned = state.completion_surface.size();
+    const u32 word_count =
+        legacy_battle_window_fill_byte_count(*context.startup) >> 1U;
+    if (word_count == 0U) {
+        return true;
+    }
+
+    auto pixels = context.framebuffer.physical_pixels();
+    const std::size_t owned = pixels.size();
     const std::size_t written = std::min<std::size_t>(word_count, owned);
-    std::fill_n(state.completion_surface.begin(), written, 0xFFFFU);
+    std::fill_n(pixels.begin(), written, 0xFFFFU);
     if (static_cast<u32>(owned) < word_count) {
         result.status =
             LegacyBattleActionDispatchStatus::framebuffer_typed_stop;
@@ -2342,7 +2343,7 @@ action_decision_done:
                         action.group_a_to_actor[group_b_index] = group_b_index;
                         state.completion_selected = 0xFFFFFFFFU;
                         state.completion_gate = 1U;
-                        if (!fill_completion_surface(state, result)) {
+                        if (!fill_completion_surface(context, result)) {
                             return result;
                         }
                     }

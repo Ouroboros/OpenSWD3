@@ -660,6 +660,32 @@ template <typename Range>
 
 void test_battle_startup(openswd3::test::Context& test) {
     {
+        struct WindowVector {
+            std::array<i32, 4> rectangle;
+            u32 bytes;
+        };
+        const std::array vectors{
+            WindowVector{{12, 34, 3, 1}, 6U},
+            WindowVector{{12, 34, 3, 2}, 12U},
+            WindowVector{{0, 0, 0, 3}, 0U},
+            WindowVector{{0, 0, 0x40000000, 2}, 0U},
+            WindowVector{{0, 0, 0x40000001, 2}, 4U},
+            WindowVector{{0, 0, -1, 1}, 0xFFFFFFFEU},
+            WindowVector{{0, 0, -1, -1}, 2U},
+        };
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        for (const auto& vector : vectors) {
+            state->window_rectangle = vector.rectangle;
+            test.expect_true(
+                openswd3::battle::legacy_battle_window_fill_byte_count(
+                    *state
+                ) == vector.bytes,
+                "window fill uses right and bottom with DWORD multiply and byte-shift wrapping"
+            );
+        }
+    }
+
+    {
         auto state = std::make_unique<LegacyBattleStartupState>();
         state->actor_metrics.group_a_count = 7U;
         state->mirror_mode = 0x10001U;

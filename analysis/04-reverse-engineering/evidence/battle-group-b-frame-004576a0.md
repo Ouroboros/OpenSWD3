@@ -148,7 +148,13 @@ completion selected = 0xFFFFFFFF
 completion gate = 1
 ```
 
-再读取目标surface token并按低32位`right*bottom*2`计算字节数，以`rep stosd + rep stosb`写全`0xFF`。typed实现使用u16 span得到同一全1位形：零token在首字节前停止；owned span不足时写满前缀后在首个越界字节停止；三项状态副作用均已发生。
+随后按共享入战矩形的低32位`right*bottom*2`计算字节数，原代码向
+`4CD76C`画布执行`rep stosd + rep stosb`写全FF。
+当前typed实现直接借用context的实际画布，零字节不写，owned范围不足则
+保留已写前缀后停止；上述三项状态副作用均已发生。
+旧独立矩形与surface token/span已删除。宿主画布构造保证有效存储，
+不再用独立零token模拟实际指针；原版非法地址异常未取得动态差分。
+平台边界和验证见[入战矩形接线](battle-window-rectangle-runtime-binding.md)。
 
 ## 11. 公共最终尾
 
@@ -186,7 +192,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - 普通status直接读取组B profile双bit、陈旧EAX/EDX与actor typed-stop前缀；
 - 对手动作分派直连、未完成返回陈旧EBX写入及完整cleanup；
 - 两处completion阈值同步直接写startup组A进度、旧`0x00478370`零调用、全目标分支保留reset EAX高word、单目标分支保留角色ECX高word，以及读取/写入停点的表/道具/目标reset后缀阻断；
-- completion surface零token首字节停点、状态前缀与越界停点；
+- completion surface实际画布的状态前缀、短缓冲停止和字节回绕零；
 - pending effect及final actor成功尾；
 - profile真实访问typed-stop。
 

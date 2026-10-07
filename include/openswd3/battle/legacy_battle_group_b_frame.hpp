@@ -37,10 +37,6 @@ struct LegacyBattleGroupBFrameState {
     std::array<compat::u32, 10> group_a_completion_slots{};
     std::array<compat::u16, 161> completion_value_table{};
     compat::u32 completion_resource_token{};
-    compat::i32 completion_rect_right{};
-    compat::i32 completion_rect_bottom{};
-    compat::u32 completion_surface_token{};
-    std::span<compat::u16> completion_surface{};
     compat::u32 completion_selected{0xFFFFFFFFU};
     compat::u32 completion_gate{};
 

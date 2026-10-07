@@ -6,6 +6,8 @@
 
 入战、角色收尾及全局重置共用菜单的四项装备选择缓存，定向验证通过，见
 [装备选择缓存](../evidence/battle-equipment-selection-cache-004ff578.md)。
+入战矩形已接SDL逻辑画布，清屏和调试标记共用此状态，定向验证通过，见
+[入战矩形接线](../evidence/battle-window-rectangle-runtime-binding.md)。
 
 B11的MON文件端口已接入实际打开、定位与读取，独立发布验证见
 [文件接线证据](../evidence/battle-mon-file-runtime-binding.md)。

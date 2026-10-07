@@ -518,10 +518,8 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
                 result.return_edx = position.return_edx;
                 return result;
             }
-            const auto& geometry = bindings.framebuffer.geometry();
-            const u32 raster_right_bits = signed_bits(geometry.clip_left) +
-                signed_bits(geometry.clip_width);
-            const i32 raster_right = std::bit_cast<i32>(raster_right_bits);
+            const u32 raster_right_bits =
+                signed_bits(bindings.startup.window_rectangle[2U]);
             const u32 row_offset = wrapping_mul(
                 signed_bits(static_cast<i32>(state.marker_row)),
                 raster_right_bits
@@ -552,7 +550,8 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
                 if (!write_marker_pixel(bindings, result, top)) {
                     return result;
                 }
-                const u32 bottom = top + signed_bits(raster_right);
+                const u32 bottom =
+                    top + signed_bits(bindings.startup.window_rectangle[2U]);
                 if (!write_marker_pixel(bindings, result, bottom)) {
                     return result;
                 }

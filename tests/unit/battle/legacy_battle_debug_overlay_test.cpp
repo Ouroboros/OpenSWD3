@@ -130,6 +130,7 @@ struct Fixture {
         const LegacySurfaceGeometry& surface = LegacySurfaceGeometry{}
     )
         : framebuffer(surface) {
+        startup.window_rectangle = {0, 0, surface.width, surface.height};
         startup.group_b_lifecycle = std::make_shared<std::array<
             openswd3::battle::LegacyBattleActorGroupBElementState,
             openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
@@ -163,6 +164,36 @@ struct Fixture {
 }  // namespace
 
 void test_battle_debug_overlay(openswd3::test::Context& test) {
+    {
+        Fixture fixture({.pitch_bytes = 16, .width = 8, .height = 4});
+        fixture.hotkeys.toggle_5244e0 = 1U;
+        fixture.hotkeys.toggle_53af68 = 1U;
+        fixture.metrics.group_b_count = 1U;
+        fixture.startup.window_rectangle = {12, 34, 3, 99};
+        fixture.startup.enemies[0U].progress.progress = 30U;
+        (*fixture.startup.group_b_lifecycle)[0U].action_execution.position_y =
+            1U;
+        auto pixels = fixture.framebuffer.physical_pixels();
+        std::fill(pixels.begin(), pixels.end(), 0x1234U);
+        OverlayPort port;
+        port.metrics = &fixture.metrics;
+        const auto result =
+            draw_legacy_battle_debug_overlay(fixture.bindings(), port);
+        test.expect_true(
+            result.status == LegacyBattleDebugOverlayStatus::completed &&
+                result.marker_actors == 1U && result.marker_pixels == 4U,
+            "debug marker rows use the shared window right edge rather than framebuffer width"
+        );
+        for (std::size_t index = 0U; index < pixels.size(); ++index) {
+            const bool marked =
+                index == 4U || index == 5U || index == 7U || index == 8U;
+            test.expect_true(
+                pixels[index] == (marked ? 0xEEEEU : 0x1234U),
+                "debug marker addressing ignores window left top and bottom and preserves other pixels"
+            );
+        }
+    }
+
     {
         Fixture fixture;
         fixture.overlay.text_buffer[0] = 'x';

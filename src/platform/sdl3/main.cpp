@@ -2866,6 +2866,14 @@ public:
             }
         );
 
+        // 451DD7: retain the game's logical rectangle across host resizes.
+        battle_runtime_.window_rectangle = {
+            0,
+            0,
+            game_framebuffer_.geometry().surface.width,
+            game_framebuffer_.geometry().surface.height
+        };
+
         // 451DDD..451E0D: 16-point text advance, then both palette words.
         static_cast<void>(text_renderers_.set_horizontal_advance(16U, 16));
         battle_runtime_.primary_text_color =

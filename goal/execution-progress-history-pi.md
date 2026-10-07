@@ -4,6 +4,16 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：入战矩形与清屏、调试标记
+
+SDL在原顺序发布逻辑矩形，全部清屏与调试标记读取共享状态。
+保留DWORD字节回绕、标记逐行读取及短缓冲失败前缀；组B收尾写实际画布。
+core/ASan setup与actor_frame_316各1/1、SDL构建通过。
+反馈回调改矩形及非画布跨度的消费向量加入后，setup的core/ASan再次通过。
+证据见[入战矩形接线](../analysis/04-reverse-engineering/evidence/battle-window-rectangle-runtime-binding.md)。
+未启动游戏，未新增原版动态差分；完整初始化和实际续玩仍未验收。
+B10保持315/422，316 pending_audit。
+
 ## B11：战斗装备类别选择缓存
 
 入战、角色收尾和全局重置写入菜单实际读取的四项缓存。

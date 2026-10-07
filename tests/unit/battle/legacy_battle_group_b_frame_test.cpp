@@ -168,7 +168,11 @@ struct Fixture {
     openswd3::battle::LegacyBattleIntensityEffectRecord
         attack_order_adjacent_record{};
 
-    Fixture() {
+    explicit Fixture(
+        const openswd3::rendering::LegacySurfaceGeometry& surface = {}
+    )
+        : framebuffer(surface) {
+        startup->window_rectangle = {0, 0, surface.width, surface.height};
         static_cast<void>(
             openswd3::rendering::initialize_legacy_raster_geometry(
                 raster, framebuffer.geometry().surface
@@ -2404,12 +2408,9 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 0;
-        state.completion_rect_right = 2;
-        state.completion_rect_bottom = 2;
-        state.completion_surface_token = 0x1234U;
-        std::array<u16, 2> pixels{};
-        state.completion_surface = pixels;
-        Fixture fixture;
+        Fixture fixture({.pitch_bytes = 4, .width = 2, .height = 1});
+        fixture.startup->window_rectangle = {0, 0, 2, 2};
+        auto pixels = fixture.framebuffer.physical_pixels();
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
@@ -2443,11 +2444,10 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
-        state.completion_rect_right = 1;
-        state.completion_rect_bottom = 1;
-        std::array<u16, 1> pixels{0x1234U};
-        state.completion_surface = pixels;
-        Fixture fixture;
+        Fixture fixture({.pitch_bytes = 2, .width = 1, .height = 1});
+        fixture.startup->window_rectangle = {0, 0, 0x40000000, 2};
+        auto pixels = fixture.framebuffer.physical_pixels();
+        pixels[0] = 0x1234U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
@@ -2465,12 +2465,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::framebuffer_typed_stop &&
+            result.status == LegacyBattleActionDispatchStatus::completed &&
                 pixels[0] == 0x1234U &&
                 state.shared.action.group_a_to_actor[0] == 0U &&
                 state.completion_gate == 1U,
-            "zero completion surface token stops before first byte but after state publication"
+            "wrapped zero-byte completion leaves the shared framebuffer untouched after state publication"
         );
     }
 

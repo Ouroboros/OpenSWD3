@@ -210,6 +210,7 @@ struct Fixture {
     openswd3::battle::LegacyBattleTargetSelectionRuntimeState target_runtime;
 
     Fixture() {
+        startup.window_rectangle = {0, 0, 640, 480};
         static_cast<void>(
             openswd3::rendering::initialize_legacy_raster_geometry(
                 raster, framebuffer.geometry().surface

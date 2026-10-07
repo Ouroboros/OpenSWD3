@@ -78,11 +78,14 @@
 
 每个动态组B对象先调用位置查询，把两项输出写入共享i16 X/row；未写输出保持上一对象值。随后：
 
-1. callee后重读唯一framebuffer几何的signed `Rect.right`，再与signed row执行低32位乘法；
+1. 位置callee后读取startup共享矩形的`Rect.right`，与signed row执行低32位乘法；
 2. 直接读取startup enemies对应唯一progress owner的`actor+0x2A12`低word，以startup timing唯一阈值计算`trunc(progress/threshold*62)`，只保留返回低word；
 3. 宽度非零时按列递增；
-4. 每列先写`row*width + X + column`，再写加一个完整raster width的下一行；
+4. 每列先写`row*right + X + column`，再重读共享`Rect.right`并写对应下一行；
 5. 两个像素均固定写u16 `0xEEEE`。
+
+共享矩形与逻辑画布接线见[入战矩形证据](battle-window-rectangle-runtime-binding.md)。
+此前使用framebuffer裁剪几何的说明已撤销。
 
 每个像素只在原始实际store点检查owned framebuffer。第一行成功而第二行越界时保留第一行像素；失败对象不计为完成。宽度0不访问framebuffer。对象完成后重新读取动态组B数量。
 

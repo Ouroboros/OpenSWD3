@@ -359,6 +359,15 @@ struct LegacyBattleStartupState {
     compat::u16 final_subtract_word{};
 };
 
+// Rect.bottom * Rect.right, followed by SHL 1; preserve both DWORD wraps.
+[[nodiscard]] constexpr compat::u32 legacy_battle_window_fill_byte_count(
+    const LegacyBattleStartupState& state
+) noexcept {
+    const auto bottom = static_cast<compat::u32>(state.window_rectangle[3U]);
+    const auto right = static_cast<compat::u32>(state.window_rectangle[2U]);
+    return (bottom * right) << 1U;
+}
+
 // 451D06..451D88: publish presence, count and source mapping before C9.
 template <typename Query>
 void initialize_legacy_battle_startup_party(

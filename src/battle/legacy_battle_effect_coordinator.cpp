@@ -497,10 +497,8 @@ public:
 
     [[nodiscard]] bool fill_framebuffer() {
         ++result.framebuffer_fill_calls;
-        const auto& geometry = framebuffer_.geometry().surface;
-        const u32 width = std::bit_cast<u32>(geometry.width);
-        const u32 height = std::bit_cast<u32>(geometry.height);
-        const u32 requested = width * height;
+        const u32 requested =
+            legacy_battle_window_fill_byte_count(startup_) >> 1U;
         auto pixels = framebuffer_.physical_pixels();
         const std::size_t owned = pixels.size();
         const std::size_t prefix = std::min<std::size_t>(requested, owned);

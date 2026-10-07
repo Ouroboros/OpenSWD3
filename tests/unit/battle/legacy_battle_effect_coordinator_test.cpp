@@ -30,6 +30,10 @@ public:
     [[nodiscard]] LegacyBattleEffectCallReply
     invoke(const LegacyBattleEffectCallRequest& request) override {
         calls.push_back(request);
+        if (request.callee_token == kFeedback && feedback_startup != nullptr) {
+            feedback_startup->window_rectangle = feedback_rectangle;
+        }
+
         auto found = replies.find(request.callee_token);
         if (found != replies.end() && !found->second.empty()) {
             const auto reply = found->second.front();
@@ -57,6 +61,8 @@ public:
     std::vector<LegacyBattleEffectCallRequest> calls;
     std::map<u32, std::deque<LegacyBattleEffectCallReply>> replies;
     u32 feedback_return{};
+    openswd3::battle::LegacyBattleStartupState* feedback_startup{};
+    std::array<openswd3::compat::i32, 4> feedback_rectangle{};
 };
 
 void seed_completed_records(LegacyBattleEffectCoordinatorState& state) {
@@ -87,6 +93,12 @@ void set_profile_word(
     const openswd3::battle::LegacyBattleEffectCoordinatorRequest& request = {}
 ) {
     openswd3::battle::LegacyBattleStartupState fallback_startup;
+    fallback_startup.window_rectangle = {
+        0,
+        0,
+        framebuffer.geometry().surface.width,
+        framebuffer.geometry().surface.height
+    };
     std::array<openswd3::battle::LegacyBattleRewardScaleActorState, 8>
         fallback_reward{};
     auto& startup =
@@ -909,5 +921,57 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 framebuffer.physical_pixels().back() == 0xFFFFU,
             "successful feedback fills the complete physical framebuffer with all-ones pixels"
         );
+    }
+
+    {
+        struct FillVector {
+            openswd3::compat::i32 right;
+            openswd3::compat::i32 bottom;
+            std::size_t written;
+            bool stopped;
+        };
+        const std::array vectors{
+            FillVector{3, 1, 3U, false},
+            FillVector{4, 3, 8U, true},
+            FillVector{0x40000000, 2, 0U, false},
+            FillVector{-1, 1, 8U, true},
+            FillVector{-1, -1, 1U, false},
+        };
+        for (const auto& vector : vectors) {
+            LegacyBattleEffectCoordinatorState state;
+            EffectCoordinatorPort port;
+            openswd3::rendering::LegacyFramebuffer framebuffer(
+                {.pitch_bytes = 8, .width = 4, .height = 2}
+            );
+            auto pixels = framebuffer.physical_pixels();
+            std::fill(pixels.begin(), pixels.end(), 0x1234U);
+            auto startup =
+                std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+            startup->window_rectangle = {0, 0, 8, 1};
+            port.feedback_startup = startup.get();
+            port.feedback_rectangle = {12, 34, vector.right, vector.bottom};
+            port.actor_metric_state().priority_actor_index = 8U;
+            port.actor_metric_state().group_a_mode = 0U;
+            seed_completed_records(state);
+            port.feedback_return = 1U;
+            const auto result =
+                run(state, port, framebuffer, 0x8000U, 0U, startup.get());
+            test.expect_true(
+                result.status ==
+                        (vector.stopped ? LegacyBattleEffectCoordinatorStatus::
+                                              framebuffer_typed_stop
+                                        : LegacyBattleEffectCoordinatorStatus::
+                                              completed) &&
+                    result.framebuffer_fill_calls == 1U,
+                "feedback fill reads the post-callback window rectangle and stops only beyond owned storage"
+            );
+            for (std::size_t index = 0U; index < pixels.size(); ++index) {
+                test.expect_true(
+                    pixels[index] ==
+                        (index < vector.written ? 0xFFFFU : 0x1234U),
+                    "window byte-count wrapping preserves the exact written prefix and untouched suffix"
+                );
+            }
+        }
     }
 }
