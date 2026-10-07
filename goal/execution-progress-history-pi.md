@@ -4,6 +4,15 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：战斗脚本共享文件生命周期
+
+入战、换页和退出清理共用实际文件，保留普通失败、短读与回绕顺序。
+加载开关采用原初值，清理后的case1读取当前游标；移除入战脚本状态整体清空。
+真实短文件、重复进入、换页、关闭和battle98，以及core/ASan setup与SDL构建通过。
+原栈字节缺失与动态分配仍有宿主边界，未运行游戏或新增原版动态差分。
+详见[脚本文件证据](../analysis/04-reverse-engineering/evidence/battle-script-file-runtime-binding.md)。
+B10保持315/422和316 pending_audit；完整战斗与实际续玩继续进行。
+
 ## B11：FFD实际加载与旧记录保留
 
 SDL与核心startup共用实际头和记录读取，普通失败不再被总加载器截断。

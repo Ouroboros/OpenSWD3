@@ -53,10 +53,9 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_one() {
     if (result_.status != LegacyBattleScriptDispatchStatus::completed) {
         return finish(eax_);
     }
-    const u32 resume_cursor = workspace_.cursor;
     invoke(LegacyBattleScriptDispatchCall::global_reset);
     shutdown_script_direct();
-    workspace_.cursor = wrapping_add(resume_cursor, 4U);
+    workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
     set_low_word(workspace_.waiting_state, 0U);
     bindings_.shared.script_completion_gate = 1U;
     return finish(static_cast<u32>(workspace_.value_a));

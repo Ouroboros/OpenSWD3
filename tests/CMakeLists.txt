@@ -698,6 +698,7 @@ add_executable(
     unit/battle/legacy_battle_single_effect_frame_test.cpp
     unit/battle/legacy_battle_status_indicator_test.cpp
     unit/battle/legacy_battle_startup_test.cpp
+    unit/battle/legacy_battle_script_file_test.cpp
     unit/battle/legacy_battle_surface_blend_test.cpp
     unit/battle/legacy_battle_talisman_result_panel_test.cpp
     unit/battle/legacy_battle_target_ready_test.cpp
@@ -734,6 +735,7 @@ set_source_files_properties(
     unit/battle/legacy_battle_definition_archive_test.cpp
     unit/battle/legacy_battle_mon_file_runtime_test.cpp
     unit/battle/legacy_battle_startup_test.cpp
+    unit/battle/legacy_battle_script_file_test.cpp
     PROPERTIES COMPILE_DEFINITIONS
         "OPENSWD3_TEST_ARTIFACT_ROOT=\"${PROJECT_SOURCE_DIR}/build/tmp/runtime\""
 )

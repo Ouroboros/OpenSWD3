@@ -55,6 +55,8 @@ struct LegacyBattleAssets {
     compat::u32 figtalk_actual_size{};
     compat::u32 figtalk_page_offset{};
     compat::u32 script_capacity{};
+    compat::u32 script_file_handle{};  // 0x0053CCE0, initially BSS zero
+    compat::u32 script_file_opened{};  // 0x0053CEA8
     compat::u32 record_actual_size{};
     std::filesystem::path figtalk_path;
     std::array<compat::u8, kLegacyBattleScriptWindowSize> script{};
@@ -75,6 +77,8 @@ struct LegacyBattleAssetLoadResult {
 // Preserve the original case-insensitive filename lookup at the host boundary.
 [[nodiscard]] std::filesystem::path
 resolve_legacy_battle_definition_path(const std::filesystem::path& data_root);
+[[nodiscard]] std::filesystem::path
+resolve_legacy_battle_script_path(const std::filesystem::path& data_root);
 
 // sub_46E0B0, with the persistent Win32 file handle adapted to a scoped file.
 [[nodiscard]] LegacyBattleAssetStatus load_legacy_battle_script_window(

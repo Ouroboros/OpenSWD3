@@ -10,6 +10,8 @@
 [入战矩形接线](../evidence/battle-window-rectangle-runtime-binding.md)。
 FFD实际文件读取已接SDL与共享startup记录，失败保留和真实资产验证通过，见
 [FFD接线](../evidence/battle-definition-runtime-binding.md)。
+战斗脚本加载、换页与关闭共用实际文件，定向验证通过，见
+[脚本文件生命周期](../evidence/battle-script-file-runtime-binding.md)。
 
 B11的MON文件端口已接入实际打开、定位与读取，独立发布验证见
 [文件接线证据](../evidence/battle-mon-file-runtime-binding.md)。

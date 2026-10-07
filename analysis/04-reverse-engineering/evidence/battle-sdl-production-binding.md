@@ -2,13 +2,21 @@
 
 状态：`in_progress`。前一核心等待与结果标志修正已以`cde7584d`提交推送，阶段TG脚本退出0。本单元必须覆盖真实输入、角色更新、绘制、战斗结束及返回路径，不能以通过输入前缀或删除typed-stop替代完整战斗。
 
+## 脚本文件生命周期
+
+入战、换页与退出清理共用实际打开的FIGTALK文件。
+保留普通失败后的顺序，case1改用清理后的当前游标。
+真实文件与battle98、core/ASan setup及SDL构建通过，见
+[文件生命周期](battle-script-file-runtime-binding.md)。
+未知原栈字节与动态分配仍有宿主边界，完整帧及实际续玩未验收。
+
 ## FFD实际加载
 
 SDL与核心startup共用头、记录两次读取，普通失败和短读保留原存储。
 建场及诊断直接消费startup记录，不再读取独立assets记录。
 真实混合大小写文件、短读、缺失文件与再次进入，以及battle98通过验证。
 core/ASan setup与SDL构建通过，见[FFD接线](battle-definition-runtime-binding.md)。
-FIGTALK读取与完整生命周期仍未验收。
+其后FIGTALK文件接线见上节；完整战斗生命周期仍未验收。
 
 ## 装备类别选择缓存
 

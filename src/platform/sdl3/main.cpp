@@ -2813,8 +2813,6 @@ public:
             battle_target_selection_runtime_state()
         );
         auto_dialog_input_state_ = {};
-        battle_script_workspace_ = {};
-        battle_script_shared_ = {};
         battle_frame_coordinator_state_ = {};
         battle_frame_input_resolution_state() = {};
         openswd3::battle::reset_legacy_battle_dispatch_preserving_actors(
@@ -2940,12 +2938,18 @@ public:
         );
 
         battle_assets_.battle_id = battle_id;
-        const auto script_status =
-            openswd3::battle::load_legacy_battle_script_window(
-                data_directory_, battle_id, battle_assets_
+        const auto script_load =
+            openswd3::battle::load_legacy_battle_script_window_file(
+                battle_assets_,
+                battle_script_workspace_.cursor,
+                battle_script_files_,
+                {.data_root = data_directory_,
+                 .battle_id = battle_id,
+                 .enabled = battle_script_shared_.script_completion_gate,
+                 .offset_stack_bytes = std::nullopt}
             );
-        battle_assets_ready_ =
-            script_status == openswd3::battle::LegacyBattleAssetStatus::ready;
+        battle_assets_ready_ = script_load.status ==
+            openswd3::battle::LegacyBattleScriptWindowStatus::completed;
         openswd3::battle::LegacyBattleStartupResult definition_load;
 
         if (battle_assets_ready_) {
@@ -3238,7 +3242,8 @@ public:
         message.append(std::to_string(battle_id));
         message.append(", status=");
         message.append(
-            openswd3::battle::legacy_battle_asset_status_message(script_status)
+            battle_assets_ready_ ? "ready"
+                                 : "FIGTALK offset stack bytes unavailable"
         );
         if (battle_assets_ready_) {
             message.append(", script_bytes=");
@@ -3443,16 +3448,15 @@ public:
             next_battle_script_token_ += 0x100U;
             break;
         case LegacyBattleScriptDispatchCall::script_page_load: {
-            const auto status =
-                openswd3::battle::load_legacy_battle_script_page(
-                    std::bit_cast<openswd3::compat::i32>(request.arguments[0]),
-                    battle_assets_
+            const auto read =
+                openswd3::battle::load_legacy_battle_script_page_file(
+                    battle_assets_,
+                    battle_script_workspace_.cursor,
+                    battle_script_files_,
+                    request.arguments[0]
                 );
-            reply.eax =
-                status == openswd3::battle::LegacyBattleAssetStatus::ready ? 1U
-                                                                           : 0U;
-            reply.typed_stop =
-                status != openswd3::battle::LegacyBattleAssetStatus::ready;
+            reply.eax = read.eax;
+            reply.typed_stop = read.destination_unavailable;
             break;
         }
         case LegacyBattleScriptDispatchCall::random_bounded:
@@ -3920,6 +3924,7 @@ public:
             battle_script_workspace_,
             {
                 .assets = battle_assets_,
+                .script_files = battle_script_files_,
                 .startup = battle_runtime_,
                 .action = battle_action_dispatch_,
                 .metrics = battle_actor_metrics_,
@@ -8972,6 +8977,7 @@ private:
         openswd3::input_time_rng::LegacySecondaryRng& random_;
     } world_runtime_random_{secondary_rng_};
     openswd3::battle::LegacyBattleAssets battle_assets_;
+    openswd3::battle::LegacyBattleScriptFileRuntime battle_script_files_;
     bool battle_assets_ready_{};
     openswd3::battle::LegacyBattleSetupState battle_setup_;
     bool battle_setup_ready_{};

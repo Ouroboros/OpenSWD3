@@ -157,9 +157,11 @@ SDL证据为真实引用绑定的源码追溯和构建，不冒充完整战斗�
 
 原451E60把battle ID低WORD传给`46E0B0`，该调用在FFD之前。
 正常文件路径读取FIGTALK偏移，再分配、清零并读取8000h脚本窗口。
-核心startup仍通过准备callee端口表示该步；SDL调用现有窗口读取器。
-窗口持久句柄、开关、两次seek及失败语义仍需独立修正，不能把正常路径
-的偏移等式当作完整callee已还原。窗口仍由`LegacyBattleAssets::script`持有。
+核心startup仍通过准备callee端口表示该步；SDL现调用持久文件读取器。
+加载、换页与关闭共用句柄，保留开关、两次seek和普通失败后继续的顺序，
+见[文件生命周期](battle-script-file-runtime-binding.md)。
+原动态分配和未读栈字节仍有明确宿主边界；不能据此宣称完整callee动态验收。
+窗口仍由`LegacyBattleAssets::script`持有。
 
 之后拼接battle.ffd，宿主保留既有大小写文件名适配。
 核心与SDL现共用[FFD实际加载入口](battle-definition-runtime-binding.md)，

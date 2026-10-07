@@ -1,36 +1,45 @@
 # 战斗脚本关闭与状态重置 `0x0046E260`
 
-状态：`platform_adapted`。完整主块、外部FUNCTION CHUNK、typed重置、两个caller、验证和inventory双生成均已收敛。
+状态沿用`platform_adapted`。文件生命周期接线及验证见
+[共享文件生命周期](battle-script-file-runtime-binding.md)。
 
-## 1. 完整权威范围
+## 1. 权威范围
 
-主块为`0x0046E260..0x0046E285`，外部`FUNCTION CHUNK`为`0x0046E390..0x0046E489`；两部分合计119行、53条实际指令、2个call、3个跳转和1个返回点。chunk属于本函数，不能计入物理相邻函数。
+主块46E260..46E285；外部chunk46E390..46E489属于本函数。
+句柄!=FFFFFFFF才CloseHandle，包括句柄0。返回后写FFFFFFFF；
+无论是否调用CloseHandle，都将opened清0，再进入重置chunk。
 
-主块先读取共享FIGTALK句柄。句柄不等于`0xFFFFFFFF`时调用`CloseHandle`并把句柄写回全1；无论是否关闭都清文件已开门，然后跳入外部chunk。
+## 2. 重置与释放
 
-## 2. chunk精确重置集合
+chunk先将帧门和脚本加载开关写1，并快照分配基址53CE88。
+随后按原宽度清理：
 
-chunk先把帧门与脚本完成门写1，再以零寄存器按权威宽度清理：
+- 四个连续DWORD辅助值、value B/C、坐标及两组WORD坐标；
+- packed actor的两个WORD、等待参数及等待状态低WORD；
+- 两个packed值的四个WORD、四项独立WORD；
+- list count、动态等待、页面offset、opened与shutdown辅助值。
 
-- 四个连续dword脚本辅助值；
-- 两个独立i32工作值；
-- X/Y坐标dword、两组坐标word；
-- packed actor两个word、等待参数word、等待状态低word；
-- 两个packed值各自两个word、四个独立word；
-- list count、动态等待dword、page offset、一个辅助dword和文件已开门。
+frame value写FFFF。动态命令token、value A、对象token、文字offset、
+frame-after-move、completion及动态对象容器均不在本函数清零集合内。
 
-固定frame value写`0xFFFF`。函数没有清动态命令token、value A、对象token、文字offset、frame-after-move门、completion门或动态对象容器；typed实现逐项保留这些未写状态。
+按先前快照决定是否释放：基址0时保留当前指针；非0则释放后同时清零
+分配基址与当前指针。不能在状态清理之后才重新决定原分配是否存在。
+释放返回值未取得原版动态证据；两个caller均不以它控制后续分支。
 
-最后读取脚本base。base为零时直接返回，并保留当前cursor；base非零时先释放，再把base和cursor同时清零。返回EAX在零base路径为0，释放路径保留释放callee返回；两个已关闭caller都不消费该返回值。
+## 3. 生产接线及caller修正
 
-## 3. typed实现与caller回收
+`shutdown_script_direct`先通过同一脚本文件端口执行关闭前缀。
+固定数组沿用既有宿主适配：script_capacity非0表示已有分配；
+仅此时清容量、实际长度与cursor，数组字节保留但不可访问。
 
-`ScriptRunner::shutdown_script_direct`直接复用`LegacyBattleAssets`、`LegacyBattleScriptWorkspace`和`LegacyBattleScriptSharedState`唯一owner。平台固定数组以`script_capacity != 0`代表live分配：只有live时才将容量、实际长度和cursor清零；数组字节保留但不可访问，不模拟宿主free。持久Win32句柄已由RAII文件适配，无额外CloseHandle端口。
+终止opcode保留双方清理、等待状态、全局重置、脚本关闭的次序，返回0。
+case1先执行双方清理、全局重置和脚本关闭；469E5B重新读取live当前指针，
+469E61加4，469E65再写回。旧实现保存入口cursor再加4与指令不符，
+已改为关闭后重读；已有分配被释放时结果为4，不是旧cursor+4。
+完成门置1，帧结果仍由value A传播。
 
-两个caller分别是终止opcode与case1完整帧返回非1路径。终止opcode保持组B、组A、等待word、全局重置、脚本shutdown的顺序并返回0。case1先保存入口cursor，再执行双方清理、全局重置和shutdown；shutdown清零cursor后仍按原ESI语义写回`入口cursor+4`，设置完成门并传播帧返回2或3。旧枚举值改为reserved槽，后续数值不平移且生产零调用。
+普通关闭失败不阻止写入FFFFFFFF与后续重置。文件端口负责实际关闭，
+不再用一次性RAII文件对象解释原持久句柄。
 
-## 4. 验证状态
-
-终止回归用非零值污染权威清理字段和应保留字段，验证两组角色清理后只清精确集合、低word清理保留等待状态高word、固定frame value、脚本容量和page offset归零。case1回归验证帧返回2时shutdown后cursor仍为入口加4、完成门置位并原样传播2。定向资产/setup测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning。
-
-inventory生成器连续双跑逐字节一致，正式计数为`166/422 = 157 platform_adapted + 9 assembly_exact + 256 pending_audit`，SHA256为`81364312d136d0458c0e02d45666f9d87beb28d6f50b57a1f3cae320e2c531ff`。原版持久句柄、CloseHandle结果、动态分配地址和释放返回缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+验证包含非零旧cursor的case1和实际文件关闭；动态分配地址、释放返回及
+完整战斗返回仍未取得联合原版差分，不能据此标记整个生命周期完成。

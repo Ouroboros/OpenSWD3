@@ -842,9 +842,6 @@ private:
         const u32 object_token = 0U,
         const std::initializer_list<u32> arguments = {}
     ) {
-        if (call_kind == LegacyBattleScriptDispatchCall::script_page_load) {
-            workspace_.cursor = 0U;
-        }
         LegacyBattleScriptDispatchCallRequest request{
             .call = call_kind,
             .object_token = object_token,
@@ -1394,6 +1391,9 @@ private:
     }
 
     void shutdown_script_direct() {
+        close_legacy_battle_script_file(
+            bindings_.assets, bindings_.script_files
+        );
         const bool had_script_allocation =
             bindings_.assets.script_capacity != 0U;
         bindings_.shared.frame_gate = 1U;

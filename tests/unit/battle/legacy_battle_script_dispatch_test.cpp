@@ -45,6 +45,7 @@ using openswd3::compat::u32;
 
 struct Fixture {
     LegacyBattleAssets assets;
+    openswd3::battle::LegacyBattleScriptFileRuntime script_files;
     LegacyBattleStartupState startup;
     LegacyBattleActionDispatchState action;
     LegacyBattleActorMetricState& metrics{startup.actor_metrics};
@@ -65,6 +66,7 @@ struct Fixture {
     [[nodiscard]] LegacyBattleScriptDispatchBindings bindings() {
         return {
             .assets = assets,
+            .script_files = script_files,
             .startup = startup,
             .action = action,
             .metrics = metrics,
@@ -150,6 +152,7 @@ public:
             reply.eax = item_token;
             break;
         case LegacyBattleScriptDispatchCall::script_page_load:
+            workspace.cursor = 0U;
             reply.eax = script_page_stop ? 0U : 1U;
             reply.typed_stop = script_page_stop;
             break;
@@ -5427,6 +5430,43 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
 }
 
 void test_battle_script_dispatch(openswd3::test::Context& test) {
+    {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->write_u16(20U, 1U);
+        fixture->workspace.cursor = 20U;
+        fixture->workspace.waiting_state = 0x8001U;
+        fixture->assets.script_file_opened = 1U;
+#ifdef OPENSWD3_GAME_DATA_ROOT
+        fixture->assets.script_file_handle =
+            fixture->script_files.open_script_file(
+                std::filesystem::path{OPENSWD3_GAME_DATA_ROOT} / "FIGTALK.dat"
+            );
+        test.expect_true(
+            fixture->assets.script_file_handle != 0xFFFFFFFFU,
+            "open the actual script source for dispatcher cleanup"
+        );
+#endif
+        const auto old_handle = fixture->assets.script_file_handle;
+        Port port;
+        port.frame_results = {0U};
+        const auto result = openswd3::battle::run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture->workspace.cursor == 4U &&
+                fixture->assets.script_capacity == 0U &&
+                fixture->assets.script_file_handle == 0xFFFFFFFFU &&
+                fixture->assets.script_file_opened == 0U &&
+                fixture->script_files.seek_script_file(
+                    old_handle,
+                    0,
+                    openswd3::battle::LegacyBattleScriptSeekOrigin::begin
+                ) == 0xFFFFFFFFU,
+            "case1 closes the shared file and advances the live post-release cursor, not the saved cursor"
+        );
+    }
+
     test_battle_script_frame_stop(test);
     test_battle_script_actor_coordinate_calls(test);
     test_battle_script_actor_target_selection_calls(test);

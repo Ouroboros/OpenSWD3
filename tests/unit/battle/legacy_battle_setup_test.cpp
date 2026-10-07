@@ -239,6 +239,7 @@ void test_battle_group_b_script_special_action_item_parameters_script_caller(
 void test_battle_script_dispatch(openswd3::test::Context& test);
 void test_battle_status_indicator(openswd3::test::Context& test);
 void test_battle_startup(openswd3::test::Context& test);
+void test_battle_script_file(openswd3::test::Context& test);
 void test_battle_surface_blend(openswd3::test::Context& test);
 void test_battle_talisman_result_panel(openswd3::test::Context& test);
 void test_battle_text_message(openswd3::test::Context& test);
@@ -7583,6 +7584,7 @@ int main() {
     test_battle_script_dispatch(test);
     test_battle_status_indicator(test);
     test_battle_startup(test);
+    test_battle_script_file(test);
     test_battle_surface_blend(test);
     test_battle_talisman_result_panel(test);
     test_battle_text_message(test);

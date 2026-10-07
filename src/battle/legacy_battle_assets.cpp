@@ -231,13 +231,17 @@ resolve_legacy_battle_definition_path(const std::filesystem::path& data_root) {
     return resolve_legacy_filename(data_root, "battle.ffd");
 }
 
+std::filesystem::path
+resolve_legacy_battle_script_path(const std::filesystem::path& data_root) {
+    return resolve_legacy_filename(data_root, "figtalk.dat");
+}
+
 LegacyBattleAssetStatus load_legacy_battle_script_window(
     const std::filesystem::path& data_root,
     const compat::u16 battle_id,
     LegacyBattleAssets& destination
 ) {
-    destination.figtalk_path =
-        resolve_legacy_filename(data_root, "figtalk.dat");
+    destination.figtalk_path = resolve_legacy_battle_script_path(data_root);
     destination.script_capacity = kLegacyBattleScriptWindowSize;
     return load_figtalk(destination.figtalk_path, battle_id, destination);
 }

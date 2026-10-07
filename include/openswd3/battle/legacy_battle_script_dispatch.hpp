@@ -12,6 +12,7 @@
 #include "openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
+#include "openswd3/battle/legacy_battle_script_file.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_composition.hpp"
@@ -124,7 +125,7 @@ struct LegacyBattleScriptWorkspace {
 struct LegacyBattleScriptSharedState {
     compat::u32 frame_gate{1U};            // 0x004A7B58
     compat::u32 frame_value{};             // 0x004A7B54
-    compat::u32 script_completion_gate{};  // 0x004A7B5C
+    compat::u32 script_completion_gate{1U};  // 0x004A7B5C, initialized data
     compat::u32 script_phase_gate{};       // 0x0053C010
     compat::u32 script_aux_gate{};         // 0x0053C014
     compat::u32 selection_gate_a{};        // 0x0053BFCC
@@ -165,6 +166,7 @@ struct LegacyBattleScriptSharedState {
 
 struct LegacyBattleScriptDispatchBindings {
     LegacyBattleAssets& assets;
+    LegacyBattleScriptFilePort& script_files;
     LegacyBattleStartupState& startup;
     LegacyBattleActionDispatchState& action;
     LegacyBattleActorMetricState& metrics;

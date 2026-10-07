@@ -120,6 +120,7 @@ add_library(
         legacy_battle_group_a_value_pair.cpp
         legacy_battle_group_a_workspace_reset.cpp
         legacy_battle_assets.cpp
+        legacy_battle_script_file.cpp
         legacy_battle_background_initialization.cpp
         legacy_battle_effect_coordinator.cpp
         legacy_battle_effect_frame.cpp
