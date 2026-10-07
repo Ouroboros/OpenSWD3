@@ -47,6 +47,7 @@
 #include "openswd3/battle/legacy_battle_auxiliary_record.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
+#include "openswd3/battle/legacy_battle_frame_surface.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
@@ -4113,8 +4114,36 @@ public:
                                         break;
                                     }
 
-                                    stop_boundary =
-                                        "0x0045325E -> surface lock setup";
+                                    const auto surface = openswd3::battle::
+                                        prepare_legacy_battle_frame_surface(
+                                            battle_frame_coordinator_state_,
+                                            battle_frame_surface_
+                                        );
+                                    using openswd3::battle::
+                                        LegacyBattleFrameSurfaceStatus;
+                                    if (surface.status ==
+                                        LegacyBattleFrameSurfaceStatus::
+                                            render_aborted) {
+                                        reply.eax = surface.return_value;
+                                        break;
+                                    }
+
+                                    if (surface.status ==
+                                        LegacyBattleFrameSurfaceStatus::
+                                            lock_stopped) {
+                                        stop_boundary =
+                                            "0x00453265 -> sub_416F10";
+                                    } else if (
+                                        surface.status ==
+                                        LegacyBattleFrameSurfaceStatus::
+                                            unlock_stopped
+                                    ) {
+                                        stop_boundary =
+                                            "0x00453277 -> sub_416F60";
+                                    } else {
+                                        stop_boundary =
+                                            "0x0045328C -> selection state";
+                                    }
                                 }
                             }
                         } else {
@@ -9354,6 +9383,10 @@ private:
     openswd3::battle::LegacyBattleScriptSharedState battle_script_shared_;
     openswd3::battle::LegacyBattleFrameCoordinatorState
         battle_frame_coordinator_state_;
+    openswd3::battle::LegacyBattleFramebufferSurface battle_frame_surface_{
+        game_framebuffer_,
+        openswd3::battle::kLegacyBattleFrameCoordinatorTargetSurfaceToken
+    };
     openswd3::battle::LegacyBattleGroupBFrameState battle_actor_frames_;
     openswd3::battle::LegacyBattleActionDispatchState& battle_action_dispatch_{
         battle_actor_frames_.shared.action

@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
+#include "openswd3/battle/legacy_battle_frame_surface.hpp"
 
 #include <bit>
 #include <optional>
@@ -57,15 +58,32 @@ private:
     LegacyBattleFrameCoordinatorPort& port_;
 };
 
-[[nodiscard]] LegacyBattleFrameCoordinatorCallReply invoke(
-    LegacyBattleFrameCoordinatorPort& port,
-    LegacyBattleFrameCoordinatorResult& result,
-    const LegacyBattleFrameCoordinatorCall call,
-    const std::array<u32, 8>& arguments = {}
-) {
-    ++result.port_calls;
-    return port.invoke({.call = call, .arguments = arguments});
-}
+class CoordinatorSurfacePort final : public LegacyBattleFrameSurfacePort {
+public:
+    explicit CoordinatorSurfacePort(LegacyBattleFrameCoordinatorPort& port)
+        : port_(port) {}
+
+    [[nodiscard]] LegacyBattleFrameSurfaceReply
+    lock_frame_surface(const u32 surface) override {
+        const auto reply = port_.invoke({
+            .call = LegacyBattleFrameCoordinatorCall::lock_target_surface,
+            .arguments = {surface},
+        });
+        return {.eax = reply.eax, .callee_returned = reply.callee_returned};
+    }
+
+    [[nodiscard]] LegacyBattleFrameSurfaceReply
+    unlock_frame_surface(const u32 surface, const u32 pixels) override {
+        const auto reply = port_.invoke({
+            .call = LegacyBattleFrameCoordinatorCall::unlock_target_surface,
+            .arguments = {surface, pixels},
+        });
+        return {.eax = reply.eax, .callee_returned = reply.callee_returned};
+    }
+
+private:
+    LegacyBattleFrameCoordinatorPort& port_;
+};
 
 [[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
     value &= 0xFFU;
@@ -332,25 +350,21 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
 
-    reply = invoke(
-        port,
-        result,
-        LegacyBattleFrameCoordinatorCall::lock_target_surface,
-        {state.target_surface_token}
-    );
-    ++result.lock_calls;
-    state.current_target_pointer_token = reply.eax;
-    static_cast<void>(invoke(
-        port,
-        result,
-        LegacyBattleFrameCoordinatorCall::unlock_target_surface,
-        {state.target_surface_token, state.current_target_pointer_token}
-    ));
-    ++result.unlock_calls;
+    CoordinatorSurfacePort surface_port(port);
+    const auto surface =
+        prepare_legacy_battle_frame_surface(state, surface_port);
+    result.lock_calls += surface.lock_calls;
+    result.unlock_calls += surface.unlock_calls;
+    result.port_calls += surface.lock_calls + surface.unlock_calls;
+    if (surface.status == LegacyBattleFrameSurfaceStatus::lock_stopped ||
+        surface.status == LegacyBattleFrameSurfaceStatus::unlock_stopped) {
+        result.status = LegacyBattleFrameCoordinatorStatus::surface_typed_stop;
+        return result;
+    }
 
-    if (state.render_abort_latch == 1U) {
+    if (surface.status == LegacyBattleFrameSurfaceStatus::render_aborted) {
         result.status = LegacyBattleFrameCoordinatorStatus::render_aborted;
-        result.return_value = state.active;
+        result.return_value = surface.return_value;
         return result;
     }
 

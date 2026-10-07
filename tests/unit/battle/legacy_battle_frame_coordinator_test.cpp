@@ -16,6 +16,8 @@
 
 #include "test.hpp"
 
+void test_battle_frame_surface(openswd3::test::Context& test);
+
 namespace {
 
 using openswd3::battle::LegacyBattleActionCallReply;
@@ -1041,6 +1043,7 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
 void test_battle_frame_coordinator(openswd3::test::Context& test) {
     test_battle_frame_original_gates(test);
     test_battle_frame_music_prefix(test);
+    test_battle_frame_surface(test);
 
     {
         const auto port_storage = std::make_unique<CoordinatorPort>();
@@ -1303,6 +1306,50 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "pre-frame workspace stop preserves its prefix and blocks actor metrics lock and all later frame stages"
         );
     }
+
+    for (const auto stopped_call : {
+             LegacyBattleFrameCoordinatorCall::lock_target_surface,
+             LegacyBattleFrameCoordinatorCall::unlock_target_surface,
+         }) {
+        const auto state_storage = std::make_unique<
+            openswd3::battle::LegacyBattleFrameCoordinatorState>();
+        auto& state = *state_storage;
+        state.current_target_pointer_token = 0x1357U;
+        state.render_abort_latch = 1U;
+        auto fixture = std::make_unique<Fixture>();
+        const auto port_storage = std::make_unique<CoordinatorPort>();
+        auto& port = *port_storage;
+        configure_common_port(port);
+        port.replies[stopped_call].callee_returned = false;
+        auto context = fixture->context();
+        const auto result_storage = std::unique_ptr<
+            openswd3::battle::LegacyBattleFrameCoordinatorResult>(
+            new openswd3::battle::LegacyBattleFrameCoordinatorResult(
+                openswd3::battle::run_legacy_battle_frame_coordinator(
+                    state, port, context, base_request()
+                )
+            )
+        );
+        const auto& result = *result_storage;
+        const bool lock_stopped = stopped_call ==
+            LegacyBattleFrameCoordinatorCall::lock_target_surface;
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        surface_typed_stop &&
+                result.lock_calls == 1U &&
+                result.unlock_calls == (lock_stopped ? 0U : 1U) &&
+                state.current_target_pointer_token ==
+                    (lock_stopped ? 0x1357U : 0x004CD76CU) &&
+                result.fixed_frame_calls == 0U &&
+                result.frame_effect_calls == 0U &&
+                port.count(
+                    LegacyBattleFrameCoordinatorCall::unlock_target_surface
+                ) == (lock_stopped ? 0U : 1U),
+            "full coordinator propagates surface callee stops before abort return or drawing"
+        );
+    }
+
     {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();

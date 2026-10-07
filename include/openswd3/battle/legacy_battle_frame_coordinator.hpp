@@ -386,6 +386,7 @@ struct LegacyBattleFrameCoordinatorCallReply {
     std::array<compat::u8, 64> caption_formatted_text{};
     compat::u32 caption_formatted_text_length{};
     LegacyBattleFrameInputSurface actor_surface{};
+    bool callee_returned{true};
 };
 
 class LegacyBattleFrameCoordinatorPort
@@ -2056,6 +2057,7 @@ enum class LegacyBattleFrameCoordinatorStatus : compat::u8 {
     outcome_resolution_typed_stop,
     context_prompt_typed_stop,
     vertical_shift_typed_stop,
+    surface_typed_stop,
 };
 
 struct LegacyBattleFrameCoordinatorResult {

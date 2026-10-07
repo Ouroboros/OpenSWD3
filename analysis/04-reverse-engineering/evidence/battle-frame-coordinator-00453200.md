@@ -23,11 +23,45 @@
 
 第六阶段非零后：
 
-1. 以固定target surface token调用lock；
-2. 把返回token发布到共享当前目标指针槽；
-3. 立即以surface token与lock返回token调用unlock。
+1. `45325E`读取target surface当前引用，`453265`调用`416F10`；
+2. `45326A`重读surface引用，`453272`把Lock返回值发布到当前像素地址槽；
+3. `453277`以重读的surface与原Lock返回值立即调用`416F60`。
 
-随后渲染中止dword等于1时直接返回活动dword 1。lock/unlock副作用已完成，固定帧和后续阶段均不执行。
+`45327C`在Unlock返回后重读渲染中止dword，精确等于1才进入`453569`，
+返回活动dword当前值。该值虽在帧入口写1，但不得用常量替代尾部重读。
+lock/unlock副作用已完成，固定帧和后续阶段均不执行。
+
+### B11实际画布绑定
+
+`prepare_legacy_battle_frame_surface`由完整核心协调器与SDL实际帧入口共用。
+Lock正常返回零也发布零并调用Unlock；Unlock的HRESULT不控制后续分支。
+未正常返回的Lock保留旧发布值，未正常返回的Unlock保留已发布的新值，
+两者均显式停止，不能借中止门伪造正常返回。
+
+`416F10`先清零0x7C字节描述，以`Lock(NULL,desc,1,0)`调用旧平台；
+HRESULT非零返回0，成功才把signed pitch右移1写入无消费者的pitch shadow，
+再返回lpSurface。`416F60`仅透传surface和像素参数给虚表+0x80。
+适配沿用[稳定软件画布合同](framebuffer-and-display-presentation.md)：
+`LegacyBattleFramebufferSurface`借用SDL既有`game_framebuffer_`，不复制像素。
+画布不可移动且无resize入口；guest预约覆盖真实物理像素和已有末尾WORD读护栏，
+地址可反查至同一字节存储，解锁不撤销该稳定映射。未知surface或guest预约失败
+属于适配typed-stop，不伪装为原Lock的正常零返回；软件解锁无宿主租约要释放。
+
+SDL仅在此前全部阶段正常继续时执行本批；中止门精确1正常返回当前活动值，
+其他值停在`45328C`下一项选择状态首读前。原输入分支停点未被绕过。
+本批不建立原版CPU现场证据，不代表整帧绘制、四处角色帧绑定或实际续玩已通过。
+
+本批向量覆盖Lock返回0/非零/全1、surface引用重读、Unlock回调看到发布值、
+两次callee未返回的不同前缀、Unlock HRESULT忽略、回调改写中止值和活动值，
+以及中止0/1/2/全1。真实画布覆盖1280和1344字节pitch、重复锁取得同一身份、
+解锁后同址写入、边界地址映射和与共享前缀的实际组合；完整协调器另覆盖两处
+callee停点的传播及后续绘制零调用。guest地址耗尽未单独注入，不声称动态覆盖。
+
+最终`proc_b221`完成定向`battle.legacy_battle_setup`：core及ASan各1/1，
+总时间分别5.37/8.04秒；SDL目标构建通过，三份日志无warning/error。
+日志为`build/tmp/runtime/battle-frame-surface-publication-{core,asan,sdl}.log`。
+此前构建发现移除旧调用路径后留下未使用的`invoke`包装器；删除后才取得本轮结果。
+未启动游戏，未新增原版动态差分；WP316仍待审。
 
 ## 4. 选择延迟与交互发布
 
@@ -179,7 +213,7 @@ bit未置位后：
 ## 12. 双向追溯
 
 - `0x00453200..0x0045325D`：活动、音乐、鼠标解析与输入分派直连、角色预处理、metric、顺序、完成门与零早退；
-- `0x0045325E..0x00453286`：target lock/unlock、渲染门与返回1；
+- `0x0045325E..0x00453286`：target lock/unlock、发布、渲染门与当前活动值返回；
 - `0x0045328C..0x0045331C`：选择mode、延迟刷新和交互可用发布；
 - `0x0045331C..0x00453379`：画面效果直连、条件阶段、角色帧顺序、双方完成数与待执行动作提交直连、效果协调、UI低word和固定帧；
 - `0x0045337F..0x00453431`：选中动作记录、双映射、九宫格、角色对象和独立帧；

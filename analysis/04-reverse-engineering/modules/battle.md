@@ -14,6 +14,8 @@ SDL每帧指标重建已接实际坐标，定向验证通过，诊断现场限�
 辅助记录写入和行动摘要共用同一存档字节；定向core/ASan及SDL构建通过。
 验证范围见[调试接线](../evidence/battle-debug-hotkeys-0045d8f0.md)。
 后续帧阶段与实机热键仍待验收，通用callee审计状态不前移。
+帧画布发布与中止判断已接入同一软件像素存储，core/ASan及SDL构建通过；
+限定行为和剩余边界见[帧画布接线](../evidence/battle-frame-coordinator-00453200.md)。
 
 入战、角色收尾及全局重置共用菜单的四项装备选择缓存，定向验证通过，见
 [装备选择缓存](../evidence/battle-equipment-selection-cache-004ff578.md)。
