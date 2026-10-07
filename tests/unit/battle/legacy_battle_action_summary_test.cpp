@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <functional>
 #include <map>
 #include <vector>
 
@@ -21,6 +22,10 @@ public:
         const LegacyBattleActionSummaryCallRequest& request
     ) override {
         calls.push_back(request);
+        if (before_reply) {
+            before_reply(request);
+        }
+
         auto& index = reply_indices[request.call];
         const auto found = replies.find(request.call);
         if (found == replies.end() || index >= found->second.size()) {
@@ -40,6 +45,8 @@ public:
         replies[call].push_back(value);
     }
 
+    std::function<void(const LegacyBattleActionSummaryCallRequest&)>
+        before_reply;
     std::vector<LegacyBattleActionSummaryCallRequest> calls;
     std::map<
         LegacyBattleActionSummaryCall,
@@ -52,7 +59,10 @@ struct Fixture {
     Fixture() {
         startup.primary_text_color = 0x1234U;
         startup.secondary_text_color = 0x5678U;
-        startup.group_a_profiles.profile_tokens.fill(1U);
+        for (auto& party : startup.party) {
+            party.configuration.auxiliary_record_token = 0x004ACF50U;
+        }
+
         for (auto& source : startup.action_mode_source.option_sources[0U]) {
             source.object_token = 1U;
         }
@@ -116,6 +126,60 @@ void test_battle_action_summary(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionSummaryStatus;
     using openswd3::battle::draw_legacy_battle_action_summary;
 
+    for (const u32 token : {0x004ACF4FU, 0x004AD0CDU, 0x004AD0D0U}) {
+        Fixture fixture;
+        fixture.startup.party[0U].configuration.auxiliary_record_token = token;
+        const auto result = draw_legacy_battle_action_summary(
+            fixture.bindings(), fixture.port, {.entry_edx = 0x12345678U}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionSummaryStatus::
+                        group_a_profile_typed_stop &&
+                result.port_calls == 2U && result.return_ecx == token &&
+                result.return_edx == 0x12345678U,
+            "unmapped auxiliary DWORD stops after both font calls without a partial read"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.complete_action_mode();
+        fixture.port.before_reply = [&](const auto& call) {
+            if (call.call ==
+                LegacyBattleActionSummaryCall::configure_font_style) {
+                fixture.startup.party[0U].configuration.auxiliary_record_token =
+                    0x004AD0CCU;
+                fixture.startup.group_a_auxiliary_sources[3U]
+                    .saved_tail_dwords[9U] = 0x38U;
+            }
+        };
+        const auto result = draw_legacy_battle_action_summary(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionSummaryStatus::completed &&
+                result.actor_special_queries == 1U,
+            "font calls may change the live auxiliary reference before the final mapped DWORD is read"
+        );
+    }
+
+    for (const u32 value : {0U, 0x38U, 0x10038U, 0xFFFFFFFFU}) {
+        Fixture fixture;
+        fixture.startup.party[0U].configuration.auxiliary_record_token =
+            0x004ACFB0U;
+        fixture.startup.group_a_auxiliary_sources[1U].dwords[0U] = value;
+        fixture.complete_action_mode();
+        const auto result = draw_legacy_battle_action_summary(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status == LegacyBattleActionSummaryStatus::completed &&
+                result.actor_special_queries == (value == 0x38U ? 1U : 0U),
+            "action summary reads the actual auxiliary DWORD with an exact comparison"
+        );
+    }
+
     {
         Fixture fixture;
         fixture.final_actor.queued_actor_code = 0U;
@@ -157,7 +221,7 @@ void test_battle_action_summary(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.startup.group_a_profiles.profile_tokens[0U] = 0U;
+        fixture.startup.party[0U].configuration.auxiliary_record_token = 0U;
         const auto result = draw_legacy_battle_action_summary(
             fixture.bindings(), fixture.port, {.entry_edx = 0x87654321U}
         );
@@ -240,7 +304,7 @@ void test_battle_action_summary(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.startup.group_a_profiles.profile_kinds[0U] = 0x38U;
+        fixture.startup.group_a_auxiliary_sources[0U].dwords[0U] = 0x38U;
         fixture.startup.action_mode_source.option_sources[0U][0U].action_code =
             0x25U;
         fixture.startup.action_mode_source.option_sources[0U][1U].action_code =

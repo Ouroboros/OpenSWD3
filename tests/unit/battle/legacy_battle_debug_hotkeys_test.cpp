@@ -1,9 +1,14 @@
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
+#include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
+#include "openswd3/battle/legacy_battle_pre_frame.hpp"
 
 #include "test.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <deque>
+#include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <span>
@@ -144,6 +149,719 @@ void press(
 }  // namespace
 
 void test_battle_debug_hotkeys(openswd3::test::Context& test) {
+    class RecordPort final
+        : public LegacyBattleDebugHotkeyPort,
+          public openswd3::battle::LegacyBattleDebugRecordPort {
+    public:
+        explicit RecordPort(Fixture& fixture) : fixture_(fixture) {}
+
+        std::span<std::byte> debug_record_bytes(const u32 token) override {
+            ++accesses;
+            if (accesses == stop_at) {
+                return {};
+            }
+
+            if (before_access) {
+                before_access(accesses);
+            }
+
+            const auto found = records.find(token);
+            return found == records.end() ? std::span<std::byte>{}
+                                          : found->second;
+        }
+
+        LegacyBattleDebugHotkeyCallReply invoke_debug_hotkey(
+            const LegacyBattleDebugHotkeyCallRequest& request
+        ) override {
+            if (request.call ==
+                LegacyBattleDebugHotkeyCall::publish_actor_value) {
+                return openswd3::battle::apply_legacy_battle_debug_actor_values(
+                    fixture_.startup,
+                    fixture_.action,
+                    fixture_.random,
+                    *this,
+                    request
+                );
+            }
+
+            if (request.call ==
+                LegacyBattleDebugHotkeyCall::query_actor_status) {
+                const auto actor =
+                    openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                        {.action = &fixture_.action,
+                         .startup = &fixture_.startup},
+                        request.object_token
+                    );
+                const auto status =
+                    openswd3::battle::invoke_legacy_battle_pre_frame_actor_call(
+                        actor,
+                        {.call = openswd3::battle::LegacyBattlePreFrameCall::
+                             query_group_b_actor,
+                         .actor_token = request.object_token}
+                    );
+                return {
+                    .eax = status.eax,
+                    .ecx = status.ecx,
+                    .edx = status.edx,
+                    .typed_stop = status.typed_stop
+                };
+            }
+
+            return openswd3::battle::
+                invoke_legacy_battle_debug_group_a_record_call(
+                    fixture_.startup.party[0U].configuration,
+                    fixture_.startup.party[0U].progress,
+                    fixture_.action.group_a_action_execution[0U],
+                    *this,
+                    request
+                );
+        }
+
+        Fixture& fixture_;
+        std::map<u32, std::span<std::byte>> records;
+        std::function<void(u32)> before_access;
+        u32 accesses{};
+        u32 stop_at{};
+    };
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->actor_metrics.group_a_count = 1U;
+        fixture->actor_metrics.group_b_count = 1U;
+        auto& configuration = fixture->startup.party[0U].configuration;
+        configuration.source_runtime_value = 1U;
+        configuration.actor_record_token = 0x78001000U;
+        configuration.actor_record[1U] = 1000U | (20U << 16U);
+        configuration.actor_record[2U] = 20U | (1000U << 16U);
+        configuration.actor_record[3U] = 30U | (30U << 16U);
+        auto& enemy = (*fixture->startup.group_b_lifecycle)[0U];
+        enemy.action_configuration.source_runtime_value = 2U;
+        enemy.resource_token = 0x78002000U;
+        enemy.resource_bytes[0x4CU] = 100U;
+        enemy.resource_bytes[0x64U] = 100U;
+        RecordPort port(*fixture);
+        port.records.emplace(
+            0x78001000U,
+            std::as_writable_bytes(std::span{configuration.actor_record})
+        );
+        port.records.emplace(
+            0x78002000U, std::as_writable_bytes(std::span{enemy.resource_bytes})
+        );
+        LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = 1U;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        for (const u32 key : {0x1DU, 0x20U, 0x21U, 0x2FU, 0x11U}) {
+            press(keyboard, key);
+        }
+
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard, state, fixture->bindings(), port
+            );
+        test.expect_true(
+            result.status == LegacyBattleDebugHotkeyStatus::completed &&
+                result.port_calls == 5U &&
+                configuration.actor_record[1U] == (420U | (5U << 16U)) &&
+                (configuration.actor_record[2U] & 0xFFFFU) == 5U &&
+                enemy.resource_bytes[0x64U] == 0U &&
+                enemy.resource_bytes[0x65U] == 0U &&
+                fixture->startup.enemies[0U].progress.presentation_enabled ==
+                    1U &&
+                fixture->random.calls == 1U &&
+                fixture->random.last_bound == 10U &&
+                fixture->actor_publication.slots[0U] == 0U &&
+                fixture->startup.reset.block_5242b0[0U] == 0U,
+            "D/F/V/W share live records, status queries, death random and caller publication"
+        );
+    }
+
+    struct PartyValueCase {
+        u32 hp, hp_max, mp, mp_max, sp, sp_max;
+        u32 damage, mp_delta, sp_delta, ai;
+        u32 expected_hp, expected_mp, expected_sp, expected_death_byte;
+    };
+    for (const auto sample :
+         {PartyValueCase{
+              0x7FFFU,
+              0x7FFFU,
+              0x7FFFU,
+              0x7FFFU,
+              0xFFFFU,
+              100U,
+              0xFFFFFFFFU,
+              1U,
+              0U,
+              0U,
+              0U,
+              0U,
+              0U,
+              0U
+          },
+          PartyValueCase{
+              100U,
+              0xFFFFU,
+              100U,
+              0xFFFFU,
+              100U,
+              0xFFFFU,
+              0U,
+              0U,
+              0U,
+              1U,
+              0U,
+              0U,
+              0U,
+              6U
+          },
+          PartyValueCase{
+              100U,
+              200U,
+              100U,
+              50U,
+              100U,
+              50U,
+              0U,
+              1U,
+              1U,
+              0U,
+              100U,
+              50U,
+              50U,
+              0U
+          },
+          PartyValueCase{
+              1U,
+              100U,
+              0U,
+              100U,
+              0U,
+              100U,
+              1U,
+              0xFFFFFFFFU,
+              0xFFFFFFFFU,
+              1U,
+              0U,
+              0U,
+              0U,
+              6U
+          }}) {
+        auto fixture = std::make_unique<Fixture>();
+        auto& party = fixture->startup.party[0U];
+        auto& configuration = party.configuration;
+        configuration.source_runtime_value = 1U;
+        configuration.actor_record_token = 0x78001000U;
+        configuration.actor_record[1U] = sample.hp | (sample.mp << 16U);
+        configuration.actor_record[2U] = sample.sp | (sample.hp_max << 16U);
+        configuration.actor_record[3U] = sample.mp_max | (sample.sp_max << 16U);
+        fixture->action.group_a_action_execution[0U]
+            .action_twenty_seven_motion_mode = sample.ai;
+        RecordPort port(*fixture);
+        port.records.emplace(
+            0x78001000U,
+            std::as_writable_bytes(std::span{configuration.actor_record})
+        );
+        const auto result = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::publish_actor_value,
+            .object_token = 0x005029D0U,
+            .arguments = {sample.damage, sample.mp_delta, sample.sp_delta},
+        });
+        test.expect_true(
+            !result.typed_stop &&
+                result.eax == (sample.expected_hp == 0U ? 1U : 0U) &&
+                configuration.actor_record[1U] ==
+                    (sample.expected_hp | (sample.expected_mp << 16U)) &&
+                (configuration.actor_record[2U] & 0xFFFFU) ==
+                    sample.expected_sp &&
+                party.base_initialization.field_2a94 ==
+                    sample.expected_death_byte &&
+                fixture->random.calls == 0U,
+            "party values preserve signed WORD bounds, overflow-to-death and AI death byte six"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto& configuration = fixture->startup.party[0U].configuration;
+        auto& peer = fixture->startup.party[1U].configuration.actor_record;
+        configuration.source_runtime_value = 1U;
+        configuration.actor_record_token = 0x78001000U;
+        configuration.actor_record[1U] = 5U | (5U << 16U);
+        peer[1U] = 200U | (20U << 16U);
+        peer[2U] = 20U | (100U << 16U);
+        peer[3U] = 30U | (30U << 16U);
+        RecordPort port(*fixture);
+        port.records.emplace(
+            0x78001000U,
+            std::as_writable_bytes(std::span{configuration.actor_record})
+        );
+        port.records.emplace(
+            0x78002000U, std::as_writable_bytes(std::span{peer})
+        );
+        port.before_access = [&](const u32 access) {
+            if (access == 1U) {
+                configuration.actor_record_token = 0x78002000U;
+            }
+        };
+        const auto result = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::publish_actor_value,
+            .object_token = 0x005029D0U,
+            .arguments = {10U, 0xFFFFFFF6U, 0xFFFFFFF6U},
+        });
+        test.expect_true(
+            !result.typed_stop && result.eax == 0U &&
+                configuration.actor_record[1U] == 0x0005FFFBU &&
+                peer[1U] == (100U | (10U << 16U)) &&
+                (peer[2U] & 0xFFFFU) == 10U,
+            "RMW retains its loaded reference and the next original load observes the changed actor record"
+        );
+
+        configuration.actor_record_token = 0x78001000U;
+        configuration.actor_record[2U] = 5U | (123U << 16U);
+        peer[1U] = 55U | (5U << 16U);
+        peer[3U] = 456U | (789U << 16U);
+        port.accesses = 0U;
+        const auto reset = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::reset_group_a_primary,
+            .arguments = {0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU},
+        });
+        test.expect_true(
+            !reset.typed_stop && port.accesses == 6U &&
+                configuration.actor_record[1U] == (123U | (5U << 16U)) &&
+                peer[1U] == (55U | (456U << 16U)) &&
+                (peer[2U] & 0xFFFFU) == 789U,
+            "minus-one reset retains the HP reference then reloads the MP and SP references"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto& configuration = fixture->startup.party[0U].configuration;
+        configuration.source_runtime_value = 1U;
+        configuration.source_record_token = 0x004AB790U;
+        std::array<u32, 14> source;
+        source.fill(0xAABBCCDDU);
+        RecordPort port(*fixture);
+        port.records.emplace(
+            0x004AB790U, std::as_writable_bytes(std::span{source}).first(0x28U)
+        );
+        const auto result = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::configure_group_a,
+            .arguments = {9900U, 155U, 200U},
+        });
+        test.expect_true(
+            result.typed_stop && port.accesses == 2U &&
+                source[9U] == 0x26ACCCDDU && source[10U] == 0xAABBCCDDU &&
+                source[5U] == 0xAABBCCDDU,
+            "short base configuration keeps the first WORD store and stops before later fields"
+        );
+
+        port.accesses = 0U;
+        const auto absent = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::reset_group_a_primary,
+            .arguments = {0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU},
+        });
+        test.expect_true(
+            !absent.typed_stop && port.accesses == 0U,
+            "the original null party record skips reset without a mapped access"
+        );
+    }
+
+    // 47F1D0..47F246: three RMWs, signed bounds, then death publication.
+    for (u32 stop_at = 0U; stop_at <= 15U; ++stop_at) {
+        auto fixture = std::make_unique<Fixture>();
+        auto& configuration = fixture->startup.party[0U].configuration;
+        configuration.source_runtime_value = 1U;
+        configuration.actor_record_token = 0x78001000U;
+        configuration.actor_record[1U] = 5U | (5U << 16U);
+        configuration.actor_record[2U] = 5U | (100U << 16U);
+        configuration.actor_record[3U] = 10U | (10U << 16U);
+        RecordPort port(*fixture);
+        port.stop_at = stop_at;
+        port.records.emplace(
+            0x78001000U,
+            std::as_writable_bytes(std::span{configuration.actor_record})
+        );
+        const auto result = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::publish_actor_value,
+            .object_token = 0x005029D0U,
+            .arguments = {10U, 0xFFFFFFF6U, 0xFFFFFFF6U},
+        });
+        const auto after = [=](const u32 access) {
+            return stop_at == 0U || stop_at > access;
+        };
+        const u32 hp = after(15U) ? 0U : (after(1U) ? 0xFFFBU : 5U);
+        const u32 mp = after(11U) ? 0U : (after(4U) ? 0xFFFBU : 5U);
+        const u32 sp = after(13U) ? 0U : (after(7U) ? 0xFFFBU : 5U);
+        test.expect_true(
+            result.typed_stop == (stop_at != 0U) &&
+                port.accesses == (stop_at == 0U ? 15U : stop_at) &&
+                configuration.actor_record[1U] == (hp | (mp << 16U)) &&
+                (configuration.actor_record[2U] & 0xFFFFU) == sp &&
+                fixture->startup.party[0U].progress.presentation_enabled ==
+                    (stop_at == 0U ? 1U : 0U) &&
+                fixture->random.calls == 0U &&
+                (stop_at != 0U || result.eax == 1U),
+            "actor values retain each original record-write prefix before a mapped access stops"
+        );
+    }
+
+    struct SharedDamageCase {
+        u32 gate;
+        u32 currency;
+        u32 hp;
+        u32 remaining;
+    };
+    for (const auto sample :
+         {SharedDamageCase{1U, 5U, 100U, 0xFFFFFFB5U},
+          SharedDamageCase{1U, 80U, 100U, 0U},
+          SharedDamageCase{1U, 0U, 20U, 0U},
+          SharedDamageCase{2U, 5U, 20U, 5U}}) {
+        auto fixture = std::make_unique<Fixture>();
+        auto& configuration = fixture->startup.party[0U].configuration;
+        configuration.source_runtime_value = 1U;
+        configuration.actor_record_token = 0x78001000U;
+        configuration.actor_record[1U] = 100U | (20U << 16U);
+        configuration.actor_record[2U] = 20U | (100U << 16U);
+        configuration.actor_record[3U] = 30U | (30U << 16U);
+        const auto actor =
+            openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                {.action = &fixture->action, .startup = &fixture->startup},
+                0x005029D0U
+            );
+        actor.residual->field_2b18 = sample.gate;
+        actor.shared_action->decimal_value =
+            static_cast<openswd3::compat::i32>(sample.currency);
+        RecordPort port(*fixture);
+        port.records.emplace(
+            0x78001000U,
+            std::as_writable_bytes(std::span{configuration.actor_record})
+        );
+        const auto result = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::publish_actor_value,
+            .object_token = 0x005029D0U,
+            .arguments = {80U, 0xFFFFFFF6U, 0xFFFFFFF6U},
+        });
+        test.expect_true(
+            !result.typed_stop && result.eax == 0U &&
+                configuration.actor_record[1U] == (sample.hp | (10U << 16U)) &&
+                (configuration.actor_record[2U] & 0xFFFFU) == 10U &&
+                std::bit_cast<u32>(actor.shared_action->decimal_value) ==
+                    sample.remaining,
+            "shared damage uses unsigned nonzero currency and wrapping subtraction before MP/SP"
+        );
+    }
+
+    struct GuardCase {
+        u32 damage;
+        u32 mode;
+        u32 flags;
+        u32 ready;
+        u32 status;
+        bool blocked;
+    };
+    for (const auto sample :
+         {GuardCase{80U, 0x8000U, 0U, 0U, 0U, true},
+          GuardCase{0U, 0x8000U, 0U, 0U, 0U, false},
+          GuardCase{0xFFFFFFFFU, 0x8000U, 0U, 0U, 0U, false},
+          GuardCase{80U, 0U, 0x02000000U, 0U, 0U, true},
+          GuardCase{80U, 0U, 0U, 1U, 0U, true},
+          GuardCase{80U, 0U, 0U, 2U, 0U, false},
+          GuardCase{80U, 0U, 0U, 0U, 8U, true},
+          GuardCase{80U, 0U, 0U, 0U, 0x800U, false}}) {
+        auto fixture = std::make_unique<Fixture>();
+        auto& party = fixture->startup.party[0U];
+        party.configuration.source_runtime_value = 1U;
+        party.progress.mode_gate = sample.mode;
+        party.progress.special_ready = sample.ready;
+        party.attribute_aggregation.embedded_profile_application.status_bits =
+            sample.status;
+        fixture->action.group_a_action_execution[0U].field_26c0 = sample.flags;
+        RecordPort port(*fixture);
+        const auto result = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::publish_actor_value,
+            .object_token = 0x005029D0U,
+            .arguments = {sample.damage, 0U, 0U},
+        });
+        test.expect_true(
+            result.typed_stop != sample.blocked &&
+                port.accesses == (sample.blocked ? 0U : 1U) &&
+                (result.typed_stop || result.eax == 0U),
+            "damage gates preserve signed and exact comparisons before touching an invalid record"
+        );
+    }
+
+    struct EnemyValueCase {
+        u32 metric;
+        u32 maximum;
+        u32 hp;
+        u32 damage;
+        u32 next_metric;
+        u32 next_hp;
+        bool dead;
+    };
+    for (const auto sample :
+         {EnemyValueCase{100U, 100U, 50U, 10U, 90U, 50U, false},
+          EnemyValueCase{5U, 100U, 50U, 10U, 0U, 0U, true},
+          EnemyValueCase{0xFFFFFFFFU, 100U, 50U, 10U, 0U, 0U, true},
+          EnemyValueCase{100U, 0xFFFFFFFFU, 50U, 10U, 0U, 0U, true},
+          EnemyValueCase{0U, 100U, 100U, 10U, 0U, 90U, false},
+          EnemyValueCase{0U, 100U, 5U, 10U, 0U, 0U, true},
+          EnemyValueCase{0U, 100U, 0x7FFFU, 0xFFFFFFFFU, 0U, 100U, false},
+          EnemyValueCase{0U, 0xFFFFFFFFU, 5U, 0U, 0U, 0U, true},
+          EnemyValueCase{0U, 100U, 0xFFFFU, 0U, 0U, 0U, true}}) {
+        for (const u32 previous : {0U, 7U}) {
+            auto fixture = std::make_unique<Fixture>();
+            auto& enemy = (*fixture->startup.group_b_lifecycle)[0U];
+            enemy.action_configuration.source_runtime_value = 2U;
+            enemy.action_configuration.timing_value = sample.metric;
+            enemy.resource_token = 0x78002000U;
+            for (std::size_t i = 0U; i < 4U; ++i) {
+                enemy.resource_bytes[0x4CU + i] =
+                    static_cast<openswd3::compat::u8>(
+                        sample.maximum >> (i * 8U)
+                    );
+            }
+
+            enemy.resource_bytes[0x64U] =
+                static_cast<openswd3::compat::u8>(sample.hp);
+            enemy.resource_bytes[0x65U] =
+                static_cast<openswd3::compat::u8>(sample.hp >> 8U);
+            const auto actor =
+                openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                    {.action = &fixture->action, .startup = &fixture->startup},
+                    0x00525508U
+                );
+            actor.base_initialization->field_2a94 =
+                static_cast<openswd3::compat::u8>(previous);
+            actor.action_execution->turn_threshold = 77U;
+            RecordPort port(*fixture);
+            port.records.emplace(
+                0x78002000U,
+                std::as_writable_bytes(std::span{enemy.resource_bytes})
+            );
+            const auto result = port.invoke_debug_hotkey({
+                .call = LegacyBattleDebugHotkeyCall::publish_actor_value,
+                .object_token = 0x00525508U,
+                .arguments = {sample.damage, 0xFFFFFFFFU, 0xFFFFFFFFU},
+            });
+            const u32 hp = enemy.resource_bytes[0x64U] |
+                (static_cast<u32>(enemy.resource_bytes[0x65U]) << 8U);
+            test.expect_true(
+                !result.typed_stop && result.eax == (sample.dead ? 1U : 0U) &&
+                    enemy.action_configuration.timing_value ==
+                        sample.next_metric &&
+                    hp == sample.next_hp &&
+                    actor.progress->presentation_enabled ==
+                        (sample.dead ? 1U : 0U) &&
+                    enemy.action_configuration.presentation_enabled ==
+                        (sample.dead ? 1U : 0U) &&
+                    actor.action_execution->turn_threshold ==
+                        (sample.dead ? 0U : 77U) &&
+                    fixture->random.calls ==
+                        (sample.dead && previous == 0U ? 1U : 0U) &&
+                    actor.base_initialization->field_2a94 ==
+                        (sample.dead && previous == 0U ? 1U : previous),
+                "enemy values preserve DWORD/WORD bounds, negative-WORD restoration and conditional death random"
+            );
+        }
+    }
+
+    for (u32 stop_at = 0U; stop_at <= 11U; ++stop_at) {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->actor_metrics.group_a_count = 1U;
+        auto& configuration = fixture->startup.party[0U].configuration;
+        configuration.source_runtime_value = 1U;
+        configuration.actor_record_token = 0x78001000U;
+        configuration.source_record_token = 0x004AB790U;
+        configuration.auxiliary_record_token = 0x004ACF50U;
+        configuration.actor_record[1U] = 100U | (200U << 16U);
+        configuration.actor_record[2U] = 300U | (1000U << 16U);
+        configuration.actor_record[3U] = 500U | (600U << 16U);
+        std::array<u32, 14> source{};
+        source[9U] = 0xAAAA5555U;
+        source[10U] = 0xBBBB1234U;
+        source[5U] = 0xCCCC7777U;
+        auto& auxiliary = fixture->startup.group_a_auxiliary_sources[0U];
+        auxiliary.dwords[0U] = 3U;
+        RecordPort port(*fixture);
+        port.stop_at = stop_at;
+        port.records.emplace(
+            0x78001000U,
+            std::as_writable_bytes(std::span{configuration.actor_record})
+        );
+        port.records.emplace(
+            0x004AB790U, std::as_writable_bytes(std::span{source})
+        );
+        port.records.emplace(
+            0x004ACF50U, std::as_writable_bytes(std::span{&auxiliary, 1U})
+        );
+        LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = 1U;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        press(keyboard, 0x1DU);
+        press(keyboard, 0x2CU);
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard, state, fixture->bindings(), port
+            );
+        const auto written = [=](const u32 access) {
+            return stop_at == 0U || stop_at > access;
+        };
+        test.expect_true(
+            result.status ==
+                    (stop_at == 0U ? LegacyBattleDebugHotkeyStatus::completed
+                                   : LegacyBattleDebugHotkeyStatus::
+                                         port_call_typed_stop) &&
+                port.accesses == (stop_at == 0U ? 11U : stop_at) &&
+                (configuration.actor_record[1U] & 0xFFFFU) ==
+                    (written(2U) ? 1000U : 100U) &&
+                (configuration.actor_record[1U] >> 16U) ==
+                    (written(4U) ? 500U : 200U) &&
+                (configuration.actor_record[2U] & 0xFFFFU) ==
+                    (written(6U) ? 600U : 300U) &&
+                auxiliary.dwords[0U] == (written(7U) ? 56U : 3U) &&
+                source[9U] == (written(9U) ? 0x26AC5555U : 0xAAAA5555U) &&
+                source[10U] == (written(10U) ? 0xBBBB009BU : 0xBBBB1234U) &&
+                source[5U] == (written(11U) ? 0x00C87777U : 0xCCCC7777U),
+            "Control Z writes live, auxiliary and base records in LST order and preserves each failed prefix"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto& configuration = fixture->startup.party[0U].configuration;
+        configuration.source_runtime_value = 2U;
+        configuration.profile_token = 0x78002000U;
+        std::array<u32, 41> mon;
+        mon.fill(0xAABBCCDDU);
+        RecordPort port(*fixture);
+        port.records.emplace(
+            0x78002000U, std::as_writable_bytes(std::span{mon})
+        );
+        const auto restored = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::reset_group_a_primary,
+            .arguments = {0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU},
+        });
+        const auto configured = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::configure_group_a,
+            .arguments = {9900U, 155U, 200U},
+        });
+        test.expect_true(
+            !restored.typed_stop && !configured.typed_stop &&
+                mon[19U] == 0xFFFFFFFFU && mon[25U] == 0xAABBFFFFU &&
+                mon[21U] == 0x26ACCCDDU && mon[22U] == 0x00C8009BU,
+            "non-party Z calls preserve signed minus one and the three MON WORD writes"
+        );
+
+        configuration.profile_token = 0U;
+        port.accesses = 0U;
+        const auto absent = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::reset_group_a_primary,
+            .arguments = {0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU},
+        });
+        test.expect_true(
+            !absent.typed_stop && port.accesses == 0U,
+            "the original nullable MON reset reference remains a no-op"
+        );
+    }
+
+    for (const auto gates :
+         {std::array<u32, 2>{1U, 0U},
+          std::array<u32, 2>{0U, 1U},
+          std::array<u32, 2>{2U, 2U}}) {
+        auto fixture = std::make_unique<Fixture>();
+        auto& configuration = fixture->startup.party[0U].configuration;
+        configuration.auxiliary_record_token = 0x004ACF50U;
+        configuration.source_runtime_value_read_accessible = false;
+        fixture->action.group_a_action_execution[0U]
+            .action_twenty_seven_motion_mode = gates[0U];
+        fixture->startup.party[0U].progress.scene_identity = gates[1U];
+        auto& auxiliary = fixture->startup.group_a_auxiliary_sources[0U];
+        auxiliary.dwords[0U] = 7U;
+        RecordPort port(*fixture);
+        port.records.emplace(
+            0x004ACF50U, std::as_writable_bytes(std::span{&auxiliary, 1U})
+        );
+        const auto result = port.invoke_debug_hotkey({
+            .call = LegacyBattleDebugHotkeyCall::reset_group_a_secondary,
+            .arguments = {0xFFFFFFFFU},
+        });
+        const bool skipped = gates[0U] == 1U || gates[1U] == 1U;
+        test.expect_true(
+            !result.typed_stop && port.accesses == (skipped ? 0U : 2U) &&
+                auxiliary.dwords[0U] == (skipped ? 7U : 56U),
+            "secondary reset checks exact AI gates without reading actor kind"
+        );
+    }
+
+    for (const auto gates :
+         {std::array<u32, 2>{1U, 0U},
+          std::array<u32, 2>{0U, 1U},
+          std::array<u32, 2>{2U, 2U}}) {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->actor_metrics.group_a_count = 1U;
+        fixture->action.group_a_action_execution[0U]
+            .action_twenty_seven_motion_mode = gates[0U];
+        fixture->startup.party[0U].progress.scene_identity = gates[1U];
+        LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = 1U;
+        DebugPort port;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        for (const u32 key : {0x1DU, 0x20U, 0x21U}) {
+            press(keyboard, key);
+        }
+
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard, state, fixture->bindings(false), port
+            );
+        const bool skipped = gates[0U] == 1U || gates[1U] == 1U;
+        test.expect_true(
+            result.status == LegacyBattleDebugHotkeyStatus::completed &&
+                result.port_calls == (skipped ? 0U : 2U) &&
+                port.delays == std::vector<u32>{200U, 100U},
+            "D and F read actual actor AI fields without requiring the frame copy"
+        );
+    }
+
+    struct TextCase {
+        u32 token;
+        std::array<openswd3::compat::u8, 9> bytes;
+        std::size_t size;
+    };
+
+    constexpr std::array text_cases{
+        TextCase{
+            0x004A7820U,
+            {0xB5U, 0xB4U, 0xB9U, 0xEFU, 0xC6U, 0x46U, 0xABU, 0xB4U, 0U},
+            9U
+        },
+        TextCase{
+            0x004A782CU,
+            {0xA5U, 0xBFU, 0xB1U, 0x60U, 0xC6U, 0x46U, 0xABU, 0xB4U, 0U},
+            9U
+        },
+        TextCase{
+            0x004A7838U, {0xB1U, 0x6AU, 0xA7U, 0xF0U, 0xC0U, 0xBBU, 0U}, 7U
+        },
+    };
+    for (const auto& entry : text_cases) {
+        const auto bytes =
+            openswd3::battle::legacy_battle_debug_text_bytes(entry.token);
+        test.expect_true(
+            bytes.size() == entry.size &&
+                std::equal(bytes.begin(), bytes.end(), entry.bytes.begin()),
+            "fixed debug text preserves the original encoded bytes and terminator"
+        );
+    }
+
+    test.expect_true(
+        openswd3::battle::legacy_battle_debug_text_bytes(0U).empty() &&
+            openswd3::battle::legacy_battle_debug_text_bytes(0x004A7821U)
+                .empty(),
+        "unknown debug text tokens are not replaced by an empty string"
+    );
+
     struct StopCase {
         u32 key;
         LegacyBattleDebugHotkeyCall call;
@@ -443,7 +1161,9 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.actor_metrics.group_a_count = 2U;
         fixture.actor_metrics.group_b_count = 1U;
-        fixture.actor_frames.shared.actor_ai_primary[1] = 1U;
+        fixture.action.group_a_action_execution[1U]
+            .action_twenty_seven_motion_mode = 1U;
+        fixture.actor_frames.shared.actor_ai_primary.fill(1U);
         LegacyBattleDebugHotkeyState state;
         state.developer_tools_enabled = 1U;
         DebugPort port;

@@ -287,7 +287,10 @@ public:
 
 struct Fixture {
     Fixture() : action_updater(action_streams) {
-        startup.group_a_profiles.profile_tokens.fill(1U);
+        for (auto& party : startup.party) {
+            party.configuration.auxiliary_record_token = 0x004ACF50U;
+        }
+
         for (auto& source : startup.action_mode_source.option_sources[0U]) {
             source.object_token = 1U;
         }
@@ -679,7 +682,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.final_actor.queued_actor_code = 8U;
         fixture.message = 1U;
         fixture.input.selection_animation_frame_b = 6U;
-        fixture.startup.group_a_profiles.profile_tokens[0U] = 0U;
+        fixture.startup.party[0U].configuration.auxiliary_record_token = 0U;
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port

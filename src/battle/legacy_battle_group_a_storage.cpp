@@ -167,10 +167,6 @@ LegacyBattleGroupAStorage::initialize_party(
                                 : Status::source_index_typed_stop;
     }
 
-    startup_.group_a_profiles.profile_tokens[index] =
-        party.configuration.auxiliary_record_token;
-    startup_.group_a_profiles.profile_kinds[index] =
-        startup_.group_a_auxiliary_profile_kinds[source];
     if (!party.progress.special_ready_read_accessible) {
         return Status::mode_read_typed_stop;
     }

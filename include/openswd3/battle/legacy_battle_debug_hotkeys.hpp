@@ -12,6 +12,7 @@
 #include "openswd3/world_map/legacy_world_player_control.hpp"
 
 #include <array>
+#include <span>
 
 namespace openswd3::battle {
 
@@ -70,6 +71,38 @@ public:
         static_cast<void>(milliseconds);
     }
 };
+
+class LegacyBattleDebugRecordPort {
+public:
+    virtual ~LegacyBattleDebugRecordPort() = default;
+
+    // Borrow the current mapping on each original record access. An empty or
+    // short mapping stops that access, retaining earlier writes.
+    [[nodiscard]] virtual std::span<std::byte>
+    debug_record_bytes(compat::u32 token) = 0;
+};
+
+// The three Group-A record calls made by Control+Z. The secondary call is
+// intentionally limited to its fixed -1 argument; this is not a closure of
+// the generic 0x00482DA0 floating-point domain.
+[[nodiscard]] LegacyBattleDebugHotkeyCallReply
+invoke_legacy_battle_debug_group_a_record_call(
+    LegacyBattleGroupAConfigurationState& configuration,
+    const LegacyBattleActorProgressState& progress,
+    const LegacyBattleGroupAActionExecutionState& action,
+    LegacyBattleDebugRecordPort& records,
+    const LegacyBattleDebugHotkeyCallRequest& request
+);
+
+// 0x0047F150 reached by D/F/V/W, using the existing actor and record owners.
+[[nodiscard]] LegacyBattleDebugHotkeyCallReply
+apply_legacy_battle_debug_actor_values(
+    LegacyBattleStartupState& startup,
+    LegacyBattleActionDispatchState& action,
+    LegacyBattleBoundedRandomPort& random,
+    LegacyBattleDebugRecordPort& records,
+    const LegacyBattleDebugHotkeyCallRequest& request
+);
 
 struct LegacyBattleDebugHotkeyBindings {
     LegacyBattleStartupState& startup;
@@ -138,6 +171,11 @@ struct LegacyBattleDebugHotkeyResult {
     bool early_return_zero{};
     bool full_reset_applied{};
 };
+
+// Original byte strings, including their NUL terminator. An empty span means
+// the token is outside the three fixed debug messages.
+[[nodiscard]] std::span<const compat::u8>
+legacy_battle_debug_text_bytes(compat::u32 token) noexcept;
 
 [[nodiscard]] LegacyBattleDebugHotkeyResult
 coordinate_legacy_battle_debug_hotkeys(

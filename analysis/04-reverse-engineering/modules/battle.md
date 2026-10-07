@@ -10,8 +10,10 @@ SDL每帧指标重建已接实际坐标，定向验证通过，诊断现场限�
 [指标接线](../evidence/battle-actor-metrics-0045b0e0.md)。每帧排序已接入，
 比较、返回及失败前缀通过定向验证，见
 [排序接线](../evidence/battle-actor-order-0045b190.md)。调试键盘与共享状态
-已接SDL，外部调用失败保留前缀；验证及剩余端口见
-[调试接线](../evidence/battle-debug-hotkeys-0045d8f0.md)。后续帧阶段仍待接入。
+已接SDL，角色记录、音频与固定文字端口也已绑定，记录访问失败保留前缀。
+辅助记录写入和行动摘要共用同一存档字节；定向core/ASan及SDL构建通过。
+验证范围见[调试接线](../evidence/battle-debug-hotkeys-0045d8f0.md)。
+后续帧阶段与实机热键仍待验收，通用callee审计状态不前移。
 
 入战、角色收尾及全局重置共用菜单的四项装备选择缓存，定向验证通过，见
 [装备选择缓存](../evidence/battle-equipment-selection-cache-004ff578.md)。

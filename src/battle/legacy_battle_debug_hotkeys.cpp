@@ -21,6 +21,17 @@ constexpr u32 kMessageTextToken = 0x004A7838U;
 constexpr u32 kTextModeEnabledToken = 0x004A7820U;
 constexpr u32 kTextModeDisabledToken = 0x004A782CU;
 
+// LST .data:004A7820, 004A782C and 004A7838. Keep the original encoded bytes.
+constexpr std::array<compat::u8, 9> kTextModeEnabledBytes{
+    0xB5U, 0xB4U, 0xB9U, 0xEFU, 0xC6U, 0x46U, 0xABU, 0xB4U, 0U
+};
+constexpr std::array<compat::u8, 9> kTextModeDisabledBytes{
+    0xA5U, 0xBFU, 0xB1U, 0x60U, 0xC6U, 0x46U, 0xABU, 0xB4U, 0U
+};
+constexpr std::array<compat::u8, 7> kMessageBytes{
+    0xB1U, 0x6AU, 0xA7U, 0xF0U, 0xC0U, 0xBBU, 0U
+};
+
 [[nodiscard]] constexpr u16 low_word(const u32 value) noexcept {
     return static_cast<u16>(value);
 }
@@ -291,6 +302,159 @@ subtract_flags(const u32 left, const u32 right) noexcept {
 
 }  // namespace
 
+LegacyBattleDebugHotkeyCallReply invoke_legacy_battle_debug_group_a_record_call(
+    LegacyBattleGroupAConfigurationState& configuration,
+    const LegacyBattleActorProgressState& progress,
+    const LegacyBattleGroupAActionExecutionState& action,
+    LegacyBattleDebugRecordPort& records,
+    const LegacyBattleDebugHotkeyCallRequest& request
+) {
+    LegacyBattleDebugHotkeyCallReply reply{
+        .eax = request.eax,
+        .ecx = request.ecx,
+        .edx = request.edx,
+        .typed_stop = true
+    };
+    const auto read = [&](const u32 token,
+                          const std::size_t offset,
+                          const std::size_t width,
+                          u32& value) {
+        const auto bytes = records.debug_record_bytes(token);
+        if (offset > bytes.size() || width > bytes.size() - offset) {
+            return false;
+        }
+
+        value = 0U;
+        for (std::size_t i = 0U; i < width; ++i) {
+            value |= std::to_integer<u32>(bytes[offset + i]) << (i * 8U);
+        }
+
+        return true;
+    };
+    const auto write = [&](const u32 token,
+                           const std::size_t offset,
+                           const std::size_t width,
+                           const u32 value) {
+        auto bytes = records.debug_record_bytes(token);
+        if (offset > bytes.size() || width > bytes.size() - offset) {
+            return false;
+        }
+
+        for (std::size_t i = 0U; i < width; ++i) {
+            bytes[offset + i] = static_cast<std::byte>(value >> (i * 8U));
+        }
+
+        return true;
+    };
+    using Call = LegacyBattleDebugHotkeyCall;
+    if (request.call == Call::reset_group_a_secondary) {
+        if (action.action_twenty_seven_motion_mode != 1U &&
+            progress.scene_identity != 1U) {
+            if (request.arguments[0U] != 0xFFFFFFFFU) {
+                return reply;
+            }
+
+            if (!write(configuration.auxiliary_record_token, 0U, 4U, 56U)) {
+                return reply;
+            }
+
+            u32 current{};
+            if (!read(configuration.auxiliary_record_token, 0U, 4U, current)) {
+                return reply;
+            }
+
+            // With EDI=-1 both the signed >=56 and <=0 exits return here.
+        }
+
+        reply.typed_stop = false;
+        return reply;
+    }
+
+    if (request.call != Call::reset_group_a_primary &&
+        request.call != Call::configure_group_a) {
+        return reply;
+    }
+
+    if (!configuration.source_runtime_value_read_accessible) {
+        return reply;
+    }
+
+    const bool party = configuration.source_runtime_value == 1U;
+    if ((!party && configuration.profile_token == 0U) ||
+        (party && request.call == Call::reset_group_a_primary &&
+         configuration.actor_record_token == 0U)) {
+        reply.typed_stop = false;
+        return reply;
+    }
+
+    if (request.call == Call::reset_group_a_primary && !party) {
+        const u32 value = sign_extend_word(request.arguments[0U]);
+        if (!write(configuration.profile_token, 0x4CU, 4U, value) ||
+            !write(configuration.profile_token, 0x64U, 2U, value)) {
+            return reply;
+        }
+    } else {
+        constexpr std::array<std::size_t, 3> source_offsets{
+            0x26U, 0x28U, 0x16U
+        };
+        for (std::size_t index = 0U; index < 3U; ++index) {
+            const u16 value = low_word(request.arguments[index]);
+            if (request.call == Call::reset_group_a_primary) {
+                const std::size_t current = 4U + index * 2U;
+                const std::size_t maximum = 10U + index * 2U;
+                if (std::bit_cast<i16>(value) > 0 &&
+                    (!write(
+                         configuration.actor_record_token, maximum, 2U, value
+                     ) ||
+                     !write(
+                         configuration.actor_record_token, current, 2U, value
+                     ))) {
+                    return reply;
+                }
+
+                if (value == 0xFFFFU) {
+                    u32 restored{};
+                    // Each -1 branch retains its loaded record reference
+                    // across the max read and current write.
+                    const u32 token = configuration.actor_record_token;
+                    if (!read(token, maximum, 2U, restored) ||
+                        !write(token, current, 2U, restored)) {
+                        return reply;
+                    }
+                }
+            } else if (std::bit_cast<i16>(value) > 0) {
+                const u32 token = party ? configuration.source_record_token
+                                        : configuration.profile_token;
+                const std::size_t offset =
+                    party ? source_offsets[index] : 0x56U + index * 2U;
+                if (!write(token, offset, 2U, value)) {
+                    return reply;
+                }
+            }
+        }
+    }
+
+    reply.typed_stop = false;
+    return reply;
+}
+
+std::span<const compat::u8>
+legacy_battle_debug_text_bytes(const u32 token) noexcept {
+    switch (token) {
+    case kTextModeEnabledToken:
+        return kTextModeEnabledBytes;
+
+    case kTextModeDisabledToken:
+        return kTextModeDisabledBytes;
+
+    case kMessageTextToken:
+        return kMessageBytes;
+
+    default:
+        return {};
+    }
+}
+
 LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
     const input_time_rng::LegacyKeyboardSnapshot& keyboard,
     LegacyBattleDebugHotkeyState& state,
@@ -425,17 +589,18 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 while (index < std::bit_cast<u32>(
                                    bindings.actor_metrics.group_a_count
                                )) {
-                    if (bindings.actor_frames == nullptr ||
-                        index >= bindings.actor_frames->shared.actor_ai_primary
-                                     .size()) {
+                    if (index >= bindings.startup.party.size() ||
+                        index >=
+                            bindings.action.group_a_action_execution.size()) {
                         result.status = LegacyBattleDebugHotkeyStatus::
                             group_a_runtime_typed_stop;
                         return result;
                     }
-                    if (bindings.actor_frames->shared.actor_ai_primary[index] !=
-                            1U &&
-                        bindings.actor_frames->shared
-                                .actor_ai_secondary[index] != 1U) {
+
+                    if (bindings.action.group_a_action_execution[index]
+                                .action_twenty_seven_motion_mode != 1U &&
+                        bindings.startup.party[index].progress.scene_identity !=
+                            1U) {
                         if (runner
                                 .invoke(
                                     LegacyBattleDebugHotkeyCall::
@@ -459,17 +624,18 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 while (index < std::bit_cast<u32>(
                                    bindings.actor_metrics.group_a_count
                                )) {
-                    if (bindings.actor_frames == nullptr ||
-                        index >= bindings.actor_frames->shared.actor_ai_primary
-                                     .size()) {
+                    if (index >= bindings.startup.party.size() ||
+                        index >=
+                            bindings.action.group_a_action_execution.size()) {
                         result.status = LegacyBattleDebugHotkeyStatus::
                             group_a_runtime_typed_stop;
                         return result;
                     }
-                    if (bindings.actor_frames->shared.actor_ai_primary[index] !=
-                            1U &&
-                        bindings.actor_frames->shared
-                                .actor_ai_secondary[index] != 1U) {
+
+                    if (bindings.action.group_a_action_execution[index]
+                                .action_twenty_seven_motion_mode != 1U &&
+                        bindings.startup.party[index].progress.scene_identity !=
+                            1U) {
                         if (runner
                                 .invoke(
                                     LegacyBattleDebugHotkeyCall::

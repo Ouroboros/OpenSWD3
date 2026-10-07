@@ -2847,11 +2847,10 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party[1].position_y == 370U &&
                 state.party[0].workspace.object_token == 0x005029D0U &&
                 state.party[1].workspace.object_token == 0x00505904U &&
-                state.group_a_profiles.profile_tokens[0U] ==
+                state.party[0U].configuration.auxiliary_record_token ==
                     0x004ACF50U +
                         state.action_mode_source.actor_label_indices[0U] *
                             0x60U &&
-                state.group_a_profiles.profile_kinds[0U] == 0x38U &&
                 result.party_attribute_aggregation_calls == 2U &&
                 result.party_attribute_aggregations[0U].status ==
                     openswd3::battle::

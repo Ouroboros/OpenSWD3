@@ -1445,8 +1445,6 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         party.item_effect_application.derived_words[0U] = 0U;
         party.item_effect_application.action_kind = 0U;
         party.item_effect_application.effect_flags = 0U;
-        state.group_a_profiles.profile_tokens[index] = 0U;
-        state.group_a_profiles.profile_kinds[index] = 0U;
         state.group_a_description_record_tokens[index] = 0U;
         state.group_a_description_text_indices[index] = 0U;
         if (state.mirror_mode == 1U) {
@@ -1495,10 +1493,6 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 LegacyBattleStartupStatus::party_configuration_typed_stop;
             return result;
         }
-        state.group_a_profiles.profile_tokens[index] =
-            party.configuration.auxiliary_record_token;
-        state.group_a_profiles.profile_kinds[index] =
-            state.group_a_auxiliary_profile_kinds[source];
         if (invoke(
                 port,
                 LegacyBattleStartupCall::query_party_actor_mode,

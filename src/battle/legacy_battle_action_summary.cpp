@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_action_summary.hpp"
+#include "openswd3/battle/legacy_battle_auxiliary_record.hpp"
 
 #include <algorithm>
 #include <array>
@@ -189,11 +190,18 @@ LegacyBattleActionSummaryResult draw_legacy_battle_action_summary(
     if (actor_index >= kGroupACount) {
         return stop(Status::group_a_actor_typed_stop);
     }
-    ecx = startup.group_a_profiles.profile_tokens[actor_index];
-    if (ecx == 0U) {
+    ecx = startup.party[actor_index].configuration.auxiliary_record_token;
+    const auto auxiliary = legacy_battle_auxiliary_record_bytes(startup, ecx);
+    if (auxiliary.size() < sizeof(u32)) {
         return stop(Status::group_a_profile_typed_stop);
     }
-    if (startup.group_a_profiles.profile_kinds[actor_index] == 0x38U) {
+
+    u32 value{};
+    for (u32 byte = 0U; byte < sizeof(u32); ++byte) {
+        value |= std::to_integer<u32>(auxiliary[byte]) << (byte * 8U);
+    }
+
+    if (value == 0x38U) {
         ecx = kGroupABaseToken + eax;
         invoke(Call::query_actor_special_gate, ecx);
         ++result.actor_special_queries;

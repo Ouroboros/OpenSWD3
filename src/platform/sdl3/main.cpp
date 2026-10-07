@@ -44,6 +44,7 @@
 #include "openswd3/battle/legacy_battle_assets.hpp"
 #include "openswd3/battle/legacy_battle_display_surface_runtime.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
+#include "openswd3/battle/legacy_battle_auxiliary_record.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
@@ -1768,6 +1769,7 @@ class SdlSmokeIdlePorts final
       public virtual openswd3::input_time_rng::LegacyMouseFrameStatePort,
       public virtual openswd3::battle::LegacyBattlePreFramePort,
       public virtual openswd3::battle::LegacyBattleDebugHotkeyPort,
+      public openswd3::battle::LegacyBattleDebugRecordPort,
       public virtual openswd3::battle::LegacyBattleEffectCoordinatorStatePort,
       public virtual openswd3::battle::LegacyBattleEffectShiftStatePort,
       public virtual openswd3::battle::LegacyBattleActorMetricStatePort,
@@ -3393,6 +3395,154 @@ public:
                 )
             ),
         };
+    }
+
+    [[nodiscard]] std::span<std::byte>
+    debug_record_bytes(const openswd3::compat::u32 token) override {
+        auto auxiliary = openswd3::battle::legacy_battle_auxiliary_record_bytes(
+            battle_runtime_, token
+        );
+        if (!auxiliary.empty()) {
+            return auxiliary;
+        }
+
+        for (std::size_t index = 0U;
+             index < battle_runtime_.group_a_configuration_sources.size();
+             ++index) {
+            auto source = battle_runtime_.group_a_configuration_sources[index];
+            const auto relative = token -
+                (0x004AB790U +
+                 static_cast<openswd3::compat::u32>(index) * 0x38U);
+            if (relative < source.size()) {
+                return source.subspan(relative);
+            }
+        }
+
+        auto record = battle_group_a_storage_.record_bytes(token);
+        if (record.empty()) {
+            record = battle_group_b_storage_.resource_bytes(token);
+        }
+
+        if (!record.empty()) {
+            return std::as_writable_bytes(record);
+        }
+
+        if (battle_runtime_.group_b_lifecycle != nullptr) {
+            constexpr auto base = openswd3::battle::
+                kLegacyBattleActorGroupBExternalSourceBaseToken;
+            constexpr auto stride =
+                sizeof(openswd3::battle::LegacyBattleGroupBActionRecord);
+            static_assert(stride == 0x20U);
+            const auto relative = token - base;
+            const auto index = relative / stride;
+            if (index < battle_runtime_.group_b_lifecycle->size()) {
+                auto& enemy = (*battle_runtime_.group_b_lifecycle)[index];
+                return std::as_writable_bytes(
+                           std::span{&enemy.action_record, 1U}
+                )
+                    .subspan(relative % stride);
+            }
+        }
+
+        return {};
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleDebugHotkeyCallReply
+    invoke_debug_hotkey(
+        const openswd3::battle::LegacyBattleDebugHotkeyCallRequest& request
+    ) override {
+        using Call = openswd3::battle::LegacyBattleDebugHotkeyCall;
+        openswd3::battle::LegacyBattleDebugHotkeyCallReply reply{
+            .eax = request.eax,
+            .ecx = request.ecx,
+            .edx = request.edx,
+        };
+        switch (request.call) {
+        case Call::reset_group_a_primary:
+
+        case Call::reset_group_a_secondary:
+
+        case Call::configure_group_a: {
+            const auto relative = request.object_token - 0x005029D0U;
+            const auto index = relative / 0x2F34U;
+            if (relative % 0x2F34U != 0U ||
+                index >= battle_runtime_.party.size()) {
+                reply.typed_stop = true;
+                break;
+            }
+
+            auto& party = battle_runtime_.party[index];
+            return openswd3::battle::
+                invoke_legacy_battle_debug_group_a_record_call(
+                    party.configuration,
+                    party.progress,
+                    battle_action_dispatch_.group_a_action_execution[index],
+                    *this,
+                    request
+                );
+        }
+
+        case Call::publish_actor_value:
+            return openswd3::battle::apply_legacy_battle_debug_actor_values(
+                battle_runtime_, battle_action_dispatch_, *this, *this, request
+            );
+
+        case Call::query_actor_status: {
+            const auto status = invoke_pre_frame({
+                .call = openswd3::battle::LegacyBattlePreFrameCall::
+                    query_group_b_actor,
+                .actor_token = request.object_token,
+                .entry_eax = request.eax,
+                .entry_edx = request.edx,
+            });
+            reply.eax = status.eax;
+            reply.ecx = status.ecx;
+            reply.edx = status.edx;
+            reply.typed_stop = status.typed_stop;
+            break;
+        }
+
+        case Call::suspend_audio_output:
+            reply.eax = std::bit_cast<openswd3::compat::u32>(
+                openswd3::audio_video::stop_legacy_stream(stream_manager_)
+            );
+            break;
+
+        case Call::restart_battle_music:
+            if (request.arguments[0U] != 0x0053C198U) {
+                reply.typed_stop = true;
+                break;
+            }
+
+            reply.eax = std::bit_cast<openswd3::compat::u32>(
+                play_battle_music_path(battle_script_shared_.music_path)
+            );
+            break;
+
+        case Call::text_message_allocate:
+            reply.eax = allocate_battle_dialog_storage(request.arguments[0U]);
+            break;
+
+        case Call::text_message_measure: {
+            const auto bytes = openswd3::battle::legacy_battle_debug_text_bytes(
+                request.arguments[0U]
+            );
+            if (bytes.empty()) {
+                reply.typed_stop = true;
+                break;
+            }
+
+            const auto end = std::find(bytes.begin(), bytes.end(), 0U);
+            reply.eax = static_cast<openswd3::compat::u32>(end - bytes.begin());
+            break;
+        }
+
+        default:
+            reply.typed_stop = true;
+            break;
+        }
+
+        return reply;
     }
 
     [[nodiscard]] openswd3::compat::u32

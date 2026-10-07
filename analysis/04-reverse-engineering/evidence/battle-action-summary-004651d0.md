@@ -12,7 +12,18 @@
 
 入口以live queued actor code覆盖EAX；零值立即返回，ECX/EDX保留入口值且不配置字体。非零时固定依次发布字体参数0与`0xFFFE`，随后以`queued-8`的u32值计算组A对象步长。
 
-对象索引只在首次读取actor内profile token时typed-stop；token为0则在紧接的kind dword解引用点停止。kind完整dword等于`0x38`时调用特殊门，完整EAX为0才把九byte权限域的第4项置1。组A profile token/kind建立在启动状态的单一typed owner中：组A对象reset时清零，profile配置callee只有显式发布时写入。
+对象索引只在首次读取actor内辅助记录引用时typed-stop；`465213`读取actor+8，
+`465219`直接比较该引用首DWORD与`0x38`。引用或完整DWORD未映射时，在解引用处
+停止，保留两次字体调用。DWORD精确等于`0x38`时调用特殊门，完整EAX为0才把
+九byte权限域第4项置1。
+
+B11调试外部调用批次删除原合成的profile token/kind缓存。引用改为读取实际
+`configuration.auxiliary_record_token`，数据借用从存档恢复的四个连续0x60字节
+辅助记录。允许非对齐和跨记录读取；访问宽度到达映射末端时停止。
+当前只映射`004ACF50..004AD0CF`，未知引用不得用零值或默认56代替。
+调试写入和摘要读取共用这份字节。实际DWORD、字体回调改变引用、末端与越界
+回归通过core/ASan定向测试；SDL构建通过。验证及限制见
+[调试端口接线第11节](battle-debug-hotkeys-0045d8f0.md#11-b11实际角色音频与文字调用)。
 
 两次字体callee和可选特殊门的完整返回寄存器进入后续已关闭动作模式刷新。刷新继续读取live startup mode、party mapping、option source、queued actor和输入状态；任一子typed-stop保留全部字体、profile查询、权限及刷新前缀，并阻断所有摘要行。
 

@@ -133,6 +133,7 @@ add_library(
         legacy_battle_color_fade.cpp
         legacy_battle_context_prompt.cpp
         legacy_battle_control_panel_frame.cpp
+        legacy_battle_debug_actor_value.cpp
         legacy_battle_debug_hotkeys.cpp
         legacy_battle_debug_overlay.cpp
         legacy_battle_debug_status_panel.cpp
