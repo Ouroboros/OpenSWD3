@@ -10,6 +10,11 @@ namespace openswd3::battle {
 bool LegacyBattleMonTextRuntime::release_block(
     Blocks& blocks, const compat::u32 token
 ) noexcept {
+    // 488603..488609 accepts a null free without looking up a heap block.
+    if (token == 0U) {
+        return true;
+    }
+
     const auto found = blocks.find(token);
     if (found == blocks.end()) {
         return false;

@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -13,6 +14,29 @@ struct LegacyActionRecord;
 }
 
 namespace openswd3::story_scene {
+
+enum class LegacyDialogTextReplaceStatus : compat::u8 {
+    no_match,
+    replaced,
+    memory_access_typed_stop,
+};
+
+// sub_40BAA0: compare the NUL-terminated pattern, move exactly
+// limit - replacement_length bytes, then copy the replacement without its NUL.
+// Pattern and replacement borrow separate storage from destination, as in the
+// original dialog callers. Invalid mapped extents stop before the bulk move.
+[[nodiscard]] LegacyDialogTextReplaceStatus replace_legacy_dialog_text_prefix(
+    std::span<compat::u8> destination,
+    std::span<const compat::u8> pattern,
+    std::span<const compat::u8> replacement,
+    compat::u32 limit
+) noexcept;
+
+// 0x0040BA04..0x0040BA91: (line_count << 16) + visible_byte_count.
+// This preparation counter recognizes %D, independently of the renderer's
+// D% spelling. A missing mapped read returns nullopt.
+[[nodiscard]] std::optional<compat::u32>
+measure_legacy_dialog_prepared_text(std::span<const compat::u8> text) noexcept;
 
 enum class LegacyDialogTextTokenKind : compat::u8 {
     text,
@@ -72,6 +96,9 @@ struct LegacyDialogChoiceHotspot {
 };
 
 struct LegacyDialogMessage {
+    // Optional IA-32 allocation identity for callers that retain the node
+    // after linking it into the shared dialog chain. Zero is not an address.
+    compat::u32 allocation_token{};
     LegacyDialogRecord32 record;
     // The physical record keeps the two original IA-32 pointer tokens. Live
     // owners are carried separately so a 64-bit build can still resolve the

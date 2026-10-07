@@ -58,6 +58,8 @@
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
 #include "openswd3/battle/legacy_battle_runtime_shutdown.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_dialog_text.hpp"
+#include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
 #include "openswd3/battle/legacy_battle_save_fame.hpp"
 #include "openswd3/battle/legacy_battle_save_party_extension.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
@@ -1756,6 +1758,7 @@ class SdlSmokeIdlePorts final
       public openswd3::app::FramePreparationPorts,
       public openswd3::app::FrameRuntimePorts,
       public openswd3::battle::LegacyBattleScriptDispatchPort,
+      public openswd3::battle::LegacyBattleDialogFormatPort,
       public openswd3::battle::LegacyBattleGroupAConfigurationDiagnosticPort,
       public openswd3::battle::LegacyBattleGroupAAttributeAggregationPort,
       public openswd3::battle::LegacyBattleStartupSupplementalPort,
@@ -2822,7 +2825,6 @@ public:
         battle_target_selection_ = {};
         battle_message_phase_ = {};
         battle_victory_rewards_ = {};
-        next_battle_script_token_ = 0x01000000U;
 
         // 451CCD..451CEF resets the shared dialog-end button (4C9708).
         auto& control_action = world_dialog_runtime_state_.end_dialog_action;
@@ -3385,9 +3387,30 @@ public:
         };
     }
 
+    [[nodiscard]] openswd3::compat::u32
+    allocate_battle_dialog_storage(const openswd3::compat::u32 bytes) override {
+        return openswd3::asset_runtime::reserve_legacy_guest_bytes(bytes)
+            .value_or(0U);
+    }
+
+    [[nodiscard]] bool update_battle_dialog_action(
+        openswd3::asset_runtime::LegacyActionRecord& action
+    ) override {
+        openswd3::asset_runtime::LegacyActionDrawRuntimePorts ports{
+            action_updater_,
+            tsw_runtime_,
+            game_framebuffer_,
+            world_raster_,
+            world_effects_,
+            world_jitter_
+        };
+        return ports.update_action_record(action) ==
+            openswd3::asset_runtime::LegacyActionUpdateStatus::completed;
+    }
+
     openswd3::battle::LegacyBattleScriptDispatchCallReply invoke_battle_script(
         openswd3::battle::LegacyBattleScriptWorkspace& workspace,
-        openswd3::battle::LegacyBattleScriptDispatchBindings&,
+        openswd3::battle::LegacyBattleScriptDispatchBindings& bindings,
         const openswd3::battle::LegacyBattleScriptDispatchCallRequest& request
     ) override {
         using openswd3::battle::LegacyBattleScriptDispatchCall;
@@ -3437,9 +3460,66 @@ public:
         };
 
         switch (request.call) {
+        case LegacyBattleScriptDispatchCall::format_dynamic_text: {
+            auto* message =
+                openswd3::battle::find_legacy_battle_script_dynamic_command(
+                    workspace, bindings.dialogs, request.object_token
+                );
+            const auto offset = request.arguments[0U];
+            const auto capacity = std::min<std::size_t>(
+                bindings.assets.script_capacity, bindings.assets.script.size()
+            );
+            if (message == nullptr || request.argument_count != 5U ||
+                request.arguments[1U] != 0x0053CE3CU || offset >= capacity) {
+                reply.typed_stop = true;
+                break;
+            }
+
+            const auto formatted =
+                openswd3::battle::format_legacy_battle_dialog(
+                    *message,
+                    {
+                        .payload =
+                            std::span<const openswd3::compat::u8>{
+                                bindings.assets.script
+                            }
+                                .first(capacity)
+                                .subspan(offset),
+                        .caption = workspace.short_text,
+                        .mode = request.arguments[2U],
+                        .x = request.arguments[3U],
+                        .y = request.arguments[4U],
+                    },
+                    {
+                        .scale = world_story_vm_state_.dialog_scale,
+                        .character_delay_base =
+                            world_story_vm_state_.dialog_character_delay_base,
+                        .frame_actions =
+                            world_dialog_runtime_state_.frame_actions,
+                        .caption_actions =
+                            world_dialog_runtime_state_.caption_actions,
+                        .first_name = initial_menu_state_.first_name,
+                        .second_name = initial_menu_state_.second_name,
+                        .text_state = battle_dialog_text_state_,
+                    },
+                    *this
+                );
+            reply.typed_stop = formatted.status !=
+                openswd3::battle::LegacyBattleDialogFormatStatus::completed;
+            reply.eax = reply.typed_stop ? 0U : 1U;
+            break;
+        }
+
+        case LegacyBattleScriptDispatchCall::finalize_dynamic_text:
+            reply.typed_stop =
+                !openswd3::battle::append_legacy_battle_script_dynamic_command(
+                    workspace, bindings.dialogs, request.object_token
+                );
+            reply.eax = request.object_token;
+            break;
+
         case LegacyBattleScriptDispatchCall::allocate:
-            reply.eax = next_battle_script_token_;
-            next_battle_script_token_ += 0x100U;
+            reply.eax = allocate_battle_dialog_storage(request.arguments[0U]);
             break;
         case LegacyBattleScriptDispatchCall::script_page_load: {
             const auto read =
@@ -3928,6 +4008,7 @@ public:
                 .message_phase = battle_message_phase_,
                 .victory = battle_victory_rewards_,
                 .shared = battle_script_shared_,
+                .dialogs = world_dialogs_,
                 .message_state = battle_message_state_,
                 .asset_root_path = asset_root_path,
             },
@@ -8976,6 +9057,7 @@ private:
     openswd3::battle::LegacyBattleSetupState battle_setup_;
     bool battle_setup_ready_{};
     openswd3::battle::LegacyBattleScriptWorkspace battle_script_workspace_;
+    openswd3::battle::LegacyBattleDialogTextState battle_dialog_text_state_;
     openswd3::battle::LegacyBattleScriptSharedState battle_script_shared_;
     openswd3::battle::LegacyBattleFrameCoordinatorState
         battle_frame_coordinator_state_;
@@ -9004,7 +9086,6 @@ private:
         battle_victory_reward_state()
     };
     openswd3::compat::u32& battle_message_state_{battle_message_state()};
-    openswd3::compat::u32 next_battle_script_token_{0x01000000U};
     openswd3::rendering::LegacyRasterGeometryState world_raster_;
     openswd3::rendering::LegacyFramebuffer world_interpolation_current_base_;
     openswd3::rendering::LegacyFramebuffer world_interpolation_current_final_;

@@ -4,6 +4,7 @@
 
 #include <array>
 #include <bit>
+#include <cstring>
 #include <string_view>
 
 namespace openswd3::story_scene {
@@ -130,6 +131,120 @@ malformed_status(const LegacyDialogTextTokenStatus status) noexcept {
 }
 
 }  // namespace
+
+LegacyDialogTextReplaceStatus replace_legacy_dialog_text_prefix(
+    const std::span<u8> destination,
+    const std::span<const u8> pattern,
+    const std::span<const u8> replacement,
+    const u32 limit
+) noexcept {
+    using Status = LegacyDialogTextReplaceStatus;
+    std::size_t matched{};
+    for (;;) {
+        if (matched == pattern.size()) {
+            return Status::memory_access_typed_stop;
+        }
+
+        if (pattern[matched] == 0U) {
+            break;
+        }
+
+        if (matched == destination.size()) {
+            return Status::memory_access_typed_stop;
+        }
+
+        if (destination[matched] != pattern[matched]) {
+            return Status::no_match;
+        }
+
+        ++matched;
+    }
+
+    if (matched == 0U) {
+        return Status::no_match;
+    }
+
+    std::size_t length{};
+    while (length < replacement.size() && replacement[length] != 0U) {
+        ++length;
+    }
+
+    if (length == replacement.size() || length > destination.size()) {
+        return Status::memory_access_typed_stop;
+    }
+
+    const u32 moved = limit - static_cast<u32>(length);
+    if (moved > destination.size() - length ||
+        moved > destination.size() - matched) {
+        return Status::memory_access_typed_stop;
+    }
+
+    std::memmove(
+        destination.data() + length, destination.data() + matched, moved
+    );
+    std::memcpy(destination.data(), replacement.data(), length);
+    return Status::replaced;
+}
+
+std::optional<u32>
+measure_legacy_dialog_prepared_text(const std::span<const u8> text) noexcept {
+    std::size_t cursor{};
+    u32 lines{1U};
+    u32 visible{};
+    u32 column{};
+    for (;;) {
+        if (!has_bytes(text, cursor, 2U)) {
+            return std::nullopt;
+        }
+
+        if (marker(text, cursor, 'Q')) {
+            return (lines << 16U) + visible;
+        }
+
+        const u16 code = static_cast<u16>(text[cursor]) |
+            static_cast<u16>(static_cast<u16>(text[cursor + 1U]) << 8U);
+        switch (code) {
+        case 0x4E25U:
+        case 0x4C25U:
+        case 0x4B25U:
+        case 0x5025U:
+            cursor += 2U;
+            column = 0U;
+            ++lines;
+            break;
+
+        case 0x5325U:
+        case 0x4325U:
+        case 0x4425U:
+            cursor += 3U;
+            break;
+
+        case 0x4225U:
+        case 0x4125U:
+            cursor += 2U;
+            break;
+
+        default:
+            ++cursor;
+            ++visible;
+            ++column;
+            if (column > 20U) {
+                column = 0U;
+                ++lines;
+            }
+
+            break;
+        }
+
+        if (cursor >= text.size()) {
+            return std::nullopt;
+        }
+
+        if (text[cursor] == 0U) {
+            return (lines << 16U) + visible;
+        }
+    }
+}
 
 LegacyDialogTextToken next_legacy_dialog_text_token(
     const std::span<const u8> text, const std::size_t source_index

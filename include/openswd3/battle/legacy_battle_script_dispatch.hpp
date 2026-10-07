@@ -30,8 +30,10 @@
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/battle/legacy_battle_victory_rewards.hpp"
 #include "openswd3/compat/types.hpp"
+#include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 
 #include <array>
+#include <list>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -44,11 +46,6 @@ inline constexpr compat::u32 kLegacyBattleScriptGroupBBaseToken = 0x00525508U;
 inline constexpr compat::u32 kLegacyBattleScriptGroupBElementSize = 0x2B28U;
 inline constexpr compat::u32 kLegacyBattleScriptDynamicCommandSize = 76U;
 inline constexpr compat::u32 kLegacyBattleScriptTextScanLimit = 255U;
-
-struct LegacyBattleScriptDynamicCommand {
-    compat::u32 token{};
-    std::array<compat::u8, kLegacyBattleScriptDynamicCommandSize> bytes{};
-};
 
 struct LegacyBattleScriptPanelNode {
     compat::u32 token{};
@@ -83,7 +80,9 @@ struct LegacyBattleScriptEffectNode {
 };
 
 struct LegacyBattleScriptWorkspace {
-    std::vector<LegacyBattleScriptDynamicCommand> dynamic_commands;
+    // Allocated but not yet linked messages. Splicing into dialogs.messages
+    // preserves the record identity used by subsequent script writes.
+    std::list<story_scene::LegacyDialogMessage> dynamic_commands;
     std::vector<LegacyBattleScriptPanelNode> panel_nodes;
     std::vector<LegacyBattleScriptEffectNode> effect_nodes;
     compat::u32 dynamic_command_token{};        // 0x0053CCCC
@@ -176,9 +175,27 @@ struct LegacyBattleScriptDispatchBindings {
     LegacyBattleMessagePhaseState& message_phase;
     LegacyBattleVictoryRewardState& victory;
     LegacyBattleScriptSharedState& shared;
+    story_scene::LegacyDialogRuntimeState& dialogs;
     compat::u32& message_state;
     std::string_view asset_root_path{};  // Buffer at 0x004A94BC
 };
+
+// Resolve the same allocation before or after sub_40BB20 links it. An
+// unknown or null token denotes an unavailable original dereference.
+[[nodiscard]] story_scene::LegacyDialogMessage*
+find_legacy_battle_script_dynamic_command(
+    LegacyBattleScriptWorkspace& workspace,
+    story_scene::LegacyDialogRuntimeState& dialogs,
+    compat::u32 token
+) noexcept;
+
+// sub_40BB20 for the fresh, detached allocations supplied by script callers.
+// A missing detached allocation stops before publishing a new chain link.
+[[nodiscard]] bool append_legacy_battle_script_dynamic_command(
+    LegacyBattleScriptWorkspace& workspace,
+    story_scene::LegacyDialogRuntimeState& dialogs,
+    compat::u32 token
+) noexcept;
 
 enum class LegacyBattleScriptDispatchCall : compat::u32 {
     noop_service = 0xFFFFFFFDU,

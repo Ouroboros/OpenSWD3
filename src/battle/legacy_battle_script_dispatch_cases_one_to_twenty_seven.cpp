@@ -69,11 +69,14 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_two() {
         }
         set_high_word(workspace_.packed_actor_state, actor_word);
         workspace_.text_offset = wrapping_add(workspace_.cursor, 2U);
-        invoke(
-            LegacyBattleScriptDispatchCall::allocate,
-            0U,
-            {kLegacyBattleScriptDynamicCommandSize}
-        );
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::allocate,
+                0U,
+                {kLegacyBattleScriptDynamicCommandSize}
+            )) {
+            return finish(eax_);
+        }
+
         workspace_.dynamic_command_token = eax_;
         if (workspace_.dynamic_command_token == 0U) {
             return stop(
@@ -81,34 +84,63 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_two() {
                 workspace_.dynamic_command_token
             );
         }
-        workspace_.dynamic_commands.push_back({
-            .token = workspace_.dynamic_command_token,
-        });
+        auto& allocated = workspace_.dynamic_commands.emplace_back();
+        allocated.allocation_token = workspace_.dynamic_command_token;
+        allocated.record.role_index = 0U;
+        actor_word = high_word(workspace_.packed_actor_state);
         if (!query_actor_coordinates(actor_word)) {
             return finish(eax_);
         }
         if (!initialize_dynamic_text_actor_group(actor_word, false)) {
             return finish(eax_);
         }
-        invoke(
-            LegacyBattleScriptDispatchCall::format_dynamic_text,
-            workspace_.dynamic_command_token,
-            {workspace_.text_offset, workspace_.pair_x, workspace_.pair_y}
-        );
-        invoke(
-            LegacyBattleScriptDispatchCall::finalize_dynamic_text,
-            workspace_.dynamic_command_token
-        );
-        publish_dynamic_text_coordinates();
+        auto* message = dynamic_command();
+        if (message == nullptr) {
+            return finish(eax_);
+        }
+
+        message->record.flags = 0x800U;
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::format_dynamic_text,
+                workspace_.dynamic_command_token,
+                {workspace_.text_offset,
+                 kLegacyBattleScriptShortTextToken,
+                 1U,
+                 0U,
+                 0U}
+            )) {
+            return finish(eax_);
+        }
+
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::finalize_dynamic_text,
+                workspace_.dynamic_command_token
+            )) {
+            return finish(eax_);
+        }
+
+        message = dynamic_command();
+        if (message == nullptr) {
+            return finish(eax_);
+        }
+
+        message->record.lifetime_limit |= 0xFFFFU;
+        message->record.character_delay = 2U;
+        message->record.flags |= low_word(workspace_.packed_actor_state);
+        set_low_word(workspace_.packed_actor_state, 0U);
+        if (!publish_dynamic_text_coordinates()) {
+            return finish(eax_);
+        }
+
         set_high_word(
             workspace_.packed_actor_state,
-            static_cast<u16>(actor_word | 0x8000U)
+            static_cast<u16>(high_word(workspace_.packed_actor_state) | 0x8000U)
         );
         bindings_.message_state = 0U;
         bindings_.action.action_pending_aux = 1U;
     }
 
-    if (bindings_.message_phase.entry_list_gate != 0U) {
+    if (!bindings_.dialogs.messages.empty()) {
         bindings_.shared.frame_gate = 0U;
         if (!run_frame()) {
             return finish(eax_);
@@ -122,14 +154,24 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_two() {
         if (!token.has_value()) {
             return finish(eax_);
         }
-        invoke(LegacyBattleScriptDispatchCall::pending_47c660, *token, {0U});
-        invoke(LegacyBattleScriptDispatchCall::pending_47d900, *token, {0U});
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::pending_47c660, *token, {0U}
+            ) ||
+            !invoke(
+                LegacyBattleScriptDispatchCall::pending_47d900, *token, {0U}
+            )) {
+            return finish(eax_);
+        }
     }
     for (i32 index = 0; index < kLegacyBattleScriptExtendedGroupBCleanupCount;
          ++index) {
         const u32 token = kLegacyBattleScriptGroupBBaseToken +
             static_cast<u32>(index) * kLegacyBattleScriptGroupBElementSize;
-        invoke(LegacyBattleScriptDispatchCall::pending_47c660, token, {0U});
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::pending_47c660, token, {0U}
+            )) {
+            return finish(eax_);
+        }
     }
 
     u32 offset = 0U;

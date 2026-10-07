@@ -318,6 +318,40 @@ void test_complete_message_order_and_dimensions(openswd3::test::Context& test) {
     );
 }
 
+void test_linked_identity_survives_removal(openswd3::test::Context& test) {
+    LegacyDialogRuntimeState state;
+    RecordingPorts ports;
+    for (const auto token : {0x1000U, 0x2000U, 0x3000U}) {
+        auto message = terminated_message(0xFFFDU);
+        message.allocation_token = token;
+        message.record.next_pointer_32 =
+            token == 0x3000U ? 0U : token + 0x1000U;
+        if (token == 0x2000U) {
+            message.active = false;
+            message.record.text_cursor_pointer_32 = 0U;
+        }
+
+        state.messages.push_back(std::move(message));
+    }
+
+    const auto middle = update_draw_legacy_dialogs(state, {}, ports);
+    test.expect_true(
+        middle.status == LegacyDialogRuntimeStatus::completed &&
+            middle.removed_message_count == 1U && state.messages.size() == 2U &&
+            state.messages.front().record.next_pointer_32 == 0x3000U &&
+            state.messages.back().record.next_pointer_32 == 0U,
+        "removing a middle message reconnects the retained identity to its live successor"
+    );
+    state.messages.back().active = false;
+    state.messages.back().record.text_cursor_pointer_32 = 0U;
+    const auto tail = update_draw_legacy_dialogs(state, {}, ports);
+    test.expect_true(
+        tail.removed_message_count == 1U && state.messages.size() == 1U &&
+            state.messages.front().record.next_pointer_32 == 0U,
+        "removing the last message clears the predecessor link"
+    );
+}
+
 void test_close_is_composited_then_removed(openswd3::test::Context& test) {
     LegacyDialogRuntimeState state;
     LegacyDialogMessage message = terminated_message(3U);
@@ -498,6 +532,7 @@ int main() {
     test_choice_chain_release_preserves_unrelated_state(test);
     test_complete_message_order_and_dimensions(test);
     test_close_is_composited_then_removed(test);
+    test_linked_identity_survives_removal(test);
     test_surface_and_anchor_failures_release_correctly(test);
     test_message_chain_release_lifecycle(test);
     test_optional_automatic_dialog_press(test);

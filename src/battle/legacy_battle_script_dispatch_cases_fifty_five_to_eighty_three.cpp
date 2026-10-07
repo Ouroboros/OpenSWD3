@@ -150,14 +150,15 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifty_nine() {
         );
         bindings_.action.action_pending_aux = 1U;
     }
-    if (bindings_.message_phase.entry_list_gate != 0U) {
+    if (!bindings_.dialogs.messages.empty()) {
+        bindings_.shared.frame_gate = 0U;
         if (!run_frame()) {
             return finish(eax_);
         }
 
         return finish(1U);
     }
-    return finish_dynamic_text();
+    return finish_dynamic_text(true);
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_sixty() {

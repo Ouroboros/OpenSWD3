@@ -1,6 +1,7 @@
 #include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 
 #include <bit>
+#include <iterator>
 #include <list>
 #include <vector>
 
@@ -288,9 +289,18 @@ LegacyDialogRuntimeResult update_draw_legacy_dialogs(
             ++iterator;
             continue;
         }
+
+        // 430087..43008A unlinks the node before releasing its role owner.
+        if (iterator != state.messages.begin()) {
+            const auto next = std::next(iterator);
+            std::prev(iterator)->record.next_pointer_32 =
+                next == state.messages.end() ? 0U : next->allocation_token;
+        }
+
         if (iterator->record.role_index != 0xFFFDU) {
             ports.release_message_owner(iterator->record.role_index);
         }
+
         iterator = state.messages.erase(iterator);
         ++result.removed_message_count;
     }

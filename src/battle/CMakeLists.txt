@@ -226,6 +226,7 @@ add_library(
         legacy_battle_runtime_shutdown.cpp
         legacy_battle_scale_fill_panel.cpp
         legacy_battle_scale_scan.cpp
+        legacy_battle_dialog_text.cpp
         legacy_battle_script_curve.cpp
         legacy_battle_script_dispatch.cpp
         legacy_battle_script_dispatch_cases_one_to_twenty_seven.cpp

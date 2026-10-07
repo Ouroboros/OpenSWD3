@@ -1,4 +1,8 @@
 #include "legacy_battle_mon_database_fixture.hpp"
+#include "openswd3/battle/legacy_battle_dialog_text.hpp"
+#include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
+#include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
+#include "openswd3/battle/legacy_battle_mon_stream_runtime.hpp"
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_script_curve.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
@@ -8,6 +12,7 @@
 #include <array>
 #include <bit>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -55,6 +60,7 @@ struct Fixture {
     LegacyBattleMessagePhaseState message_phase;
     LegacyBattleVictoryRewardState victory;
     LegacyBattleScriptSharedState shared;
+    openswd3::story_scene::LegacyDialogRuntimeState dialogs;
     LegacyBattleScriptWorkspace workspace;
     u32 message_state{};
 
@@ -76,6 +82,7 @@ struct Fixture {
             .message_phase = message_phase,
             .victory = victory,
             .shared = shared,
+            .dialogs = dialogs,
             .message_state = message_state,
         };
     }
@@ -99,6 +106,13 @@ public:
     std::vector<LegacyBattleScriptDispatchCallRequest> calls;
     std::vector<u32> frame_results;
     std::vector<std::array<u32, 2>> frame_parameter_snapshots;
+    std::vector<std::array<u32, 3>> dynamic_text_snapshots;
+    std::function<void(
+        LegacyBattleScriptWorkspace&,
+        LegacyBattleScriptDispatchBindings&,
+        const LegacyBattleScriptDispatchCallRequest&
+    )>
+        after_call;
     std::size_t frame_index{};
     u32 allocation_token{0x1000U};
     u32 query_result{};
@@ -148,6 +162,28 @@ public:
                 reply.eax = frame_results[frame_index++];
             }
             break;
+        case LegacyBattleScriptDispatchCall::format_dynamic_text: {
+            const u32 flags = workspace.dynamic_commands.back().record.flags;
+            dynamic_text_snapshots.push_back(
+                {workspace.packed_actor_state,
+                 flags,
+                 bindings.shared.frame_value}
+            );
+            break;
+        }
+
+        case LegacyBattleScriptDispatchCall::finalize_dynamic_text:
+            if (!(typed_stop_enabled && request.call == typed_stop_call)) {
+                reply.typed_stop =
+                    !openswd3::battle::
+                        append_legacy_battle_script_dynamic_command(
+                            workspace, bindings.dialogs, request.object_token
+                        );
+                reply.eax = request.object_token;
+            }
+
+            break;
+
         case LegacyBattleScriptDispatchCall::allocate:
             reply.eax = allocation_token;
             allocation_token += 0x100U;
@@ -199,6 +235,10 @@ public:
         default:
             break;
         }
+        if (after_call) {
+            after_call(workspace, bindings, request);
+        }
+
         if (typed_stop_enabled && request.call == typed_stop_call) {
             reply.typed_stop = true;
         }
@@ -1314,7 +1354,9 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         };
     const auto command_word = [](const Fixture& fixture,
                                  const std::size_t offset) {
-        const auto& bytes = fixture.workspace.dynamic_commands.back().bytes;
+        const auto bytes = std::bit_cast<std::array<openswd3::compat::u8, 76>>(
+            fixture.dialogs.messages.back().record
+        );
         return static_cast<u16>(bytes[offset]) |
             static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
     };
@@ -1347,15 +1389,16 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 result.coordinate_query.output_y == 0x5678U &&
                 command_word(fixture, 0x1EU) == 0x1234U &&
                 command_word(fixture, 0x20U) == 0x5678U &&
-                fixture.workspace.pair_x == 0U &&
-                fixture.workspace.pair_y == 0U && result.port_calls == 44U &&
+                fixture.workspace.pair_x == 0x1234U &&
+                fixture.workspace.pair_y == 0x5678U &&
+                result.port_calls == 15U &&
                 port.count(
                     LegacyBattleScriptDispatchCall::reserved_actor_coordinates
                 ) == 0U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
-                    30U &&
+                    10U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47d900) ==
-                    11U &&
+                    1U &&
                 port.calls[0U].call ==
                     LegacyBattleScriptDispatchCall::allocate &&
                 port.calls[1U].call ==
@@ -1405,12 +1448,13 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 result.coordinate_query.output_y == 0x789AU &&
                 command_word(fixture, 0x1EU) == 0x3456U &&
                 command_word(fixture, 0x20U) == 0x789AU &&
-                fixture.workspace.pair_x == 0U &&
-                fixture.workspace.pair_y == 0U && result.port_calls == 41U &&
+                fixture.workspace.pair_x == 0x3456U &&
+                fixture.workspace.pair_y == 0x789AU &&
+                result.port_calls == 12U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
-                    28U &&
+                    8U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47d900) ==
-                    10U &&
+                    0U &&
                 port.calls[1U].object_token == group_b_base &&
                 port.calls[1U].ecx == group_b_base &&
                 port.calls[1U].eax == 0x789AU &&
@@ -1528,8 +1572,9 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 command_word(fixture, 0x1EU) == 0xFFFEU &&
                 command_word(fixture, 0x20U) == 0x7FFFU &&
                 fixture.workspace.position_x == 0xFFFBU &&
-                fixture.workspace.pair_x == 0U &&
-                fixture.workspace.pair_y == 0U && result.port_calls == 34U &&
+                fixture.workspace.pair_x == 0xFFFEU &&
+                fixture.workspace.pair_y == 0x7FFFU &&
+                result.port_calls == 15U &&
                 port.count(
                     LegacyBattleScriptDispatchCall::
                         reserved_actor_base_coordinates
@@ -1544,10 +1589,11 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 port.calls[11U].arguments[0U] == 0x24U &&
                 port.calls[12U].call ==
                     LegacyBattleScriptDispatchCall::format_dynamic_text &&
-                port.calls[12U].argument_count == 4U &&
-                port.calls[12U].arguments[1U] == 0x00010000U &&
-                port.calls[12U].arguments[2U] == 0xFFFFFFFEU &&
-                port.calls[12U].arguments[3U] == 0x00007FFFU &&
+                port.calls[12U].argument_count == 5U &&
+                port.calls[12U].arguments[1U] == 0x0053CE3CU &&
+                port.calls[12U].arguments[2U] == 0x00010000U &&
+                port.calls[12U].arguments[3U] == 0xFFFFFFFEU &&
+                port.calls[12U].arguments[4U] == 0x00007FFFU &&
                 port.calls[13U].call ==
                     LegacyBattleScriptDispatchCall::finalize_dynamic_text,
             "case fifty nine group A directly applies base coordinates before cleanup"
@@ -1589,8 +1635,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 command_word(fixture, 0x1EU) == 80U &&
                 command_word(fixture, 0x20U) == 85U &&
                 fixture.workspace.position_x == 70U &&
-                fixture.workspace.pair_x == 0U &&
-                fixture.workspace.pair_y == 0U && result.port_calls == 31U &&
+                fixture.workspace.pair_x == 80U &&
+                fixture.workspace.pair_y == 85U && result.port_calls == 12U &&
                 port.count(
                     LegacyBattleScriptDispatchCall::
                         reserved_actor_base_coordinates
@@ -1602,10 +1648,11 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                     group_b_base + 7U * group_b_stride &&
                 port.calls[9U].call ==
                     LegacyBattleScriptDispatchCall::format_dynamic_text &&
-                port.calls[9U].argument_count == 4U &&
-                port.calls[9U].arguments[1U] == 0x00010000U &&
-                port.calls[9U].arguments[2U] == 80U &&
-                port.calls[9U].arguments[3U] == 85U &&
+                port.calls[9U].argument_count == 5U &&
+                port.calls[9U].arguments[1U] == 0x0053CE3CU &&
+                port.calls[9U].arguments[2U] == 0x00010000U &&
+                port.calls[9U].arguments[3U] == 80U &&
+                port.calls[9U].arguments[4U] == 85U &&
                 port.calls[10U].call ==
                     LegacyBattleScriptDispatchCall::finalize_dynamic_text,
             "case fifty nine group B directly applies base coordinates before cleanup"
@@ -1711,7 +1758,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 flags.auxiliary_carry_defined && !flags.zero && !flags.sign &&
                 !flags.overflow && fixture.workspace.pair_x == 0xAAAAU &&
                 fixture.workspace.pair_y == 0xBBBBU &&
-                fixture.workspace.dynamic_commands.size() == 1U &&
+                fixture.workspace.dynamic_commands.empty() &&
+                fixture.dialogs.messages.size() == 1U &&
                 port.calls.size() == 3U &&
                 port.calls[1U].call ==
                     LegacyBattleScriptDispatchCall::format_dynamic_text &&
@@ -5434,6 +5482,538 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
 }
 
 void test_battle_script_dispatch(openswd3::test::Context& test) {
+#ifdef OPENSWD3_GAME_DATA_ROOT
+    {
+        using u8 = openswd3::compat::u8;
+        struct RealMonPort final
+            : openswd3::battle::LegacyBattleMonDatabasePort {
+            openswd3::battle::LegacyBattleMonFileRuntime files;
+            openswd3::battle::LegacyBattleMonStreamRuntime streams;
+            openswd3::battle::LegacyBattleMonTextRuntime text;
+            openswd3::battle::LegacyBattleMonDatabaseCallReply
+            invoke_legacy_battle_mon_database(
+                const openswd3::battle::LegacyBattleMonDatabaseCallRequest&
+                    request,
+                const std::span<u8> destination
+            ) override {
+                using Call = openswd3::battle::LegacyBattleMonDatabaseCall;
+                switch (request.call) {
+                case Call::open_file:
+                case Call::seek_file:
+                case Call::read_file:
+                    return files.invoke(
+                        request, destination, OPENSWD3_GAME_DATA_ROOT
+                    );
+
+                case Call::allocate_stream:
+                case Call::release_stream:
+                    return streams.invoke(request);
+
+                default:
+                    return text.invoke(request);
+                }
+            }
+
+            openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply
+            release_legacy_battle_mon_definition_text(
+                const openswd3::battle::
+                    LegacyBattleMonDefinitionTextReleaseCallRequest& request
+            ) override {
+                return text.release(request);
+            }
+        };
+        auto port = std::make_unique<RealMonPort>();
+        openswd3::battle::LegacyBattleMonDefinitionOwner reference;
+        const auto loaded = openswd3::battle::load_legacy_battle_mon_definition(
+            reference.bytes,
+            reference.description,
+            *port,
+            {.path = "mon.dat", .definition_id = 1U}
+        );
+        const auto end = std::ranges::find(reference.bytes, u8{});
+        const auto length =
+            static_cast<std::size_t>(end - reference.bytes.begin());
+        std::array<u8, 512U> text{};
+        constexpr std::array<u8, 6U> marker{'%', 'T', '1', '.', '%', 'Q'};
+        std::ranges::copy(marker, text.begin());
+        constexpr std::array<u8, 1U> name{0U};
+        openswd3::battle::LegacyBattleDialogTextState state;
+        const auto prepared =
+            openswd3::battle::prepare_legacy_battle_dialog_text(
+                text, name, name, state, *port
+            );
+        test.expect_true(
+            loaded.return_eax == 1U && length > 0U && length < 16U &&
+                prepared.status ==
+                    openswd3::battle::LegacyBattleDialogTextStatus::completed &&
+                prepared.mon_load_calls == 1U && prepared.release_calls == 2U &&
+                std::equal(reference.bytes.begin(), end, text.begin()) &&
+                text[length] == '%' && text[length + 1U] == 'Q',
+            "real MON.DAT name replacement uses file stream and text heap backends with no synthetic MON reply"
+        );
+        test.expect_true(
+            reference.description.release(),
+            "release the independent real-MON comparison record"
+        );
+    }
+#endif
+
+    {
+        openswd3::battle::LegacyBattleMonTextRuntime heap;
+        test.expect_true(
+            !heap.release({.block_token = 0U}).typed_stop &&
+                heap.release({.block_token = 0xDEADBEEFU}).typed_stop,
+            "dialog preparation can free null while an unknown nonzero allocation remains a typed stop"
+        );
+    }
+
+    {
+        using openswd3::battle::LegacyBattleDialogFormatStatus;
+        using openswd3::battle::format_legacy_battle_dialog;
+        using u8 = openswd3::compat::u8;
+        struct FormatPort final
+            : openswd3::test::LegacyBattleMonDatabaseFixture,
+              openswd3::battle::LegacyBattleDialogFormatPort {
+            std::vector<u32> sizes;
+            std::vector<openswd3::asset_runtime::LegacyActionRecord*> updates;
+            u32 fail_allocation{};
+            u32* delay{};
+            u32 allocate_battle_dialog_storage(const u32 bytes) override {
+                sizes.push_back(bytes);
+                return sizes.size() == fail_allocation
+                    ? 0U
+                    : 0x1000U + static_cast<u32>(sizes.size() - 1U) * 0x1000U;
+            }
+
+            bool update_battle_dialog_action(
+                openswd3::asset_runtime::LegacyActionRecord& action
+            ) override {
+                updates.push_back(&action);
+                *delay = 0x8001U;
+                return true;
+            }
+        };
+        for (const u32 mode : {1U, 0x10000U}) {
+            auto port = std::make_unique<FormatPort>();
+            u32 scale = 11U;
+            u32 delay = 2U;
+            port->delay = &delay;
+            openswd3::battle::LegacyBattleDialogTextState text_state;
+            std::array<openswd3::asset_runtime::LegacyActionRecord, 4U>
+                frames{};
+            std::array<openswd3::asset_runtime::LegacyActionRecord, 4U>
+                captions{};
+            frames[1U].action_id = 7U;
+            constexpr std::array<u8, 2U> caption{'C', 0U};
+            constexpr std::array<u8, 1U> empty_name{0U};
+            std::array<u8, 16U> payload{
+                8U,
+                0U,
+                7U,
+                0U,
+                16U,
+                0U,
+                32U,
+                0U,
+                3U,
+                0U,
+                4U,
+                0U,
+                'H',
+                'i',
+                '%',
+                'Q'
+            };
+            if (mode == 0x10000U) {
+                payload[4U] = 'H';
+                payload[5U] = 'i';
+                payload[6U] = '%';
+                payload[7U] = 'Q';
+            }
+
+            openswd3::story_scene::LegacyDialogMessage message;
+            message.record.flags = 0x800U;
+            message.record.role_index = 0U;
+            message.record.lifetime_limit = 0x01020304U;
+            const openswd3::battle::LegacyBattleDialogFormatBindings bindings{
+                scale,
+                delay,
+                frames,
+                captions,
+                empty_name,
+                empty_name,
+                text_state
+            };
+            const openswd3::battle::LegacyBattleDialogFormatRequest request{
+                payload, caption, mode, 999U, 100U
+            };
+            const auto result =
+                format_legacy_battle_dialog(message, request, bindings, *port);
+            const auto& record = message.record;
+            test.expect_true(
+                result.status == LegacyBattleDialogFormatStatus::completed &&
+                    result.diagnostics == 0U && result.allocations == 2U &&
+                    result.action_updates == 2U &&
+                    port->sizes == std::vector<u32>{512U, 32U} &&
+                    port->updates ==
+                        std::vector<
+                            openswd3::asset_runtime::LegacyActionRecord*>{
+                            &frames[1U], &captions[1U]
+                        } &&
+                    message.text.size() == 512U && message.text[0U] == 'H' &&
+                    message.text[2U] == '%' && message.text[511U] == 0U &&
+                    message.caption == std::vector<u8>{'C', 0U} &&
+                    record.frame_action_pointer_32 == 0x004CAB10U &&
+                    record.caption_action_pointer_32 == 0x004A91B8U &&
+                    record.text_allocation_pointer_32 == 0x1000U &&
+                    record.caption_pointer_32 == 0x2000U &&
+                    record.lifetime_limit == 0x01020304U &&
+                    record.role_index == 0xFFFDU &&
+                    record.character_delay == 2U &&
+                    record.foreground_index == 4U &&
+                    record.secondary_index == 4U,
+                "battle formatter uses the real resource records and rereads delay after action callbacks"
+            );
+            test.expect_true(
+                mode == 1U ? (record.left == 16U && record.top == 32U &&
+                              record.width == 33U && record.height == 44U)
+                           : (record.left == 586U && record.top == 0x5125U &&
+                              record.width == 22U && record.height == 22U),
+                "fixed and measured layouts preserve original WORD arithmetic and inverted clipping"
+            );
+            for (const u32 failure : {1U, 2U}) {
+                port->sizes.clear();
+                port->updates.clear();
+                port->fail_allocation = failure;
+                openswd3::story_scene::LegacyDialogMessage stopped;
+                stopped.record.flags = 0x800U;
+                stopped.record.role_index = 0U;
+                const auto failed = format_legacy_battle_dialog(
+                    stopped, request, bindings, *port
+                );
+                test.expect_true(
+                    failed.status ==
+                            LegacyBattleDialogFormatStatus::
+                                allocation_typed_stop &&
+                        failed.allocations == failure &&
+                        port->updates.size() == failure - 1U &&
+                        stopped.record.role_index == 0U &&
+                        (failure == 1U
+                             ? stopped.record.text_allocation_pointer_32 == 0U
+                             : stopped.record.caption_pointer_32 == 0U),
+                    "allocation stops retain only the original formatter prefix"
+                );
+            }
+        }
+    }
+
+    {
+        using openswd3::battle::LegacyBattleDialogTextStatus;
+        using openswd3::battle::prepare_legacy_battle_dialog_text;
+        using u8 = openswd3::compat::u8;
+        openswd3::battle::LegacyBattleDialogTextState state;
+        constexpr std::array<u8, 5U> first{'A', 'B', 'C', 'D', 0U};
+        constexpr std::array<u8, 3U> second{'Z', 'Y', 0U};
+        std::array<u8, 512U> text{};
+        constexpr std::array<u8, 10U> names{
+            0xC1U, 0xC9U, 0xAFU, 0x53U, 0xA9U, 0x67U, 0xA5U, 0x69U, '%', 'Q'
+        };
+        std::ranges::copy(names, text.begin());
+        auto mon =
+            std::make_unique<openswd3::test::LegacyBattleMonDatabaseFixture>();
+        const auto renamed =
+            prepare_legacy_battle_dialog_text(text, first, second, state, *mon);
+        constexpr std::array<u8, 8U> renamed_bytes{
+            'A', 'B', 'C', 'D', 'Z', 'Y', '%', 'Q'
+        };
+        test.expect_true(
+            renamed.status == LegacyBattleDialogTextStatus::completed &&
+                renamed.cursor == 8U && renamed.metrics == 0x00010006U &&
+                renamed.release_calls == 1U &&
+                std::equal(
+                    renamed_bytes.begin(), renamed_bytes.end(), text.begin()
+                ),
+            "name preparation keeps the first-name advance after replacing the second name"
+        );
+        text.fill(0U);
+        std::ranges::copy(names, text.begin());
+        const auto before_short = text;
+        constexpr std::array<u8, 2U> short_name{'X', 0U};
+        const auto short_result = prepare_legacy_battle_dialog_text(
+            text, short_name, second, state, *mon
+        );
+        test.expect_true(
+            short_result.status ==
+                    LegacyBattleDialogTextStatus::memory_access_typed_stop &&
+                short_result.release_calls == 0U && text == before_short,
+            "one-byte replacement exposes the original fixed move reading beyond the mapped allocation"
+        );
+        text.fill(0U);
+        constexpr std::array<u8, 7U> item{'%', 'T', '1', '2', '.', '%', 'Q'};
+        std::ranges::copy(item, text.begin());
+        mon->definition[0U] = 'I';
+        mon->definition[1U] = 'T';
+        mon->definition[2U] = 'E';
+        mon->definition[3U] = 'M';
+        const auto loaded =
+            prepare_legacy_battle_dialog_text(text, first, second, state, *mon);
+        constexpr std::array<u8, 6U> item_bytes{'I', 'T', 'E', 'M', '%', 'Q'};
+        test.expect_true(
+            loaded.status == LegacyBattleDialogTextStatus::completed &&
+                loaded.mon_load_calls == 1U && loaded.release_calls == 2U &&
+                loaded.metrics == 0x00010004U &&
+                mon->requested_definition_ids == std::vector<u32>{12U} &&
+                std::equal(item_bytes.begin(), item_bytes.end(), text.begin()),
+            "percent-T loads the MON definition and replaces its complete marker with the definition name"
+        );
+        mon->reset_mon_session();
+        mon->open_succeeds = false;
+        text.fill(0U);
+        std::ranges::copy(item, text.begin());
+        const auto failed =
+            prepare_legacy_battle_dialog_text(text, first, second, state, *mon);
+        test.expect_true(
+            failed.status == LegacyBattleDialogTextStatus::completed &&
+                failed.mon_load_calls == 1U && failed.release_calls == 3U &&
+                failed.diagnostics == 1U && failed.metrics == 0x00010005U &&
+                std::equal(item.begin(), item.end(), text.begin()),
+            "failed MON loading leaves the literal marker and performs the original three release calls"
+        );
+    }
+
+    for (const i32 opcode : {2, 44, 59}) {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(opcode);
+        fixture->write_u16(2U, 8U);
+        port.typed_stop_enabled = true;
+        port.typed_stop_call = LegacyBattleScriptDispatchCall::pending_47d900;
+        port.after_call =
+            [](LegacyBattleScriptWorkspace& workspace,
+               LegacyBattleScriptDispatchBindings&,
+               const LegacyBattleScriptDispatchCallRequest& request) {
+                if (request.call ==
+                    LegacyBattleScriptDispatchCall::pending_47c660) {
+                    workspace.packed_actor_state = 0x00030000U;
+                }
+            };
+        const auto result = openswd3::battle::run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        const auto& selected = port.calls.back();
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        script_page_load_typed_stop &&
+                selected.call ==
+                    LegacyBattleScriptDispatchCall::pending_47d900 &&
+                selected.object_token == 0x004F3DCCU &&
+                selected.eax == 0xFFFFEC55U && selected.ecx == 0x004F3DCCU &&
+                selected.flags.carry && selected.flags.sign &&
+                selected.flags.parity && selected.flags.auxiliary_carry &&
+                !selected.flags.zero && !selected.flags.overflow &&
+                fixture->workspace.cursor == 0U,
+            "selected cleanup rereads the actor without changing the already chosen group A address formula"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(44);
+        fixture->write_u16(2U, 8U);
+        fixture->write_u16(14U, 0x5125U);
+        fixture->workspace.packed_actor_state = 0xABCD0040U;
+        fixture->workspace.coordinate_x = 123;
+        fixture->workspace.coordinate_y = -456;
+        fixture->shared.frame_value = 7U;
+        port.after_call =
+            [](LegacyBattleScriptWorkspace& workspace,
+               LegacyBattleScriptDispatchBindings& bindings,
+               const LegacyBattleScriptDispatchCallRequest& request) {
+                if (request.call ==
+                    LegacyBattleScriptDispatchCall::finalize_dynamic_text) {
+                    bindings.shared.frame_value = 0xFEDCBA98U;
+                    auto& record = bindings.dialogs.messages.back().record;
+                    record.lifetime_limit = 1U;
+                    record.flags |= 0x10000000U;
+                    workspace.packed_actor_state = 0x00080080U;
+                }
+            };
+        const auto result = openswd3::battle::run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        const auto& record = fixture->dialogs.messages.back().record;
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                record.lifetime_limit == 0xFEDCBA99U &&
+                record.flags == 0x10000C88U && record.character_delay == 2U &&
+                fixture->workspace.dynamic_commands.empty() &&
+                fixture->workspace.cursor == 16U &&
+                fixture->workspace.packed_actor_state == 0U &&
+                fixture->workspace.coordinate_x == 123 &&
+                fixture->workspace.coordinate_y == -456 &&
+                fixture->shared.frame_value == 0xFFFFU &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 0U,
+            "case44 rereads shared parameters after append and modifies the actual linked record before resetting them"
+        );
+        test.expect_true(
+            port.calls[1U].argument_count == 5U &&
+                port.calls[1U].object_token == 0x1000U &&
+                port.calls[1U].arguments ==
+                    std::array<u32, 8>{2U, 0x0053CE3CU, 1U, 0U, 0U, 0U, 0U, 0U},
+            "case44 formatter receives the record plus original payload caption mode and coordinates"
+        );
+    }
+
+    for (const i32 opcode : {2, 59}) {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(opcode);
+        fixture->write_u16(2U, 8U);
+        fixture->write_u16(14U, 0x5125U);
+        fixture->workspace.coordinate_x = 123;
+        fixture->workspace.coordinate_y = -456;
+        fixture->shared.frame_value = 0x12345678U;
+        port.frame_results = {1U};
+        const auto waiting =
+            openswd3::battle::run_legacy_battle_script_dispatch(
+                fixture->workspace, fixture->bindings(), port
+            );
+        test.expect_true(
+            waiting.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture->dialogs.messages.size() == 1U &&
+                fixture->workspace.dynamic_commands.empty() &&
+                fixture->workspace.cursor == 0U &&
+                fixture->workspace.packed_actor_state == 0x80080000U &&
+                fixture->shared.frame_gate == 0U &&
+                fixture->shared.frame_value == 0x12345678U &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
+            "script dialog waits on the real shared chain after linking its message"
+        );
+        (void)openswd3::story_scene::release_legacy_dialog_messages(
+            fixture->dialogs
+        );
+        fixture->message_phase.entry_list_gate = 0xFFFFFFFFU;
+        port.calls.clear();
+        const auto finished =
+            openswd3::battle::run_legacy_battle_script_dispatch(
+                fixture->workspace, fixture->bindings(), port
+            );
+        test.expect_true(
+            finished.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture->workspace.cursor == 16U &&
+                fixture->workspace.packed_actor_state == 0U &&
+                fixture->workspace.coordinate_x == 123 &&
+                fixture->workspace.coordinate_y == -456 &&
+                fixture->shared.frame_value == 0x12345678U &&
+                fixture->shared.frame_gate == 1U && port.calls.size() == 30U &&
+                port.count(LegacyBattleScriptDispatchCall::pending_47d900) ==
+                    10U &&
+                port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
+                    20U,
+            "released script dialog performs both actor cleanups and preserves unrelated coordinate DWORDs"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->dialogs.messages.emplace_back().allocation_token = 0x2000U;
+        fixture->workspace.dynamic_commands.emplace_back().allocation_token =
+            0x3000U;
+        fixture->workspace.dynamic_commands.emplace_back().allocation_token =
+            0x4000U;
+        auto* first =
+            openswd3::battle::find_legacy_battle_script_dynamic_command(
+                fixture->workspace, fixture->dialogs, 0x3000U
+            );
+        test.expect_true(
+            !openswd3::battle::append_legacy_battle_script_dynamic_command(
+                fixture->workspace, fixture->dialogs, 0U
+            ) &&
+                !openswd3::battle::append_legacy_battle_script_dynamic_command(
+                    fixture->workspace, fixture->dialogs, 0x5000U
+                ) &&
+                fixture->workspace.dynamic_commands.size() == 2U &&
+                fixture->dialogs.messages.size() == 1U,
+            "unavailable dialog allocation stops without changing either chain"
+        );
+        const bool appended =
+            openswd3::battle::append_legacy_battle_script_dynamic_command(
+                fixture->workspace, fixture->dialogs, 0x3000U
+            );
+        first->record.lifetime_limit = 0xDEADBEEFU;
+        test.expect_true(
+            appended && fixture->workspace.dynamic_commands.size() == 1U &&
+                fixture->dialogs.messages.size() == 2U &&
+                &fixture->dialogs.messages.back() == first &&
+                fixture->dialogs.messages.front().record.next_pointer_32 ==
+                    0x3000U &&
+                fixture->dialogs.messages.back().record.lifetime_limit ==
+                    0xDEADBEEFU,
+            "dialog append moves the same allocation and later script writes reach the shared chain"
+        );
+        const bool appended_second =
+            openswd3::battle::append_legacy_battle_script_dynamic_command(
+                fixture->workspace, fixture->dialogs, 0x4000U
+            );
+        test.expect_true(
+            appended_second && fixture->workspace.dynamic_commands.empty() &&
+                fixture->dialogs.messages.size() == 3U &&
+                first->record.next_pointer_32 == 0x4000U &&
+                fixture->dialogs.messages.back().record.next_pointer_32 == 0U,
+            "successive dialog allocations retain original tail order and terminate the new link"
+        );
+        const auto released =
+            openswd3::story_scene::release_legacy_dialog_messages(
+                fixture->dialogs
+            );
+        test.expect_true(
+            released.node_release_count == 3U &&
+                openswd3::battle::find_legacy_battle_script_dynamic_command(
+                    fixture->workspace, fixture->dialogs, 0x3000U
+                ) == nullptr &&
+                fixture->dialogs.messages.empty(),
+            "shared dialog release removes the script allocation identity without a second owner"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(44);
+        fixture->write_u16(2U, 8U);
+        fixture->write_u16(14U, 0x5125U);
+        fixture->workspace.packed_actor_state = 0xABCD0040U;
+        fixture->shared.frame_value = 0x87654321U;
+        fixture->message_state = 0x12345678U;
+        port.typed_stop_enabled = true;
+        port.typed_stop_call =
+            LegacyBattleScriptDispatchCall::format_dynamic_text;
+        const auto result = openswd3::battle::run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            port.dynamic_text_snapshots ==
+                std::vector<std::array<u32, 3>>{
+                    {0x00080040U, 0x800U, 0x87654321U}
+                },
+            "case44 publishes actor and explicit-anchor flags before formatting"
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        script_page_load_typed_stop &&
+                result.coordinate_query_calls == 0U &&
+                port.calls.size() == 2U && fixture->workspace.cursor == 0U &&
+                fixture->workspace.text_offset == 2U &&
+                fixture->workspace.packed_actor_state == 0x00080040U &&
+                fixture->shared.frame_value == 0x87654321U &&
+                fixture->message_state == 0x12345678U,
+            "case44 formatting stop retains its published prefix without querying coordinates"
+        );
+    }
+
     {
         auto fixture = std::make_unique<Fixture>();
         Port port;

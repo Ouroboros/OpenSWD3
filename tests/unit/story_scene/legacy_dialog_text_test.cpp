@@ -437,6 +437,138 @@ void test_fixed_control_buffer_boundaries(openswd3::test::Context& test) {
     );
 }
 
+void test_prefix_replacement(openswd3::test::Context& test) {
+    using openswd3::story_scene::LegacyDialogTextReplaceStatus;
+    using openswd3::story_scene::replace_legacy_dialog_text_prefix;
+    using Status = LegacyDialogTextReplaceStatus;
+    constexpr std::array<u8, 8U> initial{'A', 'B', 'C', 'D', 0U, 'x', 'y', 'z'};
+    constexpr std::array<u8, 3U> pattern{'A', 'B', 0U};
+    struct Vector {
+        std::array<u8, 4U> replacement;
+        std::array<u8, 8U> expected;
+    };
+    constexpr std::array<Vector, 4U> vectors{{
+        {{'X', 'Y', 'Z', 0U}, {'X', 'Y', 'Z', 'C', 'D', 0U, 'y', 'z'}},
+        {{'Q', 'R', 0U, 0U}, {'Q', 'R', 'C', 'D', 0U, 'x', 'y', 'z'}},
+        {{'Q', 0U, 0U, 0U}, {'Q', 'C', 'D', 0U, 'x', 'y', 'y', 'z'}},
+        {{0U, 0U, 0U, 0U}, {'C', 'D', 0U, 'x', 'y', 'z', 'y', 'z'}},
+    }};
+    for (const auto& vector : vectors) {
+        auto bytes = initial;
+        const auto result = replace_legacy_dialog_text_prefix(
+            bytes, pattern, vector.replacement, 6U
+        );
+        test.expect_true(
+            result == Status::replaced && bytes == vector.expected,
+            "40BAA0 moves the fixed extent including bytes after NUL in either overlap direction"
+        );
+    }
+
+    auto bytes = initial;
+    constexpr std::array<u8, 1U> empty{0U};
+    constexpr std::array<u8, 2U> mismatch{'Z', 0U};
+    test.expect_true(
+        replace_legacy_dialog_text_prefix(bytes, empty, {}, 0U) ==
+                Status::no_match &&
+            replace_legacy_dialog_text_prefix(bytes, mismatch, {}, 0U) ==
+                Status::no_match &&
+            bytes == initial,
+        "empty or mismatched pattern does not inspect the replacement"
+    );
+    constexpr std::array<u8, 4U> longer{'X', 'Y', 'Z', 0U};
+    test.expect_true(
+        replace_legacy_dialog_text_prefix(bytes, pattern, longer, 2U) ==
+                Status::memory_access_typed_stop &&
+            bytes == initial,
+        "replacement length exceeding limit wraps the original move size and stops at the mapped boundary"
+    );
+    test.expect_true(
+        replace_legacy_dialog_text_prefix(bytes, pattern, empty, 7U) ==
+                Status::memory_access_typed_stop &&
+            bytes == initial,
+        "source extent is checked independently of the destination extent"
+    );
+    constexpr std::array<u8, 2U> unterminated{'X', 'Y'};
+    test.expect_true(
+        replace_legacy_dialog_text_prefix(bytes, pattern, unterminated, 6U) ==
+                Status::memory_access_typed_stop &&
+            replace_legacy_dialog_text_prefix(bytes, {}, empty, 6U) ==
+                Status::memory_access_typed_stop &&
+            replace_legacy_dialog_text_prefix(
+                std::span<u8>{bytes}.first(1U), pattern, empty, 0U
+            ) == Status::memory_access_typed_stop &&
+            bytes == initial,
+        "unterminated replacement and unmapped pattern or destination reads stop before writes"
+    );
+    test.expect_true(
+        replace_legacy_dialog_text_prefix(bytes, pattern, empty, 0U) ==
+                Status::replaced &&
+            bytes == initial,
+        "a matched prefix with zero move and replacement lengths succeeds without writes"
+    );
+}
+
+void test_preparation_metrics(openswd3::test::Context& test) {
+    using openswd3::story_scene::measure_legacy_dialog_prepared_text;
+    constexpr std::array<u8, 2U> terminator{'%', 'Q'};
+    constexpr std::array<u8, 2U> empty{0U, 0U};
+    constexpr std::array<u8, 10U> breaks{
+        '%', 'N', '%', 'L', '%', 'K', '%', 'P', '%', 'Q'
+    };
+    constexpr std::array<u8, 15U> controls{
+        '%',
+        'S',
+        '4',
+        '%',
+        'C',
+        '2',
+        '%',
+        'D',
+        '1',
+        '%',
+        'B',
+        '%',
+        'A',
+        '%',
+        'Q'
+    };
+    constexpr std::array<u8, 5U> renderer_spelling{'D', '%', '1', '%', 'Q'};
+    test.expect_true(
+        measure_legacy_dialog_prepared_text(terminator) == 0x00010000U &&
+            measure_legacy_dialog_prepared_text(empty) == 0x00010001U &&
+            measure_legacy_dialog_prepared_text(breaks) == 0x00050000U &&
+            measure_legacy_dialog_prepared_text(controls) == 0x00010000U &&
+            measure_legacy_dialog_prepared_text(renderer_spelling) ==
+                0x00010003U,
+        "preparation retains the initial NUL counting quirk and its distinct percent-D spelling"
+    );
+    std::array<u8, 24U> wrapped{};
+    wrapped.fill('A');
+    wrapped[20U] = '%';
+    wrapped[21U] = 'Q';
+    test.expect_true(
+        measure_legacy_dialog_prepared_text(wrapped) == 0x00010014U,
+        "twenty visible bytes still occupy the first measured line"
+    );
+    wrapped[20U] = 'A';
+    wrapped[21U] = '%';
+    wrapped[22U] = 'Q';
+    test.expect_true(
+        measure_legacy_dialog_prepared_text(wrapped) == 0x00020015U,
+        "the twenty-first byte increments the measured line count"
+    );
+    constexpr std::array<u8, 3U> truncated{'%', 'S', '4'};
+    test.expect_true(
+        !measure_legacy_dialog_prepared_text({}).has_value() &&
+            !measure_legacy_dialog_prepared_text(truncated).has_value() &&
+            !measure_legacy_dialog_prepared_text(
+                 std::span<const u8>{empty}.first(1U)
+            )
+                 .has_value(),
+        "counter stops on missing initial WORD or post-control byte reads"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -452,5 +584,7 @@ int main() {
     test_width_boundary_preserves_page_stop(test);
     test_delayed_page_break_does_not_reload_countdown(test);
     test_fixed_control_buffer_boundaries(test);
+    test_prefix_replacement(test);
+    test_preparation_metrics(test);
     return test.exit_code();
 }
