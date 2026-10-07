@@ -7333,6 +7333,29 @@ void test_real_battle_98_enemy(openswd3::test::Context& test) {
         "real battle 98 resolves its initial player and enemy placement"
     );
     openswd3::battle::LegacyBattleStartupState startup;
+    openswd3::battle::LegacyBattleDefinitionArchiveFileRuntime files;
+    openswd3::battle::LegacyBattleStartupResult live;
+    const bool live_loaded =
+        openswd3::battle::load_legacy_battle_startup_definition(
+            startup,
+            files,
+            {.battle_id = 98U,
+             .data_root = std::filesystem::path{OPENSWD3_GAME_DATA_ROOT}},
+            live
+        );
+    const auto live_prepared = openswd3::battle::prepare_legacy_battle_setup(
+        live.definition, flags, 0U, state
+    );
+    test.expect_true(
+        live_loaded && startup.definition_record.bytes == assets.ffd_record &&
+            startup.render_binding_object.battle_header_bytes ==
+                assets.ffd_header &&
+            live_prepared.status == LegacyBattleSetupStatus::ready &&
+            state.enemy_count == 1U && state.enemies[0U].resource_id == 400U &&
+            state.enemies[0U].screen_x == 175U &&
+            state.enemies[0U].screen_y == 303U,
+        "real battle 98 enters through the shared file runtime and live startup definition"
+    );
     openswd3::battle::initialize_legacy_battle_startup_party(
         startup, [&](const u16 id) { return flags[id - 30U]; }
     );

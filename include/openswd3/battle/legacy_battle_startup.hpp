@@ -628,6 +628,15 @@ struct LegacyBattleStartupResult {
     compat::u32 return_value{};
 };
 
+// 451E68..451EB2: ordinary load failures retain old bytes and continue.
+// False denotes a typed memory boundary, not a callee returning zero.
+[[nodiscard]] bool load_legacy_battle_startup_definition(
+    LegacyBattleStartupState& state,
+    LegacyBattleDefinitionArchiveFilePort& archive_file_port,
+    const LegacyBattleStartupRequest& request,
+    LegacyBattleStartupResult& result
+);
+
 // sub_451B10 reset prefix: display and actor resources stay owned.
 void reset_legacy_battle_startup_blocks(
     LegacyBattleStartupState& state,

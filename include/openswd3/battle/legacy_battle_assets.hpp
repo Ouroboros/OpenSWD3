@@ -72,6 +72,10 @@ struct LegacyBattleAssetLoadResult {
     };
 };
 
+// Preserve the original case-insensitive filename lookup at the host boundary.
+[[nodiscard]] std::filesystem::path
+resolve_legacy_battle_definition_path(const std::filesystem::path& data_root);
+
 // sub_46E0B0, with the persistent Win32 file handle adapted to a scoped file.
 [[nodiscard]] LegacyBattleAssetStatus load_legacy_battle_script_window(
     const std::filesystem::path& data_root,

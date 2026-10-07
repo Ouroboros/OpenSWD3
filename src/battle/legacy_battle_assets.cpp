@@ -226,6 +226,11 @@ seek_exact(resource_io::LegacyFile& file, const compat::u32 offset) noexcept {
 
 }  // namespace
 
+std::filesystem::path
+resolve_legacy_battle_definition_path(const std::filesystem::path& data_root) {
+    return resolve_legacy_filename(data_root, "battle.ffd");
+}
+
 LegacyBattleAssetStatus load_legacy_battle_script_window(
     const std::filesystem::path& data_root,
     const compat::u16 battle_id,
@@ -318,7 +323,7 @@ LegacyBattleAssetLoadResult load_legacy_battle_assets(
     }
 
     return {load_ffd(
-        resolve_legacy_filename(data_root, "battle.ffd"),
+        resolve_legacy_battle_definition_path(data_root),
         battle_id,
         variant,
         destination

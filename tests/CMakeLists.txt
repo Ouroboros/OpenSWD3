@@ -733,6 +733,7 @@ endif()
 set_source_files_properties(
     unit/battle/legacy_battle_definition_archive_test.cpp
     unit/battle/legacy_battle_mon_file_runtime_test.cpp
+    unit/battle/legacy_battle_startup_test.cpp
     PROPERTIES COMPILE_DEFINITIONS
         "OPENSWD3_TEST_ARTIFACT_ROOT=\"${PROJECT_SOURCE_DIR}/build/tmp/runtime\""
 )

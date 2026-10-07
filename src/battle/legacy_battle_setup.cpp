@@ -109,9 +109,9 @@ void place_party(LegacyBattleSetupState& state) noexcept {
 }
 
 LegacyBattleSetupStatus place_enemies(
-    const LegacyBattleAssets& assets, LegacyBattleSetupState& state
+    const LegacyBattleDefinition& definition, LegacyBattleSetupState& state
 ) noexcept {
-    state.enemy_count = assets.enemy_count();
+    state.enemy_count = definition.enemy_count;
     if (state.enemy_count > state.enemies.size()) {
         return LegacyBattleSetupStatus::enemy_count_out_of_range;
     }
@@ -121,10 +121,11 @@ LegacyBattleSetupStatus place_enemies(
          ++index) {
         LegacyBattleEnemySlot& slot = state.enemies[index];
         slot.active = true;
-        slot.resource_id = assets.record_u16(0x009CU + index * 4U);
-        slot.screen_x = assets.record_u16(0x00CCU + index * 4U);
-        slot.screen_y = assets.record_u16(0x00ECU + index * 4U);
-        slot.record_flag = assets.record_u16(0x00BCU + index * 2U) == 1U;
+        const auto& source = definition.enemies[index];
+        slot.resource_id = source.role_id;
+        slot.screen_x = source.position_x;
+        slot.screen_y = source.position_y;
+        slot.record_flag = source.mode_flag == 1U;
         if (state.mirrored) {
             slot.screen_x = static_cast<compat::u16>(0x0280U - slot.screen_x);
         }
@@ -151,13 +152,29 @@ LegacyBattleSetupResult prepare_legacy_battle_setup(
     const compat::u32 mirror_mode,
     LegacyBattleSetupState& state
 ) noexcept {
+    return prepare_legacy_battle_setup(
+        decode_legacy_battle_definition({.bytes = assets.ffd_record}),
+        party_source_flags,
+        mirror_mode,
+        state
+    );
+}
+
+LegacyBattleSetupResult prepare_legacy_battle_setup(
+    const LegacyBattleDefinition& definition,
+    const std::span<const compat::u8, kLegacyBattlePartySourceCount>
+        party_source_flags,
+    const compat::u32 mirror_mode,
+    LegacyBattleSetupState& state
+) noexcept {
     state = {};
-    state.background_resource_id = assets.background_resource_id();
+    state.background_resource_id = definition.background_resource;
     state.mirrored = mirror_mode == 1U;
     select_party(party_source_flags, state);
     place_party(state);
 
-    const LegacyBattleSetupStatus enemy_status = place_enemies(assets, state);
+    const LegacyBattleSetupStatus enemy_status =
+        place_enemies(definition, state);
     if (enemy_status != LegacyBattleSetupStatus::ready) {
         return {enemy_status};
     }

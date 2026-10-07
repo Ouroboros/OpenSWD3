@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
+#include "openswd3/battle/legacy_battle_assets.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 
@@ -1105,6 +1106,64 @@ LegacyBattleStartupItemOrderResult order_legacy_battle_startup_items(
     return result;
 }
 
+bool load_legacy_battle_startup_definition(
+    LegacyBattleStartupState& state,
+    LegacyBattleDefinitionArchiveFilePort& archive_file_port,
+    const LegacyBattleStartupRequest& request,
+    LegacyBattleStartupResult& result
+) {
+    result.definition_archive_path =
+        resolve_legacy_battle_definition_path(request.data_root);
+    result.definition_archive_header =
+        load_legacy_battle_definition_archive_header(
+            state.render_binding_object,
+            state.archive_header_index_token,
+            archive_file_port,
+            {
+                .path = result.definition_archive_path,
+                .binding_object_token = kLegacyBattleStartupArchiveObjectToken,
+                .output_token = kLegacyBattleStartupArchiveScratchToken,
+                .number_of_bytes_read_token =
+                    request.archive_number_of_bytes_read_token,
+                .entry_edx = request.archive_entry_edx_snapshot,
+            }
+        );
+    result.definition_archive_record =
+        load_legacy_battle_definition_archive_record(
+            state.render_binding_object,
+            state.definition_record,
+            archive_file_port,
+            {
+                .path = result.definition_archive_path,
+                .binding_object_token = kLegacyBattleStartupArchiveObjectToken,
+                .output_token = kLegacyBattleStartupDefinitionToken,
+                .battle_id = request.battle_id,
+                .variant = 0U,
+                .number_of_bytes_read_token =
+                    request.definition_record_number_of_bytes_read_token,
+                .entry_edx = request.definition_record_entry_edx_snapshot,
+            }
+        );
+    if (result.definition_archive_record.status ==
+            LegacyBattleDefinitionArchiveRecordLoadStatus::
+                header_count_typed_stop ||
+        result.definition_archive_record.status ==
+            LegacyBattleDefinitionArchiveRecordLoadStatus::
+                header_prefix_typed_stop ||
+        result.definition_archive_record.status ==
+            LegacyBattleDefinitionArchiveRecordLoadStatus::
+                offset_table_typed_stop) {
+        result.status =
+            LegacyBattleStartupStatus::definition_archive_typed_stop;
+        return false;
+    }
+
+    result.definition =
+        decode_legacy_battle_definition(state.definition_record);
+    result.definition_load_calls = 1U;
+    return true;
+}
+
 LegacyBattleStartupResult initialize_legacy_battle_startup(
     LegacyBattleStartupState& state,
     LegacyBattleStartupPort& port,
@@ -1220,54 +1279,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         LegacyBattleStartupCall::prepare_battle_id,
         {static_cast<u16>(request.battle_id), 0U, 0U, 0U}
     ));
-    result.definition_archive_path =
-        request.data_root / kLegacyBattleDefinitionArchiveName;
-    result.definition_archive_header =
-        load_legacy_battle_definition_archive_header(
-            state.render_binding_object,
-            state.archive_header_index_token,
-            archive_file_port,
-            {
-                .path = result.definition_archive_path,
-                .binding_object_token = kLegacyBattleStartupArchiveObjectToken,
-                .output_token = kLegacyBattleStartupArchiveScratchToken,
-                .number_of_bytes_read_token =
-                    request.archive_number_of_bytes_read_token,
-                .entry_edx = request.archive_entry_edx_snapshot,
-            }
-        );
-    result.definition_archive_record =
-        load_legacy_battle_definition_archive_record(
-            state.render_binding_object,
-            state.definition_record,
-            archive_file_port,
-            {
-                .path = result.definition_archive_path,
-                .binding_object_token = kLegacyBattleStartupArchiveObjectToken,
-                .output_token = kLegacyBattleStartupDefinitionToken,
-                .battle_id = request.battle_id,
-                .variant = 0U,
-                .number_of_bytes_read_token =
-                    request.definition_record_number_of_bytes_read_token,
-                .entry_edx = request.definition_record_entry_edx_snapshot,
-            }
-        );
-    if (result.definition_archive_record.status ==
-            LegacyBattleDefinitionArchiveRecordLoadStatus::
-                header_count_typed_stop ||
-        result.definition_archive_record.status ==
-            LegacyBattleDefinitionArchiveRecordLoadStatus::
-                header_prefix_typed_stop ||
-        result.definition_archive_record.status ==
-            LegacyBattleDefinitionArchiveRecordLoadStatus::
-                offset_table_typed_stop) {
-        result.status =
-            LegacyBattleStartupStatus::definition_archive_typed_stop;
+    if (!load_legacy_battle_startup_definition(
+            state, archive_file_port, request, result
+        )) {
         return result;
     }
-    result.definition =
-        decode_legacy_battle_definition(state.definition_record);
-    result.definition_load_calls = 1U;
+
     if (!publish_legacy_battle_startup_definition_counts(
             state, result.definition
         )) {

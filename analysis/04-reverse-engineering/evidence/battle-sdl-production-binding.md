@@ -2,6 +2,14 @@
 
 状态：`in_progress`。前一核心等待与结果标志修正已以`cde7584d`提交推送，阶段TG脚本退出0。本单元必须覆盖真实输入、角色更新、绘制、战斗结束及返回路径，不能以通过输入前缀或删除typed-stop替代完整战斗。
 
+## FFD实际加载
+
+SDL与核心startup共用头、记录两次读取，普通失败和短读保留原存储。
+建场及诊断直接消费startup记录，不再读取独立assets记录。
+真实混合大小写文件、短读、缺失文件与再次进入，以及battle98通过验证。
+core/ASan setup与SDL构建通过，见[FFD接线](battle-definition-runtime-binding.md)。
+FIGTALK读取与完整生命周期仍未验收。
+
 ## 装备类别选择缓存
 
 入战、角色收尾和全局重置写入菜单实际读取的四项缓存。

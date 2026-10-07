@@ -2939,15 +2939,36 @@ public:
             )
         );
 
-        const auto loaded = openswd3::battle::load_legacy_battle_assets(
-            data_directory_, battle_id, 0, battle_assets_
-        );
+        battle_assets_.battle_id = battle_id;
+        const auto script_status =
+            openswd3::battle::load_legacy_battle_script_window(
+                data_directory_, battle_id, battle_assets_
+            );
         battle_assets_ready_ =
-            loaded.status == openswd3::battle::LegacyBattleAssetStatus::ready;
+            script_status == openswd3::battle::LegacyBattleAssetStatus::ready;
+        openswd3::battle::LegacyBattleStartupResult definition_load;
 
         if (battle_assets_ready_) {
+            openswd3::battle::LegacyBattleDefinitionArchiveFileRuntime
+                archive_files;
+            if (!openswd3::battle::load_legacy_battle_startup_definition(
+                    battle_runtime_,
+                    archive_files,
+                    {.battle_id = battle_id, .data_root = data_directory_},
+                    definition_load
+                )) {
+                openswd3::diagnostics::log_error(
+                    "battle definition initialization stopped at an invalid record address"
+                );
+                battle_setup_ready_ = false;
+                ok_ = false;
+                running_ = false;
+                return false;
+            }
+
+            const auto& definition = definition_load.definition;
             const auto prepared = openswd3::battle::prepare_legacy_battle_setup(
-                battle_assets_,
+                definition,
                 battle_runtime_.party_presence,
                 battle_runtime_.mirror_mode,
                 battle_setup_
@@ -2955,10 +2976,6 @@ public:
             battle_setup_ready_ = prepared.status ==
                 openswd3::battle::LegacyBattleSetupStatus::ready;
             if (battle_setup_ready_) {
-                const auto definition =
-                    openswd3::battle::decode_legacy_battle_definition(
-                        {.bytes = battle_assets_.ffd_record}
-                    );
                 if (!openswd3::battle::
                         publish_legacy_battle_startup_definition_counts(
                             battle_runtime_, definition
@@ -3221,15 +3238,36 @@ public:
         message.append(std::to_string(battle_id));
         message.append(", status=");
         message.append(
-            openswd3::battle::legacy_battle_asset_status_message(loaded.status)
+            openswd3::battle::legacy_battle_asset_status_message(script_status)
         );
         if (battle_assets_ready_) {
             message.append(", script_bytes=");
             message.append(std::to_string(battle_assets_.figtalk_actual_size));
             message.append(", record_index=");
-            message.append(std::to_string(battle_assets_.record_index));
+            message.append(
+                std::to_string(
+                    std::bit_cast<openswd3::compat::i32>(
+                        definition_load.definition_archive_record
+                            .combined_record_index
+                    )
+                )
+            );
+            message.append(", ffd_header_eax=");
+            message.append(
+                std::to_string(
+                    definition_load.definition_archive_header.return_eax
+                )
+            );
+            message.append(", ffd_record_eax=");
+            message.append(
+                std::to_string(
+                    definition_load.definition_archive_record.return_eax
+                )
+            );
             message.append(", enemy_count=");
-            message.append(std::to_string(battle_assets_.enemy_count()));
+            message.append(
+                std::to_string(definition_load.definition.enemy_count)
+            );
             message.append(", party_count=");
             message.append(std::to_string(battle_setup_.party_count));
             message.append(", setup=");

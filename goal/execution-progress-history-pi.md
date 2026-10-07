@@ -4,6 +4,16 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：FFD实际加载与旧记录保留
+
+SDL与核心startup共用实际头和记录读取，普通失败不再被总加载器截断。
+短读保留旧字节，建场和诊断直接消费startup记录；大小写查找保持。
+模拟端口覆盖返回忽略、调用顺序和边界停止，实际文件覆盖短读及再次进入，
+battle98验证实际字节与敌方400、175/303坐标。
+core/ASan setup各1/1及SDL构建通过，未启动游戏、未新增原版动态差分。
+证据见[FFD接线](../analysis/04-reverse-engineering/evidence/battle-definition-runtime-binding.md)。
+FIGTALK与完整续玩仍未验收；B10保持315/422，316 pending_audit。
+
 ## B11：入战矩形与清屏、调试标记
 
 SDL在原顺序发布逻辑矩形，全部清屏与调试标记读取共享状态。

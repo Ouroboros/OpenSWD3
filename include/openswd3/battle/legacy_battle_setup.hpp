@@ -10,6 +10,7 @@
 namespace openswd3::battle {
 
 struct LegacyBattleStartupState;
+struct LegacyBattleDefinition;
 
 inline constexpr std::size_t kLegacyBattlePartySourceCount = 4U;
 inline constexpr std::size_t kLegacyBattlePartySlotCount = 4U;
@@ -56,6 +57,15 @@ struct LegacyBattleSetupResult {
 
 [[nodiscard]] LegacyBattleSetupResult prepare_legacy_battle_setup(
     const LegacyBattleAssets& assets,
+    std::span<const compat::u8, kLegacyBattlePartySourceCount>
+        party_source_flags,
+    compat::u32 mirror_mode,
+    LegacyBattleSetupState& state
+) noexcept;
+
+// Build from the live startup record, without a second persistent asset copy.
+[[nodiscard]] LegacyBattleSetupResult prepare_legacy_battle_setup(
+    const LegacyBattleDefinition& definition,
     std::span<const compat::u8, kLegacyBattlePartySourceCount>
         party_source_flags,
     compat::u32 mirror_mode,
