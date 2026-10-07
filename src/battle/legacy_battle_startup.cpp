@@ -787,6 +787,116 @@ initialize_legacy_battle_startup_supplemental(
     return result;
 }
 
+LegacyBattleStartupOrderProgressResult
+initialize_legacy_battle_startup_order_progress(
+    LegacyBattleStartupState& state, LegacyBattleBoundedRandomPort& random
+) {
+    LegacyBattleStartupOrderProgressResult result;
+    auto& metric_state = state.actor_metrics;
+    const auto metrics =
+        rebuild_legacy_battle_actor_metrics(metric_state, {.startup = &state});
+    result.actor_metric_calls = metrics.coordinate_query_calls;
+    if (metrics.status != LegacyBattleActorMetricStatus::completed) {
+        result.status = LegacyBattleStartupStatus::actor_metric_typed_stop;
+        return result;
+    }
+
+    const auto order = rebuild_legacy_battle_actor_order(
+        metric_state,
+        metric_state.group_b_count,
+        metric_state.group_a_count,
+        metric_state.entry_edx
+    );
+    result.actor_order_selections = order.selections;
+    if (order.status != LegacyBattleActorOrderStatus::completed) {
+        result.status = LegacyBattleStartupStatus::actor_order_typed_stop;
+        return result;
+    }
+
+    const auto group_b_order =
+        rebuild_legacy_battle_group_b_order(metric_state);
+    result.group_b_order_copies = group_b_order.copied_slots;
+    if (group_b_order.status != LegacyBattleGroupBOrderStatus::completed) {
+        result.status = LegacyBattleStartupStatus::group_b_order_typed_stop;
+        return result;
+    }
+
+    u32 index = 0U;
+    while (static_cast<i32>(index) <
+           std::bit_cast<i32>(metric_state.group_b_count)) {
+        const i32 repeats = std::bit_cast<i32>(random.random_bounded(6U));
+        if (repeats > 0) {
+            // The actor address is formed only after the signed repeat gate.
+            if (index >= state.enemies.size()) {
+                result.status =
+                    LegacyBattleStartupStatus::enemy_index_out_of_range;
+                return result;
+            }
+
+            auto& enemy = state.enemies[index];
+            const auto* const lifecycle = state.group_b_lifecycle == nullptr
+                ? nullptr
+                : &(*state.group_b_lifecycle)[index];
+            if (lifecycle != nullptr) {
+                enemy.progress.field_26c0.alias(
+                    lifecycle->action_execution.field_26c0
+                );
+            }
+
+            u32 count = 0U;
+            // 4390DE returns the remainder in both EAX and EDX.
+            u32 entry_edx = std::bit_cast<u32>(repeats);
+            do {
+                const auto progress =
+                    advance_legacy_battle_actor_group_b_progress(
+                        enemy.progress,
+                        lifecycle,
+                        0,
+                        state.timing.action_threshold,
+                        group_b_actor_token(index),
+                        entry_edx
+                    );
+                ++result.enemy_action_advance_calls;
+                if (progress.status !=
+                    LegacyBattleActorGroupBProgressStatus::completed) {
+                    result.status =
+                        LegacyBattleStartupStatus::enemy_progress_typed_stop;
+                    return result;
+                }
+
+                count = static_cast<u16>(count + 1U);
+                entry_edx = count;
+            } while (static_cast<i32>(count) < repeats);
+        }
+
+        index = static_cast<u16>(index + 1U);
+    }
+
+    index = 0U;
+    while (index < metric_state.group_a_count) {
+        auto* const actor =
+            index < state.party.size() ? &state.party[index].progress : nullptr;
+        const auto initialization =
+            initialize_legacy_battle_actor_progress(actor, random);
+        const auto call = result.party_progress_initialization_calls++;
+        if (call < result.party_progress_initializations.size()) {
+            result.party_progress_initializations[call] = initialization;
+        }
+
+        if (initialization.status !=
+            LegacyBattleActorProgressInitializationStatus::completed) {
+            result.party_progress_typed_stop = initialization;
+            result.status = LegacyBattleStartupStatus::
+                party_progress_initialization_typed_stop;
+            return result;
+        }
+
+        index = static_cast<u16>(index + 1U);
+    }
+
+    return result;
+}
+
 LegacyBattleStartupPartyMetricsResult
 update_legacy_battle_startup_party_metrics(
     LegacyBattleStartupState& state, const std::size_t index
@@ -1477,99 +1587,22 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         return result;
     }
 
-    const auto metrics = rebuild_legacy_battle_actor_metrics(
-        port, {.startup = &state}
-    );
-    result.actor_metric_calls += metrics.coordinate_query_calls;
-    if (metrics.status != LegacyBattleActorMetricStatus::completed) {
-        result.status = LegacyBattleStartupStatus::actor_metric_typed_stop;
-        return result;
-    }
-    auto& metric_state = port.actor_metric_state();
-    const auto order = rebuild_legacy_battle_actor_order(
-        metric_state,
-        metric_state.group_b_count,
-        metric_state.group_a_count,
-        metric_state.entry_edx
-    );
-    result.actor_order_selections = order.selections;
-    if (order.status != LegacyBattleActorOrderStatus::completed) {
-        result.status = LegacyBattleStartupStatus::actor_order_typed_stop;
-        return result;
-    }
-    const auto group_b_order =
-        rebuild_legacy_battle_group_b_order(metric_state);
-    result.group_b_order_copies = group_b_order.copied_slots;
-    if (group_b_order.status != LegacyBattleGroupBOrderStatus::completed) {
-        result.status = LegacyBattleStartupStatus::group_b_order_typed_stop;
-        return result;
-    }
-
-    for (u32 index = 0U; index < state.actor_metrics.group_b_count; ++index) {
-        if (index >= kLegacyBattleActorGroupBElementCount) {
-            result.status = LegacyBattleStartupStatus::enemy_index_out_of_range;
-            return result;
-        }
-        const auto random_reply = invoke(
-            port, LegacyBattleStartupCall::random_below, {6U, 0U, 0U, 0U}
-        );
-        const u32 repeats = random_reply.return_value;
-        if (repeats >= 6U) {
-            result.status =
-                LegacyBattleStartupStatus::random_result_out_of_range;
-            return result;
-        }
-        const u32 actor_token = group_b_actor_token(index);
-        auto& enemy = state.enemies[index];
-        const auto* const lifecycle = state.group_b_lifecycle == nullptr
-            ? nullptr
-            : &(*state.group_b_lifecycle)[index];
-        if (lifecycle != nullptr) {
-            enemy.progress.field_26c0.alias(
-                lifecycle->action_execution.field_26c0
-            );
-        }
-        u32 stale_edx = random_reply.edx_snapshot;
-        for (u32 count = 0U; count < repeats; ++count) {
-            const auto progress = advance_legacy_battle_actor_group_b_progress(
-                enemy.progress,
-                lifecycle,
-                0,
-                result.action_threshold,
-                actor_token,
-                stale_edx
-            );
-            ++result.enemy_action_advance_calls;
-            // 45274D..45274F replaces EDX before the next iteration.
-            stale_edx = static_cast<u16>(count + 1U);
-            if (progress.status !=
-                LegacyBattleActorGroupBProgressStatus::completed) {
-                result.status =
-                    LegacyBattleStartupStatus::enemy_progress_typed_stop;
-                return result;
-            }
-        }
-    }
-
     StartupActorProgressRandomPort progress_random(port);
-    for (u32 index = 0U; index < state.actor_metrics.group_a_count; ++index) {
-        LegacyBattleActorProgressState* const actor =
-            index < kLegacyBattleActorGroupAElementCount
-            ? &state.party[index].progress
-            : nullptr;
-        const auto initialization =
-            initialize_legacy_battle_actor_progress(actor, progress_random);
-        ++result.party_progress_initialization_calls;
-        if (index < result.party_progress_initializations.size()) {
-            result.party_progress_initializations[index] = initialization;
-        }
-        if (initialization.status !=
-            LegacyBattleActorProgressInitializationStatus::completed) {
-            result.party_progress_typed_stop = initialization;
-            result.status = LegacyBattleStartupStatus::
-                party_progress_initialization_typed_stop;
-            return result;
-        }
+    const auto order_progress =
+        initialize_legacy_battle_startup_order_progress(state, progress_random);
+    result.actor_metric_calls = order_progress.actor_metric_calls;
+    result.actor_order_selections = order_progress.actor_order_selections;
+    result.group_b_order_copies = order_progress.group_b_order_copies;
+    result.enemy_action_advance_calls =
+        order_progress.enemy_action_advance_calls;
+    result.party_progress_initializations =
+        order_progress.party_progress_initializations;
+    result.party_progress_typed_stop = order_progress.party_progress_typed_stop;
+    result.party_progress_initialization_calls =
+        order_progress.party_progress_initialization_calls;
+    if (order_progress.status != LegacyBattleStartupStatus::completed) {
+        result.status = order_progress.status;
+        return result;
     }
 
     result.return_value = state.actor_metrics.group_a_count;

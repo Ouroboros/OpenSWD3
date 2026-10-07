@@ -44,6 +44,29 @@ void prepare_supplemental_actor_records(LegacyBattleStartupState& state) {
     }
 }
 
+class OrderProgressRandom final
+    : public openswd3::battle::LegacyBattleBoundedRandomPort {
+public:
+    std::deque<u32> values;
+    std::vector<u32> bounds;
+    std::function<void(u32)> on_draw;
+
+    u32 random_bounded(const u32 bound) override {
+        if (values.empty()) {
+            throw std::logic_error("unexpected startup progress random call");
+        }
+
+        bounds.push_back(bound);
+        const auto value = values.front();
+        values.pop_front();
+        if (on_draw) {
+            on_draw(bound);
+        }
+
+        return value;
+    }
+};
+
 class SupplementalPorts final
     : public openswd3::battle::LegacyBattleStartupSupplementalPort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
@@ -636,6 +659,154 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    for (const u32 variant : {0U, 1U, 2U, 3U, 4U}) {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        state->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        auto& enemy = (*state->group_b_lifecycle)[0];
+        enemy.action_execution.position_y = 200U;
+        enemy.resource_token = variant == 4U ? 0U : 0x1000U;
+        enemy.resource_bytes[0x5A] = 40U;
+        state->actor_metrics.group_b_count = 1U;
+        state->actor_metrics.group_a_count = 1U;
+        state->party[0].position_y = 100U;
+        state->party[0].progress.progress = 0xABCD0000U;
+        OrderProgressRandom random;
+        random.values = {
+            variant == 1U       ? 0xFFFFFFFFU
+                : variant == 2U ? 0U
+                                : 2U,
+            8U
+        };
+        random.on_draw = [&](const u32 bound) {
+            if (variant == 3U && bound == 6U) {
+                state->timing.action_threshold = 0;
+            }
+        };
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_startup_order_progress(
+                *state, random
+            );
+        using Status = openswd3::battle::LegacyBattleStartupStatus;
+        test.expect_true(
+            result.status ==
+                    (variant == 4U ? Status::enemy_progress_typed_stop
+                                   : Status::completed) &&
+                state->actor_metrics.actor_order[0] == 8U &&
+                state->actor_metrics.actor_order[1] == 0U &&
+                state->actor_metrics.group_b_order[0] == 0U &&
+                result.actor_metric_calls == 2U &&
+                result.actor_order_selections == 2U &&
+                state->enemies[0].progress.progress ==
+                    (variant == 0U ? 20U : 0U) &&
+                state->enemies[0].progress.action_complete ==
+                    (variant == 3U ? 1U : 0U) &&
+                state->party[0].progress.progress ==
+                    (variant == 4U ? 0xABCD0000U : 0xABCD013CU) &&
+                random.bounds ==
+                    (variant == 4U ? std::vector<u32>{6U}
+                                   : std::vector<u32>{6U, 9U}),
+            "startup orders live coordinates and initializes progress with signed random gates, live threshold and failure prefix"
+        );
+    }
+
+    {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        OrderProgressRandom random;
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_startup_order_progress(
+                *state, random
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        group_b_order_typed_stop &&
+                result.group_b_order_copies == 8U && random.bounds.empty(),
+            "zero actors still run original group B order copy and stop at ninth store before random progress"
+        );
+    }
+
+    for (const u32 variant : {0U, 1U, 2U}) {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        state->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        (*state->group_b_lifecycle)[0].action_execution.position_y = 200U;
+        state->party[0].position_y = 100U;
+        state->actor_metrics.group_b_count = 1U;
+        state->actor_metrics.group_a_count = 1U;
+        OrderProgressRandom random;
+        random.values = {0U, 8U, 0U};
+        random.on_draw = [&](const u32 bound) {
+            if (variant == 0U && bound == 6U) {
+                state->actor_metrics.group_b_count = 0xFFFFFFFFU;
+            } else if (variant == 1U && bound == 9U) {
+                state->actor_metrics.group_a_count = 2U;
+            } else if (variant == 2U && bound == 9U) {
+                state->party[0].progress.progress_write_accessible = false;
+            }
+        };
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_startup_order_progress(
+                *state, random
+            );
+        using Status = openswd3::battle::LegacyBattleStartupStatus;
+        test.expect_true(
+            result.status ==
+                    (variant == 2U
+                         ? Status::party_progress_initialization_typed_stop
+                         : Status::completed) &&
+                result.enemy_action_advance_calls == 0U &&
+                result.party_progress_initialization_calls ==
+                    (variant == 1U ? 2U : 1U) &&
+                state->party[0].progress.progress ==
+                    (variant == 2U ? 0U : 316U) &&
+                state->party[1].progress.progress ==
+                    (variant == 1U ? 450U : 0U) &&
+                random.bounds ==
+                    (variant == 1U ? std::vector<u32>{6U, 9U, 9U}
+                                   : std::vector<u32>{6U, 9U}) &&
+                state->actor_metrics.actor_order[0] == 8U,
+            "progress loops reread signed enemy and unsigned party counts after random calls and preserve order on final write failure"
+        );
+    }
+
+    {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        state->group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        (*state->group_b_lifecycle)[0].action_execution.position_y = 200U;
+        state->party[0].position_y = 100U;
+        state->actor_metrics.group_b_count = 1U;
+        state->actor_metrics.group_a_count = 1U;
+        OrderProgressRandom random;
+        random.values.assign(65537U, 0U);
+        random.values.push_back(8U);
+        u32 enemy_draws = 0U;
+        random.on_draw = [&](const u32 bound) {
+            if (bound == 6U) {
+                ++enemy_draws;
+                state->actor_metrics.group_b_count =
+                    enemy_draws == 65537U ? 0U : 65536U;
+            }
+        };
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_startup_order_progress(
+                *state, random
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::completed &&
+                enemy_draws == 65537U && random.values.empty() &&
+                result.enemy_action_advance_calls == 0U &&
+                result.party_progress_initialization_calls == 1U &&
+                state->party[0].progress.progress == 316U,
+            "zero repeat path skips actor access and wraps the enemy index at WORD width before live count ends the loop"
+        );
+    }
+
     for (const u32 mirror : {0U, 1U, 2U}) {
         auto state = std::make_unique<LegacyBattleStartupState>();
         auto action = std::make_unique<

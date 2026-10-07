@@ -1759,6 +1759,7 @@ class SdlSmokeIdlePorts final
       public openswd3::battle::LegacyBattleGroupAConfigurationDiagnosticPort,
       public openswd3::battle::LegacyBattleGroupAAttributeAggregationPort,
       public openswd3::battle::LegacyBattleStartupSupplementalPort,
+      public openswd3::battle::LegacyBattleBoundedRandomPort,
       public openswd3::battle::LegacyBattleFrameMusicPrefixPort,
       public virtual openswd3::input_time_rng::LegacyMouseFrameStatePort,
       public virtual openswd3::battle::LegacyBattlePreFramePort,
@@ -2232,6 +2233,11 @@ public:
                )
             ? 1U
             : 0U;
+    }
+
+    [[nodiscard]] openswd3::compat::u32
+    random_bounded(const openswd3::compat::u32 bound) override {
+        return secondary_rng_.next_bounded(bound);
     }
 
     [[nodiscard]] openswd3::compat::u32
@@ -3141,6 +3147,21 @@ public:
                     openswd3::battle::LegacyBattleStartupStatus::completed) {
                     openswd3::diagnostics::log_error(
                         "battle supplemental actors stopped"
+                    );
+                    battle_setup_ready_ = false;
+                    ok_ = false;
+                    running_ = false;
+                    return false;
+                }
+
+                const auto order_progress = openswd3::battle::
+                    initialize_legacy_battle_startup_order_progress(
+                        battle_runtime_, *this
+                    );
+                if (order_progress.status !=
+                    openswd3::battle::LegacyBattleStartupStatus::completed) {
+                    openswd3::diagnostics::log_error(
+                        "battle actor order or initial progress stopped"
                     );
                     battle_setup_ready_ = false;
                     ok_ = false;

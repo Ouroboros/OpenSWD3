@@ -4,6 +4,15 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：入战排序与行动进度
+
+核心和SDL共用实际坐标排序与行动进度初始化，保持随机顺序、signed循环门、
+低WORD计数、实时人数及阈值读取。零敌人数的原扫描行为和失败前缀保留。
+core/ASan定向setup各1/1、SDL构建通过；新增回绕测试也通过core/ASan。
+证据见[排序与进度接线](../analysis/04-reverse-engineering/evidence/battle-startup-order-progress-runtime-binding.md)。
+非默认速度来源、初始化尾部与完整帧仍待完成，未启动游戏或验收实际续玩。
+B10仍为315/422，Workpack316保持pending_audit。
+
 ## B11：入战额外队员
 
 核心和SDL共用额外队员选择与配置，接入实际剧情资格、共享随机源、MON

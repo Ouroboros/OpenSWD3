@@ -191,6 +191,11 @@ probe_legacy_battle_metric_first_count(
 );
 
 [[nodiscard]] LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
+    LegacyBattleActorMetricState& state,
+    const LegacyBattleActorCoordinateOwners& owners
+);
+
+[[nodiscard]] LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
     LegacyBattleStartupPort& port,
     const LegacyBattleActorCoordinateOwners& owners
 );

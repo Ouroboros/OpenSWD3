@@ -279,7 +279,15 @@ LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
     LegacyBattleStartupPort& port,
     const LegacyBattleActorCoordinateOwners& owners
 ) {
-    auto& state = port.actor_metric_state();
+    return rebuild_legacy_battle_actor_metrics(
+        port.actor_metric_state(), owners
+    );
+}
+
+LegacyBattleActorMetricResult rebuild_legacy_battle_actor_metrics(
+    LegacyBattleActorMetricState& state,
+    const LegacyBattleActorCoordinateOwners& owners
+) {
     auto call = [&state, &owners](
                     const u32 actor_token,
                     const u32 byte_token,

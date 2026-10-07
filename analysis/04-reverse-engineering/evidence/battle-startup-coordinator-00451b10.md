@@ -252,7 +252,12 @@ B11核心与SDL共用候选选择及物化入口；随机值先截取低WORD，�
 
 初始组A角色配置后的两个全局阶段均已回收。第一阶段对玩家道具链按u16 item id稳定升序，每次比较先清当前selected count，交换后从head重扫；第二阶段接收第一阶段EAX，依次稳定排序四个队伍道具sentinel链，不清selected count，交换后只重扫当前根。第一阶段typed-stop阻断第二阶段，第二阶段typed-stop阻断资料绑定和补位。
 
-补位后固定调用三个pending全局阶段。每名敌人调用`random(6)`，结果为N就对该组B对象直接调用N次已关闭`0x004755E0`，固定参数零并使用本次动作阈值。第一次调用的EDX继承random callee；`0045274D..0045274F`在后续调用前将EDX替换为已完成次数的低16位，不继承前一次进度返回；整函数旧opaque枚举槽保留为reserved且零调用。资源typed-stop保留此前全部启动副作用和已完成迭代，并阻断组A随机进度初始化。之后按补位后的队伍总数，对每个组A对象直连已关闭`0x00478380`：以固定上界9调用第二套RNG，计算`300 + 150 / (random + 1)`，并只写角色`+0x2A12`低word。startup直接使用`state.party[index].progress`唯一owner；旧`finalize_party_actor` opaque槽改为reserved且零调用。角色进度写typed-stop保留当前RNG、商余数和此前角色写入，并阻断后续角色和正常尾部；固定组A owner越界也在完成本轮RNG与除法后才于原word写访问停止。
+补位后依次重建坐标指标、角色顺序及敌方顺序。每名敌人调用`random(6)`，结果为N就对该组B对象直接调用N次已关闭`0x004755E0`，固定参数零并使用本次动作阈值。第一次调用的EDX继承random callee；`0045274D..0045274F`在后续调用前将EDX替换为已完成次数的低16位，不继承前一次进度返回；整函数旧opaque枚举槽保留为reserved且零调用。资源typed-stop保留此前全部启动副作用和已完成迭代，并阻断组A随机进度初始化。之后按补位后的队伍总数，对每个组A对象直连已关闭`0x00478380`：以固定上界9调用第二套RNG，计算`300 + 150 / (random + 1)`，并只写角色`+0x2A12`低word。startup直接使用`state.party[index].progress`唯一owner；旧`finalize_party_actor` opaque槽改为reserved且零调用。角色进度写typed-stop保留当前RNG、商余数和此前角色写入，并阻断后续角色和正常尾部；固定组A owner越界也在完成本轮RNG与除法后才于原word写访问停止。
+
+B11核心与SDL已共用以上排序和进度入口。敌方人数及随机结果按signed判断，
+两组循环计数保留低WORD回绕，随机调用后重读人数，推进读取实时阈值。
+零敌人数的顺序提取仍先扫描；任何typed-stop保留前缀并阻断后续随机。
+生产范围、验证和速度设置缺口见[排序与进度接线](battle-startup-order-progress-runtime-binding.md)。
 
 正常返回EAX按u32顺序计算：
 

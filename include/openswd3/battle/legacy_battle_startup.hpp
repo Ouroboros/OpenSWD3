@@ -442,6 +442,24 @@ initialize_legacy_battle_startup_supplemental(
     LegacyBattleActionDispatchState* action = nullptr
 );
 
+struct LegacyBattleStartupOrderProgressResult {
+    LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};
+    compat::u32 actor_metric_calls{};
+    compat::u32 actor_order_selections{};
+    compat::u32 group_b_order_copies{};
+    compat::u32 enemy_action_advance_calls{};
+    std::array<LegacyBattleActorProgressInitializationResult, 10>
+        party_progress_initializations{};
+    LegacyBattleActorProgressInitializationResult party_progress_typed_stop{};
+    compat::u32 party_progress_initialization_calls{};
+};
+
+// 4526F2..4527A5: order actual actors, then initialize their progress.
+[[nodiscard]] LegacyBattleStartupOrderProgressResult
+initialize_legacy_battle_startup_order_progress(
+    LegacyBattleStartupState& state, LegacyBattleBoundedRandomPort& random
+);
+
 struct LegacyBattleStartupPartyMetricsResult {
     LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};
     compat::u32 writes{};

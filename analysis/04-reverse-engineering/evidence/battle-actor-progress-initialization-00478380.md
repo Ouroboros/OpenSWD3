@@ -46,7 +46,7 @@ value = quotient + 300
 - `EBX/EBP/EDI`：未修改；
 - 返回标志位来自最后一次`add eax,300`，后续word写、`pop`和`retn`不改标志。
 
-modern实现为`initialize_legacy_battle_actor_progress`。随机调用复用现有`LegacyBattleBoundedRandomPort`，SDL启动适配继续通过同一`LegacyBattleStartupCall::random_below`窄边界调用已关闭第二套RNG，不建立新随机算法或并行随机状态。
+modern实现为`initialize_legacy_battle_actor_progress`。随机调用复用现有`LegacyBattleBoundedRandomPort`，核心启动适配经`LegacyBattleStartupCall::random_below`，SDL直接借用既有`secondary_rng_`；两者使用同一排序与进度入口，不建立新随机算法或并行随机状态。具体边界见[入战接线](battle-startup-order-progress-runtime-binding.md)。
 
 ## 3. 访问顺序与typed-stop
 

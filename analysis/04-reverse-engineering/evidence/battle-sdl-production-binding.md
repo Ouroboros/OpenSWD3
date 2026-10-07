@@ -23,6 +23,13 @@ SDL在初始队员指标之后，接入实际剧情标志、共享随机源、MO
 核心与SDL共用入口，保留旧计数、重试顺序、资料调用后的重读及失败前缀。
 验证与边界见[额外队员接线](battle-startup-supplemental-runtime-binding.md)。
 
+## 入战排序与行动进度
+
+SDL在额外队员配置之后，按实际坐标重建角色及敌方顺序，然后初始化行动进度。
+与核心共用共享状态和随机调用顺序；人数重读、原有零人数行为及停止前缀保留。
+当前阈值默认900，非默认速度来源、末尾消息及完整帧仍待接通。
+证据和验证边界见[排序与进度接线](battle-startup-order-progress-runtime-binding.md)。
+
 ## 当前生产断点
 
 当前`src/platform/sdl3/main.cpp`的`SdlSmokeIdlePorts`实现脚本、音乐前缀和预帧角色端口，尚未实现完整帧协调端口。
