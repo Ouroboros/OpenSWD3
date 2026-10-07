@@ -89,6 +89,128 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
     using openswd3::battle::rebuild_legacy_battle_actor_metrics;
     using openswd3::battle::rebuild_legacy_battle_actor_order;
 
+    {
+        openswd3::battle::LegacyBattleActorMetricState state;
+        state.values[8U] = 17;
+        const auto result = rebuild_legacy_battle_actor_order(
+            state, 0U, 1U, 0xCAFEBABEU, false
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorOrderStatus::completed &&
+                result.final_registers_known && state.entry_registers_known &&
+                result.final_edx == 17U && state.entry_edx == 17U &&
+                state.actor_order[0U] == 8U && state.selected_mask[8U] == 0U,
+            "group A leaves its last metric in EDX instead of restoring its count"
+        );
+    }
+
+    {
+        openswd3::battle::LegacyBattleActorMetricState state;
+        state.values.fill(17);
+        state.selected_mask.fill(1U);
+        const auto result = rebuild_legacy_battle_actor_order(
+            state, 1U, 0U, 0xCAFEBABEU, false
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorOrderStatus::metric_read_typed_stop &&
+                result.return_value == 18U && result.final_ecx == 17U &&
+                !result.final_registers_known &&
+                result.final_edx == 0xCAFEBABEU &&
+                state.selected_mask[0U] == 1U,
+            "exhausted initial scan keeps the last metric in ECX and incoming EDX"
+        );
+    }
+
+    for (const bool group_a : {false, true}) {
+        openswd3::battle::LegacyBattleActorMetricState state;
+        state.values.fill(30);
+        state.values[group_a ? 8U : 0U] = 17;
+        const auto result = rebuild_legacy_battle_actor_order(
+            state, group_a ? 0U : 19U, group_a ? 11U : 0U
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorOrderStatus::mask_access_typed_stop &&
+                result.return_value == 18U && result.final_ecx == 17U &&
+                result.final_edx == (group_a ? 30U : 19U) &&
+                result.selections == 0U && result.mask_writes == 0U,
+            "comparison fault preserves the candidate and the actual last EDX load"
+        );
+    }
+
+    for (const u32 mode : {0U, 1U, 2U, 3U}) {
+        auto startup = std::make_unique<LegacyBattleStartupState>();
+        startup->group_b_lifecycle = std::make_shared<std::array<
+            LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        (*startup->group_b_lifecycle)[0U].action_execution.position_y =
+            mode >= 2U ? 0U : 0xFFFFU;
+        startup->party[0U].position_y = mode >= 2U ? 0U : 10U;
+        startup->party[1U].position_y = mode == 2U ? 0U : 10U;
+        auto& state = startup->actor_metrics;
+        state.group_b_count = mode == 1U ? 0U : 1U;
+        state.group_a_count = mode == 1U ? 0U : 2U;
+        state.selected_mask[5U] = 0x77U;
+        state.entry_registers_known = false;
+        const auto metrics = rebuild_legacy_battle_actor_metrics(
+            state, {.startup = startup.get()}
+        );
+        test.expect_true(
+            metrics.status == LegacyBattleActorMetricStatus::completed,
+            "live coordinate production completes before ordering"
+        );
+        const auto order = rebuild_legacy_battle_actor_order(
+            state,
+            state.group_b_count,
+            state.group_a_count,
+            metrics.final_edx,
+            metrics.final_registers_known
+        );
+        if (mode == 0U) {
+            test.expect_true(
+                order.status == LegacyBattleActorOrderStatus::completed &&
+                    order.selections == 3U && state.actor_order[0U] == 0U &&
+                    state.actor_order[1U] == 8U &&
+                    state.actor_order[2U] == 9U && order.final_edx == 10U &&
+                    order.final_registers_known &&
+                    state.selected_mask[5U] == 0U,
+                "live metrics feed negative and equal coordinates into stable shared ordering"
+            );
+        } else if (mode == 1U) {
+            test.expect_true(
+                order.status == LegacyBattleActorOrderStatus::completed &&
+                    order.selections == 0U && !order.final_registers_known &&
+                    !state.entry_registers_known &&
+                    state.selected_mask[5U] == 0U,
+                "zero live actors clear masks without inventing incoming EDX"
+            );
+        } else if (mode == 2U) {
+            test.expect_true(
+                order.status ==
+                        LegacyBattleActorOrderStatus::metric_read_typed_stop &&
+                    order.selections == 0U && order.return_value == 18U &&
+                    order.final_registers_known &&
+                    state.selected_mask[5U] == 0x77U,
+                "all-zero live coordinates preserve the original exhausted-candidate failure and mask"
+            );
+        } else {
+            test.expect_true(
+                order.status ==
+                        LegacyBattleActorOrderStatus::metric_read_typed_stop &&
+                    order.return_value == 18U && order.selections == 2U &&
+                    order.mask_writes == 2U && order.final_edx == 10U &&
+                    state.actor_order[0U] == 8U &&
+                    state.actor_order[1U] == 9U &&
+                    state.actor_order[2U] == 0U &&
+                    state.selected_mask[8U] == 1U &&
+                    state.selected_mask[9U] == 1U &&
+                    state.selected_mask[5U] == 0x77U,
+                "candidate exhaustion after publication keeps both live order entries and masks"
+            );
+        }
+    }
+
     for (const u32 residue : {0U, 0xA5B6C7D8U}) {
         for (const bool alternate : {false, true}) {
             for (const u32 fault : {0U, 1U, 2U, 3U}) {

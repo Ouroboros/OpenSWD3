@@ -349,9 +349,12 @@ LegacyBattleActorOrderResult rebuild_legacy_battle_actor_order(
     LegacyBattleActorMetricState& state,
     const compat::u32 group_b_count,
     const compat::u32 group_a_count,
-    const compat::u32 caller_edx
+    const compat::u32 caller_edx,
+    const bool caller_edx_known
 ) {
     LegacyBattleActorOrderResult result;
+    result.final_registers_known = caller_edx_known;
+    result.final_ecx = group_b_count;
     state.group_b_count = group_b_count;
     state.group_a_count = group_a_count;
     u32 remaining = group_a_count + group_b_count;
@@ -370,6 +373,7 @@ LegacyBattleActorOrderResult rebuild_legacy_battle_actor_order(
                 return result;
             }
             candidate_value = state.values[candidate];
+            result.final_ecx = std::bit_cast<u32>(candidate_value);
             ++result.metric_reads;
             if (candidate_value != 0) {
                 if (candidate >= state.selected_mask.size()) {
@@ -395,11 +399,13 @@ LegacyBattleActorOrderResult rebuild_legacy_battle_actor_order(
             return result;
         }
         candidate_value = state.values[candidate];
+        result.final_ecx = std::bit_cast<u32>(candidate_value);
         ++result.metric_reads;
         u32 selected = candidate;
 
         u32 index = candidate + 1U;
         final_edx = group_b_count;
+        result.final_registers_known = true;
         while (index < group_b_count) {
             if (index >= state.selected_mask.size()) {
                 result.status =
@@ -421,6 +427,7 @@ LegacyBattleActorOrderResult rebuild_legacy_battle_actor_order(
                 ++result.metric_reads;
                 if (value < candidate_value) {
                     candidate_value = value;
+                    result.final_ecx = std::bit_cast<u32>(value);
                     selected = index;
                 }
             }
@@ -449,9 +456,11 @@ LegacyBattleActorOrderResult rebuild_legacy_battle_actor_order(
                         return result;
                     }
                     const i32 value = state.values[index];
+                    final_edx = std::bit_cast<u32>(value);
                     ++result.metric_reads;
                     if (value < candidate_value) {
                         candidate_value = value;
+                        result.final_ecx = std::bit_cast<u32>(value);
                         selected = index;
                     }
                 }
@@ -462,7 +471,7 @@ LegacyBattleActorOrderResult rebuild_legacy_battle_actor_order(
         if (selected >= state.selected_mask.size()) {
             result.status =
                 LegacyBattleActorOrderStatus::mask_access_typed_stop;
-            result.return_value = selected;
+            result.return_value = 0x005214ACU + output_index * 4U;
             result.final_edx = final_edx;
             return result;
         }
@@ -471,7 +480,7 @@ LegacyBattleActorOrderResult rebuild_legacy_battle_actor_order(
         if (output_index >= state.actor_order.size()) {
             result.status =
                 LegacyBattleActorOrderStatus::order_store_typed_stop;
-            result.return_value = output_index;
+            result.return_value = 0x005214ACU + output_index * 4U;
             result.final_edx = final_edx;
             return result;
         }
@@ -485,6 +494,7 @@ LegacyBattleActorOrderResult rebuild_legacy_battle_actor_order(
     result.return_value = 0U;
     result.final_ecx = 0U;
     result.final_edx = final_edx;
+    state.entry_registers_known = result.final_registers_known;
     state.entry_eax = result.return_value;
     state.entry_ecx = result.final_ecx;
     state.entry_edx = result.final_edx;

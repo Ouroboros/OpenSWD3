@@ -3859,6 +3859,8 @@ public:
             }
             bool pre_frame_called = false;
             bool metrics_called = false;
+            bool order_called = false;
+            openswd3::battle::LegacyBattleActorOrderResult order;
             openswd3::battle::LegacyBattleActorMetricResult metrics;
             openswd3::battle::LegacyBattlePreFrameResult pre_frame;
             if (input_dispatch_returned) {
@@ -3891,11 +3893,27 @@ public:
                                  .startup = &battle_runtime_}
                             );
                         metrics_called = true;
-                        stop_boundary = metrics.status ==
-                                openswd3::battle::
-                                    LegacyBattleActorMetricStatus::completed
-                            ? "0x0045324D -> sub_45B190 actor order"
-                            : "0x00453248 -> sub_45B0E0 typed stop";
+                        if (metrics.status ==
+                            openswd3::battle::LegacyBattleActorMetricStatus::
+                                completed) {
+                            order = openswd3::battle::
+                                rebuild_legacy_battle_actor_order(
+                                    battle_actor_metrics_,
+                                    battle_actor_metrics_.group_b_count,
+                                    battle_actor_metrics_.group_a_count,
+                                    metrics.final_edx,
+                                    metrics.final_registers_known
+                                );
+                            order_called = true;
+                            stop_boundary = order.status ==
+                                    openswd3::battle::
+                                        LegacyBattleActorOrderStatus::completed
+                                ? "0x00453252 -> sub_45D8F0 debug hotkeys"
+                                : "0x0045324D -> sub_45B190 typed stop";
+                        } else {
+                            stop_boundary =
+                                "0x00453248 -> sub_45B0E0 typed stop";
+                        }
                     } else {
                         stop_boundary = "0x0045B0E0 -> metric scratch identity";
                     }
@@ -3958,6 +3976,16 @@ public:
             message.append(", metric_registers_known=");
             message.append(
                 metrics_called && metrics.final_registers_known ? "1" : "0"
+            );
+            message.append(", order_called=");
+            message.append(order_called ? "1" : "0");
+            message.append(", order_status=");
+            message.append(std::to_string(static_cast<unsigned>(order.status)));
+            message.append(", order_selections=");
+            message.append(std::to_string(order.selections));
+            message.append(", order_registers_known=");
+            message.append(
+                order_called && order.final_registers_known ? "1" : "0"
             );
             message.append(", pre_frame_terminal_latch=");
             message.append(

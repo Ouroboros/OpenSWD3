@@ -160,6 +160,8 @@ struct LegacyBattleActorMetricResult {
 };
 
 struct LegacyBattleActorOrderResult {
+    // Diagnostic validity, with the same meaning as the metric result.
+    bool final_registers_known{true};
     LegacyBattleActorOrderStatus status{
         LegacyBattleActorOrderStatus::completed
     };
@@ -216,7 +218,8 @@ probe_legacy_battle_metric_first_count(
     LegacyBattleActorMetricState& state,
     compat::u32 group_b_count,
     compat::u32 group_a_count,
-    compat::u32 caller_edx = 0U
+    compat::u32 caller_edx = 0U,
+    bool caller_edx_known = true
 );
 
 }  // namespace openswd3::battle
