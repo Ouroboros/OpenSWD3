@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstddef>
+#include <functional>
 #include <vector>
 
 namespace {
@@ -23,6 +24,10 @@ struct AttributePort final : LegacyBattleGroupAAttributeAggregationPort {
         const LegacyBattleGroupAAttributeAggregationCallRequest& request
     ) override {
         requests.push_back(request);
+        if (on_report) {
+            on_report();
+        }
+
         return {
             .eax = 0xA0000000U + static_cast<u32>(requests.size()),
             .ecx = 0xB0000000U + static_cast<u32>(requests.size()),
@@ -30,6 +35,7 @@ struct AttributePort final : LegacyBattleGroupAAttributeAggregationPort {
         };
     }
 
+    std::function<void()> on_report;
     std::vector<LegacyBattleGroupAAttributeAggregationCallRequest> requests;
 };
 
@@ -116,6 +122,202 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleGroupAConfigurationState;
     using openswd3::battle::LegacyBattleGroupAWorkspaceState;
     using openswd3::battle::aggregate_legacy_battle_group_a_attributes;
+
+    for (const u32 row : {4U, 0xFFFFFFFFU}) {
+        openswd3::world_map::LegacyWorldItemListState items;
+        const auto sources =
+            openswd3::battle::bind_legacy_battle_group_a_attribute_sources(
+                items, row
+            );
+        LegacyBattleGroupAAttributeAggregationState state;
+        state.embedded_profiles[0U].fill(std::byte{0xCC});
+        LegacyBattleGroupAWorkspaceState workspace;
+        LegacyBattleGroupAConfigurationState configuration{
+            .actor_record_token = 0x72000000U,
+        };
+        AttributePort port;
+        const auto result = aggregate_legacy_battle_group_a_attributes(
+            &state,
+            workspace,
+            configuration,
+            &sources,
+            0x005029D0U,
+            0x004C8AD0U + row * 0x40U,
+            0U,
+            port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupAAttributeAggregationStatus::
+                        source_record_typed_stop &&
+                result.fault_source_index == 0U &&
+                result.source_records_visited == 0U &&
+                result.embedded_profile_dwords_zeroed == 82U &&
+                state.embedded_profiles[0U][0U] == std::byte{},
+            "unmapped role rows retain embedded-profile clearing and stop at the first item read"
+        );
+    }
+
+    for (const u32 root : {0U, 0xDEADBEEFU}) {
+        openswd3::world_map::LegacyWorldItemListState items;
+        set_snapshot_word(items.role_item_lists[0U]->sentinel, 0x48U, 1U);
+        set_snapshot_word(items.role_item_lists[0U]->sentinel, 0x24U, 2U);
+        items.role_item_lists[3U]->legacy_head_token = root;
+        const auto sources =
+            openswd3::battle::bind_legacy_battle_group_a_attribute_sources(
+                items, 0U
+            );
+        LegacyBattleGroupAAttributeAggregationState state;
+        LegacyBattleGroupAWorkspaceState workspace;
+        LegacyBattleGroupAConfigurationState configuration{
+            .actor_record_token = 0x72000000U,
+        };
+        AttributePort port;
+        const auto result = aggregate_legacy_battle_group_a_attributes(
+            &state,
+            workspace,
+            configuration,
+            &sources,
+            0x005029D0U,
+            0x004C8AD0U,
+            0U,
+            port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupAAttributeAggregationStatus::
+                        source_record_typed_stop &&
+                result.fault_source_index == 3U &&
+                result.source_records_visited == 3U &&
+                actor_word(configuration.actor_record, 0x26U) == 2U &&
+                result.embedded_profile_apply_calls == 0U,
+            "null or unmapped role roots stop at their slot after retaining earlier attribute additions"
+        );
+    }
+
+    for (const bool remove_root : {false, true}) {
+        openswd3::world_map::LegacyWorldItemListState items;
+        auto& owner = items.role_item_lists[32U];
+        owner->sentinel.item_id = 7U;
+        set_snapshot_word(owner->sentinel, 0x24U, 1U);
+        auto& replacement = owner->nodes.emplace_back();
+        replacement.legacy_token = 0x73500000U;
+        replacement.item_id = 9U;
+        set_snapshot_word(replacement, 0x24U, 11U);
+        const auto sources =
+            openswd3::battle::bind_legacy_battle_group_a_attribute_sources(
+                items, 2U
+            );
+        LegacyBattleGroupAAttributeAggregationState state;
+        LegacyBattleGroupAWorkspaceState workspace;
+        LegacyBattleGroupAConfigurationState configuration{
+            .actor_record_token = 0x72000000U,
+        };
+        u16 effect_curve_index{};
+        bool observed_prefix{};
+        AttributePort port;
+        port.on_report = [&] {
+            observed_prefix = effect_curve_index == 7U &&
+                workspace.tail_words[5U] == 7U &&
+                profile_word(state.primary_profile, 0x24U) == 1U;
+            effect_curve_index = 99U;
+            if (remove_root) {
+                owner.reset();
+            } else {
+                owner->legacy_head_token = replacement.legacy_token;
+            }
+        };
+        const auto result = aggregate_legacy_battle_group_a_attributes(
+            &state,
+            workspace,
+            configuration,
+            &sources,
+            0x005029D0U,
+            0x004C8B50U,
+            0U,
+            port,
+            &effect_curve_index
+        );
+        test.expect_true(
+            result.status ==
+                    (remove_root
+                         ? LegacyBattleGroupAAttributeAggregationStatus::
+                               source_record_typed_stop
+                         : LegacyBattleGroupAAttributeAggregationStatus::
+                               completed) &&
+                observed_prefix && effect_curve_index == 99U &&
+                actor_word(configuration.actor_record, 0x26U) ==
+                    (remove_root ? 0U : 11U) &&
+                result.embedded_profile_apply_calls == (remove_root ? 0U : 2U),
+            "borrowed role roots are resolved after diagnostics and published action fields are not copied back over callback changes"
+        );
+        if (!remove_root) {
+            port.on_report = {};
+            const auto repeated = aggregate_legacy_battle_group_a_attributes(
+                &state,
+                workspace,
+                configuration,
+                &sources,
+                0x005029D0U,
+                0x004C8B50U,
+                0U,
+                port,
+                &effect_curve_index
+            );
+            test.expect_true(
+                repeated.status ==
+                        LegacyBattleGroupAAttributeAggregationStatus::
+                            completed &&
+                    profile_word(state.primary_profile, 0x24U) == 11U &&
+                    actor_word(configuration.actor_record, 0x26U) == 22U &&
+                    workspace.tail_words[5U] == 9U && effect_curve_index == 9U,
+                "repeated aggregation resolves the current root without caching an old item record"
+            );
+        }
+    }
+
+    {
+        std::array<LegacyWorldItemNode, 16> nodes{};
+        nodes[0U].item_id = 7U;
+        set_snapshot_word(nodes[0U], 0x24U, 1U);
+        auto sources = make_sources(nodes);
+        LegacyWorldItemNode replacement;
+        replacement.item_id = 0x039DU;
+        replacement.legacy_token = 0x73000000U;
+        set_snapshot_word(replacement, 0x24U, 9U);
+        LegacyBattleGroupAAttributeAggregationState state;
+        LegacyBattleGroupAWorkspaceState workspace;
+        LegacyBattleGroupAConfigurationState configuration{
+            .actor_record_token = 0x72000000U,
+        };
+        AttributePort port;
+        port.on_report = [&] {
+            sources[0U] = {
+                .record = &replacement,
+                .record_token = replacement.legacy_token,
+            };
+        };
+        const auto result = aggregate_legacy_battle_group_a_attributes(
+            &state,
+            workspace,
+            configuration,
+            &sources,
+            0x005029D0U,
+            0x004C8AD0U,
+            0U,
+            port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupAAttributeAggregationStatus::completed &&
+                result.diagnostic_calls == 1U &&
+                profile_word(state.primary_profile, 0x24U) == 1U &&
+                workspace.tail_words[5U] == 7U &&
+                actor_word(configuration.actor_record, 0x26U) == 9U &&
+                workspace.special_item_latch == 1U,
+            "attribute diagnostic preserves the copied prefix but subsequent additions read the replacement source"
+        );
+    }
 
     {
         std::array<LegacyWorldItemNode, 16> nodes{};
@@ -228,7 +430,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
                 workspace.tail_words[9U] == 66U &&
                 workspace.special_item_latch == 1U && port.requests.empty() &&
                 result.return_eax == 0x73AB0F00U &&
-                result.return_ecx == 0x73AB0001U &&
+                result.return_ecx == 0x005029D0U &&
                 result.return_edx == 0x005029D0U,
             "group-A attribute aggregation preserves all sixteen source classes, low-width additions, embedded records, and final registers"
         );
@@ -263,7 +465,8 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
                 workspace.tail_words[5U] == 0x1234U &&
                 configuration.actor_record[0U] == 0xCCCCCCCCU &&
                 port.requests.empty() && result.return_eax == 0U &&
-                result.return_ecx == 0U && result.return_edx == 0x005029D0U,
+                result.return_ecx == 0x005029D0U &&
+                result.return_edx == 0x005029D0U,
             "null source table clears only the two embedded profiles and completes sixteen empty loop iterations"
         );
     }

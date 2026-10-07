@@ -12,6 +12,8 @@ MON解析流另按[解析流接线证据](../evidence/battle-mon-stream-runtime-
 [队伍入战接线](../evidence/battle-party-startup-runtime-binding.md)。
 入战物品排序已接入同一读档物品链，移动根只排序其后缀，见
 [排序接线](../evidence/battle-startup-item-order-runtime-binding.md)。
+队伍物品属性已借用实际角色物品根，保留诊断后的重新读取和失败前缀，见
+[属性接线](../evidence/battle-startup-party-attributes-runtime-binding.md)。
 这些接线不关闭新的战斗函数。
 
 ## 1. 唯一真值与模块目标
@@ -2192,14 +2194,14 @@ signed/unsigned域、回绕、诊断、寄存器、五类stop、普通双caller�
 完整权威LST主体`0x0046EBB0..0x0046EE52`共265行、195条实际指令、2个call、18个跳转、10个局部标签、
 1个返回点且无外部chunk。函数入口以82个dword清角色两份内嵌0xA4资料；零参数表仍执行16轮空循环。
 非零表以槽0建立主资料、角色物品号和可选固定诊断，16槽共同按u16低位回绕累加六项word及两组条件word。
-槽7/8复制内嵌资料，非哨兵时覆盖物品号并调用待审资料应用callee；槽9/10跳过后半段；
+槽7/8复制内嵌资料，非哨兵时覆盖物品号并直接调用已实现的资料应用callee；槽9/10跳过后半段；
 其余12槽按u8回绕累加九byte，槽0至6按独立gate累加三项角色尾值，非7至10槽的固定物品号写特殊latch。
-正常EAX为槽15记录token，EDX原this，ECX保留槽15 token高word、条件word高byte和最后属性byte的陈旧组合。
-typed实现复用世界物品状态64条角色sentinel唯一owner、角色基础记录和既有workspace；
+正常EAX为槽15记录token，EDX原this，ECX由末尾POP恢复为角色地址；B11审计已修正旧中间值返回。
+typed实现复用世界物品状态64条角色实际根唯一owner、角色基础记录和既有workspace；
 主资料与两份内嵌资料保留在角色唯一聚合状态，description只增加compat token元数据。
 整函数旧opaque槽reserved且生产零调用，唯一startup caller在物品排序后、数值/资源双写前直连；
 角色`+8`视图纠正为前一配置函数发布的辅助资料owner。三类首次访问stop保留此前清零、复制、诊断、
-callee和累加前缀，`sub_46F030`继续窄端口隔离。测试覆盖16槽分类、全部word/byte、低位回绕、
+callee和累加前缀，`sub_46F030`直接组合并借用共享固定对象状态。测试覆盖16槽分类、全部word/byte、低位回绕、
 两份内嵌资料、哨兵、特殊编号、固定诊断、空表、三类stop、最终寄存器、64根caller和缺失sentinel阻断。
 验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过，
 源码零warning且app仅有既有ALSA提示。

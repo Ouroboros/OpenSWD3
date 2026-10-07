@@ -1757,6 +1757,7 @@ class SdlSmokeIdlePorts final
       public openswd3::app::FrameRuntimePorts,
       public openswd3::battle::LegacyBattleScriptDispatchPort,
       public openswd3::battle::LegacyBattleGroupAConfigurationDiagnosticPort,
+      public openswd3::battle::LegacyBattleGroupAAttributeAggregationPort,
       public openswd3::battle::LegacyBattleFrameMusicPrefixPort,
       public virtual openswd3::input_time_rng::LegacyMouseFrameStatePort,
       public virtual openswd3::battle::LegacyBattlePreFramePort,
@@ -2990,6 +2991,57 @@ public:
                     running_ = false;
                     return false;
                 }
+
+                for (std::size_t index = 0U;
+                     index < battle_runtime_.actor_metrics.group_a_count;
+                     ++index) {
+                    if (index >=
+                        openswd3::world_map::kLegacyPartyItemListCount) {
+                        openswd3::diagnostics::log_error(
+                            "battle party attribute index stopped"
+                        );
+                        battle_setup_ready_ = false;
+                        ok_ = false;
+                        running_ = false;
+                        return false;
+                    }
+
+                    const auto source = battle_runtime_.action_mode_source
+                                            .actor_label_indices[index];
+                    const auto sources = openswd3::battle::
+                        bind_legacy_battle_group_a_attribute_sources(
+                            world_item_lists_, source
+                        );
+                    auto& party = battle_runtime_.party[index];
+                    const auto attributes = openswd3::battle::
+                        aggregate_legacy_battle_group_a_attributes(
+                            &party.attribute_aggregation,
+                            party.workspace,
+                            party.configuration,
+                            &sources,
+                            0x005029D0U +
+                                static_cast<openswd3::compat::u32>(index) *
+                                    0x2F34U,
+                            0x004C8AD0U + source * 0x40U,
+                            battle_runtime_.window_token,
+                            *this,
+                            &battle_action_dispatch_
+                                 .group_a_action_execution[index]
+                                 .effect_curve_index
+                        );
+                    if (attributes.status !=
+                        openswd3::battle::
+                            LegacyBattleGroupAAttributeAggregationStatus::
+                                completed) {
+                        openswd3::diagnostics::log_error(
+                            "battle party item attributes stopped"
+                        );
+                        battle_setup_ready_ = false;
+                        ok_ = false;
+                        running_ = false;
+                        return false;
+                    }
+                }
             }
         } else {
             battle_setup_ = {};
@@ -3035,11 +3087,34 @@ public:
         const openswd3::battle::
             LegacyBattleGroupAConfigurationDiagnosticRequest& request
     ) override {
+        return {
+            .eax = report_battle_maintenance_error(
+                request.source_line, "戰鬥角色actNumber為0!!"
+            )
+        };
+    }
+
+    openswd3::battle::LegacyBattleGroupAAttributeAggregationCallReply
+    invoke_group_a_attribute_aggregation(
+        const openswd3::battle::
+            LegacyBattleGroupAAttributeAggregationCallRequest& request
+    ) override {
+        // The only non-reserved aggregation call is the 46EC22 diagnostic.
+        return {
+            .eax = report_battle_maintenance_error(
+                request.diagnostic_source_line,
+                "武器" + std::to_string(request.item_id) + "號的強攻擊act沒設!!"
+            )
+        };
+    }
+
+    openswd3::compat::u32 report_battle_maintenance_error(
+        const openswd3::compat::u32 source_line, const std::string& text
+    ) {
         // 431150 formats source/line/text and uses MB_ABORTRETRYIGNORE|ICONHAND.
         const std::string message =
             "\n檔案: C:\\Project\\swd102aDVD\\manrole.cpp\n行數: 第" +
-            std::to_string(request.source_line) +
-            "行\n錯誤: 戰鬥角色actNumber為0!!";
+            std::to_string(source_line) + "行\n錯誤: " + text;
         const SDL_MessageBoxButtonData buttons[]{
             {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 3, "中止"},
             {0U, 4, "重試"},
@@ -3070,10 +3145,10 @@ public:
 
         if (button_id == 3 || button_id == 4) {
             SDL_TriggerBreakpoint();
-            return {};
+            return 0U;
         }
 
-        return {.eax = static_cast<openswd3::compat::u32>(button_id) - 4U};
+        return static_cast<openswd3::compat::u32>(button_id) - 4U;
     }
 
     void clear_party_battle_entry_bits() override {}

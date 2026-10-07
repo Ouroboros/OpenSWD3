@@ -10,6 +10,34 @@ using compat::u16;
 using compat::u32;
 using world_map::LegacyWorldItemNode;
 
+[[nodiscard]] LegacyBattleGroupAAttributeSource
+resolve_source(const LegacyBattleGroupAAttributeSource& source) noexcept {
+    if (source.live_root == nullptr) {
+        return source;
+    }
+
+    if (!source.live_root->has_value()) {
+        return {};
+    }
+
+    const auto& list = **source.live_root;
+    if (list.legacy_head_token == 0U) {
+        return {};
+    }
+
+    if (list.legacy_head_token == list.sentinel.legacy_token) {
+        return {&list.sentinel, list.legacy_head_token};
+    }
+
+    for (const auto& node : list.nodes) {
+        if (node.legacy_token == list.legacy_head_token) {
+            return {&node, list.legacy_head_token};
+        }
+    }
+
+    return {};
+}
+
 [[nodiscard]] constexpr u8 profile_byte(
     const LegacyBattleGroupASummonProfileRecord& profile,
     const std::size_t offset
@@ -167,6 +195,26 @@ private:
 
 }  // namespace
 
+LegacyBattleGroupAAttributeSourceTable
+bind_legacy_battle_group_a_attribute_sources(
+    const world_map::LegacyWorldItemListState& items, const u32 source_index
+) noexcept {
+    LegacyBattleGroupAAttributeSourceTable sources{};
+    if (source_index >= items.role_item_lists.size() /
+            kLegacyBattleGroupAAttributeSourceCount) {
+        return sources;
+    }
+
+    for (std::size_t slot = 0U; slot < sources.size(); ++slot) {
+        sources[slot].live_root =
+            &items.role_item_lists
+                 [source_index * kLegacyBattleGroupAAttributeSourceCount +
+                  slot];
+    }
+
+    return sources;
+}
+
 LegacyBattleGroupAAttributeAggregationResult
 aggregate_legacy_battle_group_a_attributes(
     LegacyBattleGroupAAttributeAggregationState* state,
@@ -176,7 +224,8 @@ aggregate_legacy_battle_group_a_attributes(
     const u32 actor_token,
     const u32 source_table_token,
     const u32 window_token,
-    LegacyBattleGroupAAttributeAggregationPort& port
+    LegacyBattleGroupAAttributeAggregationPort& port,
+    u16* const effect_curve_index
 ) {
     LegacyBattleGroupAAttributeAggregationResult result;
     result.return_edx = actor_token;
@@ -195,13 +244,14 @@ aggregate_legacy_battle_group_a_attributes(
     }
 
     if (sources == nullptr) {
+        result.return_ecx = actor_token;
         return result;
     }
 
     for (u32 source_index = 0U;
          source_index < kLegacyBattleGroupAAttributeSourceCount;
          ++source_index) {
-        const auto& source = (*sources)[source_index];
+        auto source = resolve_source((*sources)[source_index]);
         result.fault_source_index = source_index;
         if (source.record == nullptr) {
             result.status = LegacyBattleGroupAAttributeAggregationStatus::
@@ -210,19 +260,22 @@ aggregate_legacy_battle_group_a_attributes(
         }
         ++result.source_records_visited;
 
-        const auto profile = pack_profile(*source.record);
-        const u32 source_token = source.record_token;
+        auto profile = pack_profile(*source.record);
         if (source_index == 0U) {
             state->primary_profile = profile;
             result.primary_profile_dwords_copied =
                 static_cast<u32>(profile.size() / sizeof(u32));
             workspace.tail_words[5U] = source.record->item_id;
+            if (effect_curve_index != nullptr) {
+                *effect_curve_index = source.record->item_id;
+            }
+
             if (profile_word(state->primary_profile, 0x48U) == 0U) {
                 static_cast<void>(port.invoke_group_a_attribute_aggregation({
                     .call = LegacyBattleGroupAAttributeAggregationCall::
                         report_missing_primary_attribute,
                     .actor_token = actor_token,
-                    .source_record_token = source_token,
+                    .source_record_token = source.record_token,
                     .item_id = source.record->item_id,
                     .window_token = window_token,
                     .diagnostic_text_token =
@@ -234,9 +287,19 @@ aggregate_legacy_battle_group_a_attributes(
                 }));
                 ++result.port_calls;
                 ++result.diagnostic_calls;
+                source = resolve_source((*sources)[source_index]);
+                if (source.record == nullptr) {
+                    result.status =
+                        LegacyBattleGroupAAttributeAggregationStatus::
+                            source_record_typed_stop;
+                    return result;
+                }
+
+                profile = pack_profile(*source.record);
             }
         }
 
+        const u32 source_token = source.record_token;
         const u16 value_30 = profile_word(profile, 0x24U);
         result.return_eax = configuration.actor_record_token;
         result.return_ecx = (source_token & 0xFFFF0000U) | value_30;
@@ -359,6 +422,7 @@ aggregate_legacy_battle_group_a_attributes(
 
     result.fault_source_index =
         static_cast<u32>(kLegacyBattleGroupAAttributeSourceCount);
+    result.return_ecx = actor_token;  // 46EE51 restores the saved this value.
     return result;
 }
 

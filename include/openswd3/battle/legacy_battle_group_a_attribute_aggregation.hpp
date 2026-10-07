@@ -22,11 +22,19 @@ inline constexpr compat::u32 kLegacyBattleGroupAAttributeDiagnosticSourceLine =
 struct LegacyBattleGroupAAttributeSource {
     const world_map::LegacyWorldItemNode* record{};
     compat::u32 record_token{};
+    // When supplied, resolve the current root at each observable read boundary.
+    const std::optional<world_map::LegacyWorldSentinelItemList>* live_root{};
 };
 
 using LegacyBattleGroupAAttributeSourceTable = std::array<
     LegacyBattleGroupAAttributeSource,
     kLegacyBattleGroupAAttributeSourceCount>;
+
+// Out-of-range rows produce absent sources, stopped at the first record read.
+[[nodiscard]] LegacyBattleGroupAAttributeSourceTable
+bind_legacy_battle_group_a_attribute_sources(
+    const world_map::LegacyWorldItemListState& items, compat::u32 source_index
+) noexcept;
 
 struct LegacyBattleGroupAAttributeAggregationState {
     LegacyBattleGroupASummonProfileRecord primary_profile{};
@@ -121,7 +129,9 @@ aggregate_legacy_battle_group_a_attributes(
     compat::u32 actor_token,
     compat::u32 source_table_token,
     compat::u32 window_token,
-    LegacyBattleGroupAAttributeAggregationPort& port
+    LegacyBattleGroupAAttributeAggregationPort& port,
+    // Standalone callers own only workspace; SDL also borrows actor +2F1A.
+    compat::u16* effect_curve_index = nullptr
 );
 
 }  // namespace openswd3::battle

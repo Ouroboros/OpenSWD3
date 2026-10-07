@@ -6,7 +6,7 @@
 
 权威LST主体为`0x0046EBB0..0x0046EE52`，从proc到endp共265行、195条实际指令、2个call、18个跳转、10个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。函数是thiscall，唯一参数是64-byte、16项记录指针表，由`retn 4`弹栈。
 
-入口以82个dword清零角色`+0x158..+0x29F`的两份连续0xA4内嵌资料。参数表为零不是故障：函数仍执行固定16轮空循环并正常返回EAX/ECX零、EDX原this；不能把它改成提前返回。
+入口以82个dword清零角色`+0x158..+0x29F`的两份连续0xA4内嵌资料。参数表为零不是故障：函数仍执行固定16轮空循环并正常返回EAX零、ECX/EDX原this；不能把它改成提前返回。
 
 ## 2. 首槽资料与固定诊断
 
@@ -28,7 +28,7 @@
 
 ## 4. 槽7至10与其余槽
 
-槽7和槽8完成公共word累加后，分别把源记录`+0x0C`的0xA4资料复制到角色`+0x158`和`+0x1FC`。源u16 `+4`不是`0xFFDC`时覆盖内嵌资料u16 `+0x50`；哨兵值则保留刚复制的原word。随后以对应内嵌资料调用待审`sub_46F030`。本工作包只把这两个callee收窄到专用port，不猜测其内部副作用。
+槽7和槽8完成公共word累加后，分别把源记录`+0x0C`的0xA4资料复制到角色`+0x158`和`+0x1FC`。源u16 `+4`不是`0xFFDC`时覆盖内嵌资料u16 `+0x50`；哨兵值则保留刚复制的原word。随后以对应内嵌资料直接调用已关闭的`sub_46F030`实现，使用同一固定对象状态；原opaque枚举槽仅保留为reserved。
 
 槽9和槽10完成公共word累加后直接进入循环尾。其余12槽把源byte `+0x9E..+0xA6`依次加到基础记录`+0x2D..+0x35`，只保留u8低位回绕。
 
@@ -36,18 +36,28 @@
 
 ## 5. 返回寄存器与typed-stop
 
-正常处理完16槽后，EAX是槽15记录token，EDX是原this。ECX高16位来自槽15记录token高16位；CH来自槽15源u16 `+0x36`高byte，CL来自槽15源byte `+0xA6`。这组陈旧寄存器拼接不现代化。
+正常处理完16槽后，EAX是槽15记录token，EDX是原this。循环内ECX含最后一次读取与累加的中间值，但`46EE51`的`POP ECX`恢复入口保存的this，因此最终ECX也是角色地址。旧文档与实现遗漏该返回指令，本轮接线审计已纠正；空表出口同样恢复ECX。
 
 缺少角色聚合owner时在第一份内嵌资料清零前停止。16项表中任一nullable角色物品根缺失时，在该槽首次记录访问停止，保留此前槽的全部累加、callee和写入；表本身为零仍按原空循环成功。基础记录token为零时，槽0主资料复制、角色`+0x2F1A`和可选诊断已完成，当前源`+0x30`也已读取，只在第一次角色`+0x26`写入处停止。
 
 ## 6. shared owner与caller回收
 
-唯一caller位于startup初始队伍第二轮。它以紧凑角色到原队伍槽映射选择`0x004C8AD0 + source * 0x40`，即共享`LegacyWorldItemListState::role_item_lists`中每角色16条sentinel根；typed caller直接借用这64条唯一物品链owner构造临时引用表。调用仍位于玩家/队伍物品排序之后、共享数值与资源双写之前。
+唯一caller位于startup初始队伍第二轮。它以紧凑角色到原队伍槽映射选择`0x004C8AD0 + source * 0x40`，即共享`LegacyWorldItemListState::role_item_lists`中每角色16条实际根；typed caller直接借用这64条唯一物品链owner构造临时引用表，按当前根token解析节点。调用仍位于玩家/队伍物品排序之后、共享数值与资源双写之前。
 
 旧整函数opaque槽保留为reserved且生产零调用；固定诊断和两次内嵌资料callee追加到枚举尾。角色`+8`资料token不再被旧opaque伪写为16槽表地址，而是复用前一配置函数已发布的辅助资料token及其唯一kind owner。子typed-stop阻断后续数值、资源、名称、比例和护援流程。
 
-## 7. 验证状态
+## 7. 原工作包验证记录
 
 纯函数测试覆盖16槽公共word、两组条件word、12槽九byte、0至6槽早期三项、槽7/8复制与哨兵覆盖、槽9/10跳过、特殊编号latch、description token、固定诊断、空参数表、三类typed-stop以及最终EAX/ECX/EDX。startup回归覆盖64条共享角色物品根、固定诊断adapter、两次内嵌资料callee参数、辅助资料owner纠正、旧槽零调用和缺失sentinel停止。
 
 验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`177/422 = 168 platform_adapted + 9 assembly_exact + 245 pending_audit`，SHA256为`35eb20034b71ca82216aba763330245915c0afd684be1fff71f97d1c3fa20970`。原版组A对象、64条动态角色物品根、真实资料与description指针、`sub_46F030`副作用、诊断和caller寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+
+## 8. B11生产接线复核
+
+核心与SDL已共用实际根借用。诊断返回后重新解析当前槽，重新读取资料，
+保留此前主资料复制与编号写入；动作使用的编号在原写点即时发布。
+零根、未知根和诊断释放根按原访问点停止，保留此前修改。
+SDL接入原武器诊断文字、三个选择与关闭/断点语义。
+本轮还按末尾`POP ECX`修正两个正常出口，未改变中途停止结果。
+具体测试、日志与未完成范围见
+[入战属性接线](battle-startup-party-attributes-runtime-binding.md)。

@@ -1344,6 +1344,8 @@ void test_battle_startup(openswd3::test::Context& test) {
              ++index) {
             auto& sentinel = player_items.role_item_lists[index]->sentinel;
             sentinel.legacy_token = 0x00620000U + index * 0xB0U;
+            player_items.role_item_lists[index]->legacy_head_token =
+                sentinel.legacy_token;
             sentinel.definition_snapshot[0x48U] = 1U;
         }
         player_items.role_item_lists[0U]->sentinel.definition_snapshot[0x48U] =

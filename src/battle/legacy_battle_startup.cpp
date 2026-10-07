@@ -1099,20 +1099,10 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             return result;
         }
         const u32 actor_token = group_a_actor_token(index);
-        LegacyBattleGroupAAttributeSourceTable attribute_sources{};
-        for (u32 slot = 0U; slot < kLegacyBattleGroupAAttributeSourceCount;
-             ++slot) {
-            const u32 source_index =
-                source * kLegacyBattleGroupAAttributeSourceCount + slot;
-            auto& source_owner =
-                port.world_item_list_state().role_item_lists[source_index];
-            if (source_owner.has_value()) {
-                attribute_sources[slot] = {
-                    .record = &source_owner->sentinel,
-                    .record_token = source_owner->sentinel.legacy_token,
-                };
-            }
-        }
+        const auto attribute_sources =
+            bind_legacy_battle_group_a_attribute_sources(
+                port.world_item_list_state(), source
+            );
         result.party_attribute_aggregations[index] =
             aggregate_legacy_battle_group_a_attributes(
                 &state.party[index].attribute_aggregation,

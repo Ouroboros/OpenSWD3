@@ -39,6 +39,18 @@ REVIEW边界、原始证据及日志见
 [队伍基础记录接线证据](../analysis/04-reverse-engineering/evidence/battle-party-source-runtime-binding.md)。
 B10保持315/422，Workpack316仍为pending_audit。
 
+## B11：入战队伍物品属性接线
+
+SDL在物品排序后借用实际角色物品根汇总属性，诊断后重新读取来源，
+武器编号在原写点同步到动作字段，失败保留已经完成的修改。
+原武器诊断接入三按钮维护错误窗口；本体正常返回按POP ECX恢复角色地址。
+
+core/ASan定向聚合各1/1及SDL构建通过。未启动游戏。
+来源替换用例先复现旧缓存错误；startup夹具同步了节点token与根指针。
+具体指令、边界、日志和验证等级见
+[队伍属性接线](../analysis/04-reverse-engineering/evidence/battle-startup-party-attributes-runtime-binding.md)。
+B10保持315/422；队员物品与名称引用、完整初始化及实际续玩仍待完成。
+
 ## B11：入战物品排序接线
 
 SDL在队员配置后借用读档与剧情的同一物品链，按原顺序完成玩家与四队伍
