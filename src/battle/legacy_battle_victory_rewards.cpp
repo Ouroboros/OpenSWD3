@@ -425,7 +425,7 @@ private:
         }
         auto& profile = bindings_.party_member_resources[label];
         if (static_cast<u16>(profile.field_2c) <
-            bindings_.state.party_profile_threshold) {
+            bindings_.startup.party_level_limit) {
             edx_ =
                 static_cast<u32>(bindings_.state.experience_per_party_member);
             profile.field_00 += edx_;

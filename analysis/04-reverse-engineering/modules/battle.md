@@ -26,6 +26,8 @@ MON解析流另按[解析流接线证据](../evidence/battle-mon-stream-runtime-
 [尾部接线](../evidence/battle-startup-tail-runtime-binding.md)。
 TOML战斗速度已接入入战阈值，保留默认值与原配置字节范围，见
 [速度接线](../evidence/battle-speed-runtime-binding.md)。
+入战剧情等级上限由经验发放与升级直接共享，见
+[等级上限接线](../evidence/battle-party-level-limit-runtime-binding.md)。
 这些接线不关闭新的战斗函数。
 
 ## 1. 唯一真值与模块目标

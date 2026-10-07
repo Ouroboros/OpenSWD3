@@ -91,7 +91,7 @@ public:
 struct Fixture {
     Fixture() {
         input.sample_mix_level = -4;
-        victory.party_profile_threshold = 10U;
+        startup.party_level_limit = 10U;
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleLevelAdvancementBindings
@@ -176,6 +176,35 @@ make_profile_stream(const LegacyWorldStoryPartyMemberResources& profile) {
 
 void test_battle_level_advancement(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleLevelAdvancementStatus;
+
+    for (const auto vector : std::array<std::array<u32, 3>, 8>{
+             {{1U, 17U, 1U},
+              {1U, 18U, 0U},
+              {1U, 19U, 0U},
+              {1U, 255U, 0U},
+              {0U, 59U, 1U},
+              {0U, 60U, 0U},
+              {0U, 61U, 0U},
+              {0U, 255U, 0U}}
+         }) {
+        auto fixture = std::make_unique<Fixture>();
+        openswd3::battle::initialize_legacy_battle_party_level_limit(
+            fixture->startup, [&](const u16) { return vector[0]; }
+        );
+        fixture->metrics.group_a_count = 1U;
+        fixture->party_resources[0U].field_00 = 49U;
+        fixture->party_resources[0U].field_2c = static_cast<u8>(vector[1]);
+        fixture->port.record_available = true;
+        fixture->port.level_value = 50U;
+        const auto result = run(*fixture);
+        test.expect_true(
+            result.status == LegacyBattleLevelAdvancementStatus::completed &&
+                result.requirement_calls == vector[2] &&
+                result.profile_build_calls == 0U &&
+                fixture->target.transition_actor_index == 0xFFU,
+            "level advancement reads the same startup story limit before loading requirements"
+        );
+    }
 
     {
         Fixture fixture;

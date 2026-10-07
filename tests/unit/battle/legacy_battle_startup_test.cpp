@@ -660,6 +660,50 @@ template <typename Range>
 
 void test_battle_startup(openswd3::test::Context& test) {
     {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        for (const u32 reply : {0U, 1U, 2U, 0x10001U, 0xFFFFFFFFU, 1U, 0U}) {
+            state->party_level_limit = 0xFFFFU;
+            u32 calls = 0U;
+            openswd3::battle::initialize_legacy_battle_party_level_limit(
+                *state, [&](const u16 id) {
+                    ++calls;
+                    test.expect_true(
+                        id == 0x1BB0U && state->party_level_limit == 60U,
+                        "startup publishes the level limit before querying the story flag"
+                    );
+                    return reply;
+                }
+            );
+            test.expect_true(
+                calls == 1U &&
+                    state->party_level_limit == (reply == 1U ? 18U : 60U),
+                "only a full story reply of one selects the lower level limit"
+            );
+        }
+
+        openswd3::battle::initialize_legacy_battle_party_level_limit(
+            *state, [&](const u16) {
+                state->party_level_limit = 42U;
+                return 2U;
+            }
+        );
+        test.expect_true(
+            state->party_level_limit == 42U,
+            "a non-one reply preserves writes performed by the story query"
+        );
+        openswd3::battle::initialize_legacy_battle_party_level_limit(
+            *state, [](const u16) { return 1U; }
+        );
+        openswd3::battle::initialize_legacy_battle_party_level_limit(
+            *state, [](const u16) { return 0U; }
+        );
+        test.expect_true(
+            state->party_level_limit == 60U,
+            "entering another battle republishes the default level limit"
+        );
+    }
+
+    {
         struct Messages final
             : openswd3::battle::LegacyBattleSharedPhaseStatePort {
             u32 value{};
@@ -1969,7 +2013,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.action_mode_source.actor_label_indices[0] == 0U &&
                 state.action_mode_source.actor_label_indices[1] == 2U &&
                 state.mode_flags == 0xA5000002U &&
-                state.action_delay == 0x12U &&
+                state.party_level_limit == 0x12U &&
                 state.control_switches == std::array<u32, 4>{1U, 1U, 1U, 1U} &&
                 ports.battle_control_action().action_id == 0x2329U &&
                 ports.battle_control_action().base_variant == 0x0CU &&

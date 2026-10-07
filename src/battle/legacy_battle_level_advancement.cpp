@@ -139,8 +139,7 @@ private:
         ecx_ = replace_low_byte(ecx_, old_level);
         const u32 new_level = (ecx_ & 0xFFU) + 1U;
         edx_ = replace_low_byte(edx_, ecx_);
-        if (static_cast<u16>(edx_) >=
-            bindings_.victory.party_profile_threshold) {
+        if (static_cast<u16>(edx_) >= bindings_.startup.party_level_limit) {
             bindings_.target_selection.transition_actor_index = 0xFFU;
             return true;
         }

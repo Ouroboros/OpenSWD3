@@ -2839,6 +2839,14 @@ public:
         control_action.base_variant = 0x0CU;
         battle_runtime_.transparent_pixel_pair = transparent_pixel_pair;
 
+        openswd3::battle::initialize_legacy_battle_party_level_limit(
+            battle_runtime_, [this](const openswd3::compat::u16 id) {
+                return openswd3::world_map::query_legacy_world_story_flag(
+                    world_story_vm_state_, id
+                );
+            }
+        );
+
         // 451DDD..451E0D: 16-point text advance, then both palette words.
         static_cast<void>(text_renderers_.set_horizontal_advance(16U, 16));
         battle_runtime_.primary_text_color =

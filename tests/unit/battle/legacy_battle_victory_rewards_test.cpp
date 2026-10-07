@@ -227,7 +227,7 @@ struct Fixture {
         state.committed_money_word = 5U;
         state.experience_per_party_member = 10U;
         state.reward_experience = 20U;
-        state.party_profile_threshold = 5U;
+        startup.party_level_limit = 5U;
         input.sample_mix_level = -4;
         target.transition_stage = 72U;
         script_variables[0U] = 100U;
@@ -331,6 +331,35 @@ void set_group_b_reward(
 
 void test_battle_victory_rewards(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleVictoryRewardStatus;
+
+    for (const auto vector : std::array<std::array<u32, 3>, 8>{
+             {{1U, 17U, 10U},
+              {1U, 18U, 0U},
+              {1U, 19U, 0U},
+              {1U, 255U, 0U},
+              {0U, 59U, 10U},
+              {0U, 60U, 0U},
+              {0U, 61U, 0U},
+              {0U, 255U, 0U}}
+         }) {
+        auto fixture = std::make_unique<Fixture>();
+        openswd3::battle::initialize_legacy_battle_party_level_limit(
+            fixture->startup, [&](const u16) { return vector[0]; }
+        );
+        fixture->metrics.group_a_count = 1U;
+        fixture->party_resources[0U].field_2c = static_cast<u8>(vector[1]);
+        fixture->port.reply(
+            LegacyBattleVictoryRewardCall::query_group_a_reward_block,
+            {.eax = 0U}
+        );
+        const auto result = run(*fixture);
+        test.expect_true(
+            result.status == LegacyBattleVictoryRewardStatus::completed &&
+                fixture->party_resources[0U].field_00 == vector[2] &&
+                fixture->state.party_reward_counters[0U] == 1U,
+            "victory experience uses the startup story level limit and preserves later rewards"
+        );
+    }
 
     {
         Fixture fixture;

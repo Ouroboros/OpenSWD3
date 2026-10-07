@@ -54,7 +54,7 @@ sample播放返回后只以当前actor索引替换AL，保留EAX高24位；索�
 
 ## 7. owner、caller回收与验证
 
-组A数量、双跳过字段、阈值、动作标签、过渡actor/mode、sample mix和四项角色资源均复用既有owner。level state承接两份56-byte模板、一份56-byte角色快照和此前未命名的完成门；后续成长对照面板又在同一逻辑owner中承接非连续的三项primary与六项secondary成长差值，成长标题框再承接独立24-byte共享标题。完成门和成长差值都不在战斗全局重置的原写集合内，不新增伪清零。
+组A数量、双跳过字段、阈值、动作标签、过渡actor/mode、sample mix和四项角色资源均复用既有owner。等级上限`0x004A762A`现通过startup引用读取，与入战剧情查询和胜利经验门共享唯一字段，见[剧情等级上限接线](battle-party-level-limit-runtime-binding.md)。level state承接两份56-byte模板、一份56-byte角色快照和此前未命名的完成门；后续成长对照面板又在同一逻辑owner中承接非连续的三项primary与六项secondary成长差值，成长标题框再承接独立24-byte共享标题。完成门和成长差值都不在战斗全局重置的原写集合内，不新增伪清零。
 
 消息101现于actor为`0xFF`时先直连本实现；本函数成功发布actor后直接回到原完成查询/转场，仍无actor才调用旧选角边界。本函数typed-stop（包括共享LEVEL需求或profile loader stop）阻断选角、完成查询、transition分配、message和timer写入。frame coordinator原`query_level_requirement`槽和本函数原`build_level_profile`槽都只保留reserved alias且生产零调用；SDL battle端口把LEVEL、MON及队伍物品链访问转发到全局唯一owner。
 

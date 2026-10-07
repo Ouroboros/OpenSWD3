@@ -1170,13 +1170,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             .return_value != 0U) {
         state.mode_flags |= 2U;
     }
-    state.action_delay = 0x003CU;
-    if (invoke(
-            port, LegacyBattleStartupCall::query_value, {0x1BB0U, 0U, 0U, 0U}
+    initialize_legacy_battle_party_level_limit(state, [&port](const u16 id) {
+        return invoke(
+                   port, LegacyBattleStartupCall::query_value, {id, 0U, 0U, 0U}
         )
-            .return_value == 1U) {
-        state.action_delay = 0x0012U;
-    }
+            .return_value;
+    });
 
     const auto rectangle =
         invoke(port, LegacyBattleStartupCall::get_window_rectangle);

@@ -448,7 +448,7 @@ void seed_state(
     victory_rewards.party_growth_item_codes.fill(9U);
     victory_rewards.group_a_skip_primary.fill(9U);
     victory_rewards.group_a_skip_secondary.fill(9U);
-    victory_rewards.party_profile_threshold = 9U;
+    startup.party_level_limit = 9U;
     victory_rewards.actor_reward_gate = 9U;
 
     auto& selection_frame = port.battle_selection_frame_state();
@@ -1025,8 +1025,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                     port.battle_victory_reward_state().party_growth_item_codes,
                     [](const u32 value) { return value == 9U; }
                 ) &&
-                port.battle_victory_reward_state().party_profile_threshold ==
-                    9U &&
+                startup.party_level_limit == 9U &&
                 port.battle_victory_reward_state().actor_reward_gate == 9U &&
                 port.effect_coordinator_state()
                         .intensity_records[0]

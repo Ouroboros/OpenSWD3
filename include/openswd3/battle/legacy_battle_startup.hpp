@@ -323,7 +323,7 @@ struct LegacyBattleStartupState {
     LegacyBattleActionModeSourceState action_mode_source{};
     compat::u32 mode_flags{};
     compat::u32 mirror_mode{};
-    compat::u16 action_delay{60U};
+    compat::u16 party_level_limit{60U};  // 0x004A762A
     std::array<compat::i32, 4> window_rectangle{};
     std::array<compat::u32, 2> display_surfaces{};
     std::array<compat::u32, 4> control_switches{};
@@ -358,6 +358,17 @@ struct LegacyBattleStartupState {
     compat::u8 party_actor_mode_count{};
     compat::u16 final_subtract_word{};
 };
+
+// 451DAC..451DCB: publish the default before querying the live story value.
+template <typename Query>
+void initialize_legacy_battle_party_level_limit(
+    LegacyBattleStartupState& state, Query&& query
+) {
+    state.party_level_limit = 60U;
+    if (query(compat::u16{0x1BB0U}) == 1U) {
+        state.party_level_limit = 18U;
+    }
+}
 
 // 00451E28..00451E3F, before the mouse device rebase at 00451E44.
 void publish_legacy_battle_startup_mouse_position(

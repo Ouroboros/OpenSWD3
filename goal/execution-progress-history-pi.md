@@ -4,6 +4,16 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：入战剧情等级上限
+
+核心与SDL按剧情设置等级上限，经验发放和升级直接读取同一字段。
+保留先写60再查询、严格等于1才改18，以及再次进入时重新设置。
+定向core/ASan setup各1/1及SDL构建通过；未启动游戏。
+两份测试日志保留未修改的结局测试窄化警告，无sanitizer错误。
+证据见[等级上限接线](../analysis/04-reverse-engineering/evidence/battle-party-level-limit-runtime-binding.md)。
+完整初始化复核、共享规则位及完整帧仍待继续；实际续玩未验收。
+B10保持315/422，Workpack316 pending_audit。
+
 ## B11：战斗速度配置
 
 TOML战斗速度接入SDL入战阈值，默认11，保留原配置字节范围及低DWORD运算。

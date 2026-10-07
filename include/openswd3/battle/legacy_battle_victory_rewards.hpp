@@ -46,7 +46,6 @@ struct LegacyBattleVictoryRewardState {
     compat::u16 committed_money_word{};                    // 0x0053BF12
     compat::u16 experience_per_party_member{};             // 0x0053BF14
     compat::u16 reward_experience{};                       // 0x0053BF16
-    compat::u16 party_profile_threshold{};                 // 0x004A762A
     compat::u32 actor_reward_gate{};                       // 0x0053C4C4
 };
 
