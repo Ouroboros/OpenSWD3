@@ -2,9 +2,11 @@
 
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
 
 #include <map>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -42,6 +44,26 @@ public:
         replies;
 };
 
+class LivePreFramePort final
+    : public openswd3::battle::LegacyBattlePreFramePort {
+public:
+    openswd3::battle::LegacyBattleStartupState startup;
+    openswd3::battle::LegacyBattleActionDispatchState action;
+    std::vector<LegacyBattlePreFrameCallRequest> calls;
+
+    LegacyBattlePreFrameCallReply
+    invoke_pre_frame(const LegacyBattlePreFrameCallRequest& request) override {
+        calls.push_back(request);
+        const auto actor =
+            openswd3::battle::resolve_legacy_battle_actor_runtime_reset(
+                {.action = &action, .startup = &startup}, request.actor_token
+            );
+        return openswd3::battle::invoke_legacy_battle_pre_frame_actor_call(
+            actor, request
+        );
+    }
+};
+
 }  // namespace
 
 void test_battle_pre_frame(openswd3::test::Context& test) {
@@ -50,6 +72,54 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattlePreFrameStatus;
     using openswd3::battle::advance_legacy_battle_pre_frame;
     using openswd3::battle::invoke_legacy_battle_pre_frame_actor_call;
+
+    for (const bool unavailable : {false, true}) {
+        auto port = std::make_unique<LivePreFramePort>();
+        auto final_actor = std::make_unique<LegacyBattleFinalActorStepState>();
+        port->battle_terminal_latch() = 1U;
+        port->battle_message_state() = 0U;
+        final_actor->active_actor_code = 8U;
+        final_actor->source_actor_code = 1U;
+        auto& progress = port->startup.party[0U].progress;
+        progress.mode_gate = 2U;
+        progress.progress = 0x11223344U;
+        progress.transition_value = 0x55U;
+        (*port->startup.group_a_runtime_reset)[0U].field_2670 = 0xAABBCCDDU;
+        if (unavailable) {
+            port->startup.group_a_runtime_reset.reset();
+        }
+
+        const auto result =
+            advance_legacy_battle_pre_frame(*final_actor, port->action, *port);
+        if (unavailable) {
+            test.expect_true(
+                result.status ==
+                        LegacyBattlePreFrameStatus::actor_call_typed_stop &&
+                    result.actor_call.stopped_instruction == 0x00481FC2U &&
+                    port->calls.size() == 1U &&
+                    final_actor->active_actor_code == 0U &&
+                    final_actor->action_execution_active == 1U &&
+                    port->action.opponent_workspace[10U] == 1U &&
+                    progress.progress == 0x11223344U &&
+                    progress.transition_value == 0x55U,
+                "SDL-style actor resolution propagates the pre-frame fault after shared prefix writes"
+            );
+        } else {
+            test.expect_true(
+                result.status == LegacyBattlePreFrameStatus::completed &&
+                    port->calls.size() == 2U &&
+                    final_actor->active_actor_code == 0U &&
+                    final_actor->secondary_actor_code == 8U &&
+                    final_actor->action_execution_active == 5U &&
+                    port->action.opponent_workspace[10U] == 5U &&
+                    final_actor->actor_runtime_records[0U][0U] == 1U &&
+                    progress.progress == 0x11220000U &&
+                    progress.transition_value == 1U &&
+                    (*port->startup.group_a_runtime_reset)[0U].field_2670 == 0U,
+                "full pre-frame processing reaches the same live party records used by SDL"
+            );
+        }
+    }
 
     {
         openswd3::battle::LegacyBattleActorProgressState progress;

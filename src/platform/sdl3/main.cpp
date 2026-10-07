@@ -3857,16 +3857,15 @@ public:
                     break;
                 }
             }
+            bool pre_frame_called = false;
+            openswd3::battle::LegacyBattlePreFrameResult pre_frame;
             if (input_dispatch_returned) {
-                const auto pre_frame =
-                    openswd3::battle::run_legacy_battle_pre_frame_entry_prefix(
-                        battle_input_dispatch_.selected_actor_cleanup_gate,
-                        battle_final_actor_.active_actor_code,
-                        battle_message_state_
-                    );
+                pre_frame = openswd3::battle::advance_legacy_battle_pre_frame(
+                    battle_final_actor_, battle_action_dispatch_, *this
+                );
+                pre_frame_called = true;
                 if (pre_frame.status ==
-                    openswd3::battle::LegacyBattlePreFrameEntryStatus::
-                        returned_before_next_call) {
+                    openswd3::battle::LegacyBattlePreFrameStatus::completed) {
                     openswd3::battle::clear_legacy_battle_actor_metric_tables(
                         battle_actor_metrics_
                     );
@@ -3881,7 +3880,7 @@ public:
                         ? "0x0045B11F -> sub_4783B0 group B coordinates"
                         : "0x0045B13E -> group A count owner";
                 } else {
-                    stop_boundary = "0x0045D4C8 -> source actor code";
+                    stop_boundary = "0x00453243 -> sub_45D490 typed stop";
                 }
             }
             std::string message{"battle frame typed stop before "};
@@ -3918,6 +3917,16 @@ public:
             message.append(std::to_string(idle_records_inspected));
             message.append(", input_dispatch_returned=");
             message.append(input_dispatch_returned ? "1" : "0");
+            message.append(", pre_frame_called=");
+            message.append(pre_frame_called ? "1" : "0");
+            message.append(", pre_frame_status=");
+            message.append(
+                std::to_string(static_cast<unsigned>(pre_frame.status))
+            );
+            message.append(", pre_frame_actor_stop=");
+            message.append(
+                std::to_string(pre_frame.actor_call.stopped_instruction)
+            );
             message.append(", pre_frame_terminal_latch=");
             message.append(
                 std::to_string(

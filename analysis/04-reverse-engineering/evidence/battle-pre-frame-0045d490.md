@@ -24,7 +24,8 @@
 
 ## 3. source全1短路
 
-首个工作区写完成后读取source actor code。完整值为全1时：
+45D4C8先读取source actor code，随后发布执行值1、比较source并写工作区。
+条件分支位于工作区写之后；完整值为全1时：
 
 - pre-frame gate A写1；
 - message state写3；
@@ -132,3 +133,32 @@ SDL现在继承预帧端口，并通过真实动作/启动状态解析角色toke
 跨层检查还发现角色图像缺少`+2AEC`字段；现已加入`transition_value`的序列化与按范围写回。测试用与SDL相同的角色解析器验证通知三次写入均出现在同一图像，再验证该dword写回原progress对象且不改进度字。其他新增测试覆盖byte选择、完整dword比较、入口寄存器、通知写入前缀，以及四个调用点失败后阻断后缀。
 
 `battle-pre-frame-live-callback-{core,frame-core,asan,frame-asan,sdl}.log`确认战斗聚合和角色帧目标在core/ASan下分别1/1通过，SDL链接通过，五个日志均无warning/error。由于新增字段映射会影响角色帧快照，除战斗聚合外同时覆盖角色帧目标；`git diff --check`通过。完整SDL帧和实机生命周期仍未验证。
+
+## 13. B11：SDL调用完整前帧预处理
+
+基线74634400之后，SDL在已确认输入分派正常返回时，直接调用完整
+advance_legacy_battle_pre_frame；不再只运行入口判断并在source读取前停止。
+复用同一final_actor、action、terminal、message及既有实际角色回调。
+
+重新完整核对45D490..45D685的218行LST，正常、短路、组A通知、组B扫描
+及失败前缀均沿用已验证核心。453239..453252依次调用输入解析、输入分派、
+前帧预处理、指标及顺序重建。只有预处理completed才进入后续指标步骤；
+typed-stop记录子状态与角色停止位置，不清指标表，也不执行后续帧逻辑。
+
+该caller不消费预处理正常返回寄存器。入口ECX/EDX只在早退结果中保留；
+有真实角色CALL的路径均在CALL前由函数自身覆盖。SDL不使用这些早退寄存器
+快照，不以它们伪造后续指令输入。日志单独记录是否实际调用，避免未调用时
+把默认结果解释成成功执行。
+
+新增跨层测试使用与SDL相同的角色解析器及实际startup/action对象，验证
+组A通知把真实进度低WORD清零、写transition并清残余字段，最终事件值和
+角色记录发布到同一状态。移除角色存储后，测试验证首次角色读取停止，
+已发布状态保留，而通知及其后缀未执行。原分支、回绕和动态重读测试保留。
+
+proc_6195：battle.legacy_battle_setup在core/ASan各1/1通过，分别5.37秒和
+8.07秒，SDL构建通过；三个日志无warning/error。已确认测试源加入该目标，
+且setup测试main实际调用test_battle_pre_frame。日志前缀为
+build/tmp/runtime/battle-pre-frame-live-entry-，完整源码差异已审查。
+
+本批未改角色布局，未运行游戏，也没有新增原版动态差分。指标完整重建、
+完整战斗帧及实际续玩仍待接通；不改变B10 315/422或316 pending_audit。
