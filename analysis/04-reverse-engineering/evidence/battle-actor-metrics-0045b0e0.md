@@ -71,6 +71,55 @@ callee返回后仍按LST重新读取共享group B数量，再执行store与循�
 
 当前缺少原版两组完整角色对象、metric与角色顺序两张物理表、栈地址和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
 
+## B11每帧指标接线：业务数据与诊断输入分离
+
+本批基线634d9357。SDL调用与固定状态验证已完成，原版动态差分仍未取得。
+
+重新核对45B0E0..45B18B全部92行及4783B0..4783F5完整坐标callee。
+上一历史断点正确指出SDL未提供完整上游CPU现场；这项限制仍保留。
+但它并不使正常业务指标依赖未知入口值，理由如下：
+
+- 45B0E4..45B0FC固定清两表，不读入口ECX/EDX。
+- 两个CALL前，EAX来自局部地址、组A入口边界或上一轮已写指标，ECX
+  来自当前角色地址。组A还在45B15C覆盖EDX；首次组B的EDX可能仍未知。
+- 4783B0的两个正常出口均先写X与Y两份WORD输出，且使EAX/ECX/EDX
+  可由角色字段及本次已知输入推导。alternate保留EAX已知高WORD；
+  primary在第一次输出后覆盖完整EDX。不依据未知入口值或旧栈WORD分支。
+- 45B124和45B169仅在callee正常返回后读取新Y并作i16符号扩展。
+  因此正常指标存储不需要给旧栈内容填一个假定值。
+- 零角色路径保留旧ECX/EDX；早期失败也可能只完成第一份输出。
+  此时不能把诊断元组或保存槽宣称为全部已知。
+
+核心增加诊断有效性标记，默认保留显式输入调用的旧合同；SDL每次调用
+主动声明入口寄存器元组未知。两个WORD都写完才证明保存槽已知。
+组A进入坐标CALL前已覆盖三个寄存器；组B首个正常CALL也消除入口依赖。
+提前失败保守保留未知标记，不用它选择业务分支，不改变写入与停止顺序。
+标记为已知仅表示可从模型输入推导，不代表取得原版同run CPU捕获。
+
+平台用统一guest身份分配器保留四字节scratch身份，两输出相距二字节。
+该身份在SDL对象内复用，坐标调用无回调、无递归且输出地址不逃逸；不逐帧
+累积分配，也不冒充原版栈地址。分配失败停在指标函数入口，尚未清两表。
+实际数据仍由同一startup/action角色及同址计数读取，未增加角色副本。
+
+SDL在完整前帧预处理正常返回后执行指标重建；坐标或表写入失败保留前缀。
+正常完成后目前仍停在45324D角色顺序调用前，完整战斗帧尚未接通。
+
+测试向量以不同未指定入口残值验证正常两组输出相同，并覆盖primary与
+alternate、零角色、首个角色缺失、第一输出完成后第二源不可读、第二角色
+失败保留前一指标，以及组A首次失败时寄存器已知但保存槽未知。
+proc_d42a：定向battle.legacy_battle_setup在core/ASan各1/1通过，分别
+5.01秒和7.91秒，SDL构建通过。测试源在tests/CMakeLists.txt注册，setup
+测试入口实际调用test_battle_actor_metrics。日志前缀为
+build/tmp/runtime/battle-frame-metrics-live-。
+
+core和ASan构建均报告既有legacy_battle_outcome_resolution_test.cpp:137
+的u16到u8转换警告，该文件未改。此次未运行游戏，未新增原版动态差分。
+
+完整源码差异已审查；全文件格式化带入的无关换行已撤回。最初的格式验证
+脚本把注释内单引号误识别为字符字面量，断言失败；修正词法识别后，按
+保存的差异重建出测试时同一Git blob，确认当前源码token及字符串未变。
+验证日志为battle-frame-metrics-format-verification.log。
+
 ## B11入战排序接线
 
 SDL入战路径已在额外队员配置后组合实际坐标指标、角色顺序与敌方顺序。
@@ -78,6 +127,6 @@ SDL入战路径已在额外队员配置后组合实际坐标指标、角色顺�
 本批只接入启动路径，不补造下述完整帧入口的CPU现场。
 见[排序与进度接线](battle-startup-order-progress-runtime-binding.md)。
 
-## 8. Workpack 316 SDL生产入口缺口
+## 8. Workpack 316 SDL生产入口缺口（历史断点）
 
 用户第二次实际战斗日志`build/vm/wp316-sdl-frame-user-run-v2/openswd3-2026-10-03_19-14-31-66208.log`在输入分派`0x0045FC5B`RET前停下，未执行本函数。后续代码先按LST让预帧早退正常进入`0x00453248→sub_45B0E0`，共享`battle_actor_metrics_`的两张18-dword表在`0x0045B0E4..0x0045B0FE`被依序清零，随后`0x0045B0FE`从同址启动owner的`battle_runtime_.enemy_count`而非metric port默认0读取真实组B数量；非零停在首个坐标CALL`0x0045B11F→sub_4783B0`前，零停在`0x0045B13E`组A数量首读前，包含高位无符号反例。最新定向core 1/1、Linux core／ASan各200/200及Linux／Windows app各206/206通过，但没有第三次SDL实测。当前SDL启动仅部分执行`prepare_legacy_battle_setup`，资源id98显示敌方1／队伍1，不能因为只借用了组B数量owner，就宣称原版`sub_451B10`、后续组A额外成员或坐标callee已经绑定，也不能提前宣称角色metric完成。`0x0045B11F`首次CALLeffect还需要`sub_453200`音乐调用、`sub_45FC60`鼠标输入与`sub_45F2A0`分派及`sub_45D490`预帧依序留下的ECX/EDX，以及真实两字栈局部输出地址；SDL音乐端口目前只返回EAX，不能把默认0视作完整CPU现场，不能在坐标子函数中虚构正常返回。组B对象坐标当前由真实资源的`prepare_legacy_battle_setup`写入共享`battle_runtime_.group_b_lifecycle`，但这仅证明可定位字段，仍需严格绑定该次CALL前现场与完整启动生命周期。

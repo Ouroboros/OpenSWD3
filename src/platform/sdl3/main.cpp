@@ -3858,6 +3858,8 @@ public:
                 }
             }
             bool pre_frame_called = false;
+            bool metrics_called = false;
+            openswd3::battle::LegacyBattleActorMetricResult metrics;
             openswd3::battle::LegacyBattlePreFrameResult pre_frame;
             if (input_dispatch_returned) {
                 pre_frame = openswd3::battle::advance_legacy_battle_pre_frame(
@@ -3866,19 +3868,37 @@ public:
                 pre_frame_called = true;
                 if (pre_frame.status ==
                     openswd3::battle::LegacyBattlePreFrameStatus::completed) {
-                    openswd3::battle::clear_legacy_battle_actor_metric_tables(
-                        battle_actor_metrics_
-                    );
-                    const auto first_count = openswd3::battle::
-                        probe_legacy_battle_metric_first_count(
-                            battle_runtime_.actor_metrics.group_b_count
-                        );
-                    stop_boundary = first_count ==
-                            openswd3::battle::
-                                LegacyBattleMetricFirstCountStatus::
-                                    query_first_group_b_actor
-                        ? "0x0045B11F -> sub_4783B0 group B coordinates"
-                        : "0x0045B13E -> group A count owner";
+                    if (!battle_metric_stack_token_.has_value()) {
+                        battle_metric_stack_token_ =
+                            openswd3::asset_runtime::reserve_legacy_guest_bytes(
+                                4U
+                            );
+                    }
+
+                    if (battle_metric_stack_token_.has_value()) {
+                        // One nonescaping four-byte scratch slot, with the
+                        // original low/high WORD alias relationship. Input
+                        // prefixes do not supply a complete register tuple.
+                        battle_actor_metrics_.local_word_token =
+                            *battle_metric_stack_token_;
+                        battle_actor_metrics_.local_byte_token =
+                            *battle_metric_stack_token_ + 2U;
+                        battle_actor_metrics_.entry_registers_known = false;
+                        metrics = openswd3::battle::
+                            rebuild_legacy_battle_actor_metrics(
+                                battle_actor_metrics_,
+                                {.action = &battle_action_dispatch_,
+                                 .startup = &battle_runtime_}
+                            );
+                        metrics_called = true;
+                        stop_boundary = metrics.status ==
+                                openswd3::battle::
+                                    LegacyBattleActorMetricStatus::completed
+                            ? "0x0045324D -> sub_45B190 actor order"
+                            : "0x00453248 -> sub_45B0E0 typed stop";
+                    } else {
+                        stop_boundary = "0x0045B0E0 -> metric scratch identity";
+                    }
                 } else {
                     stop_boundary = "0x00453243 -> sub_45D490 typed stop";
                 }
@@ -3926,6 +3946,18 @@ public:
             message.append(", pre_frame_actor_stop=");
             message.append(
                 std::to_string(pre_frame.actor_call.stopped_instruction)
+            );
+            message.append(", metrics_called=");
+            message.append(metrics_called ? "1" : "0");
+            message.append(", metrics_status=");
+            message.append(
+                std::to_string(static_cast<unsigned>(metrics.status))
+            );
+            message.append(", metric_coordinate_calls=");
+            message.append(std::to_string(metrics.coordinate_query_calls));
+            message.append(", metric_registers_known=");
+            message.append(
+                metrics_called && metrics.final_registers_known ? "1" : "0"
             );
             message.append(", pre_frame_terminal_latch=");
             message.append(
@@ -9080,6 +9112,7 @@ private:
     openswd3::battle::LegacyBattleActorMetricState& battle_actor_metrics_{
         actor_metric_state()
     };
+    std::optional<openswd3::compat::u32> battle_metric_stack_token_;
     openswd3::battle::LegacyBattleFinalActorStepState& battle_final_actor_{
         battle_actor_frames_.shared.final_actor_step
     };

@@ -27,6 +27,9 @@ struct LegacyBattleActorMetricState {
     compat::u32 local_byte_token{};
     compat::u16 local_word{};
     compat::u16 local_byte{};
+    // Diagnostic knowledge only; neither bit changes game control flow.
+    bool local_words_known{true};
+    bool entry_registers_known{true};
 
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
@@ -138,6 +141,10 @@ enum class LegacyBattleActorOrderStatus : compat::u8 {
 };
 
 struct LegacyBattleActorMetricResult {
+    // False means the tuple is not determined by the supplied model inputs.
+    // True is not evidence of an original-run CPU capture. Game table writes
+    // can complete after both local outputs are replaced.
+    bool final_registers_known{true};
     LegacyBattleActorMetricStatus status{
         LegacyBattleActorMetricStatus::completed
     };

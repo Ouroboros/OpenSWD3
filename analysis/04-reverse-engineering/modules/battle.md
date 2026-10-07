@@ -6,6 +6,8 @@
 
 SDL已调用完整前帧角色预处理，真实角色写入及失败前缀通过定向验证，见
 [前帧接线](../evidence/battle-pre-frame-0045d490.md)。完整帧尚未接通。
+SDL每帧指标重建已接实际坐标，定向验证通过，诊断现场限制见
+[指标接线](../evidence/battle-actor-metrics-0045b0e0.md)。后续排序仍待接入。
 
 入战、角色收尾及全局重置共用菜单的四项装备选择缓存，定向验证通过，见
 [装备选择缓存](../evidence/battle-equipment-selection-cache-004ff578.md)。

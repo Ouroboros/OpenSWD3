@@ -72,6 +72,26 @@ template <typename Call>
 [[nodiscard]] LegacyBattleActorMetricResult
 rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
     LegacyBattleActorMetricResult result;
+    result.final_registers_known = state.entry_registers_known;
+    state.local_words_known = state.entry_registers_known;
+    const auto query = [&](const u32 actor_token,
+                           const u32 byte_token,
+                           const u32 word_token,
+                           const Registers registers) {
+        const auto response =
+            call(actor_token, byte_token, word_token, registers);
+        if (response.status ==
+            LegacyBattleActorCoordinateQueryStatus::completed) {
+            // Both branches write both stack words and resolve the remaining
+            // register input dependency. Earlier faults retain uncertainty.
+            state.local_words_known = true;
+            result.final_registers_known = true;
+        }
+
+        state.entry_registers_known = result.final_registers_known;
+        return response;
+    };
+
     clear_legacy_battle_actor_metric_tables(state);
     state.local_word = static_cast<u16>(state.entry_ecx);
     state.local_byte = static_cast<u16>(state.entry_ecx >> 16U);
@@ -87,7 +107,7 @@ rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
         while (true) {
             registers.eax = state.local_word_token;
             registers.ecx = kGroupBBaseToken + index * kGroupBStride;
-            const auto coordinate_query = call(
+            const auto coordinate_query = query(
                 registers.ecx,
                 state.local_byte_token,
                 state.local_word_token,
@@ -147,7 +167,10 @@ rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
         while (true) {
             registers.edx = state.local_byte_token;
             registers.ecx = kGroupABaseToken + (index - 8U) * kGroupAStride;
-            const auto coordinate_query = call(
+            // The group-A call has replaced EAX, ECX and EDX even when the
+            // saved ECX stack words are still unknown.
+            result.final_registers_known = true;
+            const auto coordinate_query = query(
                 registers.ecx,
                 state.local_byte_token,
                 state.local_word_token,
@@ -201,6 +224,9 @@ rebuild_impl(LegacyBattleActorMetricState& state, Call&& call) {
         }
     }
 
+    result.final_registers_known =
+        result.final_registers_known && state.local_words_known;
+    state.entry_registers_known = result.final_registers_known;
     result.return_value = registers.eax;
     result.final_ecx =
         (static_cast<u32>(state.local_byte) << 16U) | state.local_word;

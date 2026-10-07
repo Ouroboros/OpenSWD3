@@ -89,6 +89,114 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
     using openswd3::battle::rebuild_legacy_battle_actor_metrics;
     using openswd3::battle::rebuild_legacy_battle_actor_order;
 
+    for (const u32 residue : {0U, 0xA5B6C7D8U}) {
+        for (const bool alternate : {false, true}) {
+            for (const u32 fault : {0U, 1U, 2U, 3U}) {
+                auto startup = std::make_unique<LegacyBattleStartupState>();
+                startup->group_b_lifecycle = std::make_shared<std::array<
+                    LegacyBattleActorGroupBElementState,
+                    openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+                auto& actor =
+                    (*startup->group_b_lifecycle)[0U].action_execution;
+                actor.coordinate_mode_gate = alternate ? 1U : 0U;
+                actor.position_x = actor.alternate_position_x = 0x1234U;
+                actor.position_y = actor.alternate_position_y = 0x8001U;
+                startup->party[0U].position_x = 0x4321U;
+                startup->party[0U].position_y = 0x7FFFU;
+                auto& metrics = startup->actor_metrics;
+                metrics.group_b_count = fault == 3U ? 2U : 1U;
+                metrics.group_a_count = 1U;
+                metrics.entry_ecx = residue;
+                metrics.entry_edx = ~residue;
+                metrics.entry_registers_known = false;
+                metrics.local_word_token = 0x1000U;
+                metrics.local_byte_token = 0x1002U;
+                metrics.values.fill(19);
+                metrics.actor_order.fill(23U);
+                metrics.selected_mask[0U] = 0x55U;
+                if (fault == 1U) {
+                    startup->group_b_lifecycle.reset();
+                } else if (fault == 2U) {
+                    actor.position_y_read_accessible = false;
+                    actor.alternate_position_y_read_accessible = false;
+                } else if (fault == 3U) {
+                    (*startup->group_b_lifecycle)[1U]
+                        .action_execution.coordinate_mode_gate_read_accessible =
+                        false;
+                }
+
+                const auto result = rebuild_legacy_battle_actor_metrics(
+                    metrics, {.startup = startup.get()}
+                );
+                test.expect_true(
+                    std::ranges::all_of(
+                        metrics.actor_order,
+                        [](const auto value) { return value == 0U; }
+                    ) && metrics.selected_mask[0U] == 0x55U,
+                    "live metrics clear order but preserve selection state even with unknown entry residues"
+                );
+                if (fault == 0U) {
+                    test.expect_true(
+                        result.status ==
+                                LegacyBattleActorMetricStatus::completed &&
+                            result.coordinate_query_calls == 2U &&
+                            metrics.values[0U] == -32767 &&
+                            metrics.values[8U] == 32767 &&
+                            metrics.local_words_known &&
+                            result.final_registers_known &&
+                            metrics.entry_registers_known &&
+                            result.final_ecx == 0x43217FFFU,
+                        "normal coordinate writes determine both words and registers independently of unknown input"
+                    );
+                } else {
+                    test.expect_true(
+                        result.status ==
+                                LegacyBattleActorMetricStatus::
+                                    actor_coordinate_typed_stop &&
+                            metrics.values[8U] == 0 &&
+                            metrics.values[0U] == (fault == 3U ? -32767 : 0) &&
+                            result.final_registers_known == (fault == 3U) &&
+                            metrics.entry_registers_known == (fault == 3U) &&
+                            metrics.local_words_known == (fault == 3U),
+                        "missing or partial actor reads stop without fabricating saved words or a CPU tuple"
+                    );
+                    if (fault == 2U) {
+                        test.expect_true(
+                            result.coordinate_query.output_writes == 1U &&
+                                metrics.local_byte == 0x1234U &&
+                                metrics.local_word ==
+                                    static_cast<openswd3::compat::u16>(residue),
+                            "a partial output preserves the unknown low word and the actual first write"
+                        );
+                    }
+                }
+            }
+        }
+
+        openswd3::battle::LegacyBattleActorMetricState empty;
+        empty.entry_ecx = residue;
+        empty.entry_edx = ~residue;
+        empty.entry_registers_known = false;
+        const auto result = rebuild_legacy_battle_actor_metrics(empty, {});
+        test.expect_true(
+            result.status == LegacyBattleActorMetricStatus::completed &&
+                result.coordinate_query_calls == 0U &&
+                !result.final_registers_known && !empty.local_words_known &&
+                !empty.entry_registers_known,
+            "zero actors complete table clears without claiming unknown entry registers are known"
+        );
+        empty.group_a_count = 1U;
+        const auto missing = rebuild_legacy_battle_actor_metrics(empty, {});
+        test.expect_true(
+            missing.status ==
+                    LegacyBattleActorMetricStatus::
+                        actor_coordinate_typed_stop &&
+                missing.final_registers_known && empty.entry_registers_known &&
+                !empty.local_words_known,
+            "group A prepares all call registers before its first actor read but does not invent saved stack words"
+        );
+    }
+
     {
         LegacyBattleStartupState startup;
         auto& metrics = startup.actor_metrics;
