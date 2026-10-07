@@ -1,6 +1,8 @@
 # 战斗当前画面复合效果 `0x00453580`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+历史状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+B11正在复核实际画布接线；本轮仅修正下述灰度分带触发条件，
+不把历史标记或定向测试视作完整生产接线完成。
 
 ## 1. 完整LST范围
 
@@ -32,7 +34,10 @@ modern以typed source保存token、可写命令流、布局和u16宽高；token�
 
 1. 全屏绘制当前source，flags 0；
 2. 直接调用已关闭`0x00451540`旋转缓存单帧绘制；
-3. split抑制dword不等于1时更新u16 extent并绘制上下两条镜像带。
+3. `53BF30`的完整DWORD精确等于1时更新u16 extent并绘制上下两条灰度带。
+   `4535FA`与EBX=1比较，`453600 JNZ 453716`在不等时跳过整段。
+   旧字段名`split_suppression`保留，但原语义是等于1启用；0、2和全1均跳过。
+   检查仍在旋转缓存单帧返回之后，跳过时保留extent并继续公共后缀。
 
 extent更新严格为：
 
@@ -193,3 +198,27 @@ C++到LST反向追溯覆盖完整508行、21个静态call站点和22个标签。
 - battle聚合目标零warning，普通定向通过。
 
 当前没有原版DirectDraw surface对象、三项surface表、共享source/clip/blitter状态、旋转缓存、颜色格式、遭遇ID、全部阶段word与target framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 15. B11灰度分带条件修正
+
+旧C++与本证据第3节曾把`453600 JNZ`方向写反。修正限定于完整DWORD
+等于1才进入分带路径，未改变原extent计算、两次裁剪/绘制顺序及公共后缀。
+测试从原CMP/JNZ独立覆盖0/1/2/FFFFFFFF，并覆盖unsigned WORD的
+0/19/20/191/192/FFFF；extent=0仍保留两次clipped-out调用。
+颜色与fade夹具显式选择是否启用分带，不再依赖旧反向默认行为。
+完整帧caller同时验证开关0/1的绘制次数与extent写回。
+
+flags=28h对应`421850`的目标灰度化，并非镜像。
+`421A38..421A93`按三通道求和后右移2位；RGB555白色7FFF变为5EF7。
+新增1×384固定图像验证extent从10增至20后，仅172..211行变灰，
+同时核对上下clip边界内外像素；其余开关值保持全部白色。
+旧实现运行新增门和extent向量产生7条预期失败，记录在
+`build/tmp/runtime/battle-frame-split-gate-red.log`。
+修正后`proc_c2b2`的core与ASan setup目标各1/1，SDL构建通过。
+新增像素断言后`proc_ee2c`的相同core与ASan目标各1/1，分别4.13秒和6.72秒。
+最终日志为`battle-frame-split-pixel-core.log`、`battle-frame-split-pixel-asan.log`
+及`battle-frame-split-gate-sdl.log`，均在`build/tmp/runtime/`，无warning/error。
+未启动游戏或新增原版动态差分。
+
+实际画布接线仍待完成。另已发现surface回调后的stage重读与共享source
+重读需修正，属于后续独立接线范围；本批不宣称整个453580重新收敛。

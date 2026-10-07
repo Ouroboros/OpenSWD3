@@ -1428,10 +1428,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const u32 split_gate : {0U, 1U}) {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
+        state.frame_effect.split_suppression = split_gate;
+        state.frame_effect.split_extent = 10U;
         auto fixture = std::make_unique<Fixture>();
         fixture->final_actor_step.queued_actor_code = 7U;
         state.special_panel_suppression = 1U;
@@ -1471,7 +1473,15 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 ) == 0U,
             "selection-frame actor stop follows frame effect and HUD but blocks messages"
         );
+        test.expect_true(
+            result.frame_effect.source_blit_calls ==
+                    (split_gate == 1U ? 3U : 1U) &&
+                state.frame_effect.split_extent ==
+                    (split_gate == 1U ? 20U : 10U),
+            "full frame caller enables split bands only for the original exact-one gate"
+        );
     }
+
     {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();

@@ -152,8 +152,9 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const u32 split_gate : {0U, 1U, 2U, 0xFFFFFFFFU}) {
         LegacyBattleFrameEffectState state;
+        state.split_suppression = split_gate;
         state.split_extent = 10U;
         state.pending_rotation = 77;
         Fixture fixture;
@@ -166,24 +167,70 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleFrameEffectStatus::completed &&
-                result.clip_calls == 4U && result.source_blit_calls == 3U &&
+                result.clip_calls == (split_gate == 1U ? 4U : 2U) &&
+                result.source_blit_calls == (split_gate == 1U ? 3U : 1U) &&
                 result.rotation_frame_calls == 1U &&
                 state.published_source_token == 0xA100U &&
-                state.split_extent == 20U && state.pending_rotation == 0 &&
+                state.split_extent == (split_gate == 1U ? 20U : 10U) &&
+                state.pending_rotation == 0 &&
                 fixture.framebuffer.physical_pixels()[0] == 0x001FU &&
                 fixture.raster.clip_left == 0 && fixture.raster.clip_top == 0 &&
                 fixture.raster.clip_width == 640 &&
                 fixture.raster.clip_height == 480,
-            "zero rotation draws full source then two split clips and restores full clip"
+            "zero rotation draws split bands only for the exact enabled DWORD and restores full clip"
+        );
+    }
+
+    for (const u32 split_gate : {0U, 1U, 2U, 0xFFFFFFFFU}) {
+        LegacyBattleFrameEffectState state;
+        state.split_suppression = split_gate;
+        state.split_extent = 10U;
+        Fixture fixture;
+        const std::vector<u16> white(384U, 0x7FFFU);
+        fixture.source_bytes =
+            openswd3::rendering::encode_legacy_image_command_stream(
+                {reinterpret_cast<const u8*>(white.data()),
+                 white.size() * sizeof(u16)},
+                1U,
+                384U,
+                16U
+            )
+                .bytes;
+        auto source = fixture.source();
+        source.width = 1U;
+        source.height = 384U;
+        EffectPort port;
+        auto context = fixture.context();
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, source, surfaces, 0
+        );
+        bool pixels_match = true;
+        for (std::size_t row = 0U; row < 384U; ++row) {
+            const bool in_band = split_gate == 1U && row >= 172U && row < 212U;
+            // 00421A38..00421A93: (31 + 31 + 31) >> 2 = 23 in RGB555.
+            const u16 expected = in_band ? 0x5EF7U : 0x7FFFU;
+            pixels_match = pixels_match &&
+                fixture.framebuffer.physical_pixels()[row * 640U] == expected;
+        }
+
+        test.expect_true(
+            result.status == LegacyBattleFrameEffectStatus::completed &&
+                pixels_match,
+            "exact-one split gate grays only rows 172 through 211 across both clip boundaries"
         );
     }
 
     {
         bool extents_match = true;
-        constexpr std::array<u16, 2> input_extents{20U, 192U};
-        constexpr std::array<u16, 2> expected_extents{42U, 192U};
+        constexpr std::array<u16, 6> input_extents{
+            0U, 19U, 20U, 191U, 192U, 0xFFFFU
+        };
+        constexpr std::array<u16, 6> expected_extents{
+            0U, 38U, 42U, 213U, 192U, 0xFFFFU
+        };
         for (std::size_t index = 0U; index < input_extents.size(); ++index) {
             LegacyBattleFrameEffectState state;
+            state.split_suppression = 1U;
             state.split_extent = input_extents[index];
             Fixture fixture;
             EffectPort port;
@@ -195,17 +242,18 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
             extents_match = extents_match &&
                 result.status == LegacyBattleFrameEffectStatus::completed &&
                 state.split_extent == expected_extents[index] &&
-                result.source_blit_calls == 3U;
+                result.clip_calls == 4U && result.source_blit_calls == 3U;
         }
+
         test.expect_true(
             extents_match,
-            "split extent adds twenty two from twenty and freezes at one hundred ninety two"
+            "enabled split bands preserve unsigned WORD boundaries and both clipped calls at zero"
         );
     }
 
     {
         LegacyBattleFrameEffectState state;
-        state.split_suppression = 1U;
+        state.split_suppression = 0U;
         state.color_cycle_active = 1U;
         state.color_cycle_delta = 4U;
         Fixture fixture;
@@ -315,6 +363,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
     {
         LegacyBattleFrameEffectState state;
+        state.split_suppression = 1U;
         state.current_encounter_id = 1;
         state.expected_encounter_id = 2;
         state.stage = 2;
@@ -421,7 +470,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
     {
         LegacyBattleFrameEffectState state;
-        state.split_suppression = 1U;
+        state.split_suppression = 0U;
         state.color_cycle_active = 1U;
         state.color_cycle_delta = 0xFCU;
         Fixture fixture;

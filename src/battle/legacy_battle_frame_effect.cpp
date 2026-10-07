@@ -344,7 +344,9 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                     LegacyBattleFrameEffectStatus::rotation_frame_typed_stop;
                 return result;
             }
-            if (state.split_suppression != 1U) {
+
+            // 00453600 skips both split draws unless the DWORD is exactly one.
+            if (state.split_suppression == 1U) {
                 u16 extent = state.split_extent;
                 if (extent < 0xC0U) {
                     extent = extent < 0x14U ? static_cast<u16>(extent << 1U)
