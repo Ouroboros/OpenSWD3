@@ -8,6 +8,22 @@ LegacyBattleGroupAValuePairResult publish_legacy_battle_group_a_value_pair(
     const compat::u32 value,
     const compat::u32 entry_edx
 ) noexcept {
+    return publish_legacy_battle_group_a_value_pair(
+        LegacyBattleGroupAValuePairView{
+            state.primary_value, state.secondary_value
+        },
+        object_token,
+        value,
+        entry_edx
+    );
+}
+
+LegacyBattleGroupAValuePairResult publish_legacy_battle_group_a_value_pair(
+    const LegacyBattleGroupAValuePairView state,
+    const compat::u32 object_token,
+    const compat::u32 value,
+    const compat::u32 entry_edx
+) noexcept {
     LegacyBattleGroupAValuePairResult result{
         .return_eax = value,
         .return_ecx = object_token,

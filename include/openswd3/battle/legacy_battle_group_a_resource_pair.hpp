@@ -9,6 +9,11 @@ struct LegacyBattleGroupAResourcePairState {
     compat::u32 secondary_token{};  // actor + 0x2ECC
 };
 
+struct LegacyBattleGroupAResourcePairView {
+    compat::u32& primary_token;
+    compat::u32& secondary_token;
+};
+
 enum class LegacyBattleGroupAResourcePairStatus : compat::u8 {
     completed,
     actor_typed_stop,
@@ -24,7 +29,15 @@ struct LegacyBattleGroupAResourcePairResult {
     compat::u32 return_edx{};
 };
 
-// sub_46E850.
+// sub_46E850. The view borrows the actual actor-list fields.
+[[nodiscard]] LegacyBattleGroupAResourcePairResult
+publish_legacy_battle_group_a_resource_pair(
+    LegacyBattleGroupAResourcePairView state,
+    compat::u32 object_token,
+    compat::u32 resource_token,
+    compat::u32 entry_edx = 0U
+) noexcept;
+
 [[nodiscard]] LegacyBattleGroupAResourcePairResult
 publish_legacy_battle_group_a_resource_pair(
     LegacyBattleGroupAResourcePairState& state,

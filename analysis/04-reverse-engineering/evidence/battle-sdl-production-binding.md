@@ -2,6 +2,13 @@
 
 状态：`in_progress`。前一核心等待与结果标志修正已以`cde7584d`提交推送，阶段TG脚本退出0。本单元必须覆盖真实输入、角色更新、绘制、战斗结束及返回路径，不能以通过输入前缀或删除typed-stop替代完整战斗。
 
+## 入战队员引用
+
+队员属性聚合后，核心和SDL逐角色绑定实际队伍根、玩家根地址和姓名地址。
+诊断后重新读取映射；SDL直接写既有动作与列表字段，姓名借用已恢复的字节。
+core/ASan定向setup各1/1和SDL链接通过，未做实机验证。默认姓名初始化的
+既有缺口及完整边界见[引用接线](battle-startup-party-references-runtime-binding.md)。
+
 ## 当前生产断点
 
 当前`src/platform/sdl3/main.cpp`的`SdlSmokeIdlePorts`实现脚本、音乐前缀和预帧角色端口，尚未实现完整帧协调端口。

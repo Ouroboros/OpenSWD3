@@ -10,15 +10,21 @@
 
 ## 2. typed owner与停止点
 
-`LegacyBattleGroupAResourcePairState`唯一承接两个相邻资源token，不把参数转换为主机指针。角色token为零时，typed-stop放在首次`+0x2EC8`写位置；两项旧值、写计数和入口寄存器均保持，第二项不会被写。
+核心独立路径使用`LegacyBattleGroupAResourcePairState`；SDL通过引用view直接写既有actor_list的resource_head_token/next_resource_head_token，不另存pair副本，也不把参数转换为主机指针。角色token为零时，typed-stop放在首次`+0x2EC8`写位置；两项旧值、写计数和入口寄存器均保持，第二项不会被写。
 
 ## 3. startup caller回收
 
-唯一caller位于初始队伍资源绑定循环：前一项pending value callee返回后，原路径以固定共享资源token调用本函数，再继续pending名字绑定。startup现在捕获前一callee的EDX并直接调用typed双写器；正常路径继续名字绑定，typed-stop则阻断名字及后续角色。
+唯一caller位于初始队伍绑定循环：队伍根值双写返回后，以固定玩家根地址4A9940调用本函数，再写姓名地址。参数不是玩家当前根值。核心与SDL共用逐角色绑定入口，捕获前一callee的EDX并直接调用typed双写器；正常路径继续名字绑定，typed-stop则阻断名字及后续角色。
 
 旧`apply_party_palette`枚举值改为reserved，未平移后续枚举；本函数不再经过平台端口。typed结果按角色索引记录两次写和返回寄存器。
 
-## 4. 验证状态
+## 4. 当前接线验证
+
+2026-10-07：core/ASan定向setup各1/1、SDL链接通过。完整顺序、借用与失败前缀见
+[入战引用接线](battle-startup-party-references-runtime-binding.md)。
+未做实机或原版动态差分，B10保持315/422。
+
+## 5. 原工作包历史验证
 
 纯函数测试覆盖两项非零旧值被同一token按序替换、固定EAX/ECX、陈旧EDX完整直传，以及零角色token在首次写停止且不改任一字段。startup回归验证两名初始角色直接写入同一资源token、前一value callee的EDX进入typed结果、旧palette槽零调用且后续绑定继续。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning；app仅出现既有ALSA开发库CMake提示。
 

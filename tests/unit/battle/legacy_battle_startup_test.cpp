@@ -8,6 +8,7 @@
 #include <array>
 #include <bit>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -58,6 +59,7 @@ public:
     std::deque<u32> display_create_replies;
     u32 unresolved_display_token{};
     u32 stopped_actor_reset_token{};
+    std::function<void()> attribute_diagnostic;
 
     [[nodiscard]] std::optional<u32>
     release_battle_display_surface(const u32 token) override {
@@ -91,6 +93,13 @@ public:
     [[nodiscard]] LegacyBattleStartupCallReply
     invoke(const LegacyBattleStartupCallRequest& request) override {
         requests.push_back(request);
+        if (request.call ==
+                LegacyBattleStartupCall::
+                    group_a_attribute_missing_primary_diagnostic &&
+            attribute_diagnostic) {
+            attribute_diagnostic();
+        }
+
         if (observed_display_state != nullptr &&
             (request.call == LegacyBattleStartupCall::release_display_surface ||
              request.call == LegacyBattleStartupCall::create_display_surface)) {
@@ -497,12 +506,6 @@ template <typename Range>
         .speed_setting = 11,
         .data_root = "game-data",
         .party_role_ids = {101U, 102U, 103U, 104U},
-        .party_values = {
-            0x11111111U,
-            0x22222222U,
-            0x33333333U,
-            0x44444444U,
-        },
     };
 }
 
@@ -550,6 +553,136 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        auto action = std::make_unique<
+            openswd3::battle::LegacyBattleGroupAActionExecutionState>();
+        openswd3::world_map::LegacyWorldItemListState items;
+        std::array<openswd3::compat::u8, 64U> storage{};
+        const openswd3::battle::LegacyBattlePartyNameSources names{
+            std::span{storage}.subspan(0U, 16U),
+            std::span{storage}.subspan(16U, 16U),
+            std::span{storage}.subspan(32U, 16U),
+            std::span{storage}.subspan(48U, 16U),
+        };
+        auto& party = state->party[0U];
+        party.value_pair = {0x11111111U, 0x22222222U};
+        party.resource_pair = {0x33333333U, 0x44444444U};
+        state->action_mode_source.actor_label_indices[0U] = 3U;
+        items.party_item_lists[3U]->legacy_head_token = 0xDEADBEEFU;
+        items.player_inventory_head_token = 0x77112233U;
+        const auto first =
+            openswd3::battle::bind_legacy_battle_startup_party_references(
+                *state, 0U, items, names, action.get()
+            );
+        storage[48U] = 0x77U;
+        test.expect_true(
+            first.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::completed &&
+                first.value_pair.writes == 2U &&
+                first.resource_pair.writes == 2U &&
+                action->current_list_index == 0xDEADBEEFU &&
+                action->next_list_index == 0xDEADBEEFU &&
+                party.actor_list.resource_head_token == 0x004A9940U &&
+                party.actor_list.next_resource_head_token == 0x004A9940U &&
+                party.name_token == 0x0049E178U &&
+                party.name_bytes.data() == storage.data() + 48U &&
+                party.name_bytes.front() == 0x77U &&
+                party.value_pair.primary_value == 0x11111111U &&
+                party.value_pair.secondary_value == 0x22222222U &&
+                party.resource_pair.primary_token == 0x33333333U &&
+                party.resource_pair.secondary_token == 0x44444444U,
+            "startup binds actual action/list fields and borrows name bytes without writing a second pair or dereferencing item roots"
+        );
+        state->action_mode_source.actor_label_indices[0U] = 1U;
+        items.party_item_lists[1U].reset();
+        const auto repeated =
+            openswd3::battle::bind_legacy_battle_startup_party_references(
+                *state, 0U, items, names, action.get()
+            );
+        test.expect_true(
+            repeated.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::completed &&
+                action->current_list_index == 0U &&
+                action->next_list_index == 0U &&
+                party.name_token == 0x0049E158U &&
+                party.name_bytes.data() == storage.data() + 16U &&
+                repeated.resource_pair.return_edx == 1U,
+            "repeated binding publishes a null party root and refreshes name mapping while preserving source EDX"
+        );
+        state->action_mode_source.actor_label_indices[0U] = 4U;
+        const auto stopped =
+            openswd3::battle::bind_legacy_battle_startup_party_references(
+                *state, 0U, items, names, action.get()
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        party_source_index_out_of_range &&
+                stopped.value_pair.writes == 0U &&
+                stopped.resource_pair.writes == 0U &&
+                party.name_token == 0x0049E158U &&
+                action->current_list_index == 0U,
+            "unmapped party root table reads stop before overwriting existing references"
+        );
+    }
+
+    for (const bool unmapped_after_diagnostic : {false, true}) {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        StartupPorts ports;
+        ports.definition.enemy_count = 1U;
+        ports.query_values = {{30U, 1U}, {31U, 1U}};
+        u32 diagnostics{};
+        bool first_references_visible{};
+        ports.attribute_diagnostic = [&] {
+            if (diagnostics == 0U) {
+                state->action_mode_source.actor_label_indices[0U] =
+                    unmapped_after_diagnostic ? 4U : 2U;
+            } else {
+                first_references_visible =
+                    state->party[0U].name_token == 0x0049E168U &&
+                    state->party[0U].value_pair.primary_value ==
+                        ports.world_item_list_state()
+                            .party_item_lists[2U]
+                            ->legacy_head_token;
+                state->action_mode_source.actor_label_indices[1U] = 3U;
+            }
+
+            ++diagnostics;
+        };
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            *state, ports, ports, ports, ports, ports, ports, request(1U)
+        );
+        if (unmapped_after_diagnostic) {
+            test.expect_true(
+                result.status ==
+                        openswd3::battle::LegacyBattleStartupStatus::
+                            party_source_index_out_of_range &&
+                    diagnostics == 1U &&
+                    result.party_attribute_aggregation_calls == 1U &&
+                    result.party_attribute_aggregations[0U]
+                            .primary_profile_dwords_copied == 41U &&
+                    result.party_value_pair_calls == 0U &&
+                    result.party_resource_pair_calls == 0U &&
+                    state->party[0U].name_token == 0U &&
+                    state->party[1U].name_token == 0U,
+                "post-diagnostic source failure retains attributes and prevents references and the next actor"
+            );
+            continue;
+        }
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::completed &&
+                diagnostics == 2U && first_references_visible &&
+                result.party_value_pair_calls == 2U &&
+                result.party_value_pairs[0U].return_edx == 2U &&
+                result.party_value_pairs[1U].return_edx == 3U &&
+                state->party[1U].name_token == 0x0049E178U,
+            "each actor binds the post-diagnostic mapping before the next actor begins attributes"
+        );
+    }
+
     {
         const openswd3::battle::LegacyBattleDefinition definition{
             .background_resource = 0xFEDC1234U,
@@ -1562,15 +1695,22 @@ void test_battle_startup(openswd3::test::Context& test) {
                         .embedded_profile_applications[0U]
                         .fixed_curve.return_edx == 0x005029D0U &&
                 result.party_value_pair_calls == 2U &&
-                state.party[0U].value_pair.primary_value == 0x11111111U &&
-                state.party[0U].value_pair.secondary_value == 0x11111111U &&
+                state.party[0U].value_pair.primary_value ==
+                    party_items.legacy_head_token &&
+                state.party[0U].value_pair.secondary_value ==
+                    party_items.legacy_head_token &&
                 result.party_value_pairs[0U].writes == 2U &&
-                result.party_value_pairs[0U].return_eax == 0x11111111U &&
+                result.party_value_pairs[0U].return_eax ==
+                    party_items.legacy_head_token &&
                 result.party_value_pairs[0U].return_ecx == 0x005029D0U &&
                 result.party_value_pairs[0U].return_edx == 0U &&
                 ports.call_count(
                     LegacyBattleStartupCall::reserved_apply_party_value
                 ) == 0U &&
+                state.party[0U].name_token == 0x0049E148U &&
+                state.party[1U].name_token == 0x0049E158U &&
+                ports.call_count(LegacyBattleStartupCall::apply_party_name) ==
+                    0U &&
                 result.party_resource_pair_calls == 2U &&
                 state.party[0U].resource_pair.primary_token == 0x004A9940U &&
                 state.party[0U].resource_pair.secondary_token == 0x004A9940U &&

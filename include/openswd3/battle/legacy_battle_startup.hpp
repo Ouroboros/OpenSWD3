@@ -238,6 +238,8 @@ struct LegacyBattleEnemyStartupRecord {
     LegacyBattleActorProgressState progress;
 };
 
+using LegacyBattlePartyNameSources = std::array<std::span<const compat::u8>, 4>;
+
 struct LegacyBattlePartyStartupRecord
     : public LegacyBattleActorCoordinatesState {
     LegacyBattleActorRenderOffsetState render_offsets;
@@ -264,6 +266,9 @@ struct LegacyBattlePartyStartupRecord
     LegacyBattleGroupAFinalProcessingState final_processing;
     LegacyBattleGroupAValuePairState value_pair;
     LegacyBattleGroupAResourcePairState resource_pair;
+    compat::u32 name_token{};  // actor + 0x2560
+    std::span<const compat::u8>
+        name_bytes;  // Borrowed, never copied or decoded.
 };
 
 struct LegacyBattlePartyMetricRecord {
@@ -367,7 +372,7 @@ struct LegacyBattleStartupRequest {
     rendering::LegacySurfaceGeometry source_surface{};
     rendering::LegacyPixelConversionState pixel_conversion{};
     std::array<compat::u16, 4> party_role_ids{};
-    std::array<compat::u32, 4> party_values{};
+    LegacyBattlePartyNameSources party_name_sources{};
     compat::u32 archive_number_of_bytes_read_token{};
     compat::u32 archive_entry_edx_snapshot{};
     compat::u32 definition_record_number_of_bytes_read_token{};
@@ -402,6 +407,24 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     display_surface_typed_stop,
     actor_reset_typed_stop,
 };
+
+struct LegacyBattleStartupPartyReferencesResult {
+    LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};
+    LegacyBattleGroupAValuePairResult value_pair;
+    LegacyBattleGroupAResourcePairResult resource_pair;
+    compat::u32 name_token{};
+};
+
+// 4522C2..4522F7, immediately after each actor's attribute aggregation.
+// SDL supplies action fields; standalone startup uses its existing pair holders.
+[[nodiscard]] LegacyBattleStartupPartyReferencesResult
+bind_legacy_battle_startup_party_references(
+    LegacyBattleStartupState& state,
+    std::size_t index,
+    const world_map::LegacyWorldItemListState& items,
+    const LegacyBattlePartyNameSources& names,
+    LegacyBattleGroupAActionExecutionState* action = nullptr
+) noexcept;
 
 struct LegacyBattleStartupItemOrderResult {
     LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};

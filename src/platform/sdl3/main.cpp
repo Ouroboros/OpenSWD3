@@ -3041,6 +3041,35 @@ public:
                         running_ = false;
                         return false;
                     }
+
+                    const openswd3::battle::LegacyBattlePartyNameSources names{
+                        initial_menu_state_.first_name,
+                        initial_menu_state_.second_name,
+                        std::span<const openswd3::compat::u8>{saved_role_names_}
+                            .subspan(0x20U, 0x10U),
+                        std::span<const openswd3::compat::u8>{saved_role_names_}
+                            .subspan(0x30U, 0x10U),
+                    };
+                    const auto references = openswd3::battle::
+                        bind_legacy_battle_startup_party_references(
+                            battle_runtime_,
+                            index,
+                            world_item_lists_,
+                            names,
+                            &battle_action_dispatch_
+                                 .group_a_action_execution[index]
+                        );
+                    if (references.status !=
+                        openswd3::battle::LegacyBattleStartupStatus::
+                            completed) {
+                        openswd3::diagnostics::log_error(
+                            "battle party item or name references stopped"
+                        );
+                        battle_setup_ready_ = false;
+                        ok_ = false;
+                        running_ = false;
+                        return false;
+                    }
                 }
             }
         } else {

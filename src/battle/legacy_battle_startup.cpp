@@ -642,6 +642,68 @@ void publish_legacy_battle_startup_mouse_position(
     frame_input.previous_mouse_y = 200;
 }
 
+LegacyBattleStartupPartyReferencesResult
+bind_legacy_battle_startup_party_references(
+    LegacyBattleStartupState& state,
+    const std::size_t index,
+    const world_map::LegacyWorldItemListState& items,
+    const LegacyBattlePartyNameSources& names,
+    LegacyBattleGroupAActionExecutionState* const action
+) noexcept {
+    LegacyBattleStartupPartyReferencesResult result;
+    if (index >= state.party.size() ||
+        index >= state.action_mode_source.actor_label_indices.size()) {
+        result.status =
+            LegacyBattleStartupStatus::party_actor_index_out_of_range;
+        return result;
+    }
+
+    const u32 source = state.action_mode_source.actor_label_indices[index];
+    if (source >= items.party_item_lists.size()) {
+        result.status =
+            LegacyBattleStartupStatus::party_source_index_out_of_range;
+        return result;
+    }
+
+    auto& party = state.party[index];
+    const u32 actor_token = group_a_actor_token(static_cast<u32>(index));
+    const auto& root = items.party_item_lists[source];
+    const u32 root_token = root.has_value() ? root->legacy_head_token : 0U;
+    const LegacyBattleGroupAValuePairView value_fields = action != nullptr
+        ? LegacyBattleGroupAValuePairView{action->current_list_index, action->next_list_index}
+        : LegacyBattleGroupAValuePairView{
+              party.value_pair.primary_value, party.value_pair.secondary_value
+          };
+    result.value_pair = publish_legacy_battle_group_a_value_pair(
+        value_fields, actor_token, root_token, source
+    );
+    if (result.value_pair.status !=
+        LegacyBattleGroupAValuePairStatus::completed) {
+        result.status = LegacyBattleStartupStatus::party_value_pair_typed_stop;
+        return result;
+    }
+
+    const LegacyBattleGroupAResourcePairView resource_fields = action != nullptr
+        ? LegacyBattleGroupAResourcePairView{party.actor_list.resource_head_token, party.actor_list.next_resource_head_token}
+        : LegacyBattleGroupAResourcePairView{party.resource_pair.primary_token, party.resource_pair.secondary_token};
+    result.resource_pair = publish_legacy_battle_group_a_resource_pair(
+        resource_fields, actor_token, 0x004A9940U, result.value_pair.return_edx
+    );
+    if (result.resource_pair.status !=
+        LegacyBattleGroupAResourcePairStatus::completed) {
+        result.status =
+            LegacyBattleStartupStatus::party_resource_pair_typed_stop;
+        return result;
+    }
+
+    const u32 name_source = state.action_mode_source.actor_label_indices[index];
+    party.name_token = 0x0049E148U + name_source * 0x10U;
+    // The intervening leaf stores do not call out or change the source map.
+    party.name_bytes = names[name_source];
+    result.name_token = party.name_token;
+    return result;
+}
+
 LegacyBattleStartupItemOrderResult order_legacy_battle_startup_items(
     world_map::LegacyWorldItemListState& items
 ) noexcept {
@@ -1093,7 +1155,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             return result;
         }
         const u32 source = state.action_mode_source.actor_label_indices[index];
-        if (source >= request.party_values.size()) {
+        if (source >= port.world_item_list_state().party_item_lists.size()) {
             result.status =
                 LegacyBattleStartupStatus::party_source_index_out_of_range;
             return result;
@@ -1121,39 +1183,26 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 party_attribute_aggregation_typed_stop;
             return result;
         }
-        result.party_value_pairs[index] =
-            publish_legacy_battle_group_a_value_pair(
-                state.party[index].value_pair,
-                actor_token,
-                request.party_values[source],
-                source
-            );
-        ++result.party_value_pair_calls;
-        if (result.party_value_pairs[index].status !=
-            LegacyBattleGroupAValuePairStatus::completed) {
-            result.status =
-                LegacyBattleStartupStatus::party_value_pair_typed_stop;
+        const auto references = bind_legacy_battle_startup_party_references(
+            state,
+            index,
+            port.world_item_list_state(),
+            request.party_name_sources
+        );
+        result.party_value_pairs[index] = references.value_pair;
+        result.party_resource_pairs[index] = references.resource_pair;
+        if (references.value_pair.writes != 0U) {
+            ++result.party_value_pair_calls;
+        }
+
+        if (references.resource_pair.writes != 0U) {
+            ++result.party_resource_pair_calls;
+        }
+
+        if (references.status != LegacyBattleStartupStatus::completed) {
+            result.status = references.status;
             return result;
         }
-        result.party_resource_pairs[index] =
-            publish_legacy_battle_group_a_resource_pair(
-                state.party[index].resource_pair,
-                actor_token,
-                0x004A9940U,
-                result.party_value_pairs[index].return_edx
-            );
-        ++result.party_resource_pair_calls;
-        if (result.party_resource_pairs[index].status !=
-            LegacyBattleGroupAResourcePairStatus::completed) {
-            result.status =
-                LegacyBattleStartupStatus::party_resource_pair_typed_stop;
-            return result;
-        }
-        static_cast<void>(invoke(
-            port,
-            LegacyBattleStartupCall::apply_party_name,
-            {actor_token, 0x0049E148U + source * 0x10U, 0U, 0U}
-        ));
     }
 
     for (u32 index = 0U; index < state.actor_metrics.group_a_count; ++index) {

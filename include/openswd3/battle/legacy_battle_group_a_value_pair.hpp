@@ -9,6 +9,11 @@ struct LegacyBattleGroupAValuePairState {
     compat::u32 secondary_value{};  // actor + 0x2EC4
 };
 
+struct LegacyBattleGroupAValuePairView {
+    compat::u32& primary_value;
+    compat::u32& secondary_value;
+};
+
 enum class LegacyBattleGroupAValuePairStatus : compat::u8 {
     completed,
     actor_typed_stop,
@@ -24,7 +29,15 @@ struct LegacyBattleGroupAValuePairResult {
     compat::u32 return_edx{};
 };
 
-// sub_46E870.
+// sub_46E870. The view writes the actual action fields without a second pair.
+[[nodiscard]] LegacyBattleGroupAValuePairResult
+publish_legacy_battle_group_a_value_pair(
+    LegacyBattleGroupAValuePairView state,
+    compat::u32 object_token,
+    compat::u32 value,
+    compat::u32 entry_edx = 0U
+) noexcept;
+
 [[nodiscard]] LegacyBattleGroupAValuePairResult
 publish_legacy_battle_group_a_value_pair(
     LegacyBattleGroupAValuePairState& state,

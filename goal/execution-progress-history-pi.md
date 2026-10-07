@@ -4,6 +4,16 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：入战队员物品与姓名引用
+
+核心和SDL逐角色完成属性后，重读来源并绑定队伍物品根、玩家根地址与姓名。
+SDL借用实际动作和列表字段，姓名借用已有字节，不复制另一份角色数据。
+诊断后无效来源保留属性前缀并停止，不处理下一角色。
+最终core/ASan定向setup各1/1及SDL链接通过；未启动游戏。
+默认姓名初始化的既有缺口、验证边界及日志见
+[引用接线](../analysis/04-reverse-engineering/evidence/battle-startup-party-references-runtime-binding.md)。
+B10保持315/422；完整初始化、帧及实际续玩仍待完成。
+
 ## B11：MON文件读取接线
 
 SDL的MON打开、定位、读取已接入实际文件端口，保留只读共享读、

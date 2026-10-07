@@ -9,6 +9,23 @@ publish_legacy_battle_group_a_resource_pair(
     const compat::u32 resource_token,
     const compat::u32 entry_edx
 ) noexcept {
+    return publish_legacy_battle_group_a_resource_pair(
+        LegacyBattleGroupAResourcePairView{
+            state.primary_token, state.secondary_token
+        },
+        object_token,
+        resource_token,
+        entry_edx
+    );
+}
+
+LegacyBattleGroupAResourcePairResult
+publish_legacy_battle_group_a_resource_pair(
+    const LegacyBattleGroupAResourcePairView state,
+    const compat::u32 object_token,
+    const compat::u32 resource_token,
+    const compat::u32 entry_edx
+) noexcept {
     LegacyBattleGroupAResourcePairResult result{
         .return_eax = resource_token,
         .return_ecx = object_token,
