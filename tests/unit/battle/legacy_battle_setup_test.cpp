@@ -6122,11 +6122,12 @@ void test_action_timing_threshold(openswd3::test::Context& test) {
         i32 speed_setting;
         i32 expected_threshold;
     };
-    constexpr std::array<Case, 6> cases{{
+    constexpr std::array<Case, 7> cases{{
         {11, 900},
         {20, 0},
         {0, 2000},
         {21, -100},
+        {255, -23500},
         {std::numeric_limits<i32>::min(), 2000},
         {std::numeric_limits<i32>::max(), 2100},
     }};

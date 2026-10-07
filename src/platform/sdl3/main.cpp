@@ -2105,6 +2105,7 @@ public:
         openswd3::compat::u32 display_frames_per_second,
         bool world_motion_interpolation_enabled,
         const openswd3::resource_io::DialogConfiguration& dialog_configuration,
+        const openswd3::resource_io::BattleConfiguration& battle_configuration,
         bool display_frame_ready,
         openswd3::app::WindowEventState& window_state,
         const openswd3::app::DisplayLifecycleState& display_state,
@@ -2148,6 +2149,7 @@ public:
               world_motion_interpolation_enabled
           ),
           dialog_configuration_(dialog_configuration),
+          battle_configuration_(battle_configuration),
           display_frame_ready_(display_frame_ready),
           window_state_(window_state), display_state_(display_state),
           frame_preparation_state_(frame_preparation_state),
@@ -2799,6 +2801,11 @@ public:
         const auto saved_party_sources =
             battle_runtime_.group_a_auxiliary_sources;
         battle_runtime_.battle_id_word = battle_id;
+        static_cast<void>(
+            openswd3::battle::publish_legacy_battle_action_threshold(
+                battle_runtime_.timing, battle_configuration_.speed
+            )
+        );
         openswd3::battle::reset_legacy_battle_startup_blocks(
             battle_runtime_,
             actor_publication_state(),
@@ -8835,6 +8842,7 @@ private:
         latest_presentation_site_;
     bool world_motion_interpolation_enabled_{};
     openswd3::resource_io::DialogConfiguration dialog_configuration_{};
+    const openswd3::resource_io::BattleConfiguration& battle_configuration_;
     bool display_frame_ready_{};
     bool texture_contains_world_interpolation_{};
     openswd3::app::WindowEventState& window_state_;
@@ -9190,6 +9198,25 @@ int main(const int argument_count, char** arguments) {
         openswd3::diagnostics::log_warning(message);
     }
 
+    const auto battle_config =
+        openswd3::resource_io::load_battle_configuration(configuration_path);
+    if (battle_config.status !=
+        openswd3::resource_io::BattleConfigurationStatus::ready) {
+        std::string message{"battle configuration: "};
+        message.append(
+            openswd3::resource_io::battle_configuration_status_message(
+                battle_config.status
+            )
+        );
+        if (!battle_config.detail.empty()) {
+            message.append(": ");
+            message.append(battle_config.detail);
+        }
+
+        openswd3::diagnostics::log_error(message);
+        return 1;
+    }
+
     const auto dialog_config =
         openswd3::resource_io::load_dialog_configuration(configuration_path);
     if (dialog_config.status !=
@@ -9500,6 +9527,7 @@ int main(const int argument_count, char** arguments) {
         static_cast<openswd3::compat::u32>(display_frames_per_second),
         world_motion_interpolation_enabled,
         dialog_config.configuration,
+        battle_config.configuration,
         runtime_ready,
         window_state,
         display_state,

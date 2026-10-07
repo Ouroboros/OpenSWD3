@@ -91,6 +91,64 @@ template <typename Status>
 
 }  // namespace
 
+BattleConfigurationLoadResult
+load_battle_configuration(const std::filesystem::path& configuration_path) {
+    BattleConfigurationLoadResult result;
+    toml::table document;
+    if (!read_existing_document(
+            configuration_path, document, result.status, result.detail
+        )) {
+        return result;
+    }
+
+    const auto* node = document.get("battle");
+    if (node == nullptr) {
+        return result;
+    }
+
+    const auto* battle = node->as_table();
+    if (battle == nullptr) {
+        result.status = BattleConfigurationStatus::invalid_battle_table;
+        return result;
+    }
+
+    if (const auto* speed = battle->get("speed"); speed != nullptr) {
+        const auto value = speed->value<std::int64_t>();
+        if (!speed->is_integer() || !value || *value < 0 || *value > 255) {
+            result.status = BattleConfigurationStatus::invalid_speed;
+            return result;
+        }
+
+        result.configuration.speed = static_cast<int>(*value);
+    }
+
+    result.loaded_from_file = true;
+    return result;
+}
+
+std::string_view battle_configuration_status_message(
+    const BattleConfigurationStatus status
+) noexcept {
+    switch (status) {
+    case BattleConfigurationStatus::ready:
+        return "ready";
+
+    case BattleConfigurationStatus::read_failed:
+        return "could not read configuration";
+
+    case BattleConfigurationStatus::parse_failed:
+        return "invalid TOML";
+
+    case BattleConfigurationStatus::invalid_battle_table:
+        return "battle must be a table";
+
+    case BattleConfigurationStatus::invalid_speed:
+        return "battle.speed must be an integer from 0 to 255";
+    }
+
+    return "unknown battle configuration status";
+}
+
 DialogConfigurationLoadResult load_dialog_configuration(
     const std::filesystem::path& configuration_path,
     const DialogConfiguration fallback

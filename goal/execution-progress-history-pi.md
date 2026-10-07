@@ -4,6 +4,15 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：战斗速度配置
+
+TOML战斗速度接入SDL入战阈值，默认11，保留原配置字节范围及低DWORD运算。
+窗口布局保存保留战斗配置，非法TOML速度明确报错。
+配置与setup的core及ASan定向测试各1/1、SDL构建通过，未启动游戏。
+证据见[速度接线](../analysis/04-reverse-engineering/evidence/battle-speed-runtime-binding.md)。
+系统菜单实时速度修改、完整初始化复核、完整帧与实际续玩仍待完成。
+B10仍315/422，Workpack316 pending_audit。
+
 ## B11：入战尾部消息判定
 
 核心和SDL共用尾部人数判断，按原条件写入共享战败消息状态，保留两次

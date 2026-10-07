@@ -455,6 +455,74 @@ void test_display_refresh_configuration(openswd3::test::Context& test) {
     );
 }
 
+void test_battle_speed_configuration(openswd3::test::Context& test) {
+    using namespace openswd3::resource_io;
+    const TemporaryTree tree;
+    const auto missing = load_battle_configuration(tree.configuration_path());
+    test.expect_true(
+        missing.status == BattleConfigurationStatus::ready &&
+            missing.configuration.speed == 11 && !missing.loaded_from_file,
+        "missing configuration preserves original battle speed eleven"
+    );
+    for (const auto text : {"[window]\nwidth = 640\n", "[battle]\n"}) {
+        tree.write_configuration(text);
+        const auto result =
+            load_battle_configuration(tree.configuration_path());
+        test.expect_true(
+            result.status == BattleConfigurationStatus::ready &&
+                result.configuration.speed == 11,
+            "missing battle table or speed keeps the original default"
+        );
+    }
+
+    for (const int speed : {0, 11, 20, 21, 255}) {
+        tree.write_configuration(
+            "[battle]\nspeed = " + std::to_string(speed) + "\n"
+        );
+        const auto result =
+            load_battle_configuration(tree.configuration_path());
+        std::string detail;
+        const auto saved = save_window_configuration(
+            tree.configuration_path(), {960, 720}, false, detail
+        );
+        const auto restored =
+            load_battle_configuration(tree.configuration_path());
+        test.expect_true(
+            result.status == BattleConfigurationStatus::ready &&
+                result.configuration.speed == speed &&
+                result.loaded_from_file &&
+                saved == WindowConfigurationStatus::ready &&
+                restored.status == BattleConfigurationStatus::ready &&
+                restored.configuration == result.configuration,
+            "battle speed preserves the full byte domain through window persistence"
+        );
+    }
+
+    for (const auto value : {"-1", "256", "'11'", "true", "11.0"}) {
+        tree.write_configuration(
+            std::string{"[battle]\nspeed = "} + value + "\n"
+        );
+        test.expect_equal(
+            load_battle_configuration(tree.configuration_path()).status,
+            BattleConfigurationStatus::invalid_speed,
+            "battle speed rejects nonintegers and values outside its byte domain"
+        );
+    }
+
+    tree.write_configuration("battle = 11\n");
+    test.expect_equal(
+        load_battle_configuration(tree.configuration_path()).status,
+        BattleConfigurationStatus::invalid_battle_table,
+        "battle configuration requires a table"
+    );
+    tree.write_configuration("[battle\n");
+    test.expect_equal(
+        load_battle_configuration(tree.configuration_path()).status,
+        BattleConfigurationStatus::parse_failed,
+        "battle configuration reports malformed TOML"
+    );
+}
+
 void test_dialog_automation_configuration(openswd3::test::Context& test) {
     using openswd3::resource_io::DialogConfiguration;
     using openswd3::resource_io::DialogConfigurationStatus;
@@ -636,6 +704,7 @@ int main() {
     test_window_size_configuration(test);
     test_display_refresh_configuration(test);
     test_dialog_automation_configuration(test);
+    test_battle_speed_configuration(test);
     test_legacy_existing_directory_is_selected(test);
     test_legacy_missing_directory_is_created_without_selection(test);
     test_legacy_directory_failures_are_ignored(test);

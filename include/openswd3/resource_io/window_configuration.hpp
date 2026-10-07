@@ -10,6 +10,12 @@ inline constexpr int kMaximumDisplayFramesPerSecond = 1000;
 inline constexpr int kDefaultDialogAutoAdvanceIntervalMilliseconds = 120;
 inline constexpr int kMaximumDialogAutoAdvanceIntervalMilliseconds = 60000;
 
+struct BattleConfiguration {
+    int speed{11};
+
+    [[nodiscard]] bool operator==(const BattleConfiguration&) const = default;
+};
+
 struct DialogConfiguration {
     bool auto_advance{};
     int interval_milliseconds{kDefaultDialogAutoAdvanceIntervalMilliseconds};
@@ -30,6 +36,27 @@ struct WindowSize {
 
     [[nodiscard]] bool operator==(const WindowSize&) const = default;
 };
+
+enum class BattleConfigurationStatus {
+    ready,
+    read_failed,
+    parse_failed,
+    invalid_battle_table,
+    invalid_speed,
+};
+
+struct BattleConfigurationLoadResult {
+    BattleConfigurationStatus status{BattleConfigurationStatus::ready};
+    BattleConfiguration configuration;
+    bool loaded_from_file{};
+    std::string detail;
+};
+
+[[nodiscard]] BattleConfigurationLoadResult
+load_battle_configuration(const std::filesystem::path& configuration_path);
+
+[[nodiscard]] std::string_view
+battle_configuration_status_message(BattleConfigurationStatus status) noexcept;
 
 enum class DialogConfigurationStatus {
     ready,
