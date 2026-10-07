@@ -2,6 +2,8 @@
 #include "openswd3/battle/legacy_battle_action_rotation_resources.hpp"
 #include "openswd3/battle/legacy_battle_display_surface_runtime.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
+#include "openswd3/battle/legacy_battle_group_a_storage.hpp"
+#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 
 #include <algorithm>
@@ -11,6 +13,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <unordered_map>
 #include <vector>
 
@@ -30,6 +33,86 @@ using openswd3::battle::LegacyBattleStartupState;
 using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
+
+void prepare_supplemental_actor_records(LegacyBattleStartupState& state) {
+    // Fixed-state stand-in for the preceding static actor construction.
+    for (std::size_t index = 0U; index < state.party.size(); ++index) {
+        state.party[index].configuration.actor_record_token =
+            openswd3::battle::kLegacyBattleActorGroupABaseToken +
+            static_cast<u32>(index) *
+                openswd3::battle::kLegacyBattleActorGroupAElementSize;
+    }
+}
+
+class SupplementalPorts final
+    : public openswd3::battle::LegacyBattleStartupSupplementalPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
+public:
+    explicit SupplementalPorts(
+        openswd3::battle::LegacyBattleGroupAStorage& storage
+    )
+        : storage_(storage) {}
+
+    std::unordered_map<u16, u32> flags;
+    std::deque<u32> random_values;
+    std::vector<u16> queries;
+    u32 random_calls{};
+    bool fail_allocation{};
+    std::function<void()> on_read;
+
+    u32 query_supplemental_candidate(const u16 id) override {
+        queries.push_back(id);
+        return flags[id];
+    }
+
+    u32 random_supplemental_candidate(const u32 bound) override {
+        if (bound != 8U || random_values.empty()) {
+            throw std::logic_error("unexpected supplemental random request");
+        }
+
+        ++random_calls;
+        const auto value = random_values.front();
+        random_values.pop_front();
+        return value;
+    }
+
+    openswd3::battle::LegacyBattleGroupASummonMaterializationCallReply
+    invoke_group_a_summon_materialization(
+        const openswd3::battle::
+            LegacyBattleGroupASummonMaterializationCallRequest& request
+    ) override {
+        if (request.call ==
+            openswd3::battle::LegacyBattleGroupASummonMaterializationCall::
+                allocate_profile) {
+            return {.eax = fail_allocation ? 0U : storage_.allocate_profile()};
+        }
+
+        return {};
+    }
+
+    openswd3::battle::LegacyBattleMonDatabaseCallReply
+    invoke_legacy_battle_mon_database(
+        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
+        const std::span<openswd3::compat::u8> destination
+    ) override {
+        const auto reply =
+            LegacyBattleMonDatabaseFixture::invoke_legacy_battle_mon_database(
+                request, destination
+            );
+        if (request.call ==
+                openswd3::battle::LegacyBattleMonDatabaseCall::read_file &&
+            on_read) {
+            auto callback = std::move(on_read);
+            on_read = {};
+            callback();
+        }
+
+        return reply;
+    }
+
+private:
+    openswd3::battle::LegacyBattleGroupAStorage& storage_;
+};
 
 class StartupPorts final
     : public openswd3::battle::LegacyBattleStartupPort,
@@ -553,6 +636,173 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    for (const u32 mirror : {0U, 1U, 2U}) {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        auto action = std::make_unique<
+            openswd3::battle::LegacyBattleActionDispatchState>();
+        openswd3::battle::LegacyBattleGroupAStorage storage{*state, *action};
+        test.expect_true(
+            storage.construct(), "supplemental actors use constructed storage"
+        );
+        state->actor_metrics.group_a_count = 1U;
+        state->mirror_mode = mirror;
+        state->supplemental_count_word = 1U;
+        state->party[0].configuration.source_record_token = 0xBADU;
+        SupplementalPorts ports{storage};
+        ports.flags = {{34U, 1U}, {35U, 0xFFFFFFFFU}};
+        ports.random_values = {0x10000U, 0x10000U, 1U};
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_startup_supplemental(
+                *state, ports, {}, action.get()
+            );
+        const u16 x = mirror == 1U ? 0xFF92U : 750U;
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::completed &&
+                result.supplemental_actor_count == 2U &&
+                ports.random_calls == 3U && ports.queries.size() == 11U &&
+                state->actor_metrics.group_a_count == 3U &&
+                state->party[1].role_id == 3U &&
+                state->party[2].role_id == 4U &&
+                state->party[1].placement_position_x == x &&
+                state->party[1].position_x == x &&
+                action->group_a_action_execution[1].position_x == x &&
+                state->party[1].progress.scene_identity == 1U &&
+                action->group_a_target_phases[1].render_toggle_gate ==
+                    (mirror == 0U ? 1U : 0U) &&
+                result.supplemental_record_selections[0].return_eax ==
+                    state->party[0].configuration.actor_record_token &&
+                storage.record_bytes(
+                           state->party[1].configuration.profile_token
+                )
+                        .size() == 0xA4U,
+            "supplemental startup masks random high bits, retries duplicates and updates live actors for each mirror mode"
+        );
+        const u32 old_profile = state->party[1].configuration.profile_token;
+        const u32 actor_record =
+            state->party[1].configuration.actor_record_token;
+        state->actor_metrics.group_a_count = 1U;
+        state->supplemental_used.fill(0U);
+        ports.random_values = {1U, 0U};
+        const auto repeated =
+            openswd3::battle::initialize_legacy_battle_startup_supplemental(
+                *state, ports, {}, action.get()
+            );
+        const u32 new_profile = state->party[1].configuration.profile_token;
+        test.expect_true(
+            repeated.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::completed &&
+                new_profile != old_profile &&
+                state->party[1].configuration.actor_record_token ==
+                    actor_record &&
+                storage.release_heap_block(old_profile).has_value() &&
+                storage.record_bytes(new_profile).size() == 0xA4U &&
+                storage.release_heap_block(new_profile).has_value() &&
+                storage.record_bytes(new_profile).empty() &&
+                !storage.release_heap_block(new_profile).has_value(),
+            "supplemental reentry retains actor records and tracks distinct profile allocations and release"
+        );
+    }
+
+    for (const bool fail_allocation : {false, true}) {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        auto action = std::make_unique<
+            openswd3::battle::LegacyBattleActionDispatchState>();
+        openswd3::battle::LegacyBattleGroupAStorage storage{*state, *action};
+        test.expect_true(
+            storage.construct(),
+            "supplemental allocation fixture constructs actors"
+        );
+        state->actor_metrics.group_a_count = 1U;
+        state->supplemental_count_word = 0xFFFFU;
+        state->party[1].position_x = 123U;
+        SupplementalPorts ports{storage};
+        ports.flags = {{34U, 1U}};
+        ports.fail_allocation = fail_allocation;
+        ports.on_read = [&] {
+            state->party[1].role_id = 4U;
+            state->party[1].placement_position_x = 12U;
+            state->party[1].placement_position_y = 13U;
+            state->party[1].active = 7U;
+        };
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_startup_supplemental(
+                *state, ports, {}, action.get()
+            );
+        test.expect_true(
+            ports.random_calls == 0U &&
+                result.status ==
+                    (fail_allocation
+                         ? openswd3::battle::LegacyBattleStartupStatus::
+                               supplemental_materialization_typed_stop
+                         : openswd3::battle::LegacyBattleStartupStatus::
+                               completed) &&
+                state->actor_metrics.group_a_count ==
+                    (fail_allocation ? 1U : 2U) &&
+                state->party[1].position_x == (fail_allocation ? 123U : 12U) &&
+                (fail_allocation ||
+                 (state->party[1].configuration.placement_word == 4U &&
+                  state->party[1].configuration.source_runtime_value == 7U &&
+                  ports.requested_definition_ids == std::vector<u32>{3U})),
+            "supplemental startup preserves WORD wrap and borrows placement after MON reads without committing allocation failure suffix"
+        );
+    }
+
+    for (const u32 fault : {0U, 1U, 2U, 3U}) {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        auto action = std::make_unique<
+            openswd3::battle::LegacyBattleActionDispatchState>();
+        openswd3::battle::LegacyBattleGroupAStorage storage{*state, *action};
+        test.expect_true(
+            storage.construct(), "supplemental fault fixture constructs actors"
+        );
+        state->actor_metrics.group_a_count = 1U;
+        SupplementalPorts ports{storage};
+        if (fault != 0U) {
+            ports.flags = {{34U, 1U}};
+        }
+
+        if (fault == 1U) {
+            state->party[0].configuration.actor_record_token = 0U;
+        } else if (fault == 2U) {
+            ports.on_read = [&] { state->actor_metrics.group_a_count = 10U; };
+        } else if (fault == 3U) {
+            state->supplemental_count_word = 3U;
+            ports.random_values = {0x10008U};
+        }
+
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_startup_supplemental(
+                *state, ports, {}, action.get()
+            );
+        using Status = openswd3::battle::LegacyBattleStartupStatus;
+        constexpr std::array<Status, 4> expected{
+            Status::completed,
+            Status::supplemental_materialization_typed_stop,
+            Status::party_actor_index_out_of_range,
+            Status::random_result_out_of_range,
+        };
+        test.expect_true(
+            result.status == expected[fault] &&
+                result.supplemental_actor_count == 0U &&
+                state->party[1].progress.scene_identity == 0U &&
+                state->actor_metrics.group_a_count ==
+                    (fault == 2U ? 10U : 1U) &&
+                (fault != 0U || ports.queries.size() == 16U) &&
+                (fault != 1U ||
+                 (state->party[1].configuration.profile_token != 0U &&
+                  result.supplemental_materializations[0]
+                          .placement_dwords_copied == 16U)) &&
+                (fault != 2U ||
+                 result.supplemental_materializations[0].status ==
+                     openswd3::battle::
+                         LegacyBattleGroupANpcMaterializationStatus::
+                             completed) &&
+                (fault != 3U || ports.queries.size() == 8U),
+            "supplemental selection handles empty flags and stops at missing modifier, live count overflow or invalid masked random access"
+        );
+    }
+
     {
         auto state = std::make_unique<LegacyBattleStartupState>();
         auto& party = state->party[0];
@@ -1572,6 +1822,7 @@ void test_battle_startup(openswd3::test::Context& test) {
         (*state.group_b_lifecycle)[0U].action_record.prefix[2U] =
             std::byte{0xCA};
         state.group_a_description_record_tokens.fill(0xDEADBEEFU);
+        prepare_supplemental_actor_records(state);
         state.group_a_description_text_indices.fill(0xBEEFU);
         state.party[0U].progress.progress = 0xAAAA0000U;
         state.party[1U].progress.progress = 0xBBBB0000U;
@@ -1986,6 +2237,10 @@ void test_battle_startup(openswd3::test::Context& test) {
                     std::vector<u32>{0x000BU, 0x000CU, 0x0003U, 0x0004U} &&
                 ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
                     4U &&
+                state.party[2].progress.post_action_value == 0U &&
+                state.party[3].progress.post_action_value == 0U &&
+                state.party[2].progress.scene_identity == 1U &&
+                state.party[3].progress.scene_identity == 1U &&
                 result.actor_metric_calls == 6U &&
                 result.actor_order_selections == 6U &&
                 result.group_b_order_copies == 2U &&
@@ -1997,6 +2252,7 @@ void test_battle_startup(openswd3::test::Context& test) {
 
     {
         LegacyBattleStartupState state;
+        prepare_supplemental_actor_records(state);
         state.supplemental_count_word = 1U;
         state.party[0U].configuration.source_record_token = 0x004AB790U;
         StartupPorts ports;
@@ -2042,8 +2298,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleGroupANpcMaterializationStatus::completed &&
                 state.actor_metrics.group_a_count == 2U &&
-                state.party[0].role_id == 4U &&
-                state.party[1].role_id == 3U &&
+                state.party[0].role_id == 4U && state.party[1].role_id == 3U &&
                 state.supplemental_used[1] == 1U &&
                 state.supplemental_used[0] == 1U &&
                 ports.call_count(LegacyBattleStartupCall::random_below) == 7U &&
@@ -2064,7 +2319,11 @@ void test_battle_startup(openswd3::test::Context& test) {
                     LegacyBattleStartupCall::reserved_group_a_profile_release
                 ) == 0U &&
                 ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
-                    2U &&
+                    0U &&
+                state.party[0].progress.post_action_value == 1U &&
+                state.party[1].progress.post_action_value == 1U &&
+                state.party[0].progress.scene_identity == 1U &&
+                state.party[1].progress.scene_identity == 1U &&
                 result.return_value == 0U && result.message_state_published &&
                 ports.battle_message_state() == 0x67U,
             "stale supplemental word selects random branch and materializes both retry-selected NPC actors"
@@ -2073,6 +2332,7 @@ void test_battle_startup(openswd3::test::Context& test) {
 
     {
         LegacyBattleStartupState state;
+        prepare_supplemental_actor_records(state);
         state.supplemental_count_word = 1U;
         StartupPorts ports;
         ports.query_values = {{34U, 1U}};

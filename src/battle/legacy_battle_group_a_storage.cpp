@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_group_a_startup_reset.hpp"
 
 #include <bit>
+#include <algorithm>
 
 namespace openswd3::battle {
 namespace {
@@ -184,6 +185,18 @@ LegacyBattleGroupAStorage::initialize_party(
     return Status::completed;
 }
 
+compat::u32 LegacyBattleGroupAStorage::allocate_profile() {
+    const auto token = asset_runtime::reserve_legacy_guest_bytes(
+        kLegacyBattleGroupASummonProfileSize
+    );
+    if (!token) {
+        return 0U;
+    }
+
+    profile_allocations_.push_back(*token);
+    return *token;
+}
+
 std::span<compat::u8>
 LegacyBattleGroupAStorage::record_bytes(const compat::u32 token) noexcept {
     if (token == 0U) {
@@ -193,6 +206,16 @@ LegacyBattleGroupAStorage::record_bytes(const compat::u32 token) noexcept {
     for (std::size_t index = 0U; index < allocations_.size(); ++index) {
         if (allocations_[index] == token) {
             return bytes_of(startup_.party[index].configuration.actor_record);
+        }
+    }
+
+    if (std::find(
+            profile_allocations_.begin(), profile_allocations_.end(), token
+        ) != profile_allocations_.end()) {
+        for (auto& party : startup_.party) {
+            if (party.configuration.profile_token == token) {
+                return bytes_of(party.configuration.profile_record);
+            }
         }
     }
 
@@ -232,6 +255,14 @@ LegacyBattleGroupAStorage::release_heap_block(const compat::u32 token) {
             allocation = 0U;
             return LegacyBattleActorStartupResetRegisters{};
         }
+    }
+
+    const auto profile = std::find(
+        profile_allocations_.begin(), profile_allocations_.end(), token
+    );
+    if (profile != profile_allocations_.end()) {
+        profile_allocations_.erase(profile);
+        return LegacyBattleActorStartupResetRegisters{};
     }
 
     return std::nullopt;

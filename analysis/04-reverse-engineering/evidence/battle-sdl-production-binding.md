@@ -16,6 +16,13 @@ core/ASan定向setup各1/1和SDL链接通过，未做实机验证。默认姓名
 core/ASan定向setup各1/1和SDL构建通过，尚未做本批实机验证。
 详见[指标接线](battle-startup-party-metrics-runtime-binding.md)。
 
+## 入战额外队员
+
+SDL在初始队员指标之后，接入实际剧情标志、共享随机源、MON资料与组A存储。
+顺序或随机选择最多两名额外队员，配置后写入实际角色激活和镜像字段。
+核心与SDL共用入口，保留旧计数、重试顺序、资料调用后的重读及失败前缀。
+验证与边界见[额外队员接线](battle-startup-supplemental-runtime-binding.md)。
+
 ## 当前生产断点
 
 当前`src/platform/sdl3/main.cpp`的`SdlSmokeIdlePorts`实现脚本、音乐前缀和预帧角色端口，尚未实现完整帧协调端口。

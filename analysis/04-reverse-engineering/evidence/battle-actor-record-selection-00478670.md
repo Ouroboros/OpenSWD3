@@ -44,7 +44,7 @@ MOV、条件跳转和RET不修改flags。两次TEST均令CF/OF为零，ZF/SF/PF�
 - 随机补位分支`0x00452511`，真实返回地址`0x00452516`；
 - 顺序补位分支`0x00452646`，真实返回地址`0x0045264B`。
 
-两处caller都在调用前执行`mov edi,1`和`push edi`，因此固定选择参数为1，ECX固定指向首个Group-A actor，必须读取首个actor的`+0x00`基础记录token。返回后先压入该token，再压入当前新角色token并进入既有护援materialization；不得按token内容改选`+0x04`。selector typed-stop保留已完成的候选role、坐标、mirror与基础token发布，但阻断当前护援materialization、角色激活、剩余候选、角色进度和startup消息后缀。
+两处caller都在调用前执行`mov edi,1`和`push edi`，因此固定选择参数为1，ECX固定指向首个Group-A actor，必须读取首个actor的`+0x00`基础记录token。返回后先压入该token，再压入当前新角色token并进入既有护援materialization；不得按token内容改选`+0x04`。selector typed-stop保留已完成的候选role、placement坐标与mirror，既有基础token不变，但阻断当前护援materialization、角色激活、剩余候选、角色进度和startup消息后缀。
 
 旧`LegacyBattleStartupCall::supplemental_seed`只保留原ordinal并改名为`reserved_supplemental_seed`，生产调用数为零。
 

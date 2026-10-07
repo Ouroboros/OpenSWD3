@@ -44,7 +44,30 @@ struct LegacyBattleGroupANpcMaterializationResult {
     compat::u32 return_edx{};
 };
 
-// sub_46E9C0.
+// Borrow the live 0x20-byte placement across MON loading and diagnostics.
+struct LegacyBattleGroupANpcPlacementView {
+    const std::array<compat::u32, 5>& prefix;
+    const compat::u16& role_id;
+    const compat::u16& position_x;
+    const compat::u16& position_y;
+    const compat::u16& field_1a;
+    const compat::u32& active;
+};
+
+[[nodiscard]] LegacyBattleGroupANpcMaterializationResult
+materialize_legacy_battle_group_a_npc_from_view(
+    LegacyBattleGroupAConfigurationState* state,
+    const LegacyBattleGroupANpcPlacementView* source,
+    const std::array<compat::u32, 14>* modifier_record,
+    compat::u32 actor_token,
+    compat::u32 source_token,
+    compat::u32 modifier_record_token,
+    compat::u32 window_token,
+    LegacyBattleGroupASummonMaterializationPort& port,
+    std::span<LegacyBattleActorCoordinatesState* const> coordinate_owners = {}
+);
+
+// sub_46E9C0. Owned-record adapter for standalone callers.
 [[nodiscard]] LegacyBattleGroupANpcMaterializationResult
 materialize_legacy_battle_group_a_npc(
     LegacyBattleGroupAConfigurationState* state,

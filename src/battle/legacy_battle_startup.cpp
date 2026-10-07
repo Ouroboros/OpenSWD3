@@ -2,6 +2,7 @@
 
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
+#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -80,12 +81,28 @@ private:
 };
 
 class StartupGroupANpcMaterializationPort final
-    : public LegacyBattleGroupASummonMaterializationPort {
+    : public LegacyBattleStartupSupplementalPort {
 public:
     explicit StartupGroupANpcMaterializationPort(
         LegacyBattleStartupPort& port
     ) noexcept
         : port_(port) {}
+
+    [[nodiscard]] u32 query_supplemental_candidate(const u16 id) override {
+        return invoke(
+                   port_, LegacyBattleStartupCall::query_value, {id, 0U, 0U, 0U}
+        )
+            .return_value;
+    }
+
+    [[nodiscard]] u32 random_supplemental_candidate(const u32 bound) override {
+        return invoke(
+                   port_,
+                   LegacyBattleStartupCall::random_below,
+                   {bound, 0U, 0U, 0U}
+        )
+            .return_value;
+    }
 
     [[nodiscard]] LegacyBattleGroupASummonMaterializationCallReply
     invoke_group_a_summon_materialization(
@@ -464,10 +481,11 @@ struct SupplementalAddResult {
 
 [[nodiscard]] SupplementalAddResult add_supplemental_actor(
     LegacyBattleStartupState& state,
-    LegacyBattleStartupPort& port,
+    LegacyBattleStartupSupplementalPort& port,
     const LegacyBattleActorRecordSelectionRequest& record_selection_options,
     const u32 record_selection_return_address,
-    const u32 candidate_index
+    const u32 candidate_index,
+    LegacyBattleActionDispatchState* const action
 ) {
     if (candidate_index >= kLegacyBattleSupplementalRoleIds.size()) {
         return {
@@ -483,18 +501,15 @@ struct SupplementalAddResult {
 
     auto& placement = state.party[actor_index];
     placement.role_id = kLegacyBattleSupplementalRoleIds[candidate_index];
-    placement.position_x = 0x02EEU;
-    placement.position_y = 0x0136U;
+    placement.placement_position_x = 0x02EEU;
+    placement.placement_position_y = 0x0136U;
     placement.active = 1U;
     if (state.mirror_mode == 1U) {
-        placement.position_x = static_cast<u16>(0x0280U - placement.position_x);
+        placement.placement_position_x =
+            static_cast<u16>(0x0280U - placement.placement_position_x);
     }
 
     const u32 actor_token = group_a_actor_token(actor_index);
-    placement.workspace.object_token = actor_token;
-    if (placement.configuration.actor_record_token == 0U) {
-        placement.configuration.actor_record_token = actor_token;
-    }
 
     auto record_selection_request = record_selection_options;
     record_selection_request.argument = 1U;
@@ -519,16 +534,19 @@ struct SupplementalAddResult {
     const u32 modifier_token = record_selection.return_eax;
     const std::array<u32, 14>* modifier_record =
         modifier_token == 0U ? nullptr : &modifier_owner.actor_record;
-    const LegacyBattleGroupAPlacementRecord source{
-        .prefix = placement.placement_prefix,
-        .role_id = placement.role_id,
-        .position_x = placement.position_x,
-        .position_y = placement.position_y,
-        .field_1a = placement.placement_field_1a,
-        .active = placement.active,
+    const LegacyBattleGroupANpcPlacementView source{
+        placement.placement_prefix,
+        placement.role_id,
+        placement.placement_position_x,
+        placement.placement_position_y,
+        placement.placement_field_1a,
+        placement.active,
     };
-    StartupGroupANpcMaterializationPort materialization_port(port);
-    auto materialization = materialize_legacy_battle_group_a_npc(
+    std::array<LegacyBattleActorCoordinatesState*, 2> coordinate_owners{
+        &placement,
+        action ? &action->group_a_action_execution[actor_index] : nullptr
+    };
+    auto materialization = materialize_legacy_battle_group_a_npc_from_view(
         &placement.configuration,
         &source,
         modifier_record,
@@ -536,7 +554,8 @@ struct SupplementalAddResult {
         party_placement_token(actor_index),
         modifier_token,
         state.window_token,
-        materialization_port
+        port,
+        std::span{coordinate_owners}.first(action ? 2U : 1U)
     );
     if (materialization.status !=
         LegacyBattleGroupANpcMaterializationStatus::completed) {
@@ -549,17 +568,27 @@ struct SupplementalAddResult {
             .materialization = materialization,
         };
     }
-    static_cast<void>(invoke(
-        port,
-        LegacyBattleStartupCall::activate_supplemental_actor,
-        {actor_token, 1U, 0U, 0U}
-    ));
+
+    // The MON callbacks may have changed the live actor count.
+    const u32 activation_index = state.actor_metrics.group_a_count;
+    if (activation_index >= state.party.size()) {
+        return {
+            .record_selection_attempted = true,
+            .materialization_attempted = true,
+            .status = LegacyBattleStartupStatus::party_actor_index_out_of_range,
+            .record_selection = record_selection,
+            .materialization = materialization,
+        };
+    }
+
+    state.party[activation_index].progress.scene_identity = 1U;
     if (state.mirror_mode == 0U) {
-        static_cast<void>(invoke(
-            port,
-            LegacyBattleStartupCall::apply_actor_mode,
-            {actor_token, 1U, 0U, 0U}
-        ));
+        if (action != nullptr) {
+            action->group_a_target_phases[activation_index].render_toggle_gate =
+                1U;
+        } else {
+            state.party[activation_index].progress.post_action_value = 1U;
+        }
     }
 
     state.actor_metrics.group_a_count += 1U;
@@ -660,6 +689,102 @@ void publish_legacy_battle_startup_mouse_position(
     frame_input.previous_mouse_x = 320;
     mouse.logical_y = 200;
     frame_input.previous_mouse_y = 200;
+}
+
+LegacyBattleStartupSupplementalResult
+initialize_legacy_battle_startup_supplemental(
+    LegacyBattleStartupState& state,
+    LegacyBattleStartupSupplementalPort& port,
+    const LegacyBattleActorRecordSelectionRequest& record_selection,
+    LegacyBattleActionDispatchState* const action
+) {
+    LegacyBattleStartupSupplementalResult result;
+    for (const u16 id : kLegacyBattleSupplementalQueryIds) {
+        if (port.query_supplemental_candidate(id) != 0U) {
+            state.supplemental_count_word =
+                static_cast<u16>(state.supplemental_count_word + 1U);
+        }
+    }
+
+    const bool random_selection = state.supplemental_count_word > 2U;
+    state.supplemental_count_word = 0U;
+    const auto add_candidate = [&](const u32 candidate) {
+        const auto add = add_supplemental_actor(
+            state,
+            port,
+            record_selection,
+            random_selection ? 0x00452516U : 0x0045264BU,
+            candidate,
+            action
+        );
+        if (add.record_selection_attempted) {
+            const auto call = result.supplemental_record_selection_calls++;
+            if (call < result.supplemental_record_selections.size()) {
+                result.supplemental_record_selections[call] =
+                    add.record_selection;
+            }
+        }
+
+        if (add.materialization_attempted) {
+            const auto call = result.supplemental_materialization_calls++;
+            if (call < result.supplemental_materializations.size()) {
+                result.supplemental_materializations[call] =
+                    add.materialization;
+            }
+        }
+
+        result.status = add.status;
+        if (add.added) {
+            ++result.supplemental_actor_count;
+        }
+
+        return add.added;
+    };
+
+    if (random_selection) {
+        while (state.supplemental_count_word != 2U) {
+            const u32 candidate =
+                port.random_supplemental_candidate(8U) & 0xFFFFU;
+            if (candidate >= kLegacyBattleSupplementalQueryIds.size()) {
+                result.status =
+                    LegacyBattleStartupStatus::random_result_out_of_range;
+                return result;
+            }
+
+            if (port.query_supplemental_candidate(
+                    kLegacyBattleSupplementalQueryIds[candidate]
+                ) == 0U ||
+                state.supplemental_used[candidate] == 1U) {
+                continue;
+            }
+
+            if (!add_candidate(candidate)) {
+                return result;
+            }
+
+            state.supplemental_used[candidate] = 1U;
+        }
+    } else {
+        for (u32 candidate = 0U;
+             candidate < kLegacyBattleSupplementalQueryIds.size();
+             ++candidate) {
+            if (port.query_supplemental_candidate(
+                    kLegacyBattleSupplementalQueryIds[candidate]
+                ) == 0U) {
+                continue;
+            }
+
+            if (!add_candidate(candidate)) {
+                return result;
+            }
+
+            if (state.supplemental_count_word == 2U) {
+                break;
+            }
+        }
+    }
+
+    return result;
 }
 
 LegacyBattleStartupPartyMetricsResult
@@ -1334,107 +1459,22 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         }
     }
 
-    for (u32 index = 0U; index < kLegacyBattleSupplementalQueryIds.size();
-         ++index) {
-        if (invoke(
-                port,
-                LegacyBattleStartupCall::query_value,
-                {kLegacyBattleSupplementalQueryIds[index], 0U, 0U, 0U}
-            )
-                .return_value != 0U) {
-            state.supplemental_count_word =
-                static_cast<u16>(state.supplemental_count_word + 1U);
-        }
-    }
-
-    // The branch consumes the post-scan word, including its stale entry value;
-    // both branches then clear it before publishing added-actor count.
-    const u16 eligible_snapshot = state.supplemental_count_word;
-    state.supplemental_count_word = 0U;
-    if (eligible_snapshot > 2U) {
-        while (state.supplemental_count_word != 2U) {
-            const u32 candidate = invoke(
-                                      port,
-                                      LegacyBattleStartupCall::random_below,
-                                      {8U, 0U, 0U, 0U}
-            )
-                                      .return_value;
-            if (candidate >= kLegacyBattleSupplementalQueryIds.size()) {
-                result.status =
-                    LegacyBattleStartupStatus::random_result_out_of_range;
-                return result;
-            }
-            if (invoke(
-                    port,
-                    LegacyBattleStartupCall::query_value,
-                    {kLegacyBattleSupplementalQueryIds[candidate], 0U, 0U, 0U}
-                )
-                        .return_value == 0U ||
-                state.supplemental_used[candidate] == 1U) {
-                continue;
-            }
-            const auto add = add_supplemental_actor(
-                state,
-                port,
-                request.supplemental_record_selection,
-                0x00452516U,
-                candidate
-            );
-            if (add.record_selection_attempted) {
-                result.supplemental_record_selections
-                    [result.supplemental_record_selection_calls++] =
-                    add.record_selection;
-            }
-            if (add.materialization_attempted) {
-                result.supplemental_materializations
-                    [result.supplemental_materialization_calls++] =
-                    add.materialization;
-            }
-            if (!add.added) {
-                result.status = add.status;
-                return result;
-            }
-            state.supplemental_used[candidate] = 1U;
-            ++result.supplemental_actor_count;
-        }
-    } else {
-        for (u32 candidate = 0U;
-             candidate < kLegacyBattleSupplementalQueryIds.size();
-             ++candidate) {
-            if (invoke(
-                    port,
-                    LegacyBattleStartupCall::query_value,
-                    {kLegacyBattleSupplementalQueryIds[candidate], 0U, 0U, 0U}
-                )
-                    .return_value == 0U) {
-                continue;
-            }
-            const auto add = add_supplemental_actor(
-                state,
-                port,
-                request.supplemental_record_selection,
-                0x0045264BU,
-                candidate
-            );
-            if (add.record_selection_attempted) {
-                result.supplemental_record_selections
-                    [result.supplemental_record_selection_calls++] =
-                    add.record_selection;
-            }
-            if (add.materialization_attempted) {
-                result.supplemental_materializations
-                    [result.supplemental_materialization_calls++] =
-                    add.materialization;
-            }
-            if (!add.added) {
-                result.status = add.status;
-                return result;
-            }
-            ++result.supplemental_actor_count;
-            if (state.supplemental_count_word == 2U) {
-                break;
-            }
-        }
+    StartupGroupANpcMaterializationPort supplemental_port(port);
+    const auto supplemental = initialize_legacy_battle_startup_supplemental(
+        state, supplemental_port, request.supplemental_record_selection
+    );
+    result.supplemental_actor_count = supplemental.supplemental_actor_count;
+    result.supplemental_record_selections =
+        supplemental.supplemental_record_selections;
+    result.supplemental_record_selection_calls =
+        supplemental.supplemental_record_selection_calls;
+    result.supplemental_materializations =
+        supplemental.supplemental_materializations;
+    result.supplemental_materialization_calls =
+        supplemental.supplemental_materialization_calls;
+    if (supplemental.status != LegacyBattleStartupStatus::completed) {
+        result.status = supplemental.status;
+        return result;
     }
 
     const auto metrics = rebuild_legacy_battle_actor_metrics(

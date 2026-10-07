@@ -1758,6 +1758,7 @@ class SdlSmokeIdlePorts final
       public openswd3::battle::LegacyBattleScriptDispatchPort,
       public openswd3::battle::LegacyBattleGroupAConfigurationDiagnosticPort,
       public openswd3::battle::LegacyBattleGroupAAttributeAggregationPort,
+      public openswd3::battle::LegacyBattleStartupSupplementalPort,
       public openswd3::battle::LegacyBattleFrameMusicPrefixPort,
       public virtual openswd3::input_time_rng::LegacyMouseFrameStatePort,
       public virtual openswd3::battle::LegacyBattlePreFramePort,
@@ -2222,6 +2223,46 @@ public:
             world_story_vm_state_
         );
         initialize_standard_special_modes();
+    }
+
+    [[nodiscard]] openswd3::compat::u32
+    query_supplemental_candidate(const openswd3::compat::u16 id) override {
+        return openswd3::world_map::query_legacy_world_story_flag(
+                   world_story_vm_state_, id
+               )
+            ? 1U
+            : 0U;
+    }
+
+    [[nodiscard]] openswd3::compat::u32
+    random_supplemental_candidate(const openswd3::compat::u32 bound) override {
+        return secondary_rng_.next_bounded(bound);
+    }
+
+    [[nodiscard]] openswd3::battle::
+        LegacyBattleGroupASummonMaterializationCallReply
+        invoke_group_a_summon_materialization(
+            const openswd3::battle::
+                LegacyBattleGroupASummonMaterializationCallRequest& request
+        ) override {
+        using Call =
+            openswd3::battle::LegacyBattleGroupASummonMaterializationCall;
+        switch (request.call) {
+        case Call::allocate_profile:
+            return {.eax = battle_group_a_storage_.allocate_profile()};
+
+        case Call::report_missing_role:
+            openswd3::diagnostics::log_error(
+                "battle supplemental role is zero"
+            );
+            return {};
+
+        case Call::reserved_load_profile:
+        case Call::reserved_release_profile_text:
+            break;
+        }
+
+        return {.profile_record = request.profile_record};
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
@@ -3090,6 +3131,21 @@ public:
                         running_ = false;
                         return false;
                     }
+                }
+
+                const auto supplemental = openswd3::battle::
+                    initialize_legacy_battle_startup_supplemental(
+                        battle_runtime_, *this, {}, &battle_action_dispatch_
+                    );
+                if (supplemental.status !=
+                    openswd3::battle::LegacyBattleStartupStatus::completed) {
+                    openswd3::diagnostics::log_error(
+                        "battle supplemental actors stopped"
+                    );
+                    battle_setup_ready_ = false;
+                    ok_ = false;
+                    running_ = false;
+                    return false;
                 }
             }
         } else {

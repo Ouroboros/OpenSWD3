@@ -6,7 +6,7 @@
 
 权威LST主体为`0x0046E9C0..0x0046EBA9`，从proc到endp共196行、169条实际指令、4个call、1个条件跳转、1个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。函数是thiscall并由callee弹出两个dword参数。
 
-this是组A角色；参数0是`0x0053AF70 + index * 0x20`的32-byte护援源记录，参数1是首组A角色当前`+4`返回的56-byte调整源记录。正常尾返回ECX为角色基础记录token、EDX为新0xA4资料token；EAX高word保留角色基础记录token高word，低word来自资料`+0x60`。
+this是组A角色；参数0是`0x0053AF70 + index * 0x20`的32-byte护援源记录，参数1是首组A角色`+0`基础token对应的56-byte调整源记录。正常尾返回ECX为角色基础记录token、EDX为新0xA4资料token；EAX高word保留角色基础记录token高word，低word来自资料`+0x60`。
 
 ## 2. 分配、清零和资料callee
 
@@ -33,9 +33,18 @@ this是组A角色；参数0是`0x0053AF70 + index * 0x20`的32-byte护援源记�
 
 ## 5. shared owner与两处caller回收
 
-startup两处caller分别位于随机护援分支和顺序护援分支。两者都先从首组A角色查询live `+4` token，再把新角色placement、该token和对应角色this传入本函数。现在两个callsite统一经`add_supplemental_actor`直连typed物化器，旧配置槽改为reserved且生产零调用；typed-stop阻断角色激活、镜像mode、party count、使用标记和后续护援。
+startup两处caller分别位于随机护援分支和顺序护援分支。两者以固定参数1
+调用478670，读取首个角色`+0`基础token；旧文档所写的`+4`来源不正确。
+新角色placement、所选token和对应角色this传入本函数。两处统一经
+`add_supplemental_actor`直连，typed-stop阻断激活、镜像、人数及后续护援。
 
-首角色`+4`的owner具有原始动态别名：普通启动中它指向四份startup配置源之一；若第一个stale护援占据角色0，物化尾会把它改为角色0基础记录token，第二个护援随即读取该角色基础记录。typed caller按live token在配置源数组和首角色基础记录间解析，不复制第二份物理调整源。
+首角色基础记录始终借用同一份字节。若护援占据角色0，计算会就地改写该记录；
+下一个护援读取改写后的内容，不从四份配置源重新选取调整数据。
+
+B11调用方改为借用实际placement，MON加载后才读取复制内容及角色号。
+原先提前复制placement、缓存加载前角色号的行为已修正。已有自有记录接口
+委托同一实现；可选坐标view在原placement复制点发布，不在加载前提前写入。
+完整接线与验证状态见[额外队员接线](battle-startup-supplemental-runtime-binding.md)。
 
 ## 6. 验证状态
 

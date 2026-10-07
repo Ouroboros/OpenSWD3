@@ -4,6 +4,7 @@
 
 #include <bit>
 #include <cstddef>
+#include <optional>
 
 namespace openswd3::battle {
 namespace {
@@ -15,7 +16,7 @@ using compat::u16;
 using compat::u32;
 
 [[nodiscard]] constexpr std::array<u32, 8>
-pack_source(const LegacyBattleGroupAPlacementRecord& source) noexcept {
+pack_source(const LegacyBattleGroupANpcPlacementView& source) noexcept {
     return {
         source.prefix[0U],
         source.prefix[1U],
@@ -112,15 +113,16 @@ adjust_unsigned_byte_base(const u8 base, const i16 coefficient) noexcept {
 }  // namespace
 
 LegacyBattleGroupANpcMaterializationResult
-materialize_legacy_battle_group_a_npc(
+materialize_legacy_battle_group_a_npc_from_view(
     LegacyBattleGroupAConfigurationState* const state,
-    const LegacyBattleGroupAPlacementRecord* const source,
+    const LegacyBattleGroupANpcPlacementView* const source,
     const std::array<u32, 14>* const modifier_record,
     const u32 actor_token,
     const u32 source_token,
     const u32 modifier_record_token,
     const u32 window_token,
-    LegacyBattleGroupASummonMaterializationPort& port
+    LegacyBattleGroupASummonMaterializationPort& port,
+    const std::span<LegacyBattleActorCoordinatesState* const> coordinate_owners
 ) {
     LegacyBattleGroupANpcMaterializationResult result;
     auto reply = invoke(
@@ -206,11 +208,16 @@ materialize_legacy_battle_group_a_npc(
 
     const auto packed_source = pack_source(*source);
     state->placement_primary = packed_source;
+    for (auto* const owner : coordinate_owners) {
+        owner->position_x = source->position_x;
+        owner->position_y = source->position_y;
+    }
+
     state->placement_secondary = packed_source;
     result.placement_dwords_copied = 16U;
     state->source_runtime_value = source->active;
-    state->placement_word = role_id;
-    if (role_id == 0U) {
+    state->placement_word = source->role_id;
+    if (state->placement_word == 0U) {
         static_cast<void>(invoke(
             port,
             result,
@@ -307,6 +314,43 @@ materialize_legacy_battle_group_a_npc(
     result.return_ecx = state->actor_record_token;
     result.return_edx = state->profile_token;
     return result;
+}
+
+LegacyBattleGroupANpcMaterializationResult
+materialize_legacy_battle_group_a_npc(
+    LegacyBattleGroupAConfigurationState* const state,
+    const LegacyBattleGroupAPlacementRecord* const source,
+    const std::array<u32, 14>* const modifier_record,
+    const u32 actor_token,
+    const u32 source_token,
+    const u32 modifier_record_token,
+    const u32 window_token,
+    LegacyBattleGroupASummonMaterializationPort& port
+) {
+    std::optional<LegacyBattleGroupANpcPlacementView> view;
+    if (source != nullptr) {
+        view.emplace(
+            LegacyBattleGroupANpcPlacementView{
+                source->prefix,
+                source->role_id,
+                source->position_x,
+                source->position_y,
+                source->field_1a,
+                source->active,
+            }
+        );
+    }
+
+    return materialize_legacy_battle_group_a_npc_from_view(
+        state,
+        view ? &*view : nullptr,
+        modifier_record,
+        actor_token,
+        source_token,
+        modifier_record_token,
+        window_token,
+        port
+    );
 }
 
 }  // namespace openswd3::battle

@@ -5,6 +5,7 @@
 
 #include <array>
 #include <span>
+#include <vector>
 
 namespace openswd3::battle {
 
@@ -42,6 +43,7 @@ public:
         LegacyBattleGroupAConfigurationDiagnosticPort& diagnostic,
         compat::u32 window_token
     );
+    [[nodiscard]] compat::u32 allocate_profile();
     [[nodiscard]] std::span<compat::u8>
     record_bytes(compat::u32 token) noexcept;
 
@@ -55,6 +57,7 @@ private:
     LegacyBattleActionDispatchState& action_;
     std::array<compat::u32, kLegacyBattleActorGroupAElementCount>
         allocations_{};
+    std::vector<compat::u32> profile_allocations_;
     std::size_t constructed_{};
     bool construction_stopped_{};
 };

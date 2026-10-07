@@ -410,6 +410,38 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     party_metric_source_typed_stop,
 };
 
+class LegacyBattleStartupSupplementalPort
+    : public LegacyBattleGroupASummonMaterializationPort {
+public:
+    [[nodiscard]] virtual compat::u32
+    query_supplemental_candidate(compat::u16 id) = 0;
+    [[nodiscard]] virtual compat::u32
+    random_supplemental_candidate(compat::u32 bound) = 0;
+};
+
+struct LegacyBattleStartupSupplementalResult {
+    LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};
+    compat::u32 supplemental_actor_count{};
+    std::array<LegacyBattleActorRecordSelectionResult, 10>
+        supplemental_record_selections{};
+    compat::u32 supplemental_record_selection_calls{};
+    std::array<LegacyBattleGroupANpcMaterializationResult, 10>
+        supplemental_materializations{};
+    compat::u32 supplemental_materialization_calls{};
+};
+
+struct LegacyBattleActionDispatchState;
+
+// 452449..4526F2. SDL supplies its existing action owner; standalone callers
+// retain coordinates and mirror state in the startup owner.
+[[nodiscard]] LegacyBattleStartupSupplementalResult
+initialize_legacy_battle_startup_supplemental(
+    LegacyBattleStartupState& state,
+    LegacyBattleStartupSupplementalPort& port,
+    const LegacyBattleActorRecordSelectionRequest& record_selection = {},
+    LegacyBattleActionDispatchState* action = nullptr
+);
+
 struct LegacyBattleStartupPartyMetricsResult {
     LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};
     compat::u32 writes{};

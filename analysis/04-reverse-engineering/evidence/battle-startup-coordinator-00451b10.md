@@ -241,7 +241,12 @@ B11核心与SDL现从实际角色记录计算，不再消费三个opaque数值�
 
 每个补位记录写role、`X=750`、`Y=310`、active=1；mirror mode为1时X按低word变为`640-750`。随机分支`0x00452511`与顺序分支`0x00452646`都以固定参数1和首个Group-A actor直接组合已关闭`0x00478670` typed选择器，只读取首个actor `+0x00`的角色基础记录token；即使该token与live来源记录token相等，也不得按内容改选`+0x04`。selector返回后保持“先压入所选记录token、再压入当前新角色token”的materialization参数顺序；随后配置当前Group-A槽、激活，mirror mode为0时才调用actor mode。最后递增队伍总数与补位word；随机分支还写used字节。
 
-两处selector的真实返回地址分别为`0x00452516/0x0045264B`。selector typed-stop保留此前候选role、坐标、mirror及基础token发布，阻断当前护援materialization、激活、剩余候选和全部startup后缀。旧seed端口ordinal改为reserved且生产零调用。随机重试不加modern上限，保持原非终止域；端口若违背`random(bound)`合同返回越界值，则在首次候选数组访问处typed-stop。
+两处selector的真实返回地址分别为`0x00452516/0x0045264B`。selector typed-stop保留此前候选role、placement坐标和mirror，既有基础token不变，阻断当前护援materialization、激活、剩余候选和全部startup后缀。旧seed端口ordinal改为reserved且生产零调用。随机重试不加modern上限，保持原非终止域；端口若违背`random(bound)`合同返回越界值，则在首次候选数组访问处typed-stop。
+
+B11核心与SDL共用候选选择及物化入口；随机值先截取低WORD，源placement
+在MON加载之后重读。基础记录来自预先构造的实际存储，不用actor地址补造。
+角色激活和镜像直接写实际字段；物化返回后重读人数，保留失败前缀。
+详见[额外队员接线](battle-startup-supplemental-runtime-binding.md)。
 
 ## 11. 最终阶段与返回
 

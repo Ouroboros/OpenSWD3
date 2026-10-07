@@ -4,6 +4,15 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：入战额外队员
+
+核心和SDL共用额外队员选择与配置，接入实际剧情资格、共享随机源、MON
+资料及已构造角色。保留旧计数、随机重试、加载后的记录重读及失败前缀。
+真实资料分配和释放已登记，重复配置保持基础记录。
+core/ASan定向setup各1/1、SDL构建通过；未启动游戏。
+证据见[额外队员接线](../analysis/04-reverse-engineering/evidence/battle-startup-supplemental-runtime-binding.md)。
+B10保持315/422；完整初始化、帧与实际续玩未完成。
+
 ## B11：入战角色指标
 
 核心和SDL从实际角色记录计算三组状态比例及辅助值，保持有符号字段、
