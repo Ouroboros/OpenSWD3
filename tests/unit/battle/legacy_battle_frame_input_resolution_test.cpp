@@ -796,7 +796,11 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
             if (stage == 2U) {
                 openswd3::battle::LegacyBattleActorPublicationState publication;
                 openswd3::battle::reset_legacy_battle_startup_blocks(
-                    fixture->startup, publication, fixture->metrics, runtime
+                    fixture->startup,
+                    publication,
+                    fixture->metrics,
+                    runtime,
+                    fixture->port.battle_frame_input_resolution_state()
                 );
             }
 

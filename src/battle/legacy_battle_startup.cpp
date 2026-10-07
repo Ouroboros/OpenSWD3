@@ -302,7 +302,8 @@ void reset_legacy_battle_startup_blocks(
     LegacyBattleStartupState& state,
     LegacyBattleActorPublicationState& publication,
     LegacyBattleActorMetricState& metrics,
-    LegacyBattleTargetSelectionRuntimeState& target_selection
+    LegacyBattleTargetSelectionRuntimeState& target_selection,
+    LegacyBattleFrameInputResolutionState& menu
 ) noexcept {
     auto& reset = state.reset;
     reset.block_525470.fill(0U);
@@ -345,6 +346,9 @@ void reset_legacy_battle_startup_blocks(
         record.value_14 = 0U;
         record.value_18 = 0U;
     }
+
+    // 451CB5..451CC7: other menu state survives this entry prefix.
+    menu.equipment_grid_selections.fill(1U);
 }
 
 namespace {
@@ -1186,12 +1190,10 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         state,
         port.actor_publication_state(),
         port.actor_metric_state(),
-        port.battle_target_selection_runtime_state()
+        port.battle_target_selection_runtime_state(),
+        port.battle_frame_input_resolution_state()
     );
 
-    port.battle_frame_input_resolution_state().equipment_grid_selections.fill(
-        1U
-    );
     auto& control_action = port.battle_control_action();
     asset_runtime::initialize_legacy_action_record(control_action);
     const auto control_reply = invoke(

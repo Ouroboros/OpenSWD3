@@ -4,6 +4,14 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：入战菜单状态选择性重置
+
+核心与SDL共用规定的菜单清写，删除SDL整体覆盖。两次进入时仅重置四项
+装备选择，保留旧菜单状态，鼠标坐标仍在稍后原时点发布。
+core/ASan setup及SDL构建通过；既有测试窄化警告未改，未运行游戏。
+详见[保留范围](../analysis/04-reverse-engineering/evidence/battle-entry-menu-state-preservation.md)。
+完整初始化、帧与实际续玩继续进行；B10仍315/422、316 pending_audit。
+
 ## B11：核心菜单角色检查参数共享
 
 删除未被生产写入的参数副本，核心菜单检查直接读取已有共享存储。

@@ -1907,7 +1907,8 @@ void test_battle_startup(openswd3::test::Context& test) {
             state,
             ports.actor_publication_state(),
             state.actor_metrics,
-            ports.battle_target_selection_runtime_state()
+            ports.battle_target_selection_runtime_state(),
+            ports.battle_frame_input_resolution_state()
         );
         test.expect_true(
             state.display_surfaces == std::array<u32, 2>{11U, 22U} &&
@@ -1921,6 +1922,81 @@ void test_battle_startup(openswd3::test::Context& test) {
                         .special_action_count == 0U,
             "startup selective reset retains old display and actor owners"
         );
+    }
+
+    {
+        const auto state = std::make_unique<LegacyBattleStartupState>();
+        StartupPorts ports;
+        auto& menu = ports.battle_frame_input_resolution_state();
+        for (const u32 cycle : {0U, 1U}) {
+            menu.previous_mouse_x = -71;
+            menu.previous_mouse_y = 719;
+            menu.pointer_activity_gate = 0x80000001U;
+            menu.list_selection = 17U + cycle;
+            menu.grid_selection = 19U;
+            menu.narrow_list_selection = 23U;
+            menu.selection_actor_code = 29U;
+            menu.current_equipment_selection = 31U;
+            menu.target_cursor = 37U;
+            menu.hovered_equipment = 41U;
+            menu.hovered_secondary = 43U;
+            menu.panel_scroll_a = 47U;
+            menu.panel_origin_y = 53U;
+            menu.target_selection_gate = 59U;
+            menu.panel_row_limit_a = 0x80U;
+            menu.panel_row_limit_b = 0xFFU;
+            menu.panel_row_limit_c = 0xFFFFU;
+            menu.selection_block_word = 0x8000U;
+            menu.target_selection_suppression = 1U;
+            menu.lower_panel_top = 61U;
+            menu.final_panel_bottom = 67U;
+            menu.target_markers.fill(0xA5U);
+            menu.equipment_grid_selections = {9U, 8U, 7U, 6U};
+            openswd3::battle::reset_legacy_battle_startup_blocks(
+                *state,
+                ports.actor_publication_state(),
+                state->actor_metrics,
+                ports.battle_target_selection_runtime_state(),
+                menu
+            );
+            test.expect_true(
+                menu.equipment_grid_selections ==
+                        std::array<u32, 4>{1U, 1U, 1U, 1U} &&
+                    menu.previous_mouse_x == -71 &&
+                    menu.previous_mouse_y == 719 &&
+                    menu.pointer_activity_gate == 0x80000001U &&
+                    menu.list_selection == 17U + cycle &&
+                    menu.grid_selection == 19U &&
+                    menu.narrow_list_selection == 23U &&
+                    menu.selection_actor_code == 29U &&
+                    menu.current_equipment_selection == 31U &&
+                    menu.target_cursor == 37U &&
+                    menu.hovered_equipment == 41U &&
+                    menu.hovered_secondary == 43U &&
+                    menu.panel_scroll_a == 47U && menu.panel_origin_y == 53U &&
+                    menu.target_selection_gate == 59U &&
+                    menu.panel_row_limit_a == 0x80U &&
+                    menu.panel_row_limit_b == 0xFFU &&
+                    menu.panel_row_limit_c == 0xFFFFU &&
+                    menu.selection_block_word == 0x8000U &&
+                    menu.target_selection_suppression == 1U &&
+                    menu.lower_panel_top == 61U &&
+                    menu.final_panel_bottom == 67U &&
+                    all_equal(menu.target_markers, 0xA5U),
+                "entry prefix resets only four equipment selections in the shared menu state"
+            );
+            openswd3::input_time_rng::LegacyMouseFrame mouse;
+            openswd3::battle::publish_legacy_battle_startup_mouse_position(
+                mouse, menu
+            );
+            test.expect_true(
+                menu.previous_mouse_x == 320 && menu.previous_mouse_y == 200 &&
+                    menu.list_selection == 17U + cycle &&
+                    menu.pointer_activity_gate == 0x80000001U &&
+                    all_equal(menu.target_markers, 0xA5U),
+                "later entry mouse publication retains menu selection, gates and markers"
+            );
+        }
     }
 
     {

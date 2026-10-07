@@ -28,7 +28,8 @@ LST物理范围：157022..157065、166616..166664、174615..174666、
 `LegacyBattleActionDispatchPort`虚继承现有frame-input状态端口，组A直接借用。
 菜单绑定继续引用同一frame-input对象，不增加同步副本。
 
-核心startup在原写点填四项1；SDL在控制动作重置前写同一缓存。
+核心startup与SDL现通过同一选择性重置入口，在控制动作重置前写四项1。
+SDL不再整体覆盖其他菜单状态，见[入战保留范围](battle-entry-menu-state-preservation.md)。
 全局重置改为四项全写1。状态类型的默认值明确为四项1，与其既有
 grid_selection等重置后默认值一致；真实入战及全局重置仍显式执行写入。
 组A保留四次分开的写入及交错，不把它们移动到角色重置前。

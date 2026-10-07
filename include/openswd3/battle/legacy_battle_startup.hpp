@@ -642,7 +642,8 @@ void reset_legacy_battle_startup_blocks(
     LegacyBattleStartupState& state,
     LegacyBattleActorPublicationState& publication,
     LegacyBattleActorMetricState& metrics,
-    LegacyBattleTargetSelectionRuntimeState& target_selection
+    LegacyBattleTargetSelectionRuntimeState& target_selection,
+    LegacyBattleFrameInputResolutionState& menu
 ) noexcept;
 
 // sub_451B10 with adjacent display-surface helper sub_451A90.

@@ -2810,11 +2810,11 @@ public:
             battle_runtime_,
             actor_publication_state(),
             actor_metric_state(),
-            battle_target_selection_runtime_state()
+            battle_target_selection_runtime_state(),
+            battle_frame_input_resolution_state()
         );
         auto_dialog_input_state_ = {};
         battle_frame_coordinator_state_ = {};
-        battle_frame_input_resolution_state() = {};
         openswd3::battle::reset_legacy_battle_dispatch_preserving_actors(
             battle_action_dispatch_, battle_final_actor_
         );
@@ -2824,11 +2824,6 @@ public:
         battle_victory_rewards_ = {};
         battle_message_state_ = 0U;
         next_battle_script_token_ = 0x01000000U;
-
-        // 451CB5..451CC7 resets all four shared equipment selections.
-        battle_frame_input_resolution_state().equipment_grid_selections.fill(
-            1U
-        );
 
         // 451CCD..451CEF resets the shared dialog-end button (4C9708).
         auto& control_action = world_dialog_runtime_state_.end_dialog_action;
