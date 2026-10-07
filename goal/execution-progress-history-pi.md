@@ -4,6 +4,14 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：战斗文字共享参数初值
+
+脚本初始文字参数按原静态DWORD恢复，保留脚本有符号写入和清理时点。
+红回归确认初值差异；core/ASan setup、八组写入/停止向量及SDL构建通过。
+动态文字构造、完整帧及实际续玩仍未验收，未运行游戏。
+详见[脚本主证据](../analysis/04-reverse-engineering/evidence/battle-script-dispatch-00469d20.md)。
+B10仍315/422，316 pending_audit。
+
 ## B11：入战消息保留
 
 SDL不再在入战时无条件清零消息；消息按原人数条件更新。

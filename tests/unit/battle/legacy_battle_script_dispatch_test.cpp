@@ -98,6 +98,7 @@ class Port final : public LegacyBattleScriptDispatchPort,
 public:
     std::vector<LegacyBattleScriptDispatchCallRequest> calls;
     std::vector<u32> frame_results;
+    std::vector<std::array<u32, 2>> frame_parameter_snapshots;
     std::size_t frame_index{};
     u32 allocation_token{0x1000U};
     u32 query_result{};
@@ -128,7 +129,7 @@ public:
 
     LegacyBattleScriptDispatchCallReply invoke_battle_script(
         LegacyBattleScriptWorkspace& workspace,
-        LegacyBattleScriptDispatchBindings&,
+        LegacyBattleScriptDispatchBindings& bindings,
         const LegacyBattleScriptDispatchCallRequest& request
     ) override {
         calls.push_back(request);
@@ -140,6 +141,9 @@ public:
         };
         switch (request.call) {
         case LegacyBattleScriptDispatchCall::frame:
+            frame_parameter_snapshots.push_back(
+                {bindings.shared.frame_value, workspace.cursor}
+            );
             if (frame_index < frame_results.size()) {
                 reply.eax = frame_results[frame_index++];
             }
@@ -5430,6 +5434,54 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
 }
 
 void test_battle_script_dispatch(openswd3::test::Context& test) {
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(0);
+        const auto result = openswd3::battle::run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture->shared.frame_value == 0x0000FFFFU &&
+                fixture->workspace.cursor == 0U && port.calls.empty(),
+            "initial script text parameter is the initialized DWORD 0000FFFF and survives a default opcode"
+        );
+    }
+
+    constexpr std::array<std::array<u32, 2>, 4> text_parameters{{
+        {0x0000U, 0x00000000U},
+        {0x7FFFU, 0x00007FFFU},
+        {0x8000U, 0xFFFF8000U},
+        {0xFFFFU, 0xFFFFFFFFU},
+    }};
+    for (const auto& parameter : text_parameters) {
+        for (const bool stopped : {false, true}) {
+            auto fixture = std::make_unique<Fixture>();
+            Port port;
+            fixture->opcode(4);
+            fixture->write_u16(2U, static_cast<u16>(parameter[0]));
+            port.typed_stop_enabled = stopped;
+            port.typed_stop_call = LegacyBattleScriptDispatchCall::frame;
+            const auto result =
+                openswd3::battle::run_legacy_battle_script_dispatch(
+                    fixture->workspace, fixture->bindings(), port
+                );
+            test.expect_true(
+                result.status ==
+                        (stopped
+                             ? LegacyBattleScriptDispatchStatus::
+                                   frame_typed_stop
+                             : LegacyBattleScriptDispatchStatus::completed) &&
+                    fixture->shared.frame_value == parameter[1] &&
+                    fixture->workspace.cursor == (stopped ? 0U : 4U) &&
+                    port.frame_parameter_snapshots ==
+                        std::vector<std::array<u32, 2>>{{parameter[1], 0U}},
+                "case4 publishes the signed WORD before the frame and preserves its write on a frame stop"
+            );
+        }
+    }
+
     {
         auto fixture = std::make_unique<Fixture>();
         fixture->write_u16(20U, 1U);

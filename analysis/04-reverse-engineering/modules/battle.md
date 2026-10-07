@@ -12,6 +12,8 @@ FFD实际文件读取已接SDL与共享startup记录，失败保留和真实资�
 [FFD接线](../evidence/battle-definition-runtime-binding.md)。
 战斗脚本加载、换页与关闭共用实际文件，定向验证通过，见
 [脚本文件生命周期](../evidence/battle-script-file-runtime-binding.md)。
+文字共享参数初值已修正并通过定向验证，动态文字构造仍有未决项，见
+[脚本主证据](../evidence/battle-script-dispatch-00469d20.md)。
 核心菜单角色参数改读既有共享存储，重置前后及许可顺序验证通过，见
 [共享参数](../evidence/battle-menu-option-role-sharing.md)。SDL该分支仍未接通。
 核心与SDL共用入战菜单选择性重置，保留范围与定向验证见
