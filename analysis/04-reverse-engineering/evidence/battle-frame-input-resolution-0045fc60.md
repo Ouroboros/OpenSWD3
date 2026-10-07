@@ -26,6 +26,8 @@ case 0在`0x0045FD14/16`以组A排除低byte和组B数量作**signed jge**比较
 
 case 1要求active actor非零。面板矩形严格使用live origin：X为`origin+0x0A..origin+0x76`，Y为`origin+0x28..origin+0x88`；按`0x36`列宽和`0x18`行高计算八项索引。索引必须signed小于`startup extra+5`，permission byte非零。索引4以上还以`active-8`组A对象token和物理选项role id调用资格callee，并在callee后动态重读permission。有效项变为一基selection，变化时播放样本`0x2E`，再按extra+5夹上界并发布双gate。
 
+case 1的角色参数现直接从已有共享存储读取：索引4读取4FE5D2/D3间隙，索引5..7读取4FE5D4与4FE5D8的对应WORD，不再使用独立option_role_ids数组。入战清零DWORD而保留间隙，消费者立即可见；核心数据来源修正与SDL尚未进入此段的边界见[共享参数证据](battle-menu-option-role-sharing.md)。
+
 case 1无效矩形先清mouse action gate与selected option，再按case 0同一party owner遍历全部成员；每个命中都覆盖selected option，不提前退出，最后仍返回0。
 
 case 30按三列、每列五行严格矩形计算`5*column+row+1`，变化时播放样本，先发布live值再以signed比较夹到10。完全miss清mouse action gate和selected option全1。

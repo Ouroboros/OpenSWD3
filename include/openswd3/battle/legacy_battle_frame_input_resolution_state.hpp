@@ -46,7 +46,6 @@ struct LegacyBattleFrameInputResolutionState {
     compat::u32 lower_panel_aux_index{};            // 0x004FDC64
     compat::u32 final_panel_top{};                  // 0x004FD790
     compat::u32 final_panel_bottom{};               // 0x004FD794
-    std::array<compat::u16, 8> option_role_ids{};   // 0x004FE5CA view
     // Current-equipment selection cache at 0x004FF578.
     std::array<compat::u32, 4> equipment_grid_selections{1U, 1U, 1U, 1U};
     std::array<compat::u8, 10> target_markers{};  // 0x00524118 prefix

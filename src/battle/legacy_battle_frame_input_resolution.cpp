@@ -662,18 +662,32 @@ coordinate_legacy_battle_frame_input_resolution(
                     return return_zero();
                 }
                 if (selected >= 4U) {
-                    if (selected >= state.option_role_ids.size()) {
-                        return stop(
-                            LegacyBattleFrameInputResolutionStatus::
-                                option_role_typed_stop
+                    // 45FED1: 4FE5CA + selected*2, not the action list at CC.
+                    // The preceding permission range limits selected to 4..7.
+                    u16 option_role{};
+                    if (selected == 4U) {
+                        const auto& gap =
+                            port.battle_target_selection_runtime_state()
+                                .action_remap_gap;
+                        option_role = static_cast<u16>(
+                            static_cast<u16>(gap[0]) |
+                            (static_cast<u16>(gap[1]) << 8U)
+                        );
+                    } else {
+                        const u32 word_index = selected - 5U;
+                        option_role = static_cast<u16>(
+                            bindings.startup.reset
+                                .block_4fe5d4[word_index / 2U] >>
+                            ((word_index % 2U) * 16U)
                         );
                     }
+
                     const u32 actor_token = group_a_token(active_actor - 8U);
                     const auto validation = call(
                         LegacyBattleFrameInputResolutionCall::
                             validate_option_actor,
                         actor_token,
-                        {state.option_role_ids[selected]}
+                        {option_role}
                     );
                     if (validation.eax == 0U ||
                         permission_byte(bindings.startup.reset, selected) ==

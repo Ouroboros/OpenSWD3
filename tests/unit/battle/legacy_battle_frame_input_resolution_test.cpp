@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -63,6 +64,10 @@ public:
         const LegacyBattleFrameInputResolutionCallRequest& request
     ) override {
         calls.push_back(request);
+        if (on_call) {
+            on_call(request);
+        }
+
         const auto found = replies.find(request.call);
         auto reply = found == replies.end() ? default_reply : found->second;
         if (request.call ==
@@ -109,6 +114,8 @@ public:
         LegacyBattleFrameInputResolutionCallReply>
         replies;
     LegacyBattleFrameInputResolutionCallReply default_reply{};
+    std::function<void(const LegacyBattleFrameInputResolutionCallRequest&)>
+        on_call;
     std::vector<openswd3::compat::u8> command_stream;
     std::vector<std::array<u32, 2>> samples;
 };
@@ -742,6 +749,115 @@ void test_battle_frame_input_resolution(openswd3::test::Context& test) {
                     std::vector<std::array<u32, 2>>{{0x2EU, 0xFFFFFFFBU}},
             "case one accepts an enabled grid option and preserves the signed selection sample"
         );
+    }
+
+    for (u32 selected = 0U; selected < 4U; ++selected) {
+        const auto fixture = std::make_unique<Fixture>();
+        fixture->message = 1U;
+        fixture->final_actor.queued_actor_code = 8U;
+        fixture->set_mouse(11, static_cast<i32>(41U + selected * 24U));
+        fixture->startup.reset.value_524414 = 0x01010101U;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_frame_input_resolution(
+                fixture->bindings(), fixture->port
+            );
+        test.expect_true(
+            result.return_eax == 1U && fixture->port.calls.empty() &&
+                fixture->port.battle_input_dispatch_state().selection_index ==
+                    selected + 1U,
+            "first four menu options do not invoke role validation " +
+                std::to_string(selected)
+        );
+    }
+
+    // 45FED1 reads 4FE5CA + selected*2, including the retained D2/D3 gap.
+    for (u32 selected = 4U; selected < 8U; ++selected) {
+        const auto fixture = std::make_unique<Fixture>();
+        fixture->message = 1U;
+        fixture->final_actor.queued_actor_code = 8U;
+        fixture->set_mouse(65, static_cast<i32>(41U + (selected - 4U) * 24U));
+        fixture->port.default_reply.eax = 1U;
+        auto& runtime = fixture->port.battle_target_selection_runtime_state();
+        runtime.action_remap_gap = {0x34U, 0x92U};
+        fixture->startup.reset.block_4fe5d4[0] = 0xFFFF8000U;
+        fixture->startup.reset.block_4fe5d4[1] = 0xCAFE1234U;
+        constexpr std::array<std::array<u32, 4>, 3> expected{{
+            {0x9234U, 0x8000U, 0xFFFFU, 0x1234U},
+            {0xBEEFU, 6U, 42U, 0x8001U},
+            {0xBEEFU, 0U, 0U, 0U},
+        }};
+        for (u32 stage = 0U; stage < 3U; ++stage) {
+            if (stage == 1U) {
+                runtime.action_remap_gap = {0xEFU, 0xBEU};
+                fixture->startup.reset.block_4fe5d4[0] = 0x002A0006U;
+                fixture->startup.reset.block_4fe5d4[1] = 0x00008001U;
+            }
+
+            if (stage == 2U) {
+                openswd3::battle::LegacyBattleActorPublicationState publication;
+                openswd3::battle::reset_legacy_battle_startup_blocks(
+                    fixture->startup, publication, fixture->metrics, runtime
+                );
+            }
+
+            fixture->startup.reset.value_53bf22 = 3U;
+            fixture->startup.reset.value_524418 = 0x01010101U;
+            fixture->port.battle_frame_input_resolution_state()
+                .previous_mouse_x = -1;
+            fixture->port.calls.clear();
+            const auto result = openswd3::battle::
+                coordinate_legacy_battle_frame_input_resolution(
+                    fixture->bindings(), fixture->port
+                );
+            test.expect_true(
+                result.return_eax == 1U && fixture->port.calls.size() == 1U &&
+                    fixture->port.calls[0].call ==
+                        LegacyBattleFrameInputResolutionCall::
+                            validate_option_actor &&
+                    fixture->port.calls[0].actor_token == 0x005029D0U &&
+                    fixture->port.calls[0].arguments[0] ==
+                        expected[stage][selected - 4U] &&
+                    fixture->port.battle_input_dispatch_state()
+                            .selection_index == selected + 1U,
+                "menu role check reads shared words before and after startup reset " +
+                    std::to_string(selected) + "/" + std::to_string(stage)
+            );
+        }
+    }
+
+    for (const bool permitted : {false, true}) {
+        for (const bool accepted : {false, true}) {
+            for (const bool revoked : {false, true}) {
+                const auto fixture = std::make_unique<Fixture>();
+                fixture->message = 1U;
+                fixture->final_actor.queued_actor_code = 8U;
+                fixture->set_mouse(65, 41);
+                fixture->startup.reset.value_524418 = permitted ? 1U : 0U;
+                fixture->port.battle_input_dispatch_state().selection_index =
+                    9U;
+                fixture->port.default_reply.eax = accepted ? 1U : 0U;
+                fixture->port.on_call = [&](const auto& request) {
+                    if (revoked &&
+                        request.call ==
+                            LegacyBattleFrameInputResolutionCall::
+                                validate_option_actor) {
+                        fixture->startup.reset.value_524418 = 0U;
+                    }
+                };
+                const auto result = openswd3::battle::
+                    coordinate_legacy_battle_frame_input_resolution(
+                        fixture->bindings(), fixture->port
+                    );
+                const bool selected = permitted && accepted && !revoked;
+                test.expect_true(
+                    result.return_eax == (selected ? 1U : 0U) &&
+                        fixture->port.calls.size() == (permitted ? 1U : 0U) &&
+                        fixture->port.battle_input_dispatch_state()
+                                .selection_index == (selected ? 5U : 9U),
+                    "menu role check preserves permission and callback rejection order"
+                );
+            }
+        }
     }
 
     {

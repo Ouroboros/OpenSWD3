@@ -12,6 +12,8 @@ FFD实际文件读取已接SDL与共享startup记录，失败保留和真实资�
 [FFD接线](../evidence/battle-definition-runtime-binding.md)。
 战斗脚本加载、换页与关闭共用实际文件，定向验证通过，见
 [脚本文件生命周期](../evidence/battle-script-file-runtime-binding.md)。
+核心菜单角色参数改读既有共享存储，重置前后及许可顺序验证通过，见
+[共享参数](../evidence/battle-menu-option-role-sharing.md)。SDL该分支仍未接通。
 
 B11的MON文件端口已接入实际打开、定位与读取，独立发布验证见
 [文件接线证据](../evidence/battle-mon-file-runtime-binding.md)。
