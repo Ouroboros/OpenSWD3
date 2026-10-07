@@ -35,7 +35,7 @@ MON解析流另按[解析流接线证据](../evidence/battle-mon-stream-runtime-
 [额外队员接线](../evidence/battle-startup-supplemental-runtime-binding.md)。
 入战坐标排序与行动进度共用实际角色和随机源，保留循环与失败顺序，见
 [排序与进度接线](../evidence/battle-startup-order-progress-runtime-binding.md)。
-尾部人数判断已接共享消息，保留原回绕和条件写入，见
+尾部人数判断已接共享消息，SDL入口不再额外清零；原回绕和条件写入见
 [尾部接线](../evidence/battle-startup-tail-runtime-binding.md)。
 TOML战斗速度已接入入战阈值，保留默认值与原配置字节范围，见
 [速度接线](../evidence/battle-speed-runtime-binding.md)。

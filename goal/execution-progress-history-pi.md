@@ -4,6 +4,14 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：入战消息保留
+
+SDL不再在入战时无条件清零消息；消息按原人数条件更新。
+同一消息状态的多组入口输入、零敌返回和提前停止验证通过。
+core/ASan setup及SDL构建通过，未运行游戏。
+测试人数输入修正与证据见[尾部及入口消息](../analysis/04-reverse-engineering/evidence/battle-startup-tail-runtime-binding.md)。
+完整帧及实际续玩未验收；B10仍315/422、316 pending_audit。
+
 ## B11：入战菜单状态选择性重置
 
 核心与SDL共用规定的菜单清写，删除SDL整体覆盖。两次进入时仅重置四项

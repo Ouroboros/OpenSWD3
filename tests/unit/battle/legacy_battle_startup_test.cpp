@@ -196,6 +196,7 @@ public:
     std::array<openswd3::asset_runtime::LegacyActionRecord, 3> dialog_actions{};
     std::vector<openswd3::asset_runtime::LegacyActionRecord> control_snapshots;
     std::vector<std::array<i32, 4>> mouse_rebase_snapshots;
+    std::vector<u32> entry_message_snapshots;
     LegacyBattleStartupState* observed_display_state{};
     std::vector<std::array<u32, 5>> display_snapshots;
     std::deque<u32> display_create_replies;
@@ -258,6 +259,7 @@ public:
         LegacyBattleStartupCallReply reply;
         switch (request.call) {
         case LegacyBattleStartupCall::read_transparent_pixel_pair:
+            entry_message_snapshots.push_back(battle_message_state());
             control_snapshots.push_back(battle_control_action());
             reset_observations.push_back({
                 actor_metric_state().group_b_count,
@@ -3302,10 +3304,55 @@ void test_battle_startup(openswd3::test::Context& test) {
     }
 
     {
+        const auto state = std::make_unique<LegacyBattleStartupState>();
+        StartupPorts ports;
+        ports.battle_message_state() = 0x80000009U;
+        for (u32 cycle = 0U; cycle < 4U; ++cycle) {
+            const u32 previous_message = cycle < 2U ? 0x80000009U : 0x67U;
+            // 451D19..451D1F increments the supplied count; each vector
+            // supplies zero while retaining the same shared message owner.
+            state->actor_metrics.group_a_count = 0U;
+            ports.query_values[30U] = cycle == 1U ? 0U : 1U;
+            ports.definition.enemy_count = cycle == 3U ? 0U : 1U;
+            ports.random_values = {0U, 0U};
+            const auto result =
+                openswd3::battle::initialize_legacy_battle_startup(
+                    *state,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    request(14U)
+                );
+            const auto expected_status = cycle == 3U
+                ? openswd3::battle::LegacyBattleStartupStatus::no_enemies
+                : openswd3::battle::LegacyBattleStartupStatus::completed;
+            test.expect_true(
+                result.status == expected_status,
+                "message preservation vectors reach the normal or zero-enemy exit"
+            );
+            test.expect_true(
+                result.message_state_published == (cycle == 1U) &&
+                    ports.battle_message_state() ==
+                        (cycle == 0U ? 0x80000009U : 0x67U),
+                "repeated startup only replaces the retained message when the tail condition holds"
+            );
+            test.expect_true(
+                ports.entry_message_snapshots.size() == cycle + 1U &&
+                    ports.entry_message_snapshots.back() == previous_message,
+                "startup entry prefix preserves the live message before the conditional tail"
+            );
+        }
+    }
+
+    {
         LegacyBattleStartupState state;
         state.party[0U].progress.progress = 0xFACE0011U;
         state.party[0U].progress.progress_write_accessible = false;
         StartupPorts ports;
+        ports.battle_message_state() = 0xFFFFFFFFU;
         ports.query_values[30U] = 1U;
         ports.random_values = {0U, 0U, 8U};
         ports.definition.enemy_count = 1U;
@@ -3336,8 +3383,9 @@ void test_battle_startup(openswd3::test::Context& test) {
                     LegacyBattleStartupCall::
                         reserved_initialize_party_actor_progress
                 ) == 0U &&
-                !result.message_state_published && result.return_value == 0U,
-            "party progress write stop preserves the RNG and division prefix and suppresses the startup suffix"
+                !result.message_state_published && result.return_value == 0U &&
+                ports.battle_message_state() == 0xFFFFFFFFU,
+            "party progress write stop preserves the RNG, division prefix and old message and suppresses the startup suffix"
         );
     }
 

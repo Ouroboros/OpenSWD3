@@ -2822,7 +2822,6 @@ public:
         battle_target_selection_ = {};
         battle_message_phase_ = {};
         battle_victory_rewards_ = {};
-        battle_message_state_ = 0U;
         next_battle_script_token_ = 0x01000000U;
 
         // 451CCD..451CEF resets the shared dialog-end button (4C9708).
