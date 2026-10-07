@@ -105,7 +105,8 @@ struct LegacyBattleTransitionCallReply {
 };
 
 class LegacyBattleTransitionPort
-    : public LegacyBattleFrameEffectPort,
+    : public virtual LegacyBattleDebugHotkeyStatePort,
+      public LegacyBattleFrameEffectPort,
       public LegacyBattleHudCallPort,
       public virtual LegacyBattleActorMetricStatePort {
 public:

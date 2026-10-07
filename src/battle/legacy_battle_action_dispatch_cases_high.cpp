@@ -7,7 +7,9 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
     case 15U: {
         if (low_word(state.phase_counter) == 0U) {
             const u16 count = static_cast<u16>(state.summon_packed >> 16U);
-            if ((state.battle_flags & 4U) == 0U && count < 2U) {
+            if ((port.battle_debug_hotkey_state().battle_mode_flags_53bc24 &
+                 4U) == 0U &&
+                count < 2U) {
                 replace_high_word(
                     state.summon_packed, static_cast<u16>(count + 1U)
                 );
@@ -150,7 +152,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             )) {
             return result;
         }
-        state.battle_flags &= 0xFFFFFFFBU;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 &=
+            0xFFFFFFFBU;
         state.summon_runtime[summon_index] = 0U;
         replace_low_word(state.summon_packed, 0U);
         state.group_a_status_words[group_a_index] = 0U;

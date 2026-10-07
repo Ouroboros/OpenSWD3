@@ -112,10 +112,6 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     destination = (destination & 0xFFFF0000U) | value;
 }
 
-void replace_low_byte(u32& destination, const u8 value) noexcept {
-    destination = (destination & 0xFFFFFF00U) | value;
-}
-
 [[nodiscard]] constexpr u32 group_a_token(const u32 index) noexcept {
     return kLegacyBattleActionGroupABaseToken +
         index * kLegacyBattleActionGroupAStride;
@@ -580,6 +576,16 @@ class SingleEffectPortAdapter final : public LegacyBattleEffectCallPort {
 public:
     explicit SingleEffectPortAdapter(LegacyBattleActionDispatchPort& port)
         : port_(port) {}
+
+    [[nodiscard]] LegacyBattleDebugHotkeyState&
+    battle_debug_hotkey_state() noexcept override {
+        return port_.battle_debug_hotkey_state();
+    }
+
+    [[nodiscard]] const LegacyBattleDebugHotkeyState&
+    battle_debug_hotkey_state() const noexcept override {
+        return port_.battle_debug_hotkey_state();
+    }
 
     [[nodiscard]] LegacyBattleEffectCallReply
     invoke(const LegacyBattleEffectCallRequest& request) override {
@@ -2197,7 +2203,8 @@ action_decision_done:
                     )) {
                     return result;
                 }
-                if ((shared.battle_byte_flags & 0x80U) != 0U) {
+                if ((port.battle_debug_hotkey_state().battle_mode_flags_53bc24 &
+                     0x80U) != 0U) {
                     if (action.group_a_count > 0) {
                         for (i32 index = 0; index < action.group_a_count;
                              ++index) {
@@ -2221,10 +2228,8 @@ action_decision_done:
                             ++result.group_a_iterations;
                         }
                     }
-                    replace_low_byte(
-                        shared.battle_byte_flags,
-                        static_cast<u8>(shared.battle_byte_flags & 0x7FU)
-                    );
+                    port.battle_debug_hotkey_state().battle_mode_flags_53bc24 &=
+                        0xFFFFFF7FU;
                 }
                 state.selection_initialized = 0U;
                 shared.action_block_gate = 0U;

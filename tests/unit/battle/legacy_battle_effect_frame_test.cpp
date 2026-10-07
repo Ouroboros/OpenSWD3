@@ -30,6 +30,11 @@ public:
     [[nodiscard]] LegacyBattleEffectCallReply
     invoke(const LegacyBattleEffectCallRequest& request) override {
         calls.push_back(request);
+        if (request.callee_token == rule_write_callee) {
+            battle_debug_hotkey_state().battle_mode_flags_53bc24 =
+                rule_write_value;
+        }
+
         const auto found = replies.find(request.callee_token);
         if (found != replies.end() && !found->second.empty()) {
             const auto reply = found->second.front();
@@ -51,6 +56,8 @@ public:
         ));
     }
 
+    u32 rule_write_callee{};
+    u32 rule_write_value{};
     LegacyBattleEffectCallReply default_reply{};
     std::unordered_map<u32, std::deque<LegacyBattleEffectCallReply>> replies;
     std::vector<LegacyBattleEffectCallRequest> calls;
@@ -450,6 +457,9 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         state.primary[0].status_flags = 0x11U;
         EffectPort port;
         port.effect_shift_state().packed_reward = 0x11112222U;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0xF0000004U;
+        port.rule_write_callee = 0x0047D8F0U;
+        port.rule_write_value = 0xC5A50100U;
         port.push(0x0047D8F0U, {.eax = 1U});
         port.push(0x00480AD0U, {.eax = 0x77U});
         LegacyBattleEffectCallReply reward{.eax = 12000U};
@@ -492,6 +502,11 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 state.reward_display_total == 9999U &&
                 state.pending_step[0] == 0U,
             "reward path caps base row and sign extends auxiliary and high-word rows"
+        );
+        test.expect_true(
+            port.battle_debug_hotkey_state().battle_mode_flags_53bc24 ==
+                0xC5A50120U,
+            "reward publication rereads shared rules after the eligibility callback and preserves the upper bytes"
         );
         test.expect_true(
             result.effect_resource_slot_write.calls == 2U &&

@@ -4,6 +4,17 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：战斗剧情与行动规则共享
+
+入战剧情、战斗脚本、菜单、撤退与角色行动直接使用同一规则值。
+SDL接入C9查询，保留零值不清位、高位保留及回调后重读。
+core与ASan的setup、actor_frame_316各1/1及SDL构建通过。
+组A新增测试的调用次数预期经完整调用顺序核对后修正，最终重测通过。
+两份setup构建保留既有结局测试窄化警告，无sanitizer错误；未启动游戏。
+证据见[规则共享](../analysis/04-reverse-engineering/evidence/battle-shared-mode-flags-0053bc24.md)。
+完整初始化、帧更新、返回与实际续玩尚未验收。
+B10保持315/422，Workpack316 pending_audit。
+
 ## B11：入战剧情等级上限
 
 核心与SDL按剧情设置等级上限，经验发放和升级直接读取同一字段。

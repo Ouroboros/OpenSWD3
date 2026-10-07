@@ -724,7 +724,8 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
         ++result.music_commit_calls;
     }
 
-    if ((startup.mode_flags & 0x40U) != 0U) {
+    if ((port.battle_debug_hotkey_state().battle_mode_flags_53bc24 & 0x40U) !=
+        0U) {
         result.return_value = latest_eax;
         return result;
     }
@@ -911,9 +912,11 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
         }
     }
 
-    startup.mode_flags |= 0x80U;
+    auto& mode_flags =
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24;
+    mode_flags |= 0x80U;
     result.message_emitted = true;
-    result.return_value = startup.mode_flags;
+    result.return_value = mode_flags;
     return result;
 }
 

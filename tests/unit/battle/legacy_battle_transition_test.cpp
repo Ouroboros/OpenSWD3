@@ -432,8 +432,8 @@ void test_battle_transition(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleTransitionState state;
         auto startup = startup_state();
-        startup.mode_flags = 0x40U;
         TransitionPorts ports;
+        ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x40U;
         add_default_surfaces(ports);
         ports.music_gate_return = 1U;
         FrameFixture frame;
@@ -593,7 +593,9 @@ void test_battle_transition(openswd3::test::Context& test) {
                     LegacyBattleTransitionCall::reserved_actor_progress_update
                 ) == 0U &&
                 result.refreshed_enemy_actors == 0U && result.message_emitted &&
-                startup.mode_flags == 0x80U && result.return_value == 0x80U &&
+                ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 ==
+                    0x80U &&
+                result.return_value == 0x80U &&
                 result.text_message_calls == 1U &&
                 result.text_message.appended &&
                 startup.reset.block_5214f8[0U] == 0x79000000U &&
@@ -693,7 +695,8 @@ void test_battle_transition(openswd3::test::Context& test) {
                     LegacyBattleTransitionCall::reserved_actor_progress_update
                 ) == 0U &&
                 result.refreshed_enemy_actors == 2U && result.message_emitted &&
-                startup.mode_flags == 0x80U &&
+                ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 ==
+                    0x80U &&
                 result.surface_blend_calls == 1U &&
                 result.surface_blend.status ==
                     openswd3::battle::LegacyBattleSurfaceBlendStatus::
@@ -770,7 +773,9 @@ void test_battle_transition(openswd3::test::Context& test) {
             "transition threshold read stop leaves actor progress and rare slots untouched"
         );
         test.expect_true(
-            !result.message_emitted && startup.mode_flags == 0U &&
+            !result.message_emitted &&
+                ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 ==
+                    0U &&
                 ports.random_values.empty(),
             "transition threshold read stop blocks enemy message and event-latch suffixes"
         );
@@ -788,8 +793,8 @@ void test_battle_transition(openswd3::test::Context& test) {
             openswd3::battle::LegacyBattleTransitionState state;
             auto startup = startup_state();
             startup.battle_id_word = ids[index];
-            startup.mode_flags = 0x40U;
             TransitionPorts ports;
+            ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x40U;
             add_default_surfaces(ports);
             ports.music_gate_return = 1U;
             FrameFixture frame;

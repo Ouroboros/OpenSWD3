@@ -67,10 +67,6 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     destination = (destination & 0xFFFF0000U) | value;
 }
 
-void replace_low_byte(u32& destination, const u8 value) noexcept {
-    destination = (destination & 0xFFFFFF00U) | value;
-}
-
 void replace_high_word(u32& destination, const u16 value) noexcept {
     destination =
         (destination & 0x0000FFFFU) | (static_cast<u32>(value) << 16U);
@@ -1023,10 +1019,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
     if (publish_actor_before_reward || (flags & 0x10U) != 0U) {
         if (invoke(port, result, kCallQueryRewardGate, {argument_object_token})
                 .eax == 1U) {
-            replace_low_byte(
-                state.battle_byte_flags,
-                static_cast<u8>(state.battle_byte_flags | 0x20U)
-            );
+            port.battle_debug_hotkey_state().battle_mode_flags_53bc24 |= 0x20U;
             state.resolved_actor_value =
                 invoke(port, result, kCallResolveActor, {actor_index}).eax;
             port.battle_message_state() = 0U;

@@ -122,7 +122,6 @@ struct LegacyBattleScriptWorkspace {
 // Globals referenced by 0x00469D20 that did not have a pre-existing typed
 // owner before this work package. Existing owners stay in the bindings below.
 struct LegacyBattleScriptSharedState {
-    compat::u32 control_flags{};           // 0x0053BC24
     compat::u32 frame_gate{1U};            // 0x004A7B58
     compat::u32 frame_value{};             // 0x004A7B54
     compat::u32 script_completion_gate{};  // 0x004A7B5C
@@ -281,7 +280,8 @@ struct LegacyBattleScriptDispatchCallReply {
 };
 
 class LegacyBattleScriptDispatchPort
-    : public virtual LegacyBattleMonDatabasePort,
+    : public virtual LegacyBattleDebugHotkeyStatePort,
+      public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleLevelAdvancementStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:

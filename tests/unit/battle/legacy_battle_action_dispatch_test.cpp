@@ -655,13 +655,13 @@ void test_battle_group_b_action_composition_action_caller(
         state->group_a_count = 1;
         state->group_b_count = 1;
         state->group_a_to_actor[0] = 0U;
-        state->battle_flags = 0x20U;
         state->stored_group_b_index = 0U;
         state->message_gate = 0x77U;
         auto fixture = std::make_unique<Fixture>();
         auto& actor = (*fixture->startup.group_b_lifecycle)[0U];
         actor.action_composition.derived_words[0U] = 5U;
         DispatchPort port;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x20U;
         port.action = 25U;
         port.group_b_action_definition =
             std::make_shared<std::array<u8, 0xA4>>();
@@ -715,11 +715,11 @@ void test_battle_group_b_action_composition_action_caller(
         state->group_a_count = 1;
         state->group_b_count = 1;
         state->group_a_to_actor[0] = 0U;
-        state->battle_flags = 0x20U;
         state->stored_group_b_index = 0U;
         state->message_gate = 0x55U;
         auto fixture = std::make_unique<Fixture>();
         DispatchPort port;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x20U;
         port.action = 25U;
         port.group_b_action_definition =
             std::make_shared<std::array<u8, 0xA4>>();
@@ -766,7 +766,6 @@ void test_battle_group_b_action_profile_selection_action_caller(
         state->group_a_count = 1;
         state->group_b_count = 1;
         state->group_a_to_actor[0U] = 0U;
-        state->battle_flags = 0x20U;
         state->stored_group_b_index = 0U;
         state->message_aux = 1U;
         state->choice_state = 2U;
@@ -778,6 +777,7 @@ void test_battle_group_b_action_profile_selection_action_caller(
         actor.action_composition.profile_mode_selector = 0x7777U;
         actor.action_composition.mode_flags = 0x10U;
         DispatchPort port;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x20U;
         port.action = 25U;
         port.battle_message_state() = 0xDEADU;
         port.set_profile_dword(0x0CU, 2U);
@@ -822,7 +822,6 @@ void test_battle_group_b_action_profile_selection_action_caller(
         state->group_a_count = 1;
         state->group_b_count = 1;
         state->group_a_to_actor[0U] = 0U;
-        state->battle_flags = 0x20U;
         state->stored_group_b_index = 0U;
         state->current_actor_index = 5U;
         state->message_aux = 1U;
@@ -834,6 +833,7 @@ void test_battle_group_b_action_profile_selection_action_caller(
         actor.action_configuration.profile_buffer.fill(std::byte{0xFF});
         actor.action_composition.derived_words[0U] = 0x7777U;
         DispatchPort port;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x20U;
         port.action = 25U;
         port.battle_message_state() = 0x1234U;
         port.allocation_succeeds = false;
@@ -7209,9 +7209,9 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         state.group_a_count = 1;
         state.group_b_count = 1;
         state.group_a_to_actor[0U] = 0U;
-        state.battle_flags = 0x20U;
         Fixture fixture;
         DispatchPort port;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x20U;
         port.action = 25U;
         auto context = fixture.context();
         context.actor_runtime_reset_requests.count = 1U;
@@ -7249,9 +7249,9 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
             state.group_a_count = 1;
             state.group_b_count = 1;
             state.group_a_to_actor[0] = 0U;
-            state.battle_flags = 0x20U;
             Fixture fixture;
             DispatchPort port;
+            port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x20U;
             port.action = action;
             auto context = fixture.context();
             LegacyBattleActorFrameEntryRequest snapshot{};
@@ -7276,10 +7276,10 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         state.group_a_count = 1;
         state.group_b_count = 1;
         state.group_a_to_actor[0] = 0U;
-        state.battle_flags = 0x20U;
         state.stored_group_b_index = 0U;
         Fixture fixture;
         DispatchPort port;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x20U;
         port.action = 25U;
         auto context = fixture.context();
 
@@ -7303,10 +7303,10 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         state.group_a_count = 1;
         state.group_b_count = 1;
         state.group_a_to_actor[0] = 0U;
-        state.battle_flags = 0x20U;
         state.stored_group_b_index = 0U;
         Fixture fixture;
         DispatchPort port;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x20U;
         port.action = 25U;
         auto context = fixture.context();
         context.attack_order_records = {};

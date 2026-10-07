@@ -208,7 +208,8 @@ LegacyBattleActionSummaryResult draw_legacy_battle_action_summary(
             .startup_reset = reset,
             .source_state = startup.action_mode_source,
             .party_presence = startup.party_presence,
-            .startup_mode_flags = startup.mode_flags,
+            .startup_mode_flags =
+                port.battle_debug_hotkey_state().battle_mode_flags_53bc24,
             .final_actor = bindings.final_actor,
             .frame_input = bindings.frame_input,
             .input_dispatch = bindings.input_dispatch,

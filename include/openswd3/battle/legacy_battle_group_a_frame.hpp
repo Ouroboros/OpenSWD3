@@ -44,7 +44,6 @@ struct LegacyBattleGroupAFrameState {
     compat::u32 actor_text_token{0x00505000U};
 
     std::array<compat::u32, 5> active_effect_tail{};
-    compat::u32 battle_byte_flags{};
     compat::u16 cleanup_word{};
     compat::u32 global_phase_countdown{};
     compat::u32 shared_gate_4ff578{};

@@ -660,6 +660,52 @@ template <typename Range>
 
 void test_battle_startup(openswd3::test::Context& test) {
     {
+        struct Rules final
+            : openswd3::battle::LegacyBattleDebugHotkeyStatePort {
+            u32 reads{};
+
+            openswd3::battle::LegacyBattleDebugHotkeyState&
+            battle_debug_hotkey_state() noexcept override {
+                ++reads;
+                return LegacyBattleDebugHotkeyStatePort::
+                    battle_debug_hotkey_state();
+            }
+        } rules;
+        auto& flags =
+            rules.LegacyBattleDebugHotkeyStatePort::battle_debug_hotkey_state()
+                .battle_mode_flags_53bc24;
+        for (const u32 reply : {0U, 1U, 7U, 0xFFFFFFFFU}) {
+            flags = 0xCC000040U;
+            rules.reads = 0U;
+            u32 queries = 0U;
+            openswd3::battle::initialize_legacy_battle_startup_mode_flags(
+                rules, [&](const u16 id) {
+                    ++queries;
+                    test.expect_true(
+                        id == 0x00C9U && rules.reads == 0U,
+                        "startup queries C9 before accessing shared battle rules"
+                    );
+                    flags = 0xA5120300U;
+                    return reply;
+                }
+            );
+            test.expect_true(
+                queries == 1U && rules.reads == (reply == 0U ? 0U : 1U) &&
+                    flags == (reply == 0U ? 0xA5120300U : 0xA5120302U),
+                "nonzero C9 updates the live DWORD after the callback while zero performs no rule access"
+            );
+        }
+
+        openswd3::battle::initialize_legacy_battle_startup_mode_flags(
+            rules, [](const u16) { return 0U; }
+        );
+        test.expect_true(
+            flags == 0xA5120302U,
+            "zero C9 on another entry preserves the old battle rule and all unrelated bits"
+        );
+    }
+
+    {
         auto state = std::make_unique<LegacyBattleStartupState>();
         for (const u32 reply : {0U, 1U, 2U, 0x10001U, 0xFFFFFFFFU, 1U, 0U}) {
             state->party_level_limit = 0xFFFFU;
@@ -1973,7 +2019,8 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.mouse_frame_state() = {-123, 456, 0xA5U};
         ports.battle_frame_input_resolution_state().previous_mouse_x = -77;
         ports.battle_frame_input_resolution_state().previous_mouse_y = 88;
-        state.mode_flags = 0xA5000000U;
+        ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 =
+            0xA5000000U;
         ports.query_values = {
             {30U, 1U},
             {32U, 1U},
@@ -2012,7 +2059,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                     std::array<openswd3::compat::u8, 4>{1U, 0U, 1U, 0U} &&
                 state.action_mode_source.actor_label_indices[0] == 0U &&
                 state.action_mode_source.actor_label_indices[1] == 2U &&
-                state.mode_flags == 0xA5000002U &&
+                ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 ==
+                    0xA5000002U &&
                 state.party_level_limit == 0x12U &&
                 state.control_switches == std::array<u32, 4>{1U, 1U, 1U, 1U} &&
                 ports.battle_control_action().action_id == 0x2329U &&

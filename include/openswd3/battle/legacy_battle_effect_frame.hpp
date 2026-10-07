@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
 #include "openswd3/battle/legacy_battle_animation_collision.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
+#include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_group_a_reward_profile_state.hpp"
@@ -42,7 +43,8 @@ struct LegacyBattleEffectCallReply {
 };
 
 class LegacyBattleEffectCallPort
-    : public virtual LegacyBattleActorMetricStatePort,
+    : public virtual LegacyBattleDebugHotkeyStatePort,
+      public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattlePairTransitionPort,
@@ -161,7 +163,6 @@ struct LegacyBattleEffectFrameState
     compat::u32 effect_object_token{};
     compat::u32 target_surface_token{};
 
-    compat::u32 battle_byte_flags{};
     compat::u32 resolved_actor_value{};
 
     compat::u32 coordinate_output_x_token{};

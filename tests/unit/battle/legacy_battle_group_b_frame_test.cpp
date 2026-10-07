@@ -25,6 +25,14 @@ public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
+        if (rewrite_rules_on_primary_terminal &&
+            request.callee_token == 0x0047CE80U &&
+            request.arguments[0U] ==
+                openswd3::battle::kLegacyBattleActionGroupABaseToken) {
+            ++rule_writes;
+            battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0xCAFE0285U;
+        }
+
         const auto found = replies.find(request.callee_token);
         if (found != replies.end() && !found->second.empty()) {
             const auto reply = found->second.front();
@@ -63,6 +71,8 @@ public:
         ));
     }
 
+    bool rewrite_rules_on_primary_terminal{};
+    u32 rule_writes{};
     u16 action{};
     u16 action_target{};
     LegacyBattleActionCallReply default_reply{};
@@ -264,6 +274,38 @@ void bind_group_b_coordinate_resource(
 void test_battle_group_b_frame(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchStatus;
     using openswd3::battle::LegacyBattleGroupBFrameState;
+
+    for (const openswd3::compat::i32 count : {0, 1}) {
+        LegacyBattleGroupBFrameState state;
+        state.frame_enabled = 1U;
+        state.shared.action.active_effect_target = 0U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.shared.action.group_a_count = count;
+        Fixture fixture;
+        auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
+        actor.action_execution.idle_state_latch = 1U;
+        actor.action_composition.action_kind = 100U;
+        DispatchPort port;
+        port.action = 100U;
+        port.action_target = 0U;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x11000080U;
+        port.rewrite_rules_on_primary_terminal = true;
+        port.push(0x004786A0U, {.eax = 1U});
+        port.push(0x004786A0U, {.eax = 1U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                port.rule_writes == static_cast<u32>(count) &&
+                port.battle_debug_hotkey_state().battle_mode_flags_53bc24 ==
+                    (count == 0 ? 0x11000000U : 0xCAFE0205U),
+            "Group-B completion clears shared bit seven with zero actors or after the live terminal callback"
+        );
+    }
 
     // 004576EB tests the selection wait independently of 0053BF5C.
     for (const u32 wait : {0U, 1U, 2U}) {

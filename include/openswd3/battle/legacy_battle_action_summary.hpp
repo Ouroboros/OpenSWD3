@@ -35,7 +35,8 @@ struct LegacyBattleActionSummaryCallReply {
     compat::u32 edx{};
 };
 
-class LegacyBattleActionSummaryPort {
+class LegacyBattleActionSummaryPort
+    : public virtual LegacyBattleDebugHotkeyStatePort {
 public:
     virtual ~LegacyBattleActionSummaryPort() = default;
 

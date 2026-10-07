@@ -1,4 +1,5 @@
 #include "legacy_battle_mon_database_fixture.hpp"
+#include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_script_curve.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
 #include "test.hpp"
@@ -90,6 +91,7 @@ struct Fixture {
 };
 
 class Port final : public LegacyBattleScriptDispatchPort,
+                   public openswd3::battle::LegacyBattleRetreatCommitPort,
                    public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     std::vector<LegacyBattleScriptDispatchCallRequest> calls;
@@ -109,6 +111,18 @@ public:
     LegacyBattleScriptDispatchCall typed_stop_call{
         LegacyBattleScriptDispatchCall::noop_service
     };
+
+    openswd3::battle::LegacyBattleRetreatCommitCallReply invoke_retreat_commit(
+        const openswd3::battle::LegacyBattleRetreatCommitCallRequest& request
+    ) override {
+        return {
+            .eax = request.call ==
+                    openswd3::battle::LegacyBattleRetreatCommitCall::
+                        query_selected_actor_ready
+                ? 1U
+                : 0U
+        };
+    }
 
     LegacyBattleScriptDispatchCallReply invoke_battle_script(
         LegacyBattleScriptWorkspace& workspace,
@@ -3645,6 +3659,62 @@ void test_battle_script_frame_stop(openswd3::test::Context& test) {
 }
 
 void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        auto& script_port = static_cast<LegacyBattleScriptDispatchPort&>(port);
+        auto& retreat_port =
+            static_cast<openswd3::battle::LegacyBattleRetreatCommitPort&>(port);
+        auto& flags =
+            script_port.battle_debug_hotkey_state().battle_mode_flags_53bc24;
+        flags = 0xA5000000U;
+        openswd3::battle::initialize_legacy_battle_startup_mode_flags(
+            script_port, [](const u16) { return 7U; }
+        );
+        fixture->opcode(83);
+        const auto script_result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), script_port
+        );
+        test.expect_true(
+            script_result.status ==
+                    LegacyBattleScriptDispatchStatus::completed &&
+                &script_port.battle_debug_hotkey_state() ==
+                    &retreat_port.battle_debug_hotkey_state() &&
+                flags == 0xA5000202U,
+            "startup and script changes reach the identical retreat rule owner without copying"
+        );
+        u32 packed_counter = 0x12345678U;
+        u32 selection_gate = 7U;
+        u32 cache_gate = 8U;
+        u32 resolution_latch = 9U;
+        std::array<openswd3::battle::LegacyBattleGroupAActionExecutionState, 1>
+            actors{};
+        const auto result = openswd3::battle::commit_legacy_battle_retreat(
+            {
+                .packed_actor_counter = packed_counter,
+                .selection_gate = selection_gate,
+                .selection_cache_gate = cache_gate,
+                .resolution_latch = resolution_latch,
+                .group_a_actions = actors,
+            },
+            retreat_port,
+            0U
+        );
+        test.expect_true(
+            result.primary_actor.return_eax == 1U && result.mode_bit_blocked &&
+                result.branch ==
+                    openswd3::battle::LegacyBattleRetreatCommitBranch::
+                        warning &&
+                result.status ==
+                    openswd3::battle::LegacyBattleRetreatCommitStatus::
+                        text_message_typed_stop &&
+                !result.state_committed && packed_counter == 0x12345678U &&
+                selection_gate == 7U && cache_gate == 8U &&
+                resolution_latch == 9U,
+            "script eighty-three blocks a ready actor from retreat before the intentionally absent warning text port"
+        );
+    }
+
     using openswd3::battle::run_legacy_battle_script_dispatch;
 
     {
@@ -5157,7 +5227,8 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
         ));
         test.expect_true(
             fixture.workspace.cursor == 2U &&
-                (fixture.shared.control_flags & 0x200U) != 0U,
+                (port.battle_debug_hotkey_state().battle_mode_flags_53bc24 &
+                 0x200U) != 0U,
             "case eighty-three falls through the case-seventeen cursor tail"
         );
     }

@@ -212,7 +212,8 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .text_messages = context.startup.text_messages,
             .action_mode_source = context.startup.action_mode_source,
             .startup_party_presence = context.startup.party_presence,
-            .startup_mode_flags = context.startup.mode_flags,
+            .startup_mode_flags =
+                port.battle_debug_hotkey_state().battle_mode_flags_53bc24,
             .party = context.startup.party,
             .startup_supplemental_count_word =
                 context.startup.supplemental_count_word,

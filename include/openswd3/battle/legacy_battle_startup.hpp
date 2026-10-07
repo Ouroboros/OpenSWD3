@@ -9,6 +9,7 @@
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
+#include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
 #include "openswd3/battle/legacy_battle_display_surfaces.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution_state.hpp"
@@ -144,6 +145,7 @@ struct LegacyBattleStartupCallReply {
 
 class LegacyBattleStartupPort
     : public LegacyBattleDisplaySurfacePort,
+      public virtual LegacyBattleDebugHotkeyStatePort,
       public virtual input_time_rng::LegacyMouseFrameStatePort,
       public virtual LegacyBattleFrameInputResolutionStatePort,
       public virtual LegacyBattleMonDatabasePort,
@@ -321,7 +323,6 @@ struct LegacyBattleStartupState {
     std::array<compat::u8, 4> party_presence{};
     LegacyBattleActorMetricState actor_metrics{};
     LegacyBattleActionModeSourceState action_mode_source{};
-    compat::u32 mode_flags{};
     compat::u32 mirror_mode{};
     compat::u16 party_level_limit{60U};  // 0x004A762A
     std::array<compat::i32, 4> window_rectangle{};
@@ -358,6 +359,16 @@ struct LegacyBattleStartupState {
     compat::u8 party_actor_mode_count{};
     compat::u16 final_subtract_word{};
 };
+
+// 451D8A..451DA7: only a nonzero query reads and updates the shared rules.
+template <typename Query>
+void initialize_legacy_battle_startup_mode_flags(
+    LegacyBattleDebugHotkeyStatePort& port, Query&& query
+) {
+    if (query(compat::u16{0x00C9U}) != 0U) {
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 |= 2U;
+    }
+}
 
 // 451DAC..451DCB: publish the default before querying the live story value.
 template <typename Query>

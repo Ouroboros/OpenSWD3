@@ -78,7 +78,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifty_six() {
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_fifty_seven() {
-    bindings_.shared.control_flags |= 1U;
+    port_.battle_debug_hotkey_state().battle_mode_flags_53bc24 |= 1U;
     invoke(
         LegacyBattleScriptDispatchCall::initialize_background,
         0U,
@@ -551,7 +551,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_eight() {
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_nine() {
-    bindings_.shared.control_flags |= 0x08U;
+    port_.battle_debug_hotkey_state().battle_mode_flags_53bc24 |= 0x08U;
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
     return finish(1U);
 }
@@ -577,7 +577,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy() {
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_one() {
-    bindings_.shared.control_flags |= 0x10U;
+    port_.battle_debug_hotkey_state().battle_mode_flags_53bc24 |= 0x10U;
     bindings_.shared.captured_group_a_count =
         static_cast<u8>(bindings_.startup.actor_metrics.group_a_count);
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
@@ -893,7 +893,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_six() {
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_seven() {
-    bindings_.shared.control_flags |= 0x40U;
+    port_.battle_debug_hotkey_state().battle_mode_flags_53bc24 |= 0x40U;
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
     return finish(1U);
 }
@@ -1211,18 +1211,18 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eighty_two() {
     bindings_.shared.mode_state = 2U;
     set_high_word(workspace_.packed_actor_state, value);
     if (value == 1U) {
-        bindings_.shared.control_flags |= 0x100U;
+        port_.battle_debug_hotkey_state().battle_mode_flags_53bc24 |= 0x100U;
         workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
         return finish(1U);
     }
-    bindings_.shared.control_flags &= ~0x100U;
+    port_.battle_debug_hotkey_state().battle_mode_flags_53bc24 &= ~0x100U;
     workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
     bindings_.shared.mode_state = 0U;
     return finish(1U);
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_eighty_three() {
-    bindings_.shared.control_flags |= 0x200U;
+    port_.battle_debug_hotkey_state().battle_mode_flags_53bc24 |= 0x200U;
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
     return finish(1U);
 }

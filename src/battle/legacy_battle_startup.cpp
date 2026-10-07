@@ -1164,12 +1164,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         }
     }
 
-    if (invoke(
-            port, LegacyBattleStartupCall::query_value, {0x00C9U, 0U, 0U, 0U}
+    initialize_legacy_battle_startup_mode_flags(port, [&port](const u16 id) {
+        return invoke(
+                   port, LegacyBattleStartupCall::query_value, {id, 0U, 0U, 0U}
         )
-            .return_value != 0U) {
-        state.mode_flags |= 2U;
-    }
+            .return_value;
+    });
     initialize_legacy_battle_party_level_limit(state, [&port](const u16 id) {
         return invoke(
                    port, LegacyBattleStartupCall::query_value, {id, 0U, 0U, 0U}

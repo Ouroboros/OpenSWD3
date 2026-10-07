@@ -2750,7 +2750,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             }
                         }
                     }
-                    if ((state.battle_byte_flags & 0x80U) != 0U) {
+                    if ((port.battle_debug_hotkey_state()
+                             .battle_mode_flags_53bc24 &
+                         0x80U) != 0U) {
                         for (i32 index = 0; index < state.action.group_b_count;
                              ++index) {
                             const u32 uindex = to_bits(index);
@@ -2771,10 +2773,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             }
                             ++result.group_b_iterations;
                         }
-                        replace_low_byte(
-                            state.battle_byte_flags,
-                            static_cast<u8>(state.battle_byte_flags & 0x7FU)
-                        );
+                        port.battle_debug_hotkey_state()
+                            .battle_mode_flags_53bc24 &= 0xFFFFFF7FU;
                     }
                 }
 

@@ -270,7 +270,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
         state.selection_word = 0U;
         state.selection_high_word = 0U;
         if (action == 2U) {
-            if ((state.battle_flags & 0x20U) != 0U) {
+            if ((port.battle_debug_hotkey_state().battle_mode_flags_53bc24 &
+                 0x20U) != 0U) {
                 return result;
             }
             if (state.deformation_active) {

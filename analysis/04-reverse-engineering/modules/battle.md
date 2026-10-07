@@ -28,6 +28,8 @@ TOML战斗速度已接入入战阈值，保留默认值与原配置字节范围�
 [速度接线](../evidence/battle-speed-runtime-binding.md)。
 入战剧情等级上限由经验发放与升级直接共享，见
 [等级上限接线](../evidence/battle-party-level-limit-runtime-binding.md)。
+剧情、菜单与角色行动的规则已改为单份共享状态，并通过定向验证，见
+[规则共享](../evidence/battle-shared-mode-flags-0053bc24.md)。
 这些接线不关闭新的战斗函数。
 
 ## 1. 唯一真值与模块目标

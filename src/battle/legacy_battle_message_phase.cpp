@@ -730,7 +730,8 @@ private:
                 .text_messages = bindings_.startup.text_messages,
                 .action_mode_source = bindings_.startup.action_mode_source,
                 .startup_party_presence = bindings_.startup.party_presence,
-                .startup_mode_flags = bindings_.startup.mode_flags,
+                .startup_mode_flags =
+                    bindings_.debug_hotkeys.battle_mode_flags_53bc24,
                 .party = bindings_.startup.party,
                 .startup_supplemental_count_word =
                     bindings_.startup.supplemental_count_word,

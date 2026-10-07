@@ -1344,7 +1344,6 @@ struct LegacyBattleActionDispatchState {
     compat::u16 side_selection_word{};
     compat::u32 scene_value{};
     compat::u32 input_mode{};
-    compat::u32 battle_flags{};
     compat::u32 active_actor_count{};
     compat::u16 active_actor_snapshot{};
     compat::u32 phase_counter{};

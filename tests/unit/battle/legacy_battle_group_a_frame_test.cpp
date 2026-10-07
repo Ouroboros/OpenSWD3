@@ -24,6 +24,13 @@ public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
+        // The third terminal query is the bit-seven sweep at 0045727C.
+        if (rewrite_rules_on_sweep_terminal &&
+            request.callee_token == 0x0047CE80U &&
+            count(request.callee_token) == 3U) {
+            battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0xCAFE0285U;
+        }
+
         const auto found = replies.find(request.callee_token);
         if (found != replies.end() && !found->second.empty()) {
             const auto reply = found->second.front();
@@ -62,6 +69,7 @@ public:
         ));
     }
 
+    bool rewrite_rules_on_sweep_terminal{};
     u16 action{};
     u16 action_target{};
     LegacyBattleActionCallReply default_reply{.eax = 1U};
@@ -2244,6 +2252,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 .action_execution.action_target = 0xFFFFU;
             DispatchPort port;
             port.default_reply.edx = 0xAABBCCDDU;
+            port.battle_debug_hotkey_state().battle_mode_flags_53bc24 =
+                0x11000080U;
+            port.rewrite_rules_on_sweep_terminal = true;
             auto context = fixture.context();
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
@@ -2252,6 +2263,12 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             test.expect_true(
                 result.status == LegacyBattleActionDispatchStatus::completed,
                 "completed Group-A action retains completed terminal-target status"
+            );
+            test.expect_true(
+                port.count(0x0047CE80U) == 4U &&
+                    port.battle_debug_hotkey_state().battle_mode_flags_53bc24 ==
+                        0xCAFE0205U,
+                "Group-A completion clears only bit seven after rereading the terminal callback writes"
             );
             test.expect_true(
                 result.actor_action_target_calls >= 3U,
