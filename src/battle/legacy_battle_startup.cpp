@@ -1132,37 +1132,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     control_action.base_variant = 0x0CU;
     state.transparent_pixel_pair = static_cast<u32>(control_reply.outputs[0]);
 
-    for (u32 index = 0U; index < state.party_presence.size(); ++index) {
-        const u32 query = invoke(
-                              port,
-                              LegacyBattleStartupCall::query_value,
-                              {30U + index, 0U, 0U, 0U}
+    initialize_legacy_battle_startup_party(state, [&port](const u16 id) {
+        return invoke(
+                   port, LegacyBattleStartupCall::query_value, {id, 0U, 0U, 0U}
         )
-                              .return_value;
-        if (query == 1U) {
-            state.party_presence[index] = 1U;
-            state.actor_metrics.group_a_count += 1U;
-        }
-    }
-
-    u32 party_source_cursor = 0U;
-    for (u32 mapped_count = 0U;
-         mapped_count < state.actor_metrics.group_a_count;
-         ++mapped_count) {
-        while (party_source_cursor < state.party_presence.size() &&
-               state.party_presence[party_source_cursor] == 0U) {
-            ++party_source_cursor;
-        }
-
-        // 451D74 publishes source 4 after an exhausted scan, before the
-        // 451D7B exit. A stale party count must not suppress that store.
-        state.action_mode_source.actor_label_indices[mapped_count] =
-            party_source_cursor;
-        ++party_source_cursor;
-        if (party_source_cursor >= state.party_presence.size()) {
-            break;
-        }
-    }
+            .return_value;
+    });
 
     initialize_legacy_battle_startup_mode_flags(port, [&port](const u16 id) {
         return invoke(

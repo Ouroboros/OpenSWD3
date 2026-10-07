@@ -4,6 +4,15 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：入战队伍出场状态
+
+核心与SDL在读取战斗档案前共同发布出场队员、人数及来源映射。
+阵形绑定保留先前结果及未使用映射，指令菜单借用实际出场状态。
+core与ASan的setup各1/1及SDL构建通过，未启动游戏。
+保留既有结局测试窄化警告；未取得新增原版动态差分。
+证据见[出场状态接线](../analysis/04-reverse-engineering/evidence/battle-startup-party-presence-runtime-binding.md)。
+完整初始化及续玩仍未验收，B10保持315/422，Workpack316 pending_audit。
+
 ## B11：战斗剧情与行动规则共享
 
 入战剧情、战斗脚本、菜单、撤退与角色行动直接使用同一规则值。

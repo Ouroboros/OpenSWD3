@@ -379,9 +379,15 @@ void test_party_selection_and_three_member_formation(
         "derived party anchors preserve signed word extension and offsets"
     );
     openswd3::battle::LegacyBattleStartupState startup;
+    startup.action_mode_source.actor_label_indices.fill(0xAABBCCDDU);
+    openswd3::battle::initialize_legacy_battle_startup_party(
+        startup, [&](const u16 id) { return flags[id - 30U]; }
+    );
     openswd3::battle::bind_legacy_battle_setup_party_owners(state, startup);
     test.expect_true(
-        startup.actor_metrics.group_a_count == 3U &&
+        startup.party_presence == std::array<u8, 4U>{1U, 0U, 1U, 1U} &&
+            startup.action_mode_source.actor_label_indices[3U] == 0xAABBCCDDU &&
+            startup.actor_metrics.group_a_count == 3U &&
             startup.action_mode_source.actor_label_indices[0U] == 0U &&
             startup.action_mode_source.actor_label_indices[1U] == 2U &&
             startup.action_mode_source.actor_label_indices[2U] == 3U &&
@@ -7287,9 +7293,13 @@ void test_real_battle_98_enemy(openswd3::test::Context& test) {
         "real battle 98 resolves its initial player and enemy placement"
     );
     openswd3::battle::LegacyBattleStartupState startup;
+    openswd3::battle::initialize_legacy_battle_startup_party(
+        startup, [&](const u16 id) { return flags[id - 30U]; }
+    );
     openswd3::battle::bind_legacy_battle_setup_party_owners(state, startup);
     test.expect_true(
-        startup.actor_metrics.group_a_count == 1U &&
+        startup.party_presence == flags &&
+            startup.actor_metrics.group_a_count == 1U &&
             startup.party[0U].placement_position_x == 527U &&
             startup.party[0U].placement_position_y == 287U &&
             startup.party[0U].position_x == 0U &&

@@ -62,9 +62,9 @@ struct LegacyBattleSetupResult {
     LegacyBattleSetupState& state
 ) noexcept;
 
-// Bind the partial asset setup's four formation slots and compact source
-// mapping to their existing battle-startup owners. Does not construct any
-// supplemental actors or claim that sub_451B10 has completed.
+// Bind the partial asset setup's four formation slots. Preserve the presence,
+// count and source mapping already published by the startup party scan.
+// Does not construct supplemental actors or complete sub_451B10.
 void bind_legacy_battle_setup_party_owners(
     const LegacyBattleSetupState& setup, LegacyBattleStartupState& startup
 ) noexcept;

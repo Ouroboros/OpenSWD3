@@ -170,13 +170,10 @@ LegacyBattleSetupResult prepare_legacy_battle_setup(
 void bind_legacy_battle_setup_party_owners(
     const LegacyBattleSetupState& setup, LegacyBattleStartupState& startup
 ) noexcept {
-    startup.actor_metrics.group_a_count = setup.party_count;
     startup.mirror_mode = setup.mirrored ? 1U : 0U;
     for (std::size_t index = 0U; index < setup.party.size(); ++index) {
         const auto& source = setup.party[index];
         auto& actor = startup.party[index];
-        startup.action_mode_source.actor_label_indices[index] =
-            setup.party_character_indices[index];
         actor.role_id = source.resource_id;
         // Setup exposes final coordinates. The actor caller performs the
         // original mirror stores only after its reset has returned.

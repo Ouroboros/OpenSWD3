@@ -2839,6 +2839,13 @@ public:
         control_action.base_variant = 0x0CU;
         battle_runtime_.transparent_pixel_pair = transparent_pixel_pair;
 
+        openswd3::battle::initialize_legacy_battle_startup_party(
+            battle_runtime_, [this](const openswd3::compat::u16 id) {
+                return openswd3::world_map::query_legacy_world_story_flag(
+                    world_story_vm_state_, id
+                );
+            }
+        );
         openswd3::battle::initialize_legacy_battle_startup_mode_flags(
             *this, [this](const openswd3::compat::u16 id) {
                 return openswd3::world_map::query_legacy_world_story_flag(
@@ -2926,19 +2933,11 @@ public:
             loaded.status == openswd3::battle::LegacyBattleAssetStatus::ready;
 
         if (battle_assets_ready_) {
-            std::array<openswd3::compat::u8, 4U> party_source_flags{};
-            for (std::size_t index = 0U; index < party_source_flags.size();
-                 ++index) {
-                party_source_flags[index] =
-                    openswd3::world_map::query_legacy_world_story_flag(
-                        world_story_vm_state_,
-                        static_cast<openswd3::compat::u16>(30U + index)
-                    )
-                    ? 1U
-                    : 0U;
-            }
             const auto prepared = openswd3::battle::prepare_legacy_battle_setup(
-                battle_assets_, party_source_flags, false, battle_setup_
+                battle_assets_,
+                battle_runtime_.party_presence,
+                false,
+                battle_setup_
             );
             battle_setup_ready_ = prepared.status ==
                 openswd3::battle::LegacyBattleSetupStatus::ready;

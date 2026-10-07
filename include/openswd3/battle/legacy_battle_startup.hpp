@@ -360,6 +360,35 @@ struct LegacyBattleStartupState {
     compat::u16 final_subtract_word{};
 };
 
+// 451D06..451D88: publish presence, count and source mapping before C9.
+template <typename Query>
+void initialize_legacy_battle_startup_party(
+    LegacyBattleStartupState& state, Query&& query
+) {
+    for (compat::u32 index = 0U; index < state.party_presence.size(); ++index) {
+        if (query(static_cast<compat::u16>(30U + index)) == 1U) {
+            state.party_presence[index] = 1U;
+            state.actor_metrics.group_a_count += 1U;
+        }
+    }
+
+    const auto party_count = state.actor_metrics.group_a_count;
+    compat::u32 source = 0U;
+    for (compat::u32 index = 0U; index < party_count; ++index) {
+        while (source < state.party_presence.size() &&
+               state.party_presence[source] == 0U) {
+            ++source;
+        }
+
+        // 451D74 stores exhausted source 4 before the 451D7B exit.
+        state.action_mode_source.actor_label_indices[index] = source;
+        ++source;
+        if (source >= state.party_presence.size()) {
+            break;
+        }
+    }
+}
+
 // 451D8A..451DA7: only a nonzero query reads and updates the shared rules.
 template <typename Query>
 void initialize_legacy_battle_startup_mode_flags(

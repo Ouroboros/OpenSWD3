@@ -659,6 +659,90 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    for (u32 mask = 0U; mask < 16U; ++mask) {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        state->action_mode_source.actor_label_indices.fill(0xAABBCCDDU);
+        std::vector<u32> selected;
+        for (u32 index = 0U; index < 4U; ++index) {
+            if ((mask & (1U << index)) != 0U) {
+                selected.push_back(index);
+            }
+        }
+
+        u32 calls = 0U;
+        openswd3::battle::initialize_legacy_battle_startup_party(
+            *state, [&](const u16 id) -> u32 {
+                test.expect_equal(
+                    static_cast<u32>(id),
+                    30U + calls,
+                    "party scan queries the four story flags in source order"
+                );
+                ++calls;
+                return (mask >> (id - 30U)) & 1U;
+            }
+        );
+        test.expect_true(
+            calls == 4U &&
+                state->actor_metrics.group_a_count == selected.size(),
+            "party scan publishes the count for all sixteen membership sets"
+        );
+        for (u32 index = 0U; index < 4U; ++index) {
+            test.expect_true(
+                state->party_presence[index] == ((mask >> index) & 1U) &&
+                    state->action_mode_source.actor_label_indices[index] ==
+                        (index < selected.size() ? selected[index]
+                                                 : 0xAABBCCDDU),
+                "party scan publishes live presence and only the selected mapping prefix"
+            );
+        }
+    }
+
+    {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        state->party_presence = {0U, 7U, 0U, 0U};
+        state->actor_metrics.group_a_count = 2U;
+        state->action_mode_source.actor_label_indices.fill(0xAABBCCDDU);
+        constexpr std::array<u32, 4U> replies{0U, 2U, 0x10001U, 0xFFFFFFFFU};
+        openswd3::battle::initialize_legacy_battle_startup_party(
+            *state, [&](const u16 id) { return replies[id - 30U]; }
+        );
+        test.expect_true(
+            state->party_presence ==
+                    std::array<openswd3::compat::u8, 4U>{0U, 7U, 0U, 0U} &&
+                state->actor_metrics.group_a_count == 2U &&
+                state->action_mode_source.actor_label_indices[0U] == 1U &&
+                state->action_mode_source.actor_label_indices[1U] == 4U &&
+                state->action_mode_source.actor_label_indices[2U] ==
+                    0xAABBCCDDU,
+            "non-one DWORD replies preserve bytes and count; stale nonzero presence maps before exhausted source four"
+        );
+        state->party_presence.fill(0U);
+        state->actor_metrics.group_a_count = 8U;
+        state->action_mode_source.actor_label_indices.fill(0xAABBCCDDU);
+        openswd3::battle::initialize_legacy_battle_startup_party(
+            *state, [&](const u16 id) -> u32 {
+                if (id == 30U) {
+                    state->actor_metrics.group_a_count = 0xFFFFFFFFU;
+                    return 1U;
+                }
+
+                test.expect_true(
+                    state->party_presence[0U] == 1U &&
+                        state->actor_metrics.group_a_count == 0U,
+                    "the next query observes the preceding presence and callback-modified count increment"
+                );
+                return 0U;
+            }
+        );
+        test.expect_true(
+            state->party_presence[0U] == 1U &&
+                state->actor_metrics.group_a_count == 0U &&
+                state->action_mode_source.actor_label_indices[0U] ==
+                    0xAABBCCDDU,
+            "live DWORD increment wraps and a zero count leaves all mapping slots untouched"
+        );
+    }
+
     {
         struct Rules final
             : openswd3::battle::LegacyBattleDebugHotkeyStatePort {
