@@ -501,7 +501,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
         fixture.overlay.selection_order[3] = 34U;
         fixture.final_actor.active_actor_code = 9U;
         fixture.overlay.battle_selector = -2;
-        fixture.overlay.battle_mode = 3U;
+        fixture.action.frame_enabled = 3U;
         fixture.message_state = 4U;
         fixture.final_actor.pre_frame_gate_b = 5U;
         fixture.action.packed_actor_counter = 0x12345678U;

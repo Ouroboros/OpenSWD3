@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
 #include "openswd3/battle/legacy_battle_frame_surface.hpp"
+#include "openswd3/battle/legacy_battle_frame_selection.hpp"
 
 #include <bit>
 #include <optional>
@@ -368,59 +369,30 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
 
-    auto& selection_mode = context.action_dispatch.action_pending_aux;
-    auto& selection_value = port.actor_metric_state().priority_actor_index;
-    auto& input_source = context.startup.reset.records_524788[0].value_00;
-    auto& selection_active = context.final_actor_step.selection_gate;
     auto& selection_source = context.final_actor_step.queued_actor_code;
     auto& debug_state = port.battle_debug_hotkey_state();
-
-    if (selection_mode == 1U && selection_value == 0xFFFFFFFFU) {
-        selection_mode = 0U;
+    const auto selection = prepare_legacy_battle_frame_selection(
+        {
+            .action = context.action_dispatch,
+            .metrics = port.actor_metric_state(),
+            .final_actor = context.final_actor_step,
+            .script_workspace = context.script_workspace,
+            .delay = state.selection_delay,
+            .records = context.startup.reset.records_524788,
+            .adjacent_intensity_records =
+                port.effect_coordinator_state().intensity_records,
+        },
+        port,
+        request.attack_order_dequeue_edx_snapshot
+    );
+    result.attack_order_dequeue = selection.dequeue;
+    result.selection_refresh_calls += selection.dequeue_called ? 1U : 0U;
+    result.port_calls += selection.dequeue.actor_query_calls;
+    if (selection.status != LegacyBattleFrameSelectionStatus::completed) {
+        result.status =
+            LegacyBattleFrameCoordinatorStatus::attack_order_dequeue_typed_stop;
+        return result;
     }
-    if (input_source != 0xFFFFFFFFU && selection_active == 0U &&
-        state.selection_enable == 1U && selection_mode == 0U) {
-        if (state.selection_delay >= 0x10U) {
-            result.attack_order_dequeue =
-                dequeue_legacy_battle_attack_order_entry(
-                    {
-                        .records = context.startup.reset.records_524788,
-                        .adjacent_intensity_records =
-                            port.effect_coordinator_state().intensity_records,
-                        .output =
-                            {
-                                .value_00 = &selection_value,
-                                .tail_dwords = port.actor_metric_state()
-                                                   .priority_actor_record_tail,
-                            },
-                    },
-                    port,
-                    {
-                        .entry_eax = selection_mode,
-                        .entry_ecx = selection_value,
-                        .entry_edx = request.attack_order_dequeue_edx_snapshot,
-                    }
-                );
-            ++result.selection_refresh_calls;
-            result.port_calls += result.attack_order_dequeue.actor_query_calls;
-            if (result.attack_order_dequeue.status !=
-                LegacyBattleAttackOrderDequeueStatus::completed) {
-                result.status = LegacyBattleFrameCoordinatorStatus::
-                    attack_order_dequeue_typed_stop;
-                return result;
-            }
-            if (selection_value != 0xFFFFFFFFU) {
-                state.selection_delay = 0U;
-                selection_active = 1U;
-                state.selection_auxiliary = selection_value;
-            }
-        } else {
-            state.selection_delay =
-                static_cast<u16>(static_cast<u16>(state.selection_delay) + 1U);
-        }
-    }
-    state.interaction_available =
-        selection_value == 0xFFFFFFFFU && selection_source == 0U ? 1U : 0U;
 
     LegacyBattleFrameEffectContext frame_effect_context{
         .framebuffer = context.frame_zero.framebuffer,

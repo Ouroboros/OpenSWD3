@@ -45,6 +45,8 @@ struct LegacyBattleAttackOrderDequeueActorReply {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
+    // An unavailable actor mapping stops at the original query access.
+    bool callee_returned{true};
 };
 
 class LegacyBattleAttackOrderDequeuePort {
@@ -64,6 +66,7 @@ enum class LegacyBattleAttackOrderDequeueStatus : compat::u8 {
     shift_destination_typed_stop,
     empty_scan_typed_stop,
     cleanup_typed_stop,
+    actor_query_typed_stop,
 };
 
 struct LegacyBattleAttackOrderDequeueResult {

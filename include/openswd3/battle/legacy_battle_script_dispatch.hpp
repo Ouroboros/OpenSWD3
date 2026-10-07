@@ -122,7 +122,6 @@ struct LegacyBattleScriptWorkspace {
 // Globals referenced by 0x00469D20 that did not have a pre-existing typed
 // owner before this work package. Existing owners stay in the bindings below.
 struct LegacyBattleScriptSharedState {
-    compat::u32 frame_gate{1U};            // 0x004A7B58
     compat::u32 frame_value{0xFFFFU};      // 0x004A7B54, initialized DWORD
     compat::u32 script_completion_gate{1U};  // 0x004A7B5C, initialized data
     compat::u32 script_phase_gate{};       // 0x0053C010

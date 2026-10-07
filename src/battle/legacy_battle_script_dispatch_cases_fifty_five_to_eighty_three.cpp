@@ -151,7 +151,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifty_nine() {
         bindings_.action.action_pending_aux = 1U;
     }
     if (!bindings_.dialogs.messages.empty()) {
-        bindings_.shared.frame_gate = 0U;
+        bindings_.action.frame_enabled = 0U;
         if (!run_frame()) {
             return finish(eax_);
         }
@@ -360,12 +360,12 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_three() {
         workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
     }
 
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     if (!run_frame()) {
         return finish(eax_);
     }
 
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     return finish(1U);
 }
 
@@ -541,12 +541,12 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_eight() {
     workspace_.value_a = 0;
     workspace_.word_a = 0U;
     workspace_.word_b = 0U;
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     if (!run_frame()) {
         return finish(eax_);
     }
 
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     workspace_.cursor = wrapping_add(workspace_.cursor, 8U);
     return finish(1U);
 }
@@ -643,7 +643,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_three() {
     workspace_.value_a = step;
     workspace_.position_x =
         static_cast<u16>(workspace_.position_x + static_cast<u16>(step));
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     if (step == 0) {
         workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
         workspace_.pair_x = 0U;
@@ -652,7 +652,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_three() {
         set_high_word(workspace_.packed_value_a, 0U);
         workspace_.word_a = 0U;
         workspace_.position_y = 0U;
-        bindings_.shared.frame_gate = 1U;
+        bindings_.action.frame_enabled = 1U;
         return finish(1U);
     }
     i32 index = 0;
@@ -990,7 +990,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_eight() {
         bindings_.input_dispatch.selected_actor_reset_gate = 1U;
         workspace_.word_a = 0U;
     }
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     if (!run_frame()) {
         return finish(eax_);
     }

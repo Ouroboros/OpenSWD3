@@ -289,7 +289,8 @@ void seed_state(
     debug_overlay.resolved_actor_token = 0x11223344U;
     debug_overlay.selection_order.fill(9U);
     debug_overlay.battle_selector = 9;
-    debug_overlay.battle_mode = 0x22334455U;
+    action.frame_enabled = 0x22334455U;
+    action.actor_progress_gate = 0x66778899U;
     debug_overlay.selection_status = 0x33445566U;
     debug_overlay.lock_count = 0x44556677U;
     debug_overlay.tsw_cache_bytes = 0x55667788U;
@@ -921,7 +922,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             ) && port.battle_debug_overlay_gate() == 0U &&
                 debug_overlay.resolved_actor_token == 0x11223344U &&
                 debug_overlay.battle_selector == -1 &&
-                debug_overlay.battle_mode == 0x22334455U &&
+                action.frame_enabled == 0x22334455U &&
+                action.actor_progress_gate == 0x66778899U &&
                 debug_overlay.selection_status == 0x33445566U &&
                 debug_overlay.lock_count == 0x44556677U &&
                 debug_overlay.tsw_cache_bytes == 0x55667788U &&

@@ -19,6 +19,14 @@ using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
+// Most vectors isolate actor presentation while AI is paused. Vectors that
+// exercise AI explicitly enable the same shared gate below.
+struct PausedFrameState final : openswd3::battle::LegacyBattleGroupAFrameState {
+    PausedFrameState() {
+        action.frame_enabled = 0U;
+    }
+};
+
 class DispatchPort final
     : public openswd3::battle::LegacyBattleActionDispatchPort {
 public:
@@ -279,7 +287,7 @@ struct Fixture {
 
 void test_battle_group_a_frame(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchStatus;
-    using openswd3::battle::LegacyBattleGroupAFrameState;
+    using LegacyBattleGroupAFrameState = PausedFrameState;
     using openswd3::battle::LegacyBattleTurnAdvanceStatus;
 
     // 004566EC/004566F9 test the two waits, not the result at 0053BF5C.
@@ -288,7 +296,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.ai_coordination_enabled = 1U;
+            state.action.frame_enabled = 1U;
             state.actor_progress_threshold = 100;
             state.action.selection_cache_gate_b = wait;
             state.action.resolution_latch = resolution;
@@ -1297,7 +1305,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.ai_coordination_enabled = 1U;
+            state.action.frame_enabled = 1U;
             state.actor_ai_primary[0] = 1U;
             state.action.group_b_count = 2;
             state.actors[0].cache_x = 7U;
@@ -1350,7 +1358,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.ai_coordination_enabled = 1U;
+            state.action.frame_enabled = 1U;
             state.actor_ai_primary[0U] = 1U;
             state.action.group_b_count = 1;
             state.final_actor_step.group_a_availability_blocks[0U]
@@ -1385,7 +1393,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.ai_coordination_enabled = 1U;
+            state.action.frame_enabled = 1U;
             state.actor_ai_primary[0U] = 1U;
             Fixture fixture;
             fixture.startup.party[0U].workspace.tail_words[7U] = 200U;
@@ -1434,7 +1442,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.ai_coordination_enabled = 1U;
+            state.action.frame_enabled = 1U;
             state.actor_ai_primary[0U] = 1U;
             Fixture fixture;
             DispatchPort port;
@@ -1522,7 +1530,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.ai_coordination_enabled = 1U;
+            state.action.frame_enabled = 1U;
             Fixture fixture;
             DispatchPort port;
             port.push(0x0047F920U, {.eax = 0U});
@@ -1553,7 +1561,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.ai_coordination_enabled = 1U;
+            state.action.frame_enabled = 1U;
             Fixture fixture;
             fixture.shared_final_actor.group_a_availability_blocks[2U]
                 .write_accessible = false;
@@ -1590,7 +1598,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.ai_coordination_enabled = 1U;
+            state.action.frame_enabled = 1U;
             Fixture fixture;
             DispatchPort port;
             port.push(0x0047F920U, {.eax = 0U});

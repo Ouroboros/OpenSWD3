@@ -1,5 +1,6 @@
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_dialog_text.hpp"
+#include "openswd3/battle/legacy_battle_frame_selection.hpp"
 #include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_stream_runtime.hpp"
@@ -2474,7 +2475,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 actor.alternate_position_x == 0U &&
                 actor.alternate_position_y == 0U &&
                 fixture.workspace.cursor == 0U &&
-                fixture.shared.frame_gate == 0U &&
+                fixture.action.frame_enabled == 0U &&
                 port.count(LegacyBattleScriptDispatchCall::actor_metrics) ==
                     0U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 0U,
@@ -2590,7 +2591,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                         .action_execution.position_x == 100U &&
                 fixture.workspace.position_x == 210U &&
                 fixture.workspace.cursor == 0U &&
-                fixture.shared.frame_gate == 0U &&
+                fixture.action.frame_enabled == 0U &&
                 port.count(LegacyBattleScriptDispatchCall::actor_metrics) ==
                     0U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 0U,
@@ -3635,6 +3636,58 @@ void test_battle_script_frame_stop(openswd3::test::Context& test) {
     using openswd3::battle::run_legacy_battle_script_dispatch;
 
     {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->opcode(3);
+        for (auto& record : fixture->startup.reset.records_524788) {
+            record.value_00 = 0xFFFFFFFFU;
+        }
+
+        fixture->startup.reset.records_524788[0].value_00 = 5U;
+        fixture->metrics.priority_actor_index = 0xFFFFFFFFU;
+        fixture->final_actor.selection_gate = 0U;
+        u16 delay = 15U;
+        openswd3::battle::LegacyBattleAttackOrderRuntimePort selection_port{
+            fixture->action, fixture->startup
+        };
+        auto select = [&] {
+            return openswd3::battle::prepare_legacy_battle_frame_selection(
+                {fixture->action,
+                 fixture->metrics,
+                 fixture->final_actor,
+                 fixture->workspace,
+                 delay,
+                 fixture->startup.reset.records_524788,
+                 {}},
+                selection_port
+            );
+        };
+        bool paused{};
+        Port port;
+        port.after_call = [&](auto&, auto&, const auto& call) {
+            if (call.call != LegacyBattleScriptDispatchCall::frame) {
+                return;
+            }
+
+            const auto selection = select();
+            paused = fixture->action.frame_enabled == 0U && delay == 15U &&
+                !selection.dequeue_called;
+        };
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        const auto resumed = select();
+        const auto dequeued = select();
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                paused && !resumed.dequeue_called && dequeued.dequeue_called &&
+                fixture->action.frame_enabled == 1U && delay == 0U &&
+                fixture->metrics.priority_actor_index == 5U &&
+                fixture->workspace.coordinate_y == 5,
+            "script frame pause and resume control the same live selection gate"
+        );
+    }
+
+    {
         auto fixture_owner = std::make_unique<Fixture>();
         auto& fixture = *fixture_owner;
         Port port;
@@ -3646,7 +3699,7 @@ void test_battle_script_frame_stop(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
                 result.return_eax == 1U && fixture.workspace.cursor == 2U &&
-                fixture.shared.frame_gate == 1U,
+                fixture.action.frame_enabled == 1U,
             "case three ignores a completed frame callee EAX zero"
         );
     }
@@ -3667,7 +3720,7 @@ void test_battle_script_frame_stop(openswd3::test::Context& test) {
                     LegacyBattleScriptDispatchStatus::frame_typed_stop &&
                 result.return_eax == 0U && result.stopped_offset == 0U &&
                 fixture.workspace.cursor == 0U &&
-                fixture.shared.frame_gate == 0U &&
+                fixture.action.frame_enabled == 0U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
             "case three stops before its cursor and frame-gate success suffix"
         );
@@ -3949,7 +4002,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.return_eax == 1U && fixture.workspace.cursor == 2U &&
-                fixture.shared.frame_gate == 1U &&
+                fixture.action.frame_enabled == 1U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
             "case three ignores the frame return and advances two bytes"
         );
@@ -4526,7 +4579,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                 result.return_eax == 0U && result.stopped_offset == 2U &&
                 fixture.workspace.cursor == 2U &&
                 fixture.workspace.text_offset == 2U &&
-                fixture.shared.frame_gate == 0U &&
+                fixture.action.frame_enabled == 0U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
             "unbound battle frame stops at its call instead of reporting script success"
         );
@@ -5214,7 +5267,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                 (*fixture.startup.group_b_lifecycle)[0U]
                         .action_execution.start_gate_latch == 0U &&
                 fixture.input_dispatch.selected_actor_reset_gate == 0U &&
-                fixture.shared.frame_gate == 1U &&
+                fixture.action.frame_enabled == 1U &&
                 fixture.workspace.cursor == 0U &&
                 std::ranges::all_of(
                     fixture.shared.actor_order_workspace,
@@ -5470,7 +5523,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                     fixture.shared.shutdown_values,
                     [](const auto value) { return value == 0U; }
                 ) &&
-                fixture.shared.frame_gate == 1U &&
+                fixture.action.frame_enabled == 1U &&
                 fixture.shared.script_completion_gate == 1U &&
                 fixture.shared.frame_value == 0xFFFFU &&
                 fixture.assets.script_capacity == 0U &&
@@ -5886,7 +5939,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 fixture->workspace.dynamic_commands.empty() &&
                 fixture->workspace.cursor == 0U &&
                 fixture->workspace.packed_actor_state == 0x80080000U &&
-                fixture->shared.frame_gate == 0U &&
+                fixture->action.frame_enabled == 0U &&
                 fixture->shared.frame_value == 0x12345678U &&
                 port.count(LegacyBattleScriptDispatchCall::frame) == 1U,
             "script dialog waits on the real shared chain after linking its message"
@@ -5907,7 +5960,8 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 fixture->workspace.coordinate_x == 123 &&
                 fixture->workspace.coordinate_y == -456 &&
                 fixture->shared.frame_value == 0x12345678U &&
-                fixture->shared.frame_gate == 1U && port.calls.size() == 30U &&
+                fixture->action.frame_enabled == 1U &&
+                port.calls.size() == 30U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47d900) ==
                     10U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==

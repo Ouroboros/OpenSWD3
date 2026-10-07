@@ -15,8 +15,6 @@ struct LegacyBattleGroupAFrameState {
     LegacyBattleActionDispatchState action{};
 
     compat::u32 global_effect_override{};
-    compat::u32 ai_coordination_enabled{};
-    compat::u32 actor_gate_argument{};
     compat::i32 actor_progress_threshold{};
     std::array<compat::u32, 10> actor_enabled{};
     std::array<compat::u32, 10> actor_ai_primary{};

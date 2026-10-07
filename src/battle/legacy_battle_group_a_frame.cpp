@@ -1578,13 +1578,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         return result;
     }
 
-    if (state.ai_coordination_enabled == 1U &&
+    if (state.action.frame_enabled == 1U &&
         state.action.action_pending_aux == 0U &&
         state.action.selection_cache_gate_b == 0U) {
         static_cast<void>(invoke(port, result, kCallPrepareAi, {actor_token}));
         const auto progress = advance_legacy_battle_actor_progress(
             actor,
-            std::bit_cast<i32>(state.actor_gate_argument),
+            std::bit_cast<i32>(state.action.actor_progress_gate),
             state.actor_progress_threshold,
             actor_token,
             &state.action.group_a_action_execution[group_a_index]

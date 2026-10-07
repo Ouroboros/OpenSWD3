@@ -42,6 +42,8 @@
 
 namespace openswd3::battle {
 
+struct LegacyBattleScriptWorkspace;
+
 inline constexpr compat::u32 kLegacyBattleFrameCoordinatorTargetSurfaceToken =
     0x004ACBA0U;
 inline constexpr compat::u32 kLegacyBattleFrameCoordinatorSurfaceOwnerToken =
@@ -1836,7 +1838,12 @@ public:
             .ecx = request.actor_token,
             .edx = request.stale_edx,
         });
-        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .callee_returned = reply.callee_returned,
+        };
     }
 
     [[nodiscard]] LegacyBattlePendingActionCallReply invoke_pending_action(
@@ -1926,10 +1933,7 @@ struct LegacyBattleFrameCoordinatorState {
     };
     compat::u32 current_target_pointer_token{};
     compat::u32 render_abort_latch{};
-    compat::u32 selection_enable{1U};
     compat::u16 selection_delay{};
-    compat::u32 selection_auxiliary{};
-    compat::u32 interaction_available{};
     compat::u32 conditional_mode{};
     compat::u32 conditional_submode{};
     compat::u32 ui_state{};
@@ -2008,6 +2012,7 @@ struct LegacyBattleFrameCoordinatorContext {
     LegacyBattleFinalActorStepState& final_actor_step;
     LegacyBattleActionDispatchState& action_dispatch;
     LegacyBattleStartupState& startup;
+    LegacyBattleScriptWorkspace& script_workspace;
     input_time_rng::LegacyInputNormalizationState& input_normalization;
     const input_time_rng::LegacyKeyboardSnapshot& keyboard;
     std::vector<world_map::LegacyWorldInteractionHotspot>& choice_hotspots;

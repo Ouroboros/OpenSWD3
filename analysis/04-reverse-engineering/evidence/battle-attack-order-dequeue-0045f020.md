@@ -52,4 +52,13 @@ EBX signed大于等于18时不清理，保留首空扫描形成的EAX/ECX和此�
 
 定向测试覆盖首项空记录、组B记录、两项组A查询、值7的一过组A基址下溢、signed高位值、短输出前缀、短攻击owner、满18槽后读取强度记录前缀、第二个28字节强度位置、缺失相邻owner、满表从原选中索引清尾、逐帧caller完整七dword发布、旧槽零调用和剩余角色查询寄存器。
 
+## 7. B11生产接线补充
+
+SDL与核心协调器现共用实际选择等待及出队前缀。SDL的查询端口按计算后的
+组A地址读取startup角色的mode_gate及action的special_mode；查询未完成
+新增actor_query_typed_stop，保留此前状态并阻断输出复制与caller后缀。
+完整协调器窄端口同步传播callee_returned，不把未知映射当正常零返回。
+原有无界扫描和队列算法未改。固定查询域不关闭WP379或其他调用者。
+共享开关、脚本坐标及验证见[生产绑定证据](battle-frame-selection-runtime-binding.md)。
+
 当前缺少原版无界攻击/强度相邻内存轨迹、角色状态查询副作用、七dword输出记录、唯一caller输入及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

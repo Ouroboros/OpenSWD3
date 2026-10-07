@@ -48,7 +48,7 @@ HRESULT非零返回0，成功才把signed pitch右移1写入无消费者的pitch
 属于适配typed-stop，不伪装为原Lock的正常零返回；软件解锁无宿主租约要释放。
 
 SDL仅在此前全部阶段正常继续时执行本批；中止门精确1正常返回当前活动值，
-其他值停在`45328C`下一项选择状态首读前。原输入分支停点未被绕过。
+其他值继续进入第4节的共享选择前缀。原输入分支停点未被绕过。
 本批不建立原版CPU现场证据，不代表整帧绘制、四处角色帧绑定或实际续玩已通过。
 
 本批向量覆盖Lock返回0/非零/全1、surface引用重读、Unlock回调看到发布值、
@@ -72,24 +72,29 @@ callee停点的传播及后续绘制零调用。guest地址耗尽未单独注入
 ```text
 input_source != 0xFFFFFFFF
 selection_active == 0
-selection_enable == 1
+action.frame_enabled == 1
 selection_mode == 0
 ```
 
-- 16位延迟小于`0x10`：只执行word递增，保留u16回绕；
+- 16位延迟按unsigned小于`0x10`：只执行word递增；FFFF进入出队分支；
 - 延迟不小于`0x10`：直接组合已关闭攻击顺序出队；它按无界28字节步长跳过角色查询精确返回1的组A记录，把首个可用或空记录完整七dword复制到共享输出，随后按原规则左移并重置尾部；
-- 新值不是全1：延迟word清零、active写1、auxiliary保存新值；
-- 新值仍为全1：不清延迟、不置active、不改auxiliary。
+- 新值不是全1：延迟word清零、active写1、实际脚本workspace的coordinate_y保存位形；
+- 新值仍为全1：不清延迟、不置active、不改脚本坐标。
 
-旧选择刷新callee枚举只保留reserved数值且不再调用。出队内部唯一尚未关闭角色查询转接为窄端口；子typed-stop保留lock/unlock和出队输出/记录前缀，阻断选择帧和后续全部帧。
+旧选择刷新callee枚举只保留reserved数值且不再调用。完整协调器保留窄查询端口，SDL按实际组A地址读取启动角色的mode_gate和action的special_mode。未知映射传播callee未完成，保留lock/unlock和出队前缀，阻断全部后续帧。固定调用域不关闭通用查询。
 
-选择值与角色metric优先索引是同一物理七dword输出记录的首dword，后六dword也收敛到同一metric owner；全局重置按原物理写集合清完整七dword。输入源复用启动状态第一条`0x1C`记录的`+0x00`，选择active与mode分别复用最终角色selection gate与frame gate。调试快捷键或后续角色阶段的同址写入会真实影响本帧后续判断，不保留旧独立副本。
+选择值与角色metric优先索引是同一物理七dword输出记录的首dword，后六dword也收敛到同一metric owner；全局重置按原物理写集合清完整七dword。输入源复用启动状态第一条`0x1C`记录的`+0x00`，选择active与mode分别复用最终角色selection gate与action_pending_aux。调试快捷键或后续角色阶段的同址写入会真实影响本帧后续判断，不保留旧独立副本。
 
 交互可用dword最终严格等于：
 
 ```text
 selection_value == 0xFFFFFFFF && selection_source == 0
 ```
+
+该值直接发布到action.actor_progress_gate，供双方角色进度调用读取。
+帧开关统一到action.frame_enabled，脚本50处写入和角色帧、调试显示共同借用。
+核心与SDL共用选择前缀，SDL正常后停在45331C画面效果首读前。
+原指令顺序、实际存储及验证见[选择等待与出队绑定](battle-frame-selection-runtime-binding.md)。
 
 ## 5. 主绘制阶段与固定帧
 

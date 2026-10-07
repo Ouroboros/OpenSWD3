@@ -48,6 +48,7 @@
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
 #include "openswd3/battle/legacy_battle_frame_surface.hpp"
+#include "openswd3/battle/legacy_battle_frame_selection.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
@@ -4141,8 +4142,41 @@ public:
                                         stop_boundary =
                                             "0x00453277 -> sub_416F60";
                                     } else {
-                                        stop_boundary =
-                                            "0x0045328C -> selection state";
+                                        openswd3::battle::
+                                            LegacyBattleAttackOrderRuntimePort
+                                                selection_port(
+                                                    battle_action_dispatch_,
+                                                    battle_runtime_
+                                                );
+                                        const auto selection = openswd3::battle::
+                                            prepare_legacy_battle_frame_selection(
+                                                {
+                                                    .action =
+                                                        battle_action_dispatch_,
+                                                    .metrics =
+                                                        battle_actor_metrics_,
+                                                    .final_actor =
+                                                        battle_final_actor_,
+                                                    .script_workspace =
+                                                        battle_script_workspace_,
+                                                    .delay =
+                                                        battle_frame_coordinator_state_
+                                                            .selection_delay,
+                                                    .records =
+                                                        battle_runtime_.reset
+                                                            .records_524788,
+                                                    .adjacent_intensity_records =
+                                                        effect_coordinator_state()
+                                                            .intensity_records,
+                                                },
+                                                selection_port
+                                            );
+                                        stop_boundary = selection.status ==
+                                                openswd3::battle::
+                                                    LegacyBattleFrameSelectionStatus::
+                                                        completed
+                                            ? "0x0045331C -> frame effect"
+                                            : "0x004532D3 -> sub_45F020 typed stop";
                                     }
                                 }
                             }

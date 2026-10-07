@@ -215,6 +215,13 @@ LegacyBattleAttackOrderDequeueResult dequeue_legacy_battle_attack_order_entry(
         eax = reply.eax;
         ecx = reply.ecx;
         edx = reply.edx;
+        if (!reply.callee_returned) {
+            result.status =
+                LegacyBattleAttackOrderDequeueStatus::actor_query_typed_stop;
+            publish_registers(result, eax, ecx, edx);
+            return result;
+        }
+
         if (eax != 1U) {
             break;
         }

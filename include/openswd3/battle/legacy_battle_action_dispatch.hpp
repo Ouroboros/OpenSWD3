@@ -1318,6 +1318,8 @@ struct LegacyBattleTurnAdvanceResult {
 };
 
 struct LegacyBattleActionDispatchState {
+    compat::u32 frame_enabled{1U};      // 0x004A7B58; scripts and actor frames.
+    compat::u32 actor_progress_gate{};  // 0x0053C044; frame selection result.
     compat::u32 side_mode{};
     compat::i32 group_a_count{};
     compat::i32 group_b_count{};

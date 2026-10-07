@@ -12,9 +12,7 @@ namespace openswd3::battle {
 struct LegacyBattleGroupBFrameState {
     LegacyBattleGroupAFrameState shared{};
 
-    compat::u32 frame_enabled{};
     std::array<compat::u32, 8> post_update_gate{};
-    compat::u32 update_gate_argument{};
 
     compat::u32 selection_initialized{};
     compat::u32 phase_mode{};

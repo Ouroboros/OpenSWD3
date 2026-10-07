@@ -840,7 +840,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
     };
     u32 stale_ebx = group_b_index * kLegacyBattleActionGroupBStride;
 
-    if (state.frame_enabled == 1U) {
+    if (shared.action.frame_enabled == 1U) {
         if (invoke(port, result, kCallQueryTerminal, {source_token}).eax ==
                 0U &&
             action.action_pending_aux == 0U &&
@@ -867,7 +867,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                     advance_legacy_battle_actor_group_b_progress(
                         enemy.progress,
                         lifecycle,
-                        std::bit_cast<i32>(state.update_gate_argument),
+                        std::bit_cast<i32>(shared.action.actor_progress_gate),
                         state.shared.actor_progress_threshold,
                         source_token,
                         update_reply.edx
@@ -1809,7 +1809,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
     }
 
 action_decision_done:
-    if (state.frame_enabled == 1U && shared.action_aux_gate == 0U &&
+    if (shared.action.frame_enabled == 1U && shared.action_aux_gate == 0U &&
         shared.turn_resolution_bits == 0U) {
         auto decision_idle_request = context.actor_idle_state_request;
         decision_idle_request.actor_token = source_token;

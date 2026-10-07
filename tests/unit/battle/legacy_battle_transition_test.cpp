@@ -384,7 +384,10 @@ struct ActorFrameFixture {
               .group_a_skip_primary = {},
               .group_a_skip_secondary = {},
           },
-          context{state, ports, dispatch} {}
+          context{state, ports, dispatch} {
+        // These transition vectors exercise drawing with actor AI paused.
+        state.shared.action.frame_enabled = 0U;
+    }
 };
 
 void add_default_surfaces(TransitionPorts& ports) {

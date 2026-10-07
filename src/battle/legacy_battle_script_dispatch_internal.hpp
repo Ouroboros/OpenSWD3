@@ -1416,7 +1416,7 @@ private:
         );
         const bool had_script_allocation =
             bindings_.assets.script_capacity != 0U;
-        bindings_.shared.frame_gate = 1U;
+        bindings_.action.frame_enabled = 1U;
         bindings_.shared.script_completion_gate = 1U;
         bindings_.shared.shutdown_values.fill(0U);
         workspace_.value_b = 0;
@@ -1619,7 +1619,7 @@ private:
             );
             bindings_.action.action_pending_aux = 1U;
             bindings_.shared.action_completion_gate = 0U;
-            bindings_.shared.frame_gate = 1U;
+            bindings_.action.frame_enabled = 1U;
             if (!run_frame()) {
                 return finish(eax_);
             }
@@ -1628,7 +1628,7 @@ private:
         }
 
         if (bindings_.shared.action_completion_gate != 1U) {
-            bindings_.shared.frame_gate = 1U;
+            bindings_.action.frame_enabled = 1U;
             if (!run_frame()) {
                 return finish(eax_);
             }
@@ -1637,7 +1637,7 @@ private:
         }
 
         workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
-        bindings_.shared.frame_gate = 0U;
+        bindings_.action.frame_enabled = 0U;
         set_high_word(workspace_.packed_actor_state, 0U);
         bindings_.action.action_pending_aux = 0U;
         if (completion_runs_frame && !run_frame()) {
@@ -1893,7 +1893,7 @@ private:
         workspace_.cursor = wrapping_add(workspace_.text_offset, length + 2U);
         workspace_.text_offset = workspace_.cursor;
         workspace_.short_text.fill(0U);
-        bindings_.shared.frame_gate = 1U;
+        bindings_.action.frame_enabled = 1U;
         bindings_.action.action_pending_aux = 0U;
         workspace_.pair_x = 0U;
         workspace_.pair_y = 0U;

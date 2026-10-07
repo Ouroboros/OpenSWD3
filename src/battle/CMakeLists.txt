@@ -144,6 +144,7 @@ add_library(
         legacy_battle_frame_completion.cpp
         legacy_battle_frame_coordinator.cpp
         legacy_battle_frame_music_prefix.cpp
+        legacy_battle_frame_selection.cpp
         legacy_battle_frame_surface.cpp
         legacy_battle_frame_effect.cpp
         legacy_battle_frame_draw.cpp

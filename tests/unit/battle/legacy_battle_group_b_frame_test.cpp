@@ -18,6 +18,14 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::compat::u8;
 
+// Keep the paused input of the presentation-only vectors explicit. The AI
+// vectors below enable this shared gate before invoking the production code.
+struct PausedFrameState final : openswd3::battle::LegacyBattleGroupBFrameState {
+    PausedFrameState() {
+        shared.action.frame_enabled = 0U;
+    }
+};
+
 class DispatchPort final
     : public openswd3::battle::LegacyBattleActionDispatchPort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
@@ -277,11 +285,11 @@ void bind_group_b_coordinate_resource(
 
 void test_battle_group_b_frame(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchStatus;
-    using openswd3::battle::LegacyBattleGroupBFrameState;
+    using LegacyBattleGroupBFrameState = PausedFrameState;
 
     for (const openswd3::compat::i32 count : {0, 1}) {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -315,8 +323,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     for (const u32 wait : {0U, 1U, 2U}) {
         for (const u32 resolution : {0U, 7U, 9U}) {
             LegacyBattleGroupBFrameState state;
-            state.frame_enabled = 1U;
-            state.update_gate_argument = 0x55U;
+            state.shared.action.frame_enabled = 1U;
+            state.shared.action.actor_progress_gate = 0x55U;
             state.shared.action.selection_cache_gate_b = wait;
             state.shared.action.resolution_latch = resolution;
             Fixture fixture;
@@ -403,7 +411,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
@@ -454,7 +462,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
@@ -506,7 +514,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
@@ -541,7 +549,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
@@ -583,7 +591,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
@@ -637,7 +645,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
@@ -689,7 +697,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 1U;
         Fixture fixture;
         DispatchPort port;
@@ -736,7 +744,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
@@ -787,7 +795,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState zero_state;
-        zero_state.frame_enabled = 1U;
+        zero_state.shared.action.frame_enabled = 1U;
         zero_state.post_update_gate[0U] = 1U;
         zero_state.shared.action.active_effect_target = 0U;
         zero_state.phase_mode = 1U;
@@ -802,7 +810,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         );
 
         LegacyBattleGroupBFrameState nonzero_state;
-        nonzero_state.frame_enabled = 1U;
+        nonzero_state.shared.action.frame_enabled = 1U;
         nonzero_state.post_update_gate[0U] = 1U;
         nonzero_state.shared.action.active_effect_target = 0U;
         nonzero_state.phase_mode = 1U;
@@ -1070,8 +1078,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
-        state.update_gate_argument = 0x55U;
+        state.shared.action.frame_enabled = 1U;
+        state.shared.action.actor_progress_gate = 0x55U;
         Fixture fixture;
         DispatchPort port;
         port.push(0x0047CE80U, {.eax = 0U});
@@ -1098,7 +1106,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.actor_progress_threshold = 100;
         Fixture fixture;
         fixture.startup->group_b_lifecycle.reset();
@@ -1124,8 +1132,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
-        state.update_gate_argument = 0x55U;
+        state.shared.action.frame_enabled = 1U;
+        state.shared.action.actor_progress_gate = 0x55U;
         Fixture fixture;
         DispatchPort port;
         port.push(0x0047CE80U, {.eax = 0U});
@@ -1151,7 +1159,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     for (const bool queue_complete : {false, true}) {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 3U;
         state.shared.action.resolution_latch = 9U;
         state.shared.action.selection_cache_gate_b = 2U;
@@ -1188,7 +1196,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
         state.shared.action_side = 0U;
@@ -1229,7 +1237,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
         state.shared.action_side = 0U;
@@ -1269,7 +1277,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.shared.action.group_b_count = 3;
         Fixture fixture;
@@ -1293,7 +1301,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.shared.action.group_a_count = 1;
@@ -1350,7 +1358,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.shared.action.group_a_count = 1;
@@ -1386,7 +1394,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
@@ -1416,7 +1424,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.shared.action.group_a_count = 1;
@@ -1455,7 +1463,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.shared.action.group_a_count = 1;
@@ -1498,7 +1506,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
@@ -1564,7 +1572,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
@@ -1606,7 +1614,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0x7AU};
@@ -1674,7 +1682,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -1739,7 +1747,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
@@ -1787,7 +1795,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0x7AU};
@@ -1821,7 +1829,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
@@ -1870,7 +1878,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -1917,7 +1925,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -1951,7 +1959,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -1984,7 +1992,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -2017,7 +2025,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -2062,7 +2070,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -2112,7 +2120,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -2174,7 +2182,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -2269,7 +2277,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -2343,7 +2351,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -2403,7 +2411,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -2440,7 +2448,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
@@ -2542,7 +2550,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.frame_enabled = 1U;
+        state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_index = 1U;

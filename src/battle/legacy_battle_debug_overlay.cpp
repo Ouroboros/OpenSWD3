@@ -570,7 +570,7 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
             kBattleSummaryFormat,
             signed_bits(bindings.hotkeys.toggle_53af68),
             static_cast<int>(state.battle_selector),
-            signed_bits(state.battle_mode)
+            signed_bits(bindings.action.frame_enabled)
         );
         runner.draw_buffer(240U, 30U);
         format_text(

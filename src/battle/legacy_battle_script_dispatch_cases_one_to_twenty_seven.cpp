@@ -39,7 +39,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_one() {
         return finish(1U);
     }
 
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     if (!run_frame()) {
         return finish(eax_);
     }
@@ -141,7 +141,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_two() {
     }
 
     if (!bindings_.dialogs.messages.empty()) {
-        bindings_.shared.frame_gate = 0U;
+        bindings_.action.frame_enabled = 0U;
         if (!run_frame()) {
             return finish(eax_);
         }
@@ -196,7 +196,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_two() {
     workspace_.cursor = wrapping_add(workspace_.text_offset, offset + 2U);
     workspace_.text_offset = workspace_.cursor;
     workspace_.short_text.fill(0U);
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     bindings_.action.action_pending_aux = 0U;
     workspace_.pair_x = 0U;
     workspace_.pair_y = 0U;
@@ -205,13 +205,13 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_two() {
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_three() {
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     if (!run_frame()) {
         return finish(eax_);
     }
 
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     return finish(1U);
 }
 
@@ -238,7 +238,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_five() {
         !read_u16(wrapping_add(workspace_.cursor, 6U), delta_y)) {
         return finish();
     }
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     workspace_.position_x = delta_x;
     workspace_.position_y = delta_y;
     const auto token = actor_token(signed_word(actor));
@@ -295,13 +295,13 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_five() {
         return finish(eax_);
     }
 
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     return finish(1U);
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_six() {
     u32 state = workspace_.dynamic_wait_state;
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     if ((state & 0x8000U) == 0U) {
         u16 count{};
         if (!read_u16(wrapping_add(workspace_.cursor, 2U), count)) {
@@ -320,7 +320,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_six() {
     if ((state & 0x7FFFU) == 0U) {
         workspace_.dynamic_wait_state = 0U;
         workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
-        bindings_.shared.frame_gate = 1U;
+        bindings_.action.frame_enabled = 1U;
         if (!run_frame()) {
             return finish(eax_);
         }
@@ -338,7 +338,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_six() {
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_eight() {
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     if (!run_frame()) {
         return finish(eax_);
     }
@@ -465,12 +465,12 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_nine() {
     if (!insert_attack_order_direct(2U, std::bit_cast<u32>(source_code), 0U)) {
         return finish(eax_);
     }
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     if (!run_frame()) {
         return finish(eax_);
     }
 
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
     return finish(1U);
 }
@@ -532,7 +532,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_ten() {
             workspace_.packed_actor_state, static_cast<u16>(actor | 0x8000U)
         );
     }
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     if (!run_frame()) {
         return finish(eax_);
     }
@@ -541,7 +541,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_ten() {
     set_high_word(workspace_.packed_actor_state, 0U);
     bindings_.action.action_pending_aux = 0U;
     bindings_.shared.selection_gate_a = 0U;
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     return finish(1U);
 }
 
@@ -619,7 +619,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eleven() {
             workspace_.packed_actor_state, static_cast<u16>(actor | 0x8000U)
         );
         bindings_.shared.action_completion_gate = 0U;
-        bindings_.shared.frame_gate = 1U;
+        bindings_.action.frame_enabled = 1U;
         if (!run_frame()) {
             return finish(eax_);
         }
@@ -628,7 +628,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eleven() {
     }
 
     if (bindings_.shared.action_completion_gate != 1U) {
-        bindings_.shared.frame_gate = 1U;
+        bindings_.action.frame_enabled = 1U;
         if (!run_frame()) {
             return finish(eax_);
         }
@@ -677,7 +677,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twelve() {
     }
     workspace_.cursor = wrapping_add(workspace_.cursor, 2U);
     bindings_.message_phase.group_b_bypass_gate = 1U;
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     return finish(1U);
 }
 
@@ -830,7 +830,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifteen() {
         !read_u16(wrapping_add(workspace_.cursor, 4U), argument)) {
         return finish();
     }
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     const i32 code = signed_word(actor);
     const auto token = actor_token(code);
     if (!token.has_value()) {
@@ -841,13 +841,13 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifteen() {
         ++bindings_.shared.actor_mode_count;
     }
     workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     return finish(1U);
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_sixteen() {
     u16 state = low_word(workspace_.packed_value_a);
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     if ((state & 0x8000U) == 0U) {
         u16 count{};
         if (!read_u16(wrapping_add(workspace_.cursor, 2U), count)) {
@@ -879,7 +879,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixteen() {
             return finish(eax_);
         }
 
-        bindings_.shared.frame_gate = 1U;
+        bindings_.action.frame_enabled = 1U;
         return finish(1U);
     }
     workspace_.cursor = wrapping_add(workspace_.cursor, 8U);
@@ -888,7 +888,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixteen() {
         return finish(eax_);
     }
 
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     return finish(1U);
 }
 
@@ -909,12 +909,12 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eighteen() {
         --bindings_.shared.actor_mode_count;
     }
     workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     if (!run_frame()) {
         return finish(eax_);
     }
 
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     return finish(1U);
 }
 
@@ -965,7 +965,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_nineteen() {
     }
     workspace_.position_x = 0U;
     workspace_.packed_value_b = 0U;
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     return finish(1U);
 }
 
@@ -1228,12 +1228,12 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_three() {
             return finish(eax_);
         }
     }
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     if (!run_frame()) {
         return finish(eax_);
     }
 
-    bindings_.shared.frame_gate = 1U;
+    bindings_.action.frame_enabled = 1U;
     workspace_.cursor = wrapping_add(workspace_.cursor, 8U);
     return finish(1U);
 }
@@ -1263,7 +1263,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_five() {
         static_cast<u8>(bindings_.startup.actor_metrics.group_b_count);
     bindings_.shared.published_group_b_aux = 0U;
     bindings_.message_phase.group_b_bypass_gate = 1U;
-    bindings_.shared.frame_gate = 0U;
+    bindings_.action.frame_enabled = 0U;
     if (!run_frame()) {
         return finish(eax_);
     }

@@ -1,6 +1,7 @@
 #include "legacy_battle_level_database_fixture.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
+#include "openswd3/battle/legacy_battle_script_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
 #include "openswd3/battle/legacy_battle_menu_input_finalize.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
@@ -17,6 +18,7 @@
 #include "test.hpp"
 
 void test_battle_frame_surface(openswd3::test::Context& test);
+void test_battle_frame_selection(openswd3::test::Context& test);
 
 namespace {
 
@@ -563,6 +565,7 @@ struct Fixture {
         actor_frame_state.shared.action
     };
     openswd3::battle::LegacyBattleStartupState startup;
+    openswd3::battle::LegacyBattleScriptWorkspace script_workspace;
     openswd3::battle::LegacyBattleIntensityEffectRecord
         attack_order_adjacent_record{};
     openswd3::input_time_rng::LegacyInputNormalizationState
@@ -671,6 +674,7 @@ struct Fixture {
             .final_actor_step = final_actor_step,
             .action_dispatch = action_dispatch,
             .startup = startup,
+            .script_workspace = script_workspace,
             .input_normalization = input_normalization,
             .keyboard = keyboard,
             .choice_hotspots = choice_hotspots,
@@ -850,8 +854,8 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
         enemy.action_execution.position_x = 1U;
         enemy.action_execution.position_y = 1U;
         enemy.resource_token = 0U;
-        fixture->actor_frame_state.frame_enabled = 1U;
-        fixture->actor_frame_state.update_gate_argument = 0x55U;
+        fixture->action_dispatch.frame_enabled = 1U;
+        fixture->action_dispatch.actor_progress_gate = 0x55U;
         auto dispatch_context = fixture->action_context();
         openswd3::battle::LegacyBattleActorFrameAdvanceContext actor_frames{
             fixture->actor_frame_state, *port, dispatch_context
@@ -893,7 +897,7 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
         test.expect_true(
             result.selection_refresh_calls == 1U &&
                 state->selection_delay == 0U &&
-                state->selection_auxiliary == 5U &&
+                fixture->script_workspace.coordinate_y == 5 &&
                 fixture->final_actor_step.selection_gate == 1U &&
                 fixture->action_dispatch.selection_cache_gate_b == 0U &&
                 fixture->action_dispatch.resolution_latch == 9U,
@@ -1044,6 +1048,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     test_battle_frame_original_gates(test);
     test_battle_frame_music_prefix(test);
     test_battle_frame_surface(test);
+    test_battle_frame_selection(test);
 
     {
         const auto port_storage = std::make_unique<CoordinatorPort>();
@@ -2610,6 +2615,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         fixture->startup.party[0U].position_x = 1U;
         fixture->startup.party[0U].position_y = 1U;
         port.completion_group_a_count_after_query = 11U;
+        // Isolate completion's mapping failure after the paused actor frame.
+        fixture->action_dispatch.frame_enabled = 0U;
         auto dispatch_context = fixture->action_context();
         dispatch_context.attack_order_adjacent_record =
             &port.effect_coordinator_state().intensity_records[0];
@@ -2819,7 +2826,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     LegacyBattleAttackOrderDequeueStatus::completed &&
                 result.attack_order_dequeue.actor_query_calls == 0U &&
                 state.selection_delay == 0U &&
-                state.selection_auxiliary == 5U &&
+                fixture->script_workspace.coordinate_y == 5 &&
                 port.actor_metric_state().priority_actor_record_tail ==
                     std::array<u32, 6>{
                         0x11111111U,
@@ -2835,7 +2842,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     LegacyBattleFrameCoordinatorCall::
                         reserved_refresh_selection_slot
                 ) == 0U &&
-                state.interaction_available == 0U,
+                fixture->action_dispatch.actor_progress_gate == 0U,
             "full pre-input path publishes the refreshed selection before later shared-state updates"
         );
         test.expect_true(
@@ -2878,7 +2885,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "full pre-input path reaches both countdowns and returns three on internal bit seventeen"
         );
     }
-    {
+    for (const bool returned : {false, true}) {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
@@ -2896,6 +2903,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             .eax = 0U,
             .ecx = 0x005029D0U,
             .edx = 0x13572468U,
+            .callee_returned = returned,
         };
         auto context = fixture->context();
         auto request = base_request();
@@ -2917,6 +2925,26 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         attack_order_dequeue_query_actor;
             });
 
+        if (!returned) {
+            test.expect_true(
+                result.status ==
+                        openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                            attack_order_dequeue_typed_stop &&
+                    result.attack_order_dequeue.status ==
+                        LegacyBattleAttackOrderDequeueStatus::
+                            actor_query_typed_stop &&
+                    result.attack_order_dequeue.actor_query_calls == 1U &&
+                    result.attack_order_dequeue.output_dwords == 0U &&
+                    state.selection_delay == 16U &&
+                    fixture->startup.reset.records_524788[0].value_00 == 8U &&
+                    result.frame_effect_calls == 0U &&
+                    result.actor_frame_sequence_calls == 0U &&
+                    result.fixed_frame_calls == 0U,
+                "dequeue query stop preserves its prefix and blocks every later frame stage"
+            );
+            continue;
+        }
+
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
@@ -2926,7 +2954,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 query->arguments[0] == 0x005029D0U &&
                 query->arguments[1] == 8U && query->arguments[2] == 0U &&
                 query->eax == 0U && query->ecx == 0x005029D0U &&
-                query->edx == 0x24681357U && state.selection_auxiliary == 8U &&
+                query->edx == 0x24681357U &&
+                fixture->script_workspace.coordinate_y == 8 &&
                 fixture->startup.reset.records_524788[0].value_00 ==
                     0xFFFFFFFFU,
             "selection refresh directly dequeues a group-A record through the remaining actor-query boundary"
