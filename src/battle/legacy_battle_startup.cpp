@@ -681,6 +681,14 @@ LegacyBattleDisplaySurfaceCreationResult create_legacy_battle_display_surfaces(
     return result;
 }
 
+bool publish_legacy_battle_startup_definition_counts(
+    LegacyBattleStartupState& state, const LegacyBattleDefinition& definition
+) noexcept {
+    state.actor_metrics.group_b_count = definition.enemy_count;
+    state.definition_secondary_count = definition.secondary_count;
+    return state.actor_metrics.group_b_count != 0U;
+}
+
 void publish_legacy_battle_startup_mouse_position(
     input_time_rng::LegacyMouseFrame& mouse,
     LegacyBattleFrameInputResolutionState& frame_input
@@ -1258,9 +1266,9 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     result.definition =
         decode_legacy_battle_definition(state.definition_record);
     result.definition_load_calls = 1U;
-    state.actor_metrics.group_b_count = result.definition.enemy_count;
-    state.definition_secondary_count = result.definition.secondary_count;
-    if (state.actor_metrics.group_b_count == 0U) {
+    if (!publish_legacy_battle_startup_definition_counts(
+            state, result.definition
+        )) {
         result.no_enemy_notification_calls = 1U;
         result.return_value = invoke(
                                   port,

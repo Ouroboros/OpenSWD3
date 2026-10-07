@@ -4,6 +4,15 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：零敌人数初始化返回
+
+核心与SDL共用计数发布判断，零敌人数保留前缀并跳过初始化后缀。
+原诊断无输出，调用方不检测原返回值；SDL按调用完成继续进入战斗。
+core/ASan setup各1/1及SDL最终构建通过，未启动游戏。
+保留既有结局测试窄化警告；完整帧及实际续玩仍未验收。
+证据见[零敌人数接线](../analysis/04-reverse-engineering/evidence/battle-startup-empty-runtime-binding.md)。
+B10保持315/422，316 pending_audit。
+
 ## B11：入战镜像设置
 
 SDL建场读取实际镜像设置，阵形绑定保留原值，不再固定清零。

@@ -2946,49 +2946,52 @@ public:
                     openswd3::battle::decode_legacy_battle_definition(
                         {.bytes = battle_assets_.ffd_record}
                     );
-                battle_runtime_.actor_metrics.group_b_count =
-                    definition.enemy_count;
-                battle_runtime_.definition_secondary_count =
-                    definition.secondary_count;
-                if (definition.enemy_count != 0U) {
-                    const auto background_request = openswd3::battle::
-                        make_legacy_battle_startup_background_request(
-                            definition,
-                            data_directory_,
-                            secondary_rng_.next_bounded(4U)
-                        );
-                    battle_runtime_.background_rotation_divisor =
-                        static_cast<openswd3::compat::u16>(
-                            background_request.rotation_divisor
-                        );
-                    openswd3::battle::LegacyBattleActionUpdaterRotationPort
-                        background_actions{action_updater_, 1U};
-                    const auto background =
-                        openswd3::battle::initialize_legacy_battle_background(
-                            battle_runtime_.background,
-                            battle_runtime_.background_rotation_cache,
-                            battle_rotation_resources_,
-                            background_actions,
-                            battle_rotation_resources_,
-                            pixel_conversion_,
-                            background_request
-                        );
-                    using BackgroundStatus = openswd3::battle::
-                        LegacyBattleBackgroundInitializationStatus;
-                    if (background.status != BackgroundStatus::completed &&
-                        background.status !=
-                            BackgroundStatus::image_load_failed) {
-                        openswd3::diagnostics::log_error(
-                            "battle background initialization stopped"
-                        );
-                        battle_setup_ready_ = false;
-                        ok_ = false;
-                        running_ = false;
-                        return false;
-                    }
-
-                    battle_runtime_.reset.block_525470.fill(0U);
+                if (!openswd3::battle::
+                        publish_legacy_battle_startup_definition_counts(
+                            battle_runtime_, definition
+                        )) {
+                    // 411F90 is a no-op returning zero. Original callers
+                    // ignore that EAX and continue entering battle; true
+                    // here means the host initialization call completed.
+                    return true;
                 }
+
+                const auto background_request = openswd3::battle::
+                    make_legacy_battle_startup_background_request(
+                        definition,
+                        data_directory_,
+                        secondary_rng_.next_bounded(4U)
+                    );
+                battle_runtime_.background_rotation_divisor =
+                    static_cast<openswd3::compat::u16>(
+                        background_request.rotation_divisor
+                    );
+                openswd3::battle::LegacyBattleActionUpdaterRotationPort
+                    background_actions{action_updater_, 1U};
+                const auto background =
+                    openswd3::battle::initialize_legacy_battle_background(
+                        battle_runtime_.background,
+                        battle_runtime_.background_rotation_cache,
+                        battle_rotation_resources_,
+                        background_actions,
+                        battle_rotation_resources_,
+                        pixel_conversion_,
+                        background_request
+                    );
+                using BackgroundStatus = openswd3::battle::
+                    LegacyBattleBackgroundInitializationStatus;
+                if (background.status != BackgroundStatus::completed &&
+                    background.status != BackgroundStatus::image_load_failed) {
+                    openswd3::diagnostics::log_error(
+                        "battle background initialization stopped"
+                    );
+                    battle_setup_ready_ = false;
+                    ok_ = false;
+                    running_ = false;
+                    return false;
+                }
+
+                battle_runtime_.reset.block_525470.fill(0U);
 
                 battle_runtime_.battle_id_word = battle_id;
                 for (std::size_t index = 0U; index < battle_setup_.enemy_count;

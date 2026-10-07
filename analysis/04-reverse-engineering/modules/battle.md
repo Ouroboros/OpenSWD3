@@ -34,6 +34,8 @@ TOML战斗速度已接入入战阈值，保留默认值与原配置字节范围�
 [出场状态接线](../evidence/battle-startup-party-presence-runtime-binding.md)。
 SDL建场读取实际共享镜像设置，阵形绑定保留原值，定向验证通过，见
 [镜像接线](../evidence/battle-startup-mirror-runtime-binding.md)。
+零敌人数时保留计数及前缀，结束初始化但不阻断调用方进入，定向验证通过，见
+[零敌人数接线](../evidence/battle-startup-empty-runtime-binding.md)。
 这些接线不关闭新的战斗函数。
 
 ## 1. 唯一真值与模块目标

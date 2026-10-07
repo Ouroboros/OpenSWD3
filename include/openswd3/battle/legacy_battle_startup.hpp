@@ -410,6 +410,12 @@ void initialize_legacy_battle_party_level_limit(
     }
 }
 
+// 451EB2..451ED5: publish both zero-extended WORD counts before the
+// no-enemy exit. The result selects the initialization suffix, not success.
+[[nodiscard]] bool publish_legacy_battle_startup_definition_counts(
+    LegacyBattleStartupState& state, const LegacyBattleDefinition& definition
+) noexcept;
+
 // 00451E28..00451E3F, before the mouse device rebase at 00451E44.
 void publish_legacy_battle_startup_mouse_position(
     input_time_rng::LegacyMouseFrame& mouse,

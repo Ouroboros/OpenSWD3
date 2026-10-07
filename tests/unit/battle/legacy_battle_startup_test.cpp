@@ -659,6 +659,54 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        state->actor_metrics.group_a_count = 7U;
+        state->mirror_mode = 0x10001U;
+        for (const u16 enemies : {u16{0U}, u16{1U}, u16{0xFFFFU}, u16{0U}}) {
+            const LegacyBattleDefinition definition{
+                .secondary_count = 0xFFFFU,
+                .enemy_count = enemies,
+            };
+            const bool run_suffix = openswd3::battle::
+                publish_legacy_battle_startup_definition_counts(
+                    *state, definition
+                );
+            test.expect_true(
+                run_suffix == (enemies != 0U) &&
+                    state->actor_metrics.group_b_count == enemies &&
+                    state->definition_secondary_count == 65535U &&
+                    state->actor_metrics.group_a_count == 7U &&
+                    state->mirror_mode == 0x10001U,
+                "definition counts zero-extend both WORDs before selecting the suffix and preserve unrelated state"
+            );
+        }
+    }
+
+    {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        StartupPorts ports;
+        ports.no_enemy_return = 0U;
+        ports.definition.secondary_count = 0xFFFFU;
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            *state, ports, ports, ports, ports, ports, ports, request(1U)
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::no_enemies &&
+                result.return_value == 0U &&
+                result.no_enemy_notification_calls == 1U &&
+                state->actor_metrics.group_b_count == 0U &&
+                state->definition_secondary_count == 65535U &&
+                result.enemy_actor_count == 0U &&
+                result.initial_party_actor_count == 0U &&
+                result.supplemental_actor_count == 0U &&
+                ports.call_count(LegacyBattleStartupCall::random_below) == 0U &&
+                ports.background_load_calls == 0U,
+            "the original no-op diagnostic returns zero after count publication and suppresses the entire initialization suffix"
+        );
+    }
+
     for (u32 mask = 0U; mask < 16U; ++mask) {
         auto state = std::make_unique<LegacyBattleStartupState>();
         state->action_mode_source.actor_label_indices.fill(0xAABBCCDDU);
