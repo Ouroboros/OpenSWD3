@@ -3650,6 +3650,25 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
     {
         Fixture fixture;
         Port port;
+        fixture.opcode(28);
+        fixture.write_u16(2U, 8U);
+        fixture.workspace.word_b = 0xFFFDU;
+        fixture.startup.party_metrics[0].primary_numerator = 111;
+        fixture.startup.party_metrics[0].secondary_numerator = 222;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture.startup.party_metrics[0].primary_numerator == 40 &&
+                fixture.startup.party_metrics[0].secondary_numerator == -3,
+            "script case 28 writes the same primary and secondary caches initialized at battle startup"
+        );
+    }
+
+    {
+        Fixture fixture;
+        Port port;
         fixture.opcode(0);
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port

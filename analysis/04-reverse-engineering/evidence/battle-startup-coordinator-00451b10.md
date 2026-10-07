@@ -211,9 +211,14 @@ definition与组B都只有八槽。第九项在首次actor对象访问处typed-s
 ratio = low_dword(fistp_qword_trunc((signed numerator / signed denominator) * 56.0f))
 ```
 
-第一组使用i32；后两组只读取callee输出word并符号扩展。`0x00489654`把x87控制字改为向零后`fistp qword`，只返回低dword。零除、NaN、无穷或qword越界产生integer-indefinite，其低dword为零。
+第一组使用i32；后两组只读取callee输出word并符号扩展。`0x00489654`把x87控制字改为向零后`fistp qword`，调用方只取EAX低dword。零除、NaN、无穷或qword越界产生integer-indefinite，其低dword为零。
 
-modern以80位`long double`执行同序计算，有限域向零转i64并取低32位，非法域发布零。每个ratio都复制到两张旧表；三个原numerator和最终actor首dword也分别保存。
+modern以`long double`执行同序计算，有限域向零转i64并取低32位，非法域发布零。每个ratio都复制到两张旧表；三个原numerator和最终辅助记录首dword也分别保存。
+
+B11核心与SDL现从实际角色记录计算，不再消费三个opaque数值回复。
+辅助指针先取值，三组指标写入后才解引用；失败保留九项写入前缀。
+脚本case28的两项同址缓存改为借用startup指标记录。计算、存储及验证边界见
+[入战指标接线](battle-startup-party-metrics-runtime-binding.md)。
 
 ## 10. 候选补位与陈旧分支word
 

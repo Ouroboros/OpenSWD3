@@ -251,6 +251,7 @@ struct LegacyBattlePartyStartupRecord
     compat::u16 placement_field_1a{};
     compat::u32 active{};
     compat::u32 secondary_resource_token{};  // actor + 0x2BC4
+    compat::u32 primary_metric_override{};   // actor + 0x26B4
     LegacyBattleActorBaseInitializationFields base_initialization;
     LegacyBattleGroupAStartupResetFields startup_reset;
     std::array<compat::u8, kLegacyBattleActorBaseDefinitionBytes>
@@ -406,7 +407,20 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     party_progress_initialization_typed_stop,
     display_surface_typed_stop,
     actor_reset_typed_stop,
+    party_metric_source_typed_stop,
 };
+
+struct LegacyBattleStartupPartyMetricsResult {
+    LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};
+    compat::u32 writes{};
+    compat::u32 stopped_read_token{};
+};
+
+// 45230E..452443: read the configured actor and publish its three ratios.
+[[nodiscard]] LegacyBattleStartupPartyMetricsResult
+update_legacy_battle_startup_party_metrics(
+    LegacyBattleStartupState& state, std::size_t index
+) noexcept;
 
 struct LegacyBattleStartupPartyReferencesResult {
     LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};

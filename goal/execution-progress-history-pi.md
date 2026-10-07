@@ -4,6 +4,15 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：入战角色指标
+
+核心和SDL从实际角色记录计算三组状态比例及辅助值，保持有符号字段、
+向零截断、低DWORD回绕和辅助读取失败的九项写入前缀。
+脚本case28直接修改相同的生命、法力缓存，不再另存两张数组。
+最终core/ASan定向setup各1/1通过，SDL构建通过；未启动游戏。
+证据、范围及日志见[指标接线](../analysis/04-reverse-engineering/evidence/battle-startup-party-metrics-runtime-binding.md)。
+B10保持315/422；完整初始化、帧与实际续玩未完成。
+
 ## B11：入战队员物品与姓名引用
 
 核心和SDL逐角色完成属性后，重读来源并绑定队伍物品根、玩家根地址与姓名。

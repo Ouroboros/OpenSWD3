@@ -153,8 +153,7 @@ struct LegacyBattleScriptSharedState {
     std::array<compat::u16, 18> actor_target_words{};  // 0x005028AC
     std::array<compat::u32, 18> actor_state_words{};
     std::array<compat::u32, 10> group_a_mirror_x{};          // 0x004FF558
-    std::array<compat::u32, 10> group_a_coordinate_table{};  // 0x0052027C
-    std::array<compat::u32, 10> group_a_field_2b00{};
+    // 0x0052027C/0x005201D8 borrow startup.party_metrics numerators.
     std::array<compat::u32, 10> group_a_field_2b04{};
     std::array<float, 3> movement_start{};
     std::array<float, 3> movement_target{};

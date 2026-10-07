@@ -555,6 +555,158 @@ template <typename Range>
 void test_battle_startup(openswd3::test::Context& test) {
     {
         auto state = std::make_unique<LegacyBattleStartupState>();
+        auto& party = state->party[0];
+        auto& record = party.configuration;
+        record.actor_record_token = 0x70000000U;
+        record.source_runtime_value = 1U;
+        record.auxiliary_record_token = 0x004AD010U;
+        state->group_a_auxiliary_sources[2].dwords[0] = 0x87654321U;
+        struct RatioCase {
+            u16 numerator;
+            u16 denominator;
+            u32 expected;
+        };
+        constexpr std::array<RatioCase, 9> cases{{
+            {1U, 2U, 28U},
+            {1U, 3U, 18U},
+            {0xFFFFU, 2U, 0xFFFFFFE4U},
+            {1U, 0xFFFFU, 0xFFFFFFC8U},
+            {0xFFFFU, 0xFFFEU, 28U},
+            {0x8000U, 1U, 0xFFE40000U},
+            {3U, 2U, 84U},
+            {1U, 0U, 0U},
+            {0U, 0U, 0U},
+        }};
+        for (const auto value : cases) {
+            record.actor_record[1] =
+                value.numerator | (static_cast<u32>(value.numerator) << 16U);
+            record.actor_record[2] =
+                value.numerator | (static_cast<u32>(value.denominator) << 16U);
+            record.actor_record[3] = value.denominator |
+                (static_cast<u32>(value.denominator) << 16U);
+            const auto result =
+                openswd3::battle::update_legacy_battle_startup_party_metrics(
+                    *state, 0U
+                );
+            const auto& metrics = state->party_metrics[0];
+            test.expect_true(
+                result.status ==
+                        openswd3::battle::LegacyBattleStartupStatus::
+                            completed &&
+                    result.writes == 11U &&
+                    metrics.primary_ratio_a == value.expected &&
+                    metrics.primary_ratio_b == value.expected &&
+                    metrics.secondary_ratio_a == value.expected &&
+                    metrics.secondary_ratio_b == value.expected &&
+                    metrics.tertiary_ratio_a == value.expected &&
+                    metrics.tertiary_ratio_b == value.expected &&
+                    metrics.primary_numerator ==
+                        std::bit_cast<openswd3::compat::i16>(value.numerator) &&
+                    metrics.actor_value_a == 0x87654321U &&
+                    metrics.actor_value_b == 0x87654321U,
+                "startup metric ratios use signed words, truncation and the actual auxiliary pointer"
+            );
+        }
+
+        record.source_runtime_value = 2U;
+        record.profile_token = 0x71000000U;
+        record.profile_record[0x64U] = std::byte{0xFF};
+        record.profile_record[0x65U] = std::byte{0xFF};
+        record.profile_record[0x4CU] = std::byte{1};
+        party.primary_metric_override = 0x80000001U;
+        const auto special =
+            openswd3::battle::update_legacy_battle_startup_party_metrics(
+                *state, 0U
+            );
+        test.expect_true(
+            special.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::completed &&
+                state->party_metrics[0].primary_numerator == -2147483647 &&
+                state->party_metrics[0].primary_ratio_a == 56U &&
+                state->party_metrics[0].secondary_numerator == 0 &&
+                state->party_metrics[0].tertiary_numerator == 0,
+            "special-mode metrics preserve full DWORD override and low DWORD after QWORD conversion"
+        );
+        party.primary_metric_override = 0U;
+        record.source_runtime_value = 0U;
+        record.auxiliary_record_token = 0U;
+        const auto stopped =
+            openswd3::battle::update_legacy_battle_startup_party_metrics(
+                *state, 0U
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::
+                        party_metric_source_typed_stop &&
+                stopped.writes == 9U && stopped.stopped_read_token == 0U &&
+                state->party_metrics[0].primary_numerator == -1 &&
+                state->party_metrics[0].primary_ratio_a == 0xFFFFFFC8U &&
+                state->party_metrics[0].actor_value_a == 0x87654321U,
+            "missing auxiliary data stops after three metric groups and preserves the old auxiliary cache"
+        );
+        constexpr std::array<u32, 4> stopped_tokens{
+            0U, 0x00505470U, 0x0AU, 0x64U
+        };
+        for (std::size_t fault = 0U; fault < stopped_tokens.size(); ++fault) {
+            record.source_runtime_value_read_accessible = fault != 1U;
+            record.source_runtime_value = fault == 3U ? 2U : 1U;
+            record.actor_record_token = fault == 2U ? 0U : 0x70000000U;
+            record.profile_token = 0U;
+            const auto failed =
+                openswd3::battle::update_legacy_battle_startup_party_metrics(
+                    *state, fault == 0U ? 10U : 0U
+                );
+            test.expect_true(
+                failed.status ==
+                        (fault == 0U
+                             ? openswd3::battle::LegacyBattleStartupStatus::
+                                   party_actor_index_out_of_range
+                             : openswd3::battle::LegacyBattleStartupStatus::
+                                   party_metric_source_typed_stop) &&
+                    failed.writes == 0U &&
+                    failed.stopped_read_token == stopped_tokens[fault] &&
+                    state->party_metrics[0].primary_ratio_a == 0xFFFFFFC8U,
+                "metric actor, mode and record failures stop at the first access without changing cached values"
+            );
+        }
+    }
+
+    for (const bool missing_auxiliary : {false, true}) {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        StartupPorts ports;
+        ports.definition.enemy_count = 1U;
+        state->party_metrics[0].tertiary_ratio_a = 0xAA55U;
+        state->party_metrics[0].actor_value_a = 0x11223344U;
+        state->party_metrics[1].primary_ratio_a = 0x55AAU;
+        if (missing_auxiliary) {
+            ports.query_values = {{30U, 1U}, {31U, 1U}};
+            ports.attribute_diagnostic = [&] {
+                state->party[0].configuration.auxiliary_record_token = 0U;
+            };
+        }
+
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            *state, ports, ports, ports, ports, ports, ports, request(1U)
+        );
+        test.expect_true(
+            result.status ==
+                    (missing_auxiliary
+                         ? openswd3::battle::LegacyBattleStartupStatus::
+                               party_metric_source_typed_stop
+                         : openswd3::battle::LegacyBattleStartupStatus::
+                               completed) &&
+                state->party_metrics[0].tertiary_ratio_a ==
+                    (missing_auxiliary ? 0U : 0xAA55U) &&
+                state->party_metrics[0].actor_value_a == 0x11223344U &&
+                state->party_metrics[1].primary_ratio_a == 0x55AAU &&
+                (!missing_auxiliary ||
+                 state->party[1].name_token == 0x0049E158U),
+            "startup skips metric writes for zero actors and propagates a late auxiliary failure after all reference bindings"
+        );
+    }
+
+    {
+        auto state = std::make_unique<LegacyBattleStartupState>();
         auto action = std::make_unique<
             openswd3::battle::LegacyBattleGroupAActionExecutionState>();
         openswd3::world_map::LegacyWorldItemListState items;
@@ -1443,7 +1595,10 @@ void test_battle_startup(openswd3::test::Context& test) {
             .derived_words = {0xFFFFU, 0x3333U, 0x4444U, 0x5555U},
         };
         StartupPorts ports;
-        ports.primary_party_sources[0U].dwords[1U] = 12000U;
+        ports.primary_party_sources[0U].dwords[1U] = 0xFFFD2EE0U;
+        ports.primary_party_sources[0U].dwords[2U] = 0x1F400005U;
+        ports.primary_party_sources[0U].dwords[3U] = 2U;
+        state.group_a_auxiliary_sources[0U].dwords[0U] = 0x13579BDFU;
         ports.primary_party_sources[0U].dwords[4U] = 0x56781234U;
         ports.primary_party_sources[1U].dwords[1U] = 9000U;
         ports.archive_open_replies.push_back({
@@ -1787,7 +1942,16 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.supplemental_count_word == 2U &&
                 state.party_metrics[0].primary_ratio_a == 84U &&
                 state.party_metrics[0].primary_ratio_b == 84U &&
-                state.party_metrics[0].primary_numerator == 3 &&
+                state.party_metrics[0].primary_numerator == 12000 &&
+                ports.call_count(
+                    LegacyBattleStartupCall::query_primary_ratio
+                ) == 0U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::query_secondary_ratio
+                ) == 0U &&
+                ports.call_count(
+                    LegacyBattleStartupCall::query_tertiary_ratio
+                ) == 0U &&
                 state.party_metrics[0].secondary_ratio_a == 0xFFFFFFACU &&
                 state.party_metrics[0].secondary_numerator == -3 &&
                 state.party_metrics[0].tertiary_ratio_a == 0U &&

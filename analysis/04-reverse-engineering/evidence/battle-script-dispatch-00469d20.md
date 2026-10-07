@@ -10,6 +10,14 @@
 
 返回值是顶层四值战斗合同的直接来源：普通等待或继续返回1；结束路径可返回0、2或3。函数保存并恢复EBX、EBP、ESI、EDI；每个callee边界前后的EAX、ECX、EDX必须按原调用点独立保存，不能用统一伪返回覆盖。
 
+## B11：case28同址指标缓存
+
+46BE08写52027C；46BE33写5201B8[actor_code]，队伍编号从8开始，
+因此后者等于5201D8[index]。两者均由startup.party_metrics承接，
+已删除script_shared中的两份数组。只合并存储，保留原第二输出及WORD符号扩展。
+core/ASan定向setup各1/1及SDL构建通过；完整边界见
+[入战指标接线](battle-startup-party-metrics-runtime-binding.md)。
+
 ## 2. 分派结构与共享状态
 
 脚本物理由`LegacyBattleAssets::script`提供固定0x8000-byte窗口；`LegacyBattleScriptWorkspace::cursor`是`0x0053CE84`的唯一typed cursor owner。实现只以窗口内offset承接指针，任何操作数或变长文字只在原始首次读取点检查，越界时保留此前副作用并typed-stop。

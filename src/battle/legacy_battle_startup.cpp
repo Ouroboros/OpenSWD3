@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -344,6 +345,25 @@ ratio_low_dword(const i32 numerator, const i32 denominator) noexcept {
     return static_cast<u32>(converted);
 }
 
+[[nodiscard]] u32 metric_dword(
+    const std::span<const std::byte> bytes, const std::size_t offset
+) noexcept {
+    return std::to_integer<u32>(bytes[offset]) |
+        (std::to_integer<u32>(bytes[offset + 1U]) << 8U) |
+        (std::to_integer<u32>(bytes[offset + 2U]) << 16U) |
+        (std::to_integer<u32>(bytes[offset + 3U]) << 24U);
+}
+
+[[nodiscard]] i32 metric_word(
+    const std::span<const std::byte> bytes, const std::size_t offset
+) noexcept {
+    const u16 value = static_cast<u16>(
+        std::to_integer<u16>(bytes[offset]) |
+        (std::to_integer<u16>(bytes[offset + 1U]) << 8U)
+    );
+    return std::bit_cast<compat::i16>(value);
+}
+
 void publish_party_positions(LegacyBattleStartupState& state) noexcept {
     switch (state.actor_metrics.group_a_count) {
     case 1U:
@@ -640,6 +660,106 @@ void publish_legacy_battle_startup_mouse_position(
     frame_input.previous_mouse_x = 320;
     mouse.logical_y = 200;
     frame_input.previous_mouse_y = 200;
+}
+
+LegacyBattleStartupPartyMetricsResult
+update_legacy_battle_startup_party_metrics(
+    LegacyBattleStartupState& state, const std::size_t index
+) noexcept {
+    LegacyBattleStartupPartyMetricsResult result;
+    if (index >= state.party.size()) {
+        result.status =
+            LegacyBattleStartupStatus::party_actor_index_out_of_range;
+        return result;
+    }
+
+    auto& party = state.party[index];
+    auto& configuration = party.configuration;
+    auto& metrics = state.party_metrics[index];
+    if (!configuration.source_runtime_value_read_accessible) {
+        result.status =
+            LegacyBattleStartupStatus::party_metric_source_typed_stop;
+        result.stopped_read_token =
+            group_a_actor_token(static_cast<u32>(index)) + 0x2AA0U;
+        return result;
+    }
+
+    i32 numerator{};
+    i32 denominator{};
+    const auto primary = std::as_bytes(std::span{configuration.actor_record});
+    if (configuration.source_runtime_value == 1U) {
+        if (configuration.actor_record_token == 0U) {
+            result.status =
+                LegacyBattleStartupStatus::party_metric_source_typed_stop;
+            result.stopped_read_token = 0x0AU;
+            return result;
+        }
+
+        denominator = metric_word(primary, 0x0AU);
+        numerator = metric_word(primary, 0x04U);
+    } else {
+        if (configuration.profile_token == 0U) {
+            result.status =
+                LegacyBattleStartupStatus::party_metric_source_typed_stop;
+            result.stopped_read_token = 0x64U;
+            return result;
+        }
+
+        numerator = metric_word(configuration.profile_record, 0x64U);
+        if (party.primary_metric_override != 0U) {
+            numerator = std::bit_cast<i32>(party.primary_metric_override);
+        }
+
+        denominator = std::bit_cast<i32>(
+            metric_dword(configuration.profile_record, 0x4CU)
+        );
+    }
+
+    metrics.primary_ratio_a = ratio_low_dword(numerator, denominator);
+    metrics.primary_ratio_b = metrics.primary_ratio_a;
+    metrics.primary_numerator = numerator;
+    result.writes = 3U;
+
+    numerator = 0;
+    denominator = 0;
+    if (configuration.source_runtime_value == 1U) {
+        denominator = metric_word(primary, 0x0CU);
+        numerator = metric_word(primary, 0x06U);
+    }
+
+    metrics.secondary_ratio_a = ratio_low_dword(numerator, denominator);
+    metrics.secondary_ratio_b = metrics.secondary_ratio_a;
+    metrics.secondary_numerator = numerator;
+    result.writes = 6U;
+
+    numerator = 0;
+    denominator = 0;
+    if (configuration.source_runtime_value == 1U) {
+        denominator = metric_word(primary, 0x0EU);
+        numerator = metric_word(primary, 0x08U);
+    }
+
+    const u32 tertiary_ratio = ratio_low_dword(numerator, denominator);
+    const u32 auxiliary_token = configuration.auxiliary_record_token;
+    metrics.tertiary_ratio_a = tertiary_ratio;
+    metrics.tertiary_ratio_b = tertiary_ratio;
+    metrics.tertiary_numerator = numerator;
+    result.writes = 9U;
+
+    const auto auxiliary =
+        std::as_bytes(std::span{state.group_a_auxiliary_sources});
+    const u32 auxiliary_offset = auxiliary_token - 0x004ACF50U;
+    if (auxiliary_offset > auxiliary.size() - sizeof(u32)) {
+        result.status =
+            LegacyBattleStartupStatus::party_metric_source_typed_stop;
+        result.stopped_read_token = auxiliary_token;
+        return result;
+    }
+
+    metrics.actor_value_a = metric_dword(auxiliary, auxiliary_offset);
+    metrics.actor_value_b = metrics.actor_value_a;
+    result.writes = 11U;
+    return result;
 }
 
 LegacyBattleStartupPartyReferencesResult
@@ -1206,50 +1326,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     }
 
     for (u32 index = 0U; index < state.actor_metrics.group_a_count; ++index) {
-        if (index >= kLegacyBattleActorGroupAElementCount) {
-            result.status =
-                LegacyBattleStartupStatus::party_actor_index_out_of_range;
+        const auto metrics =
+            update_legacy_battle_startup_party_metrics(state, index);
+        if (metrics.status != LegacyBattleStartupStatus::completed) {
+            result.status = metrics.status;
             return result;
         }
-        const u32 actor_token = group_a_actor_token(index);
-        auto& metrics = state.party_metrics[index];
-        const auto primary = invoke(
-            port,
-            LegacyBattleStartupCall::query_primary_ratio,
-            {actor_token, 0U, 0U, 0U}
-        );
-        metrics.primary_ratio_a =
-            ratio_low_dword(primary.outputs[0], primary.outputs[1]);
-        metrics.primary_ratio_b = metrics.primary_ratio_a;
-        metrics.primary_numerator = primary.outputs[0];
-
-        const auto secondary = invoke(
-            port,
-            LegacyBattleStartupCall::query_secondary_ratio,
-            {actor_token, 0U, 0U, 0U}
-        );
-        metrics.secondary_ratio_a = ratio_low_dword(
-            static_cast<compat::i16>(secondary.outputs[0]),
-            static_cast<compat::i16>(secondary.outputs[1])
-        );
-        metrics.secondary_ratio_b = metrics.secondary_ratio_a;
-        metrics.secondary_numerator =
-            static_cast<compat::i16>(secondary.outputs[0]);
-
-        const auto tertiary = invoke(
-            port,
-            LegacyBattleStartupCall::query_tertiary_ratio,
-            {actor_token, 0U, 0U, 0U}
-        );
-        metrics.tertiary_ratio_a = ratio_low_dword(
-            static_cast<compat::i16>(tertiary.outputs[0]),
-            static_cast<compat::i16>(tertiary.outputs[1])
-        );
-        metrics.tertiary_ratio_b = metrics.tertiary_ratio_a;
-        metrics.tertiary_numerator =
-            static_cast<compat::i16>(tertiary.outputs[0]);
-        metrics.actor_value_a = static_cast<u32>(tertiary.outputs[2]);
-        metrics.actor_value_b = metrics.actor_value_a;
     }
 
     for (u32 index = 0U; index < kLegacyBattleSupplementalQueryIds.size();

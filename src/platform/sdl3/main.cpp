@@ -3071,6 +3071,26 @@ public:
                         return false;
                     }
                 }
+
+                for (openswd3::compat::u32 index = 0U;
+                     index < battle_runtime_.actor_metrics.group_a_count;
+                     ++index) {
+                    const auto metrics = openswd3::battle::
+                        update_legacy_battle_startup_party_metrics(
+                            battle_runtime_, index
+                        );
+                    if (metrics.status !=
+                        openswd3::battle::LegacyBattleStartupStatus::
+                            completed) {
+                        openswd3::diagnostics::log_error(
+                            "battle party metrics stopped"
+                        );
+                        battle_setup_ready_ = false;
+                        ok_ = false;
+                        running_ = false;
+                        return false;
+                    }
+                }
             }
         } else {
             battle_setup_ = {};

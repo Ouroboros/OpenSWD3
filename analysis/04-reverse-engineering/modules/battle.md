@@ -16,6 +16,8 @@ MON解析流另按[解析流接线证据](../evidence/battle-mon-stream-runtime-
 [属性接线](../evidence/battle-startup-party-attributes-runtime-binding.md)。
 队员逐个绑定实际物品与姓名引用，保留诊断后的映射重读及失败前缀，见
 [引用接线](../evidence/battle-startup-party-references-runtime-binding.md)。
+入战三组比例与辅助值已接实际角色记录，脚本更新同址缓存，见
+[指标接线](../evidence/battle-startup-party-metrics-runtime-binding.md)。
 这些接线不关闭新的战斗函数。
 
 ## 1. 唯一真值与模块目标

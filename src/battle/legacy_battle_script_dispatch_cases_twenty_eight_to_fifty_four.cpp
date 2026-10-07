@@ -42,16 +42,15 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_eight() {
                 static_cast<u32>(index)
             );
         }
-        bindings_.shared
-            .group_a_coordinate_table[static_cast<std::size_t>(index)] =
-            std::bit_cast<u32>(workspace_.coordinate_y);
+        bindings_.startup.party_metrics[static_cast<std::size_t>(index)]
+            .primary_numerator = workspace_.coordinate_y;
         invoke(
             LegacyBattleScriptDispatchCall::pending_4838a0,
             *token,
             {workspace_.word_a, workspace_.word_b}
         );
-        bindings_.shared.group_a_field_2b00[static_cast<std::size_t>(index)] =
-            std::bit_cast<u32>(signed_word(workspace_.word_b));
+        bindings_.startup.party_metrics[static_cast<std::size_t>(index)]
+            .secondary_numerator = signed_word(workspace_.word_b);
     }
     workspace_.cursor = wrapping_add(workspace_.cursor, 10U);
     workspace_.word_a = 0U;

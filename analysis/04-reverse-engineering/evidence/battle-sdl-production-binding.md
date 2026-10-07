@@ -9,6 +9,13 @@
 core/ASan定向setup各1/1和SDL链接通过，未做实机验证。默认姓名初始化的
 既有缺口及完整边界见[引用接线](battle-startup-party-references-runtime-binding.md)。
 
+## 入战角色指标
+
+全部队员引用绑定后，SDL按当前人数逐个从实际记录计算三组比例与辅助值。
+与核心startup共用实现，脚本case28写入同一缓存；辅助读取失败保留九项前缀。
+core/ASan定向setup各1/1和SDL构建通过，尚未做本批实机验证。
+详见[指标接线](battle-startup-party-metrics-runtime-binding.md)。
+
 ## 当前生产断点
 
 当前`src/platform/sdl3/main.cpp`的`SdlSmokeIdlePorts`实现脚本、音乐前缀和预帧角色端口，尚未实现完整帧协调端口。
