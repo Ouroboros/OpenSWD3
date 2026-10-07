@@ -1130,7 +1130,9 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         port.battle_target_selection_runtime_state()
     );
 
-    state.control_switches.fill(1U);
+    port.battle_frame_input_resolution_state().equipment_grid_selections.fill(
+        1U
+    );
     auto& control_action = port.battle_control_action();
     asset_runtime::initialize_legacy_action_record(control_action);
     const auto control_reply = invoke(

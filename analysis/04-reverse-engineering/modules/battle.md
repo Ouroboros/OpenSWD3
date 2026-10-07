@@ -4,6 +4,9 @@
 
 当前关闭进度：`315/422`。现有资产读取与建场代码只是此前恢复的有限切片，不提前计入完整函数关闭。
 
+入战、角色收尾及全局重置共用菜单的四项装备选择缓存，定向验证通过，见
+[装备选择缓存](../evidence/battle-equipment-selection-cache-004ff578.md)。
+
 B11的MON文件端口已接入实际打开、定位与读取，独立发布验证见
 [文件接线证据](../evidence/battle-mon-file-runtime-binding.md)。
 MON解析流另按[解析流接线证据](../evidence/battle-mon-stream-runtime-binding.md)

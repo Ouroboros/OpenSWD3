@@ -4,6 +4,16 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：战斗装备类别选择缓存
+
+入战、角色收尾和全局重置写入菜单实际读取的四项缓存。
+移除两套独立副本，保留角色收尾的写入交错顺序。
+core/ASan setup与actor_frame_316各1/1、SDL构建通过。
+四类别菜单消费测试加入后，actor_frame_316的core/ASan再次通过。
+证据见[装备选择缓存](../analysis/04-reverse-engineering/evidence/battle-equipment-selection-cache-004ff578.md)。
+未启动游戏，未新增原版动态差分；完整初始化和实际续玩仍未验收。
+B10保持315/422，316 pending_audit。
+
 ## B11：零敌人数初始化返回
 
 核心与SDL共用计数发布判断，零敌人数保留前缀并跳过初始化后缀。

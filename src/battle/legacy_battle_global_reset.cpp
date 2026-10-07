@@ -516,7 +516,7 @@ void synchronize_typed_aliases(
     frame_input_resolution.alternate_selection_limit = 2U;
     frame_input_resolution.alternate_selection = 1U;
     frame_input_resolution.current_equipment_selection = 2U;
-    frame_input_resolution.equipment_grid_selections[0] = 1U;
+    frame_input_resolution.equipment_grid_selections.fill(1U);
     frame_input_resolution.target_actor_index = 0U;
     frame_input_resolution.panel_scroll_a = 0U;
     frame_input_resolution.panel_scroll_b = 0U;

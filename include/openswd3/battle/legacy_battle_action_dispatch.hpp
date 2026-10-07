@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
+#include "openswd3/battle/legacy_battle_frame_input_resolution_state.hpp"
 #include "openswd3/battle/legacy_battle_actor_availability_block.hpp"
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinate_publication.hpp"
@@ -178,6 +179,7 @@ class LegacyBattleActionDispatchPort
       public virtual LegacyBattleSharedPhaseStatePort,
       public virtual LegacyBattleOutcomeResolutionStatePort,
       public virtual LegacyBattleFrameRefreshStatePort,
+      public virtual LegacyBattleFrameInputResolutionStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattleGroupASummonMaterializationPort,
       public virtual world_map::LegacyWorldItemListStatePort {

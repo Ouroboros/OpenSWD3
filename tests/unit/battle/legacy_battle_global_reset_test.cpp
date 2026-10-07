@@ -873,9 +873,9 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 frame_input.transition_value_a == 9U &&
                 frame_input.transition_value_b == 9U &&
                 frame_input.equipment_grid_selections[0] == 1U &&
-                frame_input.equipment_grid_selections[1] == 9U &&
-                frame_input.equipment_grid_selections[2] == 9U &&
-                frame_input.equipment_grid_selections[3] == 9U &&
+                frame_input.equipment_grid_selections[1] == 1U &&
+                frame_input.equipment_grid_selections[2] == 1U &&
+                frame_input.equipment_grid_selections[3] == 1U &&
                 frame_input.list_selection == 1U &&
                 frame_input.grid_selection == 1U &&
                 frame_input.narrow_list_selection == 9U &&

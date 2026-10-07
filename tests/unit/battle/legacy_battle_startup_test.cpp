@@ -2148,6 +2148,8 @@ void test_battle_startup(openswd3::test::Context& test) {
         StartupPorts ports;
         poison_reset_blocks(state, ports);
         state.display_surfaces = {0x11110000U, 0x22220000U};
+        ports.battle_frame_input_resolution_state()
+            .equipment_grid_selections = {9U, 8U, 7U, 6U};
         ports.mouse_frame_state() = {-123, 456, 0xA5U};
         ports.battle_frame_input_resolution_state().previous_mouse_x = -77;
         ports.battle_frame_input_resolution_state().previous_mouse_y = 88;
@@ -2194,7 +2196,9 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 ==
                     0xA5000002U &&
                 state.party_level_limit == 0x12U &&
-                state.control_switches == std::array<u32, 4>{1U, 1U, 1U, 1U} &&
+                ports.battle_frame_input_resolution_state()
+                        .equipment_grid_selections ==
+                    std::array<u32, 4>{1U, 1U, 1U, 1U} &&
                 ports.battle_control_action().action_id == 0x2329U &&
                 ports.battle_control_action().base_variant == 0x0CU &&
                 state.transparent_pixel_pair == 0x12345678U &&

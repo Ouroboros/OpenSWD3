@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_group_a_frame.hpp"
+#include "openswd3/battle/legacy_battle_menu_context_advance.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "test.hpp"
@@ -2151,6 +2152,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 .target_selection_latch = 1U;
             DispatchPort port;
             state.action.group_a_action_execution[0U].action_kind = 5U;
+            port.battle_frame_input_resolution_state()
+                .equipment_grid_selections = {9U, 8U, 7U, 6U};
             port.action_target = 0U;
             port.push(0x0047CE80U, {.eax = 0U});
             auto context = fixture.context();
@@ -2179,10 +2182,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                             ) &&
                     state.final_actor_step.action_execution_active == 0U &&
                     state.action.active_effect_target == 0xFFFFFFFFU &&
-                    state.shared_gate_4ff578 == 1U &&
-                    state.shared_gate_4ff57c == 1U &&
-                    state.shared_gate_4ff580 == 1U &&
-                    state.shared_gate_4ff584 == 1U &&
+                    port.battle_frame_input_resolution_state()
+                            .equipment_grid_selections ==
+                        std::array<openswd3::compat::u32, 4U>{1U, 1U, 1U, 1U} &&
                     result.actor_action_target_clear.calls == 1U &&
                     result.actor_action_target_clear.call_addresses[0U] ==
                         0x004570F5U &&
@@ -2231,6 +2233,35 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     result.actor_action_targets[1U].flags.zero,
                 "active actor preserves the successful nested-dispatch comparison flags"
             );
+
+            auto& frame = port.battle_frame_input_resolution_state();
+            openswd3::battle::LegacyBattleInputDispatchState menu_input;
+            openswd3::battle::LegacyBattleInputDispatchPort menu_port;
+            u32 menu_message = 4U;
+            frame.current_equipment_selection = 3U;
+            for (u32 equipment = 0U; equipment < 4U; ++equipment) {
+                frame.grid_selection = 99U;
+                const auto menu_result =
+                    openswd3::battle::advance_legacy_battle_menu_context(
+                        {fixture.startup_reset,
+                         state.final_actor_step,
+                         frame,
+                         menu_input,
+                         menu_message},
+                        menu_port,
+                        {}
+                    );
+                test.expect_true(
+                    menu_result.status ==
+                            openswd3::battle::
+                                LegacyBattleMenuContextAdvanceStatus::
+                                    completed &&
+                        menu_result.equipment_selection_reads == 1U &&
+                        frame.current_equipment_selection == equipment &&
+                        frame.grid_selection == 1U,
+                    "equipment category changes consume the four selections reset by actor completion"
+                );
+            }
         }
 
         {

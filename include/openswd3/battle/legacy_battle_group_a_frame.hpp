@@ -46,10 +46,6 @@ struct LegacyBattleGroupAFrameState {
     std::array<compat::u32, 5> active_effect_tail{};
     compat::u16 cleanup_word{};
     compat::u32 global_phase_countdown{};
-    compat::u32 shared_gate_4ff578{};
-    compat::u32 shared_gate_4ff57c{};
-    compat::u32 shared_gate_4ff580{};
-    compat::u32 shared_gate_4ff584{};
     compat::u32 shared_value_52544c{};
     compat::u32 shared_value_525450{};
     compat::u32 shared_value_525454{};

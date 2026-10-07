@@ -327,7 +327,6 @@ struct LegacyBattleStartupState {
     compat::u16 party_level_limit{60U};  // 0x004A762A
     std::array<compat::i32, 4> window_rectangle{};
     std::array<compat::u32, 2> display_surfaces{};
-    std::array<compat::u32, 4> control_switches{};
     compat::u32 transparent_pixel_pair{};  // 0x004AB8F8
     compat::u16 primary_text_color{};    // 0x004FF104
     compat::u16 secondary_text_color{};  // 0x005240BC

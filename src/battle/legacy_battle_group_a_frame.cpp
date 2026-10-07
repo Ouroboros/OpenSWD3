@@ -2793,12 +2793,15 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 state.active_effect_tail.fill(0U);
                 actor.post_action_value = 0U;
                 actor.scene_identity = 0U;
-                state.shared_gate_4ff578 = 1U;
+                auto& equipment_selections =
+                    port.battle_frame_input_resolution_state()
+                        .equipment_grid_selections;
+                equipment_selections[0U] = 1U;
                 actor.frame_started = 0U;
-                state.shared_gate_4ff57c = 1U;
-                state.shared_gate_4ff580 = 1U;
+                equipment_selections[1U] = 1U;
+                equipment_selections[2U] = 1U;
                 state.shared_value_52544c = 0U;
-                state.shared_gate_4ff584 = 1U;
+                equipment_selections[3U] = 1U;
                 state.shared_value_525450 = 0U;
                 state.shared_value_525454 = 0U;
                 state.action_stage_word = 0U;
