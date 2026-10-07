@@ -4,6 +4,15 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：入战尾部消息判定
+
+核心和SDL共用尾部人数判断，按原条件写入共享战败消息状态，保留两次
+DWORD减法回绕、无符号比较及旧消息；条件不成立时不访问消息端口。
+core/ASan定向setup各1/1及SDL构建通过，未启动游戏。
+证据见[尾部接线](../analysis/04-reverse-engineering/evidence/battle-startup-tail-runtime-binding.md)。
+速度来源及完整初始化复核仍待完成，完整帧与实际续玩未验收。
+B10仍为315/422，Workpack316保持pending_audit。
+
 ## B11：入战排序与行动进度
 
 核心和SDL共用实际坐标排序与行动进度初始化，保持随机顺序、signed循环门、

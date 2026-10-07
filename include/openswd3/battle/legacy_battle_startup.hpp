@@ -442,6 +442,19 @@ initialize_legacy_battle_startup_supplemental(
     LegacyBattleActionDispatchState* action = nullptr
 );
 
+struct LegacyBattleStartupMessageResult {
+    compat::u32 return_value{};
+    bool message_state_published{};
+};
+
+// 4527A5..4527DB: unsigned remaining-party check; preserve the old message
+// when the byte count is below the wrapped subtraction result.
+[[nodiscard]] LegacyBattleStartupMessageResult
+finalize_legacy_battle_startup_message(
+    const LegacyBattleStartupState& state,
+    LegacyBattleSharedPhaseStatePort& messages
+) noexcept;
+
 struct LegacyBattleStartupOrderProgressResult {
     LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};
     compat::u32 actor_metric_calls{};

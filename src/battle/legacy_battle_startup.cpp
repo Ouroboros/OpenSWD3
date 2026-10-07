@@ -787,6 +787,22 @@ initialize_legacy_battle_startup_supplemental(
     return result;
 }
 
+LegacyBattleStartupMessageResult finalize_legacy_battle_startup_message(
+    const LegacyBattleStartupState& state,
+    LegacyBattleSharedPhaseStatePort& messages
+) noexcept {
+    LegacyBattleStartupMessageResult result;
+    result.return_value = state.actor_metrics.group_a_count;
+    result.return_value -= state.final_subtract_word;
+    result.return_value -= static_cast<u16>(state.supplemental_count_word);
+    if (static_cast<u32>(state.party_actor_mode_count) >= result.return_value) {
+        messages.battle_message_state() = 0x67U;
+        result.message_state_published = true;
+    }
+
+    return result;
+}
+
 LegacyBattleStartupOrderProgressResult
 initialize_legacy_battle_startup_order_progress(
     LegacyBattleStartupState& state, LegacyBattleBoundedRandomPort& random
@@ -1605,13 +1621,9 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         return result;
     }
 
-    result.return_value = state.actor_metrics.group_a_count;
-    result.return_value -= state.final_subtract_word;
-    result.return_value -= static_cast<u16>(state.supplemental_count_word);
-    if (static_cast<u32>(state.party_actor_mode_count) >= result.return_value) {
-        port.battle_message_state() = 0x67U;
-        result.message_state_published = true;
-    }
+    const auto message = finalize_legacy_battle_startup_message(state, port);
+    result.return_value = message.return_value;
+    result.message_state_published = message.message_state_published;
     return result;
 }
 

@@ -659,6 +659,83 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    {
+        struct Messages final
+            : openswd3::battle::LegacyBattleSharedPhaseStatePort {
+            u32 value{};
+            u32 accesses{};
+
+            u32& battle_message_state() noexcept override {
+                ++accesses;
+                return value;
+            }
+        };
+        struct Vector {
+            u32 party_count;
+            u16 subtract;
+            u16 supplemental;
+            openswd3::compat::u8 mode_count;
+            u32 remaining;
+            bool publish;
+        };
+        const std::array vectors{
+            Vector{0U, 0U, 0U, 0U, 0U, true},
+            Vector{3U, 1U, 1U, 0U, 1U, false},
+            Vector{3U, 1U, 1U, 1U, 1U, true},
+            Vector{3U, 1U, 1U, 2U, 1U, true},
+            Vector{0U, 1U, 0U, 255U, 0xFFFFFFFFU, false},
+            Vector{0U, 0U, 1U, 255U, 0xFFFFFFFFU, false},
+            Vector{0x80000000U, 0U, 0U, 255U, 0x80000000U, false},
+            Vector{0x20000U, 0xFFFFU, 0xFFFFU, 2U, 2U, true},
+        };
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        for (const auto& vector : vectors) {
+            state->actor_metrics.group_a_count = vector.party_count;
+            state->final_subtract_word = vector.subtract;
+            state->supplemental_count_word = vector.supplemental;
+            state->party_actor_mode_count = vector.mode_count;
+            Messages message;
+            message.value = 0x12345678U;
+            const auto result =
+                openswd3::battle::finalize_legacy_battle_startup_message(
+                    *state, message
+                );
+            test.expect_true(
+                result.return_value == vector.remaining &&
+                    result.message_state_published == vector.publish &&
+                    message.value == (vector.publish ? 0x67U : 0x12345678U) &&
+                    message.accesses == (vector.publish ? 1U : 0U) &&
+                    state->actor_metrics.group_a_count == vector.party_count &&
+                    state->final_subtract_word == vector.subtract &&
+                    state->supplemental_count_word == vector.supplemental &&
+                    state->party_actor_mode_count == vector.mode_count,
+                "startup tail preserves DWORD subtraction, unsigned byte comparison and unchanged input counters"
+            );
+        }
+
+        state->actor_metrics.group_a_count = 0U;
+        state->final_subtract_word = 0U;
+        state->supplemental_count_word = 0U;
+        state->party_actor_mode_count = 0U;
+        Messages message;
+        message.value = 9U;
+        const auto first =
+            openswd3::battle::finalize_legacy_battle_startup_message(
+                *state, message
+            );
+        state->actor_metrics.group_a_count = 1U;
+        const auto second =
+            openswd3::battle::finalize_legacy_battle_startup_message(
+                *state, message
+            );
+        test.expect_true(
+            first.message_state_published && !second.message_state_published &&
+                second.return_value == 1U && message.value == 0x67U &&
+                message.accesses == 1U,
+            "a later nonpublishing startup tail preserves the shared message from the preceding call"
+        );
+    }
+
     for (const u32 variant : {0U, 1U, 2U, 3U, 4U}) {
         auto state = std::make_unique<LegacyBattleStartupState>();
         state->group_b_lifecycle = std::make_shared<std::array<

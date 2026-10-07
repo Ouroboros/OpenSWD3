@@ -269,6 +269,9 @@ remaining -= low16(supplemental_count_word)
 
 再以unsigned比较：若陈旧party actor mode byte不小于`remaining`，把唯一共享战斗消息/阶段写`0x67`。相邻角色预处理关闭后，该dword与动作、效果和逐帧路径共用`LegacyBattleSharedPhaseStatePort`，不再保留startup副本。该写不改变EAX；无论条件真假都返回同一个回绕`remaining`。测试覆盖等于零时成立及正数域。
 
+B11核心与SDL已共用尾部消息判定，只在unsigned条件成立时访问共享消息。
+回绕、消息保留和验证边界见[尾部接线](battle-startup-tail-runtime-binding.md)。
+
 该循环的EDX输入已按调用点修正。callee仅在两条状态早退中原样返回入口EDX，
 其他路径都会覆盖它；启动caller不消费这个返回。因此现有角色字段结果不受此修正影响。
 该结论来自完整callee `004755E0..0047570E`及caller `0045270C..00452769`，

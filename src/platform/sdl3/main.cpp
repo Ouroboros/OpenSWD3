@@ -3168,6 +3168,12 @@ public:
                     running_ = false;
                     return false;
                 }
+
+                static_cast<void>(
+                    openswd3::battle::finalize_legacy_battle_startup_message(
+                        battle_runtime_, *this
+                    )
+                );
             }
         } else {
             battle_setup_ = {};
