@@ -62,6 +62,7 @@ struct LegacyBattleTextMessageCallReply {
     compat::u32 ecx{};
     compat::u32 edx{};
     bool text_access_failed{};
+    bool call_failed{};
 };
 
 class LegacyBattleTextMessagePort {
@@ -86,6 +87,7 @@ enum class LegacyBattleTextMessageStatus : compat::u8 {
     allocation_typed_stop,
     text_typed_stop,
     chain_typed_stop,
+    call_typed_stop,
 };
 
 struct LegacyBattleTextMessageResult {

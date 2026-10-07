@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -37,6 +38,10 @@ public:
         const LegacyBattleDebugHotkeyCallRequest& request
     ) override {
         calls.push_back(request);
+        if (stop_call == request.call) {
+            return {.eax = 0xDEADBEEFU, .typed_stop = true};
+        }
+
         if (request.call ==
             LegacyBattleDebugHotkeyCall::text_message_allocate) {
             const u32 token = next_text_message_token;
@@ -71,6 +76,7 @@ public:
     std::deque<LegacyBattleDebugHotkeyCallReply> replies;
     std::vector<u32> delays;
     u32 next_text_message_token{0x78000000U};
+    std::optional<LegacyBattleDebugHotkeyCall> stop_call;
 };
 
 struct Fixture {
@@ -138,6 +144,174 @@ void press(
 }  // namespace
 
 void test_battle_debug_hotkeys(openswd3::test::Context& test) {
+    struct StopCase {
+        u32 key;
+        LegacyBattleDebugHotkeyCall call;
+        std::size_t calls;
+    };
+
+    constexpr std::array stop_cases{
+        StopCase{0x3DU, LegacyBattleDebugHotkeyCall::suspend_audio_output, 1U},
+        StopCase{0x2CU, LegacyBattleDebugHotkeyCall::reset_group_a_primary, 1U},
+        StopCase{
+            0x2CU, LegacyBattleDebugHotkeyCall::reset_group_a_secondary, 2U
+        },
+        StopCase{0x2CU, LegacyBattleDebugHotkeyCall::configure_group_a, 3U},
+        StopCase{0x20U, LegacyBattleDebugHotkeyCall::publish_actor_value, 1U},
+        StopCase{0x21U, LegacyBattleDebugHotkeyCall::publish_actor_value, 1U},
+        StopCase{0x2FU, LegacyBattleDebugHotkeyCall::publish_actor_value, 1U},
+        StopCase{0x3FU, LegacyBattleDebugHotkeyCall::suspend_audio_output, 1U},
+        StopCase{0x3FU, LegacyBattleDebugHotkeyCall::restart_battle_music, 2U},
+        StopCase{0x11U, LegacyBattleDebugHotkeyCall::query_actor_status, 1U},
+        StopCase{0x11U, LegacyBattleDebugHotkeyCall::publish_actor_value, 2U},
+        StopCase{0x25U, LegacyBattleDebugHotkeyCall::text_message_allocate, 1U},
+        StopCase{0x25U, LegacyBattleDebugHotkeyCall::text_message_measure, 2U},
+        StopCase{0x3CU, LegacyBattleDebugHotkeyCall::text_message_allocate, 1U},
+        StopCase{0x3CU, LegacyBattleDebugHotkeyCall::text_message_measure, 2U},
+    };
+    for (const auto& entry : stop_cases) {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->actor_metrics.group_a_count = 1U;
+        fixture->actor_metrics.group_b_count = 1U;
+        fixture->actor_publication.slots[0U] = 91U;
+        fixture->startup.reset.block_5242b0[0U] = 92U;
+        const u32 shared_gate = 1U;
+        auto bindings = fixture->bindings();
+        bindings.developer_tools_enabled = &shared_gate;
+        LegacyBattleDebugHotkeyState state;
+        state.screenshot_request = 7U;
+        DebugPort port;
+        port.stop_call = entry.call;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        for (const u32 key : {0x1DU, 0x3BU, entry.key, 0x19U}) {
+            press(keyboard, key);
+        }
+
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard, state, bindings, port
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleDebugHotkeyStatus::port_call_typed_stop &&
+                result.stopped_call == entry.call &&
+                result.port_calls == entry.calls &&
+                port.calls.size() == entry.calls &&
+                state.toggle_5244e0 == (entry.key == 0x3DU ? 0U : 1U) &&
+                state.screenshot_request == 7U && !result.full_reset_applied,
+            "unreturned debug calls keep the preceding key writes and suppress the suffix"
+        );
+        if (entry.key == 0x11U) {
+            const bool published =
+                entry.call == LegacyBattleDebugHotkeyCall::publish_actor_value;
+            test.expect_true(
+                fixture->actor_publication.slots[0U] ==
+                        (published ? 0U : 91U) &&
+                    fixture->startup.reset.block_5242b0[0U] ==
+                        (published ? 0U : 92U),
+                "W preserves publication only when its status query returned"
+            );
+        }
+
+        if (entry.key == 0x25U || entry.key == 0x3CU) {
+            const bool allocated =
+                entry.call == LegacyBattleDebugHotkeyCall::text_message_measure;
+            test.expect_true(
+                fixture->startup.text_messages.allocations.size() ==
+                        (allocated ? 1U : 0U) &&
+                    fixture->startup.reset.block_5214f8[0U] == 0U &&
+                    (entry.key == 0x25U ? state.message_latch_53ceb8 == 1U
+                                        : state.battle_mode_flags_53bc24 == 2U),
+                "debug text call failures keep latch and allocation prefixes without appending"
+            );
+            if (allocated) {
+                const auto& record =
+                    fixture->startup.text_messages.allocations[0U].record;
+                test.expect_true(
+                    record.value_04 == 0x208U && record.value_08 == 10U &&
+                        record.kind == 30U && record.flags == 0U &&
+                        record.text_length == 0U,
+                    "failed text measurement keeps fields written before strlen"
+                );
+            }
+        }
+    }
+
+    for (const u32 shared_gate : {0U, 1U, 2U, 0xFFFFFFFFU}) {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->actor_metrics.group_a_count = 1U;
+        fixture->actor_metrics.group_b_count = 1U;
+        fixture->startup.party[0U].position_x = 0xFFF9U;
+        (*fixture->startup.group_b_lifecycle)[0U].action_execution.position_x =
+            5U;
+        auto bindings = fixture->bindings();
+        bindings.developer_tools_enabled = &shared_gate;
+        LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = shared_gate == 1U ? 0U : 1U;
+        state.toggle_5244e0 = 9U;
+        state.toggle_53af68 = 2U;
+        state.screenshot_request = 7U;
+        DebugPort port;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        for (const u32 key :
+             {0x1DU, 0x3BU, 0x2DU, 0x43U, 0x23U, 0x24U, 0x19U}) {
+            press(keyboard, key);
+        }
+
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard,
+                state,
+                bindings,
+                port,
+                {.actor_adjustment_entry_edx = 0xFACE1234U,
+                 .actor_adjustment_entry_edx_known = false}
+            );
+        const bool enabled = shared_gate == 1U;
+        test.expect_true(
+            result.status == LegacyBattleDebugHotkeyStatus::completed &&
+                result.return_value == 1U &&
+                result.raw_key_queries == (enabled ? 18U : 1U) &&
+                !result.actor_coordinate_registers_known &&
+                (!enabled ||
+                 result.actor_coordinate_adjustment.return_edx ==
+                     0xFACE0000U) &&
+                port.calls.empty() &&
+                port.delays ==
+                    (enabled ? std::vector<u32>{200U, 200U, 200U}
+                             : std::vector<u32>{}) &&
+                state.toggle_5244e0 == (enabled ? 0U : 9U) &&
+                state.toggle_53af68 == (enabled ? 0U : 2U) &&
+                fixture->player_control.speed_mode == (enabled ? 1U : 0U) &&
+                fixture->effect_shift.actor_delta == (enabled ? -10 : 0) &&
+                fixture->startup.party[0U].position_x == 0xFFF9U &&
+                (*fixture->startup.group_b_lifecycle)[0U]
+                        .action_execution.position_x == 5U &&
+                state.screenshot_request == 1U,
+            "live shared debug gate controls canonical coordinates and switches with P outside the gate"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        LegacyBattleDebugHotkeyState state;
+        state.developer_tools_enabled = 1U;
+        LegacyBattleDebugHotkeyPort port;
+        openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard{};
+        press(keyboard, 0x1DU);
+        press(keyboard, 0x3DU);
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
+                keyboard, state, fixture->bindings(), port
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleDebugHotkeyStatus::port_call_typed_stop &&
+                result.port_calls == 1U,
+            "an unbound production debug port stops at the first actual call"
+        );
+    }
+
     {
         Fixture fixture;
         fixture.actor_metrics.group_a_count = 1U;

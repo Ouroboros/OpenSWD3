@@ -39,6 +39,11 @@ LegacyBattleTextMessageResult enqueue_legacy_battle_text_message(
         .edx = edx,
     });
     ++result.allocation_calls;
+    if (allocation.call_failed) {
+        result.status = LegacyBattleTextMessageStatus::call_typed_stop;
+        return finish();
+    }
+
     result.allocated_token = allocation.eax;
     edx =
         (allocation.edx & 0xFFFF0000U) | static_cast<compat::u32>(request.kind);
@@ -69,6 +74,11 @@ LegacyBattleTextMessageResult enqueue_legacy_battle_text_message(
         .edx = edx,
     });
     ++result.measure_calls;
+    if (measured.call_failed) {
+        result.status = LegacyBattleTextMessageStatus::call_typed_stop;
+        return finish();
+    }
+
     eax = measured.eax;
     ecx = measured.ecx;
     edx = measured.edx;

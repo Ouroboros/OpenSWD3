@@ -47,3 +47,12 @@
 定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码构建零warning。
 
 原版动态分配地址、真实CP950文字地址、共享链节点、40个caller联合寄存器及未审caller状态捕获后端尚不可用，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 7. B11未返回调用的停止传播
+
+调试热键生产接线新增`call_failed`，区分callee未返回和已返回的零分配或
+文字访问错误。分配失败停在4698E4调用，不消费回复或清零节点；测长失败
+停在469918调用，保留此前节点分配、清零及四项字段，不发布长度或链头。
+此状态用于明确未绑定的宿主端口，不构造成功回复；正常callee合同不变。
+完整67行LST已复读，K/F2两个真实caller的分配、测长失败均有组合测试，
+结果与限制见[调试热键接线](battle-debug-hotkeys-0045d8f0.md)。

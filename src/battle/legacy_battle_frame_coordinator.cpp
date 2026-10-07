@@ -315,7 +315,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .message_state = port.battle_message_state(),
         },
         port,
-        {.actor_adjustment_entry_edx = actor_order.final_edx}
+        {.actor_adjustment_entry_edx_known = false}
     );
     ++result.debug_hotkey_calls;
     result.port_calls += result.debug_hotkeys.port_calls;

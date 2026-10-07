@@ -43,6 +43,7 @@
 #include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
 #include "openswd3/battle/legacy_battle_display_surface_runtime.hpp"
+#include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
@@ -1766,6 +1767,9 @@ class SdlSmokeIdlePorts final
       public openswd3::battle::LegacyBattleFrameMusicPrefixPort,
       public virtual openswd3::input_time_rng::LegacyMouseFrameStatePort,
       public virtual openswd3::battle::LegacyBattlePreFramePort,
+      public virtual openswd3::battle::LegacyBattleDebugHotkeyPort,
+      public virtual openswd3::battle::LegacyBattleEffectCoordinatorStatePort,
+      public virtual openswd3::battle::LegacyBattleEffectShiftStatePort,
       public virtual openswd3::battle::LegacyBattleActorMetricStatePort,
       public virtual openswd3::battle::LegacyBattleActorPublicationStatePort,
       public virtual openswd3::battle::LegacyBattleInputDispatchStatePort,
@@ -2781,6 +2785,10 @@ public:
         return openswd3::battle::invoke_legacy_battle_pre_frame_actor_call(
             actor, request
         );
+    }
+
+    void delay_milliseconds(const openswd3::compat::u32 milliseconds) override {
+        SDL_Delay(milliseconds);
     }
 
     void release_display_and_world_for_battle_entry() override {}
@@ -3860,6 +3868,8 @@ public:
             bool pre_frame_called = false;
             bool metrics_called = false;
             bool order_called = false;
+            bool debug_called = false;
+            openswd3::battle::LegacyBattleDebugHotkeyResult debug;
             openswd3::battle::LegacyBattleActorOrderResult order;
             openswd3::battle::LegacyBattleActorMetricResult metrics;
             openswd3::battle::LegacyBattlePreFrameResult pre_frame;
@@ -3905,11 +3915,58 @@ public:
                                     metrics.final_registers_known
                                 );
                             order_called = true;
-                            stop_boundary = order.status ==
+                            stop_boundary =
+                                "0x0045324D -> sub_45B190 typed stop";
+                            if (order.status ==
+                                openswd3::battle::LegacyBattleActorOrderStatus::
+                                    completed) {
+                                debug = openswd3::battle::
+                                    coordinate_legacy_battle_debug_hotkeys(
+                                        keyboard_snapshot_,
+                                        battle_debug_hotkey_state(),
+                                        {
+                                            .startup = battle_runtime_,
+                                            .final_actor = battle_final_actor_,
+                                            .action = battle_action_dispatch_,
+                                            .bounded_random = *this,
+                                            .actor_metrics =
+                                                battle_actor_metrics_,
+                                            .actor_publication =
+                                                actor_publication_state(),
+                                            .effect_coordinator =
+                                                effect_coordinator_state(),
+                                            .effect_shift =
+                                                effect_shift_state(),
+                                            .actor_frames =
+                                                &battle_actor_frames_,
+                                            .player_control =
+                                                world_player_control_state_,
+                                            .message_state =
+                                                battle_message_state_,
+                                            .developer_tools_enabled =
+                                                &world_frame_state_
+                                                     .developer_tools_enabled,
+                                        },
+                                        *this,
+                                        {.actor_adjustment_entry_edx_known =
+                                             false}
+                                    );
+                                debug_called = true;
+                                stop_boundary =
+                                    "0x00453252 -> sub_45D8F0 typed stop";
+                                if (debug.status ==
                                     openswd3::battle::
-                                        LegacyBattleActorOrderStatus::completed
-                                ? "0x00453252 -> sub_45D8F0 debug hotkeys"
-                                : "0x0045324D -> sub_45B190 typed stop";
+                                        LegacyBattleDebugHotkeyStatus::
+                                            completed) {
+                                    if (debug.return_value == 0U) {
+                                        reply.eax = 0U;
+                                        break;
+                                    }
+
+                                    stop_boundary =
+                                        "0x0045325E -> surface lock setup";
+                                }
+                            }
                         } else {
                             stop_boundary =
                                 "0x00453248 -> sub_45B0E0 typed stop";
@@ -3987,6 +4044,23 @@ public:
             message.append(
                 order_called && order.final_registers_known ? "1" : "0"
             );
+            message.append(", debug_called=");
+            message.append(debug_called ? "1" : "0");
+            message.append(", debug_status=");
+            message.append(std::to_string(static_cast<unsigned>(debug.status)));
+            message.append(", debug_key_queries=");
+            message.append(std::to_string(debug.raw_key_queries));
+            message.append(", debug_coordinate_registers_known=");
+            message.append(
+                debug_called && debug.actor_coordinate_registers_known ? "1"
+                                                                       : "0"
+            );
+            message.append(", debug_stopped_call=");
+            message.append(
+                std::to_string(static_cast<unsigned>(debug.stopped_call))
+            );
+            message.append(", debug_stopped_object=");
+            message.append(std::to_string(debug.stopped_object_token));
             message.append(", pre_frame_terminal_latch=");
             message.append(
                 std::to_string(

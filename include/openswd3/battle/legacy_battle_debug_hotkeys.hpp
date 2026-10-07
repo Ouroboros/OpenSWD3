@@ -51,6 +51,8 @@ struct LegacyBattleDebugHotkeyCallReply {
     compat::u32 group_b_count{};
     bool publish_priority_actor{};
     compat::u32 priority_actor{};
+    // The callee did not return; preserve its caller's published prefix.
+    bool typed_stop{};
 };
 
 class LegacyBattleDebugHotkeyPort
@@ -62,7 +64,7 @@ public:
     [[nodiscard]] virtual LegacyBattleDebugHotkeyCallReply
     invoke_debug_hotkey(const LegacyBattleDebugHotkeyCallRequest& request) {
         static_cast<void>(request);
-        return {};
+        return {.typed_stop = true};
     }
     virtual void delay_milliseconds(compat::u32 milliseconds) {
         static_cast<void>(milliseconds);
@@ -81,6 +83,9 @@ struct LegacyBattleDebugHotkeyBindings {
     LegacyBattleGroupBFrameState* actor_frames{};
     world_map::LegacyWorldPlayerControlState& player_control;
     compat::u32& message_state;
+    // A production host borrows the shared 0x004CAE98 owner. Standalone
+    // callers may use the value in LegacyBattleDebugHotkeyState instead.
+    const compat::u32* developer_tools_enabled{};
 };
 
 enum class LegacyBattleDebugHotkeyStatus : compat::u8 {
@@ -93,6 +98,7 @@ enum class LegacyBattleDebugHotkeyStatus : compat::u8 {
     actor_action_target_typed_stop,
     actor_gate_decay_typed_stop,
     actor_runtime_reset_typed_stop,
+    port_call_typed_stop,
 };
 
 struct LegacyBattleDebugHotkeyRequest {
@@ -100,6 +106,8 @@ struct LegacyBattleDebugHotkeyRequest {
     LegacyBattleActorGateDecayCallRequests actor_gate_decay_requests{};
     LegacyBattleActorRuntimeResetCallRequests actor_runtime_reset_requests{};
     compat::u32 actor_adjustment_entry_edx{};
+    // Describes the supplied H/J-tail EDX, not the function-entry register.
+    bool actor_adjustment_entry_edx_known{true};
     bool actor_adjustment_x_argument_readable{true};
     bool actor_adjustment_y_argument_readable{true};
 };
@@ -109,6 +117,8 @@ struct LegacyBattleDebugHotkeyResult {
         LegacyBattleDebugHotkeyStatus::completed
     };
     compat::u32 return_value{1U};
+    LegacyBattleDebugHotkeyCall stopped_call{};
+    compat::u32 stopped_object_token{};
     compat::u32 raw_key_queries{};
     compat::u32 port_calls{};
     compat::u32 delay_calls{};
@@ -116,6 +126,7 @@ struct LegacyBattleDebugHotkeyResult {
     compat::u32 group_b_iterations{};
     compat::u32 actor_adjust_iterations{};
     compat::u32 actor_coordinate_adjustment_calls{};
+    bool actor_coordinate_registers_known{true};
     LegacyBattleActorCoordinateAdjustmentResult actor_coordinate_adjustment{};
     LegacyBattleActorActionTargetResult actor_action_target{};
     compat::u32 actor_action_target_calls{};

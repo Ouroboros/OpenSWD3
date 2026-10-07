@@ -86,8 +86,10 @@ signed_increment_modulo_two(const u32 value) noexcept {
 
 class DebugTextMessageAdapter final : public LegacyBattleTextMessagePort {
 public:
-    explicit DebugTextMessageAdapter(LegacyBattleDebugHotkeyPort& port)
-        : port_(port) {}
+    DebugTextMessageAdapter(
+        LegacyBattleDebugHotkeyPort& port, LegacyBattleDebugHotkeyResult& result
+    )
+        : port_(port), result_(result) {}
 
     [[nodiscard]] LegacyBattleTextMessageCallReply invoke_text_message(
         const LegacyBattleTextMessageCallRequest& request
@@ -101,11 +103,26 @@ public:
             .ecx = request.ecx,
             .edx = request.edx,
         });
-        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
+        if (reply.typed_stop) {
+            result_.status =
+                LegacyBattleDebugHotkeyStatus::port_call_typed_stop;
+            result_.stopped_call =
+                request.call == LegacyBattleTextMessageCall::allocate
+                ? LegacyBattleDebugHotkeyCall::text_message_allocate
+                : LegacyBattleDebugHotkeyCall::text_message_measure;
+        }
+
+        return {
+            .eax = reply.eax,
+            .ecx = reply.ecx,
+            .edx = reply.edx,
+            .call_failed = reply.typed_stop
+        };
     }
 
 private:
     LegacyBattleDebugHotkeyPort& port_;
+    LegacyBattleDebugHotkeyResult& result_;
 };
 
 class Runner final {
@@ -130,7 +147,7 @@ public:
     }
 
     [[nodiscard]] bool display_text(const u32 text_token) {
-        DebugTextMessageAdapter text_port(port_);
+        DebugTextMessageAdapter text_port(port_, result_);
         result_.text_messages.push_back(enqueue_legacy_battle_text_message(
             bindings_.startup.text_messages,
             bindings_.startup.reset.block_5214f8[0U],
@@ -147,8 +164,11 @@ public:
         const auto& message = result_.text_messages.back();
         result_.port_calls += message.allocation_calls + message.measure_calls;
         if (message.status != LegacyBattleTextMessageStatus::completed) {
-            result_.status =
-                LegacyBattleDebugHotkeyStatus::text_message_typed_stop;
+            if (result_.status == LegacyBattleDebugHotkeyStatus::completed) {
+                result_.status =
+                    LegacyBattleDebugHotkeyStatus::text_message_typed_stop;
+            }
+
             return false;
         }
         return true;
@@ -176,6 +196,14 @@ public:
         if (reply.publish_priority_actor) {
             bindings_.actor_metrics.priority_actor_index = reply.priority_actor;
         }
+
+        if (reply.typed_stop) {
+            result_.status =
+                LegacyBattleDebugHotkeyStatus::port_call_typed_stop;
+            result_.stopped_call = call;
+            result_.stopped_object_token = object_token;
+        }
+
         return reply;
     }
 
@@ -271,6 +299,8 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
     const LegacyBattleDebugHotkeyRequest& request
 ) {
     LegacyBattleDebugHotkeyResult result;
+    result.actor_coordinate_registers_known =
+        request.actor_adjustment_entry_edx_known;
     Runner runner(bindings, port, result);
     const auto reset_actor = [&](const u32 actor_token,
                                  const u32 call_address,
@@ -297,7 +327,11 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
         return false;
     };
 
-    if (state.developer_tools_enabled == 1U) {
+    const u32& developer_tools_enabled =
+        bindings.developer_tools_enabled != nullptr
+        ? *bindings.developer_tools_enabled
+        : state.developer_tools_enabled;
+    if (developer_tools_enabled == 1U) {
         const bool left_control = runner.key(keyboard, 0x1DU) != 0U;
         const bool right_control =
             left_control ? false : runner.key(keyboard, 0x9DU) != 0U;
@@ -305,9 +339,13 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
 
         if (result.control_chord_active) {
             if (runner.key(keyboard, 0x3DU) != 0U) {
-                static_cast<void>(runner.invoke(
-                    LegacyBattleDebugHotkeyCall::suspend_audio_output
-                ));
+                if (runner
+                        .invoke(
+                            LegacyBattleDebugHotkeyCall::suspend_audio_output
+                        )
+                        .typed_stop) {
+                    return result;
+                }
             }
 
             if (runner.key(keyboard, 0x3BU) != 0U) {
@@ -336,16 +374,28 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                                    bindings.actor_metrics.group_a_count
                                )) {
                     const u32 token = group_a_token(index);
-                    static_cast<void>(runner.invoke(
-                        LegacyBattleDebugHotkeyCall::reset_group_a_primary,
-                        token,
-                        {0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU}
-                    ));
-                    static_cast<void>(runner.invoke(
-                        LegacyBattleDebugHotkeyCall::reset_group_a_secondary,
-                        token,
-                        {0xFFFFFFFFU}
-                    ));
+                    if (runner
+                            .invoke(
+                                LegacyBattleDebugHotkeyCall::
+                                    reset_group_a_primary,
+                                token,
+                                {0xFFFFFFFFU, 0xFFFFFFFFU, 0xFFFFFFFFU}
+                            )
+                            .typed_stop) {
+                        return result;
+                    }
+
+                    if (runner
+                            .invoke(
+                                LegacyBattleDebugHotkeyCall::
+                                    reset_group_a_secondary,
+                                token,
+                                {0xFFFFFFFFU}
+                            )
+                            .typed_stop) {
+                        return result;
+                    }
+
                     ++index;
                     ++result.group_a_iterations;
                 }
@@ -354,11 +404,16 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 while (index < std::bit_cast<u32>(
                                    bindings.actor_metrics.group_a_count
                                )) {
-                    static_cast<void>(runner.invoke(
-                        LegacyBattleDebugHotkeyCall::configure_group_a,
-                        group_a_token(index),
-                        {0x26ACU, 0x9BU, 0xC8U}
-                    ));
+                    if (runner
+                            .invoke(
+                                LegacyBattleDebugHotkeyCall::configure_group_a,
+                                group_a_token(index),
+                                {0x26ACU, 0x9BU, 0xC8U}
+                            )
+                            .typed_stop) {
+                        return result;
+                    }
+
                     ++index;
                     ++result.group_a_iterations;
                 }
@@ -381,12 +436,18 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                             1U &&
                         bindings.actor_frames->shared
                                 .actor_ai_secondary[index] != 1U) {
-                        static_cast<void>(runner.invoke(
-                            LegacyBattleDebugHotkeyCall::publish_actor_value,
-                            group_a_token(index),
-                            {80U, 0xFFFFFFF6U, 0xFFFFFFF6U}
-                        ));
+                        if (runner
+                                .invoke(
+                                    LegacyBattleDebugHotkeyCall::
+                                        publish_actor_value,
+                                    group_a_token(index),
+                                    {80U, 0xFFFFFFF6U, 0xFFFFFFF6U}
+                                )
+                                .typed_stop) {
+                            return result;
+                        }
                     }
+
                     ++index;
                     ++result.group_a_iterations;
                 }
@@ -409,12 +470,18 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                             1U &&
                         bindings.actor_frames->shared
                                 .actor_ai_secondary[index] != 1U) {
-                        static_cast<void>(runner.invoke(
-                            LegacyBattleDebugHotkeyCall::publish_actor_value,
-                            group_a_token(index),
-                            {500U, 0xFFFFFFFBU, 0xFFFFFFFBU}
-                        ));
+                        if (runner
+                                .invoke(
+                                    LegacyBattleDebugHotkeyCall::
+                                        publish_actor_value,
+                                    group_a_token(index),
+                                    {500U, 0xFFFFFFFBU, 0xFFFFFFFBU}
+                                )
+                                .typed_stop) {
+                            return result;
+                        }
                     }
+
                     ++index;
                     ++result.group_a_iterations;
                 }
@@ -426,11 +493,17 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                 while (index < std::bit_cast<u32>(
                                    bindings.actor_metrics.group_b_count
                                )) {
-                    static_cast<void>(runner.invoke(
-                        LegacyBattleDebugHotkeyCall::publish_actor_value,
-                        group_b_token(index),
-                        {10U, 0U, 0U}
-                    ));
+                    if (runner
+                            .invoke(
+                                LegacyBattleDebugHotkeyCall::
+                                    publish_actor_value,
+                                group_b_token(index),
+                                {10U, 0U, 0U}
+                            )
+                            .typed_stop) {
+                        return result;
+                    }
+
                     ++index;
                     ++result.group_b_iterations;
                 }
@@ -559,14 +632,23 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
             }
 
             if (runner.key(keyboard, 0x3FU) != 0U) {
-                static_cast<void>(runner.invoke(
-                    LegacyBattleDebugHotkeyCall::suspend_audio_output
-                ));
-                static_cast<void>(runner.invoke(
-                    LegacyBattleDebugHotkeyCall::restart_battle_music,
-                    0U,
-                    {kBattleMusicPathToken, 0U}
-                ));
+                if (runner
+                        .invoke(
+                            LegacyBattleDebugHotkeyCall::suspend_audio_output
+                        )
+                        .typed_stop) {
+                    return result;
+                }
+
+                if (runner
+                        .invoke(
+                            LegacyBattleDebugHotkeyCall::restart_battle_music,
+                            0U,
+                            {kBattleMusicPathToken, 0U}
+                        )
+                        .typed_stop) {
+                    return result;
+                }
             }
 
             if (runner.key(keyboard, 0x3CU) != 0U) {
@@ -597,6 +679,10 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                     const auto actor = runner.invoke(
                         LegacyBattleDebugHotkeyCall::query_actor_status, token
                     );
+                    if (actor.typed_stop) {
+                        return result;
+                    }
+
                     if (actor.eax != 1U) {
                         if (index >= bindings.actor_publication.slots.size() ||
                             index >=
@@ -607,12 +693,18 @@ LegacyBattleDebugHotkeyResult coordinate_legacy_battle_debug_hotkeys(
                         }
                         bindings.actor_publication.slots[index] = index;
                         bindings.startup.reset.block_5242b0[index] = 0U;
-                        static_cast<void>(runner.invoke(
-                            LegacyBattleDebugHotkeyCall::publish_actor_value,
-                            token,
-                            {30000U, 0U, 0U}
-                        ));
+                        if (runner
+                                .invoke(
+                                    LegacyBattleDebugHotkeyCall::
+                                        publish_actor_value,
+                                    token,
+                                    {30000U, 0U, 0U}
+                                )
+                                .typed_stop) {
+                            return result;
+                        }
                     }
+
                     ++index;
                     ++result.group_b_iterations;
                 }
