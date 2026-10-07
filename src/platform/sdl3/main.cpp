@@ -2936,7 +2936,7 @@ public:
             const auto prepared = openswd3::battle::prepare_legacy_battle_setup(
                 battle_assets_,
                 battle_runtime_.party_presence,
-                false,
+                battle_runtime_.mirror_mode,
                 battle_setup_
             );
             battle_setup_ready_ = prepared.status ==

@@ -32,6 +32,8 @@ TOML战斗速度已接入入战阈值，保留默认值与原配置字节范围�
 [规则共享](../evidence/battle-shared-mode-flags-0053bc24.md)。
 出场标记、人数和来源映射在读取战斗档案前共同发布，定向验证通过，见
 [出场状态接线](../evidence/battle-startup-party-presence-runtime-binding.md)。
+SDL建场读取实际共享镜像设置，阵形绑定保留原值，定向验证通过，见
+[镜像接线](../evidence/battle-startup-mirror-runtime-binding.md)。
 这些接线不关闭新的战斗函数。
 
 ## 1. 唯一真值与模块目标

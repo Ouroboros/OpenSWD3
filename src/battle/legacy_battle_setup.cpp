@@ -148,12 +148,12 @@ LegacyBattleSetupResult prepare_legacy_battle_setup(
     const LegacyBattleAssets& assets,
     const std::span<const compat::u8, kLegacyBattlePartySourceCount>
         party_source_flags,
-    const bool mirrored,
+    const compat::u32 mirror_mode,
     LegacyBattleSetupState& state
 ) noexcept {
     state = {};
     state.background_resource_id = assets.background_resource_id();
-    state.mirrored = mirrored;
+    state.mirrored = mirror_mode == 1U;
     select_party(party_source_flags, state);
     place_party(state);
 
@@ -161,7 +161,7 @@ LegacyBattleSetupResult prepare_legacy_battle_setup(
     if (enemy_status != LegacyBattleSetupStatus::ready) {
         return {enemy_status};
     }
-    if (mirrored) {
+    if (state.mirrored) {
         mirror_party(state);
     }
     return {LegacyBattleSetupStatus::ready};
@@ -170,7 +170,6 @@ LegacyBattleSetupResult prepare_legacy_battle_setup(
 void bind_legacy_battle_setup_party_owners(
     const LegacyBattleSetupState& setup, LegacyBattleStartupState& startup
 ) noexcept {
-    startup.mirror_mode = setup.mirrored ? 1U : 0U;
     for (std::size_t index = 0U; index < setup.party.size(); ++index) {
         const auto& source = setup.party[index];
         auto& actor = startup.party[index];

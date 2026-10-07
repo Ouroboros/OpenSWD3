@@ -405,6 +405,46 @@ void test_party_selection_and_three_member_formation(
     );
 }
 
+void test_startup_mirror_mode_binding(openswd3::test::Context& test) {
+    auto startup =
+        std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+    startup->party_presence = {1U, 0U, 0U, 0U};
+    LegacyBattleAssets assets = make_assets(1U);
+    write_u16(assets.ffd_record, 0x00CCU, 0xFFFFU);
+    LegacyBattleSetupState setup;
+    for (const u32 mode : {0U, 1U, 2U, 0x10001U, 0xFFFFFFFFU, 1U, 0U}) {
+        startup->mirror_mode = mode;
+        const auto result = openswd3::battle::prepare_legacy_battle_setup(
+            assets, startup->party_presence, startup->mirror_mode, setup
+        );
+        test.expect_true(
+            result.status == LegacyBattleSetupStatus::ready &&
+                setup.mirrored == (mode == 1U) &&
+                setup.enemies[0U].screen_x == (mode == 1U ? 641U : 65535U) &&
+                setup.party[0U].screen_x == (mode == 1U ? 113U : 527U) &&
+                setup.party[0U].anchor_x == (mode == 1U ? 87 : 537),
+            "startup mirrors only exact DWORD one, preserving WORD subtraction wrap and formation anchors"
+        );
+        openswd3::battle::bind_legacy_battle_setup_party_owners(
+            setup, *startup
+        );
+        test.expect_true(
+            startup->mirror_mode == mode &&
+                startup->party[0U].placement_position_x == 527U &&
+                startup->party_offsets[0U] == 537,
+            "formation binding preserves the original mirror DWORD and restores pre-reset coordinates on repeated entries"
+        );
+    }
+
+    startup->mirror_mode = 1U;
+    openswd3::battle::bind_legacy_battle_setup_party_owners(setup, *startup);
+    test.expect_equal(
+        startup->mirror_mode,
+        u32{1U},
+        "an older unmirrored setup cannot clear a newer shared mirror setting"
+    );
+}
+
 void test_all_formation_sizes_and_mirroring(openswd3::test::Context& test) {
     const LegacyBattleAssets assets = make_assets(0U);
     struct Expected {
@@ -7317,6 +7357,7 @@ int main() {
     openswd3::test::Context test;
     test_party_selection_and_three_member_formation(test);
     test_all_formation_sizes_and_mirroring(test);
+    test_startup_mirror_mode_binding(test);
     test_enemy_record_layout(test);
     test_line_raster_axis_and_diagonal_steps(test);
     test_line_raster_major_axes_and_thresholds(test);

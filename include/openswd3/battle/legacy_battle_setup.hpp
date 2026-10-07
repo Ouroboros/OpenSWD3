@@ -58,12 +58,13 @@ struct LegacyBattleSetupResult {
     const LegacyBattleAssets& assets,
     std::span<const compat::u8, kLegacyBattlePartySourceCount>
         party_source_flags,
-    bool mirrored,
+    compat::u32 mirror_mode,
     LegacyBattleSetupState& state
 ) noexcept;
 
 // Bind the partial asset setup's four formation slots. Preserve the presence,
-// count and source mapping already published by the startup party scan.
+// count and source mapping already published by the startup party scan,
+// and the shared mirror mode. Only the original DWORD value one mirrors.
 // Does not construct supplemental actors or complete sub_451B10.
 void bind_legacy_battle_setup_party_owners(
     const LegacyBattleSetupState& setup, LegacyBattleStartupState& startup

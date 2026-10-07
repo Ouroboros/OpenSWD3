@@ -4,6 +4,14 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：入战镜像设置
+
+SDL建场读取实际镜像设置，阵形绑定保留原值，不再固定清零。
+只在完整值精确等于1时镜像；保留原坐标宽度与角色配置顺序。
+core/ASan setup各1/1及SDL构建通过，本批日志无警告或sanitizer错误。
+证据见[镜像接线](../analysis/04-reverse-engineering/evidence/battle-startup-mirror-runtime-binding.md)。
+未启动游戏，完整初始化及续玩仍未验收；B10保持315/422，316 pending_audit。
+
 ## B11：入战队伍出场状态
 
 核心与SDL在读取战斗档案前共同发布出场队员、人数及来源映射。
