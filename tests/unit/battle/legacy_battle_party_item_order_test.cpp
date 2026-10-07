@@ -45,6 +45,46 @@ void test_battle_party_item_order(openswd3::test::Context& test) {
 
     {
         LegacyWorldItemListState state;
+        auto& list = *state.party_item_lists[3U];
+        list.sentinel.legacy_next_token = 0x610000U;
+        auto& prefix = append_node(list, 0x610000U, 0x6100B0U, 10U, 10U);
+        auto& root = append_node(list, 0x6100B0U, 0x610160U, 9U, 9U);
+        auto& high = append_node(list, 0x610160U, 0x610210U, 3U, 3U);
+        auto& low = append_node(list, 0x610210U, 0U, 1U, 1U);
+        list.legacy_head_token = root.legacy_token;
+        const auto result = order_legacy_battle_party_item_lists(state, 7U);
+        test.expect_true(
+            result.status == LegacyBattlePartyItemOrderStatus::completed &&
+                result.swaps == 1U && result.return_eax == 0U &&
+                list.legacy_head_token == root.legacy_token &&
+                list.sentinel.legacy_next_token == prefix.legacy_token &&
+                prefix.legacy_next_token == root.legacy_token &&
+                root.legacy_next_token == low.legacy_token &&
+                low.legacy_next_token == high.legacy_token &&
+                high.legacy_next_token == 0U && root.selected_count == 9U &&
+                high.selected_count == 3U && low.selected_count == 1U &&
+                item_ids(list) == std::vector<u16>{10U, 9U, 1U, 3U},
+            "party sort uses the movable global root and leaves its preceding nodes and root itself untouched"
+        );
+    }
+
+    for (const u32 root_token : {0U, 0xDEADC0DEU}) {
+        LegacyWorldItemListState state;
+        state.party_item_lists[0U]->legacy_head_token = root_token;
+        const auto stopped =
+            order_legacy_battle_party_item_lists(state, 0xABCDU);
+        test.expect_true(
+            stopped.status ==
+                    LegacyBattlePartyItemOrderStatus::item_node_typed_stop &&
+                stopped.fault_list_index == 0U &&
+                stopped.fault_token == root_token &&
+                stopped.return_eax == 0xABCDU && stopped.lists_visited == 1U,
+            "unreadable movable root stops at its dereference without replacing EAX or falling back to the sentinel"
+        );
+    }
+
+    {
+        LegacyWorldItemListState state;
         const auto result =
             order_legacy_battle_party_item_lists(state, 0xA5A5A5A5U);
         test.expect_true(

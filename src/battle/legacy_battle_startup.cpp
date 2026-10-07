@@ -642,6 +642,28 @@ void publish_legacy_battle_startup_mouse_position(
     frame_input.previous_mouse_y = 200;
 }
 
+LegacyBattleStartupItemOrderResult order_legacy_battle_startup_items(
+    world_map::LegacyWorldItemListState& items
+) noexcept {
+    LegacyBattleStartupItemOrderResult result;
+    result.player_item_order = order_legacy_battle_player_items(items);
+    if (result.player_item_order.status !=
+        LegacyBattlePlayerItemOrderStatus::completed) {
+        result.status = LegacyBattleStartupStatus::player_item_order_typed_stop;
+        return result;
+    }
+
+    result.party_item_order = order_legacy_battle_party_item_lists(
+        items, result.player_item_order.return_eax
+    );
+    if (result.party_item_order.status !=
+        LegacyBattlePartyItemOrderStatus::completed) {
+        result.status = LegacyBattleStartupStatus::party_item_order_typed_stop;
+    }
+
+    return result;
+}
+
 LegacyBattleStartupResult initialize_legacy_battle_startup(
     LegacyBattleStartupState& state,
     LegacyBattleStartupPort& port,
@@ -1053,19 +1075,12 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         ++result.initial_party_actor_count;
     }
 
-    result.player_item_order =
-        order_legacy_battle_player_items(port.world_item_list_state());
-    if (result.player_item_order.status !=
-        LegacyBattlePlayerItemOrderStatus::completed) {
-        result.status = LegacyBattleStartupStatus::player_item_order_typed_stop;
-        return result;
-    }
-    result.party_item_order = order_legacy_battle_party_item_lists(
-        port.world_item_list_state(), result.player_item_order.return_eax
-    );
-    if (result.party_item_order.status !=
-        LegacyBattlePartyItemOrderStatus::completed) {
-        result.status = LegacyBattleStartupStatus::party_item_order_typed_stop;
+    const auto item_order =
+        order_legacy_battle_startup_items(port.world_item_list_state());
+    result.player_item_order = item_order.player_item_order;
+    result.party_item_order = item_order.party_item_order;
+    if (item_order.status != LegacyBattleStartupStatus::completed) {
+        result.status = item_order.status;
         return result;
     }
 

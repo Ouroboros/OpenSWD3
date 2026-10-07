@@ -2006,8 +2006,9 @@ void test_battle_startup(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattlePlayerItemOrderStatus::
                         item_node_typed_stop &&
                 result.player_item_order.fault_token == 0x00700000U &&
+                result.initial_party_actor_count == 0U &&
                 result.party_item_order.lists_visited == 0U,
-            "player-item order typed stop blocks party-item sorting and later startup phases"
+            "even without party actors, player-item order stops block party-item sorting and later startup phases"
         );
     }
 

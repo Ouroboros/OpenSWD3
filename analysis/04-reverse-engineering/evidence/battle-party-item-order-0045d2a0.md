@@ -6,13 +6,17 @@
 
 权威函数为`0x0045D2A0..0x0045D2E9`，从proc到endp完整50行、34条实际指令、0个静态call、7个条件或无条件分支与4个局部标签，无外部FUNCTION CHUNK。
 
-唯一caller是已关闭战斗启动协调器`0x00451B10`中的一处调用。函数不接收栈参数，依次访问固定根数组`0x004A9490..0x004A949C`的四个队伍道具sentinel链。
+唯一caller是已关闭战斗启动协调器`0x00451B10`中的一处调用。函数不接收栈参数，依次访问固定根数组`0x004A9490..0x004A949C`的四个队伍道具链。根可以是哨兵或普通节点。
 
 ## 2. 四根循环与入口EAX
 
 EDI从固定根数组首地址开始，每条链结束后加4，按signed地址比较严格小于`0x004A94A0`继续，因此固定处理四条根。
 
-每轮先把根token读入ESI，再以`[esi]`读取sentinel的head link。原程序不检查根token是否为0；typed状态缺失对应optional根时在这次无条件解引用处typed-stop。
+每轮先把根token读入ESI，再以`[esi]`读取当前根的next。原程序不检查根token是否为0；typed状态缺失对应optional根或物理根无法解析时，在这次无条件解引用处typed-stop。
+
+B11接线审查已修正固定读取sentinel的旧实现。现在按`legacy_head_token`借用实际根。
+`00477C24`推进全局根，命中路径`00477C2C`直接返回，不恢复哨兵；因此普通节点根是
+合法输入。排序只调整该根之后的后缀，不修改全局根或其前缀。
 
 函数进入时不初始化EAX。第一根就在无条件解引用处故障时，EAX仍是caller传入的陈旧值。typed接口显式接收`entry_eax`；startup caller传入前一玩家道具排序的返回EAX。正常读取某根head后，EAX变为该head token：
 
@@ -23,17 +27,17 @@ EDI从固定根数组首地址开始，每条链结束后加4，按signed地址�
 
 ## 3. 稳定升序与链内重扫
 
-每条链把ECX视为sentinel或上一节点的next字段地址。循环读取当前节点与next；next为0时结束当前根。存在next时，读取当前与next的offset`+0x04` item id并执行u16无符号比较。
+每条链把ECX视为本次实际根或上一节点的next字段地址。循环读取当前节点与next；next为0时结束当前根。存在next时，读取当前与next的offset`+0x04` item id并执行u16无符号比较。
 
 当前item id小于等于next时不交换，ECX前进到当前节点next字段。相等值保持原物理顺序，因此排序稳定。本函数没有`0x0045D250`的offset`+0x06`写零，所有selected count保持不变。
 
-当前item id大于next时按三次link写入交换相邻节点：当前next改为next原next、next的next改为当前、上一link改为next。交换后ECX恢复当前sentinel根，只从当前队伍链head重扫，不回到四根数组首项。
+当前item id大于next时按三次link写入交换相邻节点：当前next改为next原next、next的next改为当前、上一link改为next。交换后ECX恢复本次实际根，只从该根next重扫，不回到哨兵或四根数组首项。
 
-Typed实现不使用库排序，不增加modern迭代上限。每次交换同时重连`legacy_next_token`并用`std::list::splice`同步对应唯一sentinel typed链的host可观察顺序，不复制节点或owner。
+Typed实现不使用库排序，不增加modern迭代上限。每次交换同时重连`legacy_next_token`并用`std::list::splice`同步对应唯一typed链的host可观察顺序，不复制节点或owner。
 
 ## 4. Typed-stop时序
 
-- optional队伍根缺失：在该根首次无条件解引用处停止，保留之前各根已完成的排序与入口/上一根EAX；
+- optional队伍根缺失，或移动根token无法解析：在该根首次无条件解引用处停止，保留之前各根已完成的排序与入口/上一根EAX；
 - 非零head token未知：在初始head next读取处停止，EAX为head token；
 - 非零next token未知：在next节点item id首次读取处停止，EAX为next token；本函数在该比较前没有节点写副作用；
 - 已发生的前序交换不回滚。
@@ -44,7 +48,10 @@ Typed实现不使用库排序，不增加modern迭代上限。每次交换同时
 
 战斗启动协调器在已关闭玩家道具排序后，删除原`post_party_phase_b` opaque枚举和端口调用，直接把前一阶段EAX传入本typed排序。四根全部完成后才继续组A资料绑定、三组比率、补位与最终收束；子typed-stop立即阻断这些后续阶段。
 
-两项排序和战斗动作分派通过虚继承共享同一个`LegacyWorldItemListStatePort`。四个sentinel、各自节点、玩家链和全部物理token只保留一份typed存储。
+核心两项排序和动作分派通过虚继承共享同一个`LegacyWorldItemListStatePort`。
+SDL入口直接借用读档和剧情的`world_item_lists_`，通过与核心相同的两步排序入口调用。
+四个sentinel、各自节点、玩家链和全部物理token只保留一份typed存储。
+本批生产接线、移动根修正及验证见[入战排序接线](battle-startup-item-order-runtime-binding.md)。
 
 ## 6. 验证与动态差分
 

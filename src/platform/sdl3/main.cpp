@@ -2975,6 +2975,21 @@ public:
                         return false;
                     }
                 }
+
+                const auto item_order =
+                    openswd3::battle::order_legacy_battle_startup_items(
+                        world_item_lists_
+                    );
+                if (item_order.status !=
+                    openswd3::battle::LegacyBattleStartupStatus::completed) {
+                    openswd3::diagnostics::log_error(
+                        "battle player or party item sorting stopped"
+                    );
+                    battle_setup_ready_ = false;
+                    ok_ = false;
+                    running_ = false;
+                    return false;
+                }
             }
         } else {
             battle_setup_ = {};

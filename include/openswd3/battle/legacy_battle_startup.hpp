@@ -403,6 +403,18 @@ enum class LegacyBattleStartupStatus : compat::u8 {
     actor_reset_typed_stop,
 };
 
+struct LegacyBattleStartupItemOrderResult {
+    LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};
+    LegacyBattlePlayerItemOrderResult player_item_order{};
+    LegacyBattlePartyItemOrderResult party_item_order{};
+};
+
+// 45227D..452282: both lists are shared with world/save, even without actors.
+[[nodiscard]] LegacyBattleStartupItemOrderResult
+order_legacy_battle_startup_items(
+    world_map::LegacyWorldItemListState& items
+) noexcept;
+
 struct LegacyBattleStartupResult {
     LegacyBattleStartupStatus status{LegacyBattleStartupStatus::completed};
     compat::i32 action_threshold{};

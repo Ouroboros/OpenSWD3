@@ -52,7 +52,18 @@ LegacyBattlePartyItemOrderResult order_legacy_battle_party_item_lists(
         }
 
         auto& list = *owner;
-        const u32 entry_head_token = list.sentinel.legacy_next_token;
+        LegacyWorldItemNode* root = &list.sentinel;
+        if (list.legacy_head_token != list.sentinel.legacy_token) {
+            const auto found = find_node_by_token(list, list.legacy_head_token);
+            if (found == list.nodes.end()) {
+                stop_at_item_node(result, list_index, list.legacy_head_token);
+                return result;
+            }
+
+            root = &*found;
+        }
+
+        const u32 entry_head_token = root->legacy_next_token;
         result.return_eax = entry_head_token;
         if (entry_head_token == 0U) {
             continue;
@@ -73,7 +84,7 @@ LegacyBattlePartyItemOrderResult order_legacy_battle_party_item_lists(
             u32 current_token{};
             PartyItemIterator link_owner = list.nodes.end();
             if (link_is_root) {
-                current_token = list.sentinel.legacy_next_token;
+                current_token = root->legacy_next_token;
             } else {
                 link_owner = find_node_by_token(list, link_owner_token);
                 if (link_owner == list.nodes.end()) {
@@ -111,7 +122,7 @@ LegacyBattlePartyItemOrderResult order_legacy_battle_party_item_lists(
             current->legacy_next_token = next->legacy_next_token;
             next->legacy_next_token = current_token;
             if (link_is_root) {
-                list.sentinel.legacy_next_token = next_token;
+                root->legacy_next_token = next_token;
             } else {
                 link_owner->legacy_next_token = next_token;
             }

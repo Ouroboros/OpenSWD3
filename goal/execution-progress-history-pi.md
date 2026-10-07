@@ -39,6 +39,17 @@ REVIEW边界、原始证据及日志见
 [队伍基础记录接线证据](../analysis/04-reverse-engineering/evidence/battle-party-source-runtime-binding.md)。
 B10保持315/422，Workpack316仍为pending_audit。
 
+## B11：入战物品排序接线
+
+SDL在队员配置后借用读档与剧情的同一物品链，按原顺序完成玩家与四队伍
+物品排序。缺失根或节点保留此前修改并停止；队伍根已移到普通节点时，
+只排序其后缀，保留根和前缀，不擅自恢复哨兵。
+
+新增向量先复现移动根的三项错误，修正后core/ASan启动聚合各1/1及SDL
+构建通过。没有运行游戏，未取得原版动态差分。边界与日志见
+[入战排序接线](../analysis/04-reverse-engineering/evidence/battle-startup-item-order-runtime-binding.md)。
+B10保持315/422；队伍物品属性、完整初始化及实际续玩仍待完成。
+
 ## B11：初始队伍构造与入战配置
 
 SDL会话一次性构造十份队员基础记录；初始队员按重置、镜像、配置、

@@ -49,9 +49,14 @@ Typed实现以`compat::u32`保存物理token，不转换为主机指针。每次
 
 空链返回EAX 0，单节点链返回入口head token，多节点正常结束时返回最后一次next读取的0。typed-stop结果额外记录真实故障token；caller原本不消费正常EAX。
 
-战斗启动协调器在初始组A角色配置后，已删除原`post_party_phase_a` opaque枚举和端口调用，直接调用本typed排序；完成后才继续第二个尚未关闭的全局阶段。子typed-stop立即阻断第二阶段、资料绑定、补位与最终收束，保留排序前已经完成的战斗启动副作用和排序内部前缀。
+战斗启动协调器在初始组A角色配置后，已删除原`post_party_phase_a` opaque枚举和端口调用，直接调用本typed排序；完成后才继续四队伍物品排序。子typed-stop立即阻断第二阶段、资料绑定、补位与最终收束，保留排序前已经完成的战斗启动副作用和排序内部前缀。
 
 启动端口与动作分派端口通过虚继承复用同一个`LegacyWorldItemListStatePort`，玩家道具head、节点和物理link只保留一份typed存储。
+
+B11的SDL入口现通过`order_legacy_battle_startup_items`复用核心的两步调用顺序，
+直接借用读档和剧情使用的`world_item_lists_`，不创建战斗副本。失败保留清零及
+链接修改前缀，并阻断后续初始化。当前验证见
+[入战排序接线](battle-startup-item-order-runtime-binding.md)。
 
 ## 6. 验证与动态差分
 
