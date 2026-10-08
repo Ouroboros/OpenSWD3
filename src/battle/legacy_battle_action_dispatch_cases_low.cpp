@@ -31,7 +31,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             if (reply.eax == 1U) {
                 state.selected_target_index = static_cast<u16>(group_b_index);
                 state.selected_group_b_identity[group_b_index] = group_b_index;
-                if (!clear_framebuffer(state, context, result)) {
+                if (!clear_framebuffer(port, context, result)) {
                     return result;
                 }
                 const u32 framebuffer_bytes =
@@ -409,7 +409,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
                 state.selected_target_index = static_cast<u16>(group_b_index);
                 state.selected_group_b_identity[group_b_index] = group_b_index;
                 port.battle_pair_primary_value() = 0xFFFFFFFFU;
-                if (!clear_framebuffer(state, context, result)) {
+                if (!clear_framebuffer(port, context, result)) {
                     return result;
                 }
                 const u32 framebuffer_bytes =

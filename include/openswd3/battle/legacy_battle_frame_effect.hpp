@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_action_rotation_cache.hpp"
+#include "openswd3/battle/legacy_battle_screen_flash.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_blitter.hpp"
 #include "openswd3/rendering/legacy_frame_color.hpp"
@@ -52,8 +53,6 @@ struct LegacyBattleFrameEffectState {
     compat::u16 split_extent{};
     compat::u32 split_suppression{};
 
-    compat::u32 color_cycle_active{};
-    compat::u8 color_cycle_delta{};
     compat::i32 published_red_delta{};
     compat::i32 published_green_delta{};
     compat::i32 published_blue_delta{};
@@ -83,6 +82,7 @@ struct LegacyBattleFrameEffectContext {
     rendering::LegacyBlitEffectState& shared_effects;
     rendering::LegacyRleRowJitterState& jitter;
     compat::i32& pending_rotation;  // 0x0053BD5C, shared with actor movement.
+    LegacyBattleScreenFlashState& flash;
 };
 
 enum class LegacyBattleFrameEffectStatus : compat::u8 {

@@ -607,7 +607,7 @@ inline void refresh_shared_frame(
 }
 
 [[nodiscard]] inline bool clear_framebuffer(
-    LegacyBattleActionDispatchState& state,
+    LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result
 ) noexcept {
@@ -620,7 +620,7 @@ inline void refresh_shared_frame(
 
     const u32 requested_pixels =
         legacy_battle_window_fill_byte_count(*context.startup) >> 1U;
-    state.frame_refresh_pending = 1U;
+    port.screen_flash_state().active = 1U;
     auto pixels = context.framebuffer.physical_pixels();
     const std::size_t writable =
         std::min<std::size_t>(requested_pixels, pixels.size());

@@ -401,6 +401,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         .shared_effects = context.frame_zero.shared_effects,
         .jitter = context.frame_zero.jitter,
         .pending_rotation = port.effect_shift_state().actor_delta,
+        .flash = port.screen_flash_state(),
     };
     result.frame_effect = update_legacy_battle_frame_effect(
         state.frame_effect,

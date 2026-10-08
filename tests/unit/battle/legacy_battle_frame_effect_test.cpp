@@ -65,6 +65,7 @@ struct Fixture {
     openswd3::rendering::LegacyRleRowJitterState jitter{};
     std::vector<u8> source_bytes;
     openswd3::compat::i32 pending_rotation{};
+    openswd3::battle::LegacyBattleScreenFlashState flash{};
 
     Fixture() {
         static_cast<void>(
@@ -98,6 +99,7 @@ struct Fixture {
             .shared_effects = effects,
             .jitter = jitter,
             .pending_rotation = pending_rotation,
+            .flash = flash,
         };
     }
 
@@ -126,6 +128,135 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleFrameEffectStatus;
 
     constexpr std::array<u32, 3> surfaces{0xB000U, 0xB100U, 0xB200U};
+
+    for (const u32 active : {0U, 1U, 2U, 0xFFFFFFFFU}) {
+        LegacyBattleFrameEffectState state;
+        Fixture fixture;
+        fixture.flash.active = active;
+        EffectPort port;
+        auto context = fixture.context();
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, fixture.source(), surfaces, 0
+        );
+        test.expect_true(
+            result.status == LegacyBattleFrameEffectStatus::completed &&
+                result.color_adjustment_calls == (active == 1U ? 3U : 0U) &&
+                fixture.flash.active == active &&
+                fixture.flash.intensity == (active == 1U ? 12U : 16U),
+            "flash accepts exactly DWORD one and starts at the original static intensity"
+        );
+    }
+
+    {
+        LegacyBattleFrameEffectState state;
+        Fixture fixture;
+        fixture.flash.active = 1U;
+        EffectPort port;
+        auto context = fixture.context();
+        constexpr std::array<u8, 4> remaining{12U, 8U, 4U, 16U};
+        constexpr std::array<u16, 4> pixels{0x4210U, 0x318CU, 0x2108U, 0x1084U};
+        for (std::size_t frame = 0; frame < remaining.size(); ++frame) {
+            fixture.framebuffer.physical_pixels()[100U] = 0U;
+            const auto result =
+                openswd3::battle::update_legacy_battle_frame_effect(
+                    state, port, context, fixture.source(), surfaces, 0
+                );
+            test.expect_true(
+                result.status == LegacyBattleFrameEffectStatus::completed &&
+                    result.color_adjustment_calls == 3U &&
+                    fixture.flash.intensity == remaining[frame] &&
+                    fixture.flash.active == (frame == 3U ? 0U : 1U) &&
+                    fixture.framebuffer.physical_pixels()[100U] == pixels[frame],
+                "four flash frames consume sixteen twelve eight four and reset only after the fourth pixel update"
+            );
+        }
+    }
+
+    {
+        LegacyBattleFrameEffectState state;
+        Fixture fixture;
+        openswd3::rendering::LegacyFramebuffer small_framebuffer(
+            {.pitch_bytes = 8, .width = 4, .height = 2}
+        );
+        static_cast<void>(
+            openswd3::rendering::initialize_legacy_raster_geometry(
+                fixture.raster, small_framebuffer.geometry().surface
+            )
+        );
+        fixture.flash.active = 1U;
+        fixture.flash.intensity = 8U;
+        fixture.pending_rotation = 17;
+        auto context = openswd3::battle::LegacyBattleFrameEffectContext{
+            .framebuffer = small_framebuffer,
+            .raster = fixture.raster,
+            .shared_request = fixture.request,
+            .shared_effects = fixture.effects,
+            .jitter = fixture.jitter,
+            .pending_rotation = fixture.pending_rotation,
+            .flash = fixture.flash,
+        };
+        EffectPort port;
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, fixture.source(), surfaces, 0
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleFrameEffectStatus::color_adjustment_typed_stop &&
+                result.color_adjustment_calls == 1U &&
+                fixture.pending_rotation == 0 &&
+                fixture.flash.active == 1U && fixture.flash.intensity == 8U,
+            "color failure preserves the flash after the preceding rotation clear"
+        );
+    }
+
+    constexpr std::array<std::array<openswd3::compat::i32, 4>, 4> byte_cases{{
+        {0, 0, 252, 0x4210},
+        {1, 1, 253, 0x4631},
+        {128, -128, 124, 0},
+        {252, -4, 248, 0x318C},
+    }};
+    for (const auto& item : byte_cases) {
+        LegacyBattleFrameEffectState state;
+        Fixture fixture;
+        fixture.flash.active = 1U;
+        fixture.flash.intensity = static_cast<u8>(item[0]);
+        fixture.framebuffer.physical_pixels()[100U] = 0x4210U;
+        EffectPort port;
+        auto context = fixture.context();
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, fixture.source(), surfaces, 0
+        );
+        test.expect_true(
+            result.status == LegacyBattleFrameEffectStatus::completed &&
+                result.applied_red_delta == item[1] &&
+                result.applied_green_delta == item[1] &&
+                result.applied_blue_delta == item[1] &&
+                fixture.flash.active == 1U &&
+                fixture.flash.intensity == static_cast<u8>(item[2]) &&
+                fixture.framebuffer.physical_pixels()[100U] ==
+                    static_cast<u16>(item[3]),
+            "flash sign extends the full BYTE domain and wraps decay without normalizing its input"
+        );
+    }
+
+    for (const u32 suppression : {1U, 2U}) {
+        LegacyBattleFrameEffectState state;
+        state.primary_suppression = suppression;
+        Fixture fixture;
+        fixture.flash.active = 1U;
+        fixture.flash.intensity = 8U;
+        EffectPort port;
+        auto context = fixture.context();
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, fixture.source(), surfaces, 0
+        );
+        test.expect_true(
+            result.status == LegacyBattleFrameEffectStatus::completed &&
+                result.color_adjustment_calls == 0U &&
+                fixture.flash.active == 1U && fixture.flash.intensity == 8U,
+            "suppressed background preserves the shared flash for a later frame"
+        );
+    }
 
     for (const bool fading : {false, true}) {
         for (const bool returned : {false, true}) {
@@ -240,7 +371,6 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         LegacyBattleFrameEffectState state;
         state.rotation_cache.stored_action_id = 1U;
         state.split_extent = 10U;
-        state.color_cycle_active = 1U;
         state.stage = 1;
         state.cadence = 2;
         state.current_encounter_id = 9;
@@ -251,6 +381,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         }
 
         Fixture fixture;
+        fixture.flash.active = 1U;
         fixture.pending_rotation = 77;
         EffectPort port;
         port.action_typed_stop = true;
@@ -268,7 +399,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 result.color_adjustment_calls == 0U &&
                 result.cadence_updates == 0U && result.reset_calls == 0U &&
                 fixture.pending_rotation == 77 && state.split_extent == 10U &&
-                state.color_cycle_active == 1U && state.stage == 1 &&
+                fixture.flash.active == 1U && state.stage == 1 &&
                 state.cadence == 2,
             "effect caller preserves its prefix and stops before later effects"
         );
@@ -376,9 +507,9 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
     {
         LegacyBattleFrameEffectState state;
         state.split_suppression = 0U;
-        state.color_cycle_active = 1U;
-        state.color_cycle_delta = 4U;
         Fixture fixture;
+        fixture.flash.active = 1U;
+        fixture.flash.intensity = 4U;
         EffectPort port;
         auto context = fixture.context();
 
@@ -396,8 +527,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 state.published_red_delta == 4 &&
                 state.published_green_delta == 4 &&
                 state.published_blue_delta == 4 &&
-                state.color_cycle_delta == 0x10U &&
-                state.color_cycle_active == 0U,
+                fixture.flash.intensity == 0x10U &&
+                fixture.flash.active == 0U,
             "color cycle publishes one signed byte to three channels then wraps zero back to sixteen"
         );
     }
@@ -593,9 +724,9 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
     {
         LegacyBattleFrameEffectState state;
         state.split_suppression = 0U;
-        state.color_cycle_active = 1U;
-        state.color_cycle_delta = 0xFCU;
         Fixture fixture;
+        fixture.flash.active = 1U;
+        fixture.flash.intensity = 0xFCU;
         EffectPort port;
         auto context = fixture.context();
 
@@ -608,8 +739,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 result.applied_red_delta == -4 &&
                 result.applied_green_delta == -4 &&
                 result.applied_blue_delta == -4 &&
-                state.color_cycle_delta == 0xF8U &&
-                state.color_cycle_active == 1U,
+                fixture.flash.intensity == 0xF8U &&
+                fixture.flash.active == 1U,
             "color cycle sign extends the byte and preserves nonzero wrapping subtraction"
         );
     }

@@ -535,7 +535,7 @@ public:
         const bool publish_actor_slot
     ) {
         ++render_counter;
-        state_.framebuffer_dirty_latch = 1U;
+        port_.screen_flash_state().active = 1U;
         if (publish_group_a_word) {
             state_.group_a_feedback_actor = static_cast<u16>(actor_index);
         }
@@ -1135,7 +1135,7 @@ LegacyBattleEffectCoordinatorResult advance_legacy_battle_effect_coordinator(
                     run.pair_primary_value() = 0xFFFFFFFFU;
                 }
                 if (!target_group_b) {
-                    state.framebuffer_dirty_latch = 1U;
+                    port.screen_flash_state().active = 1U;
                 }
                 if (target_group_b) {
                     state.group_b_feedback_actor =

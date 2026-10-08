@@ -4147,7 +4147,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                 actor.base_initialization.field_2a94 == 6U &&
                 actor.configuration.actor_record[2U] == 0xCAFE0000U &&
                 fixture->shared.selection_gate_b == 1U &&
-                fixture->shared.selection_gate_a == 0U &&
+                port->screen_flash_state().active == 1U &&
                 fixture->shared.selected_target == 0U &&
                 fixture->workspace.cursor == 4U &&
                 port->count(LegacyBattleScriptDispatchCall::frame) == 1U &&
@@ -4184,7 +4184,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                 actor.base_initialization.field_2a94 == 6U &&
                 actor.live_record_value_04 == 0xBEEF0000U &&
                 fixture->shared.selection_gate_c == 1U &&
-                fixture->shared.selection_gate_a == 0U &&
+                port->screen_flash_state().active == 1U &&
                 fixture->shared.selected_target == 2U &&
                 fixture->workspace.cursor == 4U &&
                 port->count(LegacyBattleScriptDispatchCall::frame) == 1U &&
@@ -4222,7 +4222,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                 fixture->startup.party[0U].base_initialization.field_2a94 ==
                     0U &&
                 fixture->shared.selection_gate_b == 0U &&
-                fixture->shared.selection_gate_a == 0U &&
+                port->screen_flash_state().active == 0U &&
                 fixture->workspace.cursor == 0U &&
                 port->count(LegacyBattleScriptDispatchCall::frame) == 0U,
             "case ten suppresses its complete suffix after the typed presentation write stop"
@@ -5539,6 +5539,94 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
 
 namespace {
 
+void test_script_flash_sharing(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    using namespace openswd3::rendering;
+    class ImagePort final : public LegacyBattleFrameEffectPort {
+    public:
+        LegacyBattleActionRotationUpdateSnapshot update_action(
+            openswd3::asset_runtime::LegacyActionRecord&
+        ) override {
+            return {.domain_token = 1U};
+        }
+
+        LegacyBattleFrameEffectSurfaceReply surface_operation(
+            const LegacyBattleFrameEffectSurfaceRequest&
+        ) override {
+            return {};
+        }
+    };
+
+    for (const u16 actor_code : std::array<u16, 2>{2U, 8U}) {
+        for (const bool stopped : {false, true}) {
+            auto fixture = std::make_unique<Fixture>();
+            Port port;
+            fixture->opcode(10);
+            fixture->write_u16(2U, actor_code);
+            fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+                LegacyBattleActorGroupBElementState,
+                kLegacyBattleActorGroupBElementCount>>();
+            port.typed_stop_enabled = stopped;
+            port.typed_stop_call = LegacyBattleScriptDispatchCall::frame;
+            LegacyFramebuffer framebuffer;
+            LegacyRasterGeometryState raster{};
+            static_cast<void>(initialize_legacy_raster_geometry(
+                raster, framebuffer.geometry().surface
+            ));
+            LegacyBlitRequest request{};
+            LegacyBlitEffectState effects{};
+            LegacyRleRowJitterState jitter{};
+            LegacyBattleFrameEffectState state;
+            LegacyBattleFrameEffectContext context{
+                .framebuffer = framebuffer,
+                .raster = raster,
+                .shared_request = request,
+                .shared_effects = effects,
+                .jitter = jitter,
+                .pending_rotation = port.effect_shift_state().actor_delta,
+                .flash = port.screen_flash_state(),
+            };
+            const std::array<u16, 1> pixels{1U};
+            auto image = encode_legacy_image_command_stream(
+                {reinterpret_cast<const openswd3::compat::u8*>(pixels.data()),
+                 sizeof(pixels)},
+                1U, 1U, 16U
+            );
+            ImagePort image_port;
+            bool consumed{};
+            port.after_call = [&](auto&, auto&, const auto& call) {
+                if (call.call != LegacyBattleScriptDispatchCall::frame) {
+                    return;
+                }
+
+                const auto frame = update_legacy_battle_frame_effect(
+                    state, image_port, context,
+                    {.token = 0xA100U, .bytes = image.bytes,
+                     .width = 1U, .height = 1U},
+                    {}, 0
+                );
+                consumed = frame.status ==
+                        LegacyBattleFrameEffectStatus::completed &&
+                    frame.color_adjustment_calls == 3U &&
+                    frame.applied_red_delta == 16 &&
+                    framebuffer.physical_pixels()[100U] == 0x4210U;
+            };
+            const auto result = run_battle_script_dispatch_on_heap(
+                *fixture, port
+            );
+            test.expect_true(
+                consumed && result->status == (stopped
+                    ? LegacyBattleScriptDispatchStatus::frame_typed_stop
+                    : LegacyBattleScriptDispatchStatus::completed) &&
+                    port.screen_flash_state().active == 1U &&
+                    port.screen_flash_state().intensity == 12U &&
+                    fixture->workspace.cursor == (stopped ? 0U : 4U),
+                "script ten publishes either actor group flash before the real frame and preserves its consumed state on return or stop"
+            );
+        }
+    }
+}
+
 void test_script_rotation_sharing(openswd3::test::Context& test) {
     using namespace openswd3::battle;
     using namespace openswd3::rendering;
@@ -5590,6 +5678,7 @@ void test_script_rotation_sharing(openswd3::test::Context& test) {
                 .shared_effects = effects,
                 .jitter = jitter,
                 .pending_rotation = port.effect_shift_state().actor_delta,
+                .flash = port.screen_flash_state(),
             };
             const std::array<u16, 3> pixels{1U, 2U, 3U};
             auto image = encode_legacy_image_command_stream(
@@ -5664,6 +5753,7 @@ void test_script_rotation_sharing(openswd3::test::Context& test) {
 
 void test_battle_script_dispatch(openswd3::test::Context& test) {
     test_script_rotation_sharing(test);
+    test_script_flash_sharing(test);
 #ifdef OPENSWD3_GAME_DATA_ROOT
     {
         using u8 = openswd3::compat::u8;

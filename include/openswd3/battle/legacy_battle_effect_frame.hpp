@@ -9,6 +9,7 @@
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_effect_shift.hpp"
+#include "openswd3/battle/legacy_battle_screen_flash.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_group_a_reward_profile_state.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
@@ -47,6 +48,7 @@ class LegacyBattleEffectCallPort
       public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
+      public virtual LegacyBattleScreenFlashStatePort,
       public virtual LegacyBattlePairTransitionPort,
       public virtual LegacyBattleGroupARewardProfileStatePort,
       public virtual LegacyBattleSharedPhaseStatePort,

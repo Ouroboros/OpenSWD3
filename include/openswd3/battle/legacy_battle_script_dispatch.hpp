@@ -126,7 +126,6 @@ struct LegacyBattleScriptSharedState {
     compat::u32 script_completion_gate{1U};  // 0x004A7B5C, initialized data
     compat::u32 script_phase_gate{};       // 0x0053C010
     compat::u32 script_aux_gate{};         // 0x0053C014
-    compat::u32 selection_gate_a{};        // 0x0053BFCC
     compat::u32 selection_gate_b{};        // 0x0053BFD8
     compat::u32 selection_gate_c{};        // 0x0053BFDC
     compat::u32 action_completion_gate{};  // 0x0053BFE0
@@ -300,6 +299,7 @@ struct LegacyBattleScriptDispatchCallReply {
 class LegacyBattleScriptDispatchPort
     : public virtual LegacyBattleDebugHotkeyStatePort,
       public virtual LegacyBattleEffectShiftStatePort,
+      public virtual LegacyBattleScreenFlashStatePort,
       public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleLevelAdvancementStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {

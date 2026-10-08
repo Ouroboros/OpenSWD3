@@ -203,7 +203,7 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
     LegacyBattleFrameEffectResult& result
 ) noexcept {
     const i32 delta =
-        static_cast<i32>(std::bit_cast<compat::i8>(state.color_cycle_delta));
+        static_cast<i32>(std::bit_cast<compat::i8>(context.flash.intensity));
     state.published_red_delta = delta;
     state.published_green_delta = delta;
     state.published_blue_delta = delta;
@@ -243,13 +243,14 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
         return false;
     }
 
-    state.color_cycle_delta = static_cast<compat::u8>(
-        static_cast<u32>(state.color_cycle_delta) + 0xFCU
+    context.flash.intensity = static_cast<compat::u8>(
+        static_cast<u32>(context.flash.intensity) + 0xFCU
     );
-    if (state.color_cycle_delta == 0U) {
-        state.color_cycle_delta = 0x10U;
-        state.color_cycle_active = 0U;
+    if (context.flash.intensity == 0U) {
+        context.flash.intensity = 0x10U;
+        context.flash.active = 0U;
     }
+
     return true;
 }
 
@@ -400,8 +401,9 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
             }
         }
 
+        const u32 flash_active = context.flash.active;
         context.pending_rotation = 0;
-        if (state.color_cycle_active == 1U &&
+        if (flash_active == 1U &&
             !adjust_color_cycle(state, context, result)) {
             result.status =
                 LegacyBattleFrameEffectStatus::color_adjustment_typed_stop;

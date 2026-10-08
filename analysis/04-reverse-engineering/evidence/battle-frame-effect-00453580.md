@@ -303,3 +303,58 @@ ASan构建仍有既有outcome-resolution:137的u16到u8转换warning；
 
 仅共享平移量在本批回收。其余效果状态、source/尺寸/颜色重读、真实旋转缓存
 和SDL画布接线仍未完成。SDL仍停在45331C；不升级WP316或WP379的验收状态。
+
+## 18. B11动作与脚本触发的闪光共用实际状态
+
+`53BFCC`的28处text访问共用`LegacyBattleScreenFlashState.active`。
+`4A75FE`由同一对象的独立BYTE `intensity`持有；静态初值16来自
+`4A75FC`的原始字节`01 00 10 01`。相邻低WORD计数的DWORD读取在使用前
+均掩码FFFF，+3字节也不覆盖+2，不能把这些字段合成另一个闪光计数。
+
+写入和消费范围：
+
+- 动作清屏的453AFA、453C78、454114、4544D8、454DD3、45515A、
+  4554A1、4558DE、455ACD、455BCE，以及敌方456046、45610F。
+- 组B完成4581C5，以及效果协调器45C13B、45C25E、45C3DA、45C5C8、
+  45C7DE、45C943、45CAD3、45CD52、45CF24、45D0D6。
+- 脚本10在46AF69、46AFD7写1。46AFFD..46B00B只清工作字、
+  53BFC0并恢复帧开关，没有清闪光；删除旧实现返回时的额外清零。
+- 全局reset的45BA3E写强度16、45BC5D清触发；增加4A75FE映射，
+  不再另存未映射字节副本。释放画布提前失败不执行这两个写入。
+- 453716先读触发DWORD，45371B清共享平移量，只有精确1才进入颜色分支。
+  453725符号扩展强度，三通道调用正常完成后，45377B重读BYTE并加FC。
+  结果为零时45378C恢复16，453793清触发；颜色失败不执行衰减后缀。
+
+动作、脚本、效果调用、转场和reset通过virtual state port借同一对象。
+核心帧及两处转场效果context直接借引用，外部绘图端口不持有另一份状态。
+组B单效果适配器把const/非const访问都转发到实际动作端口。
+旧效果、脚本、协调器、组B触发副本已删除，动作清屏改写共享对象。
+特殊动作405的473411实际写53BF94；该旧`frame_refresh_pending`字段
+保留并标明抑制门待绑定，不能按名称把此处迁成闪光。
+
+清屏前发布及容量失败保留行为不变。45515A先于47CC40；该callee
+在47CC40..47CC4A只把参数写入角色+2AD0，不访问闪光存储。
+reset批量写入与类型别名发布之间没有外部调用，不新增逐帧同步副本。
+完整访问导航见`build/tmp/runtime/battle-frame-flash-writer-windows.lst`，
+独立向量见`battle-frame-flash-sharing-audit.md`。
+
+新增固定状态验证：DWORD门0/1/2/FFFFFFFF、强度0/1/4/80/FC、
+16→12→8→4→16的四帧消费、RGB555实际像素、抑制和颜色失败保留。
+脚本10两组角色各覆盖真实颜色消费后的正常返回及frame typed-stop；
+核心协调器验证消费清零，两处转场验证连续衰减和失败保留。
+动作、敌方、组B清屏测试改为检查实际共享触发，reset覆盖成功与提前失败。
+
+首轮core构建通过，旧reset测试仍从未映射表读取4A75FE而失败；
+已改为检查实际强度及未映射表无重复副本。随后定向core通过。
+`proc_82db`退出0：core setup 1/1（4.63秒）、actor_frame_316 1/1
+（26.71秒），ASan同两目标1/1（7.94秒、26.55秒），SDL链接通过。
+日志为`build/tmp/runtime/battle-shared-flash-final-`前缀的五份日志。
+ASan保留既有outcome-resolution:137数值转换warning；新增脚本测试
+WORD循环的转换warning已改为显式WORD数组。`proc_0924`重跑受影响
+setup目标，core 1/1（4.71秒）、ASan 1/1（7.55秒），两份
+`battle-shared-flash-verified-{core,asan}.log`无warning/error或
+sanitizer finding。actor目标与SDL源文件未因该测试类型修正变化。
+
+本批只回收闪光开关与强度。其余颜色发布、抑制门、stage、source重读、
+真实旋转缓存及SDL画布接线仍待完成；不升级WP316或WP379验收状态。
+未运行游戏或新增原版动态差分。

@@ -501,7 +501,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_ten() {
                 return finish(eax_);
             }
             bindings_.shared.selection_gate_b = 1U;
-            bindings_.shared.selection_gate_a = 1U;
+            port_.screen_flash_state().active = 1U;
             bindings_.shared.selected_target = static_cast<u32>(code - 8);
         } else {
             const u32 actor_index = static_cast<u32>(code);
@@ -516,7 +516,6 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_ten() {
                 return finish(eax_);
             }
             bindings_.shared.selection_gate_c = 1U;
-            bindings_.shared.selection_gate_a = 1U;
             bindings_.shared.selected_target = static_cast<u32>(code);
             if (code < 0 || code >= 18) {
                 return stop(
@@ -526,6 +525,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_ten() {
             }
             bindings_.shared.actor_state_words[static_cast<std::size_t>(code)] =
                 static_cast<u32>(code);
+            port_.screen_flash_state().active = 1U;
         }
         bindings_.shared.action_completion_gate = 0U;
         set_high_word(
@@ -540,7 +540,6 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_ten() {
     workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
     set_high_word(workspace_.packed_actor_state, 0U);
     bindings_.action.action_pending_aux = 0U;
-    bindings_.shared.selection_gate_a = 0U;
     bindings_.action.frame_enabled = 1U;
     return finish(1U);
 }

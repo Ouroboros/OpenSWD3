@@ -626,6 +626,16 @@ public:
         return port_.effect_shift_state();
     }
 
+    [[nodiscard]] LegacyBattleScreenFlashState&
+    screen_flash_state() noexcept override {
+        return port_.screen_flash_state();
+    }
+
+    [[nodiscard]] const LegacyBattleScreenFlashState&
+    screen_flash_state() const noexcept override {
+        return port_.screen_flash_state();
+    }
+
 private:
     LegacyBattleActionDispatchPort& port_;
 };
@@ -2342,7 +2352,7 @@ action_decision_done:
                             .eax == 1U) {
                         action.group_a_to_actor[group_b_index] = group_b_index;
                         state.completion_selected = 0xFFFFFFFFU;
-                        state.completion_gate = 1U;
+                        port.screen_flash_state().active = 1U;
                         if (!fill_completion_surface(context, result)) {
                             return result;
                         }

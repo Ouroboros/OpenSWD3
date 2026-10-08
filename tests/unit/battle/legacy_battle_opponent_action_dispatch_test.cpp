@@ -1904,7 +1904,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::framebuffer_typed_stop &&
                 result.framebuffer_clear_calls == 1U &&
-                state.frame_refresh_pending == 1U &&
+                port.screen_flash_state().active == 1U &&
                 fixture.framebuffer.physical_pixels().front() == 0xFFFFU &&
                 fixture.framebuffer.physical_pixels().back() == 0xFFFFU,
             "opponent oversized clear publishes refresh and fills owned prefix before stop"

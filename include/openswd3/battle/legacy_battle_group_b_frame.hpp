@@ -36,7 +36,6 @@ struct LegacyBattleGroupBFrameState {
     std::array<compat::u16, 161> completion_value_table{};
     compat::u32 completion_resource_token{};
     compat::u32 completion_selected{0xFFFFFFFFU};
-    compat::u32 completion_gate{};
 
     std::array<compat::u32, 8> pending_effect_ids{};
     compat::u32 pending_effect_argument{};
