@@ -314,7 +314,7 @@ void reset_effect_state(
     context.control.green_factor = 0;
     context.control.blue_factor = 0;
     context.refresh.refresh_pending = 0U;
-    state.current_encounter_id = -1;
+    context.current_actor_index = 0xFFFFU;
     context.control.secondary_suppression = 0U;
     context.control.primary_suppression = 0U;
     state.alternate_surface_mode = 0U;
@@ -418,8 +418,9 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
 
     set_clip(context, result, 0, 0, 640, 480);
     i16 stage = std::bit_cast<i16>(context.refresh.refresh_pending);
-    if (static_cast<i32>(state.current_encounter_id) ==
-        state.expected_encounter_id) {
+    if (static_cast<u32>(
+            static_cast<i32>(std::bit_cast<i16>(context.current_actor_index))
+        ) == context.priority_actor_index) {
         if (context.control.primary_suppression == 1U ||
             context.control.secondary_suppression == 1U) {
             if (state.alternate_surface_mode == 0U) {

@@ -953,6 +953,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_eight() {
             )) {
             return finish(eax_);
         }
+        const u32 priority_actor_index = high_word(workspace_.packed_value_a);
         bindings_.shared.actor_order_workspace.fill(0U);
         bindings_.shared.attack_order_workspace.fill(0U);
         for (std::size_t index = 0U;
@@ -962,7 +963,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_eight() {
                 0xFFFFFFFFU;
         }
         bindings_.target_selection.selected_action_kind = advance;
-        bindings_.final_actor.active_actor_code = std::bit_cast<u32>(code);
+        bindings_.metrics.priority_actor_index = priority_actor_index;
         bindings_.action.action_pending_aux = 1U;
         bindings_.shared.script_phase_gate = 1U;
         bindings_.shared.script_aux_gate = 0U;

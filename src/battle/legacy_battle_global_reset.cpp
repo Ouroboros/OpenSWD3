@@ -416,6 +416,7 @@ void synchronize_typed_aliases(
     message_state = 0U;
     terminal_latch = 0U;
     pair_primary_value = 0U;
+    action.current_actor_index = 0xFFFFU;
     action.phase_counter &= 0xFFFF0000U;
     action.packed_actor_counter &= 0xFFFFFF00U;
     action.message_gate = 0U;
@@ -484,7 +485,6 @@ void synchronize_typed_aliases(
 
     debug_overlay_gate = 0U;
     debug_overlay.selection_order.fill(0U);
-    debug_overlay.battle_selector = -1;
     debug_overlay.initial_mode = -1;
     debug_overlay.battle_frame = 0U;
 

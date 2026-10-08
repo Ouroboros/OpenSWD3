@@ -414,10 +414,10 @@ void test_battle_post_action(openswd3::test::Context& test) {
         final_actor.actor_order.fill(7U);
         final_actor.secondary_actor_code = 8U;
         final_actor.queued_actor_code = 9U;
-        final_actor.active_actor_code = 10U;
         state.selection_workspace.fill(0xFFFFFFFFU);
         state.published_target_token = 0x1234U;
         PostActionPort port;
+        port.actor_metric_state().priority_actor_index = 10U;
         port.push(0x0047CE80U, {.eax = 1U});
         const auto result = advance_legacy_battle_post_action(
             state, final_actor, action, port, &startup, 0U, 1U
@@ -458,7 +458,7 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 ) &&
                 final_actor.secondary_actor_code == 0U &&
                 final_actor.queued_actor_code == 0U &&
-                final_actor.active_actor_code == 0xFFFFFFFFU &&
+                port.actor_metric_state().priority_actor_index == 0xFFFFFFFFU &&
                 state.published_target_token == 0U &&
                 std::ranges::all_of(
                     state.selection_workspace,
@@ -482,12 +482,12 @@ void test_battle_post_action(openswd3::test::Context& test) {
         final_actor.actor_order.fill(7U);
         final_actor.secondary_actor_code = 8U;
         final_actor.queued_actor_code = 9U;
-        final_actor.active_actor_code = 10U;
         final_actor.group_a_availability_blocks[1U].value = 0xAABBCCDDU;
         final_actor.group_a_availability_blocks[1U].write_accessible = false;
         state.selection_workspace.fill(0xFFFFFFFFU);
         state.published_target_token = 0x1234U;
         PostActionPort port;
+        port.actor_metric_state().priority_actor_index = 10U;
         port.push(0x0047CE80U, {.eax = 1U});
         const auto result = advance_legacy_battle_post_action(
             state, final_actor, action, port, &startup, 0U, 1U
@@ -507,7 +507,7 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 final_actor.actor_order[0U] == 7U &&
                 final_actor.secondary_actor_code == 8U &&
                 final_actor.queued_actor_code == 9U &&
-                final_actor.active_actor_code == 10U &&
+                port.actor_metric_state().priority_actor_index == 10U &&
                 state.published_target_token == 0x1234U &&
                 state.selection_workspace[0U] == 0xFFFFFFFFU,
             "terminal typed write stop preserves the reached calls and suppresses every cleanup suffix"

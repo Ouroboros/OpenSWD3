@@ -500,7 +500,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
         fixture.overlay.selection_order[2] = 33U;
         fixture.overlay.selection_order[3] = 34U;
         fixture.final_actor.active_actor_code = 9U;
-        fixture.overlay.battle_selector = -2;
+        fixture.action.current_actor_index = 0xFFFEU;
         fixture.action.frame_enabled = 3U;
         fixture.message_state = 4U;
         fixture.final_actor.pre_frame_gate_b = 5U;
@@ -545,6 +545,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                 static_cast<unsigned char>(port.texts[4].text[0]) == 0xA7U &&
                 port.texts[4].x == 10U && port.texts[4].y == 50U &&
                 port.texts[17].x == 240U && port.texts[17].y == 70U &&
+                port.texts[18].text.find("UM:-2") != std::string::npos &&
                 port.texts[19].text == "fMenu:4 mMove5" &&
                 port.texts[20].text == "MsD:120 dRole1:65535 CanS:17185" &&
                 port.texts[21].text == "MS:6 Stop:3 mStop2" &&
@@ -773,6 +774,37 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                 fixture.framebuffer.physical_pixels()[1] == 0xEEEEU &&
                 result.formatted_texts == 4U && result.text_draws == 7U,
             "marker bottom-row failure preserves the first top pixel and every preceding text draw"
+        );
+    }
+
+    for (const u16 actor_word :
+         std::array<u16, 4>{0U, 0x7FFFU, 0x8000U, 0xFFFFU}) {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->hotkeys.toggle_5244e0 = 1U;
+        fixture->hotkeys.toggle_53af68 = 1U;
+        fixture->action.current_actor_index = 0x1234U;
+        OverlayPort port;
+        port.on_draw = [&](const auto& text) {
+            if (text.x == 240U && text.y == 70U) {
+                fixture->action.current_actor_index = actor_word;
+            }
+        };
+        const auto result =
+            draw_legacy_battle_debug_overlay(fixture->bindings(), port);
+        const int signed_actor = actor_word < 0x8000U
+            ? static_cast<int>(actor_word)
+            : static_cast<int>(actor_word) - 0x10000;
+        const auto summary =
+            std::ranges::find_if(port.texts, [](const auto& text) {
+                return text.x == 240U && text.y == 30U;
+            });
+        test.expect_true(
+            result.status == LegacyBattleDebugOverlayStatus::completed &&
+                summary != port.texts.end() &&
+                summary->text.find("UM:" + std::to_string(signed_actor)) !=
+                    std::string::npos &&
+                fixture->action.current_actor_index == actor_word,
+            "45E2F1 displays the current shared WORD with MOVSX after the preceding text callback"
         );
     }
 

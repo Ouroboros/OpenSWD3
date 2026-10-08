@@ -1236,12 +1236,12 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
     {
         LegacyBattleActionDispatchState state;
         state.active_target_code = 7U;
-        state.active_effect_target = 7U;
         state.active_effect_gate = 9U;
         state.packed_actor_counter = 0xAABBCCFFU;
         Fixture fixture;
         fixture.attack_order_records[0].value_00 = 7U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 7U;
         port.action = 7U;
         auto context = fixture.context();
         LegacyBattleActorFrameEntryRequest snapshot{};
@@ -1252,7 +1252,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             result.return_value == 1U &&
                 state.packed_actor_counter == 0xAABBCC00U &&
                 state.active_target_code == 0U &&
-                state.active_effect_target == 0xFFFFFFFFU &&
+                port.actor_metric_state().priority_actor_index == 0xFFFFFFFFU &&
                 state.active_effect_gate == 0U &&
                 result.attack_order_remove_calls == 1U &&
                 result.attack_order_remove.matched &&
@@ -1358,13 +1358,13 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
     {
         LegacyBattleActionDispatchState state;
         state.active_target_code = 4U;
-        state.active_effect_target = 4U;
         state.active_effect_gate = 9U;
         Fixture fixture;
         fixture.attack_order_records[0U].value_00 = 4U;
         fixture.startup->party[0U].progress.presentation_enabled = 1U;
         fixture.startup->party[0U].configuration.source_runtime_value = 1U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 4U;
         port.action = 7U;
         auto context = fixture.context();
         openswd3::battle::LegacyBattleActorFrameEntryRequest snapshot{};

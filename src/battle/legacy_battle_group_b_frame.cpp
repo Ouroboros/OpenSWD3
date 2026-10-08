@@ -927,14 +927,14 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
 
         const bool turn_state_nonzero = shared.turn_resolution_bits != 0U;
         if (shared.action_aux_gate == 0U && !turn_state_nonzero &&
-            action.active_effect_target == group_b_index) {
+            port.actor_metric_state().priority_actor_index == group_b_index) {
             if (invoke(port, result, kCallQueryQueueCompletion, {source_token})
                     .eax == 1U) {
                 action.resolution_latch = 0U;
                 action.active_effect_gate = 0U;
                 shared.action_block_gate = 0U;
                 action.action_pending_aux = 0U;
-                action.active_effect_target = 0xFFFFFFFFU;
+                port.actor_metric_state().priority_actor_index = 0xFFFFFFFFU;
                 shared.final_actor_step.queued_actor_code = group_b_index + 1U;
                 if (!reset_actor_runtime(
                         state,
@@ -957,7 +957,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                 action.active_effect_gate = 0U;
                 shared.action_block_gate = 0U;
                 action.action_pending_aux = 0U;
-                action.active_effect_target = 0xFFFFFFFFU;
+                port.actor_metric_state().priority_actor_index = 0xFFFFFFFFU;
                 if (!reset_actor_runtime(
                         state,
                         context,
@@ -1855,8 +1855,9 @@ action_decision_done:
         }
         if (decision_idle_state == 1U) {
             stale_ebx = 1U;
-            const bool active_actor =
-                action.active_effect_target == group_b_index;
+            const u32 priority_actor =
+                port.actor_metric_state().priority_actor_index;
+            const bool active_actor = priority_actor == group_b_index;
             LegacyBattleActionCallReply action_start_reply{};
             if (active_actor) {
                 shared.action_block_gate = 1U;
@@ -1869,16 +1870,15 @@ action_decision_done:
             auto action_target_request =
                 context.group_b_frame_action_target_requests[0U];
             action_target_request.actor_token = source_token;
-            action_target_request.entry_eax = active_actor
-                ? action_start_reply.eax
-                : action.active_effect_target;
+            action_target_request.entry_eax =
+                active_actor ? action_start_reply.eax : priority_actor;
             action_target_request.entry_edx = active_actor
                 ? action_start_reply.edx
                 : result.actor_idle_state.return_edx;
             action_target_request.entry_return_address = 0x00457E8FU;
             if (!active_actor) {
                 action_target_request.entry_flags =
-                    subtract_flags(action.active_effect_target, group_b_index);
+                    subtract_flags(priority_actor, group_b_index);
                 action_target_request.entry_flags_known = true;
             }
             u32 action_target_value{};
@@ -2262,15 +2262,20 @@ action_decision_done:
                     port.battle_debug_hotkey_state().battle_mode_flags_53bc24 &=
                         0xFFFFFF7FU;
                 }
+                const u32 completion_priority_actor =
+                    port.actor_metric_state().priority_actor_index;
                 state.selection_initialized = 0U;
                 shared.action_block_gate = 0U;
                 action.active_effect_gate = 0U;
                 action.action_pending_aux = 0U;
-                if (action.active_effect_target < 8U) {
-                    action.active_effect_target = 0U;
+                if (std::bit_cast<i32>(completion_priority_actor) < 8) {
+                    port.actor_metric_state().priority_actor_index = 0U;
+                    port.actor_metric_state().priority_actor_record_tail.fill(
+                        0U
+                    );
                     shared.action_side = 0U;
-                    shared.active_effect_tail.fill(0U);
-                    action.active_effect_target = 0xFFFFFFFFU;
+                    port.actor_metric_state().priority_actor_index =
+                        0xFFFFFFFFU;
                     action.active_target_code = 0U;
                 }
                 shared.action_stage_word = 0U;

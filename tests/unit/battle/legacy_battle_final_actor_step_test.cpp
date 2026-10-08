@@ -695,7 +695,6 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         LegacyBattleActionDispatchState action;
         state.group_a_completion_flags[1] = 1U;
         state.queued_actor_code = 9U;
-        state.active_actor_code = 9U;
         state.actor_order = {9U, 77U, 88U};
         action.group_a_count = 2;
         action.group_b_count = 1;
@@ -703,6 +702,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         action.opponent_workspace.fill(0xFFFFFFFFU);
         state.actor_runtime_records[1].fill(0xFFFFFFFFU);
         FinalStepPort port;
+        port.actor_metric_state().priority_actor_index = 9U;
         action.group_a_action_execution[0U].position_x = 1U;
         action.group_a_action_execution[0U].position_y = 1U;
         bind_group_b_actor_coordinates(port, 0U, 2U, 2U);
@@ -719,7 +719,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 action.opponent_workspace[23] == 0U &&
                 action.opponent_workspace[15] == 0xFFFFFFFFU &&
                 state.queued_actor_code == 0U &&
-                state.active_actor_code == 0xFFFFFFFFU &&
+                port.actor_metric_state().priority_actor_index == 0xFFFFFFFFU &&
                 result.actor_availability_block_calls == 1U &&
                 result.actor_availability_block.actor_writes == 1U &&
                 state.group_a_availability_blocks[1U].value == 1U &&

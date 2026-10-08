@@ -7,6 +7,13 @@ B11敌方动作的三色与primary抑制门写入已回收到实际画面控制�
 全部站点与定向core/ASan、SDL链接验证见
 [双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
 
+## B11：敌方动作清实际优先角色
+
+456554比较与45655C的FFFFFFFF写回直接借metrics.priority_actor_index。
+该DWORD不再由active_effect_target副本承接；原分支和失败前缀保留。
+访问映射、固定状态与core/ASan验证见
+[角色共享证据](battle-frame-effect-00453580.md#21-b11画面效果借实际角色word及优先角色dword)。
+
 ## 1. 完整LST范围
 
 权威主体为`0x00455D60..0x0045662F`，完整993行、51个静态call站点、33个`loc_`标签。函数另有外部FUNCTION CHUNK：

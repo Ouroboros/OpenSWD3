@@ -2,6 +2,13 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
+## B11：重排失败与实际优先角色清写
+
+45AF28的全1写回改借ActorMetricState.priority_actor_index。
+前置typed-stop保留实际priority，不把其他角色字段当作53AE70。
+本批验证与边界见
+[实际角色与优先角色](battle-frame-effect-00453580.md#21-b11画面效果借实际角色word及优先角色dword)。
+
 ## 1. 完整LST范围
 
 权威函数为`0x0045ADF0..0x0045AF8E`，从proc到endp完整186行、11个静态call站点、7个`loc_`标签，无外部FUNCTION CHUNK。8个唯一callee。
@@ -60,7 +67,7 @@ low_byte(packed_actor_counter) + 1 == observed_group_b_count
 5. 再次重置组A对象；
 6. 固定清零十项角色顺序表；
 7. 发布零target token；
-8. 清secondary和queued角色code，把active code置全1；
+8. 清secondary和queued角色code，把实际优先角色DWORD置全1；
 9. 固定清零126 dword选择工作区。
 
 十项角色顺序表就是组A帧actor queue与前一最终角色步进使用的同一物理数组，typed实现只保留一份共享存储，禁止拆分为多个状态副本。

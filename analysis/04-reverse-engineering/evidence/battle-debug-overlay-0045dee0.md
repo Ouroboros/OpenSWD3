@@ -2,6 +2,14 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
+## B11：角色摘要读取实际WORD
+
+45E2F1从ActionDispatchState.current_actor_index做WORD符号扩展，
+不再借overlay.battle_selector。前一文字回调改写后按原读取点显示。
+45E210的优先角色DWORD与53BD54显示字段保持区分。
+符号边界、回调向量与门禁状态见
+[实际角色与优先角色](battle-frame-effect-00453580.md#21-b11画面效果借实际角色word及优先角色dword)。
+
 ## 1. 完整LST范围与调用图
 
 权威函数为`0x0045DEE0..0x0045E576`，从proc到endp完整736行、460条实际指令、45个call站点、15个分支和15个局部标签，无外部FUNCTION CHUNK。

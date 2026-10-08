@@ -1408,7 +1408,6 @@ struct LegacyBattleActionDispatchState {
     std::array<std::byte, 0xA4> opponent_scratch{};
     std::array<compat::u32, 0x7E> opponent_workspace{};
     compat::u32 active_target_code{};
-    compat::u32 active_effect_target{};
     compat::u32 active_effect_gate{};
     compat::u32 post_battle_counter{};
     compat::u32 current_summon_index{};

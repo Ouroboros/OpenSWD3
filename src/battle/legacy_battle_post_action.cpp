@@ -436,7 +436,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                     state.published_target_token = 0U;
                     final_actor.secondary_actor_code = 0U;
                     final_actor.queued_actor_code = 0U;
-                    final_actor.active_actor_code = 0xFFFFFFFFU;
+                    port.actor_metric_state().priority_actor_index =
+                        0xFFFFFFFFU;
                     state.selection_workspace.fill(0U);
                 }
             }

@@ -81,7 +81,6 @@ struct LegacyBattleDebugOverlayState {
     compat::u32 resolved_actor_token{};
     std::array<compat::u32, 18> selection_order{};
 
-    compat::i16 battle_selector{-1};
     compat::u32 selection_status{};
     compat::u32 lock_count{};
     compat::u32 tsw_cache_bytes{};

@@ -5187,6 +5187,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
         );
         test.expect_true(
             fixture.workspace.cursor == 0U &&
+                fixture.metrics.priority_actor_index == 8U &&
                 fixture.input_dispatch.selected_actor_reset_gate == 1U &&
                 first.actor_target_selection.calls == 1U &&
                 first.actor_target_selection.call_addresses[0U] ==
@@ -5274,6 +5275,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                         .action_execution.start_gate_latch == 0U &&
                 fixture.input_dispatch.selected_actor_reset_gate == 0U &&
                 fixture.action.frame_enabled == 1U &&
+                fixture.metrics.priority_actor_index == 8U &&
                 fixture.workspace.cursor == 0U &&
                 std::ranges::all_of(
                     fixture.shared.actor_order_workspace,
@@ -5542,6 +5544,107 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
 
 namespace {
 
+void test_script_actor_selector_sharing(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    using namespace openswd3::rendering;
+    class ImagePort final : public LegacyBattleFrameEffectPort {
+    public:
+        LegacyBattleActionRotationUpdateSnapshot
+        update_action(openswd3::asset_runtime::LegacyActionRecord&) override {
+            return {.domain_token = 1U};
+        }
+
+        LegacyBattleFrameEffectSurfaceReply surface_operation(
+            const LegacyBattleFrameEffectSurfaceRequest&
+        ) override {
+            return {.callee_returned = true};
+        }
+    };
+
+    for (const u16 actor_code : std::array<u16, 2>{8U, 17U}) {
+        for (const bool stopped : {false, true}) {
+            auto fixture = std::make_unique<Fixture>();
+            Port port;
+            fixture->opcode(78);
+            fixture->write_u16(2U, actor_code);
+            fixture->write_u16(4U, 0U);
+            fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+                LegacyBattleActorGroupBElementState,
+                kLegacyBattleActorGroupBElementCount>>();
+            fixture->action.current_actor_index = actor_code;
+            fixture->metrics.priority_actor_index = 0xAABBCCDDU;
+            port.frame_effect_control_state().primary_suppression = 1U;
+            port.frame_refresh_state().refresh_pending = 1U;
+            LegacyFramebuffer framebuffer;
+            LegacyRasterGeometryState raster{};
+            static_cast<void>(initialize_legacy_raster_geometry(
+                raster, framebuffer.geometry().surface
+            ));
+            LegacyBlitRequest request{};
+            LegacyBlitEffectState effects{};
+            LegacyRleRowJitterState jitter{};
+            LegacyBattleFrameEffectContext context{
+                .framebuffer = framebuffer,
+                .raster = raster,
+                .shared_request = request,
+                .shared_effects = effects,
+                .jitter = jitter,
+                .pending_rotation = port.effect_shift_state().actor_delta,
+                .flash = port.screen_flash_state(),
+                .refresh = port.frame_refresh_state(),
+                .control = port.frame_effect_control_state(),
+                .current_actor_index = fixture->action.current_actor_index,
+                .priority_actor_index = fixture->metrics.priority_actor_index,
+            };
+            LegacyBattleScriptDispatchRequest script_request{};
+            script_request.actor_action_mode_requests[0U]
+                .access.return_address_readable = !stopped;
+            const auto script_result = run_legacy_battle_script_dispatch(
+                fixture->workspace, fixture->bindings(), port, script_request
+            );
+            const std::array<u16, 1> pixels{1U};
+            auto image = encode_legacy_image_command_stream(
+                {reinterpret_cast<const openswd3::compat::u8*>(pixels.data()),
+                 sizeof(pixels)},
+                1U,
+                1U,
+                16U
+            );
+            ImagePort image_port;
+            LegacyBattleFrameEffectState state;
+            state.cadence = 2;
+            const std::array<u32, 2> staged_surfaces{0xB100U, 0xB200U};
+            const auto frame = update_legacy_battle_frame_effect(
+                state,
+                image_port,
+                context,
+                {.token = 0xA100U,
+                 .bytes = image.bytes,
+                 .width = 1U,
+                 .height = 1U},
+                staged_surfaces,
+                0
+            );
+            test.expect_true(
+                script_result.status ==
+                        (stopped
+                             ? LegacyBattleScriptDispatchStatus::
+                                   actor_action_mode_typed_stop
+                             : LegacyBattleScriptDispatchStatus::completed) &&
+                    fixture->metrics.priority_actor_index ==
+                        (stopped ? 0xAABBCCDDU
+                                 : static_cast<u32>(actor_code)) &&
+                    frame.status == LegacyBattleFrameEffectStatus::completed &&
+                    frame.surface_operation_calls == (stopped ? 0U : 1U) &&
+                    port.frame_refresh_state().refresh_pending ==
+                        (stopped ? 1U : 2U) &&
+                    fixture->action.current_actor_index == actor_code,
+                "script seventy-eight publishes the actual priority consumed by an already-bound frame and preserves it before a failed RET"
+            );
+        }
+    }
+}
+
 void test_script_flash_sharing(openswd3::test::Context& test) {
     using namespace openswd3::battle;
     using namespace openswd3::rendering;
@@ -5590,6 +5693,8 @@ void test_script_flash_sharing(openswd3::test::Context& test) {
                 .flash = port.screen_flash_state(),
                 .refresh = port.frame_refresh_state(),
                 .control = port.frame_effect_control_state(),
+                .current_actor_index = fixture->action.current_actor_index,
+                .priority_actor_index = fixture->metrics.priority_actor_index,
             };
             const std::array<u16, 1> pixels{1U};
             auto image = encode_legacy_image_command_stream(
@@ -5686,6 +5791,8 @@ void test_script_rotation_sharing(openswd3::test::Context& test) {
                 .flash = port.screen_flash_state(),
                 .refresh = port.frame_refresh_state(),
                 .control = port.frame_effect_control_state(),
+                .current_actor_index = fixture->action.current_actor_index,
+                .priority_actor_index = fixture->metrics.priority_actor_index,
             };
             const std::array<u16, 3> pixels{1U, 2U, 3U};
             auto image = encode_legacy_image_command_stream(
@@ -5759,6 +5866,7 @@ void test_script_rotation_sharing(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_script_dispatch(openswd3::test::Context& test) {
+    test_script_actor_selector_sharing(test);
     test_script_rotation_sharing(test);
     test_script_flash_sharing(test);
 #ifdef OPENSWD3_GAME_DATA_ROOT

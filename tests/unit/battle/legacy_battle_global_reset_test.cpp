@@ -273,6 +273,7 @@ void seed_state(
     final_actor.actor_runtime_records[0][0] = 9U;
     port.battle_message_state() = 9U;
     port.battle_level_advancement_state().growth_caption_text.fill(0xCCU);
+    action.current_actor_index = 0x8000U;
     action.phase_counter = 0x11223344U;
     action.packed_actor_counter = 0xAABBCCDDU;
     action.message_gate = 0x80000001U;
@@ -288,7 +289,6 @@ void seed_state(
     port.battle_debug_overlay_gate() = 9U;
     debug_overlay.resolved_actor_token = 0x11223344U;
     debug_overlay.selection_order.fill(9U);
-    debug_overlay.battle_selector = 9;
     action.frame_enabled = 0x22334455U;
     action.actor_progress_gate = 0x66778899U;
     debug_overlay.selection_status = 0x33445566U;
@@ -516,6 +516,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         control.red_factor = -32768;
         control.green_factor = 32767;
         control.blue_factor = -1;
+        action.current_actor_index = 0x8000U;
+        port.actor_metric_state().priority_actor_index = 0xFFFF8000U;
         const auto result = openswd3::battle::reset_legacy_battle_globals(
             state,
             startup,
@@ -543,7 +545,9 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 control.primary_suppression == 0xFFFFFFFFU &&
                 control.secondary_suppression == 2U &&
                 control.red_factor == -32768 && control.green_factor == 32767 &&
-                control.blue_factor == -1,
+                control.blue_factor == -1 &&
+                action.current_actor_index == 0x8000U &&
+                port.actor_metric_state().priority_actor_index == 0xFFFF8000U,
             "global reset preserves the failed release and all five actual color control fields"
         );
     }
@@ -673,6 +677,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 ) &&
                 metrics.group_b_count == 0U && metrics.group_a_count == 0U &&
                 metrics.priority_actor_index == 0U &&
+                action.current_actor_index == 0xFFFFU &&
                 std::ranges::all_of(
                     metrics.priority_actor_record_tail,
                     [](const auto value) { return value == 0U; }
@@ -953,7 +958,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 [](const auto value) { return value == 0U; }
             ) && port.battle_debug_overlay_gate() == 0U &&
                 debug_overlay.resolved_actor_token == 0x11223344U &&
-                debug_overlay.battle_selector == -1 &&
+                action.current_actor_index == 0xFFFFU &&
                 action.frame_enabled == 0x22334455U &&
                 action.actor_progress_gate == 0x66778899U &&
                 debug_overlay.selection_status == 0x33445566U &&
@@ -1108,6 +1113,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 state.unmapped_bytes.contains(0x0053BF99U) == false &&
                 state.unmapped_bytes.contains(0x0053BF9AU) == false &&
                 state.unmapped_bytes.contains(0x0053BF9BU) == false &&
+                state.unmapped_bytes.contains(0x004A7630U) == false &&
+                state.unmapped_bytes.contains(0x004A7631U) == false &&
                 state.unmapped_bytes.contains(0x004A7568U) == false &&
                 state.unmapped_bytes.contains(0x004A7569U) == false &&
                 state.unmapped_bytes.contains(0x004A7574U) == false &&

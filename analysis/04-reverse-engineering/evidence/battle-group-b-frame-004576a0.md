@@ -8,6 +8,14 @@ B11的45820D/458215现借实际BF94/BF98双门，BF30灰度分带独立。
 四种门值收尾回归通过core/ASan actor_frame_316各1/1，SDL链接通过。
 全部访问与日志见[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
 
+## B11：组B借实际优先角色
+
+45774B读取与两条完成早退的全1写回都借同一metrics DWORD。
+457E51的比较快照保留到后续EAX/flags；458085在收尾回调后重新读取，
+4580A5按signed JGE决定是否清全部七DWORD，再发布FFFFFFFF。
+高位DWORD、回调重读与六DWORD尾的向量及门禁状态见
+[实际角色与优先角色](battle-frame-effect-00453580.md#21-b11画面效果借实际角色word及优先角色dword)。
+
 ## 1. 完整LST范围
 
 权威函数为`0x004576A0..0x004582AB`，完整1356行、86个静态call站点、66个`loc_`标签，无外部FUNCTION CHUNK。唯一caller为尚未关闭的`0x0045B5E0`。
@@ -26,9 +34,9 @@ frame enable完整值不等于1时跳过主体，仍执行公共画面效果、p
 
 主体入口对当前组B对象执行terminal查询。仅terminal为0且两个pending dword都为0时调用update；第二pending dword是BFC4，现与组A帧、调试快捷键共用动作状态的`selection_cache_gate_b`；结果latch是另一个地址BF5C，由`resolution_latch`独立保存。此前合并两者的结论错误，本轮修正及未完成验证见[状态区分证据](battle-selection-wait-and-result-latch-0053bfc4-0053bf5c.md)。当前对象post-update门为0时，直接复用startup enemy中的进度与共享八槽动态资源唯一owner调用已关闭`0x004755E0`；参数按原32位位形传入，EDX继承update callee。进度返回EAX精确为1且message state不等于103时，直接组合已关闭攻击顺序登记，以固定类型2把当前索引写入共享18条记录的首个全1槽。资源typed-stop保留update前缀并阻断余下角色帧；旧进度函数和攻击顺序callback token均删除。
 
-随后仅检查action auxiliary dword和turn-resolution **低word**。两者均为0且active effect target等于当前组B索引时：
+随后仅检查action auxiliary dword和turn-resolution **低word**。两者均为0且实际优先角色DWORD等于当前组B索引时：
 
-- queue completion完整EAX等于1：清selection/action/pending状态，active target写全1，queued actor code写`index+1`，调用reset actor并直接返回完整EAX；
+- queue completion完整EAX等于1：清selection/action/pending状态，优先角色DWORD写全1，queued actor code写`index+1`，调用reset actor并直接返回完整EAX；
 - 否则terminal完整EAX等于1：执行相同清理但不写queued actor code，再直接返回reset actor完整EAX。
 
 相邻actor-start guard不在本函数该门中读取，不能与turn lowword合并。

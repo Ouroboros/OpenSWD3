@@ -243,7 +243,7 @@ struct LegacyBattleTransitionResult {
 // optional battle-side events.
 [[nodiscard]] LegacyBattleTransitionResult run_legacy_battle_transition(
     LegacyBattleTransitionState& state,
-    compat::u32& selection_gate,
+    LegacyBattleActionDispatchState& action,
     LegacyBattleStartupState& startup,
     LegacyBattleTransitionPort& port,
     LegacyBattleTransitionBufferPort& buffer_port,

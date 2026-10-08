@@ -2,6 +2,14 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 
+## B11：组A借实际优先角色
+
+456DE8的CMP结果在idle callee返回后不重做；456E9C按下一站重读。
+当前角色WORD从实际priority截取，53AE70不再由active_effect_target承接。
+4572AB reset返回后，4572C0完整清priority及其六DWORD尾，随后发布全1。
+非53AE70角色字段保持原用途。正常与失败向量、门禁状态见
+[实际角色与优先角色](battle-frame-effect-00453580.md#21-b11画面效果借实际角色word及优先角色dword)。
+
 ## 1. 完整LST范围
 
 权威函数为`0x00456680..0x0045769B`，完整1795行、101个静态call站点、84个`loc_`标签，无外部FUNCTION CHUNK。唯一caller为尚未关闭的`0x0045B5E0`，当前不提前计数。

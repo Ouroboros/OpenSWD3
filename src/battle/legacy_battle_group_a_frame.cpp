@@ -1950,7 +1950,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 }
                 bool current_actor_idle{};
                 if (selected_turn_completion == 0U &&
-                    state.action.active_effect_target !=
+                    port.actor_metric_state().priority_actor_index !=
                         state.selected_actor_one_based + 7U) {
                     auto request = context.actor_idle_state_request;
                     request.actor_token = actor_token;
@@ -1958,7 +1958,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     request.entry_edx = result.actor_turn_completion.return_edx;
                     request.entry_return_address = 0x00456E00U;
                     request.entry_flags = subtract_flags(
-                        state.action.active_effect_target,
+                        port.actor_metric_state().priority_actor_index,
                         state.selected_actor_one_based + 7U
                     );
                     request.entry_flags_known = true;
@@ -1970,10 +1970,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     }
                     current_actor_idle = idle_state == 0U;
                 }
-                if (selected_turn_completion == 0U &&
-                    state.action.active_effect_target !=
-                        state.selected_actor_one_based + 7U &&
-                    current_actor_idle) {
+                if (current_actor_idle) {
                     static_cast<void>(
                         invoke(port, result, kCallClearControl, {0U})
                     );
@@ -2444,12 +2441,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         }
     }
 
-    if (state.action.active_effect_target == group_a_index + 8U) {
+    if (port.actor_metric_state().priority_actor_index == group_a_index + 8U) {
         if (state.final_actor_step.action_execution_active != 0U) {
             state.action_aux_gate = 1U;
             state.action.action_pending_aux = 1U;
-            state.action.current_actor_index =
-                static_cast<u16>(state.action.active_effect_target);
+            state.action.current_actor_index = static_cast<u16>(
+                port.actor_metric_state().priority_actor_index
+            );
             const auto prepared_action =
                 invoke(port, result, kCallPrepareAction, {actor_token});
             auto action_target_request =
@@ -2788,9 +2786,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     )) {
                     return result;
                 }
-                state.action.active_effect_target = 0U;
+                port.actor_metric_state().priority_actor_index = 0U;
+                port.actor_metric_state().priority_actor_record_tail.fill(0U);
                 state.action_side = 0U;
-                state.active_effect_tail.fill(0U);
                 actor.post_action_value = 0U;
                 actor.scene_identity = 0U;
                 auto& equipment_selections =
@@ -2806,7 +2804,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 state.shared_value_525454 = 0U;
                 state.action_stage_word = 0U;
                 state.action_stage_word_b = 0U;
-                state.action.active_effect_target = 0xFFFFFFFFU;
+                port.actor_metric_state().priority_actor_index = 0xFFFFFFFFU;
                 state.cleanup_word = 0U;
                 replace_low_word(state.action.action_runtime_flags, 0U);
                 state.action.post_battle_counter = 0U;
@@ -2865,8 +2863,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             }
             if (target_turn_completion == 0U) {
                 state.final_actor_step.action_execution_active = 1U;
-                state.action.current_actor_index =
-                    static_cast<u16>(state.action.active_effect_target);
+                state.action.current_actor_index = static_cast<u16>(
+                    port.actor_metric_state().priority_actor_index
+                );
                 u32 selection_complete_value{};
                 if (!query_actor_target_selection_latch(
                         context,
@@ -3313,7 +3312,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     state.final_actor_step.actor_order.fill(0U);
                     port.battle_message_state() = 0x68U;
                     state.turn_resolution_bits = 0U;
-                    state.action.active_effect_target = 0xFFFFFFFFU;
+                    port.actor_metric_state().priority_actor_index =
+                        0xFFFFFFFFU;
                     state.action.opponent_workspace.fill(0U);
                 }
             }

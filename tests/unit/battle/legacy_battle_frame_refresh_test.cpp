@@ -7,6 +7,7 @@
 #include <bit>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -282,7 +283,10 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
 
         openswd3::battle::LegacyBattleFrameEffectState effect;
         control.primary_suppression = 1U;
-        effect.current_encounter_id = 0;
+        auto action = std::make_unique<
+            openswd3::battle::LegacyBattleActionDispatchState>();
+        action->current_actor_index = 0U;
+        port.actor_metric_state().priority_actor_index = 0U;
         effect.cadence = 2;
         openswd3::rendering::LegacyFramebuffer framebuffer;
         openswd3::rendering::LegacyRasterGeometryState raster{};
@@ -302,6 +306,9 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
             .flash = port.screen_flash_state(),
             .refresh = state,
             .control = control,
+            .current_actor_index = action->current_actor_index,
+            .priority_actor_index =
+                port.actor_metric_state().priority_actor_index,
         };
         const std::array<u32, 3> surfaces{0xA000U, 0xA100U, 0xA200U};
         const auto growth = openswd3::battle::update_legacy_battle_frame_effect(
@@ -316,7 +323,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
                 state.active_surface_token == 0x5555U,
             "actual refresh publishes the stage consumed by the following effect without synchronizing a copy"
         );
-        effect.current_encounter_id = 1;
+        action->current_actor_index = 1U;
         effect.fade_active = 1U;
         const auto fade = openswd3::battle::update_legacy_battle_frame_effect(
             effect, port, context, {}, surfaces, 0

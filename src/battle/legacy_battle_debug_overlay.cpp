@@ -569,7 +569,9 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
             result,
             kBattleSummaryFormat,
             signed_bits(bindings.hotkeys.toggle_53af68),
-            static_cast<int>(state.battle_selector),
+            static_cast<int>(
+                std::bit_cast<i16>(bindings.action.current_actor_index)
+            ),
             signed_bits(bindings.action.frame_enabled)
         );
         runner.draw_buffer(240U, 30U);

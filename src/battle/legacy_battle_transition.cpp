@@ -269,6 +269,7 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
 
 [[nodiscard]] bool run_frame_effect(
     LegacyBattleTransitionState& state,
+    LegacyBattleActionDispatchState& action,
     LegacyBattleTransitionPort& port,
     LegacyBattleFrameZeroContext& frame_zero,
     LegacyBattleTransitionResult& result
@@ -284,6 +285,8 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
         .flash = port.screen_flash_state(),
         .refresh = port.frame_refresh_state(),
         .control = port.frame_effect_control_state(),
+        .current_actor_index = action.current_actor_index,
+        .priority_actor_index = port.actor_metric_state().priority_actor_index,
     };
     effect = update_legacy_battle_frame_effect(
         state.frame_effect,
@@ -355,7 +358,7 @@ copy_failure_status(const CopyStatus status, const bool primary) noexcept {
 
 LegacyBattleTransitionResult run_legacy_battle_transition(
     LegacyBattleTransitionState& state,
-    compat::u32& selection_gate,
+    LegacyBattleActionDispatchState& action,
     LegacyBattleStartupState& startup,
     LegacyBattleTransitionPort& port,
     LegacyBattleTransitionBufferPort& buffer_port,
@@ -402,7 +405,7 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
         LegacyBattleTransitionCall::prepare_capture,
         {0xC0U, state.capture_source_token, 0U, 0U, 0U, 0U}
     ));
-    selection_gate = 1U;
+    action.action_pending_aux = 1U;
     state.primary_buffer = {};
     state.secondary_buffer = {};
     state.primary_command_stream.clear();
@@ -448,7 +451,7 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
             16U
         )
             .bytes;
-    if (!run_frame_effect(state, port, frame_zero, result)) {
+    if (!run_frame_effect(state, action, port, frame_zero, result)) {
         result.status = LegacyBattleTransitionStatus::frame_effect_typed_stop;
         return result;
     }
@@ -622,7 +625,7 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
         invoke_surface_operation(
             port, result, startup.display_surfaces[1], temporary_a
         );
-        if (!run_frame_effect(state, port, frame_zero, result)) {
+        if (!run_frame_effect(state, action, port, frame_zero, result)) {
             result.status =
                 LegacyBattleTransitionStatus::frame_effect_typed_stop;
             return result;
@@ -700,7 +703,7 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
     state.secondary_buffer.released = state.secondary_buffer.token != 0U;
     release_token(buffer_port, result, state.primary_image_token);
     release_token(buffer_port, result, state.secondary_image_token);
-    selection_gate = 0U;
+    action.action_pending_aux = 0U;
     static_cast<void>(invoke(
         port,
         LegacyBattleTransitionCall::restore_clip,

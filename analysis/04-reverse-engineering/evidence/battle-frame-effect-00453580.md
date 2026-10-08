@@ -85,13 +85,16 @@ extent为0时仍执行两次零高clip和两次clipped-out调用；不现代化�
 
 `0xFC`按-4传入颜色函数；不按252处理。颜色helper保留末像素dword look-ahead与绿/蓝双lane合同；modern使用framebuffer只读guard，不扩大逻辑像素范围。
 
-## 6. 公共全屏clip与遭遇ID门
+## 6. 公共全屏clip与角色比较
 
 入口效果结束或被双抑制门跳过后，再次固定恢复`0,0,640,480`clip。
 
-当前遭遇ID按i16符号扩展后，与完整expected i32比较。不同则跳过surface阶段和cadence，直接携带当前stage word进入尾部fade状态机。
+4537A5第二次全屏clip返回后，4537AA读取4A7630角色WORD并做MOVSX；
+4537B1读取53AE70完整优先角色DWORD。4537B9比较两者完整32位位形。
+不同则跳过surface阶段和cadence，直接携带当前stage WORD进入尾部fade。
+它们是角色索引，不能按遭遇编号或两个同宽WORD理解。
 
-ID相等后，只有`primary_suppression==1 || secondary_suppression==1`才执行surface阶段；其他非零值虽然跳过入口绘制，却不会进入此阶段。
+角色比较相等后，只有`primary_suppression==1 || secondary_suppression==1`才执行surface阶段；其他非零值虽然跳过入口绘制，却不会进入此阶段。
 
 ## 7. 标准surface阶段
 
@@ -137,9 +140,9 @@ alternate surface mode非零时：
 
 - red、green、blue三个factor word；
 - stage word；
-- 当前遭遇ID写`0xFFFF`；
-- primary suppression；
+- 4A7630实际角色WORD写`0xFFFF`；
 - secondary suppression；
+- primary suppression；
 - alternate surface mode；
 - fade active。
 
@@ -179,7 +182,7 @@ alternate surface mode非零时：
 - `0x00453580..0x004535BF`：source发布、全屏clip、双抑制门；
 - `0x004535C5..0x00453711`：零/正/负rotation、全图、split带、旋转缓存；
 - `0x00453716..0x00453793`：pending清零、颜色循环与delta byte回绕；
-- `0x00453799..0x004537D5`：公共全屏clip、遭遇ID与双stage门；
+- `0x00453799..0x004537D5`：公共全屏clip、角色WORD与完整优先DWORD比较及双stage门；
 - `0x004537D5..0x0045380B`：标准staged surface；
 - `0x00453810..0x004538AF`：alternate旋转、全图与RGB factor；
 - `0x004538B2..0x004538E3`：cadence与signed stage clamp；
@@ -206,7 +209,7 @@ C++到LST反向追溯覆盖完整508行、21个静态call站点和22个标签。
 - 转场caller一次/两次调用计数及首次effect缓存故障的分配、复制、转换前缀；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版DirectDraw surface对象、三项surface表、共享source/clip/blitter状态、旋转缓存、颜色格式、遭遇ID、全部阶段word与target framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版DirectDraw surface对象、三项surface表、共享source/clip/blitter状态、旋转缓存、颜色格式、角色WORD与优先DWORD、全部阶段word与target framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
 
 ## 15. B11灰度分带条件修正
 
@@ -527,3 +530,125 @@ ASan setup 1/1（7.89秒），actor_frame_316 1/1（26.95秒）；SDL链接通�
 真实旋转cache、actor selector、完整SDL帧和实际续玩仍待完成。
 WP316保持pending_audit、315/422；整体暂估60%（粗略工作量，非验收比例）。
 未运行游戏或新增原版动态差分，不升级WP316/WP379验收状态。
+
+## 21. B11画面效果借实际角色WORD及优先角色DWORD
+
+### 21.1 原物理读取、终态写序与初值
+
+4537A5的416FF0返回后，4537AA对4A7630 WORD做MOVSX到EDX，
+4537B1读取53AE70完整DWORD到EAX，4537B9执行CMP EDX,EAX。
+4537BB不相等去4538E5；相等后才逐个检查BF94/BF98是否精确DWORD 1。
+因此FFFF只匹配FFFFFFFF，不匹配0000FFFF；8000只匹配FFFF8000，
+不匹配00008000。优先角色不是低WORD，比较也不带范围归一化。
+
+453969..45397E按红、绿、蓝、stage清零，453985才写角色WORD FFFF；
+45398E清secondary，453994清primary，然后清alternate及fade。
+它不清53AE70。453941、453968正常早退，以及先前typed-stop均不补清角色。
+原surface调用返回后的颜色、阶段与cadence重读保留；不重做角色比较。
+
+静态PE初始像：4A7630是FFFF，53AE70是零填充DWORD 0。
+451B3F清EDX，451C14 OR FFFFFFFF，451C79再写优先角色FFFFFFFF；
+中间没有callee或EDX改写。loader初值与入战后值不能混为一项。
+静态导航共38个角色WORD text访问和40个优先DWORD text访问；
+该计数不是其他函数完整语义关闭的证据。
+
+### 21.2 唯一输入存储与三个核心调用站点
+
+删除FrameEffectState的current_encounter_id/expected_encounter_id副本。
+FrameEffectContext借ActionDispatchState.current_actor_index的u16引用，
+以及ActorMetricState.priority_actor_index的const u32引用。
+MOVSX通过bit_cast i16再扩到i32，转u32后比较完整位形；终态直接写该u16。
+两项都不在入口按值复制，且终态不改优先DWORD。
+
+453322核心caller直接借context.action_dispatch与port.actor_metric_state。
+452904/452D75两处转场caller借同一实际动作对象与metrics；转场接口以完整
+ActionDispatchState替代原单独selection_gate引用，原选门两站仍写其
+既有action_pending_aux。全部现有九处转场测试caller已迁移，不构造业务副本。
+脚本闪光、平移及刷新后效果的夹具也借实际动作/指标对象。
+SDL完整帧仍停45331C，本批没有把库内caller验证称为SDL实机接通。
+
+45B989原本已经列入reset有序写和mapped范围，但实际动作对象漏了写回。
+现在在既有映射阶段恢复current_actor_index为FFFF；优先七DWORD仍按
+45B701清零。mapped范围仍116，原234项、3300次物理写及13106字节不变；
+该WORD的两个字节不留unmapped重复像，提前释放失败保留角色与优先值。
+
+### 21.3 优先角色的实际写入与清写
+
+删除ActionDispatchState.active_effect_target和组A的active_effect_tail。
+敌方动作、双方角色帧、最终角色清理、战后重排及脚本78的53AE70访问
+直接使用同一ActorMetricState，不在回调之间同步副本。
+FinalActorStepState.active_actor_code的非53AE70用途保留；不按字段名合并。
+
+必要改写站点按原顺序对应：
+
+- 455D60：456554比较实际DWORD，45655C命中后写FFFFFFFF。
+- 456680：456DE8比较后，456DFB查询idle返回只测试其结果，
+  不重复先前CMP；456E9C在下一站重新读取priority。
+  456EF8读priority低WORD，456F09发布为当前角色；
+  4570BF的另一次角色WORD发布保持原分支。
+  4572AB reset返回后，4572C0清priority及其六DWORD尾；
+  457320随后写FFFFFFFF；45765C的清写仍在原分支。
+- 4576A0：45774B读取，457781/4577C2在两条早退中清FFFFFFFF。
+  457E51的比较值保留到动作查询的EAX和flags，不在callee后重读。
+  458085在收尾回调之后读DWORD，458090 CMP8与4580A5 JGE为signed；
+  仅小于8时执行4580B3七DWORD清写，再于4580B5写FFFFFFFF。
+- 45AA00：45AB83/45AB90匹配清写、45AC07终止清写与45AC3E
+  继续发布均读写实际priority；其他角色字段不替代该DWORD。
+- 45ADF0：45AF28仍在全部前置callee正常返回之后才写FFFFFFFF。
+- 脚本78：46DCC9清EDX，46DCD0把操作数WORD读入DX。
+  实现于动作模式callee返回后重读workspace的高WORD，保留该零扩展值；
+  完成原两组工作区与队列清写后，46DD34发布实际priority。
+  失败RET不执行后缀。脚本77只写模式bit40，没有此priority发布。
+
+调试45E2F1的MOVSX也改借实际current_actor_index，删除battle_selector。
+前一段文字绘制回调改写角色后，摘要显示重新读取的signed WORD。
+45E210的priority显示与其另一项53BD54显示分别保留，不能按名字混同。
+53BD54的其他既有存储关系不在本批关闭范围，须另行审计。
+
+40个显式priority访问按原函数分组：451B10(1)、453200(3)、453580(1)、
+455D60(2)、456680(6)、4576A0(7)、45AA00(4)、45ADF0(1)、45B280(1)、
+45B630(1)、45C010(1)、45D8F0(5)、45DEE0(1)、45EA80(1)、45EC80(1)、
+466F70(3)、469D20(1)。既有初始化、出队、指标、热键、消息、反馈和完成
+路径已借metrics；本批只收回上述错用副本的站点。
+38个显式角色WORD访问分属453580(2)、4539B0(20)、455D60(5)、
+456680(3)、4576A0(6)、45B630(1)、45DEE0(1)。动作原WORD发布保留，
+效果消费/终态、reset及调试显示借同一实际动作状态。
+这些数量只用于检查遗漏，不升级各函数的完整语义或动态差分状态。
+
+### 21.4 独立向量与验证范围
+
+14组MOVSX/CMP向量覆盖0、7FFF、8000、FFFF及完整DWORD高位差异，
+context建立后修改原存储，证明借用而非快照。
+两组旋转callee回调改变角色、优先值和画面门，后续比较使用新值；
+surface回调再次改成不相等，已选分支仍按原顺序增长，且保留两项新值。
+24组终态向量覆盖signed非正stage、精确fade门与阻止门，两条操作数保持分离。
+缓存及首次source失败覆盖终态写前停止，既有surface HRESULT矩阵继续执行。
+核心帧消费实际对象并保留未返回surface前缀；转场首个终态对场景回调可见，
+回调发布8000/FFFF8000，第二次效果据此选择stage surface，再阻断其场景后缀。
+reset验证正常WORD复位、优先清零、两个失败槽的保留及重复像排除。
+
+新增脚本78正常/失败各两组，效果context先建立再执行实际producer，
+观察随后surface分支与阶段；按4538BE/C0设cadence为2，符合增长前提。
+组A检查七DWORD正常清写和callee失败前保留；组B七组priority覆盖
+0、7、8、7FFFFFFF、80000000、FFFF8000、FFFFFFFF，并在收尾回调改写，
+检查signed比较两侧与完整六DWORD尾。调试四组WORD覆盖符号边界及回调重读。
+
+首轮proc_1677通过不覆盖随后producer修改。后续core失败已定位到夹具：
+原协调器同时出队角色5、使用旧角色0副本；改为实际出队角色0并检查坐标0。
+调试向量补总显示门，画布端口明确正常返回，阶段向量补原cadence前提。
+proc_be02的core setup为1/1（5.04秒），actor316两条旧存储断言失败；
+分别补实际priority=0的CMP输入、把末尾断言迁到真正的priority字段。
+最终producer门禁proc_f040退出0：core actor316为1/1（27.40秒），
+ASan setup为1/1（8.25秒）、actor316为1/1（27.31秒），
+SDL于129/129链接完成。core setup沿用同源码proc_be02的1/1（5.04秒）；
+后续仅修改actor316两处旧存储夹具，没有改变setup源码或生产实现。
+仅既有outcome-resolution:137转换warning，无新增错误或sanitizer finding。
+当前源diff488行、测试diff2179行已分小块完整阅读；格式化后逐字节相同。
+本批增改按21.1–21.3的LST站点反查，复核入口、比较快照、callee后重读、
+角色终态及早退/typed-stop后缀；最后一轮未产生本批新的实现差异。
+该结论限定于角色WORD/priority DWORD共享，不升级各函数整体审计状态。
+七DWORD记录清写已验证；AE74..AE88邻接业务字段的其他别名仍须独立核对，
+不能据此认定这些字段的全部消费者已共用存储。
+本批只恢复上述消费、必要producer与复位合同；画布、source重读、
+初始化门、真实旋转缓存、SDL完整帧和实际续玩仍待完成。
+WP316仍pending_audit、315/422；未运行游戏或新增原版动态差分。

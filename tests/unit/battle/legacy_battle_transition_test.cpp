@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -45,6 +46,10 @@ public:
     [[nodiscard]] LegacyBattleTransitionCallReply
     invoke(const LegacyBattleTransitionCallRequest& request) override {
         requests.push_back(request);
+        if (after_transition_call) {
+            after_transition_call(request);
+        }
+
         LegacyBattleTransitionCallReply reply;
         switch (request.call) {
         case LegacyBattleTransitionCall::create_temporary_surface:
@@ -223,6 +228,8 @@ public:
     std::vector<openswd3::battle::LegacyBattleActionCallRequest>
         action_requests;
     std::vector<LegacyBattleTransitionCallRequest> requests;
+    std::function<void(const LegacyBattleTransitionCallRequest&)>
+        after_transition_call;
     std::vector<LegacyBattleHudCallRequest> hud_requests;
     std::deque<u32> random_values;
     std::unordered_map<u32, u32> actor_mode_returns;
@@ -297,7 +304,10 @@ public:
 };
 
 struct FrameFixture {
-    u32 selection_gate{9U};
+    std::unique_ptr<openswd3::battle::LegacyBattleActionDispatchState> action{
+        std::make_unique<openswd3::battle::LegacyBattleActionDispatchState>()
+    };
+    u32& selection_gate{action->action_pending_aux};
     openswd3::battle::LegacyBattleFrameDrawState state;
     openswd3::rendering::LegacyFramebuffer framebuffer;
     openswd3::rendering::LegacyRasterGeometryState raster;
@@ -311,6 +321,7 @@ struct FrameFixture {
     };
 
     FrameFixture() {
+        selection_gate = 9U;
         static_cast<void>(
             openswd3::rendering::initialize_legacy_raster_geometry(
                 raster, framebuffer.geometry().surface
@@ -450,7 +461,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
-            frame.selection_gate,
+            *frame.action,
             startup,
             ports,
             ports,
@@ -558,7 +569,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
-            actor_frames.state.shared.action.action_pending_aux,
+            actor_frames.state.shared.action,
             startup,
             ports,
             ports,
@@ -647,7 +658,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
-            actor_frames.state.shared.action.action_pending_aux,
+            actor_frames.state.shared.action,
             startup,
             ports,
             ports,
@@ -752,7 +763,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
-            actor_frames.state.shared.action.action_pending_aux,
+            actor_frames.state.shared.action,
             startup,
             ports,
             ports,
@@ -815,7 +826,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             FrameFixture frame;
             const auto result = openswd3::battle::run_legacy_battle_transition(
                 state,
-                frame.selection_gate,
+                *frame.action,
                 startup,
                 ports,
                 ports,
@@ -845,7 +856,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
-            frame.selection_gate,
+            *frame.action,
             startup,
             ports,
             ports,
@@ -866,8 +877,6 @@ void test_battle_transition(openswd3::test::Context& test) {
 
     for (const u32 stop_at : {1U, 2U}) {
         openswd3::battle::LegacyBattleTransitionState state;
-        state.frame_effect.current_encounter_id = 9;
-        state.frame_effect.expected_encounter_id = 9;
         state.staged_surface_tokens = {0xB000U, 0xB100U, 0xB200U};
         auto startup = startup_state();
         TransitionPorts ports;
@@ -879,23 +888,25 @@ void test_battle_transition(openswd3::test::Context& test) {
         ports.screen_flash_state().intensity = 8U;
         add_default_surfaces(ports);
         FrameFixture frame;
+        frame.action->current_actor_index = 9U;
+        ports.actor_metric_state().priority_actor_index = 9U;
 
-        const auto result_storage = std::unique_ptr<
-            openswd3::battle::LegacyBattleTransitionResult>(
-            new openswd3::battle::LegacyBattleTransitionResult(
-                openswd3::battle::run_legacy_battle_transition(
-                    state,
-                    frame.selection_gate,
-                    startup,
-                    ports,
-                    ports,
-                    ports,
-                    ports,
-                    frame.context,
-                    request(0U)
+        const auto result_storage =
+            std::unique_ptr<openswd3::battle::LegacyBattleTransitionResult>(
+                new openswd3::battle::LegacyBattleTransitionResult(
+                    openswd3::battle::run_legacy_battle_transition(
+                        state,
+                        *frame.action,
+                        startup,
+                        ports,
+                        ports,
+                        ports,
+                        ports,
+                        frame.context,
+                        request(0U)
+                    )
                 )
-            )
-        );
+            );
         const auto& result = *result_storage;
 
         test.expect_true(
@@ -924,6 +935,69 @@ void test_battle_transition(openswd3::test::Context& test) {
         );
     }
 
+    {
+        openswd3::battle::LegacyBattleTransitionState state;
+        state.frame_effect.fade_active = 1U;
+        state.staged_surface_tokens = {0xB000U, 0xB100U, 0xB200U};
+        auto startup = startup_state();
+        TransitionPorts ports;
+        add_default_surfaces(ports);
+        FrameFixture frame;
+        frame.action->current_actor_index = 9U;
+        ports.actor_metric_state().priority_actor_index = 10U;
+        ports.frame_effect_control_state().primary_suppression = 1U;
+        ports.frame_effect_surface_stop_at = 1U;
+        bool first_terminal_visible{};
+        ports.after_transition_call = [&](const auto& call) {
+            if (call.call == LegacyBattleTransitionCall::prepare_scene) {
+                first_terminal_visible =
+                    frame.action->current_actor_index == 0xFFFFU &&
+                    ports.actor_metric_state().priority_actor_index == 10U;
+                frame.action->current_actor_index = 0x8000U;
+                ports.actor_metric_state().priority_actor_index = 0xFFFF8000U;
+                ports.frame_effect_control_state().primary_suppression = 1U;
+                ports.frame_refresh_state().refresh_pending = 1U;
+            }
+        };
+        const auto result =
+            std::unique_ptr<openswd3::battle::LegacyBattleTransitionResult>(
+                new openswd3::battle::LegacyBattleTransitionResult(
+                    openswd3::battle::run_legacy_battle_transition(
+                        state,
+                        *frame.action,
+                        startup,
+                        ports,
+                        ports,
+                        ports,
+                        ports,
+                        frame.context,
+                        request(0U)
+                    )
+                )
+            );
+        test.expect_true(
+            first_terminal_visible &&
+                result->status ==
+                    openswd3::battle::LegacyBattleTransitionStatus::
+                        frame_effect_typed_stop &&
+                result->frame_effect_calls == 2U &&
+                result->frame_effects[0U].reset_calls == 1U &&
+                result->frame_effects[1U].surface_operation_calls == 1U &&
+                result->frame_effects[1U].reset_calls == 0U &&
+                ports.call_count(LegacyBattleTransitionCall::prepare_scene) ==
+                    1U &&
+                ports.frame_effect_surface_requests.front().source_token ==
+                    0xB100U &&
+                ports.frame_effect_surface_requests.front().effect_flags ==
+                    0x01000000U &&
+                frame.action->current_actor_index == 0x8000U &&
+                ports.actor_metric_state().priority_actor_index ==
+                    0xFFFF8000U &&
+                frame.selection_gate == 1U && result->release_calls == 0U,
+            "transition exposes first terminal actor clear to scene callbacks and second effect consumes their signed actor selection before stopping its suffix"
+        );
+    }
+
     for (const i32 delta : {0, 1, -1}) {
         openswd3::battle::LegacyBattleTransitionState state;
         state.frame_effect.rotation_cache.stored_action_id = 1U;
@@ -941,7 +1015,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
-            frame.selection_gate,
+            *frame.action,
             startup,
             ports,
             ports,
@@ -985,7 +1059,7 @@ void test_battle_transition(openswd3::test::Context& test) {
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
             state,
-            frame.selection_gate,
+            *frame.action,
             startup,
             ports,
             ports,

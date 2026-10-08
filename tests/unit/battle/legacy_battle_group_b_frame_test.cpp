@@ -7,6 +7,7 @@
 #include <array>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -39,6 +40,10 @@ public:
                 openswd3::battle::kLegacyBattleActionGroupABaseToken) {
             ++rule_writes;
             battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0xCAFE0285U;
+            if (priority_after_sweep.has_value()) {
+                actor_metric_state().priority_actor_index =
+                    *priority_after_sweep;
+            }
         }
 
         const auto found = replies.find(request.callee_token);
@@ -80,6 +85,7 @@ public:
     }
 
     bool rewrite_rules_on_primary_terminal{};
+    std::optional<u32> priority_after_sweep;
     u32 rule_writes{};
     u16 action{};
     u16 action_target{};
@@ -290,7 +296,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     for (const openswd3::compat::i32 count : {0, 1}) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = count;
@@ -299,6 +304,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         actor.action_execution.idle_state_latch = 1U;
         actor.action_composition.action_kind = 100U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.action = 100U;
         port.action_target = 0U;
         port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x11000080U;
@@ -316,6 +322,50 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 port.battle_debug_hotkey_state().battle_mode_flags_53bc24 ==
                     (count == 0 ? 0x11000000U : 0xCAFE0205U),
             "Group-B completion clears shared bit seven with zero actors or after the live terminal callback"
+        );
+    }
+
+    for (const u32 priority :
+         {0U, 7U, 8U, 0x7FFFFFFFU, 0x80000000U, 0xFFFF8000U, 0xFFFFFFFFU}) {
+        LegacyBattleGroupBFrameState state;
+        state.shared.action.frame_enabled = 1U;
+        state.selection_initialized = 1U;
+        state.action_profile_bytes = {0U};
+        state.shared.action.group_a_count = 1;
+        state.shared.action.active_target_code = 0x12345678U;
+        Fixture fixture;
+        auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
+        actor.action_execution.idle_state_latch = 1U;
+        actor.action_composition.action_kind = 100U;
+        DispatchPort port;
+        auto& metrics = port.actor_metric_state();
+        metrics.priority_actor_index = 0U;
+        metrics.priority_actor_record_tail.fill(0xCAFEBABEU);
+        port.action = 100U;
+        port.action_target = 0U;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x80U;
+        port.rewrite_rules_on_primary_terminal = true;
+        port.priority_after_sweep = priority;
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        const bool cleared = priority < 8U || (priority & 0x80000000U) != 0U;
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                port.rule_writes == 1U &&
+                metrics.priority_actor_index ==
+                    (cleared ? 0xFFFFFFFFU : priority) &&
+                std::ranges::all_of(
+                    metrics.priority_actor_record_tail,
+                    [cleared](const u32 word) {
+                        return word == (cleared ? 0U : 0xCAFEBABEU);
+                    }
+                ) &&
+                state.shared.action.active_target_code ==
+                    (cleared ? 0U : 0x12345678U),
+            "458085 rereads the callback priority and signed JGE either preserves or clears all seven DWORDs"
         );
     }
 
@@ -413,11 +463,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
         state.shared.action.group_a_count = 1;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
         context.actor_turn_completion_request.access.latch_readable = false;
@@ -464,13 +514,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
         state.shared.action.group_a_count = 1;
         state.shared.action.group_a_action_execution[0U].turn_completion_latch =
             0U;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
         context.actor_idle_state_request.access.latch_readable = false;
@@ -516,12 +566,12 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
         state.shared.action.group_a_count = 1;
         state.shared.action.group_a_action_execution[0U].start_gate_latch = 1U;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
         const auto result =
@@ -551,13 +601,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
         state.shared.action.group_a_count = 1;
         state.shared.action.group_a_action_execution[0U].start_gate_latch =
             0x80000000U;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
         context.actor_turn_completion_request.access.latch_readable = false;
@@ -593,11 +643,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
         state.shared.action.group_a_count = 1;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
         context.actor_start_gate_latch_query_requests.count = 1U;
@@ -647,13 +697,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
         state.shared.action.group_a_count = 1;
         state.shared.action.group_a_action_execution[0U].start_gate_latch =
             0x80000000U;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
         context.actor_start_gate_latch_query_requests.count = 1U;
@@ -698,9 +748,9 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 1U;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 1U;
         port.push(0x0047CE80U, {.eax = 1U});
         auto context = fixture.context();
         context.actor_idle_state_request.entry_eax = 0x11223344U;
@@ -746,7 +796,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
         state.shared.action.group_a_count = 1;
         state.shared.action.group_a_action_execution[0U].turn_completion_latch =
@@ -755,6 +804,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 7U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
@@ -797,13 +847,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState zero_state;
         zero_state.shared.action.frame_enabled = 1U;
         zero_state.post_update_gate[0U] = 1U;
-        zero_state.shared.action.active_effect_target = 0U;
         zero_state.phase_mode = 1U;
         zero_state.shared.action.group_a_count = 1;
         zero_state.shared.action.group_a_action_execution[0U]
             .turn_completion_latch = 0U;
         Fixture zero_fixture;
         DispatchPort zero_port;
+        zero_port.actor_metric_state().priority_actor_index = 0U;
         auto zero_context = zero_fixture.context();
         const auto zero = openswd3::battle::advance_legacy_battle_group_b_frame(
             zero_state, zero_port, zero_context, 0U
@@ -812,13 +862,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState nonzero_state;
         nonzero_state.shared.action.frame_enabled = 1U;
         nonzero_state.post_update_gate[0U] = 1U;
-        nonzero_state.shared.action.active_effect_target = 0U;
         nonzero_state.phase_mode = 1U;
         nonzero_state.shared.action.group_a_count = 1;
         nonzero_state.shared.action.group_a_action_execution[0U]
             .turn_completion_latch = 11U;
         Fixture nonzero_fixture;
         DispatchPort nonzero_port;
+        nonzero_port.actor_metric_state().priority_actor_index = 0U;
         auto nonzero_context = nonzero_fixture.context();
         const auto nonzero =
             openswd3::battle::advance_legacy_battle_group_b_frame(
@@ -1160,13 +1210,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     for (const bool queue_complete : {false, true}) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 3U;
         state.shared.action.resolution_latch = 9U;
         state.shared.action.selection_cache_gate_b = 2U;
         state.shared.selection_mode = 7U;
         state.shared.final_actor_step.queued_actor_code = 9U;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 3U;
         port.push(0x0047CE80U, {.eax = 1U});
         port.push(0x0047CE80U, {.eax = 1U});
         port.push(0x0047F920U, {.eax = queue_complete ? 1U : 0U});
@@ -1188,7 +1238,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state.shared.action.resolution_latch == 0U &&
                 state.shared.action.selection_cache_gate_b == 2U &&
                 state.shared.selection_mode == 7U &&
-                state.shared.action.active_effect_target == 0xFFFFFFFFU &&
+                port.actor_metric_state().priority_actor_index == 0xFFFFFFFFU &&
                 port.count(0x004786D0U) == 0U,
             "both opponent early returns clear BF5C while preserving BFC4 and the separate selection mode"
         );
@@ -1197,7 +1247,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
         state.shared.action_side = 0U;
         state.shared.action.group_a_count = 1;
@@ -1205,6 +1254,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.phase_progress = 1U;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x004786A0U, {.eax = 0U});
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
@@ -1238,7 +1288,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.phase_mode = 1U;
         state.shared.action_side = 0U;
         state.shared.action.group_a_count = 1;
@@ -1246,6 +1295,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.phase_progress = 1U;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x004786A0U, {.eax = 0U});
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
@@ -1278,10 +1328,10 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.shared.action.group_b_count = 3;
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x00483820U, {.eax = 1U});
         port.push(0x00439070U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
@@ -1303,7 +1353,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.shared.action.group_a_count = 1;
         state.action_profile_bytes = {0U};
         Fixture fixture;
@@ -1315,6 +1364,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         actor.resource_bytes[0x8EU] = 1U;
         fixture.random.push(0x12340004U);
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
@@ -1360,7 +1410,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.shared.action.group_a_count = 1;
         Fixture fixture;
         fixture.startup->group_b_lifecycle = std::make_shared<std::array<
@@ -1372,6 +1421,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         actor.action_configuration.timing_value = 0xCAFEBABEU;
         fixture.random.push(5U);
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
@@ -1396,7 +1446,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         Fixture fixture;
@@ -1406,6 +1455,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             actor.action_configuration.profile_buffer, 0x08U, 0x10000000U
         );
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x00480220U, {.eax = 0x89ABCDEFU, .edx = 0x55667788U});
         auto context = fixture.context();
         const auto result =
@@ -1426,13 +1476,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.shared.action.group_a_count = 1;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         Fixture fixture;
         bind_group_b_coordinate_resource(fixture, 0U);
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
@@ -1465,13 +1515,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.shared.action.group_a_count = 1;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         Fixture fixture;
         bind_group_b_coordinate_resource(fixture, 0U);
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         auto context = fixture.context();
         context.actor_start_gate_increment_requests.count = 1U;
         context.actor_start_gate_increment_requests.calls[0U]
@@ -1508,13 +1558,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.current_actor_index = 0x1234U;
         Fixture fixture;
         fixture.startup->group_b_lifecycle.reset();
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x00480220U, {.eax = 0xA1B2C3D4U, .edx = 0x55667788U});
         auto context = fixture.context();
         context.actor_idle_state_request.entry_eax = 0xCAFEBABEU;
@@ -1574,7 +1624,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.status_misc = 9U;
@@ -1582,6 +1631,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.startup->group_b_lifecycle.reset();
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x00480220U, {.eax = 1U});
         port.push(0x0047D880U, {.eax = 1U, .edx = 0x55667788U});
         auto context = fixture.context();
@@ -1615,7 +1665,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0x7AU};
         state.stale_action_profile_edx = 0x11223300U;
@@ -1627,6 +1676,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         fixture.random.push(0xAAAA000BU);
         fixture.random.push(0xBBBB0007U);
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x004786A0U, {.eax = 0U});
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
@@ -1683,7 +1733,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.status_words[0] = 0xE002U;
@@ -1700,6 +1749,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             actor.action_configuration.profile_buffer, 0x14U, 0x77U
         );
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x004786A0U, {.eax = 0U});
         port.push(0x0047D880U, {.eax = 1U});
         port.push(0x0047D8D0U, {.eax = 1U});
@@ -1749,7 +1799,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.status_words[0U] = 0xE000U;
@@ -1759,6 +1808,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.startup->group_b_lifecycle.reset();
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
         const auto result =
@@ -1796,7 +1846,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0x7AU};
         Fixture fixture;
@@ -1805,6 +1854,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         actor.resource_token = 0U;
         fixture.random.push(0xCAFE000BU);
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
         const auto result =
@@ -1831,7 +1881,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.post_update_gate[0U] = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.status_words[0U] = 0x8000U;
@@ -1845,6 +1894,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         actor.action_composition.derived_words[0U] = 9U;
         write_group_b_resource_word(actor.resource_bytes, 0x60U, 0x2468U);
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.allocation_succeeds = false;
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
@@ -1879,7 +1929,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     for (const u32 suppression : {0U, 1U, 2U, 0xFFFFFFFFU}) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 0;
@@ -1888,6 +1937,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.frame_effect_control_state().secondary_suppression = suppression;
         port.frame_effect_control_state().primary_suppression = 1U;
         port.action = 100U;
@@ -1916,7 +1966,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 port.count(0x004786B0U) == 0U &&
                 state.selection_initialized == 0U &&
                 state.shared.action_block_gate == 0U &&
-                state.shared.action.active_effect_target == 0xFFFFFFFFU &&
+                port.actor_metric_state().priority_actor_index == 0xFFFFFFFFU &&
                 state.status_words[0] == 0U &&
                 result.actor_gate_decay.calls == 1U &&
                 result.actor_gate_decay.call_addresses[0U] == 0x00458002U &&
@@ -1931,7 +1981,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action_side = 1U;
@@ -1939,6 +1988,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = port.action;
@@ -1965,13 +2015,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         Fixture fixture;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.action = 0U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = port.action;
@@ -1998,13 +2048,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         Fixture fixture;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = 100U;
         auto context = fixture.context();
@@ -2031,7 +2081,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 1;
@@ -2039,6 +2088,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = port.action;
@@ -2076,7 +2126,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 1;
@@ -2084,6 +2133,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = port.action;
@@ -2126,7 +2176,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 1;
@@ -2136,6 +2185,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .runtime_reset.target_selection_latch = 1U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = port.action;
@@ -2188,7 +2238,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 1;
@@ -2203,6 +2252,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .runtime_reset.target_selection_latch = 1U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = port.action;
@@ -2283,7 +2333,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 1;
@@ -2298,6 +2347,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .runtime_reset.target_selection_latch = 0U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = port.action;
@@ -2357,7 +2407,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 1;
@@ -2373,6 +2422,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .runtime_reset.target_selection_latch = 0U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = port.action;
@@ -2417,7 +2467,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 0;
@@ -2427,6 +2476,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = port.action;
@@ -2455,7 +2505,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         Fixture fixture({.pitch_bytes = 2, .width = 1, .height = 1});
@@ -2465,6 +2514,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = port.action;
@@ -2557,12 +2607,12 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
     {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
-        state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_index = 1U;
         state.action_profile_bytes = {0U};
         Fixture fixture;
         DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
         const auto result =

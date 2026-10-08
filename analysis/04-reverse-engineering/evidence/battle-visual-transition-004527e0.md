@@ -2,6 +2,15 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 
+## B11：两次效果借实际角色
+
+转场借完整ActionDispatchState；原选择门仍写action_pending_aux。
+452904/452D75效果调用借同一角色WORD和metrics优先DWORD。
+首个终态清角色后对场景回调可见；第二次效果消费回调改写，失败保留现场。
+范围、LST站点与core/ASan验证见
+[角色共享证据](battle-frame-effect-00453580.md#21-b11画面效果借实际角色word及优先角色dword)。
+实际SDL转场与完整生命周期仍未验收。
+
 ## 1. 完整LST范围
 
 权威LST函数为`0x004527E0..0x00453093`，共1002行、74个静态call站点、37个标签，无外部FUNCTION CHUNK。单参数只取低16位作为转场mode。

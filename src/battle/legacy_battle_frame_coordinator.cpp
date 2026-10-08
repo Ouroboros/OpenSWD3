@@ -404,6 +404,8 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         .flash = port.screen_flash_state(),
         .refresh = port.frame_refresh_state(),
         .control = port.frame_effect_control_state(),
+        .current_actor_index = context.action_dispatch.current_actor_index,
+        .priority_actor_index = port.actor_metric_state().priority_actor_index,
     };
     result.frame_effect = update_legacy_battle_frame_effect(
         state.frame_effect,

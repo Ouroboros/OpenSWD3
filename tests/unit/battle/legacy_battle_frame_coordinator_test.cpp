@@ -823,7 +823,7 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
         port->actor_metric_state().priority_actor_index = 5U;
         port->battle_message_state() = 7U;
         state->selection_delay = 0x10U;
-        fixture->startup.reset.records_524788[0].value_00 = 5U;
+        fixture->startup.reset.records_524788[0].value_00 = 0U;
         fixture->startup.reset.records_524788[1].value_00 = 0xFFFFFFFFU;
         const auto canceled =
             openswd3::battle::finalize_legacy_battle_menu_input(
@@ -899,7 +899,7 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
         test.expect_true(
             result.selection_refresh_calls == 1U &&
                 state->selection_delay == 0U &&
-                fixture->script_workspace.coordinate_y == 5 &&
+                fixture->script_workspace.coordinate_y == 0 &&
                 fixture->final_actor_step.selection_gate == 1U &&
                 fixture->action_dispatch.selection_cache_gate_b == 0U &&
                 fixture->action_dispatch.resolution_latch == 9U,
@@ -1438,8 +1438,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
-        state.frame_effect.current_encounter_id = 9;
-        state.frame_effect.expected_encounter_id = fading ? 10 : 9;
         state.frame_effect.cadence = 7;
         state.frame_effect.fade_active = 1U;
         auto fixture = std::make_unique<Fixture>();
@@ -1447,6 +1445,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         configure_common_port(port);
+        fixture->action_dispatch.current_actor_index = 9U;
+        port.actor_metric_state().priority_actor_index = fading ? 10U : 9U;
         port.frame_effect_control_state().primary_suppression = 1U;
         port.frame_refresh_state().refresh_pending = 2U;
         port.frame_refresh_state().active_surface_token = 7U;

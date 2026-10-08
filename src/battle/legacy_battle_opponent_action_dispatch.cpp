@@ -846,8 +846,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         if (state.active_target_code == stage) {
             state.active_target_code = 0U;
         }
-        if (state.active_effect_target == stage) {
-            state.active_effect_target = 0xFFFFFFFFU;
+        if (port.actor_metric_state().priority_actor_index == stage) {
+            port.actor_metric_state().priority_actor_index = 0xFFFFFFFFU;
             state.active_effect_gate = 0U;
         }
         return completed(result, 1U);

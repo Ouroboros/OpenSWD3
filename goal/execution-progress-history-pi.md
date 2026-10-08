@@ -4,6 +4,23 @@
 
 当前执行入口见[`execution-plan-pi.md`](execution-plan-pi.md)。以下内容从主GOAL机械搬入并保留原文，用于查询过去的模块、函数和工作包完成记录；B1–B6保存模块详细完成摘要，后续部分保存原B7队列项及其累计执行记录。
 
+## B11：战斗画面效果读取实际行动角色
+
+核心帧与两处转场借实际角色WORD和优先DWORD；动作、脚本78、
+最终角色清理及重排写同一优先值，调试摘要读取同一角色WORD。
+角色比较保留MOVSX与完整DWORD位形；callee后的重读和原比较快照分开。
+淡出终态只清实际角色，复位恢复FFFF；失败保留前缀。
+七DWORD记录清写与signed JGE边界通过固定状态验证。
+核心夹具冲突、surface回复和cadence前提已按实际诊断修正；
+actor316两条旧存储断言迁到实际输入与结果，生产逻辑未为通过测试改变。
+core setup 1/1（5.04秒）、actor316 1/1（27.40秒）；
+ASan setup 1/1（8.25秒）、actor316 1/1（27.31秒），SDL129/129链接通过。
+仅既有outcome-resolution转换warning，无sanitizer finding。
+源和测试完整diff已审查，最后格式化后逐字节相同。
+证据见[角色共享](../analysis/04-reverse-engineering/evidence/battle-frame-effect-00453580.md#21-b11画面效果借实际角色word及优先角色dword)。
+邻接字段别名、其余效果状态、完整SDL帧与实际续玩仍待完成。
+WP316保持pending_audit、315/422。未运行游戏或新增原版动态差分。
+
 ## B11：角色画面效果触发后共用抑制与颜色
 
 角色动作、效果、核心帧、转场、菜单与复位共用实际画面控制状态。

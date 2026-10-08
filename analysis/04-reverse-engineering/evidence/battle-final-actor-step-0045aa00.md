@@ -2,6 +2,14 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
+## B11：最终清理使用实际优先角色
+
+45AB83/45AB90的匹配清写、45AC07的终止清写和45AC3E的继续发布
+现直接借ActorMetricState.priority_actor_index。
+不再以active_actor_code承接53AE70；其他地址用途保留。
+范围、共享存储和本批验证状态见
+[实际角色与优先角色](battle-frame-effect-00453580.md#21-b11画面效果借实际角色word及优先角色dword)。
+
 ## 1. 完整LST范围
 
 权威函数为`0x0045AA00..0x0045ADEC`，从proc到endp完整465行、20个静态call站点、26个`loc_`标签，无外部FUNCTION CHUNK。14个唯一callee。
@@ -41,7 +49,7 @@ group B = 0x00525508 + index * 0x2B28
 - 以`index + 8`角色code直接组合攻击顺序首匹配移除；
 - 清对应十槽值；
 - 当前角色code命中时，先扫描完整组A，再扫描完整组B，对每个对象调用重置callee，最后发布包含共享message 1的七项状态；
-- selected code命中时发布全1并清选择门；
+- 实际优先角色DWORD命中时发布全1并清选择门；
 - 在当前group A数量内查找角色code，命中后固定左移至第九槽并把第十槽清零。
 
 角色顺序表只在循环实际访问时typed-stop。两组批量callee扫描使用signed数量；非正数量不进入循环。
@@ -56,7 +64,7 @@ remaining = group_a_count - excluded_count - phase_high_word
 
 removed byte以zero-extended dword与remaining做unsigned比较。达到或超过时固定清零126个dword工作区，发布双frame gate和共享message `0x67`并返回1。
 
-否则查询继续callee。完整EAX不等于1仍返回1；等于1时按顺序发布selected code加1、当前角色code、配置callee、pending、工作区偏移`2 + actor_index`的事件槽和辅助门，然后以callee可改写的角色code定位五dword记录并清零。事件槽与126 dword工作区保持同一物理别名，不能拆成独立数组；记录只在首次实际写入时typed-stop，且保留此前发布。
+否则查询继续callee。完整EAX不等于1仍返回1；等于1时按顺序发布实际优先角色DWORD加1、当前角色code、配置callee、pending、工作区偏移`2 + actor_index`的事件槽和辅助门，然后以callee可改写的角色code定位五dword记录并清零。事件槽与126 dword工作区保持同一物理别名，不能拆成独立数组；记录只在首次实际写入时typed-stop，且保留此前发布。
 
 因此组A只有初始有效性失败返回0；有效对象的所有非typed-stop路径返回1。
 

@@ -361,8 +361,8 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         state.selection_gate = 0U;
     }
 
-    if (state.active_actor_code == actor_code) {
-        state.active_actor_code = 0xFFFFFFFFU;
+    if (port.actor_metric_state().priority_actor_index == actor_code) {
+        port.actor_metric_state().priority_actor_index = 0xFFFFFFFFU;
         state.selection_gate = 0U;
     }
 
@@ -390,7 +390,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         static_cast<u32>(high_word(action.phase_counter));
     if (static_cast<u32>(state.removed_group_a_count) >= remaining) {
         action.opponent_workspace.fill(0U);
-        state.active_actor_code = 0xFFFFFFFFU;
+        port.actor_metric_state().priority_actor_index = 0xFFFFFFFFU;
         action.action_pending_aux = 1U;
         action.selection_cache_gate_b = 1U;
         port.battle_message_state() = 0x67U;
@@ -399,7 +399,8 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     }
 
     if (invoke(port, result, kCallQueryContinuation, {actor_token}).eax == 1U) {
-        state.published_actor_code = state.active_actor_code + 1U;
+        state.published_actor_code =
+            port.actor_metric_state().priority_actor_index + 1U;
         state.secondary_actor_code = actor_code;
         result.actor_availability_block =
             set_legacy_battle_actor_availability_block(

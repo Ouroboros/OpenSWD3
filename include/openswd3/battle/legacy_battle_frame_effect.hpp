@@ -57,8 +57,6 @@ struct LegacyBattleFrameEffectState {
     compat::i32 published_green_delta{};
     compat::i32 published_blue_delta{};
 
-    compat::i16 current_encounter_id{-1};
-    compat::i32 expected_encounter_id{};
     compat::u32 alternate_surface_mode{};
     compat::i32 cadence{};
 
@@ -80,6 +78,8 @@ struct LegacyBattleFrameEffectContext {
     LegacyBattleScreenFlashState& flash;
     LegacyBattleFrameRefreshState& refresh;
     LegacyBattleFrameEffectControlState& control;
+    compat::u16& current_actor_index;
+    const compat::u32& priority_actor_index;
 };
 
 enum class LegacyBattleFrameEffectStatus : compat::u8 {

@@ -2,6 +2,13 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 
+## B11：复位实际角色WORD
+
+45B989原有写集补回ActionDispatchState.current_actor_index=FFFF，
+45B701仍清metrics的七DWORD；没有新增物理写、范围或重复字节像。
+提前释放失败保留两项实际状态。完整统计与定向验证见
+[角色共享证据](battle-frame-effect-00453580.md#21-b11画面效果借实际角色word及优先角色dword)。
+
 ## 1. 完整LST范围
 
 权威函数为`0x0045B630..0x0045BD0C`，从proc到endp完整637行、9个静态call站点、1个条件跳转与1个局部标签，无外部FUNCTION CHUNK。
