@@ -4,7 +4,7 @@
 
 ## 1. 范围、ABI与调用图
 
-权威LST完整范围为`0x00451730..0x00451797`，从`proc`到`endp`共62行，没有外部`FUNCTION CHUNK`。ABI为无栈参数thiscall，ECX指向扩展动作状态；caller位于`0x00451940`与`0x0045B630`。
+权威LST完整范围为`0x00451730..0x00451797`，从`proc`到`endp`共57行，没有外部`FUNCTION CHUNK`。ABI为无栈参数thiscall，ECX指向扩展动作状态；caller位于`0x00451940`与`0x0045B630`。
 
 唯一callee为旧释放入口`0x004885A0`的两个静态callsite：先释放owner内的嵌套图像，再释放owner本身。
 
@@ -56,7 +56,7 @@ owner非零但image token为0时，只调用owner释放并清owner槽。
 - `0x00451772..0x00451776`：4字节推进与固定六轮；
 - `0x00451778..0x00451797`：stored action、field_bc、0x98 record清零及EAX 0返回。
 
-C++到LST反向追溯覆盖62行全部基本块、两个释放callsite、六轮顺序和最终清零边界。
+C++到LST反向追溯覆盖57行全部基本块、两个释放callsite、六轮顺序和最终清零边界。
 
 ## 7. 验证与动态差分
 
@@ -75,4 +75,16 @@ C++到LST反向追溯覆盖62行全部基本块、两个释放callsite、六轮�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版六owner、嵌套image分配与释放回调联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整62行LST与两个caller已完成固定状态闭环。
+当前没有原版六owner、嵌套image分配与释放回调联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。普通释放的固定状态回归覆盖两个caller，未证明任意回调改写及未返回域。
+
+## 8. B11释放后对已绑定效果立即可见
+
+画面效果现借背景初始化与复位所用的同一startup缓存。
+十二组正常释放后绘制回归检查真实记录及C0清零、image→owner顺序，
+已绑定context不复活动作或帧资源。定向core/ASan及SDL链接通过，见
+[实际缓存共享](battle-frame-effect-00453580.md#23-b11画面效果借背景初始化的实际旋转缓存)。
+
+原451752与45175D重读owner，45175F还检查零门。
+当前实现未显式覆盖释放回调把owner槽改为零后的第二零门；
+端口为void noexcept，也没有独立未返回回复。保留这两项独立缺口，
+本批不升级本函数整体状态。完整SDL帧及实际续玩仍待完成。

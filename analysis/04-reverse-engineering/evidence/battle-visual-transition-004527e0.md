@@ -179,6 +179,12 @@ core/ASan setup及actor316各1/1、SDL链接通过；详见
 [初始化门共享](battle-frame-effect-00453580.md#22-b11画面淡出借实际颜色初始化门)。
 完整SDL帧与实际续玩仍待验收。
 
+B11旋转缓存共享：452904及452D75均借同一startup.background_rotation_cache。
+首场景回调改动作WORD与帧号，第二次效果读取实际改写；
+场景本身仍调用两次，首次观察值不被第二次覆盖。core/ASan及SDL链接通过，见
+[旋转缓存共享](battle-frame-effect-00453580.md#23-b11画面效果借背景初始化的实际旋转缓存)。
+完整SDL帧与实际续玩仍待验收。
+
 ## 10. 双向追溯
 
 - `0x004527E0..0x0045283D`：准备、active、token清零、临时surface；

@@ -282,6 +282,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         );
 
         openswd3::battle::LegacyBattleFrameEffectState effect;
+        openswd3::battle::LegacyBattleActionRotationCacheState rotation_cache;
         control.primary_suppression = 1U;
         auto action = std::make_unique<
             openswd3::battle::LegacyBattleActionDispatchState>();
@@ -311,6 +312,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
                 port.actor_metric_state().priority_actor_index,
             .color_initialization_gate =
                 port.battle_color_initialization_gate(),
+            .rotation_cache = rotation_cache,
         };
         const std::array<u32, 3> surfaces{0xA000U, 0xA100U, 0xA200U};
         const auto growth = openswd3::battle::update_legacy_battle_frame_effect(

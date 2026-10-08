@@ -97,8 +97,15 @@ public:
     }
 
     [[nodiscard]]
-    openswd3::battle::LegacyBattleActionRotationUpdateSnapshot
-    update_action(openswd3::asset_runtime::LegacyActionRecord&) override {
+    openswd3::battle::LegacyBattleActionRotationUpdateSnapshot update_action(
+        openswd3::asset_runtime::LegacyActionRecord& record
+    ) override {
+        ++rotation_updates;
+        updated_record = &record;
+        if (after_rotation_update) {
+            after_rotation_update(record);
+        }
+
         return {.domain_token = 1U, .typed_stop = rotation_update_typed_stop};
     }
 
@@ -265,6 +272,10 @@ public:
     u32 generic_return{0x11223344U};
     u32 frame_effect_surface_stop_at{};
     bool rotation_update_typed_stop{};
+    u32 rotation_updates{};
+    openswd3::asset_runtime::LegacyActionRecord* updated_record{};
+    std::function<void(openswd3::asset_runtime::LegacyActionRecord&)>
+        after_rotation_update;
     u32 default_actor_mode_return{};
     u32 blend_screen_surface_token{0x90000000U};
     u32 blend_random_return{19U};
@@ -450,6 +461,89 @@ request(const u32 mode) {
 }  // namespace
 
 void test_battle_transition(openswd3::test::Context& test) {
+    for (const u16 next_action : std::array<u16, 3>{0U, 2U, 0xFFFFU}) {
+        const auto state_storage =
+            std::make_unique<openswd3::battle::LegacyBattleTransitionState>();
+        auto& state = *state_storage;
+        const auto startup_storage =
+            std::unique_ptr<openswd3::battle::LegacyBattleStartupState>(
+                new openswd3::battle::LegacyBattleStartupState(startup_state())
+            );
+        auto& startup = *startup_storage;
+        const auto ports_storage = std::make_unique<TransitionPorts>();
+        auto& ports = *ports_storage;
+        ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x40U;
+        add_default_surfaces(ports);
+        const auto frame_storage = std::make_unique<FrameFixture>();
+        auto& frame = *frame_storage;
+        auto& cache = startup.background_rotation_cache;
+        cache.stored_action_id = 1U;
+        cache.frame_owner_tokens[0U] = 0x7000U;
+        cache.frame_owner_tokens[1U] = 0x7001U;
+        for (const std::size_t slot : {0U, 1U}) {
+            cache.cached_frames[slot] = {
+                .source = {.bytes = frame.provider.bytes},
+                .width = 1U,
+                .height = 1U,
+            };
+        }
+
+        ports.after_rotation_update = [&](auto& record) {
+            record.field_8c = 0xCAFEBABEU;
+        };
+
+        bool first_cache_visible{};
+        u32 scene_calls{};
+        ports.after_transition_call = [&](const auto& call) {
+            if (call.call == LegacyBattleTransitionCall::prepare_scene) {
+                ++scene_calls;
+                if (scene_calls == 1U) {
+                    first_cache_visible = ports.rotation_updates == 1U &&
+                        ports.updated_record == &cache.action_record &&
+                        cache.action_record.action_id == 1U &&
+                        cache.action_record.field_8c == 0xCAFEBABEU;
+                    cache.stored_action_id = next_action;
+                    cache.action_record.field_4c = 1U;
+                }
+            }
+        };
+
+        const auto result =
+            std::unique_ptr<openswd3::battle::LegacyBattleTransitionResult>(
+                new openswd3::battle::LegacyBattleTransitionResult(
+                    openswd3::battle::run_legacy_battle_transition(
+                        state,
+                        *frame.action,
+                        startup,
+                        ports,
+                        ports,
+                        ports,
+                        ports,
+                        frame.context,
+                        request(0U)
+                    )
+                )
+            );
+        test.expect_true(
+            result->status ==
+                    openswd3::battle::LegacyBattleTransitionStatus::completed &&
+                first_cache_visible && scene_calls == 2U &&
+                result->frame_effect_calls == 2U &&
+                result->frame_effects[0U].rotation_frame.frame_draw_calls ==
+                    1U &&
+                result->frame_effects[1U].rotation_frame.frame_draw_calls ==
+                    (next_action == 0U ? 0U : 1U) &&
+                result->frame_effects[1U].rotation_frame.frame_index ==
+                    (next_action == 0U ? 0U : 1U) &&
+                ports.rotation_updates == (next_action == 0U ? 1U : 2U) &&
+                ports.updated_record == &cache.action_record &&
+                cache.action_record.action_id ==
+                    (next_action == 0U ? 1U : next_action) &&
+                cache.stored_action_id == next_action,
+            "both transition effects share the initialized cache and the second call observes scene changes to its action WORD and frame slot"
+        );
+    }
+
     {
         openswd3::battle::LegacyBattleTransitionState state;
         auto startup = startup_state();
@@ -1066,8 +1160,8 @@ void test_battle_transition(openswd3::test::Context& test) {
 
     for (const i32 delta : {0, 1, -1}) {
         openswd3::battle::LegacyBattleTransitionState state;
-        state.frame_effect.rotation_cache.stored_action_id = 1U;
         auto startup = startup_state();
+        startup.background_rotation_cache.stored_action_id = 1U;
         TransitionPorts ports;
         ports.effect_shift_state().actor_delta = delta;
         ports.screen_flash_state().active = 1U;

@@ -245,6 +245,12 @@ core/ASan setup及actor316各1/1、SDL链接通过；详见
 [初始化门共享](battle-frame-effect-00453580.md#22-b11画面淡出借实际颜色初始化门)。
 完整SDL帧与实际续玩仍待验收。
 
+B11旋转缓存共享：453322效果context直接借startup.background_rotation_cache。
+三组0/1/-1检查实际记录身份、播放入口清写及未返回前缀，
+停止后不继续角色更新和绘制。core/ASan两组定向及SDL链接通过，见
+[旋转缓存共享](battle-frame-effect-00453580.md#23-b11画面效果借背景初始化的实际旋转缓存)。
+完整SDL帧与实际续玩仍待验收。
+
 ## 13. 验证与动态差分
 
 定向测试覆盖：

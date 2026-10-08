@@ -4,7 +4,7 @@
 
 ## 1. 范围、ABI与调用图
 
-权威LST完整范围为`0x00451540..0x004515D7`，从`proc`到`endp`共70行，没有外部`FUNCTION CHUNK`。ABI为thiscall且无栈参数，ECX指向`0x00451420`同一扩展动作状态；唯一caller位于`0x00453580`。
+权威LST完整范围为`0x00451540..0x004515D7`，从`proc`到`endp`共65行，没有外部`FUNCTION CHUNK`。ABI为thiscall且无栈参数，ECX指向`0x00451420`同一扩展动作状态；唯一caller位于`0x00453580`。
 
 callee只有动作更新`0x004321E0`和通用blitter `0x004170E0`各一次。typed实现复用前一工作包的`LegacyBattleActionRotationCacheState`与动作更新端口，直接消费已建立的六个owner/frame缓存，不创建平行record模型。
 
@@ -74,7 +74,7 @@ accepted blit才执行通用公共后缀：清target height、水平位移、纵
 - `0x004515A6..0x004515BE`：偏移坐标、固定空tail与blitter调用；
 - `0x004515C3..0x004515D7`：显式水平位移清零和`field_8c`返回。
 
-C++到LST反向追溯覆盖70行全部基本块、两个callee、两次owner访问、共享状态时机及两个出口。
+C++到LST反向追溯覆盖65行全部基本块、两个callee、两次owner访问、共享状态时机及两个出口。
 
 ## 9. 验证与动态差分
 
@@ -89,4 +89,12 @@ C++到LST反向追溯覆盖70行全部基本块、两个callee、两次owner访�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版扩展动作状态、更新后record、六owner/frame record、共享水平位移/blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整70行LST与唯一caller已完成固定状态闭环。
+当前没有原版扩展动作状态、更新后record、六owner/frame record、共享水平位移/blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整65行LST与唯一caller已完成固定状态闭环。
+
+## 10. B11实际缓存借用
+
+4535F5不再消费效果值对象内的独立缓存，而借背景初始化的startup缓存。
+六槽、正常更新EAX零、记录+8C返回及普通释放后的WORD零门有固定状态和像素回归。
+核心caller与两个转场caller共用此对象；定向core/ASan及SDL链接通过，见
+[实际缓存共享](battle-frame-effect-00453580.md#23-b11画面效果借背景初始化的实际旋转缓存)。
+完整SDL帧和实际续玩未验收。

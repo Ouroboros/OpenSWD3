@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -260,9 +261,16 @@ class FrameEffectPort final
     : public openswd3::battle::LegacyBattleFrameEffectPort {
 public:
     [[nodiscard]]
-    openswd3::battle::LegacyBattleActionRotationUpdateSnapshot
-    update_action(openswd3::asset_runtime::LegacyActionRecord&) override {
-        return {.domain_token = 1U};
+    openswd3::battle::LegacyBattleActionRotationUpdateSnapshot update_action(
+        openswd3::asset_runtime::LegacyActionRecord& record
+    ) override {
+        ++action_updates;
+        updated_record = &record;
+        if (on_action_update) {
+            on_action_update(record);
+        }
+
+        return {.domain_token = 1U, .typed_stop = action_typed_stop};
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleFrameEffectSurfaceReply
@@ -274,6 +282,11 @@ public:
     }
 
     bool surface_returned{true};
+    bool action_typed_stop{};
+    u32 action_updates{};
+    openswd3::asset_runtime::LegacyActionRecord* updated_record{};
+    std::function<void(openswd3::asset_runtime::LegacyActionRecord&)>
+        on_action_update;
     std::vector<openswd3::battle::LegacyBattleFrameEffectSurfaceRequest>
         surface_requests;
 };
@@ -1055,6 +1068,52 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
     test_battle_frame_music_prefix(test);
     test_battle_frame_surface(test);
     test_battle_frame_selection(test);
+
+    for (const i32 delta : {0, 1, -1}) {
+        auto state = std::make_unique<
+            openswd3::battle::LegacyBattleFrameCoordinatorState>();
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<CoordinatorPort>();
+        configure_common_port(*port);
+        auto context = fixture->context();
+        auto& cache = fixture->startup.background_rotation_cache;
+        cache.stored_action_id = 0xFFFFU;
+        cache.action_record.field_88 = 0xA5U;
+        fixture->frame_effect_port.action_typed_stop = true;
+        fixture->frame_effect_port.on_action_update = [](auto& record) {
+            record.field_4c = 5U;
+            record.wait_remaining = 0x1357U;
+        };
+
+        port->effect_shift_state().actor_delta = delta;
+        const auto result = std::unique_ptr<
+            openswd3::battle::LegacyBattleFrameCoordinatorResult>(
+            new openswd3::battle::LegacyBattleFrameCoordinatorResult(
+                openswd3::battle::run_legacy_battle_frame_coordinator(
+                    *state, *port, context, base_request()
+                )
+            )
+        );
+        test.expect_true(
+            result->status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        frame_effect_typed_stop &&
+                fixture->frame_effect_port.action_updates == 1U &&
+                fixture->frame_effect_port.updated_record ==
+                    &cache.action_record &&
+                cache.action_record.action_id == 0xFFFFU &&
+                cache.action_record.base_variant == 0U &&
+                cache.action_record.field_4c == 5U &&
+                cache.action_record.wait_remaining == 0x1357U &&
+                cache.action_record.field_88 == (delta == 0 ? 0xA5U : 0U) &&
+                cache.stored_action_id == 0xFFFFU &&
+                port->effect_shift_state().actor_delta == delta &&
+                result->frame_effect_calls == 1U &&
+                result->fixed_frame_calls == 0U &&
+                result->actor_priority_calls == 0U,
+            "core effect borrows the startup cache and preserves its actual updater prefix before all actor and drawing suffixes"
+        );
+    }
 
     {
         const auto port_storage = std::make_unique<CoordinatorPort>();

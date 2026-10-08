@@ -157,13 +157,12 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
 }
 
 [[nodiscard]] bool draw_rotation_frame(
-    LegacyBattleFrameEffectState& state,
     LegacyBattleFrameEffectPort& port,
     LegacyBattleFrameEffectContext& context,
     LegacyBattleFrameEffectResult& result
 ) noexcept {
     result.rotation_frame = draw_legacy_battle_action_rotation_frame(
-        state.rotation_cache,
+        context.rotation_cache,
         port,
         context.framebuffer,
         current_clip(context.raster),
@@ -176,14 +175,13 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
 }
 
 [[nodiscard]] bool play_rotation_frames(
-    LegacyBattleFrameEffectState& state,
     LegacyBattleFrameEffectPort& port,
     LegacyBattleFrameEffectContext& context,
     LegacyBattleFrameEffectResult& result,
     const i32 rotation_amount
 ) noexcept {
     result.rotation_playback = play_legacy_battle_action_rotation_cache(
-        state.rotation_cache,
+        context.rotation_cache,
         port,
         context.framebuffer,
         current_clip(context.raster),
@@ -345,7 +343,7 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                     LegacyBattleFrameEffectStatus::source_blit_typed_stop;
                 return result;
             }
-            if (!draw_rotation_frame(state, port, context, result)) {
+            if (!draw_rotation_frame(port, context, result)) {
                 result.status =
                     LegacyBattleFrameEffectStatus::rotation_frame_typed_stop;
                 return result;
@@ -397,9 +395,7 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                     LegacyBattleFrameEffectStatus::source_blit_typed_stop;
                 return result;
             }
-            if (!play_rotation_frames(
-                    state, port, context, result, rotation_amount
-                )) {
+            if (!play_rotation_frames(port, context, result, rotation_amount)) {
                 result.status =
                     LegacyBattleFrameEffectStatus::rotation_playback_typed_stop;
                 return result;
@@ -450,7 +446,7 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                         return result;
                     }
                     if (!play_rotation_frames(
-                            state, port, context, result, rotation_amount
+                            port, context, result, rotation_amount
                         )) {
                         result.status = LegacyBattleFrameEffectStatus::
                             rotation_playback_typed_stop;

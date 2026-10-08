@@ -22,8 +22,10 @@ using openswd3::compat::u32;
 
 class EffectPort final : public LegacyBattleFrameEffectPort {
 public:
-    [[nodiscard]] LegacyBattleActionRotationUpdateSnapshot
-    update_action(openswd3::asset_runtime::LegacyActionRecord&) override {
+    [[nodiscard]] LegacyBattleActionRotationUpdateSnapshot update_action(
+        openswd3::asset_runtime::LegacyActionRecord& record
+    ) override {
+        updated_record = &record;
         ++action_updates;
         if (on_action_update) {
             on_action_update();
@@ -51,6 +53,7 @@ public:
         };
     }
 
+    openswd3::asset_runtime::LegacyActionRecord* updated_record{};
     u32 action_updates{};
     u32 action_eax{};
     u32 action_edx{};
@@ -61,6 +64,37 @@ public:
     std::function<void()> on_surface_operation;
     std::function<void()> on_action_update;
     std::vector<LegacyBattleFrameEffectSurfaceRequest> surface_requests;
+};
+
+class CacheFramePorts final
+    : public openswd3::battle::LegacyBattleMutableFrameImagePort,
+      public openswd3::battle::LegacyBattleActionRotationReleasePort {
+public:
+    [[nodiscard]] openswd3::battle::LegacyBattleMutableFrameImage
+    query_frame_image(u32, const u32 frame_index) override {
+        return {
+            .owner_token = 0x7000U + frame_index,
+            .image_token = 0x8000U + frame_index,
+            .pointer_valid = true,
+            .bytes = pixels,
+            .frame = {
+                .source = {.bytes = pixels},
+                .width = 1U,
+                .height = 1U,
+            },
+        };
+    }
+
+    void release_image(const u32 token) noexcept override {
+        released_tokens.push_back(token);
+    }
+
+    void release_owner(const u32 token) noexcept override {
+        released_tokens.push_back(token);
+    }
+
+    std::array<u8, 2> pixels{0x57U, 0x13U};
+    std::vector<u32> released_tokens;
 };
 
 struct Fixture {
@@ -77,6 +111,7 @@ struct Fixture {
     u16 current_actor_index{0xFFFFU};
     u32 priority_actor_index{};
     u32 color_initialization_gate{};
+    openswd3::battle::LegacyBattleActionRotationCacheState rotation_cache{};
 
     Fixture() {
         static_cast<void>(
@@ -116,6 +151,7 @@ struct Fixture {
             .current_actor_index = current_actor_index,
             .priority_actor_index = priority_actor_index,
             .color_initialization_gate = color_initialization_gate,
+            .rotation_cache = rotation_cache,
         };
     }
 
@@ -144,6 +180,218 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleFrameEffectStatus;
 
     constexpr std::array<u32, 3> surfaces{0xB000U, 0xB100U, 0xB200U};
+
+    constexpr std::array<u16, 6> frame_indices{0U, 1U, 2U, 3U, 4U, 5U};
+    for (const u32 action_id : {1U, 0x1234FFFFU}) {
+        for (const u16 frame_index : frame_indices) {
+            LegacyBattleFrameEffectState state;
+            Fixture fixture;
+            auto context = fixture.context();
+            EffectPort port;
+            CacheFramePorts frames;
+            port.action_eax = 1U;
+            port.on_action_update = [&] {
+                auto& record = fixture.rotation_cache.action_record;
+                record.field_4a = 0x2349U;
+                record.field_4c = frame_index;
+                record.field_8c = 0xCAFEBABEU;
+            };
+
+            const auto initialized = openswd3::battle::
+                initialize_legacy_battle_action_rotation_cache(
+                    fixture.rotation_cache,
+                    port,
+                    frames,
+                    0x0053B0B8U,
+                    0U,
+                    0U,
+                    action_id,
+                    0xFFFFU
+                );
+            test.expect_true(
+                initialized.status ==
+                        openswd3::battle::
+                            LegacyBattleActionRotationCacheStatus::completed &&
+                    initialized.record_clear_calls == 1U &&
+                    fixture.rotation_cache.stored_action_id ==
+                        static_cast<u16>(action_id),
+                "initialization after context binding publishes the low WORD action and real six-slot resource"
+            );
+            port.action_eax = 0U;
+            port.updated_record = nullptr;
+            const auto drawn =
+                openswd3::battle::update_legacy_battle_frame_effect(
+                    state, port, context, fixture.source(), surfaces, 0
+                );
+            test.expect_true(
+                drawn.status == LegacyBattleFrameEffectStatus::completed &&
+                    drawn.rotation_frame.frame_draw_calls == 1U &&
+                    drawn.rotation_frame.frame_index == frame_index &&
+                    drawn.rotation_frame.return_value == 0xCAFEBABEU &&
+                    port.action_updates == 2U &&
+                    port.updated_record ==
+                        &fixture.rotation_cache.action_record &&
+                    fixture.rotation_cache.action_record.action_id ==
+                        static_cast<u16>(action_id) &&
+                    fixture.framebuffer.physical_pixels()[0U] == 0x1357U,
+                "effect draws the initialized cache through every real slot even when the action updater returns zero"
+            );
+            const auto released =
+                openswd3::battle::release_legacy_battle_action_rotation_cache(
+                    fixture.rotation_cache, frames
+                );
+            const auto empty =
+                openswd3::battle::update_legacy_battle_frame_effect(
+                    state, port, context, fixture.source(), surfaces, 0
+                );
+            test.expect_true(
+                empty.status == LegacyBattleFrameEffectStatus::completed &&
+                    empty.rotation_frame.frame_draw_calls == 0U &&
+                    port.action_updates == 2U &&
+                    released.image_release_calls == 1U &&
+                    released.owner_release_calls == 1U &&
+                    frames.released_tokens ==
+                        std::vector<u32>{
+                            0x8000U + frame_index, 0x7000U + frame_index
+                        } &&
+                    fixture.rotation_cache.stored_action_id == 0U &&
+                    fixture.rotation_cache.action_record.action_id == 0U &&
+                    fixture.framebuffer.physical_pixels()[0U] == 0x001FU,
+                "cache release is immediately visible to the bound effect without resurrecting a copied action or owner"
+            );
+        }
+    }
+
+    for (const bool alternate : {false, true}) {
+        for (const auto delta :
+             {1, -1, std::numeric_limits<openswd3::compat::i32>::min()}) {
+            LegacyBattleFrameEffectState state;
+            Fixture fixture;
+            auto context = fixture.context();
+            auto& cache = fixture.rotation_cache;
+            std::memset(
+                &cache.action_record, 0xA5, sizeof(cache.action_record)
+            );
+            cache.stored_action_id = 0xFFFFU;
+            cache.field_b4 = 3U;
+            cache.field_b8 = 4U;
+            cache.field_bc = 0x12345678U;
+            cache.frame_owner_tokens[5U] = 0x7005U;
+            constexpr std::array<u16, 6> pixels{1U, 2U, 3U, 4U, 5U, 6U};
+            auto image =
+                openswd3::rendering::encode_legacy_image_command_stream(
+                    {reinterpret_cast<const u8*>(pixels.data()),
+                     sizeof(pixels)},
+                    3U,
+                    2U,
+                    16U
+                );
+            cache.cached_mutable_images[5U] = image.bytes;
+            cache.cached_frames[5U] = {
+                .source = {.bytes = image.bytes},
+                .width = 3U,
+                .height = 2U,
+            };
+
+            fixture.pending_rotation = delta;
+            if (alternate) {
+                fixture.control.primary_suppression = 1U;
+                fixture.current_actor_index = 9U;
+                fixture.priority_actor_index = 9U;
+                fixture.refresh.refresh_pending = 1U;
+                state.alternate_surface_mode = 1U;
+            }
+
+            std::array<u8, openswd3::asset_runtime::kLegacyActionRecordSize>
+                expected_entry{};
+            expected_entry[0U] = 0xFFU;
+            expected_entry[1U] = 0xFFU;
+            bool entry_clear_visible{};
+            EffectPort port;
+            port.action_eax = 1U;
+            port.on_action_update = [&] {
+                entry_clear_visible =
+                    port.updated_record == &cache.action_record &&
+                    std::memcmp(
+                        &cache.action_record,
+                        expected_entry.data(),
+                        expected_entry.size()
+                    ) == 0;
+                cache.action_record.field_4c = 5U;
+                cache.action_record.wait_remaining = 11U;
+                cache.action_record.wait_default = 13U;
+            };
+
+            const auto result =
+                openswd3::battle::update_legacy_battle_frame_effect(
+                    state, port, context, fixture.source(), surfaces, delta
+                );
+            const std::
+                array<u8, openswd3::asset_runtime::kLegacyActionRecordSize>
+                    zero_record{};
+            const u16 first_pixel = delta == 1 ? 3U : delta == -1 ? 2U : 1U;
+            test.expect_true(
+                result.status == LegacyBattleFrameEffectStatus::completed &&
+                    entry_clear_visible && port.action_updates == 1U &&
+                    result.rotation_playback_calls == 1U &&
+                    result.rotation_playback.record_clear_calls == 2U &&
+                    result.rotation_playback.wait_clear_calls == 1U &&
+                    result.rotation_playback.frame_draw_calls == 1U &&
+                    result.rotation_playback.return_value == 1U &&
+                    std::memcmp(
+                        &cache.action_record,
+                        zero_record.data(),
+                        zero_record.size()
+                    ) == 0 &&
+                    cache.stored_action_id == 0xFFFFU && cache.field_b4 == 3U &&
+                    cache.field_b8 == 4U && cache.field_bc == 0x12345678U &&
+                    cache.frame_owner_tokens[5U] == 0x7005U &&
+                    fixture.pending_rotation == 0 &&
+                    fixture.framebuffer.physical_pixels()[4U * 640U + 3U] ==
+                        first_pixel,
+                "both playback sites rotate the real cached image and clear the actual action record while preserving owners and extended fields"
+            );
+        }
+    }
+
+    for (const u16 frame_index : std::array<u16, 2>{5U, 6U}) {
+        LegacyBattleFrameEffectState state;
+        Fixture fixture;
+        auto context = fixture.context();
+        auto& cache = fixture.rotation_cache;
+        cache.stored_action_id = 1U;
+        cache.action_record.field_88 = 0xA5U;
+        fixture.pending_rotation = 77;
+        EffectPort port;
+        port.on_action_update = [&] {
+            cache.action_record.field_4c = frame_index;
+            cache.action_record.wait_remaining = 0x1357U;
+        };
+
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, fixture.source(), surfaces, 0
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleFrameEffectStatus::rotation_frame_typed_stop &&
+                result.rotation_frame.status ==
+                    (frame_index == 5U
+                         ? openswd3::battle::
+                               LegacyBattleActionRotationDrawStatus::
+                                   cached_owner_invalid
+                         : openswd3::battle::
+                               LegacyBattleActionRotationDrawStatus::
+                                   frame_index_out_of_range) &&
+                port.updated_record == &cache.action_record &&
+                cache.action_record.action_id == 1U &&
+                cache.action_record.field_4c == frame_index &&
+                cache.action_record.wait_remaining == 0x1357U &&
+                cache.action_record.field_88 == 0xA5U &&
+                fixture.pending_rotation == 77 &&
+                result.source_blit_calls == 1U && result.reset_calls == 0U,
+            "invalid real cache accesses preserve the preceding updater record and stop before the parent clears its rotation"
+        );
+    }
 
     struct ActorComparisonVector {
         u16 actor;
@@ -195,15 +443,15 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         LegacyBattleFrameEffectState state;
         state.fade_active = 1U;
         state.cadence = 2;
-        state.rotation_cache.stored_action_id = 1U;
-        state.rotation_cache.frame_owner_tokens[0U] = 1U;
+        Fixture fixture;
+        fixture.rotation_cache.stored_action_id = 1U;
+        fixture.rotation_cache.frame_owner_tokens[0U] = 1U;
         std::array<u8, 2> cached_pixels{0x34U, 0x12U};
-        state.rotation_cache.cached_frames[0U] = {
+        fixture.rotation_cache.cached_frames[0U] = {
             .source = {.bytes = cached_pixels},
             .width = 1U,
             .height = 1U,
         };
-        Fixture fixture;
         fixture.current_actor_index = matches ? 1U : 0U;
         fixture.priority_actor_index = 0U;
         fixture.refresh.refresh_pending = 1U;
@@ -485,6 +733,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
             .current_actor_index = fixture.current_actor_index,
             .priority_actor_index = fixture.priority_actor_index,
             .color_initialization_gate = fixture.color_initialization_gate,
+            .rotation_cache = fixture.rotation_cache,
         };
         EffectPort port;
         const auto result = openswd3::battle::update_legacy_battle_frame_effect(
@@ -694,10 +943,10 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
     for (const auto branch : {0U, 1U, 2U}) {
         LegacyBattleFrameEffectState state;
-        state.rotation_cache.stored_action_id = 1U;
         state.split_extent = 10U;
         state.cadence = 2;
         Fixture fixture;
+        fixture.rotation_cache.stored_action_id = 1U;
         fixture.current_actor_index = 9U;
         fixture.priority_actor_index = 9U;
         if (branch == 2U) {

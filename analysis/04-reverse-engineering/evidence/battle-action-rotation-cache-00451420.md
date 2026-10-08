@@ -172,4 +172,11 @@ C++到LST反向追溯覆盖135行全部基本块、两个更新callsite、寄存
 `battle-rotation-six-slots-{core,asan,sdl}.log`确认core/ASan各1/1通过，
 SDL链接通过；仅既有结果测试窄化警告。Windows和实机未验证。
 
-当前没有原版动作更新后EAX/EDX、六帧owner、扩展动作状态、可写literal图像和分配器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。真实SDL动作更新端口仍待接入。
+当前没有原版动作更新后EAX/EDX、六帧owner、扩展动作状态、可写literal图像和分配器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。背景初始化已借实际ACT updater；完整SDL画面效果消费仍待接入。
+
+## 12. B11同一缓存的后续消费
+
+核心帧与两处转场的画面效果借本入口建立的startup缓存。
+context先绑定再初始化，十二组动作/槽向量检查真实记录、EAX零绘制和释放可见性。
+定向core/ASan两组及SDL链接通过；完整SDL帧和实际续玩未验收，见
+[实际缓存共享](battle-frame-effect-00453580.md#23-b11画面效果借背景初始化的实际旋转缓存)。

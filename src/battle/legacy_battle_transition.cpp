@@ -270,6 +270,7 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
 [[nodiscard]] bool run_frame_effect(
     LegacyBattleTransitionState& state,
     LegacyBattleActionDispatchState& action,
+    LegacyBattleStartupState& startup,
     LegacyBattleTransitionPort& port,
     LegacyBattleFrameZeroContext& frame_zero,
     LegacyBattleTransitionResult& result
@@ -288,6 +289,7 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
         .current_actor_index = action.current_actor_index,
         .priority_actor_index = port.actor_metric_state().priority_actor_index,
         .color_initialization_gate = port.battle_color_initialization_gate(),
+        .rotation_cache = startup.background_rotation_cache,
     };
     effect = update_legacy_battle_frame_effect(
         state.frame_effect,
@@ -452,7 +454,7 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
             16U
         )
             .bytes;
-    if (!run_frame_effect(state, action, port, frame_zero, result)) {
+    if (!run_frame_effect(state, action, startup, port, frame_zero, result)) {
         result.status = LegacyBattleTransitionStatus::frame_effect_typed_stop;
         return result;
     }
@@ -626,7 +628,9 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
         invoke_surface_operation(
             port, result, startup.display_surfaces[1], temporary_a
         );
-        if (!run_frame_effect(state, action, port, frame_zero, result)) {
+        if (!run_frame_effect(
+                state, action, startup, port, frame_zero, result
+            )) {
             result.status =
                 LegacyBattleTransitionStatus::frame_effect_typed_stop;
             return result;

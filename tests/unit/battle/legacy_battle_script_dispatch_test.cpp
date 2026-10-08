@@ -5599,6 +5599,7 @@ void test_script_actor_selector_sharing(openswd3::test::Context& test) {
                 .priority_actor_index = fixture->metrics.priority_actor_index,
                 .color_initialization_gate =
                     port.battle_color_initialization_gate(),
+                .rotation_cache = fixture->startup.background_rotation_cache,
             };
             LegacyBattleScriptDispatchRequest script_request{};
             script_request.actor_action_mode_requests[0U]
@@ -5701,6 +5702,7 @@ void test_script_flash_sharing(openswd3::test::Context& test) {
                 .priority_actor_index = fixture->metrics.priority_actor_index,
                 .color_initialization_gate =
                     port.battle_color_initialization_gate(),
+                .rotation_cache = fixture->startup.background_rotation_cache,
             };
             const std::array<u16, 1> pixels{1U};
             auto image = encode_legacy_image_command_stream(
@@ -5801,6 +5803,7 @@ void test_script_rotation_sharing(openswd3::test::Context& test) {
                 .priority_actor_index = fixture->metrics.priority_actor_index,
                 .color_initialization_gate =
                     port.battle_color_initialization_gate(),
+                .rotation_cache = fixture->startup.background_rotation_cache,
             };
             const std::array<u16, 3> pixels{1U, 2U, 3U};
             auto image = encode_legacy_image_command_stream(
