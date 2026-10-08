@@ -935,7 +935,67 @@ void test_battle_transition(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const u32 next_gate : {0U, 1U, 0xFFFFFFFFU}) {
+        openswd3::battle::LegacyBattleTransitionState state;
+        state.frame_effect.fade_active = 1U;
+        auto startup = startup_state();
+        TransitionPorts ports;
+        add_default_surfaces(ports);
+        FrameFixture frame;
+        frame.action->current_actor_index = 9U;
+        ports.actor_metric_state().priority_actor_index = 10U;
+        ports.frame_effect_control_state().primary_suppression = 1U;
+        ports.battle_color_initialization_gate() = 1U;
+        ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x40U;
+        u32 scene_calls{};
+        bool first_wait_visible{};
+        ports.after_transition_call = [&](const auto& call) {
+            if (call.call == LegacyBattleTransitionCall::prepare_scene) {
+                ++scene_calls;
+                if (scene_calls == 1U) {
+                    first_wait_visible =
+                        frame.action->current_actor_index == 9U &&
+                        state.frame_effect.fade_active == 1U &&
+                        ports.battle_color_initialization_gate() == 1U;
+                    ports.battle_color_initialization_gate() = next_gate;
+                }
+            }
+        };
+
+        const auto result =
+            std::unique_ptr<openswd3::battle::LegacyBattleTransitionResult>(
+                new openswd3::battle::LegacyBattleTransitionResult(
+                    openswd3::battle::run_legacy_battle_transition(
+                        state,
+                        *frame.action,
+                        startup,
+                        ports,
+                        ports,
+                        ports,
+                        ports,
+                        frame.context,
+                        request(0U)
+                    )
+                )
+            );
+        test.expect_true(
+            first_wait_visible && result->frame_effect_calls == 2U &&
+                result->frame_effects[0U].status ==
+                    openswd3::battle::LegacyBattleFrameEffectStatus::
+                        completed &&
+                result->frame_effects[0U].reset_calls == 0U &&
+                result->frame_effects[1U].status ==
+                    openswd3::battle::LegacyBattleFrameEffectStatus::
+                        completed &&
+                result->frame_effects[1U].reset_calls ==
+                    (next_gate == 0U ? 1U : 0U) &&
+                result->frame_effects[1U].surface_operation_calls == 0U &&
+                ports.battle_color_initialization_gate() == next_gate,
+            "the second transition effect reaches 4538F7 and consumes the " "gate changed by the scene callback after the first wait"
+        );
+    }
+
+    for (const u32 gate : {0U, 1U, 0xFFFFFFFFU}) {
         openswd3::battle::LegacyBattleTransitionState state;
         state.frame_effect.fade_active = 1U;
         state.staged_surface_tokens = {0xB000U, 0xB100U, 0xB200U};
@@ -947,12 +1007,16 @@ void test_battle_transition(openswd3::test::Context& test) {
         ports.actor_metric_state().priority_actor_index = 10U;
         ports.frame_effect_control_state().primary_suppression = 1U;
         ports.frame_effect_surface_stop_at = 1U;
+        ports.battle_color_initialization_gate() = gate;
         bool first_terminal_visible{};
         ports.after_transition_call = [&](const auto& call) {
             if (call.call == LegacyBattleTransitionCall::prepare_scene) {
-                first_terminal_visible =
-                    frame.action->current_actor_index == 0xFFFFU &&
+                first_terminal_visible = frame.action->current_actor_index ==
+                        (gate == 0U ? 0xFFFFU : 9U) &&
+                    state.frame_effect.fade_active == (gate == 0U ? 0U : 1U) &&
+                    ports.battle_color_initialization_gate() == gate &&
                     ports.actor_metric_state().priority_actor_index == 10U;
+                ports.battle_color_initialization_gate() = 0U;
                 frame.action->current_actor_index = 0x8000U;
                 ports.actor_metric_state().priority_actor_index = 0xFFFF8000U;
                 ports.frame_effect_control_state().primary_suppression = 1U;
@@ -981,7 +1045,8 @@ void test_battle_transition(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleTransitionStatus::
                         frame_effect_typed_stop &&
                 result->frame_effect_calls == 2U &&
-                result->frame_effects[0U].reset_calls == 1U &&
+                result->frame_effects[0U].reset_calls ==
+                    (gate == 0U ? 1U : 0U) &&
                 result->frame_effects[1U].surface_operation_calls == 1U &&
                 result->frame_effects[1U].reset_calls == 0U &&
                 ports.call_count(LegacyBattleTransitionCall::prepare_scene) ==
@@ -993,8 +1058,9 @@ void test_battle_transition(openswd3::test::Context& test) {
                 frame.action->current_actor_index == 0x8000U &&
                 ports.actor_metric_state().priority_actor_index ==
                     0xFFFF8000U &&
+                ports.battle_color_initialization_gate() == 0U &&
                 frame.selection_gate == 1U && result->release_calls == 0U,
-            "transition exposes first terminal actor clear to scene callbacks and second effect consumes their signed actor selection before stopping its suffix"
+            "transition effects borrow the actual initialization gate and " "consume scene mutations while an unfinished surface call " "preserves the second prefix"
         );
     }
 

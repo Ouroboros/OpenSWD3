@@ -406,6 +406,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         .control = port.frame_effect_control_state(),
         .current_actor_index = context.action_dispatch.current_actor_index,
         .priority_actor_index = port.actor_metric_state().priority_actor_index,
+        .color_initialization_gate = port.battle_color_initialization_gate(),
     };
     result.frame_effect = update_legacy_battle_frame_effect(
         state.frame_effect,

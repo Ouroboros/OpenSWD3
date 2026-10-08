@@ -3,6 +3,7 @@
 #include "openswd3/battle/legacy_battle_actor_frame_sequence.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_entry.hpp"
+#include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_effect_shift.hpp"
@@ -111,6 +112,7 @@ class LegacyBattleTransitionPort
       public virtual LegacyBattleScreenFlashStatePort,
       public virtual LegacyBattleFrameRefreshStatePort,
       public virtual LegacyBattleFrameEffectControlStatePort,
+      public virtual LegacyBattleColorAccumulationStatePort,
       public LegacyBattleFrameEffectPort,
       public LegacyBattleHudCallPort,
       public virtual LegacyBattleActorMetricStatePort {

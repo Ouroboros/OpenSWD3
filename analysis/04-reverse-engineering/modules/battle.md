@@ -884,6 +884,10 @@ current float舍入后向零qword转换，target减低dword的32位回绕，单�
 逐帧协调器与单体/群体效果三个已关闭caller删除opaque边界；效果record七个u16按i16扩展，单体保留EDX、
 群体恢复完整尾寄存器。初始化门与九float和计数由同一端口虚共享，删除逐帧和效果状态中的两个副本；
 全局重置只清颜色值并保留该门。
+B11进一步删除画面效果的门副本，核心帧与转场借实际颜色初始化门；
+非零等待、callee后重读及失败保留已通过定向core/ASan与SDL链接验证，
+详见[初始化门共享](../evidence/battle-frame-effect-00453580.md#22-b11画面淡出借实际颜色初始化门)。
+完整帧、真实旋转缓存、source与实际画布仍待接入，实际续玩尚未验收。
 
 `audit_order=88`的`0x0045D490`已关闭为`platform_adapted`。
 完整权威LST主体`0x0045D490..0x0045D685`从proc到endp共218行、7个静态call、9个分支、

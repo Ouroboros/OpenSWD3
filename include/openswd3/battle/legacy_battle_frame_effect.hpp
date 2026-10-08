@@ -61,7 +61,6 @@ struct LegacyBattleFrameEffectState {
     compat::i32 cadence{};
 
     compat::u32 fade_active{};
-    compat::u32 fade_block{};
     compat::u32 surface_object_token{
         kLegacyBattleFrameEffectSurfaceObjectToken
     };
@@ -80,6 +79,7 @@ struct LegacyBattleFrameEffectContext {
     LegacyBattleFrameEffectControlState& control;
     compat::u16& current_actor_index;
     const compat::u32& priority_actor_index;
+    const compat::u32& color_initialization_gate;
 };
 
 enum class LegacyBattleFrameEffectStatus : compat::u8 {

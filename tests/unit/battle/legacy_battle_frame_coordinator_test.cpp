@@ -992,11 +992,13 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
 
     // 0x004534AE JG and 0x004534B6 JNE both bypass initialization.
     for (const i32 countdown : {-1, 0, 1}) {
-        for (const u32 gate : {0U, 1U, 2U}) {
+        for (const u32 gate : {0U, 1U, 2U, 0x80000000U, 0xFFFFFFFFU}) {
             auto state = std::make_unique<LegacyBattleFrameCoordinatorState>();
             auto fixture = std::make_unique<Fixture>();
             auto port = std::make_unique<CoordinatorPort>();
             configure_common_port(*port);
+            state->frame_effect.fade_active = 1U;
+            port->frame_effect_control_state().primary_suppression = 1U;
             port->battle_color_accumulation_state().countdown = countdown;
             port->battle_color_initialization_gate() = gate;
             auto context = fixture->context();
@@ -1012,10 +1014,12 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
                     port->battle_color_initialization_gate() ==
                         (initialize ? 0U : gate) &&
                     result.color_accumulation_calls == 1U &&
+                    result.frame_effect.reset_calls == (gate == 0U ? 1U : 0U) &&
+                    state->frame_effect.fade_active == (gate == 0U ? 0U : 1U) &&
                     port->count(
                         LegacyBattleFrameCoordinatorCall::finalize_overlay
                     ) == 0U,
-                "4534AE/4534B6 initializes only a nonpositive countdown with gate exactly one"
+                "frame effect waits on the actual gate before the later " "4534AE/4534B6 initialization conditionally clears it"
             );
         }
     }

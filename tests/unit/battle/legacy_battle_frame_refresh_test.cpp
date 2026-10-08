@@ -309,6 +309,8 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
             .current_actor_index = action->current_actor_index,
             .priority_actor_index =
                 port.actor_metric_state().priority_actor_index,
+            .color_initialization_gate =
+                port.battle_color_initialization_gate(),
         };
         const std::array<u32, 3> surfaces{0xA000U, 0xA100U, 0xA200U};
         const auto growth = openswd3::battle::update_legacy_battle_frame_effect(

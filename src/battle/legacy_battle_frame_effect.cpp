@@ -488,9 +488,10 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
         }
     }
 
-    if (state.fade_active != 1U || state.fade_block != 0U) {
+    if (state.fade_active != 1U || context.color_initialization_gate != 0U) {
         return result;
     }
+
     if (stage < 1) {
         reset_effect_state(state, context, result);
         return result;

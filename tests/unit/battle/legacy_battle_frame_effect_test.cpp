@@ -76,6 +76,7 @@ struct Fixture {
     openswd3::battle::LegacyBattleFrameEffectControlState control{};
     u16 current_actor_index{0xFFFFU};
     u32 priority_actor_index{};
+    u32 color_initialization_gate{};
 
     Fixture() {
         static_cast<void>(
@@ -114,6 +115,7 @@ struct Fixture {
             .control = control,
             .current_actor_index = current_actor_index,
             .priority_actor_index = priority_actor_index,
+            .color_initialization_gate = color_initialization_gate,
         };
     }
 
@@ -191,6 +193,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
     for (const bool matches : {false, true}) {
         LegacyBattleFrameEffectState state;
+        state.fade_active = 1U;
         state.cadence = 2;
         state.rotation_cache.stored_action_id = 1U;
         state.rotation_cache.frame_owner_tokens[0U] = 1U;
@@ -209,6 +212,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
             fixture.current_actor_index = 0x8000U;
             fixture.priority_actor_index = matches ? 0xFFFF8000U : 0x00008000U;
             fixture.control.primary_suppression = 1U;
+            fixture.color_initialization_gate = 1U;
         };
         port.on_surface_operation = [&] {
             fixture.current_actor_index = 0x7FFFU;
@@ -225,7 +229,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 result.surface_operation_calls == (matches ? 1U : 0U) &&
                 result.cadence_updates == (matches ? 1U : 0U) &&
                 fixture.refresh.refresh_pending == (matches ? 2U : 1U) &&
-                state.cadence == (matches ? 1 : 2) &&
+                state.cadence == (matches ? 1 : 2) && state.fade_active == 1U &&
+                fixture.color_initialization_gate == 1U &&
                 fixture.current_actor_index == (matches ? 0x7FFFU : 0x8000U) &&
                 fixture.priority_actor_index ==
                     (matches ? 0xFFFF7FFFU : 0x00008000U),
@@ -233,14 +238,101 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         );
     }
 
+    for (const u32 gate : {0U, 1U, 2U, 0x80000000U, 0xFFFFFFFFU}) {
+        for (const u16 stage :
+             std::array<u16, 5>{0U, 1U, 2U, 0xFFFFU, 0x8000U}) {
+            LegacyBattleFrameEffectState state;
+            state.fade_active = 1U;
+            Fixture fixture;
+            fixture.current_actor_index = 7U;
+            fixture.priority_actor_index = 9U;
+            fixture.control.primary_suppression = 1U;
+            fixture.control.secondary_suppression = 2U;
+            fixture.control.red_factor = 3;
+            fixture.control.green_factor = 4;
+            fixture.control.blue_factor = 5;
+            fixture.refresh.refresh_pending = stage;
+            fixture.color_initialization_gate = gate ^ 1U;
+            auto context = fixture.context();
+            fixture.color_initialization_gate = gate;
+            EffectPort port;
+            const auto result =
+                openswd3::battle::update_legacy_battle_frame_effect(
+                    state, port, context, fixture.source(), surfaces, 0
+                );
+            const bool terminal =
+                gate == 0U && std::bit_cast<openswd3::compat::i16>(stage) < 1;
+            const bool descending = gate == 0U && !terminal;
+            const u16 expected_stage = terminal ? 0U
+                : descending                    ? static_cast<u16>(stage - 1U)
+                                                : stage;
+            test.expect_true(
+                result.status == LegacyBattleFrameEffectStatus::completed &&
+                    result.reset_calls == (terminal ? 1U : 0U) &&
+                    result.source_blit_calls == (descending ? 1U : 0U) &&
+                    fixture.refresh.refresh_pending == expected_stage &&
+                    fixture.current_actor_index == (terminal ? 0xFFFFU : 7U) &&
+                    fixture.priority_actor_index == 9U &&
+                    fixture.control.primary_suppression ==
+                        (terminal ? 0U : 1U) &&
+                    fixture.control.secondary_suppression ==
+                        (terminal ? 0U : 2U) &&
+                    fixture.control.red_factor == (terminal ? 0 : 3) &&
+                    fixture.control.green_factor == (terminal ? 0 : 4) &&
+                    fixture.control.blue_factor == (terminal ? 0 : 5) &&
+                    state.fade_active == (terminal ? 0U : 1U) &&
+                    fixture.color_initialization_gate == gate,
+                "4538F7 reads the shared full DWORD after binding and only " "zero permits signed-WORD fading or terminal cleanup"
+            );
+        }
+    }
+
+    for (const u32 gate : {0U, 1U, 2U, 0x80000000U, 0xFFFFFFFFU}) {
+        for (const bool returned : {false, true}) {
+            LegacyBattleFrameEffectState state;
+            state.fade_active = 1U;
+            Fixture fixture;
+            fixture.current_actor_index = 0U;
+            fixture.priority_actor_index = 0U;
+            fixture.control.primary_suppression = 1U;
+            fixture.refresh.refresh_pending = 1U;
+            fixture.color_initialization_gate = gate ^ 1U;
+            EffectPort port;
+            port.surface_returned = returned;
+            port.on_surface_operation = [&] {
+                fixture.color_initialization_gate = gate;
+            };
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::update_legacy_battle_frame_effect(
+                    state, port, context, fixture.source(), surfaces, 0
+                );
+            const bool descending = returned && gate == 0U;
+            test.expect_true(
+                result.status ==
+                        (returned ? LegacyBattleFrameEffectStatus::completed
+                                  : LegacyBattleFrameEffectStatus::
+                                        staged_surface_typed_stop) &&
+                    result.surface_operation_calls == 1U &&
+                    result.cadence_updates == (returned ? 1U : 0U) &&
+                    result.source_blit_calls == (descending ? 1U : 0U) &&
+                    result.reset_calls == 0U &&
+                    fixture.refresh.refresh_pending == (descending ? 0U : 1U) &&
+                    state.fade_active == 1U &&
+                    fixture.color_initialization_gate == gate,
+                "4538F7 consumes the gate changed by a returned surface " "call and an unfinished call preserves its prefix"
+            );
+        }
+    }
+
     for (const u16 stage : std::array<u16, 3>{0U, 0xFFFFU, 0x8000U}) {
         for (const u32 active : {0U, 1U, 2U, 0xFFFFFFFFU}) {
             for (const u32 block : {0U, 1U}) {
                 LegacyBattleFrameEffectState state;
                 state.fade_active = active;
-                state.fade_block = block;
                 state.alternate_surface_mode = 1U;
                 Fixture fixture;
+                fixture.color_initialization_gate = block;
                 fixture.current_actor_index = 0x8000U;
                 fixture.priority_actor_index = 0x00008000U;
                 fixture.refresh.refresh_pending = stage;
@@ -392,6 +484,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
             .control = fixture.control,
             .current_actor_index = fixture.current_actor_index,
             .priority_actor_index = fixture.priority_actor_index,
+            .color_initialization_gate = fixture.color_initialization_gate,
         };
         EffectPort port;
         const auto result = openswd3::battle::update_legacy_battle_frame_effect(
