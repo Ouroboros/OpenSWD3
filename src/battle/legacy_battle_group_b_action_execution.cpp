@@ -530,19 +530,19 @@ advance_legacy_battle_group_b_action_execution(
         primary.field_5a = flags;
     }
 
-    const auto refresh = refresh_legacy_battle_frame(
-        port, primary.field_64, primary.field_66, primary.field_68
-    );
+    auto& control = port.frame_effect_control_state();
+    control.red_factor = std::bit_cast<i16>(primary.field_64);
+    control.green_factor = std::bit_cast<i16>(primary.field_66);
+    control.blue_factor = std::bit_cast<i16>(primary.field_68);
+    const auto refresh = refresh_legacy_battle_frame(port);
     ++result.frame_refresh_calls;
     result.port_calls += refresh.port_calls;
     registers.eax = refresh.return_value;
     registers.ecx = refresh.final_ecx;
     registers.edx = refresh.final_edx;
-    const auto& refresh_state = port.frame_refresh_state();
-    if (refresh_state.snapshot_word_36 != 0U ||
-        refresh_state.snapshot_word_38 != 0U ||
-        refresh_state.snapshot_word_3a != 0U) {
-        dispatch.active_effect_gate = 1U;
+    if (control.red_factor != 0 || control.green_factor != 0 ||
+        control.blue_factor != 0) {
+        control.secondary_suppression = 1U;
     }
 
     if ((state.action_runtime_gate & 0x8000U) == 0U) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_action_rotation_cache.hpp"
+#include "openswd3/battle/legacy_battle_frame_effect_control.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_screen_flash.hpp"
 #include "openswd3/compat/types.hpp"
@@ -49,8 +50,6 @@ public:
 
 struct LegacyBattleFrameEffectState {
     compat::u32 published_source_token{};
-    compat::u32 primary_suppression{};
-    compat::u32 secondary_suppression{};
     compat::u16 split_extent{};
     compat::u32 split_suppression{};
 
@@ -61,9 +60,6 @@ struct LegacyBattleFrameEffectState {
     compat::i16 current_encounter_id{-1};
     compat::i32 expected_encounter_id{};
     compat::u32 alternate_surface_mode{};
-    compat::i16 red_factor{};
-    compat::i16 green_factor{};
-    compat::i16 blue_factor{};
     compat::i32 cadence{};
 
     compat::u32 fade_active{};
@@ -83,6 +79,7 @@ struct LegacyBattleFrameEffectContext {
     compat::i32& pending_rotation;  // 0x0053BD5C, shared with actor movement.
     LegacyBattleScreenFlashState& flash;
     LegacyBattleFrameRefreshState& refresh;
+    LegacyBattleFrameEffectControlState& control;
 };
 
 enum class LegacyBattleFrameEffectStatus : compat::u8 {

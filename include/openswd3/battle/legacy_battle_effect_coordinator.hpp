@@ -44,6 +44,7 @@ struct LegacyBattleEffectCoordinatorState
     compat::u32 focus_release_latch{};
     compat::u32 actor_activity_latch{};
     compat::u32 group_activity_latch{};
+    compat::u32 primary_suppression{};
 
     compat::u16 scan_limit{};
     compat::u16 scan_delay_counter{};

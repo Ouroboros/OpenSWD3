@@ -866,13 +866,13 @@ void test_battle_transition(openswd3::test::Context& test) {
 
     for (const u32 stop_at : {1U, 2U}) {
         openswd3::battle::LegacyBattleTransitionState state;
-        state.frame_effect.primary_suppression = 1U;
         state.frame_effect.current_encounter_id = 9;
         state.frame_effect.expected_encounter_id = 9;
         state.staged_surface_tokens = {0xB000U, 0xB100U, 0xB200U};
         auto startup = startup_state();
         TransitionPorts ports;
         ports.frame_effect_surface_stop_at = stop_at;
+        ports.frame_effect_control_state().primary_suppression = 1U;
         ports.frame_refresh_state().refresh_pending = 1U;
         ports.effect_shift_state().actor_delta = 99;
         ports.screen_flash_state().active = 1U;

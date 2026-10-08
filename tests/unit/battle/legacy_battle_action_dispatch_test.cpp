@@ -7,6 +7,7 @@
 #include <bit>
 #include <cstring>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -39,6 +40,10 @@ public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
+        if (on_call) {
+            on_call(request);
+        }
+
         const auto found = replies.find(request.callee_token);
         if (found != replies.end() && !found->second.empty()) {
             const LegacyBattleActionCallReply reply = found->second.front();
@@ -269,6 +274,7 @@ public:
         ));
     }
 
+    std::function<void(const LegacyBattleActionCallRequest&)> on_call;
     u16 action{};
     u16 fallback_action{};
     u32 terminal_return{};
@@ -1645,7 +1651,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 static_cast<u16>(fixture.startup_reset.block_52022c[10U]) ==
                     4U &&
                 state.frame_effect.fade_active == 1U &&
-                state.frame_effect.primary_suppression == 0U &&
+                port.frame_effect_control_state().primary_suppression == 0U &&
                 state.temporary_record[0x19U] == 0x20U,
             "action thirteen initializes effect then appends target plus one to the shared first-four-row event table"
         );
@@ -2437,7 +2443,6 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
     }
 
     {
-        LegacyBattleActionDispatchState dispatch;
         LegacyBattleTargetPhaseState phase;
         phase.tick = 3U;
         LegacyBattleGroupAActionExecutionState actor;
@@ -2480,9 +2485,58 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
         port.push(0x0047CEC0U, {.eax = 1U});
         port.push(0x0047CEC0U, {.eax = 1U, .edx = 0xBEEF1234U});
         auto context = fixture.context();
+        for (const u16 initial_red : {u16{0U}, u16{2U}}) {
+            for (const i32 final_red : {0, 5}) {
+                auto color_actor =
+                    std::make_unique<LegacyBattleGroupAActionExecutionState>();
+                color_actor->profile_value = actor.profile_value;
+                color_actor->special_profile_variant =
+                    actor.special_profile_variant;
+                color_actor->special_action_record =
+                    actor.special_action_record;
+                color_actor->special_action_record.field_5a = 0U;
+                color_actor->special_action_record.field_64 = initial_red;
+                LegacyBattleTargetPhaseState color_phase;
+                color_phase.tick = 3U;
+                LegacyBattleGroupAActionExecutionSharedState color_shared;
+                DispatchPort color_port;
+                color_port.frame_refresh_state().snapshot_word_36 = 0x7FFFU;
+                auto& control = color_port.frame_effect_control_state();
+                control.primary_suppression = 7U;
+                control.secondary_suppression = 9U;
+                color_port.on_call = [&](const auto& call) {
+                    if (call.callee_token == 0x00416F60U &&
+                        color_port.count(0x00416F60U) == 3U) {
+                        control.red_factor =
+                            static_cast<openswd3::compat::i16>(final_red);
+                        control.green_factor = 0;
+                        control.blue_factor = 0;
+                    }
+                };
+                const auto color_result = openswd3::battle::
+                    advance_legacy_battle_special_four_oh_five(
+                        &color_phase,
+                        color_actor.get(),
+                        &color_shared,
+                        color_port,
+                        context,
+                        {.actor_token = 0x12340000U,
+                         .target_token = 0x00525508U}
+                    );
+                test.expect_true(
+                    color_result.frame_refresh_calls == 1U &&
+                        color_port.count(0x00416F60U) == 3U &&
+                        control.primary_suppression ==
+                            (final_red == 0 ? 7U : 1U) &&
+                        control.secondary_suppression == 9U &&
+                        control.red_factor == final_red,
+                    "action 405 checks the current colors after final unlock without replacing the other gate"
+                );
+            }
+        }
+
         const auto completed =
             openswd3::battle::advance_legacy_battle_special_four_oh_five(
-                dispatch,
                 &phase,
                 &actor,
                 &shared,
@@ -2551,7 +2605,6 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
         pending_port.push(0x0047F940U, {.eax = 0U});
         const auto pending =
             openswd3::battle::advance_legacy_battle_special_four_oh_five(
-                dispatch,
                 &pending_phase,
                 &pending_actor,
                 &shared,
@@ -2581,7 +2634,6 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
         DispatchPort missing_port;
         const auto missing =
             openswd3::battle::advance_legacy_battle_special_four_oh_five(
-                dispatch,
                 &phase,
                 &stopped_actor,
                 &shared,
@@ -2609,7 +2661,6 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
         shared_stop_actor.special_action_record.cached_base_variant = 7U;
         const auto shared_stop =
             openswd3::battle::advance_legacy_battle_special_four_oh_five(
-                dispatch,
                 &phase,
                 &shared_stop_actor,
                 nullptr,
@@ -2637,7 +2688,6 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
         DispatchPort phase_stop_port;
         const auto phase_stop =
             openswd3::battle::advance_legacy_battle_special_four_oh_five(
-                dispatch,
                 nullptr,
                 &phase_stop_actor,
                 &shared,
@@ -3384,6 +3434,46 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
         static openswd3::battle::LegacyBattleActorProgressState progress;
         static Fixture fixture;
         static auto context = fixture.context();
+
+        for (const u16 initial_red : {u16{0U}, u16{2U}}) {
+            for (const i32 final_red : {0, 5}) {
+                auto actor = prepare_actor();
+                actor->special_action_record.field_64 = initial_red;
+                DispatchPort port;
+                port.frame_refresh_state().snapshot_word_36 = 0x7FFFU;
+                auto& control = port.frame_effect_control_state();
+                control.primary_suppression = 7U;
+                control.secondary_suppression = 9U;
+                port.on_call = [&](const auto& call) {
+                    if (call.callee_token == 0x00416F60U &&
+                        port.count(0x00416F60U) == 3U) {
+                        control.red_factor =
+                            static_cast<openswd3::compat::i16>(final_red);
+                        control.green_factor = 0;
+                        control.blue_factor = 0;
+                    }
+                };
+                const auto result =
+                    openswd3::battle::advance_legacy_battle_action_four_effect(
+                        actor.get(),
+                        &progress,
+                        &shared,
+                        port,
+                        context,
+                        {.actor_token = 0x12340000U,
+                         .target_token = 0x00525508U}
+                    );
+                test.expect_true(
+                    result.frame_refresh_calls == 1U &&
+                        port.count(0x00416F60U) == 3U &&
+                        control.primary_suppression ==
+                            (final_red == 0 ? 7U : 1U) &&
+                        control.secondary_suppression == 9U &&
+                        control.red_factor == final_red,
+                    "actions 4 and 404 publish suppression from the current colors after final unlock"
+                );
+            }
+        }
 
         static auto gated_actor_owner = prepare_actor();
         auto& gated_actor = *gated_actor_owner;
@@ -4526,10 +4616,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.action_four_oh_two_calls == 1U &&
                 result.action_four_oh_two.return_eax == 1U &&
-                state.frame_effect.red_factor == -12 &&
-                state.frame_effect.green_factor == -12 &&
-                state.frame_effect.blue_factor == -12 &&
-                state.frame_effect.primary_suppression == 1U &&
+                port.frame_effect_control_state().red_factor == -12 &&
+                port.frame_effect_control_state().green_factor == -12 &&
+                port.frame_effect_control_state().blue_factor == -12 &&
+                port.frame_effect_control_state().primary_suppression == 1U &&
                 state.frame_effect.alternate_surface_mode == 1U &&
                 state.action_pending == 1U && port.count(0x00474BA0U) == 0U,
             "special action four hundred two production preserves frame-effect setup and uses the typed particle state machine"
@@ -6792,10 +6882,10 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 result.action_fourteen_calls == 1U &&
                 result.action_fourteen.return_eax == 1U &&
                 port.count(0x00471AD0U) == 0U && result.return_value == 1U &&
-                state.frame_effect.primary_suppression == 0U &&
-                state.frame_effect.red_factor == 0 &&
-                state.frame_effect.green_factor == 0 &&
-                state.frame_effect.blue_factor == 0 &&
+                port.frame_effect_control_state().primary_suppression == 0U &&
+                port.frame_effect_control_state().red_factor == 0 &&
+                port.frame_effect_control_state().green_factor == 0 &&
+                port.frame_effect_control_state().blue_factor == 0 &&
                 state.frame_effect.fade_active == 1U &&
                 static_cast<u16>(state.phase_counter) == 0U &&
                 port.battle_message_state() == 0x62U &&

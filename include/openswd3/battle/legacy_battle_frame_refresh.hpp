@@ -57,18 +57,10 @@ struct LegacyBattleFrameRefreshResult {
     bool refreshed{};
 };
 
-[[nodiscard]] LegacyBattleFrameRefreshResult refresh_legacy_battle_frame(
-    LegacyBattleActionDispatchPort& port,
-    compat::u16 current_word_36,
-    compat::u16 current_word_38,
-    compat::u16 current_word_3a
-);
+[[nodiscard]] LegacyBattleFrameRefreshResult
+refresh_legacy_battle_frame(LegacyBattleActionDispatchPort& port);
 
-[[nodiscard]] LegacyBattleFrameRefreshResult refresh_legacy_battle_frame(
-    LegacyBattleEffectCallPort& port,
-    compat::u16 current_word_36,
-    compat::u16 current_word_38,
-    compat::u16 current_word_3a
-);
+[[nodiscard]] LegacyBattleFrameRefreshResult
+refresh_legacy_battle_frame(LegacyBattleEffectCallPort& port);
 
 }  // namespace openswd3::battle

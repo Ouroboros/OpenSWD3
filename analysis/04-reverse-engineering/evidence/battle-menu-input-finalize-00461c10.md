@@ -51,6 +51,11 @@ selected group-B、active group-A、live group-B、十项marker、十项selectio
 
 本轮已删除旧input字段并回收其余同址读写；当前验证记录见共享选择等待状态证据。其他地址与SDL绑定仍未完成，不据此宣告战斗生命周期完成。
 
+B11另按461E3D恢复动作种类2的primary抑制门清零，删除input的
+`selection_mode_cache`副本；secondary保持入口值。该地址属于BF94，
+与上述BFC0选择等待门独立。core/ASan setup各1/1及SDL链接通过，
+实际共享范围与日志见[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
+
 ## 7. 验证与动态差分
 
 定向测试覆盖：selected group-B正常与code-zero停止；message 1/2及active一过前停止；message 3完整两组角色循环、匹配/回退action、group-B count 9前缀；message 4/5/7/8/27/30与默认跳表；caller普通与停止传播；全局reset新增owner同步。

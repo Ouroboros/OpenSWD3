@@ -10,7 +10,9 @@
 
 主field5A bit15发布共享negative flag一并清negative reset，但不消费该位。bit2路径先整word清field5A，再发布gate bit15并以目标为this调用待审刷新。bit3路径无论bit10是否存在都会消费bit3、发布bit15、清motion word、整word清field5A并清完整效果记录；bit10存在时先把唯一颜色初始化gate置一，并将field7A、7C、7E、80、82、84、86按signed word直连已关闭七参数颜色初始化，再仅清bit10。因为bit3最终整word清零，同word bit0不会继续执行。独立bit0路径发布bit15、清motion与field5A，调用待审目标事件并清完整效果记录。
 
-函数每帧无条件把主记录field64、field66、field68作为三项word快照直连已关闭画面刷新函数；刷新内部继续持有唯一surface、snapshot与pending owner。只有runtime gate bit15置位才进入效果段。
+函数每帧无条件将主记录field64、field66、field68发布到实际三色WORD存储，再直连画面刷新函数。474839在刷新返回后检查当前三色，任一非零才将实际primary抑制门写1；全零保留门原值。颜色配置与历史快照均不能代替返回后的重读，surface、snapshot与pending继续由唯一刷新状态持有。只有runtime gate bit15置位才进入效果段。
+
+B11回调向量覆盖刷新后清零与改非零，core/ASan actor_frame_316各1/1及SDL链接通过。完整地址回收、共享存储和实际日志见[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)；不据此升级完整SDL帧或实际续玩验收。
 
 `+0x630`效果记录action ID默认取行动者runtime word、base variant写零；主记录field24非零时以field24与field28覆盖。行动者`+0xD9C`低bit0为零时，通过带记录、frame、flags与坐标引用的窄port调用待审效果更新，参数保留主记录field76/78。该bit为一时走另一待审效果callee：X按`positionX-targetXOffset+sourceXOffset`、Y按`positionY+auxiliaryWord-primaryRecord.drawY`计算，另传signed sourceY；返回非一立即返回零。返回一后按原顺序给效果field5A或bit0，置主动作记录与效果记录完成位并清motion。
 

@@ -113,11 +113,12 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             state.summon_x = 0U;
             state.summon_y = 0U;
         }
-        state.frame_effect.red_factor = -12;
-        state.frame_effect.green_factor = -12;
-        state.frame_effect.blue_factor = -12;
-        state.frame_effect.primary_suppression = 1U;
-        refresh_shared_frame(state, port, result);
+        auto& control = port.frame_effect_control_state();
+        control.red_factor = -12;
+        control.green_factor = -12;
+        control.blue_factor = -12;
+        control.primary_suppression = 1U;
+        refresh_shared_frame(port, result);
         const u16 summon_index = low_word(state.summon_packed);
         if (summon_index >= state.summon_target_x.size()) {
             result.status =

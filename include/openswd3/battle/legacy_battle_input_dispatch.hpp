@@ -63,7 +63,6 @@ struct LegacyBattleInputDispatchState {
     compat::u32 selection_animation_frame_a{};              // 0x0053BD90
     compat::u32 selection_animation_frame_b{};              // 0x0053BD94
     compat::u32 selection_animation_phase{};                // 0x0053BD98
-    compat::u32 selection_mode_cache{};                     // 0x0053BF94
     compat::u32 selection_target_cache{};                   // 0x0053BFF0
     compat::u32 selected_actor_reset_gate{};                // 0x0053C02C
     std::array<compat::u32, 6> selection_text_workspace{};  // 0x0053C16C
@@ -150,6 +149,7 @@ struct LegacyBattleInputDispatchCallReply {
 class LegacyBattleInputDispatchPort
     : public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleInputDispatchStatePort,
+      public virtual LegacyBattleFrameEffectControlStatePort,
       public virtual LegacyBattleTargetSelectionRuntimePort,
       public virtual LegacyBattleGroupBActionItemOptionPort {
 public:

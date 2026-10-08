@@ -404,7 +404,12 @@ void seed_state(
     input.selection_animation_frame_a = 9U;
     input.selection_animation_frame_b = 9U;
     input.selection_animation_phase = 9U;
-    input.selection_mode_cache = 9U;
+    auto& control = port.frame_effect_control_state();
+    control.primary_suppression = 9U;
+    control.secondary_suppression = 0xFFFFFFFFU;
+    control.red_factor = -32768;
+    control.green_factor = 32767;
+    control.blue_factor = -1;
     input.selection_target_cache = 9U;
     input.selected_actor_reset_gate = 9U;
     input.selection_workspace.fill(9U);
@@ -505,6 +510,12 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         port.screen_flash_state().intensity = 8U;
         port.frame_refresh_state().active_surface_token = 0x12345678U;
         port.frame_refresh_state().refresh_pending = 7U;
+        auto& control = port.frame_effect_control_state();
+        control.primary_suppression = 0xFFFFFFFFU;
+        control.secondary_suppression = 2U;
+        control.red_factor = -32768;
+        control.green_factor = 32767;
+        control.blue_factor = -1;
         const auto result = openswd3::battle::reset_legacy_battle_globals(
             state,
             startup,
@@ -528,8 +539,12 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 port.screen_flash_state().intensity == 8U &&
                 port.frame_refresh_state().active_surface_token ==
                     0x12345678U &&
-                port.frame_refresh_state().refresh_pending == 7U,
-            "global reset preserves the failed release and skips all suffixes"
+                port.frame_refresh_state().refresh_pending == 7U &&
+                control.primary_suppression == 0xFFFFFFFFU &&
+                control.secondary_suppression == 2U &&
+                control.red_factor == -32768 && control.green_factor == 32767 &&
+                control.blue_factor == -1,
+            "global reset preserves the failed release and all five actual color control fields"
         );
     }
 
@@ -818,7 +833,11 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 input.selection_animation_frame_a == 0U &&
                 input.selection_animation_frame_b == 0U &&
                 input.selection_animation_phase == 0U &&
-                input.selection_mode_cache == 0U &&
+                port.frame_effect_control_state().primary_suppression == 0U &&
+                port.frame_effect_control_state().secondary_suppression == 0U &&
+                port.frame_effect_control_state().red_factor == 0 &&
+                port.frame_effect_control_state().green_factor == 0 &&
+                port.frame_effect_control_state().blue_factor == 0 &&
                 input.selection_target_cache == 0U &&
                 input.selected_actor_reset_gate == 9U &&
                 std::ranges::all_of(
@@ -1075,7 +1094,21 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             "write trace preserves all authoritative store tuples, the post-callee repeat, and final clear"
         );
         test.expect_true(
-            state.unmapped_bytes.contains(0x004A7568U) == false &&
+            state.unmapped_bytes.contains(0x0053BF36U) == false &&
+                state.unmapped_bytes.contains(0x0053BF37U) == false &&
+                state.unmapped_bytes.contains(0x0053BF38U) == false &&
+                state.unmapped_bytes.contains(0x0053BF39U) == false &&
+                state.unmapped_bytes.contains(0x0053BF3AU) == false &&
+                state.unmapped_bytes.contains(0x0053BF3BU) == false &&
+                state.unmapped_bytes.contains(0x0053BF94U) == false &&
+                state.unmapped_bytes.contains(0x0053BF95U) == false &&
+                state.unmapped_bytes.contains(0x0053BF96U) == false &&
+                state.unmapped_bytes.contains(0x0053BF97U) == false &&
+                state.unmapped_bytes.contains(0x0053BF98U) == false &&
+                state.unmapped_bytes.contains(0x0053BF99U) == false &&
+                state.unmapped_bytes.contains(0x0053BF9AU) == false &&
+                state.unmapped_bytes.contains(0x0053BF9BU) == false &&
+                state.unmapped_bytes.contains(0x004A7568U) == false &&
                 state.unmapped_bytes.contains(0x004A7569U) == false &&
                 state.unmapped_bytes.contains(0x004A7574U) == false &&
                 port.frame_refresh_state().active_surface_token ==

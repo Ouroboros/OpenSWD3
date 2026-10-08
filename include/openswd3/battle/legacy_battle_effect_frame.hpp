@@ -10,6 +10,7 @@
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_screen_flash.hpp"
+#include "openswd3/battle/legacy_battle_frame_effect_control.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_group_a_reward_profile_state.hpp"
 #include "openswd3/battle/legacy_battle_pair_transition.hpp"
@@ -49,6 +50,7 @@ class LegacyBattleEffectCallPort
       public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattleScreenFlashStatePort,
+      public virtual LegacyBattleFrameEffectControlStatePort,
       public virtual LegacyBattlePairTransitionPort,
       public virtual LegacyBattleGroupARewardProfileStatePort,
       public virtual LegacyBattleSharedPhaseStatePort,
@@ -140,11 +142,6 @@ struct LegacyBattleSharedEffectFrameState
     compat::u32 sample_handle_value{};
     compat::u32 current_resource_value_token{};
 
-    compat::u16 shared_word_36{};
-    compat::u16 shared_word_38{};
-    compat::u16 shared_word_3a{};
-    compat::u32 primary_suppression{};
-    compat::u32 split_suppression{};
 
     compat::u32 battle_gate{};
 

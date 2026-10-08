@@ -1025,12 +1025,12 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.action.frame_effect.primary_suppression = 1U;
             state.action.group_a_action_execution[0U].start_gate = 1U;
             state.action.group_a_action_execution[0U].field_26b8 = 0x80000005U;
             Fixture fixture;
             fixture.startup.party[0U].progress.special_ready = 1U;
             DispatchPort port;
+            port.frame_effect_control_state().primary_suppression = 1U;
             port.actor_metric_state().pending_action_activation_latch = 9U;
             port.push(
                 0x0047BA80U,
@@ -1103,12 +1103,12 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.action.frame_effect.primary_suppression = 1U;
             state.action.group_a_action_execution[0U].start_gate = 1U;
             state.action.group_a_action_execution[0U].field_26b8 = 0x80000005U;
             Fixture fixture;
             fixture.startup.party[0U].progress.special_ready = 1U;
             DispatchPort port;
+            port.frame_effect_control_state().primary_suppression = 1U;
             port.push(0x0047BA80U, {.eax = 1U});
             auto context = fixture.context();
             context.actor_start_gate_request.entry_esp = 0x88008000U;
@@ -1154,9 +1154,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.action.frame_effect.primary_suppression = 1U;
             Fixture fixture;
             DispatchPort port;
+            port.frame_effect_control_state().primary_suppression = 1U;
             port.push(0x00479850U, {.eax = 1U});
             auto context = fixture.context();
             const auto result =
@@ -1186,7 +1186,6 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.action.frame_effect.primary_suppression = 1U;
             auto& actor = state.action.group_a_action_execution[0U];
             actor.start_gate = 1U;
             actor.field_26b8 = 5U;
@@ -1196,6 +1195,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             Fixture fixture;
             fixture.startup.party[0U].coordinate_mode_gate = 3U;
             DispatchPort port;
+            port.frame_effect_control_state().primary_suppression = 1U;
             port.push(0x00479850U, {.eax = 1U});
             auto context = fixture.context();
             context.actor_start_gate_request.entry_edx = 0x87654321U;
@@ -1245,7 +1245,6 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.action.frame_effect.primary_suppression = 1U;
             auto& actor = state.action.group_a_action_execution[0U];
             actor.start_gate = 1U;
             actor.field_26b8 = 5U;
@@ -1255,6 +1254,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             Fixture fixture;
             fixture.startup.party[0U].coordinate_mode_gate = 3U;
             DispatchPort port;
+            port.frame_effect_control_state().primary_suppression = 1U;
             auto context = fixture.context();
             context.actor_start_gate_request.entry_edx = 0x87654321U;
             context.actor_action_presentation_requests.count = 1U;
@@ -2147,7 +2147,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             );
         }
 
-        {
+        for (const openswd3::compat::u32 suppression :
+             {0U, 1U, 2U, 0xFFFFFFFFU}) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
@@ -2165,6 +2166,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 .target_selection_latch = 1U;
             DispatchPort port;
             state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.frame_effect.split_suppression = 1U;
+            port.frame_effect_control_state().primary_suppression = suppression;
+            port.frame_effect_control_state().secondary_suppression = 1U;
             port.battle_frame_input_resolution_state()
                 .equipment_grid_selections = {9U, 8U, 7U, 6U};
             state.action_runtime_word = 7U;
@@ -2209,8 +2213,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         openswd3::battle::kLegacyBattleActionGroupABaseToken &&
                     result.actor_action_target_clear.last.returned &&
                     state.action_runtime_word == 7U &&
-                    port.effect_shift_state().actor_delta == 0,
-                "active actor directly composes action dispatch and post-action cleanup suffixes"
+                    port.effect_shift_state().actor_delta == 0 &&
+                    state.action.frame_effect.fade_active ==
+                        (suppression == 1U ? 1U : 0U),
+                "active actor cleanup fades only for exact primary one and ignores secondary and grayscale gates"
             );
             test.expect_true(
                 result.actor_gate_decay.calls == 1U,

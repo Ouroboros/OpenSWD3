@@ -262,7 +262,7 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         bool publish_action = true;
         switch (eax) {
         case 2U:
-            input.selection_mode_cache = 0U;
+            port.frame_effect_control_state().primary_suppression = 0U;
             bindings.message_state = eax;
             break;
         case 3U:

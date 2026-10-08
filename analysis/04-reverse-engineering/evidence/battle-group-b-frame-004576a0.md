@@ -2,6 +2,12 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 
+B11的45820D/458215现借实际BF94/BF98双门，BF30灰度分带独立。
+收尾4580CA只检查secondary精确1才触发淡出，primary为1不替代。
+单效果适配器的const/非const getter转发实际画面控制状态，避免临时副本。
+四种门值收尾回归通过core/ASan actor_frame_316各1/1，SDL链接通过。
+全部访问与日志见[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
+
 ## 1. 完整LST范围
 
 权威函数为`0x004576A0..0x004582AB`，完整1356行、86个静态call站点、66个`loc_`标签，无外部FUNCTION CHUNK。唯一caller为尚未关闭的`0x0045B5E0`。

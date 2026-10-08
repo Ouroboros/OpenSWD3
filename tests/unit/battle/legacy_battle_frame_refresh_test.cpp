@@ -4,7 +4,9 @@
 #include "test.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <deque>
+#include <functional>
 #include <unordered_map>
 #include <vector>
 
@@ -39,6 +41,10 @@ public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
+        if (on_call) {
+            on_call(request);
+        }
+
         const auto found = replies.find(request.callee_token);
         if (found == replies.end() || found->second.empty()) {
             return {};
@@ -73,6 +79,7 @@ public:
         );
     }
 
+    std::function<void(const LegacyBattleActionCallRequest&)> on_call;
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
     std::vector<openswd3::battle::LegacyBattleFrameEffectSurfaceRequest>
@@ -97,18 +104,95 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
     using openswd3::battle::refresh_legacy_battle_frame;
 
     {
+        FrameRefreshPort port;
+        auto& state = port.frame_refresh_state();
+        auto& control = port.frame_effect_control_state();
+        state.surface_tokens = {0x1111U, 0x2222U};
+        state.viewport_token = 0x4444U;
+        state.final_surface_token = 0x5555U;
+        control.red_factor = 3;
+        control.green_factor = 4;
+        control.blue_factor = 5;
+        bool final_lock_saw_snapshots = false;
+        port.on_call = [&](const LegacyBattleActionCallRequest& request) {
+            if (request.callee_token == 0x00485330U) {
+                control.red_factor = port.count(0x00485330U) == 1U ? 7 : -32768;
+            } else if (request.callee_token == 0x00420560U) {
+                control.green_factor =
+                    port.count(0x00420560U) == 1U ? -9 : 32767;
+            } else if (request.callee_token == 0x00420600U) {
+                control.blue_factor = port.count(0x00420600U) == 1U ? -11 : -1;
+            } else if (
+                request.callee_token == 0x004206F0U &&
+                port.count(0x004206F0U) == 2U
+            ) {
+                control.red_factor = -3;
+                control.green_factor = 5;
+                control.blue_factor = -7;
+            } else if (
+                request.callee_token == 0x00416F10U &&
+                port.count(0x00416F10U) == 3U
+            ) {
+                final_lock_saw_snapshots = state.refresh_pending == 1U &&
+                    state.snapshot_word_36 == 0xFFFDU &&
+                    state.snapshot_word_38 == 5U &&
+                    state.snapshot_word_3a == 0xFFF9U;
+                control.red_factor = 0;
+                control.green_factor = 0;
+                control.blue_factor = 0;
+            }
+        };
+        const auto result = refresh_legacy_battle_frame(port);
+        constexpr std::array<u32, 3> channels{
+            0x00420560U, 0x00420600U, 0x004206F0U
+        };
+        constexpr std::array<u32, 3> first{3U, 0xFFFFFFFBU, 0xFFFFFFFAU};
+        constexpr std::array<u32, 3> second{0xFFFF8000U, 0x7FFEU, 0xFFFFFFFEU};
+        bool factors_match = true;
+        for (std::size_t index = 0; index < channels.size(); ++index) {
+            const auto* first_call = find_call(port, channels[index], 0U);
+            const auto* second_call = find_call(port, channels[index], 1U);
+            factors_match = factors_match && first_call != nullptr &&
+                second_call != nullptr &&
+                first_call->arguments[2] == first[index] &&
+                second_call->arguments[2] == second[index];
+        }
+
+        test.expect_true(
+            result.refreshed && result.port_calls == 16U && factors_match &&
+                final_lock_saw_snapshots && control.red_factor == 0 &&
+                control.green_factor == 0 && control.blue_factor == 0 &&
+                state.snapshot_word_36 == 0xFFFDU &&
+                state.snapshot_word_38 == 5U &&
+                state.snapshot_word_3a == 0xFFF9U &&
+                state.active_surface_token == 0x5555U,
+            "port mutations are read at each original WORD site while the final lock keeps current colors distinct from published snapshots"
+        );
+    }
+
+    {
         SharedFrameRefreshPort port;
         LegacyBattleActionDispatchPort& action_port = port;
         LegacyBattleEffectCallPort& effect_port = port;
         action_port.frame_refresh_state().snapshot_word_36 = 0x1234U;
+        action_port.frame_effect_control_state().red_factor = -32768;
+        action_port.frame_effect_control_state().primary_suppression =
+            0x12345678U;
         test.expect_true(
             &action_port.frame_refresh_state() ==
                     &effect_port.frame_refresh_state() &&
                 effect_port.frame_refresh_state().snapshot_word_36 == 0x1234U &&
                 effect_port.frame_refresh_state().refresh_pending == 0U &&
                 effect_port.frame_refresh_state().active_surface_token ==
-                    0xFFFFFFFFU,
-            "action and effect ports share one physical refresh storage"
+                    0xFFFFFFFFU &&
+                &action_port.frame_effect_control_state() ==
+                    &effect_port.frame_effect_control_state() &&
+                effect_port.frame_effect_control_state().red_factor == -32768 &&
+                effect_port.frame_effect_control_state().primary_suppression ==
+                    0x12345678U &&
+                effect_port.frame_effect_control_state()
+                        .secondary_suppression == 0U,
+            "action and effect ports share the physical refresh and control storage"
         );
     }
 
@@ -121,8 +205,13 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         state.entry_eax = 0xABCD0000U;
         state.entry_ecx = 0x13570000U;
         state.entry_edx = 0x24680000U;
-        const auto result =
-            refresh_legacy_battle_frame(port, 0x1234U, 0x5678U, 0x9ABCU);
+        auto& control = port.frame_effect_control_state();
+        control.red_factor = 0x1234;
+        control.green_factor = 0x5678;
+        control.blue_factor = std::bit_cast<openswd3::compat::i16>(
+            openswd3::compat::u16{0x9ABCU}
+        );
+        const auto result = refresh_legacy_battle_frame(port);
         test.expect_true(
             !result.refreshed && result.port_calls == 0U &&
                 result.return_value == 0xABCD1234U &&
@@ -145,8 +234,11 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         port.push(0x00416F60U, {});
         port.push(0x00416F60U, {});
         port.push(0x00416F60U, {.eax = 0xDEADBEEFU});
-        const auto result =
-            refresh_legacy_battle_frame(port, 3U, 0xFFFFU, 0xFFFDU);
+        auto& control = port.frame_effect_control_state();
+        control.red_factor = 3;
+        control.green_factor = -1;
+        control.blue_factor = -3;
+        const auto result = refresh_legacy_battle_frame(port);
         const auto* first_red = find_call(port, 0x00420560U, 0U);
         const auto* second_red = find_call(port, 0x00420560U, 1U);
         const auto* first_green = find_call(port, 0x00420600U, 0U);
@@ -189,7 +281,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         );
 
         openswd3::battle::LegacyBattleFrameEffectState effect;
-        effect.primary_suppression = 1U;
+        control.primary_suppression = 1U;
         effect.current_encounter_id = 0;
         effect.cadence = 2;
         openswd3::rendering::LegacyFramebuffer framebuffer;
@@ -209,6 +301,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
             .pending_rotation = port.effect_shift_state().actor_delta,
             .flash = port.screen_flash_state(),
             .refresh = state,
+            .control = control,
         };
         const std::array<u32, 3> surfaces{0xA000U, 0xA100U, 0xA200U};
         const auto growth = openswd3::battle::update_legacy_battle_frame_effect(

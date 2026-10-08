@@ -798,18 +798,14 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             ));
         }
 
-        state.shared_word_36 = primary.shared_word_36;
-        state.shared_word_38 = primary.shared_word_38;
-        state.shared_word_3a = primary.shared_word_3a;
-        const auto refresh = refresh_legacy_battle_frame(
-            port,
-            state.shared_word_36,
-            state.shared_word_38,
-            state.shared_word_3a
-        );
+        auto& control = port.frame_effect_control_state();
+        control.red_factor = std::bit_cast<i16>(primary.shared_word_36);
+        control.green_factor = std::bit_cast<i16>(primary.shared_word_38);
+        control.blue_factor = std::bit_cast<i16>(primary.shared_word_3a);
+        const auto refresh = refresh_legacy_battle_frame(port);
         result.port_calls += refresh.port_calls;
-        state.primary_suppression = 1U;
-        state.split_suppression = 1U;
+        control.primary_suppression = 1U;
+        control.secondary_suppression = 1U;
     }
 
     u32 stale_final_edx = state.alternate_active[slot_index];

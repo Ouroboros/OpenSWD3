@@ -37,6 +37,7 @@
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_screen_flash.hpp"
+#include "openswd3/battle/legacy_battle_frame_effect_control.hpp"
 #include "openswd3/battle/legacy_battle_reward_scale.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
@@ -185,6 +186,7 @@ class LegacyBattleActionDispatchPort
       public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattleEffectShiftStatePort,
       public virtual LegacyBattleScreenFlashStatePort,
+      public virtual LegacyBattleFrameEffectControlStatePort,
       public virtual LegacyBattleGroupASummonMaterializationPort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:
@@ -1346,8 +1348,6 @@ struct LegacyBattleActionDispatchState {
     compat::u32 action_pending_aux{};  // 0x0053BFC0; shared selection gate.
     compat::u32 selection_cache_gate_b{};  // 0x0053BFC4; actor update wait.
     compat::u32 resolution_latch{};  // 0x0053BF5C; selection/result state.
-    // sub_4731A0 writes 0x0053BF94 here; shared suppression binding is pending.
-    compat::u32 frame_refresh_pending{};
 
     compat::u32 action_runtime_flags{};
     compat::u16 side_selection_word{};
@@ -1806,7 +1806,6 @@ struct LegacyBattleActionDispatchResult {
 // sub_4731A0.
 [[nodiscard]] LegacyBattleSpecialFourOhFiveResult
 advance_legacy_battle_special_four_oh_five(
-    LegacyBattleActionDispatchState& dispatch,
     LegacyBattleTargetPhaseState* phase,
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleGroupAActionExecutionSharedState* shared,

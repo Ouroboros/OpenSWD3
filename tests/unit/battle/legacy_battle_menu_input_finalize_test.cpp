@@ -226,6 +226,8 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
         fixture.startup.block_520e90.fill(9U);
         fixture.input.selection_animation_frame_a = 9U;
         fixture.input.selection_animation_frame_b = 9U;
+        fixture.port.frame_effect_control_state().primary_suppression = 9U;
+        fixture.port.frame_effect_control_state().secondary_suppression = 7U;
         const auto result = finalize_legacy_battle_menu_input(
             fixture.bindings(), fixture.port, {}
         );
@@ -243,7 +245,10 @@ void test_battle_menu_input_finalize(openswd3::test::Context& test) {
                 fixture.message == 2U &&
                 fixture.frame.target_action_available == 1U &&
                 fixture.frame.target_selection_block == 0U &&
-                fixture.input.selection_mode_cache == 0U &&
+                fixture.port.frame_effect_control_state().primary_suppression ==
+                    0U &&
+                fixture.port.frame_effect_control_state()
+                        .secondary_suppression == 7U &&
                 fixture.input.selection_target_cache == 0U &&
                 fixture.startup.value_53bfd0 == 0U &&
                 fixture.startup.block_4fe5d4[0U] == 0U &&

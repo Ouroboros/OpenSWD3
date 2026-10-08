@@ -10,7 +10,9 @@ frame就绪后发布唯一共享frame token，复制记录draw offset、field76�
 
 音频路径保留已关闭sample命令的窄平台port，并保留frame token高半加field58低半的陈旧ECX参数。声像按signed绘制X与320比较，小于时传负十六，否则传正十六；field58随后破坏性清零。第一层绘制使用`x-5`、`positionY-height/3`和低四位加bit2/bit3的flags；第二层使用原X、`positionY-drawOffsetY`及镜像后的局部flags。
 
-特殊记录field64、field66、field68以typed方式进入已关闭共享画面刷新；调用前显式注入当前EAX/ECX/EDX，保留callee早退时的寄存器链。三word任一非零时发布共享刷新pending。特殊记录field5A低字节与九按位与为零时返回零。
+特殊记录field64、field66、field68先发布实际当前三色WORD，再调用共享画面刷新；调用前显式注入当前EAX/ECX/EDX，保留callee早退时的寄存器链。4733F6/3FF/408在刷新返回后检查当前三色，任一非零时473411写实际primary抑制门1，全零保持门原值。该门不是刷新阶段或闪光；旧`frame_refresh_pending`副本删除，函数不再接无用途的dispatch状态参数。特殊记录field5A低字节与九按位与为零时返回零。
+
+B11回调向量覆盖输入零/非零、返回后清零/改非零；core/ASan actor_frame_316各1/1及SDL链接通过。全部访问与实际日志见[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
 
 效果阶段在`0x00473434`从startup/lifecycle canonical owner按X后Y顺序读取目标坐标，写入既有两个零初始化dword局部槽的低word，再按原顺序计算`positionX-offset+field76`与`positionY+field78-drawOffsetY`，随后递增`+0x2F26`word。坐标typed-stop保留此前更新、frame、sample、绘制与刷新前缀，并阻断phase tick及全部效果后缀。待审效果更新callee接收目标token、`+0x630`唯一动作记录、零、运行word、两坐标、signed sourceY和一；返回非一时保留递增tick与两记录。
 

@@ -41,7 +41,9 @@ mode不等于1时：
 - counter加1后固定发布位置、present与advance；
 - signed达到100时counter清零、status OR 1、complete写1。
 
-两个动画分支都在公共尾复制三项record word，调用共享发布callee，并把两个suppression dword写1。
+两个动画分支都在公共尾发布三项record WORD到实际当前颜色，调用共享刷新，再依次把实际primary、secondary抑制门写1。45890C/458911在刷新返回后执行，覆盖最终回调对门的改写；配置WORD与刷新快照保持独立。
+
+B11真实caller回归检查signed配置、两个刷新观察点和最终门发布，core/ASan setup各1/1及SDL链接通过。全部访问与日志见[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
 
 ### 2.2 animation mode不等于1
 

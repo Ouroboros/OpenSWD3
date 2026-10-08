@@ -572,18 +572,14 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         static_cast<void>(invoke(kCallReleaseResource, {resource.owner_token}));
         ++state.rendered_primary_count;
         ++result.primary_renders;
-        state.shared_word_3a = primary.shared_word_3a;
-        state.shared_word_36 = primary.shared_word_36;
-        state.shared_word_38 = primary.shared_word_38;
-        state.primary_suppression = 1U;
-        state.split_suppression = 1U;
+        auto& control = port.frame_effect_control_state();
+        control.blue_factor = std::bit_cast<i16>(primary.shared_word_3a);
+        control.red_factor = std::bit_cast<i16>(primary.shared_word_36);
+        control.green_factor = std::bit_cast<i16>(primary.shared_word_38);
+        control.primary_suppression = 1U;
+        control.secondary_suppression = 1U;
         registers.eax = 1U;
-        const auto refresh = refresh_legacy_battle_frame(
-            port,
-            state.shared_word_36,
-            state.shared_word_38,
-            state.shared_word_3a
-        );
+        const auto refresh = refresh_legacy_battle_frame(port);
         result.port_calls += refresh.port_calls;
         registers.eax = refresh.return_value;
         registers.ecx = refresh.final_ecx;

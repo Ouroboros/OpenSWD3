@@ -403,6 +403,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         .pending_rotation = port.effect_shift_state().actor_delta,
         .flash = port.screen_flash_state(),
         .refresh = port.frame_refresh_state(),
+        .control = port.frame_effect_control_state(),
     };
     result.frame_effect = update_legacy_battle_frame_effect(
         state.frame_effect,

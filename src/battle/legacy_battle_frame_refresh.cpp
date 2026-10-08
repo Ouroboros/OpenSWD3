@@ -35,8 +35,8 @@ replace_low_word(const u32 original, const u16 value) noexcept {
     return (original & 0xFFFF0000U) | value;
 }
 
-[[nodiscard]] constexpr i32 signed_half(const u16 value) noexcept {
-    const i32 signed_value = static_cast<i32>(std::bit_cast<i16>(value));
+[[nodiscard]] constexpr i32 signed_half(const i16 value) noexcept {
+    const i32 signed_value = static_cast<i32>(value);
     return signed_value >= 0 ? signed_value / 2 : -((-signed_value + 1) / 2);
 }
 
@@ -47,10 +47,8 @@ replace_low_word(const u32 original, const u16 value) noexcept {
 template <typename Call>
 [[nodiscard]] LegacyBattleFrameRefreshResult refresh_impl(
     LegacyBattleFrameRefreshState& state,
-    Call&& call,
-    const u16 current_word_36,
-    const u16 current_word_38,
-    const u16 current_word_3a
+    const LegacyBattleFrameEffectControlState& control,
+    Call&& call
 ) {
     LegacyBattleFrameRefreshResult result;
     Registers registers{
@@ -58,12 +56,14 @@ template <typename Call>
         .ecx = state.entry_ecx,
         .edx = state.entry_edx,
     };
-    if (state.snapshot_word_36 == current_word_36) {
+    if (state.snapshot_word_36 == std::bit_cast<u16>(control.red_factor)) {
         registers.ecx = replace_low_word(registers.ecx, state.snapshot_word_38);
-        if (state.snapshot_word_38 == current_word_38) {
+        if (state.snapshot_word_38 ==
+            std::bit_cast<u16>(control.green_factor)) {
             registers.edx =
                 replace_low_word(registers.edx, state.snapshot_word_3a);
-            if (state.snapshot_word_3a == current_word_3a) {
+            if (state.snapshot_word_3a ==
+                std::bit_cast<u16>(control.blue_factor)) {
                 result.return_value = registers.eax;
                 result.final_ecx = registers.ecx;
                 result.final_edx = registers.edx;
@@ -100,7 +100,7 @@ template <typename Call>
             result
         );
 
-        registers.eax = to_bits(signed_half(current_word_36)) * factor;
+        registers.eax = to_bits(signed_half(control.red_factor)) * factor;
         registers.ecx = state.last_lock_token;
         registers = call(
             kCallApplyRed,
@@ -109,7 +109,7 @@ template <typename Call>
             result
         );
 
-        registers.edx = to_bits(signed_half(current_word_38)) * factor;
+        registers.edx = to_bits(signed_half(control.green_factor)) * factor;
         registers.eax = state.last_lock_token;
         registers = call(
             kCallApplyGreen,
@@ -118,7 +118,7 @@ template <typename Call>
             result
         );
 
-        registers.ecx = to_bits(signed_half(current_word_3a)) * factor;
+        registers.ecx = to_bits(signed_half(control.blue_factor)) * factor;
         registers.edx = state.last_lock_token;
         registers = call(
             kCallApplyBlue,
@@ -129,16 +129,19 @@ template <typename Call>
         ++result.surface_iterations;
     }
 
-    registers.ecx = replace_low_word(registers.ecx, current_word_38);
-    registers.eax = replace_low_word(registers.eax, current_word_36);
-    registers.edx = replace_low_word(registers.edx, current_word_3a);
-    state.snapshot_word_38 = current_word_38;
-    state.snapshot_word_36 = current_word_36;
-    state.snapshot_word_3a = current_word_3a;
+    const auto green = std::bit_cast<u16>(control.green_factor);
+    const auto red = std::bit_cast<u16>(control.red_factor);
+    const auto blue = std::bit_cast<u16>(control.blue_factor);
+    registers.ecx = replace_low_word(registers.ecx, green);
+    registers.eax = replace_low_word(registers.eax, red);
+    registers.edx = replace_low_word(registers.edx, blue);
+    state.snapshot_word_38 = green;
+    state.snapshot_word_36 = red;
 
     registers.ecx = state.viewport_token;
     registers.eax = state.final_surface_token;
     state.refresh_pending = 1U;
+    state.snapshot_word_3a = blue;
     state.active_surface_token = registers.eax;
     registers = call(kCallLockSurface, {registers.ecx}, registers, result);
     state.last_lock_token = registers.eax;
@@ -175,12 +178,8 @@ effect_arguments(const std::initializer_list<u32> values) noexcept {
 
 }  // namespace
 
-LegacyBattleFrameRefreshResult refresh_legacy_battle_frame(
-    LegacyBattleActionDispatchPort& port,
-    const compat::u16 current_word_36,
-    const compat::u16 current_word_38,
-    const compat::u16 current_word_3a
-) {
+LegacyBattleFrameRefreshResult
+refresh_legacy_battle_frame(LegacyBattleActionDispatchPort& port) {
     auto call = [&port](
                     const u32 callee,
                     const std::initializer_list<u32> arguments,
@@ -202,20 +201,12 @@ LegacyBattleFrameRefreshResult refresh_legacy_battle_frame(
         };
     };
     return refresh_impl(
-        port.frame_refresh_state(),
-        call,
-        current_word_36,
-        current_word_38,
-        current_word_3a
+        port.frame_refresh_state(), port.frame_effect_control_state(), call
     );
 }
 
-LegacyBattleFrameRefreshResult refresh_legacy_battle_frame(
-    LegacyBattleEffectCallPort& port,
-    const compat::u16 current_word_36,
-    const compat::u16 current_word_38,
-    const compat::u16 current_word_3a
-) {
+LegacyBattleFrameRefreshResult
+refresh_legacy_battle_frame(LegacyBattleEffectCallPort& port) {
     auto call = [&port](
                     const u32 callee,
                     const std::initializer_list<u32> arguments,
@@ -237,11 +228,7 @@ LegacyBattleFrameRefreshResult refresh_legacy_battle_frame(
         };
     };
     return refresh_impl(
-        port.frame_refresh_state(),
-        call,
-        current_word_36,
-        current_word_38,
-        current_word_3a
+        port.frame_refresh_state(), port.frame_effect_control_state(), call
     );
 }
 

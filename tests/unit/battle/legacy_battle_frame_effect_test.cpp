@@ -68,6 +68,7 @@ struct Fixture {
     openswd3::compat::i32 pending_rotation{};
     openswd3::battle::LegacyBattleScreenFlashState flash{};
     openswd3::battle::LegacyBattleFrameRefreshState refresh{};
+    openswd3::battle::LegacyBattleFrameEffectControlState control{};
 
     Fixture() {
         static_cast<void>(
@@ -103,6 +104,7 @@ struct Fixture {
             .pending_rotation = pending_rotation,
             .flash = flash,
             .refresh = refresh,
+            .control = control,
         };
     }
 
@@ -131,6 +133,50 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleFrameEffectStatus;
 
     constexpr std::array<u32, 3> surfaces{0xB000U, 0xB100U, 0xB200U};
+
+    for (const u32 primary : {0U, 1U, 2U, 0xFFFFFFFFU}) {
+        for (const u32 secondary : {0U, 1U, 2U, 0xFFFFFFFFU}) {
+            LegacyBattleFrameEffectState state;
+            state.current_encounter_id = 9;
+            state.expected_encounter_id = 9;
+            state.alternate_surface_mode = 1U;
+            state.split_suppression = 2U;
+            Fixture fixture;
+            fixture.control.primary_suppression = primary;
+            fixture.control.secondary_suppression = secondary;
+            fixture.control.red_factor = 2;
+            fixture.control.green_factor = 4;
+            fixture.control.blue_factor = 6;
+            fixture.refresh.refresh_pending = 1U;
+            fixture.pending_rotation = 77;
+            EffectPort port;
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::update_legacy_battle_frame_effect(
+                    state, port, context, fixture.source(), surfaces, 0
+                );
+            const bool ordinary = primary == 0U && secondary == 0U;
+            const bool staged = primary == 1U || secondary == 1U;
+            test.expect_true(
+                result.status == LegacyBattleFrameEffectStatus::completed &&
+                    result.source_blit_calls ==
+                        (ordinary || staged ? 1U : 0U) &&
+                    result.rotation_frame_calls == (ordinary ? 1U : 0U) &&
+                    result.color_adjustment_calls == (staged ? 1U : 0U) &&
+                    result.applied_red_delta == (staged ? 1 : 0) &&
+                    result.applied_green_delta == (staged ? 2 : 0) &&
+                    result.applied_blue_delta == (staged ? 3 : 0) &&
+                    result.cadence_updates == (staged ? 1U : 0U) &&
+                    fixture.pending_rotation == (ordinary ? 0 : 77) &&
+                    fixture.control.primary_suppression == primary &&
+                    fixture.control.secondary_suppression == secondary &&
+                    fixture.refresh.refresh_pending == 1U &&
+                    fixture.framebuffer.physical_pixels()[100U] ==
+                        (staged ? 0x0443U : 0U),
+                "both zero gates draw normally while either exact DWORD one consumes the shared signed colors"
+            );
+        }
+    }
 
     for (const u32 active : {0U, 1U, 2U, 0xFFFFFFFFU}) {
         LegacyBattleFrameEffectState state;
@@ -198,6 +244,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
             .pending_rotation = fixture.pending_rotation,
             .flash = fixture.flash,
             .refresh = fixture.refresh,
+            .control = fixture.control,
         };
         EffectPort port;
         const auto result = openswd3::battle::update_legacy_battle_frame_effect(
@@ -245,8 +292,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
     for (const u32 suppression : {1U, 2U}) {
         LegacyBattleFrameEffectState state;
-        state.primary_suppression = suppression;
         Fixture fixture;
+        fixture.control.primary_suppression = suppression;
         fixture.flash.active = 1U;
         fixture.flash.intensity = 8U;
         EffectPort port;
@@ -264,11 +311,11 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
     for (const u32 token : {0U, 1U, 0x80000000U, 0xFFFFFFFFU}) {
         LegacyBattleFrameEffectState state;
-        state.primary_suppression = 1U;
         state.current_encounter_id = 1;
         state.expected_encounter_id = 2;
         state.fade_active = 1U;
         Fixture fixture;
+        fixture.control.primary_suppression = 1U;
         fixture.refresh.refresh_pending = 1U;
         fixture.refresh.active_surface_token = token;
         EffectPort port;
@@ -297,12 +344,12 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         for (const bool returned : {false, true}) {
             for (const u32 hresult : {0U, 1U, 0x80004005U}) {
                 LegacyBattleFrameEffectState state;
-                state.primary_suppression = 1U;
                 state.current_encounter_id = 9;
                 state.expected_encounter_id = fading ? 10 : 9;
                 state.cadence = 2;
                 state.fade_active = 1U;
                 Fixture fixture;
+                fixture.control.primary_suppression = 1U;
                 fixture.refresh.refresh_pending = fading ? 2U : 1U;
                 fixture.refresh.active_surface_token = 7U;
                 fixture.pending_rotation = 77;
@@ -339,7 +386,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                             (!fading && returned ? 1U : 0U) &&
                         result.reset_calls == 0U &&
                         result.source_blit_calls == 0U &&
-                        state.primary_suppression == 1U &&
+                        fixture.control.primary_suppression == 1U &&
                         state.fade_active == 1U &&
                         fixture.framebuffer.physical_pixels()[0] == 0x1234U,
                     "both surface calls ignore returned HRESULT but stop unfinished calls with pixel and state prefixes intact"
@@ -368,10 +415,10 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
     }};
     for (const auto& vector : surface_returns) {
         LegacyBattleFrameEffectState state;
-        state.primary_suppression = 1U;
         state.current_encounter_id = 9;
         state.expected_encounter_id = 9;
         Fixture fixture;
+        fixture.control.primary_suppression = 1U;
         fixture.refresh.refresh_pending = 1U;
         fixture.refresh.active_surface_token = 7U;
         EffectPort port;
@@ -412,12 +459,12 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         state.cadence = 2;
         state.current_encounter_id = 9;
         state.expected_encounter_id = 9;
+        Fixture fixture;
         if (branch == 2U) {
-            state.primary_suppression = 1U;
+            fixture.control.primary_suppression = 1U;
             state.alternate_surface_mode = 1U;
         }
 
-        Fixture fixture;
         fixture.flash.active = 1U;
         fixture.refresh.refresh_pending = 1U;
         fixture.pending_rotation = 77;
@@ -574,11 +621,11 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
     {
         LegacyBattleFrameEffectState state;
-        state.primary_suppression = 1U;
         state.current_encounter_id = 9;
         state.expected_encounter_id = 9;
         state.cadence = 2;
         Fixture fixture;
+        fixture.control.primary_suppression = 1U;
         fixture.refresh.refresh_pending = 1U;
         EffectPort port;
         auto context = fixture.context();
@@ -601,14 +648,14 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
     {
         LegacyBattleFrameEffectState state;
-        state.secondary_suppression = 1U;
         state.current_encounter_id = 4;
         state.expected_encounter_id = 4;
         state.alternate_surface_mode = 1U;
-        state.red_factor = 2;
-        state.green_factor = 4;
-        state.blue_factor = 6;
         Fixture fixture;
+        fixture.control.secondary_suppression = 1U;
+        fixture.control.red_factor = 2;
+        fixture.control.green_factor = 4;
+        fixture.control.blue_factor = 6;
         fixture.refresh.refresh_pending = 2U;
         EffectPort port;
         auto context = fixture.context();
@@ -630,12 +677,12 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
     {
         LegacyBattleFrameEffectState state;
-        state.primary_suppression = 1U;
         state.current_encounter_id = 5;
         state.expected_encounter_id = 5;
         state.alternate_surface_mode = 1U;
         state.cadence = 2;
         Fixture fixture;
+        fixture.control.primary_suppression = 1U;
         fixture.refresh.refresh_pending = 0x7FFFU;
         EffectPort port;
         auto context = fixture.context();
@@ -681,16 +728,16 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
     {
         LegacyBattleFrameEffectState state;
-        state.primary_suppression = 1U;
-        state.secondary_suppression = 1U;
         state.alternate_surface_mode = 1U;
-        state.red_factor = 8;
-        state.green_factor = 10;
-        state.blue_factor = 12;
         state.current_encounter_id = 3;
         state.expected_encounter_id = 4;
         state.fade_active = 1U;
         Fixture fixture;
+        fixture.control.primary_suppression = 1U;
+        fixture.control.secondary_suppression = 1U;
+        fixture.control.red_factor = 8;
+        fixture.control.green_factor = 10;
+        fixture.control.blue_factor = 12;
         EffectPort port;
         auto context = fixture.context();
 
@@ -700,12 +747,13 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleFrameEffectStatus::completed &&
-                result.reset_calls == 1U && state.red_factor == 0 &&
-                state.green_factor == 0 && state.blue_factor == 0 &&
+                result.reset_calls == 1U && fixture.control.red_factor == 0 &&
+                fixture.control.green_factor == 0 &&
+                fixture.control.blue_factor == 0 &&
                 fixture.refresh.refresh_pending == 0U &&
                 state.current_encounter_id == -1 &&
-                state.primary_suppression == 0U &&
-                state.secondary_suppression == 0U &&
+                fixture.control.primary_suppression == 0U &&
+                fixture.control.secondary_suppression == 0U &&
                 state.alternate_surface_mode == 0U && state.fade_active == 0U,
             "active fade at stage zero clears the exact terminal state slots"
         );
@@ -713,10 +761,10 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
     {
         LegacyBattleFrameEffectState state;
-        state.primary_suppression = 1U;
         state.current_encounter_id = 6;
         state.expected_encounter_id = 6;
         Fixture fixture;
+        fixture.control.primary_suppression = 1U;
         fixture.refresh.refresh_pending = 3U;
         EffectPort port;
         auto context = fixture.context();

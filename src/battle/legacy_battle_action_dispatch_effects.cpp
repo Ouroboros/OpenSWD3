@@ -634,14 +634,21 @@ LegacyBattleActionFourEffectResult advance_legacy_battle_action_four_effect(
         actor->effect_action_record = {};
     }
 
-    result.frame_refresh = refresh_legacy_battle_frame(
-        port, special.field_64, special.field_66, special.field_68
-    );
+    auto& control = port.frame_effect_control_state();
+    control.red_factor = std::bit_cast<i16>(special.field_64);
+    control.green_factor = std::bit_cast<i16>(special.field_66);
+    control.blue_factor = std::bit_cast<i16>(special.field_68);
+    result.frame_refresh = refresh_legacy_battle_frame(port);
     ++result.frame_refresh_calls;
     result.port_calls += result.frame_refresh.port_calls;
     registers.eax = result.frame_refresh.return_value;
     registers.ecx = result.frame_refresh.final_ecx;
     registers.edx = result.frame_refresh.final_edx;
+    if (control.red_factor != 0 || control.green_factor != 0 ||
+        control.blue_factor != 0) {
+        control.primary_suppression = 1U;
+    }
+
     if ((actor->action_runtime_gate & 0x8000U) == 0U) {
         return finish_zero();
     }

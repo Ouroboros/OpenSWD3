@@ -1438,7 +1438,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
-        state.frame_effect.primary_suppression = 1U;
         state.frame_effect.current_encounter_id = 9;
         state.frame_effect.expected_encounter_id = fading ? 10 : 9;
         state.frame_effect.cadence = 7;
@@ -1448,6 +1447,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         configure_common_port(port);
+        port.frame_effect_control_state().primary_suppression = 1U;
         port.frame_refresh_state().refresh_pending = 2U;
         port.frame_refresh_state().active_surface_token = 7U;
         auto context = fixture->context();

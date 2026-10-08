@@ -255,18 +255,19 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
 }
 
 [[nodiscard]] bool adjust_stage_colors(
-    LegacyBattleFrameEffectState& state,
     LegacyBattleFrameEffectContext& context,
     LegacyBattleFrameEffectResult& result
 ) noexcept {
+    const i32 blue_factor =
+        arithmetic_shift_right_one(context.control.blue_factor);
     const i32 stage = std::bit_cast<i16>(context.refresh.refresh_pending);
-    const i32 red =
-        wrapping_multiply(arithmetic_shift_right_one(state.red_factor), stage);
-    const i32 green = wrapping_multiply(
-        arithmetic_shift_right_one(state.green_factor), stage
-    );
-    const i32 blue =
-        wrapping_multiply(arithmetic_shift_right_one(state.blue_factor), stage);
+    const i32 green_factor =
+        arithmetic_shift_right_one(context.control.green_factor);
+    const i32 red_factor =
+        arithmetic_shift_right_one(context.control.red_factor);
+    const i32 red = wrapping_multiply(red_factor, stage);
+    const i32 green = wrapping_multiply(green_factor, stage);
+    const i32 blue = wrapping_multiply(blue_factor, stage);
     result.applied_red_delta = red;
     result.applied_green_delta = green;
     result.applied_blue_delta = blue;
@@ -309,13 +310,13 @@ void reset_effect_state(
     LegacyBattleFrameEffectContext& context,
     LegacyBattleFrameEffectResult& result
 ) noexcept {
-    state.red_factor = 0;
-    state.green_factor = 0;
-    state.blue_factor = 0;
+    context.control.red_factor = 0;
+    context.control.green_factor = 0;
+    context.control.blue_factor = 0;
     context.refresh.refresh_pending = 0U;
     state.current_encounter_id = -1;
-    state.secondary_suppression = 0U;
-    state.primary_suppression = 0U;
+    context.control.secondary_suppression = 0U;
+    context.control.primary_suppression = 0U;
     state.alternate_surface_mode = 0U;
     state.fade_active = 0U;
     ++result.reset_calls;
@@ -333,9 +334,11 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
 ) noexcept {
     LegacyBattleFrameEffectResult result;
     state.published_source_token = source.token;
+    const u32 primary_suppression = context.control.primary_suppression;
     set_clip(context, result, 0, 0, 640, 480);
 
-    if (state.primary_suppression == 0U && state.secondary_suppression == 0U) {
+    if (primary_suppression == 0U &&
+        context.control.secondary_suppression == 0U) {
         if (rotation_amount == 0) {
             if (!draw_source(context, result, source, 0U)) {
                 result.status =
@@ -417,8 +420,8 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
     i16 stage = std::bit_cast<i16>(context.refresh.refresh_pending);
     if (static_cast<i32>(state.current_encounter_id) ==
         state.expected_encounter_id) {
-        if (state.primary_suppression == 1U ||
-            state.secondary_suppression == 1U) {
+        if (context.control.primary_suppression == 1U ||
+            context.control.secondary_suppression == 1U) {
             if (state.alternate_surface_mode == 0U) {
                 stage = std::bit_cast<i16>(context.refresh.refresh_pending);
                 if (stage >= 1) {
@@ -459,7 +462,7 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                         LegacyBattleFrameEffectStatus::source_blit_typed_stop;
                     return result;
                 }
-                if (!adjust_stage_colors(state, context, result)) {
+                if (!adjust_stage_colors(context, result)) {
                     result.status = LegacyBattleFrameEffectStatus::
                         color_adjustment_typed_stop;
                     return result;

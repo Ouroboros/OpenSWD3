@@ -754,16 +754,12 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 )) {
                 return result;
             }
-            state.frame_effect.red_factor = -12;
-            state.frame_effect.green_factor = -12;
-            state.frame_effect.blue_factor = -12;
-            state.frame_effect.primary_suppression = 1U;
-            const auto refresh = refresh_legacy_battle_frame(
-                port,
-                std::bit_cast<u16>(state.frame_effect.red_factor),
-                std::bit_cast<u16>(state.frame_effect.green_factor),
-                std::bit_cast<u16>(state.frame_effect.blue_factor)
-            );
+            auto& control = port.frame_effect_control_state();
+            control.red_factor = -12;
+            control.green_factor = -12;
+            control.blue_factor = -12;
+            control.primary_suppression = 1U;
+            const auto refresh = refresh_legacy_battle_frame(port);
             result.port_calls += refresh.port_calls;
             replace_low_word(state.phase_counter, 1U);
             replace_low_word(state.input_mode, 1U);
@@ -780,7 +776,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         }
         replace_low_word(state.input_mode, 1U);
         replace_low_word(state.phase_counter, 0U);
-        state.frame_effect.primary_suppression = 0U;
+        port.frame_effect_control_state().primary_suppression = 0U;
         state.current_actor_index = 0xFFFFU;
         state.frame_effect.fade_active = 1U;
         return completed(result, 1U);

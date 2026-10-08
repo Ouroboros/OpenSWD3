@@ -549,16 +549,10 @@ private:
 }
 
 inline void refresh_shared_frame(
-    LegacyBattleActionDispatchState& state,
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchResult& result
 ) {
-    const auto refresh = refresh_legacy_battle_frame(
-        port,
-        std::bit_cast<u16>(state.frame_effect.red_factor),
-        std::bit_cast<u16>(state.frame_effect.green_factor),
-        std::bit_cast<u16>(state.frame_effect.blue_factor)
-    );
+    const auto refresh = refresh_legacy_battle_frame(port);
     result.port_calls += refresh.port_calls;
 }
 

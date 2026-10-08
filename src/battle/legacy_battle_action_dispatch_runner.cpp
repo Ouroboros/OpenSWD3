@@ -134,10 +134,11 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                 return result;
             }
             if (action == 0x192U) {
-                state.frame_effect.red_factor = -12;
-                state.frame_effect.green_factor = -12;
-                state.frame_effect.blue_factor = -12;
-                state.frame_effect.primary_suppression = 1U;
+                auto& control = port.frame_effect_control_state();
+                control.red_factor = -12;
+                control.green_factor = -12;
+                control.blue_factor = -12;
+                control.primary_suppression = 1U;
                 state.frame_effect.alternate_surface_mode = 1U;
                 result.action_four_oh_two =
                     advance_legacy_battle_action_four_oh_two(
@@ -474,7 +475,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
     if (action == 0x195U) {
         result
             .special_four_oh_five = advance_legacy_battle_special_four_oh_five(
-            state,
             &state.group_a_target_phases[group_a_index],
             &state.group_a_action_execution[group_a_index],
             &state.group_a_action_shared,

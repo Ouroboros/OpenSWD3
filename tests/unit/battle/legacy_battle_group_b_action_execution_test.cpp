@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <ranges>
 #include <vector>
 
@@ -22,6 +23,10 @@ public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
+        if (on_call) {
+            on_call(request);
+        }
+
         if (request.callee_token == 0x00439070U) {
             if (random_progress != nullptr) {
                 random_progress->progress = random_progress_value;
@@ -118,6 +123,7 @@ public:
         ));
     }
 
+    std::function<void(const LegacyBattleActionCallRequest&)> on_call;
     u32 actor_token{0x00525508U};
     u32 random_value{7U};
     u32 random_ecx{};
@@ -610,13 +616,59 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
             result.frame_refresh_calls == 1U,
             "group B execution always invokes the closed frame refresh"
         );
+        for (const openswd3::compat::i16 final_red :
+             {openswd3::compat::i16{0}, openswd3::compat::i16{5}}) {
+            LegacyBattleActorGroupBElementState color_actor;
+            color_actor.action_execution.profile_value = 0x456U;
+            color_actor.action_configuration.profile_buffer[0x0CU] =
+                std::byte{1U};
+            LegacyBattleActionDispatchState color_dispatch;
+            color_dispatch.active_effect_gate = 11U;
+            LegacyBattleGroupAActionExecutionSharedState color_shared;
+            Port color_port;
+            color_port.populate_primary = true;
+            color_port.complete_records = true;
+            color_port.complete_actor = true;
+            auto& control = color_port.frame_effect_control_state();
+            control.primary_suppression = 9U;
+            control.secondary_suppression = 7U;
+            color_port.on_call = [&](const auto& call) {
+                if (call.callee_token == 0x00416F60U &&
+                    color_port.count(0x00416F60U) == 3U) {
+                    control.red_factor = final_red;
+                    control.green_factor = 0;
+                    control.blue_factor = 0;
+                }
+            };
+            const auto color_result = openswd3::battle::
+                advance_legacy_battle_group_b_action_execution(
+                    &color_actor,
+                    color_shared,
+                    color_dispatch,
+                    color_port,
+                    context,
+                    {.actor_token = color_port.actor_token,
+                     .target_token = 0x005029D0U}
+                );
+            test.expect_true(
+                color_result.frame_refresh_calls == 1U &&
+                    color_port.count(0x00416F60U) == 3U &&
+                    control.secondary_suppression ==
+                        (final_red == 0 ? 7U : 1U) &&
+                    control.primary_suppression == 9U &&
+                    color_dispatch.active_effect_gate == 11U,
+                "group B checks post-unlock current colors and preserves the other suppression and selection gates"
+            );
+        }
+
         test.expect_true(
             result.secondary_record_calls == 0U,
             "group B execution selects the direct effect path for profile bit zero"
         );
         test.expect_true(
-            dispatch.active_effect_gate == 1U,
-            "group B execution publishes the nonzero refreshed color gate"
+            port.frame_effect_control_state().secondary_suppression == 1U &&
+                dispatch.active_effect_gate == 0U,
+            "group B execution publishes the color suppression without overwriting the distinct selection gate"
         );
         test.expect_true(
             result.action_record_clears == 5U &&

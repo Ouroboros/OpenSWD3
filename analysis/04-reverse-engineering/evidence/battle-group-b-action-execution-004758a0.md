@@ -31,7 +31,7 @@
 
 主记录与次记录各自在flags与`0x11`相交非零时进入效果段。两段都保持：
 
-- `0x0053BF98`复用动作分派的`active_effect_gate`，不复制共享门；
+- 画面抑制BF98与选择BF74独立；旧`active_effect_gate`映射BF98的结论已按机器地址修正；
 - effect latch为零时先查询门，门为零再更新target并以AX解释signed效果；
 - signed效果不小于9999时把效果和`last_effect_value`都夹到9999；
 - 效果以u32回绕累加到共享pair-primary，之后才执行提交callee；
@@ -39,7 +39,9 @@
 - 提交成功的首段顺序为source更新→source尾→target发布→source finalize，次段顺序为source尾→source更新→target发布→source finalize；
 - 每段结束都把对应记录flags清零并把effect latch写1。
 
-主记录flags同时包含bit3与bit10时，函数按记录内七个signed word初始化已关闭颜色累计器，并分别消费bit10与bit3；其他位不参与该颜色条件。无论是否触发颜色，随后都按主记录三个颜色word直接调用已关闭画面刷新；刷新后的三个snapshot任一非零时把`active_effect_gate`写1。runtime bit15仍为零时在这里返回0，不访问actor资源token。
+主记录flags同时包含bit3与bit10时，函数按记录内七个signed word初始化已关闭颜色累计器，并分别消费bit10与bit3；其他位不参与该颜色条件。无论是否触发颜色，随后都将主记录三个颜色WORD发布到实际画面控制存储，再调用画面刷新。475C82/8B/94在返回后检查当前三色，任一非零时475C9D写实际secondary抑制门1；全零保留原值，不读snapshot，不覆盖BF74选择门。runtime bit15仍为零时在这里返回0，不访问actor资源token。
+
+B11回调向量验证刷新后清零/改非零及两门、BF74互不覆盖；core/ASan setup各1/1及SDL链接通过。全部访问与日志见[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
 
 ## 4. 次记录、资源与两条绘制路径
 

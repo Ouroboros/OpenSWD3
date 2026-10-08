@@ -2,6 +2,11 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 
+B11敌方动作的三色与primary抑制门写入已回收到实际画面控制存储。
+45648F写门1、4564CA清门；清门路径仍保留当前三色，原失败前缀不变。
+全部站点与定向core/ASan、SDL链接验证见
+[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
+
 ## 1. 完整LST范围
 
 权威主体为`0x00455D60..0x0045662F`，完整993行、51个静态call站点、33个`loc_`标签。函数另有外部FUNCTION CHUNK：

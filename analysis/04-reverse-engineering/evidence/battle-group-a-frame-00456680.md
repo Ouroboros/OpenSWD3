@@ -19,10 +19,15 @@ ABI读取一个组A索引并固定返回1。组A token按低32位建立：
 先查询当前组A对象的效果状态。只有：
 
 ```text
-query低word非零 && (primary suppression == 1 || split suppression == 1)
+query低word非零 && (primary suppression == 1 || secondary suppression == 1)
 ```
 
 或独立global override等于1时，才向对象发布mode 1；否则发布mode 0。`&&`与`||`优先级保持LST，不把global override错误并入query门。
+
+B11的4566BC/4566C4现借实际BF94/BF98双门，BF30灰度分带独立。
+收尾4572FE只检查primary精确1才触发淡出；secondary或BF30为1不替代。
+四种完整门值的收尾回归通过core/ASan actor_frame_316各1/1，SDL链接通过。
+范围与日志见[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
 
 ## 3. AI协调与随机对手
 

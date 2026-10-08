@@ -646,6 +646,16 @@ public:
         return port_.frame_refresh_state();
     }
 
+    [[nodiscard]] LegacyBattleFrameEffectControlState&
+    frame_effect_control_state() noexcept override {
+        return port_.frame_effect_control_state();
+    }
+
+    [[nodiscard]] const LegacyBattleFrameEffectControlState&
+    frame_effect_control_state() const noexcept override {
+        return port_.frame_effect_control_state();
+    }
+
 private:
     LegacyBattleActionDispatchPort& port_;
 };
@@ -2272,7 +2282,8 @@ action_decision_done:
                 replace_low_word(action.action_runtime_flags, 0U);
                 state.status_words[group_b_index] = 0U;
                 action.post_battle_counter = 0U;
-                if (action.frame_effect.primary_suppression == 1U) {
+                if (port.frame_effect_control_state().secondary_suppression ==
+                    1U) {
                     action.frame_effect.fade_active = 1U;
                 }
                 if ((shared.global_phase_countdown & 0x7FFFU) != 0U) {
@@ -2390,9 +2401,10 @@ action_decision_done:
         )) {
         return result;
     }
-    const bool effect_mode = (low_word(start_gate) != 0U &&
-                              (action.frame_effect.primary_suppression == 1U ||
-                               action.frame_effect.split_suppression == 1U)) ||
+    const bool effect_mode =
+        (low_word(start_gate) != 0U &&
+         (port.frame_effect_control_state().primary_suppression == 1U ||
+          port.frame_effect_control_state().secondary_suppression == 1U)) ||
         shared.global_effect_override == 1U;
     const bool action_presentation_returned =
         execute_legacy_battle_actor_action_presentation_call(

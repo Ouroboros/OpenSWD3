@@ -47,6 +47,12 @@
 
 ## 5. 反馈、framebuffer与固定清理
 
+B11按机器地址分开画面BF94/BF98双门与反馈53AF68抑制。
+53AF68的27个text访问另行核对，反馈12处读取继续借协调器自己的
+`primary_suppression`成员，不从效果帧继承BF94副本；重置未写它时保留。
+实际双门与颜色共享、回调顺序和定向门禁见
+[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
+
 反馈callee返回精确1时，函数按各路径原有差异发布反馈actor、组A发起计数、组B staged计数、dirty latch或actor槽，然后以内存字节`0xFF`填充`2 * Rect.right * Rect.bottom`。typed实现对唯一`LegacyFramebuffer`写入对应u16 `0xFFFF`像素；请求范围超过owned物理像素时先保留完整owned前缀，再在首次不可用像素停止。
 
 共享反馈primary、secondary和packed reward高word按原路径分开清理。双对象数值转场关闭后，三处caller删除旧token并直接组合typed实现；primary与动作累计值、secondary与单体/群体辅助奖励、packed reward高word与效果步进分别共用唯一typed端口。`0x005202A8`的固定`0xAB0`字节清零恰好对应18个`0x98`主记录；三组反馈数组也各固定18 dword。先前单体8槽与群体10槽的重复建模已纠正为同一18槽虚共享状态，主记录、备用记录、公共渲染字段与奖励数组只保留一份物理typed存储。actor发布数组`0x00502984`也与战斗初始化重置收敛为同一18槽虚共享端口，初始化写`0xFFFFFFFF`与本函数按索引发布不再维护两份副本。单体与群体效果进一步共用动画横向命中的八槽u16计数及共享XY，协调器多重组合仍只有一份物理状态。

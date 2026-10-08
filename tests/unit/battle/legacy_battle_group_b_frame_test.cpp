@@ -864,12 +864,12 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.shared.action.frame_effect.primary_suppression = 1U;
         state.shared.action.group_a_to_actor[0] = 3U;
         Fixture fixture;
         (*fixture.startup->group_b_lifecycle)[0U].action_execution.start_gate =
             1U;
         DispatchPort port;
+        port.frame_effect_control_state().primary_suppression = 1U;
         bind_group_b_coordinate_resource(fixture, 3U);
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x00480AD0U, {.eax = 0x1234U});
@@ -910,10 +910,10 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.shared.action.frame_effect.primary_suppression = 1U;
         state.shared.action.group_a_to_actor[0] = 3U;
         Fixture fixture;
         DispatchPort port;
+        port.frame_effect_control_state().primary_suppression = 1U;
         bind_group_b_coordinate_resource(fixture, 3U);
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x00480AD0U, {.eax = 0x1234U});
@@ -944,7 +944,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         const auto state_storage =
             std::make_unique<LegacyBattleGroupBFrameState>();
         auto& state = *state_storage;
-        state.shared.action.frame_effect.primary_suppression = 1U;
         state.shared.action.group_a_to_actor[0] = 3U;
         Fixture fixture;
         auto& actor =
@@ -956,6 +955,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         actor.special_target_action_record.command_cursor = 0x2222U;
         actor.coordinate_mode_gate = 3U;
         DispatchPort port;
+        port.frame_effect_control_state().primary_suppression = 1U;
         bind_group_b_coordinate_resource(fixture, 3U);
         port.push(0x00479850U, {.eax = 1U});
         auto context = fixture.context();
@@ -1001,7 +1001,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
     {
         LegacyBattleGroupBFrameState state;
-        state.shared.action.frame_effect.primary_suppression = 1U;
         state.shared.action.group_a_to_actor[0] = 3U;
         Fixture fixture;
         auto& actor =
@@ -1010,6 +1009,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         actor.field_26b8 = 0x80000009U;
         fixture.startup->enemies[0U].progress.special_ready = 1U;
         DispatchPort port;
+        port.frame_effect_control_state().primary_suppression = 1U;
         bind_group_b_coordinate_resource(fixture, 3U);
         port.push(
             0x0047BA80U,
@@ -1876,17 +1876,20 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const u32 suppression : {0U, 1U, 2U, 0xFFFFFFFFU}) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.shared.action.active_effect_target = 0U;
         state.selection_initialized = 1U;
         state.action_profile_bytes = {0U};
         state.shared.action.group_a_count = 0;
+        state.shared.action.frame_effect.split_suppression = 1U;
         Fixture fixture;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_execution.idle_state_latch = 1U;
         DispatchPort port;
+        port.frame_effect_control_state().secondary_suppression = suppression;
+        port.frame_effect_control_state().primary_suppression = 1U;
         port.action = 100U;
         (*fixture.startup->group_b_lifecycle)[0U]
             .action_composition.action_kind = port.action;
@@ -1901,6 +1904,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.actor_action_target_calls == 2U &&
+                state.shared.action.frame_effect.fade_active ==
+                    (suppression == 1U ? 1U : 0U) &&
                 result.actor_action_target.return_eip == 0x00457EB3U &&
                 result.actor_action_target.return_ecx == 0x00525508U &&
                 result.actor_action_target.flags_known &&

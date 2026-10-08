@@ -840,7 +840,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 state.group_b_target_phases[2U][5U]->emitter.flags == 0x2222U &&
                 openswd3::compat::u16(state.phase_counter) == 0U &&
                 openswd3::compat::u16(state.input_mode) == 1U &&
-                state.frame_effect.primary_suppression == 0U &&
+                port.frame_effect_control_state().primary_suppression == 0U &&
                 state.frame_effect.fade_active == 1U &&
                 port.count(0x00484020U) == 0U &&
                 port.count(0x00478620U) == 0U &&
@@ -901,7 +901,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 state.group_b_target_phases[2U][5U]->emitter.flags == 0x2222U &&
                 openswd3::compat::u16(state.phase_counter) == 0U &&
                 openswd3::compat::u16(state.input_mode) == 1U &&
-                state.frame_effect.primary_suppression == 0U &&
+                port.frame_effect_control_state().primary_suppression == 0U &&
                 state.frame_effect.fade_active == 1U &&
                 port.count(0x00484020U) == 0U &&
                 port.count(0x00478620U) == 0U &&

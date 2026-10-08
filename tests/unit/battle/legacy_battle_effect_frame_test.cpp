@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -30,6 +31,10 @@ public:
     [[nodiscard]] LegacyBattleEffectCallReply
     invoke(const LegacyBattleEffectCallRequest& request) override {
         calls.push_back(request);
+        if (on_call) {
+            on_call(request);
+        }
+
         if (request.callee_token == rule_write_callee) {
             battle_debug_hotkey_state().battle_mode_flags_53bc24 =
                 rule_write_value;
@@ -56,6 +61,7 @@ public:
         ));
     }
 
+    std::function<void(const LegacyBattleEffectCallRequest&)> on_call;
     u32 rule_write_callee{};
     u32 rule_write_value{};
     LegacyBattleEffectCallReply default_reply{};
@@ -190,6 +196,9 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         record.lookup_key_a = 2U;
         record.lookup_key_b = 3U;
         record.pan_value = 0x44U;
+        record.shared_word_36 = 2U;
+        record.shared_word_38 = 0xFFFFU;
+        record.shared_word_3a = 0x8000U;
         state.sample_handle_value = 0x88U;
         auto startup =
             std::make_unique<openswd3::battle::LegacyBattleStartupState>();
@@ -204,6 +213,27 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
         port.push(0x00485610U, {.eax = 0xAAAA0000U, .ecx = 0xBBBB0000U});
         port.push(0x00481FD0U, pair_reply(10U, 20U));
         port.push(0x00483840U, {.eax = 0U});
+        auto& control = port.frame_effect_control_state();
+        control.primary_suppression = 3U;
+        control.secondary_suppression = 7U;
+        u32 refresh_observations{};
+        port.on_call = [&](const auto& call) {
+            if (call.callee_token == 0x00485330U) {
+                test.expect_true(
+                    control.primary_suppression == 3U &&
+                        control.secondary_suppression == 7U &&
+                        control.red_factor == 2 && control.green_factor == -1 &&
+                        control.blue_factor == -32768,
+                    "single effect refresh sees shared signed colors before either suppression publication"
+                );
+                ++refresh_observations;
+            }
+            if (call.callee_token == 0x00416F60U &&
+                port.count(0x00416F60U) == 3U) {
+                control.primary_suppression = 5U;
+                control.secondary_suppression = 6U;
+            }
+        };
         const auto result =
             openswd3::battle::advance_legacy_battle_effect_frame(
                 state,
@@ -230,6 +260,14 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
                 result.coordinate_query_calls == 1U &&
                 port.count(0x004783B0U) == 0U && port.count(0x004885A0U) == 2U,
             "primary setup preserves pan return high word and mirrored render parity"
+        );
+        test.expect_true(
+            refresh_observations == 2U && control.primary_suppression == 1U &&
+                control.secondary_suppression == 1U &&
+                port.frame_refresh_state().snapshot_word_36 == 2U &&
+                port.frame_refresh_state().snapshot_word_38 == 0xFFFFU &&
+                port.frame_refresh_state().snapshot_word_3a == 0x8000U,
+            "single effect writes both actual gates after the final refresh callback"
         );
     }
 

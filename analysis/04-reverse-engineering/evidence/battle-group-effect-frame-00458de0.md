@@ -59,9 +59,13 @@ resource render使用共享signed X/Y、owner u16宽高、本地render flags，�
 主资源成功尾：
 
 - rendered-primary counter低32位加1；
-- 三个record word发布到对应共享word；
-- 两项suppression写1；
-- 调用共享发布callee。
+- 459147/154/15B按蓝、红、绿发布record WORD到实际当前颜色；
+- 459162/459167依次将实际primary、secondary抑制门写1；
+- 45916C调用共享刷新，返回后不覆盖最终回调对双门的改写。
+
+B11回归验证刷新前双门均为1、signed配置和最终回调门值保持，
+与单效果的刷新后发布顺序独立。core/ASan setup各1/1及SDL链接通过，
+全部访问与日志见[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
 
 ## 5. 备用记录的pan清零非对称
 

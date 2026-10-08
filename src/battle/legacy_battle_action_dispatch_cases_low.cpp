@@ -5,6 +5,7 @@
 namespace openswd3::battle::action_dispatch_detail {
 
 LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
+    auto& control = port.frame_effect_control_state();
     switch (action) {
     case 1U: {
         if (!require_group_b()) {
@@ -482,10 +483,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
                 )) {
                 return result;
             }
-            state.frame_effect.primary_suppression = 0U;
-            state.frame_effect.red_factor = 0;
-            state.frame_effect.green_factor = 0;
-            state.frame_effect.blue_factor = 0;
+            control.primary_suppression = 0U;
+            control.red_factor = 0;
+            control.green_factor = 0;
+            control.blue_factor = 0;
             state.current_actor_index = 0xFFFFU;
             replace_low_word(state.phase_counter, 0U);
             state.selected_target_index = 0xFFFFU;
@@ -610,13 +611,13 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
                 )) {
                 return result;
             }
-            state.frame_effect.red_factor = -12;
-            state.frame_effect.green_factor = -12;
-            state.frame_effect.blue_factor = -12;
+            control.red_factor = -12;
+            control.green_factor = -12;
+            control.blue_factor = -12;
             replace_low_word(state.phase_counter, 1U);
             state.selected_target_index = static_cast<u16>(group_b_index);
-            state.frame_effect.primary_suppression = 1U;
-            refresh_shared_frame(state, port, result);
+            control.primary_suppression = 1U;
+            refresh_shared_frame(port, result);
             if (low_word(invoke(
                              state,
                              port,
@@ -817,12 +818,12 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             return result;
         }
         if (low_word(state.phase_counter) == 0U) {
-            state.frame_effect.red_factor = -12;
-            state.frame_effect.green_factor = -12;
-            state.frame_effect.blue_factor = -12;
+            control.red_factor = -12;
+            control.green_factor = -12;
+            control.blue_factor = -12;
             replace_low_word(state.phase_counter, 1U);
-            state.frame_effect.primary_suppression = 1U;
-            refresh_shared_frame(state, port, result);
+            control.primary_suppression = 1U;
+            refresh_shared_frame(port, result);
         }
         result.action_thirteen = advance_legacy_battle_action_thirteen(
             &state.group_a_target_phases[group_a_index],
@@ -859,10 +860,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
         );
         state.current_actor_index = 0xFFFFU;
         state.frame_effect.fade_active = 1U;
-        state.frame_effect.primary_suppression = 0U;
-        state.frame_effect.red_factor = 0;
-        state.frame_effect.green_factor = 0;
-        state.frame_effect.blue_factor = 0;
+        control.primary_suppression = 0U;
+        control.red_factor = 0;
+        control.green_factor = 0;
+        control.blue_factor = 0;
         replace_low_word(state.phase_counter, 0U);
         for (u32 slot = 0U; slot < 8U; ++slot) {
             ++result.group_a_iterations;
@@ -888,12 +889,12 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             return result;
         }
         if (low_word(state.phase_counter) == 0U) {
-            state.frame_effect.red_factor = -12;
-            state.frame_effect.green_factor = -12;
-            state.frame_effect.blue_factor = -12;
+            control.red_factor = -12;
+            control.green_factor = -12;
+            control.blue_factor = -12;
             replace_low_word(state.phase_counter, 1U);
-            state.frame_effect.primary_suppression = 1U;
-            refresh_shared_frame(state, port, result);
+            control.primary_suppression = 1U;
+            refresh_shared_frame(port, result);
             port.frame_refresh_state().refresh_pending = 1U;
         }
         result.action_fourteen = advance_legacy_battle_action_fourteen(
@@ -923,10 +924,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
         if (result.action_fourteen.return_eax != 1U) {
             return result;
         }
-        state.frame_effect.primary_suppression = 0U;
-        state.frame_effect.red_factor = 0;
-        state.frame_effect.green_factor = 0;
-        state.frame_effect.blue_factor = 0;
+        control.primary_suppression = 0U;
+        control.red_factor = 0;
+        control.green_factor = 0;
+        control.blue_factor = 0;
         replace_low_word(state.phase_counter, 0U);
         state.frame_effect.fade_active = 1U;
         port.battle_message_state() = 0x62U;
