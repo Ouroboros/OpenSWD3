@@ -445,6 +445,29 @@ void add_default_surfaces(TransitionPorts& ports) {
         std::array<openswd3::battle::LegacyBattleActorGroupBElementState, 8>>();
     startup.display_surfaces = {1U, 2U};
     startup.battle_id_word = 1U;
+    std::vector<u16> background_pixels(640U * 480U);
+    for (std::size_t index = 0U; index < background_pixels.size(); ++index) {
+        background_pixels[index] = static_cast<u16>(index);
+    }
+
+    startup.background.image =
+        openswd3::rendering::encode_legacy_image_command_stream(
+            {reinterpret_cast<const u8*>(background_pixels.data()),
+             background_pixels.size() * sizeof(u16)},
+            640U,
+            480U,
+            16U
+        )
+            .bytes;
+    startup.background.image_record = {
+        0xA100U,
+        0U,
+        0U,
+        0x01E00280U,
+        static_cast<u32>(startup.background.image.size()),
+    };
+
+    startup.background.image_allocation_token = 0xA100U;
     return startup;
 }
 
@@ -1171,6 +1194,17 @@ void test_battle_transition(openswd3::test::Context& test) {
         // Rotation expects literal rows, without 8000/C000 marker runs.
         auto& captured_pixels = ports.surfaces.at(2U).pixels;
         captured_pixels.assign(captured_pixels.size(), 0x1234U);
+        startup.background.image =
+            openswd3::rendering::encode_legacy_image_command_stream(
+                {reinterpret_cast<const u8*>(captured_pixels.data()),
+                 captured_pixels.size() * sizeof(u16)},
+                640U,
+                480U,
+                16U
+            )
+                .bytes;
+        startup.background.image_record[4U] =
+            static_cast<u32>(startup.background.image.size());
         FrameFixture frame;
 
         const auto result = openswd3::battle::run_legacy_battle_transition(

@@ -291,16 +291,16 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
         .color_initialization_gate = port.battle_color_initialization_gate(),
         .rotation_cache = startup.background_rotation_cache,
     };
+    LegacyBattleBackgroundFrameEffectImagePort frame_images{
+        startup.background,
+        startup.background_rotation_cache,
+    };
+
     effect = update_legacy_battle_frame_effect(
         state.frame_effect,
         port,
         context,
-        LegacyBattleFrameEffectSource{
-            .token = state.primary_image_token,
-            .bytes = state.primary_command_stream,
-            .width = static_cast<u16>(kLegacyBattleTransitionWidth),
-            .height = static_cast<u16>(kLegacyBattleTransitionHeight),
-        },
+        {.record = startup.background.image_record, .images = frame_images},
         state.staged_surface_tokens,
         context.pending_rotation
     );

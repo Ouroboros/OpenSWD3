@@ -131,6 +131,13 @@ y_offset = wrapping_i32((-scale_step) << 5)
 
 已关闭帧绘制更新与转换图像共享的旧source全局。modern显式记录source当前来自frame还是转换token：首次frame后立即被第一转换图覆盖；mode 0第二次frame后保留frame来源。
 
+B11来源共享：452904及452D75的画面效果借startup实际背景记录，
+不再从primary截屏图像及固定640×480构造独立来源。
+截图捕获、转换和转场自己的图像切换仍保留；背景图像与截屏分别持有。
+旋转typed-stop夹具须给实际背景提供literal行，不能只修改截图。
+定向core/ASan及SDL链接通过，读取与资源域见
+[画面来源共享](battle-frame-effect-00453580.md#24-b11画面来源与尺寸按原站点读取)。
+
 ## 7. cleanup
 
 正常视觉阶段完成后，按固定顺序非零释放：

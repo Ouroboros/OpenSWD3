@@ -531,8 +531,6 @@ public:
 };
 
 struct Fixture {
-    std::vector<u8> frame_effect_bytes;
-    openswd3::battle::LegacyBattleFrameEffectSource frame_effect_source;
     std::array<u32, 3> frame_effect_surfaces{0xA000U, 0xA100U, 0xA200U};
     FrameEffectPort frame_effect_port;
     ActionStreamProvider action_stream;
@@ -606,17 +604,19 @@ struct Fixture {
             reinterpret_cast<const u8*>(effect_pixels.data()),
             effect_pixels.size() * sizeof(u16),
         };
-        frame_effect_bytes =
+        startup.background.image =
             openswd3::rendering::encode_legacy_image_command_stream(
                 effect_raw, 3U, 2U, 16U
             )
                 .bytes;
-        frame_effect_source = {
-            .token = 0xA100U,
-            .bytes = frame_effect_bytes,
-            .width = 3U,
-            .height = 2U,
+        startup.background.image_record = {
+            0xA100U,
+            0U,
+            0U,
+            0x00020003U,
+            static_cast<u32>(startup.background.image.size()),
         };
+        startup.background.image_allocation_token = 0xA100U;
         static_cast<void>(
             openswd3::rendering::initialize_legacy_raster_geometry(
                 raster,
@@ -667,7 +667,6 @@ struct Fixture {
             .music_path = music_path,
             .music_mix_level = music_mix_level,
             .frame_effect_port = frame_effect_port,
-            .frame_effect_source = frame_effect_source,
             .frame_effect_surfaces = frame_effect_surfaces,
             .action_updater = action_updater,
             .frame_provider = frame_provider,
@@ -1458,7 +1457,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
         auto fixture = std::make_unique<Fixture>();
-        fixture->frame_effect_source.bytes = {};
+        fixture->startup.background.image.clear();
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         configure_common_port(port);

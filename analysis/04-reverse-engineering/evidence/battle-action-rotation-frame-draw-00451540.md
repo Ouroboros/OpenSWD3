@@ -8,6 +8,12 @@
 
 callee只有动作更新`0x004321E0`和通用blitter `0x004170E0`各一次。typed实现复用前一工作包的`LegacyBattleActionRotationCacheState`与动作更新端口，直接消费已建立的六个owner/frame缓存，不创建平行record模型。
 
+B11来源共享：45157A按更新后的frame槽发布cached_image_tokens到
+同一LegacyBlitRequest.source_token。正常绘制后不清来源；后续分带
+按原站点重新发布背景，未发布站点继续沿用缓存来源。定向core/ASan与
+SDL链接通过，见
+[来源共享](battle-frame-effect-00453580.md#24-b11画面来源与尺寸按原站点读取)。
+
 ## 2. 零动作门
 
 入口先读取扩展状态`+0xC0`的u16动作号。若等于0：

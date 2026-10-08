@@ -89,6 +89,7 @@ struct LegacyBlitClipRectangle {
 };
 
 struct LegacyBlitRequest {
+    compat::u32 source_token{};
     compat::i32 destination_x{};
     compat::i32 destination_y{};
     compat::i32 source_width{};

@@ -14,10 +14,13 @@
 
 1. 对固定旋转缓存owner调用已关闭`0x00451730`；
 2. 若旧背景图像token非零，则调用旧释放入口；
-3. 无条件把背景图像槽清零；
+3. 该释放正常返回后把背景图像槽清零；
 4. 才尝试打开与读取新资源。
 
-modern复用`release_legacy_battle_action_rotation_cache`，然后清空typed背景图像。测试以一组嵌套image/owner token和旧图像验证释放回调顺序为image→owner→新资源load，且loader观察到旧图像已空。
+modern复用`release_legacy_battle_action_rotation_cache`，随后由背景持有者
+释放与记录token匹配的实际字节。测试验证旋转image→owner→背景释放→
+新资源load顺序，loader观察到旧图像已空。token为零时不释放孤立分配，
+其他四DWORD保留到加载成功的原写点。未知释放身份保留此前cache释放。
 
 ## 3. TSW加载与失败出口
 
@@ -33,7 +36,12 @@ modern默认适配器直接复用`LegacyTswArchive`读取`all_map2.tsw`的one-ba
 
 ## 4. 命令流转换与signed除法
 
-加载成功后，LST把背景图像槽地址传给已关闭`0x00401C70`，允许indexed8流经外置palette重建为direct16，也允许word流原地转换。modern复用`convert_legacy_image_command_stream`与当前`LegacyPixelConversionState`，成功后发布转换后的typed字节。
+加载成功先发布实际记录，再把该记录交给`0x00401C70`。
+WORD流从图像头发布尺寸并原地转换，后续读取失败保留已写像素。
+indexed8流经palette构建临时转换缓冲，完成后释放旧palette及图像，
+另分配最终大小的图像身份，再依原写序发布长度、指针和palette零。
+转换缓冲的身份不能充当最终图像身份，indexed记录尺寸仍保留加载值。
+原正常早退与真实读取typed-stop分别传播，详见第12节。
 
 转换完成后才读取第五参数并执行signed `idiv`：
 
@@ -138,4 +146,27 @@ SDL首次构建通过；随后把新接线的CRT取模改为共享次级随机�
 context绑定后的初始化、记录清写和普通释放可见性通过定向core/ASan，
 SDL链接通过，见
 [实际缓存共享](battle-frame-effect-00453580.md#23-b11画面效果借背景初始化的实际旋转缓存)。
-本批未修改SDL主循环或背景source读取；完整帧和实际续玩仍待验收。
+该缓存批次未修改背景source读取；后续来源共享见下一节。
+完整帧和实际续玩仍待验收。
+
+## 12. B11实际背景记录与消费时机
+
+502940五DWORD由background.image_record唯一持有，加载成功依原写序
+发布图像、两尺寸WORD、附属字段、palette身份及长度。
+433540接收的是433380局部六DWORD记录；最终记录由433501..433530
+另行发布，不能直接套用压缩callee的+12h/+14h尺寸偏移。
+4332A0的局部+4调色板经43352D发布到最终+8。
+现有archive适配器沿用真实物理文件读取，不关闭预备全局I/O额外语义。
+
+WORD转换原地改实际字节并从头部改记录尺寸；indexed转换成功先写长度，
+再换图像身份并清palette指针，保留文件尺寸。失败保留已发布记录和
+已完成像素；load失败只保留此前cache及背景图像释放，不额外清四字段。
+背景分配归背景持有者，不能交给旋转帧专用释放端口。
+身份使用32位guest预约，核心与两处转场消费同一记录及合法图像分配。
+
+proc_dbc6 core及ASan的setup、actor316各1/1，SDL233/233链接通过。
+最终分配身份修正后proc_b52d重跑受影响的setup：core1/1（5.57秒），
+ASan1/1（10.49秒），SDL233/233链接通过，新增最终分配边界回归通过。
+真实all_map2测试仍属于setup目标；未启动游戏或新增原版差分。
+完整读取站点、夹具收敛与剩余边界见
+[画面来源共享](battle-frame-effect-00453580.md#24-b11画面来源与尺寸按原站点读取)。

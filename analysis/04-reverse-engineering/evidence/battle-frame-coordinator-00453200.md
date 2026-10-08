@@ -251,6 +251,12 @@ B11旋转缓存共享：453322效果context直接借startup.background_rotation_
 [旋转缓存共享](battle-frame-effect-00453580.md#23-b11画面效果借背景初始化的实际旋转缓存)。
 完整SDL帧与实际续玩仍待验收。
 
+B11来源共享：453322删除独立frame_effect_source接口，直接借startup
+背景五DWORD记录、实际图像分配与旋转缓存。入口发布、六处尺寸读取、
+缓存来源延续与晚失败保留通过同组定向core/ASan，SDL链接通过，见
+[画面来源共享](battle-frame-effect-00453580.md#24-b11画面来源与尺寸按原站点读取)。
+完整SDL帧与实际续玩仍待验收。
+
 ## 13. 验证与动态差分
 
 定向测试覆盖：

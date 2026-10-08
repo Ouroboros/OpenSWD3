@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 
+#include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_archive.hpp"
 #include "openswd3/battle/legacy_battle_definition_archive.hpp"
 
@@ -46,6 +47,9 @@ LegacyBattleArchiveBackgroundImageLoadPort::load_image(
     LegacyBattleBackgroundImageLoadResult result{
         .ready = true,
         .has_palette = loaded.frame.has_palette,
+        .width = loaded.frame.descriptor.width,
+        .height = loaded.frame.descriptor.height,
+        .image_size = loaded.frame.descriptor.primary_decompressed_size,
         .command_stream = std::move(loaded.frame.command_stream),
     };
     for (std::size_t index = 0U; index < result.palette.size(); ++index) {
@@ -63,6 +67,17 @@ LegacyBattleArchiveBackgroundImageLoadPort::load_image(
 }
 
 namespace {
+
+[[nodiscard]] compat::u16 read_image_word(
+    const std::span<const compat::u8> bytes, const std::size_t offset
+) noexcept {
+    return static_cast<compat::u16>(
+        static_cast<compat::u16>(bytes[offset]) |
+        static_cast<compat::u16>(
+            static_cast<compat::u16>(bytes[offset + 1U]) << 8U
+        )
+    );
+}
 
 [[nodiscard]] bool is_image_rotation_typed_stop(
     const LegacyBattleImageRotationStatus status
@@ -126,8 +141,20 @@ LegacyBattleBackgroundInitializationResult initialize_legacy_battle_background(
         rotation_cache, rotation_release_port
     );
 
-    result.previous_image_released = !background.image.empty();
-    background.image.clear();
+    const compat::u32 previous_image_token = background.image_record[0U];
+    if (previous_image_token != 0U) {
+        result.previous_image_release_token = previous_image_token;
+        if (background.image_allocation_token != previous_image_token) {
+            result.status = LegacyBattleBackgroundInitializationStatus::
+                image_release_typed_stop;
+            return result;
+        }
+
+        std::vector<compat::u8>{}.swap(background.image);
+        background.image_allocation_token = 0U;
+        result.previous_image_released = true;
+        background.image_record[0U] = 0U;
+    }
 
     LegacyBattleBackgroundImageLoadResult loaded = image_load_port.load_image(
         result.archive_path, request.one_based_resource, 0U
@@ -140,19 +167,116 @@ LegacyBattleBackgroundInitializationResult initialize_legacy_battle_background(
         return result;
     }
 
-    const std::span<const compat::u16> palette = loaded.has_palette
-        ? std::span<const compat::u16>{loaded.palette}
-        : std::span<const compat::u16>{};
-    result.conversion = rendering::convert_legacy_image_command_stream(
-        loaded.command_stream, palette, pixel_conversion
-    );
-    if (result.conversion.status !=
-        rendering::LegacyImageCommandStreamStatus::completed) {
+    const auto image_token =
+        asset_runtime::reserve_legacy_guest_bytes(loaded.command_stream.size());
+    std::optional<compat::u32> palette_token;
+    if (loaded.has_palette) {
+        palette_token = asset_runtime::reserve_legacy_guest_bytes(
+            loaded.palette.size() * sizeof(compat::u16)
+        );
+    }
+
+    if (!image_token.has_value() ||
+        (loaded.has_palette && !palette_token.has_value())) {
+        result.status = LegacyBattleBackgroundInitializationStatus::
+            image_identity_typed_stop;
+        return result;
+    }
+
+    background.image_allocation_token = *image_token;
+    background.image = std::move(loaded.command_stream);
+    if (loaded.has_palette) {
+        background.palette_allocation_token = *palette_token;
+        background.image_palette = loaded.palette;
+    }
+
+    background.image_record[0U] = *image_token;
+    background.image_record[3U] =
+        (background.image_record[3U] & 0xFFFF0000U) | loaded.width;
+    background.image_record[3U] = (background.image_record[3U] & 0x0000FFFFU) |
+        (static_cast<compat::u32>(loaded.height) << 16U);
+    background.image_record[1U] = 0U;
+    background.image_record[2U] = loaded.has_palette ? *palette_token : 0U;
+    background.image_record[4U] = loaded.image_size;
+
+    using ConversionStatus = rendering::LegacyImageCommandStreamStatus;
+    if (background.image.size() < sizeof(compat::u16)) {
+        result.conversion.status = ConversionStatus::source_exhausted;
+    } else if (
+        read_image_word(background.image, 0U) !=
+        rendering::kLegacyImageCommandStreamMagic
+    ) {
+        result.conversion.status = ConversionStatus::invalid_magic;
+    } else if (background.image.size() < 8U) {
+        result.conversion.status = ConversionStatus::source_exhausted;
+    } else if ((read_image_word(background.image, 6U) & 0x7FFFU) != 8U) {
+        background.image_record[3U] =
+            (background.image_record[3U] & 0xFFFF0000U) |
+            read_image_word(background.image, 2U);
+        background.image_record[3U] =
+            (background.image_record[3U] & 0x0000FFFFU) |
+            (static_cast<compat::u32>(read_image_word(background.image, 4U))
+             << 16U);
+        result.conversion.status =
+            rendering::convert_legacy_image_command_stream_literals_in_place(
+                background.image, pixel_conversion, &result.conversion.header
+            );
+    } else {
+        const compat::u32 allocation_size =
+            static_cast<compat::u32>(read_image_word(background.image, 2U)) *
+                static_cast<compat::u32>(
+                    read_image_word(background.image, 4U)
+                ) *
+                4U +
+            0x800U;
+        const auto temporary_token =
+            asset_runtime::reserve_legacy_guest_bytes(allocation_size);
+        if (!temporary_token.has_value()) {
+            result.status = LegacyBattleBackgroundInitializationStatus::
+                image_identity_typed_stop;
+            return result;
+        }
+
+        const std::span<const compat::u16> palette = loaded.has_palette
+            ? std::span<const compat::u16>{background.image_palette}
+            : std::span<const compat::u16>{};
+        result.conversion = rendering::convert_legacy_image_command_stream(
+            background.image, palette, pixel_conversion
+        );
+        if (result.conversion.status == ConversionStatus::completed) {
+            if (result.conversion.bytes.size() > allocation_size) {
+                result.conversion.status = ConversionStatus::size_overflow;
+            } else {
+                background.palette_allocation_token = 0U;
+                std::vector<compat::u8>{}.swap(background.image);
+                background.image_allocation_token = 0U;
+                const auto final_image_token =
+                    asset_runtime::reserve_legacy_guest_bytes(
+                        result.conversion.bytes.size()
+                    );
+                if (!final_image_token.has_value()) {
+                    result.status = LegacyBattleBackgroundInitializationStatus::
+                        image_identity_typed_stop;
+                    return result;
+                }
+
+                background.image = std::move(result.conversion.bytes);
+                background.image_allocation_token = *final_image_token;
+                background.image_record[4U] =
+                    static_cast<compat::u32>(background.image.size());
+                background.image_record[0U] = *final_image_token;
+                background.image_record[2U] = 0U;
+            }
+        }
+    }
+
+    if (result.conversion.status != ConversionStatus::completed &&
+        result.conversion.status != ConversionStatus::invalid_magic &&
+        result.conversion.status != ConversionStatus::unsupported_depth) {
         result.status = LegacyBattleBackgroundInitializationStatus::
             image_conversion_typed_stop;
         return result;
     }
-    background.image = std::move(result.conversion.bytes);
 
     if (request.rotation_divisor == 0) {
         result.status = LegacyBattleBackgroundInitializationStatus::

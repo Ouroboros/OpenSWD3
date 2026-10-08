@@ -1990,7 +1990,6 @@ struct LegacyBattleFrameCoordinatorContext {
     const LegacyBattleMusicPath& music_path;
     const compat::i32& music_mix_level;
     LegacyBattleFrameEffectPort& frame_effect_port;
-    LegacyBattleFrameEffectSource& frame_effect_source;
     std::span<const compat::u32> frame_effect_surfaces;
     asset_runtime::LegacyActionUpdater& action_updater;
     rendering::LegacyFramePieceProvider& frame_provider;

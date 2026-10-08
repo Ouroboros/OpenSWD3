@@ -362,6 +362,7 @@ LegacyBattleActionRotationDrawResult draw_legacy_battle_action_rotation_frame(
 
     const rendering::LegacyFramePiece& frame = state.cached_frames[frame_slot];
     rendering::LegacyBlitSource call_source = frame.source;
+    shared_request.source_token = state.cached_image_tokens[frame_slot];
     result.source_published = true;
     shared_request.horizontal_resample_displacement =
         std::bit_cast<compat::i32>(state.field_bc);
@@ -506,6 +507,7 @@ play_legacy_battle_action_rotation_cache(
                     cached_owner_invalid;
                 return result;
             }
+            shared_request.source_token = state.cached_image_tokens[frame_slot];
             const rendering::LegacyFramePiece& frame =
                 state.cached_frames[frame_slot];
             rendering::LegacyBlitSource call_source = frame.source;

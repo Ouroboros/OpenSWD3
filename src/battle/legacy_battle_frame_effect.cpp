@@ -108,29 +108,40 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
     LegacyBattleFrameEffectContext& context,
     LegacyBattleFrameEffectResult& result,
     const LegacyBattleFrameEffectSource source,
-    const u32 flags
+    const u32 flags,
+    const bool publish_background_source = false
 ) noexcept {
+    const u32 dimensions = source.record[3U];
+    const u16 width = static_cast<u16>(dimensions);
+    const std::optional<u32> publication = publish_background_source
+        ? std::optional<u32>{source.record[0U]}
+        : std::nullopt;
+    const u16 height = static_cast<u16>(source.record[3U] >> 16U);
+    if (publication.has_value()) {
+        context.shared_request.source_token = *publication;
+    }
+
     rendering::LegacyBlitRequest request = context.shared_request;
     request.destination_x = 0;
     request.destination_y = 0;
-    request.source_width = static_cast<i32>(source.width);
-    request.source_height = static_cast<i32>(source.height);
+    request.source_width = static_cast<i32>(width);
+    request.source_height = static_cast<i32>(height);
     request.flags = flags;
     request.auxiliary = {};
-    const rendering::LegacyBlitSource blit_source{
-        .bytes = source.bytes,
-        .layout = source.layout,
-        .palette = {},
-    };
+    ++result.source_blit_calls;
+    const auto image = source.images.query_image(request.source_token);
+    if (!image.has_value() || image->source.bytes.size() < sizeof(u16)) {
+        return false;
+    }
+
     const rendering::LegacyBlitResult blit = rendering::blit_legacy_copy_paths(
         context.framebuffer,
         current_clip(context.raster),
-        blit_source,
+        image->source,
         request,
         context.shared_effects,
         context.jitter
     );
-    ++result.source_blit_calls;
     if (!accepted_blit_status(blit.status)) {
         return false;
     }
@@ -150,9 +161,22 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
         : LegacyBattleImageRotationMode::pixels_left;
     const i32 shift = rotation_amount > 0 ? rotation_amount
                                           : wrapping_negate(rotation_amount);
-    result.source_rotation =
-        rotate_legacy_battle_literal_image(source.bytes, mode, shift);
     ++result.source_rotation_calls;
+    if (shift <= 0) {
+        result.source_rotation =
+            rotate_legacy_battle_literal_image({}, mode, shift);
+        return accepted_rotation_status(result.source_rotation.status);
+    }
+
+    const auto image = source.images.query_image(source.record[0U]);
+    if (!image.has_value()) {
+        result.source_rotation.status =
+            LegacyBattleImageRotationStatus::header_read_out_of_range;
+        return false;
+    }
+
+    result.source_rotation =
+        rotate_legacy_battle_literal_image(image->mutable_bytes, mode, shift);
     return accepted_rotation_status(result.source_rotation.status);
 }
 
@@ -322,6 +346,38 @@ void reset_effect_state(
 
 }  // namespace
 
+LegacyBattleBackgroundFrameEffectImagePort::
+    LegacyBattleBackgroundFrameEffectImagePort(
+        LegacyBattleBackgroundState& background,
+        LegacyBattleActionRotationCacheState& rotation_cache
+    ) noexcept
+    : background_(background), rotation_cache_(rotation_cache) {}
+
+std::optional<LegacyBattleFrameEffectImage>
+LegacyBattleBackgroundFrameEffectImagePort::query_image(const u32 image_token) {
+    if (image_token != 0U &&
+        image_token == background_.image_allocation_token) {
+        return LegacyBattleFrameEffectImage{
+            .source = {.bytes = background_.image},
+            .mutable_bytes = background_.image,
+        };
+    }
+
+    for (std::size_t slot = 0U;
+         slot < rotation_cache_.cached_image_tokens.size();
+         ++slot) {
+        if (image_token != 0U &&
+            rotation_cache_.cached_image_tokens[slot] == image_token) {
+            return LegacyBattleFrameEffectImage{
+                .source = rotation_cache_.cached_frames[slot].source,
+                .mutable_bytes = rotation_cache_.cached_mutable_images[slot],
+            };
+        }
+    }
+
+    return std::nullopt;
+}
+
 LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
     LegacyBattleFrameEffectState& state,
     LegacyBattleFrameEffectPort& port,
@@ -331,7 +387,7 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
     const i32 rotation_amount
 ) noexcept {
     LegacyBattleFrameEffectResult result;
-    state.published_source_token = source.token;
+    context.shared_request.source_token = source.record[0U];
     const u32 primary_suppression = context.control.primary_suppression;
     set_clip(context, result, 0, 0, 640, 480);
 
@@ -365,7 +421,7 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                     640,
                     192
                 );
-                if (!draw_source(context, result, source, 0x28U)) {
+                if (!draw_source(context, result, source, 0x28U, true)) {
                     result.status =
                         LegacyBattleFrameEffectStatus::source_blit_typed_stop;
                     return result;
@@ -378,7 +434,7 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                     640,
                     std::bit_cast<i32>(0xC0U + static_cast<u32>(extent))
                 );
-                if (!draw_source(context, result, source, 0x28U)) {
+                if (!draw_source(context, result, source, 0x28U, true)) {
                     result.status =
                         LegacyBattleFrameEffectStatus::source_blit_typed_stop;
                     return result;

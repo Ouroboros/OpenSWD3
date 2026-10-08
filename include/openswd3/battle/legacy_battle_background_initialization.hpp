@@ -23,6 +23,9 @@ struct LegacyBattleBackgroundImageLoadResult {
     bool ready{};
     bool has_palette{};
     std::array<compat::u16, 256> palette{};
+    compat::u16 width{};
+    compat::u16 height{};
+    compat::u32 image_size{};
     std::vector<compat::u8> command_stream;
 };
 
@@ -69,6 +72,10 @@ make_legacy_battle_startup_background_request(
 );
 
 struct LegacyBattleBackgroundState {
+    std::array<compat::u32, 5> image_record{};
+    compat::u32 image_allocation_token{};
+    compat::u32 palette_allocation_token{};
+    std::array<compat::u16, 256> image_palette{};
     std::vector<compat::u8> image;
     std::array<compat::u16, 3> completion_words{};
 };
@@ -76,6 +83,8 @@ struct LegacyBattleBackgroundState {
 enum class LegacyBattleBackgroundInitializationStatus : compat::u8 {
     completed,
     image_load_failed,
+    image_release_typed_stop,
+    image_identity_typed_stop,
     image_conversion_typed_stop,
     rotation_division_by_zero,
     image_rotation_typed_stop,
@@ -89,6 +98,7 @@ struct LegacyBattleBackgroundInitializationResult {
     std::filesystem::path archive_path;
     LegacyBattleActionRotationReleaseResult cache_release{};
     bool previous_image_released{};
+    compat::u32 previous_image_release_token{};
     compat::u32 image_load_calls{};
     rendering::LegacyImageCommandStreamResult conversion{};
     compat::i32 rotation_shift{};

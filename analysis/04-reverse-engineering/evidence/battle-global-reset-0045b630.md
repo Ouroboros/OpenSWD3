@@ -9,6 +9,15 @@
 提前释放失败保留两项实际状态。完整统计与定向验证见
 [角色共享证据](battle-frame-effect-00453580.md#21-b11画面效果借实际角色word及优先角色dword)。
 
+## B11：复位实际背景记录
+
+条件分配读取startup.background.image_record[0]，正常释放后才按原固定
+写程序清同一五DWORD记录。删除reset.values_502940副本，原写程序和
+mapped地址范围不增加；背景持有的字节及身份仅在对应释放返回后失效。
+启动复位也清该同一记录，核心帧与两处转场直接借用。
+定向core/ASan及SDL链接通过，资源读取边界见
+[画面来源共享](battle-frame-effect-00453580.md#24-b11画面来源与尺寸按原站点读取)。
+
 ## 1. 完整LST范围
 
 权威函数为`0x0045B630..0x0045BD0C`，从proc到endp完整637行、9个静态call站点、1个条件跳转与1个局部标签，无外部FUNCTION CHUNK。

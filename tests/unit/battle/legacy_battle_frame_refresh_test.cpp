@@ -315,8 +315,19 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
             .rotation_cache = rotation_cache,
         };
         const std::array<u32, 3> surfaces{0xA000U, 0xA100U, 0xA200U};
+        openswd3::battle::LegacyBattleBackgroundState background;
+        openswd3::battle::LegacyBattleBackgroundFrameEffectImagePort images{
+            background,
+            rotation_cache,
+        };
+
+        const openswd3::battle::LegacyBattleFrameEffectSource source{
+            .record = background.image_record,
+            .images = images,
+        };
+
         const auto growth = openswd3::battle::update_legacy_battle_frame_effect(
-            effect, port, context, {}, surfaces, 0
+            effect, port, context, source, surfaces, 0
         );
         test.expect_true(
             growth.status ==
@@ -330,7 +341,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         action->current_actor_index = 1U;
         effect.fade_active = 1U;
         const auto fade = openswd3::battle::update_legacy_battle_frame_effect(
-            effect, port, context, {}, surfaces, 0
+            effect, port, context, source, surfaces, 0
         );
         test.expect_true(
             fade.status ==

@@ -228,8 +228,8 @@ void seed_state(
     startup.render_geometry.primary_row_offsets = std::make_unique<u32[]>(2U);
     startup.render_geometry.surface_row_offsets = std::make_unique<u32[]>(2U);
     startup.render_geometry.auxiliary_buffer_token = 303U;
-    startup.reset.values_502940.fill(9U);
-    startup.reset.values_502940[0] = 404U;
+    startup.background.image_record.fill(9U);
+    startup.background.image_record[0U] = 404U;
     startup.reset.block_525470.fill(9U);
     startup.reset.block_5244e8.fill(9U);
     startup.reset.value_53bf80 = 9U;
@@ -1017,7 +1017,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                     startup.reset.block_5244e8,
                     [](const auto value) { return value == 0xFFFFFFFFU; }
                 ) &&
-                startup.reset.values_502940 ==
+                startup.background.image_record ==
                     std::array<u32, 5>{0U, 0U, 0U, 0U, 0U} &&
                 startup.reset.records_524788[0].value_00 == 0U &&
                 startup.reset.records_524788[0].value_04 == 0U &&
@@ -1140,7 +1140,7 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         auto& action = actor_frames.shared.action;
         LegacyBattleDebugOverlayState debug_overlay;
         ResetPort port;
-        startup.reset.values_502940[0] = 0U;
+        startup.background.image_record[0U] = 0U;
 
         const auto result = openswd3::battle::reset_legacy_battle_globals(
             state,

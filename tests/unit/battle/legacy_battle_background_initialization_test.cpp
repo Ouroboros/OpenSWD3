@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_background_initialization.hpp"
 
+#include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
+
 #include <array>
 #include <filesystem>
 #include <utility>
@@ -40,6 +42,9 @@ read_u16(const std::vector<u8>& bytes, const std::size_t offset) {
     return LegacyBattleBackgroundImageLoadResult{
         .ready = encoded.status ==
             openswd3::rendering::LegacyImageCommandStreamStatus::completed,
+        .width = 2U,
+        .height = 1U,
+        .image_size = static_cast<u32>(encoded.bytes.size()),
         .command_stream = std::move(encoded.bytes),
     };
 }
@@ -148,6 +153,120 @@ struct Ports {
 void test_battle_background_initialization(openswd3::test::Context& test) {
     const openswd3::rendering::LegacyPixelConversionState pixel_conversion;
 
+    for (const bool indexed : {false, true}) {
+        LegacyBattleBackgroundState background;
+        LegacyBattleActionRotationCacheState rotation_cache;
+        Ports ports{background};
+        ports.loader.next = make_loaded_image();
+        if (indexed) {
+            const std::array<u8, 2> indices{4U, 5U};
+            auto encoded =
+                openswd3::rendering::encode_legacy_image_command_stream(
+                    indices, 2U, 1U, 8U
+                );
+            ports.loader.next.command_stream = std::move(encoded.bytes);
+            ports.loader.next.image_size =
+                static_cast<u32>(ports.loader.next.command_stream.size());
+            ports.loader.next.has_palette = true;
+            ports.loader.next.palette[4U] = 0x0011U;
+            ports.loader.next.palette[5U] = 0x0022U;
+        }
+
+        ports.loader.next.width = 9U;
+        ports.loader.next.height = 7U;
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_background(
+                background,
+                rotation_cache,
+                ports.loader,
+                ports.releaser,
+                ports.updater,
+                ports.images,
+                pixel_conversion,
+                {.data_root = "game-data",
+                 .one_based_resource = 1U,
+                 .rotation_divisor = 0}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleBackgroundInitializationStatus::
+                        rotation_division_by_zero &&
+                background.image_record[0U] != 0U &&
+                background.image_record[0U] ==
+                    background.image_allocation_token &&
+                background.image_record[1U] == 0U &&
+                background.image_record[2U] == 0U &&
+                background.image_record[3U] ==
+                    (indexed ? 0x00070009U : 0x00010002U) &&
+                background.image_record[4U] == background.image.size() &&
+                background.palette_allocation_token == 0U &&
+                read_u16(background.image, 2U) == 2U &&
+                read_u16(background.image, 4U) == 1U &&
+                read_u16(background.image, 12U) == 0x0011U &&
+                !result.completion_words_published,
+            "word conversion rewrites the two record dimensions while indexed " "conversion retains file dimensions and replaces its image identity"
+        );
+        if (indexed) {
+            const u32 final_allocation_size =
+                (static_cast<u32>(background.image.size()) + 15U) & ~u32{15U};
+            const auto adjacent_range =
+                openswd3::asset_runtime::register_legacy_external_guest_bytes(
+                    background.image_record[0U] + final_allocation_size, 16U
+                );
+            test.expect_true(
+                adjacent_range != nullptr,
+                "indexed conversion publishes a final-sized allocation " "rather than its temporary conversion buffer"
+            );
+        }
+    }
+
+    {
+        LegacyBattleBackgroundState background;
+        LegacyBattleActionRotationCacheState rotation_cache;
+        Ports ports{background};
+        ports.loader.next = make_loaded_image();
+        ports.loader.next.command_stream.resize(
+            ports.loader.next.command_stream.size() - 2U
+        );
+        ports.loader.next.image_size =
+            static_cast<u32>(ports.loader.next.command_stream.size());
+        ports.loader.next.width = 9U;
+        ports.loader.next.height = 7U;
+        auto conversion = pixel_conversion;
+        conversion.forward =
+            openswd3::rendering::LegacyPixelTransform::shift_whole_word_left;
+        const auto result =
+            openswd3::battle::initialize_legacy_battle_background(
+                background,
+                rotation_cache,
+                ports.loader,
+                ports.releaser,
+                ports.updater,
+                ports.images,
+                conversion,
+                {.data_root = "game-data",
+                 .one_based_resource = 1U,
+                 .rotation_divisor = 640}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleBackgroundInitializationStatus::
+                        image_conversion_typed_stop &&
+                result.conversion.status ==
+                    openswd3::rendering::LegacyImageCommandStreamStatus::
+                        source_exhausted &&
+                background.image_record[0U] ==
+                    background.image_allocation_token &&
+                background.image_record[0U] != 0U &&
+                background.image_record[3U] == 0x00010002U &&
+                background.image_record[4U] == background.image.size() &&
+                read_u16(background.image, 12U) == 0x0022U &&
+                read_u16(background.image, 14U) == 0x0044U &&
+                !result.completion_words_published && ports.updater.calls == 0U,
+            "a later missing row header preserves the published image record " "and the literal pixels already converted in its actual allocation"
+        );
+    }
+
     for (const bool stopped : {false, true}) {
         LegacyBattleBackgroundState background;
         background.completion_words = {1U, 2U, 3U};
@@ -230,6 +349,8 @@ void test_battle_background_initialization(openswd3::test::Context& test) {
 
     {
         LegacyBattleBackgroundState background{
+            .image_record = {0x9000U, 0U, 0U, 0x00010001U, 2U},
+            .image_allocation_token = 0x9000U,
             .image = {0xAAU, 0xBBU},
             .completion_words = {1U, 2U, 3U},
         };
@@ -285,6 +406,9 @@ void test_battle_background_initialization(openswd3::test::Context& test) {
                 ports.updater.last_action_id == 0x1234U &&
                 ports.images.calls == 0U &&
                 ports.events == std::vector<u32>{1U, 2U, 3U, 4U} &&
+                result.previous_image_release_token == 0x9000U &&
+                ports.releaser.released_images ==
+                    std::vector<u32>{0x22222222U} &&
                 read_u16(background.image, 12U) == 0x0022U &&
                 read_u16(background.image, 14U) == 0x0011U &&
                 background.completion_words ==
@@ -299,6 +423,8 @@ void test_battle_background_initialization(openswd3::test::Context& test) {
 
     {
         LegacyBattleBackgroundState background{
+            .image_record = {0x9001U, 0U, 0U, 0x12345678U, 1U},
+            .image_allocation_token = 0x9001U,
             .image = {0xCCU},
             .completion_words = {4U, 5U, 6U},
         };
@@ -324,6 +450,10 @@ void test_battle_background_initialization(openswd3::test::Context& test) {
                     LegacyBattleBackgroundInitializationStatus::
                         image_load_failed &&
                 result.return_value == 0U && background.image.empty() &&
+                background.image_record ==
+                    std::array<u32, 5>{0U, 0U, 0U, 0x12345678U, 1U} &&
+                result.previous_image_release_token == 0x9001U &&
+                background.image_allocation_token == 0U &&
                 background.completion_words == std::array<u16, 3>{4U, 5U, 6U} &&
                 !result.completion_words_published && ports.updater.calls == 0U,
             "battle background load failure returns zero before completion words"

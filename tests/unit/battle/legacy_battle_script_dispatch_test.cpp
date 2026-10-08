@@ -5615,6 +5615,21 @@ void test_script_actor_selector_sharing(openswd3::test::Context& test) {
                 1U,
                 16U
             );
+            fixture->startup.background.image = std::move(image.bytes);
+            fixture->startup.background.image_record = {
+                0xA100U,
+                0U,
+                0U,
+                0x00010001U,
+                static_cast<u32>(fixture->startup.background.image.size()),
+            };
+
+            fixture->startup.background.image_allocation_token = 0xA100U;
+            LegacyBattleBackgroundFrameEffectImagePort frame_images{
+                fixture->startup.background,
+                fixture->startup.background_rotation_cache,
+            };
+
             ImagePort image_port;
             LegacyBattleFrameEffectState state;
             state.cadence = 2;
@@ -5623,10 +5638,8 @@ void test_script_actor_selector_sharing(openswd3::test::Context& test) {
                 state,
                 image_port,
                 context,
-                {.token = 0xA100U,
-                 .bytes = image.bytes,
-                 .width = 1U,
-                 .height = 1U},
+                {.record = fixture->startup.background.image_record,
+                 .images = frame_images},
                 staged_surfaces,
                 0
             );
@@ -5710,6 +5723,21 @@ void test_script_flash_sharing(openswd3::test::Context& test) {
                  sizeof(pixels)},
                 1U, 1U, 16U
             );
+            fixture->startup.background.image = std::move(image.bytes);
+            fixture->startup.background.image_record = {
+                0xA100U,
+                0U,
+                0U,
+                0x00010001U,
+                static_cast<u32>(fixture->startup.background.image.size()),
+            };
+
+            fixture->startup.background.image_allocation_token = 0xA100U;
+            LegacyBattleBackgroundFrameEffectImagePort frame_images{
+                fixture->startup.background,
+                fixture->startup.background_rotation_cache,
+            };
+
             ImagePort image_port;
             bool consumed{};
             port.after_call = [&](auto&, auto&, const auto& call) {
@@ -5718,10 +5746,13 @@ void test_script_flash_sharing(openswd3::test::Context& test) {
                 }
 
                 const auto frame = update_legacy_battle_frame_effect(
-                    state, image_port, context,
-                    {.token = 0xA100U, .bytes = image.bytes,
-                     .width = 1U, .height = 1U},
-                    {}, 0
+                    state,
+                    image_port,
+                    context,
+                    {.record = fixture->startup.background.image_record,
+                     .images = frame_images},
+                    {},
+                    0
                 );
                 consumed = frame.status ==
                         LegacyBattleFrameEffectStatus::completed &&
@@ -5810,11 +5841,24 @@ void test_script_rotation_sharing(openswd3::test::Context& test) {
                 {reinterpret_cast<const u8*>(pixels.data()), sizeof(pixels)},
                 3U, 1U, 16U
             );
+            fixture->startup.background.image = std::move(image.bytes);
+            fixture->startup.background.image_record = {
+                0xA100U,
+                0U,
+                0U,
+                0x00010003U,
+                static_cast<u32>(fixture->startup.background.image.size()),
+            };
+
+            fixture->startup.background.image_allocation_token = 0xA100U;
+            LegacyBattleBackgroundFrameEffectImagePort frame_images{
+                fixture->startup.background,
+                fixture->startup.background_rotation_cache,
+            };
+
             LegacyBattleFrameEffectSource source{
-                .token = 0xA100U,
-                .bytes = image.bytes,
-                .width = 3U,
-                .height = 1U,
+                .record = fixture->startup.background.image_record,
+                .images = frame_images,
             };
             ImagePort image_port;
             LegacyBattleFrameEffectResult effect_result;

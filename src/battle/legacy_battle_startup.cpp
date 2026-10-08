@@ -323,7 +323,7 @@ void reset_legacy_battle_startup_blocks(
     reset.block_520e90.fill(0U);
     reset.values_52544c.fill(0U);
     reset.block_4ff0bc.fill(0U);
-    reset.values_502940.fill(0U);
+    state.background.image_record.fill(0U);
     reset.values_5244d8.fill(0U);
     reset.block_5242b0.fill(0U);
     reset.value_524418 = 0U;

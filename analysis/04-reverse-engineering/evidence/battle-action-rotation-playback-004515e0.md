@@ -8,6 +8,12 @@
 
 callee为动作更新`0x004321E0`两个callsite、已关闭literal循环平移`0x00433F70`一个循环callsite和通用blitter `0x004170E0`一个循环callsite。typed实现复用同一扩展状态、六owner/frame缓存、更新端口和closed rotation helper。
 
+B11来源共享：45168F在实际绘制前把当前缓存图像发布到共享request。
+45386B不重新发布背景，故播放后的图像沿用最后缓存帧；正、负与INT_MIN
+路径分别观察像素3/2/1，失败保留已经执行的发布。定向core/ASan与
+SDL链接通过，见
+[来源共享](battle-frame-effect-00453580.md#24-b11画面来源与尺寸按原站点读取)。
+
 ## 2. 零动作门与入口清零
 
 入口先比较扩展状态`+0xC0`的存储动作号低word：

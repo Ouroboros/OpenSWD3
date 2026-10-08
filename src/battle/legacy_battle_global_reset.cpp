@@ -374,7 +374,7 @@ void synchronize_typed_aliases(
     reset.block_524268.fill(0U);
     reset.block_5244e8.fill(0xFFFFFFFFU);
     reset.values_52544c.fill(0U);
-    reset.values_502940.fill(0U);
+    startup.background.image_record.fill(0U);
     reset.value_4ff0b0 = 0U;
     reset.value_4fe5cc = 0U;
     reset.value_4ff0b4 = 0U;
@@ -608,7 +608,7 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
     result.render_resources =
         release_legacy_battle_render_resources(startup.render_geometry, port);
 
-    result.conditional_allocation_token = startup.reset.values_502940[0];
+    result.conditional_allocation_token = startup.background.image_record[0U];
     if (result.conditional_allocation_token != 0U) {
         record_call(
             result, LegacyBattleGlobalResetCallStage::conditional_allocation
@@ -618,6 +618,11 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
             result.conditional_allocation_token
         ));
         result.conditional_allocation_released = true;
+        if (startup.background.image_allocation_token ==
+            result.conditional_allocation_token) {
+            startup.background.image.clear();
+            startup.background.image_allocation_token = 0U;
+        }
     }
 
     for (u32 index = 0U; index < 232U; ++index) {

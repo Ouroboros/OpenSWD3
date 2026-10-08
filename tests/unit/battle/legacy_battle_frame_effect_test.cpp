@@ -2,11 +2,14 @@
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 #include "test.hpp"
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <cstring>
 #include <functional>
 #include <limits>
+#include <map>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -97,13 +100,20 @@ public:
     std::vector<u32> released_tokens;
 };
 
-struct Fixture {
+struct Fixture : public openswd3::battle::LegacyBattleFrameEffectImagePort {
     openswd3::rendering::LegacyFramebuffer framebuffer;
     openswd3::rendering::LegacyRasterGeometryState raster{};
     openswd3::rendering::LegacyBlitRequest request{};
     openswd3::rendering::LegacyBlitEffectState effects{};
     openswd3::rendering::LegacyRleRowJitterState jitter{};
-    std::vector<u8> source_bytes;
+    openswd3::battle::LegacyBattleBackgroundState background;
+    std::vector<u8>& source_bytes{background.image};
+    openswd3::rendering::LegacyBlitSourceLayout source_layout{
+        openswd3::rendering::LegacyBlitSourceLayout::direct_16
+    };
+
+    std::map<u32, openswd3::battle::LegacyBattleFrameEffectImage> extra_images;
+    std::vector<u32> image_queries;
     openswd3::compat::i32 pending_rotation{};
     openswd3::battle::LegacyBattleScreenFlashState flash{};
     openswd3::battle::LegacyBattleFrameRefreshState refresh{};
@@ -112,6 +122,9 @@ struct Fixture {
     u32 priority_actor_index{};
     u32 color_initialization_gate{};
     openswd3::battle::LegacyBattleActionRotationCacheState rotation_cache{};
+    openswd3::battle::LegacyBattleBackgroundFrameEffectImagePort images{
+        background, rotation_cache
+    };
 
     Fixture() {
         static_cast<void>(
@@ -135,6 +148,32 @@ struct Fixture {
                            raw, 3U, 2U, 16U
         )
                            .bytes;
+        background.image_record = {
+            0xA100U,
+            0U,
+            0U,
+            0x00020003U,
+            static_cast<u32>(source_bytes.size()),
+        };
+
+        background.image_allocation_token = 0xA100U;
+    }
+
+    [[nodiscard]] std::optional<openswd3::battle::LegacyBattleFrameEffectImage>
+    query_image(const u32 image_token) override {
+        image_queries.push_back(image_token);
+        const auto extra = extra_images.find(image_token);
+        if (extra != extra_images.end()) {
+            return extra->second;
+        }
+
+        auto image = images.query_image(image_token);
+        if (image.has_value() &&
+            image_token == background.image_allocation_token) {
+            image->source.layout = source_layout;
+        }
+
+        return image;
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleFrameEffectContext context() {
@@ -156,12 +195,7 @@ struct Fixture {
     }
 
     [[nodiscard]] LegacyBattleFrameEffectSource source() {
-        return {
-            .token = 0xA100U,
-            .bytes = source_bytes,
-            .width = 3U,
-            .height = 2U,
-        };
+        return {.record = background.image_record, .images = *this};
     }
 };
 
@@ -180,6 +214,300 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleFrameEffectStatus;
 
     constexpr std::array<u32, 3> surfaces{0xB000U, 0xB100U, 0xB200U};
+
+    {
+        LegacyBattleFrameEffectState state;
+        Fixture fixture;
+        auto context = fixture.context();
+        auto source = fixture.source();
+        std::array<u8, 2> cached_pixels{0x57U, 0x13U};
+        fixture.pending_rotation = 77;
+        fixture.rotation_cache.stored_action_id = 1U;
+        fixture.rotation_cache.frame_owner_tokens[0] = 0x7000U;
+        fixture.rotation_cache.cached_image_tokens[0] = 0x8000U;
+        fixture.rotation_cache.cached_frames[0] = {
+            .source = {.bytes = cached_pixels},
+            .width = 1U,
+            .height = 1U,
+        };
+
+        state.split_suppression = 1U;
+        state.split_extent = 11U;
+        EffectPort port;
+        port.on_action_update = [&] {
+            fixture.background.image_record[0U] = 0xA200U;
+            fixture.background.image_record[3U] = 0x00010001U;
+        };
+
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, source, surfaces, 0
+        );
+        test.expect_true(
+            port.action_updates == 1U && result.rotation_frame_calls == 1U &&
+                result.rotation_frame.status ==
+                    openswd3::battle::LegacyBattleActionRotationDrawStatus::
+                        completed &&
+                fixture.framebuffer.physical_pixels()[0] == 0x1357U,
+            "the source failure vector reaches and completes cached drawing " "before the changed upper-band image is consumed"
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleFrameEffectStatus::source_blit_typed_stop &&
+                result.clip_calls == 2U && result.source_blit_calls == 2U &&
+                result.rotation_frame_calls == 1U &&
+                fixture.request.source_token == 0xA200U &&
+                state.split_extent == 22U && fixture.pending_rotation == 77 &&
+                fixture.raster.clip_top == 170 &&
+                fixture.framebuffer.physical_pixels()[0] == 0x1357U,
+            "the upper band republishes the image selected after action " "update and its unreadable source preserves the completed prefix"
+        );
+    }
+
+    {
+        LegacyBattleFrameEffectState state;
+        Fixture fixture;
+        auto context = fixture.context();
+        auto source = fixture.source();
+        std::array<u8, 2> replacement_pixels{0x42U, 0x00U};
+        std::fill(
+            fixture.framebuffer.physical_pixels().begin(),
+            fixture.framebuffer.physical_pixels().end(),
+            0x1111U
+        );
+        fixture.current_actor_index = 9U;
+        fixture.priority_actor_index = 9U;
+        fixture.control.primary_suppression = 1U;
+        fixture.refresh.refresh_pending = 2U;
+        fixture.refresh.active_surface_token = 0xFFFFFFFFU;
+        state.fade_active = 1U;
+        EffectPort port;
+        port.on_surface_operation = [&] {
+            fixture.background.image_record[0U] = 0xA200U;
+            fixture.background.image_record[3U] = 0x00010001U;
+            fixture.extra_images[0xA200U] = {
+                .source =
+                    {
+                        .bytes = replacement_pixels,
+                        .layout = openswd3::rendering::LegacyBlitSourceLayout::
+                            indexed_8,
+                    },
+                .mutable_bytes = replacement_pixels,
+            };
+        };
+
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, source, surfaces, 0
+        );
+        test.expect_true(
+            result.surface_operation_calls == 1U &&
+                result.surface_operation.callee_returned &&
+                result.source_blit_calls == 1U &&
+                fixture.refresh.refresh_pending == 1U,
+            "the changed-dimension vector reaches fade fallback after the " "surface returns and the stage is decremented"
+        );
+        test.expect_true(
+            result.status == LegacyBattleFrameEffectStatus::completed &&
+                result.surface_operation_calls == 1U &&
+                result.source_blit_calls == 1U &&
+                fixture.refresh.refresh_pending == 1U &&
+                fixture.request.source_token == 0xA100U &&
+                fixture.framebuffer.physical_pixels()[0] == 0x001FU &&
+                fixture.framebuffer.physical_pixels()[1] == 0x1111U &&
+                fixture.framebuffer.physical_pixels()[640] == 0x1111U,
+            "fade fallback rereads dimensions after the surface returns but " "consumes the previously published image rather than a new token"
+        );
+    }
+
+    {
+        LegacyBattleFrameEffectState state;
+        Fixture fixture;
+        auto context = fixture.context();
+        fixture.current_actor_index = 9U;
+        fixture.priority_actor_index = 9U;
+        fixture.control.primary_suppression = 1U;
+        fixture.refresh.refresh_pending = 2U;
+        fixture.refresh.active_surface_token = 0xFFFFFFFFU;
+        state.fade_active = 1U;
+        std::array<u8, 2> retained_pixels{0x57U, 0x13U};
+        fixture.rotation_cache.cached_image_tokens[0U] = 0x8000U;
+        fixture.rotation_cache.cached_frames[0U].source.bytes = retained_pixels;
+        EffectPort port;
+        port.on_surface_operation = [&] {
+            fixture.request.source_token = 0x8000U;
+            fixture.background.image_record[0U] = 0xA200U;
+            fixture.background.image_record[3U] = 0x00010001U;
+        };
+
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, fixture.source(), surfaces, 0
+        );
+        test.expect_true(
+            result.status == LegacyBattleFrameEffectStatus::completed &&
+                result.surface_operation_calls == 1U &&
+                result.source_blit_calls == 1U &&
+                fixture.request.source_token == 0x8000U &&
+                fixture.refresh.refresh_pending == 1U &&
+                fixture.framebuffer.physical_pixels()[0U] == 0x1357U &&
+                fixture.rotation_cache.frame_owner_tokens[0U] == 0U,
+            "surface return changes the current blitter source independently " "of the background and a retained image needs no live cache owner"
+        );
+    }
+
+    for (const u32 dimensions : {0U, 1U, 0x00010000U}) {
+        for (const openswd3::compat::i32 opacity : {-1, 0, 1}) {
+            LegacyBattleFrameEffectState state;
+            Fixture fixture;
+            auto context = fixture.context();
+            fixture.background.image_record[0U] = 0xA200U;
+            fixture.background.image_record[3U] = dimensions;
+            fixture.request.opacity_step = opacity;
+            fixture.pending_rotation = 77;
+            EffectPort port;
+            const auto result =
+                openswd3::battle::update_legacy_battle_frame_effect(
+                    state, port, context, fixture.source(), surfaces, 0
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleFrameEffectStatus::source_blit_typed_stop &&
+                    result.clip_calls == 1U && result.source_blit_calls == 1U &&
+                    result.rotation_frame_calls == 0U &&
+                    fixture.request.source_token == 0xA200U &&
+                    fixture.pending_rotation == 77,
+                "the initial source WORD is required before zero dimensions " "or opacity can suppress later blitter work"
+            );
+        }
+    }
+
+    for (const bool alternate : {false, true}) {
+        for (const openswd3::compat::i32 rotation :
+             {1, -1, std::numeric_limits<openswd3::compat::i32>::min()}) {
+            LegacyBattleFrameEffectState state;
+            auto fixture_storage = std::make_unique<Fixture>();
+            auto& fixture = *fixture_storage;
+            auto context = fixture.context();
+            fixture.background.image_record[0U] = 0xA200U;
+            fixture.current_actor_index = 9U;
+            fixture.priority_actor_index = 9U;
+            fixture.control.primary_suppression = alternate ? 1U : 0U;
+            fixture.refresh.refresh_pending = 1U;
+            fixture.pending_rotation = 77;
+            state.alternate_surface_mode = 1U;
+            fixture.rotation_cache.stored_action_id = 1U;
+            fixture.rotation_cache.frame_owner_tokens[0U] = 0x7000U;
+            fixture.rotation_cache.cached_image_tokens[0U] = 0x8000U;
+            fixture.rotation_cache.cached_mutable_images[0U] =
+                fixture.source_bytes;
+            fixture.rotation_cache.cached_frames[0U] = {
+                .source = {.bytes = fixture.source_bytes},
+                .width = 3U,
+                .height = 2U,
+            };
+
+            EffectPort port;
+            port.action_eax = 1U;
+            port.on_action_update = [&] {
+                fixture.rotation_cache.action_record.command_cursor = 0U;
+                fixture.rotation_cache.action_record.field_4c = 0U;
+            };
+
+            const auto result =
+                openswd3::battle::update_legacy_battle_frame_effect(
+                    state, port, context, fixture.source(), surfaces, rotation
+                );
+            const bool skipped =
+                rotation == std::numeric_limits<openswd3::compat::i32>::min();
+            const auto expected_status = !skipped
+                ? LegacyBattleFrameEffectStatus::source_rotation_typed_stop
+                : alternate
+                ? LegacyBattleFrameEffectStatus::completed
+                : LegacyBattleFrameEffectStatus::source_blit_typed_stop;
+            test.expect_true(
+                result.status == expected_status &&
+                    result.source_rotation_calls == 1U &&
+                    fixture.image_queries ==
+                        std::vector<u32>{
+                            skipped && alternate ? 0x8000U : 0xA200U
+                        } &&
+                    result.rotation_playback_calls ==
+                        static_cast<u32>(skipped && alternate) &&
+                    result.source_blit_calls == static_cast<u32>(skipped) &&
+                    fixture.pending_rotation == (skipped && alternate ? 0 : 77),
+                "nonpositive wrapped rotation skips image access at both sites " "and only the later blit requires a readable source"
+            );
+        }
+    }
+
+    for (const openswd3::compat::i32 rotation :
+         {1, -1, std::numeric_limits<openswd3::compat::i32>::min()}) {
+        LegacyBattleFrameEffectState state;
+        Fixture fixture;
+        auto context = fixture.context();
+        auto source = fixture.source();
+        std::array<u16, 6> cached_pixels{1U, 2U, 3U, 4U, 5U, 6U};
+        const std::span<const u8> cached_raw{
+            reinterpret_cast<const u8*>(cached_pixels.data()),
+            cached_pixels.size() * sizeof(u16),
+        };
+
+        auto cached_image =
+            openswd3::rendering::encode_legacy_image_command_stream(
+                cached_raw, 3U, 2U, 16U
+            )
+                .bytes;
+        fixture.current_actor_index = 9U;
+        fixture.priority_actor_index = 9U;
+        fixture.control.primary_suppression = 1U;
+        fixture.refresh.refresh_pending = 1U;
+        fixture.rotation_cache.stored_action_id = 1U;
+        fixture.rotation_cache.frame_owner_tokens[5] = 0x7005U;
+        fixture.rotation_cache.cached_image_tokens[5] = 0x8005U;
+        fixture.rotation_cache.cached_mutable_images[5] = cached_image;
+        fixture.rotation_cache.cached_frames[5] = {
+            .source = {.bytes = cached_image},
+            .width = 3U,
+            .height = 2U,
+        };
+
+        fixture.rotation_cache.field_b4 = 10;
+        fixture.rotation_cache.field_b8 = 10;
+        state.alternate_surface_mode = 1U;
+        EffectPort port;
+        port.action_eax = 1U;
+        port.on_action_update = [&] {
+            fixture.rotation_cache.action_record.command_cursor = 0U;
+            fixture.rotation_cache.action_record.field_4c = 5U;
+        };
+
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, source, surfaces, rotation
+        );
+        const u16 expected_first_pixel = rotation == 1 ? 3U
+            : rotation == -1                           ? 2U
+                                                       : 1U;
+        test.expect_true(
+            result.source_rotation_calls == 1U &&
+                result.rotation_playback_calls == 1U &&
+                result.rotation_playback.status ==
+                    openswd3::battle::LegacyBattleActionRotationPlaybackStatus::
+                        completed &&
+                result.rotation_playback.frame_draw_calls == 1U &&
+                result.source_blit_calls == 1U &&
+                fixture.framebuffer.physical_pixels()[6410] ==
+                    expected_first_pixel,
+            "the source-continuation vector completes cached playback and " "reaches the alternate blit with its independently rotated pixels"
+        );
+        test.expect_true(
+            result.status == LegacyBattleFrameEffectStatus::completed &&
+                result.source_rotation_calls == 1U &&
+                result.rotation_playback_calls == 1U &&
+                result.source_blit_calls == 1U &&
+                result.rotation_playback.frame_draw_calls == 1U &&
+                fixture.framebuffer.physical_pixels()[0] ==
+                    expected_first_pixel,
+            "the alternate image blit consumes the source published by " "cached playback for positive, negative and INT_MIN rotation"
+        );
+    }
 
     constexpr std::array<u16, 6> frame_indices{0U, 1U, 2U, 3U, 4U, 5U};
     for (const u32 action_id : {1U, 0x1234FFFFU}) {
@@ -277,6 +605,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
             cache.field_b8 = 4U;
             cache.field_bc = 0x12345678U;
             cache.frame_owner_tokens[5U] = 0x7005U;
+            cache.cached_image_tokens[5U] = 0x8005U;
             constexpr std::array<u16, 6> pixels{1U, 2U, 3U, 4U, 5U, 6U};
             auto image =
                 openswd3::rendering::encode_legacy_image_command_stream(
@@ -1001,7 +1330,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 result.clip_calls == (split_gate == 1U ? 4U : 2U) &&
                 result.source_blit_calls == (split_gate == 1U ? 3U : 1U) &&
                 result.rotation_frame_calls == 1U &&
-                state.published_source_token == 0xA100U &&
+                fixture.request.source_token == 0xA100U &&
                 state.split_extent == (split_gate == 1U ? 20U : 10U) &&
                 fixture.pending_rotation == 0 &&
                 fixture.framebuffer.physical_pixels()[0] == 0x001FU &&
@@ -1028,8 +1357,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
             )
                 .bytes;
         auto source = fixture.source();
-        source.width = 1U;
-        source.height = 384U;
+        fixture.background.image_record[3U] = 0x01800001U;
         EffectPort port;
         auto context = fixture.context();
         const auto result = openswd3::battle::update_legacy_battle_frame_effect(

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_action_rotation_cache.hpp"
+#include "openswd3/battle/legacy_battle_background_initialization.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect_control.hpp"
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 #include "openswd3/battle/legacy_battle_screen_flash.hpp"
@@ -9,6 +10,7 @@
 #include "openswd3/rendering/legacy_frame_color.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 
+#include <optional>
 #include <span>
 
 namespace openswd3::battle {
@@ -17,14 +19,38 @@ inline constexpr compat::u32 kLegacyBattleFrameEffectSurfaceObjectToken =
     0x004ACBA0U;
 inline constexpr compat::i32 kLegacyBattleFrameEffectPixelCount = 0x3C000;
 
+struct LegacyBattleFrameEffectImage {
+    rendering::LegacyBlitSource source;
+    std::span<compat::u8> mutable_bytes;
+};
+
+class LegacyBattleFrameEffectImagePort {
+public:
+    virtual ~LegacyBattleFrameEffectImagePort() = default;
+
+    [[nodiscard]] virtual std::optional<LegacyBattleFrameEffectImage>
+    query_image(compat::u32 image_token) = 0;
+};
+
+class LegacyBattleBackgroundFrameEffectImagePort final
+    : public LegacyBattleFrameEffectImagePort {
+public:
+    LegacyBattleBackgroundFrameEffectImagePort(
+        LegacyBattleBackgroundState& background,
+        LegacyBattleActionRotationCacheState& rotation_cache
+    ) noexcept;
+
+    [[nodiscard]] std::optional<LegacyBattleFrameEffectImage>
+    query_image(compat::u32 image_token) override;
+
+private:
+    LegacyBattleBackgroundState& background_;
+    LegacyBattleActionRotationCacheState& rotation_cache_;
+};
+
 struct LegacyBattleFrameEffectSource {
-    compat::u32 token{};
-    std::span<compat::u8> bytes;
-    rendering::LegacyBlitSourceLayout layout{
-        rendering::LegacyBlitSourceLayout::direct_16
-    };
-    compat::u16 width{};
-    compat::u16 height{};
+    const std::array<compat::u32, 5>& record;
+    LegacyBattleFrameEffectImagePort& images;
 };
 
 struct LegacyBattleFrameEffectSurfaceRequest {
@@ -49,7 +75,6 @@ public:
 };
 
 struct LegacyBattleFrameEffectState {
-    compat::u32 published_source_token{};
     compat::u16 split_extent{};
     compat::u32 split_suppression{};
 

@@ -409,11 +409,17 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         .color_initialization_gate = port.battle_color_initialization_gate(),
         .rotation_cache = context.startup.background_rotation_cache,
     };
+    LegacyBattleBackgroundFrameEffectImagePort frame_images{
+        context.startup.background,
+        context.startup.background_rotation_cache,
+    };
+
     result.frame_effect = update_legacy_battle_frame_effect(
         state.frame_effect,
         context.frame_effect_port,
         frame_effect_context,
-        context.frame_effect_source,
+        {.record = context.startup.background.image_record,
+         .images = frame_images},
         context.frame_effect_surfaces,
         frame_effect_context.pending_rotation
     );
