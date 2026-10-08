@@ -869,11 +869,11 @@ void test_battle_transition(openswd3::test::Context& test) {
         state.frame_effect.primary_suppression = 1U;
         state.frame_effect.current_encounter_id = 9;
         state.frame_effect.expected_encounter_id = 9;
-        state.frame_effect.stage = 1;
         state.staged_surface_tokens = {0xB000U, 0xB100U, 0xB200U};
         auto startup = startup_state();
         TransitionPorts ports;
         ports.frame_effect_surface_stop_at = stop_at;
+        ports.frame_refresh_state().refresh_pending = 1U;
         ports.effect_shift_state().actor_delta = 99;
         ports.screen_flash_state().active = 1U;
         ports.screen_flash_state().intensity = 8U;
@@ -910,7 +910,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                         staged_surface_typed_stop &&
                 !result.frame_effects[stop_at - 1U]
                      .surface_operation.callee_returned &&
-                state.frame_effect.stage == 1 &&
+                ports.frame_refresh_state().refresh_pending == 1U &&
                 ports.effect_shift_state().actor_delta == 99 &&
                 ports.screen_flash_state().active == 1U &&
                 ports.screen_flash_state().intensity == 8U &&

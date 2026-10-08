@@ -3,6 +3,7 @@
 #include "test.hpp"
 
 #include <array>
+#include <bit>
 #include <cstring>
 #include <functional>
 #include <limits>
@@ -66,6 +67,7 @@ struct Fixture {
     std::vector<u8> source_bytes;
     openswd3::compat::i32 pending_rotation{};
     openswd3::battle::LegacyBattleScreenFlashState flash{};
+    openswd3::battle::LegacyBattleFrameRefreshState refresh{};
 
     Fixture() {
         static_cast<void>(
@@ -100,6 +102,7 @@ struct Fixture {
             .jitter = jitter,
             .pending_rotation = pending_rotation,
             .flash = flash,
+            .refresh = refresh,
         };
     }
 
@@ -194,6 +197,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
             .jitter = fixture.jitter,
             .pending_rotation = fixture.pending_rotation,
             .flash = fixture.flash,
+            .refresh = fixture.refresh,
         };
         EffectPort port;
         const auto result = openswd3::battle::update_legacy_battle_frame_effect(
@@ -258,6 +262,37 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         );
     }
 
+    for (const u32 token : {0U, 1U, 0x80000000U, 0xFFFFFFFFU}) {
+        LegacyBattleFrameEffectState state;
+        state.primary_suppression = 1U;
+        state.current_encounter_id = 1;
+        state.expected_encounter_id = 2;
+        state.fade_active = 1U;
+        Fixture fixture;
+        fixture.refresh.refresh_pending = 1U;
+        fixture.refresh.active_surface_token = token;
+        EffectPort port;
+        port.on_surface_operation = [&] {
+            fixture.refresh.refresh_pending = 0x8000U;
+        };
+        auto context = fixture.context();
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, fixture.source(), surfaces, 0
+        );
+        const bool copied = token != 0xFFFFFFFFU;
+        test.expect_true(
+            result.status == LegacyBattleFrameEffectStatus::completed &&
+                result.surface_operation_calls == (copied ? 1U : 0U) &&
+                result.source_blit_calls == (copied ? 0U : 1U) &&
+                fixture.refresh.refresh_pending == (copied ? 0x8000U : 0U) &&
+                fixture.refresh.active_surface_token == token &&
+                result.reset_calls == 0U &&
+                (!copied || port.surface_requests.back().source_token ==
+                                surfaces[0]),
+            "fade compares the DWORD token with minus one and returns without overwriting a callee stage change"
+        );
+    }
+
     for (const bool fading : {false, true}) {
         for (const bool returned : {false, true}) {
             for (const u32 hresult : {0U, 1U, 0x80004005U}) {
@@ -265,17 +300,17 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 state.primary_suppression = 1U;
                 state.current_encounter_id = 9;
                 state.expected_encounter_id = fading ? 10 : 9;
-                state.stage = fading ? 2 : 1;
                 state.cadence = 2;
                 state.fade_active = 1U;
-                state.selected_surface_index = 7;
                 Fixture fixture;
+                fixture.refresh.refresh_pending = fading ? 2U : 1U;
+                fixture.refresh.active_surface_token = 7U;
                 fixture.pending_rotation = 77;
                 EffectPort port;
                 port.surface_return = hresult;
                 port.surface_returned = returned;
                 port.on_surface_operation = [&] {
-                    state.stage = 0;
+                    fixture.refresh.refresh_pending = 0U;
                     fixture.framebuffer.physical_pixels()[0] = 0x1234U;
                 };
                 auto context = fixture.context();
@@ -297,7 +332,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                             surfaces[1] &&
                         port.surface_requests.front().effect_flags ==
                             (fading ? 0U : 0x01000000U) &&
-                        state.stage == 0 && fixture.pending_rotation == 77 &&
+                        fixture.refresh.refresh_pending == 0U &&
+                        fixture.pending_rotation == 77 &&
                         state.cadence == (!fading && returned ? 1 : 2) &&
                         result.cadence_updates ==
                             (!fading && returned ? 1U : 0U) &&
@@ -335,13 +371,14 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         state.primary_suppression = 1U;
         state.current_encounter_id = 9;
         state.expected_encounter_id = 9;
-        state.stage = 1;
-        state.selected_surface_index = 7;
         Fixture fixture;
+        fixture.refresh.refresh_pending = 1U;
+        fixture.refresh.active_surface_token = 7U;
         EffectPort port;
         port.on_surface_operation = [&] {
             if (port.surface_requests.size() == 1U) {
-                state.stage = vector.returned_stage;
+                fixture.refresh.refresh_pending =
+                    std::bit_cast<u16>(vector.returned_stage);
                 state.cadence = vector.returned_cadence;
                 state.fade_active = vector.fade_active;
             }
@@ -353,7 +390,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleFrameEffectStatus::completed &&
-                state.stage == vector.final_stage &&
+                fixture.refresh.refresh_pending ==
+                    std::bit_cast<u16>(vector.final_stage) &&
                 state.cadence == vector.final_cadence &&
                 result.reset_calls == vector.resets &&
                 result.cadence_updates == 1U &&
@@ -371,7 +409,6 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         LegacyBattleFrameEffectState state;
         state.rotation_cache.stored_action_id = 1U;
         state.split_extent = 10U;
-        state.stage = 1;
         state.cadence = 2;
         state.current_encounter_id = 9;
         state.expected_encounter_id = 9;
@@ -382,6 +419,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
         Fixture fixture;
         fixture.flash.active = 1U;
+        fixture.refresh.refresh_pending = 1U;
         fixture.pending_rotation = 77;
         EffectPort port;
         port.action_typed_stop = true;
@@ -399,7 +437,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 result.color_adjustment_calls == 0U &&
                 result.cadence_updates == 0U && result.reset_calls == 0U &&
                 fixture.pending_rotation == 77 && state.split_extent == 10U &&
-                fixture.flash.active == 1U && state.stage == 1 &&
+                fixture.flash.active == 1U &&
+                fixture.refresh.refresh_pending == 1U &&
                 state.cadence == 2,
             "effect caller preserves its prefix and stops before later effects"
         );
@@ -538,9 +577,9 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         state.primary_suppression = 1U;
         state.current_encounter_id = 9;
         state.expected_encounter_id = 9;
-        state.stage = 1;
         state.cadence = 2;
         Fixture fixture;
+        fixture.refresh.refresh_pending = 1U;
         EffectPort port;
         auto context = fixture.context();
 
@@ -554,7 +593,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 result.surface_operation_calls == 1U &&
                 port.surface_requests[0].source_token == surfaces[1] &&
                 port.surface_requests[0].effect_flags == 0x01000000U &&
-                state.stage == 2 && state.cadence == 1 &&
+                fixture.refresh.refresh_pending == 2U && state.cadence == 1 &&
                 result.cadence_updates == 1U,
             "suppressed matching encounter presents current staged surface and advances cadence with signed stage clamp"
         );
@@ -566,11 +605,11 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         state.current_encounter_id = 4;
         state.expected_encounter_id = 4;
         state.alternate_surface_mode = 1U;
-        state.stage = 2;
         state.red_factor = 2;
         state.green_factor = 4;
         state.blue_factor = 6;
         Fixture fixture;
+        fixture.refresh.refresh_pending = 2U;
         EffectPort port;
         auto context = fixture.context();
 
@@ -595,9 +634,9 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         state.current_encounter_id = 5;
         state.expected_encounter_id = 5;
         state.alternate_surface_mode = 1U;
-        state.stage = 0x7FFF;
         state.cadence = 2;
         Fixture fixture;
+        fixture.refresh.refresh_pending = 0x7FFFU;
         EffectPort port;
         auto context = fixture.context();
 
@@ -607,8 +646,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleFrameEffectStatus::completed &&
-                state.stage ==
-                    std::numeric_limits<openswd3::compat::i16>::min() &&
+                fixture.refresh.refresh_pending == 0x8000U &&
                 state.cadence == 1,
             "signed stage increment wraps maximum to minimum and bypasses greater than two clamp"
         );
@@ -619,10 +657,10 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         state.split_suppression = 1U;
         state.current_encounter_id = 1;
         state.expected_encounter_id = 2;
-        state.stage = 2;
         state.fade_active = 1U;
-        state.selected_surface_index = 7;
         Fixture fixture;
+        fixture.refresh.refresh_pending = 2U;
+        fixture.refresh.active_surface_token = 7U;
         EffectPort port;
         auto context = fixture.context();
 
@@ -632,7 +670,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleFrameEffectStatus::completed &&
-                state.stage == 1 && result.surface_operation_calls == 1U &&
+                fixture.refresh.refresh_pending == 1U &&
+                result.surface_operation_calls == 1U &&
                 port.surface_requests[0].source_token == surfaces[1] &&
                 port.surface_requests[0].effect_flags == 0U &&
                 result.source_blit_calls == 3U,
@@ -650,7 +689,6 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         state.blue_factor = 12;
         state.current_encounter_id = 3;
         state.expected_encounter_id = 4;
-        state.stage = 0;
         state.fade_active = 1U;
         Fixture fixture;
         EffectPort port;
@@ -664,7 +702,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
             result.status == LegacyBattleFrameEffectStatus::completed &&
                 result.reset_calls == 1U && state.red_factor == 0 &&
                 state.green_factor == 0 && state.blue_factor == 0 &&
-                state.stage == 0 && state.current_encounter_id == -1 &&
+                fixture.refresh.refresh_pending == 0U &&
+                state.current_encounter_id == -1 &&
                 state.primary_suppression == 0U &&
                 state.secondary_suppression == 0U &&
                 state.alternate_surface_mode == 0U && state.fade_active == 0U,
@@ -677,8 +716,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         state.primary_suppression = 1U;
         state.current_encounter_id = 6;
         state.expected_encounter_id = 6;
-        state.stage = 3;
         Fixture fixture;
+        fixture.refresh.refresh_pending = 3U;
         EffectPort port;
         auto context = fixture.context();
 
@@ -690,7 +729,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleFrameEffectStatus::staged_surface_typed_stop &&
                 result.clip_calls == 2U &&
-                result.surface_operation_calls == 0U && state.stage == 3 &&
+                result.surface_operation_calls == 0U &&
+                fixture.refresh.refresh_pending == 3U &&
                 state.cadence == 0,
             "out of range staged surface stops at first table read after full clip restoration"
         );

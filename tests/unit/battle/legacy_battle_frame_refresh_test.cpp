@@ -32,7 +32,9 @@ public:
     }
 };
 
-class FrameRefreshPort final : public LegacyBattleActionDispatchPort {
+class FrameRefreshPort final
+    : public LegacyBattleActionDispatchPort,
+      public openswd3::battle::LegacyBattleFrameEffectPort {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
@@ -44,6 +46,19 @@ public:
         const auto reply = found->second.front();
         found->second.pop_front();
         return reply;
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleActionRotationUpdateSnapshot
+    update_action(openswd3::asset_runtime::LegacyActionRecord&) override {
+        return {.domain_token = 1U};
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleFrameEffectSurfaceReply
+    surface_operation(
+        const openswd3::battle::LegacyBattleFrameEffectSurfaceRequest& request
+    ) override {
+        surface_calls.push_back(request);
+        return {.callee_returned = true};
     }
 
     void push(const u32 callee, const LegacyBattleActionCallReply& reply) {
@@ -60,6 +75,8 @@ public:
 
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
+    std::vector<openswd3::battle::LegacyBattleFrameEffectSurfaceRequest>
+        surface_calls;
 };
 
 [[nodiscard]] const LegacyBattleActionCallRequest* find_call(
@@ -87,7 +104,10 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         test.expect_true(
             &action_port.frame_refresh_state() ==
                     &effect_port.frame_refresh_state() &&
-                effect_port.frame_refresh_state().snapshot_word_36 == 0x1234U,
+                effect_port.frame_refresh_state().snapshot_word_36 == 0x1234U &&
+                effect_port.frame_refresh_state().refresh_pending == 0U &&
+                effect_port.frame_refresh_state().active_surface_token ==
+                    0xFFFFFFFFU,
             "action and effect ports share one physical refresh storage"
         );
     }
@@ -166,6 +186,57 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
                 port.count(0x00420560U) == 2U &&
                 port.count(0x00420600U) == 2U && port.count(0x004206F0U) == 2U,
             "refresh keeps the exact two-iteration static call schedule"
+        );
+
+        openswd3::battle::LegacyBattleFrameEffectState effect;
+        effect.primary_suppression = 1U;
+        effect.current_encounter_id = 0;
+        effect.cadence = 2;
+        openswd3::rendering::LegacyFramebuffer framebuffer;
+        openswd3::rendering::LegacyRasterGeometryState raster{};
+        static_cast<void>(openswd3::rendering::initialize_legacy_raster_geometry(
+            raster, framebuffer.geometry().surface
+        ));
+        openswd3::rendering::LegacyBlitRequest blit{};
+        openswd3::rendering::LegacyBlitEffectState effects{};
+        openswd3::rendering::LegacyRleRowJitterState jitter{};
+        openswd3::battle::LegacyBattleFrameEffectContext context{
+            .framebuffer = framebuffer,
+            .raster = raster,
+            .shared_request = blit,
+            .shared_effects = effects,
+            .jitter = jitter,
+            .pending_rotation = port.effect_shift_state().actor_delta,
+            .flash = port.screen_flash_state(),
+            .refresh = state,
+        };
+        const std::array<u32, 3> surfaces{0xA000U, 0xA100U, 0xA200U};
+        const auto growth = openswd3::battle::update_legacy_battle_frame_effect(
+            effect, port, context, {}, surfaces, 0
+        );
+        test.expect_true(
+            growth.status ==
+                    openswd3::battle::LegacyBattleFrameEffectStatus::completed &&
+                growth.surface_operation_calls == 1U &&
+                port.surface_calls.back().source_token == 0xA100U &&
+                state.refresh_pending == 2U &&
+                state.active_surface_token == 0x5555U,
+            "actual refresh publishes the stage consumed by the following effect without synchronizing a copy"
+        );
+        effect.current_encounter_id = 1;
+        effect.fade_active = 1U;
+        const auto fade = openswd3::battle::update_legacy_battle_frame_effect(
+            effect, port, context, {}, surfaces, 0
+        );
+        test.expect_true(
+            fade.status ==
+                    openswd3::battle::LegacyBattleFrameEffectStatus::completed &&
+                fade.surface_operation_calls == 1U &&
+                port.surface_calls.back().source_token == 0xA100U &&
+                port.surface_calls.back().effect_flags == 0U &&
+                state.refresh_pending == 1U &&
+                state.active_surface_token == 0x5555U,
+            "fade tests the actual active token as a sentinel and indexes surfaces by stage"
         );
     }
 }

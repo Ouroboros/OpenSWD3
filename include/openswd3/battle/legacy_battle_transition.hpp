@@ -109,6 +109,7 @@ class LegacyBattleTransitionPort
     : public virtual LegacyBattleDebugHotkeyStatePort,
       public virtual LegacyBattleEffectShiftStatePort,
       public virtual LegacyBattleScreenFlashStatePort,
+      public virtual LegacyBattleFrameRefreshStatePort,
       public LegacyBattleFrameEffectPort,
       public LegacyBattleHudCallPort,
       public virtual LegacyBattleActorMetricStatePort {

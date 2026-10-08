@@ -259,7 +259,7 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
     LegacyBattleFrameEffectContext& context,
     LegacyBattleFrameEffectResult& result
 ) noexcept {
-    const i32 stage = state.stage;
+    const i32 stage = std::bit_cast<i16>(context.refresh.refresh_pending);
     const i32 red =
         wrapping_multiply(arithmetic_shift_right_one(state.red_factor), stage);
     const i32 green = wrapping_multiply(
@@ -305,12 +305,14 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
 }
 
 void reset_effect_state(
-    LegacyBattleFrameEffectState& state, LegacyBattleFrameEffectResult& result
+    LegacyBattleFrameEffectState& state,
+    LegacyBattleFrameEffectContext& context,
+    LegacyBattleFrameEffectResult& result
 ) noexcept {
     state.red_factor = 0;
     state.green_factor = 0;
     state.blue_factor = 0;
-    state.stage = 0;
+    context.refresh.refresh_pending = 0U;
     state.current_encounter_id = -1;
     state.secondary_suppression = 0U;
     state.primary_suppression = 0U;
@@ -412,13 +414,13 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
     }
 
     set_clip(context, result, 0, 0, 640, 480);
-    i16 stage = state.stage;
+    i16 stage = std::bit_cast<i16>(context.refresh.refresh_pending);
     if (static_cast<i32>(state.current_encounter_id) ==
         state.expected_encounter_id) {
         if (state.primary_suppression == 1U ||
             state.secondary_suppression == 1U) {
             if (state.alternate_surface_mode == 0U) {
-                stage = state.stage;
+                stage = std::bit_cast<i16>(context.refresh.refresh_pending);
                 if (stage >= 1) {
                     if (!invoke_staged_surface(
                             state,
@@ -434,7 +436,7 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                     }
 
                     // 4538B2 reloads the shared WORD after the surface call.
-                    stage = state.stage;
+                    stage = std::bit_cast<i16>(context.refresh.refresh_pending);
                 }
             } else {
                 if (rotation_amount != 0) {
@@ -462,7 +464,7 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                         color_adjustment_typed_stop;
                     return result;
                 }
-                stage = state.stage;
+                stage = std::bit_cast<i16>(context.refresh.refresh_pending);
             }
 
             i32 cadence = state.cadence;
@@ -471,10 +473,11 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                 stage = std::bit_cast<i16>(
                     static_cast<u16>(static_cast<u16>(stage) + 1U)
                 );
+                context.refresh.refresh_pending = std::bit_cast<u16>(stage);
                 if (stage > 2) {
                     stage = 2;
+                    context.refresh.refresh_pending = std::bit_cast<u16>(stage);
                 }
-                state.stage = stage;
             }
             state.cadence = wrapping_add(cadence, 1);
             ++result.cadence_updates;
@@ -485,13 +488,14 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
         return result;
     }
     if (stage < 1) {
-        reset_effect_state(state, result);
+        reset_effect_state(state, context, result);
         return result;
     }
 
+    const u32 active_surface_token = context.refresh.active_surface_token;
     stage = std::bit_cast<i16>(static_cast<u16>(static_cast<u16>(stage) - 1U));
-    state.stage = stage;
-    if (state.selected_surface_index != -1 &&
+    context.refresh.refresh_pending = std::bit_cast<u16>(stage);
+    if (active_surface_token != 0xFFFFFFFFU &&
         state.alternate_surface_mode == 0U) {
         if (!invoke_staged_surface(
                 state, port, result, staged_surface_tokens, stage, 0U

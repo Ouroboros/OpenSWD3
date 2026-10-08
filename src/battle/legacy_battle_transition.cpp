@@ -282,6 +282,7 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
         .jitter = frame_zero.jitter,
         .pending_rotation = port.effect_shift_state().actor_delta,
         .flash = port.screen_flash_state(),
+        .refresh = port.frame_refresh_state(),
     };
     effect = update_legacy_battle_frame_effect(
         state.frame_effect,

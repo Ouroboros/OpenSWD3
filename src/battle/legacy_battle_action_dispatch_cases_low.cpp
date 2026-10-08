@@ -894,7 +894,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             replace_low_word(state.phase_counter, 1U);
             state.frame_effect.primary_suppression = 1U;
             refresh_shared_frame(state, port, result);
-            state.frame_effect.stage = 1;
+            port.frame_refresh_state().refresh_pending = 1U;
         }
         result.action_fourteen = advance_legacy_battle_action_fourteen(
             &state.group_a_target_phases[group_a_index],

@@ -20,8 +20,8 @@ struct LegacyBattleFrameRefreshState {
     compat::u32 final_surface_token{};
     compat::u32 last_lock_token{};
     compat::u32 captured_pitch{};
-    compat::u32 active_surface_token{};
-    compat::u16 refresh_pending{};
+    compat::u32 active_surface_token{0xFFFFFFFFU};  // 0x004A7574
+    compat::u16 refresh_pending{};                // 0x0053BF44
 
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
@@ -30,12 +30,12 @@ struct LegacyBattleFrameRefreshState {
 
 class LegacyBattleFrameRefreshStatePort {
 public:
-    [[nodiscard]] LegacyBattleFrameRefreshState&
+    [[nodiscard]] virtual LegacyBattleFrameRefreshState&
     frame_refresh_state() noexcept {
         return frame_refresh_state_;
     }
 
-    [[nodiscard]] const LegacyBattleFrameRefreshState&
+    [[nodiscard]] virtual const LegacyBattleFrameRefreshState&
     frame_refresh_state() const noexcept {
         return frame_refresh_state_;
     }

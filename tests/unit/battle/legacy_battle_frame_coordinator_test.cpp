@@ -1441,15 +1441,15 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         state.frame_effect.primary_suppression = 1U;
         state.frame_effect.current_encounter_id = 9;
         state.frame_effect.expected_encounter_id = fading ? 10 : 9;
-        state.frame_effect.stage = 2;
         state.frame_effect.cadence = 7;
         state.frame_effect.fade_active = 1U;
-        state.frame_effect.selected_surface_index = 7;
         auto fixture = std::make_unique<Fixture>();
         fixture->frame_effect_port.surface_returned = false;
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         configure_common_port(port);
+        port.frame_refresh_state().refresh_pending = 2U;
+        port.frame_refresh_state().active_surface_token = 7U;
         auto context = fixture->context();
         const auto result_storage = std::unique_ptr<
             openswd3::battle::LegacyBattleFrameCoordinatorResult>(
@@ -1473,7 +1473,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 !result.frame_effect.surface_operation.callee_returned &&
                 result.frame_effect.cadence_updates == 0U &&
                 result.frame_effect.reset_calls == 0U &&
-                state.frame_effect.stage == (fading ? 1 : 2) &&
+                port.frame_refresh_state().refresh_pending ==
+                    (fading ? 1U : 2U) &&
                 state.frame_effect.cadence == 7 &&
                 fixture->frame_effect_port.surface_requests.front()
                         .source_token ==

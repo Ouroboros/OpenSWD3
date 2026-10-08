@@ -636,6 +636,16 @@ public:
         return port_.screen_flash_state();
     }
 
+    [[nodiscard]] LegacyBattleFrameRefreshState&
+    frame_refresh_state() noexcept override {
+        return port_.frame_refresh_state();
+    }
+
+    [[nodiscard]] const LegacyBattleFrameRefreshState&
+    frame_refresh_state() const noexcept override {
+        return port_.frame_refresh_state();
+    }
+
 private:
     LegacyBattleActionDispatchPort& port_;
 };

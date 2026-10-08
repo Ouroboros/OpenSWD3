@@ -349,6 +349,8 @@ void seed_state(
     shift.completion_latch = 9U;
     port.screen_flash_state().active = 9U;
     port.screen_flash_state().intensity = 0xFCU;
+    port.frame_refresh_state().active_surface_token = 0x12345678U;
+    port.frame_refresh_state().refresh_pending = 0x8000U;
 
     auto& coordinator = port.effect_coordinator_state();
     coordinator.primary[0].complete = 9U;
@@ -501,6 +503,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         port.unresolved_display_token = startup.display_surfaces[stopped_slot];
         port.screen_flash_state().active = 1U;
         port.screen_flash_state().intensity = 8U;
+        port.frame_refresh_state().active_surface_token = 0x12345678U;
+        port.frame_refresh_state().refresh_pending = 7U;
         const auto result = openswd3::battle::reset_legacy_battle_globals(
             state,
             startup,
@@ -521,7 +525,10 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 result.call_count == 1U && result.write_operations == 0U &&
                 state.write_trace.empty() &&
                 port.screen_flash_state().active == 1U &&
-                port.screen_flash_state().intensity == 8U,
+                port.screen_flash_state().intensity == 8U &&
+                port.frame_refresh_state().active_surface_token ==
+                    0x12345678U &&
+                port.frame_refresh_state().refresh_pending == 7U,
             "global reset preserves the failed release and skips all suffixes"
         );
     }
@@ -1070,7 +1077,10 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         test.expect_true(
             state.unmapped_bytes.contains(0x004A7568U) == false &&
                 state.unmapped_bytes.contains(0x004A7569U) == false &&
-                byte_at(state, 0x004A7574U) == 0xFFU &&
+                state.unmapped_bytes.contains(0x004A7574U) == false &&
+                port.frame_refresh_state().active_surface_token ==
+                    0xFFFFFFFFU &&
+                port.frame_refresh_state().refresh_pending == 0x8000U &&
                 state.unmapped_bytes.contains(0x004A75FEU) == false &&
                 state.unmapped_bytes.contains(0x0053BFCCU) == false &&
                 port.screen_flash_state().active == 0U &&

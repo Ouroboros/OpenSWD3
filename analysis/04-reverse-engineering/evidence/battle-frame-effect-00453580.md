@@ -3,6 +3,7 @@
 历史状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 B11正在复核实际画布接线；灰度分带修正见第15节，复制返回处理见第16节。
 角色移动与背景平移的共享量修正见第17节。
+闪光触发与强度见第18节，刷新阶段与画布标记见第19节。
 不把历史标记或定向测试视作完整生产接线完成。
 
 ## 1. 完整LST范围
@@ -145,9 +146,11 @@ alternate surface mode非零时：
 
 ### 10.2 stage不小于1
 
-先执行stage word减一并写回。
+先读取4A7574的active surface token，再执行stage WORD减一并写回。
 
-若selected surface完整dword不等于全1且alternate mode为0，则以减一后的stage读取surface表，effect flags固定0，执行一次虚操作后立即返回；不执行fallback source blit。
+若token完整DWORD不等于全1且alternate mode为0，则以减一后的stage
+读取surface表，effect flags固定0，执行一次虚操作后立即返回；
+不执行fallback source blit。token只是哨兵标记，不作为surface数组索引。
 
 否则执行一次全屏flags 0 source blit后返回。surface表越界发生在stage已减一之后；fallback blit typed-stop也保留stage写回。
 
@@ -358,3 +361,53 @@ sanitizer finding。actor目标与SDL源文件未因该测试类型修正变化�
 本批只回收闪光开关与强度。其余颜色发布、抑制门、stage、source重读、
 真实旋转缓存及SDL画布接线仍待完成；不升级WP316或WP379验收状态。
 未运行游戏或新增原版动态差分。
+
+## 19. B11画面刷新阶段与画布标记共用实际状态
+
+`53BF44`的WORD阶段与`4A7574`的DWORD标记共用既有
+`LegacyBattleFrameRefreshState.refresh_pending/active_surface_token`。
+全部13个text访问见`build/tmp/runtime/battle-frame-stage-token-lst-references.txt`；
+独立范围、位宽、分支与停止条件见`battle-frame-stage-token-sharing-audit.md`。
+4A7574的data初值为FFFFFFFF；不把WORD阶段当作布尔值归一化。
+
+- 45B0A6、45B0B6发布阶段1与最终画布token，均先于最终lock/unlock。
+  动作14在454977调用刷新，45497F返回后重写同一阶段1。
+- 4537DD、453877按signed WORD消费阶段；4538B2在复制或颜色处理
+  正常返回后重读。实际状态持有u16，比较与乘法显式bit_cast为i16。
+- cadence增长先4538CA写WORD回绕结果；signed大于2时再4538D6写2。
+  7FFF增长成8000仍保留，不现代化成无符号夹取。
+- fade的453908先快照标记，再45390E减WORD、453913写回。
+  标记只和FFFFFFFF比较；复制表仍按stage索引，不按token或pitch索引。
+  45393B正常返回直接RET，保留回调对实际阶段的后续改写。
+- stage小于1时45397E清实际阶段；其他终态写入维持既有顺序。
+- 全局reset只在45B8CB恢复tokenFFFFFFFF，没有写53BF44。
+  增加4A7574映射，删除未映射表中的重复字节；不额外清阶段。
+  释放提前失败保留标记及阶段，类型发布前无外部调用。
+
+效果context直接借刷新状态；核心帧与转场两处调用借同一port对象。
+转场、reset和动作端口通过virtual state port共同借用；getter支持
+const/非const虚转发，组B单效果适配器直接转发实际动作端口。
+删除`FrameEffectState.stage/selected_surface_index`副本，不增加逐帧同步。
+其余颜色因子、抑制门及资源状态未在本批合并。
+
+新增实际刷新callee→增长→淡出回归，不手工复制刷新发布的阶段与标记。
+固定token 0/1/80000000/FFFFFFFF确认只有全1走背景，其他值按stage复制。
+复制回调改写8000后仍直接返回；既有六组回调、12组回复矩阵迁到真实owner，
+继续检查WORD回绕、signed比较和失败前缀。完整帧与转场检查共享阶段，
+reset验证非零阶段保留、token复位、未映射表无副本和提前失败保留。
+
+`proc_61ed`的集成core setup 1/1通过。`proc_0e29`退出0：
+core setup 1/1（4.59秒）、actor_frame_316 1/1（25.08秒），
+ASan同两目标1/1（7.65秒、26.21秒），SDL链接通过。
+日志为`build/tmp/runtime/battle-frame-stage-token-final-`前缀的五份日志。
+ASan仍有既有outcome-resolution:137的u16到u8转换warning；
+没有新增warning、编译错误或sanitizer finding。
+双向审查后补齐4538CA先写回绕结果、4538D6再按signed比较写2的顺序。
+`proc_90bf`复验受影响目标：core setup 1/1（4.61秒）、ASan setup 1/1
+（7.67秒），SDL链接通过。日志为`battle-frame-stage-token-verified-`
+前缀的`core.log`、`asan.log`、`sdl.log`。core和ASan均只有上述既有转换
+warning；没有新增编译错误或sanitizer finding。actor目标的接口及处理不变。
+
+本批仅回收刷新阶段与画布标记。颜色、抑制门、source重读、真实旋转缓存
+和完整SDL画布接线仍未完成；SDL仍停45331C，实际续玩尚未验收。
+未运行游戏或新增原版动态差分，WP316/WP379验收状态不变。

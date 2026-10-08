@@ -254,8 +254,8 @@ struct MappedRange {
     u32 bytes;
 };
 
-constexpr std::array<MappedRange, 113> kMappedRanges{{
-    {0x004A75FEU, 0x01U},
+constexpr std::array<MappedRange, 114> kMappedRanges{{
+    {0x004A75FEU, 0x01U}, {0x004A7574U, 0x04U},
     {0x004A7548U, 0x04U},  {0x004A754CU, 0x04U},  {0x004A7550U, 0x04U},
     {0x004A7558U, 0x08U},  {0x004A7564U, 0x0CU},  {0x004A7570U, 0x04U},
     {0x004A7620U, 0x08U},  {0x004A762AU, 0x02U},  {0x004A7630U, 0x02U},
@@ -344,6 +344,7 @@ void synchronize_typed_aliases(
     u32& pair_primary_value,
     rendering::LegacyFrameColorTransitionState& color_accumulation,
     LegacyBattleScreenFlashState& flash,
+    LegacyBattleFrameRefreshState& refresh,
     LegacyBattleActorMetricState& metrics,
     LegacyBattleEffectShiftState& shift,
     LegacyBattleEffectCoordinatorState& coordinator,
@@ -462,6 +463,7 @@ void synchronize_typed_aliases(
     coordinator.group_activity_latch = 0U;
     flash.active = 0U;
     flash.intensity = 16U;
+    refresh.active_surface_token = 0xFFFFFFFFU;
     coordinator.queried_actor_word = 0U;
     coordinator.selected_actor_pair =
         (coordinator.selected_actor_pair & 0xFFFF0000U) | 0x0000FFFFU;
@@ -626,6 +628,7 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
         port.battle_pair_primary_value(),
         port.battle_color_accumulation_state(),
         port.screen_flash_state(),
+        port.frame_refresh_state(),
         port.actor_metric_state(),
         port.effect_shift_state(),
         port.effect_coordinator_state(),

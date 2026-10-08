@@ -75,3 +75,17 @@ lock_token, 0x0003C000, signed_half * factor
 定向测试覆盖：动作/效果端口组合后的同一物理刷新存储、三word完全相等零调用早退、入口高word保留、固定双surface与16次调用、640×480参数、正奇数半值、负1/负3算术右移、factor乘法、pitch捕获、snapshot更新、最终surface锁定参数、完整返回EAX，以及七处已关闭caller token消失。
 
 当前缺少原版Miles serve、双surface、lock/unlock、viewport、三项颜色callee、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 8. B11实际阶段与画布标记消费
+
+45B0A6写53BF44的WORD 1，45B0B6写4A7574的DWORD最终画布token。
+这两个发布字段现由核心帧、转场和动作14直接借既有刷新状态消费，
+效果context不再另存stage或selected_surface_index。
+4A7574保留原data初值FFFFFFFF；全局复位只恢复该标记，保留WORD阶段。
+组B单效果适配器把刷新状态访问转发到实际动作端口，避免临时端口另存副本。
+
+新增回归调用实际刷新callee，再执行效果增长与淡出；surface表按阶段索引，
+最终画布token只参与全1哨兵判断。定向core/ASan与SDL构建通过；
+位宽、重读、失败前缀及剩余生产接线见
+[阶段共享证据](battle-frame-effect-00453580.md#19-b11画面刷新阶段与画布标记共用实际状态)。
+完整SDL帧与实际续玩仍待完成，不升级原版差分或WP316验收状态。
