@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstring>
+#include <functional>
 #include <limits>
 #include <vector>
 
@@ -12,6 +13,7 @@ namespace {
 using openswd3::battle::LegacyBattleActionRotationUpdateSnapshot;
 using openswd3::battle::LegacyBattleFrameEffectPort;
 using openswd3::battle::LegacyBattleFrameEffectSource;
+using openswd3::battle::LegacyBattleFrameEffectSurfaceReply;
 using openswd3::battle::LegacyBattleFrameEffectSurfaceRequest;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
@@ -30,11 +32,18 @@ public:
         };
     }
 
-    [[nodiscard]] u32 surface_operation(
+    [[nodiscard]] LegacyBattleFrameEffectSurfaceReply surface_operation(
         const LegacyBattleFrameEffectSurfaceRequest& request
     ) override {
         surface_requests.push_back(request);
-        return surface_return;
+        if (on_surface_operation) {
+            on_surface_operation();
+        }
+
+        return {
+            .return_value = surface_return,
+            .callee_returned = surface_returned,
+        };
     }
 
     u32 action_updates{};
@@ -43,6 +52,8 @@ public:
     std::uint64_t action_domain{1U};
     bool action_typed_stop{};
     u32 surface_return{0xABCDEF01U};
+    bool surface_returned{true};
+    std::function<void()> on_surface_operation;
     std::vector<LegacyBattleFrameEffectSurfaceRequest> surface_requests;
 };
 
@@ -113,6 +124,115 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleFrameEffectStatus;
 
     constexpr std::array<u32, 3> surfaces{0xB000U, 0xB100U, 0xB200U};
+
+    for (const bool fading : {false, true}) {
+        for (const bool returned : {false, true}) {
+            for (const u32 hresult : {0U, 1U, 0x80004005U}) {
+                LegacyBattleFrameEffectState state;
+                state.primary_suppression = 1U;
+                state.current_encounter_id = 9;
+                state.expected_encounter_id = fading ? 10 : 9;
+                state.stage = fading ? 2 : 1;
+                state.cadence = 2;
+                state.fade_active = 1U;
+                state.selected_surface_index = 7;
+                state.pending_rotation = 77;
+                Fixture fixture;
+                EffectPort port;
+                port.surface_return = hresult;
+                port.surface_returned = returned;
+                port.on_surface_operation = [&] {
+                    state.stage = 0;
+                    fixture.framebuffer.physical_pixels()[0] = 0x1234U;
+                };
+                auto context = fixture.context();
+                const auto result =
+                    openswd3::battle::update_legacy_battle_frame_effect(
+                        state, port, context, fixture.source(), surfaces, 0
+                    );
+
+                test.expect_true(
+                    result.status ==
+                            (returned ? LegacyBattleFrameEffectStatus::completed
+                                      : LegacyBattleFrameEffectStatus::
+                                            staged_surface_typed_stop) &&
+                        result.surface_operation.return_value == hresult &&
+                        result.surface_operation.callee_returned == returned &&
+                        result.surface_operation_calls ==
+                            (!fading && returned ? 2U : 1U) &&
+                        port.surface_requests.front().source_token ==
+                            surfaces[1] &&
+                        port.surface_requests.front().effect_flags ==
+                            (fading ? 0U : 0x01000000U) &&
+                        state.stage == 0 && state.pending_rotation == 77 &&
+                        state.cadence == (!fading && returned ? 1 : 2) &&
+                        result.cadence_updates ==
+                            (!fading && returned ? 1U : 0U) &&
+                        result.reset_calls == 0U &&
+                        result.source_blit_calls == 0U &&
+                        state.primary_suppression == 1U &&
+                        state.fade_active == 1U &&
+                        fixture.framebuffer.physical_pixels()[0] == 0x1234U,
+                    "both surface calls ignore returned HRESULT but stop unfinished calls with pixel and state prefixes intact"
+                );
+            }
+        }
+    }
+
+    // 453808 returns to 4538B2: reload the WORD before cadence and fade.
+    struct SurfaceReturnVector {
+        openswd3::compat::i16 returned_stage;
+        openswd3::compat::i32 returned_cadence;
+        u32 fade_active;
+        openswd3::compat::i16 final_stage;
+        openswd3::compat::i32 final_cadence;
+        u32 resets;
+        u32 surface_calls;
+    };
+    constexpr std::array<SurfaceReturnVector, 6> surface_returns{{
+        {0, 2, 0U, 1, 1, 0U, 1U},
+        {0, 0, 1U, 0, 1, 1U, 1U},
+        {0x7FFF, 2, 0U, -32768, 1, 0U, 1U},
+        {-1, 2, 0U, 0, 1, 0U, 1U},
+        {3, 0, 1U, 2, 1, 0U, 2U},
+        {4, 2, 0U, 2, 1, 0U, 1U},
+    }};
+    for (const auto& vector : surface_returns) {
+        LegacyBattleFrameEffectState state;
+        state.primary_suppression = 1U;
+        state.current_encounter_id = 9;
+        state.expected_encounter_id = 9;
+        state.stage = 1;
+        state.selected_surface_index = 7;
+        Fixture fixture;
+        EffectPort port;
+        port.on_surface_operation = [&] {
+            if (port.surface_requests.size() == 1U) {
+                state.stage = vector.returned_stage;
+                state.cadence = vector.returned_cadence;
+                state.fade_active = vector.fade_active;
+            }
+        };
+        auto context = fixture.context();
+        const auto result = openswd3::battle::update_legacy_battle_frame_effect(
+            state, port, context, fixture.source(), surfaces, 0
+        );
+
+        test.expect_true(
+            result.status == LegacyBattleFrameEffectStatus::completed &&
+                state.stage == vector.final_stage &&
+                state.cadence == vector.final_cadence &&
+                result.reset_calls == vector.resets &&
+                result.cadence_updates == 1U &&
+                result.surface_operation_calls == vector.surface_calls &&
+                port.surface_requests.front().source_token == surfaces[1] &&
+                port.surface_requests.front().effect_flags == 0x01000000U &&
+                (vector.surface_calls != 2U ||
+                 (port.surface_requests.back().source_token == surfaces[2] &&
+                  port.surface_requests.back().effect_flags == 0U)),
+            "surface return reloads stage and cadence before wrapping growth or fade"
+        );
+    }
 
     for (const auto branch : {0U, 1U, 2U}) {
         LegacyBattleFrameEffectState state;

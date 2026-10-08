@@ -265,13 +265,15 @@ public:
         return {.domain_token = 1U};
     }
 
-    [[nodiscard]] u32 surface_operation(
+    [[nodiscard]] openswd3::battle::LegacyBattleFrameEffectSurfaceReply
+    surface_operation(
         const openswd3::battle::LegacyBattleFrameEffectSurfaceRequest& request
     ) override {
         surface_requests.push_back(request);
-        return 1U;
+        return {.return_value = 1U, .callee_returned = surface_returned};
     }
 
+    bool surface_returned{true};
     std::vector<openswd3::battle::LegacyBattleFrameEffectSurfaceRequest>
         surface_requests;
 };
@@ -1425,6 +1427,60 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 ) == 0U &&
                 result.actor_priority_calls == 0U,
             "frame effect typed stop precedes actor updates, HUD and selection rendering"
+        );
+    }
+
+    for (const bool fading : {false, true}) {
+        const auto state_storage = std::make_unique<
+            openswd3::battle::LegacyBattleFrameCoordinatorState>();
+        auto& state = *state_storage;
+        state.frame_effect.primary_suppression = 1U;
+        state.frame_effect.current_encounter_id = 9;
+        state.frame_effect.expected_encounter_id = fading ? 10 : 9;
+        state.frame_effect.stage = 2;
+        state.frame_effect.cadence = 7;
+        state.frame_effect.fade_active = 1U;
+        state.frame_effect.selected_surface_index = 7;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->frame_effect_port.surface_returned = false;
+        const auto port_storage = std::make_unique<CoordinatorPort>();
+        auto& port = *port_storage;
+        configure_common_port(port);
+        auto context = fixture->context();
+        const auto result_storage = std::unique_ptr<
+            openswd3::battle::LegacyBattleFrameCoordinatorResult>(
+            new openswd3::battle::LegacyBattleFrameCoordinatorResult(
+                openswd3::battle::run_legacy_battle_frame_coordinator(
+                    state, port, context, base_request()
+                )
+            )
+        );
+        const auto& result = *result_storage;
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleFrameCoordinatorStatus::
+                        frame_effect_typed_stop &&
+                result.frame_effect_calls == 1U &&
+                result.frame_effect.status ==
+                    openswd3::battle::LegacyBattleFrameEffectStatus::
+                        staged_surface_typed_stop &&
+                result.frame_effect.surface_operation_calls == 1U &&
+                !result.frame_effect.surface_operation.callee_returned &&
+                result.frame_effect.cadence_updates == 0U &&
+                result.frame_effect.reset_calls == 0U &&
+                state.frame_effect.stage == (fading ? 1 : 2) &&
+                state.frame_effect.cadence == 7 &&
+                fixture->frame_effect_port.surface_requests.front()
+                        .source_token ==
+                    fixture->frame_effect_surfaces[fading ? 1U : 2U] &&
+                fixture->frame_effect_port.surface_requests.front()
+                        .effect_flags == (fading ? 0U : 0x01000000U) &&
+                result.fixed_frame_calls == 0U &&
+                result.hud_frame_calls == 0U &&
+                result.selection_frame_calls == 0U &&
+                result.actor_priority_calls == 0U,
+            "unfinished stage or fade surface call stops the frame before actor and HUD suffixes"
         );
     }
 

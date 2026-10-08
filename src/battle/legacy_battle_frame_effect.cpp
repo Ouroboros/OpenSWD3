@@ -294,13 +294,13 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
         static_cast<std::size_t>(index) >= staged_surface_tokens.size()) {
         return false;
     }
-    static_cast<void>(port.surface_operation({
+    result.surface_operation = port.surface_operation({
         .object_token = state.surface_object_token,
         .source_token = staged_surface_tokens[static_cast<std::size_t>(index)],
         .effect_flags = effect_flags,
-    }));
+    });
     ++result.surface_operation_calls;
-    return true;
+    return result.surface_operation.callee_returned;
 }
 
 void reset_effect_state(
@@ -430,6 +430,9 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                             staged_surface_typed_stop;
                         return result;
                     }
+
+                    // 4538B2 reloads the shared WORD after the surface call.
+                    stage = state.stage;
                 }
             } else {
                 if (rotation_amount != 0) {

@@ -97,11 +97,16 @@ public:
         return {.domain_token = 1U};
     }
 
-    [[nodiscard]] u32 surface_operation(
+    [[nodiscard]] openswd3::battle::LegacyBattleFrameEffectSurfaceReply
+    surface_operation(
         const openswd3::battle::LegacyBattleFrameEffectSurfaceRequest& request
     ) override {
         frame_effect_surface_requests.push_back(request);
-        return generic_return;
+        return {
+            .return_value = generic_return,
+            .callee_returned = frame_effect_surface_requests.size() !=
+                frame_effect_surface_stop_at,
+        };
     }
 
     [[nodiscard]] u32
@@ -251,6 +256,7 @@ public:
     u32 music_start_return{0xABCDEF01U};
     u32 music_commit_return{0x12345678U};
     u32 generic_return{0x11223344U};
+    u32 frame_effect_surface_stop_at{};
     u32 default_actor_mode_return{};
     u32 blend_screen_surface_token{0x90000000U};
     u32 blend_random_return{19U};
@@ -849,6 +855,60 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.return_value == 123U && !result.message_emitted &&
                 ports.random_values.empty(),
             "out of contract random values preserve nonzero branch and ordinary inclusive chance comparisons"
+        );
+    }
+
+    for (const u32 stop_at : {1U, 2U}) {
+        openswd3::battle::LegacyBattleTransitionState state;
+        state.frame_effect.primary_suppression = 1U;
+        state.frame_effect.current_encounter_id = 9;
+        state.frame_effect.expected_encounter_id = 9;
+        state.frame_effect.stage = 1;
+        state.staged_surface_tokens = {0xB000U, 0xB100U, 0xB200U};
+        auto startup = startup_state();
+        TransitionPorts ports;
+        ports.frame_effect_surface_stop_at = stop_at;
+        add_default_surfaces(ports);
+        FrameFixture frame;
+
+        const auto result_storage = std::unique_ptr<
+            openswd3::battle::LegacyBattleTransitionResult>(
+            new openswd3::battle::LegacyBattleTransitionResult(
+                openswd3::battle::run_legacy_battle_transition(
+                    state,
+                    frame.selection_gate,
+                    startup,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    frame.context,
+                    request(0U)
+                )
+            )
+        );
+        const auto& result = *result_storage;
+
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTransitionStatus::
+                        frame_effect_typed_stop &&
+                result.primary_copy_rows == 480U &&
+                result.primary_conversion_calls == 1U &&
+                result.frame_effect_calls == stop_at &&
+                result.frame_effects[stop_at - 1U].status ==
+                    openswd3::battle::LegacyBattleFrameEffectStatus::
+                        staged_surface_typed_stop &&
+                !result.frame_effects[stop_at - 1U]
+                     .surface_operation.callee_returned &&
+                state.frame_effect.stage == 1 &&
+                state.frame_effect.cadence == static_cast<i32>(stop_at - 1U) &&
+                ports.frame_effect_surface_requests.size() == stop_at &&
+                ports.call_count(LegacyBattleTransitionCall::prepare_scene) ==
+                    stop_at - 1U &&
+                result.frame_draw_calls == stop_at - 1U &&
+                result.release_calls == 0U,
+            "both transition effect calls preserve capture and stop before their scene suffix on an unfinished surface call"
         );
     }
 

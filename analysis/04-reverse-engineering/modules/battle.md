@@ -641,7 +641,7 @@ UI低word、固定帧、选中角色面板、三类陈旧ECX snapshot、跨模�
 效果链、头像链、对话、倒计时和BMP helper全部直接组合；
 角色映射和内部bit缺失只在原首次真实访问typed-stop，临时surface零token只在立即虚调用点停止。
 
-`audit_order=60`的`0x00453580`历史登记为`platform_adapted`。B11复核发现灰度分带条件方向相反，现按原完整DWORD精确1修正；定向验证及后续共享状态未决项见[画面效果证据](../evidence/battle-frame-effect-00453580.md#15-b11灰度分带条件修正)。实际画布接线仍待完成，不推进316/317游标。完整508行、21个静态call站点、22个标签、
+`audit_order=60`的`0x00453580`历史登记为`platform_adapted`。B11复核已按原完整DWORD精确1修正灰度分带条件；复制正常返回后重读强度，未返回时保留前缀并阻断后缀。定向验证及后续共享状态未决项见[画面效果证据](../evidence/battle-frame-effect-00453580.md#16-b11复制返回后的强度与停止传播)。实际画布接线仍待完成，不推进316/317游标。完整508行、21个静态call站点、22个标签、
 无chunk；恢复source先发布、全屏clip、双抑制门、零/正/负rotation、上下split带、三通道颜色byte循环、
 遭遇ID门、标准三surface阶段、alternate framebuffer RGB阶段、cadence、signed stage clamp和fade终态。
 六次blitter、三次旋转缓存、两次literal旋转和四次颜色调整全部直连已关闭typed实现；

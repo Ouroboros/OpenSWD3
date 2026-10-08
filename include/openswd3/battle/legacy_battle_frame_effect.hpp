@@ -30,12 +30,18 @@ struct LegacyBattleFrameEffectSurfaceRequest {
     compat::u32 effect_flags{};
 };
 
+struct LegacyBattleFrameEffectSurfaceReply {
+    compat::u32 return_value{};
+    // HRESULT is ignored by both callers; an unfinished call is not a return.
+    bool callee_returned{};
+};
+
 class LegacyBattleFrameEffectPort
     : public LegacyBattleActionRotationUpdatePort {
 public:
     ~LegacyBattleFrameEffectPort() override = default;
 
-    [[nodiscard]] virtual compat::u32
+    [[nodiscard]] virtual LegacyBattleFrameEffectSurfaceReply
     surface_operation(const LegacyBattleFrameEffectSurfaceRequest& request) = 0;
 };
 
@@ -108,6 +114,7 @@ struct LegacyBattleFrameEffectResult {
     LegacyBattleImageRotationResult source_rotation{};
     LegacyBattleActionRotationDrawResult rotation_frame{};
     LegacyBattleActionRotationPlaybackResult rotation_playback{};
+    LegacyBattleFrameEffectSurfaceReply surface_operation{};
     rendering::LegacyFrameColorStatus color_status{
         rendering::LegacyFrameColorStatus::completed
     };

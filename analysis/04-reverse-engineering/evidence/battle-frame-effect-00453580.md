@@ -1,7 +1,7 @@
 # 战斗当前画面复合效果 `0x00453580`
 
 历史状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
-B11正在复核实际画布接线；本轮仅修正下述灰度分带触发条件，
+B11正在复核实际画布接线；灰度分带修正见第15节，复制返回处理见第16节。
 不把历史标记或定向测试视作完整生产接线完成。
 
 ## 1. 完整LST范围
@@ -97,7 +97,11 @@ alternate surface mode为0时读取signed stage word：
 - stage小于1：不读取surface表；
 - stage不小于1：以完整signed stage作索引读取surface token，再由固定surface对象执行虚操作；effect flags固定`0x01000000`。
 
-surface表typed-stop只发生在首次实际索引读取；此前source发布、两次clip与全部入口门副作用保留。DirectDraw对象和虚调用由窄平台端口表达。
+surface表越界在首次实际索引读取停止；此前source发布、两次clip与全部入口门副作用保留。DirectDraw对象和虚调用由窄平台端口表达。
+
+`453808`正常返回后沿`45380B`跳到`4538B2`，重新读取stage WORD；
+后续cadence和fade必须使用该读值。HRESULT无论0、正值或高位置位均被忽略。
+端口另报`callee_returned`，未返回时保留已执行副作用并停止，不能按HRESULT推断。
 
 ## 8. alternate framebuffer阶段
 
@@ -220,5 +224,35 @@ flags=28h对应`421850`的目标灰度化，并非镜像。
 及`battle-frame-split-gate-sdl.log`，均在`build/tmp/runtime/`，无warning/error。
 未启动游戏或新增原版动态差分。
 
-实际画布接线仍待完成。另已发现surface回调后的stage重读与共享source
-重读需修正，属于后续独立接线范围；本批不宣称整个453580重新收敛。
+实际画布接线仍待完成。surface回调后的stage重读修正见第16节；共享source
+重读仍待接线。本批不宣称整个453580重新收敛。
+
+## 16. B11复制返回后的强度与停止传播
+
+独立范围为`453808`、`45393B`两个surface调用和`4538B2`的stage重读。
+未改变表索引、两个复制标志、WORD增长/夹取/淡出算法及三个普通出口。
+
+- `453808`正常返回才重读stage，接着读取cadence并执行原增长和fade。
+- `45393B`调用前已减stage；正常返回后直接RET，不再次增长或清理。
+- 两处都忽略正常返回的HRESULT。端口的未返回标记独立于HRESULT；
+  未返回时保留已经写入的像素和状态，阻断本函数及caller后缀。
+- 结果保留最近一次端口回复。表索引失败仍为零次调用，未伪装成callee返回。
+
+六组回调向量把stage写为0、7FFF、FFFF、3、4并改变cadence与fade门，
+覆盖增长、WORD回绕、signed夹取、终态清理和第二次surface索引。
+旧实现产生5条预期断言失败，记录在`battle-frame-surface-return-red.log`。
+另以两处调用×返回/未返回×HRESULT 0/1/80004005覆盖12组回复，
+并写入固定像素1234检查失败前缀。完整帧caller及转场两个物理caller
+分别覆盖后缀阻断，未将函数返回值伪造成游戏业务结果。
+
+首轮core发生段错误；ASan确认新增转场回归使测试函数栈溢出。
+新增大型结果改为堆上直接构造，生产算法不因测试栈限制改变。
+最终`proc_522c`退出0：core setup目标1/1（4.23秒）、ASan同目标1/1
+（6.81秒），SDL链接通过。最终三份日志无warning/error或sanitizer finding，
+分别为`battle-frame-surface-return-final-core.log`、
+`battle-frame-surface-return-final-asan.log`和
+`battle-frame-surface-return-final-sdl.log`，均位于`build/tmp/runtime/`。
+首轮core/ASan编译中的既有outcome-resolution数值转换warning未修改。
+
+实际共享状态、source/尺寸/颜色重读、真实旋转缓存及SDL画布接线仍未完成。
+WP316仍为pending_audit，未运行游戏或新增原版动态差分。
