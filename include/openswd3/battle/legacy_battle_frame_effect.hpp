@@ -51,7 +51,6 @@ struct LegacyBattleFrameEffectState {
     compat::u32 secondary_suppression{};
     compat::u16 split_extent{};
     compat::u32 split_suppression{};
-    compat::i32 pending_rotation{};
 
     compat::u32 color_cycle_active{};
     compat::u8 color_cycle_delta{};
@@ -83,6 +82,7 @@ struct LegacyBattleFrameEffectContext {
     rendering::LegacyBlitRequest& shared_request;
     rendering::LegacyBlitEffectState& shared_effects;
     rendering::LegacyRleRowJitterState& jitter;
+    compat::i32& pending_rotation;  // 0x0053BD5C, shared with actor movement.
 };
 
 enum class LegacyBattleFrameEffectStatus : compat::u8 {

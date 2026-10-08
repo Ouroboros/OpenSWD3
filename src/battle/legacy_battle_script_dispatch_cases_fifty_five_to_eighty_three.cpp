@@ -640,10 +640,10 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_three() {
     }
     const i32 step = numerator / divisor;
     edx_ = std::bit_cast<u32>(numerator % divisor);
-    workspace_.value_a = step;
+    bindings_.action.frame_enabled = 0U;
+    port_.effect_shift_state().actor_delta = step;
     workspace_.position_x =
         static_cast<u16>(workspace_.position_x + static_cast<u16>(step));
-    bindings_.action.frame_enabled = 0U;
     if (step == 0) {
         workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
         workspace_.pair_x = 0U;
@@ -680,7 +680,8 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_three() {
             return finish(eax_);
         }
         const u16 add_left = workspace_.pair_x;
-        const u16 add_right = static_cast<u16>(step);
+        const u16 add_right =
+            static_cast<u16>(port_.effect_shift_state().actor_delta);
         const u16 add_sum = static_cast<u16>(add_left + add_right);
         workspace_.pair_x = add_sum;
         const u32 value_x = with_low_word(count_eax, add_sum);
@@ -725,7 +726,8 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_three() {
             return finish(eax_);
         }
         const u16 add_left = workspace_.pair_x;
-        const u16 add_right = static_cast<u16>(step);
+        const u16 add_right =
+            static_cast<u16>(port_.effect_shift_state().actor_delta);
         const u16 add_sum = static_cast<u16>(add_left + add_right);
         workspace_.pair_x = add_sum;
         const u32 value_x = with_low_word(count_eax, add_sum);

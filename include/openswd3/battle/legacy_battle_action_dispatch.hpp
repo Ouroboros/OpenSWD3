@@ -35,6 +35,7 @@
 #include "openswd3/battle/legacy_battle_actor_gate_decay.hpp"
 #include "openswd3/battle/legacy_battle_actor_render_offsets.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
+#include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_reward_scale.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
@@ -181,6 +182,7 @@ class LegacyBattleActionDispatchPort
       public virtual LegacyBattleFrameRefreshStatePort,
       public virtual LegacyBattleFrameInputResolutionStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
+      public virtual LegacyBattleEffectShiftStatePort,
       public virtual LegacyBattleGroupASummonMaterializationPort,
       public virtual world_map::LegacyWorldItemListStatePort {
 public:

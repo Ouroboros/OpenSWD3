@@ -7,6 +7,7 @@
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_script_curve.hpp"
 #include "openswd3/battle/legacy_battle_script_dispatch.hpp"
+#include "openswd3/rendering/legacy_image_command_stream.hpp"
 #include "test.hpp"
 
 #include <algorithm>
@@ -2707,6 +2708,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.write_u16(4U, 2U);
         fixture.workspace.position_x = 20U;
         fixture.workspace.position_y = 20U;
+        fixture.workspace.value_a = 0x12345678;
         fixture.startup.actor_metrics.group_a_count = 0x12340001U;
         fixture.startup.actor_metrics.group_b_count = 1U;
         prepare_group_b(fixture);
@@ -2728,7 +2730,8 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 actor.position_x == 140U && actor.position_y == 40U &&
                 (*fixture.startup.group_b_lifecycle)[0U]
                         .action_execution.position_x == 100U &&
-                fixture.workspace.value_a == 40 &&
+                fixture.workspace.value_a == 0x12345678 &&
+                port.effect_shift_state().actor_delta == 40 &&
                 fixture.workspace.position_x == 60U &&
                 fixture.workspace.cursor == 0U &&
                 port.count(LegacyBattleScriptDispatchCall::actor_metrics) ==
@@ -5534,7 +5537,133 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
     }
 }
 
+namespace {
+
+void test_script_rotation_sharing(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    using namespace openswd3::rendering;
+    using u8 = openswd3::compat::u8;
+    class ImagePort final : public LegacyBattleFrameEffectPort {
+    public:
+        LegacyBattleActionRotationUpdateSnapshot update_action(
+            openswd3::asset_runtime::LegacyActionRecord&
+        ) override {
+            return {.domain_token = 1U};
+        }
+
+        LegacyBattleFrameEffectSurfaceReply surface_operation(
+            const LegacyBattleFrameEffectSurfaceRequest&
+        ) override {
+            return {};
+        }
+    };
+
+    for (const i32 opcode : {22, 40, 73}) {
+        for (const i32 delta : {-1, 1}) {
+            auto fixture = std::make_unique<Fixture>();
+            Port port;
+            fixture->opcode(opcode);
+            fixture->workspace.value_a = 0x12345678;
+            if (opcode == 22) {
+                fixture->write_u16(2U, static_cast<u16>(delta));
+            } else if (opcode == 40) {
+                fixture->write_u16(2U, 17U);
+                fixture->workspace.position_x = static_cast<u16>(-3 * delta);
+            } else {
+                fixture->write_u16(2U, static_cast<u16>(2 * delta));
+                fixture->write_u16(4U, 2U);
+            }
+
+            LegacyFramebuffer framebuffer;
+            LegacyRasterGeometryState raster{};
+            static_cast<void>(initialize_legacy_raster_geometry(
+                raster, framebuffer.geometry().surface
+            ));
+            LegacyBlitRequest request{};
+            LegacyBlitEffectState effects{};
+            LegacyRleRowJitterState jitter{};
+            LegacyBattleFrameEffectState state;
+            LegacyBattleFrameEffectContext context{
+                .framebuffer = framebuffer,
+                .raster = raster,
+                .shared_request = request,
+                .shared_effects = effects,
+                .jitter = jitter,
+                .pending_rotation = port.effect_shift_state().actor_delta,
+            };
+            const std::array<u16, 3> pixels{1U, 2U, 3U};
+            auto image = encode_legacy_image_command_stream(
+                {reinterpret_cast<const u8*>(pixels.data()), sizeof(pixels)},
+                3U, 1U, 16U
+            );
+            LegacyBattleFrameEffectSource source{
+                .token = 0xA100U,
+                .bytes = image.bytes,
+                .width = 3U,
+                .height = 1U,
+            };
+            ImagePort image_port;
+            LegacyBattleFrameEffectResult effect_result;
+            i32 observed_delta{};
+            u32 draws{};
+            const auto draw = [&] {
+                observed_delta = context.pending_rotation;
+                effect_result = update_legacy_battle_frame_effect(
+                    state, image_port, context, source, {}, observed_delta
+                );
+                ++draws;
+            };
+            port.after_call = [&](auto&, auto&, const auto& call) {
+                if (call.call == LegacyBattleScriptDispatchCall::frame) {
+                    draw();
+                }
+            };
+            const auto result = run_legacy_battle_script_dispatch(
+                fixture->workspace, fixture->bindings(), port
+            );
+            if (opcode == 22) {
+                draw();
+            }
+
+            test.expect_true(
+                result.status == LegacyBattleScriptDispatchStatus::completed &&
+                    draws == 1U && observed_delta == delta &&
+                    effect_result.status ==
+                        LegacyBattleFrameEffectStatus::completed &&
+                    effect_result.source_rotation_calls == 1U &&
+                    framebuffer.physical_pixels()[0] ==
+                        (delta > 0 ? 3U : 2U) &&
+                    port.effect_shift_state().actor_delta == 0 &&
+                    fixture->workspace.value_a == 0x12345678,
+                "script movement shares its signed displacement with real background pixels and frame consumption"
+            );
+        }
+    }
+
+    for (const u16 word : {u16{0U}, u16{1U}, u16{0xFFFFU}, u16{0x8000U}}) {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        port.effect_shift_state().actor_delta = 99;
+        fixture->opcode(22);
+        fixture->write_u16(2U, word);
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                port.effect_shift_state().actor_delta ==
+                    static_cast<i32>(std::bit_cast<openswd3::compat::i16>(word)) &&
+                fixture->workspace.position_x == 0U &&
+                fixture->workspace.cursor == 4U,
+            "script twenty two publishes the sign-extended DWORD even without actors and retains it after cursor advance"
+        );
+    }
+}
+
+}  // namespace
+
 void test_battle_script_dispatch(openswd3::test::Context& test) {
+    test_script_rotation_sharing(test);
 #ifdef OPENSWD3_GAME_DATA_ROOT
     {
         using u8 = openswd3::compat::u8;

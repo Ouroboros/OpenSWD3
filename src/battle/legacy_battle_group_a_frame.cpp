@@ -2519,7 +2519,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     return result;
                 }
                 state.action_aux_gate = 0U;
-                state.action_runtime_word = 0U;
+                port.effect_shift_state().actor_delta = 0;
                 replace_high_byte_of_low_word(
                     state.action.opponent_processed_counter, 0U
                 );

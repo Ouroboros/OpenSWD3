@@ -400,7 +400,7 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
             }
         }
 
-        state.pending_rotation = 0;
+        context.pending_rotation = 0;
         if (state.color_cycle_active == 1U &&
             !adjust_color_cycle(state, context, result)) {
             result.status =
@@ -448,7 +448,7 @@ LegacyBattleFrameEffectResult update_legacy_battle_frame_effect(
                             rotation_playback_typed_stop;
                         return result;
                     }
-                    state.pending_rotation = 0;
+                    context.pending_rotation = 0;
                 }
                 if (!draw_source(context, result, source, 0U)) {
                     result.status =

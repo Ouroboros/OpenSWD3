@@ -2114,6 +2114,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             DispatchPort port;
             port.action_target = 0U;
             port.push(0x0047CE80U, {.eax = 0U});
+            state.action_runtime_word = 7U;
+            port.effect_shift_state().actor_delta = 99;
             auto context = fixture.context();
             context.actor_action_target_clear_requests.count = 1U;
             context.actor_action_target_clear_requests.calls[0U]
@@ -2136,6 +2138,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state.action.group_a_action_execution[0U].action_target ==
                         0U &&
                     state.action_aux_gate == 1U &&
+                    state.action_runtime_word == 7U &&
+                    port.effect_shift_state().actor_delta == 99 &&
                     state.final_actor_step.action_execution_active == 1U &&
                     result.actor_gate_decay.calls == 0U &&
                     port.count(0x00478B40U) == 0U,
@@ -2163,6 +2167,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             state.action.group_a_action_execution[0U].action_kind = 5U;
             port.battle_frame_input_resolution_state()
                 .equipment_grid_selections = {9U, 8U, 7U, 6U};
+            state.action_runtime_word = 7U;
+            port.effect_shift_state().actor_delta = 99;
             port.action_target = 0U;
             port.push(0x0047CE80U, {.eax = 0U});
             auto context = fixture.context();
@@ -2201,7 +2207,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         0x004570FAU &&
                     result.actor_action_target_clear.actor_tokens[0U] ==
                         openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                    result.actor_action_target_clear.last.returned,
+                    result.actor_action_target_clear.last.returned &&
+                    state.action_runtime_word == 7U &&
+                    port.effect_shift_state().actor_delta == 0,
                 "active actor directly composes action dispatch and post-action cleanup suffixes"
             );
             test.expect_true(

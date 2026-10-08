@@ -400,6 +400,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         .shared_request = context.frame_zero.shared_request,
         .shared_effects = context.frame_zero.shared_effects,
         .jitter = context.frame_zero.jitter,
+        .pending_rotation = port.effect_shift_state().actor_delta,
     };
     result.frame_effect = update_legacy_battle_frame_effect(
         state.frame_effect,
@@ -407,7 +408,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         frame_effect_context,
         context.frame_effect_source,
         context.frame_effect_surfaces,
-        state.frame_effect.pending_rotation
+        frame_effect_context.pending_rotation
     );
     ++result.frame_effect_calls;
     if (result.frame_effect.status !=

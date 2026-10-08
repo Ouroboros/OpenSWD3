@@ -2,6 +2,7 @@
 
 历史状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 B11正在复核实际画布接线；灰度分带修正见第15节，复制返回处理见第16节。
+角色移动与背景平移的共享量修正见第17节。
 不把历史标记或定向测试视作完整生产接线完成。
 
 ## 1. 完整LST范围
@@ -256,3 +257,49 @@ flags=28h对应`421850`的目标灰度化，并非镜像。
 
 实际共享状态、source/尺寸/颜色重读、真实旋转缓存及SDL画布接线仍未完成。
 WP316仍为pending_audit，未运行游戏或新增原版动态差分。
+
+## 17. B11角色移动与背景平移共用实际位移
+
+`53BD5C`共28个text访问。沿用已有`EffectShiftState.actor_delta`唯一存储，
+脚本、动作和转场端口通过virtual state port共同借用。效果context借i32引用，
+删除原`FrameEffectState.pending_rotation`副本。转场两次调用及逐帧协调器
+在各自入口读取共享量，仍按值传入旋转参数；后续清零操作写回真实存储。
+已有位移效果、调试键和全局reset继续使用该存储，不增加逐帧同步复制。
+
+- `4528FE`、`452D6E`、`45331C`取DWORD参数快照；
+  `45371B`及`45384A`保持原调用完成后的清零时机。
+- 脚本22在`46BB29`写sign-extended参数WORD；两个坐标查询返回后，
+  分别在`46BB4E`、`46BBA7`重读DWORD。正常脚本出口保留平移量。
+- 脚本40在`46C8D6`或`46C8FA`写目标居中差值或负商，
+  `46C93B`、`46C98F`读取同一存储的低WORD。
+- 脚本73在`46CA3E`暂停帧，`46CA49`写有符号商，随后发布位置。
+  `46CA89`、`46CADD`按低WORD加到角色坐标。删除对`value_a`的错误写入；
+  除零仍在发布平移量之前停止。
+- 组A动作完成在目标清空调用正常返回后，于`457106`清共享平移量。
+  不再清`action_runtime_word`；该字段在`456F4A`对应另一个DWORD `53C02C`。
+  目标清空失败时，两者均保留前缀现场。
+
+独立向量及28处访问导航见
+`build/tmp/runtime/battle-frame-rotation-sharing-audit.md`。
+新增脚本22/40/73各正负一像素向量，以真实命令流确认首像素变化和消费后清零；
+脚本22另覆盖0、1、FFFF、8000符号扩展。既有两组角色坐标与寄存器回归继续执行。
+坐标发布故障检查脚本73保留原临时量并已写共享商；组A成功/失败收尾、
+完整帧正负旋转失败与成功消费、转场抑制及旋转失败均检查共享存储。
+坐标查询为已直接组合的封闭callee，源实现按原站点重读，未虚构回调行为。
+
+首轮发现旧脚本73测试也断言错误临时量写入，已按LST更正。
+新增转场故障夹具诊断显示：普通截图含8000/C000标记行，非零旋转后在blit停止，
+未到达目标缓存调用。原旋转函数要求固定literal行，见
+[原literal布局](battle-literal-image-cyclic-rotation-00433f70.md#3-literal行布局)。
+该缓存故障向量改用全literal截图，并显式注入动作更新typed-stop；
+更新返回0在播放路径实际属于正常结束，不能作为未完成回复。
+生产旋转和播放算法保持不变，普通截图格式问题留在后续source接线审计中。
+最终`proc_52b3`退出0：core setup 1/1（4.50秒）、actor_frame_316 1/1
+（25.70秒），ASan同两目标分别1/1（7.29秒、30.12秒），SDL链接通过。
+日志为`build/tmp/runtime/battle-shared-rotation-gates-`前缀的
+`core.log`、`actor.log`、`asan.log`、`actor-asan.log`与`sdl.log`。
+ASan构建仍有既有outcome-resolution:137的u16到u8转换warning；
+没有新编译错误或sanitizer finding。未运行游戏或新增原版动态差分。
+
+仅共享平移量在本批回收。其余效果状态、source/尺寸/颜色重读、真实旋转缓存
+和SDL画布接线仍未完成。SDL仍停在45331C；不升级WP316或WP379的验收状态。

@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_attack_order_entry.hpp"
 #include "openswd3/battle/legacy_battle_frame_draw.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
+#include "openswd3/battle/legacy_battle_effect_shift.hpp"
 #include "openswd3/battle/legacy_battle_hud_frame.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "openswd3/battle/legacy_battle_surface_blend.hpp"
@@ -106,6 +107,7 @@ struct LegacyBattleTransitionCallReply {
 
 class LegacyBattleTransitionPort
     : public virtual LegacyBattleDebugHotkeyStatePort,
+      public virtual LegacyBattleEffectShiftStatePort,
       public LegacyBattleFrameEffectPort,
       public LegacyBattleHudCallPort,
       public virtual LegacyBattleActorMetricStatePort {

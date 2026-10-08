@@ -280,6 +280,7 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
         .shared_request = frame_zero.shared_request,
         .shared_effects = frame_zero.shared_effects,
         .jitter = frame_zero.jitter,
+        .pending_rotation = port.effect_shift_state().actor_delta,
     };
     effect = update_legacy_battle_frame_effect(
         state.frame_effect,
@@ -292,7 +293,7 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
             .height = static_cast<u16>(kLegacyBattleTransitionHeight),
         },
         state.staged_surface_tokens,
-        state.frame_effect.pending_rotation
+        context.pending_rotation
     );
     ++result.frame_effect_calls;
     return effect.status == LegacyBattleFrameEffectStatus::completed;

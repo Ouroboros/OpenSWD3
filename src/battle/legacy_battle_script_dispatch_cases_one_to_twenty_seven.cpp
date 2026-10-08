@@ -992,8 +992,8 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_two() {
     if (!read_u16(wrapping_add(workspace_.cursor, 2U), delta_word)) {
         return finish();
     }
-    const u32 delta = std::bit_cast<u32>(signed_word(delta_word));
     workspace_.position_x = delta_word;
+    port_.effect_shift_state().actor_delta = signed_word(delta_word);
     i32 index = 0;
     while (index < static_cast<i32>(
                        bindings_.startup.actor_metrics.group_a_count)) {
@@ -1017,6 +1017,8 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_two() {
             return finish(eax_);
         }
         const u32 add_left = std::bit_cast<u32>(workspace_.value_a);
+        const u32 delta =
+            std::bit_cast<u32>(port_.effect_shift_state().actor_delta);
         const u32 add_sum = add_left + delta;
         workspace_.value_a = std::bit_cast<i32>(add_sum);
         const u32 value_b = with_low_word(
@@ -1060,6 +1062,8 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_two() {
             return finish(eax_);
         }
         const u32 add_left = std::bit_cast<u32>(workspace_.value_a);
+        const u32 delta =
+            std::bit_cast<u32>(port_.effect_shift_state().actor_delta);
         const u32 add_sum = add_left + delta;
         workspace_.value_a = std::bit_cast<i32>(add_sum);
         const u32 value_b = with_low_word(

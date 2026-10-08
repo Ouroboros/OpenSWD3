@@ -94,7 +94,7 @@ public:
     [[nodiscard]]
     openswd3::battle::LegacyBattleActionRotationUpdateSnapshot
     update_action(openswd3::asset_runtime::LegacyActionRecord&) override {
-        return {.domain_token = 1U};
+        return {.domain_token = 1U, .typed_stop = rotation_update_typed_stop};
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleFrameEffectSurfaceReply
@@ -257,6 +257,7 @@ public:
     u32 music_commit_return{0x12345678U};
     u32 generic_return{0x11223344U};
     u32 frame_effect_surface_stop_at{};
+    bool rotation_update_typed_stop{};
     u32 default_actor_mode_return{};
     u32 blend_screen_surface_token{0x90000000U};
     u32 blend_random_return{19U};
@@ -868,6 +869,7 @@ void test_battle_transition(openswd3::test::Context& test) {
         auto startup = startup_state();
         TransitionPorts ports;
         ports.frame_effect_surface_stop_at = stop_at;
+        ports.effect_shift_state().actor_delta = 99;
         add_default_surfaces(ports);
         FrameFixture frame;
 
@@ -902,6 +904,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                 !result.frame_effects[stop_at - 1U]
                      .surface_operation.callee_returned &&
                 state.frame_effect.stage == 1 &&
+                ports.effect_shift_state().actor_delta == 99 &&
                 state.frame_effect.cadence == static_cast<i32>(stop_at - 1U) &&
                 ports.frame_effect_surface_requests.size() == stop_at &&
                 ports.call_count(LegacyBattleTransitionCall::prepare_scene) ==
@@ -912,12 +915,17 @@ void test_battle_transition(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const i32 delta : {0, 1, -1}) {
         openswd3::battle::LegacyBattleTransitionState state;
         state.frame_effect.rotation_cache.stored_action_id = 1U;
         auto startup = startup_state();
         TransitionPorts ports;
+        ports.effect_shift_state().actor_delta = delta;
+        ports.rotation_update_typed_stop = true;
         add_default_surfaces(ports);
+        // Rotation expects literal rows, without 8000/C000 marker runs.
+        auto& captured_pixels = ports.surfaces.at(2U).pixels;
+        captured_pixels.assign(captured_pixels.size(), 0x1234U);
         FrameFixture frame;
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
@@ -939,9 +947,12 @@ void test_battle_transition(openswd3::test::Context& test) {
                 result.primary_copy_rows == 480U &&
                 result.primary_conversion_calls == 1U &&
                 result.frame_effect_calls == 1U &&
-                result.frame_effects[0].status ==
-                    openswd3::battle::LegacyBattleFrameEffectStatus::
-                        rotation_frame_typed_stop &&
+                result.frame_effects[0].status == (delta == 0
+                    ? openswd3::battle::LegacyBattleFrameEffectStatus::
+                          rotation_frame_typed_stop
+                    : openswd3::battle::LegacyBattleFrameEffectStatus::
+                          rotation_playback_typed_stop) &&
+                ports.effect_shift_state().actor_delta == delta &&
                 ports.call_count(LegacyBattleTransitionCall::prepare_scene) ==
                     0U &&
                 result.frame_draw_calls == 0U && result.release_calls == 0U &&

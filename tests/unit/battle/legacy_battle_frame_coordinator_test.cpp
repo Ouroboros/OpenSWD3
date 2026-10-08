@@ -1390,7 +1390,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "render abort occurs only after target lock and immediate unlock and returns active latch"
         );
     }
-    {
+    for (const openswd3::compat::i32 delta : {0, 1, -1}) {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
@@ -1399,6 +1399,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         configure_common_port(port);
+        port.effect_shift_state().actor_delta = delta;
         auto context = fixture->context();
 
         const auto result_storage = std::unique_ptr<
@@ -1416,9 +1417,12 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                         frame_effect_typed_stop &&
                 result.frame_effect_calls == 1U &&
-                result.frame_effect.status ==
-                    openswd3::battle::LegacyBattleFrameEffectStatus::
-                        source_blit_typed_stop &&
+                result.frame_effect.status == (delta == 0
+                    ? openswd3::battle::LegacyBattleFrameEffectStatus::
+                          source_blit_typed_stop
+                    : openswd3::battle::LegacyBattleFrameEffectStatus::
+                          source_rotation_typed_stop) &&
+                port.effect_shift_state().actor_delta == delta &&
                 result.fixed_frame_calls == 0U &&
                 result.selection_frame_calls == 0U &&
                 port.count(
@@ -1484,7 +1488,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         );
     }
 
-    for (const u32 split_gate : {0U, 1U}) {
+    for (const u32 split_gate : {0U, 1U, 2U}) {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
@@ -1499,6 +1503,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         configure_common_port(port);
+        port.effect_shift_state().actor_delta = split_gate == 2U ? 1 : 0;
         auto context = fixture->context();
 
         const auto result_storage = std::unique_ptr<
@@ -1533,7 +1538,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             result.frame_effect.source_blit_calls ==
                     (split_gate == 1U ? 3U : 1U) &&
                 state.frame_effect.split_extent ==
-                    (split_gate == 1U ? 20U : 10U),
+                    (split_gate == 1U ? 20U : 10U) &&
+                result.frame_effect.source_rotation_calls ==
+                    (split_gate == 2U ? 1U : 0U) &&
+                port.effect_shift_state().actor_delta == 0,
             "full frame caller enables split bands only for the original exact-one gate"
         );
     }

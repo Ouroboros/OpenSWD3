@@ -64,6 +64,7 @@ struct Fixture {
     openswd3::rendering::LegacyBlitEffectState effects{};
     openswd3::rendering::LegacyRleRowJitterState jitter{};
     std::vector<u8> source_bytes;
+    openswd3::compat::i32 pending_rotation{};
 
     Fixture() {
         static_cast<void>(
@@ -96,6 +97,7 @@ struct Fixture {
             .shared_request = request,
             .shared_effects = effects,
             .jitter = jitter,
+            .pending_rotation = pending_rotation,
         };
     }
 
@@ -136,8 +138,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 state.cadence = 2;
                 state.fade_active = 1U;
                 state.selected_surface_index = 7;
-                state.pending_rotation = 77;
                 Fixture fixture;
+                fixture.pending_rotation = 77;
                 EffectPort port;
                 port.surface_return = hresult;
                 port.surface_returned = returned;
@@ -164,7 +166,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                             surfaces[1] &&
                         port.surface_requests.front().effect_flags ==
                             (fading ? 0U : 0x01000000U) &&
-                        state.stage == 0 && state.pending_rotation == 77 &&
+                        state.stage == 0 && fixture.pending_rotation == 77 &&
                         state.cadence == (!fading && returned ? 1 : 2) &&
                         result.cadence_updates ==
                             (!fading && returned ? 1U : 0U) &&
@@ -237,7 +239,6 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
     for (const auto branch : {0U, 1U, 2U}) {
         LegacyBattleFrameEffectState state;
         state.rotation_cache.stored_action_id = 1U;
-        state.pending_rotation = 77;
         state.split_extent = 10U;
         state.color_cycle_active = 1U;
         state.stage = 1;
@@ -250,6 +251,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         }
 
         Fixture fixture;
+        fixture.pending_rotation = 77;
         EffectPort port;
         port.action_typed_stop = true;
         auto context = fixture.context();
@@ -265,7 +267,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 result.source_blit_calls == (branch == 2U ? 0U : 1U) &&
                 result.color_adjustment_calls == 0U &&
                 result.cadence_updates == 0U && result.reset_calls == 0U &&
-                state.pending_rotation == 77 && state.split_extent == 10U &&
+                fixture.pending_rotation == 77 && state.split_extent == 10U &&
                 state.color_cycle_active == 1U && state.stage == 1 &&
                 state.cadence == 2,
             "effect caller preserves its prefix and stops before later effects"
@@ -276,8 +278,8 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
         LegacyBattleFrameEffectState state;
         state.split_suppression = split_gate;
         state.split_extent = 10U;
-        state.pending_rotation = 77;
         Fixture fixture;
+        fixture.pending_rotation = 77;
         EffectPort port;
         auto context = fixture.context();
 
@@ -292,7 +294,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 result.rotation_frame_calls == 1U &&
                 state.published_source_token == 0xA100U &&
                 state.split_extent == (split_gate == 1U ? 20U : 10U) &&
-                state.pending_rotation == 0 &&
+                fixture.pending_rotation == 0 &&
                 fixture.framebuffer.physical_pixels()[0] == 0x001FU &&
                 fixture.raster.clip_left == 0 && fixture.raster.clip_top == 0 &&
                 fixture.raster.clip_width == 640 &&
@@ -583,7 +585,7 @@ void test_battle_frame_effect(openswd3::test::Context& test) {
                 result.rotation_playback_calls == 1U &&
                 after.size() == before.size() && after[0] == before[2] &&
                 after[1] == before[0] && after[2] == before[1] &&
-                state.pending_rotation == 0,
+                fixture.pending_rotation == 0,
             "positive amount rotates literal row right before draw and still invokes empty cached playback"
         );
     }

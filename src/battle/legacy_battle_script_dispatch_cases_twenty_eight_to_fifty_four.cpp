@@ -551,7 +551,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_forty() {
     if (workspace_.position_x == 0U) {
         workspace_.position_x = target;
     }
-    i32 delta{};
+    auto& delta = port_.effect_shift_state().actor_delta;
     const i32 signed_target = signed_word(target);
     if (signed_target >= 0 && signed_target <= 16) {
         const auto token = actor_token(signed_target);
