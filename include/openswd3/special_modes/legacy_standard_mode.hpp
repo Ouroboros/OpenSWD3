@@ -809,8 +809,6 @@ struct LegacyCharacterAttributesState {
     compat::u32 level_number_of_bytes_read_token{};
     compat::u32 level_stale_directory_offset{};
     compat::u32 level_stale_output{};
-    compat::u32 fixed_definition_maximum_output_token{};
-    compat::u32 fixed_definition_count_output_token{};
     bool level_output_accessible{true};
     bool first_record_available{};
     bool second_record_available{};
@@ -871,9 +869,7 @@ struct LegacyCharacterAttributesRebuildResult {
     battle::LegacyBattleFixedDefinitionCurveLookupResult
         fixed_definition_curve{};
     compat::i32 legacy_return_value{};
-    compat::u32 helper_call_count{};
     compat::u32 contribution_count{};
-    compat::u32 fixed_definition_curve_query_count{};
 };
 
 enum class LegacyCharacterAttributesRenderStatus : compat::u8 {
@@ -3777,8 +3773,6 @@ struct LegacyPartyDialogPageState {
     std::array<compat::i32, 64U> global_values{};
     compat::u8 global_value_label{};
     std::array<compat::u32, 3U> item_category_masks{};
-    compat::u32 fixed_definition_maximum_output_token{};
-    compat::u32 fixed_definition_count_output_token{};
 };
 
 class LegacyPartyDialogPagePorts
@@ -3810,7 +3804,6 @@ struct LegacyPartyDialogPageResult {
     battle::LegacyBattleFixedCurveLookupResult fixed_curve{};
     battle::LegacyBattleFixedDefinitionCurveLookupResult
         fixed_definition_curve{};
-    compat::u32 fixed_definition_curve_query_count{};
     bool rows_cleared{};
 };
 
@@ -5391,8 +5384,6 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::u32 first_work_storage_token{};
     compat::u32 second_work_storage_token{};
     compat::u32 attribute_cache_token{};
-    compat::u32 fixed_definition_maximum_output_token{};
-    compat::u32 fixed_definition_count_output_token{};
     compat::u16 attribute_text_color_word{};
     std::array<compat::u8, 0x190U> attribute_cache{};
     std::array<std::array<compat::u16, 3U>, 4U>
@@ -7595,7 +7586,6 @@ struct LegacyStandardModeGuardianAttributeSummaryResult {
     battle::LegacyBattleFixedCurveLookupResult fixed_curve{};
     battle::LegacyBattleFixedDefinitionCurveLookupResult
         fixed_definition_curve{};
-    compat::u32 fixed_definition_curve_query_count{};
 };
 
 [[nodiscard]] LegacyStandardModeGuardianAttributeSummaryResult

@@ -2764,7 +2764,6 @@ LegacyCharacterAttributesRebuildResult rebuild_legacy_character_attributes(
         source.resource_values = contribution.guardian_resource_values;
         source.battle_values = contribution.guardian_battle_values;
         source.bonus_values = contribution.guardian_bonus_values;
-        ++result.helper_call_count;
         const LegacyGuardianAttributeApplicationResult applied =
             apply_legacy_guardian_attributes(
                 guardian_target, source, application_ports
@@ -2837,20 +2836,10 @@ LegacyCharacterAttributesRebuildResult rebuild_legacy_character_attributes(
             battle::lookup_legacy_battle_fixed_definition_curve(
                 ports.legacy_battle_fixed_object_state(),
                 ports,
+                static_cast<compat::u16>(contribution.lookup_key),
                 &maximum,
-                &count,
-                {
-                    .maximum_output_token =
-                        state.fixed_definition_maximum_output_token,
-                    .count_output_token =
-                        state.fixed_definition_count_output_token,
-                    .key = contribution.lookup_key,
-                    .entry_ecx = contribution.lookup_key,
-                    .entry_edx = state.fixed_definition_count_output_token,
-                }
+                &count
             );
-        ++result.helper_call_count;
-        ++result.fixed_definition_curve_query_count;
         if (result.fixed_definition_curve.status !=
             battle::LegacyBattleFixedDefinitionCurveLookupStatus::completed) {
             result.status = LegacyCharacterAttributesRebuildStatus::
@@ -9240,22 +9229,10 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
                     battle::lookup_legacy_battle_fixed_definition_curve(
                         ports.legacy_battle_fixed_object_state(),
                         ports,
+                        record->text_index,
                         &maximum,
-                        &count,
-                        {
-                            .maximum_output_token =
-                                state.fixed_definition_maximum_output_token,
-                            .count_output_token =
-                                state.fixed_definition_count_output_token,
-                            .key = record->text_index,
-                            .entry_ecx =
-                                state.fixed_definition_maximum_output_token,
-                            .entry_edx =
-                                (state.item_category_masks[1U] & 0xFFFF0000U) |
-                                record->text_index,
-                        }
+                        &count
                     );
-                ++result.fixed_definition_curve_query_count;
                 if (result.fixed_definition_curve.status !=
                     battle::LegacyBattleFixedDefinitionCurveLookupStatus::
                         completed) {
@@ -18625,20 +18602,10 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
                 battle::lookup_legacy_battle_fixed_definition_curve(
                     ports.legacy_battle_fixed_object_state(),
                     ports,
+                    seed->text_index,
                     &maximum,
-                    &count,
-                    {
-                        .maximum_output_token =
-                            state.fixed_definition_maximum_output_token,
-                        .count_output_token =
-                            state.fixed_definition_count_output_token,
-                        .key = seed->text_index,
-                        .entry_ecx = state.fixed_definition_count_output_token,
-                        .entry_edx =
-                            state.fixed_definition_maximum_output_token,
-                    }
+                    &count
                 );
-            ++result.fixed_definition_curve_query_count;
             if (result.fixed_definition_curve.status !=
                 battle::LegacyBattleFixedDefinitionCurveLookupStatus::
                     completed) {

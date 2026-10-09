@@ -7603,7 +7603,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 zero_summary.fixed_curve.value == 400U &&
                 zero_ports.cache_steps.empty() &&
                 pair_summary.legacy_return_value == 7 && pair_values &&
-                pair_summary.fixed_definition_curve_query_count == 1U &&
                 pair_summary.fixed_definition_curve.path ==
                     openswd3::battle::LegacyBattleFixedCountPath::
                         existing_root &&
@@ -7723,8 +7722,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     0x77005678U &&
                 fixed_definition_stopped.fixed_definition_curve
                         .stopped_offset == 4U &&
-                fixed_definition_stopped.fixed_definition_curve
-                        .definition_load_calls == 0U &&
+                fixed_definition_stopped_ports
+                    .requested_definition_ids.empty() &&
                 fixed_definition_stop_order &&
                 fixed_count_stopped.status ==
                     sm::LegacyStandardModeGuardianAttributeSummaryStatus::
@@ -22801,8 +22800,6 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             populated_item_party_dialog_page.fixed_curve.matched_token ==
                 openswd3::battle::kLegacyBattleFixedCurveOwnerToken &&
             populated_item_party_dialog_page.fixed_curve.value == 20U &&
-            populated_item_party_dialog_page
-                    .fixed_definition_curve_query_count == 2U &&
             populated_item_party_dialog_page.fixed_definition_curve.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::existing_root &&
             populated_item_party_dialog_page.fixed_definition_curve.maximum ==
@@ -22821,8 +22818,6 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             item_party_dialog_page_ports.requests[6U].text == "600" &&
             item_party_dialog_page_ports.requests[7U].text == "30/3" &&
             populated_stored_item_party_dialog_page.rendered_row_count == 2U &&
-            populated_stored_item_party_dialog_page
-                    .fixed_definition_curve_query_count == 0U &&
             stored_item_party_dialog_page_ports.requests[3U].text.empty() &&
             stored_item_party_dialog_page_ports.requests[7U].text.empty(),
         "0x410730 walks the selected item chain, sums two signed quantities, applies page-zero category queries in overwrite order with the low-id final override, and leaves added values blank on pages one through four"
@@ -22906,8 +22901,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                     .stopped_token == 0x7F00DCBAU &&
             definition_stopped_party_dialog_page_result.fixed_definition_curve
                     .stopped_offset == 4U &&
-            definition_stopped_party_dialog_page_result.fixed_definition_curve
-                    .definition_load_calls == 0U &&
+            definition_stopped_party_dialog_page_ports
+                .requested_definition_ids.empty() &&
             definition_stopped_party_dialog_page_result.rows_cleared &&
             definition_stopped_party_dialog_page_result.rendered_row_count ==
                 0U &&
@@ -26114,15 +26109,12 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyCharacterAttributesRebuildStatus::completed &&
             character_attributes_rebuild.legacy_return_value == 9 &&
-            character_attributes_rebuild.helper_call_count == 17U &&
             character_attributes_rebuild.contribution_count == 16U &&
             character_attributes_rebuild_ports.accumulate_count == 16U &&
             character_attributes_rebuild_ports.requested_profile_ids.front() ==
                 0x1000U &&
             character_attributes_rebuild_ports.requested_profile_ids.back() ==
                 0x100FU &&
-            character_attributes_rebuild.fixed_definition_curve_query_count ==
-                1U &&
             character_attributes_rebuild.fixed_definition_curve.maximum ==
                 10U &&
             character_attributes_rebuild.fixed_definition_curve.count == 10U &&
@@ -26219,24 +26211,26 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyCharacterAttributesRebuildStatus::
                         contribution_unavailable_stopped &&
-            character_attributes_rebuild_unavailable.helper_call_count == 16U &&
+            character_attributes_rebuild_unavailable.contribution_count ==
+                16U &&
             character_attributes_rebuild_unavailable_state.first_record
                     .modifiers[0U] == 4 &&
             character_attributes_rebuild_zero.status ==
                 openswd3::special_modes::
                     LegacyCharacterAttributesRebuildStatus::
                         scale_divisor_zero_stopped &&
-            character_attributes_rebuild_zero.helper_call_count == 17U &&
+            character_attributes_rebuild_zero.fixed_definition_curve.maximum ==
+                0U &&
             character_attributes_rebuild_definition_stop.status ==
                 openswd3::special_modes::
                     LegacyCharacterAttributesRebuildStatus::
                         fixed_definition_curve_typed_stop &&
-            character_attributes_rebuild_definition_stop.helper_call_count ==
-                17U &&
+            character_attributes_rebuild_definition_stop.contribution_count ==
+                16U &&
             character_attributes_rebuild_definition_stop.fixed_definition_curve
                     .stopped_token == 0x7F00CDEFU &&
-            character_attributes_rebuild_definition_stop.fixed_definition_curve
-                    .definition_load_calls == 0U &&
+            character_attributes_rebuild_definition_stop_ports
+                .requested_definition_ids.empty() &&
             character_attributes_rebuild_bad_mode.status ==
                 openswd3::special_modes::
                     LegacyCharacterAttributesRebuildStatus::

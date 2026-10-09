@@ -1668,40 +1668,27 @@ LegacyBattleFixedDefinitionCurveLookupResult
 lookup_legacy_battle_fixed_definition_curve(
     LegacyBattleFixedObjectState& state,
     LegacyBattleMonDatabasePort& mon_port,
+    const u16 key,
     u16* const maximum_output,
     u16* const count_output,
-    const LegacyBattleFixedDefinitionCurveLookupRequest& request
+    const u32 owner_token,
+    const std::filesystem::path& definition_path
 ) {
-    LegacyBattleFixedDefinitionCurveLookupResult result{
-        .owner_token = request.owner_token,
-        .return_eax = request.key,
-        .return_ecx = request.entry_ecx,
-        .return_edx = request.entry_edx,
-    };
-    u32 eax = request.key;
-    u32 ecx = request.entry_ecx;
-    u32 edx = request.entry_edx;
-    const u16 key = low_word(eax);
-
+    LegacyBattleFixedDefinitionCurveLookupResult result;
     RecordReference current_storage;
-    RecordReference* current =
-        find_record(state, request.owner_token, current_storage);
+    RecordReference* current = find_record(state, owner_token, current_storage);
     while (true) {
         if (current == nullptr || !has_access(*current, 4U, sizeof(u16))) {
             result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
                 record_access_typed_stop;
             result.stopped_token =
-                current == nullptr ? request.owner_token : current->token;
+                current == nullptr ? owner_token : current->token;
             result.stopped_offset = 4U;
-            result.return_eax = eax;
-            result.return_ecx = ecx;
-            result.return_edx = edx;
             return result;
         }
 
-        ++result.key_reads;
         if (low_word(current->words[1U]) == key) {
-            result.path = current->token == request.owner_token
+            result.path = current->token == owner_token
                 ? LegacyBattleFixedCountPath::existing_root
                 : LegacyBattleFixedCountPath::existing_node;
             result.matched_token = current->token;
@@ -1713,13 +1700,10 @@ lookup_legacy_battle_fixed_definition_curve(
                 record_access_typed_stop;
             result.stopped_token = current->token;
             result.stopped_offset = 0U;
-            result.return_eax = eax;
-            result.return_ecx = ecx;
-            result.return_edx = edx;
             return result;
         }
+
         const u32 next_token = current->words[0U];
-        ++result.chain_link_reads;
         if (next_token == 0U) {
             current = nullptr;
             break;
@@ -1733,11 +1717,9 @@ lookup_legacy_battle_fixed_definition_curve(
                 record_access_typed_stop;
             result.stopped_token = next_token;
             result.stopped_offset = 4U;
-            result.return_eax = eax;
-            result.return_ecx = ecx;
-            result.return_edx = edx;
             return result;
         }
+
         current_storage = *next;
         current = &current_storage;
     }
@@ -1749,115 +1731,55 @@ lookup_legacy_battle_fixed_definition_curve(
         definition,
         description,
         mon_port,
-        {
-            .path = request.definition_path,
-            .definition_id = request.key,
-        }
+        {.path = definition_path, .definition_id = key}
     );
-    ++result.definition_load_calls;
     if (legacy_battle_mon_definition_load_stopped(
             result.definition_load.status
         )) {
         result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
             definition_load_typed_stop;
-        result.return_eax = eax;
-        result.return_ecx = ecx;
-        result.return_edx = edx;
         return result;
     }
 
     const auto cleanup = release_legacy_battle_mon_definition_text(
-        definition, description, mon_port, request.definition_output_token
+        definition,
+        description,
+        mon_port,
+        kLegacyBattleFixedDefinitionScratchToken
     );
-    ++result.definition_cleanup_calls;
-    result.definition_text_release_calls += cleanup.release_calls;
     if (legacy_battle_mon_definition_text_release_stopped(cleanup.status)) {
         result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
             definition_cleanup_typed_stop;
-        result.return_eax = eax;
-        result.return_ecx = ecx;
-        result.return_edx = edx;
         return result;
     }
 
-    const u16 maximum = read_little_word(definition, 0x44U);
-    ++result.maximum_reads;
-    result.maximum = maximum;
-    if (current != nullptr) {
-        eax = request.maximum_output_token;
-        replace_low_word(ecx, maximum);
-        if (maximum_output == nullptr) {
-            result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
-                maximum_output_typed_stop;
-            result.stopped_token = request.maximum_output_token;
-            result.return_eax = eax;
-            result.return_ecx = ecx;
-            result.return_edx = edx;
-            return result;
-        }
-        *maximum_output = maximum;
-        ++result.maximum_output_writes;
+    result.maximum = read_little_word(definition, 0x44U);
+    if (maximum_output == nullptr) {
+        result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
+            maximum_output_typed_stop;
+        return result;
+    }
 
-        eax = request.count_output_token;
+    *maximum_output = result.maximum;
+    if (current != nullptr) {
         if (!has_access(*current, 6U, sizeof(u16))) {
             result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
                 record_access_typed_stop;
             result.stopped_token = current->token;
             result.stopped_offset = 6U;
-            result.return_eax = eax;
-            result.return_ecx = ecx;
-            result.return_edx = edx;
             return result;
         }
-        const u16 count = high_word(current->words[1U]);
-        ++result.count_reads;
-        result.count = count;
-        replace_low_word(edx, count);
-        if (count_output == nullptr) {
-            result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
-                count_output_typed_stop;
-            result.stopped_token = request.count_output_token;
-            result.return_eax = eax;
-            result.return_ecx = ecx;
-            result.return_edx = edx;
-            return result;
-        }
-        *count_output = count;
-        ++result.count_output_writes;
-        result.return_eax = 1U;
-        result.return_ecx = ecx;
-        result.return_edx = edx;
-        return result;
+
+        result.count = high_word(current->words[1U]);
     }
 
-    ecx = request.maximum_output_token;
-    replace_low_word(edx, maximum);
-    eax = request.count_output_token;
-    if (maximum_output == nullptr) {
-        result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
-            maximum_output_typed_stop;
-        result.stopped_token = request.maximum_output_token;
-        result.return_eax = eax;
-        result.return_ecx = ecx;
-        result.return_edx = edx;
-        return result;
-    }
-    *maximum_output = maximum;
-    ++result.maximum_output_writes;
     if (count_output == nullptr) {
         result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
             count_output_typed_stop;
-        result.stopped_token = request.count_output_token;
-        result.return_eax = eax;
-        result.return_ecx = ecx;
-        result.return_edx = edx;
         return result;
     }
-    *count_output = 0U;
-    ++result.count_output_writes;
-    result.return_eax = 0U;
-    result.return_ecx = ecx;
-    result.return_edx = edx;
+
+    *count_output = result.count;
     return result;
 }
 

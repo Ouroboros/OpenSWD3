@@ -1384,17 +1384,7 @@ void test_definition_curve_lookup_hit_and_miss(openswd3::test::Context& test) {
     u16 current = 0xBBBBU;
     const auto hit =
         openswd3::battle::lookup_legacy_battle_fixed_definition_curve(
-            state,
-            port,
-            &maximum,
-            &current,
-            {
-                .maximum_output_token = 0xAABB1000U,
-                .count_output_token = 0xCCDD2000U,
-                .key = 0xDEAD0007U,
-                .entry_ecx = 0x11112222U,
-                .entry_edx = 0x33334444U,
-            }
+            state, port, 7U, &maximum, &current
         );
     test.expect_true(
         hit.status ==
@@ -1403,15 +1393,8 @@ void test_definition_curve_lookup_hit_and_miss(openswd3::test::Context& test) {
             hit.path == LegacyBattleFixedCountPath::existing_root &&
             hit.matched_token ==
                 openswd3::battle::kLegacyBattleFixedDefinitionCurveOwnerToken &&
-            hit.key_reads == 1U && hit.chain_link_reads == 0U &&
-            hit.definition_load_calls == 1U &&
-            hit.definition_cleanup_calls == 1U &&
-            hit.definition_text_release_calls == 1U &&
-            hit.maximum_reads == 1U && hit.count_reads == 1U &&
-            hit.maximum_output_writes == 1U && hit.count_output_writes == 1U &&
             hit.maximum == 0x5678U && hit.count == 0x1234U &&
-            maximum == 0x5678U && current == 0x1234U && hit.return_eax == 1U &&
-            key(hit.return_ecx) == 0x5678U && key(hit.return_edx) == 0x1234U &&
+            maximum == 0x5678U && current == 0x1234U &&
             port.requested_definition_ids == std::vector<u32>{7U} &&
             port.definition_text_release_calls == 1U,
         "definition curve lookup searches the root before loading MON, releases transient text, then writes maximum before the matched count"
@@ -1424,35 +1407,17 @@ void test_definition_curve_lookup_hit_and_miss(openswd3::test::Context& test) {
     current = 0xBBBBU;
     const auto missing =
         openswd3::battle::lookup_legacy_battle_fixed_definition_curve(
-            state,
-            port,
-            &maximum,
-            &current,
-            {
-                .maximum_output_token = 0x13572468U,
-                .count_output_token = 0x24681357U,
-                .key = 8U,
-                .entry_ecx = 0xAAAAAAAAU,
-                .entry_edx = 0xBBBBCCCCU,
-            }
+            state, port, 8U, &maximum, &current
         );
     test.expect_true(
         missing.status ==
                 openswd3::battle::LegacyBattleFixedDefinitionCurveLookupStatus::
                     completed &&
             missing.path == LegacyBattleFixedCountPath::none &&
-            missing.matched_token == 0U && missing.key_reads == 1U &&
-            missing.chain_link_reads == 1U &&
-            missing.definition_load_calls == 1U &&
-            missing.definition_cleanup_calls == 1U &&
-            missing.maximum_reads == 1U && missing.count_reads == 0U &&
-            missing.maximum_output_writes == 1U &&
-            missing.count_output_writes == 1U && missing.maximum == 3U &&
+            missing.matched_token == 0U && missing.maximum == 3U &&
             missing.count == 0U && maximum == 3U && current == 0U &&
-            missing.return_eax == 0U && missing.return_ecx == 0x13572468U &&
-            key(missing.return_edx) == 3U &&
             port.requested_definition_ids == std::vector<u32>{8U},
-        "a missing definition curve key preserves EAX through the scan, still loads and cleans MON, then writes the maximum and a zero count"
+        "a missing definition curve key still loads and cleans MON, then writes the maximum and a zero count"
     );
 
     port.reset_mon_session();
@@ -1462,7 +1427,7 @@ void test_definition_curve_lookup_hit_and_miss(openswd3::test::Context& test) {
     current = 0xBBBBU;
     const auto open_failed =
         openswd3::battle::lookup_legacy_battle_fixed_definition_curve(
-            state, port, &maximum, &current, {.key = 8U}
+            state, port, 8U, &maximum, &current
         );
     test.expect_true(
         open_failed.status ==
@@ -1471,9 +1436,7 @@ void test_definition_curve_lookup_hit_and_miss(openswd3::test::Context& test) {
             open_failed.definition_load.status ==
                 openswd3::battle::LegacyBattleMonDefinitionLoadStatus::
                     open_failed &&
-            open_failed.definition_cleanup_calls == 1U &&
-            open_failed.maximum == 0U && maximum == 0U && current == 0U &&
-            open_failed.return_eax == 0U,
+            open_failed.maximum == 0U && maximum == 0U && current == 0U,
         "a normal MON open failure still cleans the scratch and publishes zero maximum and count on the missing path"
     );
 }
@@ -1485,16 +1448,7 @@ void test_definition_curve_lookup_typed_stops(openswd3::test::Context& test) {
     u16 current = 0xBBBBU;
     const auto owner_stop =
         openswd3::battle::lookup_legacy_battle_fixed_definition_curve(
-            state,
-            port,
-            &maximum,
-            &current,
-            {
-                .owner_token = 0x7F400000U,
-                .key = 0xDEAD0007U,
-                .entry_ecx = 0x11112222U,
-                .entry_edx = 0x33334444U,
-            }
+            state, port, 7U, &maximum, &current, 0x7F400000U
         );
     test.expect_true(
         owner_stop.status ==
@@ -1502,10 +1456,7 @@ void test_definition_curve_lookup_typed_stops(openswd3::test::Context& test) {
                     record_access_typed_stop &&
             owner_stop.stopped_token == 0x7F400000U &&
             owner_stop.stopped_offset == 4U &&
-            owner_stop.definition_load_calls == 0U &&
-            owner_stop.return_eax == 0xDEAD0007U &&
-            owner_stop.return_ecx == 0x11112222U &&
-            owner_stop.return_edx == 0x33334444U && maximum == 0xAAAAU &&
+            maximum == 0xAAAAU &&
             current == 0xBBBBU && port.opened_path.empty() &&
             port.read_sizes.empty(),
         "an inaccessible lookup owner stops at the first root key read before MON or output effects"
@@ -1517,18 +1468,17 @@ void test_definition_curve_lookup_typed_stops(openswd3::test::Context& test) {
     state.object_words[2U][1U] = 1U;
     const auto link_stop =
         openswd3::battle::lookup_legacy_battle_fixed_definition_curve(
-            state, port, &maximum, &current, {.key = 0xCAFE0007U}
+            state, port, 7U, &maximum, &current
         );
     test.expect_true(
         link_stop.status ==
                 openswd3::battle::LegacyBattleFixedDefinitionCurveLookupStatus::
                     record_access_typed_stop &&
             link_stop.stopped_token == 0x7F400010U &&
-            link_stop.stopped_offset == 4U && link_stop.key_reads == 1U &&
-            link_stop.chain_link_reads == 1U &&
-            link_stop.definition_load_calls == 0U &&
-            link_stop.return_eax == 0xCAFE0007U,
-        "an unmapped successor stops at its key read while EAX still contains the full lookup argument"
+            link_stop.stopped_offset == 4U &&
+            maximum == 0xAAAAU && current == 0xBBBBU &&
+            port.opened_path.empty(),
+        "an unmapped successor stops at its key read before loading MON or writing outputs"
     );
 
     state = {};
@@ -1538,7 +1488,7 @@ void test_definition_curve_lookup_typed_stops(openswd3::test::Context& test) {
     state.object_words[2U][1U] = 7U;
     const auto definition_stop =
         openswd3::battle::lookup_legacy_battle_fixed_definition_curve(
-            state, port, &maximum, &current, {.key = 7U}
+            state, port, 7U, &maximum, &current
         );
     test.expect_true(
         definition_stop.status ==
@@ -1548,9 +1498,7 @@ void test_definition_curve_lookup_typed_stops(openswd3::test::Context& test) {
             definition_stop.definition_load.status ==
                 openswd3::battle::LegacyBattleMonDefinitionLoadStatus::
                     stream_zero_typed_stop &&
-            definition_stop.definition_cleanup_calls == 0U &&
-            definition_stop.maximum_output_writes == 0U &&
-            definition_stop.count_output_writes == 0U,
+            maximum == 0xAAAAU && current == 0xBBBBU,
         "a MON typed stop occurs after the chain match but before cleanup and either output write"
     );
 
@@ -1568,18 +1516,7 @@ void test_definition_curve_lookup_typed_stops(openswd3::test::Context& test) {
     current = 0xBBBBU;
     const auto count_read_stop =
         openswd3::battle::lookup_legacy_battle_fixed_definition_curve(
-            state,
-            port,
-            &maximum,
-            &current,
-            {
-                .owner_token = 0x7F400020U,
-                .maximum_output_token = 0x11110000U,
-                .count_output_token = 0x22220000U,
-                .key = 7U,
-                .entry_ecx = 0xAAAA5555U,
-                .entry_edx = 0xBBBB6666U,
-            }
+            state, port, 7U, &maximum, &current, 0x7F400020U
         );
     test.expect_true(
         count_read_stop.status ==
@@ -1587,11 +1524,7 @@ void test_definition_curve_lookup_typed_stops(openswd3::test::Context& test) {
                     record_access_typed_stop &&
             count_read_stop.stopped_token == 0x7F400020U &&
             count_read_stop.stopped_offset == 6U &&
-            count_read_stop.maximum_output_writes == 1U &&
-            count_read_stop.count_reads == 0U &&
-            count_read_stop.count_output_writes == 0U && maximum == 9U &&
-            current == 0xBBBBU && count_read_stop.return_eax == 0x22220000U &&
-            key(count_read_stop.return_ecx) == 9U,
+            maximum == 9U && current == 0xBBBBU,
         "a short matched record preserves the completed maximum write before stopping at the original count read"
     );
 
@@ -1603,54 +1536,27 @@ void test_definition_curve_lookup_typed_stops(openswd3::test::Context& test) {
     maximum = 0xAAAAU;
     const auto count_output_stop =
         openswd3::battle::lookup_legacy_battle_fixed_definition_curve(
-            state,
-            port,
-            &maximum,
-            nullptr,
-            {
-                .maximum_output_token = 0x33330000U,
-                .count_output_token = 0x44440000U,
-                .key = 7U,
-                .entry_edx = 0xABCD1234U,
-            }
+            state, port, 7U, &maximum, nullptr
         );
     test.expect_true(
         count_output_stop.status ==
                 openswd3::battle::LegacyBattleFixedDefinitionCurveLookupStatus::
                     count_output_typed_stop &&
-            count_output_stop.stopped_token == 0x44440000U &&
-            count_output_stop.maximum_output_writes == 1U &&
-            count_output_stop.count_reads == 1U &&
-            count_output_stop.count_output_writes == 0U && maximum == 5U &&
-            count_output_stop.return_eax == 0x44440000U &&
-            key(count_output_stop.return_edx) == 3U,
-        "a matched count output stop keeps the maximum write and count read prefixes with the output token in EAX"
+            maximum == 5U && count_output_stop.count == 3U,
+        "a matched count output stop keeps the maximum write and count read prefixes"
     );
 
     state.object_words[2U][1U] = 8U;
     const auto missing_maximum_stop =
         openswd3::battle::lookup_legacy_battle_fixed_definition_curve(
-            state,
-            port,
-            nullptr,
-            &current,
-            {
-                .maximum_output_token = 0x55550000U,
-                .count_output_token = 0x66660000U,
-                .key = 7U,
-            }
+            state, port, 7U, nullptr, &current
         );
     test.expect_true(
         missing_maximum_stop.status ==
                 openswd3::battle::LegacyBattleFixedDefinitionCurveLookupStatus::
                     maximum_output_typed_stop &&
-            missing_maximum_stop.stopped_token == 0x55550000U &&
-            missing_maximum_stop.maximum_output_writes == 0U &&
-            missing_maximum_stop.count_output_writes == 0U &&
-            missing_maximum_stop.return_eax == 0x66660000U &&
-            missing_maximum_stop.return_ecx == 0x55550000U &&
-            key(missing_maximum_stop.return_edx) == 5U,
-        "the missing path loads the count output token before its first output write and preserves that ordering on a maximum stop"
+            missing_maximum_stop.maximum == 5U && current == 0xBBBBU,
+        "the missing path reads the maximum but leaves count untouched when the first output is inaccessible"
     );
 }
 
