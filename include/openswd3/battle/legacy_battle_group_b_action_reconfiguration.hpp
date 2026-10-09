@@ -11,19 +11,6 @@ struct LegacyBattleGroupBActionReconfigurationRequest {
     compat::u32 entry_edx{};
 };
 
-class LegacyBattleGroupBActionReconfigurationReleasePort {
-public:
-    virtual ~LegacyBattleGroupBActionReconfigurationReleasePort() = default;
-
-    [[nodiscard]] virtual LegacyBattleMonDefinitionTextReleaseResult
-    release_group_b_action_resource_text(
-        std::span<compat::u8> definition,
-        LegacyBattleMonText& owned_text,
-        LegacyBattleMonDatabasePort& mon_port,
-        const LegacyBattleMonDefinitionTextReleaseRequest& request
-    ) = 0;
-};
-
 enum class LegacyBattleGroupBActionReconfigurationStatus : compat::u8 {
     completed,
     actor_state_typed_stop,
@@ -48,8 +35,7 @@ struct LegacyBattleGroupBActionReconfigurationResult {
 reconfigure_legacy_battle_group_b_action(
     LegacyBattleActorGroupBElementState* actor,
     LegacyBattleMonDatabasePort& mon_port,
-    const LegacyBattleGroupBActionReconfigurationRequest& request,
-    LegacyBattleGroupBActionReconfigurationReleasePort* release_port = nullptr
+    const LegacyBattleGroupBActionReconfigurationRequest& request
 );
 
 }  // namespace openswd3::battle

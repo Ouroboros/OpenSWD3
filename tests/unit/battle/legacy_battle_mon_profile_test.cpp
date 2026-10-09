@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -11,9 +12,6 @@
 
 namespace {
 
-using openswd3::battle::LegacyBattleMonDatabaseCall;
-using openswd3::battle::LegacyBattleMonDatabaseCallReply;
-using openswd3::battle::LegacyBattleMonDatabaseCallRequest;
 using openswd3::battle::LegacyBattleMonDatabasePort;
 using openswd3::battle::LegacyBattleMonDatabaseState;
 using openswd3::battle::LegacyBattleMonProfile;
@@ -63,48 +61,60 @@ public:
         return state;
     }
 
-    LegacyBattleMonDatabaseCallReply invoke_legacy_battle_mon_database(
-        const LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
+    u32 open_mon_file(const std::filesystem::path& path) override {
+        opened_path = path;
+        return opened_handle;
+    }
+
+    u32 seek_mon_file(
+        const u32 handle,
+        const openswd3::compat::i32 distance,
+        const openswd3::battle::LegacyBattleMonSeekOrigin origin
     ) override {
-        calls.push_back(request);
-        switch (request.call) {
-        case LegacyBattleMonDatabaseCall::open_file:
-            return open_reply;
+        seek_handles.push_back(handle);
+        seek_positions.push_back(std::bit_cast<u32>(distance));
+        seek_origins.push_back(origin);
+        return std::bit_cast<u32>(distance);
+    }
 
-        case LegacyBattleMonDatabaseCall::seek_file:
-            return seek_replies[seek_index++];
-
-        case LegacyBattleMonDatabaseCall::read_file: {
-            const auto index = read_index++;
-            if (index == 0U) {
-                copy_dword(root, destination, root_bytes_written);
-            } else if (index == 1U) {
-                copy_dword(relative, destination, relative_bytes_written);
-            } else {
-                std::copy_n(
-                    stream.begin(),
-                    std::min(destination.size(), stream.size()),
-                    destination.begin()
-                );
-            }
-            return read_replies[index];
+    openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+        const u32, const std::span<u8> destination, const u32 requested_bytes
+    ) override {
+        read_sizes.push_back(requested_bytes);
+        const auto target = destination.first(requested_bytes);
+        const auto index = read_index++;
+        if (index == 0U) {
+            copy_dword(root, target, root_bytes_written);
+            return {
+                .succeeded = true,
+                .bytes_read = static_cast<u32>(root_bytes_written)
+            };
         }
 
-        case LegacyBattleMonDatabaseCall::allocate_stream:
-            allocation_reply.stream_bytes =
-                std::span{allocated_stream}.first(stream_writable_bytes);
-            return allocation_reply;
-
-        case LegacyBattleMonDatabaseCall::release_stream:
-            return release_reply;
-
-        case LegacyBattleMonDatabaseCall::query_definition_text_size:
-        case LegacyBattleMonDatabaseCall::allocate_definition_text:
-        case LegacyBattleMonDatabaseCall::release_definition_text:
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+        if (index == 1U) {
+            copy_dword(relative, target, relative_bytes_written);
+            return {
+                .succeeded = true,
+                .bytes_read = static_cast<u32>(relative_bytes_written)
+            };
         }
-        return {};
+
+        const auto count = std::min(target.size(), stream.size());
+        std::copy_n(stream.begin(), count, target.begin());
+        return {.succeeded = true, .bytes_read = static_cast<u32>(count)};
+    }
+
+    openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const u32 size) override {
+        allocation_sizes.push_back(size);
+        return {
+            .block_token = allocation_token,
+            .bytes = std::span{allocated_stream}.first(stream_writable_bytes),
+        };
+    }
+
+    void release_mon_stream(const u32 block_token) override {
+        released_tokens.push_back(block_token);
     }
 
     static void copy_dword(
@@ -126,58 +136,8 @@ public:
     }
 
     LegacyBattleMonDatabaseState state{};
-    LegacyBattleMonDatabaseCallReply open_reply{
-        .eax = 0x00000077U,
-        .ecx = 0x11112222U,
-        .edx = 0x33334444U,
-    };
-    std::array<LegacyBattleMonDatabaseCallReply, 3U> seek_replies{
-        LegacyBattleMonDatabaseCallReply{
-            .eax = 0x00000204U,
-            .ecx = 0x01010101U,
-            .edx = 0x02020202U,
-        },
-        LegacyBattleMonDatabaseCallReply{
-            .eax = 0x00001CF4U,
-            .ecx = 0x03030303U,
-            .edx = 0x04040404U,
-        },
-        LegacyBattleMonDatabaseCallReply{
-            .eax = 0x00002444U,
-            .ecx = 0x05050505U,
-            .edx = 0x06060606U,
-        },
-    };
-    std::array<LegacyBattleMonDatabaseCallReply, 3U> read_replies{
-        LegacyBattleMonDatabaseCallReply{
-            .eax = 1U,
-            .ecx = 0x11110001U,
-            .edx = 0x22220001U,
-            .bytes_read = 4U,
-        },
-        LegacyBattleMonDatabaseCallReply{
-            .eax = 0xABCDEF01U,
-            .ecx = 0x11110002U,
-            .edx = 0x22220002U,
-            .bytes_read = 4U,
-        },
-        LegacyBattleMonDatabaseCallReply{
-            .eax = 1U,
-            .ecx = 0x11110003U,
-            .edx = 0xA5A50003U,
-            .bytes_read = 0x400U,
-        },
-    };
-    LegacyBattleMonDatabaseCallReply allocation_reply{
-        .eax = 0x71000000U,
-        .ecx = 0x77778888U,
-        .edx = 0x9999AAAAU,
-    };
-    LegacyBattleMonDatabaseCallReply release_reply{
-        .eax = 0xBBBBCCCCU,
-        .ecx = 0xDDDDEEEEU,
-        .edx = 0xFFFF0001U,
-    };
+    u32 opened_handle{0x77U};
+    u32 allocation_token{0x71000000U};
     u32 root{0x00001AECU};
     u32 relative{0x00002244U};
     std::size_t root_bytes_written{4U};
@@ -186,67 +146,62 @@ public:
     std::array<u8, openswd3::battle::kLegacyBattleMonStreamBytes>
         allocated_stream{};
     std::size_t stream_writable_bytes{allocated_stream.size()};
-    std::vector<LegacyBattleMonDatabaseCallRequest> calls;
-    std::size_t seek_index{};
+    std::filesystem::path opened_path;
+    std::vector<u32> seek_handles;
+    std::vector<u32> seek_positions;
+    std::vector<openswd3::battle::LegacyBattleMonSeekOrigin> seek_origins;
+    std::vector<u32> read_sizes;
+    std::vector<u32> allocation_sizes;
+    std::vector<u32> released_tokens;
     std::size_t read_index{};
 };
 
 #ifdef OPENSWD3_MON_DATA_PATH
 class RealMonPort final : public LegacyBattleMonDatabasePort {
 public:
-    LegacyBattleMonDatabaseCallReply invoke_legacy_battle_mon_database(
-        const LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
+    u32 open_mon_file(const std::filesystem::path&) override {
+        ++open_calls;
+        file.open(OPENSWD3_MON_DATA_PATH, std::ios::binary);
+        return file.is_open() ? file_handle : 0xFFFFFFFFU;
+    }
+
+    u32 seek_mon_file(
+        const u32,
+        const openswd3::compat::i32 distance,
+        const openswd3::battle::LegacyBattleMonSeekOrigin origin
     ) override {
-        switch (request.call) {
-        case LegacyBattleMonDatabaseCall::open_file:
-            ++open_calls;
-            file.open(OPENSWD3_MON_DATA_PATH, std::ios::binary);
-            return {
-                .eax = file.is_open() ? file_handle : 0xFFFFFFFFU,
-                .ecx = request.ecx,
-                .edx = request.edx,
-            };
+        ++seek_calls;
+        file.clear();
+        const auto direction =
+            origin == openswd3::battle::LegacyBattleMonSeekOrigin::current
+            ? std::ios::cur
+            : std::ios::beg;
+        file.seekg(static_cast<std::streamoff>(distance), direction);
+        return static_cast<u32>(file.tellg());
+    }
 
-        case LegacyBattleMonDatabaseCall::seek_file:
-            ++seek_calls;
-            file.clear();
-            file.seekg(static_cast<std::streamoff>(request.distance));
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+    openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+        const u32, const std::span<u8> destination, const u32 requested_bytes
+    ) override {
+        ++read_calls;
+        file.read(
+            reinterpret_cast<char*>(destination.data()),
+            static_cast<std::streamsize>(requested_bytes)
+        );
+        return {
+            .succeeded = !file.bad(),
+            .bytes_read = static_cast<u32>(file.gcount())
+        };
+    }
 
-        case LegacyBattleMonDatabaseCall::read_file: {
-            ++read_calls;
-            file.read(
-                reinterpret_cast<char*>(destination.data()),
-                static_cast<std::streamsize>(destination.size())
-            );
-            return {
-                .eax = file.bad() ? 0U : 1U,
-                .ecx = request.ecx,
-                .edx = request.edx,
-                .bytes_read = static_cast<u32>(file.gcount()),
-            };
-        }
+    openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const u32) override {
+        ++allocation_calls;
+        return {.block_token = stream_token, .bytes = allocated_stream};
+    }
 
-        case LegacyBattleMonDatabaseCall::allocate_stream:
-            ++allocation_calls;
-            return {
-                .eax = stream_token,
-                .ecx = request.ecx,
-                .edx = request.edx,
-                .stream_bytes = allocated_stream,
-            };
-
-        case LegacyBattleMonDatabaseCall::release_stream:
-            ++release_calls;
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
-
-        case LegacyBattleMonDatabaseCall::query_definition_text_size:
-        case LegacyBattleMonDatabaseCall::allocate_definition_text:
-        case LegacyBattleMonDatabaseCall::release_definition_text:
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
-        }
-        return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+    void release_mon_stream(const u32) override {
+        ++release_calls;
     }
 
     std::ifstream file;
@@ -265,15 +220,8 @@ public:
 LegacyBattleMonProfileLoadRequest request() {
     return {
         .path = std::filesystem::path{"data"} / "mon.dat",
-        .output_token = 0x00526298U,
         .profile_id = 0xCAFE0002U,
-        .file_name_token = 0x004AAED0U,
-        .root_buffer_token = 0x0012FF20U,
         .stale_root_buffer_value = 0xAABBCCDDU,
-        .number_of_bytes_read_token = 0x0012FF24U,
-        .entry_eax = 0x10101010U,
-        .entry_ecx = 0x20202020U,
-        .entry_edx = 0x30303030U,
     };
 }
 
@@ -339,11 +287,6 @@ void test_battle_mon_profile(openswd3::test::Context& test) {
             result.stopped_stream_offset,
             stopped,
             "profile stops before a partial dword store"
-        );
-        test.expect_equal(
-            result.return_ecx,
-            (0x400U - stopped) / 4U,
-            "profile retains remaining REP count"
         );
         test.expect_equal(
             result.read_calls, 2U, "no stream read after failed memset"
@@ -435,10 +378,8 @@ void test_battle_mon_profile(openswd3::test::Context& test) {
                 result.profile_file_offset == 0x2444U &&
                 result.open_calls == 1U && result.seek_calls == 3U &&
                 result.read_calls == 3U && result.allocation_calls == 1U &&
-                result.release_calls == 1U && result.return_eax == 1U &&
-                result.return_ecx == 0xDDDDEEEEU &&
-                result.return_edx == 0xFFFF0001U,
-            "successful load preserves lazy handle and terminal release reply"
+                result.release_calls == 1U && result.profile_found,
+            "successful load reuses the lazy handle and releases the temporary stream"
         );
         test.expect_true(
             read_u32(profile, 0x04U) == 0x80007FFFU &&
@@ -457,20 +398,13 @@ void test_battle_mon_profile(openswd3::test::Context& test) {
             "all command payloads and flags use their exact legacy widths"
         );
         test.expect_true(
-            port.calls.size() == 9U &&
-                port.calls[0U].call == LegacyBattleMonDatabaseCall::open_file &&
-                port.calls[0U].desired_access == 0x80000000U &&
-                port.calls[0U].share_mode == 1U &&
-                port.calls[0U].creation_disposition == 4U &&
-                port.calls[1U].distance == 0x204U &&
-                port.calls[3U].distance == 0x1CF4U &&
-                port.calls[5U].distance == 0x2444U &&
-                port.calls[6U].allocation_size == 0x400U &&
-                port.calls[7U].requested_bytes == 0x400U &&
-                port.calls[8U].block_token == 0x71000000U &&
-                port.calls[8U].eax == request().output_token &&
-                port.calls[8U].edx == 0x80000005U,
-            "file API order, low-word id and parser terminal registers match LST"
+            port.opened_path == request().path &&
+                port.seek_positions ==
+                    std::vector<u32>{0x204U, 0x1CF4U, 0x2444U} &&
+                port.read_sizes == std::vector<u32>{4U, 4U, 0x400U} &&
+                port.allocation_sizes == std::vector<u32>{0x400U} &&
+                port.released_tokens == std::vector<u32>{0x71000000U},
+            "file offsets, low-word profile id, buffer size and released allocation match LST"
         );
     }
 
@@ -493,22 +427,14 @@ void test_battle_mon_profile(openswd3::test::Context& test) {
             result.status == LegacyBattleMonProfileLoadStatus::completed &&
                 result.open_calls == 0U && result.handle == 0x88U &&
                 result.auxiliary_root == 0xAABB3344U &&
-                port.calls.front().call ==
-                    LegacyBattleMonDatabaseCall::seek_file &&
-                port.calls.front().eax == 0x88U &&
-                port.calls.front().ecx == load_request.entry_ecx &&
-                port.calls.front().edx == load_request.entry_edx,
+                port.seek_handles.front() == 0x88U,
             "cached path reuses the handle and ReadFile short writes keep local stale bytes"
         );
     }
 
     {
         MonPort port;
-        port.open_reply = {
-            .eax = 0xFFFFFFFFU,
-            .ecx = 0x12345678U,
-            .edx = 0x9ABCDEF0U,
-        };
+        port.opened_handle = 0xFFFFFFFFU;
         LegacyBattleMonProfile profile{};
 
         const auto result = openswd3::battle::load_legacy_battle_mon_profile(
@@ -519,8 +445,7 @@ void test_battle_mon_profile(openswd3::test::Context& test) {
             result.status == LegacyBattleMonProfileLoadStatus::open_failed &&
                 !port.state.open && port.state.handle == 0xFFFFFFFFU &&
                 result.open_calls == 1U && result.seek_calls == 0U &&
-                result.return_eax == 0U && result.return_ecx == 0x12345678U &&
-                result.return_edx == 0x9ABCDEF0U,
+                !result.profile_found,
             "CreateFile failure returns zero and leaves lazy-open clear"
         );
     }
@@ -537,9 +462,7 @@ void test_battle_mon_profile(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleMonProfileLoadStatus::completed &&
-                result.release_calls == 1U && result.return_eax == 0U &&
-                result.return_ecx == 0xDDDDEEEEU &&
-                result.return_edx == 0xFFFF0001U &&
+                result.release_calls == 1U && !result.profile_found &&
                 std::all_of(
                     profile.begin(),
                     profile.end(),
@@ -553,11 +476,7 @@ void test_battle_mon_profile(openswd3::test::Context& test) {
 
     {
         MonPort port;
-        port.allocation_reply = {
-            .eax = 0U,
-            .ecx = 0x12340000U,
-            .edx = 0x56780000U,
-        };
+        port.allocation_token = 0U;
         LegacyBattleMonProfile profile{};
 
         const auto result = openswd3::battle::load_legacy_battle_mon_profile(
@@ -568,8 +487,7 @@ void test_battle_mon_profile(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleMonProfileLoadStatus::stream_zero_typed_stop &&
                 result.read_calls == 2U && result.release_calls == 0U &&
-                result.return_eax == 0U && result.return_ecx == 0x100U &&
-                result.return_edx == 0x56780000U,
+                !result.profile_found,
             "allocator zero preserves prior seeks and stops before ReadFile"
         );
     }
@@ -588,10 +506,7 @@ void test_battle_mon_profile(openswd3::test::Context& test) {
                     LegacyBattleMonProfileLoadStatus::
                         output_access_typed_stop &&
                 result.stopped_output_offset == 0x0CU &&
-                result.stream_cursor == 10U && result.release_calls == 0U &&
-                result.return_eax == request().output_token &&
-                result.return_ecx == 0x7100000AU &&
-                result.return_edx == 0x11223344U,
+                result.stream_cursor == 10U && result.release_calls == 0U,
             "typed stop is exactly after payload read and cursor advance"
         );
     }
@@ -616,8 +531,7 @@ void test_battle_mon_profile(openswd3::test::Context& test) {
                     LegacyBattleMonProfileLoadStatus::
                         stream_access_typed_stop &&
                 result.stopped_stream_offset == 0x400U &&
-                result.stream_cursor == 0x400U &&
-                result.return_ecx == 0x71000400U && result.release_calls == 0U,
+                result.stream_cursor == 0x400U && result.release_calls == 0U,
             "missing terminator preserves command-one scan through the fixed read window"
         );
     }

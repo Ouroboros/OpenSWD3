@@ -15,25 +15,12 @@ struct LegacyBattleActorProfilePreparationRecord {
     compat::u16 fallback_value{};  // local + 0x34
 };
 
-struct LegacyBattleActorProfilePreparationReply {
-    LegacyBattleActorProfilePreparationRecord record{};
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
 class LegacyBattleActorProfilePreparationPort {
 public:
     virtual ~LegacyBattleActorProfilePreparationPort() = default;
-    [[nodiscard]] virtual LegacyBattleActorProfilePreparationReply
-    build_record(compat::u32 source_value) = 0;
-    [[nodiscard]] virtual LegacyBattleActorProfilePreparationReply
-    resolve_record(
+    virtual void resolve_record(
         compat::u32 context_token,
-        const LegacyBattleActorProfilePreparationRecord& record,
-        compat::u32 eax,
-        compat::u32 ecx,
-        compat::u32 edx
+        const LegacyBattleActorProfilePreparationRecord& record
     ) = 0;
 };
 

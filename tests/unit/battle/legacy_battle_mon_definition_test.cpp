@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
+#include <string_view>
 #include <cstddef>
 #include <fstream>
 #include <span>
@@ -11,9 +13,6 @@
 
 namespace {
 
-using openswd3::battle::LegacyBattleMonDatabaseCall;
-using openswd3::battle::LegacyBattleMonDatabaseCallReply;
-using openswd3::battle::LegacyBattleMonDatabaseCallRequest;
 using openswd3::battle::LegacyBattleMonDatabasePort;
 using openswd3::battle::LegacyBattleMonDatabaseState;
 using openswd3::battle::LegacyBattleMonDefinitionBytes;
@@ -69,91 +68,72 @@ void write_dword(
 #ifdef OPENSWD3_MON_DATA_PATH
 class RealMonDefinitionPort final : public LegacyBattleMonDatabasePort {
 public:
-    LegacyBattleMonDatabaseCallReply invoke_legacy_battle_mon_database(
-        const LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
+    u32 open_mon_file(const std::filesystem::path&) override {
+        ++open_calls;
+        file.open(OPENSWD3_MON_DATA_PATH, std::ios::binary);
+        return file.is_open() ? file_handle : 0xFFFFFFFFU;
+    }
+
+    u32 seek_mon_file(
+        const u32,
+        const openswd3::compat::i32 distance,
+        const openswd3::battle::LegacyBattleMonSeekOrigin origin
     ) override {
-        switch (request.call) {
-        case LegacyBattleMonDatabaseCall::open_file:
-            ++open_calls;
-            file.open(OPENSWD3_MON_DATA_PATH, std::ios::binary);
-            return {
-                .eax = file.is_open() ? file_handle : 0xFFFFFFFFU,
-                .ecx = request.ecx,
-                .edx = request.edx,
-            };
+        ++seek_calls;
+        file.clear();
+        const auto direction =
+            origin == openswd3::battle::LegacyBattleMonSeekOrigin::current
+            ? std::ios::cur
+            : std::ios::beg;
+        file.seekg(static_cast<std::streamoff>(distance), direction);
+        return static_cast<u32>(file.tellg());
+    }
 
-        case LegacyBattleMonDatabaseCall::seek_file: {
-            ++seek_calls;
-            file.clear();
-            std::ios_base::seekdir direction = std::ios::beg;
-            if (request.move_method == 1U) {
-                direction = std::ios::cur;
-            } else if (request.move_method == 2U) {
-                direction = std::ios::end;
-            }
-            file.seekg(
-                static_cast<std::streamoff>(request.distance), direction
-            );
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
-        }
+    openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+        const u32, const std::span<u8> destination, const u32 requested_bytes
+    ) override {
+        ++read_calls;
+        file.read(
+            reinterpret_cast<char*>(destination.data()),
+            static_cast<std::streamsize>(requested_bytes)
+        );
+        return {
+            .succeeded = !file.bad(),
+            .bytes_read = static_cast<u32>(file.gcount())
+        };
+    }
 
-        case LegacyBattleMonDatabaseCall::read_file:
-            ++read_calls;
-            file.read(
-                reinterpret_cast<char*>(destination.data()),
-                static_cast<std::streamsize>(destination.size())
-            );
-            return {
-                .eax = file.bad() ? 0U : 1U,
-                .ecx = request.ecx,
-                .edx = request.edx,
-                .bytes_read = static_cast<u32>(file.gcount()),
-            };
+    openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const u32) override {
+        ++stream_allocation_calls;
+        return {.block_token = stream_token, .bytes = allocated_stream};
+    }
 
-        case LegacyBattleMonDatabaseCall::allocate_stream:
-            ++stream_allocation_calls;
-            return {
-                .eax = stream_token,
-                .ecx = request.ecx,
-                .edx = request.edx,
-                .stream_bytes = allocated_stream,
-            };
+    void release_mon_stream(const u32) override {
+        ++stream_release_calls;
+    }
 
-        case LegacyBattleMonDatabaseCall::release_stream:
-            ++stream_release_calls;
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+    u32 mon_text_size(const u32 block_token) override {
+        ++text_size_query_calls;
+        return text_sizes.at(block_token);
+    }
 
-        case LegacyBattleMonDatabaseCall::query_definition_text_size: {
-            ++text_size_query_calls;
-            const auto found = text_sizes.find(request.block_token);
-            return {
-                .eax = found == text_sizes.end() ? 0U : found->second,
-                .ecx = request.ecx,
-                .edx = request.edx,
-            };
-        }
+    openswd3::battle::LegacyBattleMonTextAllocation
+    allocate_mon_text(const u32 size) override {
+        ++text_allocation_calls;
+        const u32 token = next_text_token;
+        next_text_token += 0x100U;
+        text_sizes[token] = size;
+        return {
+            .block_token = token,
+            .storage = std::make_shared<
+                openswd3::battle::LegacyBattleMonText::Storage>(size)
+        };
+    }
 
-        case LegacyBattleMonDatabaseCall::allocate_definition_text: {
-            ++text_allocation_calls;
-            const u32 token = next_text_token;
-            next_text_token += 0x100U;
-            text_sizes[token] = request.allocation_size;
-            return {
-                .eax = token,
-                .ecx = request.ecx,
-                .edx = request.edx,
-                .definition_text_storage = std::make_shared<
-                    openswd3::battle::LegacyBattleMonText::Storage>(request.allocation_size),
-            };
-        }
-
-        case LegacyBattleMonDatabaseCall::release_definition_text:
-            ++text_release_calls;
-            text_sizes.erase(request.block_token);
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
-        }
-        return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+    void release_mon_text(const u32 block_token) override {
+        ++text_release_calls;
+        text_sizes.erase(block_token);
     }
 
     std::ifstream file;
@@ -180,73 +160,89 @@ public:
         return state;
     }
 
-    LegacyBattleMonDatabaseCallReply invoke_legacy_battle_mon_database(
-        const LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
+    u32 open_mon_file(const std::filesystem::path&) override {
+        operations.push_back("open");
+        return opened_handle;
+    }
+
+    u32 seek_mon_file(
+        const u32,
+        const openswd3::compat::i32 distance,
+        const openswd3::battle::LegacyBattleMonSeekOrigin origin
     ) override {
-        calls.push_back(request);
-        switch (request.call) {
-        case LegacyBattleMonDatabaseCall::open_file:
-            return open_reply;
+        operations.push_back("seek");
+        seek_distances.push_back(distance);
+        seek_origins.push_back(origin);
+        return std::bit_cast<u32>(distance);
+    }
 
-        case LegacyBattleMonDatabaseCall::seek_file:
+    openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+        const u32, const std::span<u8> destination, const u32 requested_bytes
+    ) override {
+        operations.push_back("read");
+        const auto target = destination.first(requested_bytes);
+        const auto index = read_index++;
+        if (index == 0U) {
+            copy_dword(directory_probe, target, directory_probe_bytes_written);
             return {
-                .eax = request.distance, .ecx = request.ecx, .edx = request.edx
-            };
-
-        case LegacyBattleMonDatabaseCall::read_file:
-            if (read_index == 0U) {
-                copy_dword(
-                    directory_probe, destination, directory_probe_bytes_written
-                );
-            } else if (read_index == 1U) {
-                copy_dword(
-                    relative_offset, destination, relative_bytes_written
-                );
-            } else {
-                std::copy_n(
-                    stream.begin(),
-                    std::min(stream.size(), destination.size()),
-                    destination.begin()
-                );
-            }
-            ++read_index;
-            return {.eax = 1U, .ecx = request.ecx, .edx = request.edx};
-
-        case LegacyBattleMonDatabaseCall::allocate_stream:
-            stream_allocation_reply.stream_bytes =
-                std::span{allocated_stream}.first(stream_writable_bytes);
-            return stream_allocation_reply;
-
-        case LegacyBattleMonDatabaseCall::release_stream:
-            return stream_release_reply;
-
-        case LegacyBattleMonDatabaseCall::query_definition_text_size: {
-            const auto found = text_sizes.find(request.block_token);
-            return {
-                .eax = found == text_sizes.end() ? queried_text_size
-                                                 : found->second,
-                .ecx = query_reply.ecx,
-                .edx = query_reply.edx,
+                .succeeded = true,
+                .bytes_read = static_cast<u32>(directory_probe_bytes_written)
             };
         }
 
-        case LegacyBattleMonDatabaseCall::allocate_definition_text:
-            if (text_allocation_reply.eax != 0U) {
-                text_sizes[text_allocation_reply.eax] = request.allocation_size;
-                text_allocation_reply.definition_text_storage = std::make_shared<
-                    openswd3::battle::LegacyBattleMonText::Storage>(
-                    std::min(request.allocation_size, text_allocation_limit), 0xA5U
-                );
-            }
-
-            return text_allocation_reply;
-
-        case LegacyBattleMonDatabaseCall::release_definition_text:
-            text_sizes.erase(request.block_token);
-            return text_release_reply;
+        if (index == 1U) {
+            copy_dword(relative_offset, target, relative_bytes_written);
+            return {
+                .succeeded = true,
+                .bytes_read = static_cast<u32>(relative_bytes_written)
+            };
         }
-        return {};
+
+        const auto count = std::min(stream.size(), target.size());
+        std::copy_n(stream.begin(), count, target.begin());
+        return {.succeeded = true, .bytes_read = static_cast<u32>(count)};
+    }
+
+    openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const u32 size) override {
+        operations.push_back("allocate_stream");
+        stream_allocation_size = size;
+        return {
+            .block_token = stream_token,
+            .bytes = std::span{allocated_stream}.first(stream_writable_bytes)
+        };
+    }
+
+    void release_mon_stream(const u32 block_token) override {
+        operations.push_back("release_stream");
+        released_stream_token = block_token;
+    }
+
+    u32 mon_text_size(const u32 block_token) override {
+        operations.push_back("text_size");
+        const auto found = text_sizes.find(block_token);
+        return found == text_sizes.end() ? queried_text_size : found->second;
+    }
+
+    openswd3::battle::LegacyBattleMonTextAllocation
+    allocate_mon_text(const u32 size) override {
+        operations.push_back("allocate_text");
+        text_allocation_size = size;
+        if (text_token == 0U) {
+            return {};
+        }
+
+        text_sizes[text_token] = size;
+        text_storage =
+            std::make_shared<openswd3::battle::LegacyBattleMonText::Storage>(
+                std::min(size, text_allocation_limit), 0xA5U
+            );
+        return {.block_token = text_token, .storage = text_storage};
+    }
+
+    void release_mon_text(const u32 block_token) override {
+        operations.push_back("release_text");
+        text_sizes.erase(block_token);
     }
 
     static void copy_dword(
@@ -268,36 +264,14 @@ public:
     }
 
     LegacyBattleMonDatabaseState state{};
-    LegacyBattleMonDatabaseCallReply open_reply{
-        .eax = 0x77U,
-        .ecx = 0x11112222U,
-        .edx = 0x33334444U,
-    };
-    LegacyBattleMonDatabaseCallReply stream_allocation_reply{
-        .eax = 0x71000000U,
-        .ecx = 0x55556666U,
-        .edx = 0x77778888U,
-    };
-    LegacyBattleMonDatabaseCallReply stream_release_reply{
-        .eax = 0xAAAA0001U,
-        .ecx = 0xBBBB0002U,
-        .edx = 0xCCCC0003U,
-    };
-    LegacyBattleMonDatabaseCallReply query_reply{
-        .eax = 0x11110000U,
-        .ecx = 0x22220000U,
-        .edx = 0x33330000U,
-    };
-    LegacyBattleMonDatabaseCallReply text_allocation_reply{
-        .eax = 0x72000000U,
-        .ecx = 0x44440000U,
-        .edx = 0x55550000U,
-    };
-    LegacyBattleMonDatabaseCallReply text_release_reply{
-        .eax = 0x66660000U,
-        .ecx = 0x77770000U,
-        .edx = 0x88880000U,
-    };
+    u32 opened_handle{0x77U};
+    u32 stream_token{0x71000000U};
+    u32 text_token{0x72000000U};
+    u32 stream_allocation_size{};
+    u32 text_allocation_size{};
+    u32 released_stream_token{};
+    std::shared_ptr<openswd3::battle::LegacyBattleMonText::Storage>
+        text_storage;
     u32 directory_probe{0x1AECU};
     u32 relative_offset{0x2244U};
     u32 queried_text_size{5U};
@@ -308,7 +282,9 @@ public:
     std::array<u8, openswd3::battle::kLegacyBattleMonStreamBytes>
         allocated_stream{};
     std::size_t stream_writable_bytes{allocated_stream.size()};
-    std::vector<LegacyBattleMonDatabaseCallRequest> calls;
+    std::vector<std::string_view> operations;
+    std::vector<openswd3::compat::i32> seek_distances;
+    std::vector<openswd3::battle::LegacyBattleMonSeekOrigin> seek_origins;
     std::unordered_map<u32, u32> text_sizes;
     std::size_t read_index{};
 };
@@ -316,16 +292,9 @@ public:
 LegacyBattleMonDefinitionLoadRequest request() {
     return {
         .path = "mon.dat",
-        .output_token = 0x0053BC28U,
         .definition_id = 0xABCD0126U,
-        .file_name_token = 0x004AAED0U,
-        .directory_buffer_token = 0x0012FF20U,
         .stale_directory_probe_value = 0xAABBCCDDU,
         .stale_relative_offset_value = 0x11223344U,
-        .number_of_bytes_read_token = 0x0012FF24U,
-        .entry_eax = 0x10101010U,
-        .entry_ecx = 0x20202020U,
-        .entry_edx = 0x30303030U,
     };
 }
 
@@ -470,8 +439,7 @@ void test_complete_definition_load(openswd3::test::Context& test) {
             result.definition_text_size_query_calls == 1U &&
             result.definition_text_release_calls == 1U &&
             result.definition_text_allocation_calls == 1U &&
-            result.return_eax == 1U && result.return_ecx == 0xBBBB0002U &&
-            result.return_edx == 0xCCCC0003U,
+            result.definition_found,
         "definition load preserves directory, shared handle and lifecycle calls"
     );
     test.expect_true(
@@ -503,18 +471,27 @@ void test_complete_definition_load(openswd3::test::Context& test) {
         "owned description replaces the released text and wraps allocation accounting"
     );
     test.expect_true(
-        port.calls.size() == 12U &&
-            port.calls[0U].call ==
-                LegacyBattleMonDatabaseCall::query_definition_text_size &&
-            port.calls[1U].call ==
-                LegacyBattleMonDatabaseCall::release_definition_text &&
-            port.calls[5U].move_method == 1U &&
-            port.calls[5U].distance == 0x494U &&
-            port.calls[8U].allocation_size == 0x400U &&
-            port.calls[10U].call ==
-                LegacyBattleMonDatabaseCall::allocate_definition_text &&
-            port.calls[10U].allocation_size == 12U &&
-            port.calls[11U].call == LegacyBattleMonDatabaseCall::release_stream,
+        port.operations ==
+                std::vector<std::string_view>{
+                    "text_size",
+                    "release_text",
+                    "open",
+                    "seek",
+                    "read",
+                    "seek",
+                    "read",
+                    "seek",
+                    "allocate_stream",
+                    "read",
+                    "allocate_text",
+                    "release_stream"
+                } &&
+            port.seek_origins[1U] ==
+                openswd3::battle::LegacyBattleMonSeekOrigin::current &&
+            port.seek_distances[1U] == 0x494 &&
+            port.stream_allocation_size == 0x400U &&
+            port.text_allocation_size == 12U &&
+            port.released_stream_token == port.stream_token,
         "definition loader preserves relative directory seek and allocation order"
     );
 }
@@ -522,9 +499,7 @@ void test_complete_definition_load(openswd3::test::Context& test) {
 void test_failure_prefixes(openswd3::test::Context& test) {
     {
         MonDefinitionPort port;
-        port.open_reply = {
-            .eax = 0xFFFFFFFFU, .ecx = 0x12345678U, .edx = 0x9ABCDEF0U
-        };
+        port.opened_handle = 0xFFFFFFFFU;
         LegacyBattleMonDefinitionBytes definition{};
         definition.fill(0xA5U);
         openswd3::battle::LegacyBattleMonText description{'x'};
@@ -535,8 +510,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleMonDefinitionLoadStatus::open_failed &&
-                result.return_eax == 0U && result.return_ecx == 0x12345678U &&
-                result.return_edx == 0x9ABCDEF0U && description.empty() &&
+                !result.definition_found && description.empty() &&
                 std::all_of(
                     definition.begin(),
                     definition.end(),
@@ -559,7 +533,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleMonDefinitionLoadStatus::completed &&
-                result.return_eax == 0U && result.stream_release_calls == 1U &&
+                !result.definition_found && result.stream_release_calls == 1U &&
                 std::all_of(
                     definition.begin(),
                     definition.end(),
@@ -571,11 +545,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
 
     {
         MonDefinitionPort port;
-        port.stream_allocation_reply = {
-            .eax = 0U,
-            .ecx = 0x11110000U,
-            .edx = 0x22220000U,
-        };
+        port.stream_token = 0U;
         LegacyBattleMonDefinitionBytes definition{};
         openswd3::battle::LegacyBattleMonText description;
 
@@ -588,8 +558,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
                     LegacyBattleMonDefinitionLoadStatus::
                         stream_zero_typed_stop &&
                 result.read_calls == 2U && result.stream_release_calls == 0U &&
-                result.return_eax == 0U && result.return_ecx == 0x100U &&
-                result.return_edx == 0x22220000U,
+                !result.definition_found,
             "zero stream allocation stops at the original memset access"
         );
     }
@@ -597,7 +566,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
     {
         MonDefinitionPort port;
         port.stream = full_stream();
-        port.text_allocation_reply.eax = 0U;
+        port.text_token = 0U;
         LegacyBattleMonDefinitionBytes definition{};
         openswd3::battle::LegacyBattleMonText description;
 
@@ -612,8 +581,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
                 result.definition_text_allocation_calls == 1U &&
                 result.stream_release_calls == 0U &&
                 read_dword(definition, 0xA0U) == 0U && description.empty() &&
-                result.return_eax == 0U && result.return_ecx == 3U &&
-                result.return_edx == 12U,
+                !result.definition_found,
             "zero description allocation preserves parsed fields and stops before text writes"
         );
     }
@@ -625,7 +593,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
         append_word(port.stream, 30U);
         append_text(port.stream, {});
         append_word(port.stream, 5U);
-        port.text_allocation_reply.eax = 0U;
+        port.text_token = 0U;
         LegacyBattleMonDefinitionBytes definition{};
         openswd3::battle::LegacyBattleMonText description;
 
@@ -637,8 +605,7 @@ void test_failure_prefixes(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleMonDefinitionLoadStatus::
                         definition_text_zero_typed_stop &&
-                result.return_eax == 0U && result.return_ecx == 1U &&
-                result.return_edx == 1U,
+                !result.definition_found,
             "one-byte description allocation stops at the original byte memset with its live count"
         );
     }
@@ -659,8 +626,8 @@ void test_access_and_stale_boundaries(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleMonDefinitionLoadStatus::
                         output_access_typed_stop &&
-                result.stopped_output_offset == 0xA0U && port.calls.empty() &&
-                description == std::vector<u8>{'x'},
+                result.stopped_output_offset == 0xA0U &&
+                port.operations.empty() && description == std::vector<u8>{'x'},
             "short output stops at the initial owned-text token read"
         );
     }
@@ -764,15 +731,15 @@ void test_access_and_stale_boundaries(openswd3::test::Context& test) {
 
 void test_allocated_text_extent(openswd3::test::Context& test) {
     // 0x0047707B clears whole dwords; 0x00477085 clears the byte tail.
-    constexpr std::array<std::array<u32, 4U>, 6U> cases{{
-        {11U, 0U, 0U, 3U},
-        {11U, 2U, 0U, 3U},
-        {11U, 6U, 4U, 2U},
-        {11U, 11U, 8U, 1U},
-        {4U, 4U, 4U, 1U},
-        {2U, 1U, 1U, 2U},
+    constexpr std::array<std::array<u32, 3U>, 6U> cases{{
+        {11U, 0U, 0U},
+        {11U, 2U, 0U},
+        {11U, 6U, 4U},
+        {11U, 11U, 8U},
+        {4U, 4U, 4U},
+        {2U, 1U, 1U},
     }};
-    for (const auto& [length, extent, stopped, remaining] : cases) {
+    for (const auto& [length, extent, stopped] : cases) {
         MonDefinitionPort port;
         append_word(port.stream, 1000U);
         append_text(port.stream, {});
@@ -797,23 +764,17 @@ void test_allocated_text_extent(openswd3::test::Context& test) {
             "text stop preserves the instruction boundary"
         );
         test.expect_equal(
-            result.return_ecx,
-            remaining,
-            "text stop preserves remaining REP count"
-        );
-        test.expect_equal(
             result.stream_release_calls,
             0U,
             "text access stop does not release the stream"
         );
         test.expect_equal(
             read_dword(definition, 0xA0U),
-            port.text_allocation_reply.eax,
+            port.text_token,
             "text identity is published before zeroing"
         );
         test.expect_true(
-            description.data() ==
-                port.text_allocation_reply.definition_text_storage->data(),
+            description.data() == port.text_storage->data(),
             "text writes target the allocation returned by the heap port"
         );
         for (std::size_t index = 0U; index < description.size(); ++index) {
@@ -846,11 +807,6 @@ void test_allocated_stream_extent(openswd3::test::Context& test) {
             result.stopped_stream_offset,
             stopped,
             "definition stops before a partial dword store"
-        );
-        test.expect_equal(
-            result.return_ecx,
-            (0x400U - stopped) / 4U,
-            "definition retains remaining REP count"
         );
         test.expect_equal(
             result.read_calls, 2U, "no stream read after failed memset"

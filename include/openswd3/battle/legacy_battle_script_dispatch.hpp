@@ -232,7 +232,6 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     pending_476a80 = 0x00476A80U,
     pending_476db0 = 0x00476DB0U,
     reserved_party_item_definition = 0x00477BD0U,
-    pending_478220 = 0x00478220U,
     reserved_actor_coordinates = 0x004783B0U,
     reserved_actor_base_coordinates = 0x00478470U,
     reserved_actor_coordinate_publication = 0x004785C0U,

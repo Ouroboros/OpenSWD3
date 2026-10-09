@@ -8,11 +8,13 @@ namespace openswd3::battle {
 
 class LegacyBattleMonTextRuntime {
 public:
-    [[nodiscard]] LegacyBattleMonDatabaseCallReply
-    invoke(const LegacyBattleMonDatabaseCallRequest& request);
+    [[nodiscard]] LegacyBattleMonTextAllocation allocate(compat::u32 size);
 
-    [[nodiscard]] LegacyBattleMonDefinitionTextReleaseCallReply
-    release(const LegacyBattleMonDefinitionTextReleaseCallRequest& request);
+    [[nodiscard]] compat::u32 allocation_size(compat::u32 block_token) const;
+
+    void free(compat::u32 block_token);
+
+    [[nodiscard]] bool release(compat::u32 block_token) noexcept;
 
 private:
     struct Block {

@@ -151,7 +151,6 @@ LegacyBattlePlayerItemQuantityResult advance_legacy_battle_player_item_quantity(
         port,
         {
             .path = "mon.dat",
-            .output_token = payload_token(node.legacy_token),
             .definition_id = item_id,
         }
     );

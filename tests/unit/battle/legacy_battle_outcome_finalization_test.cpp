@@ -43,22 +43,19 @@ public:
     u32 next_allocation_token{0x71000000U};
     bool fail_allocation{};
 
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<openswd3::compat::u8> destination
-    ) override {
-        auto reply = openswd3::test::LegacyBattleMonDatabaseFixture::
-            invoke_legacy_battle_mon_database(request, destination);
-        if (request.call ==
-            openswd3::battle::LegacyBattleMonDatabaseCall::allocate_stream) {
-            ++definition_load_count;
-            if (on_definition_load && !requested_definition_ids.empty()) {
-                on_definition_load(
-                    requested_definition_ids.back(), definition_load_count
-                );
-            }
+    [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const openswd3::compat::u32 size) override {
+        auto reply =
+            openswd3::test::LegacyBattleMonDatabaseFixture::allocate_mon_stream(
+                size
+            );
+        ++definition_load_count;
+        if (on_definition_load && !requested_definition_ids.empty()) {
+            on_definition_load(
+                requested_definition_ids.back(), definition_load_count
+            );
         }
+
         return reply;
     }
 };

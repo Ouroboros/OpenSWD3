@@ -75,12 +75,48 @@ public:
         return port_.legacy_battle_mon_definition_scratch_description();
     }
 
-    [[nodiscard]] LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
+    [[nodiscard]] openswd3::compat::u32
+    open_mon_file(const std::filesystem::path& path) override {
+        return port_.open_mon_file(path);
+    }
+
+    [[nodiscard]] openswd3::compat::u32 seek_mon_file(
+        const openswd3::compat::u32 handle,
+        const openswd3::compat::i32 distance,
+        const openswd3::battle::LegacyBattleMonSeekOrigin origin
     ) override {
-        return port_.invoke_legacy_battle_mon_database(request, destination);
+        return port_.seek_mon_file(handle, distance, origin);
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+        const openswd3::compat::u32 handle,
+        const std::span<openswd3::compat::u8> destination,
+        const openswd3::compat::u32 requested_bytes
+    ) override {
+        return port_.read_mon_file(handle, destination, requested_bytes);
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const openswd3::compat::u32 size) override {
+        return port_.allocate_mon_stream(size);
+    }
+
+    void release_mon_stream(const openswd3::compat::u32 block_token) override {
+        port_.release_mon_stream(block_token);
+    }
+
+    [[nodiscard]] openswd3::compat::u32
+    mon_text_size(const openswd3::compat::u32 block_token) override {
+        return port_.mon_text_size(block_token);
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonTextAllocation
+    allocate_mon_text(const openswd3::compat::u32 size) override {
+        return port_.allocate_mon_text(size);
+    }
+
+    void release_mon_text(const openswd3::compat::u32 block_token) override {
+        port_.release_mon_text(block_token);
     }
 
 private:

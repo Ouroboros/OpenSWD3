@@ -987,9 +987,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                         port,
                         {
                             .path = "mon.dat",
-                            .output_token = kOpponentScratchToken,
                             .definition_id = stale_edx,
-                            .entry_edx = stale_edx,
                         }
                     );
                 ++result.port_calls;
@@ -1004,12 +1002,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                     port.legacy_battle_mon_definition_scratch(),
                     port.legacy_battle_mon_definition_scratch_description(),
                     port,
-                    {
-                        .object_token = kOpponentScratchToken,
-                        .entry_eax = definition_result.return_eax,
-                        .entry_ecx = definition_result.return_ecx,
-                        .entry_edx = definition_result.return_edx,
-                    }
+                    kOpponentScratchToken
                 );
                 ++result.port_calls;
                 if (legacy_battle_mon_definition_text_release_stopped(
@@ -1019,14 +1012,12 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                         mon_definition_release_typed_stop;
                     return result;
                 }
-                const u32 stale_eax = (update.return_eax & 0xFFFF0000U) |
-                    state.opponent_special_action;
                 const auto configuration =
                     configure_legacy_battle_group_b_action(
                         &element,
                         &record,
                         port,
-                        stale_eax,
+                        state.opponent_special_action,
                         opponent_token,
                         opponent_record_token(record_index)
                     );

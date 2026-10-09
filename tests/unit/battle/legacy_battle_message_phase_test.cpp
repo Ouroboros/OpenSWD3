@@ -421,24 +421,18 @@ public:
     u32 defeat_panel_reserved_transition_stage_advance_slot_eax{};
     u32 talisman_result_panel_query_eax{};
 
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
-    ) override {
+    [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const openswd3::compat::u32 size) override {
         const auto call =
             LegacyBattleMessagePhaseCall::reserved_load_action_item_definition;
         const auto found = message_replies.find(call);
         const auto index = message_reply_indices[call];
         if (found != message_replies.end() && index < found->second.size() &&
-            found->second[index].typed_stop &&
-            request.call ==
-                openswd3::battle::LegacyBattleMonDatabaseCall::
-                    allocate_stream) {
+            found->second[index].typed_stop) {
             allocation_succeeds = false;
         }
         return openswd3::test::LegacyBattleMonDatabaseFixture::
-            invoke_legacy_battle_mon_database(request, destination);
+            allocate_mon_stream(size);
     }
 
 protected:
@@ -957,7 +951,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleGroupBActionItemSelectionStatus::
                             definition_load_typed_stop &&
-                result.return_eax == 0U && result.return_ecx == 0x100U &&
                 fixture.port.release_calls == 0U &&
                 fixture.target_selection.transition_aux_byte == 0U &&
                 fixture.target_selection.special_action_count == 5U &&

@@ -9,8 +9,9 @@ namespace openswd3::battle {
 
 class LegacyBattleMonStreamRuntime {
 public:
-    [[nodiscard]] LegacyBattleMonDatabaseCallReply
-    invoke(const LegacyBattleMonDatabaseCallRequest& request);
+    [[nodiscard]] LegacyBattleMonStreamAllocation allocate(compat::u32 size);
+
+    void release(compat::u32 block_token);
 
 private:
     using Stream = std::array<compat::u8, kLegacyBattleMonStreamBytes>;

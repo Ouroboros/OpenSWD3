@@ -130,20 +130,14 @@ public:
     std::vector<NameCopyReply> copy_replies;
     std::size_t copy_reply_index{};
 
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
-    ) override {
+    [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const openswd3::compat::u32 size) override {
         if (definition_reply_index < definition_replies.size() &&
-            definition_replies[definition_reply_index].typed_stop &&
-            request.call ==
-                openswd3::battle::LegacyBattleMonDatabaseCall::
-                    allocate_stream) {
+            definition_replies[definition_reply_index].typed_stop) {
             allocation_succeeds = false;
         }
         return openswd3::test::LegacyBattleMonDatabaseFixture::
-            invoke_legacy_battle_mon_database(request, destination);
+            allocate_mon_stream(size);
     }
 
 protected:
@@ -486,8 +480,7 @@ void test_battle_control_panel_frame(openswd3::test::Context& test) {
                         special_option_typed_stop &&
                 result.primary_query_calls == 3U &&
                 result.special_query_calls == 1U &&
-                result.text_draw_calls == 2U && result.return_eax == 0U &&
-                result.return_ecx == 0x100U &&
+                result.text_draw_calls == 2U &&
                 fixture.port.release_calls == 0U &&
                 fixture.port.calls_of(Call::reserved_query_special_option_slot)
                     .empty(),

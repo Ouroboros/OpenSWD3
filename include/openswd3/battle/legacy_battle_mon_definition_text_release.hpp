@@ -23,14 +23,6 @@ enum class LegacyBattleMonDefinitionTextReleaseStatus : compat::u8 {
     return status != LegacyBattleMonDefinitionTextReleaseStatus::completed;
 }
 
-struct LegacyBattleMonDefinitionTextReleaseRequest {
-    compat::u32 object_token{};
-    compat::u32 writable_bytes{kLegacyBattleMonDefinitionBytes};
-    compat::u32 entry_eax{};
-    compat::u32 entry_ecx{};
-    compat::u32 entry_edx{};
-};
-
 struct LegacyBattleMonDefinitionTextReleaseResult {
     LegacyBattleMonDefinitionTextReleaseStatus status{
         LegacyBattleMonDefinitionTextReleaseStatus::completed
@@ -41,20 +33,15 @@ struct LegacyBattleMonDefinitionTextReleaseResult {
     compat::u32 object_reads{};
     compat::u32 release_calls{};
     compat::u32 object_writes{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
-// Typed closure of legacy 0x00478220. The final dword of an A4-byte MON
-// definition owns transient text. A nonzero token is released before that
-// dword is cleared; a zero token returns with EAX zero and leaves ECX/EDX.
 [[nodiscard]] LegacyBattleMonDefinitionTextReleaseResult
 release_legacy_battle_mon_definition_text(
     std::span<compat::u8> definition,
     LegacyBattleMonText& owned_text,
     LegacyBattleMonDatabasePort& port,
-    const LegacyBattleMonDefinitionTextReleaseRequest& request
+    compat::u32 object_token,
+    compat::u32 writable_bytes = kLegacyBattleMonDefinitionBytes
 );
 
 }  // namespace openswd3::battle

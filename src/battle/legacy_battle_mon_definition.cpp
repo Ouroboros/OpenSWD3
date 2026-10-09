@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 
 namespace openswd3::battle {
 namespace {
@@ -37,15 +38,11 @@ public:
         LegacyBattleMonDatabasePort& port,
         LegacyBattleMonDatabaseState& database,
         const LegacyBattleMonDefinitionLoadRequest& request,
-        const u32 entry_eax,
-        const u32 entry_ecx,
-        const u32 entry_edx,
         LegacyBattleMonDefinitionLoadResult& result
     ) noexcept
         : stream_(stream), output_(output),
           owned_description_(owned_description), port_(port),
-          database_(database), request_(request), eax_(entry_eax),
-          ecx_(entry_ecx), edx_(entry_edx), result_(result) {}
+          database_(database), request_(request), result_(result) {}
 
     [[nodiscard]] bool parse() {
         while (true) {
@@ -53,12 +50,10 @@ public:
             if (!read_stream_word(cursor_, tag)) {
                 return false;
             }
-            eax_ = (eax_ & 0xFFFF0000U) | tag;
             cursor_ += 2U;
             if (tag == 5U) {
                 return true;
             }
-            eax_ = tag;
 
             switch (tag) {
             case 1U:
@@ -69,103 +64,103 @@ public:
                 break;
 
             case 6U:
-                if (!parse_word(0x40U, ValueRegister::edx)) {
+                if (!parse_word(0x40U)) {
                     return false;
                 }
                 break;
 
             case 7U:
-                if (!parse_word(0x24U, ValueRegister::eax)) {
+                if (!parse_word(0x24U)) {
                     return false;
                 }
                 break;
 
             case 8U:
-                if (!parse_word(0x26U, ValueRegister::ecx)) {
+                if (!parse_word(0x26U)) {
                     return false;
                 }
                 break;
 
             case 9U:
-                if (!parse_word(0x2CU, ValueRegister::edx)) {
+                if (!parse_word(0x2CU)) {
                     return false;
                 }
                 break;
 
             case 10U:
-                if (!parse_word(0x32U, ValueRegister::eax)) {
+                if (!parse_word(0x32U)) {
                     return false;
                 }
                 break;
 
             case 11U:
-                if (!parse_word(0x46U, ValueRegister::ecx)) {
+                if (!parse_word(0x46U)) {
                     return false;
                 }
                 break;
 
             case 12U:
-                if (!parse_word(0x42U, ValueRegister::edx)) {
+                if (!parse_word(0x42U)) {
                     return false;
                 }
                 break;
 
             case 13U:
-                if (!parse_word(0x44U, ValueRegister::eax)) {
+                if (!parse_word(0x44U)) {
                     return false;
                 }
                 break;
 
             case 14U:
-                if (!parse_word(0x50U, ValueRegister::ecx)) {
+                if (!parse_word(0x50U)) {
                     return false;
                 }
                 break;
 
             case 15U:
-                if (!parse_word(0x28U, ValueRegister::edx)) {
+                if (!parse_word(0x28U)) {
                     return false;
                 }
                 break;
 
             case 16U:
-                if (!parse_word(0x2AU, ValueRegister::eax)) {
+                if (!parse_word(0x2AU)) {
                     return false;
                 }
                 break;
 
             case 17U:
-                if (!parse_word(0x2EU, ValueRegister::ecx)) {
+                if (!parse_word(0x2EU)) {
                     return false;
                 }
                 break;
 
             case 18U:
-                if (!parse_word(0x30U, ValueRegister::edx)) {
+                if (!parse_word(0x30U)) {
                     return false;
                 }
                 break;
 
             case 19U:
-                if (!parse_word(0x34U, ValueRegister::ecx)) {
+                if (!parse_word(0x34U)) {
                     return false;
                 }
                 break;
 
             case 20U:
-                if (!parse_word(0x36U, ValueRegister::edx)) {
+                if (!parse_word(0x36U)) {
                     return false;
                 }
                 break;
 
             case 21U:
-                if (!parse_word(0x38U, ValueRegister::eax)) {
+                if (!parse_word(0x38U)) {
                     return false;
                 }
                 break;
 
             case 22U:
-                if (!parse_word(0x48U, ValueRegister::ecx)) {
+                if (!parse_word(0x48U)) {
                     return false;
                 }
                 break;
@@ -177,25 +172,25 @@ public:
                 break;
 
             case 26U:
-                if (!parse_word(0x3AU, ValueRegister::eax)) {
+                if (!parse_word(0x3AU)) {
                     return false;
                 }
                 break;
 
             case 27U:
-                if (!parse_word(0x3CU, ValueRegister::ecx)) {
+                if (!parse_word(0x3CU)) {
                     return false;
                 }
                 break;
 
             case 28U:
-                if (!parse_byte(0x9BU, ValueRegister::edx)) {
+                if (!parse_byte(0x9BU)) {
                     return false;
                 }
                 break;
 
             case 29U:
-                if (!parse_byte(0x9CU, ValueRegister::eax)) {
+                if (!parse_byte(0x9CU)) {
                     return false;
                 }
                 break;
@@ -207,7 +202,7 @@ public:
                 break;
 
             case 100U:
-                if (!parse_word(0x3EU, ValueRegister::ecx)) {
+                if (!parse_word(0x3EU)) {
                     return false;
                 }
                 break;
@@ -239,18 +234,6 @@ public:
 
     [[nodiscard]] u32 cursor() const noexcept {
         return static_cast<u32>(cursor_);
-    }
-
-    [[nodiscard]] u32 eax() const noexcept {
-        return eax_;
-    }
-
-    [[nodiscard]] u32 ecx() const noexcept {
-        return ecx_;
-    }
-
-    [[nodiscard]] u32 edx() const noexcept {
-        return edx_;
     }
 
 private:
@@ -351,54 +334,11 @@ private:
         return true;
     }
 
-    enum class ValueRegister : u8 {
-        eax,
-        ecx,
-        edx,
-    };
-
-    void
-    write_word_register(const ValueRegister target, const u16 value) noexcept {
-        switch (target) {
-        case ValueRegister::eax:
-            eax_ = (eax_ & 0xFFFF0000U) | value;
-            break;
-
-        case ValueRegister::ecx:
-            ecx_ = (ecx_ & 0xFFFF0000U) | value;
-            break;
-
-        case ValueRegister::edx:
-            edx_ = (edx_ & 0xFFFF0000U) | value;
-            break;
-        }
-    }
-
-    void
-    write_byte_register(const ValueRegister target, const u8 value) noexcept {
-        switch (target) {
-        case ValueRegister::eax:
-            eax_ = (eax_ & 0xFFFFFF00U) | value;
-            break;
-
-        case ValueRegister::ecx:
-            ecx_ = (ecx_ & 0xFFFFFF00U) | value;
-            break;
-
-        case ValueRegister::edx:
-            edx_ = (edx_ & 0xFFFFFF00U) | value;
-            break;
-        }
-    }
-
-    [[nodiscard]] bool parse_word(
-        const std::size_t output_offset, const ValueRegister target
-    ) noexcept {
+    [[nodiscard]] bool parse_word(const std::size_t output_offset) noexcept {
         u16 value = 0U;
         if (!read_stream_word(cursor_, value)) {
             return false;
         }
-        write_word_register(target, value);
         if (!write_output_word(output_offset, value)) {
             return false;
         }
@@ -406,14 +346,11 @@ private:
         return true;
     }
 
-    [[nodiscard]] bool parse_byte(
-        const std::size_t output_offset, const ValueRegister target
-    ) noexcept {
+    [[nodiscard]] bool parse_byte(const std::size_t output_offset) noexcept {
         u8 value = 0U;
         if (!read_stream_byte(cursor_, value)) {
             return false;
         }
-        write_byte_register(target, value);
         if (!write_output_byte(output_offset, value)) {
             return false;
         }
@@ -426,7 +363,6 @@ private:
         if (!read_stream_dword(cursor_ + 2U, value)) {
             return false;
         }
-        edx_ = value;
         if (!write_output_dword(0x20U, value)) {
             return false;
         }
@@ -469,13 +405,9 @@ private:
             return false;
         }
         if (scan == TerminatorScan::not_found) {
-            eax_ = 0xFFU;
             cursor_ += 0x101U;
             return true;
         }
-        eax_ = static_cast<u32>(length);
-        ecx_ = 0U;
-        edx_ = static_cast<u32>(length);
         if (!copy_stream_to_output(source, 0U, length)) {
             return false;
         }
@@ -490,50 +422,30 @@ private:
         if (scan == TerminatorScan::stopped) {
             return false;
         }
+
         if (scan == TerminatorScan::not_found) {
             cursor_ += 0xFFU;
             return true;
         }
 
         const u32 allocation_size = static_cast<u32>(length + 1U);
-        const auto allocation = port_.invoke_legacy_battle_mon_database(
-            {
-                .call = LegacyBattleMonDatabaseCall::allocate_definition_text,
-                .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-                .allocation_size = allocation_size,
-                .eax = eax_,
-                .ecx = ecx_,
-                .edx = edx_,
-            },
-            {}
-        );
+        const auto allocation = port_.allocate_mon_text(allocation_size);
         ++result_.definition_text_allocation_calls;
-        const u32 token = allocation.eax;
-        result_.definition_text_token = token;
+        result_.definition_text_token = allocation.block_token;
         result_.definition_text_bytes = allocation_size;
-        if (!write_output_dword(0xA0U, token)) {
+        if (!write_output_dword(0xA0U, allocation.block_token)) {
             return false;
         }
 
-        eax_ = 0U;
-        ecx_ = allocation_size / 4U;
-        if (ecx_ == 0U) {
-            ecx_ = allocation_size & 3U;
-        }
-        edx_ = allocation_size;
-        if (token == 0U) {
+        if (allocation.block_token == 0U) {
             result_.status = LegacyBattleMonDefinitionLoadStatus::
                 definition_text_zero_typed_stop;
             return false;
         }
 
-        owned_description_.bind(
-            allocation.definition_text_storage,
-            allocation.definition_text_release
-        );
+        owned_description_.bind(allocation.storage, allocation.release);
         u32 cleared = 0U;
-        ecx_ = allocation_size / 4U;
-        while (ecx_ != 0U) {
+        for (u32 blocks = allocation_size / 4U; blocks != 0U; --blocks) {
             if (cleared > owned_description_.size() ||
                 owned_description_.size() - cleared < 4U) {
                 result_.status = LegacyBattleMonDefinitionLoadStatus::
@@ -547,11 +459,9 @@ private:
             }
 
             cleared += 4U;
-            --ecx_;
         }
 
-        ecx_ = allocation_size & 3U;
-        while (ecx_ != 0U) {
+        for (u32 bytes = allocation_size & 3U; bytes != 0U; --bytes) {
             if (cleared >= owned_description_.size()) {
                 result_.status = LegacyBattleMonDefinitionLoadStatus::
                     definition_text_access_typed_stop;
@@ -560,7 +470,6 @@ private:
             }
 
             owned_description_[cleared++] = 0U;
-            --ecx_;
         }
 
         for (std::size_t index = 0U; index < length; ++index) {
@@ -568,16 +477,12 @@ private:
             if (!read_stream_byte(source + index, value)) {
                 return false;
             }
+
             owned_description_[index] = value;
         }
+
         cursor_ += length + 2U;
-        const u32 prior_allocation_bytes =
-            database_.definition_text_allocation_bytes;
         database_.definition_text_allocation_bytes += allocation_size;
-        eax_ = database_.definition_text_allocation_bytes;
-        ecx_ = token;
-        edx_ = prior_allocation_bytes;
-        result_.definition_text_token = token;
         return true;
     }
 
@@ -616,9 +521,6 @@ private:
     LegacyBattleMonDatabasePort& port_;
     LegacyBattleMonDatabaseState& database_;
     const LegacyBattleMonDefinitionLoadRequest& request_;
-    u32 eax_{};
-    u32 ecx_{};
-    u32 edx_{};
     std::size_t cursor_{};
     LegacyBattleMonDefinitionLoadResult& result_;
 };
@@ -633,12 +535,8 @@ LegacyBattleMonDefinitionLoadResult load_legacy_battle_mon_definition(
 ) {
     LegacyBattleMonDefinitionLoadResult result{
         .definition_id = request.definition_id,
-        .return_eax = request.entry_eax,
-        .return_ecx = request.entry_ecx,
-        .return_edx = request.entry_edx,
     };
     auto& database = port.legacy_battle_mon_database_state();
-
     if (output.size() < kLegacyBattleMonDefinitionBytes) {
         result.status =
             LegacyBattleMonDefinitionLoadStatus::output_access_typed_stop;
@@ -647,244 +545,97 @@ LegacyBattleMonDefinitionLoadResult load_legacy_battle_mon_definition(
     }
 
     result.prior_definition_text_token = read_dword(output.subspan(0xA0U, 4U));
-    u32 edx = request.entry_edx;
     if (result.prior_definition_text_token != 0U) {
-        const auto size_reply = port.invoke_legacy_battle_mon_database(
-            {
-                .call = LegacyBattleMonDatabaseCall::query_definition_text_size,
-                .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-                .block_token = result.prior_definition_text_token,
-                .eax = result.prior_definition_text_token,
-                .ecx = request.entry_ecx,
-                .edx = edx,
-            },
-            {}
-        );
+        const auto size =
+            port.mon_text_size(result.prior_definition_text_token);
         ++result.definition_text_size_query_calls;
-        database.definition_text_allocation_bytes -= size_reply.eax;
-        edx = database.definition_text_allocation_bytes;
-
-        const auto release_reply = port.invoke_legacy_battle_mon_database(
-            {
-                .call = LegacyBattleMonDatabaseCall::release_definition_text,
-                .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-                .block_token = result.prior_definition_text_token,
-                .eax = result.prior_definition_text_token,
-                .ecx = size_reply.ecx,
-                .edx = edx,
-            },
-            {}
-        );
+        database.definition_text_allocation_bytes -= size;
+        port.release_mon_text(result.prior_definition_text_token);
         ++result.definition_text_release_calls;
-        result.return_eax = release_reply.eax;
-        result.return_ecx = release_reply.ecx;
-        result.return_edx = release_reply.edx;
         std::fill(output.begin() + 0xA0U, output.begin() + 0xA4U, 0U);
         owned_description.clear();
-        edx = release_reply.edx;
     }
 
     std::fill_n(output.begin(), kLegacyBattleMonDefinitionBytes, 0U);
     owned_description.clear();
-
-    u32 eax = database.open ? database.handle : 0U;
-    u32 ecx = 0U;
     if (!database.open) {
-        const auto open_reply = port.invoke_legacy_battle_mon_database(
-            {
-                .call = LegacyBattleMonDatabaseCall::open_file,
-                .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-                .path = &request.path,
-                .desired_access = 0x80000000U,
-                .share_mode = 1U,
-                .security_attributes_token = 0U,
-                .creation_disposition = 4U,
-                .flags_and_attributes = 0x80U,
-                .template_file_token = 0U,
-                .eax = request.file_name_token,
-                .ecx = ecx,
-                .edx = edx,
-            },
-            {}
-        );
+        database.handle = port.open_mon_file(request.path);
         ++result.open_calls;
-        database.handle = open_reply.eax;
         result.handle = database.handle;
-        eax = open_reply.eax;
-        ecx = open_reply.ecx;
-        edx = open_reply.edx;
         if (database.handle == 0xFFFFFFFFU) {
             result.status = LegacyBattleMonDefinitionLoadStatus::open_failed;
-            result.return_eax = 0U;
-            result.return_ecx = ecx;
-            result.return_edx = edx;
             return result;
         }
+
         database.open = true;
     } else {
         result.handle = database.handle;
     }
 
-    auto reply = port.invoke_legacy_battle_mon_database(
-        {
-            .call = LegacyBattleMonDatabaseCall::seek_file,
-            .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-            .handle = database.handle,
-            .distance = 0x204U,
-            .distance_high_token = 0U,
-            .move_method = 0U,
-            .eax = eax,
-            .ecx = ecx,
-            .edx = edx,
-        },
-        {}
-    );
+    static_cast<void>(port.seek_mon_file(
+        database.handle, 0x204, LegacyBattleMonSeekOrigin::begin
+    ));
     ++result.seek_calls;
-
     std::array<u8, 4U> directory_probe{};
     write_stale_dword(directory_probe, request.stale_directory_probe_value);
-    reply = port.invoke_legacy_battle_mon_database(
-        {
-            .call = LegacyBattleMonDatabaseCall::read_file,
-            .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-            .handle = database.handle,
-            .destination_token = request.directory_buffer_token,
-            .requested_bytes = 4U,
-            .eax = request.number_of_bytes_read_token,
-            .ecx = request.directory_buffer_token,
-            .edx = database.handle,
-        },
-        directory_probe
-    );
+    static_cast<void>(port.read_mon_file(database.handle, directory_probe, 4U));
     ++result.read_calls;
     result.directory_probe_value = read_dword(directory_probe);
 
-    const u32 directory_definition_id = result.definition_id & 0xFFFFU;
-    const u32 directory_displacement = directory_definition_id * 4U - 4U;
-    result.definition_directory_offset = 0x204U + directory_definition_id * 4U;
-    reply = port.invoke_legacy_battle_mon_database(
-        {
-            .call = LegacyBattleMonDatabaseCall::seek_file,
-            .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-            .handle = database.handle,
-            .distance = directory_displacement,
-            .distance_high_token = 0U,
-            .move_method = 1U,
-            .eax = database.handle,
-            .ecx = directory_definition_id,
-            .edx = directory_displacement,
-        },
-        {}
-    );
+    const u32 directory_id = result.definition_id & 0xFFFFU;
+    const u32 displacement = directory_id * 4U - 4U;
+    result.definition_directory_offset = 0x204U + directory_id * 4U;
+    static_cast<void>(port.seek_mon_file(
+        database.handle,
+        std::bit_cast<compat::i32>(displacement),
+        LegacyBattleMonSeekOrigin::current
+    ));
     ++result.seek_calls;
-
     std::array<u8, 4U> relative_bytes{};
     write_stale_dword(relative_bytes, request.stale_relative_offset_value);
-    reply = port.invoke_legacy_battle_mon_database(
-        {
-            .call = LegacyBattleMonDatabaseCall::read_file,
-            .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-            .handle = database.handle,
-            .destination_token = request.directory_buffer_token,
-            .requested_bytes = 4U,
-            .eax = database.handle,
-            .ecx = request.number_of_bytes_read_token,
-            .edx = request.directory_buffer_token,
-        },
-        relative_bytes
-    );
+    static_cast<void>(port.read_mon_file(database.handle, relative_bytes, 4U));
     ++result.read_calls;
 
     result.definition_relative_offset = read_dword(relative_bytes);
     result.definition_file_offset = result.definition_relative_offset + 0x200U;
-    reply = port.invoke_legacy_battle_mon_database(
-        {
-            .call = LegacyBattleMonDatabaseCall::seek_file,
-            .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-            .handle = database.handle,
-            .distance = result.definition_file_offset,
-            .distance_high_token = 0U,
-            .move_method = 0U,
-            .eax = reply.eax,
-            .ecx = result.definition_file_offset,
-            .edx = database.handle,
-        },
-        {}
-    );
+    static_cast<void>(port.seek_mon_file(
+        database.handle,
+        std::bit_cast<compat::i32>(result.definition_file_offset),
+        LegacyBattleMonSeekOrigin::begin
+    ));
     ++result.seek_calls;
-
-    const auto allocation = port.invoke_legacy_battle_mon_database(
-        {
-            .call = LegacyBattleMonDatabaseCall::allocate_stream,
-            .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-            .allocation_size = kLegacyBattleMonStreamBytes,
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-        },
-        {}
-    );
+    const auto allocation =
+        port.allocate_mon_stream(kLegacyBattleMonStreamBytes);
     ++result.stream_allocation_calls;
-    result.stream_token = allocation.eax;
+    result.stream_token = allocation.block_token;
     if (result.stream_token == 0U) {
         result.status =
             LegacyBattleMonDefinitionLoadStatus::stream_zero_typed_stop;
-        result.return_eax = 0U;
-        result.return_ecx = 0x100U;
-        result.return_edx = allocation.edx;
         return result;
     }
 
     for (u32 offset = 0U; offset < kLegacyBattleMonStreamBytes; offset += 4U) {
-        if (offset > allocation.stream_bytes.size() ||
-            allocation.stream_bytes.size() - offset < 4U) {
+        if (offset > allocation.bytes.size() ||
+            allocation.bytes.size() - offset < 4U) {
             result.status =
                 LegacyBattleMonDefinitionLoadStatus::stream_access_typed_stop;
             result.stopped_stream_offset = offset;
-            result.return_eax = 0U;
-            result.return_ecx = (kLegacyBattleMonStreamBytes - offset) / 4U;
-            result.return_edx = allocation.edx;
             return result;
         }
 
-        for (auto& byte : allocation.stream_bytes.subspan(offset, 4U)) {
+        for (auto& byte : allocation.bytes.subspan(offset, 4U)) {
             byte = 0U;
         }
     }
 
-    const auto stream =
-        allocation.stream_bytes.first(kLegacyBattleMonStreamBytes);
-    reply = port.invoke_legacy_battle_mon_database(
-        {
-            .call = LegacyBattleMonDatabaseCall::read_file,
-            .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-            .handle = database.handle,
-            .destination_token = result.stream_token,
-            .requested_bytes = kLegacyBattleMonStreamBytes,
-            .eax = request.number_of_bytes_read_token,
-            .ecx = database.handle,
-            .edx = allocation.edx,
-        },
-        stream
+    const auto stream = allocation.bytes.first(kLegacyBattleMonStreamBytes);
+    static_cast<void>(
+        port.read_mon_file(database.handle, stream, kLegacyBattleMonStreamBytes)
     );
     ++result.read_calls;
-
     if (read_word(stream) != 1000U) {
-        const auto release = port.invoke_legacy_battle_mon_database(
-            {
-                .call = LegacyBattleMonDatabaseCall::release_stream,
-                .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-                .block_token = result.stream_token,
-                .eax = reply.eax,
-                .ecx = result.stream_token,
-                .edx = reply.edx,
-            },
-            {}
-        );
+        port.release_mon_stream(result.stream_token);
         ++result.stream_release_calls;
-        result.return_eax = 0U;
-        result.return_ecx = release.ecx;
-        result.return_edx = release.edx;
         return result;
     }
 
@@ -895,36 +646,17 @@ LegacyBattleMonDefinitionLoadResult load_legacy_battle_mon_definition(
         port,
         database,
         request,
-        reply.eax,
-        reply.ecx,
-        reply.edx,
         result
     );
     if (!parser.parse()) {
         result.stream_cursor = parser.cursor();
-        result.return_eax = parser.eax();
-        result.return_ecx = parser.ecx();
-        result.return_edx = parser.edx();
         return result;
     }
 
     result.stream_cursor = parser.cursor();
-    const auto release = port.invoke_legacy_battle_mon_database(
-        {
-            .call = LegacyBattleMonDatabaseCall::release_stream,
-            .stream_kind = LegacyBattleMonDatabaseStreamKind::definition,
-            .block_token = result.stream_token,
-            .eax = parser.eax(),
-            .ecx = parser.ecx(),
-            .edx = parser.edx(),
-        },
-        {}
-    );
+    port.release_mon_stream(result.stream_token);
     ++result.stream_release_calls;
     result.definition_found = true;
-    result.return_eax = 1U;
-    result.return_ecx = release.ecx;
-    result.return_edx = release.edx;
     return result;
 }
 

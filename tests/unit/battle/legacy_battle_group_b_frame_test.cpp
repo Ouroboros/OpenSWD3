@@ -1906,7 +1906,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         group_b_action_profile_mode_typed_stop &&
-                result.return_value == 0U &&
+                port.read_calls == 2U && port.seek_calls == 3U &&
                 result.group_b_action_profile_mode.status ==
                     openswd3::battle::
                         LegacyBattleGroupBActionProfileModeStatus::

@@ -77,17 +77,10 @@ LegacyBattleGroupBActionCompositionResult compose_legacy_battle_group_b_action(
         mon_port,
         {
             .path = "mon.dat",
-            .output_token = request.actor_token + 0x10U,
             .definition_id = request.definition_argument,
-            .entry_eax = request.definition_argument,
-            .entry_ecx = request.entry_ecx,
-            .entry_edx = request.entry_edx,
         }
     );
     ++result.port_calls;
-    result.return_eax = definition_result.return_eax;
-    result.return_ecx = definition_result.return_ecx;
-    result.return_edx = definition_result.return_edx;
     if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status =
             LegacyBattleGroupBActionCompositionStatus::resource_load_typed_stop;
@@ -161,18 +154,10 @@ LegacyBattleGroupBActionCompositionResult compose_legacy_battle_group_b_action(
         mon_port,
         {
             .path = "mon.dat",
-            .output_token = result.return_edx,
             .profile_id = result.return_ecx,
-            .file_name_token = 0x004AAED0U,
-            .entry_eax = result.return_eax,
-            .entry_ecx = result.return_ecx,
-            .entry_edx = result.return_edx,
         }
     );
     ++result.port_calls;
-    result.return_eax = profile_result.return_eax;
-    result.return_ecx = profile_result.return_ecx;
-    result.return_edx = profile_result.return_edx;
     if (profile_result.status ==
             LegacyBattleMonProfileLoadStatus::stream_zero_typed_stop ||
         profile_result.status ==

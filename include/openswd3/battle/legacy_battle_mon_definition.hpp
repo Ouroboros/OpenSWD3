@@ -21,16 +21,9 @@ struct LegacyBattleMonDefinitionOwner {
 
 struct LegacyBattleMonDefinitionLoadRequest {
     std::filesystem::path path;
-    compat::u32 output_token{};
     compat::u32 definition_id{};
-    compat::u32 file_name_token{kLegacyBattleMonPathBufferToken};
-    compat::u32 directory_buffer_token{};
     compat::u32 stale_directory_probe_value{};
     compat::u32 stale_relative_offset_value{};
-    compat::u32 number_of_bytes_read_token{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_ecx{};
-    compat::u32 entry_edx{};
 };
 
 enum class LegacyBattleMonDefinitionLoadStatus : compat::u8 {
@@ -83,9 +76,6 @@ struct LegacyBattleMonDefinitionLoadResult {
     compat::u32 definition_text_allocation_calls{};
     compat::u32 definition_text_release_calls{};
     bool definition_found{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 // Typed closure of legacy 0x00476DB0.

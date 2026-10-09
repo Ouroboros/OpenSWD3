@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
 
 #include <algorithm>
+#include <stdexcept>
 
 namespace openswd3::battle {
 namespace {
@@ -23,18 +24,15 @@ release_legacy_battle_mon_definition_text(
     const std::span<compat::u8> definition,
     LegacyBattleMonText& owned_text,
     LegacyBattleMonDatabasePort& port,
-    const LegacyBattleMonDefinitionTextReleaseRequest& request
+    const compat::u32 object_token,
+    const compat::u32 writable_bytes
 ) {
-    LegacyBattleMonDefinitionTextReleaseResult result{
-        .return_eax = request.entry_eax,
-        .return_ecx = request.entry_ecx,
-        .return_edx = request.entry_edx,
-    };
-    if (request.object_token == 0U ||
+    LegacyBattleMonDefinitionTextReleaseResult result;
+    if (object_token == 0U ||
         definition.size() < kLegacyBattleMonDefinitionBytes) {
         result.status =
             LegacyBattleMonDefinitionTextReleaseStatus::object_read_typed_stop;
-        result.stopped_token = request.object_token;
+        result.stopped_token = object_token;
         result.stopped_offset = kLegacyBattleMonDefinitionTextTokenOffset;
         return result;
     }
@@ -42,22 +40,14 @@ release_legacy_battle_mon_definition_text(
     result.prior_text_token =
         read_dword(definition, kLegacyBattleMonDefinitionTextTokenOffset);
     ++result.object_reads;
-    result.return_eax = result.prior_text_token;
     if (result.prior_text_token == 0U) {
         return result;
     }
 
-    const auto reply = port.release_legacy_battle_mon_definition_text({
-        .block_token = result.prior_text_token,
-        .eax = result.prior_text_token,
-        .ecx = request.entry_ecx,
-        .edx = request.entry_edx,
-    });
     ++result.release_calls;
-    result.return_eax = reply.eax;
-    result.return_ecx = reply.ecx;
-    result.return_edx = reply.edx;
-    if (reply.typed_stop) {
+    try {
+        port.release_mon_text(result.prior_text_token);
+    } catch (const std::invalid_argument&) {
         result.status =
             LegacyBattleMonDefinitionTextReleaseStatus::release_call_typed_stop;
         result.stopped_token = result.prior_text_token;
@@ -65,10 +55,10 @@ release_legacy_battle_mon_definition_text(
     }
 
     owned_text.clear();
-    if (request.writable_bytes < kLegacyBattleMonDefinitionBytes) {
+    if (writable_bytes < kLegacyBattleMonDefinitionBytes) {
         result.status =
             LegacyBattleMonDefinitionTextReleaseStatus::object_write_typed_stop;
-        result.stopped_token = request.object_token;
+        result.stopped_token = object_token;
         result.stopped_offset = kLegacyBattleMonDefinitionTextTokenOffset;
         return result;
     }

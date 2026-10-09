@@ -2,6 +2,7 @@
 
 #include "openswd3/compat/types.hpp"
 #include "openswd3/battle/legacy_battle_mon_text.hpp"
+#include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
 
 #include <array>
 #include <cstddef>
@@ -25,77 +26,47 @@ struct LegacyBattleMonDatabaseState {
     compat::u32 definition_text_allocation_bytes{};
 };
 
-enum class LegacyBattleMonDatabaseStreamKind : compat::u8 {
-    profile,
-    definition,
-};
-
-enum class LegacyBattleMonDatabaseCall : compat::u8 {
-    open_file,
-    seek_file,
-    read_file,
-    allocate_stream,
-    release_stream,
-    query_definition_text_size,
-    allocate_definition_text,
-    release_definition_text,
-};
-
-struct LegacyBattleMonDatabaseCallRequest {
-    LegacyBattleMonDatabaseCall call{LegacyBattleMonDatabaseCall::open_file};
-    LegacyBattleMonDatabaseStreamKind stream_kind{
-        LegacyBattleMonDatabaseStreamKind::profile
-    };
-    const std::filesystem::path* path{};
-    compat::u32 handle{};
-    compat::u32 destination_token{};
-    compat::u32 requested_bytes{};
-    compat::u32 distance{};
-    compat::u32 distance_high_token{};
-    compat::u32 move_method{};
-    compat::u32 allocation_size{};
+struct LegacyBattleMonStreamAllocation {
     compat::u32 block_token{};
-    compat::u32 desired_access{};
-    compat::u32 share_mode{};
-    compat::u32 security_attributes_token{};
-    compat::u32 creation_disposition{};
-    compat::u32 flags_and_attributes{};
-    compat::u32 template_file_token{};
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
+    std::span<compat::u8> bytes{};
 };
 
-struct LegacyBattleMonDatabaseCallReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-    compat::u32 bytes_read{};
-    // allocate_stream lends its actual storage until release_stream. The port
-    // retains ownership when parsing stops before the original release call.
-    std::span<compat::u8> stream_bytes{};
-    std::shared_ptr<LegacyBattleMonText::Storage> definition_text_storage{};
-    std::shared_ptr<const LegacyBattleMonText::Release>
-        definition_text_release{};
-};
-
-struct LegacyBattleMonDefinitionTextReleaseCallRequest {
+struct LegacyBattleMonTextAllocation {
     compat::u32 block_token{};
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
-struct LegacyBattleMonDefinitionTextReleaseCallReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-    bool typed_stop{};
+    std::shared_ptr<LegacyBattleMonText::Storage> storage{};
+    std::shared_ptr<const LegacyBattleMonText::Release> release{};
 };
 
 class LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyBattleMonDatabasePort() = default;
+
+    [[nodiscard]] virtual compat::u32
+    open_mon_file(const std::filesystem::path& path);
+
+    [[nodiscard]] virtual compat::u32 seek_mon_file(
+        compat::u32 handle,
+        compat::i32 distance,
+        LegacyBattleMonSeekOrigin origin
+    );
+
+    [[nodiscard]] virtual LegacyBattleMonReadResult read_mon_file(
+        compat::u32 handle,
+        std::span<compat::u8> destination,
+        compat::u32 requested_bytes
+    );
+
+    [[nodiscard]] virtual LegacyBattleMonStreamAllocation
+    allocate_mon_stream(compat::u32 size);
+
+    virtual void release_mon_stream(compat::u32 block_token);
+
+    [[nodiscard]] virtual compat::u32 mon_text_size(compat::u32 block_token);
+
+    [[nodiscard]] virtual LegacyBattleMonTextAllocation
+    allocate_mon_text(compat::u32 size);
+
+    virtual void release_mon_text(compat::u32 block_token);
 
     [[nodiscard]] virtual LegacyBattleMonDatabaseState&
     legacy_battle_mon_database_state() noexcept;
@@ -110,17 +81,6 @@ public:
     [[nodiscard]] virtual LegacyBattleMonText&
     legacy_battle_mon_definition_scratch_description() noexcept;
 
-    [[nodiscard]] virtual LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const LegacyBattleMonDatabaseCallRequest& request,
-        std::span<compat::u8> destination
-    );
-
-    [[nodiscard]] virtual LegacyBattleMonDefinitionTextReleaseCallReply
-    release_legacy_battle_mon_definition_text(
-        const LegacyBattleMonDefinitionTextReleaseCallRequest& request
-    );
-
 private:
     LegacyBattleMonDatabaseState mon_database_state_{};
     LegacyBattleMonProfile mon_profile_scratch_{};
@@ -131,15 +91,8 @@ private:
 
 struct LegacyBattleMonProfileLoadRequest {
     std::filesystem::path path;
-    compat::u32 output_token{};
     compat::u32 profile_id{};
-    compat::u32 file_name_token{kLegacyBattleMonPathBufferToken};
-    compat::u32 root_buffer_token{};
     compat::u32 stale_root_buffer_value{};
-    compat::u32 number_of_bytes_read_token{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_ecx{};
-    compat::u32 entry_edx{};
 };
 
 enum class LegacyBattleMonProfileLoadStatus : compat::u8 {
@@ -176,9 +129,7 @@ struct LegacyBattleMonProfileLoadResult {
     compat::u32 read_calls{};
     compat::u32 allocation_calls{};
     compat::u32 release_calls{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
+    bool profile_found{};
 };
 
 // Typed closure of legacy 0x00476A80.

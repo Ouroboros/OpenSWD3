@@ -44,19 +44,13 @@ class DefinitionPort final
     : public openswd3::battle::LegacyBattleGroupBActionItemSelectionPort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
-    ) override {
-        if (force_allocation_stop &&
-            request.call ==
-                openswd3::battle::LegacyBattleMonDatabaseCall::
-                    allocate_stream) {
+    [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const u32 size) override {
+        if (force_allocation_stop) {
             allocation_succeeds = false;
         }
-        return openswd3::test::LegacyBattleMonDatabaseFixture::
-            invoke_legacy_battle_mon_database(request, destination);
+
+        return LegacyBattleMonDatabaseFixture::allocate_mon_stream(size);
     }
 
 protected:
@@ -392,8 +386,6 @@ void test_battle_group_b_action_item_selection(openswd3::test::Context& test) {
                     LegacyBattleGroupBActionItemSelectionStatus::
                         definition_load_typed_stop &&
                 result.definition_argument == 0x00003333U &&
-                result.return_eax == 0U && result.return_ecx == 0x100U &&
-                result.return_edx == 0x11223344U &&
                 actor.action_composition.resource_definition[0x48U] == 0U &&
                 actor.action_execution.retreat_ready_flags == 0x00A0U,
             "definition-loader allocation stop preserves the cleared output and blocks the flag clear"

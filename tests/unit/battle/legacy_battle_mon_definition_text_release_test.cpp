@@ -1,16 +1,14 @@
 #include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
+#include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
 #include "test.hpp"
-
-#include <array>
-#include <vector>
 
 namespace {
 
 using openswd3::battle::LegacyBattleMonDatabasePort;
 using openswd3::battle::LegacyBattleMonDefinitionBytes;
-using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply;
-using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallRequest;
 using openswd3::battle::LegacyBattleMonDefinitionTextReleaseStatus;
+using openswd3::battle::LegacyBattleMonText;
+using openswd3::battle::LegacyBattleMonTextRuntime;
 using openswd3::compat::u8;
 using openswd3::compat::u32;
 
@@ -28,37 +26,26 @@ u32 read_token(const LegacyBattleMonDefinitionBytes& definition) {
         (static_cast<u32>(definition[0xA3U]) << 24U);
 }
 
-class FakePort final : public LegacyBattleMonDatabasePort {
+class TextPort final : public LegacyBattleMonDatabasePort {
 public:
-    LegacyBattleMonDefinitionTextReleaseCallReply reply{};
-    LegacyBattleMonDefinitionTextReleaseCallRequest request{};
-    u32 calls{};
-
-    [[nodiscard]] LegacyBattleMonDefinitionTextReleaseCallReply
-    release_legacy_battle_mon_definition_text(
-        const LegacyBattleMonDefinitionTextReleaseCallRequest& value
-    ) override {
-        request = value;
-        ++calls;
-        return reply;
+    void release_mon_text(const u32 block_token) override {
+        ++release_count;
+        released_token = block_token;
+        heap.free(block_token);
     }
+
+    LegacyBattleMonTextRuntime heap;
+    u32 release_count{};
+    u32 released_token{};
 };
 
 void test_zero_token(openswd3::test::Context& context) {
     LegacyBattleMonDefinitionBytes definition{};
-    openswd3::battle::LegacyBattleMonText text{1U, 2U};
-    FakePort port;
+    LegacyBattleMonText text{1U, 2U};
+    TextPort port;
     const auto result =
         openswd3::battle::release_legacy_battle_mon_definition_text(
-            definition,
-            text,
-            port,
-            {
-                .object_token = 0x0053CF50U,
-                .entry_eax = 0xAABBCCDDU,
-                .entry_ecx = 0x11223344U,
-                .entry_edx = 0x55667788U,
-            }
+            definition, text, port, 0x0053CF50U
         );
 
     context.expect_equal(
@@ -66,132 +53,83 @@ void test_zero_token(openswd3::test::Context& context) {
         LegacyBattleMonDefinitionTextReleaseStatus::completed,
         "zero text token completes"
     );
-    context.expect_equal(result.return_eax, 0U, "zero token replaces EAX");
-    context.expect_equal(
-        result.return_ecx, 0x11223344U, "zero token preserves ECX"
-    );
-    context.expect_equal(
-        result.return_edx, 0x55667788U, "zero token preserves EDX"
-    );
-    context.expect_equal(port.calls, 0U, "zero token skips release");
+    context.expect_equal(port.release_count, 0U, "zero token skips release");
     context.expect_equal(text.size(), 2U, "zero token leaves host text owner");
 }
 
 void test_release_and_clear(openswd3::test::Context& context) {
+    TextPort port;
+    const auto allocation = port.heap.allocate(3U);
     LegacyBattleMonDefinitionBytes definition{};
-    write_token(definition, 0x71002000U);
-    openswd3::battle::LegacyBattleMonText text{3U, 4U, 5U};
-    FakePort port;
-    port.reply = {
-        .eax = 0x10101010U,
-        .ecx = 0x20202020U,
-        .edx = 0x30303030U,
-        .typed_stop = false,
-    };
+    write_token(definition, allocation.block_token);
+    LegacyBattleMonText text;
+    text.bind(allocation.storage, allocation.release);
+    text[0U] = 3U;
+    auto alias = text;
     const auto result =
         openswd3::battle::release_legacy_battle_mon_definition_text(
-            definition,
-            text,
-            port,
-            {
-                .object_token = 0x0053CF50U,
-                .entry_eax = 0xAAAAAAAAU,
-                .entry_ecx = 0xBBBBBBBBU,
-                .entry_edx = 0xCCCCCCCCU,
-            }
+            definition, text, port, 0x0053CF50U
         );
 
-    context.expect_equal(port.calls, 1U, "nonzero token releases once");
     context.expect_equal(
-        port.request.block_token, 0x71002000U, "release receives text token"
+        result.status,
+        LegacyBattleMonDefinitionTextReleaseStatus::completed,
+        "owned text release completes"
     );
+    context.expect_equal(port.release_count, 1U, "nonzero token releases once");
     context.expect_equal(
-        port.request.eax, 0x71002000U, "release call EAX is text token"
+        port.released_token,
+        allocation.block_token,
+        "release receives the allocated text token"
     );
-    context.expect_equal(
-        port.request.ecx, 0xBBBBBBBBU, "release call preserves ECX"
-    );
-    context.expect_equal(
-        port.request.edx, 0xCCCCCCCCU, "release call preserves EDX"
-    );
-    context.expect_equal(
-        read_token(definition), 0U, "token clears after release"
-    );
-    context.expect_true(text.empty(), "host text owner clears after release");
-    context.expect_equal(
-        result.return_eax, 0x10101010U, "release EAX residue returns"
-    );
-    context.expect_equal(
-        result.return_ecx, 0x20202020U, "release ECX residue returns"
-    );
-    context.expect_equal(
-        result.return_edx, 0x30303030U, "release EDX residue returns"
+    context.expect_equal(read_token(definition), 0U, "token clears after free");
+    context.expect_true(
+        text.empty() && alias.empty() && !alias.release(),
+        "actual free invalidates the owner and every borrowed text view"
     );
 }
 
-void test_typed_stops(openswd3::test::Context& context) {
+void test_failure_prefixes(openswd3::test::Context& context) {
     LegacyBattleMonDefinitionBytes definition{};
     write_token(definition, 0x72003000U);
-    openswd3::battle::LegacyBattleMonText text{6U, 7U};
-    FakePort port;
-
+    LegacyBattleMonText text{6U, 7U};
+    TextPort port;
     auto result = openswd3::battle::release_legacy_battle_mon_definition_text(
-        {},
-        text,
-        port,
-        {
-            .object_token = 0x0053CF50U,
-            .entry_eax = 0x11U,
-            .entry_ecx = 0x22U,
-            .entry_edx = 0x33U,
-        }
-    );
-    context.expect_equal(
-        result.status,
-        LegacyBattleMonDefinitionTextReleaseStatus::object_read_typed_stop,
-        "short object stops at the token read"
-    );
-    context.expect_equal(result.return_eax, 0x11U, "read stop preserves EAX");
-
-    port.reply = {
-        .eax = 0x44U,
-        .ecx = 0x55U,
-        .edx = 0x66U,
-        .typed_stop = true,
-    };
-    result = openswd3::battle::release_legacy_battle_mon_definition_text(
-        definition, text, port, {.object_token = 0x0053CF50U}
-    );
-    context.expect_equal(
-        result.status,
-        LegacyBattleMonDefinitionTextReleaseStatus::release_call_typed_stop,
-        "release trap stops before clear"
-    );
-    context.expect_equal(
-        read_token(definition), 0x72003000U, "release trap preserves token"
-    );
-    context.expect_equal(text.size(), 2U, "release trap preserves host text");
-
-    port.reply.typed_stop = false;
-    result = openswd3::battle::release_legacy_battle_mon_definition_text(
-        definition,
-        text,
-        port,
-        {
-            .object_token = 0x0053CF50U,
-            .writable_bytes = 0xA0U,
-        }
-    );
-    context.expect_equal(
-        result.status,
-        LegacyBattleMonDefinitionTextReleaseStatus::object_write_typed_stop,
-        "write trap follows successful release"
-    );
-    context.expect_equal(
-        read_token(definition), 0x72003000U, "write trap leaves stale token"
+        {}, text, port, 0x0053CF50U
     );
     context.expect_true(
-        text.empty(), "write trap retains completed free effect"
+        result.status ==
+                LegacyBattleMonDefinitionTextReleaseStatus::
+                    object_read_typed_stop &&
+            port.release_count == 0U && text.size() == 2U,
+        "short object stops at its token read before touching text"
+    );
+
+    result = openswd3::battle::release_legacy_battle_mon_definition_text(
+        definition, text, port, 0x0053CF50U
+    );
+    context.expect_true(
+        result.status ==
+                LegacyBattleMonDefinitionTextReleaseStatus::
+                    release_call_typed_stop &&
+            read_token(definition) == 0x72003000U && text.size() == 2U,
+        "unknown allocation stops before clearing the token or text view"
+    );
+
+    const auto allocation = port.heap.allocate(2U);
+    write_token(definition, allocation.block_token);
+    text.bind(allocation.storage, allocation.release);
+    auto alias = text;
+    result = openswd3::battle::release_legacy_battle_mon_definition_text(
+        definition, text, port, 0x0053CF50U, 0xA0U
+    );
+    context.expect_true(
+        result.status ==
+                LegacyBattleMonDefinitionTextReleaseStatus::
+                    object_write_typed_stop &&
+            read_token(definition) == allocation.block_token && text.empty() &&
+            alias.empty() && !alias.release(),
+        "failed token clear retains the stale token after actual memory release"
     );
 }
 
@@ -201,6 +139,6 @@ int main() {
     openswd3::test::Context context;
     test_zero_token(context);
     test_release_and_clear(context);
-    test_typed_stops(context);
+    test_failure_prefixes(context);
     return context.exit_code();
 }

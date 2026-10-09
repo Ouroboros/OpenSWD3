@@ -2284,35 +2284,48 @@ public:
         return {.profile_record = request.profile_record};
     }
 
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<openswd3::compat::u8> destination
-    ) override {
-        using Call = openswd3::battle::LegacyBattleMonDatabaseCall;
-        switch (request.call) {
-        case Call::open_file:
-        case Call::seek_file:
-        case Call::read_file:
-            return mon_files_.invoke(request, destination, data_directory_);
-
-        case Call::allocate_stream:
-        case Call::release_stream:
-            return mon_streams_.invoke(request);
-
-        case Call::query_definition_text_size:
-        case Call::allocate_definition_text:
-        case Call::release_definition_text:
-            return mon_text_.invoke(request);
-        }
-        return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+    [[nodiscard]] openswd3::compat::u32
+    open_mon_file(const std::filesystem::path& path) override {
+        return mon_files_.open_file(path, data_directory_);
     }
 
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply
-    release_legacy_battle_mon_definition_text(
-        const openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallRequest& request
+    [[nodiscard]] openswd3::compat::u32 seek_mon_file(
+        const openswd3::compat::u32 handle,
+        const openswd3::compat::i32 distance,
+        const openswd3::battle::LegacyBattleMonSeekOrigin origin
     ) override {
-        return mon_text_.release(request);
+        return mon_files_.seek_file(handle, distance, origin);
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+        const openswd3::compat::u32 handle,
+        const std::span<openswd3::compat::u8> destination,
+        const openswd3::compat::u32 requested_bytes
+    ) override {
+        return mon_files_.read_file(handle, destination, requested_bytes);
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const openswd3::compat::u32 size) override {
+        return mon_streams_.allocate(size);
+    }
+
+    void release_mon_stream(const openswd3::compat::u32 block_token) override {
+        mon_streams_.release(block_token);
+    }
+
+    [[nodiscard]] openswd3::compat::u32
+    mon_text_size(const openswd3::compat::u32 block_token) override {
+        return mon_text_.allocation_size(block_token);
+    }
+
+    [[nodiscard]] openswd3::battle::LegacyBattleMonTextAllocation
+    allocate_mon_text(const openswd3::compat::u32 size) override {
+        return mon_text_.allocate(size);
+    }
+
+    void release_mon_text(const openswd3::compat::u32 block_token) override {
+        mon_text_.free(block_token);
     }
 
     [[nodiscard]] openswd3::world_map::LegacyWorldItemListState*

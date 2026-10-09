@@ -44,20 +44,14 @@ public:
     std::vector<LegacyBattleGroupBActionItemNameCopyReply> copy_replies;
     std::size_t copy_reply_index{};
 
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
-    ) override {
+    [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const u32 size) override {
         if (definition_reply_index < definition_replies.size() &&
-            definition_replies[definition_reply_index].typed_stop &&
-            request.call ==
-                openswd3::battle::LegacyBattleMonDatabaseCall::
-                    allocate_stream) {
+            definition_replies[definition_reply_index].typed_stop) {
             allocation_succeeds = false;
         }
-        return openswd3::test::LegacyBattleMonDatabaseFixture::
-            invoke_legacy_battle_mon_database(request, destination);
+
+        return LegacyBattleMonDatabaseFixture::allocate_mon_stream(size);
     }
 
 protected:
@@ -312,8 +306,6 @@ void test_battle_group_b_action_item_special_option(
             result.status ==
                     LegacyBattleGroupBActionItemSpecialOptionStatus::
                         definition_load_typed_stop &&
-                result.return_eax == 0U && result.return_ecx == 0x100U &&
-                result.return_edx == 0x11223344U &&
                 actor.action_composition.resource_definition[0U] == 0U &&
                 port.copy_requests.empty(),
             "loader allocation stop preserves the cleared definition and blocks the copy"

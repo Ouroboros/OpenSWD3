@@ -128,26 +128,17 @@ configure_legacy_battle_group_b_action(
         mon_port,
         {
             .path = "mon.dat",
-            .output_token = actor->resource_token,
             .definition_id = definition_argument,
-            .entry_eax = definition_argument,
-            .entry_ecx = actor->resource_token,
-            .entry_edx = source_token,
         }
     );
     ++result.port_calls;
     if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status = LegacyBattleGroupBActionConfigurationStatus::
             resource_load_typed_stop;
-        result.return_eax = definition_result.return_eax;
-        result.return_ecx = definition_result.return_ecx;
-        result.return_edx = definition_result.return_edx;
         return result;
     }
 
     result.return_eax = actor->resource_token;
-    result.return_ecx = definition_result.return_ecx;
-    result.return_edx = definition_result.return_edx;
     if (actor->resource_token == 0U) {
         result.status = LegacyBattleGroupBActionConfigurationStatus::
             resource_read_typed_stop;
@@ -176,20 +167,12 @@ configure_legacy_battle_group_b_action(
 
     const u32 profile_argument =
         (source->runtime_value & 0xFFFF0000U) | read_word(resource, 0x60U);
-    const u32 profile_ecx =
-        (std::bit_cast<u32>(signed_resource_value) & 0xFFFF0000U) |
-        actor->action_execution.profile_value;
     const auto profile_result = load_legacy_battle_mon_profile(
         state.profile_buffer,
         mon_port,
         {
             .path = "mon.dat",
-            .output_token = actor_token + 0x0D90U,
             .profile_id = profile_argument,
-            .file_name_token = 0x004AAED0U,
-            .entry_eax = actor_token + 0x0D90U,
-            .entry_ecx = profile_ecx,
-            .entry_edx = profile_argument,
         }
     );
     ++result.port_calls;
@@ -201,9 +184,6 @@ configure_legacy_battle_group_b_action(
             LegacyBattleMonProfileLoadStatus::output_access_typed_stop) {
         result.status = LegacyBattleGroupBActionConfigurationStatus::
             profile_load_typed_stop;
-        result.return_eax = profile_result.return_eax;
-        result.return_ecx = profile_result.return_ecx;
-        result.return_edx = profile_result.return_edx;
         return result;
     }
 
@@ -211,12 +191,7 @@ configure_legacy_battle_group_b_action(
         actor->resource_bytes,
         actor->resource_description,
         mon_port,
-        {
-            .object_token = actor->resource_token,
-            .entry_eax = profile_result.return_eax,
-            .entry_ecx = actor->resource_token,
-            .entry_edx = profile_result.return_edx,
-        }
+        actor->resource_token
     );
     ++result.port_calls;
     if (legacy_battle_mon_definition_text_release_stopped(
@@ -224,15 +199,8 @@ configure_legacy_battle_group_b_action(
         )) {
         result.status = LegacyBattleGroupBActionConfigurationStatus::
             resource_release_typed_stop;
-        result.return_eax = release_result.return_eax;
-        result.return_ecx = release_result.return_ecx;
-        result.return_edx = release_result.return_edx;
         return result;
     }
-
-    result.return_eax = release_result.return_eax;
-    result.return_ecx = release_result.return_ecx;
-    result.return_edx = release_result.return_edx;
     if (actor->action_execution.profile_value == 0x001CU) {
         state.timing_value = 0x0000A028U;
         write_dword(resource, 0x4CU, state.timing_value);

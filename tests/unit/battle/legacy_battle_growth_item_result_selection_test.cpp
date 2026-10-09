@@ -15,9 +15,6 @@ using openswd3::battle::LegacyBattleGrowthItemResultSelectionCall;
 using openswd3::battle::LegacyBattleGrowthItemResultSelectionCallReply;
 using openswd3::battle::LegacyBattleGrowthItemResultSelectionCallRequest;
 using openswd3::battle::LegacyBattleGrowthItemResultSelectionRequest;
-using openswd3::battle::LegacyBattleMonDatabasePort;
-using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply;
-using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallRequest;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
@@ -50,29 +47,9 @@ public:
         return reply;
     }
 
-    [[nodiscard]] LegacyBattleMonDefinitionTextReleaseCallReply
-    release_legacy_battle_mon_definition_text(
-        const LegacyBattleMonDefinitionTextReleaseCallRequest& request
-    ) override {
-        release_requests.push_back(request);
-        constexpr auto call = LegacyBattleGrowthItemResultSelectionCall::
-            reserved_release_item_description;
-        auto& index = reply_indices[call];
-        const auto found = replies.find(call);
-        if (found != replies.end() && index < found->second.size()) {
-            const auto reply = found->second[index++];
-            static_cast<void>(
-                LegacyBattleMonDatabasePort::
-                    release_legacy_battle_mon_definition_text(request)
-            );
-            return {
-                .eax = reply.eax,
-                .ecx = reply.ecx,
-                .edx = reply.edx,
-            };
-        }
-        return LegacyBattleMonDatabasePort::
-            release_legacy_battle_mon_definition_text(request);
+    void release_mon_text(const u32 block_token) override {
+        released_text_tokens.push_back(block_token);
+        LegacyBattleMonDatabaseFixture::release_mon_text(block_token);
     }
 
     void reply(
@@ -99,8 +76,7 @@ public:
         replies;
     std::map<LegacyBattleGrowthItemResultSelectionCall, std::size_t>
         reply_indices;
-    std::vector<LegacyBattleMonDefinitionTextReleaseCallRequest>
-        release_requests;
+    std::vector<u32> released_text_tokens;
 
 protected:
     [[nodiscard]] std::optional<bool> prepare_definition_record(
@@ -295,11 +271,6 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
             load_reply
         );
         fixture.port.reply(
-            LegacyBattleGrowthItemResultSelectionCall::
-                reserved_release_item_description,
-            {.eax = 0x41414141U, .ecx = 0x42424242U, .edx = 0x43434343U}
-        );
-        fixture.port.reply(
             LegacyBattleGrowthItemResultSelectionCall::copy_caption,
             {.eax = 0x51515151U, .ecx = 0x52525252U, .edx = 0x53535353U}
         );
@@ -342,13 +313,13 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
                         .head.blocking_flag == 1U &&
                 fixture.port.requested_definition_ids ==
                     std::vector<u32>{0x0665U} &&
-                fixture.port.release_requests.size() == 1U &&
-                fixture.port.release_requests[0U].block_token == 0x72000000U &&
+                fixture.port.released_text_tokens ==
+                    std::vector<u32>{0x72000000U} &&
+                fixture.port.definition_text_release_calls == 1U &&
                 fixture.port.calls[1U].destination_token ==
                     kLegacyBattleGrowthItemResultCaptionToken &&
                 fixture.port.calls[1U].source_token ==
                     kLegacyBattleGrowthItemScratchToken &&
-                fixture.port.calls[1U].eax == 0x41414141U &&
                 fixture.port.calls[1U].text_length == 2U &&
                 fixture.port.count(
                     LegacyBattleGrowthItemResultSelectionCall::
@@ -372,11 +343,6 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
             LegacyBattleGrowthItemResultSelectionCall::load_item_definition,
             load_reply
         );
-        fixture.port.reply(
-            LegacyBattleGrowthItemResultSelectionCall::
-                reserved_release_item_description,
-            {.eax = 0x61616161U, .ecx = 0x62626262U, .edx = 0x63636363U}
-        );
         const auto result = run(fixture);
         test.expect_true(
             result.status ==
@@ -392,9 +358,7 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
                     fixture.advancement.growth_caption_text,
                     [](const u8 value) { return value == 0x58U; }
                 ) &&
-                result.return_eax == 0x61616161U &&
-                result.return_ecx == 0x62626262U &&
-                result.return_edx == 0x63636363U,
+                fixture.port.definition_text_release_calls == 1U,
             "growth item result selection preserves mode and the 24-byte copy prefix before the destination stop while withholding the actor"
         );
     }

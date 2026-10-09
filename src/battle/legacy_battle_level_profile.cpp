@@ -426,25 +426,14 @@ private:
             port_,
             {
                 .path = request_.mon_path,
-                .output_token = eax_,
                 .definition_id = item_id,
-                .file_name_token = request_.mon_file_name_token,
-                .directory_buffer_token = request_.mon_directory_buffer_token,
                 .stale_directory_probe_value =
                     request_.mon_stale_directory_probe_value,
                 .stale_relative_offset_value =
                     request_.mon_stale_relative_offset_value,
-                .number_of_bytes_read_token =
-                    request_.mon_number_of_bytes_read_token,
-                .entry_eax = eax_,
-                .entry_ecx = ecx_,
-                .entry_edx = edx_,
             }
         );
         ++result_.item_definition_load_calls;
-        eax_ = result_.mon_definition_load.return_eax;
-        ecx_ = result_.mon_definition_load.return_ecx;
-        edx_ = result_.mon_definition_load.return_edx;
         std::copy_n(
             definition.cbegin(),
             appended.definition_snapshot.size(),

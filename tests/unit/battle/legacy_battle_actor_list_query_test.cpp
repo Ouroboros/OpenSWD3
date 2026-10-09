@@ -9,23 +9,26 @@ class SelectionPort final
     : public openswd3::battle::LegacyBattleActorResourceSelectionPort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<openswd3::compat::u8> destination
+    [[nodiscard]] openswd3::compat::u32 seek_mon_file(
+        const openswd3::compat::u32 handle,
+        const openswd3::compat::i32 distance,
+        const openswd3::battle::LegacyBattleMonSeekOrigin origin
     ) override {
-        if (request.call ==
-                openswd3::battle::LegacyBattleMonDatabaseCall::seek_file &&
-            seek_calls % 3U == 1U) {
+        if (seek_calls % 3U == 1U) {
             profile_ids.push_back(
                 static_cast<openswd3::compat::u16>(
-                    (request.distance - auxiliary_root - 0x200U) / 4U
+                    (std::bit_cast<openswd3::compat::u32>(distance) -
+                     auxiliary_root - 0x200U) /
+                    4U
                 )
             );
         }
-        return LegacyBattleMonDatabaseFixture::
-            invoke_legacy_battle_mon_database(request, destination);
+
+        return LegacyBattleMonDatabaseFixture::seek_mon_file(
+            handle, distance, origin
+        );
     }
+
     void report_missing_runtime_word(
         const openswd3::compat::u16 resource_id
     ) override {
@@ -58,22 +61,25 @@ public:
 
 class QueryPort final : public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<openswd3::compat::u8> destination
+    [[nodiscard]] openswd3::compat::u32 seek_mon_file(
+        const openswd3::compat::u32 handle,
+        const openswd3::compat::i32 distance,
+        const openswd3::battle::LegacyBattleMonSeekOrigin origin
     ) override {
         set_profile_dword(0x10U, index);
-        if (request.call ==
-                openswd3::battle::LegacyBattleMonDatabaseCall::seek_file &&
-            seek_calls % 3U == 1U) {
+        if (seek_calls % 3U == 1U) {
             last_profile = static_cast<openswd3::compat::u16>(
-                (request.distance - auxiliary_root - 0x200U) / 4U
+                (std::bit_cast<openswd3::compat::u32>(distance) -
+                 auxiliary_root - 0x200U) /
+                4U
             );
         }
-        return LegacyBattleMonDatabaseFixture::
-            invoke_legacy_battle_mon_database(request, destination);
+
+        return LegacyBattleMonDatabaseFixture::seek_mon_file(
+            handle, distance, origin
+        );
     }
+
     openswd3::compat::u16 last_profile{};
     openswd3::compat::u32 index{};
 };

@@ -94,17 +94,10 @@ load_legacy_battle_group_b_action_item_special_option(
         port,
         {
             .path = "mon.dat",
-            .output_token = result.definition_destination_token,
             .definition_id = result.definition_argument,
-            .entry_eax = eax,
-            .entry_ecx = ecx,
-            .entry_edx = edx,
         }
     );
     ++result.definition_load_calls;
-    eax = definition_result.return_eax;
-    ecx = definition_result.return_ecx;
-    edx = definition_result.return_edx;
     if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status = LegacyBattleGroupBActionItemSpecialOptionStatus::
             definition_load_typed_stop;

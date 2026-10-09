@@ -18,9 +18,6 @@ using openswd3::battle::LegacyBattleActionCallRequest;
 using openswd3::battle::LegacyBattleActionDispatchContext;
 using openswd3::battle::LegacyBattleActorFrameEntryRequest;
 using openswd3::battle::LegacyBattleActorFrameEntryRoutePorts;
-using openswd3::battle::LegacyBattleMonDatabasePort;
-using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply;
-using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallRequest;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
@@ -76,30 +73,9 @@ public:
         return group_b_typed_stop_callee == callee_token;
     }
 
-    [[nodiscard]] LegacyBattleMonDefinitionTextReleaseCallReply
-    release_legacy_battle_mon_definition_text(
-        const LegacyBattleMonDefinitionTextReleaseCallRequest& request
-    ) override {
-        definition_text_release_requests.push_back(request);
-        if (!definition_text_release_replies.empty()) {
-            const auto reply = definition_text_release_replies.front();
-            definition_text_release_replies.pop_front();
-            if (reply.typed_stop) {
-                return reply;
-            }
-            static_cast<void>(
-                LegacyBattleMonDatabasePort::
-                    release_legacy_battle_mon_definition_text(request)
-            );
-            return reply;
-        }
-        return LegacyBattleMonDatabasePort::
-            release_legacy_battle_mon_definition_text(request);
-    }
-
-    void
-    push_release(const LegacyBattleMonDefinitionTextReleaseCallReply& reply) {
-        definition_text_release_replies.push_back(reply);
+    void release_mon_text(const u32 block_token) override {
+        released_definition_text_tokens.push_back(block_token);
+        LegacyBattleMonDatabaseFixture::release_mon_text(block_token);
     }
 
     void push(const u32 callee, const LegacyBattleActionCallReply& reply) {
@@ -119,11 +95,8 @@ public:
     bool complete_group_b_execution{true};
     LegacyBattleActionCallReply default_reply{.eax = 1U};
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
-    std::deque<LegacyBattleMonDefinitionTextReleaseCallReply>
-        definition_text_release_replies;
     std::vector<LegacyBattleActionCallRequest> calls;
-    std::vector<LegacyBattleMonDefinitionTextReleaseCallRequest>
-        definition_text_release_requests;
+    std::vector<u32> released_definition_text_tokens;
 };
 
 class ActionStreamProvider final
@@ -1449,14 +1422,6 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 15U;
         port.definition_description = {0x41U};
-        port.push_release({.eax = 0xABCD0000U});
-        port.push_release(
-            {.eax = 0x11110000U, .ecx = 0x11112222U, .edx = 0x11113333U}
-        );
-        port.push_release({.eax = 0xBEEF0000U});
-        port.push_release(
-            {.eax = 0x22220000U, .ecx = 0x22222222U, .edx = 0x22223333U}
-        );
         auto context = fixture.context();
         const auto running = dispatch(state, port, context, 0U, 99U);
         state.phase_counter = 0x8001U;
@@ -1496,12 +1461,12 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x00476A80U) == 0U && port.open_calls == 1U &&
                 port.read_calls == 18U && port.release_calls == 6U &&
                 port.definition_text_release_calls == 4U &&
-                port.definition_text_release_requests.size() == 4U &&
+                port.released_definition_text_tokens.size() == 4U &&
                 port.count(0x00478220U) == 0U &&
                 port.count(0x0045B0E0U) == 0U &&
                 port.count(0x004783B0U) == 0U &&
                 port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
-            "opponent action fifteen builds two mirrored records with callee stale EAX high words"
+            "opponent action fifteen builds two mirrored records and releases four descriptions"
         );
     }
 

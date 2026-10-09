@@ -15,8 +15,6 @@ namespace openswd3::special_modes {
 namespace {
 
 constexpr compat::u16 kEntrySoundId = 0x00BBU;
-constexpr compat::u32 kMonProfileScratchToken = 0x004BAB74U;
-constexpr compat::u32 kMonFileNameToken = 0x004AAED0U;
 constexpr compat::u32 kGuardianAttributeScratchToken = 0x004FCD4CU;
 
 [[nodiscard]] constexpr compat::u16 read_mon_profile_word(
@@ -2705,14 +2703,50 @@ LegacyCharacterAttributesRebuildResult rebuild_legacy_character_attributes(
             return ports_.legacy_battle_mon_profile_scratch();
         }
 
-        [[nodiscard]] battle::LegacyBattleMonDatabaseCallReply
-        invoke_legacy_battle_mon_database(
-            const battle::LegacyBattleMonDatabaseCallRequest& request,
-            const std::span<compat::u8> destination
+        [[nodiscard]] openswd3::compat::u32
+        open_mon_file(const std::filesystem::path& path) override {
+            return ports_.open_mon_file(path);
+        }
+
+        [[nodiscard]] openswd3::compat::u32 seek_mon_file(
+            const openswd3::compat::u32 handle,
+            const openswd3::compat::i32 distance,
+            const openswd3::battle::LegacyBattleMonSeekOrigin origin
         ) override {
-            return ports_.invoke_legacy_battle_mon_database(
-                request, destination
-            );
+            return ports_.seek_mon_file(handle, distance, origin);
+        }
+
+        [[nodiscard]] openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+            const openswd3::compat::u32 handle,
+            const std::span<openswd3::compat::u8> destination,
+            const openswd3::compat::u32 requested_bytes
+        ) override {
+            return ports_.read_mon_file(handle, destination, requested_bytes);
+        }
+
+        [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+        allocate_mon_stream(const openswd3::compat::u32 size) override {
+            return ports_.allocate_mon_stream(size);
+        }
+
+        void
+        release_mon_stream(const openswd3::compat::u32 block_token) override {
+            ports_.release_mon_stream(block_token);
+        }
+
+        [[nodiscard]] openswd3::compat::u32
+        mon_text_size(const openswd3::compat::u32 block_token) override {
+            return ports_.mon_text_size(block_token);
+        }
+
+        [[nodiscard]] openswd3::battle::LegacyBattleMonTextAllocation
+        allocate_mon_text(const openswd3::compat::u32 size) override {
+            return ports_.allocate_mon_text(size);
+        }
+
+        void
+        release_mon_text(const openswd3::compat::u32 block_token) override {
+            ports_.release_mon_text(block_token);
         }
 
         compat::i32 release_temporary_attributes() noexcept override {
@@ -5368,10 +5402,7 @@ LegacyGuardianAttributeApplicationResult apply_legacy_guardian_attributes(
         ports,
         {
             .path = "mon.dat",
-            .output_token = profile_token,
             .profile_id = source.template_key,
-            .file_name_token = kMonFileNameToken,
-            .entry_eax = source.template_key,
         }
     );
     ++result.profile_load_calls;
@@ -11404,11 +11435,7 @@ LegacyStandardModeEquipmentRenderResult render_legacy_standard_mode_equipment(
                         ports,
                         {
                             .path = "mon.dat",
-                            .output_token = kMonProfileScratchToken,
                             .profile_id = node->equipment_action_id,
-                            .file_name_token = kMonFileNameToken,
-                            .entry_eax = kMonProfileScratchToken,
-                            .entry_edx = node->equipment_action_id,
                         }
                     );
                 if (battle::legacy_battle_mon_profile_load_stopped(
@@ -12122,16 +12149,12 @@ LegacyStandardModeEquipmentCommitResult commit_legacy_standard_mode_equipment(
         ports,
         {
             .path = "mon.dat",
-            .output_token = kMonProfileScratchToken,
             .profile_id = selected_record->equipment_action_id,
-            .file_name_token = kMonFileNameToken,
-            .entry_ecx = selected_record->equipment_action_id,
-            .entry_edx = kMonProfileScratchToken,
         }
     );
     ++result.helper_call_count;
     result.legacy_return_value =
-        std::bit_cast<compat::i32>(profile_result.return_eax);
+        static_cast<compat::i32>(profile_result.profile_found);
     if (battle::legacy_battle_mon_profile_load_stopped(profile_result.status)) {
         result.status =
             LegacyStandardModeEquipmentCommitStatus::action_load_stopped;
@@ -25507,11 +25530,7 @@ LegacyGameMenuInteractionCommitResult commit_legacy_game_menu_interaction(
             commit_ports,
             {
                 .path = "mon.dat",
-                .output_token = kMonProfileScratchToken,
                 .profile_id = record->equipment_action_id,
-                .file_name_token = kMonFileNameToken,
-                .entry_ecx = record->equipment_action_id,
-                .entry_edx = kMonProfileScratchToken,
             }
         );
         ++result.helper_call_count;
@@ -25522,7 +25541,7 @@ LegacyGameMenuInteractionCommitResult commit_legacy_game_menu_interaction(
                 equipment_payload_stopped;
             return result;
         }
-        if (profile_result.return_eax != 1U ||
+        if (!profile_result.profile_found ||
             (read_mon_profile_dword(profile, 0x04U) & 1U) == 0U) {
             state.interaction_mode = 3U;
             play(0x8BU);

@@ -216,7 +216,8 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
                     LegacyBattleGroupBActionCompositionStatus::
                         profile_load_typed_stop &&
                 result.port_calls == 3U && result.text_bytes_written == 2U &&
-                output == 0x6688U && result.return_eax == 0U &&
+                output == 0x6688U && port.allocation_calls == 2U &&
+                port.release_calls == 1U &&
                 actor->action_composition.action_text[0U] == 'P' &&
                 actor->action_composition.derived_words[0U] == 9U &&
                 actor->action_composition.mode_flags == 0x04U,

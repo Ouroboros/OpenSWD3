@@ -4664,18 +4664,15 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return color - 1;
         }
 
-        [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-        invoke_legacy_battle_mon_database(
-            const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-            const std::span<u8> destination
-        ) override {
+        [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+        allocate_mon_stream(const u32 size) override {
             set_profile_word(0x10U, render_variant);
             if (!requested_profile_ids.empty()) {
                 allocation_succeeds = !failed_action.has_value() ||
                     *failed_action != requested_profile_ids.back();
             }
-            return openswd3::test::LegacyBattleMonDatabaseFixture::
-                invoke_legacy_battle_mon_database(request, destination);
+
+            return LegacyBattleMonDatabaseFixture::allocate_mon_stream(size);
         }
 
         i32 execute_equipment_render(
@@ -5058,19 +5055,21 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return released_workspace_return;
         }
 
-        [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-        invoke_legacy_battle_mon_database(
-            const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-            const std::span<u8> destination
-        ) override {
+        [[nodiscard]] u32
+        open_mon_file(const std::filesystem::path& path) override {
+            open_succeeds = true;
+            return LegacyBattleMonDatabaseFixture::open_mon_file(path);
+        }
+
+        [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+        allocate_mon_stream(const u32 size) override {
             if (equipment_action_load.has_value()) {
                 set_profile_dword(0x04U, equipment_action_load->flags);
             }
-            open_succeeds = true;
+
             allocation_succeeds = equipment_action_load.has_value() &&
                 equipment_action_load->legacy_return_value == 1;
-            return openswd3::test::LegacyBattleMonDatabaseFixture::
-                invoke_legacy_battle_mon_database(request, destination);
+            return LegacyBattleMonDatabaseFixture::allocate_mon_stream(size);
         }
 
         sm::LegacyGuardianAttributeTarget* resolve_equipment_guardian_target(
@@ -10867,10 +10866,6 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
             using State = openswd3::special_modes::
                 LegacyStandardModeDatabaseInitializationState;
             using Text = openswd3::battle::LegacyBattleMonText;
-            using Request = openswd3::battle::
-                LegacyBattleMonDefinitionTextReleaseCallRequest;
-            using Reply =
-                openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply;
             struct HeapPorts final
                 : openswd3::special_modes::
                       LegacyStandardModeDatabaseRecordRefreshPorts {
@@ -10879,43 +10874,30 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 std::vector<u32> releases;
                 bool records_intact{true};
 
-                Reply release_legacy_battle_mon_definition_text(
-                    const Request& request
-                ) override {
+                void release_mon_text(const u32 block_token) override {
                     records_intact = records_intact &&
                         state->first_runtime_record[0U] == 0xA5U &&
                         state->second_runtime_record[0U] == 0xB5U;
-                    releases.push_back(request.block_token);
-                    return heap.release(request);
+                    releases.push_back(block_token);
+                    heap.free(block_token);
                 }
             } heap_ports;
             State heap_state;
             heap_ports.state = &heap_state;
             heap_state.first_runtime_record.fill(0xA5U);
             heap_state.second_runtime_record.fill(0xB5U);
-            const auto first = heap_ports.heap.invoke({
-                .call = openswd3::battle::LegacyBattleMonDatabaseCall::
-                    allocate_definition_text,
-                .allocation_size = 4U,
-            });
-            const auto second = failure == 2U
-                ? first
-                : heap_ports.heap.invoke({
-                      .call = openswd3::battle::LegacyBattleMonDatabaseCall::
-                          allocate_definition_text,
-                      .allocation_size = 4U,
-                  });
+            const auto first = heap_ports.heap.allocate(4U);
+            const auto second =
+                failure == 2U ? first : heap_ports.heap.allocate(4U);
             const auto bind_record =
                 [](auto& record, Text& text, const auto& allocation) {
                     for (unsigned byte = 0U; byte < 4U; ++byte) {
-                        record[0xACU + byte] =
-                            static_cast<u8>(allocation.eax >> (byte * 8U));
+                        record[0xACU + byte] = static_cast<u8>(
+                            allocation.block_token >> (byte * 8U)
+                        );
                     }
 
-                    text.bind(
-                        allocation.definition_text_storage,
-                        allocation.definition_text_release
-                    );
+                    text.bind(allocation.storage, allocation.release);
                 };
             bind_record(
                 heap_state.first_runtime_record,
@@ -10930,9 +10912,7 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
             const auto first_before = heap_state.first_runtime_record;
             const auto second_before = heap_state.second_runtime_record;
             if (failure == 1U) {
-                static_cast<void>(heap_ports.heap.release({
-                    .block_token = first.eax,
-                }));
+                heap_ports.heap.free(first.block_token);
             }
 
             const auto refreshed = openswd3::special_modes::
@@ -10945,7 +10925,7 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 "both runtime records stay intact until both frees succeed"
             );
             test.expect_true(
-                first.definition_text_storage->empty(),
+                first.storage->empty(),
                 "refresh releases actual heap storage and invalidates aliases"
             );
             if (failure == 0U) {
@@ -10955,7 +10935,7 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                                 LegacyStandardModeDatabaseRecordRefreshStatus::
                                     completed &&
                         refreshed.released_token_count == 2U &&
-                        second.definition_text_storage->empty() &&
+                        second.storage->empty() &&
                         heap_state.first_runtime_record[0U] == 0U &&
                         heap_state.second_runtime_record[0U] == 0U &&
                         get_u16(heap_state.first_runtime_record, 4U) ==
@@ -11890,17 +11870,8 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             return static_cast<i32>(100U + targets.size());
         }
 
-        openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply
-        release_legacy_battle_mon_definition_text(
-            const openswd3::battle::
-                LegacyBattleMonDefinitionTextReleaseCallRequest& request
-        ) override {
-            if (stop_runtime_release) {
-                return {.typed_stop = true};
-            }
-
-            return LegacyBattleMonDatabasePort::
-                release_legacy_battle_mon_definition_text(request);
+        bool release_runtime_value(const u32) override {
+            return !stop_runtime_release;
         }
 
         bool stop_runtime_release{};
@@ -28490,16 +28461,23 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             inventory_span_queries.push_back(item_id);
             return inventory_span;
         }
-        [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-        invoke_legacy_battle_mon_database(
-            const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-            const std::span<u8> destination
+        [[nodiscard]] u32
+        open_mon_file(const std::filesystem::path& path) override {
+            open_succeeds = equipment_load_return == 1;
+            return LegacyBattleMonDatabaseFixture::open_mon_file(path);
+        }
+
+        [[nodiscard]] openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+            const u32 handle,
+            const std::span<u8> destination,
+            const u32 requested_bytes
         ) override {
             set_profile_dword(0x04U, equipment_payload_flags);
-            open_succeeds = equipment_load_return == 1;
-            return openswd3::test::LegacyBattleMonDatabaseFixture::
-                invoke_legacy_battle_mon_database(request, destination);
+            return LegacyBattleMonDatabaseFixture::read_mon_file(
+                handle, destination, requested_bytes
+            );
         }
+
         openswd3::special_modes::LegacyGuardianAttributeTarget*
         resolve_game_menu_guardian_target(const u32 slot) noexcept override {
             copied_slots.push_back(slot);

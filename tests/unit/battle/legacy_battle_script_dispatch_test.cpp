@@ -3916,6 +3916,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
         actor.resource_bytes[0x65U] = 0xFFU;
         actor.resource_bytes[0x90U] = 0x7AU;
         port.definition = actor.resource_bytes;
+        port.definition_description = {0x41U, 0x42U};
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace,
             fixture.bindings(),
@@ -3926,8 +3927,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
-                result.return_eax == 1U && result.return_ecx == 0xDEADBEEFU &&
-                result.return_edx == 5U && fixture.workspace.cursor == 6U &&
+                fixture.workspace.cursor == 6U &&
                 fixture.workspace.value_a == -128 &&
                 fixture.workspace.packed_actor_state == 0x00020000U &&
                 actor.action_configuration.timing_value == 0U &&
@@ -3939,14 +3939,18 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
             "case eighty directly reconfigures the selected group B actor"
         );
         test.expect_true(
-            port.calls.size() == 1U &&
-                port.calls[0U].call ==
-                    LegacyBattleScriptDispatchCall::pending_478220 &&
-                port.calls[0U].argument_count == 1U &&
+            port.calls.empty() &&
                 port.requested_definition_ids == std::vector<u32>{0xFF80U} &&
                 port.open_calls == 1U && port.read_calls == 6U &&
-                port.release_calls == 2U,
-            "case eighty preserves the three reconfiguration callee ABIs"
+                port.release_calls == 2U &&
+                port.definition_text_release_calls == 1U &&
+                actor.resource_description.empty() &&
+                std::all_of(
+                    actor.resource_bytes.begin() + 0xA0U,
+                    actor.resource_bytes.end(),
+                    [](const openswd3::compat::u8 value) { return value == 0U; }
+                ),
+            "case eighty loads MON records and releases the description without opaque script dispatch"
         );
     }
 
@@ -3970,8 +3974,6 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleScriptDispatchStatus::
                         closed_callee_typed_stop &&
-                result.return_eax == 0U && result.return_ecx == 0x100U &&
-                result.return_edx == port.file_handle &&
                 fixture.workspace.cursor == 0U && port.calls.empty() &&
                 port.allocation_calls == 1U && port.release_calls == 0U,
             "case eighty stops before the caller cursor advance when a reclaimed callee stops"
@@ -5932,36 +5934,46 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             openswd3::battle::LegacyBattleMonFileRuntime files;
             openswd3::battle::LegacyBattleMonStreamRuntime streams;
             openswd3::battle::LegacyBattleMonTextRuntime text;
-            openswd3::battle::LegacyBattleMonDatabaseCallReply
-            invoke_legacy_battle_mon_database(
-                const openswd3::battle::LegacyBattleMonDatabaseCallRequest&
-                    request,
-                const std::span<u8> destination
-            ) override {
-                using Call = openswd3::battle::LegacyBattleMonDatabaseCall;
-                switch (request.call) {
-                case Call::open_file:
-                case Call::seek_file:
-                case Call::read_file:
-                    return files.invoke(
-                        request, destination, OPENSWD3_GAME_DATA_ROOT
-                    );
-
-                case Call::allocate_stream:
-                case Call::release_stream:
-                    return streams.invoke(request);
-
-                default:
-                    return text.invoke(request);
-                }
+            u32 open_mon_file(const std::filesystem::path& path) override {
+                return files.open_file(path, OPENSWD3_GAME_DATA_ROOT);
             }
 
-            openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply
-            release_legacy_battle_mon_definition_text(
-                const openswd3::battle::
-                    LegacyBattleMonDefinitionTextReleaseCallRequest& request
+            u32 seek_mon_file(
+                const u32 handle,
+                const openswd3::compat::i32 distance,
+                const openswd3::battle::LegacyBattleMonSeekOrigin origin
             ) override {
-                return text.release(request);
+                return files.seek_file(handle, distance, origin);
+            }
+
+            openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+                const u32 handle,
+                const std::span<u8> destination,
+                const u32 requested_bytes
+            ) override {
+                return files.read_file(handle, destination, requested_bytes);
+            }
+
+            openswd3::battle::LegacyBattleMonStreamAllocation
+            allocate_mon_stream(const u32 size) override {
+                return streams.allocate(size);
+            }
+
+            void release_mon_stream(const u32 block_token) override {
+                streams.release(block_token);
+            }
+
+            u32 mon_text_size(const u32 block_token) override {
+                return text.allocation_size(block_token);
+            }
+
+            openswd3::battle::LegacyBattleMonTextAllocation
+            allocate_mon_text(const u32 size) override {
+                return text.allocate(size);
+            }
+
+            void release_mon_text(const u32 block_token) override {
+                text.free(block_token);
             }
         };
         auto port = std::make_unique<RealMonPort>();
@@ -5985,7 +5997,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 text, name, name, state, *port
             );
         test.expect_true(
-            loaded.return_eax == 1U && length > 0U && length < 16U &&
+            loaded.definition_found && length > 0U && length < 16U &&
                 prepared.status ==
                     openswd3::battle::LegacyBattleDialogTextStatus::completed &&
                 prepared.mon_load_calls == 1U && prepared.release_calls == 2U &&
@@ -6003,8 +6015,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
     {
         openswd3::battle::LegacyBattleMonTextRuntime heap;
         test.expect_true(
-            !heap.release({.block_token = 0U}).typed_stop &&
-                heap.release({.block_token = 0xDEADBEEFU}).typed_stop,
+            heap.release(0U) && !heap.release(0xDEADBEEFU),
             "dialog preparation can free null while an unknown nonzero allocation remains a typed stop"
         );
     }

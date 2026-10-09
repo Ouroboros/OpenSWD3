@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_target_selection_refresh.hpp"
+#include "legacy_battle_mon_database_fixture.hpp"
 
 #include <algorithm>
 #include <map>
@@ -41,8 +42,13 @@ public:
 };
 
 class TargetRefreshPort final
-    : public openswd3::battle::LegacyBattleInputDispatchPort {
+    : public openswd3::battle::LegacyBattleInputDispatchPort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
+    TargetRefreshPort() {
+        open_succeeds = false;
+    }
+
     [[nodiscard]] openswd3::battle::LegacyBattleInputDispatchCallReply
     invoke_input_dispatch(
         const openswd3::battle::LegacyBattleInputDispatchCallRequest& request
@@ -1339,8 +1345,9 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
             "message twenty seven preserves typed category-four success"
         );
         test.expect_true(
-            actor_list.selected_resource_token == 0x76000010U,
-            "message twenty seven publishes the selected typed resource token"
+            actor_list.selected_resource_token == 0x76000010U &&
+                fixture.port.open_calls == 1U && fixture.port.read_calls == 0U,
+            "message twenty seven publishes the selected resource even when its MON file cannot open"
         );
     }
 

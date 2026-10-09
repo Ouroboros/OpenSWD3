@@ -5,36 +5,24 @@
 #include <array>
 #include <cstddef>
 #include <memory>
-#include <optional>
 
 namespace {
 
 using openswd3::battle::LegacyBattleActorGroupBElementState;
 using openswd3::battle::LegacyBattleGroupBActionReconfigurationStatus;
-using openswd3::battle::LegacyBattleMonDatabasePort;
-using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallReply;
-using openswd3::battle::LegacyBattleMonDefinitionTextReleaseCallRequest;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 class Port final : public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] LegacyBattleMonDefinitionTextReleaseCallReply
-    release_legacy_battle_mon_definition_text(
-        const LegacyBattleMonDefinitionTextReleaseCallRequest& request
-    ) override {
-        release_request = request;
+    void release_mon_text(const u32 block_token) override {
+        released_text_token = block_token;
         ++definition_release_calls;
-        if (release_reply.has_value()) {
-            return *release_reply;
-        }
-        return LegacyBattleMonDatabasePort::
-            release_legacy_battle_mon_definition_text(request);
+        LegacyBattleMonDatabaseFixture::release_mon_text(block_token);
     }
 
-    std::optional<LegacyBattleMonDefinitionTextReleaseCallReply> release_reply;
-    LegacyBattleMonDefinitionTextReleaseCallRequest release_request{};
+    u32 released_text_token{};
     u32 definition_release_calls{};
 };
 
@@ -97,12 +85,6 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
         port.definition = *resource_snapshot();
         port.definition_description = {0x41U, 0x42U};
         port.set_profile_word(0x14U, 0x1122U);
-        port.release_reply = {
-            .eax = 0x66666666U,
-            .ecx = 0x77777777U,
-            .edx = 0x88888888U,
-            .typed_stop = false,
-        };
         const auto result = reconfigure_legacy_battle_group_b_action(
             &actor,
             port,
@@ -124,11 +106,8 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
                 read_dword(actor.resource_bytes, 0xA0U) == 0U &&
                 actor.resource_description.empty() &&
                 port.definition_release_calls == 1U &&
-                port.release_request.block_token == 0x72000000U &&
-                result.return_eax == 0x66666666U &&
-                result.return_ecx == 0x77777777U &&
-                result.return_edx == 0x88888888U,
-            "group B action reconfiguration combines the opaque resource lifecycle with typed MON loading"
+                port.released_text_token == 0x72000000U,
+            "group B action reconfiguration loads MON records and releases the owned description"
         );
     }
 

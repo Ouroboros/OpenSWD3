@@ -702,8 +702,6 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                 fixture.port.calls.size() == 1U &&
                 fixture.frame.alternate_selection_limit == 2U &&
                 fixture.frame.transition_value_a == 9U &&
-                result.return_eax == 0U && result.return_ecx == 0x100U &&
-                result.return_edx == fixture.port.file_handle &&
                 fixture.port.requested_definition_ids ==
                     std::vector<u32>{0x5555U} &&
                 fixture.port.release_calls == 0U &&

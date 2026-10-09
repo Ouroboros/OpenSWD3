@@ -1154,16 +1154,14 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eighty() {
             static_cast<u32>(actor) * 0xA4U;
     }
 
-    ScriptGroupBActionReconfigurationPort reconfiguration_port(*this);
     const auto reconfiguration = reconfigure_legacy_battle_group_b_action(
         &element,
-        reconfiguration_port,
+        port_,
         {
             .definition_argument = std::bit_cast<u32>(workspace_.value_a),
             .actor_token = *token,
             .entry_edx = static_cast<u32>(actor) * 345U,
-        },
-        &reconfiguration_port
+        }
     );
     eax_ = reconfiguration.return_eax;
     ecx_ = reconfiguration.return_ecx;

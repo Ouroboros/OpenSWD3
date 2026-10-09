@@ -139,18 +139,10 @@ compose_legacy_battle_group_b_action_profile_mode(
         mon_port,
         {
             .path = "mon.dat",
-            .output_token = result.return_edx,
             .profile_id = result.profile_id,
-            .file_name_token = 0x004AAED0U,
-            .entry_eax = result.return_eax,
-            .entry_ecx = result.return_ecx,
-            .entry_edx = result.return_edx,
         }
     );
     ++result.profile_load_calls;
-    result.return_eax = profile_result.return_eax;
-    result.return_ecx = profile_result.return_ecx;
-    result.return_edx = profile_result.return_edx;
     if (profile_result.status ==
             LegacyBattleMonProfileLoadStatus::stream_zero_typed_stop ||
         profile_result.status ==

@@ -323,19 +323,13 @@ public:
     std::vector<openswd3::battle::LegacyBattleRetreatCommitCallRequest>
         retreat_commit_calls;
 
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
-    ) override {
-        if (group_b_action_typed_stop_callee != 0U &&
-            request.call ==
-                openswd3::battle::LegacyBattleMonDatabaseCall::
-                    allocate_stream) {
+    [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const u32 size) override {
+        if (group_b_action_typed_stop_callee != 0U) {
             allocation_succeeds = false;
         }
-        return openswd3::test::LegacyBattleMonDatabaseFixture::
-            invoke_legacy_battle_mon_database(request, destination);
+
+        return LegacyBattleMonDatabaseFixture::allocate_mon_stream(size);
     }
 
 protected:

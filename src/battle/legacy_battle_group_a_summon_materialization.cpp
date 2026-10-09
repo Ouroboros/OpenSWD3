@@ -132,7 +132,6 @@ materialize_legacy_battle_group_a_summon(
         port,
         {
             .path = "mon.dat",
-            .output_token = state->profile_token,
             .definition_id = role_id,
         }
     );
@@ -141,9 +140,6 @@ materialize_legacy_battle_group_a_summon(
     if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status = LegacyBattleGroupASummonMaterializationStatus::
             profile_load_typed_stop;
-        result.return_eax = definition_result.return_eax;
-        result.return_ecx = definition_result.return_ecx;
-        result.return_edx = definition_result.return_edx;
         return result;
     }
     const auto release_result = release_legacy_battle_mon_definition_text(
@@ -153,12 +149,7 @@ materialize_legacy_battle_group_a_summon(
         },
         state->profile_description,
         port,
-        {
-            .object_token = state->profile_token,
-            .entry_eax = definition_result.return_eax,
-            .entry_ecx = definition_result.return_ecx,
-            .entry_edx = state->profile_token,
-        }
+        state->profile_token
     );
     ++result.port_calls;
     ++result.release_calls;
@@ -167,9 +158,6 @@ materialize_legacy_battle_group_a_summon(
         )) {
         result.status = LegacyBattleGroupASummonMaterializationStatus::
             profile_release_typed_stop;
-        result.return_eax = release_result.return_eax;
-        result.return_ecx = release_result.return_ecx;
-        result.return_edx = release_result.return_edx;
         return result;
     }
 

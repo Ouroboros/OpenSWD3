@@ -22,150 +22,150 @@ public:
     using u16 = compat::u16;
     using u32 = compat::u32;
 
-    [[nodiscard]] battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
+    [[nodiscard]] u32
+    open_mon_file(const std::filesystem::path& path) override {
+        ++open_calls;
+        opened_path = path;
+        return open_succeeds ? file_handle : 0xFFFFFFFFU;
+    }
+
+    [[nodiscard]] u32 seek_mon_file(
+        const u32,
+        const compat::i32 distance,
+        const battle::LegacyBattleMonSeekOrigin origin
     ) override {
-        calls.push_back(request);
-        switch (request.call) {
-        case battle::LegacyBattleMonDatabaseCall::open_file:
-            ++open_calls;
-            if (request.path != nullptr) {
-                opened_path = *request.path;
-            }
-            return {
-                .eax = open_succeeds ? file_handle : 0xFFFFFFFFU,
-                .ecx = request.ecx,
-                .edx = request.edx,
-            };
-
-        case battle::LegacyBattleMonDatabaseCall::seek_file:
-            if (seek_calls % 3U == 1U) {
-                if (request.stream_kind ==
-                    battle::LegacyBattleMonDatabaseStreamKind::profile) {
-                    requested_profile_ids.push_back(
-                        static_cast<u16>(
-                            (request.distance - auxiliary_root - 0x200U) / 4U
-                        )
-                    );
-                } else {
-                    requested_definition_ids.push_back(
-                        (request.distance + 4U) / 4U
-                    );
-                }
-            }
-            ++seek_calls;
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
-
-        case battle::LegacyBattleMonDatabaseCall::read_file: {
-            ++read_calls;
-            const u32 phase = (read_calls - 1U) % 3U;
-            const bool definition_stream = request.stream_kind ==
-                battle::LegacyBattleMonDatabaseStreamKind::definition;
-            if (phase == 0U) {
-                write_dword(
-                    destination,
-                    0U,
-                    definition_stream ? definition_directory_probe
-                                      : auxiliary_root
-                );
-            } else if (phase == 1U) {
-                write_dword(
-                    destination,
-                    0U,
-                    definition_stream ? definition_relative_offset
-                                      : profile_relative_offset
-                );
+        const u32 offset = std::bit_cast<u32>(distance);
+        if (seek_calls % 3U == 1U) {
+            reading_definition =
+                origin == battle::LegacyBattleMonSeekOrigin::current;
+            if (reading_definition) {
+                requested_definition_ids.push_back((offset + 4U) / 4U);
             } else {
-                std::array<u8, battle::kLegacyBattleMonStreamBytes> stream{};
-                if (definition_stream) {
-                    const auto prepared = prepare_definition_record(
-                        definition,
-                        requested_definition_ids.empty()
-                            ? 0U
-                            : requested_definition_ids.back()
-                    );
-                    if (!prepared.has_value() || *prepared) {
-                        stream = make_definition_stream();
-                    }
-                } else {
-                    stream = make_stream();
+                requested_profile_ids.push_back(
+                    static_cast<u16>((offset - auxiliary_root - 0x200U) / 4U)
+                );
+            }
+        }
+
+        ++seek_calls;
+        seek_distances.push_back(distance);
+        seek_origins.push_back(origin);
+        file_position = origin == battle::LegacyBattleMonSeekOrigin::current
+            ? file_position + offset
+            : offset;
+        return file_position;
+    }
+
+    [[nodiscard]] battle::LegacyBattleMonReadResult read_mon_file(
+        const u32, const std::span<u8> destination, const u32 requested_bytes
+    ) override {
+        ++read_calls;
+        const u32 phase = (read_calls - 1U) % 3U;
+        const auto target = destination.first(requested_bytes);
+        if (phase == 0U) {
+            write_dword(target, 0U, auxiliary_root);
+        } else if (phase == 1U) {
+            write_dword(
+                target,
+                0U,
+                reading_definition ? definition_relative_offset
+                                   : profile_relative_offset
+            );
+        } else {
+            std::array<u8, battle::kLegacyBattleMonStreamBytes> stream{};
+            if (reading_definition) {
+                const auto prepared = prepare_definition_record(
+                    definition,
+                    requested_definition_ids.empty()
+                        ? 0U
+                        : requested_definition_ids.back()
+                );
+                if (!prepared.has_value() || *prepared) {
+                    stream = make_definition_stream();
                 }
-                const std::size_t count =
-                    std::min(destination.size(), stream.size());
-                for (std::size_t i = 0U; i < count; ++i) {
-                    destination[i] = stream[i];
-                }
-            }
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
-        }
-
-        case battle::LegacyBattleMonDatabaseCall::allocate_stream: {
-            ++allocation_calls;
-            bool succeeds = allocation_succeeds;
-            if (!allocation_results.empty()) {
-                succeeds = allocation_results.front();
-                allocation_results.pop_front();
-            }
-            return {
-                .eax = succeeds ? stream_token : 0U,
-                .ecx = request.ecx,
-                .edx = request.edx,
-                .stream_bytes = allocated_stream,
-            };
-        }
-
-        case battle::LegacyBattleMonDatabaseCall::release_stream:
-            ++release_calls;
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
-
-        case battle::LegacyBattleMonDatabaseCall::query_definition_text_size: {
-            ++definition_text_size_query_calls;
-            const auto found = definition_text_sizes.find(request.block_token);
-            return {
-                .eax = found == definition_text_sizes.end()
-                    ? static_cast<u32>(definition_description.size())
-                    : found->second,
-                .ecx = request.ecx,
-                .edx = request.edx,
-            };
-        }
-
-        case battle::LegacyBattleMonDatabaseCall::allocate_definition_text: {
-            ++definition_text_allocation_calls;
-            if (!definition_text_allocation_succeeds) {
-                return {.eax = 0U, .ecx = request.ecx, .edx = request.edx};
-            }
-            u32 token = next_definition_text_token;
-            if (!definition_text_allocation_tokens.empty()) {
-                token = definition_text_allocation_tokens.front();
-                definition_text_allocation_tokens.pop_front();
             } else {
-                next_definition_text_token += 0x100U;
+                stream = make_stream();
             }
-            definition_text_sizes[token] = request.allocation_size;
-            return {
-                .eax = token,
-                .ecx = request.ecx,
-                .edx = request.edx,
-                .definition_text_storage =
-                    std::make_shared<battle::LegacyBattleMonText::Storage>(
-                        request.allocation_size
-                    ),
-            };
+
+            std::copy_n(
+                stream.begin(),
+                std::min(target.size(), stream.size()),
+                target.begin()
+            );
         }
 
-        case battle::LegacyBattleMonDatabaseCall::release_definition_text:
-            ++definition_text_release_calls;
-            definition_text_sizes.erase(request.block_token);
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+        read_sizes.push_back(requested_bytes);
+        file_position += requested_bytes;
+        return {.succeeded = true, .bytes_read = requested_bytes};
+    }
+
+    [[nodiscard]] battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const u32 size) override {
+        ++allocation_calls;
+        bool succeeds = allocation_succeeds;
+        if (!allocation_results.empty()) {
+            succeeds = allocation_results.front();
+            allocation_results.pop_front();
         }
-        return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
+
+        if (!succeeds) {
+            return {};
+        }
+
+        return {
+            .block_token = stream_token,
+            .bytes = std::span{allocated_stream}.first(size)
+        };
+    }
+
+    void release_mon_stream(const u32 block_token) override {
+        ++release_calls;
+        released_streams.push_back(block_token);
+    }
+
+    [[nodiscard]] u32 mon_text_size(const u32 block_token) override {
+        ++definition_text_size_query_calls;
+        const auto found = definition_text_sizes.find(block_token);
+        return found == definition_text_sizes.end()
+            ? static_cast<u32>(definition_description.size())
+            : found->second;
+    }
+
+    [[nodiscard]] battle::LegacyBattleMonTextAllocation
+    allocate_mon_text(const u32 size) override {
+        ++definition_text_allocation_calls;
+        if (!definition_text_allocation_succeeds) {
+            return {};
+        }
+
+        u32 token = next_definition_text_token;
+        if (!definition_text_allocation_tokens.empty()) {
+            token = definition_text_allocation_tokens.front();
+            definition_text_allocation_tokens.pop_front();
+        } else {
+            next_definition_text_token += 0x100U;
+        }
+
+        definition_text_sizes[token] = size;
+        return {
+            .block_token = token,
+            .storage =
+                std::make_shared<battle::LegacyBattleMonText::Storage>(size),
+        };
+    }
+
+    void release_mon_text(const u32 block_token) override {
+        ++definition_text_release_calls;
+        definition_text_sizes.erase(block_token);
     }
 
     void reset_mon_calls() noexcept {
-        calls.clear();
+        seek_distances.clear();
+        seek_origins.clear();
+        read_sizes.clear();
+        released_streams.clear();
+        file_position = 0U;
+        reading_definition = false;
         requested_profile_ids.clear();
         requested_definition_ids.clear();
         open_calls = 0U;
@@ -243,7 +243,12 @@ public:
     std::filesystem::path opened_path;
     std::vector<u16> requested_profile_ids;
     std::vector<u32> requested_definition_ids;
-    std::vector<battle::LegacyBattleMonDatabaseCallRequest> calls;
+    std::vector<compat::i32> seek_distances;
+    std::vector<battle::LegacyBattleMonSeekOrigin> seek_origins;
+    std::vector<u32> read_sizes;
+    std::vector<u32> released_streams;
+    u32 file_position{};
+    bool reading_definition{};
     std::unordered_map<u32, u32> definition_text_sizes;
 
 protected:

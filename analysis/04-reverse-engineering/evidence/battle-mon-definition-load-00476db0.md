@@ -1,12 +1,23 @@
 # 战斗MON.DAT定义读取 `0x00476DB0`
 
-状态：`platform_adapted`、`unit_tested`、`real_asset_verified`、`caller_reclaimed`。
+历史解析验证：`platform_adapted`、`unit_tested`、`real_asset_verified`。
+当前具名接口及调用方迁移的定向验证通过，范围见
+[MON接口迁移验证](battle-mon-file-runtime-binding.md#具名接口迁移验证)。
+历史门禁不代表当前差异全部通过。
+
+当前接口只接收路径、定义ID及短读所需的陈旧目录字节。
+结果报告解析状态、`definition_found`、游标、字段写入及分配／释放记录。
+寄存器入口值、寄存器回复和仅用于传参的地址字段已删除。
+下文寄存器描述用于解释原版指令，不要求宿主接口传递易失寄存器。
 
 ## 1. 完整LST范围
 
 权威主体为`0x00476DB0..0x0047720F`，从`proc`到`endp`共586个物理行、335条实际指令、15个call、52个跳转、42个局部标签和3个返回点。没有外部`FUNCTION CHUNK`；下一过程为`0x00477290`。
 
-函数接收固定`0xA4`字节输出定义区和32位逻辑definition参数。它与`0x00476A80`共享MON.DAT惰性文件句柄、1024字节临时流合同和唯一typed port，不建立第二套文件状态。modern把Win32路径、文件、堆块大小查询、分配和释放隔离为`LegacyBattleMonDatabasePort`的追加低层请求；已有枚举值不移动，退役上层调用只保留reserved槽或兼容别名。
+函数接收固定`0xA4`字节输出定义区和32位逻辑definition参数。
+它与`0x00476A80`共享MON.DAT惰性文件句柄、1024字节临时流和同一端口。
+文件打开、定位、读取、块大小查询、分配及释放分别使用具名方法；
+通用MON操作枚举、请求／回复包和默认寄存器回传实现已删除。
 
 ## 2. 旧说明释放、输出清零与目录读取
 
@@ -69,10 +80,10 @@ SDL的`LegacyBattleMonTextRuntime`将动态guest reservation与实际存储登�
 
 ## 7. 验证与动态差分
 
-独立definition测试覆盖open失败、共享句柄、短目录read陈旧字节、低16位索引、1024字节分配零、首tag失败、tag 1、6..22、25..30、100、1000、2000、default、全部字段偏移、寄存器线程、说明旧块释放、空说明一字节分配、两种无终止符推进、输出/流访问typed-stop和三个返回路径。caller回归现覆盖36个已关闭站点对应的生产投影、失败前缀、说明生命周期和reserved槽稳定性；`0x00477400`另有真实LEVEL物品1501到真实MON名称的联合回归。
+独立definition测试覆盖open失败、共享句柄、短目录read陈旧字节、低16位索引、1024字节分配零、首tag失败、tag 1、6..22、25..30、100、1000、2000、default、全部字段偏移、说明旧块释放、空说明一字节分配、两种无终止符推进、输出/流访问typed-stop和三个返回路径。caller回归现覆盖36个已关闭站点对应的生产投影、失败前缀、说明生命周期和reserved槽稳定性；`0x00477400`另有真实LEVEL物品1501到真实MON名称的联合回归。
 
 原函数审计批次的历史门禁为Linux core `189/189`、完整AddressSanitizer `189/189`、Linux app `195/195`；该批日志记录零源码warning、零测试失败和零sanitizer finding。这些历史结果不覆盖当前SDL资源接线改动。
 
-当前未提交批次已取得MON定义、战斗setup、世界物品生命周期及剧情VM的定向core/ASan通过和SDL链接通过。新增向量覆盖说明STOSD/STOSB停止边界、真实文件解析对分配存储的写入、解析停止后的存储保留、显式释放与重复释放、独立说明复制。读档物品重建另有core/ASan及SDL链接验证。部分日志含既有编译警告，不宣称零warning。剧情新建节点失败保留也已通过core/ASan及SDL链接验证。完整敌方初始化、重复进入及实际续玩尚未完成；本批不能据上述局部门禁发布为完整行为。
+此前资源接线批次取得过MON定义、战斗setup、世界物品生命周期及剧情VM的定向core/ASan通过和SDL链接通过；这些结果不覆盖当前接口迁移。新增向量覆盖说明STOSD/STOSB停止边界、真实文件解析对分配存储的写入、解析停止后的存储保留、显式释放与重复释放、独立说明复制。读档物品重建另有core/ASan及SDL链接验证。部分日志含既有编译警告，不宣称零warning。剧情新建节点失败保留也已通过core/ASan及SDL链接验证。完整敌方初始化、重复进入及实际续玩尚未完成；本批不能据上述局部门禁发布为完整行为。
 
 当前缺少原版文件句柄、相对seek返回值、堆token、陈旧短读、说明块计数、全部caller及callee寄存器联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整LST静态闭环、typed故障隔离、真实资产只读验证和Linux构建验证。

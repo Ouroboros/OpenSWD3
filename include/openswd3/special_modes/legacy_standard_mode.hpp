@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -5826,11 +5827,12 @@ class LegacyStandardModeDatabaseRecordRefreshPorts
 public:
     virtual ~LegacyStandardModeDatabaseRecordRefreshPorts() = default;
     [[nodiscard]] virtual bool release_runtime_value(compat::u32 token) {
-        return !release_legacy_battle_mon_definition_text({
-                                                              .block_token =
-                                                                  token,
-                                                          })
-                    .typed_stop;
+        try {
+            release_mon_text(token);
+            return true;
+        } catch (const std::invalid_argument&) {
+            return false;
+        }
     }
 
     [[nodiscard]] virtual std::optional<LegacyStandardModeDatabaseRecordPair>

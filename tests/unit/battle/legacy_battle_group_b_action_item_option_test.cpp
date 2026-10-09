@@ -66,26 +66,21 @@ public:
     u32 replacement_resource_token{};
     std::array<u8, 0xA4> replacement_resource_bytes{};
 
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
-    ) override {
-        if (load_reply.typed_stop &&
-            request.call ==
-                openswd3::battle::LegacyBattleMonDatabaseCall::
-                    allocate_stream) {
+    [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const u32 size) override {
+        if (load_reply.typed_stop) {
             allocation_succeeds = false;
         }
-        auto reply = openswd3::test::LegacyBattleMonDatabaseFixture::
-            invoke_legacy_battle_mon_database(request, destination);
-        if (request.call ==
-                openswd3::battle::LegacyBattleMonDatabaseCall::release_stream &&
-            actor_to_mutate != nullptr) {
+
+        return LegacyBattleMonDatabaseFixture::allocate_mon_stream(size);
+    }
+
+    void release_mon_stream(const u32 block_token) override {
+        LegacyBattleMonDatabaseFixture::release_mon_stream(block_token);
+        if (actor_to_mutate != nullptr) {
             actor_to_mutate->resource_token = replacement_resource_token;
             actor_to_mutate->resource_bytes = replacement_resource_bytes;
         }
-        return reply;
     }
 
 protected:
@@ -362,11 +357,10 @@ void test_battle_group_b_action_item_option(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionItemOptionStatus::
                         definition_load_typed_stop &&
-                result.return_eax == 0U && result.return_ecx == 0x100U &&
                 actor.action_composition.resource_definition[0U] == 0U &&
                 output == 0xDDDDDDDDU && port.copy_requests.empty() &&
                 port.release_calls == 0U,
-            "a loader stop publishes its completed definition prefix and register reply"
+            "a loader stop preserves the cleared definition and blocks copying and release"
         );
     }
 

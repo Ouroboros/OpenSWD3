@@ -217,24 +217,18 @@ public:
     u32 music_return{0x12345678U};
     u32 surface_operation_return{0x87654321U};
 
-    [[nodiscard]] openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
-    ) override {
+    [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const openswd3::compat::u32 size) override {
         const auto call = LegacyBattleFrameCoordinatorCall::
             reserved_group_b_action_item_load_definition;
         const auto found = replies.find(call);
         if (found != replies.end() &&
-            found->second.message_phase_action_item_typed_stop &&
-            request.call ==
-                openswd3::battle::LegacyBattleMonDatabaseCall::
-                    allocate_stream) {
+            found->second.message_phase_action_item_typed_stop) {
             openswd3::test::LegacyBattleMonDatabaseFixture::
                 allocation_succeeds = false;
         }
         return openswd3::test::LegacyBattleMonDatabaseFixture::
-            invoke_legacy_battle_mon_database(request, destination);
+            allocate_mon_stream(size);
     }
 
 protected:

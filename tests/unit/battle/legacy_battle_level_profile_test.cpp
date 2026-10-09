@@ -21,9 +21,6 @@ using openswd3::battle::LegacyBattleLevelProfileCallReply;
 using openswd3::battle::LegacyBattleLevelProfileCallRequest;
 using openswd3::battle::LegacyBattleLevelProfileLoadRequest;
 using openswd3::battle::LegacyBattleLevelProfileLoadStatus;
-using openswd3::battle::LegacyBattleMonDatabaseCall;
-using openswd3::battle::LegacyBattleMonDatabaseCallReply;
-using openswd3::battle::LegacyBattleMonDatabaseCallRequest;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
@@ -118,75 +115,72 @@ public:
         return {};
     }
 
-    [[nodiscard]] LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<u8> destination
-    ) override {
-        switch (request.call) {
-        case LegacyBattleMonDatabaseCall::open_file:
-            ++mon_open_calls;
-            mon_file.open(OPENSWD3_MON_DATA_PATH, std::ios::binary);
-            return {
-                .eax = mon_file.is_open() ? mon_handle : 0xFFFFFFFFU,
-                .ecx = request.ecx,
-                .edx = request.edx,
-            };
-        case LegacyBattleMonDatabaseCall::seek_file: {
-            ++mon_seek_calls;
-            mon_file.clear();
-            std::ios_base::seekdir direction = std::ios::beg;
-            if (request.move_method == 1U) {
-                direction = std::ios::cur;
-            } else if (request.move_method == 2U) {
-                direction = std::ios::end;
-            }
-            mon_file.seekg(
-                static_cast<std::streamoff>(request.distance), direction
-            );
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
-        }
-        case LegacyBattleMonDatabaseCall::read_file:
-            ++mon_read_calls;
-            mon_file.read(
-                reinterpret_cast<char*>(destination.data()),
-                static_cast<std::streamsize>(destination.size())
-            );
-            return {
-                .eax = mon_file.bad() ? 0U : 1U,
-                .ecx = request.ecx,
-                .edx = request.edx,
-                .bytes_read = static_cast<u32>(mon_file.gcount()),
-            };
-        case LegacyBattleMonDatabaseCall::allocate_stream:
-            return {
-                .eax = mon_stream_token,
-                .ecx = request.ecx,
-                .edx = request.edx,
-            };
-        case LegacyBattleMonDatabaseCall::release_stream:
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
-        case LegacyBattleMonDatabaseCall::query_definition_text_size: {
-            const auto found = text_sizes.find(request.block_token);
-            return {
-                .eax = found == text_sizes.end() ? 0U : found->second,
-                .ecx = request.ecx,
-                .edx = request.edx,
-            };
-        }
-        case LegacyBattleMonDatabaseCall::allocate_definition_text: {
-            const u32 token = next_text_token;
-            next_text_token += 0x100U;
-            text_sizes[token] = request.allocation_size;
-            return {.eax = token, .ecx = request.ecx, .edx = request.edx};
-        }
-        case LegacyBattleMonDatabaseCall::release_definition_text:
-            text_sizes.erase(request.block_token);
-            return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
-        }
-        return {};
+    u32 open_mon_file(const std::filesystem::path&) override {
+        ++mon_open_calls;
+        mon_file.open(OPENSWD3_MON_DATA_PATH, std::ios::binary);
+        return mon_file.is_open() ? mon_handle : 0xFFFFFFFFU;
     }
 
+    u32 seek_mon_file(
+        const u32,
+        const openswd3::compat::i32 distance,
+        const openswd3::battle::LegacyBattleMonSeekOrigin origin
+    ) override {
+        ++mon_seek_calls;
+        mon_file.clear();
+        const auto direction =
+            origin == openswd3::battle::LegacyBattleMonSeekOrigin::current
+            ? std::ios::cur
+            : std::ios::beg;
+        mon_file.seekg(static_cast<std::streamoff>(distance), direction);
+        return static_cast<u32>(mon_file.tellg());
+    }
+
+    openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+        const u32, const std::span<u8> destination, const u32 requested_bytes
+    ) override {
+        ++mon_read_calls;
+        mon_file.read(
+            reinterpret_cast<char*>(destination.data()),
+            static_cast<std::streamsize>(requested_bytes)
+        );
+        return {
+            .succeeded = !mon_file.bad(),
+            .bytes_read = static_cast<u32>(mon_file.gcount())
+        };
+    }
+
+    openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const u32 size) override {
+        mon_stream.resize(size);
+        return {.block_token = mon_stream_token, .bytes = mon_stream};
+    }
+
+    void release_mon_stream(const u32) override {
+        mon_stream.clear();
+    }
+
+    u32 mon_text_size(const u32 block_token) override {
+        return text_sizes.at(block_token);
+    }
+
+    openswd3::battle::LegacyBattleMonTextAllocation
+    allocate_mon_text(const u32 size) override {
+        const u32 token = next_text_token;
+        next_text_token += 0x100U;
+        text_sizes[token] = size;
+        return {
+            .block_token = token,
+            .storage = std::make_shared<
+                openswd3::battle::LegacyBattleMonText::Storage>(size)
+        };
+    }
+
+    void release_mon_text(const u32 block_token) override {
+        text_sizes.erase(block_token);
+    }
+
+    std::vector<u8> mon_stream;
     std::ifstream level_file;
     std::ifstream mon_file;
     std::unordered_map<u32, u32> text_sizes;

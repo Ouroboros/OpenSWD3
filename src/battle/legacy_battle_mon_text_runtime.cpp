@@ -27,82 +27,53 @@ bool LegacyBattleMonTextRuntime::release_block(
     return true;
 }
 
-LegacyBattleMonDatabaseCallReply LegacyBattleMonTextRuntime::invoke(
-    const LegacyBattleMonDatabaseCallRequest& request
-) {
-    LegacyBattleMonDatabaseCallReply reply{
-        .eax = request.eax,
-        .ecx = request.ecx,
-        .edx = request.edx,
-    };
-    switch (request.call) {
-    case LegacyBattleMonDatabaseCall::allocate_definition_text: {
-        reply.eax = 0U;
-        try {
-            auto storage = std::make_shared<LegacyBattleMonText::Storage>(
-                request.allocation_size
-            );
-            const auto token = asset_runtime::reserve_legacy_guest_bytes(
-                request.allocation_size
-            );
-            if (!token.has_value()) {
-                return reply;
+LegacyBattleMonTextAllocation
+LegacyBattleMonTextRuntime::allocate(const compat::u32 size) {
+    try {
+        auto storage = std::make_shared<LegacyBattleMonText::Storage>(size);
+        const auto token = asset_runtime::reserve_legacy_guest_bytes(size);
+        if (!token.has_value()) {
+            return {};
+        }
+
+        auto release = std::make_shared<const LegacyBattleMonText::Release>(
+            [weak = std::weak_ptr<Blocks>{blocks_}, token = *token]() noexcept {
+                const auto blocks = weak.lock();
+                return blocks && release_block(*blocks, token);
             }
-
-            reply.definition_text_release =
-                std::make_shared<const LegacyBattleMonText::Release>(
-                    [weak = std::weak_ptr<Blocks>{blocks_},
-                     token = *token]() noexcept {
-                        const auto blocks = weak.lock();
-                        // An expired heap is no longer a valid release target.
-                        return blocks && release_block(*blocks, token);
-                    }
-                );
-            blocks_->emplace(*token, Block{request.allocation_size, storage});
-            reply.eax = *token;
-            reply.definition_text_storage = std::move(storage);
-        } catch (const std::bad_alloc&) {
-            return reply;
-        }
-
-        return reply;
-    }
-
-    case LegacyBattleMonDatabaseCall::query_definition_text_size: {
-        const auto found = blocks_->find(request.block_token);
-        if (found == blocks_->end()) {
-            throw std::invalid_argument("unknown MON text size query");
-        }
-
-        // 0x00488B02 reads the requested size from the CRT debug header.
-        reply.eax = found->second.requested_bytes;
-        return reply;
-    }
-
-    case LegacyBattleMonDatabaseCall::release_definition_text:
-        if (!release_block(*blocks_, request.block_token)) {
-            throw std::invalid_argument("unknown MON text release");
-        }
-
-        return reply;
-
-    default:
-        throw std::invalid_argument(
-            "non-text request passed to MON text runtime"
         );
+        blocks_->emplace(*token, Block{size, storage});
+        return {
+            .block_token = *token,
+            .storage = std::move(storage),
+            .release = std::move(release),
+        };
+    } catch (const std::bad_alloc&) {
+        return {};
     }
 }
 
-LegacyBattleMonDefinitionTextReleaseCallReply
-LegacyBattleMonTextRuntime::release(
-    const LegacyBattleMonDefinitionTextReleaseCallRequest& request
-) {
-    return {
-        .eax = request.eax,
-        .ecx = request.ecx,
-        .edx = request.edx,
-        .typed_stop = !release_block(*blocks_, request.block_token),
-    };
+compat::u32 LegacyBattleMonTextRuntime::allocation_size(
+    const compat::u32 block_token
+) const {
+    const auto found = blocks_->find(block_token);
+    if (found == blocks_->end()) {
+        throw std::invalid_argument("unknown MON text size query");
+    }
+
+    return found->second.requested_bytes;
+}
+
+void LegacyBattleMonTextRuntime::free(const compat::u32 block_token) {
+    if (!release_block(*blocks_, block_token)) {
+        throw std::invalid_argument("unknown MON text release");
+    }
+}
+
+bool LegacyBattleMonTextRuntime::release(
+    const compat::u32 block_token
+) noexcept {
+    return release_block(*blocks_, block_token);
 }
 
 }  // namespace openswd3::battle

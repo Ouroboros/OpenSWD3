@@ -9,36 +9,18 @@ class ProfilePort final
     : public openswd3::battle::LegacyBattleActorProfilePreparationPort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] openswd3::battle::LegacyBattleActorProfilePreparationReply
-    build_record(const openswd3::compat::u32 source_value) override {
-        ++build_calls;
-        source = source_value;
-        return {
-            .record =
-                {.output_value = 0x1234U,
-                 .profile_id = 7U,
-                 .fallback_value = 0x5678U},
-            .eax = 1U,
-            .ecx = 2U,
-            .edx = 3U
-        };
-    }
-    [[nodiscard]] openswd3::battle::LegacyBattleActorProfilePreparationReply
-    resolve_record(
+    void resolve_record(
         const openswd3::compat::u32 context_token,
         const openswd3::battle::LegacyBattleActorProfilePreparationRecord&
-            record,
-        const openswd3::compat::u32 eax,
-        const openswd3::compat::u32 ecx,
-        const openswd3::compat::u32 edx
+            record
     ) override {
         ++resolve_calls;
         context = context_token;
-        return {.record = record, .eax = eax, .ecx = ecx, .edx = edx};
+        resolved_record = record;
     }
-    openswd3::compat::u32 build_calls{};
+
+    openswd3::battle::LegacyBattleActorProfilePreparationRecord resolved_record;
     openswd3::compat::u32 resolve_calls{};
-    openswd3::compat::u32 source{};
     openswd3::compat::u32 context{};
 };
 
@@ -80,8 +62,11 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
                 (final_state.profile_buffer[3U] >> 16U) == 0x5678U &&
                 (item_effect.mode_flags & 0x80U) != 0U &&
                 port.context == 0x71000000U && result.build_calls == 1U &&
-                port.build_calls == 0U && result.profile_load_calls == 1U &&
-                port.read_calls == 6U &&
+                port.resolve_calls == 1U &&
+                port.resolved_record.output_value == 0x1234U &&
+                port.resolved_record.profile_id == 7U &&
+                port.resolved_record.fallback_value == 0x5678U &&
+                result.profile_load_calls == 1U && port.read_calls == 6U &&
                 port.requested_definition_ids ==
                     std::vector<openswd3::compat::u32>{9U} &&
                 port.requested_profile_ids ==
@@ -135,8 +120,7 @@ void test_battle_actor_profile_preparation(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActorProfilePreparationStatus::
                         actor_state_typed_stop &&
-                port.build_calls == 0U && port.resolve_calls == 0U &&
-                port.read_calls == 3U &&
+                port.resolve_calls == 0U && port.read_calls == 3U &&
                 port.requested_definition_ids ==
                     std::vector<openswd3::compat::u32>{0U},
             "missing actor profile owner preserves the local-build prefix then stops at the first actor read"

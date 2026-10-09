@@ -450,25 +450,14 @@ prepare_legacy_battle_party_item_definition(
         mon_port,
         {
             .path = request.definition_path,
-            .output_token = eax,
             .definition_id = ecx,
-            .file_name_token = request.mon_file_name_token,
-            .directory_buffer_token = request.mon_directory_buffer_token,
             .stale_directory_probe_value =
                 request.mon_stale_directory_probe_value,
             .stale_relative_offset_value =
                 request.mon_stale_relative_offset_value,
-            .number_of_bytes_read_token =
-                request.mon_number_of_bytes_read_token,
-            .entry_eax = eax,
-            .entry_ecx = ecx,
-            .entry_edx = edx,
         }
     );
     ++result.definition_load_calls;
-    eax = result.definition_load.return_eax;
-    ecx = result.definition_load.return_ecx;
-    edx = result.definition_load.return_edx;
     std::copy_n(
         definition.cbegin(),
         allocated->definition_snapshot.size(),

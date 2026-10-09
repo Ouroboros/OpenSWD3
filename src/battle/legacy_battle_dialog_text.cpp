@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <bit>
 #include <optional>
+#include <stdexcept>
 #include <string_view>
 
 namespace openswd3::battle {
@@ -38,11 +39,10 @@ string_length(const std::span<const u8> bytes) {
         (static_cast<u32>(bytes[0xA1U]) << 8U) |
         (static_cast<u32>(bytes[0xA2U]) << 16U) |
         (static_cast<u32>(bytes[0xA3U]) << 24U);
-    const auto reply = mon.release_legacy_battle_mon_definition_text(
-        {.block_token = token, .eax = token}
-    );
     ++result.release_calls;
-    if (reply.typed_stop) {
+    try {
+        mon.release_mon_text(token);
+    } catch (const std::invalid_argument&) {
         result.status = Status::mon_release_typed_stop;
         return false;
     }
@@ -154,7 +154,7 @@ LegacyBattleDialogTextResult prepare_legacy_battle_dialog_text(
                 return result;
             }
 
-            if (loaded.return_eax == 0U) {
+            if (!loaded.definition_found) {
                 ++result.diagnostics;
                 if (!release_description(definition, mon, result)) {
                     return result;

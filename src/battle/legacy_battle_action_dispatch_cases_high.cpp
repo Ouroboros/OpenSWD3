@@ -485,7 +485,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                 port,
                 {
                     .path = "mon.dat",
-                    .output_token = 0x0053BC28U,
                     .definition_id = message_code,
                 }
             );
@@ -502,12 +501,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     port.legacy_battle_mon_definition_scratch(),
                     port.legacy_battle_mon_definition_scratch_description(),
                     port,
-                    {
-                        .object_token = 0x0053BC28U,
-                        .entry_eax = definition_result.return_eax,
-                        .entry_ecx = definition_result.return_ecx,
-                        .entry_edx = definition_result.return_edx,
-                    }
+                    0x0053BC28U
                 );
             ++result.port_calls;
             if (legacy_battle_mon_definition_text_release_stopped(

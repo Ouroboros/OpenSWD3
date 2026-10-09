@@ -303,7 +303,7 @@ target_include_directories(
 )
 target_link_libraries(
     openswd3_battle_legacy_battle_mon_definition_text_release_tests
-    PRIVATE openswd3_battle_mon
+    PRIVATE openswd3_battle
 )
 add_test(
     NAME battle.legacy_battle_mon_definition_text_release

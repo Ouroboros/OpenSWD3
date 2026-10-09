@@ -198,24 +198,15 @@ LegacyBattleGroupAFinalProcessingResult process_legacy_battle_group_a_final(
     state->profile_buffer.fill(0U);
     result.profile_buffer_dwords_zeroed =
         static_cast<u32>(state->profile_buffer.size());
-    const u32 buffer_token = actor_token + 0x0D90U;
     auto profile_result = load_legacy_battle_mon_profile(
         std::as_writable_bytes(std::span{state->profile_buffer}),
         mon_port,
         {
             .path = "mon.dat",
-            .output_token = buffer_token,
             .profile_id = 0U,
-            .file_name_token = 0x004AAED0U,
-            .entry_eax = 0U,
-            .entry_ecx = ecx,
-            .entry_edx = edx,
         }
     );
     ++result.profile_load_calls;
-    eax = profile_result.return_eax;
-    ecx = profile_result.return_ecx;
-    edx = profile_result.return_edx;
     if (legacy_battle_mon_profile_load_stopped(profile_result.status)) {
         result.status =
             LegacyBattleGroupAFinalProcessingStatus::profile_load_typed_stop;
@@ -235,18 +226,10 @@ LegacyBattleGroupAFinalProcessingResult process_legacy_battle_group_a_final(
             mon_port,
             {
                 .path = "mon.dat",
-                .output_token = buffer_token,
                 .profile_id = static_cast<u16>(eax),
-                .file_name_token = 0x004AAED0U,
-                .entry_eax = eax,
-                .entry_ecx = ecx,
-                .entry_edx = edx,
             }
         );
         ++result.profile_load_calls;
-        eax = profile_result.return_eax;
-        ecx = profile_result.return_ecx;
-        edx = profile_result.return_edx;
         if (legacy_battle_mon_profile_load_stopped(profile_result.status)) {
             result.status = LegacyBattleGroupAFinalProcessingStatus::
                 profile_load_typed_stop;

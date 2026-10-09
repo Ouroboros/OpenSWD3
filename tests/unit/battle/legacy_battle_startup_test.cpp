@@ -149,24 +149,21 @@ public:
         return {};
     }
 
-    openswd3::battle::LegacyBattleMonDatabaseCallReply
-    invoke_legacy_battle_mon_database(
-        const openswd3::battle::LegacyBattleMonDatabaseCallRequest& request,
-        const std::span<openswd3::compat::u8> destination
+    openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+        const openswd3::compat::u32 handle,
+        const std::span<openswd3::compat::u8> destination,
+        const openswd3::compat::u32 requested_bytes
     ) override {
-        const auto reply =
-            LegacyBattleMonDatabaseFixture::invoke_legacy_battle_mon_database(
-                request, destination
-            );
-        if (request.call ==
-                openswd3::battle::LegacyBattleMonDatabaseCall::read_file &&
-            on_read) {
+        const auto result = LegacyBattleMonDatabaseFixture::read_mon_file(
+            handle, destination, requested_bytes
+        );
+        if (on_read) {
             auto callback = std::move(on_read);
             on_read = {};
             callback();
         }
 
-        return reply;
+        return result;
     }
 
 private:

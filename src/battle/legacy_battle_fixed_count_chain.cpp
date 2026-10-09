@@ -1392,17 +1392,10 @@ set_legacy_battle_fixed_definition_curve(
         mon_port,
         {
             .path = request.definition_path,
-            .output_token = request.definition_output_token,
             .definition_id = request.key,
-            .entry_eax = eax,
-            .entry_ecx = ecx,
-            .entry_edx = edx,
         }
     );
     ++result.definition_load_calls;
-    eax = result.definition_load.return_eax;
-    ecx = result.definition_load.return_ecx;
-    edx = result.definition_load.return_edx;
     if (legacy_battle_mon_definition_load_stopped(
             result.definition_load.status
         )) {
@@ -1415,21 +1408,10 @@ set_legacy_battle_fixed_definition_curve(
     }
 
     const auto cleanup = release_legacy_battle_mon_definition_text(
-        definition,
-        description,
-        mon_port,
-        {
-            .object_token = request.definition_output_token,
-            .entry_eax = eax,
-            .entry_ecx = ecx,
-            .entry_edx = edx,
-        }
+        definition, description, mon_port, request.definition_output_token
     );
     ++result.definition_cleanup_calls;
     result.definition_text_release_calls += cleanup.release_calls;
-    eax = cleanup.return_eax;
-    ecx = cleanup.return_ecx;
-    edx = cleanup.return_edx;
     if (legacy_battle_mon_definition_text_release_stopped(cleanup.status)) {
         result.status = LegacyBattleFixedDefinitionCurveSetStatus::
             definition_cleanup_typed_stop;
@@ -1807,17 +1789,10 @@ lookup_legacy_battle_fixed_definition_curve(
         mon_port,
         {
             .path = request.definition_path,
-            .output_token = request.definition_output_token,
             .definition_id = request.key,
-            .entry_eax = eax,
-            .entry_ecx = ecx,
-            .entry_edx = edx,
         }
     );
     ++result.definition_load_calls;
-    eax = result.definition_load.return_eax;
-    ecx = result.definition_load.return_ecx;
-    edx = result.definition_load.return_edx;
     if (legacy_battle_mon_definition_load_stopped(
             result.definition_load.status
         )) {
@@ -1830,21 +1805,10 @@ lookup_legacy_battle_fixed_definition_curve(
     }
 
     const auto cleanup = release_legacy_battle_mon_definition_text(
-        definition,
-        description,
-        mon_port,
-        {
-            .object_token = request.definition_output_token,
-            .entry_eax = eax,
-            .entry_ecx = ecx,
-            .entry_edx = edx,
-        }
+        definition, description, mon_port, request.definition_output_token
     );
     ++result.definition_cleanup_calls;
     result.definition_text_release_calls += cleanup.release_calls;
-    eax = cleanup.return_eax;
-    ecx = cleanup.return_ecx;
-    edx = cleanup.return_edx;
     if (legacy_battle_mon_definition_text_release_stopped(cleanup.status)) {
         result.status = LegacyBattleFixedDefinitionCurveLookupStatus::
             definition_cleanup_typed_stop;

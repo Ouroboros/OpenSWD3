@@ -189,18 +189,11 @@ private:
             port_,
             {
                 .path = "mon.dat",
-                .output_token = kLegacyBattleGrowthItemScratchToken,
                 .definition_id = item_code,
-                .entry_eax = eax_,
-                .entry_ecx = ecx_,
-                .entry_edx = edx_,
             }
         );
         ++result_.port_calls;
         ++result_.item_load_calls;
-        eax_ = definition_result.return_eax;
-        ecx_ = definition_result.return_ecx;
-        edx_ = definition_result.return_edx;
         std::copy_n(
             definition.cbegin(), scratch_.bytes.size(), scratch_.bytes.begin()
         );
@@ -231,18 +224,10 @@ private:
             definition,
             scratch_.description,
             port_,
-            {
-                .object_token = kLegacyBattleGrowthItemScratchToken,
-                .entry_eax = eax_,
-                .entry_ecx = ecx_,
-                .entry_edx = edx_,
-            }
+            kLegacyBattleGrowthItemScratchToken
         );
         ++result_.port_calls;
         ++result_.item_release_calls;
-        eax_ = release_result.return_eax;
-        ecx_ = release_result.return_ecx;
-        edx_ = release_result.return_edx;
         scratch_.description_token = static_cast<u32>(definition[0xA0U]) |
             (static_cast<u32>(definition[0xA1U]) << 8U) |
             (static_cast<u32>(definition[0xA2U]) << 16U) |

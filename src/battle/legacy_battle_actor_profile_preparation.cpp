@@ -50,25 +50,17 @@ LegacyBattleActorProfilePreparationResult prepare_legacy_battle_actor_profile(
         {
             .path = "mon.dat",
             .definition_id = request.source_value,
-            .entry_eax = request.entry_eax,
-            .entry_edx = request.entry_edx,
         }
     );
     ++result.build_calls;
     if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status = LegacyBattleActorProfilePreparationStatus::
             definition_load_typed_stop;
-        result.return_eax = definition_result.return_eax;
-        result.return_ecx = definition_result.return_ecx;
-        result.return_edx = definition_result.return_edx;
         return result;
     }
     if (actor_token == 0U || configuration == nullptr) {
         result.status =
             LegacyBattleActorProfilePreparationStatus::actor_state_typed_stop;
-        result.return_eax = definition_result.return_eax;
-        result.return_ecx = definition_result.return_ecx;
-        result.return_edx = definition_result.return_edx;
         return result;
     }
     const auto release_result = release_legacy_battle_mon_definition_text(
@@ -78,12 +70,7 @@ LegacyBattleActorProfilePreparationResult prepare_legacy_battle_actor_profile(
         },
         configuration->profile_description,
         mon_port,
-        {
-            .object_token = configuration->profile_token,
-            .entry_eax = definition_result.return_eax,
-            .entry_ecx = definition_result.return_ecx,
-            .entry_edx = configuration->profile_token,
-        }
+        configuration->profile_token
     );
     ++result.release_calls;
     if (legacy_battle_mon_definition_text_release_stopped(
@@ -91,17 +78,11 @@ LegacyBattleActorProfilePreparationResult prepare_legacy_battle_actor_profile(
         )) {
         result.status = LegacyBattleActorProfilePreparationStatus::
             definition_release_typed_stop;
-        result.return_eax = release_result.return_eax;
-        result.return_ecx = release_result.return_ecx;
-        result.return_edx = release_result.return_edx;
         return result;
     }
     if (final_state == nullptr) {
         result.status =
             LegacyBattleActorProfilePreparationStatus::actor_state_typed_stop;
-        result.return_eax = release_result.return_eax;
-        result.return_ecx = release_result.return_ecx;
-        result.return_edx = release_result.return_edx;
         return result;
     }
     const LegacyBattleActorProfilePreparationRecord record{
@@ -118,13 +99,7 @@ LegacyBattleActorProfilePreparationResult prepare_legacy_battle_actor_profile(
             static_cast<u16>(static_cast<u16>(definition.bytes[0x35U]) << 8U)
         ),
     };
-    const auto reply = port.resolve_record(
-        request.context_token,
-        record,
-        definition_result.return_eax,
-        definition_result.return_ecx,
-        definition_result.return_edx
-    );
+    port.resolve_record(request.context_token, record);
     ++result.resolve_calls;
     result.output_value = record.output_value;
     ++result.output_writes;
@@ -134,18 +109,10 @@ LegacyBattleActorProfilePreparationResult prepare_legacy_battle_actor_profile(
         mon_port,
         {
             .path = "mon.dat",
-            .output_token = actor_token + 0x0D90U,
             .profile_id = record.profile_id,
-            .file_name_token = 0x004AAED0U,
-            .entry_eax = reply.eax,
-            .entry_ecx = reply.ecx,
-            .entry_edx = reply.edx,
         }
     );
     ++result.profile_load_calls;
-    result.return_eax = profile_result.return_eax;
-    result.return_ecx = profile_result.return_ecx;
-    result.return_edx = profile_result.return_edx;
     if (legacy_battle_mon_profile_load_stopped(profile_result.status)) {
         result.status =
             LegacyBattleActorProfilePreparationStatus::profile_load_typed_stop;
