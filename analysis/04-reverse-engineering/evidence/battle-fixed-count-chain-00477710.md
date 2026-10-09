@@ -2,6 +2,13 @@
 
 状态：`platform_adapted`、`unit_tested`、`caller_reclaimed`。
 
+## 当前语义接口
+
+累加直接接收共享状态、WORD键、DWORD增量和实际根身份。
+删除寄存器请求/结果、重复身份字段、读写计数及两个父调用方的累加调用计数。
+结果仅保留完成状态、实际命中路径/记录和失败位置。
+原版寄存器说明保留为指令证据，不再形成C++接口合同。
+
 ## 1. 完整LST范围与ABI
 
 权威LST函数范围为`0x00477710..0x0047777C`，从`proc`到`endp`共65个物理行、43条实际指令、1个call、4个跳转、4个局部标签和2个返回点。函数没有外部`FUNCTION CHUNK`，唯一callee是20字节分配包装器`0x00487C10`。
@@ -18,7 +25,7 @@
 4. 比较新记录`+0x04`的word键；
 5. 不相等则继续从该记录读取next。
 
-原函数没有长度上限、环检测或键排序。modern helper同样不增加这些条件；legacy token只在`LegacyBattleFixedObjectState`中查找，不解释为宿主指针。未知根在首次`+0x04`读取处typed-stop；未知next则在next已进入EAX后，于该记录首次`+0x04`键读取处typed-stop。
+原函数没有长度上限、环检测或键排序。modern helper同样不增加这些条件；legacy token只在`LegacyBattleFixedObjectState`中查找，不解释为宿主指针。未知根与未知next均在对应记录首次`+0x04`读取处报告失败身份与偏移。
 
 ## 3. 已有记录路径
 
@@ -61,7 +68,7 @@ next为0时以固定大小`0x14`调用`0x00487C10`。allocator reply的EAX、ECX
 
 最终角色步进`0x0045AA00`的组B路径在描述符和动作查询后直接组合同一helper。typed-stop阻断攻击顺序移除、处理计数、终止门和组B reset后缀；成功后才继续。两个caller固定传入delta 1，并共享同一端口物理owner，因此同键在后续调用命中既有记录而不会再次分配。
 
-待审`0x00477780`和`0x00477800`虽访问相邻或同根链状态，本包没有修改其边界或提前解释其语义。
+数量设置与查询已分别迁移为语义接口；三个曲线修改函数及固定状态Port仍待迁移。
 
 ## 7. 双向追溯
 
@@ -75,6 +82,22 @@ next为0时以固定大小`0x14`调用`0x00487C10`。allocator reply的EAX、ECX
 
 C++到LST反向追溯只包含根首比较、next顺序扫描、已有记录门、一次窄分配、先链接、五次顺序清零、重读link、两次word写和一次根word递增。没有额外nil防护、环上限、排序、饱和、加法后门或成功伪造。
 当前容器分配与节点构造边界见实际分配记录。
+
+## 本次数量累加迁移复核
+
+完整函数及两个调用点`454741`、`45AD39`已对照LST。
+两个生产调用方只消费累加状态，保留失败时阻断后续更新的行为。
+原数量19加2得到21；原数量20或21均保持不变。
+原数量1加`FFFFFFFF`得到0；19加`FFFF`得到18。
+缺键新建保留WORD增量、先数量后键以及根WORD回绕递增。
+这些结果由新增边界测试检查实际共享记录，不依赖调用或写入计数。
+DWORD加法后截取低WORD与原版低WORD加法的记录结果相同。
+
+core与AddressSanitizer分别执行固定链独立目标和角色帧316目标，四项均为1/1通过。
+SDL应用构建通过，未启动游戏。
+日志位于`build/tmp/runtime/fixed-count-accumulate-semantic-`前缀下：
+`core-chain.log`、`core-actor.log`、`asan-chain.log`、`asan-actor.log`及`sdl.log`。
+实现、调用方与测试差异已逐项复核；固定状态Port和其他曲线接口仍未迁移完毕。
 
 ## 8. 历史验证与动态差分
 

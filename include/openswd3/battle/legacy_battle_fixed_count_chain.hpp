@@ -14,15 +14,6 @@ inline constexpr compat::u32 kLegacyBattleFixedDefinitionScratchToken =
     0x0053CF50U;
 inline constexpr compat::u32 kLegacyBattleFixedCountLimit = 0x14U;
 
-struct LegacyBattleFixedCountRequest {
-    compat::u32 owner_token{kLegacyBattleFixedCountOwnerToken};
-    compat::u32 key{};
-    compat::u32 delta{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_ecx{};
-    compat::u32 entry_edx{};
-};
-
 enum class LegacyBattleFixedCountStatus : compat::u8 {
     completed,
     record_access_typed_stop,
@@ -41,22 +32,9 @@ struct LegacyBattleFixedCountResult {
         LegacyBattleFixedCountStatus::completed
     };
     LegacyBattleFixedCountPath path{LegacyBattleFixedCountPath::none};
-    compat::u32 owner_token{};
     compat::u32 matched_token{};
-    compat::u32 allocation_token{};
     compat::u32 stopped_token{};
     compat::u32 stopped_offset{};
-    compat::u32 chain_link_reads{};
-    compat::u32 key_reads{};
-    compat::u32 count_reads{};
-    compat::u32 link_writes{};
-    compat::u32 dword_zero_writes{};
-    compat::u32 count_writes{};
-    compat::u32 key_writes{};
-    compat::u32 root_key_increments{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 struct LegacyBattleFixedCountSetResult {
@@ -169,8 +147,10 @@ struct LegacyBattleFixedCurveSetResult {
 // LegacyBattleFixedObjectState; they are never interpreted as host pointers.
 [[nodiscard]] LegacyBattleFixedCountResult accumulate_legacy_battle_fixed_count(
     LegacyBattleFixedObjectState& state,
-    const LegacyBattleFixedCountRequest& request
-);
+    compat::u16 key,
+    compat::u32 quantity_delta,
+    compat::u32 owner_token = kLegacyBattleFixedCountOwnerToken
+) noexcept;
 
 // Typed closure of legacy 0x00477780. Existing records receive the input low
 // word before values above twenty are overwritten with twenty. Missing keys

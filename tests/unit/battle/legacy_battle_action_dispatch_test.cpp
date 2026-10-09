@@ -1251,11 +1251,11 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
             port.world_item_list_state().player_inventory.front();
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.fixed_count_calls == 1U &&
+                port.legacy_battle_fixed_object_state()
+                        .fixed_count_nodes.size() == 1U &&
                 result.fixed_count.path ==
                     openswd3::battle::LegacyBattleFixedCountPath::
                         allocated_node &&
-                port.count(0x00477710U) == 0U &&
                 port.count(0x00487C10U) == 1U &&
                 port.legacy_battle_fixed_object_state()
                         .fixed_count_nodes.front()

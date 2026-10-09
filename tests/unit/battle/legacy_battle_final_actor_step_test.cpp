@@ -903,11 +903,9 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 port.count(0x0045EFB0U) == 0U &&
                 result.attack_order_remove.matched &&
                 port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
-                result.fixed_count_calls == 1U &&
                 result.fixed_count.path ==
                     openswd3::battle::LegacyBattleFixedCountPath::
                         allocated_node &&
-                port.count(0x00477710U) == 0U &&
                 port.count(0x004783B0U) == 0U &&
                 port.legacy_battle_fixed_object_state()
                         .fixed_count_nodes.size() == 1U &&

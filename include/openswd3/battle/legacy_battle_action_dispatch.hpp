@@ -1678,7 +1678,6 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleActorFrameSnapshotClearResult actor_frame_snapshot_clear{};
     compat::u32 actor_frame_snapshot_clear_calls{};
     LegacyBattleFixedCountResult fixed_count{};
-    compat::u32 fixed_count_calls{};
     LegacyBattleFixedCountLookupResult fixed_count_lookup{};
     LegacyBattlePlayerItemQuantityResult player_item{};
     compat::u32 player_item_calls{};

@@ -669,16 +669,9 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             );
             result.fixed_count = accumulate_legacy_battle_fixed_count(
                 port.legacy_battle_fixed_object_state(),
-                {
-                    .owner_token = kLegacyBattleFixedCountOwnerToken,
-                    .key = target_code.eax,
-                    .delta = 1U,
-                    .entry_eax = target_code.eax,
-                    .entry_ecx = target_code.ecx,
-                    .entry_edx = target_code.edx,
-                }
+                static_cast<u16>(target_code.eax),
+                1U
             );
-            ++result.fixed_count_calls;
             if (result.fixed_count.status !=
                 LegacyBattleFixedCountStatus::completed) {
                 result.status =
