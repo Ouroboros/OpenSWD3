@@ -99,14 +99,9 @@ initialize_legacy_battle_actor_progress(
 LegacyBattleActorProgressThresholdSyncResult
 synchronize_legacy_battle_actor_progress_threshold(
     LegacyBattleActorProgressState* const actor,
-    const LegacyBattleTimingState* const timing,
-    const LegacyBattleActorProgressThresholdSyncRequest& request
+    const LegacyBattleTimingState* const timing
 ) noexcept {
-    LegacyBattleActorProgressThresholdSyncResult result{
-        .return_eax = request.entry_eax,
-        .return_ecx = request.actor_token,
-        .return_edx = request.entry_edx,
-    };
+    LegacyBattleActorProgressThresholdSyncResult result{};
     if (timing == nullptr || !timing->action_threshold_read_accessible) {
         result.status = LegacyBattleActorProgressThresholdSyncStatus::
             action_threshold_read_typed_stop;
@@ -114,8 +109,6 @@ synchronize_legacy_battle_actor_progress_threshold(
     }
 
     result.threshold_word = static_cast<u16>(timing->action_threshold);
-    replace_low_word(result.return_eax, result.threshold_word);
-    result.threshold_reads = 1U;
     if (actor == nullptr || !actor->progress_write_accessible) {
         result.status = LegacyBattleActorProgressThresholdSyncStatus::
             actor_progress_write_typed_stop;
@@ -123,7 +116,6 @@ synchronize_legacy_battle_actor_progress_threshold(
     }
 
     replace_low_word(actor->progress, result.threshold_word);
-    result.progress_writes = 1U;
     return result;
 }
 

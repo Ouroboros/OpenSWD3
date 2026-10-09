@@ -37,10 +37,13 @@ modern实现为`synchronize_legacy_battle_actor_progress_threshold`。阈值直�
 
 访问顺序严格为“阈值word读取”后“角色进度word写入”：
 
-1. 阈值读取不可达时立即停止；`EAX/ECX/EDX`均保持入口值，角色不写；
-2. 阈值读取成功后，`AX`已经替换且阈值读取计数为1；
-3. 角色写入不可达时在该访问停止，保留已替换的`EAX`与未修改的角色进度；
-4. 写入成功时只改角色低word并记录一次写入。
+1. 阈值读取不可达时报告原有读取失败，角色不写；
+2. 阈值读取成功后，语义结果保留所读`threshold_word`；
+3. 角色写入不可达时报告原有写入失败，保留已读阈值与未修改的角色进度；
+4. 写入成功时只改角色低word。
+
+接口只借用角色和共享时序状态。删除寄存器request/reply与读取、写入、调用计数。
+三个caller通过状态判断失败并阻断后缀，不再发布没有业务意义的失败寄存器数值。
 
 没有空对象继续、默认阈值、额外校验或失败后缀。
 
@@ -56,13 +59,19 @@ modern删除原来错误分离的特殊字段投影，直接读取同一startup�
 
 全组A完成循环先清完成word、defeated低word和完成槽，执行组A清理，再调用`0x00478850`。本函数入口`EAX/EDX`继承该reset返回，`ECX`重载为当前组A角色。成功后caller覆盖`AX`为完成表word，因此玩家道具参数保留本函数返回`EAX`高word。
 
-modern先执行同一reset端口，再直接同步startup组A角色进度；同步失败保留全部清理/reset前缀，阻断完成表读取、玩家道具数量步进和循环后缀。
+modern先执行既有角色reset，再直接同步startup组A角色进度；同步失败保留全部清理/reset前缀，阻断完成表读取、玩家道具数量步进和循环后缀。
 
 ### `0x00457FD7`
 
 单组A完成分支同样先清完成状态并调用`0x00478850`，随后调用本函数。之后caller完整覆盖`EAX`和`EDX`，但只覆盖`CX`，所以玩家道具参数高word来自本函数保留的角色`ECX`高word，低word来自完成表。
 
-modern直接使用typed结果的`return_ecx`形成该参数。同步失败阻断完成表、玩家道具步进、目标reset、当前组B source reset及全部公共尾。
+modern直接传递完成表中的16位道具编号。同步失败阻断完成表、玩家道具步进、
+目标reset、当前组B source reset及全部公共尾。
+
+两个道具调用点不需要寄存器高word：`0x0045D187/0045D19B/0045D1D6`仅测试、
+比较与写入`BX`。新建节点时虽在`0x0045D1CF`压入完整`EBX`，随后MON加载器在
+`0x00476E96..00476E9F`将编号与`0xFFFF`相与。高word不影响查找、数量或资料加载。
+因此全组与单目标路径都直接传表中编号，保留真实角色和道具副作用。
 
 三个旧`0x00478370`端口调用均已删除；生产代码没有保留地址常量或opaque fallback。
 
@@ -70,19 +79,27 @@ modern直接使用typed结果的`return_ecx`形成该参数。同步失败阻断
 
 LST到C++：
 
-- `mov ax,[0x004A74CC]`对应共享阈值可达检查、低word截断和`EAX`局部替换；
+- `mov ax,[0x004A74CC]`对应共享阈值可达检查及低word读取；
 - `mov [ecx+0x2A12],ax`对应组A角色进度写可达检查和低word替换；
-- `retn`对应完整`EAX/ECX/EDX`typed结果；
+- `retn`之后caller继续原有业务顺序；现代接口返回访问状态与读取的阈值；
 - 三处xref分别对应转场一次、组B帧全目标一次和单目标一次直接组合。
 
 C++到LST：
 
 - helper没有分支以外的业务门、callee、分配、x87、阈值推导或高word写；
-- 每个caller的owner、入口寄存器来源、后续部分寄存器覆盖和typed-stop后缀均有唯一LST依据；
+- 每个caller的owner、读取与写入顺序、道具编号截断和失败后缀均有LST依据；
 - 阈值与角色进度没有第二份物理owner。
 
 ## 6. 验证与动态差分
 
-定向测试覆盖阈值低word截断、角色内存高word保留、入口`EAX/EDX`残值、返回角色`ECX`、阈值读取停点、角色写入停点、转场查询前缀、两种组B完成参数高word来源、startup owner写入和三个旧端口零调用。最终release验证通过定向`2/2`、Linux core `199/199`、AddressSanitizer `199/199`、Linux app `205/205`与十次重复core，均无warning、sanitizer finding或运行时错误。
+当前测试验证阈值低word截断、角色高word保留、读取失败优先于写入失败、写入失败
+保留已读阈值，以及转场和组B两个分支中的实际角色进度、道具数量及失败后缀。
+不再断言寄存器残值或同步调用次数。
 
-当前缺少原版动态`0x004A74CC`、组A完整对象、异常内存页和三callsite联合寄存器/SEH捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。完整LST、固定状态、寄存器位形和modern caller组合已闭环。
+本批6并发core/ASan定向setup测试各1/1通过，SDL应用链接通过。
+保留既有`legacy_battle_outcome_resolution_test.cpp:133`窄化警告，未修改该文件。
+完整差异复核与`git diff --check`通过，日志保留在
+`build/tmp/runtime/actor-threshold-sync-semantic-{core,asan,sdl}.log`。
+历史版本的全量验证记录为core/ASan各199/199、app205/205，不作为本批验证结果。
+
+当前缺少原版动态`0x004A74CC`、组A完整对象、异常内存页和三callsite联合寄存器/SEH捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。本批证据为静态LST、实际状态测试和三个modern caller；不宣称完成原版动态差分。

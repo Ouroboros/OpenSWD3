@@ -64,53 +64,34 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
     {
         LegacyBattleActorProgressState actor{.progress = 0xFACE0011U};
         LegacyBattleTimingState timing{.action_threshold = -100};
-        const auto result = synchronize_legacy_battle_actor_progress_threshold(
-            &actor,
-            &timing,
-            {
-                .actor_token = 0x005029D0U,
-                .entry_eax = 0xABCD1234U,
-                .entry_edx = 0xA5A55A5AU,
-            }
-        );
+        const auto result =
+            synchronize_legacy_battle_actor_progress_threshold(&actor, &timing);
         test.expect_true(
             result.status ==
                     LegacyBattleActorProgressThresholdSyncStatus::completed &&
                 actor.progress == 0xFACEFF9CU &&
-                result.return_eax == 0xABCDFF9CU &&
-                result.return_ecx == 0x005029D0U &&
-                result.return_edx == 0xA5A55A5AU &&
-                result.threshold_word == 0xFF9CU &&
-                result.threshold_reads == 1U && result.progress_writes == 1U,
-            "actor progress threshold sync copies only the signed threshold low word and preserves register residues"
+                result.threshold_word == 0xFF9CU,
+            "actor progress threshold sync copies the signed threshold low word and preserves the actor high word"
         );
     }
 
     {
-        LegacyBattleActorProgressState actor{.progress = 0xFACE0011U};
+        LegacyBattleActorProgressState actor{
+            .progress = 0xFACE0011U,
+            .progress_write_accessible = false,
+        };
         LegacyBattleTimingState timing{
             .action_threshold = 0x5678,
             .action_threshold_read_accessible = false,
         };
-        const auto result = synchronize_legacy_battle_actor_progress_threshold(
-            &actor,
-            &timing,
-            {
-                .actor_token = 0x005029D0U,
-                .entry_eax = 0xABCD1234U,
-                .entry_edx = 0x11223344U,
-            }
-        );
+        const auto result =
+            synchronize_legacy_battle_actor_progress_threshold(&actor, &timing);
         test.expect_true(
             result.status ==
                     LegacyBattleActorProgressThresholdSyncStatus::
                         action_threshold_read_typed_stop &&
-                actor.progress == 0xFACE0011U &&
-                result.return_eax == 0xABCD1234U &&
-                result.return_ecx == 0x005029D0U &&
-                result.return_edx == 0x11223344U &&
-                result.threshold_reads == 0U && result.progress_writes == 0U,
-            "actor progress threshold sync stops at the first threshold read without a suffix write"
+                actor.progress == 0xFACE0011U,
+            "unreadable threshold takes precedence over the inaccessible actor write and leaves progress unchanged"
         );
     }
 
@@ -120,24 +101,14 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
             .progress_write_accessible = false,
         };
         LegacyBattleTimingState timing{.action_threshold = 0x5678};
-        const auto result = synchronize_legacy_battle_actor_progress_threshold(
-            &actor,
-            &timing,
-            {
-                .actor_token = 0x00525508U,
-                .entry_eax = 0xABCD1234U,
-                .entry_edx = 0x55667788U,
-            }
-        );
+        const auto result =
+            synchronize_legacy_battle_actor_progress_threshold(&actor, &timing);
         test.expect_true(
             result.status ==
                     LegacyBattleActorProgressThresholdSyncStatus::
                         actor_progress_write_typed_stop &&
                 actor.progress == 0xFACE0011U &&
-                result.return_eax == 0xABCD5678U &&
-                result.return_ecx == 0x00525508U &&
-                result.return_edx == 0x55667788U &&
-                result.threshold_reads == 1U && result.progress_writes == 0U,
+                result.threshold_word == 0x5678U,
             "actor progress threshold sync keeps the completed threshold-read prefix at the actor write stop"
         );
     }

@@ -2293,17 +2293,12 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.player_item_calls == 1U &&
-                result.actor_progress_threshold_sync_calls == 1U &&
-                result.actor_progress_threshold_sync.return_eax ==
-                    0x00005678U &&
-                result.actor_progress_threshold_sync.return_ecx ==
-                    0x005029D0U &&
-                result.actor_progress_threshold_sync.return_edx ==
-                    0x00503000U &&
+                result.actor_progress_threshold_sync.threshold_word ==
+                    0x5678U &&
                 result.actor_runtime_reset.calls >= 1U &&
                 fixture.startup->party[0].progress.progress == 0xFACE5678U &&
                 port.count(0x00478850U) == 0U && port.count(0x00478370U) == 0U,
-            "all-target completion directly synchronizes the startup actor progress with reset-call residues"
+            "all-target completion directly copies the shared threshold into startup actor progress"
         );
         test.expect_true(
             result.player_item.return_token == 0x0062000CU,
@@ -2373,18 +2368,10 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             "single-target completion retains completed status after physical gate decay"
         );
         test.expect_true(
-            result.actor_progress_threshold_sync_calls == 1U,
-            "single-target completion directly synchronizes progress once"
-        );
-        test.expect_true(
-            result.actor_progress_threshold_sync.return_eax == 0x00009ABCU &&
-                result.actor_progress_threshold_sync.return_ecx ==
-                    0x005029D0U &&
-                result.actor_progress_threshold_sync.return_edx ==
-                    0x00503000U &&
+            result.actor_progress_threshold_sync.threshold_word == 0x9ABCU &&
                 result.actor_runtime_reset.calls >= 1U &&
                 port.count(0x00478850U) == 0U,
-            "single-target completion preserves reset EAX EDX and actor ECX residues"
+            "single-target completion directly copies the shared action threshold after resetting the actor"
         );
         test.expect_true(
             fixture.startup->party[0].progress.progress == 0xFACE9ABCU,
@@ -2444,12 +2431,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleActorProgressThresholdSyncStatus::
                             actor_progress_write_typed_stop &&
-                result.actor_progress_threshold_sync.return_eax ==
-                    0x00005678U &&
-                result.actor_progress_threshold_sync.return_ecx ==
-                    0x005029D0U &&
-                result.actor_progress_threshold_sync.return_edx ==
-                    0x00503000U &&
+                result.actor_progress_threshold_sync.threshold_word ==
+                    0x5678U &&
                 fixture.startup->party[0].progress.progress == 0xFACE0000U &&
                 state.group_a_completion_words[0] == 0U &&
                 state.group_a_completion_slots[0] == 0U &&
@@ -2457,8 +2440,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 port.count(0x00478AE0U) == 0U &&
                 port.count(0x00478370U) == 0U &&
                 result.actor_runtime_reset.calls >= 1U &&
-                port.count(0x00478850U) == 0U &&
-                result.return_value == 0x00005678U,
+                port.count(0x00478850U) == 0U,
             "single-target actor write stop preserves the reset prefix and blocks table item and target-reset suffixes"
         );
     }

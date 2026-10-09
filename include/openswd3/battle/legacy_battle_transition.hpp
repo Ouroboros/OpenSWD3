@@ -229,7 +229,6 @@ struct LegacyBattleTransitionResult {
     compat::u32 attack_order_calls{};
     LegacyBattleActorProgressThresholdSyncResult
         actor_progress_threshold_sync{};
-    compat::u32 actor_progress_threshold_sync_calls{};
     LegacyBattleActorProgressResult actor_progress{};
     compat::u32 actor_progress_calls{};
     LegacyBattleActorRuntimeResetCallTrace actor_runtime_reset{};

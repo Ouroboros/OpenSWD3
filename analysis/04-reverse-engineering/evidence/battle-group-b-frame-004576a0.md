@@ -205,7 +205,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - signed status直接组合profile/mode、旧整函数零调用、actor/loader typed-stop前缀、双mode、文本、phase与目标；
 - 普通status直接读取组B profile双bit、陈旧EAX/EDX与actor typed-stop前缀；
 - 对手动作分派直连、未完成返回陈旧EBX写入及完整cleanup；
-- 两处completion阈值同步直接写startup组A进度、旧`0x00478370`零调用、全目标分支保留reset EAX高word、单目标分支保留角色ECX高word，以及读取/写入停点的表/道具/目标reset后缀阻断；
+- 两处completion阈值同步直接写startup组A进度、旧`0x00478370`零调用，以及读取/写入停点的表/道具/目标reset后缀阻断；modern直接传完成表中的16位道具编号，不再传递寄存器高word。道具匹配与MON索引均截断为16位，详见[阈值同步证据](battle-actor-progress-threshold-sync-00478370.md)；
 - completion surface实际画布的状态前缀、短缓冲停止和字节回绕零；
 - pending effect及final actor成功尾；
 - profile真实访问typed-stop。

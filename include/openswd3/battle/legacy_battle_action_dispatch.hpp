@@ -1696,7 +1696,6 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 actor_availability_block_calls{};
     LegacyBattleActorProgressThresholdSyncResult
         actor_progress_threshold_sync{};
-    compat::u32 actor_progress_threshold_sync_calls{};
     LegacyBattlePairTransitionResult pair_transition{};
     compat::u32 pair_transition_calls{};
     LegacyBattleRetreatCommitResult retreat_commit{};

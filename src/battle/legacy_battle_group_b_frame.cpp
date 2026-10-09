@@ -1899,22 +1899,14 @@ action_decision_done:
                                     )) {
                                     return result;
                                 }
-                                const auto& reset_reply =
-                                    result.actor_runtime_reset.last;
                                 result.actor_progress_threshold_sync =
                                     synchronize_legacy_battle_actor_progress_threshold(
                                         party != nullptr ? &party->progress
                                                          : nullptr,
                                         context.startup != nullptr
                                             ? &context.startup->timing
-                                            : nullptr,
-                                        {
-                                            .actor_token = target,
-                                            .entry_eax = reset_reply.return_eax,
-                                            .entry_edx = reset_reply.return_edx,
-                                        }
+                                            : nullptr
                                     );
-                                ++result.actor_progress_threshold_sync_calls;
                                 if (result.actor_progress_threshold_sync
                                         .status !=
                                     LegacyBattleActorProgressThresholdSyncStatus::
@@ -1922,9 +1914,6 @@ action_decision_done:
                                     result
                                         .status = LegacyBattleActionDispatchStatus::
                                         actor_progress_threshold_sync_typed_stop;
-                                    result.return_value =
-                                        result.actor_progress_threshold_sync
-                                            .return_eax;
                                     return result;
                                 }
                                 u16 table_value{};
@@ -1936,13 +1925,8 @@ action_decision_done:
                                     )) {
                                     return result;
                                 }
-                                const u32 argument =
-                                    (result.actor_progress_threshold_sync
-                                         .return_eax &
-                                     0xFFFF0000U) |
-                                    table_value;
                                 if (!publish_player_item_quantity(
-                                        port, result, argument, 0U
+                                        port, result, table_value, 0U
                                     )) {
                                     return result;
                                 }
@@ -2009,29 +1993,19 @@ action_decision_done:
                             )) {
                             return result;
                         }
-                        const auto& reset_reply =
-                            result.actor_runtime_reset.last;
                         auto* const startup = context.startup;
                         result.actor_progress_threshold_sync =
                             synchronize_legacy_battle_actor_progress_threshold(
                                 startup != nullptr
                                     ? &startup->party[completed_target].progress
                                     : nullptr,
-                                startup != nullptr ? &startup->timing : nullptr,
-                                {
-                                    .actor_token = target,
-                                    .entry_eax = reset_reply.return_eax,
-                                    .entry_edx = reset_reply.return_edx,
-                                }
+                                startup != nullptr ? &startup->timing : nullptr
                             );
-                        ++result.actor_progress_threshold_sync_calls;
                         if (result.actor_progress_threshold_sync.status !=
                             LegacyBattleActorProgressThresholdSyncStatus::
                                 completed) {
                             result.status = LegacyBattleActionDispatchStatus::
                                 actor_progress_threshold_sync_typed_stop;
-                            result.return_value =
-                                result.actor_progress_threshold_sync.return_eax;
                             return result;
                         }
                         u16 table_value{};
@@ -2043,12 +2017,8 @@ action_decision_done:
                             )) {
                             return result;
                         }
-                        const u32 argument =
-                            (result.actor_progress_threshold_sync.return_ecx &
-                             0xFFFF0000U) |
-                            table_value;
                         if (!publish_player_item_quantity(
-                                port, result, argument, 0U
+                                port, result, table_value, 0U
                             )) {
                             return result;
                         }

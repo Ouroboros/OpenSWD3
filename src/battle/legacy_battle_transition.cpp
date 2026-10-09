@@ -849,21 +849,12 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
             }
             result.actor_progress_threshold_sync =
                 synchronize_legacy_battle_actor_progress_threshold(
-                    &actor_progress,
-                    &startup.timing,
-                    {
-                        .actor_token = actor,
-                        .entry_eax = latest_eax,
-                        .entry_edx = query_reply.edx,
-                    }
+                    &actor_progress, &startup.timing
                 );
-            ++result.actor_progress_threshold_sync_calls;
-            latest_eax = result.actor_progress_threshold_sync.return_eax;
             if (result.actor_progress_threshold_sync.status !=
                 LegacyBattleActorProgressThresholdSyncStatus::completed) {
                 result.status = LegacyBattleTransitionStatus::
                     actor_progress_threshold_sync_typed_stop;
-                result.return_value = latest_eax;
                 return result;
             }
             auto* const frame_source = request.actor_frames == nullptr

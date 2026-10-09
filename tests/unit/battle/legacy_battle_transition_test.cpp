@@ -985,13 +985,7 @@ static void test_battle_transition_visuals(openswd3::test::Context& test) {
                 result.surface_operation_calls == 39U &&
                 result.rare_slot_writes == 1U &&
                 state.rare_actor_slots[0] == 8U &&
-                result.actor_progress_threshold_sync_calls == 1U &&
-                result.actor_progress_threshold_sync.return_eax ==
-                    0xABCD0384U &&
-                result.actor_progress_threshold_sync.return_ecx ==
-                    0x005029D0U &&
-                result.actor_progress_threshold_sync.return_edx ==
-                    0xA5A55A5AU &&
+                result.actor_progress_threshold_sync.threshold_word == 900U &&
                 startup.party[0].progress.progress == 0xFACE0384U &&
                 startup.party[0].progress.action_complete == 1U &&
                 state.current_source_from_frame &&
@@ -1064,21 +1058,11 @@ static void test_battle_transition_visuals(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleTransitionStatus::
                         actor_progress_threshold_sync_typed_stop &&
-                result.actor_progress_threshold_sync_calls == 1U &&
                 result.actor_progress_threshold_sync.status ==
                     openswd3::battle::
                         LegacyBattleActorProgressThresholdSyncStatus::
                             action_threshold_read_typed_stop,
             "transition propagates the threshold read stop from one direct synchronization"
-        );
-        test.expect_true(
-            result.actor_progress_threshold_sync.return_eax == 0xABCD0000U &&
-                result.actor_progress_threshold_sync.return_ecx ==
-                    0x005029D0U &&
-                result.actor_progress_threshold_sync.return_edx ==
-                    0xA5A55A5AU &&
-                result.return_value == 0xABCD0000U,
-            "transition threshold read stop preserves actor-query EAX EDX and actor ECX residues"
         );
         test.expect_true(
             startup.party[0].progress.progress == 0xFACE0011U &&
