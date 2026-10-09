@@ -2,9 +2,17 @@
 
 状态：`platform_adapted`、`unit_tested`、`caller_reclaimed`。
 
+## 当前语义接口
+
+次数递增直接接收共享状态、WORD键、WORD最大值与WORD乘数。
+结果返回实际次数、百分比、signed i64计算值，以及命中路径和失败位置。
+删除入口/返回寄存器、模拟x87栈阶段、读写与转换计数、父级查询计数。
+效果调用方直接使用角色的三个WORD字段，并把计算值低WORD写入共享动作数值。
+下文寄存器和ABI说明保留为原指令证据，不再作为本函数的C++调用合同。
+
 ## 1. 完整权威范围与调用图
 
-唯一行为真值为`swd3.exe.lst`。完整主体为`0x00477830..0x0047791A`，从proc到endp共103个物理行、72条实际指令、5个call、4个跳转、4个局部标签和2个返回点，没有外部`FUNCTION CHUNK`。唯一caller是已关闭的`0x00474FC0`，物理callsite为`0x00474FF3`。
+唯一行为真值为`swd3.exe.lst`。完整主体为`0x00477830..0x0047791C`，从proc到endp共103个物理行、72条实际指令、5个call、4个跳转、4个局部标签和2个返回点，没有外部`FUNCTION CHUNK`。唯一caller是已关闭的`0x00474FC0`，物理callsite为`0x00474FF3`。
 
 五个call由20字节分配包装器`0x00487C10`一次和x87截零转换helper`0x00489654`四次组成；两条主路径各调用转换helper两次。`0x00489654`完整主体先保存x87 control word，把舍入控制位改为toward-zero，以`fistp qword`转换ST(0)，再恢复原control word并返回EDX:EAX；它没有外部chunk。
 
@@ -60,15 +68,44 @@ maximum为零时不增加防护：已有记录先把count夹为零，形成`0/0`
 - allocator返回零或不可映射token：前驱link已先发布，随后停在新节点`+0x00`。
 - 分配记录清零不可访问：保留前驱link和此前完成的dword清零前缀；`+0x04/+0x08`故障时x87 ST(0)阶段为已加载maximum，`+0x0C/+0x10`故障时为已完成`1/maximum`的ratio。
 
-结果以`LegacyBattleFixedCurveX87StackState`显式记录本函数在typed-stop时留下的`empty/maximum/ratio`阶段；`empty`只表示没有本函数自有的待处理值，不断言caller入口物理x87栈为空。正常第二次转换完成后恢复empty。停止点不伪造正常返回，不执行未到达的键、count、scale、根word或第二次转换后缀。
+当前结果保留失败记录与偏移，并通过实际共享数据体现已经完成的写入。旧结果中的模拟x87栈阶段已删除；浮点最大值加载、除法、百分比转换和乘数转换仍在原位置。失败时不伪造正常返回，不执行未到达的键、count、scale、根word或第二次转换后缀。
 
 ## 6. caller回收
 
-`0x00474FC0`已在原`0x00474FF3`位置删除整函数opaque调用，直接把行动者曲线乘数、最大值和键的低word连同入口三寄存器交给typed helper。行动者motion和共享motion仍先清零；成功后只把helper返回AX写共享motion，再继续方向、mode-one skip、目标刷新、效果计算、累计和发布。
+`0x00474FC0`在原`0x00474FF3`位置直接传入行动者的曲线键、最大值和乘数。行动者motion和共享motion仍先清零；成功后把实际signed i64计算值低WORD写入共享motion，再继续方向、mode-one skip、目标刷新、效果计算、累计和发布。不再从曲线结果重建EAX/ECX/EDX。
 
 fixed-curve typed-stop保留两次motion清零和helper内部前缀，阻断共享motion发布、方向后缀、目标callee和最终effect-application latch。动作4与特殊动作400的typed组合继续向上发布独立`fixed_curve_typed_stop`，不把故障混同为shared缺失。生产`include/src`除typed closure注释外不再保留`0x00477830`地址调用边界。
 
-## 7. 验证与动态差分
+## 本次语义迁移复核
+
+完整LST终点为`47791C`，已修正文首旧终点。
+共享截零函数现在直接返回signed i64；NaN、无穷和范围外结果保留
+`INT64_MIN`，不会提前返回成功零值。
+另外两个曲线设置函数仍有旧寄存器接口；本批只同步它们对同一截零函数的调用。
+
+调用方在写入共享动作数值后，不再使用曲线返回寄存器作为业务输入。
+后续跳过判断在`47CD60`覆盖EAX，按自身参数与状态判断；其DX比较使用
+`47CE33`新加载的字节。效果计算在`481013`直接从参数覆盖EDX。
+父效果函数其他通用调用仍待迁移，不代表整个效果链已经清理完毕。
+
+测试检查`1/3`截零、较大分数、次数回绕、百分比高WORD保留，
+以及`0/0`和缺键`1/0`的实际64位结果。
+失败测试检查数量不可写时原记录保留、百分比不可写时数量前缀保留，
+以及调用方两个动作数值确已清零而后续发布未发生。
+
+本批core和AddressSanitizer分别构建并执行固定链、setup、角色帧和菜单，
+八项定向测试均各通过1/1；删除剩余旧编号断言后角色帧已复测。
+SDL应用构建通过，未启动游戏。
+日志位于`build/tmp/runtime/fixed-curve-advance-semantic-`前缀下：
+`core-chain.log`、`core-setup.log`、`core-actor-final.log`、`core-menu.log`、
+`asan-chain.log`、`asan-setup.log`、`asan-actor-final.log`、`asan-menu.log`
+及`sdl.log`。源码、测试和文档差异已逐项复核。
+生产及测试扫描已无本接口旧request、查询计数和callee编号调用断言；
+地址只留在源码的原函数出处注释中。
+
+## 7. 历史验证与动态差分
+
+以下完整门禁及短区分配夹具属于旧工作包记录，不是本次重新执行的验证。
 
 叶函数UT覆盖已有根命中、动态节点、递增后inclusive夹限、word回绕、缺键分配、五字清零、`1/3`双截零、scale高word保留、maximum零x87 indefinite、已有count/scale访问stop，以及分配`+0x08`前maximum阶段和`+0x0C`前ratio阶段。caller测试覆盖fixed owner真实曲线输出、mode-one skip、signed motion累计、9999夹限、负一抑制、caller count访问stop及全部旧地址零调用。
 

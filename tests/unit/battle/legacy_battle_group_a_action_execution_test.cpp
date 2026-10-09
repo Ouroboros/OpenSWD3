@@ -327,7 +327,6 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
         test.expect_true(
             result.return_eax == 1U && result.target_calls == 1U &&
                 port.count(0x00474FC0U) == 0U &&
-                port.count(0x00477830U) == 0U &&
                 port.count(0x0047CD60U) == 1U &&
                 port.count(0x00478780U) == 0U &&
                 port.count(0x00481010U) == 1U &&
@@ -368,7 +367,6 @@ void test_battle_group_a_action_execution(openswd3::test::Context& test) {
                 state.primary_action_record.field_8c == 0U &&
                 port.count(0x0047F940U) == 1U &&
                 port.count(0x00474FC0U) == 0U &&
-                port.count(0x00477830U) == 0U &&
                 port.count(0x0047CD60U) == 1U &&
                 port.count(0x00478780U) == 0U &&
                 port.count(0x00481010U) == 1U &&

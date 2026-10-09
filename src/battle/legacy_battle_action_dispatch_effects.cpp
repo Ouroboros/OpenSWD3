@@ -884,34 +884,20 @@ LegacyBattleTargetEffectResult apply_legacy_battle_target_effect(
         return result;
     }
     shared->shared_motion_word = 0U;
-    replace_low_word(registers.eax, actor->effect_curve_value_a);
-    replace_low_word(registers.ecx, actor->effect_curve_value_b);
-    replace_low_word(registers.edx, actor->effect_curve_index);
-    ++result.curve_query_calls;
     result.fixed_curve = advance_legacy_battle_fixed_curve(
         port.legacy_battle_fixed_object_state(),
-        {
-            .key = registers.edx,
-            .maximum = registers.ecx,
-            .multiplier = registers.eax,
-            .entry_eax = registers.eax,
-            .entry_ecx = registers.ecx,
-            .entry_edx = registers.edx,
-        }
+        actor->effect_curve_index,
+        actor->effect_curve_value_b,
+        actor->effect_curve_value_a
     );
-    registers.eax = result.fixed_curve.return_eax;
-    registers.ecx = result.fixed_curve.return_ecx;
-    registers.edx = result.fixed_curve.return_edx;
     if (result.fixed_curve.status != LegacyBattleFixedCountStatus::completed) {
         result.status = LegacyBattleTargetEffectStatus::fixed_curve_typed_stop;
-        result.return_eax = registers.eax;
-        result.return_ecx = registers.ecx;
-        result.return_edx = registers.edx;
         return result;
     }
-    shared->shared_motion_word = low_word(registers.eax);
+
+    shared->shared_motion_word =
+        static_cast<u16>(result.fixed_curve.scaled_value);
     const u32 field_26c0 = actor->field_26c0;
-    registers.eax = (registers.eax & 0xFFFFFF00U) | static_cast<u8>(field_26c0);
     const u32 direction = (field_26c0 & 0x80U) != 0U ? 8U : 0U;
 
     registers.eax = request.mode;

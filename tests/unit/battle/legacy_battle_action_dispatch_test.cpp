@@ -3281,7 +3281,6 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 effect.effect_update_calls == 1U &&
                 effect.frame_lookup_calls == 1U && effect.render_calls == 1U &&
                 effect_port.count(0x00474FC0U) == 0U &&
-                effect_port.count(0x00477830U) == 0U &&
                 effect_port.count(0x00478780U) == 0U &&
                 effect_port.count(0x00481010U) == 1U &&
                 (effect_actor.action_runtime_gate & 0x8000U) != 0U &&
@@ -3588,7 +3587,6 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 direct.target_event_calls == 1U &&
                 direct.frame_lookup_calls == 1U && direct.render_calls == 1U &&
                 direct_port.count(0x00474FC0U) == 0U &&
-                direct_port.count(0x00477830U) == 0U &&
                 direct_port.count(0x00478780U) == 0U &&
                 direct_port.count(0x00481010U) == 1U &&
                 direct_actor.motion_word == 0xFFF8U &&
@@ -3940,7 +3938,9 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         curve_stop_actor.effect_curve_value_a = 3U;
         curve_stop_actor.effect_curve_value_b = 2U;
         curve_stop_actor.effect_curve_index = 9U;
+        curve_stop_actor.motion_word = 7U;
         static LegacyBattleGroupAActionExecutionSharedState curve_stop_shared;
+        curve_stop_shared.shared_motion_word = 8U;
         static DispatchPort curve_stop_port;
         auto& curve_stop_state =
             curve_stop_port.legacy_battle_fixed_object_state();
@@ -3973,13 +3973,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                         record_access_typed_stop &&
                 curve_stop.fixed_curve.stopped_token == 0x7A000000U &&
                 curve_stop.fixed_curve.stopped_offset == 6U &&
-                curve_stop.return_eax == 0x7A000000U &&
-                curve_stop.return_ecx == 0xBBBB0002U &&
-                curve_stop.return_edx == 0xCCCC0009U &&
                 curve_stop_actor.motion_word == 0U &&
                 curve_stop_shared.shared_motion_word == 0U &&
                 curve_stop_actor.effect_application_latch == 0U &&
-                curve_stop_port.count(0x00477830U) == 0U,
+                curve_stop_state.fixed_count_nodes.front().words[1U] == 9U,
             "target effect stops at the fixed curve count access after preserving the caller prefix"
         );
 
@@ -4023,7 +4020,6 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
             skipped.return_eax == 0xAAAAAAAAU &&
                 skipped.return_ecx == 0xBBBBBBBBU &&
                 skipped.return_edx == 0xCCCCCCCCU &&
-                skipped.curve_query_calls == 1U &&
                 skipped.skip_gate_calls == 1U &&
                 skipped.target_refresh_calls == 0U &&
                 skip_shared.shared_motion_word == 0x8001U &&
@@ -4034,7 +4030,6 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                         existing_root &&
                 skipped.fixed_curve.count == 0x8001U &&
                 skipped.fixed_curve.scale == 50U &&
-                skip_port.count(0x00477830U) == 0U &&
                 has_call_argument(skip_port, 0x0047CD60U, 0U, 8U),
             "target effect directly advances the fixed curve and honors the mode-one direction skip gate"
         );
@@ -4067,9 +4062,8 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 full.return_edx == 0xB0U && full.effect_value == 6 &&
                 full_shared.last_effect_value == 6 &&
                 full_port.battle_pair_primary_value() == 16U &&
-                full.fixed_curve.return_eax == 0xFFFCU &&
+                full.fixed_curve.scaled_value == 0xFFFCU &&
                 full.fixed_curve.scale == 100U &&
-                full_port.count(0x00477830U) == 0U &&
                 full.effect_apply_calls == 1U &&
                 full.effect_property_calls == 1U &&
                 has_call_argument(full_port, 0x0047D640U, 0U, 6U) &&

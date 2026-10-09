@@ -4,12 +4,12 @@
 #include "test.hpp"
 
 #include <array>
+#include <limits>
 
 namespace {
 
 using openswd3::battle::LegacyBattleFixedCountPath;
 using openswd3::battle::LegacyBattleFixedCountStatus;
-using openswd3::battle::LegacyBattleFixedCurveX87StackState;
 using openswd3::battle::LegacyBattleFixedObjectState;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
@@ -472,67 +472,43 @@ void test_curve_existing_and_missing(openswd3::test::Context& test) {
 
     const auto existing = openswd3::battle::advance_legacy_battle_fixed_curve(
         state,
-        {
-            .key = 0xFFFF0007U,
-            .maximum = 0xAAAA0005U,
-            .multiplier = 0xBBBB0014U,
-            .entry_eax = 0xBBBB0014U,
-            .entry_ecx = 0xAAAA0005U,
-            .entry_edx = 0xCCCC0007U,
-        }
+        static_cast<u16>(0xFFFF0007U),
+        static_cast<u16>(0xAAAA0005U),
+        static_cast<u16>(0xBBBB0014U)
     );
     test.expect_true(
         existing.status == LegacyBattleFixedCountStatus::completed &&
             existing.path == LegacyBattleFixedCountPath::existing_root &&
-            existing.x87_stack == LegacyBattleFixedCurveX87StackState::empty &&
-            existing.matched_token == 0x004ACBA8U &&
-            existing.count_writes == 2U && existing.clamp_writes == 1U &&
-            existing.scale_writes == 1U && existing.truncate_calls == 2U &&
-            existing.count == 5U && existing.scale == 100U &&
-            existing.return_eax == 20U && existing.return_ecx == 5U &&
-            existing.return_edx == 0U && count(root[1U]) == 5U &&
-            root[2U] == 0xABCD0064U,
+            existing.matched_token == 0x004ACBA8U && existing.count == 5U &&
+            existing.scale == 100U && existing.scaled_value == 20U &&
+            count(root[1U]) == 5U && root[2U] == 0xABCD0064U,
         "existing fixed curve increments then unsigned-clamps the count and preserves the scale dword high word"
     );
 
     root[1U] = (0xFFFFU << 16U) | 7U;
-    const auto wrapped = openswd3::battle::advance_legacy_battle_fixed_curve(
-        state, {.key = 7U, .maximum = 2U, .multiplier = 20U}
-    );
+    const auto wrapped =
+        openswd3::battle::advance_legacy_battle_fixed_curve(state, 7U, 2U, 20U);
     test.expect_true(
         wrapped.status == LegacyBattleFixedCountStatus::completed &&
             wrapped.count == 0U && wrapped.scale == 0U &&
-            wrapped.count_writes == 1U && wrapped.clamp_writes == 0U &&
-            wrapped.return_eax == 0U && wrapped.return_ecx == 0U &&
-            wrapped.return_edx == 0U && count(root[1U]) == 0U,
+            wrapped.scaled_value == 0U && count(root[1U]) == 0U,
         "existing fixed curve preserves the original word increment wrap before the unsigned maximum comparison"
     );
 
     state = {};
     const auto created = openswd3::battle::advance_legacy_battle_fixed_curve(
         state,
-        {
-            .key = 0xCCCC0009U,
-            .maximum = 0xBBBB0003U,
-            .multiplier = 0xAAAA0064U,
-            .entry_eax = 0xAAAA0064U,
-            .entry_ecx = 0xBBBB0003U,
-            .entry_edx = 0xCCCC0009U,
-        }
+        static_cast<u16>(0xCCCC0009U),
+        static_cast<u16>(0xBBBB0003U),
+        static_cast<u16>(0xAAAA0064U)
     );
     const auto& created_root = state.object_words[1U];
     const auto& node = state.fixed_count_nodes.front();
     test.expect_true(
         created.status == LegacyBattleFixedCountStatus::completed &&
             created.path == LegacyBattleFixedCountPath::allocated_node &&
-            state.fixed_count_nodes.size() == 1U &&
-            created.x87_stack == LegacyBattleFixedCurveX87StackState::empty &&
-            created.link_writes == 1U && created.dword_zero_writes == 5U &&
-            created.key_writes == 1U && created.count_writes == 1U &&
-            created.scale_writes == 1U && created.root_key_increments == 1U &&
-            created.truncate_calls == 2U && created.count == 1U &&
-            created.scale == 33U && created.return_eax == 33U &&
-            created.return_ecx == 0U && created.return_edx == 0U &&
+            state.fixed_count_nodes.size() == 1U && created.count == 1U &&
+            created.scale == 33U && created.scaled_value == 33U &&
             created_root[0U] == node.legacy_token &&
             key(created_root[1U]) == 1U && key(node.words[1U]) == 9U &&
             count(node.words[1U]) == 1U && key(node.words[2U]) == 33U,
@@ -541,16 +517,29 @@ void test_curve_existing_and_missing(openswd3::test::Context& test) {
 
     state = {};
     const auto zero_maximum =
-        openswd3::battle::advance_legacy_battle_fixed_curve(
-            state, {.key = 0U, .maximum = 0U, .multiplier = 5U}
-        );
+        openswd3::battle::advance_legacy_battle_fixed_curve(state, 0U, 0U, 5U);
     test.expect_true(
         zero_maximum.status == LegacyBattleFixedCountStatus::completed &&
             zero_maximum.path == LegacyBattleFixedCountPath::existing_root &&
             zero_maximum.count == 0U && zero_maximum.scale == 0U &&
-            zero_maximum.return_eax == 0U &&
-            zero_maximum.return_edx == 0x80000000U,
-        "zero maximum keeps the original zero-over-zero x87 indefinite high dword while AX remains zero"
+            zero_maximum.scaled_value ==
+                std::numeric_limits<std::int64_t>::min(),
+        "zero maximum preserves the signed 64-bit indefinite result from zero divided by zero"
+    );
+
+    state = {};
+    const auto infinite_ratio =
+        openswd3::battle::advance_legacy_battle_fixed_curve(state, 9U, 0U, 5U);
+    test.expect_true(
+        infinite_ratio.status == LegacyBattleFixedCountStatus::completed &&
+            infinite_ratio.path == LegacyBattleFixedCountPath::allocated_node &&
+            infinite_ratio.scaled_value ==
+                std::numeric_limits<std::int64_t>::min() &&
+            infinite_ratio.count == 1U && infinite_ratio.scale == 0U &&
+            count(state.fixed_count_nodes.front().words[1U]) == 1U &&
+            key(state.fixed_count_nodes.front().words[2U]) == 0U &&
+            key(state.object_words[1U][1U]) == 1U,
+        "a missing key with zero maximum retains its published count and the conversion of infinity"
     );
 }
 
@@ -565,43 +554,28 @@ void test_curve_access_stops(openswd3::test::Context& test) {
         .words = {0U, 9U, 0xAABBCCDDU, 0U, 0U},
         .accessible_bytes = 7U,
     });
-    const auto count_stop = openswd3::battle::advance_legacy_battle_fixed_curve(
-        state,
-        {
-            .key = 9U,
-            .maximum = 2U,
-            .multiplier = 6U,
-            .entry_eax = 0xAAAA0006U,
-            .entry_ecx = 0xBBBB0002U,
-            .entry_edx = 0xCCCC0009U,
-        }
-    );
+    const auto count_stop =
+        openswd3::battle::advance_legacy_battle_fixed_curve(state, 9U, 2U, 6U);
     test.expect_true(
         count_stop.status ==
                 LegacyBattleFixedCountStatus::record_access_typed_stop &&
             count_stop.path == LegacyBattleFixedCountPath::existing_node &&
             count_stop.stopped_token == 0x7C000000U &&
             count_stop.stopped_offset == 6U &&
-            count_stop.return_eax == 0x7C000000U &&
-            count_stop.return_ecx == 0xBBBB0002U &&
-            count_stop.return_edx == 0xCCCC0009U,
+            state.fixed_count_nodes.front().words[1U] == 9U &&
+            state.fixed_count_nodes.front().words[2U] == 0xAABBCCDDU,
         "fixed curve stops before the first inaccessible existing count increment"
     );
 
     state.fixed_count_nodes.front().accessible_bytes = 9U;
-    const auto scale_stop = openswd3::battle::advance_legacy_battle_fixed_curve(
-        state, {.key = 9U, .maximum = 2U, .multiplier = 6U}
-    );
+    const auto scale_stop =
+        openswd3::battle::advance_legacy_battle_fixed_curve(state, 9U, 2U, 6U);
     test.expect_true(
         scale_stop.status ==
                 LegacyBattleFixedCountStatus::record_access_typed_stop &&
             scale_stop.path == LegacyBattleFixedCountPath::existing_node &&
             scale_stop.stopped_token == 0x7C000000U &&
             scale_stop.stopped_offset == 8U && scale_stop.count == 1U &&
-            scale_stop.x87_stack ==
-                LegacyBattleFixedCurveX87StackState::ratio &&
-            scale_stop.truncate_calls == 1U && scale_stop.return_eax == 50U &&
-            scale_stop.return_ecx == 1U && scale_stop.return_edx == 0U &&
             count(state.fixed_count_nodes.front().words[1U]) == 1U &&
             state.fixed_count_nodes.front().words[2U] == 0xAABBCCDDU,
         "fixed curve preserves the increment clamp and first x87 conversion before an inaccessible scale write"
@@ -610,17 +584,13 @@ void test_curve_access_stops(openswd3::test::Context& test) {
     state = {};
     memory.allocation_enabled = false;
     const auto allocation_stop =
-        openswd3::battle::advance_legacy_battle_fixed_curve(
-            state, {.key = 9U, .maximum = 4U, .multiplier = 12U}
-        );
+        openswd3::battle::advance_legacy_battle_fixed_curve(state, 9U, 4U, 12U);
     test.expect_true(
         allocation_stop.status ==
                 LegacyBattleFixedCountStatus::
                     allocation_record_access_typed_stop &&
             allocation_stop.stopped_token == 0U &&
             allocation_stop.stopped_offset == 0U &&
-            allocation_stop.link_writes == 1U &&
-            allocation_stop.dword_zero_writes == 0U &&
             state.object_words[1U][0U] == 0U &&
             key(state.object_words[1U][1U]) == 0U &&
             state.fixed_count_nodes.empty() && memory.outstanding_blocks == 0U,

@@ -4,6 +4,8 @@
 #include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/compat/types.hpp"
 
+#include <cstdint>
+
 namespace openswd3::battle {
 
 inline constexpr compat::u32 kLegacyBattleFixedCountOwnerToken = 0x004B9F00U;
@@ -58,16 +60,6 @@ struct LegacyBattleFixedCountLookupResult {
     compat::u32 stopped_offset{};
 };
 
-struct LegacyBattleFixedCurveAdvanceRequest {
-    compat::u32 owner_token{kLegacyBattleFixedCurveOwnerToken};
-    compat::u32 key{};
-    compat::u32 maximum{};
-    compat::u32 multiplier{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_ecx{};
-    compat::u32 entry_edx{};
-};
-
 // Tracks only values left pending by this helper. `empty` does not assert that
 // the caller's pre-existing physical x87 stack was empty on entry.
 enum class LegacyBattleFixedCurveX87StackState : compat::u8 {
@@ -81,29 +73,12 @@ struct LegacyBattleFixedCurveAdvanceResult {
         LegacyBattleFixedCountStatus::completed
     };
     LegacyBattleFixedCountPath path{LegacyBattleFixedCountPath::none};
-    LegacyBattleFixedCurveX87StackState x87_stack{
-        LegacyBattleFixedCurveX87StackState::empty
-    };
-    compat::u32 owner_token{};
     compat::u32 matched_token{};
-    compat::u32 allocation_token{};
     compat::u32 stopped_token{};
     compat::u32 stopped_offset{};
-    compat::u32 chain_link_reads{};
-    compat::u32 key_reads{};
-    compat::u32 link_writes{};
-    compat::u32 dword_zero_writes{};
-    compat::u32 key_writes{};
-    compat::u32 count_writes{};
-    compat::u32 clamp_writes{};
-    compat::u32 scale_writes{};
-    compat::u32 root_key_increments{};
-    compat::u32 truncate_calls{};
     compat::u16 count{};
     compat::u16 scale{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
+    std::int64_t scaled_value{};
 };
 
 struct LegacyBattleFixedCurveSetRequest {
@@ -175,8 +150,11 @@ lookup_legacy_battle_fixed_count(
 [[nodiscard]] LegacyBattleFixedCurveAdvanceResult
 advance_legacy_battle_fixed_curve(
     LegacyBattleFixedObjectState& state,
-    const LegacyBattleFixedCurveAdvanceRequest& request
-);
+    compat::u16 key,
+    compat::u16 maximum,
+    compat::u16 multiplier,
+    compat::u32 owner_token = kLegacyBattleFixedCurveOwnerToken
+) noexcept;
 
 // Typed closure of legacy 0x00477920. The input count word is written before
 // the inclusive maximum clamp, then its x87-compatible percentage is stored.

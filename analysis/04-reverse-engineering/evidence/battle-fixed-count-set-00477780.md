@@ -80,7 +80,7 @@ core和AddressSanitizer分别构建并执行固定链、菜单两个定向目标
 SDL应用构建通过。未启动游戏程序。
 日志位于`build/tmp/runtime/fixed-count-set-semantic-`前缀下：
 `core-chain.log`、`core-menu.log`、`asan-chain.log`、`asan-menu.log`与`sdl.log`。
-源码与测试差异已逐项核对。数量累加随后已迁移；三个曲线修改函数和固定状态Port仍待迁移。
+源码与测试差异已逐项核对。数量累加和次数递增随后已迁移；曲线设置接口和固定状态Port仍待迁移。
 
 ## 8. 动态差分
 

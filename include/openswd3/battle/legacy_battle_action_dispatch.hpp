@@ -1017,7 +1017,6 @@ struct LegacyBattleTargetEffectResult {
         LegacyBattleTargetEffectStatus::completed
     };
     LegacyBattleFixedCurveAdvanceResult fixed_curve{};
-    compat::u32 curve_query_calls{};
     compat::u32 skip_gate_calls{};
     compat::u32 target_refresh_calls{};
     compat::u32 effect_compute_calls{};
