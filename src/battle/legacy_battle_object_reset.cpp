@@ -28,18 +28,9 @@ LegacyBattleObjectResetResult reset_legacy_battle_objects(
     for (std::size_t index = 0U;
          index < kLegacyBattleFixedResetObjectTokens.size();
          ++index) {
-        const compat::u32 token = kLegacyBattleFixedResetObjectTokens[index];
-        result.fixed_object_tokens[index] = token;
-        auto& reset = result.fixed_object_resets[index];
-        reset = reset_legacy_battle_fixed_object(
-            fixed_object_state.object_words[index], token, registers.edx
+        result.fixed_object_resets[index] = reset_legacy_battle_fixed_object(
+            fixed_object_state.object_words[index]
         );
-        registers = {
-            .eax = reset.return_eax,
-            .ecx = reset.return_ecx,
-            .edx = reset.return_edx,
-        };
-        ++result.fixed_object_reset_calls;
     }
 
     for (compat::u32& word : state.table) {

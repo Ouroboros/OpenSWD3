@@ -5,15 +5,9 @@
 namespace openswd3::battle {
 
 LegacyBattleFixedObjectResetResult reset_legacy_battle_fixed_object(
-    const std::span<compat::u32> object_words,
-    const compat::u32 object_token,
-    const compat::u32 entry_edx
+    const std::span<compat::u32> object_words
 ) noexcept {
-    LegacyBattleFixedObjectResetResult result{
-        .object_token = object_token,
-        .return_ecx = object_token,
-        .return_edx = entry_edx,
-    };
+    LegacyBattleFixedObjectResetResult result;
 
     for (std::size_t index = 0U; index < kLegacyBattleFixedObjectDwordCount;
          ++index) {
@@ -24,9 +18,10 @@ LegacyBattleFixedObjectResetResult reset_legacy_battle_fixed_object(
                 static_cast<compat::u32>(index * sizeof(compat::u32));
             return result;
         }
+
         object_words[index] = 0U;
-        ++result.dword_writes;
     }
+
     return result;
 }
 

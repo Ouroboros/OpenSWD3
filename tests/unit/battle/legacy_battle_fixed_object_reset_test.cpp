@@ -19,18 +19,14 @@ void test_complete_reset(openswd3::test::Context& test) {
         0x55555555U,
     };
 
-    const auto result = openswd3::battle::reset_legacy_battle_fixed_object(
-        words, 0x004B9F00U, 0xAABBCCDDU
-    );
+    const auto result =
+        openswd3::battle::reset_legacy_battle_fixed_object(words);
 
     test.expect_true(
         std::ranges::all_of(words, [](const u32 word) { return word == 0U; }) &&
             result.status == LegacyBattleFixedObjectResetStatus::completed &&
-            result.object_token == 0x004B9F00U && result.dword_writes == 5U &&
-            result.stopped_object_offset == 0U && result.return_eax == 0U &&
-            result.return_ecx == 0x004B9F00U &&
-            result.return_edx == 0xAABBCCDDU,
-        "fixed object reset clears five dwords and returns zero with ECX token and preserved EDX"
+            result.stopped_object_offset == 0U,
+        "fixed object reset clears all five dwords in the supplied record"
     );
 }
 
@@ -47,9 +43,7 @@ void test_write_typed_stop_prefixes(openswd3::test::Context& test) {
         const auto original = words;
 
         const auto result = openswd3::battle::reset_legacy_battle_fixed_object(
-            std::span<u32>{words}.first(accessible_words),
-            0x004ACBA8U,
-            0x10203040U
+            std::span<u32>{words}.first(accessible_words)
         );
 
         bool prefix_matches = true;
@@ -66,10 +60,7 @@ void test_write_typed_stop_prefixes(openswd3::test::Context& test) {
                 result.status ==
                     LegacyBattleFixedObjectResetStatus::
                         object_write_typed_stop &&
-                result.dword_writes == accessible_dword_count &&
-                result.stopped_object_offset == stopped_offset &&
-                result.return_eax == 0U && result.return_ecx == 0x004ACBA8U &&
-                result.return_edx == 0x10203040U,
+                result.stopped_object_offset == stopped_offset,
             "fixed object reset stops at each inaccessible original dword write after preserving the completed prefix"
         );
     }

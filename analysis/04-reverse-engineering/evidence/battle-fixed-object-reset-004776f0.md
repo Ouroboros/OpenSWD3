@@ -27,17 +27,18 @@ return
 
 modern helper接收`span<u32>`而不把旧地址解释为宿主指针。每次写入前检查当前dword是否可访问；长度为0至4时分别在原版对应的`+0x00`、`+0x04`、`+0x08`、`+0x0C`、`+0x10`写入点typed-stop，已完成的低地址前缀保持为零，尚未访问的后缀保持旧值。完整五字span严格完成五次写入。
 
-## 3. 寄存器合同
+## 3. 寄存器证据与当前接口
 
-`mov ecx,[esp+4]`首先发布对象token，随后`xor eax,eax`在第一次对象访问前把EAX清零。五次写入都使用同一零值，函数从不修改EDX。因此正常返回及任一原访问点故障前缀均保持：
+`mov ecx,[esp+4]`取得对象地址，`xor eax,eax`在第一次对象访问前清零EAX。
+五次写入使用同一零值，函数从不修改EDX。
 
-- EAX为0；
-- ECX为对象token；
-- EDX为入口EDX；
-- 成功路径的写入计数为5；
-- typed-stop路径的写入计数等于故障写入之前已完成的dword数。
+当前C++仅接收实际`span<u32>`，结果仅保留完成/访问失败状态和故障偏移。
+对象token、入口EDX、三个返回寄存器和写入计数均已删除。
+父级中该叶函数的调用计数与重复记录的根身份也已删除。
 
-modern结果显式发布EAX、ECX、EDX、写入计数和故障偏移，没有把正常零返回误判为失败。
+父级`451A48/451A4D`在角色循环前重新定义ECX/EAX，表清零后两者均为零。
+EDX沿用全局重置结果。因此删除叶函数寄存器回复不会改变后续角色调用输入；
+父级仍保留尚未迁移的全局/角色调用协议，不用叶函数结果重新模拟寄存器。
 
 ## 4. 共享owner与caller回收
 
@@ -47,9 +48,13 @@ modern结果显式发布EAX、ECX、EDX、写入计数和故障偏移，没有�
 2. `0x004ACBA8`；
 3. `0x004B8A00`。
 
-三者由`LegacyBattleFixedObjectStatePort`中的唯一typed state统一拥有，每个对象只保存五个物理dword。组A奖励资料状态端口虚继承该owner，使`0x004B8A00`的物理表头与既有奖励链语义状态在同一端口层次内复用，不建立第二份物理header。
+三者由唯一`LegacyBattleFixedObjectState`统一持有，每个对象保存五个物理dword。
+共享状态Port及getter已删除，见[直接共享数据](battle-fixed-state-direct-data.md)。
+组A奖励资料与其他业务视图仍共用同一物理表头，不建立第二份header。
 
-已关闭caller `reset_legacy_battle_objects`删除`LegacyBattleFixedObjectResetPort::reset_fixed_object` opaque边界，直接按上述顺序调用typed helper。全局链清理返回的EDX依次穿过三次helper；随后384字节表清零把EAX和ECX变为0而保留EDX，再进入组B和组A角色重置循环。
+caller `reset_legacy_battle_objects`直接按上述顺序传入三个实际记录。
+全局重置先执行，三个根清零后再清384字节表，最后依次重置组B与组A角色。
+该叶函数不会修改或释放动态节点容器；节点生命周期仍由既有持有者负责。
 
 ## 5. 双向追溯
 
@@ -62,12 +67,23 @@ modern结果显式发布EAX、ECX、EDX、写入计数和故障偏移，没有�
 - `0x00477701`：写`+0x10`；
 - `0x00477704`：plain返回。
 
-C++到LST反向追溯只有五次顺序零写、五个可能的原访问故障点和EAX/ECX/EDX返回合同。没有额外分支、初始化、分配、释放、诊断、异常转换或相邻状态写。
+C++到LST反向追溯保留五次顺序零写和五个可能的原访问故障点。
+没有额外初始化、分配、释放、诊断、异常转换或相邻状态写。
+寄存器仅作为上述LST与父级数据流证据，不再形成叶函数接口合同。
 
 ## 6. 验证
 
-独立定向测试覆盖完整五字清零及0、1、2、3、4个可访问dword的全部typed-stop前缀，并逐项验证旧后缀、故障偏移、写入计数和三寄存器结果。
+独立定向测试覆盖完整五字清零及0、1、2、3、4个可访问dword的全部typed-stop前缀，逐项检查实际零写、旧后缀和故障偏移。
 
-caller聚合测试从三个全非零物理header启动，证明三者在角色循环前均清零、顺序token固定、384字节表随后清零、首个角色调用接收EAX零和全局清理后的EDX、后续18次角色调用逐次继承前次reply，最终返回末个组A角色callee的EAX、ECX和EDX。
+caller聚合测试从三个全非零物理header启动，检查三个实际记录均清零、
+角色循环前所有根与384字节表已清零、首个角色调用接收EAX零和全局清理后的EDX。
+18次角色调用的次序、后续输入和最终回复仍由原回归验证。
+
+core与AddressSanitizer分别执行清零叶函数和setup聚合测试，四项各通过1/1；
+SDL构建通过，未启动游戏。日志位于`build/tmp/runtime/`，前缀为
+`fixed-object-reset-semantic-`，后缀为`core-leaf.log`、`core-setup.log`、
+`asan-leaf.log`、`asan-setup.log`及`sdl.log`。
+完整代码和文档差异已复核，叶函数与父级中该边界的旧寄存器和计数引用已清除。
+全局重置、角色重置及父级的其他寄存器和计数协议仍待迁移。
 
 该叶函数全部可观察输入域由完整LST和穷举写入边界测试覆盖，不依赖原版动态oracle。

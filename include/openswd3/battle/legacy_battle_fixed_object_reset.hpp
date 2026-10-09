@@ -41,21 +41,14 @@ struct LegacyBattleFixedObjectResetResult {
     LegacyBattleFixedObjectResetStatus status{
         LegacyBattleFixedObjectResetStatus::completed
     };
-    compat::u32 object_token{};
-    compat::u32 dword_writes{};
     compat::u32 stopped_object_offset{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 // Typed closure of legacy 0x004776F0. The accessible span models the
 // consecutive dword writes without treating a legacy token as a host pointer.
 [[nodiscard]] LegacyBattleFixedObjectResetResult
 reset_legacy_battle_fixed_object(
-    std::span<compat::u32> object_words,
-    compat::u32 object_token,
-    compat::u32 entry_edx
+    std::span<compat::u32> object_words
 ) noexcept;
 
 }  // namespace openswd3::battle

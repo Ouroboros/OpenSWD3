@@ -19,7 +19,7 @@
 并按LST修正菜单中物品键与最大值颠倒的接线。
 [定义曲线设置](battle-fixed-definition-curve-set-00477a20.md)也已使用完整定义ID与WORD数量，
 删除该接口寄存器与计数。[固定状态访问](battle-fixed-state-direct-data.md)随后已移除Port；
-MON及固定对象清零中的剩余协议仍待迁移。
+MON及对象重置父级中的剩余协议仍待迁移。
 本批不代表整条固定链或全项目迁移完成。
 
 ## 原版顺序

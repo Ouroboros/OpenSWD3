@@ -112,12 +112,10 @@ void test_battle_object_reset(openswd3::test::Context& test) {
         const auto& reset = result.fixed_object_resets[index];
         fixed_resets_match = fixed_resets_match &&
             reset.status == LegacyBattleFixedObjectResetStatus::completed &&
-            reset.object_token ==
-                openswd3::battle::kLegacyBattleFixedResetObjectTokens[index] &&
-            reset.dword_writes == 5U && reset.return_eax == 0U &&
-            reset.return_ecx ==
-                openswd3::battle::kLegacyBattleFixedResetObjectTokens[index] &&
-            reset.return_edx == ports.global_reply.edx;
+            std::ranges::all_of(
+                ports.object_words[index],
+                [](const u32 word) { return word == 0U; }
+            );
     }
 
     bool actor_registers_threaded =
@@ -141,9 +139,7 @@ void test_battle_object_reset(openswd3::test::Context& test) {
             result.global_reset_reply.eax == 0x12345678U &&
             result.global_reset_reply.ecx == 0x23456789U &&
             result.global_reset_reply.edx == 0x3456789AU &&
-            result.fixed_object_tokens ==
-                openswd3::battle::kLegacyBattleFixedResetObjectTokens &&
-            result.fixed_object_reset_calls == 3U && fixed_resets_match &&
+            fixed_resets_match &&
             result.table_dword_writes == 0x60U &&
             ports.fixed_objects_were_clear_before_actor_loop &&
             ports.table_was_clear_before_actor_loop &&

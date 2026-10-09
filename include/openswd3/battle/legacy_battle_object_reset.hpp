@@ -46,9 +46,7 @@ public:
 struct LegacyBattleObjectResetResult {
     compat::u32 global_reset_calls{};
     LegacyBattleObjectResetCallReply global_reset_reply{};
-    std::array<compat::u32, 3> fixed_object_tokens{};
     std::array<LegacyBattleFixedObjectResetResult, 3> fixed_object_resets{};
-    compat::u32 fixed_object_reset_calls{};
     compat::u32 table_dword_writes{};
     compat::u32 group_b_reset_calls{};
     compat::u32 group_a_reset_calls{};
