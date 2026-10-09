@@ -3,11 +3,15 @@
 namespace openswd3::battle {
 
 LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
-    LegacyBattleStartupState& startup, LegacyBattleRuntimeShutdownPort& port
+    LegacyBattleStartupState& startup,
+    LegacyBattleRenderAuxiliaryBufferReleaser& render_resources,
+    LegacyBattleGroupAResourceReleasePort& party_resources,
+    LegacyBattleGroupBResourceReleasePort& enemy_resources
 ) noexcept {
     LegacyBattleRuntimeShutdownResult result;
-    result.render_cleanup =
-        release_legacy_battle_render_resources(startup.render_geometry, port);
+    result.render_cleanup = release_legacy_battle_render_resources(
+        startup.render_geometry, render_resources
+    );
     result.render_cleanup_calls = 1U;
 
     compat::u32 eax{};
@@ -20,7 +24,7 @@ LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
             release_legacy_battle_group_a_resources(
                 startup.party[index].configuration.actor_record_token,
                 startup.party[index].secondary_resource_token,
-                port,
+                party_resources,
                 {
                     .actor_token = object_token,
                     .actor_index = index,
@@ -47,7 +51,7 @@ LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
         result.group_b_resource_cleanups[index] =
             release_legacy_battle_group_b_resource(
                 actor,
-                port,
+                enemy_resources,
                 {
                     .actor_token = object_token,
                     .actor_index = index,

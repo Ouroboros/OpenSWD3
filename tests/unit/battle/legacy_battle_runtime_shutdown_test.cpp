@@ -8,36 +8,46 @@
 
 namespace {
 
-using openswd3::battle::LegacyBattleRuntimeShutdownCall;
-using openswd3::battle::LegacyBattleRuntimeShutdownCallReply;
-using openswd3::battle::LegacyBattleRuntimeShutdownCallRequest;
-using openswd3::battle::LegacyBattleRuntimeShutdownPort;
+using namespace openswd3::battle;
 using openswd3::compat::u32;
 
-class ShutdownPort final : public LegacyBattleRuntimeShutdownPort {
+class ShutdownPort final : public LegacyBattleRenderAuxiliaryBufferReleaser,
+                           public LegacyBattleGroupAResourceReleasePort,
+                           public LegacyBattleGroupBResourceReleasePort {
 public:
     void release(const u32 token) noexcept override {
         released_tokens.push_back(token);
+        release_order.push_back(token);
     }
 
-    [[nodiscard]] LegacyBattleRuntimeShutdownCallReply
-    invoke_battle_runtime_shutdown(
-        const LegacyBattleRuntimeShutdownCallRequest& request
+    LegacyBattleGroupAResourceReleaseCallReply release_group_a_resource(
+        const LegacyBattleGroupAResourceReleaseCallRequest& request
     ) override {
-        calls.push_back(request);
-        const bool group_a_resource = request.call ==
-            LegacyBattleRuntimeShutdownCall::release_group_a_resource;
-        const u32 prefix = group_a_resource ? 0xA0000000U : 0xB0000000U;
+        party_releases.push_back(request);
+        release_order.push_back(request.resource_token);
         return {
-            .eax = prefix | request.object_index,
-            .ecx = request.object_token,
-            .edx = group_a_resource ? request.resource_offset
-                                    : request.object_index + 0x100U,
+            .eax = 0xA0000000U | request.actor_index,
+            .ecx = request.actor_token,
+            .edx = request.resource_offset,
+        };
+    }
+
+    LegacyBattleGroupBResourceReleaseCallReply release_group_b_resource(
+        const LegacyBattleGroupBResourceReleaseCallRequest& request
+    ) override {
+        enemy_releases.push_back(request);
+        release_order.push_back(request.resource_token);
+        return {
+            .eax = 0xB0000000U | request.actor_index,
+            .ecx = request.actor_token,
+            .edx = request.actor_index + 0x100U,
         };
     }
 
     std::vector<u32> released_tokens;
-    std::vector<LegacyBattleRuntimeShutdownCallRequest> calls;
+    std::vector<u32> release_order;
+    std::vector<LegacyBattleGroupAResourceReleaseCallRequest> party_releases;
+    std::vector<LegacyBattleGroupBResourceReleaseCallRequest> enemy_releases;
 };
 
 }  // namespace
@@ -77,24 +87,24 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
         }
         ShutdownPort port;
 
-        const auto result = shutdown_legacy_battle_runtime(startup, port);
+        const auto result =
+            shutdown_legacy_battle_runtime(startup, port, port, port);
 
+        std::vector<u32> expected_release_order{0x12345678U};
         bool group_a_tokens_match = true;
         bool group_b_resources_match = true;
         for (u32 index = 0U; index < kLegacyBattleGroupAObjectCount; ++index) {
-            const auto& secondary = port.calls[index * 2U];
-            const auto& primary = port.calls[index * 2U + 1U];
+            const auto& secondary = port.party_releases[index * 2U];
+            const auto& primary = port.party_releases[index * 2U + 1U];
+            expected_release_order.push_back(0xA2000000U + index);
+            expected_release_order.push_back(0xA1000000U + index);
             const u32 object_token = kLegacyBattleGroupAObjectBaseToken +
                 index * kLegacyBattleGroupAObjectStride;
             group_a_tokens_match = group_a_tokens_match &&
-                secondary.call ==
-                    LegacyBattleRuntimeShutdownCall::release_group_a_resource &&
-                primary.call ==
-                    LegacyBattleRuntimeShutdownCall::release_group_a_resource &&
-                secondary.object_index == index &&
-                primary.object_index == index &&
-                secondary.object_token == object_token &&
-                primary.object_token == object_token &&
+                secondary.actor_index == index &&
+                primary.actor_index == index &&
+                secondary.actor_token == object_token &&
+                primary.actor_token == object_token &&
                 secondary.resource_token == 0xA2000000U + index &&
                 secondary.resource_offset == 0x2BC4U &&
                 primary.resource_token == 0xA1000000U + index &&
@@ -103,21 +113,19 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
                 startup.party[index].secondary_resource_token == 0U;
         }
         for (u32 index = 0U; index < kLegacyBattleGroupBObjectCount; ++index) {
-            const auto& call =
-                port.calls[kLegacyBattleGroupAObjectCount * 2U + index];
+            const auto& call = port.enemy_releases[index];
+            expected_release_order.push_back(0xB1000000U + index);
             const auto& actor = (*startup.group_b_lifecycle)[index];
             const u32 expected_edx = index == 0U ? 0U : index + 0xFFU;
             group_b_resources_match = group_b_resources_match &&
-                call.call ==
-                    LegacyBattleRuntimeShutdownCall::release_group_b_resource &&
-                call.object_index == index &&
-                call.object_token ==
+                call.actor_index == index &&
+                call.actor_token ==
                     kLegacyBattleGroupBObjectBaseToken +
                         index * kLegacyBattleGroupBObjectStride &&
                 call.resource_token == 0xB1000000U + index &&
                 call.resource_offset == 0x0CU &&
                 call.eax == 0xB1000000U + index &&
-                call.ecx == call.object_token && call.edx == expected_edx &&
+                call.ecx == call.actor_token && call.edx == expected_edx &&
                 result.group_b_resource_cleanups[index].return_eax ==
                     (0xB0000000U | index) &&
                 result.group_b_resource_cleanups[index].resource_released &&
@@ -141,8 +149,10 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
                 result.group_a_resource_calls == 20U &&
                 result.group_b_calls == 8U &&
                 result.group_b_resource_calls == 8U &&
-                port.calls.size() == 28U && group_a_tokens_match &&
-                group_b_resources_match,
+                port.party_releases.size() == 20U &&
+                port.enemy_releases.size() == 8U &&
+                port.release_order == expected_release_order &&
+                group_a_tokens_match && group_b_resources_match,
             "runtime shutdown releases typed render group-A and group-B resources in fixed order"
         );
         test.expect_true(
@@ -159,7 +169,8 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleStartupState startup;
         ShutdownPort port;
 
-        const auto result = shutdown_legacy_battle_runtime(startup, port);
+        const auto result =
+            shutdown_legacy_battle_runtime(startup, port, port, port);
 
         test.expect_true(
             result.status ==
@@ -168,8 +179,8 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
                 !result.render_cleanup.auxiliary_buffer_released &&
                 !result.render_cleanup.surface_row_offsets_released &&
                 !result.render_cleanup.primary_row_offsets_released &&
-                port.released_tokens.empty() && port.calls.empty() &&
-                result.group_a_calls == 10U &&
+                port.released_tokens.empty() && port.party_releases.empty() &&
+                port.enemy_releases.empty() && result.group_a_calls == 10U &&
                 result.group_a_resource_calls == 0U &&
                 result.group_b_calls == 1U &&
                 result.group_b_resource_calls == 0U &&
@@ -191,7 +202,8 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
         }
         ShutdownPort port;
 
-        const auto result = shutdown_legacy_battle_runtime(startup, port);
+        const auto result =
+            shutdown_legacy_battle_runtime(startup, port, port, port);
 
         const bool bytes_unchanged = std::ranges::all_of(
             *startup.group_b_lifecycle, [](const auto& actor) {
@@ -207,7 +219,8 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
                 result.group_a_calls == 10U &&
                 result.group_a_resource_calls == 0U &&
                 result.group_b_calls == 8U &&
-                result.group_b_resource_calls == 0U && port.calls.empty() &&
+                result.group_b_resource_calls == 0U &&
+                port.party_releases.empty() && port.enemy_releases.empty() &&
                 bytes_unchanged && result.return_value == 0U &&
                 result.final_ecx ==
                     kLegacyBattleGroupBObjectBaseToken +

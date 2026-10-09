@@ -1151,7 +1151,9 @@ private:
 
 class SmokeShutdownPorts final
     : public openswd3::app::ShutdownPorts,
-      public openswd3::battle::LegacyBattleRuntimeShutdownPort {
+      public openswd3::battle::LegacyBattleRenderAuxiliaryBufferReleaser,
+      public openswd3::battle::LegacyBattleGroupAResourceReleasePort,
+      public openswd3::battle::LegacyBattleGroupBResourceReleasePort {
 public:
     SmokeShutdownPorts(
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
@@ -1164,10 +1166,12 @@ public:
           sample_manager_(sample_manager), world_item_lists_(world_item_lists),
           battle_runtime_(battle_runtime) {}
 
-    void bind_battle_party_storage(
-        openswd3::battle::LegacyBattleGroupAStorage& storage
+    void bind_battle_storage(
+        openswd3::battle::LegacyBattleGroupAStorage& party,
+        openswd3::battle::LegacyBattleGroupBStorage& enemies
     ) noexcept {
-        battle_party_storage_ = &storage;
+        battle_party_storage_ = &party;
+        battle_enemy_storage_ = &enemies;
     }
 
     void bind_packed_row_effects(
@@ -1301,31 +1305,32 @@ public:
 
     void release_battle_runtime() override {
         static_cast<void>(openswd3::battle::shutdown_legacy_battle_runtime(
-            battle_runtime_, *this
+            battle_runtime_, *this, *this, *this
         ));
     }
 
     void release(openswd3::compat::u32) noexcept override {}
 
-    [[nodiscard]] openswd3::battle::LegacyBattleRuntimeShutdownCallReply
-    invoke_battle_runtime_shutdown(
-        const openswd3::battle::LegacyBattleRuntimeShutdownCallRequest& request
+    [[nodiscard]] openswd3::battle::LegacyBattleGroupAResourceReleaseCallReply
+    release_group_a_resource(
+        const openswd3::battle::LegacyBattleGroupAResourceReleaseCallRequest&
+            request
     ) override {
-        if (request.call ==
-            openswd3::battle::LegacyBattleRuntimeShutdownCall::
-                release_group_a_resource) {
-            // A nonzero party allocation requires the bound session registry.
-            // Missing or already released leases are invalid releases.
-            const auto released =
-                battle_party_storage_
-                    ->release_heap_block(request.resource_token)
-                    .value();
-            return {
-                .eax = released.eax, .ecx = released.ecx, .edx = released.edx
-            };
-        }
+        const auto released =
+            battle_party_storage_->release_heap_block(request.resource_token)
+                .value();
+        return {.eax = released.eax, .ecx = released.ecx, .edx = released.edx};
+    }
 
-        return {};
+    [[nodiscard]] openswd3::battle::LegacyBattleGroupBResourceReleaseCallReply
+    release_group_b_resource(
+        const openswd3::battle::LegacyBattleGroupBResourceReleaseCallRequest&
+            request
+    ) override {
+        const auto released =
+            battle_enemy_storage_->release_heap_block(request.resource_token)
+                .value();
+        return {.eax = released.eax, .ecx = released.ecx, .edx = released.edx};
     }
 
     bool
@@ -1344,6 +1349,7 @@ private:
     openswd3::world_map::LegacyWorldItemListState& world_item_lists_;
     openswd3::battle::LegacyBattleStartupState& battle_runtime_;
     openswd3::battle::LegacyBattleGroupAStorage* battle_party_storage_{};
+    openswd3::battle::LegacyBattleGroupBStorage* battle_enemy_storage_{};
     openswd3::world_map::LegacyPictureActionLists* picture_actions_{};
     std::list<openswd3::rendering::LegacyPackedRowEffect>*
         packed_row_effects_{};
@@ -3276,6 +3282,11 @@ public:
     openswd3::battle::LegacyBattleGroupAStorage&
     battle_party_storage() noexcept {
         return battle_group_a_storage_;
+    }
+
+    openswd3::battle::LegacyBattleGroupBStorage&
+    battle_enemy_storage() noexcept {
+        return battle_group_b_storage_;
     }
 
     openswd3::battle::LegacyBattleGroupAConfigurationDiagnosticReply
@@ -9882,7 +9893,9 @@ int main(const int argument_count, char** arguments) {
         ok,
         running
     );
-    shutdown_ports.bind_battle_party_storage(idle_ports.battle_party_storage());
+    shutdown_ports.bind_battle_storage(
+        idle_ports.battle_party_storage(), idle_ports.battle_enemy_storage()
+    );
     shutdown_ports.bind_picture_actions(idle_ports.picture_actions());
     shutdown_ports.bind_role_particle_effect(idle_ports.role_particle_effect());
     shutdown_ports.bind_ani_drift_effect(idle_ports.ani_drift_effect());

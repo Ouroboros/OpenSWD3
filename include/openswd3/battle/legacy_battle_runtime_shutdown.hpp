@@ -27,77 +27,6 @@ static_assert(
     0x0053AE48U
 );
 
-enum class LegacyBattleRuntimeShutdownCall : compat::u8 {
-    release_group_a_resource,
-    release_group_b_resource,
-};
-
-struct LegacyBattleRuntimeShutdownCallRequest {
-    LegacyBattleRuntimeShutdownCall call{
-        LegacyBattleRuntimeShutdownCall::release_group_a_resource
-    };
-    compat::u32 object_token{};
-    compat::u32 object_index{};
-    compat::u32 resource_token{};
-    compat::u32 resource_offset{};
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
-struct LegacyBattleRuntimeShutdownCallReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
-class LegacyBattleRuntimeShutdownPort
-    : public LegacyBattleRenderAuxiliaryBufferReleaser,
-      public virtual LegacyBattleGroupAResourceReleasePort,
-      public virtual LegacyBattleGroupBResourceReleasePort {
-public:
-    ~LegacyBattleRuntimeShutdownPort() override = default;
-
-    [[nodiscard]] virtual LegacyBattleRuntimeShutdownCallReply
-    invoke_battle_runtime_shutdown(
-        const LegacyBattleRuntimeShutdownCallRequest& request
-    ) = 0;
-
-    [[nodiscard]] LegacyBattleGroupAResourceReleaseCallReply
-    release_group_a_resource(
-        const LegacyBattleGroupAResourceReleaseCallRequest& request
-    ) override {
-        const auto reply = invoke_battle_runtime_shutdown({
-            .call = LegacyBattleRuntimeShutdownCall::release_group_a_resource,
-            .object_token = request.actor_token,
-            .object_index = request.actor_index,
-            .resource_token = request.resource_token,
-            .resource_offset = request.resource_offset,
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-        });
-        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
-    }
-
-    [[nodiscard]] LegacyBattleGroupBResourceReleaseCallReply
-    release_group_b_resource(
-        const LegacyBattleGroupBResourceReleaseCallRequest& request
-    ) override {
-        const auto reply = invoke_battle_runtime_shutdown({
-            .call = LegacyBattleRuntimeShutdownCall::release_group_b_resource,
-            .object_token = request.actor_token,
-            .object_index = request.actor_index,
-            .resource_token = request.resource_token,
-            .resource_offset = request.resource_offset,
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-        });
-        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
-    }
-};
-
 enum class LegacyBattleRuntimeShutdownStatus : compat::u8 {
     completed,
     group_b_resource_typed_stop,
@@ -124,7 +53,10 @@ struct LegacyBattleRuntimeShutdownResult {
 };
 
 [[nodiscard]] LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
-    LegacyBattleStartupState& startup, LegacyBattleRuntimeShutdownPort& port
+    LegacyBattleStartupState& startup,
+    LegacyBattleRenderAuxiliaryBufferReleaser& render_resources,
+    LegacyBattleGroupAResourceReleasePort& party_resources,
+    LegacyBattleGroupBResourceReleasePort& enemy_resources
 ) noexcept;
 
 }  // namespace openswd3::battle

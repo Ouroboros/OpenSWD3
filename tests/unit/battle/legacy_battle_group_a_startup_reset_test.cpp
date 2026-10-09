@@ -76,29 +76,43 @@ struct Fixture {
     }
 };
 
-class RegistryShutdown final : public LegacyBattleRuntimeShutdownPort {
+class RegistryShutdown final : public LegacyBattleRenderAuxiliaryBufferReleaser,
+                               public LegacyBattleGroupAResourceReleasePort,
+                               public LegacyBattleGroupBResourceReleasePort {
 public:
-    explicit RegistryShutdown(LegacyBattleGroupAStorage& storage)
-        : storage_(storage) {}
+    RegistryShutdown(
+        LegacyBattleGroupAStorage& party, LegacyBattleGroupBStorage& enemies
+    )
+        : party_(party), enemies_(enemies) {}
 
     void release(u32) noexcept override {}
 
-    LegacyBattleRuntimeShutdownCallReply invoke_battle_runtime_shutdown(
-        const LegacyBattleRuntimeShutdownCallRequest& request
+    LegacyBattleGroupAResourceReleaseCallReply release_group_a_resource(
+        const LegacyBattleGroupAResourceReleaseCallRequest& request
     ) override {
-        if (request.call ==
-            LegacyBattleRuntimeShutdownCall::release_group_a_resource) {
-            const auto result =
-                storage_.release_heap_block(request.resource_token).value();
-            ++released;
-            return {.eax = result.eax, .ecx = result.ecx, .edx = result.edx};
-        }
-
-        return {};
+        const auto result =
+            party_.release_heap_block(request.resource_token).value();
+        released.push_back(request.resource_token);
+        return {.eax = result.eax, .ecx = result.ecx, .edx = result.edx};
     }
 
-    LegacyBattleGroupAStorage& storage_;
-    u32 released{};
+    LegacyBattleGroupBResourceReleaseCallReply release_group_b_resource(
+        const LegacyBattleGroupBResourceReleaseCallRequest& request
+    ) override {
+        releases_precede_clear = releases_precede_clear &&
+            (*enemies_.actors())[request.actor_index].resource_token ==
+                request.resource_token &&
+            !enemies_.resource_bytes(request.resource_token).empty();
+        const auto result =
+            enemies_.release_heap_block(request.resource_token).value();
+        released.push_back(request.resource_token);
+        return {.eax = result.eax, .ecx = result.ecx, .edx = result.edx};
+    }
+
+    LegacyBattleGroupAStorage& party_;
+    LegacyBattleGroupBStorage& enemies_;
+    std::vector<u32> released;
+    bool releases_precede_clear{true};
 };
 
 class Diagnostic final : public LegacyBattleGroupAConfigurationDiagnosticPort {
@@ -318,11 +332,31 @@ void test_battle_group_a_startup_reset(openswd3::test::Context& test) {
                 fixture.startup->party[index].configuration.actor_record_token;
         }
 
-        RegistryShutdown port{storage};
-        const auto result =
-            shutdown_legacy_battle_runtime(*fixture.startup, port);
+        LegacyBattleGroupBStorage enemies;
         test.expect_true(
-            result.group_a_calls == 10U && port.released == 10U &&
+            enemies.construct(), "construct enemy records for shutdown"
+        );
+        fixture.startup->group_b_lifecycle = enemies.actors();
+        std::array<u32, 8> enemy_tokens{};
+        std::vector<u32> expected_releases(tokens.begin(), tokens.end());
+        for (std::size_t index = 0U; index < enemy_tokens.size(); ++index) {
+            enemy_tokens[index] = (*enemies.actors())[index].resource_token;
+            expected_releases.push_back(enemy_tokens[index]);
+            test.expect_true(
+                !enemies.resource_bytes(enemy_tokens[index]).empty() &&
+                    enemies.read_linked_action_next(enemy_tokens[index])
+                        .has_value(),
+                "enemy allocation is accessible before shutdown"
+            );
+        }
+
+        RegistryShutdown port{storage, enemies};
+        const auto result =
+            shutdown_legacy_battle_runtime(*fixture.startup, port, port, port);
+        test.expect_true(
+            result.status == LegacyBattleRuntimeShutdownStatus::completed &&
+                port.released == expected_releases &&
+                port.releases_precede_clear &&
                 std::ranges::all_of(
                     tokens,
                     [&](const auto token) {
@@ -335,7 +369,29 @@ void test_battle_group_a_startup_reset(openswd3::test::Context& test) {
                         return party.configuration.actor_record_token == 0U;
                     }
                 ),
-            "shutdown reaches the allocation registry through group-A release calls and clears the canonical tokens"
+            "shutdown retires party allocations before enemy allocations and clears canonical party tokens"
+        );
+        test.expect_true(
+            std::ranges::all_of(
+                enemy_tokens,
+                [&](const auto token) {
+                    return enemies.resource_bytes(token).empty() &&
+                        !enemies.read_linked_action_next(token).has_value() &&
+                        !enemies.release_heap_block(token).has_value();
+                }
+            ) &&
+                std::ranges::all_of(
+                    *enemies.actors(),
+                    [](const auto& actor) { return actor.resource_token == 0U; }
+                ),
+            "enemy records become unreadable and cannot be freed twice after shutdown"
+        );
+        const auto repeated =
+            shutdown_legacy_battle_runtime(*fixture.startup, port, port, port);
+        test.expect_true(
+            repeated.status == LegacyBattleRuntimeShutdownStatus::completed &&
+                port.released == expected_releases,
+            "repeated shutdown does not release retired allocations again"
         );
     }
 

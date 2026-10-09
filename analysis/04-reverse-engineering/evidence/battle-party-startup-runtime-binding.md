@@ -98,8 +98,9 @@ SDL显示原繁体标题、源文件、行号和正文。按钮ID保持3/4/5：
 ### 资源释放：00475180
 
 清理继续先释放+2BC4，再释放+0。核心shutdown直接借用唯一的两个指针。
-SDL通过invoke_battle_runtime_shutdown的release_group_a_resource分支转发
-会话登记；与render辅助缓冲release接口分开。登记失效后才清canonical指针。
+SDL直接实现两组资源释放方法，分别访问各自会话登记；与render辅助缓冲
+release接口分开。关闭层通用分派已删除，登记失效后才清canonical指针。
+见[关闭时的存储绑定](battle-shutdown-direct-resource-binding.md)。
 未知或重复释放明确失败，不当作成功。此处不声明其余资源shutdown已完整实现。
 
 ## 测试与验证
