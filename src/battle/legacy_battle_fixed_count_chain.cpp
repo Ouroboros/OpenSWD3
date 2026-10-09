@@ -124,17 +124,11 @@ void stop_at_record_access(
     LegacyBattleFixedCountSetResult& result,
     const LegacyBattleFixedCountStatus status,
     const u32 token,
-    const u32 offset,
-    const u32 eax,
-    const u32 ecx,
-    const u32 edx
+    const u32 offset
 ) noexcept {
     result.status = status;
     result.stopped_token = token;
     result.stopped_offset = offset;
-    result.return_eax = eax;
-    result.return_ecx = ecx;
-    result.return_edx = edx;
 }
 
 void stop_at_record_access(
@@ -444,120 +438,89 @@ LegacyBattleFixedCountResult accumulate_legacy_battle_fixed_count(
 
 LegacyBattleFixedCountSetResult set_legacy_battle_fixed_count(
     LegacyBattleFixedObjectState& state,
-    const LegacyBattleFixedCountSetRequest& request
-) {
-    LegacyBattleFixedCountSetResult result{
-        .owner_token = request.owner_token,
-        .return_eax = request.entry_eax,
-        .return_ecx = request.entry_ecx,
-        .return_edx = request.entry_edx,
-    };
-    u32 eax = request.entry_eax;
-    u32 ecx = request.entry_ecx;
-    u32 edx = request.entry_edx;
-    const u16 key = low_word(request.key);
-    const u16 input_count = low_word(request.count);
-
+    const u16 key,
+    const u16 quantity,
+    const u32 owner_token
+) noexcept {
+    LegacyBattleFixedCountSetResult result;
     RecordReference root_storage;
-    RecordReference* const root =
-        find_record(state, request.owner_token, root_storage);
+    RecordReference* const root = find_record(state, owner_token, root_storage);
     if (root == nullptr || !has_access(*root, 4U, sizeof(u16))) {
         stop_at_record_access(
             result,
             LegacyBattleFixedCountStatus::record_access_typed_stop,
-            request.owner_token,
-            4U,
-            eax,
-            ecx,
-            edx
+            owner_token,
+            4U
         );
         return result;
     }
 
     RecordReference current_storage = *root;
     RecordReference* current = &current_storage;
-    ++result.key_reads;
     bool matched = low_word(current->words[1U]) == key;
     while (!matched) {
-        eax = current->words[0U];
-        ++result.chain_link_reads;
-        if (eax == 0U) {
+        const u32 next_token = current->words[0U];
+        if (next_token == 0U) {
             break;
         }
 
         RecordReference next_storage;
-        RecordReference* const next = find_record(state, eax, next_storage);
+        RecordReference* const next =
+            find_record(state, next_token, next_storage);
         if (next == nullptr || !has_access(*next, 4U, sizeof(u16))) {
             stop_at_record_access(
                 result,
                 LegacyBattleFixedCountStatus::record_access_typed_stop,
-                eax,
-                4U,
-                eax,
-                ecx,
-                edx
+                next_token,
+                4U
             );
             return result;
         }
+
         current_storage = *next;
         current = &current_storage;
-        ++result.key_reads;
         matched = low_word(current->words[1U]) == key;
     }
 
     if (matched) {
-        result.path = current->token == request.owner_token
+        result.path = current->token == owner_token
             ? LegacyBattleFixedCountPath::existing_root
             : LegacyBattleFixedCountPath::existing_node;
         result.matched_token = current->token;
-        replace_low_word(eax, input_count);
         if (!has_access(*current, 6U, sizeof(u16))) {
             stop_at_record_access(
                 result,
                 LegacyBattleFixedCountStatus::record_access_typed_stop,
                 current->token,
-                6U,
-                eax,
-                ecx,
-                edx
+                6U
             );
             return result;
         }
-        replace_high_word(current->words[1U], input_count);
-        ++result.count_writes;
-        if (input_count > kLegacyBattleFixedCountLimit) {
+
+        replace_high_word(current->words[1U], quantity);
+        if (quantity > kLegacyBattleFixedCountLimit) {
             replace_high_word(
                 current->words[1U],
                 static_cast<u16>(kLegacyBattleFixedCountLimit)
             );
-            ++result.count_writes;
-            ++result.clamp_writes;
         }
-        result.return_eax = eax;
-        result.return_ecx = ecx;
-        result.return_edx = edx;
+
         return result;
     }
 
-    eax = allocate_fixed_count_node(state);
-    ecx = 0U;
-    result.allocation_token = eax;
+    const u32 allocation_token = allocate_fixed_count_node(state);
 
-    current->words[0U] = eax;
-    ++result.link_writes;
+    current->words[0U] = allocation_token;
 
     RecordReference allocated_storage;
     RecordReference* const allocated =
-        find_record(state, eax, allocated_storage);
+        find_record(state, allocation_token, allocated_storage);
     if (allocated == nullptr) {
         stop_at_record_access(
             result,
             LegacyBattleFixedCountStatus::allocation_record_access_typed_stop,
-            eax,
-            0U,
-            eax,
-            ecx,
-            edx
+            allocation_token,
+            0U
         );
         return result;
     }
@@ -570,20 +533,15 @@ LegacyBattleFixedCountSetResult set_legacy_battle_fixed_count(
                 LegacyBattleFixedCountStatus::
                     allocation_record_access_typed_stop,
                 allocated->token,
-                offset,
-                eax,
-                ecx,
-                edx
+                offset
             );
             return result;
         }
+
         allocated->words[index] = 0U;
-        ++result.dword_zero_writes;
     }
 
     const u32 linked_token = current->words[0U];
-    ++result.chain_link_reads;
-    replace_low_word(eax, input_count);
     RecordReference linked_storage;
     RecordReference* const linked =
         find_record(state, linked_token, linked_storage);
@@ -592,47 +550,35 @@ LegacyBattleFixedCountSetResult set_legacy_battle_fixed_count(
             result,
             LegacyBattleFixedCountStatus::allocation_record_access_typed_stop,
             linked_token,
-            4U,
-            eax,
-            ecx,
-            edx
+            4U
         );
         return result;
     }
 
     replace_low_word(linked->words[1U], key);
-    ++result.key_writes;
     if (!has_access(*linked, 6U, sizeof(u16))) {
         stop_at_record_access(
             result,
             LegacyBattleFixedCountStatus::allocation_record_access_typed_stop,
             linked_token,
-            6U,
-            eax,
-            ecx,
-            edx
+            6U
         );
         return result;
     }
-    replace_high_word(linked->words[1U], input_count);
-    ++result.count_writes;
-    if (input_count > kLegacyBattleFixedCountLimit) {
+
+    replace_high_word(linked->words[1U], quantity);
+    if (quantity > kLegacyBattleFixedCountLimit) {
         replace_high_word(
             linked->words[1U], static_cast<u16>(kLegacyBattleFixedCountLimit)
         );
-        ++result.count_writes;
-        ++result.clamp_writes;
     }
+
     replace_low_word(
         root->words[1U], static_cast<u16>(low_word(root->words[1U]) + 1U)
     );
-    ++result.root_key_increments;
 
     result.path = LegacyBattleFixedCountPath::allocated_node;
     result.matched_token = linked_token;
-    result.return_eax = eax;
-    result.return_ecx = ecx;
-    result.return_edx = edx;
     return result;
 }
 

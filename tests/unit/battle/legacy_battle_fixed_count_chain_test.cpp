@@ -36,15 +36,13 @@ void test_node_lifetime_and_reuse(openswd3::test::Context& test) {
     openswd3::test::FixedNodeMemoryResource memory;
     {
         LegacyBattleFixedObjectState state{.fixed_count_nodes{&memory}};
-        const auto first = openswd3::battle::set_legacy_battle_fixed_count(
-            state, {.key = 10U, .count = 3U}
-        );
+        const auto first =
+            openswd3::battle::set_legacy_battle_fixed_count(state, 10U, 3U);
         auto& first_node = state.fixed_count_nodes.front();
         const u32 first_token = first_node.legacy_token;
         memory.allocation_enabled = false;
-        const auto updated = openswd3::battle::set_legacy_battle_fixed_count(
-            state, {.key = 10U, .count = 4U}
-        );
+        const auto updated =
+            openswd3::battle::set_legacy_battle_fixed_count(state, 10U, 4U);
         test.expect_true(
             first.status == LegacyBattleFixedCountStatus::completed &&
                 updated.status == LegacyBattleFixedCountStatus::completed &&
@@ -56,9 +54,8 @@ void test_node_lifetime_and_reuse(openswd3::test::Context& test) {
         );
 
         memory.allocation_enabled = true;
-        const auto second = openswd3::battle::set_legacy_battle_fixed_count(
-            state, {.key = 11U, .count = 5U}
-        );
+        const auto second =
+            openswd3::battle::set_legacy_battle_fixed_count(state, 11U, 5U);
         const auto& second_node = state.fixed_count_nodes.back();
         test.expect_true(
             second.status == LegacyBattleFixedCountStatus::completed &&
@@ -276,23 +273,12 @@ void test_set_existing_records(openswd3::test::Context& test) {
     root[1U] = (9U << 16U) | 7U;
 
     const auto root_set = openswd3::battle::set_legacy_battle_fixed_count(
-        state,
-        {
-            .key = 7U,
-            .count = 0xABCD0015U,
-            .entry_eax = 0xAABBCCDDU,
-            .entry_ecx = 0x11223344U,
-            .entry_edx = 0x55667788U,
-        }
+        state, 7U, static_cast<u16>(0xABCD0015U)
     );
     test.expect_true(
         root_set.status == LegacyBattleFixedCountStatus::completed &&
             root_set.path == LegacyBattleFixedCountPath::existing_root &&
-            root_set.count_writes == 2U && root_set.clamp_writes == 1U &&
-            root_set.return_eax == 0xAABB0015U &&
-            root_set.return_ecx == 0x11223344U &&
-            root_set.return_edx == 0x55667788U && key(root[1U]) == 7U &&
-            count(root[1U]) == 20U,
+            key(root[1U]) == 7U && count(root[1U]) == 20U,
         "existing root receives the raw low word before unsigned values above twenty are overwritten with twenty"
     );
 
@@ -303,24 +289,14 @@ void test_set_existing_records(openswd3::test::Context& test) {
     });
     root[0U] = 0x75001234U;
     const auto node_set = openswd3::battle::set_legacy_battle_fixed_count(
-        state,
-        {
-            .key = 8U,
-            .count = 0x12340014U,
-            .entry_eax = 0xDEADBEEFU,
-            .entry_ecx = 0xCAFEBABEU,
-            .entry_edx = 0x10203040U,
-        }
+        state, 8U, static_cast<u16>(0x12340014U)
     );
     test.expect_true(
         node_set.status == LegacyBattleFixedCountStatus::completed &&
             node_set.path == LegacyBattleFixedCountPath::existing_node &&
-            node_set.chain_link_reads == 1U && node_set.count_writes == 1U &&
-            node_set.clamp_writes == 0U && node_set.return_eax == 0x75000014U &&
-            node_set.return_ecx == 0xCAFEBABEU &&
-            node_set.return_edx == 0x10203040U &&
+            node_set.matched_token == 0x75001234U &&
             count(state.fixed_count_nodes.front().words[1U]) == 20U,
-        "existing dynamic record uses the successor token high word and writes an exact count of twenty without clamping"
+        "existing dynamic record receives an exact quantity of twenty"
     );
 }
 
@@ -329,26 +305,19 @@ void test_set_allocate_and_clamp(openswd3::test::Context& test) {
     LegacyBattleFixedObjectState state{.fixed_count_nodes{&memory}};
 
     const auto result = openswd3::battle::set_legacy_battle_fixed_count(
-        state,
-        {
-            .key = 0xFFFF3456U,
-            .count = 0xABCD0019U,
-            .entry_eax = 0x11112222U,
-            .entry_ecx = 0x33334444U,
-            .entry_edx = 0x55556666U,
-        }
+        state, static_cast<u16>(0xFFFF3456U), static_cast<u16>(0xABCD0019U)
     );
     const auto& root = state.object_words[0U];
     const auto& node = state.fixed_count_nodes.front();
     test.expect_true(
         result.status == LegacyBattleFixedCountStatus::completed &&
             result.path == LegacyBattleFixedCountPath::allocated_node &&
-            state.fixed_count_nodes.size() == 1U && result.link_writes == 1U &&
-            result.dword_zero_writes == 5U && result.key_writes == 1U &&
-            result.count_writes == 2U && result.clamp_writes == 1U &&
-            result.root_key_increments == 1U && result.return_ecx == 0U &&
+            state.fixed_count_nodes.size() == 1U &&
+            result.matched_token == node.legacy_token &&
             root[0U] == node.legacy_token && key(root[1U]) == 1U &&
-            key(node.words[1U]) == 0x3456U && count(node.words[1U]) == 20U,
+            key(node.words[1U]) == 0x3456U && count(node.words[1U]) == 20U &&
+            node.words[0U] == 0U && node.words[2U] == 0U &&
+            node.words[3U] == 0U && node.words[4U] == 0U,
         "missing key links and clears one shared node, writes key then raw count, clamps, and increments the root word"
     );
 }
@@ -367,16 +336,13 @@ void test_set_allocation_write_stops(openswd3::test::Context& test) {
         }
 
         memory.allocation_enabled = false;
-        const auto failed = openswd3::battle::set_legacy_battle_fixed_count(
-            state, {.key = 9U, .count = 9U}
-        );
+        const auto failed =
+            openswd3::battle::set_legacy_battle_fixed_count(state, 9U, 9U);
         test.expect_true(
             failed.status ==
                     LegacyBattleFixedCountStatus::
                         allocation_record_access_typed_stop &&
                 failed.stopped_token == 0U && failed.stopped_offset == 0U &&
-                failed.link_writes == 1U && failed.dword_zero_writes == 0U &&
-                failed.count_writes == 0U && failed.root_key_increments == 0U &&
                 state.fixed_count_nodes.size() ==
                     static_cast<std::size_t>(existing_tail) &&
                 memory.outstanding_blocks == state.fixed_count_nodes.size() &&
@@ -400,22 +366,14 @@ void test_set_record_access_stops(openswd3::test::Context& test) {
     openswd3::test::FixedNodeMemoryResource memory;
     LegacyBattleFixedObjectState state{.fixed_count_nodes{&memory}};
     state.object_words[0U][0U] = 0x78000000U;
-    const auto unmapped = openswd3::battle::set_legacy_battle_fixed_count(
-        state,
-        {
-            .key = 1U,
-            .count = 2U,
-            .entry_eax = 0x11112222U,
-            .entry_ecx = 0x33334444U,
-            .entry_edx = 0x55556666U,
-        }
-    );
+    const auto unmapped =
+        openswd3::battle::set_legacy_battle_fixed_count(state, 1U, 2U);
     test.expect_true(
         unmapped.status ==
                 LegacyBattleFixedCountStatus::record_access_typed_stop &&
             unmapped.stopped_token == 0x78000000U &&
-            unmapped.stopped_offset == 4U && unmapped.return_eax == 0x78000000U,
-        "set path stops at an unmapped successor key read after preserving the loaded token in EAX"
+            unmapped.stopped_offset == 4U,
+        "set path reports the unmapped successor at its first key access"
     );
 
     state = {};
@@ -426,14 +384,7 @@ void test_set_record_access_stops(openswd3::test::Context& test) {
         .accessible_bytes = 7U,
     });
     const auto count_stop = openswd3::battle::set_legacy_battle_fixed_count(
-        state,
-        {
-            .key = 9U,
-            .count = 0x1234000AU,
-            .entry_eax = 0xAAAAAAAAU,
-            .entry_ecx = 0xBBBBBBBBU,
-            .entry_edx = 0xCCCCCCCCU,
-        }
+        state, 9U, static_cast<u16>(0x1234000AU)
     );
     test.expect_true(
         count_stop.status ==
@@ -441,11 +392,8 @@ void test_set_record_access_stops(openswd3::test::Context& test) {
             count_stop.path == LegacyBattleFixedCountPath::existing_node &&
             count_stop.stopped_token == 0x78000010U &&
             count_stop.stopped_offset == 6U &&
-            count_stop.return_eax == 0x7800000AU &&
-            count_stop.return_ecx == 0xBBBBBBBBU &&
-            count_stop.return_edx == 0xCCCCCCCCU &&
             count(state.fixed_count_nodes.front().words[1U]) == 3U,
-        "existing set path stops at the original count write after the key comparison and AX load"
+        "existing set path reports the inaccessible quantity write and leaves the previous quantity intact"
     );
 }
 

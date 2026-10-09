@@ -23430,7 +23430,6 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             static_cast<u16>(update_definition_node.words[2U]) == 77U &&
             party_dialog_updated.fixed_count.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::allocated_node &&
-            party_dialog_updated.fixed_count.clamp_writes == 1U &&
             static_cast<u16>(update_fixed_state.object_words[0U][1U]) == 1U &&
             static_cast<u16>(update_fixed_node.words[1U]) == 100U &&
             static_cast<u16>(update_fixed_node.words[1U] >> 16U) == 20U &&

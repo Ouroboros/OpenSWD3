@@ -9419,36 +9419,25 @@ static bool update_party_dialog_item_categories(
     }
 
     const compat::u32 third_mask = state.item_category_masks[2U];
-    compat::u32 third_entry_ecx = third_mask;
     compat::u32 masked_flags = flags & third_mask;
     masked_flags &= 0xFFFF7FFFU;
     if (masked_flags == third_mask) {
         result.fixed_count = battle::set_legacy_battle_fixed_count(
             ports.legacy_battle_fixed_object_state(),
-            {
-                .key = item_key,
-                .count = added_bits,
-                .entry_eax = added_bits,
-                .entry_ecx = item_key,
-                .entry_edx = masked_flags,
-            }
+            static_cast<compat::u16>(item_key),
+            static_cast<compat::u16>(added_bits)
         );
         if (result.fixed_count.status !=
             battle::LegacyBattleFixedCountStatus::completed) {
             return false;
         }
-        third_entry_ecx = result.fixed_count.return_ecx;
     }
+
     if (record.text_index != 0U && record.text_index <= 0x01F4U) {
         result.fixed_count = battle::set_legacy_battle_fixed_count(
             ports.legacy_battle_fixed_object_state(),
-            {
-                .key = item_key,
-                .count = added_bits,
-                .entry_eax = item_key,
-                .entry_ecx = third_entry_ecx,
-                .entry_edx = added_bits,
-            }
+            static_cast<compat::u16>(item_key),
+            static_cast<compat::u16>(added_bits)
         );
         if (result.fixed_count.status !=
             battle::LegacyBattleFixedCountStatus::completed) {
