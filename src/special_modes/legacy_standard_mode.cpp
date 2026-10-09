@@ -9382,7 +9382,6 @@ static bool update_party_dialog_item_categories(
         first_entry_edx = (first_entry_edx & 0xFFFF0000U) | category_value;
         result.fixed_curve = battle::set_legacy_battle_fixed_curve(
             ports.legacy_battle_fixed_object_state(),
-            ports,
             {
                 .key = category_value,
                 .maximum = item_key,
@@ -9405,7 +9404,6 @@ static bool update_party_dialog_item_categories(
             battle::set_legacy_battle_fixed_definition_curve(
                 ports.legacy_battle_fixed_object_state(),
                 ports,
-                ports,
                 {
                     .key = item_key,
                     .count = added_bits,
@@ -9427,7 +9425,6 @@ static bool update_party_dialog_item_categories(
     if (masked_flags == third_mask) {
         result.fixed_count = battle::set_legacy_battle_fixed_count(
             ports.legacy_battle_fixed_object_state(),
-            ports,
             {
                 .key = item_key,
                 .count = added_bits,
@@ -9445,7 +9442,6 @@ static bool update_party_dialog_item_categories(
     if (record.text_index != 0U && record.text_index <= 0x01F4U) {
         result.fixed_count = battle::set_legacy_battle_fixed_count(
             ports.legacy_battle_fixed_object_state(),
-            ports,
             {
                 .key = item_key,
                 .count = added_bits,

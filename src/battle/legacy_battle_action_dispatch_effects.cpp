@@ -890,7 +890,6 @@ LegacyBattleTargetEffectResult apply_legacy_battle_target_effect(
     ++result.curve_query_calls;
     result.fixed_curve = advance_legacy_battle_fixed_curve(
         port.legacy_battle_fixed_object_state(),
-        port,
         {
             .key = registers.edx,
             .maximum = registers.ecx,

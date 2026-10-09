@@ -176,7 +176,6 @@ public:
 class LegacyBattleActionDispatchPort
     : public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleFixedObjectStatePort,
-      public virtual LegacyBattleFixedCountAllocationPort,
       public virtual LegacyBattleSummonFramePort,
       public virtual LegacyBattleRetreatCommitPort,
       public virtual LegacyBattleActorMetricStatePort,
@@ -195,11 +194,6 @@ public:
 
     [[nodiscard]] virtual LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) = 0;
-
-    [[nodiscard]] LegacyBattleFixedCountAllocationReply
-    allocate_legacy_battle_fixed_count_node(
-        const LegacyBattleFixedCountAllocationRequest& request
-    ) override;
 
     [[nodiscard]] virtual bool group_b_action_configuration_typed_stop(
         compat::u32 callee_token

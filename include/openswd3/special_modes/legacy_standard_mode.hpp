@@ -3861,7 +3861,6 @@ class LegacyPartyDialogPorts
     : public virtual LegacyPartyDialogPagePorts,
       public virtual LegacyPartyDialogColumnPorts,
       public virtual LegacyStandardModeQuantityPorts,
-      public virtual battle::LegacyBattleFixedCountAllocationPort,
       public virtual world_map::LegacyPartyMemberFieldWritePorts {
 public:
     ~LegacyPartyDialogPorts() override = default;

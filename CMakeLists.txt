@@ -82,6 +82,8 @@ target_link_libraries(
         openswd3_compat
         openswd3_project_options
         openswd3_project_warnings
+    PRIVATE
+        openswd3_asset_runtime
 )
 
 add_subdirectory(src/resource_io)

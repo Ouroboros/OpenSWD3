@@ -1,3 +1,4 @@
+#include "fixed_node_memory_resource.hpp"
 #include "legacy_battle_level_database_fixture.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
@@ -1360,36 +1361,21 @@ public:
         main_events.push_back("delete-error");
         ++deletion_error_count;
     }
-    [[nodiscard]] openswd3::battle::LegacyBattleFixedCountAllocationReply
-    allocate_legacy_battle_fixed_count_node(
-        const openswd3::battle::LegacyBattleFixedCountAllocationRequest& request
-    ) override {
-        fixed_count_allocation_requests.push_back(request);
-        if (!fixed_count_allocation_succeeds) {
-            return {
-                .ecx = request.ecx,
-                .edx = request.edx,
-            };
-        }
-        const u32 token = next_fixed_count_token;
-        next_fixed_count_token +=
-            openswd3::battle::kLegacyBattleFixedObjectSize;
-        return {
-            .eax = token,
-            .ecx = request.ecx,
-            .edx = request.edx,
-            .initial_words = fixed_count_initial_words,
-            .accessible_bytes = fixed_count_accessible_bytes,
-        };
+    [[nodiscard]] openswd3::battle::LegacyBattleFixedObjectState&
+    legacy_battle_fixed_object_state() noexcept override {
+        return fixed_node_state;
     }
-    bool command_allocation_available{true};
-    bool fixed_count_allocation_succeeds{true};
-    u32 next_fixed_count_token{0x76000000U};
-    u32 fixed_count_accessible_bytes{
-        openswd3::battle::kLegacyBattleFixedObjectSize
+
+    [[nodiscard]] const openswd3::battle::LegacyBattleFixedObjectState&
+    legacy_battle_fixed_object_state() const noexcept override {
+        return fixed_node_state;
+    }
+
+    openswd3::test::FixedNodeMemoryResource fixed_node_memory;
+    openswd3::battle::LegacyBattleFixedObjectState fixed_node_state{
+        .fixed_count_nodes{&fixed_node_memory}
     };
-    std::array<u32, openswd3::battle::kLegacyBattleFixedObjectDwordCount>
-        fixed_count_initial_words{};
+    bool command_allocation_available{true};
     u32 command_release_count{};
     u32 insertion_error_count{};
     u32 deletion_error_count{};
@@ -1406,8 +1392,6 @@ public:
     std::vector<openswd3::special_modes::LegacyPartyDialogEdit> cleared_edits;
     std::vector<i32> ended_results;
     std::vector<bool> cursor_values;
-    std::vector<openswd3::battle::LegacyBattleFixedCountAllocationRequest>
-        fixed_count_allocation_requests;
 };
 
 struct ObjectLabelDraw {
@@ -23120,23 +23104,29 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             party_dialog_added.fixed_definition_curve.scale == 7U &&
             party_dialog_added.fixed_count.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::existing_node &&
-            party_dialog_add_ports.fixed_count_allocation_requests.size() ==
-                3U &&
+            party_dialog_add_ports.fixed_node_memory.outstanding_blocks == 3U &&
             party_dialog_add_ports.requested_definition_ids ==
                 std::vector<u32>{100U, 100U} &&
             add_fixed_state.fixed_count_nodes.size() == 3U &&
             static_cast<u16>(add_fixed_state.object_words[1U][1U]) == 1U &&
             static_cast<u16>(add_fixed_state.object_words[2U][1U]) == 1U &&
             static_cast<u16>(add_fixed_state.object_words[0U][1U]) == 1U &&
-            add_curve_node.legacy_token == 0x76000000U &&
+            add_curve_node.legacy_token != 0U &&
+            add_fixed_state.object_words[1U][0U] ==
+                add_curve_node.legacy_token &&
             static_cast<u16>(add_curve_node.words[1U]) == 0x1234U &&
             static_cast<u16>(add_curve_node.words[1U] >> 16U) == 7U &&
             static_cast<u16>(add_curve_node.words[2U]) == 7U &&
-            add_definition_node.legacy_token == 0x76000014U &&
+            add_definition_node.legacy_token != add_curve_node.legacy_token &&
+            add_fixed_state.object_words[2U][0U] ==
+                add_definition_node.legacy_token &&
             static_cast<u16>(add_definition_node.words[1U]) == 100U &&
             static_cast<u16>(add_definition_node.words[1U] >> 16U) == 7U &&
             static_cast<u16>(add_definition_node.words[2U]) == 7U &&
-            add_fixed_node.legacy_token == 0x76000028U &&
+            add_fixed_node.legacy_token != add_curve_node.legacy_token &&
+            add_fixed_node.legacy_token != add_definition_node.legacy_token &&
+            add_fixed_state.object_words[0U][0U] ==
+                add_fixed_node.legacy_token &&
             static_cast<u16>(add_fixed_node.words[1U]) == 100U &&
             static_cast<u16>(add_fixed_node.words[1U] >> 16U) == 7U &&
             add_refresh < add_release &&
@@ -23169,7 +23159,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         .words = {0U, 101U, 0U, 0U, 0U},
         .accessible_bytes = 0x14U,
     });
-    party_dialog_fixed_stop_ports.fixed_count_allocation_succeeds = false;
+    party_dialog_fixed_stop_ports.fixed_node_memory.allocation_enabled = false;
     const auto party_dialog_fixed_stopped =
         openswd3::special_modes::run_legacy_party_dialog(
             party_dialog_fixed_stop_state,
@@ -23220,7 +23210,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         1U, 2U, 4U
     };
     FakePartyDialogPorts party_dialog_definition_stop_ports;
-    party_dialog_definition_stop_ports.fixed_count_allocation_succeeds = false;
+    party_dialog_definition_stop_ports.fixed_node_memory.allocation_enabled =
+        false;
     const auto party_dialog_definition_stopped =
         openswd3::special_modes::run_legacy_party_dialog(
             party_dialog_definition_stop_state,
@@ -23275,7 +23266,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         0x12340001U, 2U, 4U
     };
     FakePartyDialogPorts party_dialog_curve_stop_ports;
-    party_dialog_curve_stop_ports.fixed_count_allocation_succeeds = false;
+    party_dialog_curve_stop_ports.fixed_node_memory.allocation_enabled = false;
     const auto party_dialog_curve_stopped =
         openswd3::special_modes::run_legacy_party_dialog(
             party_dialog_curve_stop_state,
@@ -23306,14 +23297,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             party_dialog_curve_stopped.fixed_curve.return_ecx == 7U &&
             party_dialog_curve_stopped.fixed_curve.return_edx == 0U &&
             party_dialog_curve_stop_ports.requested_definition_ids.empty() &&
-            party_dialog_curve_stop_ports.fixed_count_allocation_requests
-                    .size() == 1U &&
-            party_dialog_curve_stop_ports.fixed_count_allocation_requests[0U]
-                    .eax == 0U &&
-            party_dialog_curve_stop_ports.fixed_count_allocation_requests[0U]
-                    .ecx == 7U &&
-            party_dialog_curve_stop_ports.fixed_count_allocation_requests[0U]
-                    .edx == 0x12340009U,
+            party_dialog_curve_stop_ports.fixed_node_state.fixed_count_nodes
+                .empty() &&
+            party_dialog_curve_stop_ports.fixed_node_memory
+                    .outstanding_blocks == 0U,
         "0x40F890 stops at the reclaimed first fixed-curve allocation after preserving the inventory and full-register prefix before later categories"
     );
 
@@ -23447,7 +23434,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             static_cast<u16>(update_fixed_state.object_words[0U][1U]) == 1U &&
             static_cast<u16>(update_fixed_node.words[1U]) == 100U &&
             static_cast<u16>(update_fixed_node.words[1U] >> 16U) == 20U &&
-            party_dialog_update_ports.fixed_count_allocation_requests.size() ==
+            party_dialog_update_ports.fixed_node_memory.outstanding_blocks ==
                 2U &&
             update_release < update_refresh,
         "0x40F890 directly updates a found player item, preserves a negative signed quantity, sets both typed curves, clamps the low-ID fixed count to twenty, then releases before refresh"

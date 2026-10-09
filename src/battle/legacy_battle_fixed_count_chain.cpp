@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_fixed_count_chain.hpp"
 
+#include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
 #include "openswd3/battle/legacy_battle_mon_definition_text_release.hpp"
 
 #include <algorithm>
@@ -8,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <new>
 #include <span>
 
 namespace openswd3::battle {
@@ -22,6 +24,25 @@ struct RecordReference {
     std::span<u32> words;
     u32 accessible_bytes{};
 };
+
+[[nodiscard]] u32
+allocate_fixed_count_node(LegacyBattleFixedObjectState& state) noexcept {
+    try {
+        state.fixed_count_nodes.emplace_back();
+    } catch (const std::bad_alloc&) {
+        return 0U;
+    }
+
+    const auto token =
+        asset_runtime::reserve_legacy_guest_bytes(kLegacyBattleFixedObjectSize);
+    if (!token.has_value()) {
+        state.fixed_count_nodes.pop_back();
+        return 0U;
+    }
+
+    state.fixed_count_nodes.back().legacy_token = *token;
+    return *token;
+}
 
 [[nodiscard]] bool has_access(
     const RecordReference& record, const u32 offset, const u32 size
@@ -234,7 +255,6 @@ truncate_x87_integer(const long double value) noexcept {
 
 LegacyBattleFixedCountResult accumulate_legacy_battle_fixed_count(
     LegacyBattleFixedObjectState& state,
-    LegacyBattleFixedCountAllocationPort& allocation_port,
     const LegacyBattleFixedCountRequest& request
 ) {
     LegacyBattleFixedCountResult result{
@@ -340,16 +360,7 @@ LegacyBattleFixedCountResult accumulate_legacy_battle_fixed_count(
         return result;
     }
 
-    const auto allocation =
-        allocation_port.allocate_legacy_battle_fixed_count_node({
-            .allocation_size = kLegacyBattleFixedObjectSize,
-            .eax = eax,
-            .ecx = ecx,
-            .edx = edx,
-        });
-    ++result.allocation_calls;
-    eax = allocation.eax;
-    ecx = allocation.ecx;
+    eax = allocate_fixed_count_node(state);
     edx = 0U;
     result.allocation_token = eax;
 
@@ -357,17 +368,8 @@ LegacyBattleFixedCountResult accumulate_legacy_battle_fixed_count(
     ++result.link_writes;
 
     RecordReference allocated_storage;
-    RecordReference* allocated = find_record(state, eax, allocated_storage);
-    if (allocated == nullptr && eax != 0U) {
-        state.fixed_count_nodes.push_back({
-            .legacy_token = eax,
-            .words = allocation.initial_words,
-            .accessible_bytes = std::min(
-                allocation.accessible_bytes, kLegacyBattleFixedObjectSize
-            ),
-        });
-        allocated = find_record(state, eax, allocated_storage);
-    }
+    RecordReference* const allocated =
+        find_record(state, eax, allocated_storage);
     if (allocated == nullptr) {
         stop_at_record_access(
             result,
@@ -442,7 +444,6 @@ LegacyBattleFixedCountResult accumulate_legacy_battle_fixed_count(
 
 LegacyBattleFixedCountSetResult set_legacy_battle_fixed_count(
     LegacyBattleFixedObjectState& state,
-    LegacyBattleFixedCountAllocationPort& allocation_port,
     const LegacyBattleFixedCountSetRequest& request
 ) {
     LegacyBattleFixedCountSetResult result{
@@ -538,34 +539,16 @@ LegacyBattleFixedCountSetResult set_legacy_battle_fixed_count(
         return result;
     }
 
-    const auto allocation =
-        allocation_port.allocate_legacy_battle_fixed_count_node({
-            .allocation_size = kLegacyBattleFixedObjectSize,
-            .eax = eax,
-            .ecx = ecx,
-            .edx = edx,
-        });
-    ++result.allocation_calls;
-    eax = allocation.eax;
+    eax = allocate_fixed_count_node(state);
     ecx = 0U;
-    edx = allocation.edx;
     result.allocation_token = eax;
 
     current->words[0U] = eax;
     ++result.link_writes;
 
     RecordReference allocated_storage;
-    RecordReference* allocated = find_record(state, eax, allocated_storage);
-    if (allocated == nullptr && eax != 0U) {
-        state.fixed_count_nodes.push_back({
-            .legacy_token = eax,
-            .words = allocation.initial_words,
-            .accessible_bytes = std::min(
-                allocation.accessible_bytes, kLegacyBattleFixedObjectSize
-            ),
-        });
-        allocated = find_record(state, eax, allocated_storage);
-    }
+    RecordReference* const allocated =
+        find_record(state, eax, allocated_storage);
     if (allocated == nullptr) {
         stop_at_record_access(
             result,
@@ -702,7 +685,6 @@ LegacyBattleFixedCountLookupResult lookup_legacy_battle_fixed_count(
 
 LegacyBattleFixedCurveAdvanceResult advance_legacy_battle_fixed_curve(
     LegacyBattleFixedObjectState& state,
-    LegacyBattleFixedCountAllocationPort& allocation_port,
     const LegacyBattleFixedCurveAdvanceRequest& request
 ) {
     LegacyBattleFixedCurveAdvanceResult result{
@@ -805,15 +787,7 @@ LegacyBattleFixedCurveAdvanceResult advance_legacy_battle_fixed_curve(
         result.x87_stack = LegacyBattleFixedCurveX87StackState::ratio;
         result.count = count;
     } else {
-        const auto allocation =
-            allocation_port.allocate_legacy_battle_fixed_count_node({
-                .allocation_size = kLegacyBattleFixedObjectSize,
-                .eax = eax,
-                .ecx = ecx,
-                .edx = edx,
-            });
-        ++result.allocation_calls;
-        eax = allocation.eax;
+        eax = allocate_fixed_count_node(state);
         edx = static_cast<u32>(maximum);
         ecx = 0U;
         result.allocation_token = eax;
@@ -822,17 +796,8 @@ LegacyBattleFixedCurveAdvanceResult advance_legacy_battle_fixed_curve(
         ++result.link_writes;
 
         RecordReference allocated_storage;
-        RecordReference* allocated = find_record(state, eax, allocated_storage);
-        if (allocated == nullptr && eax != 0U) {
-            state.fixed_count_nodes.push_back({
-                .legacy_token = eax,
-                .words = allocation.initial_words,
-                .accessible_bytes = std::min(
-                    allocation.accessible_bytes, kLegacyBattleFixedObjectSize
-                ),
-            });
-            allocated = find_record(state, eax, allocated_storage);
-        }
+        RecordReference* const allocated =
+            find_record(state, eax, allocated_storage);
         if (allocated == nullptr) {
             stop_at_record_access(
                 result,
@@ -991,7 +956,6 @@ LegacyBattleFixedCurveAdvanceResult advance_legacy_battle_fixed_curve(
 
 LegacyBattleFixedCurveSetResult set_legacy_battle_fixed_curve(
     LegacyBattleFixedObjectState& state,
-    LegacyBattleFixedCountAllocationPort& allocation_port,
     const LegacyBattleFixedCurveSetRequest& request
 ) {
     LegacyBattleFixedCurveSetResult result{
@@ -1081,16 +1045,7 @@ LegacyBattleFixedCurveSetResult set_legacy_battle_fixed_curve(
             ++result.clamp_writes;
         }
     } else {
-        const auto allocation =
-            allocation_port.allocate_legacy_battle_fixed_count_node({
-                .allocation_size = kLegacyBattleFixedObjectSize,
-                .eax = eax,
-                .ecx = ecx,
-                .edx = edx,
-            });
-        ++result.allocation_calls;
-        eax = allocation.eax;
-        ecx = allocation.ecx;
+        eax = allocate_fixed_count_node(state);
         edx = 0U;
         result.allocation_token = eax;
 
@@ -1098,17 +1053,8 @@ LegacyBattleFixedCurveSetResult set_legacy_battle_fixed_curve(
         ++result.link_writes;
 
         RecordReference allocated_storage;
-        RecordReference* allocated = find_record(state, eax, allocated_storage);
-        if (allocated == nullptr && eax != 0U) {
-            state.fixed_count_nodes.push_back({
-                .legacy_token = eax,
-                .words = allocation.initial_words,
-                .accessible_bytes = std::min(
-                    allocation.accessible_bytes, kLegacyBattleFixedObjectSize
-                ),
-            });
-            allocated = find_record(state, eax, allocated_storage);
-        }
+        RecordReference* const allocated =
+            find_record(state, eax, allocated_storage);
         if (allocated == nullptr || !has_access(*allocated, 0U, sizeof(u32))) {
             stop_at_record_access(
                 result,
@@ -1293,7 +1239,6 @@ LegacyBattleFixedCurveLookupResult lookup_legacy_battle_fixed_curve(
 LegacyBattleFixedDefinitionCurveSetResult
 set_legacy_battle_fixed_definition_curve(
     LegacyBattleFixedObjectState& state,
-    LegacyBattleFixedCountAllocationPort& allocation_port,
     LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleFixedDefinitionCurveSetRequest& request
 ) {
@@ -1487,16 +1432,7 @@ set_legacy_battle_fixed_definition_curve(
         replace_high_word(current->words[1U], requested_count);
         ++result.count_writes;
     } else {
-        const auto allocation =
-            allocation_port.allocate_legacy_battle_fixed_count_node({
-                .allocation_size = kLegacyBattleFixedObjectSize,
-                .eax = eax,
-                .ecx = ecx,
-                .edx = edx,
-            });
-        ++result.allocation_calls;
-        eax = allocation.eax;
-        ecx = allocation.ecx;
+        eax = allocate_fixed_count_node(state);
         edx = 0U;
         result.allocation_token = eax;
 
@@ -1504,17 +1440,8 @@ set_legacy_battle_fixed_definition_curve(
         ++result.link_writes;
 
         RecordReference allocated_storage;
-        RecordReference* allocated = find_record(state, eax, allocated_storage);
-        if (allocated == nullptr && eax != 0U) {
-            state.fixed_count_nodes.push_back({
-                .legacy_token = eax,
-                .words = allocation.initial_words,
-                .accessible_bytes = std::min(
-                    allocation.accessible_bytes, kLegacyBattleFixedObjectSize
-                ),
-            });
-            allocated = find_record(state, eax, allocated_storage);
-        }
+        RecordReference* const allocated =
+            find_record(state, eax, allocated_storage);
         if (allocated == nullptr || !has_access(*allocated, 0U, sizeof(u32))) {
             stop_at_record_access(
                 result,

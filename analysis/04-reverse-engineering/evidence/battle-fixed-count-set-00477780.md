@@ -44,9 +44,13 @@ next为零时以固定大小20调用分配包装器。callee返回后原函数�
 
 ## 5. 唯一owner与共享低层目标
 
-固定根`0x004B9F00`、相邻两个固定header以及全部动态20字节节点继续只由`LegacyBattleFixedObjectStatePort`持有。设置helper和前一项累加helper共用同一`LegacyBattleFixedCountAllocationPort`，没有在Dialog、Fame载入或SDL建立第二条链。
+固定根、相邻两个header和动态节点仍使用同一个共享状态。
+设置和累加直接在状态容器分配节点，分配Port及其寄存器协议已删除。
+固定状态Port本身仍待后续迁移；没有在Dialog、Fame载入或SDL建立第二条链。
+当前分配合同与验证覆盖见[实际分配记录](battle-fixed-chain-owned-allocation.md)。
+本文allocator寄存器及短区回复描述为原指令和历史夹具分析，不再是当前分配接口。
 
-为避免完整`battle`目标依赖`special_modes`同时出现反向依赖，固定计数链实现下沉到既有低层`openswd3_battle_mon`目标；完整战斗和特殊模式都只链接这一个实现。`LegacyPartyDialogPorts`虚继承固定对象owner和分配端口，使已关闭Dialog直接组合typed helper而不是继续保留第三类整函数opaque更新接口。
+为避免完整`battle`目标依赖`special_modes`同时出现反向依赖，固定计数链实现下沉到既有低层`openswd3_battle_mon`目标；完整战斗和特殊模式都只链接这一个实现。Dialog借用共享状态并直接调用数量设置函数，不再继承固定链分配端口。
 
 ## 6. caller范围
 

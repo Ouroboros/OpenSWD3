@@ -669,7 +669,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             );
             result.fixed_count = accumulate_legacy_battle_fixed_count(
                 port.legacy_battle_fixed_object_state(),
-                port,
                 {
                     .owner_token = kLegacyBattleFixedCountOwnerToken,
                     .key = target_code.eax,

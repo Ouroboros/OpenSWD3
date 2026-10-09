@@ -47,7 +47,11 @@ maximum为零时不早退。inclusive夹限先把count写零，再形成`0/0` Na
 6. 读取定义maximum，执行与已有记录相同的inclusive夹限、x87百分比和`+0x08`scale写。
 7. 最后递增根`word [root+4]`，保留`0xFFFF→0`回绕，再返回EAX一。
 
-allocator token、固定根`0x004B8A00`及动态20字节节点继续由唯一`LegacyBattleFixedObjectStatePort`持有，并复用相邻固定数量/曲线函数的`LegacyBattleFixedCountAllocationPort`。
+固定根`0x004B8A00`和动态节点仍使用同一共享状态。
+节点直接由状态容器分配和持有，共用的分配Port及寄存器协议已删除。
+固定状态Port本身尚待后续迁移。
+当前分配与测试合同见[实际分配记录](battle-fixed-chain-owned-allocation.md)。
+本文allocator寄存器及短区回复描述保留为原指令和历史夹具分析。
 
 ## 5. 原访问点typed-stop
 

@@ -3,26 +3,6 @@
 namespace openswd3::battle {
 using namespace action_dispatch_detail;
 
-LegacyBattleFixedCountAllocationReply
-LegacyBattleActionDispatchPort::allocate_legacy_battle_fixed_count_node(
-    const LegacyBattleFixedCountAllocationRequest& request
-) {
-    LegacyBattleActionCallRequest call{
-        .callee_token = kLegacyBattleFixedCountAllocateCallToken,
-        .eax = request.eax,
-        .ecx = request.ecx,
-        .edx = request.edx,
-    };
-    call.arguments[0U] = request.allocation_size;
-    const auto reply = invoke(call);
-    return {
-        .eax = reply.eax,
-        .ecx = reply.ecx,
-        .edx = reply.edx,
-        .accessible_bytes = reply.eax == 0U ? 0U : kLegacyBattleFixedObjectSize,
-    };
-}
-
 LegacyBattleGroupASummonMaterializationCallReply
 LegacyBattleActionDispatchPort::invoke_group_a_summon_materialization(
     const LegacyBattleGroupASummonMaterializationCallRequest& request

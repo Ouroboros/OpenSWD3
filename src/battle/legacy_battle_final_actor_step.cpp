@@ -622,7 +622,6 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     const auto action_reply = invoke(port, kCallQueryAction, {actor_token, 1U});
     result.fixed_count = accumulate_legacy_battle_fixed_count(
         port.legacy_battle_fixed_object_state(),
-        port,
         {
             .owner_token = kLegacyBattleFixedCountOwnerToken,
             .key = action_reply.eax,

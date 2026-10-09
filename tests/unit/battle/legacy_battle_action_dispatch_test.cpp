@@ -1244,7 +1244,6 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.action = 6U;
-        port.push(0x00487C10U, {.eax = 0x76000000U});
         port.push(0x00487C10U, {.eax = 0x00630000U});
         auto context = fixture.context();
         const auto result = dispatch(state, port, context, 0U, 0U);
@@ -1257,7 +1256,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleFixedCountPath::
                         allocated_node &&
                 port.count(0x00477710U) == 0U &&
-                port.count(0x00487C10U) == 2U &&
+                port.count(0x00487C10U) == 1U &&
                 port.legacy_battle_fixed_object_state()
                         .fixed_count_nodes.front()
                         .words[1U] == 0x00010001U &&

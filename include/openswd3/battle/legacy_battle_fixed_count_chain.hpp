@@ -4,8 +4,6 @@
 #include "openswd3/battle/legacy_battle_mon_definition.hpp"
 #include "openswd3/compat/types.hpp"
 
-#include <array>
-
 namespace openswd3::battle {
 
 inline constexpr compat::u32 kLegacyBattleFixedCountOwnerToken = 0x004B9F00U;
@@ -14,34 +12,7 @@ inline constexpr compat::u32 kLegacyBattleFixedDefinitionCurveOwnerToken =
     0x004B8A00U;
 inline constexpr compat::u32 kLegacyBattleFixedDefinitionScratchToken =
     0x0053CF50U;
-inline constexpr compat::u32 kLegacyBattleFixedCountAllocateCallToken =
-    0x00487C10U;
 inline constexpr compat::u32 kLegacyBattleFixedCountLimit = 0x14U;
-
-struct LegacyBattleFixedCountAllocationRequest {
-    compat::u32 allocation_size{kLegacyBattleFixedObjectSize};
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
-struct LegacyBattleFixedCountAllocationReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-    std::array<compat::u32, kLegacyBattleFixedObjectDwordCount> initial_words{};
-    compat::u32 accessible_bytes{};
-};
-
-class LegacyBattleFixedCountAllocationPort {
-public:
-    virtual ~LegacyBattleFixedCountAllocationPort() = default;
-
-    [[nodiscard]] virtual LegacyBattleFixedCountAllocationReply
-    allocate_legacy_battle_fixed_count_node(
-        const LegacyBattleFixedCountAllocationRequest& request
-    ) = 0;
-};
 
 struct LegacyBattleFixedCountRequest {
     compat::u32 owner_token{kLegacyBattleFixedCountOwnerToken};
@@ -78,7 +49,6 @@ struct LegacyBattleFixedCountResult {
     compat::u32 chain_link_reads{};
     compat::u32 key_reads{};
     compat::u32 count_reads{};
-    compat::u32 allocation_calls{};
     compat::u32 link_writes{};
     compat::u32 dword_zero_writes{};
     compat::u32 count_writes{};
@@ -110,7 +80,6 @@ struct LegacyBattleFixedCountSetResult {
     compat::u32 stopped_offset{};
     compat::u32 chain_link_reads{};
     compat::u32 key_reads{};
-    compat::u32 allocation_calls{};
     compat::u32 link_writes{};
     compat::u32 dword_zero_writes{};
     compat::u32 key_writes{};
@@ -166,7 +135,6 @@ struct LegacyBattleFixedCurveAdvanceResult {
     compat::u32 stopped_offset{};
     compat::u32 chain_link_reads{};
     compat::u32 key_reads{};
-    compat::u32 allocation_calls{};
     compat::u32 link_writes{};
     compat::u32 dword_zero_writes{};
     compat::u32 key_writes{};
@@ -204,7 +172,6 @@ struct LegacyBattleFixedCurveSetResult {
     compat::u32 stopped_offset{};
     compat::u32 chain_link_reads{};
     compat::u32 key_reads{};
-    compat::u32 allocation_calls{};
     compat::u32 link_writes{};
     compat::u32 dword_zero_writes{};
     compat::u32 key_writes{};
@@ -224,7 +191,6 @@ struct LegacyBattleFixedCurveSetResult {
 // LegacyBattleFixedObjectState; they are never interpreted as host pointers.
 [[nodiscard]] LegacyBattleFixedCountResult accumulate_legacy_battle_fixed_count(
     LegacyBattleFixedObjectState& state,
-    LegacyBattleFixedCountAllocationPort& allocation_port,
     const LegacyBattleFixedCountRequest& request
 );
 
@@ -233,7 +199,6 @@ struct LegacyBattleFixedCurveSetResult {
 // use the same physical owner and allocation boundary as the accumulating path.
 [[nodiscard]] LegacyBattleFixedCountSetResult set_legacy_battle_fixed_count(
     LegacyBattleFixedObjectState& state,
-    LegacyBattleFixedCountAllocationPort& allocation_port,
     const LegacyBattleFixedCountSetRequest& request
 );
 
@@ -250,7 +215,6 @@ lookup_legacy_battle_fixed_count(
 [[nodiscard]] LegacyBattleFixedCurveAdvanceResult
 advance_legacy_battle_fixed_curve(
     LegacyBattleFixedObjectState& state,
-    LegacyBattleFixedCountAllocationPort& allocation_port,
     const LegacyBattleFixedCurveAdvanceRequest& request
 );
 
@@ -259,7 +223,6 @@ advance_legacy_battle_fixed_curve(
 // Missing keys use the same physical curve root and twenty-byte allocator.
 [[nodiscard]] LegacyBattleFixedCurveSetResult set_legacy_battle_fixed_curve(
     LegacyBattleFixedObjectState& state,
-    LegacyBattleFixedCountAllocationPort& allocation_port,
     const LegacyBattleFixedCurveSetRequest& request
 );
 
@@ -322,7 +285,6 @@ struct LegacyBattleFixedDefinitionCurveSetResult {
     compat::u32 chain_link_reads{};
     compat::u32 key_reads{};
     compat::u32 lock_reads{};
-    compat::u32 allocation_calls{};
     compat::u32 link_writes{};
     compat::u32 dword_zero_writes{};
     compat::u32 key_writes{};
@@ -347,7 +309,6 @@ struct LegacyBattleFixedDefinitionCurveSetResult {
 [[nodiscard]] LegacyBattleFixedDefinitionCurveSetResult
 set_legacy_battle_fixed_definition_curve(
     LegacyBattleFixedObjectState& state,
-    LegacyBattleFixedCountAllocationPort& allocation_port,
     LegacyBattleMonDatabasePort& mon_port,
     const LegacyBattleFixedDefinitionCurveSetRequest& request
 );

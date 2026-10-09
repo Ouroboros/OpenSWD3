@@ -38,7 +38,11 @@
 7. 清ECX、截EAX并计算百分比，写scale低word。
 8. 最后word递增根`+0x04`，保留`0xFFFF→0`回绕，再返回。
 
-allocator token、固定根`0x004ACBA8`及动态20字节节点继续由唯一`LegacyBattleFixedObjectStatePort`持有，并复用`LegacyBattleFixedCountAllocationPort`，没有建立第二条物理链。
+固定根`0x004ACBA8`与动态节点仍使用同一共享状态。
+节点改由实际状态容器分配和持有，分配Port、寄存器回复及转发已删除。
+固定状态Port尚待后续迁移，没有建立第二条链。
+当前分配与测试合同见[实际分配记录](battle-fixed-chain-owned-allocation.md)。
+本文allocator寄存器及短区回复描述保留为原指令和历史夹具分析。
 
 ## 4. x87特殊值与转换
 

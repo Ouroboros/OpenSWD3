@@ -40,7 +40,11 @@
 8. 把乘数低word放入EAX后，以word回绕递增根`+0x04`。
 9. 原比值乘乘数并截零，返回EDX:EAX；ECX保持零。
 
-实现保留先链接、清零与x87除法交错、字段写入、根word递增和第二次转换的顺序。allocator token、固定根与全部动态20字节节点继续只由`LegacyBattleFixedObjectStatePort`持有，复用既有`LegacyBattleFixedCountAllocationPort`，没有建立第二条曲线链。
+实现保留先链接、清零与x87除法交错、字段写入、根word递增和第二次转换的顺序。
+根和动态节点仍使用同一共享状态；节点改由实际容器分配和持有。
+分配Port、寄存器请求/回复和转发已删除，固定状态Port尚待后续迁移。
+当前分配与测试合同见[实际分配记录](battle-fixed-chain-owned-allocation.md)。
+本文allocator寄存器及短区回复描述保留为原指令和历史夹具分析。
 
 ## 4. x87特殊值和转换合同
 

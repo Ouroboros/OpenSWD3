@@ -4,6 +4,7 @@
 
 #include <array>
 #include <list>
+#include <memory_resource>
 #include <span>
 
 namespace openswd3::battle {
@@ -28,7 +29,7 @@ struct LegacyBattleFixedObjectState {
         std::array<compat::u32, kLegacyBattleFixedObjectDwordCount>,
         kLegacyBattleFixedResetObjectTokens.size()>
         object_words{};
-    std::list<LegacyBattleFixedCountNodeState> fixed_count_nodes;
+    std::pmr::list<LegacyBattleFixedCountNodeState> fixed_count_nodes;
 };
 
 class LegacyBattleFixedObjectStatePort {
