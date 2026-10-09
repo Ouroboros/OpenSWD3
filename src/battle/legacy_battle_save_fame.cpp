@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <array>
 #include <new>
-#include <vector>
 
 namespace openswd3::battle {
 namespace {
@@ -45,54 +44,14 @@ LegacyBattleSaveFameResult restore_legacy_battle_save_fame(
     static_assert(kLegacyBattleFixedResetObjectTokens[0U] == 0x004B9F00U);
     static_assert(kLegacyBattleFixedResetObjectTokens[2U] == 0x004B8A00U);
 
-    std::vector<compat::u32> old_tokens;
-    try {
-        old_tokens.reserve(state.fixed_count_nodes.size());
-        for (const auto root_index : kRootIndices) {
-            compat::u32 token = state.object_words[root_index][0U];
-            while (token != 0U) {
-                if (std::find(old_tokens.begin(), old_tokens.end(), token) !=
-                    old_tokens.end()) {
-                    return {
-                        .status =
-                            LegacyBattleSaveFameStatus::invalid_existing_chain,
-                    };
-                }
-                const auto node = std::find_if(
-                    state.fixed_count_nodes.begin(),
-                    state.fixed_count_nodes.end(),
-                    [token](const LegacyBattleFixedCountNodeState& candidate) {
-                        return candidate.legacy_token == token;
-                    }
-                );
-                if (node == state.fixed_count_nodes.end() ||
-                    node->accessible_bytes < kLegacyBattleFixedObjectSize) {
-                    return {
-                        .status =
-                            LegacyBattleSaveFameStatus::invalid_existing_chain,
-                    };
-                }
-                old_tokens.push_back(token);
-                token = node->words[0U];
-            }
-        }
-    } catch (const std::bad_alloc&) {
-        return {.status = LegacyBattleSaveFameStatus::allocation_failed};
-    }
-
-    state.fixed_count_nodes.remove_if(
-        [&old_tokens](const LegacyBattleFixedCountNodeState& node) {
-            return std::find(
-                       old_tokens.begin(), old_tokens.end(), node.legacy_token
-                   ) != old_tokens.end();
-        }
-    );
-    for (const auto root_index : kRootIndices) {
-        state.object_words[root_index].fill(0U);
-    }
-
+    const auto released = release_legacy_battle_fixed_chains(state);
     LegacyBattleSaveFameResult result;
-    result.nodes_released = old_tokens.size();
+    result.nodes_released = released.nodes_released;
+    if (released.status != LegacyBattleFixedChainReleaseStatus::completed) {
+        result.status = LegacyBattleSaveFameStatus::invalid_existing_chain;
+        return result;
+    }
+
     for (std::size_t group_index = 0U; group_index < groups.groups.size();
          ++group_index) {
         const auto& group = groups.groups[group_index];

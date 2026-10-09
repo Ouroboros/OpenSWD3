@@ -15,15 +15,16 @@ namespace {
 
 LegacyBattleObjectResetResult reset_legacy_battle_objects(
     LegacyBattleObjectResetState& state,
-    LegacyBattleGlobalResetPort& global_reset_port,
     LegacyBattleFixedObjectState& fixed_object_state,
     LegacyBattleActorObjectResetPort& actor_reset_port
 ) {
     LegacyBattleObjectResetResult result;
-    LegacyBattleObjectResetCallReply registers =
-        global_reset_port.reset_global_state();
-    result.global_reset_reply = registers;
-    result.global_reset_calls = 1U;
+    result.fixed_chain_release =
+        release_legacy_battle_fixed_chains(fixed_object_state);
+    if (result.fixed_chain_release.status !=
+        LegacyBattleFixedChainReleaseStatus::completed) {
+        return result;
+    }
 
     for (std::size_t index = 0U;
          index < kLegacyBattleFixedResetObjectTokens.size();
@@ -37,8 +38,8 @@ LegacyBattleObjectResetResult reset_legacy_battle_objects(
         word = 0U;
         ++result.table_dword_writes;
     }
-    registers.eax = 0U;
-    registers.ecx = 0U;
+
+    LegacyBattleObjectResetCallReply registers;
 
     for (compat::u32 index = 0U; index < kLegacyBattleActorGroupBElementCount;
          ++index) {

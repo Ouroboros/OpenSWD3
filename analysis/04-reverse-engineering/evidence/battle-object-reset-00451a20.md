@@ -1,6 +1,7 @@
 # 战斗对象批量重置 `0x00451A20`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`closed_callee_integrated`。
+当前固定状态与链释放使用实际数据和资源；角色重置仍有寄存器协议。
+该父级目前仅发现测试直接调用，完整生产初始化接线尚未证明。
 
 ## 1. 完整LST范围
 
@@ -16,15 +17,21 @@
 4. 以`0x004B8A00`调用同一helper；
 5. 三次调用完成后一次性回收12字节参数。
 
-三个固定对象均由`LegacyBattleFixedObjectStatePort`中的唯一typed state持有。caller直接组合`reset_legacy_battle_fixed_object`，旧`LegacyBattleFixedObjectResetPort`及其生产opaque调用已删除。每次helper固定返回EAX零、ECX为本次对象token，并保留全局链清理reply中的EDX。
+三个固定对象由同一`LegacyBattleFixedObjectState`持有，状态Port和getter已删除。
+caller直接向`reset_legacy_battle_fixed_object`传入实际记录；该叶函数已删除身份、
+寄存器与计数协议，只返回访问状态和失败偏移。
 
-`0x00478110`仍属于独立全局链生命周期边界；caller端口现在返回完整EAX、ECX、EDX，使其EDX可被三个已关闭helper和后续角色重置准确线程。
+`0x00478110`现由[实际固定链释放](battle-fixed-chain-release-00478110.md)实现，
+共用Fame恢复的实际节点。删除全局重置Port、寄存器回复及调用计数。
+释放失败保留已完成前缀，阻断表清零与角色循环；成功后按原顺序继续。
+LST `4781F1`将EDX明确置零，不接受测试提供的任意寄存器残值。
 
 ## 3. 固定表清零
 
 LST设置`ECX=0x60`、`EAX=0`、`EDI=0x004ACF50`，以`rep stosd`从低地址到高地址清零96个dword，共384字节。
 
-modern用`std::array<u32,0x60>`建模并逐word正向清零。完成后显式令EAX和ECX为0，同时保留EDX；首个角色回调验证三个固定header和整张表均已清零。
+modern用`std::array<u32,0x60>`建模并逐word正向清零。
+首个角色请求的EAX与EDX均为零，ECX为该角色地址；测试同时检查三个根和表已清零。
 
 ## 4. 角色组B遍历
 
@@ -68,13 +75,13 @@ C++到LST反向追溯覆盖58行完整函数、22次原callee调用、三个五�
 
 定向测试覆盖：
 
-- 全局链清理恰好一次且最先；
-- 三个固定对象token、顺序、五字清零与共享owner；
-- 三次helper均返回EAX零、当前token ECX及不变EDX；
+- 三条链的实际节点先被释放；
+- 三个共享固定记录按原顺序完成五字清零；
+- 链访问失败保留此前根的清理前缀，后续表及角色不变；
 - 96个dword在actor循环前全部清零；
 - 组B八个地址与`0x2B28`步长；
 - 组A十个地址与`0x2F34`步长；
-- 首个actor入口EAX为零且EDX来自全局链清理；
+- 首个actor入口EAX和EDX均为零；
 - 18个actor reply的EAX和EDX逐次线程，ECX在每次调用前被当前token覆盖；
 - 最终EAX、ECX和EDX来自末个组A对象callee。
 

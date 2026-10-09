@@ -20,14 +20,6 @@ struct LegacyBattleObjectResetCallReply {
     compat::u32 edx{};
 };
 
-class LegacyBattleGlobalResetPort {
-public:
-    virtual ~LegacyBattleGlobalResetPort() = default;
-
-    [[nodiscard]] virtual LegacyBattleObjectResetCallReply
-    reset_global_state() = 0;
-};
-
 struct LegacyBattleActorObjectResetRequest {
     compat::u32 actor_token{};
     compat::u32 eax{};
@@ -44,8 +36,7 @@ public:
 };
 
 struct LegacyBattleObjectResetResult {
-    compat::u32 global_reset_calls{};
-    LegacyBattleObjectResetCallReply global_reset_reply{};
+    LegacyBattleFixedChainReleaseResult fixed_chain_release{};
     std::array<LegacyBattleFixedObjectResetResult, 3> fixed_object_resets{};
     compat::u32 table_dword_writes{};
     compat::u32 group_b_reset_calls{};
@@ -58,7 +49,6 @@ struct LegacyBattleObjectResetResult {
 // sub_451A20: reset shared battle objects, one table, group B, then group A.
 [[nodiscard]] LegacyBattleObjectResetResult reset_legacy_battle_objects(
     LegacyBattleObjectResetState& state,
-    LegacyBattleGlobalResetPort& global_reset_port,
     LegacyBattleFixedObjectState& fixed_object_state,
     LegacyBattleActorObjectResetPort& actor_reset_port
 );

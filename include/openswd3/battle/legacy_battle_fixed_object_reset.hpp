@@ -3,6 +3,7 @@
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <cstddef>
 #include <list>
 #include <memory_resource>
 #include <span>
@@ -49,6 +50,24 @@ struct LegacyBattleFixedObjectResetResult {
 [[nodiscard]] LegacyBattleFixedObjectResetResult
 reset_legacy_battle_fixed_object(
     std::span<compat::u32> object_words
+) noexcept;
+
+enum class LegacyBattleFixedChainReleaseStatus : compat::u8 {
+    completed,
+    invalid_chain,
+};
+
+struct LegacyBattleFixedChainReleaseResult {
+    LegacyBattleFixedChainReleaseStatus status{
+        LegacyBattleFixedChainReleaseStatus::completed
+    };
+    compat::u32 stopped_node{};
+    std::size_t nodes_released{};
+};
+
+[[nodiscard]] LegacyBattleFixedChainReleaseResult
+release_legacy_battle_fixed_chains(
+    LegacyBattleFixedObjectState& state
 ) noexcept;
 
 }  // namespace openswd3::battle

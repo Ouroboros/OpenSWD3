@@ -45,6 +45,8 @@ MON及对象重置父级中的剩余协议仍待迁移。
 `LegacyBattleFixedObjectState::fixed_count_nodes`使用标准库`std::pmr::list`。
 默认使用标准库默认内存资源。状态容器持有节点，清空或销毁容器即释放实际内存。
 追加节点保持已有节点引用有效。
+[固定链释放](battle-fixed-chain-release-00478110.md)按LST逐链从尾部释放
+实际节点，再清前驱链接和根；对象重置及Fame恢复共用这一过程。
 
 分配函数先在容器中创建完整节点，再通过既有guest地址保留器取得20字节身份范围。
 节点内存分配抛出`std::bad_alloc`时返回零身份。
