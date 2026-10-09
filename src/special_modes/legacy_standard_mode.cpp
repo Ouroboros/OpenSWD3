@@ -9391,20 +9391,14 @@ static bool update_party_dialog_item_categories(
     }
 
     const compat::u32 second_mask = state.item_category_masks[1U];
-    compat::u32 second_entry_edx = flags & second_mask;
-    second_entry_edx &= 0xFFFF7FFFU;
-    if (second_entry_edx == second_mask) {
+    const compat::u32 second_masked_flags = flags & second_mask & 0xFFFF7FFFU;
+    if (second_masked_flags == second_mask) {
         result.fixed_definition_curve =
             battle::set_legacy_battle_fixed_definition_curve(
                 ports.legacy_battle_fixed_object_state(),
                 ports,
-                {
-                    .key = item_key,
-                    .count = added_bits,
-                    .entry_eax = added_bits,
-                    .entry_ecx = item_key,
-                    .entry_edx = second_entry_edx,
-                }
+                item_key,
+                static_cast<compat::u16>(added_bits)
             );
         if (result.fixed_definition_curve.status !=
             battle::LegacyBattleFixedDefinitionCurveSetStatus::completed) {

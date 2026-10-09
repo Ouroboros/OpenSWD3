@@ -95,7 +95,8 @@ SDL应用构建通过，未启动游戏。日志为`build/tmp/runtime/`下
 完整源码和测试差异已逐项复核；验证后仅补齐代码块空行，
 `fixed-curve-set-final-format.log`记录非空白内容不变的机械检查。
 生产和测试中已无该request及callee编号调用，原地址仅保留在出处注释。
-定义曲线设置和固定状态Port仍待迁移。
+[定义曲线设置](battle-fixed-definition-curve-set-00477a20.md)随后已完成语义迁移；
+固定状态Port及MON内部剩余协议仍待处理。
 
 ## 7. 历史验证与动态差分
 

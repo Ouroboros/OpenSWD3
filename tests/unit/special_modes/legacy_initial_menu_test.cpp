@@ -23243,8 +23243,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                     allocation_record_access_typed_stop &&
             party_dialog_definition_stopped.fixed_definition_curve
                     .stopped_offset == 0U &&
-            party_dialog_definition_stopped.fixed_definition_curve.return_eax ==
-                0U &&
+            party_dialog_definition_stopped.fixed_definition_curve
+                    .stopped_token == 0U &&
             party_dialog_definition_stopped.fixed_count.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::none &&
             party_dialog_definition_stop_ports.requested_definition_ids ==

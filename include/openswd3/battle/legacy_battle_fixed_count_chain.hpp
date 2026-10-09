@@ -60,14 +60,6 @@ struct LegacyBattleFixedCountLookupResult {
     compat::u32 stopped_offset{};
 };
 
-// Tracks only values left pending by this helper. `empty` does not assert that
-// the caller's pre-existing physical x87 stack was empty on entry.
-enum class LegacyBattleFixedCurveX87StackState : compat::u8 {
-    empty,
-    maximum,
-    ratio,
-};
-
 struct LegacyBattleFixedCurveAdvanceResult {
     LegacyBattleFixedCountStatus status{
         LegacyBattleFixedCountStatus::completed
@@ -159,19 +151,6 @@ lookup_legacy_battle_fixed_curve(
     compat::u32 owner_token = kLegacyBattleFixedCurveOwnerToken
 ) noexcept;
 
-struct LegacyBattleFixedDefinitionCurveSetRequest {
-    std::filesystem::path definition_path{"mon.dat"};
-    compat::u32 owner_token{kLegacyBattleFixedDefinitionCurveOwnerToken};
-    compat::u32 definition_output_token{
-        kLegacyBattleFixedDefinitionScratchToken
-    };
-    compat::u32 key{};
-    compat::u32 count{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_ecx{};
-    compat::u32 entry_edx{};
-};
-
 enum class LegacyBattleFixedDefinitionCurveSetStatus : compat::u8 {
     completed,
     definition_load_typed_stop,
@@ -185,37 +164,14 @@ struct LegacyBattleFixedDefinitionCurveSetResult {
         LegacyBattleFixedDefinitionCurveSetStatus::completed
     };
     LegacyBattleFixedCountPath path{LegacyBattleFixedCountPath::none};
-    LegacyBattleFixedCurveX87StackState x87_stack{
-        LegacyBattleFixedCurveX87StackState::empty
-    };
     LegacyBattleMonDefinitionLoadResult definition_load{};
-    compat::u32 owner_token{};
     compat::u32 matched_token{};
-    compat::u32 allocation_token{};
     compat::u32 stopped_token{};
     compat::u32 stopped_offset{};
-    compat::u32 definition_load_calls{};
-    compat::u32 definition_cleanup_calls{};
-    compat::u32 definition_text_release_calls{};
-    compat::u32 root_count_reads{};
-    compat::u32 chain_link_reads{};
-    compat::u32 key_reads{};
-    compat::u32 lock_reads{};
-    compat::u32 link_writes{};
-    compat::u32 dword_zero_writes{};
-    compat::u32 key_writes{};
-    compat::u32 count_writes{};
-    compat::u32 clamp_writes{};
-    compat::u32 scale_writes{};
-    compat::u32 root_count_increments{};
-    compat::u32 truncate_calls{};
     compat::u16 maximum{};
     compat::u16 count{};
     compat::u16 scale{};
     bool locked{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 // Typed closure of legacy 0x00477A20. A MON definition is loaded and its
@@ -226,7 +182,10 @@ struct LegacyBattleFixedDefinitionCurveSetResult {
 set_legacy_battle_fixed_definition_curve(
     LegacyBattleFixedObjectState& state,
     LegacyBattleMonDatabasePort& mon_port,
-    const LegacyBattleFixedDefinitionCurveSetRequest& request
+    compat::u32 definition_id,
+    compat::u16 count,
+    compat::u32 owner_token = kLegacyBattleFixedDefinitionCurveOwnerToken,
+    const std::filesystem::path& definition_path = "mon.dat"
 );
 
 enum class LegacyBattleFixedDefinitionCurveLookupStatus : compat::u8 {

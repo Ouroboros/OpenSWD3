@@ -2,6 +2,14 @@
 
 状态：`platform_adapted`、`unit_tested`、`callers_reclaimed`。
 
+## 当前语义接口
+
+直接接收共享状态、MON数据访问、完整定义ID、WORD数量和定义文件路径。
+结果保留加载状态、锁定标记、已计算的数值、命中记录和失败位置。
+删除寄存器request/reply、模拟x87栈、冗余身份及读写、加载和转换计数。
+定义暂存区由原MON共享状态持有，文字仍在原位置释放。
+下文寄存器说明保留为LST证据，不再作为C++接口合同。
+
 ## 1. 完整权威范围与调用图
 
 唯一行为真值为`swd3.exe.lst`。完整主体为`0x00477A20..0x00477B30`，从proc到endp共127个物理行、82条实际指令、5个call、7个跳转、7个局部标签和2个返回点，没有外部`FUNCTION CHUNK`。
@@ -68,11 +76,35 @@ typed-stop不伪造成功EAX一，也不执行未到达的页面刷新、编辑�
 
 ## 6. Dialog caller回收
 
-两个caller都先从道具记录`+0x2C`加载flags，与第二分类mask做`and`，再清结果bit15并比较mask。命中后把解析后的命令ID作为完整definition/record键，把附加值作为count，以根`0x004B8A00`直连本typed helper。callsite入口EAX为附加值、ECX为命令ID、EDX为masked flags，三者完整前缀均显式传入。
+两个caller都先从道具记录`+0x2C`加载flags，与第二分类mask做`and`，再清结果bit15并比较mask。命中后把解析后的命令ID作为完整definition/record键，把附加值作为count，以根`0x004B8A00`直连本typed helper。当前直接传入完整定义ID与附加数量低WORD；分类条件仍独立判断，不再传递入口寄存器。
 
-原`update_second_item_category`opaque端口及测试override已删除。新增与直接修改两条命令都复用同一MON port、同一固定对象owner和同一分配端口；helper typed-stop映射到独立`fixed_definition_curve_typed_stop`，保留此前库存与第一分类副作用，并阻断第三分类、低ID重复设置、页面刷新、编辑框清理和命令scratch释放。
+原`update_second_item_category`opaque端口及测试override已删除。新增与直接修改两条命令都复用同一MON访问、同一固定状态容器和真实节点分配；helper typed-stop映射到独立`fixed_definition_curve_typed_stop`，保留此前库存与第一分类副作用，并阻断第三分类、低ID重复设置、页面刷新、编辑框清理和命令scratch释放。
 
-## 7. 验证与动态差分
+## 本次语义迁移复核
+
+完整主体及两个调用点已复核。根和初始链读取仍先于MON加载；
+正常加载返回后先释放文字，再搜索记录和检查锁定位。
+锁定记录保留原次数和百分比，加载失败的正常返回仍继续原有零上限路径。
+缺键时先发布链接，再清零、写键和原数量、夹限、写比例、递增根。
+
+测试以实际文字为空、说明身份清零、记录数据和失败位置替代计数断言。
+锁定记录及后续链访问失败均带真实说明文字，验证释放先于这两个出口。
+完整ID`0xFFFF0009`传入MON；MON自身按低WORD查询目录项9，
+记录键也使用低WORD。首轮测试误把目录夹具当成完整ID观测，
+已依据MON实现分别检查请求ID和目录项；失败日志保留。
+
+core与AddressSanitizer分别构建并执行固定链和菜单，四项各通过1/1；
+SDL应用构建通过，未启动游戏。日志位于`build/tmp/runtime/`下：
+`fixed-definition-curve-set-core-chain-final.log`、`-core-menu.log`、
+`-asan-chain.log`、`-asan-menu.log`及`-sdl.log`，后四项使用同一前缀。
+首轮断言失败日志为`fixed-definition-curve-set-core-chain.log`。
+完整源码与测试差异已逐项复核；固定链接口及实现已无寄存器参数/结果、
+x87模拟或访问计数。本批旧callee编号仅保留在出处注释中。
+固定状态Port及MON内部剩余协议仍待后续迁移。
+
+## 7. 历史验证与动态差分
+
+以下完整门禁和寄存器/短区分配夹具为旧工作包记录，不是本批重跑结果。
 
 叶函数回归覆盖零count根命中、动态节点锁位、缺键分配与五dword清零、低word键/count截断、inclusive夹限、百分比截零、maximum零integer indefinite、说明分配/释放及累计字节残留、MON正常打开失败后继续、loader typed-stop，以及根、链、分配记录各原访问停止点。Dialog回归覆盖新增与直接修改两个物理caller、真实MON fixture、共享根`0x004B8A00`、第二分类typed-stop和与前后分类的严格顺序。
 

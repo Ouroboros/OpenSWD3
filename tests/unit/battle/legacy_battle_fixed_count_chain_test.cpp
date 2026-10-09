@@ -765,15 +765,7 @@ void test_definition_curve_existing_and_locked(openswd3::test::Context& test) {
     root[2U] = 0x00001234U;
     const auto root_set =
         openswd3::battle::set_legacy_battle_fixed_definition_curve(
-            state,
-            port,
-            {
-                .key = 0U,
-                .count = 5U,
-                .entry_eax = 0x11111111U,
-                .entry_ecx = 0x22222222U,
-                .entry_edx = 0x33333333U,
-            }
+            state, port, 0U, 5U
         );
     const auto& scratch = port.legacy_battle_mon_definition_scratch();
     test.expect_true(
@@ -781,19 +773,11 @@ void test_definition_curve_existing_and_locked(openswd3::test::Context& test) {
                 openswd3::battle::LegacyBattleFixedDefinitionCurveSetStatus::
                     completed &&
             root_set.path == LegacyBattleFixedCountPath::existing_root &&
-            root_set.definition_load_calls == 1U &&
-            root_set.definition_cleanup_calls == 1U &&
-            root_set.definition_text_release_calls == 1U &&
-            root_set.root_count_reads == 1U && root_set.key_reads == 1U &&
-            root_set.lock_reads == 1U && !root_set.locked &&
-            root_set.maximum == 10U && root_set.count == 5U &&
-            root_set.scale == 50U && root_set.count_writes == 1U &&
-            root_set.scale_writes == 1U && root_set.return_eax == 1U &&
-            root_set.return_ecx == 5U && root_set.return_edx == 0U &&
+            !root_set.locked && root_set.maximum == 10U &&
+            root_set.count == 5U && root_set.scale == 50U &&
             key(root[1U]) == 0U && count(root[1U]) == 5U &&
             root[2U] == 0x00000032U &&
             port.requested_definition_ids == std::vector<u32>{0U} &&
-            port.definition_text_release_calls == 1U &&
             port.legacy_battle_mon_database_state()
                     .definition_text_allocation_bytes == 2U &&
             scratch[0xA0U] == 0U && scratch[0xA1U] == 0U &&
@@ -806,6 +790,7 @@ void test_definition_curve_existing_and_locked(openswd3::test::Context& test) {
     port.reset_mon_session();
     port.clear_definition();
     set_definition_word(port, 0x44U, 20U);
+    port.definition_description = {'l', 0U};
     state.object_words[2U][0U] = 0x7F100000U;
     state.object_words[2U][1U] = 1U;
     state.fixed_count_nodes.push_back({
@@ -815,15 +800,7 @@ void test_definition_curve_existing_and_locked(openswd3::test::Context& test) {
     });
     const auto locked =
         openswd3::battle::set_legacy_battle_fixed_definition_curve(
-            state,
-            port,
-            {
-                .key = 9U,
-                .count = 17U,
-                .entry_eax = 0xAAAAAAAAU,
-                .entry_ecx = 0xBBBBBBBBU,
-                .entry_edx = 0xCCCCCCCCU,
-            }
+            state, port, 9U, 17U
         );
     const auto& locked_node = state.fixed_count_nodes.front();
     test.expect_true(
@@ -832,13 +809,11 @@ void test_definition_curve_existing_and_locked(openswd3::test::Context& test) {
                     completed &&
             locked.path == LegacyBattleFixedCountPath::existing_node &&
             locked.matched_token == 0x7F100000U && locked.locked &&
-            locked.root_count_reads == 1U && locked.chain_link_reads == 1U &&
-            locked.key_reads == 1U && locked.lock_reads == 1U &&
-            locked.count_writes == 0U && locked.scale_writes == 0U &&
-            locked.maximum == 0U && locked.return_eax == 1U &&
-            count(locked_node.words[1U]) == 7U &&
-            locked_node.words[2U] == 0x00011234U,
-        "a nonempty root starts at its first node and a nonzero plus-ten word returns one after definition cleanup without reading the maximum"
+            locked.maximum == 0U && count(locked_node.words[1U]) == 7U &&
+            locked_node.words[2U] == 0x00011234U &&
+            port.requested_definition_ids == std::vector<u32>{9U} &&
+            port.legacy_battle_mon_definition_scratch_description().empty(),
+        "a nonempty root starts at its first node and a nonzero plus-ten word preserves the record after definition cleanup without reading the maximum"
     );
 }
 
@@ -850,15 +825,7 @@ void test_definition_curve_allocate_and_clamp(openswd3::test::Context& test) {
 
     const auto created =
         openswd3::battle::set_legacy_battle_fixed_definition_curve(
-            state,
-            port,
-            {
-                .key = 0xFFFF0009U,
-                .count = 0xAAAA0007U,
-                .entry_eax = 0xAAAA0007U,
-                .entry_ecx = 0xFFFF0009U,
-                .entry_edx = 0x12340002U,
-            }
+            state, port, 0xFFFF0009U, static_cast<u16>(0xAAAA0007U)
         );
     const auto& root = state.object_words[2U];
     const auto& node = state.fixed_count_nodes.front();
@@ -867,13 +834,10 @@ void test_definition_curve_allocate_and_clamp(openswd3::test::Context& test) {
                 openswd3::battle::LegacyBattleFixedDefinitionCurveSetStatus::
                     completed &&
             created.path == LegacyBattleFixedCountPath::allocated_node &&
-            state.fixed_count_nodes.size() == 1U && created.link_writes == 1U &&
-            created.dword_zero_writes == 5U && created.key_writes == 1U &&
-            created.count_writes == 2U && created.clamp_writes == 1U &&
-            created.scale_writes == 1U && created.root_count_increments == 1U &&
-            created.maximum == 3U && created.count == 3U &&
-            created.scale == 100U && created.return_eax == 1U &&
-            created.return_ecx == 3U && created.return_edx == 0U &&
+            state.fixed_count_nodes.size() == 1U && created.maximum == 3U &&
+            created.count == 3U && created.scale == 100U &&
+            created.definition_load.definition_id == 0xFFFF0009U &&
+            port.requested_definition_ids == std::vector<u32>{9U} &&
             root[0U] == node.legacy_token && key(root[1U]) == 1U &&
             node.legacy_token != 0U && node.words[0U] == 0U &&
             key(node.words[1U]) == 9U && count(node.words[1U]) == 3U &&
@@ -889,19 +853,16 @@ void test_definition_curve_allocate_and_clamp(openswd3::test::Context& test) {
     state.object_words[2U][1U] = 0U;
     const auto zero_maximum =
         openswd3::battle::set_legacy_battle_fixed_definition_curve(
-            state, port, {.key = 0U, .count = 9U}
+            state, port, 0U, 9U
         );
     test.expect_true(
         zero_maximum.status ==
                 openswd3::battle::LegacyBattleFixedDefinitionCurveSetStatus::
                     completed &&
             zero_maximum.path == LegacyBattleFixedCountPath::existing_root &&
-            zero_maximum.count_writes == 2U &&
-            zero_maximum.clamp_writes == 1U && zero_maximum.maximum == 0U &&
-            zero_maximum.count == 0U && zero_maximum.scale == 0U &&
-            zero_maximum.return_eax == 1U && zero_maximum.return_ecx == 0U &&
-            zero_maximum.return_edx == 0x80000000U,
-        "a zero definition maximum preserves the raw write, inclusive zero clamp, zero-over-zero integer indefinite, and final EAX one"
+            zero_maximum.maximum == 0U && zero_maximum.count == 0U &&
+            zero_maximum.scale == 0U,
+        "a zero definition maximum preserves the raw write, inclusive zero clamp, zero-over-zero integer indefinite, and stored zero percentage"
     );
 }
 
@@ -911,27 +872,14 @@ void test_definition_curve_typed_stops(openswd3::test::Context& test) {
     DefinitionCurvePort port;
     const auto owner_stop =
         openswd3::battle::set_legacy_battle_fixed_definition_curve(
-            state,
-            port,
-            {
-                .owner_token = 0x7F300000U,
-                .key = 1U,
-                .count = 2U,
-                .entry_eax = 0x11111111U,
-                .entry_ecx = 0x22222222U,
-                .entry_edx = 0x33333333U,
-            }
+            state, port, 1U, 2U, 0x7F300000U
         );
     test.expect_true(
         owner_stop.status ==
                 openswd3::battle::LegacyBattleFixedDefinitionCurveSetStatus::
                     record_access_typed_stop &&
             owner_stop.stopped_token == 0x7F300000U &&
-            owner_stop.stopped_offset == 4U &&
-            owner_stop.definition_load_calls == 0U &&
-            owner_stop.return_eax == 0x11111111U &&
-            owner_stop.return_ecx == 0x22222222U &&
-            owner_stop.return_edx == 0x33333333U && port.opened_path.empty() &&
+            owner_stop.stopped_offset == 4U && port.opened_path.empty() &&
             port.read_sizes.empty(),
         "an inaccessible owner stops at the initial root count read before loading a definition"
     );
@@ -939,11 +887,12 @@ void test_definition_curve_typed_stops(openswd3::test::Context& test) {
     state = {};
     port.reset_mon_session();
     port.clear_definition();
+    port.definition_description = {'y', 0U};
     state.object_words[2U][0U] = 0x7F300010U;
     state.object_words[2U][1U] = 1U;
     const auto next_stop =
         openswd3::battle::set_legacy_battle_fixed_definition_curve(
-            state, port, {.key = 2U, .count = 3U}
+            state, port, 2U, 3U
         );
     test.expect_true(
         next_stop.status ==
@@ -951,9 +900,11 @@ void test_definition_curve_typed_stops(openswd3::test::Context& test) {
                     record_access_typed_stop &&
             next_stop.stopped_token == 0x7F300010U &&
             next_stop.stopped_offset == 4U &&
-            next_stop.definition_load_calls == 1U &&
-            next_stop.definition_cleanup_calls == 1U &&
-            next_stop.key_reads == 0U && next_stop.return_eax == 0U,
+            next_stop.definition_load.status ==
+                openswd3::battle::LegacyBattleMonDefinitionLoadStatus::
+                    completed &&
+            port.requested_definition_ids == std::vector<u32>{2U} &&
+            port.legacy_battle_mon_definition_scratch_description().empty(),
         "a nonempty root publishes its link before loading and cleaning the definition, then stops at the linked key read"
     );
 
@@ -963,7 +914,7 @@ void test_definition_curve_typed_stops(openswd3::test::Context& test) {
     port.open_succeeds = false;
     const auto open_failed =
         openswd3::battle::set_legacy_battle_fixed_definition_curve(
-            state, port, {.key = 0U, .count = 9U}
+            state, port, 0U, 9U
         );
     test.expect_true(
         open_failed.status ==
@@ -972,13 +923,9 @@ void test_definition_curve_typed_stops(openswd3::test::Context& test) {
             open_failed.definition_load.status ==
                 openswd3::battle::LegacyBattleMonDefinitionLoadStatus::
                     open_failed &&
-            open_failed.definition_load_calls == 1U &&
-            open_failed.definition_cleanup_calls == 1U &&
             open_failed.path == LegacyBattleFixedCountPath::existing_root &&
             open_failed.maximum == 0U && open_failed.count == 0U &&
-            open_failed.scale == 0U && open_failed.return_eax == 1U &&
-            open_failed.return_ecx == 0U &&
-            open_failed.return_edx == 0x80000000U,
+            open_failed.scale == 0U,
         "a normal MON open failure returns zero from the loader, still runs definition cleanup, and continues the original zero-maximum curve update"
     );
 
@@ -989,7 +936,7 @@ void test_definition_curve_typed_stops(openswd3::test::Context& test) {
     port.allocation_succeeds = false;
     const auto definition_stop =
         openswd3::battle::set_legacy_battle_fixed_definition_curve(
-            state, port, {.key = 3U, .count = 4U}
+            state, port, 3U, 4U
         );
     test.expect_true(
         definition_stop.status ==
@@ -998,9 +945,7 @@ void test_definition_curve_typed_stops(openswd3::test::Context& test) {
             definition_stop.definition_load.status ==
                 openswd3::battle::LegacyBattleMonDefinitionLoadStatus::
                     stream_zero_typed_stop &&
-            definition_stop.definition_load_calls == 1U &&
-            definition_stop.definition_cleanup_calls == 0U &&
-            definition_stop.key_reads == 0U && port.released_streams.empty(),
+            port.released_streams.empty(),
         "a MON stream zero stops inside the closed definition loader before cleanup or chain search"
     );
 
@@ -1012,7 +957,7 @@ void test_definition_curve_typed_stops(openswd3::test::Context& test) {
     memory.allocation_enabled = false;
     const auto allocation_stop =
         openswd3::battle::set_legacy_battle_fixed_definition_curve(
-            state, port, {.key = 5U, .count = 7U}
+            state, port, 5U, 7U
         );
     test.expect_true(
         allocation_stop.status ==
@@ -1020,8 +965,6 @@ void test_definition_curve_typed_stops(openswd3::test::Context& test) {
                     allocation_record_access_typed_stop &&
             allocation_stop.stopped_token == 0U &&
             allocation_stop.stopped_offset == 0U &&
-            allocation_stop.link_writes == 1U &&
-            allocation_stop.dword_zero_writes == 0U &&
             state.object_words[2U][0U] == 0U &&
             key(state.object_words[2U][1U]) == 0U &&
             state.fixed_count_nodes.empty() && memory.outstanding_blocks == 0U,
