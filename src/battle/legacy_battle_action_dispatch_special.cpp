@@ -33,7 +33,6 @@ LegacyBattleDualRecordActionResult advance_legacy_battle_dual_record_action(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -350,7 +349,6 @@ LegacyBattleSpecialFiveHundredResult advance_legacy_battle_special_five_hundred(
     actor->turn_completion_latch = 1U;
     special.action_id = static_cast<u32>(actor->profile_value) + 0x5DCU;
     ++result.special_update_calls;
-    ++result.port_calls;
     auto reply = port.invoke_special_action_update(
         {
             .callee_token = kCallSpecialActionUpdate,
@@ -386,7 +384,6 @@ LegacyBattleSpecialFiveHundredResult advance_legacy_battle_special_five_hundred(
     if ((actor->action_runtime_gate & 0x4000U) != 0U) {
         registers.edx = special.field_78;
         ++result.turn_frame_calls;
-        ++result.port_calls;
         reply = port.invoke_special_turn_frame(
             {
                 .callee_token = kCallSpecialTurnFrame,
@@ -509,7 +506,6 @@ LegacyBattleSpecialFourOhFiveResult advance_legacy_battle_special_four_oh_five(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -642,7 +638,6 @@ LegacyBattleSpecialFourOhFiveResult advance_legacy_battle_special_four_oh_five(
     control.blue_factor = std::bit_cast<i16>(special.field_68);
     result.frame_refresh = refresh_legacy_battle_frame(port);
     ++result.frame_refresh_calls;
-    result.port_calls += result.frame_refresh.port_calls;
     if (result.frame_refresh.status !=
         LegacyBattleFrameRefreshStatus::completed) {
         result.status =
@@ -704,7 +699,6 @@ LegacyBattleSpecialFourOhFiveResult advance_legacy_battle_special_four_oh_five(
     }
     phase->tick = static_cast<u16>(phase->tick + 1U);
     ++result.effect_update_calls;
-    ++result.port_calls;
     auto reply = port.invoke_special_four_oh_five_update(
         {
             .callee_token = 0x0047F940U,
@@ -917,7 +911,6 @@ LegacyBattleSpecialFourOhSixResult advance_legacy_battle_special_four_oh_six(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -1170,7 +1163,6 @@ LegacyBattleSpecialFourOhSixResult advance_legacy_battle_special_four_oh_six(
 
     if (actor->action_runtime_gate == 4U) {
         ++result.effect_update_calls;
-        ++result.port_calls;
         auto reply = port.invoke_special_four_oh_six_effect_update(
             {
                 .callee_token = 0x0047F940U,
@@ -1255,7 +1247,6 @@ LegacyBattleSpecialFourOhSixResult advance_legacy_battle_special_four_oh_six(
         secondary_effect.action_id = 0x1F88U;
         secondary_effect.base_variant = 0U;
         ++result.secondary_update_calls;
-        ++result.port_calls;
         const auto reply = port.invoke_special_four_oh_six_secondary_update(
             {
                 .callee_token = 0x00483DB0U,
@@ -1349,7 +1340,6 @@ LegacyBattleSpecialFourOhNineResult advance_legacy_battle_special_four_oh_nine(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -1373,7 +1363,6 @@ LegacyBattleSpecialFourOhNineResult advance_legacy_battle_special_four_oh_nine(
     actor->turn_completion_latch = 1U;
     if (actor->action_runtime_gate == 0U) {
         ++result.special_update_calls;
-        ++result.port_calls;
         const auto primary_reply =
             port.invoke_special_four_hundred_primary_update(
                 {
@@ -1431,7 +1420,6 @@ LegacyBattleSpecialFourOhNineResult advance_legacy_battle_special_four_oh_nine(
         registers.edx = coordinate_y;
         registers.ecx = request.actor_token;
         ++result.coordinate_update_calls;
-        ++result.port_calls;
         const auto updated = port.invoke_special_four_oh_nine_coordinate_update(
             {
                 .callee_token = kCallSpecialFourOhNineCoordinateUpdate,

@@ -24,7 +24,6 @@ LegacyBattleRetreatCommitResult commit_legacy_battle_retreat(
         .call = LegacyBattleRetreatCommitCall::query_selected_actor_ready,
         .object_token = result.selected_object_token,
     });
-    ++result.port_calls;
     result.return_value = result.selected_actor.eax;
     result.final_ecx = result.selected_actor.ecx;
     result.final_edx = result.selected_actor.edx;
@@ -81,8 +80,6 @@ LegacyBattleRetreatCommitResult commit_legacy_battle_retreat(
                 },
             }
         );
-        result.port_calls += result.warning_text.allocation_calls +
-            result.warning_text.measure_calls;
         if (result.warning_text.status !=
             LegacyBattleTextMessageStatus::completed) {
             result.status =
@@ -99,7 +96,6 @@ LegacyBattleRetreatCommitResult commit_legacy_battle_retreat(
                 static_cast<u32>(port.battle_sample_mix_level()),
             },
         });
-        ++result.port_calls;
         result.return_value = result.warning_sample.eax;
         result.final_ecx = result.warning_sample.ecx;
         result.final_edx = result.warning_sample.edx;

@@ -58,7 +58,6 @@ reconfigure_legacy_battle_group_b_action(
             .definition_id = request.definition_argument,
         }
     );
-    ++result.port_calls;
     if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status = LegacyBattleGroupBActionReconfigurationStatus::
             resource_load_typed_stop;
@@ -90,7 +89,6 @@ reconfigure_legacy_battle_group_b_action(
             .profile_id = profile_argument,
         }
     );
-    ++result.port_calls;
     if (profile_result.status ==
             LegacyBattleMonProfileLoadStatus::stream_zero_typed_stop ||
         profile_result.status ==
@@ -108,7 +106,6 @@ reconfigure_legacy_battle_group_b_action(
         mon_port,
         actor->resource_token
     );
-    ++result.port_calls;
     if (legacy_battle_mon_definition_text_release_stopped(
             release_result.status
         )) {

@@ -204,8 +204,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleDebugOverlayStatus::completed &&
-                result.port_calls == 2U && result.text_draws == 0U &&
-                result.formatted_texts == 0U &&
+                result.text_draws == 0U && result.formatted_texts == 0U &&
                 result.return_value == 0x11112222U &&
                 port.count(LegacyBattleDebugOverlayCall::font_reset) == 1U &&
                 port.count(LegacyBattleDebugOverlayCall::font_style) == 1U &&
@@ -348,7 +347,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                 result.actor_action_kind.return_eip == 0x004786B0U &&
                 result.actor_action_kind.action_kind_reads == 0U &&
                 result.group_b_rows == 0U && result.formatted_texts == 0U &&
-                result.text_draws == 0U && result.port_calls == 4U &&
+                result.text_draws == 0U &&
                 port.count(
                     LegacyBattleDebugOverlayCall::
                         reserved_query_actor_start_gate
@@ -383,7 +382,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                 result.actor_action_kind.action_kind_reads == 1U &&
                 result.actor_action_kind.return_address_reads == 0U &&
                 result.group_a_rows == 0U && result.formatted_texts == 0U &&
-                result.text_draws == 0U && result.port_calls == 2U &&
+                result.text_draws == 0U &&
                 port.count(
                     LegacyBattleDebugOverlayCall::
                         reserved_query_actor_start_gate
@@ -424,7 +423,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                 result.actor_start_gate.start_gate_reads == 0U &&
                 result.actor_start_gate.return_address_reads == 0U &&
                 result.group_b_rows == 0U && result.formatted_texts == 0U &&
-                result.text_draws == 0U && result.port_calls == 4U &&
+                result.text_draws == 0U &&
                 port.count(
                     LegacyBattleDebugOverlayCall::
                         reserved_query_actor_start_gate
@@ -468,7 +467,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                 result.actor_start_gate.start_gate_reads == 1U &&
                 result.actor_start_gate.return_address_reads == 0U &&
                 result.group_a_rows == 0U && result.formatted_texts == 0U &&
-                result.text_draws == 0U && result.port_calls == 2U &&
+                result.text_draws == 0U &&
                 port.count(
                     LegacyBattleDebugOverlayCall::
                         reserved_query_actor_start_gate
@@ -525,10 +524,9 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             result.status == LegacyBattleDebugOverlayStatus::completed &&
                 result.return_value == 0xAABBCCDDU &&
                 result.return_ecx == 0x12345678U &&
-                result.return_edx == 0x87654321U && result.port_calls == 35U &&
-                result.text_draws == 27U && result.formatted_texts == 24U &&
-                result.group_b_rows == 2U && result.group_a_rows == 2U &&
-                result.startup_order_rows == 4U &&
+                result.return_edx == 0x87654321U && result.text_draws == 27U &&
+                result.formatted_texts == 24U && result.group_b_rows == 2U &&
+                result.group_a_rows == 2U && result.startup_order_rows == 4U &&
                 result.actor_order_rows == 2U &&
                 result.selection_order_rows == 4U &&
                 result.marker_actors == 2U && result.marker_pixels == 8U,
@@ -603,7 +601,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                     LegacyBattleDebugOverlayStatus::
                         resolved_actor_word_typed_stop &&
                 fixture.overlay.resolved_actor_token == 0x10525508U &&
-                result.port_calls == 4U && result.text_draws == 0U &&
+                result.text_draws == 0U &&
                 port.count(LegacyBattleDebugOverlayCall::font_style) == 1U &&
                 port.count(LegacyBattleDebugOverlayCall::font_reset) == 1U,
             "missing resolved actor storage stops at the original word-54 read after resolve publication and level query"
@@ -715,7 +713,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                 !result.current_coordinate_query.flags
                      .auxiliary_carry_defined &&
                 fixture.overlay.marker_x == 7 &&
-                fixture.overlay.marker_row == 10 && result.port_calls == 11U &&
+                fixture.overlay.marker_row == 10 &&
                 result.current_coordinate_query_calls == 1U &&
                 result.actor_progress_width_calls == 0U &&
                 result.marker_actors == 0U && result.marker_pixels == 0U &&
@@ -740,7 +738,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleDebugOverlayStatus::
                         actor_progress_width_typed_stop &&
-                result.port_calls == 11U && result.text_draws == 7U &&
+                result.text_draws == 7U &&
                 result.current_coordinate_query_calls == 1U &&
                 result.actor_progress_width_calls == 1U &&
                 result.actor_progress_width.return_eax == 0U &&

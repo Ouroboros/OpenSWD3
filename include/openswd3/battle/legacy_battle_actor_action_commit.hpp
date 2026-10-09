@@ -34,7 +34,6 @@ struct LegacyBattleActorActionCommitResult {
     compat::u32 return_edx{};
     compat::u32 actor_order_reads{};
     compat::u32 actor_query_calls{};
-    compat::u32 port_calls{};
     bool actor_swapped{};
 };
 

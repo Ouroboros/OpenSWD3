@@ -481,7 +481,6 @@ advance_legacy_battle_actor_action_presentation(
         call_request.ecx = ecx;
         call_request.edx = edx;
         const auto port_reply = platform.port->invoke(call_request);
-        ++result.port_calls;
         reply = {
             .eax = port_reply.eax,
             .ecx = port_reply.ecx,

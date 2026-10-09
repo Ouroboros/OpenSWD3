@@ -110,7 +110,6 @@ struct LegacyBattlePairTransitionResult {
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
     compat::u16 transition_kind{};
-    compat::u32 port_calls{};
     bool primary_value_was_zero{};
     bool mode_two_path{};
     bool mode_four_path{};

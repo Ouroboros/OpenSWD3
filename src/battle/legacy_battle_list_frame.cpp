@@ -115,7 +115,6 @@ LegacyBattleListFrameResult draw_legacy_battle_list_frame(
         .ecx = kFontToken,
         .edx = edx,
     });
-    ++result.port_calls;
     ++result.font_style_calls;
     eax = font_reply.eax;
     ecx = font_reply.ecx;
@@ -127,7 +126,6 @@ LegacyBattleListFrameResult draw_legacy_battle_list_frame(
         .ecx = kFontToken,
         .edx = edx,
     });
-    ++result.port_calls;
     ++result.font_style_calls;
     eax = font_reply.eax;
     ecx = font_reply.ecx;

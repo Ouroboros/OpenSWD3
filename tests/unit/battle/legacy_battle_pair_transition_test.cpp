@@ -76,8 +76,7 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            result.primary_value_was_zero && result.port_calls == 0U &&
-                result.return_eax == 0xAAAAAAAAU &&
+            result.primary_value_was_zero && result.return_eax == 0xAAAAAAAAU &&
                 result.return_ecx == 0xBBBBBBBBU &&
                 result.return_edx == 0xCCCCCCCCU && port.calls.empty(),
             "zero primary value preserves entry registers and calls no object"
@@ -108,8 +107,7 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            result.transition_kind == 3U && result.port_calls == 1U &&
-                result.return_eax == 0xABCD0003U &&
+            result.transition_kind == 3U && result.return_eax == 0xABCD0003U &&
                 result.return_ecx == 0x12345678U &&
                 result.return_edx == 0x87654321U &&
                 port.battle_pair_primary_value() == 9U &&
@@ -141,7 +139,7 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            result.transition_kind == 1U && result.port_calls == 4U &&
+            result.transition_kind == 1U &&
                 port.calls[0].ecx == kPrimaryActorToken &&
                 result.effect_resource_slot_write.calls == 1U &&
                 result.effect_resource_slot_write.call_addresses[0U] ==
@@ -188,7 +186,7 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            result.mode_two_path && result.port_calls == 7U &&
+            result.mode_two_path &&
                 port.calls[2].call ==
                     LegacyBattlePairTransitionCall::publish_value &&
                 port.calls[2].object_token == kSecondaryActorToken &&
@@ -243,8 +241,7 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            result.port_calls == 6U &&
-                result.effect_resource_slot_write.calls == 2U &&
+            result.effect_resource_slot_write.calls == 2U &&
                 result.effect_resource_slot_write.call_addresses[0U] ==
                     0x0045D72FU &&
                 result.effect_resource_slot_write.call_addresses[1U] ==
@@ -288,7 +285,7 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            result.mode_four_path && result.port_calls == 7U &&
+            result.mode_four_path &&
                 result.effect_resource_slot_write.calls == 2U &&
                 result.effect_resource_slot_write.call_addresses[0U] ==
                     0x0045D7B5U &&
@@ -331,8 +328,7 @@ void test_battle_pair_transition(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            result.port_calls == 7U &&
-                result.effect_resource_slot_write.calls == 2U &&
+            result.effect_resource_slot_write.calls == 2U &&
                 (*resources.startup.group_b_lifecycle)[0U]
                         .action_execution.effect_resource_slots[0U] ==
                     0x235EU &&

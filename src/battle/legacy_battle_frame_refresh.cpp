@@ -59,13 +59,10 @@ refresh_legacy_battle_frame(LegacyBattleFrameRefreshStatePort& port) {
     std::optional<LegacyBattleFrameRefreshSource> source;
     for (compat::i32 factor = 1; factor <= 2; ++factor) {
         const auto surface_index = static_cast<std::size_t>(factor - 1);
-        ++result.port_calls;
         if (!port.serve_refresh_audio()) {
             result.status = Status::audio_stopped;
             return result;
         }
-
-        ++result.port_calls;
         const auto pixels =
             port.lock_frame_surface(state.surface_tokens[surface_index]);
         if (!pixels.has_value()) {
@@ -85,14 +82,12 @@ refresh_legacy_battle_frame(LegacyBattleFrameRefreshStatePort& port) {
         }
 
         source->target_pixel_address = *pixels;
-        ++result.port_calls;
         if (!port.unlock_frame_surface(surface, *pixels)) {
             result.status = Status::unlock_stopped;
             return result;
         }
 
         source->shared_request.source_token = source->background_record[0];
-        ++result.port_calls;
         if (!port.draw_refresh_background(
                 source->target_pixel_address,
                 source->shared_request.source_token,
@@ -102,8 +97,6 @@ refresh_legacy_battle_frame(LegacyBattleFrameRefreshStatePort& port) {
             result.status = Status::background_stopped;
             return result;
         }
-
-        ++result.port_calls;
         if (!port.apply_refresh_red(
                 source->target_pixel_address,
                 0x3C000U,
@@ -112,8 +105,6 @@ refresh_legacy_battle_frame(LegacyBattleFrameRefreshStatePort& port) {
             result.status = Status::red_stopped;
             return result;
         }
-
-        ++result.port_calls;
         if (!port.apply_refresh_green(
                 source->target_pixel_address,
                 0x3C000U,
@@ -122,8 +113,6 @@ refresh_legacy_battle_frame(LegacyBattleFrameRefreshStatePort& port) {
             result.status = Status::green_stopped;
             return result;
         }
-
-        ++result.port_calls;
         if (!port.apply_refresh_blue(
                 source->target_pixel_address,
                 0x3C000U,
@@ -146,7 +135,6 @@ refresh_legacy_battle_frame(LegacyBattleFrameRefreshStatePort& port) {
     state.refresh_pending = 1U;
     state.snapshot_word_3a = blue;
     state.active_surface_token = final_surface;
-    ++result.port_calls;
     const auto pixels = port.lock_frame_surface(viewport);
     if (!pixels.has_value()) {
         result.status = Status::lock_stopped;
@@ -155,7 +143,6 @@ refresh_legacy_battle_frame(LegacyBattleFrameRefreshStatePort& port) {
 
     const auto surface = state.viewport_token;
     source->target_pixel_address = *pixels;
-    ++result.port_calls;
     if (!port.unlock_frame_surface(surface, *pixels)) {
         result.status = Status::unlock_stopped;
     }

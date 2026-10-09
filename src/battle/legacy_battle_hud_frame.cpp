@@ -152,7 +152,6 @@ LegacyBattleHudFrameResult advance_legacy_battle_hud_frame(
         std::copy(
             arguments.begin(), arguments.end(), request.arguments.begin()
         );
-        ++result.port_calls;
         return port.invoke_hud(request);
     };
     auto validate_actor = [&](const u32 index) {
@@ -230,7 +229,6 @@ LegacyBattleHudFrameResult advance_legacy_battle_hud_frame(
                 }
             ));
             ++result.text_panel_calls;
-            result.port_calls += result.text_panels.back().port_calls;
             const auto primary = invoke(kCallQueryPrimaryValues, {token});
             ++result.x87_conversions;
             const u32 width = truncate_x87_low(ratio_extended(
@@ -720,7 +718,6 @@ LegacyBattleHudFrameResult advance_legacy_battle_hud_frame(
             }
         ));
         ++result.text_panel_calls;
-        result.port_calls += result.text_panels.back().port_calls;
         result.return_value = result.text_panels.back().return_registers.eax;
     }
     return result;

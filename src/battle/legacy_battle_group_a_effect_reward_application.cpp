@@ -193,7 +193,6 @@ apply_legacy_battle_group_a_effect_rewards(
                             allocation.ecx = ecx;
                             allocation.edx = edx;
                             const auto reply = port.invoke(allocation);
-                            ++result.port_calls;
                             ++result.allocation_calls;
                             eax = reply.eax;
                             ecx = reply.ecx;

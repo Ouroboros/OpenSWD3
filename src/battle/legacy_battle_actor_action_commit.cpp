@@ -75,7 +75,6 @@ LegacyBattleActorActionCommitResult commit_legacy_battle_actor_action(
                 .ecx = ecx,
                 .edx = edx,
             });
-            ++result.port_calls;
             ++result.actor_query_calls;
             eax = reply.eax;
             ecx = reply.ecx;

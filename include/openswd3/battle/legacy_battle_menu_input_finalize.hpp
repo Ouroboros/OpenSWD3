@@ -38,7 +38,6 @@ struct LegacyBattleMenuInputFinalizeResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     LegacyBattleGroupAActorCleanupResult active_group_a_cleanup{};
     compat::u32 active_group_a_reset_calls{};
     compat::u32 actor_reset_calls{};

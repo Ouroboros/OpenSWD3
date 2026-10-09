@@ -51,7 +51,6 @@ bool ActionDispatchRunner::begin_action(const u32 target_token) {
             }
         );
     ++result.group_a_action_execution_calls;
-    result.port_calls += result.group_a_action_execution.port_calls;
     append_nested_actor_field_26b8_high_bit_set(
         result.actor_field_26b8_high_bit_set,
         result.group_a_action_execution.actor_field_26b8_high_bit_set
@@ -103,11 +102,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                 return result;
             }
             static_cast<void>(invoke(
-                state,
-                port,
-                result,
-                kCallSimpleActorUpdate,
-                {side_token(group_b_index)}
+                state, port, kCallSimpleActorUpdate, {side_token(group_b_index)}
             ));
             return result;
         }
@@ -119,7 +114,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
             reply = invoke(
                 state,
                 port,
-                result,
                 kCallActorExit,
                 {side_token(group_b_index), 0xFFFFFFFFU, 0U}
             );
@@ -158,7 +152,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                         }
                     );
                 ++result.action_four_oh_two_calls;
-                result.port_calls += result.action_four_oh_two.port_calls;
                 if (result.action_four_oh_two.status !=
                     LegacyBattleActionFourOhTwoStatus::completed) {
                     result.status = LegacyBattleActionDispatchStatus::
@@ -194,7 +187,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                         }
                     );
                 ++result.special_four_hundred_calls;
-                result.port_calls += result.special_four_hundred.port_calls;
                 append_nested_actor_field_26b8_high_bit_set(
                     result.actor_field_26b8_high_bit_set,
                     result.special_four_hundred.actor_field_26b8_high_bit_set
@@ -221,7 +213,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                 reply = invoke(
                     state,
                     port,
-                    result,
                     kCallCommitVisual,
                     {port.battle_pair_primary_value(), 0U, 0U}
                 );
@@ -259,7 +250,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
             }
             port.battle_pair_primary_value() = 0U;
             const auto pending_clear =
-                invoke(state, port, result, kCallClearPendingAction, {0U});
+                invoke(state, port, kCallClearPendingAction, {0U});
             if (!apply_legacy_battle_actor_action_mode_call(
                     state,
                     context,
@@ -293,17 +284,16 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                         reply = invoke(
                             state,
                             port,
-                            result,
                             kCallActorSuspended,
                             {group_a_token(static_cast<u32>(index))}
                         );
                         if (reply.eax != 1U) {
-                            static_cast<void>(invoke(
-                                state, port, result, kCallPushState, {4U}
-                            ));
-                            static_cast<void>(invoke(
-                                state, port, result, kCallPushState, {0x40U}
-                            ));
+                            static_cast<void>(
+                                invoke(state, port, kCallPushState, {4U})
+                            );
+                            static_cast<void>(
+                                invoke(state, port, kCallPushState, {0x40U})
+                            );
                         }
                     }
                 }
@@ -315,10 +305,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                         return result;
                     }
                     static_cast<void>(
-                        invoke(state, port, result, kCallPushState, {0x40U})
+                        invoke(state, port, kCallPushState, {0x40U})
                     );
                     static_cast<void>(
-                        invoke(state, port, result, kCallPushState, {4U})
+                        invoke(state, port, kCallPushState, {4U})
                     );
                 }
                 phase = state.special_phase;
@@ -351,7 +341,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                         }
                     );
                 ++result.action_four_effect_calls;
-                result.port_calls += result.action_four_effect.port_calls;
                 append_nested_actor_field_26b8_high_bit_set(
                     result.actor_field_26b8_high_bit_set,
                     result.action_four_effect.actor_field_26b8_high_bit_set
@@ -377,7 +366,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                         invoke(
                             state,
                             port,
-                            result,
                             kCallCommitVisual,
                             {port.battle_pair_primary_value(), 0U, 0U}
                         )
@@ -415,9 +403,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                     state.special_phase = 0U;
                     state.frame_effect.split_extent = 0U;
                     state.frame_effect.split_suppression = 0U;
-                    const auto pending_clear = invoke(
-                        state, port, result, kCallClearPendingAction, {0U}
-                    );
+                    const auto pending_clear =
+                        invoke(state, port, kCallClearPendingAction, {0U});
                     if (!apply_legacy_battle_actor_action_mode_call(
                             state,
                             context,
@@ -440,11 +427,11 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                         }
                         if (index != static_cast<i32>(group_a_index)) {
                             static_cast<void>(
-                                invoke(state, port, result, kCallPopState, {4U})
+                                invoke(state, port, kCallPopState, {4U})
                             );
-                            static_cast<void>(invoke(
-                                state, port, result, kCallPopState, {0x40U}
-                            ));
+                            static_cast<void>(
+                                invoke(state, port, kCallPopState, {0x40U})
+                            );
                         }
                     }
                     for (i32 index = 0; index < state.group_b_count; ++index) {
@@ -455,10 +442,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                             return result;
                         }
                         static_cast<void>(
-                            invoke(state, port, result, kCallPopState, {4U})
+                            invoke(state, port, kCallPopState, {4U})
                         );
                         static_cast<void>(
-                            invoke(state, port, result, kCallPopState, {0x40U})
+                            invoke(state, port, kCallPopState, {0x40U})
                         );
                     }
                 }
@@ -492,7 +479,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
             }
         );
         ++result.special_four_oh_five_calls;
-        result.port_calls += result.special_four_oh_five.port_calls;
         append_nested_actor_field_26b8_high_bit_set(
             result.actor_field_26b8_high_bit_set,
             result.special_four_oh_five.actor_field_26b8_high_bit_set
@@ -529,7 +515,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
             }
         );
         ++result.special_four_oh_six_calls;
-        result.port_calls += result.special_four_oh_six.port_calls;
         append_nested_actor_field_26b8_high_bit_set(
             result.actor_field_26b8_high_bit_set,
             result.special_four_oh_six.actor_field_26b8_high_bit_set
@@ -561,7 +546,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
             }
         );
         ++result.special_four_oh_nine_calls;
-        result.port_calls += result.special_four_oh_nine.port_calls;
         if (result.special_four_oh_nine.status !=
             LegacyBattleSpecialFourOhNineStatus::completed) {
             result.status = LegacyBattleActionDispatchStatus::
@@ -583,7 +567,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                 }
             );
         ++result.special_five_hundred_calls;
-        result.port_calls += result.special_five_hundred.port_calls;
         if (result.special_five_hundred.status !=
             LegacyBattleSpecialFiveHundredStatus::completed) {
             result.status = LegacyBattleActionDispatchStatus::
@@ -607,7 +590,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
         invoke(
             state,
             port,
-            result,
             kCallCommitVisual,
             {port.battle_pair_primary_value(), 0U, 0U}
         )
@@ -618,9 +600,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
             port.battle_pair_primary_value() = 0xFFFFFFFFU;
         }
         if (action == 0x199U) {
-            static_cast<void>(
-                invoke(state, port, result, kCallSetScreenMode, {1U})
-            );
+            static_cast<void>(invoke(state, port, kCallSetScreenMode, {1U}));
             replace_low_word(state.scan_push_state, 0x8000U);
         }
         if (!clear_framebuffer(port, context, result)) {
@@ -683,7 +663,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
         }
     }
     const auto pending_clear =
-        invoke(state, port, result, kCallClearPendingAction, {0U});
+        invoke(state, port, kCallClearPendingAction, {0U});
     if (action != 0x199U &&
         !apply_legacy_battle_actor_action_mode_call(
             state,
@@ -734,7 +714,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::run() {
     }
     action = low_word(result.actor_action_kind.return_eax);
     result.action_code = action;
-    reply = invoke(state, port, result, kCallActorTerminal, {actor_token});
+    reply = invoke(state, port, kCallActorTerminal, {actor_token});
     if (reply.eax == 1U) {
         result.return_value = 1U;
         return result;
@@ -770,12 +750,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::run() {
     }
 
     if (action == 0x63U) {
-        static_cast<void>(
-            invoke(state, port, result, kCallSetScreenMode, {0U})
-        );
-        static_cast<void>(
-            invoke(state, port, result, kCallSetGlobalMode, {0U})
-        );
+        static_cast<void>(invoke(state, port, kCallSetScreenMode, {0U}));
+        static_cast<void>(invoke(state, port, kCallSetGlobalMode, {0U}));
         state.stored_group_b_index = 0xFFFFU;
         state.stored_group_a_index = 0xFFFFU;
         state.current_actor_index = 0xFFFFU;

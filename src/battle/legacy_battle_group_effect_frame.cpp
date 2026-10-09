@@ -205,7 +205,6 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         std::copy(
             arguments.begin(), arguments.end(), request.arguments.begin()
         );
-        ++result.port_calls;
         const auto reply = port.invoke(request);
         registers.eax = reply.eax;
         registers.ecx = reply.ecx;
@@ -580,7 +579,6 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         control.secondary_suppression = 1U;
         registers.eax = 1U;
         const auto refresh = refresh_legacy_battle_frame(port);
-        result.port_calls += refresh.port_calls;
         if (refresh.status != LegacyBattleFrameRefreshStatus::completed) {
             result.status =
                 LegacyBattleGroupEffectFrameStatus::frame_refresh_typed_stop;
@@ -1050,7 +1048,6 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             }
         );
         const auto& shift = result.effect_shift;
-        result.port_calls += shift.port_calls;
         registers.eax = shift.return_value;
         registers.ecx = shift.final_ecx;
         registers.edx = shift.final_edx;
@@ -1118,7 +1115,6 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
             }
         );
         const auto& shift = result.effect_shift;
-        result.port_calls += shift.port_calls;
         registers.eax = shift.return_value;
         registers.ecx = shift.final_ecx;
         registers.edx = shift.final_edx;

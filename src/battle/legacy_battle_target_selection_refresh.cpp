@@ -35,11 +35,8 @@ inline constexpr u32 kWarningTextBToken = 0x004A7990U;
 class ResourceSelectionAdapter final
     : public LegacyBattleActorResourceSelectionPort {
 public:
-    ResourceSelectionAdapter(
-        LegacyBattleInputDispatchPort& port,
-        LegacyBattleTargetSelectionRefreshResult& result
-    ) noexcept
-        : port_(port), result_(result) {}
+    ResourceSelectionAdapter(LegacyBattleInputDispatchPort& port) noexcept
+        : port_(port) {}
 
     void report_missing_runtime_word(const u16 resource_id) override {
         static_cast<void>(port_.invoke_target_selection_runtime({
@@ -47,12 +44,10 @@ public:
                 resource_missing_word_diagnostic,
             .arguments = {resource_id},
         }));
-        ++result_.port_calls;
     }
 
 private:
     LegacyBattleInputDispatchPort& port_;
-    LegacyBattleTargetSelectionRefreshResult& result_;
 };
 
 class InputTextMessageAdapter final : public LegacyBattleTextMessagePort {
@@ -309,7 +304,6 @@ private:
             .ecx = ecx_,
             .edx = edx_,
         });
-        ++result_.port_calls;
         eax_ = reply.eax;
         ecx_ = reply.ecx;
         edx_ = reply.edx;
@@ -320,7 +314,6 @@ private:
         const auto reply = port_.play_input_sample(
             sound_id, input_.sample_mix_level, eax_, ecx_, edx_
         );
-        ++result_.port_calls;
         ++result_.sample_calls;
         eax_ = reply.eax;
         ecx_ = reply.ecx;
@@ -373,7 +366,6 @@ private:
         }
         const u32 token = ecx_;
         invoke(call, token, arguments);
-        ++result_.group_a_calls;
         return true;
     }
 
@@ -400,7 +392,6 @@ private:
                 }
             );
         ++result_.actor_availability_block_calls;
-        ++result_.group_a_calls;
         eax_ = result_.actor_availability_block.return_eax;
         ecx_ = result_.actor_availability_block.return_ecx;
         edx_ = result_.actor_availability_block.return_edx;
@@ -425,7 +416,6 @@ private:
         }
         const u32 token = ecx_;
         invoke(call, token, arguments);
-        ++result_.group_a_calls;
         return true;
     }
 
@@ -462,7 +452,6 @@ private:
             snapshot_request
         );
         ++result_.actor_frame_snapshot_queries;
-        ++result_.group_a_calls;
         eax_ = result_.actor_frame_snapshot.return_eax;
         ecx_ = result_.actor_frame_snapshot.return_ecx;
         edx_ = result_.actor_frame_snapshot.return_edx;
@@ -484,7 +473,6 @@ private:
         }
         const u32 token = ecx_;
         invoke(call, token, arguments);
-        ++result_.group_b_calls;
         return true;
     }
 
@@ -705,8 +693,6 @@ private:
         );
         ++result_.group_b_target_cycle_calls;
         result_.group_b_target_cycle = cycled;
-        result_.port_calls += cycled.port_calls;
-        result_.group_b_calls += cycled.port_calls;
         eax_ = cycled.return_eax;
         ecx_ = cycled.return_ecx;
         edx_ = cycled.return_edx;
@@ -762,7 +748,7 @@ private:
             return false;
         }
         auto& party = bindings_.party[index];
-        ResourceSelectionAdapter adapter(port_, result_);
+        ResourceSelectionAdapter adapter(port_);
         result_.resource_selection = select_legacy_battle_actor_resource(
             &party.actor_list,
             &party.configuration,
@@ -990,7 +976,6 @@ private:
         ));
         ++result_.text_message_calls;
         const auto& message = result_.text_messages.back();
-        result_.port_calls += message.allocation_calls + message.measure_calls;
         eax_ = message.return_registers.eax;
         ecx_ = message.return_registers.ecx;
         edx_ = message.return_registers.edx;
@@ -1511,7 +1496,6 @@ private:
                     return;
                 }
                 invoke(Call::reset_actor_selection, ecx_, {0U});
-                ++result_.group_b_calls;
                 eax_ = metrics_.group_b_count;
                 ++group_b_index;
             } while (signed_bits(group_b_index) < signed_bits(eax_));
@@ -1521,7 +1505,6 @@ private:
         do {
             ecx_ = kGroupABaseToken + group_a_index * kGroupAStride;
             invoke(Call::reset_actor_selection, ecx_, {0U});
-            ++result_.group_a_calls;
             if (!clear_target_marker(group_a_index)) {
                 return;
             }
@@ -2212,7 +2195,6 @@ private:
                     return;
                 }
                 invoke(Call::reset_actor_selection, ecx_, {0U});
-                ++result_.group_b_calls;
                 eax_ = metrics_.group_b_count;
                 ++index;
             } while (signed_bits(index) < signed_bits(eax_));
@@ -2228,7 +2210,6 @@ private:
                     return;
                 }
                 invoke(Call::reset_actor_selection, ecx_, {0U});
-                ++result_.group_a_calls;
                 eax_ = metrics_.group_a_count;
                 ++index;
             } while (signed_bits(index) < signed_bits(eax_));

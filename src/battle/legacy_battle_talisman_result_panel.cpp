@@ -109,7 +109,6 @@ private:
             call_request.text.begin()
         );
         const auto reply = port_.invoke_talisman_result_panel(call_request);
-        ++result_.port_calls;
         result_.call_trace.push_back(call);
         eax_ = reply.eax;
         ecx_ = reply.ecx;

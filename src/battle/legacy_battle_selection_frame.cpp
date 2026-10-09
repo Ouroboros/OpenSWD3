@@ -230,7 +230,6 @@ private:
             .ecx = ecx_,
             .edx = edx_,
         });
-        ++result_.port_calls;
         eax_ = reply.eax;
         ecx_ = reply.ecx;
         edx_ = reply.edx;
@@ -439,7 +438,6 @@ private:
                 .entry_edx = edx_,
             }
         );
-        result_.port_calls += result_.actor_target_preparation.port_calls;
         eax_ = result_.actor_target_preparation.return_eax;
         ecx_ = result_.actor_target_preparation.return_ecx;
         edx_ = result_.actor_target_preparation.return_edx;
@@ -553,7 +551,6 @@ private:
             }
         );
         ++result_.action_summary_calls;
-        result_.port_calls += result_.action_summary.port_calls;
         eax_ = result_.action_summary.return_eax;
         ecx_ = result_.action_summary.return_ecx;
         edx_ = result_.action_summary.return_edx;
@@ -726,7 +723,6 @@ private:
             list_request
         );
         ++result_.list_frame_calls;
-        result_.port_calls += result_.list_frame.port_calls;
         eax_ = result_.list_frame.return_eax;
         ecx_ = result_.list_frame.return_ecx;
         edx_ = result_.list_frame.return_edx;
@@ -783,7 +779,6 @@ private:
             list_request
         );
         ++result_.list_contents_calls;
-        result_.port_calls += result_.list_contents.port_calls;
         eax_ = result_.list_contents.return_eax;
         ecx_ = result_.list_contents.return_ecx;
         edx_ = result_.list_contents.return_edx;
@@ -844,7 +839,6 @@ private:
             grid_request
         );
         ++result_.grid_frame_calls;
-        result_.port_calls += result_.grid_frame.port_calls;
         eax_ = result_.grid_frame.return_eax;
         ecx_ = result_.grid_frame.return_ecx;
         edx_ = result_.grid_frame.return_edx;
@@ -894,7 +888,6 @@ private:
             alternate_request
         );
         ++result_.alternate_grid_frame_calls;
-        result_.port_calls += result_.alternate_grid_frame.port_calls;
         eax_ = result_.alternate_grid_frame.return_eax;
         ecx_ = result_.alternate_grid_frame.return_ecx;
         edx_ = result_.alternate_grid_frame.return_edx;
@@ -945,7 +938,6 @@ private:
             control_request
         );
         ++result_.control_panel_frame_calls;
-        result_.port_calls += result_.control_panel_frame.port_calls;
         eax_ = result_.control_panel_frame.return_eax;
         ecx_ = result_.control_panel_frame.return_ecx;
         edx_ = result_.control_panel_frame.return_edx;
@@ -984,7 +976,6 @@ private:
             guard_request
         );
         ++result_.guard_panel_frame_calls;
-        result_.port_calls += result_.guard_panel_frame.port_calls;
         eax_ = result_.guard_panel_frame.return_eax;
         ecx_ = result_.guard_panel_frame.return_ecx;
         edx_ = result_.guard_panel_frame.return_edx;
@@ -1030,7 +1021,6 @@ private:
             narrow_request
         );
         ++result_.narrow_grid_frame_calls;
-        result_.port_calls += result_.narrow_grid_frame.port_calls;
         eax_ = result_.narrow_grid_frame.return_eax;
         ecx_ = result_.narrow_grid_frame.return_ecx;
         edx_ = result_.narrow_grid_frame.return_edx;
@@ -1076,7 +1066,6 @@ private:
             mode_request
         );
         ++result_.mode_grid_frame_calls;
-        result_.port_calls += result_.mode_grid_frame.port_calls;
         eax_ = result_.mode_grid_frame.return_eax;
         ecx_ = result_.mode_grid_frame.return_ecx;
         edx_ = result_.mode_grid_frame.return_edx;
@@ -1621,7 +1610,6 @@ private:
             hint_request
         );
         ++result_.selection_hint_frame_calls;
-        result_.port_calls += result_.selection_hint_frame.port_calls;
         eax_ = result_.selection_hint_frame.return_eax;
         ecx_ = result_.selection_hint_frame.return_ecx;
         edx_ = result_.selection_hint_frame.return_edx;

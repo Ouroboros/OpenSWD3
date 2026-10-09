@@ -63,11 +63,9 @@ logical_flags(const u32 value) noexcept {
 
 [[nodiscard]] LegacyBattleActionCallReply invoke(
     LegacyBattleActionDispatchPort& port,
-    LegacyBattleActionDispatchResult& result,
     const u32 callee,
     const std::array<u32, 8>& arguments = {}
 ) {
-    ++result.port_calls;
     return port.invoke({.callee_token = callee, .arguments = arguments});
 }
 
@@ -267,10 +265,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                             const u32 candidate_token =
                                 group_b_token(to_bits(candidate));
                             const auto terminal = invoke(
-                                port,
-                                result,
-                                kCallQueryTerminal,
-                                {candidate_token}
+                                port, kCallQueryTerminal, {candidate_token}
                             );
                             if (terminal.eax == 0U) {
                                 if (!clear_actor_action_target(

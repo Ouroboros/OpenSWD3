@@ -114,7 +114,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionCompositionStatus::
                         actor_state_typed_stop &&
-                result.port_calls == 1U && output == 0U &&
+                output == 0U &&
                 port.requested_definition_ids == std::vector<u32>{7U} &&
                 port.release_calls == 1U,
             "action composition stops at the first actor read after preserving the definition call"
@@ -143,7 +143,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionCompositionStatus::
                         resource_load_typed_stop &&
-                result.port_calls == 1U && output == 0U &&
+                output == 0U &&
                 actor.action_composition.resource_definition[0U] == 0U &&
                 port.release_calls == 0U,
             "definition typed stop preserves loader side effects and blocks the output text profile and mode suffixes"
@@ -175,8 +175,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionCompositionStatus::
                         text_copy_typed_stop &&
-                result.port_calls == 2U && output == 0x2244U &&
-                result.return_eax == 0x00527B38U &&
+                output == 0x2244U && result.return_eax == 0x00527B38U &&
                 result.return_ecx == 0xCAFE1234U &&
                 result.return_edx == 0x44444444U &&
                 actor->action_composition.action_text[0U] == 0U &&
@@ -215,9 +214,8 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionCompositionStatus::
                         profile_load_typed_stop &&
-                result.port_calls == 3U && result.text_bytes_written == 2U &&
-                output == 0x6688U && port.allocation_calls == 2U &&
-                port.release_calls == 1U &&
+                result.text_bytes_written == 2U && output == 0x6688U &&
+                port.allocation_calls == 2U && port.release_calls == 1U &&
                 actor->action_composition.action_text[0U] == 'P' &&
                 actor->action_composition.derived_words[0U] == 9U &&
                 actor->action_composition.mode_flags == 0x04U,
@@ -247,7 +245,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionCompositionStatus::
                         output_typed_stop &&
-                result.port_calls == 1U && result.published_word == 0x2468U &&
+                result.published_word == 0x2468U &&
                 result.return_eax == 0x00527B38U &&
                 result.return_ecx == 0x2468U && result.return_edx == 0U,
             "output stop occurs after the definition word read and destination address calculation"
@@ -276,8 +274,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionCompositionStatus::
                         text_copy_typed_stop &&
-                result.port_calls == 2U && result.text_bytes_written == 0x10U &&
-                output == 0x1357U &&
+                result.text_bytes_written == 0x10U && output == 0x1357U &&
                 std::ranges::all_of(
                     actor.action_composition.action_text,
                     [](const u8 value) { return value == 'X'; }
@@ -316,7 +313,7 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupBActionCompositionStatus::completed &&
-                result.port_calls == 3U && result.mode_update_calls == 1U &&
+                result.mode_update_calls == 1U &&
                 result.text_bytes_written == 6U && output == 0x2468U &&
                 result.profile_word == 0xFFFEU && result.return_eax == 1U &&
                 result.return_ecx == 0x00525508U &&

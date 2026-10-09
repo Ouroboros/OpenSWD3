@@ -94,7 +94,6 @@ advance_legacy_battle_group_a_action_execution(
             .ecx = call_ecx,
             .edx = call_edx,
         };
-        ++result.port_calls;
         result.call_trace.push_back(callee);
         return port.invoke(call);
     };
@@ -310,7 +309,6 @@ advance_legacy_battle_group_a_action_execution(
                     request.actor_field_26b8_high_bit_set_requests,
             }
         );
-        result.port_calls += target_effect.port_calls;
         for (u32 index = 0U;
              index < target_effect.actor_field_26b8_high_bit_set.calls;
              ++index) {
@@ -431,7 +429,6 @@ advance_legacy_battle_group_a_action_execution(
                         request.actor_field_26b8_high_bit_set_requests,
                 }
             );
-            result.port_calls += target_effect.port_calls;
             for (u32 index = 0U;
                  index < target_effect.actor_field_26b8_high_bit_set.calls;
                  ++index) {

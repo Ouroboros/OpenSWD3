@@ -145,7 +145,6 @@ struct LegacyBattleRetreatCommitResult {
     compat::u32 return_value{};
     compat::u32 final_ecx{};
     compat::u32 final_edx{};
-    compat::u32 port_calls{};
     bool mode_bit_blocked{};
     bool state_committed{};
 };

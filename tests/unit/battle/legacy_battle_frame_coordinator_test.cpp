@@ -787,8 +787,7 @@ void test_battle_frame_music_prefix(openswd3::test::Context& test) {
                 active, 0U, path, 6, port
             );
         test.expect_true(
-            active == 1U && result.port_calls == 1U &&
-                result.next_call_address == 0x00453239U &&
+            active == 1U && result.next_call_address == 0x00453239U &&
                 !result.music_started && result.music_commit_calls == 0U &&
                 result.registers.ecx == 0x1234U &&
                 result.registers.edx == 0x5678U && port.count == 1U &&
@@ -806,7 +805,7 @@ void test_battle_frame_music_prefix(openswd3::test::Context& test) {
                 active, 1U, path, 6, port
             );
         test.expect_true(
-            active == 1U && result.port_calls == 1U && !result.music_started &&
+            active == 1U && !result.music_started &&
                 result.music_commit_calls == 0U && port.count == 1U &&
                 port.calls[0U] == 'q',
             "frame music prefix reads the shared suppression byte before playback"
@@ -822,7 +821,7 @@ void test_battle_frame_music_prefix(openswd3::test::Context& test) {
                 active, 0U, path, -7, port
             );
         test.expect_true(
-            active == 1U && result.port_calls == 2U && result.music_started &&
+            active == 1U && result.music_started &&
                 result.music_commit_calls == 1U &&
                 result.next_call_address == 0x00453239U &&
                 result.registers.eax == 0x11U &&
@@ -3206,7 +3205,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                 result.debug_overlay.status ==
                     openswd3::battle::LegacyBattleDebugOverlayStatus::
                         completed &&
-                result.debug_overlay.port_calls == 2U &&
                 result.outcome_resolution_calls == 1U &&
                 result.outcome_resolution.status ==
                     openswd3::battle::LegacyBattleOutcomeResolutionStatus::

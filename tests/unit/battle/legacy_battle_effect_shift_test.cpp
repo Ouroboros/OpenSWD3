@@ -74,7 +74,6 @@ void test_battle_effect_shift(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleEffectShiftStatus::completed &&
                 result.return_value == 0U && result.phase_halved &&
-                result.port_calls == 0U &&
                 result.current_coordinate_query_calls == 3U &&
                 result.coordinate_publication_calls == 3U &&
                 result.group_a_iterations == 2U &&
@@ -135,9 +134,9 @@ void test_battle_effect_shift(openswd3::test::Context& test) {
 
         test.expect_true(
             result.return_value == 1U && result.phase_halved &&
-                result.port_calls == 0U && state.invocation_counter == 0U &&
-                state.actor_delta == 0 && state.accumulated_step == 0U &&
-                state.phase_word == 0x01A4U && state.completion_latch == 0U &&
+                state.invocation_counter == 0U && state.actor_delta == 0 &&
+                state.accumulated_step == 0U && state.phase_word == 0x01A4U &&
+                state.completion_latch == 0U &&
                 result.final_ecx == 0x89ABCDEFU && result.final_edx == 5U,
             "phase one halves to zero, bypasses the threshold-complete latch, restores ECX, and rearms only for exact mode one"
         );
@@ -159,7 +158,7 @@ void test_battle_effect_shift(openswd3::test::Context& test) {
         );
 
         test.expect_true(
-            result.return_value == 1U && result.port_calls == 0U &&
+            result.return_value == 1U &&
                 result.current_coordinate_query_calls == 1U &&
                 result.coordinate_publication_calls == 1U &&
                 state.accumulated_step == 35U && state.actor_delta == 30 &&
@@ -204,7 +203,7 @@ void test_battle_effect_shift(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleEffectShiftStatus::group_a_actor_typed_stop &&
                 result.return_value == 0U && result.group_a_iterations == 10U &&
-                result.group_b_iterations == 0U && result.port_calls == 0U &&
+                result.group_b_iterations == 0U &&
                 result.current_coordinate_query_calls == 10U &&
                 result.coordinate_publication_calls == 10U &&
                 port.requests.empty(),
@@ -233,7 +232,6 @@ void test_battle_effect_shift(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleEffectShiftStatus::completed &&
                 result.return_value == 0U && result.group_a_iterations == 1U &&
-                result.port_calls == 0U &&
                 result.current_coordinate_query_calls == 1U &&
                 result.argument_value == 0U &&
                 result.scratch_value == 0xDEADBEEFU &&
@@ -260,7 +258,7 @@ void test_battle_effect_shift(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleEffectShiftStatus::group_b_actor_typed_stop &&
                 result.group_a_iterations == 0U &&
-                result.group_b_iterations == 8U && result.port_calls == 0U &&
+                result.group_b_iterations == 8U &&
                 result.current_coordinate_query_calls == 8U &&
                 result.coordinate_publication_calls == 8U,
             "group B stops at its ninth real actor dereference after the eight physical actors"
@@ -359,7 +357,6 @@ void test_battle_effect_shift(openswd3::test::Context& test) {
                     result.coordinate_publication_calls == 0U &&
                     result.group_a_iterations == 0U &&
                     result.group_b_iterations == 0U &&
-                    result.port_calls == 0U &&
                     result.return_value == expected_eax &&
                     result.final_ecx ==
                         (second_pointer_reached ? 0x33334444U : 0x005029D0U) &&
@@ -404,7 +401,6 @@ void test_battle_effect_shift(openswd3::test::Context& test) {
                         first_output_pointer_read_typed_stop &&
                 result.current_coordinate_query.return_ecx == 0x00525508U &&
                 result.current_coordinate_query.return_edx == 0x33334444U &&
-                result.port_calls == 0U &&
                 result.coordinate_publication_calls == 0U,
             "group-B current-coordinate entry retains its second local pointer in EDX before the first stack read"
         );
@@ -430,7 +426,7 @@ void test_battle_effect_shift(openswd3::test::Context& test) {
                     LegacyBattleEffectShiftStatus::
                         group_a_coordinate_publication_typed_stop &&
                 result.group_a_iterations == 0U &&
-                result.group_b_iterations == 0U && result.port_calls == 0U &&
+                result.group_b_iterations == 0U &&
                 result.current_coordinate_query_calls == 1U &&
                 result.coordinate_publication_calls == 1U &&
                 result.coordinate_publication.status ==

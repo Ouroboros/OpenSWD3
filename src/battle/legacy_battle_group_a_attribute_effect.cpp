@@ -97,7 +97,6 @@ apply_legacy_battle_group_a_attribute_effects(
             .ecx = actor_token,
             .edx = edx,
         });
-        ++result.port_calls;
         eax = reply.eax;
         ecx = reply.ecx;
         edx = reply.edx;

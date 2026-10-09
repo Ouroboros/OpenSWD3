@@ -112,7 +112,6 @@ LegacyBattlePlayerItemQuantityResult advance_legacy_battle_player_item_quantity(
     LegacyBattleActionCallRequest allocate_request{};
     allocate_request.callee_token = kAllocateCallToken;
     allocate_request.arguments[0] = kLegacyBattlePlayerItemNodeSize;
-    ++result.port_calls;
     const LegacyBattleActionCallReply allocate_reply =
         port.invoke(allocate_request);
     state.player_inventory_head_token = allocate_reply.eax;
@@ -154,7 +153,6 @@ LegacyBattlePlayerItemQuantityResult advance_legacy_battle_player_item_quantity(
             .definition_id = item_id,
         }
     );
-    ++result.port_calls;
     std::copy_n(
         definition.cbegin(),
         node.definition_snapshot.size(),

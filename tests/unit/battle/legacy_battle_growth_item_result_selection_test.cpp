@@ -189,7 +189,7 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
         test.expect_true(
             zero_result.status ==
                     LegacyBattleGrowthItemResultSelectionStatus::completed &&
-                zero_result.port_calls == 0U && zero_result.return_eax == 0U &&
+                zero_result.return_eax == 0U &&
                 zero_result.return_ecx == 0x33334444U &&
                 zero_result.return_edx == 0x55556666U,
             "growth item result selection returns the live zero group count without touching an actor"
@@ -199,8 +199,7 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
         negative.metrics.group_a_count = 0xFFFFFFFFU;
         const auto negative_result = run(negative);
         test.expect_true(
-            negative_result.port_calls == 0U &&
-                negative_result.return_eax == 0xFFFFFFFFU &&
+            negative_result.return_eax == 0xFFFFFFFFU &&
                 negative.target.transition_actor_index == 0xFFU,
             "growth item result selection treats the initial group count as signed"
         );
@@ -281,7 +280,6 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGrowthItemResultSelectionStatus::completed &&
-                result.port_calls == 4U &&
                 result.completion_query_calls == 1U &&
                 result.item_selection_calls == 1U &&
                 result.item_load_calls == 1U &&
@@ -348,7 +346,7 @@ void test_battle_growth_item_result_selection(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGrowthItemResultSelectionStatus::
                         caption_destination_typed_stop &&
-                result.port_calls == 3U && result.caption_copy_calls == 1U &&
+                result.caption_copy_calls == 1U &&
                 result.call_trace.back() ==
                     LegacyBattleGrowthItemResultSelectionCall::copy_caption &&
                 result.stopped_caption_index == 24U &&

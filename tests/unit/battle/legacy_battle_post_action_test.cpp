@@ -117,7 +117,7 @@ void test_battle_post_action(openswd3::test::Context& test) {
             state, final_actor, action, port, &startup, 0U, 3U
         );
         test.expect_true(
-            result.return_value == 2U && result.port_calls == 0U,
+            result.return_value == 2U,
             "complete target mismatch returns the zero-extended shared word"
         );
     }
@@ -167,7 +167,7 @@ void test_battle_post_action(openswd3::test::Context& test) {
             state, final_actor, action, port, &startup, 0U, 1U
         );
         test.expect_true(
-            result.return_value == 0U && result.port_calls == 0U &&
+            result.return_value == 0U &&
                 result.actor_runtime_reset.calls == 1U &&
                 result.actor_runtime_reset.call_addresses[0U] == 0x0045AE1DU &&
                 result.actor_runtime_reset.actor_tokens[0U] == 0x00528030U,
@@ -200,7 +200,6 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 result.actor_action_target.return_edx == 0x00528660U &&
                 result.actor_action_target.return_eip == 0x004786E0U &&
                 result.actor_action_target.action_target_reads == 0U &&
-                result.port_calls == 0U &&
                 result.actor_runtime_reset.calls == 1U &&
                 result.actor_action_target_clear.calls == 0U,
             "post-action target stop preserves the initial reset and suppresses relation cleanup"

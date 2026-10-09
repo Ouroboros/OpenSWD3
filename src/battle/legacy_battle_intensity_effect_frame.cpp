@@ -94,7 +94,6 @@ advance_legacy_battle_intensity_effect_frame(
         std::copy(
             arguments.begin(), arguments.end(), request.arguments.begin()
         );
-        ++result.port_calls;
         return port.invoke(request);
     };
 

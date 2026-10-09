@@ -292,9 +292,8 @@ void test_battle_growth_caption(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleGrowthCaptionStatus::completed &&
-                result.port_calls == 0U && result.rectangle_calls == 0U &&
-                result.return_eax == 0U && result.return_ecx == 0U &&
-                result.return_edx == 0x55556666U,
+                result.rectangle_calls == 0U && result.return_eax == 0U &&
+                result.return_ecx == 0U && result.return_edx == 0x55556666U,
             "growth caption requires transition mode exactly one"
         );
     }
@@ -358,7 +357,7 @@ void test_battle_growth_caption(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGrowthCaptionStatus::actor_index_typed_stop &&
-                result.port_calls == 0U && result.rectangle_calls == 0U &&
+                result.rectangle_calls == 0U &&
                 result.return_ecx == 0xFFFFFFFFU,
             "growth caption sign-extends actor FF and stops at the first real label access"
         );
@@ -459,9 +458,8 @@ void test_battle_growth_caption(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleGrowthCaptionStatus::completed &&
-                result.sample_calls == 0U && result.port_calls == 0U &&
-                result.return_eax == 0U && result.return_ecx == 0U &&
-                result.return_edx == 0x55556666U,
+                result.sample_calls == 0U && result.return_eax == 0U &&
+                result.return_ecx == 0U && result.return_edx == 0x55556666U,
             "growth completion caption keeps the seeded local buffer private when transition mode is not exactly one"
         );
     }

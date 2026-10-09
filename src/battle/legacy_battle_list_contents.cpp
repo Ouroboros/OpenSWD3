@@ -527,7 +527,6 @@ private:
     LegacyBattleListContentsCallReply
     invoke(const LegacyBattleListContentsCallRequest& request) {
         const auto reply = port_.invoke_list_contents(request);
-        ++result_.port_calls;
         eax_ = reply.eax;
         ecx_ = reply.ecx;
         edx_ = reply.edx;

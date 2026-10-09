@@ -151,7 +151,6 @@ advance_legacy_battle_group_b_action_execution(
     auto invoke_generic = [&](const u32 callee,
                               const std::array<u32, 8>& arguments = {},
                               const u32 ecx = 0U) {
-        ++result.port_calls;
         return apply_reply(port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -162,7 +161,6 @@ advance_legacy_battle_group_b_action_execution(
     };
     auto invoke_actor = [&](const u32 callee,
                             const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         ++result.actor_update_calls;
         return apply_reply(port.invoke_group_b_actor_update(
             {
@@ -220,7 +218,6 @@ advance_legacy_battle_group_b_action_execution(
                                     const u32 record_token,
                                     const std::array<u32, 8>& arguments) {
         static_cast<void>(record_token);
-        ++result.port_calls;
         ++result.action_record_calls;
         return apply_reply(port.invoke_group_b_action_record(
             {
@@ -234,7 +231,6 @@ advance_legacy_battle_group_b_action_execution(
         ));
     };
     auto invoke_secondary = [&](const std::array<u32, 8>& arguments) {
-        ++result.port_calls;
         ++result.secondary_record_calls;
         return apply_reply(port.invoke_group_b_secondary_record(
             {
@@ -536,7 +532,6 @@ advance_legacy_battle_group_b_action_execution(
     control.blue_factor = std::bit_cast<i16>(primary.field_68);
     const auto refresh = refresh_legacy_battle_frame(port);
     ++result.frame_refresh_calls;
-    result.port_calls += refresh.port_calls;
     if (refresh.status != LegacyBattleFrameRefreshStatus::completed) {
         result.status =
             LegacyBattleGroupBActionExecutionStatus::frame_refresh_typed_stop;

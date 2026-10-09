@@ -23,7 +23,6 @@ struct LegacyBattleGroupBActionConfigurationResult {
     LegacyBattleGroupBActionConfigurationStatus status{
         LegacyBattleGroupBActionConfigurationStatus::completed
     };
-    compat::u32 port_calls{};
     compat::u32 copied_dwords{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};

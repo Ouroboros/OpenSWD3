@@ -71,10 +71,8 @@ void set_actor_word(
 
 [[nodiscard]] LegacyBattleGroupASummonMaterializationCallReply invoke(
     LegacyBattleGroupASummonMaterializationPort& port,
-    LegacyBattleGroupASummonMaterializationResult& result,
     const LegacyBattleGroupASummonMaterializationCallRequest& request
 ) {
-    ++result.port_calls;
     return port.invoke_group_a_summon_materialization(request);
 }
 
@@ -92,7 +90,6 @@ materialize_legacy_battle_group_a_summon(
     LegacyBattleGroupASummonMaterializationResult result;
     auto reply = invoke(
         port,
-        result,
         {
             .call =
                 LegacyBattleGroupASummonMaterializationCall::allocate_profile,
@@ -135,7 +132,6 @@ materialize_legacy_battle_group_a_summon(
             .definition_id = role_id,
         }
     );
-    ++result.port_calls;
     ++result.load_calls;
     if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status = LegacyBattleGroupASummonMaterializationStatus::
@@ -151,7 +147,6 @@ materialize_legacy_battle_group_a_summon(
         port,
         state->profile_token
     );
-    ++result.port_calls;
     ++result.release_calls;
     if (legacy_battle_mon_definition_text_release_stopped(
             release_result.status
@@ -170,7 +165,6 @@ materialize_legacy_battle_group_a_summon(
     if (role_id == 0U) {
         static_cast<void>(invoke(
             port,
-            result,
             {
                 .call = LegacyBattleGroupASummonMaterializationCall::
                     report_missing_role,

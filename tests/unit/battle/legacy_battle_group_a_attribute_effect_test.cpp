@@ -95,8 +95,8 @@ void test_battle_group_a_attribute_effect(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupAAttributeEffectStatus::completed &&
-                result.port_calls == 12U && result.active_channels == 3U &&
-                result.forced_minimums == 0U && result.temporary_writes == 3U &&
+                result.active_channels == 3U && result.forced_minimums == 0U &&
+                result.temporary_writes == 3U &&
                 result.temporary_clears == 3U &&
                 result.computed_words ==
                     std::array<u16, 3>{0xFFCEU, 0x04B0U, 0xFA24U} &&

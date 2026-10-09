@@ -138,7 +138,7 @@ void test_battle_pending_action_commit(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattlePendingActionStatus::completed &&
                 result.return_value == 0x80000000U && result.final_ecx == 0U &&
-                result.final_edx == 0xAABBCCDDU && result.port_calls == 0U,
+                result.final_edx == 0xAABBCCDDU,
             "signed nonpositive wrapped actor total returns before the order array"
         );
     }
@@ -190,7 +190,7 @@ void test_battle_pending_action_commit(openswd3::test::Context& test) {
             result.status == LegacyBattlePendingActionStatus::completed &&
                 result.scanned_slots == 2U && result.prepare_calls == 2U &&
                 result.ready_calls == 2U && result.commit_calls == 2U &&
-                result.remove_calls == 1U && result.port_calls == 6U &&
+                result.remove_calls == 1U &&
                 prepare_b.actor_token == 0x0052AB58U &&
                 prepare_b.eax == 0x00000ACAU && prepare_b.edx == 0x000002B2U &&
                 commit_b.eax == 0x000002B2U && commit_b.edx == 2U &&
@@ -333,7 +333,7 @@ void test_battle_pending_action_commit(openswd3::test::Context& test) {
                     LegacyBattlePendingActionStatus::
                         attack_order_remove_typed_stop &&
                 result.publication_writes == 1U && result.remove_calls == 1U &&
-                result.scanned_slots == 0U && result.port_calls == 3U &&
+                result.scanned_slots == 0U &&
                 result.return_value == 0x00524980U && result.final_ecx == 7U &&
                 result.final_edx == 0U &&
                 result.attack_order_remove.status ==
@@ -360,7 +360,7 @@ void test_battle_pending_action_commit(openswd3::test::Context& test) {
                     LegacyBattlePendingActionStatus::actor_order_typed_stop &&
                 result.scanned_slots == 18U && result.prepare_calls == 18U &&
                 result.ready_calls == 18U && result.commit_calls == 18U &&
-                result.port_calls == 54U && result.actor_order_reads == 54U,
+                result.actor_order_reads == 54U,
             "the original count has no modern cap and stops only at the nineteenth real order read"
         );
     }

@@ -93,7 +93,6 @@ private:
             .ecx = ecx_,
             .edx = edx_,
         });
-        ++result_.port_calls;
         result_.call_trace.push_back(call_kind);
         eax_ = reply.eax;
         ecx_ = reply.ecx;
@@ -130,7 +129,6 @@ private:
                 .definition_id = item_id,
             }
         );
-        ++result_.port_calls;
         ++result_.item_load_calls;
         std::copy_n(
             definition.cbegin(),
@@ -178,7 +176,6 @@ private:
                 .definition_id = item_id,
             }
         );
-        ++result_.port_calls;
         ++result_.item_load_calls;
         std::copy_n(
             definition.cbegin(),
@@ -220,7 +217,6 @@ private:
             port_,
             kLegacyBattleGrowthItemScratchToken
         );
-        ++result_.port_calls;
         ++result_.item_release_calls;
         state_.scratch.description_token = static_cast<u32>(definition[0xA0U]) |
             (static_cast<u32>(definition[0xA1U]) << 8U) |
@@ -255,7 +251,6 @@ private:
         const auto release_result = release_legacy_battle_mon_definition_text(
             definition, item.description, port_, definition_token
         );
-        ++result_.port_calls;
         ++result_.item_release_calls;
         item.legacy_description_token = static_cast<u32>(definition[0xA0U]) |
             (static_cast<u32>(definition[0xA1U]) << 8U) |

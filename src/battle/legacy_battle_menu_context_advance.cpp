@@ -61,7 +61,6 @@ LegacyBattleMenuContextAdvanceResult advance_legacy_battle_menu_context(
             kSelectionSample, input.sample_mix_level, eax, ecx, edx
         );
         ++result.sample_calls;
-        ++result.port_calls;
         eax = reply.eax;
         ecx = reply.ecx;
         edx = reply.edx;

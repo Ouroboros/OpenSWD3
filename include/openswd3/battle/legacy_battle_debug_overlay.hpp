@@ -137,7 +137,6 @@ struct LegacyBattleDebugOverlayResult {
     compat::u32 return_value{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 formatted_texts{};
     compat::u32 text_draws{};
     compat::u32 group_b_rows{};

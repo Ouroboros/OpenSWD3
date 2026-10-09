@@ -74,7 +74,6 @@ struct LegacyBattleEffectShiftResult {
     compat::u32 return_value{};
     compat::u32 final_ecx{};
     compat::u32 final_edx{};
-    compat::u32 port_calls{};
     compat::u32 group_a_iterations{};
     compat::u32 group_b_iterations{};
     compat::u32 argument_value{};

@@ -87,7 +87,6 @@ struct LegacyBattlePendingActionResult {
     compat::u32 commit_calls{};
     compat::u32 publication_writes{};
     compat::u32 remove_calls{};
-    compat::u32 port_calls{};
     LegacyBattleActorReadyResult last_ready{};
     LegacyBattleAttackOrderRemoveResult attack_order_remove{};
 };

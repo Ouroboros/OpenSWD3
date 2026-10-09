@@ -314,7 +314,7 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleModeGridFrameStatus::
                         completed &&
                 result.return_eax == 0U && result.return_ecx == 0U &&
-                result.return_edx == 0x33333333U && result.port_calls == 0U &&
+                result.return_edx == 0x33333333U &&
                 fixture.panel_row_limit == 0xFFFFU &&
                 fixture.state.row_text[0U] == 0xFFU,
             "mode grid queued-zero exit clears EAX and ECX while preserving entry EDX"

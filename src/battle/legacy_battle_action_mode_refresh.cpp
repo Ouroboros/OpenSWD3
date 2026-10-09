@@ -129,7 +129,6 @@ LegacyBattleActionModeRefreshResult refresh_legacy_battle_action_mode(
         return finish();
     };
     const auto invoke = [&](const LegacyBattleInputDispatchCall call) {
-        ++result.port_calls;
         const auto reply = port.invoke_input_dispatch({
             .call = call,
             .eax = eax,

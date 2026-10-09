@@ -37,7 +37,6 @@ LegacyBattleActionFourOhTwoResult advance_legacy_battle_action_four_oh_two(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -92,7 +91,6 @@ LegacyBattleActionFourOhTwoResult advance_legacy_battle_action_four_oh_two(
         result.coordinate_output_x = coordinate_x;
         result.coordinate_output_y = coordinate_y;
         ++result.coordinate_update_calls;
-        ++result.port_calls;
         const auto updated = port.invoke_action_four_oh_two_coordinate_update(
             {
                 .callee_token = kCallActionFourOhTwoCoordinateUpdate,
@@ -118,7 +116,6 @@ LegacyBattleActionFourOhTwoResult advance_legacy_battle_action_four_oh_two(
     special.base_variant = actor->special_profile_variant;
     actor->turn_completion_latch = 1U;
     ++result.special_update_calls;
-    ++result.port_calls;
     const auto primary_reply = port.invoke_special_four_hundred_primary_update(
         {
             .callee_token = kCallSpecialActionUpdate,
@@ -156,7 +153,6 @@ LegacyBattleActionFourOhTwoResult advance_legacy_battle_action_four_oh_two(
     }
     if ((actor->action_runtime_gate & 0x4000U) != 0U) {
         ++result.turn_frame_calls;
-        ++result.port_calls;
         const auto turn_reply = port.invoke_special_turn_frame(
             {
                 .callee_token = kCallSpecialTurnFrame,
@@ -239,7 +235,6 @@ LegacyBattleActionFourOhTwoResult advance_legacy_battle_action_four_oh_two(
         const u32 target_y =
             signed_word_bits(static_cast<u16>(coordinate_y)) - 0x28U;
         ++result.particle_spawn_calls;
-        ++result.port_calls;
         const auto spawned = port.invoke_action_four_oh_two_particle(
             {
                 .callee_token = kCallActionFourOhTwoParticle,
@@ -275,7 +270,6 @@ LegacyBattleActionFourOhTwoResult advance_legacy_battle_action_four_oh_two(
     }
 
     ++result.completion_calls;
-    ++result.port_calls;
     const auto completed = port.invoke_action_four_oh_two_completion(
         {
             .callee_token = kCallActionFourOhTwoCompletion,
@@ -375,7 +369,6 @@ LegacyBattleActionFourEffectResult advance_legacy_battle_action_four_effect(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -445,7 +438,6 @@ LegacyBattleActionFourEffectResult advance_legacy_battle_action_four_effect(
                     request.actor_field_26b8_high_bit_set_requests,
             }
         );
-        result.port_calls += event.port_calls;
         append_nested_actor_field_26b8_high_bit_set(
             result.actor_field_26b8_high_bit_set,
             event.actor_field_26b8_high_bit_set
@@ -490,7 +482,6 @@ LegacyBattleActionFourEffectResult advance_legacy_battle_action_four_effect(
     special.action_id = static_cast<u32>(actor->profile_value) + 0x5DCU;
     special.base_variant = actor->special_profile_variant;
     ++result.special_update_calls;
-    ++result.port_calls;
     auto primary_reply = port.invoke_special_four_hundred_primary_update(
         {
             .callee_token = kCallSpecialActionUpdate,
@@ -529,7 +520,6 @@ LegacyBattleActionFourEffectResult advance_legacy_battle_action_four_effect(
 
     if ((actor->action_runtime_gate & 0x4000U) != 0U) {
         ++result.turn_frame_calls;
-        ++result.port_calls;
         const auto turn_reply = port.invoke_special_turn_frame(
             {
                 .callee_token = kCallSpecialTurnFrame,
@@ -640,7 +630,6 @@ LegacyBattleActionFourEffectResult advance_legacy_battle_action_four_effect(
     control.blue_factor = std::bit_cast<i16>(special.field_68);
     result.frame_refresh = refresh_legacy_battle_frame(port);
     ++result.frame_refresh_calls;
-    result.port_calls += result.frame_refresh.port_calls;
     if (result.frame_refresh.status !=
         LegacyBattleFrameRefreshStatus::completed) {
         result.status =
@@ -674,7 +663,6 @@ LegacyBattleActionFourEffectResult advance_legacy_battle_action_four_effect(
             static_cast<i32>(std::bit_cast<i16>(actor->turn_target_x_offset)) +
             static_cast<i32>(std::bit_cast<i16>(actor->source_x_offset));
         ++result.effect_update_calls;
-        ++result.port_calls;
         const auto direct_reply = port.invoke_action_four_direct_effect_update(
             {
                 .callee_token = kCallActionFourDirectEffect,
@@ -711,7 +699,6 @@ LegacyBattleActionFourEffectResult advance_legacy_battle_action_four_effect(
         actor->motion_word = 0U;
     } else {
         ++result.effect_update_calls;
-        ++result.port_calls;
         const auto effect_reply =
             port.invoke_special_four_hundred_effect_update(
                 {
@@ -871,7 +858,6 @@ LegacyBattleTargetEffectResult apply_legacy_battle_target_effect(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -1039,7 +1025,6 @@ LegacyBattleSpecialFourHundredResult advance_legacy_battle_special_four_hundred(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -1145,7 +1130,6 @@ LegacyBattleSpecialFourHundredResult advance_legacy_battle_special_four_hundred(
                     request.actor_field_26b8_high_bit_set_requests,
             }
         );
-        result.port_calls += event.port_calls;
         append_nested_actor_field_26b8_high_bit_set(
             result.actor_field_26b8_high_bit_set,
             event.actor_field_26b8_high_bit_set
@@ -1186,7 +1170,6 @@ LegacyBattleSpecialFourHundredResult advance_legacy_battle_special_four_hundred(
     special.action_id = static_cast<u32>(actor->profile_value) + 0x5DCU;
     special.base_variant = actor->special_profile_variant;
     ++result.special_update_calls;
-    ++result.port_calls;
     auto primary_reply = port.invoke_special_four_hundred_primary_update(
         {
             .callee_token = kCallSpecialActionUpdate,
@@ -1428,7 +1411,6 @@ LegacyBattleSpecialFourHundredResult advance_legacy_battle_special_four_hundred(
             ensure_workspace()[kSecondaryWorkspaceBase + 0x94U] = 3U;
             ensure_workspace()[kSecondaryWorkspaceBase + 0x95U] = 1U;
             ++result.workspace_update_calls;
-            ++result.port_calls;
             auto workspace_reply =
                 port.invoke_special_four_hundred_workspace_update(
                     {
@@ -1591,7 +1573,6 @@ LegacyBattleSpecialFourHundredResult advance_legacy_battle_special_four_hundred(
     effect.action_id = actor->copied_runtime_word;
     effect.external_mode = 0U;
     ++result.effect_update_calls;
-    ++result.port_calls;
     auto effect_reply = port.invoke_special_four_hundred_effect_update(
         {
             .callee_token = kCallSpecialFourHundredEffect,
@@ -1712,7 +1693,6 @@ LegacyBattleSummonFrameResult advance_legacy_battle_summon_frame(
     };
     auto invoke_frame = [&](const u32 callee,
                             const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke_summon_frame({
             .callee_token = callee,
             .arguments = arguments,

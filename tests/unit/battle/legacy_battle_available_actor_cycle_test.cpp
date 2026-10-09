@@ -65,7 +65,7 @@ void test_battle_available_actor_cycle(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleAvailableActorCycleStatus::completed &&
-                result.candidate_calls == 2U && result.port_calls == 2U &&
+                result.candidate_calls == 2U &&
                 result.candidate_codes[0U] == 10U &&
                 result.candidate_codes[1U] == 9U && result.return_eax == 9U &&
                 result.return_ecx == 0xCCU && result.return_edx == 0xDDU,
@@ -92,7 +92,7 @@ void test_battle_available_actor_cycle(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleAvailableActorCycleStatus::completed &&
-                result.candidate_calls == 4U && result.port_calls == 4U &&
+                result.candidate_calls == 4U &&
                 result.candidate_codes ==
                     std::array<u32, 4>{8U, 11U, 10U, 9U} &&
                 result.return_eax == 0U && result.return_ecx == 0x103U &&
@@ -116,7 +116,7 @@ void test_battle_available_actor_cycle(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleAvailableActorCycleStatus::completed &&
-                result.candidate_calls == 4U && result.port_calls == 0U &&
+                result.candidate_calls == 4U &&
                 result.candidate_codes == std::array<u32, 4>{2U, 1U, 0U, 3U} &&
                 result.return_eax == 0U && result.return_edx == 4U,
             "unknown start preserves the original adjacent-table reads two one zero three"
@@ -136,7 +136,7 @@ void test_battle_available_actor_cycle(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleAvailableActorCycleStatus::
                         candidate_availability_typed_stop &&
-                result.candidate_calls == 1U && result.port_calls == 0U &&
+                result.candidate_calls == 1U &&
                 result.candidate_codes[0U] == 2U &&
                 result.candidate_availability.status ==
                     openswd3::battle::

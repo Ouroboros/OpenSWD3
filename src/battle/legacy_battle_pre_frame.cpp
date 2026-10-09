@@ -135,7 +135,6 @@ LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
     const auto invoke = [&](const LegacyBattlePreFrameCall call,
                             const u32 actor_token,
                             const u32 argument = 0U) {
-        ++result.port_calls;
         ecx = actor_token;
         const auto reply = port.invoke_pre_frame({
             .call = call,

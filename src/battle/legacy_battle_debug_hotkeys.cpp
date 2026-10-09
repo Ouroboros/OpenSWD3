@@ -173,7 +173,6 @@ public:
         ));
         ++result_.text_message_calls;
         const auto& message = result_.text_messages.back();
-        result_.port_calls += message.allocation_calls + message.measure_calls;
         if (message.status != LegacyBattleTextMessageStatus::completed) {
             if (result_.status == LegacyBattleDebugHotkeyStatus::completed) {
                 result_.status =
@@ -197,7 +196,6 @@ public:
             arguments.begin(), arguments.end(), request.arguments.begin()
         );
         const auto reply = port_.invoke_debug_hotkey(request);
-        ++result_.port_calls;
         if (reply.publish_group_a_count) {
             bindings_.actor_metrics.group_a_count = reply.group_a_count;
         }

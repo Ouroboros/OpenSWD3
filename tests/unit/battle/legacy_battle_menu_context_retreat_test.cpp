@@ -257,7 +257,7 @@ void test_battle_menu_context_retreat(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleMenuContextRetreatStatus::completed &&
-                result.sample_calls == 4U && result.port_calls == 4U &&
+                result.sample_calls == 4U &&
                 fixture.port.samples.size() == 4U &&
                 fixture.input.action_kind == 1U &&
                 fixture.input.action_category_index == 2U &&

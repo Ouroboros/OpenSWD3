@@ -31,7 +31,6 @@ struct LegacyBattleActorActionCandidateAvailabilityResult {
     compat::u32 return_edx{};
     compat::u32 actor_order_reads{};
     compat::u32 actor_query_calls{};
-    compat::u32 port_calls{};
 };
 
 // Typed closure of legacy 0x004624C0.

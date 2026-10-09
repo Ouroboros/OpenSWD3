@@ -343,11 +343,9 @@ query_render_offsets(
 [[nodiscard]] inline LegacyBattleActionCallReply invoke(
     LegacyBattleActionDispatchState& state,
     LegacyBattleActionDispatchPort& port,
-    LegacyBattleActionDispatchResult& result,
     const u32 callee,
     const std::array<u32, 8>& arguments = {}
 ) {
-    ++result.port_calls;
     LegacyBattleActionCallReply reply =
         port.invoke({.callee_token = callee, .arguments = arguments});
     if (reply.publish_accumulator) {
@@ -407,11 +405,8 @@ query_render_offsets(
 class ActionCompositionPortAdapter final
     : public LegacyBattleGroupBActionCompositionPort {
 public:
-    ActionCompositionPortAdapter(
-        LegacyBattleActionDispatchPort& port,
-        LegacyBattleActionDispatchResult& result
-    ) noexcept
-        : port_(port), result_(result) {}
+    ActionCompositionPortAdapter(LegacyBattleActionDispatchPort& port) noexcept
+        : port_(port) {}
 
     [[nodiscard]] inline LegacyBattleGroupBActionCompositionCallReply invoke(
         const LegacyBattleGroupBActionCompositionCallRequest& request
@@ -444,8 +439,6 @@ public:
                 .profile_buffer = nullptr,
             };
         }
-
-        ++result_.port_calls;
         LegacyBattleActionCallRequest call{
             .callee_token = callee,
             .eax = request.eax,
@@ -469,7 +462,6 @@ public:
 
 private:
     LegacyBattleActionDispatchPort& port_;
-    LegacyBattleActionDispatchResult& result_;
 };
 
 [[nodiscard]] inline bool remove_attack_order_entry(
@@ -519,7 +511,6 @@ private:
     ));
     ++result.text_message_calls;
     const auto& message = result.text_messages.back();
-    result.port_calls += message.allocation_calls + message.measure_calls;
     if (message.status != LegacyBattleTextMessageStatus::completed) {
         result.status =
             LegacyBattleActionDispatchStatus::text_message_typed_stop;
@@ -538,7 +529,6 @@ private:
         port, item_id, quantity_selector
     );
     ++result.player_item_calls;
-    result.port_calls += result.player_item.port_calls;
     if (result.player_item.status !=
         LegacyBattlePlayerItemQuantityStatus::completed) {
         result.status =
@@ -553,7 +543,6 @@ private:
     LegacyBattleActionDispatchResult& result
 ) {
     const auto refresh = refresh_legacy_battle_frame(port);
-    result.port_calls += refresh.port_calls;
     if (refresh.status != LegacyBattleFrameRefreshStatus::completed) {
         result.status =
             LegacyBattleActionDispatchStatus::frame_refresh_typed_stop;
@@ -575,7 +564,6 @@ private:
         to_bits(state.group_a_count),
         {.action = &state, .startup = startup}
     );
-    result.port_calls += metrics.port_calls;
     state.group_b_count =
         std::bit_cast<i32>(port.actor_metric_state().group_b_count);
     state.group_a_count =

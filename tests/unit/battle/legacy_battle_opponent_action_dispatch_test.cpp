@@ -500,9 +500,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         const auto result = dispatch(state, port, context, 8U, 0U);
         test.expect_true(
             result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        group_b_index_typed_stop &&
-                result.port_calls == 0U,
+                LegacyBattleActionDispatchStatus::group_b_index_typed_stop,
             "opponent source stops at first group B object query"
         );
     }
@@ -515,8 +513,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result = dispatch(state, port, context, 0U, 0xFFFFFFFFU);
         test.expect_true(
-            result.return_value == 1U && result.port_calls == 0U &&
-                result.actor_action_kind_calls == 1U,
+            result.return_value == 1U && result.actor_action_kind_calls == 1U,
             "opponent action one hundred returns one before target access"
         );
     }
@@ -529,8 +526,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result = dispatch(state, port, context, 0U, 0xFFFFFFFFU);
         test.expect_true(
-            result.return_value == 0U && result.port_calls == 0U &&
-                result.actor_action_kind_calls == 1U,
+            result.return_value == 0U && result.actor_action_kind_calls == 1U,
             "unrecognized large opponent action returns before target access"
         );
     }
@@ -546,7 +542,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         group_a_index_typed_stop &&
-                result.port_calls == 0U && result.actor_action_kind_calls == 1U,
+                result.actor_action_kind_calls == 1U,
             "opponent action two hundred stops at first group A target call"
         );
     }
@@ -600,7 +596,6 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 fixture.framebuffer.physical_pixels().front() == 0xFFFFU &&
                 result.group_b_action_execution_calls == 1U &&
                 result.pair_transition_calls == 1U &&
-                result.pair_transition.port_calls == 1U &&
                 has_call_argument(port, 0x004831C0U, 0U, 0x00508838U) &&
                 std::ranges::find_if(
                     port.calls,
@@ -1722,7 +1717,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                         action_kind_read_typed_stop &&
                 result.actor_action_kind.return_eip == 0x004786B0U &&
                 result.group_b_action_seventeen_frame_calls == 0U &&
-                result.port_calls == 0U && state.overlay_gate == 0U &&
+                state.overlay_gate == 0U &&
                 openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
                 port.count(0x004763D0U) == 0U && port.count(0x0047D870U) == 0U,
             "opponent action query stops before action seventeen when the source owner is missing"
@@ -1848,7 +1843,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             auto context = fixture.context();
             const auto result = dispatch(state, port, context, 0U, 99U);
             sparse_cases_match = sparse_cases_match &&
-                result.return_value == 0U && result.port_calls == 0U &&
+                result.return_value == 0U &&
                 result.actor_action_kind_calls == 1U;
         }
         test.expect_true(

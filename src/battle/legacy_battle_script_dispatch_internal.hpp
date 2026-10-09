@@ -880,7 +880,6 @@ private:
             ++index;
         }
         result_.call_trace.push_back(call_kind);
-        ++result_.port_calls;
         const auto reply =
             port_.invoke_battle_script(workspace_, bindings_, request);
         eax_ = reply.eax;
@@ -941,7 +940,6 @@ private:
         call.arguments[0U] = request.arguments[0U];
         call.arguments[1U] = request.arguments[1U];
         result_.call_trace.push_back(call_kind);
-        ++result_.port_calls;
         const auto reply =
             port_.invoke_battle_script(workspace_, bindings_, call);
         eax_ = reply.eax;
@@ -1022,7 +1020,6 @@ private:
         };
         std::copy_n(arguments.begin(), argument_count, call.arguments.begin());
         result_.call_trace.push_back(call_kind);
-        ++result_.port_calls;
         const auto reply =
             port_.invoke_battle_script(workspace_, bindings_, call);
         eax_ = reply.eax;

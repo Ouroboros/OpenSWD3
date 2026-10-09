@@ -50,7 +50,6 @@ struct LegacyBattleTargetReadyResult {
     LegacyBattleActorField26b8HighBitSetCallTrace
         actor_field_26b8_high_bit_set{};
     compat::u32 action_record_clears{};
-    compat::u32 port_calls{};
     compat::u16 frame_width{};
     compat::u16 frame_height{};
     compat::i32 relative_x{};

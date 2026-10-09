@@ -85,7 +85,7 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionConfigurationStatus::
                         source_record_typed_stop &&
-                result.port_calls == 0U && port.open_calls == 0U,
+                port.open_calls == 0U,
             "group B action configuration stops before all ports for a null source"
         );
     }
@@ -107,9 +107,9 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupBActionConfigurationStatus::completed &&
-                result.port_calls == 3U && result.copied_dwords == 16U &&
-                port.open_calls == 1U && port.seek_calls == 6U &&
-                port.read_calls == 6U && port.release_calls == 2U &&
+                result.copied_dwords == 16U && port.open_calls == 1U &&
+                port.seek_calls == 6U && port.read_calls == 6U &&
+                port.release_calls == 2U &&
                 port.definition_release_calls == 1U &&
                 port.released_text_token == 0x72000000U &&
                 std::memcmp(
@@ -184,7 +184,7 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionConfigurationStatus::
                         profile_load_typed_stop &&
-                result.port_calls == 2U && port.release_calls == 1U,
+                port.release_calls == 1U,
             "group B action configuration stops at the MON zero-allocation access point"
         );
     }

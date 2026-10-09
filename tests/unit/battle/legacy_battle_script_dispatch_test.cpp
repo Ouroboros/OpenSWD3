@@ -299,7 +299,6 @@ void test_battle_group_b_action_composition_script_caller(
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
                 result.group_b_action_composition_calls == 1U &&
-                result.group_b_action_composition.port_calls == 3U &&
                 result.actor_action_mode_calls == 1U &&
                 result.actor_action_modes[0U].return_eip == 0x004761BAU &&
                 fixture.workspace.value_a == 0x77 &&
@@ -1398,7 +1397,6 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 command_word(fixture, 0x20U) == 0x5678U &&
                 fixture.workspace.pair_x == 0x1234U &&
                 fixture.workspace.pair_y == 0x5678U &&
-                result.port_calls == 15U &&
                 port.count(
                     LegacyBattleScriptDispatchCall::reserved_actor_coordinates
                 ) == 0U &&
@@ -1457,7 +1455,6 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 command_word(fixture, 0x20U) == 0x789AU &&
                 fixture.workspace.pair_x == 0x3456U &&
                 fixture.workspace.pair_y == 0x789AU &&
-                result.port_calls == 12U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
                     8U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47d900) ==
@@ -1494,7 +1491,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 command_word(fixture, 0x1EU) == 20U &&
                 command_word(fixture, 0x20U) == 30U &&
                 fixture.workspace.pair_x == 0U &&
-                fixture.workspace.pair_y == 0U && result.port_calls == 34U &&
+                fixture.workspace.pair_y == 0U &&
                 port.calls[1U].call ==
                     LegacyBattleScriptDispatchCall::format_dynamic_text &&
                 port.calls[2U].call ==
@@ -1531,7 +1528,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 command_word(fixture, 0x1EU) == 40U &&
                 command_word(fixture, 0x20U) == 50U &&
                 fixture.workspace.pair_x == 0U &&
-                fixture.workspace.pair_y == 0U && result.port_calls == 32U &&
+                fixture.workspace.pair_y == 0U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
                     29U &&
                 port.calls[3U].call ==
@@ -1581,7 +1578,6 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 fixture.workspace.position_x == 0xFFFBU &&
                 fixture.workspace.pair_x == 0xFFFEU &&
                 fixture.workspace.pair_y == 0x7FFFU &&
-                result.port_calls == 15U &&
                 port.count(
                     LegacyBattleScriptDispatchCall::
                         reserved_actor_base_coordinates
@@ -1643,7 +1639,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 command_word(fixture, 0x20U) == 85U &&
                 fixture.workspace.position_x == 70U &&
                 fixture.workspace.pair_x == 80U &&
-                fixture.workspace.pair_y == 85U && result.port_calls == 12U &&
+                fixture.workspace.pair_y == 85U &&
                 port.count(
                     LegacyBattleScriptDispatchCall::
                         reserved_actor_base_coordinates

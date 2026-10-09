@@ -67,7 +67,6 @@ query_legacy_battle_actor_action_candidate_availability(
                 .ecx = ecx,
                 .edx = edx,
             });
-            ++result.port_calls;
             ++result.actor_query_calls;
             eax = reply.eax == 0U ? 1U : 0U;
             ecx = reply.ecx;

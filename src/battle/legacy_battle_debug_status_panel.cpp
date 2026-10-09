@@ -127,7 +127,6 @@ LegacyBattleDebugStatusPanelResult draw_legacy_battle_debug_status_panel(
             .edx = entry_edx,
         });
         ++result.text_calls;
-        ++result.port_calls;
         eax = reply.eax;
         ecx = reply.ecx;
         edx = reply.edx;

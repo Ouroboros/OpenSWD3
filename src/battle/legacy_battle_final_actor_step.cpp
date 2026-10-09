@@ -53,11 +53,9 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
 
 [[nodiscard]] LegacyBattleActionCallReply invoke(
     LegacyBattleActionDispatchPort& port,
-    LegacyBattleActionDispatchResult& result,
     const u32 callee,
     const std::array<u32, 8>& arguments = {}
 ) {
-    ++result.port_calls;
     return port.invoke({.callee_token = callee, .arguments = arguments});
 }
 
@@ -73,7 +71,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     LegacyBattleActionCallReply& reply
 ) {
     if (binding == nullptr || binding->caller_snapshot == nullptr) {
-        reply = invoke(port, result, kCallValidateActor, {actor_token});
+        reply = invoke(port, kCallValidateActor, {actor_token});
         return true;
     }
     const auto caller = advance_legacy_battle_actor_frame_caller(
@@ -162,7 +160,6 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         to_bits(action.group_a_count),
         {.action = &action, .startup = startup}
     );
-    result.port_calls += metrics.port_calls;
     action.group_b_count =
         signed_dword(port.actor_metric_state().group_b_count);
     action.group_a_count =
@@ -333,7 +330,6 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         for (i32 index = 0; index < action.group_a_count; ++index) {
             static_cast<void>(invoke(
                 port,
-                result,
                 kCallResetActor,
                 {kLegacyBattleActionGroupABaseToken +
                      to_bits(index) * kLegacyBattleActionGroupAStride,
@@ -344,7 +340,6 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         for (i32 index = 0; index < action.group_b_count; ++index) {
             static_cast<void>(invoke(
                 port,
-                result,
                 kCallResetActor,
                 {kLegacyBattleActionGroupBBaseToken +
                      to_bits(index) * kLegacyBattleActionGroupBStride,
@@ -398,7 +393,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         return result;
     }
 
-    if (invoke(port, result, kCallQueryContinuation, {actor_token}).eax == 1U) {
+    if (invoke(port, kCallQueryContinuation, {actor_token}).eax == 1U) {
         state.published_actor_code =
             port.actor_metric_state().priority_actor_index + 1U;
         state.secondary_actor_code = actor_code;
@@ -612,8 +607,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
     state.coordinate_x = static_cast<u16>(state.coordinate_x + coordinate_x);
     state.coordinate_y = static_cast<u16>(state.coordinate_y + coordinate_y);
 
-    const auto descriptor =
-        invoke(port, result, kCallQueryDescriptor, {actor_token});
+    const auto descriptor = invoke(port, kCallQueryDescriptor, {actor_token});
     state.actor_descriptor_token = descriptor.eax;
     if (descriptor.eax == 0U) {
         result.status =
@@ -625,8 +619,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         ((descriptor.object_flags & 0x20U) != 0U ? 0x14U : 3U)
     );
 
-    const auto action_reply =
-        invoke(port, result, kCallQueryAction, {actor_token, 1U});
+    const auto action_reply = invoke(port, kCallQueryAction, {actor_token, 1U});
     result.fixed_count = accumulate_legacy_battle_fixed_count(
         port.legacy_battle_fixed_object_state(),
         port,
@@ -640,7 +633,6 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         }
     );
     ++result.fixed_count_calls;
-    result.port_calls += result.fixed_count.allocation_calls;
     if (result.fixed_count.status != LegacyBattleFixedCountStatus::completed) {
         result.status =
             LegacyBattleActionDispatchStatus::fixed_count_typed_stop;
@@ -669,10 +661,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
 
     if (state.group_b_reset_word != 0U &&
         invoke(
-            port,
-            result,
-            kCallQueryGroupBReset,
-            {kLegacyBattleActionGroupBBaseToken}
+            port, kCallQueryGroupBReset, {kLegacyBattleActionGroupBBaseToken}
         )
                 .eax == 0U &&
         to_bits(action.group_b_count) -

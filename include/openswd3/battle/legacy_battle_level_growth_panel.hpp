@@ -131,7 +131,6 @@ struct LegacyBattleLevelGrowthPanelResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 format_calls{};
     compat::u32 text_draw_calls{};
     compat::u32 sample_calls{};

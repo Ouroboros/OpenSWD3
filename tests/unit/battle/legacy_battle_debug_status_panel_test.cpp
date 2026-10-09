@@ -245,7 +245,7 @@ void test_battle_debug_status_panel(openswd3::test::Context& test) {
                 result.transition_stage_advance.quotient == 0 &&
                 fixture.target.transition_stage == 180U &&
                 result.text_calls == 10U && result.color_fade_calls == 9U &&
-                result.port_calls == 10U && result.call_trace.size() == 64U &&
+                result.call_trace.size() == 64U &&
                 result.return_registers.eax == 0U &&
                 result.return_registers.ecx == 0xCCCC0002U &&
                 result.return_registers.edx ==

@@ -301,8 +301,7 @@ void test_battle_list_contents(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleListContentsStatus::
                         completed &&
-                result.port_calls == 19U && result.completed_rows == 2U &&
-                result.row_query_calls == 3U &&
+                result.completed_rows == 2U && result.row_query_calls == 3U &&
                 result.row_resolver_calls == 2U &&
                 result.resource_frame_calls == 1U &&
                 result.rectangle_calls == 2U && result.text_draw_calls == 6U &&
@@ -373,7 +372,7 @@ void test_battle_list_contents(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleListContentsStatus::
                         group_a_actor_typed_stop &&
-                result.port_calls == 3U && fixture.panel_row_limit == 0U &&
+                fixture.panel_row_limit == 0U &&
                 result.actor_initialization_calls == 0U &&
                 result.return_eax == 0xFFFFFC11U &&
                 result.return_ecx == 0x004FFA9CU &&

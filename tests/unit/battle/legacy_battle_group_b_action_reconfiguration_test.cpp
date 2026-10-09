@@ -67,7 +67,7 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionReconfigurationStatus::
                         actor_state_typed_stop &&
-                result.port_calls == 0U && port.open_calls == 0U,
+                port.open_calls == 0U,
             "group B action reconfiguration stops before all resource and MON calls for a null actor"
         );
     }
@@ -95,8 +95,7 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupBActionReconfigurationStatus::completed &&
-                result.port_calls == 3U && port.open_calls == 1U &&
-                port.read_calls == 6U &&
+                port.open_calls == 1U && port.read_calls == 6U &&
                 actor.action_configuration.timing_value == 0xCAFEBABEU &&
                 actor.action_configuration.resource_mode == 0x7AU &&
                 actor.action_execution.profile_value == 0x1357U &&
@@ -150,7 +149,7 @@ void test_battle_group_b_action_reconfiguration(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionReconfigurationStatus::
                         profile_load_typed_stop &&
-                result.port_calls == 2U && port.release_calls == 1U,
+                port.release_calls == 1U,
             "group B action reconfiguration stops at the original zero-allocation MON access"
         );
     }

@@ -436,7 +436,6 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
 
     const auto invoke_phase = [&](const u32 callee,
                                   const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -685,7 +684,6 @@ advance_legacy_battle_target_phase_spawn_frame(
     };
     auto invoke_frame = [&](const u32 callee,
                             const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke_summon_frame({
             .callee_token = callee,
             .arguments = arguments,
@@ -878,7 +876,6 @@ LegacyBattleTargetPhaseAdvanceResult advance_legacy_battle_target_phase(
                 .ecx = request.target_token,
                 .edx = result.return_edx,
             }));
-            ++result.port_calls;
             ++result.resource_release_calls;
         }
         phase->decoded_resource_token = 0U;
@@ -936,7 +933,6 @@ LegacyBattleTargetPhaseAdvanceResult advance_legacy_battle_target_phase(
                 }
             );
         ++result.spawn_frame_calls;
-        result.port_calls += result.spawn_frames[index].port_calls;
         if (result.spawn_frames[index].status !=
             LegacyBattleTargetPhaseSpawnFrameStatus::completed) {
             result.status =
@@ -1026,7 +1022,6 @@ LegacyBattleActionThirteenResult advance_legacy_battle_action_thirteen(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -1337,7 +1332,6 @@ LegacyBattleActionFourteenResult advance_legacy_battle_action_fourteen(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -1632,7 +1626,6 @@ LegacyBattleActionTwentyThreeResult advance_legacy_battle_action_twenty_three(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -1842,7 +1835,6 @@ consume_legacy_battle_action_twenty_three_message(
     };
     auto invoke_message = [&](const u32 callee,
                               const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -1941,7 +1933,6 @@ LegacyBattleActionTwentyFourResult advance_legacy_battle_action_twenty_four(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -2123,7 +2114,6 @@ LegacyBattleActionTwentySevenResult advance_legacy_battle_action_twenty_seven(
     };
     auto invoke_action = [&](const u32 callee,
                              const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,

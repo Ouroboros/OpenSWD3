@@ -46,8 +46,7 @@ void test_battle_player_item_quantity(openswd3::test::Context& test) {
             advance_legacy_battle_player_item_quantity(port, 0U, 1U);
         test.expect_true(
             result.status == LegacyBattlePlayerItemQuantityStatus::completed &&
-                result.return_token == 0x004A994CU && result.port_calls == 0U &&
-                port.requests.empty(),
+                result.return_token == 0x004A994CU && port.requests.empty(),
             "zero item id returns the global head alias payload without reading the chain"
         );
     }
@@ -80,7 +79,6 @@ void test_battle_player_item_quantity(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattlePlayerItemQuantityStatus::completed &&
                 result.created && result.return_token == 0x0060000CU &&
-                result.port_calls == 2U &&
                 state.player_inventory_head_token == 0x00600000U &&
                 node.legacy_token == 0x00600000U &&
                 node.legacy_next_token == 0U && node.item_id == 0x21U &&
@@ -142,7 +140,7 @@ void test_battle_player_item_quantity(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattlePlayerItemQuantityStatus::
                         item_node_typed_stop &&
-                result.return_token == 0x0080000CU && result.port_calls == 0U,
+                result.return_token == 0x0080000CU,
             "unknown nonnull head stops at the first real node access"
         );
     }
@@ -164,7 +162,7 @@ void test_battle_player_item_quantity(openswd3::test::Context& test) {
                     LegacyBattlePlayerItemQuantityStatus::
                         allocation_typed_stop &&
                 state.player_inventory_head_token == 0U &&
-                state.player_inventory.size() == 1U && result.port_calls == 1U,
+                state.player_inventory.size() == 1U,
             "null allocation publishes the new null head before the first zero-fill access stops"
         );
     }

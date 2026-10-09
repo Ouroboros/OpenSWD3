@@ -85,7 +85,6 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
             .ecx = ecx,
             .edx = edx,
         });
-        ++result.port_calls;
         eax = reply.eax;
         ecx = reply.ecx;
         edx = reply.edx;
@@ -96,7 +95,6 @@ LegacyBattleMenuSelectionRetreatResult retreat_legacy_battle_menu_selection(
         const auto reply = port.play_input_sample(
             kSelectionSample, input.sample_mix_level, eax, ecx, edx
         );
-        ++result.port_calls;
         ++result.sample_calls;
         eax = reply.eax;
         ecx = reply.ecx;

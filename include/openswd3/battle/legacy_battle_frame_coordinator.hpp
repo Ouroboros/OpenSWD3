@@ -2069,7 +2069,6 @@ struct LegacyBattleFrameCoordinatorResult {
         LegacyBattleFrameCoordinatorStatus::completed
     };
     compat::u32 return_value{};
-    compat::u32 port_calls{};
     bool music_started{};
     compat::u32 music_commit_calls{};
     compat::u32 lock_calls{};

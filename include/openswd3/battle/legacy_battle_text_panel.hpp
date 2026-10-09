@@ -70,7 +70,6 @@ struct LegacyBattleTextPanelResult {
     LegacyBattleTextPanelRegisters rectangle_entry{};
     LegacyBattleTextPanelRegisters tiled_frame_entry{};
     LegacyBattleTextPanelRegisters text_entry{};
-    compat::u32 port_calls{};
     compat::u32 action_calls{};
     compat::u32 rectangle_calls{};
     compat::u32 tiled_frame_calls{};

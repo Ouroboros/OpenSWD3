@@ -46,7 +46,6 @@ struct LegacyBattleMenuSelectionRetreatResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 sample_calls{};
     compat::u32 actor_iterations{};
     compat::u32 actor_frame_snapshot_queries{};

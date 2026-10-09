@@ -69,7 +69,6 @@ struct LegacyBattleGroupBActionCompositionResult {
     LegacyBattleGroupBActionCompositionStatus status{
         LegacyBattleGroupBActionCompositionStatus::completed
     };
-    compat::u32 port_calls{};
     compat::u32 text_bytes_written{};
     compat::u32 mode_update_calls{};
     LegacyBattleActorActionModeResult actor_action_mode{};

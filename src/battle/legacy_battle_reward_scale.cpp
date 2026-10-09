@@ -31,7 +31,6 @@ LegacyBattleRewardScaleResult scale_legacy_battle_reward(
     }
 
     ++result.percent_refresh_calls;
-    ++result.port_calls;
     auto reply = port.invoke({
         .callee_token = kCallRefreshPercent,
         .arguments = {0x37U},
@@ -44,7 +43,6 @@ LegacyBattleRewardScaleResult scale_legacy_battle_reward(
     result.return_edx = reply.edx;
 
     ++result.action_configure_calls;
-    ++result.port_calls;
     reply = port.invoke({
         .callee_token = kCallConfigureAction,
         .arguments = {0x004B8A00U, 0x37U, 0x0CU},

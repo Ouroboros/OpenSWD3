@@ -41,7 +41,6 @@ struct LegacyBattleGroupAEffectRewardApplicationResult {
     compat::u32 allocation_calls{};
     compat::u32 created_nodes{};
     compat::u32 head_item_id_increments{};
-    compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};

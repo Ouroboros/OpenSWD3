@@ -83,7 +83,6 @@ struct LegacyBattleListFrameResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 action_frame_calls{};
     compat::u32 font_style_calls{};
     compat::u32 panel_action_update_calls{};

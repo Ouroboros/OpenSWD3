@@ -452,14 +452,11 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 stop.token == expected_tokens[step] &&
                 stop.eax == parent_esp + 0x14U &&
                 observed.ecx == observed.child.ecx &&
-                stop.ecx == observed.ecx &&
-                stop.edx == parent_esp + 0x18U &&
+                stop.ecx == observed.ecx && stop.edx == parent_esp + 0x18U &&
                 stop.flags_known && stop.flags.zero && stop.flags.parity &&
-                !stop.flags.carry &&
-                !stop.flags.auxiliary_carry_defined &&
+                !stop.flags.carry && !stop.flags.auxiliary_carry_defined &&
                 argument_0 == (step == 3U ? 0U : 0xA0A0A0A0U) &&
-                argument_4 == 0xB4B4B4B4U && state.coordinate_x == 0U &&
-                result.port_calls == 0U;
+                argument_4 == 0xB4B4B4B4U && state.coordinate_x == 0U;
         }
         test.expect_true(
             all_parent_stack_stops,
@@ -684,7 +681,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
             state, action, port, port.attack_order(), 99U, 1U
         );
         test.expect_true(
-            result.return_value == 0U && result.port_calls == 1U &&
+            result.return_value == 0U &&
                 result.status == LegacyBattleActionDispatchStatus::completed,
             "group A validity failure returns before the first indexed flag access"
         );
@@ -848,7 +845,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
             state, action, port, port.attack_order(), 0xFFFFFFFFU, 0U
         );
         test.expect_true(
-            result.return_value == 0U && result.port_calls == 0U,
+            result.return_value == 0U,
             "group B all-one index returns before object validation"
         );
     }
@@ -865,8 +862,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         group_b_coordinate_offset_typed_stop &&
-                result.port_calls == 1U && state.coordinate_x == 0U &&
-                state.coordinate_y == 0U && port.count(0x00480AD0U) == 0U,
+                state.coordinate_x == 0U && state.coordinate_y == 0U &&
+                port.count(0x00480AD0U) == 0U,
             "group B coordinate owner stop preserves validation then blocks descriptor lookup"
         );
     }
@@ -959,8 +956,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         final_actor_descriptor_typed_stop &&
-                state.coordinate_x == 9U && result.port_calls == 2U &&
-                port.count(0x00475870U) == 0U && port.count(0x0047F910U) == 0U,
+                state.coordinate_x == 9U && port.count(0x00475870U) == 0U &&
+                port.count(0x0047F910U) == 0U,
             "group B null descriptor stops at the first object-field access after coordinates"
         );
     }

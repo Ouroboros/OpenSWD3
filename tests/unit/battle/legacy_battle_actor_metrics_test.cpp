@@ -470,7 +470,6 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
             rebuild_legacy_battle_actor_metrics(port, 0U, 0U, {});
         test.expect_true(
             result.status == LegacyBattleActorMetricStatus::completed &&
-                result.port_calls == 0U &&
                 result.coordinate_query_calls == 0U &&
                 result.return_value == 8U && result.final_ecx == 0xA1B2C3D4U &&
                 result.final_edx == 0x55667788U && !result.final_flags.carry &&
@@ -529,7 +528,6 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
             rebuild_legacy_battle_actor_metrics(port, 2U, 2U, owners);
         test.expect_true(
             result.status == LegacyBattleActorMetricStatus::completed &&
-                result.port_calls == 0U &&
                 result.coordinate_query_calls == 4U &&
                 result.group_b_iterations == 2U &&
                 result.group_a_iterations == 2U &&
@@ -571,7 +569,7 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
                     LegacyBattleActorCoordinateQueryStatus::
                         actor_gate_read_typed_stop &&
                 result.coordinate_query_calls == 1U &&
-                result.group_b_iterations == 0U && result.port_calls == 0U &&
+                result.group_b_iterations == 0U &&
                 result.return_value == 0x1000U &&
                 result.final_ecx ==
                     kLegacyBattleActorCoordinatesGroupBBaseToken &&
@@ -741,9 +739,8 @@ void test_battle_actor_metrics(openswd3::test::Context& test) {
         const auto result =
             rebuild_legacy_battle_actor_metrics(port, 0U, 0xFFFFFFFFU, {});
         test.expect_true(
-            result.port_calls == 0U && result.coordinate_query_calls == 0U &&
-                result.return_value == 7U && result.final_flags.carry &&
-                result.final_flags.parity &&
+            result.coordinate_query_calls == 0U && result.return_value == 7U &&
+                result.final_flags.carry && result.final_flags.parity &&
                 result.final_flags.auxiliary_carry &&
                 result.final_flags.auxiliary_carry_defined &&
                 !result.final_flags.zero && result.final_flags.sign &&

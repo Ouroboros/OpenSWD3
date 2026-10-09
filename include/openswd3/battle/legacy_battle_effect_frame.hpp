@@ -123,7 +123,6 @@ struct LegacyBattleIntensityEffectFrameResult {
     compat::u32 final_edx{};
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
-    compat::u32 port_calls{};
 };
 
 inline constexpr std::size_t kLegacyBattleEffectActorSlotCount = 18U;
@@ -207,7 +206,6 @@ struct LegacyBattleEffectFrameResult {
     compat::u32 return_value{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 color_initialization_calls{};
     compat::u32 primary_animation_steps{};
     compat::u32 alternate_animation_steps{};

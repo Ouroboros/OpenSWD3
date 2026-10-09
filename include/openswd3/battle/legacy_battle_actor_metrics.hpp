@@ -154,7 +154,6 @@ struct LegacyBattleActorMetricResult {
     LegacyBattleActorCoordinateFlags final_flags{};
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
-    compat::u32 port_calls{};
     compat::u32 group_b_iterations{};
     compat::u32 group_a_iterations{};
 };

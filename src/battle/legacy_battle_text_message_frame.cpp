@@ -113,7 +113,6 @@ LegacyBattleTextMessageFrameResult advance_legacy_battle_text_message_frame(
             .edx = edx,
         });
         ++result.text_calls;
-        ++result.port_calls;
         eax = reply.eax;
         ecx = reply.ecx;
         edx = reply.edx;
@@ -378,7 +377,6 @@ LegacyBattleTextMessageFrameResult advance_legacy_battle_text_message_frame(
             .edx = edx,
         });
         ++result.release_calls;
-        ++result.port_calls;
         result.released_tokens.push_back(token);
         eax = reply.eax;
         ecx = reply.ecx;

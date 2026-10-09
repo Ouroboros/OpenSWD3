@@ -32,7 +32,6 @@ struct LegacyBattleActorActionReverseCycleResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 resolve_calls{};
     compat::u32 commit_calls{};
 };

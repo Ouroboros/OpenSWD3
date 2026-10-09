@@ -28,7 +28,6 @@ struct LegacyBattleGroupANpcMaterializationResult {
     LegacyBattleGroupANpcMaterializationStatus status{
         LegacyBattleGroupANpcMaterializationStatus::completed
     };
-    compat::u32 port_calls{};
     compat::u32 allocation_calls{};
     compat::u32 load_calls{};
     compat::u32 release_calls{};

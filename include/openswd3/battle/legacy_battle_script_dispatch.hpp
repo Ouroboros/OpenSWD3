@@ -413,7 +413,6 @@ struct LegacyBattleScriptDispatchResult {
     compat::u32 return_eax{1U};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 stopped_offset{};
     LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
     compat::u32 actor_availability_block_calls{};

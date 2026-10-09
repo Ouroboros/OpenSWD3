@@ -79,7 +79,6 @@ private:
 
     [[nodiscard]] Reply invoke(const Request& request) {
         const Reply reply = port_.invoke_control_panel_frame(request);
-        ++result_.port_calls;
         eax_ = reply.eax;
         ecx_ = reply.ecx;
         edx_ = reply.edx;
@@ -357,9 +356,6 @@ private:
                     }
                 );
             ++result_.primary_query_calls;
-            result_.port_calls +=
-                result_.primary_options[source_index].definition_load_calls +
-                result_.primary_options[source_index].name_copy_calls;
             eax_ = result_.primary_options[source_index].return_eax;
             ecx_ = result_.primary_options[source_index].return_ecx;
             edx_ = result_.primary_options[source_index].return_edx;
@@ -441,9 +437,6 @@ private:
                     }
                 );
             ++result_.special_query_calls;
-            result_.port_calls +=
-                result_.special_options[source_index].definition_load_calls +
-                result_.special_options[source_index].name_copy_calls;
             eax_ = result_.special_options[source_index].return_eax;
             ecx_ = result_.special_options[source_index].return_ecx;
             edx_ = result_.special_options[source_index].return_edx;

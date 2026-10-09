@@ -4208,8 +4208,6 @@ public:
             message.append(stop_boundary);
             message.append(": music_started=");
             message.append(prefix.music_started ? "1" : "0");
-            message.append(", port_calls=");
-            message.append(std::to_string(prefix.port_calls));
             message.append(", keyboard_queries=");
             message.append(std::to_string(keyboard_queries));
             message.append(", record_zero_written=");

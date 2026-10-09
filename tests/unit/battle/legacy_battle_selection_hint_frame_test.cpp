@@ -230,8 +230,8 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleSelectionHintFrameStatus::
                         completed &&
-                result.port_calls == 0U && result.return_eax == 1U &&
-                result.return_ecx == 0U && result.return_edx == 0U,
+                result.return_eax == 1U && result.return_ecx == 0U &&
+                result.return_edx == 0U,
             "selection hint skips party-source mode one with post-read registers"
         );
     }
@@ -247,8 +247,8 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleSelectionHintFrameStatus::
                         completed &&
-                result.port_calls == 0U && result.return_eax == 0U &&
-                result.return_ecx == 0U && result.return_edx == 0U,
+                result.return_eax == 0U && result.return_ecx == 0U &&
+                result.return_edx == 0U,
             "selection hint skips the complete target-selection block value one"
         );
     }
@@ -267,9 +267,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
                 too_large.bindings(), too_large.port, request()
             );
         test.expect_true(
-            zero_result.port_calls == 0U && zero_result.return_ecx == 0U &&
-                too_large_result.port_calls == 0U &&
-                too_large_result.return_ecx == 2U,
+            zero_result.return_ecx == 0U && too_large_result.return_ecx == 2U,
             "selection hint preserves signed one-based published-code guards"
         );
     }

@@ -98,7 +98,6 @@ struct LegacyBattleGroupAAttributeAggregationResult {
     LegacyBattleGroupAAttributeAggregationStatus status{
         LegacyBattleGroupAAttributeAggregationStatus::completed
     };
-    compat::u32 port_calls{};
     compat::u32 diagnostic_calls{};
     compat::u32 embedded_profile_apply_calls{};
     std::array<LegacyBattleGroupAEmbeddedProfileApplicationResult, 2>

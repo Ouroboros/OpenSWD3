@@ -84,7 +84,7 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleHudFrameStatus::completed &&
-                result.return_value == 0x12345678U && result.port_calls == 2U &&
+                result.return_value == 0x12345678U &&
                 result.top_actor_rows == 0U && result.actor_rows == 0U &&
                 has_argument(port, 0x00435670U, 0U, 0x004C9A28U) &&
                 has_argument(port, 0x00435660U, 1U, 0xFFFEU),

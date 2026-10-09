@@ -258,7 +258,6 @@ private:
     ) {
         result_.call_trace.push_back(call_kind);
         ++result_.call_trace_count;
-        ++result_.port_calls;
         apply(port_.invoke_message_phase({
             .call = call_kind,
             .actor_token = actor_token,
@@ -396,7 +395,6 @@ private:
             }
         );
         ++result_.summon_frame_calls;
-        result_.port_calls += result_.summon_frame.port_calls;
         eax_ = result_.summon_frame.return_eax;
         ecx_ = result_.summon_frame.return_ecx;
         edx_ = result_.summon_frame.return_edx;
@@ -658,8 +656,6 @@ private:
                 }
             );
         ++result_.actor_message_percent_refresh_calls;
-        result_.port_calls +=
-            result_.actor_message_percent_refresh.percent_refresh_calls;
         eax_ = result_.actor_message_percent_refresh.return_eax;
         ecx_ = result_.actor_message_percent_refresh.return_ecx;
         edx_ = result_.actor_message_percent_refresh.return_edx;
@@ -721,8 +717,6 @@ private:
                 }
             );
         ++result_.group_b_action_item_selection_calls;
-        result_.port_calls +=
-            result_.group_b_action_item_selection.definition_load_calls;
         eax_ = result_.group_b_action_item_selection.return_eax;
         ecx_ = result_.group_b_action_item_selection.return_ecx;
         edx_ = result_.group_b_action_item_selection.return_edx;
@@ -743,7 +737,6 @@ private:
                 port_, static_cast<u16>(eax_), 1U
             );
         ++result_.player_item_quantity_calls;
-        result_.port_calls += result_.player_item_quantity.port_calls;
         if (result_.player_item_quantity.status !=
             LegacyBattlePlayerItemQuantityStatus::completed) {
             return stop(
@@ -802,7 +795,6 @@ private:
             }
         );
         ++result_.target_selection_entry_calls;
-        result_.port_calls += result_.target_selection_entry.port_calls;
         eax_ = result_.target_selection_entry.return_eax;
         ecx_ = result_.target_selection_entry.return_ecx;
         edx_ = result_.target_selection_entry.return_edx;
@@ -829,7 +821,6 @@ private:
             bindings_.victory_rewards, port_, victory_request
         );
         ++result_.victory_reward_calls;
-        result_.port_calls += result_.victory_rewards.port_calls;
         eax_ = result_.victory_rewards.return_eax;
         ecx_ = result_.victory_rewards.return_ecx;
         edx_ = result_.victory_rewards.return_edx;
@@ -862,7 +853,6 @@ private:
             level_request
         );
         ++result_.level_up_panel_calls;
-        result_.port_calls += result_.level_up_panel.port_calls;
         eax_ = result_.level_up_panel.return_eax;
         ecx_ = result_.level_up_panel.return_ecx;
         edx_ = result_.level_up_panel.return_edx;
@@ -904,7 +894,6 @@ private:
                 level_request
             );
             ++result_.level_advancement_calls;
-            result_.port_calls += result_.level_advancement.port_calls;
             eax_ = result_.level_advancement.return_eax;
             ecx_ = result_.level_advancement.return_ecx;
             edx_ = result_.level_advancement.return_edx;
@@ -983,7 +972,6 @@ private:
             caption_request
         );
         ++result_.growth_caption_calls;
-        result_.port_calls += result_.growth_caption.port_calls;
         eax_ = result_.growth_caption.return_eax;
         ecx_ = result_.growth_caption.return_ecx;
         edx_ = result_.growth_caption.return_edx;
@@ -1043,7 +1031,6 @@ private:
                     growth_request
                 );
             ++result_.level_growth_panel_calls;
-            result_.port_calls += result_.level_growth_panel.port_calls;
             eax_ = result_.level_growth_panel.return_eax;
             ecx_ = result_.level_growth_panel.return_ecx;
             edx_ = result_.level_growth_panel.return_edx;
@@ -1090,7 +1077,6 @@ private:
                     }
                 );
             ++result_.growth_actor_selection_calls;
-            result_.port_calls += result_.growth_actor_selection.port_calls;
             eax_ = result_.growth_actor_selection.return_eax;
             ecx_ = result_.growth_actor_selection.return_ecx;
             edx_ = result_.growth_actor_selection.return_edx;
@@ -1150,7 +1136,6 @@ private:
                 caption_request
             );
         ++result_.growth_completion_caption_calls;
-        result_.port_calls += result_.growth_completion_caption.port_calls;
         eax_ = result_.growth_completion_caption.return_eax;
         ecx_ = result_.growth_completion_caption.return_ecx;
         edx_ = result_.growth_completion_caption.return_edx;
@@ -1186,8 +1171,6 @@ private:
                     selection_request
                 );
             ++result_.growth_item_result_selection_calls;
-            result_.port_calls +=
-                result_.growth_item_result_selection.port_calls;
             eax_ = result_.growth_item_result_selection.return_eax;
             ecx_ = result_.growth_item_result_selection.return_ecx;
             edx_ = result_.growth_item_result_selection.return_edx;
@@ -1264,7 +1247,6 @@ private:
                 panel_request
             );
         ++result_.growth_item_completion_panel_calls;
-        result_.port_calls += result_.growth_item_completion_panel.port_calls;
         eax_ = result_.growth_item_completion_panel.return_eax;
         ecx_ = result_.growth_item_completion_panel.return_ecx;
         edx_ = result_.growth_item_completion_panel.return_edx;
@@ -1301,7 +1283,6 @@ private:
                 panel_request
             );
         ++result_.talisman_result_panel_calls;
-        result_.port_calls += result_.talisman_result_panel.port_calls;
         eax_ = result_.talisman_result_panel.return_eax;
         ecx_ = result_.talisman_result_panel.return_ecx;
         edx_ = result_.talisman_result_panel.return_edx;
@@ -1345,7 +1326,6 @@ private:
                 panel_request
             );
         ++result_.victory_item_list_panel_calls;
-        result_.port_calls += result_.victory_item_list_panel.port_calls;
         eax_ = result_.victory_item_list_panel.return_eax;
         ecx_ = result_.victory_item_list_panel.return_ecx;
         edx_ = result_.victory_item_list_panel.return_edx;
@@ -1391,7 +1371,6 @@ private:
             panel_request
         );
         ++result_.defeat_panel_calls;
-        result_.port_calls += result_.defeat_panel.port_calls;
         eax_ = result_.defeat_panel.return_eax;
         ecx_ = result_.defeat_panel.return_ecx;
         edx_ = result_.defeat_panel.return_edx;

@@ -169,7 +169,6 @@ struct LegacyBattleActorActionPresentationResult {
     compat::u32 stopped_instruction{};
     compat::u32 stopped_token{};
     std::size_t stopped_call_ordinal{std::numeric_limits<std::size_t>::max()};
-    compat::u32 port_calls{};
     LegacyBattleActorActionPresentationPhysicalCallArray physical_calls{};
     std::size_t physical_call_count{};
     LegacyBattleActorField26b8HighBitSetResult high_bit_set{};

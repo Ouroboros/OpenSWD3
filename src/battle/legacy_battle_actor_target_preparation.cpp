@@ -44,7 +44,6 @@ LegacyBattleActorTargetPreparationResult prepare_legacy_battle_actor_target(
     const auto invoke = [&](const LegacyBattleActorTargetPreparationCall call,
                             const u32 object_token,
                             const std::array<u32, 4>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke_actor_target_preparation({
             .call = call,
             .object_token = object_token,

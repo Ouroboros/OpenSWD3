@@ -75,7 +75,6 @@ struct LegacyBattleActorTargetPreparationResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
     compat::u32 actor_availability_block_calls{};
     compat::u32 random_calls{};

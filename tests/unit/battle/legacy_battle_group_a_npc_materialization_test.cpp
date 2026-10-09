@@ -169,9 +169,8 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupANpcMaterializationStatus::completed &&
-                result.port_calls == 3U && result.allocation_calls == 1U &&
-                result.load_calls == 1U && result.release_calls == 1U &&
-                result.diagnostic_calls == 0U &&
+                result.allocation_calls == 1U && result.load_calls == 1U &&
+                result.release_calls == 1U && result.diagnostic_calls == 0U &&
                 result.profile_dwords_zeroed == 0x29U &&
                 result.placement_dwords_copied == 16U &&
                 result.adjusted_word_writes == 5U &&
@@ -221,7 +220,7 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupANpcMaterializationStatus::completed &&
-                result.diagnostic_calls == 1U && result.port_calls == 4U &&
+                result.diagnostic_calls == 1U &&
                 port.calls[1U].call ==
                     LegacyBattleGroupASummonMaterializationCall::
                         report_missing_role &&
@@ -268,12 +267,10 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
             actor_stop.status ==
                     LegacyBattleGroupANpcMaterializationStatus::
                         actor_state_typed_stop &&
-                actor_stop.port_calls == 1U &&
                 actor_stop.profile_dwords_zeroed == 0U &&
                 allocation_stop.status ==
                     LegacyBattleGroupANpcMaterializationStatus::
                         allocation_typed_stop &&
-                allocation_stop.port_calls == 1U &&
                 allocation_stop.profile_dwords_zeroed == 0U &&
                 allocation_state.profile_token == 0U,
             "NPC actor and allocation stops preserve the write-before-clear ordering"
@@ -317,12 +314,10 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
             source_stop.status ==
                     LegacyBattleGroupANpcMaterializationStatus::
                         source_record_typed_stop &&
-                source_stop.port_calls == 1U &&
                 source_stop.profile_dwords_zeroed == 0x29U &&
                 modifier_stop.status ==
                     LegacyBattleGroupANpcMaterializationStatus::
                         modifier_record_typed_stop &&
-                modifier_stop.port_calls == 3U &&
                 modifier_stop.placement_dwords_copied == 16U &&
                 modifier_state.actor_record[0U] == 0U,
             "NPC source and modifier stops retain the exact allocation, clear, callee, and source-copy prefixes"
@@ -352,7 +347,6 @@ void test_battle_group_a_npc_materialization(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupANpcMaterializationStatus::
                         actor_record_typed_stop &&
-                result.port_calls == 3U &&
                 result.placement_dwords_copied == 16U &&
                 state.actor_record[0U] == 0xDDDDDDDDU,
             "missing NPC actor record stops at the first adjusted word write without partial projection"

@@ -36,7 +36,6 @@ struct LegacyBattleActorReadyResult {
     compat::u32 stale_edx{};
     compat::u32 final_ecx{};
     compat::u32 final_edx{};
-    compat::u32 port_calls{};
 };
 
 // Typed closure of legacy 0x0045A980. Actor addresses remain 32-bit tokens;

@@ -427,9 +427,9 @@ void test_battle_grid_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleGridFrameStatus::completed &&
-                result.port_calls == 0U && result.action_frame_calls == 0U &&
-                result.return_eax == 0U && result.return_ecx == 0U &&
-                result.return_edx == 0U && fixture.panel_row_limit == 0xFFFFU,
+                result.action_frame_calls == 0U && result.return_eax == 0U &&
+                result.return_ecx == 0U && result.return_edx == 0U &&
+                fixture.panel_row_limit == 0xFFFFU,
             "zero queued actor returns zeroed registers before all panel work"
         );
     }
@@ -450,7 +450,7 @@ void test_battle_grid_frame(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleGridFrameStatus::
                         action_frame_typed_stop &&
-                result.action_frame_calls == 1U && result.port_calls == 0U &&
+                result.action_frame_calls == 1U &&
                 result.panel_action_update_calls == 0U &&
                 result.return_eax == 0x11112222U &&
                 result.return_ecx == 0x33334444U &&

@@ -222,7 +222,7 @@ void test_battle_growth_actor_selection(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGrowthActorSelectionStatus::completed &&
-                result.port_calls == 9U && result.actor_query_calls == 1U &&
+                result.actor_query_calls == 1U &&
                 result.item_load_calls == 3U &&
                 result.item_release_calls == 3U &&
                 result.item_presence_calls == 1U &&
@@ -312,7 +312,7 @@ void test_battle_growth_actor_selection(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGrowthActorSelectionStatus::completed &&
-                result.actor_query_calls == 2U && result.port_calls == 2U &&
+                result.actor_query_calls == 2U &&
                 result.selected_actor_count == 0U,
             "growth actor selection preserves the two exact-one skip fields, actor query gate and minus-one profile gate"
         );

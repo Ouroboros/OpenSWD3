@@ -409,9 +409,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        group_b_index_typed_stop &&
-                result.port_calls == 0U,
+                LegacyBattleActionDispatchStatus::group_b_index_typed_stop,
             "group B frame stops at first source actor access"
         );
     }
@@ -455,8 +453,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 !result.actor_start_gate.flags.zero &&
                 !result.actor_start_gate.flags.sign &&
                 !result.actor_start_gate.flags.overflow &&
-                result.port_calls == 0U && port.count(0x004786D0U) == 0U &&
-                port.count(0x00478B60U) == 0U,
+                port.count(0x004786D0U) == 0U && port.count(0x00478B60U) == 0U,
             "Group-B start-gate RET stop preserves actor arithmetic SUB state and suppresses effect publication and final suffix"
         );
     }

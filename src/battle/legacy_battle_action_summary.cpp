@@ -85,11 +85,8 @@ void write_permission(
 
 class ActionModePortAdapter final : public LegacyBattleInputDispatchPort {
 public:
-    ActionModePortAdapter(
-        LegacyBattleActionSummaryPort& port,
-        LegacyBattleActionSummaryResult& result
-    ) noexcept
-        : port_(port), result_(result) {}
+    ActionModePortAdapter(LegacyBattleActionSummaryPort& port) noexcept
+        : port_(port) {}
 
     [[nodiscard]] LegacyBattleInputDispatchCallReply invoke_input_dispatch(
         const LegacyBattleInputDispatchCallRequest& request
@@ -107,7 +104,6 @@ public:
         default:
             break;
         }
-        ++result_.port_calls;
         const auto reply = port_.invoke_action_summary({
             .call = call,
             .object_token = request.ecx,
@@ -120,7 +116,6 @@ public:
 
 private:
     LegacyBattleActionSummaryPort& port_;
-    LegacyBattleActionSummaryResult& result_;
 };
 
 }  // namespace
@@ -160,7 +155,6 @@ LegacyBattleActionSummaryResult draw_legacy_battle_action_summary(
         std::copy(
             arguments.begin(), arguments.end(), call_request.arguments.begin()
         );
-        ++result.port_calls;
         const auto reply = port.invoke_action_summary(call_request);
         eax = reply.eax;
         ecx = reply.ecx;
@@ -210,7 +204,7 @@ LegacyBattleActionSummaryResult draw_legacy_battle_action_summary(
         }
     }
 
-    ActionModePortAdapter action_mode_port(port, result);
+    ActionModePortAdapter action_mode_port(port);
     result.action_mode_refresh = refresh_legacy_battle_action_mode(
         {
             .startup_reset = reset,

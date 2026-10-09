@@ -222,7 +222,6 @@ void test_battle_list_frame(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.action_frame_calls == 4U && result.font_style_calls == 2U &&
-                result.port_calls == 2U &&
                 result.panel_action_update_calls == 1U &&
                 result.rectangle_calls == 1U &&
                 result.tiled_frame_calls == 1U &&

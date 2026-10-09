@@ -101,7 +101,6 @@ struct LegacyBattleFrameRefreshResult {
     LegacyBattleFrameRefreshStatus status{
         LegacyBattleFrameRefreshStatus::completed
     };
-    compat::u32 port_calls{};
     compat::u32 surface_iterations{};
     bool refreshed{};
 };

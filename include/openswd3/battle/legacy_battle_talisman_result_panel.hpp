@@ -123,7 +123,6 @@ struct LegacyBattleTalismanResultPanelResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 rectangle_calls{};
     compat::u32 tiled_frame_calls{};
     compat::u32 query_calls{};

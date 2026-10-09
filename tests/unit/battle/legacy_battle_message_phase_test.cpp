@@ -579,8 +579,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         fixture.action.selection_cache_gate_b = 3U;
         const auto result = run(fixture);
         test.expect_true(
-            result.return_eax == 0x12345678U && result.port_calls == 0U &&
-                fixture.message == 0x60U &&
+            result.return_eax == 0x12345678U && fixture.message == 0x60U &&
                 fixture.action.selection_cache_gate_b == 3U,
             "message phase entry list gate returns before reading the battle message"
         );
@@ -660,8 +659,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleMessagePhaseStatus::
                         completed &&
                 result.return_eax == 1U && result.summon_frame_calls == 1U &&
-                result.summon_frame.return_eax == 1U &&
-                result.summon_frame.port_calls == 3U,
+                result.summon_frame.return_eax == 1U,
             "message 97 completes the typed summon frame"
         );
         test.expect_true(
@@ -1096,8 +1094,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         const auto gated = run(fixture);
         test.expect_true(
             gated.return_eax == 1U &&
-                fixture.target_selection.completion_gate == 1U &&
-                gated.port_calls == 0U,
+                fixture.target_selection.completion_gate == 1U,
             "message 100 completes immediately when its mode gate is exactly one"
         );
 
@@ -1270,7 +1267,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleMessagePhaseStatus::
                         completed &&
                 nonzero.level_growth_panel_calls == 1U &&
-                nonzero.level_growth_panel.port_calls == 0U &&
                 fixture.port.count(
                     LegacyBattleMessagePhaseCall::
                         reserved_advance_message_110_slot
@@ -1687,7 +1683,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         debug.target_selection.transition_timer = 29U;
         const auto debug_result = run(debug);
         test.expect_true(
-            debug_result.port_calls == 0U && debug_result.return_ecx == 1U &&
+            debug_result.return_ecx == 1U &&
                 debug.target_selection.transition_timer == 0U &&
                 debug.target_selection.completion_gate == 1U &&
                 debug.action.action_pending_aux == 1U &&

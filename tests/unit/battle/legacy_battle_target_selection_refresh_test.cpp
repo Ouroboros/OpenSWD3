@@ -466,7 +466,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 result.group_a_target_cycle_calls == 1U &&
                 result.group_a_target_cycle.target_order_reads == 3U &&
                 result.input_record_prime_calls == 1U &&
-                result.port_calls == 5U && fixture.port.calls.size() == 5U &&
+                fixture.port.calls.size() == 5U &&
                 fixture.frame.target_cursor == 3U &&
                 fixture.frame.target_actor_index == 0U &&
                 fixture.final_actor.published_actor_code == 1U &&
@@ -521,7 +521,6 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 result.actor_frame_snapshot_entry_eax == 0xBCDU &&
                 result.actor_frame_snapshot_entry_ecx == 0x005029D0U &&
                 result.actor_frame_snapshot_entry_edx == 0x70001000U &&
-                result.group_a_calls == 7U && result.port_calls == 6U &&
                 runtime.selection_input_gate == 1U && fixture.message == 3U &&
                 result.input_record_prime_calls == 1U &&
                 std::ranges::none_of(
@@ -643,7 +642,6 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 result.actor_frame_snapshot_entry_eax == 0x3EFU &&
                 result.actor_frame_snapshot_entry_ecx == 0x005029D0U &&
                 result.actor_frame_snapshot_entry_edx == 0xBCDU &&
-                result.group_a_calls == 6U && result.port_calls == 5U &&
                 runtime.selection_input_gate == 1U && fixture.message == 3U &&
                 result.input_record_prime_calls == 1U &&
                 std::ranges::none_of(
@@ -695,7 +693,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                         group_a_target_order_typed_stop &&
                 result.group_a_target_cycle_calls == 1U &&
                 result.input_record_prime_calls == 0U &&
-                result.port_calls == 5U && fixture.port.calls.size() == 5U &&
+                fixture.port.calls.size() == 5U &&
                 fixture.frame.target_cursor == 4U &&
                 fixture.frame.target_actor_index == 7U &&
                 fixture.final_actor.published_actor_code == 9U &&
@@ -844,7 +842,6 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleTargetSelectionRefreshStatus::
                         group_b_actor_typed_stop &&
-                result.group_b_calls == 8U && result.port_calls == 8U &&
                 result.actor_availability_block_calls == 1U &&
                 result.actor_availability_block.actor_writes == 1U &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
@@ -875,9 +872,8 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                         actor_availability_block_typed_stop &&
                 result.actor_availability_block_calls == 1U &&
                 result.actor_availability_block.actor_writes == 0U &&
-                result.group_a_calls == 1U && result.group_b_calls == 0U &&
-                result.port_calls == 0U && result.return_eax == 1U &&
-                result.return_ecx == 0x005029D0U && result.return_edx == 0U &&
+                result.return_eax == 1U && result.return_ecx == 0x005029D0U &&
+                result.return_edx == 0U &&
                 fixture.final_actor.queued_actor_code == 0U &&
                 fixture.message == 3U &&
                 fixture.debug.committed_actor_code == 8U &&
@@ -950,8 +946,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 fixture.message == 3U &&
                 fixture.port.battle_input_dispatch_state().action_kind == 25U &&
                 fixture.frame.target_cursor == 9U &&
-                result.group_b_target_cycle_calls == 1U &&
-                result.group_b_calls == 1U && result.port_calls == 1U,
+                result.group_b_target_cycle_calls == 1U,
             "message seven stops on target-map index nine after the completed current-target query and cursor increment"
         );
     }
@@ -987,7 +982,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 workspace_word(fixture.action, 0x78U) == 0x10EU &&
                 runtime.actor_result_words[8U] == 1U &&
                 result.input_record_prime_calls == 1U &&
-                result.input_record_writes == 4U && result.port_calls == 2U &&
+                result.input_record_writes == 4U &&
                 result.actor_availability_block_calls == 1U &&
                 result.actor_availability_block.actor_writes == 1U &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
@@ -1079,8 +1074,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 result.action_four_override.return_eax == 1U &&
                 result.action_four_override.return_ecx == 0x005029D0U &&
                 result.action_four_override.return_edx == 0U &&
-                !old_port_called && result.port_calls == 1U &&
-                result.group_a_calls == 1U && fixture.message == 5U &&
+                !old_port_called && fixture.message == 5U &&
                 fixture.frame.group_b_row_selection == 2U,
             "action four reads the typed bit-twelve owner and advances the row-two target path without the opaque query"
         );
@@ -1144,8 +1138,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 twenty_seven_result.input_record_prime_calls == 1U &&
                 twenty_seven_result.input_record_writes == 4U &&
                 twenty_seven_result.return_eax == 2U &&
-                twenty_seven_result.return_ecx == 1U &&
-                twenty_seven_result.port_calls == 3U,
+                twenty_seven_result.return_ecx == 1U,
             "messages eight and twenty-seven preserve the actor-runtime token register and the successful fallback order"
         );
     }
@@ -1395,7 +1388,6 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleTargetSelectionRefreshStatus::
                         group_b_actor_typed_stop &&
-                result.group_b_calls == 8U &&
                 fixture.port.battle_target_selection_runtime_state()
                         .selected_action_kind == 0U &&
                 fixture.port.battle_input_dispatch_state().action_kind == 1U &&

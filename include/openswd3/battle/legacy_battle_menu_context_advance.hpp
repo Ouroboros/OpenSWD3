@@ -37,7 +37,6 @@ struct LegacyBattleMenuContextAdvanceResult {
     compat::u32 equipment_selection_reads{};
     compat::u32 equipment_scroll_reads{};
     compat::u32 sample_calls{};
-    compat::u32 port_calls{};
 };
 
 // Typed closure of legacy 0x00462510.

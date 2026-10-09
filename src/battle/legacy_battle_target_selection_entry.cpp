@@ -104,7 +104,6 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
     };
     const auto invoke = [&](const LegacyBattleInputDispatchCall call,
                             const std::array<u32, 5>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke_input_dispatch({
             .call = call,
             .arguments = arguments,
@@ -134,7 +133,6 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
         ++result.action_mode_refresh_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -175,7 +173,6 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
             refresh_request
         );
         ++result.target_selection_refresh_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -276,7 +273,6 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
     const auto sample = port.play_input_sample(
         kSelectionSample, input.sample_mix_level, eax, ecx, edx
     );
-    ++result.port_calls;
     ++result.sample_calls;
     eax = sample.eax;
     ecx = sample.ecx;
@@ -360,9 +356,6 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
                 }
             );
         ++result.primary_scan_calls;
-        result.port_calls +=
-            result.primary_options[scan].definition_load_calls +
-            result.primary_options[scan].name_copy_calls;
         eax = result.primary_options[scan].return_eax;
         ecx = result.primary_options[scan].return_ecx;
         edx = result.primary_options[scan].return_edx;
@@ -408,9 +401,6 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
                 }
             );
         ++result.secondary_scan_calls;
-        result.port_calls +=
-            result.secondary_options[scan].definition_load_calls +
-            result.secondary_options[scan].name_copy_calls;
         eax = result.secondary_options[scan].return_eax;
         ecx = result.secondary_options[scan].return_ecx;
         edx = result.secondary_options[scan].return_edx;

@@ -125,8 +125,7 @@ void test_battle_effect_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status ==
-                    LegacyBattleEffectFrameStatus::slot_index_typed_stop &&
-                result.port_calls == 0U,
+                LegacyBattleEffectFrameStatus::slot_index_typed_stop,
             "effect frame stops at first primary record access"
         );
     }

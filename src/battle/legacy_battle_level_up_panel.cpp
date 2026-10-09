@@ -74,7 +74,6 @@ private:
         };
         std::copy(text.begin(), text.end(), request.text.begin());
         const auto reply = port_.invoke_victory_reward(request);
-        ++result_.port_calls;
         result_.call_trace.push_back(call);
         eax_ = reply.eax;
         ecx_ = reply.ecx;

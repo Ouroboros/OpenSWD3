@@ -1384,7 +1384,8 @@ void test_definition_curve_typed_stops(openswd3::test::Context& test) {
             owner_stop.definition_load_calls == 0U &&
             owner_stop.return_eax == 0x11111111U &&
             owner_stop.return_ecx == 0x22222222U &&
-            owner_stop.return_edx == 0x33333333U && port.calls.empty(),
+            owner_stop.return_edx == 0x33333333U && port.opened_path.empty() &&
+            port.read_sizes.empty(),
         "an inaccessible owner stops at the initial root count read before loading a definition"
     );
 
@@ -1452,9 +1453,7 @@ void test_definition_curve_typed_stops(openswd3::test::Context& test) {
                     stream_zero_typed_stop &&
             definition_stop.definition_load_calls == 1U &&
             definition_stop.definition_cleanup_calls == 0U &&
-            definition_stop.key_reads == 0U &&
-            definition_stop.return_eax == 0U &&
-            definition_stop.return_ecx == 0x100U,
+            definition_stop.key_reads == 0U && port.released_streams.empty(),
         "a MON stream zero stops inside the closed definition loader before cleanup or chain search"
     );
 
@@ -1625,7 +1624,8 @@ void test_definition_curve_lookup_typed_stops(openswd3::test::Context& test) {
             owner_stop.return_eax == 0xDEAD0007U &&
             owner_stop.return_ecx == 0x11112222U &&
             owner_stop.return_edx == 0x33334444U && maximum == 0xAAAAU &&
-            current == 0xBBBBU && port.calls.empty(),
+            current == 0xBBBBU && port.opened_path.empty() &&
+            port.read_sizes.empty(),
         "an inaccessible lookup owner stops at the first root key read before MON or output effects"
     );
 

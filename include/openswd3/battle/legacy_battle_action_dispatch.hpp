@@ -557,7 +557,6 @@ struct LegacyBattleTargetPhaseStartResult {
     LegacyBattleTargetPhaseStartStatus status{
         LegacyBattleTargetPhaseStartStatus::completed
     };
-    compat::u32 port_calls{};
     compat::u32 resource_query_calls{};
     LegacyBattleActorFrameResourceResult actor_frame_resource{};
     compat::u32 actor_frame_resource_calls{};
@@ -646,7 +645,6 @@ struct LegacyBattleActionThirteenResult {
     compat::u32 line_raster_calls{};
     compat::u32 sample_calls{};
     compat::u32 render_calls{};
-    compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -718,7 +716,6 @@ struct LegacyBattleActionTwentyThreeResult {
     compat::u32 sample_pan_calls{};
     compat::u32 render_calls{};
     compat::u32 action_record_clears{};
-    compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -745,7 +742,6 @@ struct LegacyBattleActionTwentyThreeMessageResult {
     compat::u32 percent_refresh_calls{};
     compat::u32 random_calls{};
     compat::u32 message_code_clears{};
-    compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -788,7 +784,6 @@ struct LegacyBattleActionTwentyFourResult {
     compat::u32 sample_pan_calls{};
     compat::u32 render_calls{};
     compat::u32 action_record_clears{};
-    compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -832,7 +827,6 @@ struct LegacyBattleActionTwentySevenResult {
     compat::u32 effect_publish_calls{};
     compat::u32 secondary_record_calls{};
     compat::u32 action_record_clears{};
-    compat::u32 port_calls{};
     compat::i32 effect_value{};
     LegacyBattleActorField26b8HighBitSetCallTrace
         actor_field_26b8_high_bit_set{};
@@ -875,7 +869,6 @@ struct LegacyBattleDualRecordActionResult {
     compat::u32 sample_pan_calls{};
     compat::u32 render_calls{};
     compat::u32 action_record_clears{};
-    compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -904,7 +897,6 @@ struct LegacyBattleSpecialFiveHundredResult {
     LegacyBattleColorInitializationResult color_initialization{};
     compat::u32 color_initialization_calls{};
     compat::u32 action_record_clears{};
-    compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -954,7 +946,6 @@ struct LegacyBattleSpecialFourOhFiveResult {
     compat::u32 effect_compute_calls{};
     compat::u32 effect_publish_calls{};
     compat::u32 action_record_clears{};
-    compat::u32 port_calls{};
     compat::i32 effect_value{};
     LegacyBattleActorField26b8HighBitSetCallTrace
         actor_field_26b8_high_bit_set{};
@@ -1000,7 +991,6 @@ struct LegacyBattleSpecialFourOhSixResult {
     compat::u32 effect_publish_calls{};
     compat::u32 secondary_update_calls{};
     compat::u32 action_record_clears{};
-    compat::u32 port_calls{};
     compat::i32 effect_value{};
     LegacyBattleActorField26b8HighBitSetCallTrace
         actor_field_26b8_high_bit_set{};
@@ -1040,7 +1030,6 @@ struct LegacyBattleTargetEffectResult {
     compat::u32 effect_compute_calls{};
     compat::u32 effect_apply_calls{};
     compat::u32 effect_property_calls{};
-    compat::u32 port_calls{};
     compat::i32 effect_value{};
     LegacyBattleActorField26b8HighBitSetCallTrace
         actor_field_26b8_high_bit_set{};
@@ -1093,7 +1082,6 @@ struct LegacyBattleSpecialFourHundredResult {
     compat::u32 target_event_calls{};
     compat::u32 action_record_clears{};
     compat::u32 workspace_bytes_cleared{};
-    compat::u32 port_calls{};
     LegacyBattleActorField26b8HighBitSetCallTrace
         actor_field_26b8_high_bit_set{};
     compat::u32 return_eax{};
@@ -1138,7 +1126,6 @@ struct LegacyBattleActionFourEffectResult {
     compat::u32 target_event_calls{};
     compat::u32 action_record_clears{};
     compat::u32 workspace_bytes_cleared{};
-    compat::u32 port_calls{};
     LegacyBattleActorField26b8HighBitSetCallTrace
         actor_field_26b8_high_bit_set{};
     compat::u32 return_eax{};
@@ -1193,7 +1180,6 @@ struct LegacyBattleActionFourOhTwoResult {
     compat::u32 sample_play_calls{};
     compat::u32 completion_calls{};
     compat::u32 action_record_clears{};
-    compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -1226,7 +1212,6 @@ struct LegacyBattleSpecialFourOhNineResult {
     compat::u32 coordinate_update_calls{};
     compat::u32 stage_two_calls{};
     compat::u32 action_record_clears{};
-    compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -1245,7 +1230,6 @@ struct LegacyBattleTargetPhaseAdvanceResult {
     compat::u32 presentation_dwords_zeroed{};
     compat::u32 spawn_counter_clears{};
     compat::u32 tail_dwords_zeroed{};
-    compat::u32 port_calls{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -1308,7 +1292,6 @@ struct LegacyBattleTurnAdvanceResult {
     LegacyBattleTurnAdvanceStatus status{
         LegacyBattleTurnAdvanceStatus::completed
     };
-    compat::u32 port_calls{};
     compat::u32 queue_completion_calls{};
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
@@ -1649,7 +1632,6 @@ struct LegacyBattleActionDispatchResult {
     };
     compat::u32 return_value{};
     compat::u16 action_code{};
-    compat::u32 port_calls{};
     compat::u32 framebuffer_clear_calls{};
     compat::u32 group_a_iterations{};
     compat::u32 group_b_iterations{};

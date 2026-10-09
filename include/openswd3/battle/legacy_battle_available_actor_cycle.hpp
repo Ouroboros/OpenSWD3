@@ -45,7 +45,6 @@ struct LegacyBattleAvailableActorCycleResult {
     compat::u32 return_edx{};
     std::array<compat::u32, 4> candidate_codes{};
     compat::u32 candidate_calls{};
-    compat::u32 port_calls{};
 };
 
 // Typed closure of legacy 0x00464DD0. Cycles the physical candidate table

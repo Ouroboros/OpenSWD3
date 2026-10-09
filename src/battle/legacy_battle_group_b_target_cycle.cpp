@@ -106,7 +106,6 @@ public:
             .ecx = ecx_,
             .edx = edx_,
         });
-        ++result_.port_calls;
         ++result_.reset_calls;
         eax_ = reset.eax;
         ecx_ = reset.ecx;
@@ -128,7 +127,6 @@ private:
             .ecx = ecx_,
             .edx = edx_,
         });
-        ++result_.port_calls;
         ++result_.completion_queries;
         eax_ = reply.eax;
         ecx_ = reply.ecx;

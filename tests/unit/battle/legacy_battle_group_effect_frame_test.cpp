@@ -150,7 +150,7 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupEffectFrameStatus::slot_index_typed_stop &&
-                result.port_calls == 0U && state.reward_value == 7,
+                state.reward_value == 7,
             "group effect frame stops before reward reset at invalid slot"
         );
     }

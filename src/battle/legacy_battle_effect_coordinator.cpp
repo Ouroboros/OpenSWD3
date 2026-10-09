@@ -139,7 +139,6 @@ public:
         std::copy(
             arguments.begin(), arguments.end(), request.arguments.begin()
         );
-        ++result.port_calls;
         return port_.invoke(request);
     }
 
@@ -256,7 +255,6 @@ public:
             },
             request_.effect_resource_slot_write_requests
         );
-        result.port_calls += child.port_calls;
         append_legacy_battle_actor_effect_resource_slot_write_trace(
             result.effect_resource_slot_write, child.effect_resource_slot_write
         );
@@ -305,7 +303,6 @@ public:
             },
             request_.effect_resource_slot_write_requests
         );
-        result.port_calls += child.port_calls;
         append_legacy_battle_actor_effect_resource_slot_write_trace(
             result.effect_resource_slot_write, child.effect_resource_slot_write
         );
@@ -360,7 +357,6 @@ public:
                 port_
             );
         ++result.group_a_effect_reward_calls;
-        result.port_calls += result.group_a_effect_reward.port_calls;
         if (result.group_a_effect_reward.status !=
             LegacyBattleGroupAEffectRewardApplicationStatus::completed) {
             result.status = LegacyBattleEffectCoordinatorStatus::
@@ -387,7 +383,6 @@ public:
             }
         );
         ++result.pair_transition_calls;
-        result.port_calls += result.pair_transition.port_calls;
         append_legacy_battle_actor_effect_resource_slot_write_trace(
             result.effect_resource_slot_write,
             result.pair_transition.effect_resource_slot_write
@@ -443,7 +438,6 @@ public:
             }
         );
         ++result.reward_scale_calls;
-        result.port_calls += result.reward_scale.port_calls;
         if (result.reward_scale.status !=
             LegacyBattleRewardScaleStatus::completed) {
             result.status =

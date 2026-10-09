@@ -142,7 +142,6 @@ struct LegacyBattleControlPanelFrameResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 border_calls{};
     std::array<LegacyBattleBorderPanelResult, 2> borders{};
     compat::u32 font_reset_calls{};

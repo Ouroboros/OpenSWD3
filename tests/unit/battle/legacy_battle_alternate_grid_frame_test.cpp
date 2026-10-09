@@ -277,7 +277,7 @@ void test_battle_alternate_grid_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleAlternateGridFrameStatus::
                         completed &&
                 result.return_eax == 0U && result.return_ecx == 0U &&
-                result.return_edx == 0U && result.port_calls == 0U &&
+                result.return_edx == 0U &&
                 result.panel_action_update_calls == 0U &&
                 fixture.panel_row_limit == 0xFFFFU &&
                 fixture.state.row_text[0U] == 0xFFU,

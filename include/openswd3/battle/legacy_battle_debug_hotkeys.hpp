@@ -153,7 +153,6 @@ struct LegacyBattleDebugHotkeyResult {
     LegacyBattleDebugHotkeyCall stopped_call{};
     compat::u32 stopped_object_token{};
     compat::u32 raw_key_queries{};
-    compat::u32 port_calls{};
     compat::u32 delay_calls{};
     compat::u32 group_a_iterations{};
     compat::u32 group_b_iterations{};

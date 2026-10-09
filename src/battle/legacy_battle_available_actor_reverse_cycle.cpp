@@ -45,7 +45,6 @@ reverse_cycle_legacy_battle_available_actor(
                 }
             );
         result.candidate_availability = queried;
-        result.port_calls += queried.port_calls;
         eax = queried.return_eax;
         ecx = queried.return_ecx;
         edx = queried.return_edx;

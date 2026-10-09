@@ -264,7 +264,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     };
     const auto call = [&](const LegacyBattleInputDispatchCall operation,
                           const std::array<u32, 5>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke_input_dispatch({
             .call = operation,
             .arguments = arguments,
@@ -342,7 +341,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             }
         );
         ++result.menu_selection_retreat_calls;
-        result.port_calls += nested.port_calls;
         result.menu_actor_frame_snapshot_queries +=
             nested.actor_frame_snapshot_queries;
         if (nested.actor_frame_snapshot_queries != 0U) {
@@ -384,7 +382,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             }
         );
         ++result.menu_selection_advance_calls;
-        result.port_calls += nested.port_calls;
         result.menu_actor_frame_snapshot_queries +=
             nested.actor_frame_snapshot_queries;
         if (nested.actor_frame_snapshot_queries != 0U) {
@@ -414,7 +411,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
         ++result.menu_page_retreat_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -438,7 +434,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
         ++result.menu_page_advance_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -465,7 +460,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
         ++result.menu_input_finalize_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -491,7 +485,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
         ++result.action_mode_refresh_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -540,7 +533,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
         result.action_mode_refresh_calls += nested.action_mode_refresh_calls;
         result.target_selection_refresh_calls +=
             nested.target_selection_refresh_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -568,7 +560,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
              .entry_edx = edx}
         );
         ++result.actor_action_commit_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -592,7 +583,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
         ++result.actor_action_cycle_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -616,7 +606,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
         ++result.actor_action_reverse_cycle_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -641,7 +630,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
         ++result.menu_context_retreat_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -665,7 +653,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
             {.entry_eax = eax, .entry_ecx = ecx, .entry_edx = edx}
         );
         ++result.menu_context_advance_calls;
-        result.port_calls += nested.port_calls;
         eax = nested.return_eax;
         ecx = nested.return_ecx;
         edx = nested.return_edx;
@@ -934,8 +921,6 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 );
                 ++result.text_message_calls;
                 const auto& warning = result.text_messages.back();
-                result.port_calls +=
-                    warning.allocation_calls + warning.measure_calls;
                 eax = warning.return_registers.eax;
                 ecx = warning.return_registers.ecx;
                 edx = warning.return_registers.edx;

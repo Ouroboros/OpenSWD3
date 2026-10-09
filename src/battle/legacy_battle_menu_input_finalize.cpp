@@ -51,7 +51,6 @@ LegacyBattleMenuInputFinalizeResult finalize_legacy_battle_menu_input(
         return result;
     };
     const auto invoke = [&](const LegacyBattleInputDispatchCall call) {
-        ++result.port_calls;
         const auto reply = port.invoke_input_dispatch({
             .call = call,
             .arguments = {0U},

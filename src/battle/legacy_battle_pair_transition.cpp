@@ -34,12 +34,8 @@ struct Registers {
 
 class Runner final {
 public:
-    Runner(
-        LegacyBattlePairTransitionPort& port,
-        LegacyBattlePairTransitionResult& result,
-        const Registers registers
-    )
-        : port_(port), result_(result), registers_(registers) {}
+    Runner(LegacyBattlePairTransitionPort& port, const Registers registers)
+        : port_(port), registers_(registers) {}
 
     [[nodiscard]] LegacyBattlePairTransitionCallReply invoke(
         const LegacyBattlePairTransitionCall call,
@@ -56,7 +52,6 @@ public:
             arguments.begin(), arguments.end(), request.arguments.begin()
         );
         const auto reply = port_.invoke_pair_transition(request);
-        ++result_.port_calls;
         registers_ = {
             .eax = reply.eax,
             .ecx = reply.ecx,
@@ -95,7 +90,6 @@ public:
 
 private:
     LegacyBattlePairTransitionPort& port_;
-    LegacyBattlePairTransitionResult& result_;
     Registers registers_{};
 };
 
@@ -107,9 +101,7 @@ LegacyBattlePairTransitionResult advance_legacy_battle_pair_transition(
 ) {
     LegacyBattlePairTransitionResult result;
     Runner runner(
-        port,
-        result,
-        {.eax = request.eax, .ecx = request.ecx, .edx = request.edx}
+        port, {.eax = request.eax, .ecx = request.ecx, .edx = request.edx}
     );
     const auto finish = [&]() {
         const auto& registers = runner.registers();

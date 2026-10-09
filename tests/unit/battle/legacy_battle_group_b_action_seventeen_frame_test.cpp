@@ -350,7 +350,6 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionSeventeenFrameStatus::
                         frame_owner_typed_stop &&
-                result.port_calls == 0U &&
                 result.coordinate_query_calls == 1U &&
                 result.current_coordinate_query.status ==
                     openswd3::battle::
@@ -473,8 +472,7 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
                     fixture.port.count(
                         LegacyBattleGroupBActionSeventeenFrameCall::
                             reserved_actor_coordinate_publication
-                    ) == 0U &&
-                    result.port_calls == 0U,
+                    ) == 0U,
                 "action seventeen current-coordinate stop preserves exact registers, flags and stack-local prefix"
             );
         }
@@ -495,7 +493,6 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionSeventeenFrameStatus::
                         actor_coordinate_publication_typed_stop &&
-                result.port_calls == 0U &&
                 result.coordinate_query_calls == 1U &&
                 result.coordinate_publish_calls == 1U &&
                 result.coordinate_publication.status ==
@@ -601,8 +598,7 @@ void test_battle_group_b_action_seventeen_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupBActionSeventeenFrameStatus::completed &&
-                result.return_eax == 0U && result.port_calls == 3U &&
-                result.sample_play_calls == 2U &&
+                result.return_eax == 0U && result.sample_play_calls == 2U &&
                 result.sample_pan_calls == 1U && first_sample != nullptr &&
                 first_sample->arguments[0U] == 0x10FU &&
                 second_sample != nullptr &&

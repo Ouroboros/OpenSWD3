@@ -80,7 +80,6 @@ LegacyBattleGroupBActionCompositionResult compose_legacy_battle_group_b_action(
             .definition_id = request.definition_argument,
         }
     );
-    ++result.port_calls;
     if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status =
             LegacyBattleGroupBActionCompositionStatus::resource_load_typed_stop;
@@ -119,7 +118,6 @@ LegacyBattleGroupBActionCompositionResult compose_legacy_battle_group_b_action(
             .ecx = result.return_ecx,
             .edx = result.return_edx,
         });
-    ++result.port_calls;
     result.return_eax = request.actor_token + 0x2630U;
     result.return_ecx = reply.ecx;
     result.return_edx = reply.edx;
@@ -157,7 +155,6 @@ LegacyBattleGroupBActionCompositionResult compose_legacy_battle_group_b_action(
             .profile_id = result.return_ecx,
         }
     );
-    ++result.port_calls;
     if (profile_result.status ==
             LegacyBattleMonProfileLoadStatus::stream_zero_typed_stop ||
         profile_result.status ==

@@ -153,8 +153,7 @@ void test_battle_menu_selection_advance(openswd3::test::Context& test) {
         test.expect_true(
             result.return_eax == 0xFFFFFFFFU && result.return_ecx == 0x22U &&
                 result.return_edx == 0x33U &&
-                fixture.final_actor.pre_frame_gate_b == 0U &&
-                result.port_calls == 0U,
+                fixture.final_actor.pre_frame_gate_b == 0U,
             "message zero preserves entry ECX and EDX after the subtract-range default"
         );
     }

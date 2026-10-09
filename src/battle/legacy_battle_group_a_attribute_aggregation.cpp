@@ -285,7 +285,6 @@ aggregate_legacy_battle_group_a_attributes(
                     .diagnostic_source_line =
                         kLegacyBattleGroupAAttributeDiagnosticSourceLine,
                 }));
-                ++result.port_calls;
                 ++result.diagnostic_calls;
                 source = resolve_source((*sources)[source_index]);
                 if (source.record == nullptr) {

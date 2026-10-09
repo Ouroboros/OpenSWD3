@@ -412,7 +412,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
                         completed &&
-                result.return_eax == 103U && result.port_calls == 0U &&
+                result.return_eax == 103U &&
                 fixture.action.resolution_latch == 0U,
             "message one hundred three returns before queued actor and display state access"
         );
@@ -431,7 +431,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                         group_a_actor_typed_stop &&
                 result.return_eax == 0xFFFFF433U &&
                 result.return_ecx == 0x005029D0U - 0x2F34U &&
-                result.return_edx == 0x12345678U && result.port_calls == 0U,
+                result.return_edx == 0x12345678U,
             "queued actor code seven stops at the first real group-A query after preserving wrapped call registers"
         );
     }
@@ -695,7 +695,6 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 result.action_summary.status ==
                     openswd3::battle::LegacyBattleActionSummaryStatus::
                         group_a_profile_typed_stop &&
-                result.action_summary.port_calls == 2U &&
                 count_call(
                     fixture.port,
                     LegacyBattleSelectionFrameCall::

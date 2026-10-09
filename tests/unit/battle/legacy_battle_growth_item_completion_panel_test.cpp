@@ -178,8 +178,8 @@ void test_battle_growth_item_completion_panel(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGrowthItemCompletionPanelStatus::completed &&
-                result.port_calls == 0U && result.return_eax == 0U &&
-                result.return_ecx == 0U && result.return_edx == 0x55556666U &&
+                result.return_eax == 0U && result.return_ecx == 0U &&
+                result.return_edx == 0x55556666U &&
                 result.formatted_text[0U] == 0x7FU &&
                 result.formatted_text[1U] == 0U,
             "growth item completion panel initializes its local text then obeys the exact-one mode gate"
@@ -231,8 +231,8 @@ void test_battle_growth_item_completion_panel(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGrowthItemCompletionPanelStatus::completed &&
-                result.port_calls == 6U && result.format_calls == 1U &&
-                result.length_calls == 2U && result.rectangle_calls == 1U &&
+                result.format_calls == 1U && result.length_calls == 2U &&
+                result.rectangle_calls == 1U &&
                 result.tiled_frame_calls == 1U && result.query_calls == 0U &&
                 result.transition_stage_calls == 1U &&
                 result.font_size_calls == 2U && result.text_draw_calls == 1U &&
@@ -305,8 +305,7 @@ void test_battle_growth_item_completion_panel(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGrowthItemCompletionPanelStatus::completed &&
-                result.port_calls == 3U && result.font_size_calls == 0U &&
-                result.text_draw_calls == 0U &&
+                result.font_size_calls == 0U && result.text_draw_calls == 0U &&
                 result.transition_stage_calls == 1U &&
                 fixture.target.transition_stage == 18U &&
                 result.return_eax == 0U && result.return_ecx == 0U &&
@@ -323,8 +322,7 @@ void test_battle_growth_item_completion_panel(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGrowthItemCompletionPanelStatus::
                         caption_source_typed_stop &&
-                result.port_calls == 1U && result.format_calls == 1U &&
-                result.rectangle_calls == 0U &&
+                result.format_calls == 1U && result.rectangle_calls == 0U &&
                 result.formatted_text_length == 28U &&
                 result.formatted_text[0U] == 0xAAU &&
                 result.formatted_text[3U] == 0x5FU &&
@@ -349,7 +347,6 @@ void test_battle_growth_item_completion_panel(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGrowthItemCompletionPanelStatus::
                         format_buffer_typed_stop &&
-                result.port_calls == 1U &&
                 result.formatted_text_length == 64U &&
                 std::ranges::all_of(
                     result.formatted_text,

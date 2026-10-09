@@ -176,7 +176,6 @@ struct LegacyBattleLevelAdvancementResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 requirement_calls{};
     compat::u32 profile_build_calls{};
     compat::u32 stop_sample_calls{};

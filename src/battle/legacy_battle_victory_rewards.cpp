@@ -384,7 +384,6 @@ private:
         result_.player_item_quantity =
             advance_legacy_battle_player_item_quantity(port_, item_id, 1U);
         ++result_.player_item_quantity_calls;
-        result_.port_calls += result_.player_item_quantity.port_calls;
         eax_ = result_.player_item_quantity.return_token;
         if (result_.player_item_quantity.status !=
             LegacyBattlePlayerItemQuantityStatus::completed) {
@@ -449,7 +448,6 @@ private:
             }
         );
         ++result_.group_a_reward_profile_calls;
-        result_.port_calls += profile_result.port_calls;
         eax_ = profile_result.return_eax;
         ecx_ = profile_result.return_ecx;
         edx_ = profile_result.return_edx;
@@ -596,7 +594,6 @@ private:
             .text_length = length,
         };
         const auto reply = port_.invoke_victory_reward(request);
-        ++result_.port_calls;
         ++result_.text_draw_calls;
         result_.call_trace.push_back(request.call);
         eax_ = reply.eax;
@@ -623,7 +620,6 @@ private:
             .edx = edx_,
         };
         const auto reply = port_.invoke_victory_reward(request);
-        ++result_.port_calls;
         result_.call_trace.push_back(call_kind);
         eax_ = reply.eax;
         ecx_ = reply.ecx;

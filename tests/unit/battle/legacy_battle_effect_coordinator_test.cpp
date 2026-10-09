@@ -150,13 +150,14 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         );
         test.expect_true(
             disabled.return_eax == 0U && unchanged == 0xDEADBEEFU &&
-                disabled.port_calls == 0U && scaled.return_eax == 1U &&
-                actor.percent == 1U && wrapped == 1U &&
-                scaled.scaled_value == 1U && scaled.port_calls == 2U &&
+                scaled.return_eax == 1U && actor.percent == 1U &&
+                wrapped == 1U && scaled.scaled_value == 1U &&
+                missing.status ==
+                    openswd3::battle::LegacyBattleRewardScaleStatus::
+                        actor_state_typed_stop &&
                 stopped.status ==
                     openswd3::battle::LegacyBattleRewardScaleStatus::
                         value_typed_stop &&
-                stopped.port_calls == 2U && missing.port_calls == 0U &&
                 port.count(0x00482F10U) == 2U && port.count(0x004830A0U) == 2U,
             "reward scale preserves status gating signed wrapped multiply and the post-callee value access stop"
         );
@@ -624,7 +625,6 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 port.group_a_reward_profile_state().head.percentage == 12U &&
                 port.count(0x0046F6E0U) == 0U &&
                 result.pair_transition_calls == 1U &&
-                result.pair_transition.port_calls == 0U &&
                 result.reward_scale_calls == 1U &&
                 result.effect_resource_slot_write.calls == 1U &&
                 result.effect_resource_slot_write.call_addresses[0U] ==

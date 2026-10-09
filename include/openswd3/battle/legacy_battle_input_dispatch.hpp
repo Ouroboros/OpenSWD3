@@ -256,7 +256,6 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 raw_key_queries{};
     compat::u32 input_record_reads{};
     compat::u32 input_record_writes{};
-    compat::u32 port_calls{};
     compat::u32 delay_calls{};
     LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
     compat::u32 actor_availability_block_calls{};

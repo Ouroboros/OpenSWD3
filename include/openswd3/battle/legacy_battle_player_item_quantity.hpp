@@ -23,7 +23,6 @@ struct LegacyBattlePlayerItemQuantityResult {
         LegacyBattlePlayerItemQuantityStatus::completed
     };
     compat::u32 return_token{};
-    compat::u32 port_calls{};
     compat::u32 traversed_nodes{};
     bool created{};
 };

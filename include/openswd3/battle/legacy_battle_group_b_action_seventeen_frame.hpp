@@ -89,7 +89,6 @@ struct LegacyBattleGroupBActionSeventeenFrameResult {
     LegacyBattleGroupBActionSeventeenFrameStatus status{
         LegacyBattleGroupBActionSeventeenFrameStatus::completed
     };
-    compat::u32 port_calls{};
     compat::u32 action_update_calls{};
     compat::u32 frame_lookup_calls{};
     compat::u32 sample_play_calls{};

@@ -291,7 +291,6 @@ coordinate_legacy_battle_frame_input_resolution(
             .ecx = actor_token,
             .edx = edx,
         });
-        ++result.port_calls;
         eax = reply.eax;
         ecx = reply.ecx;
         edx = reply.edx;
@@ -305,7 +304,6 @@ coordinate_legacy_battle_frame_input_resolution(
             .ecx = ecx,
             .edx = edx,
         });
-        ++result.port_calls;
         return reply;
     };
     const auto play_selection_sample = [&]() {
@@ -314,7 +312,6 @@ coordinate_legacy_battle_frame_input_resolution(
             kSelectionSample, input_state.sample_mix_level, eax, ecx, edx
         );
         ++result.sample_calls;
-        ++result.port_calls;
         eax = reply.eax;
         ecx = reply.ecx;
         edx = reply.edx;

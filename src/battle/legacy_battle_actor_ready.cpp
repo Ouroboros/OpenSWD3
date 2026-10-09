@@ -23,7 +23,6 @@ LegacyBattleActorReadyResult query_legacy_battle_actor_ready(
         result.stale_eax = actor_index * 0x565U;
         result.stale_edx = actor_index * 0x159U;
     }
-    ++result.port_calls;
     const auto queried = port.query_ready({
         .actor_token = result.actor_token,
         .stale_eax = result.stale_eax,

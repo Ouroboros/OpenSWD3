@@ -143,9 +143,8 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupASummonMaterializationStatus::completed &&
-                result.port_calls == 3U && result.allocation_calls == 1U &&
-                result.load_calls == 1U && result.release_calls == 1U &&
-                result.diagnostic_calls == 0U &&
+                result.allocation_calls == 1U && result.load_calls == 1U &&
+                result.release_calls == 1U && result.diagnostic_calls == 0U &&
                 result.profile_dwords_zeroed == 0x29U &&
                 result.placement_dwords_copied == 16U &&
                 result.profile_name_bytes_copied == 9U &&
@@ -190,7 +189,7 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupASummonMaterializationStatus::completed &&
-                result.diagnostic_calls == 1U && result.port_calls == 4U &&
+                result.diagnostic_calls == 1U &&
                 port.calls[1U].call ==
                     LegacyBattleGroupASummonMaterializationCall::
                         report_missing_role &&
@@ -213,7 +212,7 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupASummonMaterializationStatus::
                         allocation_typed_stop &&
-                result.port_calls == 1U && result.profile_dwords_zeroed == 0U &&
+                result.profile_dwords_zeroed == 0U &&
                 state.profile_token == 0xAAAAAAAAU,
             "zero allocation stops at the first profile clear without attaching the record"
         );
@@ -241,13 +240,11 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
             actor_stop.status ==
                     LegacyBattleGroupASummonMaterializationStatus::
                         actor_state_typed_stop &&
-                actor_stop.port_calls == 1U &&
                 actor_stop.profile_dwords_zeroed == 0x29U &&
                 state.profile_token == 0xBBBBBBBBU &&
                 source_stop.status ==
                     LegacyBattleGroupASummonMaterializationStatus::
                         source_record_typed_stop &&
-                source_stop.port_calls == 1U &&
                 source_state.profile_token == 0x71000000U,
             "actor and source stops preserve the exact allocation, clear, and attachment prefixes"
         );
@@ -270,7 +267,7 @@ void test_battle_group_a_summon_materialization(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupASummonMaterializationStatus::
                         actor_record_typed_stop &&
-                result.port_calls == 4U && result.diagnostic_calls == 1U &&
+                result.diagnostic_calls == 1U &&
                 result.placement_dwords_copied == 16U &&
                 state.source_runtime_value == 7U &&
                 std::ranges::all_of(

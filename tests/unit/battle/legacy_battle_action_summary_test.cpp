@@ -136,8 +136,7 @@ void test_battle_action_summary(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionSummaryStatus::
                         group_a_profile_typed_stop &&
-                result.port_calls == 2U && result.return_ecx == token &&
-                result.return_edx == 0x12345678U,
+                result.return_ecx == token && result.return_edx == 0x12345678U,
             "unmapped auxiliary DWORD stops after both font calls without a partial read"
         );
     }
@@ -194,8 +193,7 @@ void test_battle_action_summary(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleActionSummaryStatus::completed &&
-                result.port_calls == 0U && result.return_eax == 0U &&
-                result.return_ecx == 0x22222222U &&
+                result.return_eax == 0U && result.return_ecx == 0x22222222U &&
                 result.return_edx == 0x33333333U,
             "zero queued actor returns before font or profile access while preserving ECX and EDX"
         );
@@ -210,7 +208,7 @@ void test_battle_action_summary(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActionSummaryStatus::group_a_actor_typed_stop &&
-                result.port_calls == 2U && result.font_reset_calls == 1U &&
+                result.font_reset_calls == 1U &&
                 result.font_style_calls == 1U &&
                 result.return_eax == 0xFFFFD0CCU &&
                 result.return_ecx == 0xFFFFFFFFU &&
@@ -229,8 +227,8 @@ void test_battle_action_summary(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionSummaryStatus::
                         group_a_profile_typed_stop &&
-                result.port_calls == 2U && result.return_eax == 0U &&
-                result.return_ecx == 0U && result.return_edx == 0x87654321U,
+                result.return_eax == 0U && result.return_ecx == 0U &&
+                result.return_edx == 0x87654321U,
             "zero profile token stops at the original kind dereference after the physical actor slot read"
         );
     }
@@ -251,7 +249,7 @@ void test_battle_action_summary(openswd3::test::Context& test) {
                 result.fixed_action_rows == 4U &&
                 result.dynamic_action_rows == 0U &&
                 result.text_draw_calls == 5U && result.font_reset_calls == 1U &&
-                result.font_style_calls == 4U && result.port_calls == 13U,
+                result.font_style_calls == 4U,
             "fixed action summary completes four rows, one highlight, and all font calls"
         );
         test.expect_true(
@@ -343,8 +341,8 @@ void test_battle_action_summary(openswd3::test::Context& test) {
                 result.action_availability_queries == 2U &&
                 result.fixed_action_rows == 4U &&
                 result.dynamic_action_rows == 2U &&
-                result.permission_clears == 1U && result.port_calls == 18U &&
-                rows.size() == 6U && rows[4U].arguments[1U] == 148U &&
+                result.permission_clears == 1U && rows.size() == 6U &&
+                rows[4U].arguments[1U] == 148U &&
                 rows[4U].arguments[2U] == 224U &&
                 rows[4U].arguments[3U] == 0x004A6BD8U &&
                 rows[4U].arguments[4U] == 0x1234U &&
@@ -381,7 +379,6 @@ void test_battle_action_summary(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleActionModeRefreshStatus::
                         option_object_typed_stop &&
                 result.action_mode_refresh_calls == 1U &&
-                result.port_calls == 2U &&
                 fixture.startup.reset.value_524414 == 0x01010101U &&
                 fixture.startup.reset.value_4ff0b0 == 0U &&
                 result.return_eax == 8U && result.return_ecx == 0U &&

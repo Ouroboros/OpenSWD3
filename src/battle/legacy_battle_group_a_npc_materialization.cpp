@@ -103,10 +103,8 @@ adjust_unsigned_byte_base(const u8 base, const i16 coefficient) noexcept {
 
 [[nodiscard]] LegacyBattleGroupASummonMaterializationCallReply invoke(
     LegacyBattleGroupASummonMaterializationPort& port,
-    LegacyBattleGroupANpcMaterializationResult& result,
     const LegacyBattleGroupASummonMaterializationCallRequest& request
 ) {
-    ++result.port_calls;
     return port.invoke_group_a_summon_materialization(request);
 }
 
@@ -127,7 +125,6 @@ materialize_legacy_battle_group_a_npc_from_view(
     LegacyBattleGroupANpcMaterializationResult result;
     auto reply = invoke(
         port,
-        result,
         {
             .call =
                 LegacyBattleGroupASummonMaterializationCall::allocate_profile,
@@ -168,7 +165,6 @@ materialize_legacy_battle_group_a_npc_from_view(
             .definition_id = role_id,
         }
     );
-    ++result.port_calls;
     ++result.load_calls;
     if (legacy_battle_mon_definition_load_stopped(definition_result.status)) {
         result.status =
@@ -184,7 +180,6 @@ materialize_legacy_battle_group_a_npc_from_view(
         port,
         state->profile_token
     );
-    ++result.port_calls;
     ++result.release_calls;
     if (legacy_battle_mon_definition_text_release_stopped(
             release_result.status
@@ -208,7 +203,6 @@ materialize_legacy_battle_group_a_npc_from_view(
     if (state->placement_word == 0U) {
         static_cast<void>(invoke(
             port,
-            result,
             {
                 .call = LegacyBattleGroupASummonMaterializationCall::
                     report_missing_role,

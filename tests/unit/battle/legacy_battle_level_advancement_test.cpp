@@ -213,7 +213,7 @@ void test_battle_level_advancement(openswd3::test::Context& test) {
             run(fixture, {.entry_eax = 7U, .entry_ecx = 8U, .entry_edx = 9U});
         test.expect_true(
             result.status == LegacyBattleLevelAdvancementStatus::completed &&
-                result.visited_actors == 0U && result.port_calls == 0U &&
+                result.visited_actors == 0U &&
                 fixture.state.completion_gate == 1U &&
                 result.return_eax == 0U && result.return_ecx == 8U &&
                 result.return_edx == 9U,
@@ -229,7 +229,7 @@ void test_battle_level_advancement(openswd3::test::Context& test) {
         const auto result = run(fixture);
         test.expect_true(
             result.status == LegacyBattleLevelAdvancementStatus::completed &&
-                result.visited_actors == 2U && result.port_calls == 0U &&
+                result.visited_actors == 2U &&
                 fixture.state.completion_gate == 1U &&
                 result.return_eax == 2U && result.return_ecx == 2U,
             "level advancement skips exact-one actor fields and re-reads the live count at each tail"

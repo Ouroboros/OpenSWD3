@@ -174,7 +174,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         context.music_mix_level,
         music_port
     );
-    result.port_calls += music.port_calls;
     result.music_started = music.music_started;
     result.music_commit_calls = music.music_commit_calls;
     LegacyBattleFrameCoordinatorCallReply reply{
@@ -205,7 +204,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             }
         );
     ++result.frame_input_resolution_calls;
-    result.port_calls += result.frame_input_resolution.port_calls;
     if (result.frame_input_resolution.status !=
         LegacyBattleFrameInputResolutionStatus::completed) {
         result.status = LegacyBattleFrameCoordinatorStatus::
@@ -262,7 +260,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         }
     );
     ++result.input_dispatch_calls;
-    result.port_calls += result.input_dispatch.port_calls;
     if (result.input_dispatch.status !=
         LegacyBattleInputDispatchStatus::completed) {
         result.status =
@@ -277,7 +274,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         result.input_dispatch.return_edx
     );
     ++result.pre_frame_calls;
-    result.port_calls += result.pre_frame.port_calls;
     if (result.pre_frame.status != LegacyBattlePreFrameStatus::completed) {
         result.status =
             LegacyBattleFrameCoordinatorStatus::pre_frame_typed_stop;
@@ -286,7 +282,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     const auto actor_metrics = rebuild_legacy_battle_actor_metrics(
         port, {.action = &context.action_dispatch, .startup = &context.startup}
     );
-    result.port_calls += actor_metrics.port_calls;
     if (actor_metrics.status != LegacyBattleActorMetricStatus::completed) {
         result.status =
             LegacyBattleFrameCoordinatorStatus::actor_metric_typed_stop;
@@ -326,7 +321,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         {.actor_adjustment_entry_edx_known = false}
     );
     ++result.debug_hotkey_calls;
-    result.port_calls += result.debug_hotkeys.port_calls;
     if (result.debug_hotkeys.status !=
         LegacyBattleDebugHotkeyStatus::completed) {
         result.status =
@@ -343,7 +337,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     const auto surface = prepare_legacy_battle_frame_surface(state, port);
     result.lock_calls += surface.lock_calls;
     result.unlock_calls += surface.unlock_calls;
-    result.port_calls += surface.lock_calls + surface.unlock_calls;
     if (surface.status == LegacyBattleFrameSurfaceStatus::lock_stopped ||
         surface.status == LegacyBattleFrameSurfaceStatus::unlock_stopped) {
         result.status = LegacyBattleFrameCoordinatorStatus::surface_typed_stop;
@@ -374,7 +367,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     );
     result.attack_order_dequeue = selection.dequeue;
     result.selection_refresh_calls += selection.dequeue_called ? 1U : 0U;
-    result.port_calls += selection.dequeue.actor_query_calls;
     if (selection.status != LegacyBattleFrameSelectionStatus::completed) {
         result.status =
             LegacyBattleFrameCoordinatorStatus::attack_order_dequeue_typed_stop;
@@ -478,7 +470,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         request.post_actor_frame_edx_snapshot
     );
     ++result.frame_completion_calls;
-    result.port_calls += result.frame_completion.mask_query_calls;
     if (result.frame_completion.status !=
         LegacyBattleFrameCompletionStatus::completed) {
         result.status =
@@ -497,7 +488,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         result.frame_completion.return_edx
     );
     ++result.pending_action_calls;
-    result.port_calls += result.pending_actions.port_calls;
     if (result.pending_actions.status !=
         LegacyBattlePendingActionStatus::completed) {
         result.status =
@@ -516,7 +506,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         request.effect_coordinator_request
     );
     ++result.effect_coordinator_calls;
-    result.port_calls += result.effect_coordinator.port_calls;
     if (result.effect_coordinator.status !=
         LegacyBattleEffectCoordinatorStatus::completed) {
         result.status =
@@ -699,7 +688,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     result.hud_frame =
         advance_legacy_battle_hud_frame(state.hud, context.startup, port);
     ++result.hud_frame_calls;
-    result.port_calls += result.hud_frame.port_calls;
     if (result.hud_frame.status != LegacyBattleHudFrameStatus::completed) {
         result.status = LegacyBattleFrameCoordinatorStatus::hud_typed_stop;
         return result;
@@ -739,7 +727,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         request.selection_frame_request
     );
     ++result.selection_frame_calls;
-    result.port_calls += result.selection_frame.port_calls;
     if (result.selection_frame.status !=
         LegacyBattleSelectionFrameStatus::completed) {
         result.status =
@@ -805,7 +792,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         }
     );
     ++result.message_phase_calls;
-    result.port_calls += result.message_phase.port_calls;
     if (result.message_phase.status !=
         LegacyBattleMessagePhaseStatus::completed) {
         result.status =
@@ -835,7 +821,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         request.text_message_frame_request
     );
     ++result.text_message_frame_calls;
-    result.port_calls += result.text_message_frame.port_calls;
     if (result.text_message_frame.status !=
         LegacyBattleTextMessageFrameStatus::completed) {
         result.status =
@@ -879,7 +864,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         request.debug_status_panel_request
     );
     ++result.debug_status_panel_calls;
-    result.port_calls += result.debug_status_panel.port_calls;
     if (result.debug_status_panel.status !=
         LegacyBattleDebugStatusPanelStatus::completed) {
         result.status =
@@ -959,7 +943,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             {.vitality_stack_snapshot = request.debug_vitality_stack_snapshot}
         );
         ++result.debug_overlay_calls;
-        result.port_calls += result.debug_overlay.port_calls;
         if (result.debug_overlay.status !=
             LegacyBattleDebugOverlayStatus::completed) {
             result.status =
@@ -983,8 +966,6 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         port
     );
     ++result.outcome_resolution_calls;
-    result.port_calls += result.outcome_resolution.audio_suspend_calls +
-        result.outcome_resolution.outcome_calls;
     if (result.outcome_resolution.status !=
         LegacyBattleOutcomeResolutionStatus::completed) {
         result.status =

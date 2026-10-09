@@ -98,7 +98,6 @@ private:
         }
 
         const auto reply = port_.invoke_growth_item_result_selection(request);
-        ++result_.port_calls;
         result_.call_trace.push_back(call);
         eax_ = reply.eax;
         ecx_ = reply.ecx;
@@ -192,7 +191,6 @@ private:
                 .definition_id = item_code,
             }
         );
-        ++result_.port_calls;
         ++result_.item_load_calls;
         std::copy_n(
             definition.cbegin(), scratch_.bytes.size(), scratch_.bytes.begin()
@@ -226,7 +224,6 @@ private:
             port_,
             kLegacyBattleGrowthItemScratchToken
         );
-        ++result_.port_calls;
         ++result_.item_release_calls;
         scratch_.description_token = static_cast<u32>(definition[0xA0U]) |
             (static_cast<u32>(definition[0xA1U]) << 8U) |

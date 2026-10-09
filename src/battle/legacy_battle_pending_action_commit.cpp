@@ -26,7 +26,6 @@ wrapping_multiply(const u32 left, const u32 right) noexcept {
     result.return_value = reply.eax;
     result.final_ecx = reply.ecx;
     result.final_edx = reply.edx;
-    ++result.port_calls;
     return reply;
 }
 
@@ -101,7 +100,6 @@ LegacyBattlePendingActionResult commit_legacy_battle_pending_actions(
             group_a ? 1U : 0U
         );
         ++result.ready_calls;
-        result.port_calls += result.last_ready.port_calls;
         result.return_value = result.last_ready.return_value;
         result.final_ecx = result.last_ready.final_ecx;
         result.final_edx = result.last_ready.final_edx;

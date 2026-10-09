@@ -324,7 +324,7 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleNarrowGridFrameStatus::
                         completed &&
                 result.return_eax == 0U && result.return_ecx == 0x22222222U &&
-                result.return_edx == 0x33333333U && result.port_calls == 0U &&
+                result.return_edx == 0x33333333U &&
                 fixture.panel_row_limit == 0xAAU &&
                 fixture.selection_workspace == before,
             "narrow grid queued-zero exit preserves ECX, EDX and the shared selection workspace"

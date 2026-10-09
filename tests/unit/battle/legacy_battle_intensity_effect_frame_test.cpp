@@ -107,9 +107,7 @@ void test_battle_intensity_effect_frame(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status ==
-                    LegacyBattleIntensityEffectFrameStatus::
-                        slot_index_typed_stop &&
-                result.port_calls == 0U,
+                LegacyBattleIntensityEffectFrameStatus::slot_index_typed_stop,
             "nonzero source stops at first invalid intensity slot access"
         );
     }

@@ -37,7 +37,6 @@ struct LegacyBattleGroupAActionExecutionResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 record_clears{};
     compat::u32 color_calls{};
     compat::u32 draw_calls{};

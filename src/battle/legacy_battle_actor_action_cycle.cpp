@@ -46,7 +46,6 @@ LegacyBattleActorActionCycleResult cycle_legacy_battle_actor_action(
         }
     );
     ++result.resolve_calls;
-    result.port_calls += result.available_actor_cycle.port_calls;
     eax = result.available_actor_cycle.return_eax;
     ecx = result.available_actor_cycle.return_ecx;
     edx = result.available_actor_cycle.return_edx;
@@ -74,7 +73,6 @@ LegacyBattleActorActionCycleResult cycle_legacy_battle_actor_action(
          .entry_ecx = ecx,
          .entry_edx = edx}
     );
-    result.port_calls += commit.port_calls;
     ++result.commit_calls;
     result.return_eax = commit.return_eax;
     result.return_ecx = commit.return_ecx;

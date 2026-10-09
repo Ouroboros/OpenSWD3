@@ -233,7 +233,7 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
                 result.return_eip == entry.entry_return_address &&
                 (*fixture.startup->group_a_runtime_reset)[0U].field_2af4 ==
                     entry.effect_argument &&
-                result.physical_call_count == 0U && result.port_calls == 0U,
+                result.physical_call_count == 0U,
             "zero-ready actor commits the entry effect argument and returns through the common RETN 4 path"
         );
     }
@@ -313,8 +313,7 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActorActionPresentationStatus::completed &&
                 result.returned && result.exit_instruction == 0x00478CD1U &&
-                actor.field_26b8 == 5U && result.port_calls == 1U &&
-                result.physical_call_count == 2U &&
+                actor.field_26b8 == 5U && result.physical_call_count == 2U &&
                 result.physical_calls[0U].call_address == 0x00478CB3U &&
                 result.physical_calls[0U].callee_token == 0x0047BA80U &&
                 result.physical_calls[1U].call_address == 0x00478CC8U &&
@@ -348,7 +347,7 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
                     LegacyBattleActorActionPresentationStatus::
                         high_bit_clear_typed_stop &&
                 !result.returned && actor.field_26b8 == 5U &&
-                result.port_calls == 1U && result.physical_call_count == 2U &&
+                result.physical_call_count == 2U &&
                 result.high_bit_clear.status ==
                     openswd3::battle::
                         LegacyBattleActorField26b8HighBitClearStatus::
@@ -394,7 +393,7 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActorActionPresentationStatus::completed &&
                 result.returned && result.exit_instruction == 0x00479849U &&
-                result.port_calls == call_addresses.size() && calls_match &&
+                calls_match &&
                 fixture.action->group_a_action_execution[0U]
                         .render_source_token == 0x71000000U &&
                 fixture.action->group_a_action_execution[0U]
@@ -442,7 +441,7 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
                         call_typed_stop &&
                 result.stopped_call_ordinal == 2U &&
                 result.return_eip == 0x004792A9U &&
-                result.physical_call_count == 2U && result.port_calls == 2U &&
+                result.physical_call_count == 2U &&
                 result.physical_calls[0U].call_address == 0x00478FD1U &&
                 result.physical_calls[1U].call_address == 0x00478FF1U &&
                 fixture.action->group_a_action_execution[0U]
@@ -1476,7 +1475,6 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
                         call_typed_stop &&
                 stopped.stopped_call_ordinal == ordinal &&
                 stopped.physical_call_count == ordinal &&
-                stopped.port_calls == ordinal &&
                 stopped.return_eip ==
                     baseline.physical_calls[ordinal].call_address;
         }

@@ -40,7 +40,6 @@ LegacyBattleTextPanelResult draw_legacy_battle_text_panel(
     auto invoke = [&](const LegacyBattleTextPanelCall call,
                       const std::array<u32, 8U>& arguments = {}) {
         result.call_trace.push_back(call);
-        ++result.port_calls;
         const auto reply = port.invoke_text_panel({
             .call = call,
             .arguments = arguments,

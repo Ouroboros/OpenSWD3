@@ -90,7 +90,7 @@ void test_battle_actor_target_preparation(openswd3::test::Context& test) {
                 fixture.action.opponent_workspace[9U] == 1U &&
                 result.return_eax == 0xFFFFF433U &&
                 result.return_ecx == 0x004FFA9CU &&
-                result.return_edx == 0x12345678U && result.port_calls == 0U,
+                result.return_edx == 0x12345678U,
             "actor code seven writes the physically preceding workspace slot then stops at the first group-A object call"
         );
     }
@@ -111,7 +111,7 @@ void test_battle_actor_target_preparation(openswd3::test::Context& test) {
                 fixture.target.selected_action_kind == 1U &&
                 fixture.target.actor_commit_gate == 1U &&
                 result.return_eax == 7308U && result.return_ecx == 116U &&
-                result.return_edx == 0x55667788U && result.port_calls == 0U,
+                result.return_edx == 0x55667788U,
             "workspace index one hundred twenty-six stops at its first write after preserving the three global publications"
         );
     }
@@ -156,7 +156,7 @@ void test_battle_actor_target_preparation(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActorTargetPreparationStatus::completed &&
-                result.port_calls == 0U && result.random_calls == 0U &&
+                result.random_calls == 0U &&
                 result.actor_availability_block_calls == 1U &&
                 result.actor_availability_block.actor_writes == 1U &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==

@@ -14,14 +14,12 @@ LegacyBattleFrameMusicPrefixResult run_legacy_battle_frame_music_prefix(
     active = 1U;
     LegacyBattleFrameMusicPrefixResult result;
     result.registers = port.query_music_gate();
-    ++result.port_calls;
     if (result.registers.eax == 1U && target_selection_suppression == 0U) {
         port.start_music(music_path);
         result.music_started = true;
         result.registers = port.commit_music_volume(
             std::bit_cast<compat::u32>(music_mix_level)
         );
-        ++result.port_calls;
         ++result.music_commit_calls;
     }
     return result;

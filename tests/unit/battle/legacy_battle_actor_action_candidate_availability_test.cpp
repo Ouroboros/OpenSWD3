@@ -103,7 +103,7 @@ void test_battle_actor_action_candidate_availability(
         test.expect_true(
             result.return_eax == 1U && result.return_ecx == 0xAAU &&
                 result.return_edx == 0xBBU && result.actor_order_reads == 1U &&
-                result.actor_query_calls == 1U && result.port_calls == 1U &&
+                result.actor_query_calls == 1U &&
                 fixture.port.calls.size() == 1U &&
                 fixture.port.calls[0U].call ==
                     LegacyBattleInputDispatchCall::query_active_actor &&

@@ -109,7 +109,6 @@ struct LegacyBattleDebugStatusPanelResult {
     compat::u32 transition_stage_advance_calls{};
     compat::u32 text_calls{};
     compat::u32 color_fade_calls{};
-    compat::u32 port_calls{};
     std::array<LegacyBattleDebugStatusPanelRow, 9> rows{};
     std::vector<compat::u32> call_trace;
 };

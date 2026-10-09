@@ -224,7 +224,6 @@ struct LegacyBattleFrameInputResolutionResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 sample_calls{};
     compat::u32 hotspot_queries{};
     compat::u32 image_queries{};

@@ -267,7 +267,7 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
             result.status == LegacyBattleLevelUpPanelStatus::completed &&
                 result.rectangle_calls == 1U &&
                 result.tiled_frame_calls == 2U &&
-                result.text_draw_calls == 2U && result.port_calls == 3U &&
+                result.text_draw_calls == 2U &&
                 result.transition_stage_calls == 1U &&
                 fixture.victory.panel_action_record.action_id == 0x233BU &&
                 fixture.action_streams.action_ids ==
@@ -333,7 +333,7 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
             result.status == LegacyBattleLevelUpPanelStatus::completed &&
                 result.rectangle_calls == 0U &&
                 result.tiled_frame_calls == 0U &&
-                result.text_draw_calls == 0U && result.port_calls == 0U &&
+                result.text_draw_calls == 0U &&
                 result.transition_stage_calls == 1U &&
                 result.return_eax == 0xFFU && result.return_ecx == 1U &&
                 result.return_edx == 0U,
@@ -355,7 +355,7 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
             result.status == LegacyBattleLevelUpPanelStatus::completed &&
                 result.rectangle_calls == 1U &&
                 result.tiled_frame_calls == 2U &&
-                result.text_draw_calls == 1U && result.port_calls == 1U &&
+                result.text_draw_calls == 1U &&
                 result.transition_stage_calls == 1U,
             "transition mode one still draws the level-up panel without a selected actor"
         );
@@ -368,8 +368,7 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleLevelUpPanelStatus::actor_index_typed_stop &&
-                result.return_eax == 0xFFFFFF80U && result.return_edx == 0U &&
-                result.port_calls == 1U,
+                result.return_eax == 0xFFFFFF80U && result.return_edx == 0U,
             "negative selected actor stops at the first signed action-label table access"
         );
     }
@@ -410,7 +409,7 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleLevelUpPanelStatus::format_buffer_typed_stop &&
-                result.text_draw_calls == 1U && result.port_calls == 2U &&
+                result.text_draw_calls == 1U &&
                 result.transition_stage_calls == 1U &&
                 fixture.port.count(LegacyBattleVictoryRewardCall::draw_text) ==
                     1U,
@@ -425,8 +424,7 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleLevelUpPanelStatus::title_frame_typed_stop &&
-                result.rectangle_calls == 1U &&
-                result.tiled_frame_calls == 1U && result.port_calls == 0U,
+                result.rectangle_calls == 1U && result.tiled_frame_calls == 1U,
             "level-up title-frame failure preserves the rectangle prefix and blocks text and summary work"
         );
     }
@@ -439,8 +437,7 @@ void test_battle_level_up_panel(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleLevelUpPanelStatus::summary_frame_typed_stop &&
                 result.rectangle_calls == 1U &&
-                result.tiled_frame_calls == 2U &&
-                result.text_draw_calls == 1U && result.port_calls == 1U,
+                result.tiled_frame_calls == 2U && result.text_draw_calls == 1U,
             "level-up summary-frame failure preserves the title prefix and blocks the summary query"
         );
     }

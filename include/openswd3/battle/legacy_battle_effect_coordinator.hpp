@@ -115,7 +115,6 @@ struct LegacyBattleEffectCoordinatorResult {
         LegacyBattleEffectCoordinatorStatus::completed
     };
     compat::u32 return_value{};
-    compat::u32 port_calls{};
     compat::u32 actor_query_calls{};
     LegacyBattleActorActionTargetResult actor_action_target{};
     std::array<LegacyBattleActorActionTargetResult, 8> actor_action_targets{};

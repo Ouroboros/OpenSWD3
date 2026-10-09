@@ -174,7 +174,6 @@ advance_legacy_battle_group_b_action_seventeen_frame(
     const auto invoke =
         [&](const LegacyBattleGroupBActionSeventeenFrameCall call,
             const std::array<u32, 2>& arguments = {}) {
-            ++result.port_calls;
             const auto reply = port.invoke({
                 .call = call,
                 .arguments = arguments,

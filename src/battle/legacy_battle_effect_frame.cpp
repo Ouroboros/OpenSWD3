@@ -144,14 +144,12 @@ logical_word_flags(const u16 value) noexcept {
 
 [[nodiscard]] LegacyBattleEffectCallReply invoke(
     LegacyBattleEffectCallPort& port,
-    LegacyBattleEffectFrameResult& result,
     const u32 callee,
     const std::initializer_list<u32> arguments = {}
 ) {
     LegacyBattleEffectCallRequest request{};
     request.callee_token = callee;
     std::copy(arguments.begin(), arguments.end(), request.arguments.begin());
-    ++result.port_calls;
     return port.invoke(request);
 }
 
@@ -299,7 +297,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         if (state.animation_mode == 1U) {
             const auto mode = invoke(
                 port,
-                result,
                 kCallQueryAnimationMode,
                 {argument_object_token, 0x0053BDF8U}
             );
@@ -367,7 +364,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                 if (result.animation_collision.return_eax == 1U) {
                     static_cast<void>(invoke(
                         port,
-                        result,
                         kCallPlaySample,
                         {0x142U, state.sample_handle_value}
                     ));
@@ -377,14 +373,12 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                 }
                 static_cast<void>(invoke(
                     port,
-                    result,
                     kCallBindEffectSurface,
                     {state.effect_object_token, state.target_surface_token}
                 ));
                 if (state.animation_counter[slot_index] == 0U) {
                     static_cast<void>(invoke(
                         port,
-                        result,
                         kCallSetEffectPosition,
                         {state.effect_object_token,
                          to_bits(state.shared_x - 80),
@@ -392,7 +386,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                     ));
                     static_cast<void>(invoke(
                         port,
-                        result,
                         kCallSetEffectParticle,
                         {state.effect_object_token, 100U, 50U, 12U, 200U}
                     ));
@@ -404,7 +397,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                 }
                 static_cast<void>(invoke(
                     port,
-                    result,
                     kCallSetEffectPosition,
                     {state.effect_object_token,
                      to_bits(state.shared_x - 80),
@@ -412,15 +404,11 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                 ));
                 static_cast<void>(invoke(
                     port,
-                    result,
                     kCallPresentEffectSurface,
                     {state.effect_object_token, state.target_surface_token}
                 ));
                 static_cast<void>(invoke(
-                    port,
-                    result,
-                    kCallAdvanceEffect,
-                    {state.effect_object_token}
+                    port, kCallAdvanceEffect, {state.effect_object_token}
                 ));
                 ++result.primary_animation_steps;
                 if (signed_dword(state.animation_counter[slot_index]) >= 1040) {
@@ -444,7 +432,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                 }
                 static_cast<void>(invoke(
                     port,
-                    result,
                     kCallBindEffectSurface,
                     {state.effect_object_token, state.target_surface_token}
                 ));
@@ -453,7 +440,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                 if (counter % 9 == 0 && counter <= 30) {
                     static_cast<void>(invoke(
                         port,
-                        result,
                         kCallSetEffectPosition,
                         {state.effect_object_token,
                          to_bits(static_cast<i32>(signed_word(x)) - 100),
@@ -462,20 +448,16 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                     if (state.animation_counter[slot_index] == 0U) {
                         static_cast<void>(invoke(
                             port,
-                            result,
                             kCallPlaySample,
                             {0x142U, state.sample_handle_value}
                         ));
                     }
                     const u32 first =
-                        invoke(port, result, kCallRandomBounded, {100U}).eax +
-                        50U;
+                        invoke(port, kCallRandomBounded, {100U}).eax + 50U;
                     const u32 second =
-                        invoke(port, result, kCallRandomBounded, {80U}).eax +
-                        60U;
+                        invoke(port, kCallRandomBounded, {80U}).eax + 60U;
                     static_cast<void>(invoke(
                         port,
-                        result,
                         kCallSetEffectParticle,
                         {state.effect_object_token, second, first, 12U, 200U}
                     ));
@@ -483,7 +465,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                 state.animation_counter[slot_index] += 1U;
                 static_cast<void>(invoke(
                     port,
-                    result,
                     kCallSetEffectPosition,
                     {state.effect_object_token,
                      to_bits(static_cast<i32>(signed_word(x)) - 100),
@@ -491,15 +472,11 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                 ));
                 static_cast<void>(invoke(
                     port,
-                    result,
                     kCallPresentEffectSurface,
                     {state.effect_object_token, state.target_surface_token}
                 ));
                 static_cast<void>(invoke(
-                    port,
-                    result,
-                    kCallAdvanceEffect,
-                    {state.effect_object_token}
+                    port, kCallAdvanceEffect, {state.effect_object_token}
                 ));
                 ++result.primary_animation_steps;
                 if (signed_dword(state.animation_counter[slot_index]) >= 100) {
@@ -513,12 +490,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             primary.source_value = source_value;
             primary.zero_value = 0U;
             primary.mode_snapshot = state.global_mode == 1U ? 1U : 0U;
-            if (invoke(
-                    port,
-                    result,
-                    kCallInitializeRecord,
-                    {primary_token(slot_index)}
-                )
+            if (invoke(port, kCallInitializeRecord, {primary_token(slot_index)})
                     .eax == 0U) {
                 clear_alternate(state, slot_index);
                 state.alternate_active[slot_index] = 0U;
@@ -528,7 +500,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
 
             const auto lookup = invoke(
                 port,
-                result,
                 kCallLookupResource,
                 {primary.lookup_key_a, primary.lookup_key_b}
             );
@@ -684,10 +655,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             }
             replace_low_word(pan_register, primary.pan_value);
             const auto play = invoke(
-                port,
-                result,
-                kCallPlaySample,
-                {pan_register, state.sample_handle_value}
+                port, kCallPlaySample, {pan_register, state.sample_handle_value}
             );
             const i32 edge = signed_dword(
                 base_offset + to_bits(static_cast<i32>(signed_word(x)))
@@ -696,19 +664,13 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             replace_low_word(pan_argument, primary.pan_value);
             static_cast<void>(invoke(
                 port,
-                result,
                 kCallSetSamplePan,
                 {pan_argument, edge >= 320 ? 16U : 0xFFFFFFF0U}
             ));
             primary.pan_value = 0U;
 
             load_pair(
-                invoke(
-                    port,
-                    result,
-                    kCallFinalizeCoordinates,
-                    {argument_object_token}
-                ),
+                invoke(port, kCallFinalizeCoordinates, {argument_object_token}),
                 x,
                 y
             );
@@ -717,7 +679,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
 
             const auto check = invoke(
                 port,
-                result,
                 kCallQueryAnimationMode,
                 {argument_object_token, 0x0053BDF8U}
             );
@@ -779,7 +740,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
 
             static_cast<void>(invoke(
                 port,
-                result,
                 kCallRenderResource,
                 {to_bits(state.shared_x),
                  to_bits(state.shared_y),
@@ -789,13 +749,13 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                  resource.data_token}
             ));
             if (resource.value_token != 0U) {
-                static_cast<void>(invoke(
-                    port, result, kCallReleaseResource, {resource.value_token}
-                ));
+                static_cast<void>(
+                    invoke(port, kCallReleaseResource, {resource.value_token})
+                );
             }
-            static_cast<void>(invoke(
-                port, result, kCallReleaseResource, {resource.owner_token}
-            ));
+            static_cast<void>(
+                invoke(port, kCallReleaseResource, {resource.owner_token})
+            );
         }
 
         auto& control = port.frame_effect_control_state();
@@ -803,7 +763,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         control.green_factor = std::bit_cast<i16>(primary.shared_word_38);
         control.blue_factor = std::bit_cast<i16>(primary.shared_word_3a);
         const auto refresh = refresh_legacy_battle_frame(port);
-        result.port_calls += refresh.port_calls;
         if (refresh.status != LegacyBattleFrameRefreshStatus::completed) {
             result.status =
                 LegacyBattleEffectFrameStatus::frame_refresh_typed_stop;
@@ -819,12 +778,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         alternate.source_value = primary.resource_key_token;
         alternate.zero_value = primary.resource_aux_value;
         alternate.mode_snapshot = state.global_mode == 1U ? 1U : 0U;
-        if (invoke(
-                port,
-                result,
-                kCallInitializeRecord,
-                {alternate_token(slot_index)}
-            )
+        if (invoke(port, kCallInitializeRecord, {alternate_token(slot_index)})
                 .eax == 0U) {
             clear_alternate(state, slot_index);
             state.alternate_active[slot_index] = 0U;
@@ -838,7 +792,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
 
         const auto lookup = invoke(
             port,
-            result,
             kCallLookupResource,
             {alternate.lookup_key_a, alternate.lookup_key_b}
         );
@@ -847,10 +800,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         u32 play_argument =
             (resource.owner_token & 0xFFFF0000U) | alternate.pan_value;
         const auto play = invoke(
-            port,
-            result,
-            kCallPlaySample,
-            {play_argument, state.sample_handle_value}
+            port, kCallPlaySample, {play_argument, state.sample_handle_value}
         );
         const i32 edge = signed_dword(
             base_offset + to_bits(static_cast<i32>(signed_word(x)))
@@ -859,7 +809,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         replace_low_word(pan_argument, alternate.pan_value);
         static_cast<void>(invoke(
             port,
-            result,
             kCallSetSamplePan,
             {pan_argument, edge >= 320 ? 16U : 0xFFFFFFF0U}
         ));
@@ -884,7 +833,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         }
         static_cast<void>(invoke(
             port,
-            result,
             kCallRenderResource,
             {to_bits(state.shared_x),
              to_bits(state.shared_y),
@@ -894,11 +842,10 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
              0U}
         ));
         static_cast<void>(
-            invoke(port, result, kCallReleaseResource, {resource.value_token})
+            invoke(port, kCallReleaseResource, {resource.value_token})
         );
         stale_final_edx =
-            invoke(port, result, kCallReleaseResource, {resource.owner_token})
-                .edx;
+            invoke(port, kCallReleaseResource, {resource.owner_token}).edx;
         ++result.alternate_animation_steps;
         if (alternate.complete == 1U) {
             stale_final_edx = kAlternateActiveBaseToken + slot_index * 4U;
@@ -919,19 +866,19 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             primary.status_flags =
                 static_cast<u16>(primary.status_flags & 0xEFFFU);
             stale_final_edx =
-                invoke(port, result, kCallPublishStatusMode, {0x1EU, 1U}).edx;
+                invoke(port, kCallPublishStatusMode, {0x1EU, 1U}).edx;
         }
         if ((primary.status_flags & 0x2000U) != 0U) {
             primary.status_flags =
                 static_cast<u16>(primary.status_flags & 0xDFFFU);
             stale_final_edx =
-                invoke(port, result, kCallPublishStatusMode, {0x1EU, 2U}).edx;
+                invoke(port, kCallPublishStatusMode, {0x1EU, 2U}).edx;
         }
         if ((primary.status_flags & 0x4000U) != 0U) {
             primary.status_flags =
                 static_cast<u16>(primary.status_flags & 0xBFFFU);
             stale_final_edx =
-                invoke(port, result, kCallPublishStatusMode, {0x1EU, 3U}).edx;
+                invoke(port, kCallPublishStatusMode, {0x1EU, 3U}).edx;
         }
         if ((primary.status_flags & 0x0400U) != 0U) {
             const auto color = initialize_legacy_battle_color_accumulation(
@@ -1019,11 +966,11 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         stale_final_edx = result.actor_field_26b8_high_bit_set.last.return_edx;
     }
     if (publish_actor_before_reward || (flags & 0x10U) != 0U) {
-        if (invoke(port, result, kCallQueryRewardGate, {argument_object_token})
-                .eax == 1U) {
+        if (invoke(port, kCallQueryRewardGate, {argument_object_token}).eax ==
+            1U) {
             port.battle_debug_hotkey_state().battle_mode_flags_53bc24 |= 0x20U;
             state.resolved_actor_value =
-                invoke(port, result, kCallResolveActor, {actor_index}).eax;
+                invoke(port, kCallResolveActor, {actor_index}).eax;
             port.battle_message_state() = 0U;
         }
 
@@ -1037,7 +984,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         if (object_mode == 1U) {
             reward = invoke(
                 port,
-                result,
                 kCallComputeModeOneReward,
                 {argument_object_token,
                  actor_index,
@@ -1051,10 +997,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             );
         } else {
             reward = invoke(
-                port,
-                result,
-                kCallComputeReward,
-                {argument_object_token, actor_index}
+                port, kCallComputeReward, {argument_object_token, actor_index}
             );
         }
         LegacyBattleEffectCallReply registers = reward;
@@ -1071,13 +1014,11 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         } else {
             registers = invoke(
                 port,
-                result,
                 kCallPublishReward,
                 {argument_object_token, to_bits(reward_value)}
             );
-            registers = invoke(
-                port, result, kCallSetRewardMode, {argument_object_token, 1U}
-            );
+            registers =
+                invoke(port, kCallSetRewardMode, {argument_object_token, 1U});
             synchronize_legacy_battle_actor_effect_resource_cursor_update(
                 effect_resource_slot_write_owners, actor_index, 1U
             );
@@ -1115,7 +1056,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             };
             registers = invoke(
                 port,
-                result,
                 kCallPublishReward,
                 {argument_object_token,
                  to_bits(
@@ -1124,13 +1064,11 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             );
             registers = invoke(
                 port,
-                result,
                 kCallSetRewardOffset,
                 {argument_object_token, reward_offset}
             );
-            registers = invoke(
-                port, result, kCallSetRewardMode, {argument_object_token, 1U}
-            );
+            registers =
+                invoke(port, kCallSetRewardMode, {argument_object_token, 1U});
             synchronize_legacy_battle_actor_effect_resource_cursor_update(
                 effect_resource_slot_write_owners, actor_index, 1U
             );
@@ -1169,19 +1107,16 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             };
             registers = invoke(
                 port,
-                result,
                 kCallPublishReward,
                 {argument_object_token, to_bits(static_cast<i32>(high_reward))}
             );
             registers = invoke(
                 port,
-                result,
                 kCallSetRewardOffset,
                 {argument_object_token, reward_offset}
             );
-            registers = invoke(
-                port, result, kCallSetRewardMode, {argument_object_token, 1U}
-            );
+            registers =
+                invoke(port, kCallSetRewardMode, {argument_object_token, 1U});
             synchronize_legacy_battle_actor_effect_resource_cursor_update(
                 effect_resource_slot_write_owners, actor_index, 1U
             );
@@ -1214,7 +1149,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             slot_index,
             coordinate_owners
         );
-        result.port_calls += pending.port_calls;
         stale_final_edx = pending.final_edx;
         if (pending.status !=
             LegacyBattleIntensityEffectFrameStatus::completed) {
@@ -1258,7 +1192,6 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
             }
         );
         const auto& shift = result.effect_shift;
-        result.port_calls += shift.port_calls;
         if (shift.status != LegacyBattleEffectShiftStatus::completed) {
             result.return_value = shift.return_value;
             result.return_ecx = shift.final_ecx;

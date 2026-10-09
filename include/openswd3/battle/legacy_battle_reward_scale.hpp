@@ -29,7 +29,6 @@ struct LegacyBattleRewardScaleResult {
     };
     compat::u32 percent_refresh_calls{};
     compat::u32 action_configure_calls{};
-    compat::u32 port_calls{};
     compat::u32 scaled_value{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};

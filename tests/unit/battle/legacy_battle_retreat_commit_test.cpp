@@ -134,8 +134,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
                     LegacyBattleRetreatCommitBranch::selected_actor_not_ready &&
                 result.selected_object_token == 0x005029D0U - 0x00002F34U &&
                 result.return_value == 2U && result.final_ecx == 0x11223344U &&
-                result.final_edx == 0x55667788U && result.port_calls == 1U &&
-                port.calls.size() == 1U &&
+                result.final_edx == 0x55667788U && port.calls.size() == 1U &&
                 port.calls[0].object_token == result.selected_object_token &&
                 packed_counter == 0xAABBCCDDU && selection_gate == 9U &&
                 selection_cache_gate == 7U && resolution_latch == 9U,
@@ -176,8 +175,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
 
         test.expect_true(
             result.branch == LegacyBattleRetreatCommitBranch::warning &&
-                !result.mode_bit_blocked && result.port_calls == 4U &&
-                result.primary_actor_calls == 1U &&
+                !result.mode_bit_blocked && result.primary_actor_calls == 1U &&
                 result.return_value == 0x22222222U &&
                 result.final_ecx == 0x33333333U &&
                 result.final_edx == 0x44444444U &&
@@ -189,9 +187,8 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
                     LegacyBattleRetreatCommitCall::play_warning_sample &&
                 port.calls[3].arguments[0] == 0x8CU &&
                 port.calls[3].arguments[1] == 0xFFFFFFF9U &&
-                selection_gate == 9U &&
-                selection_cache_gate == 7U && resolution_latch == 9U &&
-                state.auxiliary_latch == 9U &&
+                selection_gate == 9U && selection_cache_gate == 7U &&
+                resolution_latch == 9U && state.auxiliary_latch == 9U &&
                 state.selected_actor_token == 9U &&
                 packed_counter == 0xAABBCCDDU,
             "zero primary actor query displays the fixed warning then plays sample with the live signed mix level and publishes no state"
@@ -220,9 +217,8 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
 
         test.expect_true(
             result.branch == LegacyBattleRetreatCommitBranch::warning &&
-                result.mode_bit_blocked && result.port_calls == 4U &&
-                selection_gate == 9U && selection_cache_gate == 7U &&
-                resolution_latch == 9U,
+                result.mode_bit_blocked && selection_gate == 9U &&
+                selection_cache_gate == 7U && resolution_latch == 9U,
             "battle mode bit nine forces the same warning branch after a nonzero primary actor query"
         );
     }
@@ -255,11 +251,9 @@ void test_battle_retreat_commit(openswd3::test::Context& test) {
 
         test.expect_true(
             result.branch == LegacyBattleRetreatCommitBranch::committed &&
-                result.state_committed && result.port_calls == 1U &&
-                result.primary_actor_calls == 1U &&
+                result.state_committed && result.primary_actor_calls == 1U &&
                 result.return_value == 0U && result.final_ecx == 0x00502934U &&
-                result.final_edx == 0x05060708U &&
-                selection_gate == 1U &&
+                result.final_edx == 0x05060708U && selection_gate == 1U &&
                 selection_cache_gate == 1U && resolution_latch == 0U &&
                 state.auxiliary_latch == 0U &&
                 port.battle_debug_hotkey_state().committed_actor_code == 0U &&

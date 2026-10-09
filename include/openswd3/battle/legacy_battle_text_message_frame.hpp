@@ -95,7 +95,6 @@ struct LegacyBattleTextMessageFrameResult {
     compat::u32 rectangle_calls{};
     compat::u32 tiled_frame_calls{};
     compat::u32 color_fade_calls{};
-    compat::u32 port_calls{};
     compat::u32 stopped_chain_token{};
     std::vector<compat::u32> retained_tokens;
     std::vector<compat::u32> released_tokens;

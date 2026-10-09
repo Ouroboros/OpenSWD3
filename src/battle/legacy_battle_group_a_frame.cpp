@@ -167,11 +167,8 @@ private:
 class GroupAFinalProcessingAdapter final
     : public LegacyBattleGroupAFinalProcessingPort {
 public:
-    GroupAFinalProcessingAdapter(
-        LegacyBattleActionDispatchPort& port,
-        LegacyBattleActionDispatchResult& result
-    ) noexcept
-        : port_(port), result_(result) {}
+    GroupAFinalProcessingAdapter(LegacyBattleActionDispatchPort& port) noexcept
+        : port_(port) {}
 
     [[nodiscard]] LegacyBattleGroupAItemEffectApplicationCallReply
     invoke_group_a_item_effect_application(
@@ -197,7 +194,6 @@ public:
             arguments[2] = request.quantity_delta;
             break;
         }
-        ++result_.port_calls;
         const auto reply = port_.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -217,7 +213,6 @@ public:
     [[nodiscard]] LegacyBattleGroupAProfileModeRandomReply random_below(
         const u32 bound, const u32 eax, const u32 ecx, const u32 edx
     ) override {
-        ++result_.port_calls;
         const auto reply = port_.invoke({
             .callee_token = kCallRandom,
             .arguments = {bound},
@@ -230,17 +225,13 @@ public:
 
 private:
     LegacyBattleActionDispatchPort& port_;
-    LegacyBattleActionDispatchResult& result_;
 };
 
 class GroupAAttributeEffectAdapter final
     : public LegacyBattleGroupAAttributeEffectPort {
 public:
-    GroupAAttributeEffectAdapter(
-        LegacyBattleActionDispatchPort& port,
-        LegacyBattleActionDispatchResult& result
-    ) noexcept
-        : port_(port), result_(result) {}
+    GroupAAttributeEffectAdapter(LegacyBattleActionDispatchPort& port) noexcept
+        : port_(port) {}
 
     [[nodiscard]] LegacyBattleGroupAAttributeEffectCallReply
     invoke_group_a_attribute_effect(
@@ -268,7 +259,6 @@ public:
              ++index) {
             arguments[index] = request.arguments[index];
         }
-        ++result_.port_calls;
         const auto reply = port_.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -285,7 +275,6 @@ public:
 
 private:
     LegacyBattleActionDispatchPort& port_;
-    LegacyBattleActionDispatchResult& result_;
 };
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
@@ -393,11 +382,9 @@ one_based_group_b_token(const u32 one_based) noexcept {
 
 [[nodiscard]] LegacyBattleActionCallReply invoke(
     LegacyBattleActionDispatchPort& port,
-    LegacyBattleActionDispatchResult& result,
     const u32 callee,
     const std::array<u32, 8>& arguments = {}
 ) {
-    ++result.port_calls;
     return port.invoke({.callee_token = callee, .arguments = arguments});
 }
 
@@ -731,7 +718,7 @@ one_based_group_b_token(const u32 one_based) noexcept {
         ? context.group_a_skip_secondary[group_a_index]
         : 0U;
     auto& party = context.startup->party[group_a_index];
-    GroupAFinalProcessingAdapter adapter(port, result);
+    GroupAFinalProcessingAdapter adapter(port);
     result.group_a_final_processing = process_legacy_battle_group_a_final(
         &party.final_processing,
         &state.action.group_a_action_execution[group_a_index],
@@ -811,7 +798,6 @@ one_based_group_b_token(const u32 one_based) noexcept {
     ));
     ++result.text_message_calls;
     const auto& message = result.text_messages.back();
-    result.port_calls += message.allocation_calls + message.measure_calls;
     if (message.status != LegacyBattleTextMessageStatus::completed) {
         result.status =
             LegacyBattleActionDispatchStatus::text_message_typed_stop;
@@ -824,7 +810,6 @@ void merge_nested_result(
     LegacyBattleActionDispatchResult& outer,
     const LegacyBattleActionDispatchResult& nested
 ) noexcept {
-    outer.port_calls += nested.port_calls;
     outer.framebuffer_clear_calls += nested.framebuffer_clear_calls;
     outer.group_a_iterations += nested.group_a_iterations;
     outer.group_b_iterations += nested.group_b_iterations;
@@ -1000,7 +985,7 @@ void merge_nested_result(
             return false;
         }
         const auto terminal =
-            invoke(port, result, kCallQueryTerminal, {group_b_token(uindex)});
+            invoke(port, kCallQueryTerminal, {group_b_token(uindex)});
         return_edx = terminal.edx;
         if (terminal.eax == 1U) {
             ++terminal_count;
@@ -1129,7 +1114,6 @@ LegacyBattleTurnAdvanceResult advance_legacy_battle_turn_gate(
         call.eax = eax;
         call.ecx = ecx;
         call.edx = edx;
-        ++result.port_calls;
         const auto reply = port.invoke(call);
         eax = reply.eax;
         ecx = reply.ecx;
@@ -1549,7 +1533,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             result.actor_start_gate.flags,
             true
         );
-    result.port_calls += result.actor_action_presentation.last.port_calls;
     for (std::size_t call_index = 0U;
          call_index < result.actor_action_presentation.last.physical_call_count;
          ++call_index) {
@@ -1581,7 +1564,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
     if (state.action.frame_enabled == 1U &&
         state.action.action_pending_aux == 0U &&
         state.action.selection_cache_gate_b == 0U) {
-        static_cast<void>(invoke(port, result, kCallPrepareAi, {actor_token}));
+        static_cast<void>(invoke(port, kCallPrepareAi, {actor_token}));
         const auto progress = advance_legacy_battle_actor_progress(
             actor,
             std::bit_cast<i32>(state.action.actor_progress_gate),
@@ -1627,7 +1610,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     }
                 }
             }
-            GroupAAttributeEffectAdapter attribute_effect_port(port, result);
+            GroupAAttributeEffectAdapter attribute_effect_port(port);
             result.group_a_attribute_effect =
                 apply_legacy_battle_group_a_attribute_effects(
                     &startup_actor.attribute_effect,
@@ -1680,7 +1663,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         state.selected_opponent_one_based =
                             invoke(
                                 port,
-                                result,
                                 kCallRandom,
                                 {to_bits(state.action.group_b_count)}
                             )
@@ -1693,7 +1675,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         }
                         if (invoke(
                                 port,
-                                result,
                                 kCallQueryTerminal,
                                 {one_based_group_b_token(
                                     state.selected_opponent_one_based
@@ -1706,7 +1687,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     state.final_actor_step.selection_gate = 1U;
                     const auto ready = invoke(
                         port,
-                        result,
                         kCallQueryActorReady,
                         {kActorSceneBaseToken + group_a_index * 4U}
                     );
@@ -1716,18 +1696,11 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         return result;
                     }
                     if (ready.eax == 1U) {
-                        if (invoke(
-                                port, result, kCallQueryPrimaryAi, {actor_token}
-                            )
+                        if (invoke(port, kCallQueryPrimaryAi, {actor_token})
                                 .eax == 1U) {
                             actor.special_ready = 1U;
                         }
-                        if (invoke(
-                                port,
-                                result,
-                                kCallQuerySecondaryAi,
-                                {actor_token}
-                            )
+                        if (invoke(port, kCallQuerySecondaryAi, {actor_token})
                                 .eax == 1U) {
                             actor.action_complete = 1U;
                         }
@@ -1744,10 +1717,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 }
             } else {
                 static_cast<void>(invoke(
-                    port,
-                    result,
-                    kCallPlaySample,
-                    {0x2CU, state.sample_handle_value}
+                    port, kCallPlaySample, {0x2CU, state.sample_handle_value}
                 ));
                 std::size_t slot = 0U;
                 while (slot < state.final_actor_step.actor_order.size() &&
@@ -1755,9 +1725,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     ++slot;
                 }
                 if (slot < state.final_actor_step.actor_order.size()) {
-                    const auto queue_mode = invoke(
-                        port, result, kCallQueryQueueMode, {actor_token}
-                    );
+                    const auto queue_mode =
+                        invoke(port, kCallQueryQueueMode, {actor_token});
                     if (queue_mode.eax == 1U) {
                         if (context.shared_action_dispatch == nullptr ||
                             context.shared_final_actor == nullptr ||
@@ -1788,7 +1757,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                 }
                             );
                         ++result.actor_target_preparation_calls;
-                        result.port_calls += prepared.port_calls;
                         result.actor_availability_block =
                             prepared.actor_availability_block;
                         result.actor_availability_block_calls +=
@@ -1827,10 +1795,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             return result;
         }
         if (invoke(
-                port,
-                result,
-                kCallQueryQueueCompletion,
-                {group_a_token(queued_index)}
+                port, kCallQueryQueueCompletion, {group_a_token(queued_index)}
             )
                 .eax != 1U) {
             state.final_actor_step.queued_actor_code = code;
@@ -1848,7 +1813,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
     bool start_idle{};
     if (actor.frame_started == 0U) {
         const auto queue_completion =
-            invoke(port, result, kCallQueryQueueCompletion, {actor_token});
+            invoke(port, kCallQueryQueueCompletion, {actor_token});
         if (queue_completion.eax == 0U) {
             auto request = context.actor_idle_state_request;
             request.actor_token = actor_token;
@@ -1867,8 +1832,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         }
     }
     if (actor.frame_started == 0U && start_idle &&
-        invoke(port, result, kCallQueryActorAvailable, {actor_token}).eax ==
-            1U &&
+        invoke(port, kCallQueryActorAvailable, {actor_token}).eax == 1U &&
         state.action_block_gate == 0U && state.action_aux_gate == 0U) {
         if (state.queued_selection_word != 0xFFFFU &&
             state.action.group_b_count -
@@ -1971,11 +1935,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     current_actor_idle = idle_state == 0U;
                 }
                 if (current_actor_idle) {
-                    static_cast<void>(
-                        invoke(port, result, kCallClearControl, {0U})
-                    );
+                    static_cast<void>(invoke(port, kCallClearControl, {0U}));
                     const auto presentation =
-                        invoke(port, result, kCallClearPresentation, {0U});
+                        invoke(port, kCallClearPresentation, {0U});
                     if (!apply_legacy_battle_actor_action_mode_call(
                             state.action,
                             context,
@@ -2046,7 +2008,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 }
                 if (idle_state == 0U) {
                     static_cast<void>(
-                        invoke(port, result, kCallClearPresentation, {0U})
+                        invoke(port, kCallClearPresentation, {0U})
                     );
                     if (state.actor_ai_primary[group_a_index] != 0U ||
                         state.actor_ai_secondary[group_a_index] != 0U) {
@@ -2056,7 +2018,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             return result;
                         }
                         static_cast<void>(
-                            invoke(port, result, kCallClearControl, {0U})
+                            invoke(port, kCallClearControl, {0U})
                         );
                         const u32 selected = state.selected_opponent_one_based;
                         const u32 address_eax = selected * 1381U;
@@ -2122,7 +2084,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             return result;
                         }
                         static_cast<void>(
-                            invoke(port, result, kCallClearControl, {0U})
+                            invoke(port, kCallClearControl, {0U})
                         );
                         const u32 selected = state.selected_actor_one_based;
                         const u32 address_eax = selected * 1381U;
@@ -2195,10 +2157,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     if (state.actor_ai_primary[uindex] != 1U &&
                         state.actor_ai_secondary[uindex] != 1U) {
                         const auto other_actor = invoke(
-                            port,
-                            result,
-                            kCallQueryOtherActor,
-                            {group_a_token(uindex)}
+                            port, kCallQueryOtherActor, {group_a_token(uindex)}
                         );
                         if (other_actor.eax != 1U) {
                             auto request = context.actor_idle_state_request;
@@ -2219,9 +2178,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                 return result;
                             }
                             if (idle_state == 0U) {
-                                static_cast<void>(invoke(
-                                    port, result, kCallClearControl, {0U}
-                                ));
+                                static_cast<void>(
+                                    invoke(port, kCallClearControl, {0U})
+                                );
                                 ++actor.progress;
                             }
                         }
@@ -2245,7 +2204,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         }
                         const auto terminal = invoke(
                             port,
-                            result,
                             kCallQueryTerminal,
                             {group_a_token(to_bits(selected_index))}
                         );
@@ -2265,14 +2223,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         return result;
                     }
                     const u32 target = group_b_token(uindex);
-                    if (invoke(port, result, kCallQueryTerminal, {target})
-                            .eax == 1U) {
+                    if (invoke(port, kCallQueryTerminal, {target}).eax == 1U) {
                         ++terminal_like;
                     } else if (
                         state.action.group_a_to_actor[uindex] == 0xFFFFFFFFU
                     ) {
                         const auto cleared =
-                            invoke(port, result, kCallClearControl, {0U});
+                            invoke(port, kCallClearControl, {0U});
                         if (!increment_actor_target_selection_count(
                                 target,
                                 cleared.eax,
@@ -2300,7 +2257,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         }
                         const auto terminal = invoke(
                             port,
-                            result,
                             kCallQueryTerminal,
                             {group_b_token(to_bits(selected_index))}
                         );
@@ -2395,7 +2351,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         return result;
                     }
                     const auto presentation =
-                        invoke(port, result, kCallClearPresentation, {0U});
+                        invoke(port, kCallClearPresentation, {0U});
                     state.final_actor_step.selection_gate = 0U;
                     if (!set_availability_block(0U, presentation.edx)) {
                         return result;
@@ -2449,7 +2405,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 port.actor_metric_state().priority_actor_index
             );
             const auto prepared_action =
-                invoke(port, result, kCallPrepareAction, {actor_token});
+                invoke(port, kCallPrepareAction, {actor_token});
             auto action_target_request =
                 context.group_a_frame_action_target_requests[1U];
             action_target_request.actor_token = actor_token;
@@ -2673,7 +2629,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     }
                     const u32 completed_b = group_b_token(completed_target);
                     const auto terminal =
-                        invoke(port, result, kCallQueryTerminal, {completed_b});
+                        invoke(port, kCallQueryTerminal, {completed_b});
                     if (terminal.eax == 1U) {
                         action_target_request =
                             context.group_a_frame_action_target_requests[3U];
@@ -2740,7 +2696,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                 }
                                 static_cast<void>(invoke(
                                     port,
-                                    result,
                                     kCallPublishAllActors,
                                     {group_a_token(uindex), 1U}
                                 ));
@@ -2758,15 +2713,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                 return result;
                             }
                             const u32 target = group_b_token(uindex);
-                            if (invoke(
-                                    port, result, kCallQueryTerminal, {target}
-                                )
+                            if (invoke(port, kCallQueryTerminal, {target})
                                     .eax == 0U) {
                                 static_cast<void>(invoke(
-                                    port,
-                                    result,
-                                    kCallClearNonterminal,
-                                    {target, 0U}
+                                    port, kCallClearNonterminal, {target, 0U}
                                 ));
                             }
                             ++result.group_b_iterations;
@@ -2890,15 +2840,11 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                 return result;
                             }
                             const u32 candidate = group_b_token(uindex);
-                            const auto first = invoke(
-                                port, result, kCallQueryTerminal, {candidate}
-                            );
+                            const auto first =
+                                invoke(port, kCallQueryTerminal, {candidate});
                             if (first.eax != 1U) {
                                 const auto second = invoke(
-                                    port,
-                                    result,
-                                    kCallQueryTerminal,
-                                    {candidate}
+                                    port, kCallQueryTerminal, {candidate}
                                 );
                                 if (second.eax == 0U &&
                                     !increment_actor_start_gate(
@@ -2926,8 +2872,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     state.action_side == 0U &&
                     state.action_target_guard_high_word == 0U
                 ) {
-                    if (invoke(port, result, kCallQueryTerminal, {target_token})
-                                .eax == 1U &&
+                    if (invoke(port, kCallQueryTerminal, {target_token}).eax ==
+                            1U &&
                         state.action_runtime_word == 0U) {
                         i32 selected = 0;
                         LegacyBattleActionCallReply first_nonterminal{};
@@ -2938,7 +2884,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             }
                             const auto terminal = invoke(
                                 port,
-                                result,
                                 kCallQueryTerminal,
                                 {group_b_token(uindex)}
                             );
@@ -3064,7 +3009,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
     }
 
     if (state.action_block_gate == 0U &&
-        invoke(port, result, kCallQueryTerminal, {actor_token}).eax == 0U &&
+        invoke(port, kCallQueryTerminal, {actor_token}).eax == 0U &&
         state.actor_ai_secondary[group_a_index] == 0U &&
         state.actor_ai_primary[group_a_index] == 0U) {
         u16 turn = state.turn_resolution_bits;
@@ -3091,7 +3036,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 &current_coordinate_actor
             );
             ++result.turn_advance_calls;
-            result.port_calls += result.turn_advance.port_calls;
             if (result.turn_advance.status !=
                 LegacyBattleTurnAdvanceStatus::completed) {
                 result.status =
@@ -3117,11 +3061,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             return result;
                         }
                         const u32 target = group_b_token(uindex);
-                        if (invoke(port, result, kCallQueryTerminal, {target})
-                                .eax != 1U) {
-                            const auto resolved = invoke(
-                                port, result, kCallResolveTarget, {target}
-                            );
+                        if (invoke(port, kCallQueryTerminal, {target}).eax !=
+                            1U) {
+                            const auto resolved =
+                                invoke(port, kCallResolveTarget, {target});
                             if (resolved.eax == 0U) {
                                 result.status =
                                     LegacyBattleActionDispatchStatus::
@@ -3180,10 +3123,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     }
                     if (result.turn_commit_chance.return_eax == 1U) {
                         static_cast<void>(invoke(
-                            port,
-                            result,
-                            kCallPublishTurnResult,
-                            {actor_token, 1U}
+                            port, kCallPublishTurnResult, {actor_token, 1U}
                         ));
                         state.turn_resolution_bits = 0x8000U;
                         state.action.resolution_latch = 0U;
@@ -3211,7 +3151,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             }
                             static_cast<void>(invoke(
                                 port,
-                                result,
                                 kCallPublishTurnResult,
                                 {group_a_token(uindex), 0U}
                             ));
@@ -3233,7 +3172,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         }
                         static_cast<void>(invoke(
                             port,
-                            result,
                             kCallPlaySample,
                             {0x8CU, state.sample_handle_value}
                         ));
@@ -3274,7 +3212,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     &current_coordinate_actor
                 );
                 ++result.turn_advance_calls;
-                result.port_calls += result.turn_advance.port_calls;
                 if (result.turn_advance.status !=
                     LegacyBattleTurnAdvanceStatus::completed) {
                     result.status = LegacyBattleActionDispatchStatus::

@@ -111,7 +111,7 @@ void test_battle_menu_context_advance(openswd3::test::Context& test) {
             result.status == LegacyBattleMenuContextAdvanceStatus::completed &&
                 fixture.input.action_kind == 5U &&
                 result.permission_reads == 1U && result.sample_calls == 1U &&
-                result.port_calls == 1U && fixture.port.samples.size() == 1U &&
+                fixture.port.samples.size() == 1U &&
                 fixture.port.samples[0U].sound_id == 0x2EU &&
                 fixture.port.samples[0U].mix_level == -7 &&
                 fixture.port.samples[0U].eax == 0xFFFFFFF9U &&
@@ -280,7 +280,7 @@ void test_battle_menu_context_advance(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleMenuContextAdvanceStatus::completed &&
-                result.sample_calls == 4U && result.port_calls == 4U &&
+                result.sample_calls == 4U &&
                 fixture.port.samples.size() == 4U &&
                 fixture.input.action_kind == 5U &&
                 fixture.input.action_category_index == 0U &&

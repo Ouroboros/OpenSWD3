@@ -681,7 +681,6 @@ void test_battle_group_b_action_composition_action_caller(
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.group_b_action_composition_calls == 1U &&
-                result.group_b_action_composition.port_calls == 3U &&
                 result.actor_action_mode_calls == 1U &&
                 result.actor_action_modes[0U].return_eip == 0x004761BAU &&
                 result.attack_order_calls == 1U && state->message_gate == 0U &&
@@ -879,8 +878,7 @@ void test_battle_action_dispatch_invalid_group_a(
     const auto result = dispatch(state, port, context, 10U, 0U);
     test.expect_true(
         result.status ==
-                LegacyBattleActionDispatchStatus::group_a_index_typed_stop &&
-            result.port_calls == 0U,
+            LegacyBattleActionDispatchStatus::group_a_index_typed_stop,
         "group A overflow stops at first actor object query"
     );
 }
@@ -954,7 +952,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         const auto result = dispatch(state, *port, context, 0U, 99U);
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.return_value == 1U && result.port_calls == 1U &&
+                result.return_value == 1U &&
                 result.actor_action_kind_calls == 1U,
             "terminal actor returns one before any target access"
         );
@@ -1080,8 +1078,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 result.framebuffer_clear_calls == 1U &&
                 fixture.framebuffer.physical_pixels()[0] == 0xFFFFU &&
                 port.battle_pair_primary_value() == 0U &&
-                result.pair_transition_calls == 1U &&
-                result.pair_transition.port_calls == 1U,
+                result.pair_transition_calls == 1U,
             "ordinary attack publishes target clears framebuffer pairs actors and returns zero"
         );
     }
@@ -1103,7 +1100,6 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.pair_transition_calls == 1U &&
-                result.pair_transition.port_calls == 1U &&
                 port.battle_pair_primary_value() == 0U,
             "alternate-side ordinary attack directly composes the first pair transition call site"
         );
@@ -1513,7 +1509,6 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
             );
         test.expect_true(
             static_cast<u16>(empty.return_eax) == 0x61A8U &&
-                empty.port_calls == 0U &&
                 no_actor.status ==
                     openswd3::battle::
                         LegacyBattleActionTwentyThreeMessageStatus::
@@ -2317,7 +2312,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
             );
         test.expect_true(
             staged.return_eax == 0U && staged.special_update_calls == 1U &&
-                staged.turn_frame_calls == 1U && staged.port_calls == 2U &&
+                staged.turn_frame_calls == 1U &&
                 actor.turn_completion_latch == 1U &&
                 actor.special_action_record.action_id == 0x6FFU &&
                 actor.special_action_record.base_variant == 7U &&
@@ -3071,8 +3066,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            gated.return_eax == 0U && gated.port_calls == 0U &&
-                gated_actor.turn_completion_latch == 0U,
+            gated.return_eax == 0U && gated_actor.turn_completion_latch == 0U,
             "special four hundred preserves the two entry gates before every side effect"
         );
 
@@ -3486,8 +3480,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 }
             );
         test.expect_true(
-            gated.return_eax == 0U && gated.port_calls == 0U &&
-                gated_actor.turn_completion_latch == 0U,
+            gated.return_eax == 0U && gated_actor.turn_completion_latch == 0U,
             "action four effect preserves both entry gates before the completion latch"
         );
 
@@ -3908,8 +3901,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                         actor_state_typed_stop &&
                 actor_stop.return_eax == 0x11111111U &&
                 actor_stop.return_ecx == 0x22222222U &&
-                actor_stop.return_edx == 0x33333333U &&
-                actor_stop.port_calls == 0U,
+                actor_stop.return_edx == 0x33333333U,
             "target effect stops at the first actor motion write without changing entry registers"
         );
 
@@ -3938,8 +3930,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 shared_stop_actor.motion_word == 0U &&
                 shared_stop.return_eax == 0x11111111U &&
                 shared_stop.return_ecx == 0x22222222U &&
-                shared_stop.return_edx == 0x33333333U &&
-                shared_stop.port_calls == 0U,
+                shared_stop.return_edx == 0x33333333U,
             "target effect stops at the first shared motion write after clearing actor motion"
         );
 
@@ -4180,7 +4171,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleSpecialFourOhNineStatus::
                         actor_state_typed_stop &&
                 actor_stop.return_eax == 0U && actor_stop.return_ecx == 0U &&
-                actor_stop.return_edx == 0U && actor_stop.port_calls == 0U,
+                actor_stop.return_edx == 0U,
             "special four-oh-nine stops at the first actor read after clearing the legacy registers"
         );
 
@@ -5386,7 +5377,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleTargetPhaseStartStatus::
                         completed &&
-                result.port_calls == 2U && result.resource_query_calls == 1U &&
+                result.resource_query_calls == 1U &&
                 result.actor_frame_resource_calls == 1U &&
                 result.actor_frame_resource.status ==
                     openswd3::battle::LegacyBattleActorFrameResourceStatus::
@@ -5612,7 +5603,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleTargetPhaseStartStatus::
                         actor_base_coordinate_typed_stop &&
-                result.port_calls == 0U && result.resource_query_calls == 1U &&
+                result.resource_query_calls == 1U &&
                 result.actor_frame_resource_calls == 1U &&
                 result.coordinate_query_calls == 1U &&
                 result.base_coordinate_query.status ==
@@ -5895,7 +5886,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleTargetPhaseSpawnFrameStatus::
                         frame_owner_typed_stop &&
                 missing.action_update_calls == 1U &&
-                missing.frame_lookup_calls == 1U && missing.port_calls == 0U &&
+                missing.frame_lookup_calls == 1U &&
                 no_shared.status ==
                     openswd3::battle::LegacyBattleTargetPhaseSpawnFrameStatus::
                         shared_state_typed_stop &&
@@ -6172,7 +6163,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleActionThirteenStatus::
                         frame_owner_typed_stop &&
                 missing.action_update_calls == 1U &&
-                missing.frame_lookup_calls == 1U && missing.port_calls == 0U &&
+                missing.frame_lookup_calls == 1U &&
                 actor.turn_frame_token == 0U &&
                 phase.action_record.action_id == 0x186BU,
             "action thirteen stops at the original actor and frame reads after preserving the initialized record prefix"
@@ -6211,7 +6202,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 completed.coordinate_query_calls == 2U &&
                 completed.line_raster_calls == 1U &&
                 completed.sample_calls == 1U && completed.render_calls == 1U &&
-                completed.port_calls == 2U && phase.runtime_gate == 0U &&
+                phase.runtime_gate == 0U &&
                 phase.action_record.action_id == 0U &&
                 phase.block_0df4[0U] == 0U &&
                 actor.turn_frame_token == 0x00504F1CU &&
@@ -6328,8 +6319,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 !stopped.render_offset_query.flags.overflow &&
                 stopped.coordinate_query_calls == 1U &&
                 stopped.line_raster_calls == 0U && stopped.sample_calls == 0U &&
-                stopped.render_calls == 0U && stopped.port_calls == 0U &&
-                port.count(0x00478400U) == 0U,
+                stopped.render_calls == 0U && port.count(0x00478400U) == 0U,
             "action thirteen preserves the X word, actor ESI and render-gate CMP flags while blocking every suffix on the actor-Y stop"
         );
     }
@@ -6395,8 +6385,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 !stopped.base_coordinate_query.flags.sign &&
                 !stopped.base_coordinate_query.flags.overflow &&
                 stopped.line_raster_calls == 0U && stopped.sample_calls == 0U &&
-                stopped.render_calls == 0U && stopped.port_calls == 0U &&
-                phase.runtime_gate == 7U && phase.block_0df4[0U] == 9U &&
+                stopped.render_calls == 0U && phase.runtime_gate == 7U &&
+                phase.block_0df4[0U] == 9U &&
                 phase.action_record.action_id == 0x186BU &&
                 port.count(0x00478470U) == 0U,
             "action thirteen keeps the base X low-word commit and blocks the action-record clear when base Y faults"
@@ -6448,8 +6438,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 !stopped.base_coordinate_query.flags.zero &&
                 stopped.base_coordinate_query.flags.sign &&
                 !stopped.base_coordinate_query.flags.overflow &&
-                stopped.line_raster_calls == 0U && stopped.port_calls == 0U &&
-                phase.block_0df4[0U] == 9U && port.count(0x00478470U) == 0U,
+                stopped.line_raster_calls == 0U && phase.block_0df4[0U] == 9U &&
+                port.count(0x00478470U) == 0U,
             "action thirteen forwards the both-nonzero Y CMP flags and pre-pointer EDX residue into the base query"
         );
     }
@@ -6517,7 +6507,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 result.endpoint_y == 0xAAAA001FU &&
                 result.line_raster_calls == 0U && phase.runtime_gate == 1U &&
                 phase.action_record.action_id == 0x186BU &&
-                result.port_calls == 2U && port.count(0x00478400U) == 0U &&
+                port.count(0x00478400U) == 0U &&
                 port.count(0x00478470U) == 0U &&
                 port.count(0x004783B0U) == 0U && port.count(0x004170E0U) == 1U,
             "action thirteen composes canonical base coordinates with the Y-pointer and X-pointer high-word residues before rendering"
@@ -6564,7 +6554,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleActionFourteenStatus::
                         frame_owner_typed_stop &&
                 missing.action_update_calls == 1U &&
-                missing.frame_lookup_calls == 1U && missing.port_calls == 0U &&
+                missing.frame_lookup_calls == 1U &&
                 phase.action_record.action_id == 0x186BU &&
                 phase.action_record.base_variant == 1U,
             "action fourteen stops at the original actor and frame reads after preserving variant one"
@@ -6628,8 +6618,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 stopped.render_offset_query.flags.overflow &&
                 stopped.coordinate_query_calls == 1U &&
                 stopped.line_raster_calls == 0U && stopped.sample_calls == 0U &&
-                stopped.render_calls == 0U && stopped.port_calls == 0U &&
-                port.count(0x00478400U) == 0U,
+                stopped.render_calls == 0U && port.count(0x00478400U) == 0U,
             "action fourteen preserves the frame-source EDX, actor ESI and stack-cleanup flags while blocking every suffix on the actor-X stop"
         );
     }
@@ -6688,8 +6677,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 stopped.return_ecx == 0x00525508U &&
                 stopped.return_edx == 0xAAAA1111U &&
                 stopped.line_raster_calls == 0U && stopped.sample_calls == 0U &&
-                stopped.render_calls == 0U && stopped.port_calls == 0U &&
-                phase.runtime_gate == 7U && phase.block_0df4[0U] == 9U &&
+                stopped.render_calls == 0U && phase.runtime_gate == 7U &&
+                phase.block_0df4[0U] == 9U &&
                 phase.action_record.action_id == 0x186BU &&
                 port.count(0x00478470U) == 0U,
             "action fourteen preserves the render-query EAX high word and base X commit when base Y faults"
@@ -6743,8 +6732,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 !stopped.base_coordinate_query.flags.zero &&
                 stopped.base_coordinate_query.flags.sign &&
                 !stopped.base_coordinate_query.flags.overflow &&
-                stopped.line_raster_calls == 0U && stopped.port_calls == 0U &&
-                phase.block_0df4[0U] == 9U && port.count(0x00478470U) == 0U,
+                stopped.line_raster_calls == 0U && phase.block_0df4[0U] == 9U &&
+                port.count(0x00478470U) == 0U,
             "action fourteen forwards the Y CMP flags while retaining the render-query EAX and X-output EDX entry residues"
         );
     }
@@ -6778,7 +6767,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 completed.coordinate_query_calls == 2U &&
                 completed.line_raster_calls == 1U &&
                 completed.sample_calls == 1U && completed.render_calls == 1U &&
-                completed.port_calls == 2U && phase.runtime_gate == 0U &&
+                phase.runtime_gate == 0U &&
                 phase.action_record.action_id == 0U &&
                 phase.block_0df4[0U] == 0U &&
                 actor.turn_frame_token == 0x00504F1CU &&
@@ -6854,7 +6843,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 result.line_raster_calls == 0U && phase.runtime_gate == 1U &&
                 raster.start_x == 12 && raster.start_y == 23 &&
                 raster.end_x == 103 && raster.end_y == 86 &&
-                result.port_calls == 2U && port.count(0x00478400U) == 0U &&
+                port.count(0x00478400U) == 0U &&
                 port.count(0x00478470U) == 0U &&
                 port.count(0x004783B0U) == 0U && port.count(0x004170E0U) == 1U,
             "action fourteen keeps the render-query EAX high word distinct while composing canonical target coordinates"
@@ -6934,8 +6923,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                         frame_owner_typed_stop &&
                 missing.action_update_calls == 1U &&
                 missing.frame_lookup_calls == 1U &&
-                missing.sample_calls == 1U && missing.port_calls == 1U &&
-                actor.summon_render_flags == 1U &&
+                missing.sample_calls == 1U && actor.summon_render_flags == 1U &&
                 actor.summon_x_offset == 0U && actor.turn_sample_word == 0U &&
                 phase.action_record.base_variant == 0x24U,
             "summon frame stops at the original actor and frame reads after preserving variant thirty six"
@@ -6968,11 +6956,10 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleSummonFrameStatus::
                         completed &&
                 result.return_eax == 0U && result.sample_calls == 1U &&
-                result.render_calls == 1U && result.port_calls == 2U &&
-                actor.summon_phase == 1U && actor.turn_threshold == 62U &&
-                phase.tick == 1U && shared.draw_motion_a == 1U &&
-                shared.draw_motion_b == 1U && shared.draw_motion_c == 1U &&
-                actor.summon_render_flags == 1U &&
+                result.render_calls == 1U && actor.summon_phase == 1U &&
+                actor.turn_threshold == 62U && phase.tick == 1U &&
+                shared.draw_motion_a == 1U && shared.draw_motion_b == 1U &&
+                shared.draw_motion_c == 1U && actor.summon_render_flags == 1U &&
                 actor.summon_x_offset == 32U && actor.turn_sample_word == 0U &&
                 phase.action_record.action_id == 0x1234U &&
                 port.count(0x00471D60U) == 0U &&
@@ -7010,7 +6997,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleSummonFrameStatus::
                         completed &&
                 result.return_eax == 1U && result.sample_calls == 2U &&
-                result.render_calls == 1U && result.port_calls == 3U &&
+                result.render_calls == 1U &&
                 shared.draw_motion_a == 0xFFFFFFE2U &&
                 actor.turn_threshold == 0U && actor.summon_phase == 0U &&
                 actor.summon_render_flags == 0U &&
@@ -7188,7 +7175,6 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 port.count(0x00472730U) == 0U &&
                 port.count(0x00484500U) == 1U &&
                 result.target_phase_start_calls == 1U &&
-                result.target_phase_start.port_calls == 2U &&
                 result.target_phase_start.actor_frame_resource_calls == 1U &&
                 result.target_phase_start.actor_frame_resource.status ==
                     openswd3::battle::LegacyBattleActorFrameResourceStatus::
@@ -7463,7 +7449,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
             auto context = fixture.context();
             const auto result = dispatch(state, port, context, 0U, 99U);
             defaults_match = defaults_match && result.return_value == 0U &&
-                result.port_calls == 1U && result.actor_action_kind_calls == 1U;
+                result.actor_action_kind_calls == 1U;
         }
         test.expect_true(
             defaults_match,
@@ -7589,8 +7575,7 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
                 result.actor_action_kind_calls == 1U &&
                 result.actor_display_kind_calls == 1U &&
                 result.actor_display_kind.return_eax == 0xCAFE0000U &&
-                result.port_calls == 1U && port.count(0x0047CE80U) == 1U &&
-                port.count(0x004786C0U) == 0U,
+                port.count(0x0047CE80U) == 1U && port.count(0x004786C0U) == 0U,
             "zero display kind returns one after the terminal prefix without entering the action switch or target access"
         );
     }
@@ -7627,7 +7612,6 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
                 field_stop.actor_display_kind.return_esp == 0x83004000U &&
                 field_stop.actor_display_kind.return_eip == 0x004786C0U &&
                 field_stop.actor_display_kind.display_kind_reads == 0U &&
-                field_stop.port_calls == 1U &&
                 return_stop.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_display_kind_typed_stop &&
@@ -7641,8 +7625,7 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
                 return_stop.actor_display_kind.return_eip == 0x004786C7U &&
                 return_stop.actor_display_kind.display_kind_reads == 1U &&
                 return_stop.actor_display_kind.return_address_reads == 0U &&
-                return_stop.port_calls == 1U && port.count(0x004786C0U) == 0U &&
-                port.count(0x0047CE80U) == 2U,
+                port.count(0x004786C0U) == 0U && port.count(0x0047CE80U) == 2U,
             "main action dispatcher threads terminal registers into display-kind field and RET stops while suppressing local write and switch suffixes"
         );
     }

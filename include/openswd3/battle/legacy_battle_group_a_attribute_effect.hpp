@@ -69,7 +69,6 @@ struct LegacyBattleGroupAAttributeEffectResult {
     LegacyBattleGroupAAttributeEffectStatus status{
         LegacyBattleGroupAAttributeEffectStatus::completed
     };
-    compat::u32 port_calls{};
     compat::u32 active_channels{};
     compat::u32 forced_minimums{};
     compat::u32 temporary_writes{};

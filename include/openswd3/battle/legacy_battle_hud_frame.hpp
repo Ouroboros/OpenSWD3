@@ -135,7 +135,6 @@ enum class LegacyBattleHudFrameStatus : compat::u8 {
 struct LegacyBattleHudFrameResult {
     LegacyBattleHudFrameStatus status{LegacyBattleHudFrameStatus::completed};
     compat::u32 return_value{};
-    compat::u32 port_calls{};
     compat::u32 top_actor_rows{};
     compat::u32 actor_rows{};
     compat::u32 x87_conversions{};

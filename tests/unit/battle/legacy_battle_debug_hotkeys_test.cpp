@@ -260,7 +260,6 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status == LegacyBattleDebugHotkeyStatus::completed &&
-                result.port_calls == 5U &&
                 configuration.actor_record[1U] == (420U | (5U << 16U)) &&
                 (configuration.actor_record[2U] & 0xFFFFU) == 5U &&
                 enemy.resource_bytes[0x64U] == 0U &&
@@ -815,10 +814,8 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
             openswd3::battle::coordinate_legacy_battle_debug_hotkeys(
                 keyboard, state, fixture->bindings(false), port
             );
-        const bool skipped = gates[0U] == 1U || gates[1U] == 1U;
         test.expect_true(
             result.status == LegacyBattleDebugHotkeyStatus::completed &&
-                result.port_calls == (skipped ? 0U : 2U) &&
                 port.delays == std::vector<u32>{200U, 100U},
             "D and F read actual actor AI fields without requiring the frame copy"
         );
@@ -913,7 +910,6 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleDebugHotkeyStatus::port_call_typed_stop &&
                 result.stopped_call == entry.call &&
-                result.port_calls == entry.calls &&
                 port.calls.size() == entry.calls &&
                 state.toggle_5244e0 == (entry.key == 0x3DU ? 0U : 1U) &&
                 state.screenshot_request == 7U && !result.full_reset_applied,
@@ -1024,8 +1020,7 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status ==
-                    LegacyBattleDebugHotkeyStatus::port_call_typed_stop &&
-                result.port_calls == 1U,
+                LegacyBattleDebugHotkeyStatus::port_call_typed_stop,
             "an unbound production debug port stops at the first actual call"
         );
     }
@@ -1046,7 +1041,6 @@ void test_battle_debug_hotkeys(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.return_value == 1U && result.raw_key_queries == 1U &&
-                result.port_calls == 0U &&
                 result.actor_coordinate_adjustment_calls == 0U &&
                 fixture.startup.party[0].position_x == 9U &&
                 fixture.effect_shift.actor_delta == 0 &&

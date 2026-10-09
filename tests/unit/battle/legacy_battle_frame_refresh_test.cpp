@@ -78,8 +78,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         const auto result = refresh_legacy_battle_frame(port);
         test.expect_true(
             result.status == LegacyBattleFrameRefreshStatus::completed &&
-                !result.refreshed && result.port_calls == 0U &&
-                port.refresh_source_queries == 0U &&
+                !result.refreshed && port.refresh_source_queries == 0U &&
                 port.refresh_events.empty(),
             "equal colors return without accessing the background or calling a service"
         );
@@ -112,8 +111,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         const auto result = refresh_legacy_battle_frame(port);
         test.expect_true(
             result.status == LegacyBattleFrameRefreshStatus::completed &&
-                result.port_calls == 16U && published_before_unlock &&
-                port.refresh_draws.size() == 2U &&
+                published_before_unlock && port.refresh_draws.size() == 2U &&
                 port.refresh_draws[0].source == 0xA100U &&
                 port.refresh_draws[1].source == 0xA200U &&
                 port.refresh_draws[0].pixels == 0xA110U &&
@@ -196,7 +194,6 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         const auto result = refresh_legacy_battle_frame(port);
         test.expect_true(
             result.status != LegacyBattleFrameRefreshStatus::completed &&
-                result.port_calls == ordinal + 1U &&
                 port.refresh_events.size() == ordinal + 1U &&
                 result.surface_iterations ==
                     (ordinal < 7U        ? 0U
@@ -216,7 +213,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleFrameRefreshStatus::source_binding_typed_stop &&
-                result.port_calls == 2U && port.refresh_unlocks.empty(),
+                port.refresh_unlocks.empty(),
             "missing source stops at the first pixel publication after audio and lock"
         );
     }
@@ -235,7 +232,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         const auto result = refresh_legacy_battle_frame(port);
         test.expect_true(
             result.refreshed && result.surface_iterations == 2U &&
-                result.port_calls == 16U && port.refresh_red[0].amount == 1 &&
+                port.refresh_red[0].amount == 1 &&
                 port.refresh_red[1].amount == 2 &&
                 port.refresh_green[0].amount == -1 &&
                 port.refresh_green[1].amount == -2 &&

@@ -285,7 +285,7 @@ void test_battle_level_growth_panel(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleLevelGrowthPanelStatus::completed &&
-                result.port_calls == 0U && result.rectangle_calls == 0U &&
+                result.rectangle_calls == 0U &&
                 result.return_eax == 0x11112222U &&
                 result.return_ecx == 0x33334444U &&
                 result.return_edx == 0xABCD5555U,
@@ -500,8 +500,7 @@ void test_battle_level_growth_panel(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleLevelGrowthPanelStatus::
                         actor_index_typed_stop &&
-                result.rectangle_calls == 1U &&
-                result.tiled_frame_calls == 1U && result.port_calls == 0U,
+                result.rectangle_calls == 1U && result.tiled_frame_calls == 1U,
             "growth panel stops on the eleventh actor at the first real label access after the frame prefix"
         );
     }

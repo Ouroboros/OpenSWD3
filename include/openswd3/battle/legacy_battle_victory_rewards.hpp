@@ -201,7 +201,6 @@ struct LegacyBattleVictoryRewardResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 music_fade_calls{};
     compat::u32 stop_all_sample_calls{};
     compat::u32 sample_calls{};

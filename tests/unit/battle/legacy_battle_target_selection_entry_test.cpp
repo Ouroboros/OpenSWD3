@@ -478,7 +478,7 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
             fixture.bindings(), fixture.port, {.entry_edx = 0x77U}
         );
         test.expect_true(
-            result.port_calls == 5U && result.sample_calls == 1U &&
+            result.sample_calls == 1U &&
                 result.current_coordinate_query_calls == 1U &&
                 result.current_coordinate_query.status ==
                     openswd3::battle::
@@ -560,8 +560,7 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                 result.current_coordinate_query.output_writes == 1U &&
                 result.current_coordinate_query.flags.parity &&
                 result.current_coordinate_query.flags.zero &&
-                result.port_calls == 2U && result.sample_calls == 1U &&
-                fixture.port.calls.size() == 1U &&
+                result.sample_calls == 1U && fixture.port.calls.size() == 1U &&
                 std::ranges::none_of(
                     fixture.port.calls,
                     [](const LegacyBattleInputDispatchCallRequest& call) {
@@ -604,9 +603,8 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                         action_mode_refresh_typed_stop &&
                 result.action_mode_refresh_calls == 1U &&
                 result.current_coordinate_query_calls == 1U &&
-                result.port_calls == 2U && result.sample_calls == 1U &&
-                fixture.port.calls.size() == 1U && fixture.message == 1U &&
-                input.action_kind == 1U &&
+                result.sample_calls == 1U && fixture.port.calls.size() == 1U &&
+                fixture.message == 1U && input.action_kind == 1U &&
                 input.selection_actor_origin_x == 0x12U &&
                 input.selection_actor_origin_y == 0x34U &&
                 result.return_eax == 8U && result.return_ecx == 0U &&
@@ -644,7 +642,7 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleTargetSelectionEntryStatus::completed &&
-                result.port_calls == 8U && result.sample_calls == 1U &&
+                result.sample_calls == 1U &&
                 result.current_coordinate_query_calls == 1U &&
                 result.primary_scan_calls == 3U &&
                 result.secondary_scan_calls == 2U &&
@@ -697,7 +695,7 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                     LegacyBattleTargetSelectionEntryStatus::
                         secondary_option_typed_stop &&
                 result.primary_scan_calls == 3U &&
-                result.secondary_scan_calls == 1U && result.port_calls == 3U &&
+                result.secondary_scan_calls == 1U &&
                 result.current_coordinate_query_calls == 1U &&
                 fixture.port.calls.size() == 1U &&
                 fixture.frame.alternate_selection_limit == 2U &&
@@ -727,7 +725,7 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleTargetSelectionEntryStatus::
                         selected_group_b_actor_typed_stop &&
-                result.port_calls == 2U && result.sample_calls == 1U &&
+                result.sample_calls == 1U &&
                 result.current_coordinate_query_calls == 1U &&
                 fixture.port.calls.size() == 1U && fixture.message == 7U &&
                 fixture.frame.alternate_selection_limit == 2U &&

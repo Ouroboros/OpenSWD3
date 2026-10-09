@@ -34,7 +34,6 @@ struct LegacyBattleGroupBTargetCycleResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 completion_queries{};
     compat::u32 reset_calls{};
     compat::u32 target_order_reads{};

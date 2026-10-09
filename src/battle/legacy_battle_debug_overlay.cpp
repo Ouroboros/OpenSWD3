@@ -126,7 +126,6 @@ public:
         const std::array<u32, 4>& arguments = {},
         const u32 argument_count = 0U
     ) {
-        ++result_.port_calls;
         return port_.invoke_debug_overlay({
             .call = call,
             .object_token = object_token,
@@ -137,7 +136,6 @@ public:
 
     LegacyBattleDebugOverlayCallReply
     draw(const u32 x, const u32 y, const std::string_view text) {
-        ++result_.port_calls;
         ++result_.text_draws;
         return port_.draw_debug_overlay_text({
             .font_token = kFontToken,

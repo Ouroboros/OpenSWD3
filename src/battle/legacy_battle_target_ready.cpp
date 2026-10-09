@@ -99,7 +99,6 @@ LegacyBattleTargetReadyResult advance_legacy_battle_target_ready(
     };
     auto invoke = [&](const u32 callee,
                       const std::array<u32, 8>& arguments = {}) {
-        ++result.port_calls;
         const auto reply = port.invoke({
             .callee_token = callee,
             .arguments = arguments,
@@ -283,7 +282,6 @@ LegacyBattleTargetReadyResult advance_legacy_battle_target_ready(
     auto spawn_particle = [&](const std::array<u32, 9>& arguments) {
         registers.ecx = request.actor_token;
         ++result.particle_spawn_calls;
-        ++result.port_calls;
         const auto spawned = port.invoke_target_ready_particle({
             .callee_token = kCallSpawnParticle,
             .arguments = arguments,
@@ -302,7 +300,6 @@ LegacyBattleTargetReadyResult advance_legacy_battle_target_ready(
     auto advance_target = [&]() {
         registers.ecx = request.actor_token;
         ++result.completion_calls;
-        ++result.port_calls;
         const auto advanced = port.invoke_target_ready_completion(
             {
                 .callee_token = kCallAdvanceTarget,

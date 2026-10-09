@@ -26,7 +26,6 @@ public:
 
 struct LegacyBattleFrameMusicPrefixResult {
     LegacyBattleFrameMusicRegisters registers{};
-    compat::u32 port_calls{};
     bool music_started{};
     compat::u32 music_commit_calls{};
     compat::u32 next_call_address{0x00453239U};

@@ -68,8 +68,7 @@ void test_battle_text_panel(openswd3::test::Context& test) {
             }
         );
         test.expect_true(
-            result.port_calls == 4U && result.action_calls == 1U &&
-                result.rectangle_calls == 1U &&
+            result.action_calls == 1U && result.rectangle_calls == 1U &&
                 result.tiled_frame_calls == 1U && result.text_calls == 1U &&
                 result.call_trace ==
                     std::vector<LegacyBattleTextPanelCall>{

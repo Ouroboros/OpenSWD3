@@ -93,8 +93,7 @@ void test_battle_group_b_target_cycle(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleGroupBTargetCycleStatus::completed &&
-                result.port_calls == 2U && result.completion_queries == 1U &&
-                result.reset_calls == 1U &&
+                result.completion_queries == 1U && result.reset_calls == 1U &&
                 fixture.port.calls[0U].call ==
                     LegacyBattleTargetSelectionRuntimeCall::
                         query_group_b_completion &&
@@ -242,7 +241,7 @@ void test_battle_group_b_target_cycle(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBTargetCycleStatus::
                         group_b_actor_typed_stop &&
-                result.port_calls == 0U && result.return_eax == 0xAC8U &&
+                result.return_eax == 0xAC8U &&
                 result.return_ecx == group_b_token(8U) &&
                 result.return_edx == 0x77U,
             "initial index eight stops at the first real group-B query after preserving its distinct EAX shape"
@@ -266,7 +265,7 @@ void test_battle_group_b_target_cycle(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBTargetCycleStatus::
                         target_order_typed_stop &&
-                result.port_calls == 1U && result.target_order_reads == 0U &&
+                result.target_order_reads == 0U &&
                 fixture.frame.target_cursor == 9U &&
                 fixture.frame.target_actor_index == 0U &&
                 result.return_eax == 9U && result.return_ecx == 9U &&
@@ -291,7 +290,7 @@ void test_battle_group_b_target_cycle(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBTargetCycleStatus::
                         group_b_actor_typed_stop &&
-                result.port_calls == 1U && result.target_order_reads == 1U &&
+                result.target_order_reads == 1U &&
                 fixture.frame.target_actor_index == 8U &&
                 result.return_eax == 0x2B28U &&
                 result.return_ecx == group_b_token(8U) &&
@@ -316,7 +315,7 @@ void test_battle_group_b_target_cycle(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBTargetCycleStatus::
                         group_b_actor_typed_stop &&
-                result.port_calls == 1U && fixture.message == 1U &&
+                fixture.message == 1U &&
                 fixture.frame.target_actor_index == 8U &&
                 result.return_eax == 8U &&
                 result.return_ecx == group_b_token(8U) &&

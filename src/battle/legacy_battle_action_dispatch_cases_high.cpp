@@ -28,14 +28,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                 return result;
             }
             static_cast<void>(invoke(
-                state,
-                port,
-                result,
-                kCallSelectSummon,
-                {group_a_token(summon_index)}
+                state, port, kCallSelectSummon, {group_a_token(summon_index)}
             ));
             const auto summon_mode_reply =
-                invoke(state, port, result, kCallSummonMode, {1U});
+                invoke(state, port, kCallSummonMode, {1U});
             auto snapshot_clear_request =
                 context.actor_frame_snapshot_clear_request;
             snapshot_clear_request.actor_token = group_a_token(summon_index);
@@ -65,12 +61,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     result.actor_frame_snapshot_clear.return_eax;
                 return result;
             }
-            static_cast<void>(
-                invoke(state, port, result, kCallClearMode, {1U})
-            );
+            static_cast<void>(invoke(state, port, kCallClearMode, {1U}));
             if (state.summon_gate == 0U) {
                 static_cast<void>(
-                    invoke(state, port, result, kCallSetGlobalMode, {1U})
+                    invoke(state, port, kCallSetGlobalMode, {1U})
                 );
             }
             LegacyBattleGroupAConfigurationState* summon_state = nullptr;
@@ -102,7 +96,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     port
                 );
             ++result.summon_materialization_calls;
-            result.port_calls += result.summon_materialization.port_calls;
             if (result.summon_materialization.status !=
                 LegacyBattleGroupASummonMaterializationStatus::completed) {
                 result.status = LegacyBattleActionDispatchStatus::
@@ -292,7 +285,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     if (invoke(
                             state,
                             port,
-                            result,
                             kCallActorTerminal,
                             {group_a_token(static_cast<u32>(index))}
                         )
@@ -310,7 +302,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     const auto terminal = invoke(
                         state,
                         port,
-                        result,
                         kCallActorTerminal,
                         {group_a_token(static_cast<u32>(first))}
                     );
@@ -350,7 +341,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     if (invoke(
                             state,
                             port,
-                            result,
                             kCallActorTerminal,
                             {group_b_token(static_cast<u32>(index))}
                         )
@@ -368,7 +358,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     const auto terminal = invoke(
                         state,
                         port,
-                        result,
                         kCallActorTerminal,
                         {group_b_token(static_cast<u32>(first))}
                     );
@@ -402,7 +391,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             const auto published_scene = invoke(
                 state,
                 port,
-                result,
                 kCallPublishScene,
                 {0x5FDU, 0x004FE5D4U + 4U * group_a_index}
             );
@@ -451,7 +439,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             }
         );
         ++result.action_twenty_three_calls;
-        result.port_calls += result.action_twenty_three.port_calls;
         if (result.action_twenty_three.status !=
             LegacyBattleActionTwentyThreeStatus::completed) {
             result.status = LegacyBattleActionDispatchStatus::
@@ -472,7 +459,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                 }
             );
         ++result.action_twenty_three_message_calls;
-        result.port_calls += result.action_twenty_three_message.port_calls;
         if (result.action_twenty_three_message.status !=
             LegacyBattleActionTwentyThreeMessageStatus::completed) {
             result.status = LegacyBattleActionDispatchStatus::
@@ -491,7 +477,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     .definition_id = message_code,
                 }
             );
-            ++result.port_calls;
             if (legacy_battle_mon_definition_load_stopped(
                     definition_result.status
                 )) {
@@ -506,7 +491,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     port,
                     0x0053BC28U
                 );
-            ++result.port_calls;
             if (legacy_battle_mon_definition_text_release_stopped(
                     release_result.status
                 )) {
@@ -514,9 +498,9 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     mon_definition_release_typed_stop;
                 return result;
             }
-            static_cast<void>(invoke(
-                state, port, result, kCallPlayMessage, {0x117U, 0x004AB784U}
-            ));
+            static_cast<void>(
+                invoke(state, port, kCallPlayMessage, {0x117U, 0x004AB784U})
+            );
             if (!publish_text_message(
                     context,
                     port,
@@ -529,9 +513,9 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                 return result;
             }
         } else {
-            static_cast<void>(invoke(
-                state, port, result, kCallPlayMessage, {0x116U, 0x004AB784U}
-            ));
+            static_cast<void>(
+                invoke(state, port, kCallPlayMessage, {0x116U, 0x004AB784U})
+            );
             if (!publish_text_message(
                     context,
                     port,
@@ -584,7 +568,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             {.actor_token = actor_token}
         );
         ++result.action_twenty_four_calls;
-        result.port_calls += result.action_twenty_four.port_calls;
         if (result.action_twenty_four.status !=
             LegacyBattleActionTwentyFourStatus::completed) {
             result.status =
@@ -607,7 +590,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                 if (invoke(
                         state,
                         port,
-                        result,
                         kCallActorTerminal,
                         {group_b_token(index_u32)}
                     )
@@ -618,7 +600,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                 reply = invoke(
                     state,
                     port,
-                    result,
                     kCallComputeValue,
                     {group_b_token(index_u32),
                      state.selection_word,
@@ -649,18 +630,14 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                 static_cast<void>(invoke(
                     state,
                     port,
-                    result,
                     kCallPublishSignedValue,
                     {port.battle_pair_primary_value()}
                 ));
-                static_cast<void>(
-                    invoke(state, port, result, 0x0047CEC0U, {1U})
-                );
+                static_cast<void>(invoke(state, port, 0x0047CEC0U, {1U}));
                 if (state.blocking_effect == 0U &&
                     invoke(
                         state,
                         port,
-                        result,
                         kCallCommitVisual,
                         {port.battle_pair_primary_value(), 0U, 0U}
                     )
@@ -710,7 +687,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     return result;
                 }
                 const auto mode_reply =
-                    invoke(state, port, result, kCallSetGlobalMode, {1U});
+                    invoke(state, port, kCallSetGlobalMode, {1U});
                 state.stored_group_b_index = static_cast<u16>(group_b_index);
                 state.stored_group_a_index = static_cast<u16>(group_a_index);
                 if (!execute_legacy_battle_actor_runtime_reset_call(
@@ -769,7 +746,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     *context.startup->group_b_lifecycle
                 )[state.stored_group_b_index];
             }
-            ActionCompositionPortAdapter adapter(port, result);
+            ActionCompositionPortAdapter adapter(port);
             result.group_b_action_composition =
                 compose_legacy_battle_group_b_action(
                     actor,
@@ -872,9 +849,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
     case 26U: {
         state.phase_condition = 1U;
         if (low_word(state.scan_push_state) == 1U) {
-            static_cast<void>(
-                invoke(state, port, result, kCallPushState, {0x40U})
-            );
+            static_cast<void>(invoke(state, port, kCallPushState, {0x40U}));
         }
         result.scale_scan = draw_legacy_battle_scale_scan(
             state.scale_scan,
@@ -894,8 +869,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             return result;
         }
         const auto finish_scan = [&](const u32 return_address) {
-            const auto popped =
-                invoke(state, port, result, kCallPopState, {0x40U});
+            const auto popped = invoke(state, port, kCallPopState, {0x40U});
             if (!apply_legacy_battle_actor_action_mode_call(
                     state,
                     context,
@@ -929,12 +903,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         if (low_word(state.scan_dialog_state) == 0U) {
             if (state.scan_word != 0U) {
                 state.scan_word = 0U;
-                static_cast<void>(invoke(
-                    state, port, result, kCallPlayMessage, {0x2CU, 0x004AB784U}
-                ));
                 static_cast<void>(
-                    invoke(state, port, result, kCallPopState, {0x40U})
+                    invoke(state, port, kCallPlayMessage, {0x2CU, 0x004AB784U})
                 );
+                static_cast<void>(invoke(state, port, kCallPopState, {0x40U}));
             } else {
                 replace_low_word(state.scan_dialog_state, 1U);
                 state.scan_word = 0U;
@@ -956,7 +928,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             invoke(
                 state,
                 port,
-                result,
                 kCallCommitVisual,
                 {port.battle_pair_primary_value(), 0U, 0U}
             )
@@ -965,16 +936,14 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             state.selected_target_index = static_cast<u16>(group_b_index);
             state.selected_group_b_identity[group_b_index] = group_b_index;
             port.screen_flash_state().active = 1U;
-            static_cast<void>(
-                invoke(state, port, result, kCallSetScreenMode, {1U})
-            );
+            static_cast<void>(invoke(state, port, kCallSetScreenMode, {1U}));
             if (!clear_framebuffer(port, context, result)) {
                 return result;
             }
             replace_low_word(state.scan_push_state, 0x8000U);
         }
         port.battle_pair_primary_value() = 0U;
-        static_cast<void>(invoke(state, port, result, kCallPushState, {0x40U}));
+        static_cast<void>(invoke(state, port, kCallPushState, {0x40U}));
         if ((state.scan_push_state & 0x8000U) != 0U &&
             !finish_scan(0x004551C8U)) {
             return result;
@@ -1001,7 +970,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             }
         );
         ++result.action_twenty_seven_calls;
-        result.port_calls += result.action_twenty_seven.port_calls;
         append_nested_actor_field_26b8_high_bit_set(
             result.actor_field_26b8_high_bit_set,
             result.action_twenty_seven.actor_field_26b8_high_bit_set
@@ -1020,7 +988,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                 low_word(invoke(
                              state,
                              port,
-                             result,
                              kCallComputeSelection,
                              {4U, state.selection_context}
                 )
@@ -1037,7 +1004,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             invoke(
                 state,
                 port,
-                result,
                 kCallCommitVisual,
                 {port.battle_pair_primary_value(), 0U, 0U}
             )
@@ -1107,7 +1073,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             }
         );
         ++result.dual_record_action_calls;
-        result.port_calls += result.dual_record_action.port_calls;
         if (result.dual_record_action.status !=
             LegacyBattleDualRecordActionStatus::completed) {
             result.status =
@@ -1118,9 +1083,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             return result;
         }
         state.temporary_record.fill(0U);
-        const u16 percent = low_word(
-            invoke(state, port, result, kCallQueryPercent, {action}).eax
-        );
+        const u16 percent =
+            low_word(invoke(state, port, kCallQueryPercent, {action}).eax);
         state.temporary_record_flags = action == 28U ? 0x10000000U
             : action == 29U                          ? 0x08000000U
                                                      : 0x02000000U;
@@ -1129,7 +1093,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         static_cast<void>(invoke(
             state,
             port,
-            result,
             kCallCommitTemporaryRecord,
             {state.temporary_record_flags, state.temporary_record_mode}
         ));
@@ -1227,7 +1190,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             return result;
         }
         static_cast<void>(
-            invoke(state, port, result, kCallPlayMessage, {0x2EU, 0x004AB784U})
+            invoke(state, port, kCallPlayMessage, {0x2EU, 0x004AB784U})
         );
         static_cast<void>(
             clear_legacy_battle_action_record(state.persistent_action_record)
@@ -1241,7 +1204,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         reply = invoke(
             state,
             port,
-            result,
             kCallComputeValue,
             {group_b_token(group_b_index),
              state.selection_word,
@@ -1268,16 +1230,14 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         static_cast<void>(invoke(
             state,
             port,
-            result,
             kCallPublishSignedValue,
             {port.battle_pair_primary_value()}
         ));
-        static_cast<void>(invoke(state, port, result, 0x0047CEC0U, {1U}));
+        static_cast<void>(invoke(state, port, 0x0047CEC0U, {1U}));
         if (state.blocking_effect == 0U &&
             invoke(
                 state,
                 port,
-                result,
                 kCallCommitVisual,
                 {port.battle_pair_primary_value(), 0U, 0U}
             )
@@ -1322,7 +1282,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             }
         );
         ++result.target_ready_calls;
-        result.port_calls += result.target_ready.port_calls;
         append_nested_actor_field_26b8_high_bit_set(
             result.actor_field_26b8_high_bit_set,
             result.target_ready.actor_field_26b8_high_bit_set
@@ -1338,11 +1297,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         }
         state.current_actor_index = 0xFFFFU;
         reply = invoke(
-            state,
-            port,
-            result,
-            kCallResolveTarget,
-            {group_b_token(group_b_index)}
+            state, port, kCallResolveTarget, {group_b_token(group_b_index)}
         );
         if (reply.eax == 0U) {
             result.status =
@@ -1353,7 +1308,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             result.return_value = 1U;
             return result;
         }
-        reply = invoke(state, port, result, kCallQueryPercent, {0x21U});
+        reply = invoke(state, port, kCallQueryPercent, {0x21U});
         result.target_property_chance =
             check_legacy_battle_target_property_chance(
                 context.bounded_random, {.value = low_word(reply.eax)}
@@ -1361,7 +1316,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         ++result.target_property_chance_calls;
         if (result.target_property_chance.return_eax == 1U) {
             const auto presentation_mode =
-                invoke(state, port, result, kCallSetMode, {7U});
+                invoke(state, port, kCallSetMode, {7U});
             const u32 group_b_actor_token = group_b_token(group_b_index);
             if (!activate_actor_presentation(
                     state,
@@ -1407,7 +1362,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             }
         );
         ++result.dual_record_action_calls;
-        result.port_calls += result.dual_record_action.port_calls;
         if (result.dual_record_action.status !=
             LegacyBattleDualRecordActionStatus::completed) {
             result.status =
@@ -1420,7 +1374,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         reply = invoke(
             state,
             port,
-            result,
             kCallComputeValue,
             {actor_token, state.selection_word, state.selection_high_word}
         );
@@ -1429,15 +1382,13 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             static_cast<void>(invoke(
                 state,
                 port,
-                result,
                 kCallPublishSignedValue,
                 {static_cast<u32>(state.signed_action_value)}
             ));
-            static_cast<void>(invoke(state, port, result, 0x0047CEC0U, {1U}));
+            static_cast<void>(invoke(state, port, 0x0047CEC0U, {1U}));
             static_cast<void>(invoke(
                 state,
                 port,
-                result,
                 kCallCommitVisual,
                 {static_cast<u32>(state.signed_action_value), 0U, 0U}
             ));
@@ -1446,32 +1397,25 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             static_cast<void>(invoke(
                 state,
                 port,
-                result,
                 kCallPublishSignedValue,
                 {static_cast<u32>(static_cast<i16>(state.selection_word))}
             ));
-            static_cast<void>(invoke(state, port, result, 0x0047CEC0U, {1U}));
+            static_cast<void>(invoke(state, port, 0x0047CEC0U, {1U}));
             static_cast<void>(invoke(
-                state,
-                port,
-                result,
-                kCallCommitVisual,
-                {0U, state.selection_word, 0U}
+                state, port, kCallCommitVisual, {0U, state.selection_word, 0U}
             ));
             state.selection_word = 0U;
         } else {
             static_cast<void>(invoke(
                 state,
                 port,
-                result,
                 kCallPublishSignedValue,
                 {static_cast<u32>(static_cast<i16>(state.selection_high_word))}
             ));
-            static_cast<void>(invoke(state, port, result, 0x0047CEC0U, {1U}));
+            static_cast<void>(invoke(state, port, 0x0047CEC0U, {1U}));
             static_cast<void>(invoke(
                 state,
                 port,
-                result,
                 kCallCommitVisual,
                 {0U, 0U, state.selection_high_word}
             ));

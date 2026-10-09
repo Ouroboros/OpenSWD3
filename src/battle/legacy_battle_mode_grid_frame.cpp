@@ -557,7 +557,6 @@ private:
     LegacyBattleGridFrameCallReply
     invoke(const LegacyBattleGridFrameCallRequest& request) {
         const auto reply = port_.invoke_grid_frame(request);
-        ++result_.port_calls;
         eax_ = reply.eax;
         ecx_ = reply.ecx;
         edx_ = reply.edx;

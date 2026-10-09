@@ -69,7 +69,7 @@ void test_battle_actor_action_reverse_cycle(openswd3::test::Context& test) {
             fixture.actor.pre_frame_gate_b == 0U &&
                 result.return_eax == 0xFFFFFFFFU &&
                 result.return_ecx == 0x22U && result.return_edx == 0x33U &&
-                result.port_calls == 0U && fixture.port.calls.empty(),
+                fixture.port.calls.empty(),
             "reverse cycle actor code seven clears the shared gate then returns the wrapped index"
         );
     }
@@ -86,7 +86,7 @@ void test_battle_actor_action_reverse_cycle(openswd3::test::Context& test) {
         test.expect_true(
             fixture.actor.pre_frame_gate_b == 0U && result.return_eax == 4U &&
                 result.return_ecx == 0x44U && result.return_edx == 0x55U &&
-                result.port_calls == 0U && fixture.port.calls.empty(),
+                fixture.port.calls.empty(),
             "reverse cycle actor code twelve takes the unsigned default branch"
         );
     }
@@ -125,7 +125,7 @@ void test_battle_actor_action_reverse_cycle(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActorActionReverseCycleStatus::completed &&
                 fixture.actor.pre_frame_gate_b == 0U &&
-                result.port_calls == 2U && result.resolve_calls == 1U &&
+                result.resolve_calls == 1U &&
                 result.available_actor_cycle.candidate_calls == 4U &&
                 result.available_actor_cycle.candidate_codes ==
                     expected_candidates[index] &&
@@ -169,9 +169,9 @@ void test_battle_actor_action_reverse_cycle(openswd3::test::Context& test) {
                 result.resolve_calls == 1U && result.commit_calls == 0U &&
                 result.available_actor_cycle.candidate_calls == 1U &&
                 result.available_actor_cycle.candidate_codes[0U] == 9U &&
-                result.port_calls == 0U && fixture.port.calls.empty() &&
-                result.return_eax == 10U && result.return_ecx == 0x00520DF8U &&
-                result.return_edx == 12U && fixture.startup.value_4ff0b0 == 9U,
+                fixture.port.calls.empty() && result.return_eax == 10U &&
+                result.return_ecx == 0x00520DF8U && result.return_edx == 12U &&
+                fixture.startup.value_4ff0b0 == 9U,
             "candidate-order stop propagates through the reverse cycle before queue commit"
         );
     }

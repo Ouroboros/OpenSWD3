@@ -359,9 +359,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 );
             test.expect_true(
                 result.status ==
-                        LegacyBattleActionDispatchStatus::
-                            group_a_index_typed_stop &&
-                    result.port_calls == 0U,
+                    LegacyBattleActionDispatchStatus::group_a_index_typed_stop,
                 "group A frame stops at first actor object query"
             );
         }
@@ -404,7 +402,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     result.actor_start_gate.flags.zero &&
                     !result.actor_start_gate.flags.sign &&
                     !result.actor_start_gate.flags.overflow &&
-                    result.port_calls == 0U && port.count(0x004786D0U) == 0U &&
+                    port.count(0x004786D0U) == 0U &&
                     port.count(0x00478B60U) == 0U,
                 "Group-A start-gate field stop preserves final SHL state and suppresses effect publication and the whole frame suffix"
             );
@@ -451,7 +449,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     !result.actor_start_gate.flags.zero &&
                     !result.actor_start_gate.flags.sign &&
                     !result.actor_start_gate.flags.overflow &&
-                    result.port_calls == 0U && port.count(0x004786D0U) == 0U &&
+                    port.count(0x004786D0U) == 0U &&
                     port.count(0x00478B60U) == 0U,
                 "Group-A start-gate RET stop preserves the nonzero actor-offset EAX high word and blocks every caller suffix"
             );
@@ -2853,8 +2851,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             test.expect_true(
                 result.return_eax == 1U && result.return_ecx == 0x005029D0U &&
                     result.return_edx == 0x22222222U &&
-                    actor.turn_completion_latch == 0U &&
-                    result.port_calls == 0U,
+                    actor.turn_completion_latch == 0U,
                 "turn gate special-ready path clears the latch before returning without any call"
             );
         }
@@ -2881,8 +2878,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.return_eax == 0U && result.return_ecx == 0x33333333U &&
                     result.return_edx == 0x44444444U &&
                     actor.turn_threshold == 2U && actor.turn_countdown == 6 &&
-                    result.queue_completion_calls == 1U &&
-                    result.port_calls == 1U,
+                    result.queue_completion_calls == 1U,
                 "turn gate decrements the signed countdown while queue completion remains above the mode-zero threshold"
             );
         }
@@ -3103,7 +3099,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     has_call_argument(port, 0x004170E0U, 3U, 20U) &&
                     has_call_argument(port, 0x004170E0U, 4U, 5U) &&
                     has_call_argument(port, 0x004170E0U, 5U, 0x72000000U) &&
-                    port.count(0x00478600U) == 0U && result.port_calls == 6U,
+                    port.count(0x00478600U) == 0U,
                 "turn gate directly publishes shifted coordinates before rendering"
             );
         }
@@ -3365,8 +3361,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         shared.turn_frame_source_token == 0U &&
                         port.count(0x00478600U) == 0U &&
                         port.count(0x004785C0U) == 0U &&
-                        port.count(0x004170E0U) == 0U &&
-                        result.port_calls == 3U,
+                        port.count(0x004170E0U) == 0U,
                     "turn gate current-coordinate stop preserves exact registers, flags and stack-local prefix"
                 );
             }

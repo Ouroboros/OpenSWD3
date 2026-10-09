@@ -43,7 +43,6 @@ struct LegacyBattleGroupBActionExecutionResult {
         LegacyBattleGroupBActionExecutionStatus::completed
     };
     compat::u32 stopped_instruction{};
-    compat::u32 port_calls{};
     compat::u32 actor_update_calls{};
     compat::u32 action_record_calls{};
     compat::u32 secondary_record_calls{};

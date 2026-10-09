@@ -91,7 +91,6 @@ private:
             .ecx = ecx_,
             .edx = edx_,
         });
-        ++result_.port_calls;
         result_.call_trace.push_back(call);
         eax_ = reply.eax;
         ecx_ = reply.ecx;

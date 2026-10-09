@@ -35,8 +35,7 @@ void test_battle_actor_ready(openswd3::test::Context& test) {
             state, port, 2U, 1U
         );
         test.expect_true(
-            result.return_value == 1U && result.port_calls == 1U &&
-                result.actor_token == 0x00508838U &&
+            result.return_value == 1U && result.actor_token == 0x00508838U &&
                 result.stale_eax == 0x0000179AU &&
                 result.stale_edx == 0xAABBCCDDU &&
                 result.final_ecx == 0x13579BDFU &&

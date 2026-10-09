@@ -284,9 +284,7 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status ==
-                    LegacyBattleGroupBActionExecutionStatus::
-                        actor_state_typed_stop &&
-                result.port_calls == 0U,
+                LegacyBattleGroupBActionExecutionStatus::actor_state_typed_stop,
             "group B execution stops at the original first actor field read"
         );
     }
@@ -307,8 +305,9 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
                 {.actor_token = port.actor_token, .target_token = 0x005029D0U}
             );
         test.expect_true(
-            result.status == LegacyBattleGroupBActionExecutionStatus::completed &&
-                result.return_eax == 0U && result.port_calls == 0U,
+            result.status ==
+                    LegacyBattleGroupBActionExecutionStatus::completed &&
+                result.return_eax == 0U,
             "group B execution preserves the busy gate before every callee and resource access"
         );
     }

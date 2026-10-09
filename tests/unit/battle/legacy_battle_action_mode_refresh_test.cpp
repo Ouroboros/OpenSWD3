@@ -94,7 +94,7 @@ void test_battle_action_mode_refresh(openswd3::test::Context& test) {
             result.status == LegacyBattleActionModeRefreshStatus::completed &&
                 result.option_pointer_reads == 2U &&
                 result.option_object_reads == 2U &&
-                result.qualifying_options == 0U && result.port_calls == 3U &&
+                result.qualifying_options == 0U &&
                 fixture.reset.value_524414 == 0x00010001U &&
                 fixture.reset.value_524418 == 1U &&
                 fixture.reset.value_53bf22 == 0U &&
@@ -264,7 +264,7 @@ void test_battle_action_mode_refresh(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionModeRefreshStatus::
                         option_object_typed_stop &&
-                result.port_calls == 0U && result.option_pointer_reads == 1U &&
+                result.option_pointer_reads == 1U &&
                 result.option_object_reads == 0U && result.return_eax == 8U &&
                 result.return_ecx == 0U && result.return_edx == 0xABCD0000U &&
                 fixture.reset.value_524414 == 0x01010101U &&
@@ -282,8 +282,8 @@ void test_battle_action_mode_refresh(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionModeRefreshStatus::
                         actor_mapping_typed_stop &&
-                result.port_calls == 0U && result.return_eax == 12U &&
-                result.return_ecx == 0U && result.return_edx == 0U,
+                result.return_eax == 12U && result.return_ecx == 0U &&
+                result.return_edx == 0U,
             "actor code twelve stops at the first four-entry physical actor mapping access"
         );
     }
@@ -298,8 +298,8 @@ void test_battle_action_mode_refresh(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionModeRefreshStatus::
                         option_source_typed_stop &&
-                result.port_calls == 0U && result.return_eax == 9U &&
-                result.return_ecx == 0U && result.return_edx == 0U,
+                result.return_eax == 9U && result.return_ecx == 0U &&
+                result.return_edx == 0U,
             "mapped source four stops at the first option-pointer table access"
         );
     }

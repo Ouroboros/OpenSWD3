@@ -50,7 +50,6 @@ struct LegacyBattleActionModeRefreshResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 port_calls{};
     compat::u32 option_pointer_reads{};
     compat::u32 option_object_reads{};
     compat::u32 qualifying_options{};
