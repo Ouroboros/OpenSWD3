@@ -3810,7 +3810,6 @@ struct LegacyPartyDialogPageResult {
     battle::LegacyBattleFixedCurveLookupResult fixed_curve{};
     battle::LegacyBattleFixedDefinitionCurveLookupResult
         fixed_definition_curve{};
-    compat::u32 fixed_count_query_count{};
     compat::u32 fixed_definition_curve_query_count{};
     bool rows_cleared{};
 };
@@ -6619,7 +6618,6 @@ struct LegacyStandardModeRuntimeInitializationResult {
     compat::u32 loaded_record_count{};
     compat::u32 released_record_count{};
     battle::LegacyBattleFixedCountLookupResult fixed_count{};
-    compat::u32 fixed_count_query_count{};
 };
 
 enum class LegacyStandardModeRuntimeStorageKind : compat::u8 {
@@ -7597,7 +7595,6 @@ struct LegacyStandardModeGuardianAttributeSummaryResult {
     battle::LegacyBattleFixedCurveLookupResult fixed_curve{};
     battle::LegacyBattleFixedDefinitionCurveLookupResult
         fixed_definition_curve{};
-    compat::u32 fixed_count_query_count{};
     compat::u32 fixed_definition_curve_query_count{};
 };
 

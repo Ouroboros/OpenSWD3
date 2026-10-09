@@ -15,7 +15,6 @@ namespace openswd3::special_modes {
 namespace {
 
 constexpr compat::u16 kEntrySoundId = 0x00BBU;
-constexpr compat::u32 kGuardianAttributeScratchToken = 0x004FCD4CU;
 
 [[nodiscard]] constexpr compat::u16 read_mon_profile_word(
     const battle::LegacyBattleMonProfile& profile, const std::size_t offset
@@ -9270,20 +9269,15 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
             const auto query_fixed_count = [&]() {
                 result.fixed_count = battle::lookup_legacy_battle_fixed_count(
                     ports.legacy_battle_fixed_object_state(),
-                    {
-                        .key = record->text_index,
-                        .entry_edx = state.item_category_masks[2U],
-                    }
+                    record->text_index
                 );
-                ++result.fixed_count_query_count;
                 if (result.fixed_count.status !=
                     battle::LegacyBattleFixedCountStatus::completed) {
                     result.status =
                         LegacyPartyDialogPageStatus::fixed_count_typed_stop;
                     return false;
                 }
-                added_value =
-                    static_cast<compat::u16>(result.fixed_count.return_eax);
+                added_value = result.fixed_count.quantity;
                 denominator = -1;
                 return true;
             };
@@ -14700,9 +14694,9 @@ initialize_legacy_standard_mode_runtime(
     state.queried_status.fill(0U);
     for (compat::u32 record_id = 1U; record_id <= 0x1F4U; ++record_id) {
         result.fixed_count = battle::lookup_legacy_battle_fixed_count(
-            ports.legacy_battle_fixed_object_state(), {.key = record_id}
+            ports.legacy_battle_fixed_object_state(),
+            static_cast<compat::u16>(record_id)
         );
-        ++result.fixed_count_query_count;
         if (result.fixed_count.status !=
             battle::LegacyBattleFixedCountStatus::completed) {
             result.status = LegacyStandardModeRuntimeInitializationStatus::
@@ -14710,7 +14704,7 @@ initialize_legacy_standard_mode_runtime(
             return result;
         }
         state.queried_status[record_id] =
-            static_cast<compat::u8>(result.fixed_count.return_eax);
+            static_cast<compat::u8>(result.fixed_count.quantity);
     }
     for (auto& slot : state.long_text_slots) {
         slot[0U] = 0U;
@@ -18673,12 +18667,8 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
         if (seed->text_index != 0xFFDCU) {
             result.fixed_count = battle::lookup_legacy_battle_fixed_count(
                 ports.legacy_battle_fixed_object_state(),
-                {
-                    .key = seed->text_index,
-                    .entry_edx = kGuardianAttributeScratchToken,
-                }
+                seed->text_index
             );
-            ++result.fixed_count_query_count;
             if (result.fixed_count.status !=
                 battle::LegacyBattleFixedCountStatus::completed) {
                 result.status =
@@ -18686,11 +18676,8 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
                         fixed_count_typed_stop;
                 return result;
             }
-            result.legacy_return_value =
-                static_cast<compat::u16>(result.fixed_count.return_eax);
-            write_dword(
-                0x4CU, static_cast<compat::u16>(result.fixed_count.return_eax)
-            );
+            result.legacy_return_value = result.fixed_count.quantity;
+            write_dword(0x4CU, result.fixed_count.quantity);
         }
     }
 

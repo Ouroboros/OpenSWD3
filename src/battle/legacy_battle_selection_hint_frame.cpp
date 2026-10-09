@@ -300,23 +300,14 @@ private:
         ++result_.metric_source_calls;
         result_.fixed_count_lookup = lookup_legacy_battle_fixed_count(
             port_.legacy_battle_fixed_object_state(),
-            {
-                .key = source.eax,
-                .entry_eax = eax_,
-                .entry_ecx = ecx_,
-                .entry_edx = edx_,
-            }
+            static_cast<u16>(source.eax)
         );
-        ++result_.metric_value_calls;
-        eax_ = result_.fixed_count_lookup.return_eax;
-        ecx_ = result_.fixed_count_lookup.return_ecx;
-        edx_ = result_.fixed_count_lookup.return_edx;
         if (result_.fixed_count_lookup.status !=
             LegacyBattleFixedCountStatus::completed) {
             result_.status = Status::fixed_count_typed_stop;
             return;
         }
-        result_.metric_value = static_cast<u16>(eax_);
+        result_.metric_value = result_.fixed_count_lookup.quantity;
         if (result_.metric_value < 0x0AU) {
             return;
         }

@@ -7164,11 +7164,10 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         const auto result = dispatch(state, port, context, 0U, 0U);
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.fixed_count_lookup_calls == 1U &&
                 result.fixed_count_lookup.path ==
                     openswd3::battle::LegacyBattleFixedCountPath::
                         existing_root &&
-                result.fixed_count_lookup.return_eax == 20U &&
+                result.fixed_count_lookup.quantity == 20U &&
                 state.phase_condition_aux == 1U &&
                 port.count(0x00477800U) == 0U &&
                 result.target_phase_check_calls == 1U &&
@@ -7243,11 +7242,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         test.expect_true(
             stopped.status ==
                     LegacyBattleActionDispatchStatus::fixed_count_typed_stop &&
-                stopped.fixed_count_lookup_calls == 1U &&
                 stopped.fixed_count_lookup.stopped_token == 0x7A001234U &&
-                stopped.fixed_count_lookup.return_eax == 0U &&
-                stopped.fixed_count_lookup.return_ecx == 0x7A001234U &&
-                stopped.fixed_count_lookup.return_edx == 0x12340007U &&
+                stopped.fixed_count_lookup.stopped_offset == 4U &&
                 stopped.target_phase_check_calls == 0U &&
                 stopped.target_phase_start_calls == 0U,
             "action six preserves the target-code lookup prefix and blocks every target-phase suffix at an unmapped fixed-count successor"

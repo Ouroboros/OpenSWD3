@@ -491,21 +491,15 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             const i16 target_code = signed_low_word(target_code_reply.eax);
             result.fixed_count_lookup = lookup_legacy_battle_fixed_count(
                 port.legacy_battle_fixed_object_state(),
-                {
-                    .key = static_cast<u32>(static_cast<u16>(target_code)),
-                    .entry_eax = target_code_reply.eax,
-                    .entry_ecx = target_code_reply.ecx,
-                    .entry_edx = target_code_reply.edx,
-                }
+                static_cast<u16>(target_code)
             );
-            ++result.fixed_count_lookup_calls;
             if (result.fixed_count_lookup.status !=
                 LegacyBattleFixedCountStatus::completed) {
                 result.status =
                     LegacyBattleActionDispatchStatus::fixed_count_typed_stop;
                 return result;
             }
-            const u16 distance = low_word(result.fixed_count_lookup.return_eax);
+            const u16 distance = result.fixed_count_lookup.quantity;
             if (distance >= 0x14U) {
                 state.phase_condition_aux = 1U;
             }

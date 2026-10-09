@@ -119,17 +119,11 @@ void stop_at_record_access(
 void stop_at_record_access(
     LegacyBattleFixedCountLookupResult& result,
     const u32 token,
-    const u32 offset,
-    const u32 eax,
-    const u32 ecx,
-    const u32 edx
+    const u32 offset
 ) noexcept {
     result.status = LegacyBattleFixedCountStatus::record_access_typed_stop;
     result.stopped_token = token;
     result.stopped_offset = offset;
-    result.return_eax = eax;
-    result.return_ecx = ecx;
-    result.return_edx = edx;
 }
 
 void stop_at_record_access(
@@ -661,62 +655,46 @@ LegacyBattleFixedCountSetResult set_legacy_battle_fixed_count(
 
 LegacyBattleFixedCountLookupResult lookup_legacy_battle_fixed_count(
     LegacyBattleFixedObjectState& state,
-    const LegacyBattleFixedCountLookupRequest& request
+    const u16 key,
+    const u32 owner_token
 ) noexcept {
-    LegacyBattleFixedCountLookupResult result{
-        .owner_token = request.owner_token,
-    };
-    u32 eax = 0U;
-    u32 ecx = request.owner_token;
-    u32 edx = request.entry_edx;
-    const u16 key = low_word(request.key);
-    replace_low_word(edx, key);
-
+    LegacyBattleFixedCountLookupResult result;
     RecordReference root_storage;
-    RecordReference* const root = find_record(state, ecx, root_storage);
+    RecordReference* const root = find_record(state, owner_token, root_storage);
     if (root == nullptr || !has_access(*root, 4U, sizeof(u16))) {
-        stop_at_record_access(result, ecx, 4U, eax, ecx, edx);
+        stop_at_record_access(result, owner_token, 4U);
         return result;
     }
 
     RecordReference current_storage = *root;
     RecordReference* current = &current_storage;
     while (true) {
-        ++result.key_reads;
         if (low_word(current->words[1U]) == key) {
-            result.path = current->token == request.owner_token
+            result.path = current->token == owner_token
                 ? LegacyBattleFixedCountPath::existing_root
                 : LegacyBattleFixedCountPath::existing_node;
             result.matched_token = current->token;
             if (!has_access(*current, 6U, sizeof(u16))) {
-                stop_at_record_access(
-                    result, current->token, 6U, eax, ecx, edx
-                );
+                stop_at_record_access(result, current->token, 6U);
                 return result;
             }
-            eax = high_word(current->words[1U]);
-            ++result.count_reads;
-            result.return_eax = eax;
-            result.return_ecx = ecx;
-            result.return_edx = edx;
+
+            result.quantity = high_word(current->words[1U]);
             return result;
         }
 
-        ecx = current->words[0U];
-        ++result.chain_link_reads;
-        if (ecx == 0U) {
-            result.return_eax = eax;
-            result.return_ecx = ecx;
-            result.return_edx = edx;
+        const u32 next_token = current->words[0U];
+        if (next_token == 0U) {
             return result;
         }
 
         RecordReference next_storage;
-        RecordReference* const next = find_record(state, ecx, next_storage);
+        RecordReference* const next = find_record(state, next_token, next_storage);
         if (next == nullptr || !has_access(*next, 4U, sizeof(u16))) {
-            stop_at_record_access(result, ecx, 4U, eax, ecx, edx);
+            stop_at_record_access(result, next_token, 4U);
             return result;
         }
+
         current_storage = *next;
         current = &current_storage;
     }

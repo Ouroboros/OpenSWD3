@@ -565,22 +565,13 @@ void test_lookup_records_and_missing(openswd3::test::Context& test) {
     LegacyBattleFixedObjectState state;
     state.object_words[0U][1U] = (12U << 16U) | 3U;
     const auto root = openswd3::battle::lookup_legacy_battle_fixed_count(
-        state,
-        {
-            .key = 0x12340003U,
-            .entry_eax = 0xAAAAAAAAU,
-            .entry_ecx = 0xBBBBBBBBU,
-            .entry_edx = 0xCAFE5678U,
-        }
+        state, 3U
     );
     test.expect_true(
         root.status == LegacyBattleFixedCountStatus::completed &&
             root.path == LegacyBattleFixedCountPath::existing_root &&
-            root.matched_token == 0x004B9F00U && root.key_reads == 1U &&
-            root.chain_link_reads == 0U && root.count_reads == 1U &&
-            root.return_eax == 12U && root.return_ecx == 0x004B9F00U &&
-            root.return_edx == 0xCAFE0003U,
-        "lookup compares the root first, clears EAX, replaces DX with the key, and returns the root count word"
+            root.matched_token == 0x004B9F00U && root.quantity == 12U,
+        "lookup compares the root first and returns its quantity word"
     );
 
     state.object_words[0U][0U] = 0x79000000U;
@@ -590,37 +581,19 @@ void test_lookup_records_and_missing(openswd3::test::Context& test) {
         .words = {0U, (17U << 16U) | 9U, 0U, 0U, 0U},
     });
     const auto node = openswd3::battle::lookup_legacy_battle_fixed_count(
-        state,
-        {
-            .key = 9U,
-            .entry_eax = 0xFFFFFFFFU,
-            .entry_ecx = 0xEEEEEEEEU,
-            .entry_edx = 0xFACE1234U,
-        }
+        state, 9U
     );
     const auto missing = openswd3::battle::lookup_legacy_battle_fixed_count(
-        state,
-        {
-            .key = 10U,
-            .entry_eax = 0xFFFFFFFFU,
-            .entry_ecx = 0xEEEEEEEEU,
-            .entry_edx = 0xABCD1234U,
-        }
+        state, 10U
     );
     test.expect_true(
         node.status == LegacyBattleFixedCountStatus::completed &&
             node.path == LegacyBattleFixedCountPath::existing_node &&
-            node.matched_token == 0x79000000U && node.key_reads == 2U &&
-            node.chain_link_reads == 1U && node.count_reads == 1U &&
-            node.return_eax == 17U && node.return_ecx == 0x79000000U &&
-            node.return_edx == 0xFACE0009U &&
+            node.matched_token == 0x79000000U && node.quantity == 17U &&
             missing.status == LegacyBattleFixedCountStatus::completed &&
             missing.path == LegacyBattleFixedCountPath::none &&
-            missing.matched_token == 0U && missing.key_reads == 2U &&
-            missing.chain_link_reads == 2U && missing.count_reads == 0U &&
-            missing.return_eax == 0U && missing.return_ecx == 0U &&
-            missing.return_edx == 0xABCD000AU,
-        "lookup scans mapped successors in order and returns zero with ECX cleared when the key is absent"
+            missing.matched_token == 0U && missing.quantity == 0U,
+        "lookup scans mapped successors in order and returns zero when the key is absent"
     );
 }
 
@@ -629,23 +602,14 @@ void test_lookup_record_access_stops(openswd3::test::Context& test) {
     state.object_words[0U][0U] = 0x79000010U;
     state.object_words[0U][1U] = 2U;
     const auto unmapped = openswd3::battle::lookup_legacy_battle_fixed_count(
-        state,
-        {
-            .key = 9U,
-            .entry_eax = 0xAAAAAAAAU,
-            .entry_ecx = 0xBBBBBBBBU,
-            .entry_edx = 0xCDEF1234U,
-        }
+        state, 9U
     );
     test.expect_true(
         unmapped.status ==
                 LegacyBattleFixedCountStatus::record_access_typed_stop &&
             unmapped.stopped_token == 0x79000010U &&
-            unmapped.stopped_offset == 4U && unmapped.key_reads == 1U &&
-            unmapped.chain_link_reads == 1U && unmapped.return_eax == 0U &&
-            unmapped.return_ecx == 0x79000010U &&
-            unmapped.return_edx == 0xCDEF0009U,
-        "lookup stops at an unmapped successor key read after MOV ECX publishes the token"
+            unmapped.stopped_offset == 4U,
+        "lookup reports the unmapped successor key read"
     );
 
     state = {};
@@ -657,23 +621,10 @@ void test_lookup_record_access_stops(openswd3::test::Context& test) {
         .accessible_bytes = 7U,
     });
     const auto count_stop = openswd3::battle::lookup_legacy_battle_fixed_count(
-        state,
-        {
-            .key = 9U,
-            .entry_eax = 0xAAAAAAAAU,
-            .entry_ecx = 0xBBBBBBBBU,
-            .entry_edx = 0x13572468U,
-        }
+        state, 9U
     );
     const auto owner_stop = openswd3::battle::lookup_legacy_battle_fixed_count(
-        state,
-        {
-            .owner_token = 0x79000030U,
-            .key = 9U,
-            .entry_eax = 0xAAAAAAAAU,
-            .entry_ecx = 0xBBBBBBBBU,
-            .entry_edx = 0x24681357U,
-        }
+        state, 9U, 0x79000030U
     );
     test.expect_true(
         count_stop.status ==
@@ -681,19 +632,12 @@ void test_lookup_record_access_stops(openswd3::test::Context& test) {
             count_stop.path == LegacyBattleFixedCountPath::existing_node &&
             count_stop.matched_token == 0x79000020U &&
             count_stop.stopped_token == 0x79000020U &&
-            count_stop.stopped_offset == 6U && count_stop.key_reads == 2U &&
-            count_stop.chain_link_reads == 1U && count_stop.count_reads == 0U &&
-            count_stop.return_eax == 0U &&
-            count_stop.return_ecx == 0x79000020U &&
-            count_stop.return_edx == 0x13570009U &&
+            count_stop.stopped_offset == 6U &&
             owner_stop.status ==
                 LegacyBattleFixedCountStatus::record_access_typed_stop &&
             owner_stop.stopped_token == 0x79000030U &&
-            owner_stop.stopped_offset == 4U && owner_stop.key_reads == 0U &&
-            owner_stop.return_eax == 0U &&
-            owner_stop.return_ecx == 0x79000030U &&
-            owner_stop.return_edx == 0x24680009U,
-        "lookup stops at the exact count or root access after preserving the register prefix"
+            owner_stop.stopped_offset == 4U,
+        "lookup reports the exact inaccessible quantity or root key"
     );
 }
 

@@ -1686,7 +1686,6 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleFixedCountResult fixed_count{};
     compat::u32 fixed_count_calls{};
     LegacyBattleFixedCountLookupResult fixed_count_lookup{};
-    compat::u32 fixed_count_lookup_calls{};
     LegacyBattlePlayerItemQuantityResult player_item{};
     compat::u32 player_item_calls{};
     std::vector<LegacyBattleTextMessageResult> text_messages;

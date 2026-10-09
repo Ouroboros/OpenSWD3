@@ -7612,7 +7612,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 pair_ports.requested_definition_ids == std::vector<u32>{7U} &&
                 pair_ports.cache_steps.empty() &&
                 bonus_summary.legacy_return_value == 400 && bonus_values &&
-                bonus_summary.fixed_count_query_count == 1U &&
+                bonus_summary.fixed_count.quantity == 400U &&
                 bonus_summary.fixed_count.path ==
                     openswd3::battle::LegacyBattleFixedCountPath::
                         existing_root &&
@@ -7730,7 +7730,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     sm::LegacyStandardModeGuardianAttributeSummaryStatus::
                         fixed_count_typed_stop &&
                 fixed_count_stopped.fixed_count.stopped_token == 0x77001234U &&
-                fixed_count_stopped.fixed_count.return_edx == 0x004F0007U &&
+                fixed_count_stopped.fixed_count.stopped_offset == 4U &&
                 summary_range.status ==
                     sm::LegacyStandardModeGuardianAttributeSummaryStatus::
                         destination_out_of_range,
@@ -13547,7 +13547,6 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
             result.loaded_record_count == 2U &&
             result.released_record_count == 3U && ports.phase == 2U &&
             ports.load_count == 500U &&
-            result.fixed_count_query_count == 500U &&
             result.fixed_count.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::existing_node &&
             ports.classification_count == 500U &&
@@ -22812,10 +22811,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 30U &&
             item_party_dialog_page_ports.requested_definition_ids ==
                 std::vector<u32>{100U, 600U} &&
-            populated_item_party_dialog_page.fixed_count_query_count == 2U &&
             populated_item_party_dialog_page.fixed_count.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::existing_root &&
-            populated_item_party_dialog_page.fixed_count.return_eax == 40U &&
+            populated_item_party_dialog_page.fixed_count.quantity == 40U &&
             item_party_dialog_page_ports.requests[1U].text == "-1" &&
             item_party_dialog_page_ports.requests[2U].text == "100" &&
             item_party_dialog_page_ports.requests[3U].text == "40" &&

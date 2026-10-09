@@ -138,7 +138,6 @@ struct LegacyBattleSelectionHintFrameResult {
     compat::u32 font_width_calls{};
     compat::u32 text_draw_calls{};
     compat::u32 metric_source_calls{};
-    compat::u32 metric_value_calls{};
     LegacyBattleFixedCountLookupResult fixed_count_lookup{};
     compat::u32 metric_pair_calls{};
     LegacyBattleActorProgressWidthResult actor_progress_width{};

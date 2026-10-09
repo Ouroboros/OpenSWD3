@@ -348,11 +348,11 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
             "selection hint preserves actor scaling, width twenty then sixteen and label draw registers"
         );
         test.expect_true(
-            result.return_eax == 9U && result.return_ecx == 0x004B9F00U &&
-                result.return_edx == 0x00000900U &&
+            result.metric_value == 9U &&
+                result.fixed_count_lookup.quantity == 9U &&
                 result.fixed_count_lookup.path ==
                     openswd3::battle::LegacyBattleFixedCountPath::existing_root,
-            "selection hint below ten returns the typed fixed-count lookup register state"
+            "selection hint below ten retains the actual quantity without drawing metric text"
         );
     }
 
@@ -554,13 +554,11 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleSelectionHintFrameStatus::
                         fixed_count_typed_stop &&
                 result.metric_source_calls == 1U &&
-                result.metric_value_calls == 1U &&
                 result.fixed_count_lookup.stopped_token == 0x78001234U &&
                 result.metric_pair_calls == 0U &&
-                !result.fade_drawn && result.return_eax == 0U &&
-                result.return_ecx == 0x78001234U &&
-                result.return_edx == 0x00000900U,
-            "selection hint preserves metric-source and lookup register prefixes when the fixed-count successor is unmapped"
+                !result.fade_drawn &&
+                result.fixed_count_lookup.stopped_offset == 4U,
+            "selection hint blocks metric text and fade when the fixed-count successor is unmapped"
         );
     }
 
