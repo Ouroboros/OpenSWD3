@@ -4,25 +4,6 @@
 
 #include <array>
 
-namespace {
-
-class ActorProgressRandomPort final
-    : public openswd3::battle::LegacyBattleBoundedRandomPort {
-public:
-    [[nodiscard]] openswd3::compat::u32
-    random_bounded(const openswd3::compat::u32 bound) override {
-        ++calls;
-        last_bound = bound;
-        return next_value;
-    }
-
-    openswd3::compat::u32 next_value{};
-    openswd3::compat::u32 calls{};
-    openswd3::compat::u32 last_bound{};
-};
-
-}  // namespace
-
 void test_battle_actor_progress(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActorProgressInitializationStatus;
     using openswd3::battle::LegacyBattleActorProgressState;
@@ -36,52 +17,47 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
     using openswd3::compat::u32;
 
     {
-        constexpr std::array<u32, 4> random_values{0U, 1U, 2U, 8U};
-        constexpr std::array<u32, 4> expected_values{450U, 375U, 350U, 316U};
-        constexpr std::array<u32, 4> expected_remainders{0U, 0U, 0U, 6U};
-        ActorProgressRandomPort random;
+        constexpr std::array<u32, 9> expected_values{
+            450U, 375U, 350U, 337U, 330U, 325U, 321U, 318U, 316U
+        };
         LegacyBattleActorProgressState actor{.progress = 0xFACE0011U};
         bool matches = true;
-        for (u32 index = 0U; index < random_values.size(); ++index) {
-            random.next_value = random_values[index];
+        for (u32 random_value = 0U; random_value < expected_values.size();
+             ++random_value) {
             const auto result =
-                initialize_legacy_battle_actor_progress(&actor, random);
+                initialize_legacy_battle_actor_progress(&actor, random_value);
             matches = matches &&
                 result.status ==
                     LegacyBattleActorProgressInitializationStatus::completed &&
-                result.random_value == random_values[index] &&
-                result.random_calls == 1U && result.progress_writes == 1U &&
-                result.return_eax == expected_values[index] &&
-                result.return_ecx == random_values[index] + 1U &&
-                result.return_edx == expected_remainders[index] &&
-                actor.progress == (0xFACE0000U | expected_values[index]);
+                result.initial_progress == expected_values[random_value] &&
+                actor.progress == (0xFACE0000U | expected_values[random_value]);
         }
+
         test.expect_true(
-            matches && random.calls == random_values.size() &&
-                random.last_bound == 9U,
-            "actor progress initialization preserves all bounded RNG quotients remainders and the actor high word"
+            matches,
+            "all nine secondary-RNG outcomes produce the LST progress word while preserving the actor high word"
         );
     }
 
     {
-        ActorProgressRandomPort random;
-        random.next_value = 4U;
         LegacyBattleActorProgressState actor{
             .progress = 0xFACE0011U,
             .progress_write_accessible = false,
         };
-        const auto result =
-            initialize_legacy_battle_actor_progress(&actor, random);
+        const auto result = initialize_legacy_battle_actor_progress(&actor, 4U);
+        const auto missing =
+            initialize_legacy_battle_actor_progress(nullptr, 8U);
         test.expect_true(
             result.status ==
                     LegacyBattleActorProgressInitializationStatus::
                         actor_progress_write_typed_stop &&
-                actor.progress == 0xFACE0011U && result.return_eax == 330U &&
-                result.return_ecx == 5U && result.return_edx == 0U &&
-                result.random_value == 4U && result.random_calls == 1U &&
-                result.progress_writes == 0U && random.calls == 1U &&
-                random.last_bound == 9U,
-            "actor progress initialization retains the completed RNG and division prefix at the actor write stop"
+                actor.progress == 0xFACE0011U &&
+                result.initial_progress == 330U &&
+                missing.status ==
+                    LegacyBattleActorProgressInitializationStatus::
+                        actor_progress_write_typed_stop &&
+                missing.initial_progress == 316U,
+            "inaccessible or missing actors retain the computed progress without publishing it"
         );
     }
 

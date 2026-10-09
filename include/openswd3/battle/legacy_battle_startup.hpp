@@ -519,7 +519,6 @@ struct LegacyBattleStartupOrderProgressResult {
     std::array<LegacyBattleActorProgressInitializationResult, 10>
         party_progress_initializations{};
     LegacyBattleActorProgressInitializationResult party_progress_typed_stop{};
-    compat::u32 party_progress_initialization_calls{};
 };
 
 // 4526F2..4527A5: order actual actors, then initialize their progress.
@@ -610,7 +609,6 @@ struct LegacyBattleStartupResult {
     std::array<LegacyBattleActorProgressInitializationResult, 10>
         party_progress_initializations{};
     LegacyBattleActorProgressInitializationResult party_progress_typed_stop{};
-    compat::u32 party_progress_initialization_calls{};
     compat::u32 actor_metric_calls{};
     compat::u32 actor_order_selections{};
     compat::u32 group_b_order_copies{};

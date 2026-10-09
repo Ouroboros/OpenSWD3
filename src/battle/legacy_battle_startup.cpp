@@ -941,11 +941,11 @@ initialize_legacy_battle_startup_order_progress(
     while (index < metric_state.group_a_count) {
         auto* const actor =
             index < state.party.size() ? &state.party[index].progress : nullptr;
-        const auto initialization =
-            initialize_legacy_battle_actor_progress(actor, random);
-        const auto call = result.party_progress_initialization_calls++;
-        if (call < result.party_progress_initializations.size()) {
-            result.party_progress_initializations[call] = initialization;
+        const auto initialization = initialize_legacy_battle_actor_progress(
+            actor, random.random_bounded(9U)
+        );
+        if (index < result.party_progress_initializations.size()) {
+            result.party_progress_initializations[index] = initialization;
         }
 
         if (initialization.status !=
@@ -1647,8 +1647,6 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
     result.party_progress_initializations =
         order_progress.party_progress_initializations;
     result.party_progress_typed_stop = order_progress.party_progress_typed_stop;
-    result.party_progress_initialization_calls =
-        order_progress.party_progress_initialization_calls;
     if (order_progress.status != LegacyBattleStartupStatus::completed) {
         result.status = order_progress.status;
         return result;

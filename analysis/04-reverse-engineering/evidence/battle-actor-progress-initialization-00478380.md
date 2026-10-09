@@ -46,13 +46,20 @@ value = quotient + 300
 - `EBX/EBP/EDI`：未修改；
 - 返回标志位来自最后一次`add eax,300`，后续word写、`pop`和`retn`不改标志。
 
-modern实现为`initialize_legacy_battle_actor_progress`。随机调用复用现有`LegacyBattleBoundedRandomPort`，核心启动适配经`LegacyBattleStartupCall::random_below`，SDL直接借用既有`secondary_rng_`；两者使用同一排序与进度入口，不建立新随机算法或并行随机状态。具体边界见[入战接线](battle-startup-order-progress-runtime-binding.md)。
+modern实现为`initialize_legacy_battle_actor_progress`，接收调用方已抽取的随机值，
+返回访问状态与计算出的`initial_progress`，不接受Port或传递寄存器残值。
+startup原位置执行一次`random_bounded(9)`，再传入数值，不建立新随机算法或并行状态。
+上层排序和随机调度仍使用既有随机Port及startup适配，尚待后续迁移；本批不宣称整条
+随机链已完成清理。具体入战边界见[入战接线](battle-startup-order-progress-runtime-binding.md)。
 
 ## 3. 访问顺序与typed-stop
 
 可观察顺序严格为：保存角色token、调用一次RNG、形成除数、执行`cdq/idiv`、加300、尝试角色进度word写入。
 
-角色写入不可达时在原`mov [esi+0x2A12],ax`处停止：保留已完成的一次RNG调用，以及`EAX=value`、`ECX=divisor`、`EDX=remainder`；角色进度完全不写。caller索引超出固定组A owner时也先完成RNG与除法，再以不可达角色写入停止，不在目标调用前提前截断随机副作用。没有空对象继续、默认进度、夹值、重抽随机数或失败后缀。
+角色写入不可达时保留原有写入失败结果：随机抽样和进度计算已经完成，语义结果保留
+`initial_progress`，角色进度完全不写。caller索引超出固定组A owner时也先完成RNG
+与除法，不提前截断随机副作用。没有空对象继续、默认进度、夹值、重抽随机数或失败后缀。
+除数和余数不再通过公共结果传输；唯一caller在正常尾部不消费这些寄存器残值。
 
 `random(9)`由已关闭callee保证结果小于9；modern没有为违反callee合同的伪造返回添加原程序不存在的继续路径。
 
@@ -75,8 +82,8 @@ modern直接把同一startup组A角色owner `state.party[index].progress`交给t
 LST到C++：
 
 - `push 9; call 0x00439070`对应一次`random_bounded(9)`；
-- `mov ecx,eax; mov eax,150; inc ecx; cdq; idiv ecx`对应固定被除数、正除数和商余数；
-- `add eax,300`对应完整返回值；
+- `mov ecx,eax; mov eax,150; inc ecx; cdq; idiv ecx`对应固定被除数、正除数和截断商；
+- `add eax,300`对应计算出的行动进度；余数没有业务消费者；
 - `mov [esi+0x2A12],ax`对应可达检查后的低word替换；
 - 唯一xref对应startup最终组A循环的直接组合。
 
@@ -88,6 +95,15 @@ C++到LST：
 
 ## 6. 验证与动态差分
 
-定向测试覆盖随机值`0,1,2,8`的完整结果、除数、余数、固定上界9、角色内存高word保留、一次RNG/一次word写，以及写入typed-stop的完整已达前缀。启动集成测试覆盖四名组A角色按随机序列写`450/375/350/316`、补位后的角色也进入循环、旧opaque零调用，以及首名角色写停点阻断尾部消息发布。
+定向测试覆盖全部九个合法随机值的计算结果、实际角色高word保留、不可写及缺失角色
+的失败结果。startup测试保留固定上界9的抽样轨迹、动态人数读取、四名组A角色实际
+写入`450/375/350/316`、补位后的角色进入循环，以及首名写入失败阻断尾部消息发布。
+删除初始化函数的随机测试Port、寄存器断言、调用及写入计数。startup按角色索引保存
+语义结果，不再用调用次数作为数组索引或向外汇总次数。
 
-当前缺少原版第二套RNG动态状态、完整组A对象、异常内存页及唯一callsite寄存器/SEH联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。完整LST、固定状态、寄存器结果与modern caller组合已闭环。
+当前缺少原版第二套RNG动态状态、完整组A对象、异常内存页及唯一callsite寄存器/SEH联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。原版动态验证边界没有因此扩大；本批证据为静态LST、实际状态测试及modern caller组合。
+
+本批6并发core与ASan定向setup测试各1/1通过，SDL应用链接通过，完整差异复核及
+`git diff --check`通过。保留既有`legacy_battle_outcome_resolution_test.cpp:133`窄化警告，
+该文件不属于本批改动。日志为
+`build/tmp/runtime/actor-initial-progress-semantic-{core,asan,sdl}.log`。

@@ -41,12 +41,7 @@ struct LegacyBattleActorProgressInitializationResult {
     LegacyBattleActorProgressInitializationStatus status{
         LegacyBattleActorProgressInitializationStatus::completed
     };
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
-    compat::u32 random_value{};
-    compat::u32 random_calls{};
-    compat::u32 progress_writes{};
+    compat::u32 initial_progress{};
 };
 
 enum class LegacyBattleActorProgressThresholdSyncStatus : compat::u8 {
@@ -131,13 +126,12 @@ struct LegacyBattleActorGroupBProgressResult {
     compat::u32 negative_adjustment{};
 };
 
-// Typed closure of legacy 0x00478380. Draws one secondary-RNG value below
-// nine, computes 300 + 150 / (value + 1), and writes only the low word to
-// actor + 0x2A12.
+// Legacy 0x00478380: the caller supplies one secondary-RNG draw below nine.
+// Compute 300 + 150 / (value + 1) and write only actor + 0x2A12's low word.
 [[nodiscard]] LegacyBattleActorProgressInitializationResult
 initialize_legacy_battle_actor_progress(
-    LegacyBattleActorProgressState* actor, LegacyBattleBoundedRandomPort& random
-);
+    LegacyBattleActorProgressState* actor, compat::u32 random_value
+) noexcept;
 
 // Typed closure of legacy 0x00478370. Copies the shared action threshold low
 // word to actor + 0x2A12 while preserving the entry register residues.

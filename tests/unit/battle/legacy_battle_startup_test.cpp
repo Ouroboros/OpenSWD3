@@ -1327,8 +1327,6 @@ void test_battle_startup(openswd3::test::Context& test) {
                          ? Status::party_progress_initialization_typed_stop
                          : Status::completed) &&
                 result.enemy_action_advance_calls == 0U &&
-                result.party_progress_initialization_calls ==
-                    (variant == 1U ? 2U : 1U) &&
                 state->party[0].progress.progress ==
                     (variant == 2U ? 0U : 316U) &&
                 state->party[1].progress.progress ==
@@ -1370,7 +1368,6 @@ void test_battle_startup(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleStartupStatus::completed &&
                 enemy_draws == 65537U && random.values.empty() &&
                 result.enemy_action_advance_calls == 0U &&
-                result.party_progress_initialization_calls == 1U &&
                 state->party[0].progress.progress == 316U,
             "zero repeat path skips actor access and wraps the enemy index at WORD width before live count ends the loop"
         );
@@ -3036,14 +3033,12 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.group_b_lifecycle != nullptr &&
                 (*state.group_b_lifecycle)[0U].resource_token == 0x73000000U &&
                 state.enemies[0U].progress.progress == 200U &&
-                result.party_progress_initialization_calls == 4U &&
                 state.party[0U].progress.progress == 0xAAAA01C2U &&
                 state.party[1U].progress.progress == 0xBBBB0177U &&
                 state.party[2U].progress.progress == 0xCCCC015EU &&
                 state.party[3U].progress.progress == 0xDDDD013CU &&
-                result.party_progress_initializations[3U].return_eax == 316U &&
-                result.party_progress_initializations[3U].return_ecx == 9U &&
-                result.party_progress_initializations[3U].return_edx == 6U &&
+                result.party_progress_initializations[3U].initial_progress ==
+                    316U &&
                 ports.call_count(LegacyBattleStartupCall::random_below) == 7U &&
                 ports.call_count(
                     LegacyBattleStartupCall::
@@ -3123,7 +3118,6 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.supplemental_used[1] == 1U &&
                 state.supplemental_used[0] == 1U &&
                 ports.call_count(LegacyBattleStartupCall::random_below) == 7U &&
-                result.party_progress_initialization_calls == 2U &&
                 state.party[0U].progress.progress == 450U &&
                 state.party[1U].progress.progress == 450U &&
                 ports.call_count(
@@ -3359,20 +3353,13 @@ void test_battle_startup(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleStartupStatus::
                         party_progress_initialization_typed_stop &&
-                result.party_progress_initialization_calls == 1U &&
                 result.party_progress_initializations[0U].status ==
                     openswd3::battle::
                         LegacyBattleActorProgressInitializationStatus::
                             actor_progress_write_typed_stop &&
-                result.party_progress_initializations[0U].random_value == 8U &&
-                result.party_progress_initializations[0U].return_eax == 316U &&
-                result.party_progress_initializations[0U].return_ecx == 9U &&
-                result.party_progress_initializations[0U].return_edx == 6U &&
-                result.party_progress_initializations[0U].progress_writes ==
-                    0U &&
-                result.party_progress_typed_stop.return_eax == 316U &&
-                result.party_progress_typed_stop.return_ecx == 9U &&
-                result.party_progress_typed_stop.return_edx == 6U &&
+                result.party_progress_initializations[0U].initial_progress ==
+                    316U &&
+                result.party_progress_typed_stop.initial_progress == 316U &&
                 state.party[0U].progress.progress == 0xFACE0011U &&
                 ports.call_count(LegacyBattleStartupCall::random_below) == 3U &&
                 ports.call_count(
