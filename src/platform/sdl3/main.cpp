@@ -3386,13 +3386,8 @@ public:
 
     void clear_party_battle_entry_bits() override {}
 
-    [[nodiscard]] openswd3::battle::LegacyBattleFrameMusicRegisters
-    query_music_gate() override {
-        return {
-            .eax = static_cast<openswd3::compat::u32>(
-                openswd3::audio_video::legacy_stream_absent(stream_manager_)
-            ),
-        };
+    [[nodiscard]] bool music_stream_absent() override {
+        return openswd3::audio_video::legacy_stream_absent(stream_manager_);
     }
 
     void
@@ -3400,16 +3395,10 @@ public:
         static_cast<void>(play_battle_music_path(path));
     }
 
-    [[nodiscard]] openswd3::battle::LegacyBattleFrameMusicRegisters
-    commit_music_volume(const openswd3::compat::u32 level_bits) override {
-        return {
-            .eax = std::bit_cast<openswd3::compat::u32>(
-                openswd3::audio_video::set_legacy_stream_volume(
-                    stream_manager_,
-                    std::bit_cast<openswd3::compat::i32>(level_bits)
-                )
-            ),
-        };
+    void set_music_volume(const openswd3::compat::i32 level) override {
+        static_cast<void>(openswd3::audio_video::set_legacy_stream_volume(
+            stream_manager_, level
+        ));
     }
 
     [[nodiscard]] std::span<std::byte>

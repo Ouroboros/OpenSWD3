@@ -21,7 +21,7 @@
 #include "openswd3/battle/legacy_battle_frame_surface.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
-#include "openswd3/battle/legacy_battle_music_path.hpp"
+#include "openswd3/battle/legacy_battle_frame_music_prefix.hpp"
 #include "openswd3/battle/legacy_battle_text_message_frame.hpp"
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "openswd3/battle/legacy_battle_pre_frame.hpp"
@@ -63,8 +63,6 @@ struct LegacyBattleFrameCoordinatorPosition {
 };
 
 enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
-    query_music_gate,
-    music_commit,
     reserved_frame_input_resolution_slot,
     reserved_input_dispatch_slot,
     frame_input_validate_option_actor,
@@ -391,7 +389,8 @@ struct LegacyBattleFrameCoordinatorCallReply {
 };
 
 class LegacyBattleFrameCoordinatorPort
-    : public LegacyBattleHudCallPort,
+    : public LegacyBattleFrameMusicPrefixPort,
+      public LegacyBattleHudCallPort,
       public LegacyBattleEffectCallPort,
       public LegacyBattlePreFramePort,
       public LegacyBattleDebugHotkeyPort,
@@ -1814,8 +1813,6 @@ public:
     }
 
     [[nodiscard]] virtual compat::u32
-    start_music(std::span<const compat::u8> path) = 0;
-    [[nodiscard]] virtual compat::u32
     create_temporary_surface(compat::u32 owner_token, compat::u32 format) = 0;
     [[nodiscard]] virtual compat::u32
     operate_surface(compat::u32 object_token, compat::u32 source_token) = 0;
@@ -2070,7 +2067,6 @@ struct LegacyBattleFrameCoordinatorResult {
     };
     compat::u32 return_value{};
     bool music_started{};
-    compat::u32 music_commit_calls{};
     compat::u32 lock_calls{};
     compat::u32 unlock_calls{};
     compat::u32 selection_refresh_calls{};

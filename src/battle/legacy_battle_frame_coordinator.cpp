@@ -29,36 +29,6 @@ private:
     input_time_rng::LegacySecondaryRng& random_;
 };
 
-class CoordinatorMusicPrefixPort final
-    : public LegacyBattleFrameMusicPrefixPort {
-public:
-    explicit CoordinatorMusicPrefixPort(LegacyBattleFrameCoordinatorPort& port)
-        : port_(port) {}
-
-    [[nodiscard]] LegacyBattleFrameMusicRegisters query_music_gate() override {
-        const auto reply = port_.invoke(
-            {.call = LegacyBattleFrameCoordinatorCall::query_music_gate}
-        );
-        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
-    }
-
-    void start_music(const std::span<const compat::u8> path) override {
-        static_cast<void>(port_.start_music(path));
-    }
-
-    [[nodiscard]] LegacyBattleFrameMusicRegisters
-    commit_music_volume(const u32 level_bits) override {
-        const auto reply = port_.invoke({
-            .call = LegacyBattleFrameCoordinatorCall::music_commit,
-            .arguments = {level_bits},
-        });
-        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
-    }
-
-private:
-    LegacyBattleFrameCoordinatorPort& port_;
-};
-
 [[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
     value &= 0xFFU;
     value ^= value >> 4U;
@@ -166,21 +136,14 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     };
     const RestoreRefreshSource restore_source{port, previous_source};
     LegacyBattleFrameCoordinatorResult result;
-    CoordinatorMusicPrefixPort music_port{port};
     const auto music = run_legacy_battle_frame_music_prefix(
         state.active,
         port.battle_frame_input_resolution_state().target_selection_suppression,
         context.music_path,
         context.music_mix_level,
-        music_port
+        port
     );
     result.music_started = music.music_started;
-    result.music_commit_calls = music.music_commit_calls;
-    LegacyBattleFrameCoordinatorCallReply reply{
-        .eax = music.registers.eax,
-        .ecx = music.registers.ecx,
-        .edx = music.registers.edx,
-    };
 
     result.frame_input_resolution =
         coordinate_legacy_battle_frame_input_resolution(
@@ -196,12 +159,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
                 .message_state = port.battle_message_state(),
                 .choice_hotspots = context.choice_hotspots,
             },
-            port,
-            {
-                .entry_eax = reply.eax,
-                .entry_ecx = reply.ecx,
-                .entry_edx = reply.edx,
-            }
+            port
         );
     ++result.frame_input_resolution_calls;
     if (result.frame_input_resolution.status !=

@@ -7,28 +7,17 @@
 
 namespace openswd3::battle {
 
-struct LegacyBattleFrameMusicRegisters {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
 class LegacyBattleFrameMusicPrefixPort {
 public:
     virtual ~LegacyBattleFrameMusicPrefixPort() = default;
 
-    [[nodiscard]] virtual LegacyBattleFrameMusicRegisters
-    query_music_gate() = 0;
+    [[nodiscard]] virtual bool music_stream_absent() = 0;
     virtual void start_music(std::span<const compat::u8> path) = 0;
-    [[nodiscard]] virtual LegacyBattleFrameMusicRegisters
-    commit_music_volume(compat::u32 level_bits) = 0;
+    virtual void set_music_volume(compat::i32 level) = 0;
 };
 
 struct LegacyBattleFrameMusicPrefixResult {
-    LegacyBattleFrameMusicRegisters registers{};
     bool music_started{};
-    compat::u32 music_commit_calls{};
-    compat::u32 next_call_address{0x00453239U};
 };
 
 [[nodiscard]] LegacyBattleFrameMusicPrefixResult
