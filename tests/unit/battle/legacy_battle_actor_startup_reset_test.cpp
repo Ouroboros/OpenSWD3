@@ -76,20 +76,17 @@ public:
         return found->second;
     }
 
-    std::optional<LegacyBattleActorStartupResetRegisters>
-    release_heap_block(const u32 token) override {
+    bool release_heap_block(const u32 token) override {
         released.push_back(token);
         release_modes.push_back(load(0x26D0U, 2U));
         release_targets.push_back(load(0x2A56U));
         release_heads.push_back(load(0x2584U));
         if (token == fail_release_token) {
-            return std::nullopt;
+            return false;
         }
 
         nodes.erase(token);
-        return LegacyBattleActorStartupResetRegisters{
-            .eax = 0U, .ecx = 0x12345678U, .edx = 0xCAFE1234U
-        };
+        return true;
     }
 
     std::array<u8, 0x2B28U> actor{};

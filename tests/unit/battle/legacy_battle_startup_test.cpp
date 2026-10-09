@@ -1432,11 +1432,11 @@ void test_battle_startup(openswd3::test::Context& test) {
                 new_profile != old_profile &&
                 state->party[1].configuration.actor_record_token ==
                     actor_record &&
-                storage.release_heap_block(old_profile).has_value() &&
+                storage.release_heap_block(old_profile) &&
                 storage.record_bytes(new_profile).size() == 0xA4U &&
-                storage.release_heap_block(new_profile).has_value() &&
+                storage.release_heap_block(new_profile) &&
                 storage.record_bytes(new_profile).empty() &&
-                !storage.release_heap_block(new_profile).has_value(),
+                !storage.release_heap_block(new_profile),
             "supplemental reentry retains actor records and tracks distinct profile allocations and release"
         );
     }

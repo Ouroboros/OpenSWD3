@@ -101,7 +101,7 @@ void test_battle_group_a_resource_cleanup(openswd3::test::Context& test) {
         const auto secondary = fixture.storage.allocate_profile();
         party.secondary_resource_token = secondary;
         test.expect_true(
-            fixture.storage.release_heap_block(secondary).has_value(),
+            fixture.storage.release_heap_block(secondary),
             "retire secondary allocation to leave an invalid pointer"
         );
         bool caught = false;

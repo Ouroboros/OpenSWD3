@@ -219,20 +219,19 @@ LegacyBattleGroupBStorage::read_linked_action_next(const compat::u32 token) {
     return std::nullopt;
 }
 
-std::optional<LegacyBattleActorStartupResetRegisters>
-LegacyBattleGroupBStorage::release_heap_block(const compat::u32 token) {
+bool LegacyBattleGroupBStorage::release_heap_block(const compat::u32 token) {
     if (token == 0U) {
-        return std::nullopt;
+        return false;
     }
 
     for (auto& resource : resources_) {
         if (resource == token) {
             resource = 0U;
-            return LegacyBattleActorStartupResetRegisters{};
+            return true;
         }
     }
 
-    return std::nullopt;
+    return false;
 }
 
 }  // namespace openswd3::battle

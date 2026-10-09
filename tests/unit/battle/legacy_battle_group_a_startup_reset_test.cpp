@@ -25,14 +25,9 @@ public:
         return std::nullopt;
     }
 
-    std::optional<LegacyBattleActorStartupResetRegisters>
-    release_heap_block(const u32 token) override {
+    bool release_heap_block(const u32 token) override {
         released.push_back(token);
-        if (fail_release) {
-            return std::nullopt;
-        }
-
-        return LegacyBattleActorStartupResetRegisters{.edx = 0xABCDEF01U};
+        return !fail_release;
     }
 
     bool fail_release{};
@@ -347,7 +342,7 @@ void test_battle_group_a_startup_reset(openswd3::test::Context& test) {
                 [&](const auto token) {
                     return enemies.resource_bytes(token).empty() &&
                         !enemies.read_linked_action_next(token).has_value() &&
-                        !enemies.release_heap_block(token).has_value();
+                        !enemies.release_heap_block(token);
                 }
             ) &&
                 std::ranges::all_of(
@@ -402,9 +397,9 @@ void test_battle_group_a_startup_reset(openswd3::test::Context& test) {
             storage.read_linked_action_next(token) ==
                     std::optional<u32>{0x5AU} &&
                 !storage.read_linked_action_next(token + 0x35U).has_value() &&
-                storage.release_heap_block(token).has_value() &&
+                storage.release_heap_block(token) &&
                 storage.record_bytes(token).empty() &&
-                !storage.release_heap_block(token).has_value(),
+                !storage.release_heap_block(token),
             "allocation lookup observes shared bytes and invalidates released records"
         );
     }

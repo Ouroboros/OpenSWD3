@@ -12,7 +12,10 @@ bool release_resource(
         return false;
     }
 
-    static_cast<void>(resources->release_heap_block(resource_token).value());
+    if (!resources->release_heap_block(resource_token)) {
+        throw std::bad_optional_access{};
+    }
+
     resource_token = 0U;
     return true;
 }

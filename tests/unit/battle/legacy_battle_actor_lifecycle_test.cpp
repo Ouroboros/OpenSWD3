@@ -673,7 +673,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         auto& state = (*resources.actors())[1U];
         const auto resource_token = state.resource_token;
         test.expect_true(
-            resources.release_heap_block(resource_token).has_value(),
+            resources.release_heap_block(resource_token),
             "retire record while retaining stale pointer"
         );
         state.resource_bytes.fill(0x5AU);
@@ -898,7 +898,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
             fixture.startup->party[0U].configuration.actor_record_token;
         if (!release_secondary_first) {
             test.expect_true(
-                fixture.storage.release_heap_block(primary).has_value(),
+                fixture.storage.release_heap_block(primary),
                 "retire record before destruction to retain a stale pointer"
             );
         }

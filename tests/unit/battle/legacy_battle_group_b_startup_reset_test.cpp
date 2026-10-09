@@ -38,18 +38,13 @@ public:
         return std::nullopt;
     }
 
-    std::optional<LegacyBattleActorStartupResetRegisters>
-    release_heap_block(const u32 token) override {
+    bool release_heap_block(const u32 token) override {
         ++calls;
         released_token = token;
         target_at_release = actor_.action_execution.action_target;
         mode_at_release = static_cast<u16>(progress_.mode_gate);
         start_gate_at_release = actor_.action_execution.start_gate;
-        if (fail) {
-            return std::nullopt;
-        }
-
-        return LegacyBattleActorStartupResetRegisters{.edx = 0xABCD1234U};
+        return !fail;
     }
 
     LegacyBattleActorGroupBElementState& actor_;
@@ -314,7 +309,7 @@ void test_persistent_enemy_storage(openswd3::test::Context& test) {
     );
 
     test.expect_true(
-        storage.release_heap_block(first_token).has_value(),
+        storage.release_heap_block(first_token),
         "release removes the allocated resource mapping"
     );
     test.expect_true(
@@ -322,7 +317,7 @@ void test_persistent_enemy_storage(openswd3::test::Context& test) {
         "released guest record is no longer accessible"
     );
     test.expect_true(
-        !storage.release_heap_block(first_token).has_value(),
+        !storage.release_heap_block(first_token),
         "repeated free is rejected"
     );
 

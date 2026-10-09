@@ -7,12 +7,6 @@
 
 namespace openswd3::battle {
 
-struct LegacyBattleActorStartupResetRegisters {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
 class LegacyBattleActorStartupResetHeapPort {
 public:
     virtual ~LegacyBattleActorStartupResetHeapPort() = default;
@@ -20,8 +14,7 @@ public:
     [[nodiscard]] virtual std::optional<compat::u32>
     read_linked_action_next(compat::u32 token) = 0;
 
-    [[nodiscard]] virtual std::optional<LegacyBattleActorStartupResetRegisters>
-    release_heap_block(compat::u32 token) = 0;
+    [[nodiscard]] virtual bool release_heap_block(compat::u32 token) = 0;
 };
 
 // Each access borrows the actor's existing storage. Implementations must not

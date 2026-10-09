@@ -31,7 +31,7 @@ void test_battle_group_b_resource_cleanup(openswd3::test::Context& test) {
                 result.resource_released && actor.resource_token == 0U &&
                 storage.resource_bytes(token).empty() &&
                 !storage.read_linked_action_next(token).has_value() &&
-                !storage.release_heap_block(token).has_value() &&
+                !storage.release_heap_block(token) &&
                 std::ranges::all_of(
                     actor.resource_bytes,
                     [](const auto value) { return value == 0U; }
@@ -117,7 +117,7 @@ void test_battle_group_b_resource_cleanup(openswd3::test::Context& test) {
         actor.resource_bytes.fill(0x7CU);
         actor.resource_description = {3U, 4U};
         test.expect_true(
-            storage.release_heap_block(token).has_value(),
+            storage.release_heap_block(token),
             "retire allocation while retaining stale actor pointer"
         );
         bool caught = false;

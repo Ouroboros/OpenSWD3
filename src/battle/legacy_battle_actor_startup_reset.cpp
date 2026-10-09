@@ -151,8 +151,7 @@ LegacyBattleActorStartupResetResult reset_legacy_battle_actor_for_startup(
         return true;
     };
     const auto release = [&](const u32 instruction, const u32 token) {
-        const auto reply = heap.release_heap_block(token);
-        if (!reply.has_value()) {
+        if (!heap.release_heap_block(token)) {
             stop(Status::heap_release_typed_stop, instruction, token);
             return false;
         }

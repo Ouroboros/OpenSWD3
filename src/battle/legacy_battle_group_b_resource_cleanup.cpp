@@ -20,9 +20,10 @@ LegacyBattleGroupBResourceCleanupResult release_legacy_battle_group_b_resource(
         return result;
     }
 
-    static_cast<void>(
-        resources->release_heap_block(state->resource_token).value()
-    );
+    if (!resources->release_heap_block(state->resource_token)) {
+        throw std::bad_optional_access{};
+    }
+
     state->resource_token = 0U;
     state->resource_bytes.fill(0U);
     state->resource_description.clear();

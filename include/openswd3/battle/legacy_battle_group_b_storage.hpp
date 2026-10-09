@@ -64,8 +64,7 @@ public:
     [[nodiscard]] std::optional<compat::u32>
     read_linked_action_next(compat::u32 token) override;
 
-    [[nodiscard]] std::optional<LegacyBattleActorStartupResetRegisters>
-    release_heap_block(compat::u32 token) override;
+    [[nodiscard]] bool release_heap_block(compat::u32 token) override;
 
 private:
     std::shared_ptr<Actors> actors_;
