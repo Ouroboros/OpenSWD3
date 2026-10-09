@@ -31,9 +31,12 @@ chunk执行：
 
 `0x00451870`完整9行：`mov ecx,0x00521598`后`jmp 0x00478250`。typed constructor直接对固定单例owner执行64次原始写入，正常原样返回该token，不再经过opaque对象生命周期端口。
 
-`0x00451890`完整9行：`mov ecx,0x00521598`后`jmp 0x00478300`。typed destructor直接读取同一owner的`actor+0xB0`说明token；非零值先经固定`0x004885A0`释放，callee正常返回后才清token和说明owner。wrapper只替换ECX，入口EAX/EDX显式线程给基础析构；零token返回EAX零并保留EDX，非零token返回callee三寄存器残值。对象读、callee和对象写typed-stop均不伪造正常返回。
+`0x00451890`完整9行：`mov ecx,0x00521598`后`jmp 0x00478300`。
+当前单例析构直接释放同一owner的文本；非零说明token只在实际释放成功后清零。
+析构寄存器参数、端口与操作结果包装已删除，直接返回基础释放状态及失败位置。
+构造和退出注册的旧协议仍待迁移。
 
-旧`destroy_object()`整函数端口已删除；现存析构端口只隔离固定CRT释放callee。静态初始化器只有构造完整成功后才注册typed destructor token。
+单例与基础说明析构Port均已删除。静态初始化器仍只在构造完整成功后注册退出token。
 
 ## 5. 双向追溯
 
@@ -45,10 +48,12 @@ chunk执行：
 - `0x00451870..0x00451875`：装入固定this并尾跳公共构造；
 - `0x00451890..0x00451895`：装入固定this并尾跳公共析构。
 
-C++到LST反向追溯覆盖主函数23行、两个各9行附件wrapper、外部chunk、固定对象token、退出token及尾跳寄存器线程。
+主函数及两个尾跳的上述寄存器描述记录原机器事实；析构接口已不返回寄存器残值。
 
 ## 6. 验证与动态差分
 
-定向回归覆盖公共构造先于退出注册、构造typed-stop阻断注册、注册EAX零/全一、单例公共说明正常释放、对象读typed-stop、固定ECX与入口EAX/EDX线程，以及组A/组B静态生命周期未回归。当前Linux core`198/198`和定向`2/2`已通过；完整release门见[`battle-actor-base-release-00478300.md`](battle-actor-base-release-00478300.md)。
+当前回归保留构造/注册测试，单例析构改为检查实际文本与共享视图失效、读取失败前缀。
+历史Linux core`198/198`和定向`2/2`记录见基础析构文档；
+本批验证见[说明所有权迁移](battle-actor-description-owned-release.md)。
 
 当前没有原版单例对象字节、说明堆、CRT释放与静态初始化表执行、退出注册和尾跳寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

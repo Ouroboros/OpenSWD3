@@ -14,35 +14,6 @@ inline constexpr compat::u32 kLegacyBattleActorBaseDescriptionTokenOffset =
     0xB0U;
 inline constexpr compat::u32 kLegacyBattleActorBaseDescriptionAccessBytes =
     0xB4U;
-inline constexpr compat::u32 kLegacyBattleActorBaseReleaseCalleeToken =
-    0x004885A0U;
-
-struct LegacyBattleActorBaseReleaseCallRequest {
-    compat::u32 callee_token{};
-    compat::u32 actor_token{};
-    compat::u32 description_token{};
-    compat::u32 actor_offset{};
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
-struct LegacyBattleActorBaseReleaseCallReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-    bool typed_stop{};
-};
-
-class LegacyBattleActorBaseReleasePort {
-public:
-    virtual ~LegacyBattleActorBaseReleasePort() = default;
-
-    [[nodiscard]] virtual LegacyBattleActorBaseReleaseCallReply
-    release_actor_base_description(
-        const LegacyBattleActorBaseReleaseCallRequest& request
-    ) = 0;
-};
 
 enum class LegacyBattleActorBaseReleaseStatus : compat::u8 {
     completed,
@@ -61,9 +32,6 @@ struct LegacyBattleActorBaseReleaseRequest {
     compat::u32 object_token{};
     compat::u32 readable_bytes{kLegacyBattleActorBaseDescriptionAccessBytes};
     compat::u32 writable_bytes{kLegacyBattleActorBaseDescriptionAccessBytes};
-    compat::u32 entry_eax{};
-    compat::u32 entry_ecx{};
-    compat::u32 entry_edx{};
 };
 
 struct LegacyBattleActorBaseReleaseResult {
@@ -73,12 +41,6 @@ struct LegacyBattleActorBaseReleaseResult {
     compat::u32 prior_description_token{};
     compat::u32 stopped_token{};
     compat::u32 stopped_actor_offset{};
-    compat::u32 object_reads{};
-    compat::u32 release_calls{};
-    compat::u32 object_writes{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 // Typed closure of legacy 0x00478300. The definition span starts at actor
@@ -87,14 +49,12 @@ struct LegacyBattleActorBaseReleaseResult {
 release_legacy_battle_actor_base(
     std::span<compat::u8> resource_definition,
     LegacyBattleMonText& resource_definition_description,
-    LegacyBattleActorBaseReleasePort& port,
     const LegacyBattleActorBaseReleaseRequest& request
 );
 
 [[nodiscard]] LegacyBattleActorBaseReleaseResult
 release_legacy_battle_actor_base(
     LegacyBattleActorBaseInitializationOwner& owner,
-    LegacyBattleActorBaseReleasePort& port,
     const LegacyBattleActorBaseReleaseRequest& request
 );
 

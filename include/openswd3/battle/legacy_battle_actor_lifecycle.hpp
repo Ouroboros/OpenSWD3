@@ -115,13 +115,6 @@ struct LegacyBattleActorGroupAElementCallReply {
 struct LegacyBattleActorElementDestructionRequest {
     compat::u32 seh_chain_token{};
     compat::u32 entry_edx{};
-    compat::u32 unwind_eax{};
-    compat::u32 unwind_edx{};
-};
-
-struct LegacyBattleActorSingletonReleaseRequest {
-    compat::u32 entry_eax{};
-    compat::u32 entry_edx{};
 };
 
 class LegacyBattleActorGroupAElementConstructionPort {
@@ -130,13 +123,6 @@ public:
 
     [[nodiscard]] virtual LegacyBattleActorGroupAElementCallReply
     allocate(compat::u32 size) = 0;
-};
-
-class LegacyBattleActorGroupAElementDestructionPort
-    : public virtual LegacyBattleGroupAResourceReleasePort,
-      public virtual LegacyBattleActorBaseReleasePort {
-public:
-    virtual ~LegacyBattleActorGroupAElementDestructionPort() = default;
 };
 
 struct LegacyBattleGroupBActionRecord {
@@ -231,13 +217,6 @@ public:
     allocate(compat::u32 size) = 0;
 };
 
-class LegacyBattleActorGroupBElementDestructionPort
-    : public virtual LegacyBattleGroupBResourceReleasePort,
-      public virtual LegacyBattleActorBaseReleasePort {
-public:
-    virtual ~LegacyBattleActorGroupBElementDestructionPort() = default;
-};
-
 struct LegacyBattleActorSingletonState {
     compat::u32 object_readable_bytes{
         kLegacyBattleActorBaseMinimumWritableBytes
@@ -300,11 +279,6 @@ struct LegacyBattleActorGroupBElementDestructionResult {
     };
     LegacyBattleGroupBResourceCleanupResult resource_cleanup{};
     LegacyBattleActorBaseReleaseResult base_release{};
-    compat::u32 extension_destructor_calls{};
-    compat::u32 base_destructor_calls{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 enum class LegacyBattleActorGroupAElementDestructionStatus : compat::u8 {
@@ -319,11 +293,6 @@ struct LegacyBattleActorGroupAElementDestructionResult {
     };
     LegacyBattleGroupAResourceCleanupResult resource_cleanup{};
     LegacyBattleActorBaseReleaseResult base_release{};
-    compat::u32 resource_cleanup_calls{};
-    compat::u32 base_destructor_calls{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 struct LegacyBattleActorGroupAConstructionResult {
@@ -367,7 +336,6 @@ struct LegacyBattleActorGroupBStaticInitializationResult {
 struct LegacyBattleActorSingletonOperationResult {
     compat::u32 object_token{};
     LegacyBattleActorBaseInitializationResult base_initialization{};
-    LegacyBattleActorBaseReleaseResult base_release{};
     compat::u32 object_operation_calls{};
     compat::u32 return_value{};
 };
@@ -413,7 +381,7 @@ construct_legacy_battle_actor_group_b_element(
 [[nodiscard]] LegacyBattleActorGroupBElementDestructionResult
 release_legacy_battle_actor_group_b_element(
     LegacyBattleActorGroupBElementState& state,
-    LegacyBattleActorGroupBElementDestructionPort& port,
+    LegacyBattleGroupBResourceReleasePort& port,
     LegacyBattleActorElementDestructionRequest request = {}
 );
 
@@ -421,7 +389,7 @@ release_legacy_battle_actor_group_b_element(
 [[nodiscard]] LegacyBattleActorGroupAElementDestructionResult
 release_legacy_battle_actor_group_a_element(
     LegacyBattleActorGroupAElementState& state,
-    LegacyBattleActorGroupAElementDestructionPort& port,
+    LegacyBattleGroupAResourceReleasePort& port,
     LegacyBattleActorElementDestructionRequest request = {}
 );
 
@@ -430,12 +398,8 @@ release_legacy_battle_actor_group_a_element(
 construct_legacy_battle_actor_singleton(LegacyBattleActorSingletonState& state);
 
 // sub_451890: load the singleton token and tail-call its destructor.
-[[nodiscard]] LegacyBattleActorSingletonOperationResult
-release_legacy_battle_actor_singleton(
-    LegacyBattleActorSingletonState& state,
-    LegacyBattleActorBaseReleasePort& release_port,
-    LegacyBattleActorSingletonReleaseRequest request = {}
-);
+[[nodiscard]] LegacyBattleActorBaseReleaseResult
+release_legacy_battle_actor_singleton(LegacyBattleActorSingletonState& state);
 
 // sub_4517B0: wrap the compiler vector-construction iterator for group A.
 [[nodiscard]] LegacyBattleActorGroupAConstructionResult

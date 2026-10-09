@@ -39,7 +39,7 @@ public:
 
     // Called only at an original free. An absent callback denotes standalone
     // host storage, used by existing isolated copies and synthetic states.
-    [[nodiscard]] bool release() noexcept {
+    [[nodiscard]] bool release() {
         if (release_) {
             if (!(*release_)()) {
                 return false;
@@ -54,6 +54,10 @@ public:
 
     void assign(std::size_t size, compat::u8 value) {
         bind(std::make_shared<Storage>(size, value));
+    }
+
+    [[nodiscard]] bool has_allocation() const noexcept {
+        return storage_ != nullptr || release_ != nullptr;
     }
 
     [[nodiscard]] bool empty() const noexcept {

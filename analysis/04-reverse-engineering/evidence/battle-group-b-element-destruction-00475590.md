@@ -20,9 +20,12 @@
 
 `LegacyBattleActorGroupBElementState`继续作为唯一物理owner，承接对象token、对象`+0x0C`资源token、164-byte独立资源记录及公共`actor+0x10..+0xB3` definition。扩展资源析构`0x00476A60`已typed关闭：非零`+0x0C` token只在固定CRT释放callee正常返回后清零并失效独立资源内容。
 
-公共基础析构`0x00478300`现在直接复用`action_composition.resource_definition`末尾的`actor+0xB0`说明token与对应说明owner。零token只读不写；非零token先调用固定`0x004885A0`，callee正常返回后才清token。对象读、callee和对象写各自保留原访问点typed-stop；释放后写停止保留已完成说明失效副作用和未清的原token。
+公共基础析构直接复用`action_composition.resource_definition`末尾的说明token及文本所有权。
+零token只读不写；非零先释放实际文本，成功后才清token。
+读失败、释放失败及释放后写失败均保留对应前缀，已释放的共享文本视图同时失效。
 
-旧`destroy_base()`整函数端口已删除。组B元素析构端口只继承独立资源与公共说明的固定释放callee窄端口，不再隔离两个已关闭析构本体。
+基础说明Port及空的组B元素析构继承层已删除。
+函数直接借用尚待迁移的独立资源接口；基础说明由其既有所有权释放。
 
 ## 4. 两处基础析构到达点与寄存器
 
@@ -31,7 +34,8 @@
 - `0x004755C4`：扩展资源清理正常返回后的普通call；基础callee看到扩展返回EDX，EAX先由`actor+0xB0` token覆盖；
 - `0x004983B3`：unwind状态0 cleanup chunk重载this后的尾跳；EAX/EDX来自异常展开上下文。
 
-正常路径只有基础析构完整返回后才恢复旧SEH链ECX。基础typed-stop直接返回专用状态与停止寄存器，阻断该正常epilogue。扩展异常路径显式线程unwind EAX/EDX，基础清理完成后继续传播原异常。
+上述为原机器寄存器事实。当前元素结果只返回实际清理状态，已删除寄存器及调用计数。
+扩展异常路径直接释放说明，成功后继续传播原异常；不再传递unwind寄存器参数。
 
 ## 5. vector callback边界
 
@@ -52,6 +56,9 @@ MSVC向量helper自身仍负责八对象前向构造、构造失败逆向回滚�
 
 ## 7. 验证与动态差分
 
-聚合回归覆盖typed独立资源→typed公共说明释放顺序、两个固定CRT请求、唯一owner修改、基础EAX/EDX保留、旧SEH链ECX恢复、扩展异常后的cleanup chunk、基础callee异常不重复调用、基础typed-stop阻断epilogue及对象访问停止。当前Linux core`198/198`和定向`2/2`已通过；完整release门见[`battle-actor-base-release-00478300.md`](battle-actor-base-release-00478300.md)。
+当前聚合回归检查独立资源→说明顺序、实际文本释放、异常展开及失败前缀。
+历史Linux core`198/198`和定向`2/2`记录见基础析构文档；
+本批验证见[说明所有权迁移](battle-actor-description-owned-release.md)。
+向量函数编号与扩展资源协议仍是当前Goal待迁移项，不以compiler边界排除。
 
 当前没有原版八个组B完整对象、真实资源/说明堆、CRT释放callee副作用、MSVC SEH链、向量迭代与异常回滚联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。

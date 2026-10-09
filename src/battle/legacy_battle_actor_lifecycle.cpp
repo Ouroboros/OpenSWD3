@@ -160,7 +160,7 @@ construct_legacy_battle_actor_group_b_element(
 LegacyBattleActorGroupBElementDestructionResult
 release_legacy_battle_actor_group_b_element(
     LegacyBattleActorGroupBElementState& state,
-    LegacyBattleActorGroupBElementDestructionPort& port,
+    LegacyBattleGroupBResourceReleasePort& port,
     const LegacyBattleActorElementDestructionRequest request
 ) {
     LegacyBattleActorGroupBElementDestructionResult result;
@@ -178,35 +178,27 @@ release_legacy_battle_actor_group_b_element(
                 .entry_edx = request.entry_edx,
             }
         );
-        ++result.extension_destructor_calls;
     } catch (...) {
         result.base_release = release_legacy_battle_actor_base(
             state.action_composition.resource_definition,
             state.action_composition.resource_definition_description,
-            port,
             {
                 .object_token = state.object_token,
                 .readable_bytes = state.object_readable_bytes,
                 .writable_bytes = state.object_writable_bytes,
-                .entry_eax = request.unwind_eax,
-                .entry_ecx = state.object_token,
-                .entry_edx = request.unwind_edx,
             }
         );
-        ++result.base_destructor_calls;
         if (legacy_battle_actor_base_release_stopped(
                 result.base_release.status
             )) {
             result.status = LegacyBattleActorGroupBElementDestructionStatus::
                 base_release_typed_stop;
-            result.return_eax = result.base_release.return_eax;
-            result.return_ecx = result.base_release.return_ecx;
-            result.return_edx = result.base_release.return_edx;
             return result;
         }
 
         throw;
     }
+
     if (result.resource_cleanup.status !=
         LegacyBattleGroupBResourceCleanupStatus::completed) {
         result.status = LegacyBattleActorGroupBElementDestructionStatus::
@@ -216,36 +208,24 @@ release_legacy_battle_actor_group_b_element(
     result.base_release = release_legacy_battle_actor_base(
         state.action_composition.resource_definition,
         state.action_composition.resource_definition_description,
-        port,
         {
             .object_token = state.object_token,
             .readable_bytes = state.object_readable_bytes,
             .writable_bytes = state.object_writable_bytes,
-            .entry_eax = result.resource_cleanup.return_eax,
-            .entry_ecx = state.object_token,
-            .entry_edx = result.resource_cleanup.return_edx,
         }
     );
-    ++result.base_destructor_calls;
     if (legacy_battle_actor_base_release_stopped(result.base_release.status)) {
         result.status = LegacyBattleActorGroupBElementDestructionStatus::
             base_release_typed_stop;
-        result.return_eax = result.base_release.return_eax;
-        result.return_ecx = result.base_release.return_ecx;
-        result.return_edx = result.base_release.return_edx;
-        return result;
     }
 
-    result.return_eax = result.base_release.return_eax;
-    result.return_ecx = request.seh_chain_token;
-    result.return_edx = result.base_release.return_edx;
     return result;
 }
 
 LegacyBattleActorGroupAElementDestructionResult
 release_legacy_battle_actor_group_a_element(
     LegacyBattleActorGroupAElementState& state,
-    LegacyBattleActorGroupAElementDestructionPort& port,
+    LegacyBattleGroupAResourceReleasePort& port,
     const LegacyBattleActorElementDestructionRequest request
 ) {
     LegacyBattleActorGroupAElementDestructionResult result;
@@ -260,68 +240,49 @@ release_legacy_battle_actor_group_a_element(
                 .entry_edx = request.entry_edx,
             }
         );
-        ++result.resource_cleanup_calls;
     } catch (...) {
         result.base_release = release_legacy_battle_actor_base(
             state.base_initialization,
-            port,
             {
                 .object_token = state.object_token,
                 .readable_bytes = state.object_readable_bytes,
                 .writable_bytes = state.object_writable_bytes,
-                .entry_eax = request.unwind_eax,
-                .entry_ecx = state.object_token,
-                .entry_edx = request.unwind_edx,
             }
         );
-        ++result.base_destructor_calls;
         if (legacy_battle_actor_base_release_stopped(
                 result.base_release.status
             )) {
             result.status = LegacyBattleActorGroupAElementDestructionStatus::
                 base_release_typed_stop;
-            result.return_eax = result.base_release.return_eax;
-            result.return_ecx = result.base_release.return_ecx;
-            result.return_edx = result.base_release.return_edx;
             return result;
         }
 
         throw;
     }
+
     if (result.resource_cleanup.status !=
         LegacyBattleGroupAResourceCleanupStatus::completed) {
         result.status = LegacyBattleActorGroupAElementDestructionStatus::
             resource_cleanup_typed_stop;
     }
+
     if (result.resource_cleanup.primary_resource_released) {
         state.description_bytes.fill(0U);
     }
 
     result.base_release = release_legacy_battle_actor_base(
         state.base_initialization,
-        port,
         {
             .object_token = state.object_token,
             .readable_bytes = state.object_readable_bytes,
             .writable_bytes = state.object_writable_bytes,
-            .entry_eax = result.resource_cleanup.return_eax,
-            .entry_ecx = state.object_token,
-            .entry_edx = result.resource_cleanup.return_edx,
         }
     );
-    ++result.base_destructor_calls;
     if (legacy_battle_actor_base_release_stopped(result.base_release.status)) {
         result.status = LegacyBattleActorGroupAElementDestructionStatus::
             base_release_typed_stop;
-        result.return_eax = result.base_release.return_eax;
-        result.return_ecx = result.base_release.return_ecx;
-        result.return_edx = result.base_release.return_edx;
-        return result;
     }
 
-    result.return_eax = result.base_release.return_eax;
-    result.return_ecx = request.seh_chain_token;
-    result.return_edx = result.base_release.return_edx;
     return result;
 }
 
@@ -444,29 +405,16 @@ construct_legacy_battle_actor_singleton(
     return result;
 }
 
-LegacyBattleActorSingletonOperationResult release_legacy_battle_actor_singleton(
-    LegacyBattleActorSingletonState& state,
-    LegacyBattleActorBaseReleasePort& release_port,
-    const LegacyBattleActorSingletonReleaseRequest request
-) {
-    LegacyBattleActorSingletonOperationResult result{
-        .object_token = kLegacyBattleActorSingletonToken,
-    };
-    result.base_release = release_legacy_battle_actor_base(
+LegacyBattleActorBaseReleaseResult
+release_legacy_battle_actor_singleton(LegacyBattleActorSingletonState& state) {
+    return release_legacy_battle_actor_base(
         state.base_initialization,
-        release_port,
         {
-            .object_token = result.object_token,
+            .object_token = kLegacyBattleActorSingletonToken,
             .readable_bytes = state.object_readable_bytes,
             .writable_bytes = state.object_writable_bytes,
-            .entry_eax = request.entry_eax,
-            .entry_ecx = result.object_token,
-            .entry_edx = request.entry_edx,
         }
     );
-    result.object_operation_calls = 1U;
-    result.return_value = result.base_release.return_eax;
-    return result;
 }
 
 LegacyBattleActorSingletonStaticInitializationResult

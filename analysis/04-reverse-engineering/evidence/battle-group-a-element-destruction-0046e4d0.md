@@ -14,9 +14,14 @@
 
 `release_legacy_battle_actor_group_a_element()`复用构造工作包的唯一元素状态。扩展清理`0x00475180`按顺序处理行动者`+0x2BC4` secondary token和`+0` primary/description token；每个非零token通过固定`0x004885A0`窄释放端口，callee正常返回后才清字段。primary成功释放后同步清除已失效的56-byte宿主description内容。
 
-公共基础析构`0x00478300`现已typed关闭。它直接复用`base_initialization.resource_definition`末尾的`actor+0xB0`说明token与对应说明owner：零token只读不写；非零token先调用同一固定释放包装器，callee正常返回后才清token。对象读、callee和对象写各自保留原访问点typed-stop。
+公共基础析构直接复用`base_initialization.resource_definition`末尾的说明token及文本所有权。
+零token只读不写；非零先释放实际文本，成功后才清token。
+基础释放Port、callee编号、寄存器回复与计数已删除，三类访问失败前缀保持。
 
-正常路径严格执行双资源清理→公共说明释放；只有基础析构完整返回后才恢复旧SEH链ECX。扩展callee抛出时，catch路径以请求中的unwind EAX/EDX和重载this执行同一typed基础清理并继续传播原异常。基础callee抛出时不会再次调用基础析构；基础typed-stop阻断正常epilogue。
+正常路径严格执行双资源清理→公共说明释放。
+扩展清理抛出时，catch释放同一文本所有权并继续传播原异常。
+基础释放本身抛出时不再次清理；原基础释放失败状态继续向外传递。
+元素结果已删除寄存器残值与调用计数，异常展开不再传递unwind寄存器参数。
 
 ## 3. 两处基础析构到达点
 
@@ -25,7 +30,8 @@
 - `0x0046E504`：扩展清理正常返回后的普通call；
 - `0x00498393`：unwind状态0 cleanup chunk重载this后的尾跳。
 
-旧`destroy_base()`整函数端口已删除。两处均直接组合`release_legacy_battle_actor_base()`；剩余端口只隔离固定CRT释放callee，不再隔离公共基础析构本体。
+两处直接调用`release_legacy_battle_actor_base()`，基础文本释放Port已删除。
+空的组A元素析构继承层同时删除，函数直接借用尚待迁移的双资源释放接口。
 
 ## 4. vector caller边界
 
@@ -33,6 +39,9 @@
 
 ## 5. 验证状态
 
-聚合测试验证typed资源清理→typed基础析构顺序、两个固定释放请求、primary与公共说明owner失效、基础EAX/EDX保留、旧SEH链ECX恢复、SEH chunk的unwind寄存器线程、扩展异常继续传播，以及基础callee异常/typed-stop不重复调用或伪造正常epilogue。当前Linux core`198/198`和定向`2/2`已通过；完整release门见[`battle-actor-base-release-00478300.md`](battle-actor-base-release-00478300.md)。
+当前聚合测试检查资源→说明释放顺序、实际文本失效、扩展异常清理及失败前缀。
+寄存器观察断言随旧合同删除。历史Linux core`198/198`和定向`2/2`记录见基础析构文档；
+本批验证见[说明所有权迁移](battle-actor-description-owned-release.md)。
+向量函数编号与扩展资源协议仍是当前Goal待迁移项，不以compiler边界排除。
 
 原版`0x004885A0`allocator副作用、全局组A对象字节、说明堆、MSVC SEH与vector迭代器缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。

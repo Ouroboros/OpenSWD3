@@ -1,6 +1,7 @@
 # 战斗角色公共前部析构 `0x00478300`
 
-状态：`platform_adapted`。完整LST、五处物理到达点、说明token释放顺序、寄存器残留、typed停止点与caller直组装均已收敛。
+历史分类：`platform_adapted`。当前实现直接释放MON文本所有权，已删除基础释放Port、寄存器合同和访问计数。
+本批范围及验证见[说明所有权迁移](battle-actor-description-owned-release.md)。
 
 ## 1. 完整权威范围
 
@@ -32,12 +33,14 @@
 
 实现分离三个原始边界：
 
-- 对象读停止：在`actor+0xB0`读取处停止，保留入口EAX/ECX/EDX，不调用释放器、不改token或宿主说明；
-- 释放调用停止：保留callee返回/停止寄存器、原token与宿主说明，不执行后续清零；
-- 对象写停止：callee释放已完成，宿主说明内容已经失效并清除，但原token仍保留，EAX/ECX/EDX保持callee残值；
+- 对象读停止：在`actor+0xB0`读取处停止，不释放、不改token或宿主说明；
+- 释放调用停止：实际所有权释放失败，保留原token与宿主说明，不执行后续清零；
+- 对象写停止：实际释放已完成，说明视图失效，但原token仍保留；
 - 正常完成：token与宿主说明均清除。
 
 零token路径仍要求原始对象读取可达；没有空对象或短对象的防御性继续路径。
+非零token通过其已有`LegacyBattleMonText`释放实际分配，成功后才清末尾DWORD。
+结果只返回状态、原说明标识与失败位置，不再返回上述原机器寄存器残值。
 
 ## 4. 五处物理到达点与caller回收
 
@@ -51,11 +54,12 @@
 
 三类逻辑caller均已删除本函数的opaque边界：
 
-- 组A先执行既有双资源清理，再直接释放公共definition说明；扩展清理抛出时，cleanup chunk以显式unwind EAX/EDX及重载this调用同一typed helper，然后继续传播原异常；
+- 组A先执行既有双资源清理，再直接释放公共definition说明；扩展清理抛出时，catch调用同一实际说明释放函数，然后继续传播原异常；
 - 组B先执行既有`+0x0C`资源清理，再直接释放公共definition说明；其正常与SEH顺序同样保持；
-- 单例析构包装器直接对构造阶段的同一owner释放，固定覆盖ECX为单例token，并保留包装器入口EAX/EDX线程。
+- 单例析构直接释放构造阶段的同一owner，返回基础释放的实际状态。
 
-正常组A/组B外层析构只在基础析构完整返回后恢复旧SEH链到ECX。基础析构typed-stop阻断该正常epilogue；基础callee抛出时不重复调用基础析构。
+C++由语言异常处理维持展开，不再模拟SEH链寄存器输出。
+基础释放失败返回实际状态；基础释放抛出时不重复调用基础析构。
 
 ## 5. 双向追溯
 
@@ -66,12 +70,15 @@
 - `0x00478316`：callee正常返回后清零`actor+0xB0`；
 - `0x00478320..0x00478321`：恢复ESI并返回。
 
-C++到LST反向追溯覆盖全部11条指令、唯一对象读写、唯一callee、零/非零两条路径、五处物理到达点及EAX/ECX/EDX残留。
+C++保留唯一对象读写、零/非零分支、正常与展开到达点及释放顺序；
+上述寄存器说明记录原指令事实，不再是C++接口合同。
 
 ## 6. 验证与动态差分
 
-独立定向测试覆盖零token、正常释放、对象读停止、释放调用停止、释放后对象写停止、callee异常及说明owner保留/失效顺序。聚合生命周期测试覆盖组A、组B和固定单例的正常直组装、两个SEH cleanup chunk、基础callee异常不重复调用、typed-stop阻断外层epilogue及单例尾跳入口寄存器线程。
+当前测试检查实际分配、共享文本视图、零token、三类失败前缀及释放异常。
+聚合生命周期测试检查组A/B与单例的释放顺序、异常展开和基础异常不重复释放。
+当前SDL尚未显式调用这些完整元素析构入口，不将core测试冒充生产退出覆盖。
 
-验证已通过定向测试`2/2`、Linux core`198/198`、AddressSanitizer`198/198`、Linux app`204/204`及连续10轮完整core，源码零warning，无sanitizer finding或runtime error。inventory连续双生成逐字节一致，正式计数为`277/422 = 267 platform_adapted + 10 assembly_exact + 145 pending_audit`，SHA256为`1c69ea1c505789e9aca8f17d3312c303745d05abaf767ba4189b04a372e043c9`；release审计全部通过。
+历史工作包验证曾通过定向测试`2/2`、Linux core`198/198`、AddressSanitizer`198/198`、Linux app`204/204`及连续10轮完整core，源码零warning，无sanitizer finding或runtime error。inventory连续双生成逐字节一致，正式计数为`277/422 = 267 platform_adapted + 10 assembly_exact + 145 pending_audit`，SHA256为`1c69ea1c505789e9aca8f17d3312c303745d05abaf767ba4189b04a372e043c9`；release审计全部通过。
 
 当前没有原版组A/组B/单例完整对象、说明堆、CRT释放边界、异常访问及五处caller联合寄存器/SEH捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整11条指令、五处到达点与typed所有权的静态闭环。
