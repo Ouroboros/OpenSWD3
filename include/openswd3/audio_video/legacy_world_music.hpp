@@ -1,8 +1,10 @@
 #pragma once
 
+#include "openswd3/audio_video/legacy_stream_manager.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -26,21 +28,23 @@ struct LegacyWorldMusicState {
     compat::u32 selected_mode{};
     std::array<compat::u32, 7U> music_slots{};
     compat::i32 mix_level{};
+    compat::u32 current_fade_divisor{};
+    compat::u32 pending_fade_divisor{};
 };
 
-class LegacyWorldMusicPorts {
-public:
-    virtual ~LegacyWorldMusicPorts() = default;
+struct LegacyWorldMusicBindings {
+    compat::u32& request_flags;
+    compat::u32& selected_mode;
+    std::array<std::reference_wrapper<compat::u32>, 6> music_slots;
+    const compat::i32& mix_level;
+    compat::u32& current_fade_divisor;
+    compat::u32& pending_fade_divisor;
+};
 
-    virtual void poll_stream_transition() = 0;
-    [[nodiscard]] virtual bool music_stream_absent() = 0;
-    virtual void
-    configure_stream_transition(compat::i32 mode, compat::i32 value) = 0;
-    virtual void apply_stream_transition() = 0;
-    [[nodiscard]] virtual std::string_view
-    music_source_filename(compat::u32 music_id) = 0;
-    virtual void play_music_stream(std::string_view filename) = 0;
-    virtual void set_music_stream_volume(compat::i32 mix_level) = 0;
+struct LegacyWorldMusicResult {
+    std::optional<compat::u32> missing_source_id;
+    std::optional<std::string> requested_path;
+    bool playing{};
 };
 
 enum class LegacyWorldMusicMapsStatus : compat::u8 {
@@ -51,10 +55,10 @@ enum class LegacyWorldMusicMapsStatus : compat::u8 {
 
 [[nodiscard]] LegacyWorldMusicMapsStatus
 update_legacy_world_music_request_from_maps(
-    LegacyWorldMusicState& state,
+    LegacyWorldMusicBindings state,
     std::span<const compat::u8> maps_payload,
     compat::u16 map_id,
-    LegacyWorldMusicPorts& ports
+    LegacyStreamManager& streams
 );
 
 [[nodiscard]] std::optional<std::string_view>
@@ -67,16 +71,17 @@ legacy_music_source_filename_from_maps(
 );
 
 void update_legacy_world_music_request(
-    LegacyWorldMusicState& state,
+    LegacyWorldMusicBindings state,
     std::span<const LegacyWorldMusicTableEntry> table,
     compat::u16 map_id,
-    LegacyWorldMusicPorts& ports
+    LegacyStreamManager& streams
 );
 
-[[nodiscard]] bool service_legacy_world_music(
-    LegacyWorldMusicState& state,
+[[nodiscard]] LegacyWorldMusicResult service_legacy_world_music(
+    LegacyWorldMusicBindings state,
     std::string_view base_prefix,
-    LegacyWorldMusicPorts& ports
+    std::span<const compat::u8> maps_payload,
+    LegacyStreamManager& streams
 );
 
 }  // namespace openswd3::audio_video

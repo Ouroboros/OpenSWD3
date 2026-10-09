@@ -1,5 +1,8 @@
 #include "openswd3/audio_video/legacy_world_music.hpp"
 
+#include "openswd3/audio_video/legacy_stream_commands.hpp"
+
+#include <bit>
 #include <cstddef>
 
 namespace openswd3::audio_video {
@@ -45,9 +48,9 @@ constexpr std::size_t kMusicTableEntrySize = 0x08U;
 }
 
 void consume_pending_slot(
-    LegacyWorldMusicState& state, const std::size_t slot_index
+    LegacyWorldMusicBindings state, const std::size_t slot_index
 ) noexcept {
-    compat::u32& slot = state.music_slots[slot_index];
+    compat::u32& slot = state.music_slots[slot_index].get();
     if ((slot & kLegacyMusicSlotPendingFlag) == 0U) {
         return;
     }
@@ -57,7 +60,7 @@ void consume_pending_slot(
 }
 
 void write_low_byte_mode(
-    LegacyWorldMusicState& state, const compat::u32 mode
+    LegacyWorldMusicBindings state, const compat::u32 mode
 ) noexcept {
     state.request_flags = (state.request_flags & ~kLegacyLowByteMask) | mode;
 }
@@ -65,10 +68,10 @@ void write_low_byte_mode(
 }  // namespace
 
 LegacyWorldMusicMapsStatus update_legacy_world_music_request_from_maps(
-    LegacyWorldMusicState& state,
+    LegacyWorldMusicBindings state,
     const std::span<const compat::u8> maps_payload,
     const compat::u16 map_id,
-    LegacyWorldMusicPorts& ports
+    LegacyStreamManager& streams
 ) {
     if (!has_bytes(
             maps_payload, kMapsRootDirectoryOffset, sizeof(compat::u32)
@@ -101,12 +104,14 @@ LegacyWorldMusicMapsStatus update_legacy_world_music_request_from_maps(
         };
         if (entry.map_id == 0U) {
             const std::array terminator{LegacyWorldMusicTableEntry{}};
-            update_legacy_world_music_request(state, terminator, map_id, ports);
+            update_legacy_world_music_request(
+                state, terminator, map_id, streams
+            );
             return LegacyWorldMusicMapsStatus::map_not_found;
         }
         if (entry.map_id == map_id) {
             const std::array table{entry, LegacyWorldMusicTableEntry{}};
-            update_legacy_world_music_request(state, table, map_id, ports);
+            update_legacy_world_music_request(state, table, map_id, streams);
             return LegacyWorldMusicMapsStatus::ready;
         }
         entry_offset += kMusicTableEntrySize;
@@ -170,10 +175,10 @@ std::optional<std::string> build_legacy_music_path(
 }
 
 void update_legacy_world_music_request(
-    LegacyWorldMusicState& state,
+    LegacyWorldMusicBindings state,
     const std::span<const LegacyWorldMusicTableEntry> table,
     const compat::u16 map_id,
-    LegacyWorldMusicPorts& ports
+    LegacyStreamManager& streams
 ) {
     const LegacyWorldMusicTableEntry* selected{};
     for (const LegacyWorldMusicTableEntry& entry : table) {
@@ -187,25 +192,29 @@ void update_legacy_world_music_request(
     }
 
     if (selected == nullptr) {
-        state.music_slots[1U] = 0U;
-        state.music_slots[2U] = 0U;
+        state.music_slots[1U].get() = 0U;
+        state.music_slots[2U].get() = 0U;
         state.request_flags &= ~kLegacyMusicRequestPairMask;
         return;
     }
 
-    if (state.music_slots[1U] == selected->first_music_id &&
-        state.music_slots[2U] == selected->second_music_id) {
+    if (state.music_slots[1U].get() == selected->first_music_id &&
+        state.music_slots[2U].get() == selected->second_music_id) {
         return;
     }
 
-    state.music_slots[1U] = selected->first_music_id;
-    state.music_slots[2U] = selected->second_music_id;
+    state.music_slots[1U].get() = selected->first_music_id;
+    state.music_slots[2U].get() = selected->second_music_id;
 
     if ((state.request_flags & kLegacyAlternateMusicGroupFlag) == 0U) {
         state.request_flags = 0U;
-        if (!ports.music_stream_absent()) {
-            ports.configure_stream_transition(2, 15);
-            ports.apply_stream_transition();
+        if (legacy_stream_absent(streams) == 0) {
+            state.selected_mode = 2U;
+            state.pending_fade_divisor = 15U;
+            static_cast<void>(streams.begin_fade(
+                100, std::bit_cast<compat::i32>(state.pending_fade_divisor)
+            ));
+            state.current_fade_divisor = state.pending_fade_divisor;
         }
     }
 
@@ -223,14 +232,20 @@ void update_legacy_world_music_request(
     }
 }
 
-bool service_legacy_world_music(
-    LegacyWorldMusicState& state,
+LegacyWorldMusicResult service_legacy_world_music(
+    LegacyWorldMusicBindings state,
     const std::string_view base_prefix,
-    LegacyWorldMusicPorts& ports
+    const std::span<const compat::u8> maps_payload,
+    LegacyStreamManager& streams
 ) {
-    ports.poll_stream_transition();
-    if (!ports.music_stream_absent()) {
-        return true;
+    LegacyWorldMusicResult result;
+    if (state.selected_mode == 2U && legacy_stream_absent(streams) == 1) {
+        state.selected_mode = 0U;
+        state.current_fade_divisor = 0U;
+    }
+
+    if (legacy_stream_absent(streams) == 0) {
+        return result;
     }
 
     const bool alternate_group =
@@ -249,7 +264,7 @@ bool service_legacy_world_music(
     if (mode > 2U) {
         if ((state.request_flags & restart_flag) == 0U) {
             write_low_byte_mode(state, 3U);
-            return true;
+            return result;
         }
         mode = (state.request_flags & first_slot_flag) != 0U ? 1U : 2U;
     }
@@ -258,22 +273,35 @@ bool service_legacy_world_music(
         const std::size_t group_offset = alternate_group ? 3U : 0U;
         const std::size_t slot_index =
             group_offset + static_cast<std::size_t>(mode);
-        const compat::u32 music_id = state.music_slots[slot_index];
+        const compat::u32 music_id = state.music_slots[slot_index].get();
         if (music_id != 0U &&
             (music_id & kLegacyMusicSlotSuppressedFlag) == 0U) {
-            const std::optional<std::string> path = build_legacy_music_path(
-                base_prefix, ports.music_source_filename(music_id)
-            );
-            if (path.has_value()) {
-                ports.play_music_stream(*path);
-                ports.set_music_stream_volume(state.mix_level);
-                state.request_flags &= ~kLegacyPostPlayClearFlag;
+            const auto source =
+                legacy_music_source_filename_from_maps(maps_payload, music_id);
+            if (!source) {
+                result.missing_source_id = music_id;
+            } else {
+                result.requested_path =
+                    build_legacy_music_path(base_prefix, *source);
+                if (result.requested_path) {
+                    static_cast<void>(play_legacy_stream(
+                        streams,
+                        *result.requested_path,
+                        streams.stream_enabled() ? 1 : 0,
+                        state.mix_level
+                    ));
+                    result.playing = legacy_stream_absent(streams) == 0;
+                    static_cast<void>(
+                        set_legacy_stream_volume(streams, state.mix_level)
+                    );
+                    state.request_flags &= ~kLegacyPostPlayClearFlag;
+                }
             }
         }
     }
 
     write_low_byte_mode(state, mode);
-    return true;
+    return result;
 }
 
 }  // namespace openswd3::audio_video

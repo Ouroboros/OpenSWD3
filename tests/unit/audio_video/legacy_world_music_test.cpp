@@ -4,114 +4,131 @@
 
 #include <algorithm>
 #include <array>
-#include <optional>
+#include <functional>
 #include <string>
-#include <string_view>
-#include <utility>
 #include <vector>
 
 namespace {
 
-using openswd3::audio_video::LegacyWorldMusicMapsStatus;
-using openswd3::audio_video::LegacyWorldMusicPorts;
-using openswd3::audio_video::LegacyWorldMusicState;
-using openswd3::audio_video::LegacyWorldMusicTableEntry;
-using openswd3::audio_video::build_legacy_music_path;
-using openswd3::audio_video::legacy_music_source_filename_from_maps;
-using openswd3::audio_video::update_legacy_world_music_request_from_maps;
-using openswd3::audio_video::service_legacy_world_music;
-using openswd3::audio_video::update_legacy_world_music_request;
+using namespace openswd3::audio_video;
 using openswd3::compat::i32;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
-enum class PortCall {
-    poll_transition,
-    stream_absent,
-    configure_transition,
-    apply_transition,
-    source_filename,
-    play_stream,
-    set_volume,
-};
-
-struct PortEvent {
-    PortCall call{};
-    i32 first{};
-    i32 second{};
-    std::string text;
-
-    bool operator==(const PortEvent&) const = default;
-};
-
-[[nodiscard]] PortEvent event(
-    const PortCall call,
-    const i32 first = 0,
-    const i32 second = 0,
-    std::string text = {}
-) {
-    return {call, first, second, std::move(text)};
-}
-
-class RecordingPorts final : public LegacyWorldMusicPorts {
+class MusicBackend final : public LegacyStreamBackend {
 public:
-    void poll_stream_transition() override {
-        events.push_back(event(PortCall::poll_transition));
+    u32 open_stream(u32, std::string_view filename, i32) override {
+        paths.emplace_back(filename);
+        operations.push_back('o');
+        return open_fails ? 0U : 1U;
     }
 
-    bool music_stream_absent() override {
-        events.push_back(event(PortCall::stream_absent));
-        return stream_absent;
+    std::string_view last_error() const override {
+        return "open failed";
     }
 
-    void configure_stream_transition(const i32 mode, const i32 value) override {
-        events.push_back(event(PortCall::configure_transition, mode, value));
+    void close_stream(u32) override {
+        operations.push_back('c');
+        playing = false;
     }
 
-    void apply_stream_transition() override {
-        events.push_back(event(PortCall::apply_transition));
+    void set_stream_user_data(u32, u32, i32 value) override {
+        stream_id = value;
     }
 
-    std::string_view music_source_filename(const u32 music_id) override {
-        events.push_back(
-            event(PortCall::source_filename, static_cast<i32>(music_id))
-        );
-        last_resolved_id = music_id;
-        return source_filename;
+    i32 stream_user_data(u32, u32) override {
+        return stream_id;
     }
 
-    void play_music_stream(const std::string_view filename) override {
-        events.push_back(
-            event(PortCall::play_stream, 0, 0, std::string{filename})
-        );
+    void set_stream_volume(u32, i32 value) override {
+        volume = value;
+        volumes.push_back(value);
+        operations.push_back('v');
     }
 
-    void set_music_stream_volume(const i32 mix_level) override {
-        events.push_back(event(PortCall::set_volume, mix_level));
+    i32 stream_volume(u32) override {
+        return volume;
     }
 
-    bool stream_absent{true};
-    u32 last_resolved_id{};
-    std::string source_filename{"Map_Ca00.wav"};
-    std::vector<PortEvent> events;
+    void set_stream_loop_count(u32, i32 value) override {
+        loop_count = value;
+    }
+
+    void start_stream(u32) override {
+        playing = true;
+        operations.push_back('s');
+        if (after_start) {
+            after_start();
+        }
+    }
+
+    u32 stream_status(u32) override {
+        return playing ? 4U : 2U;
+    }
+
+    void stream_ms_position(u32, i32& total, i32& current) override {
+        total = 1000;
+        current = 0;
+    }
+
+    std::vector<std::string> paths;
+    std::vector<i32> volumes;
+    std::vector<char> operations;
+    std::function<void()> after_start;
+    i32 stream_id{};
+    i32 volume{};
+    i32 loop_count{};
+    bool playing{};
+    bool open_fails{};
 };
 
-void write_u16(
-    const std::span<u8> bytes, const std::size_t offset, const u16 value
-) {
+void write_u16(std::span<u8> bytes, std::size_t offset, u16 value) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
-void write_u32(
-    const std::span<u8> bytes, const std::size_t offset, const u32 value
-) {
+void write_u32(std::span<u8> bytes, std::size_t offset, u32 value) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
     bytes[offset + 2U] = static_cast<u8>(value >> 16U);
     bytes[offset + 3U] = static_cast<u8>(value >> 24U);
 }
+
+struct Fixture {
+    LegacyWorldMusicState state;
+    MusicBackend backend;
+    LegacyStreamManager streams{backend};
+    std::array<u8, 2048> maps{};
+
+    Fixture() {
+        static_cast<void>(streams.initialize_pool(1U));
+    }
+
+    LegacyWorldMusicBindings bindings() {
+        return {
+            state.request_flags,
+            state.selected_mode,
+            {state.music_slots[0],
+             state.music_slots[1],
+             state.music_slots[2],
+             state.music_slots[3],
+             state.music_slots[4],
+             state.music_slots[5]},
+            state.mix_level,
+            state.current_fade_divisor,
+            state.pending_fade_divisor,
+        };
+    }
+
+    void source(u32 id, std::string_view filename) {
+        maps.fill(0U);
+        write_u32(maps, 8U, 0x20U);
+        write_u32(maps, 0x20U, 0x40U);
+        write_u32(maps, 0x40U + id * 4U, 0x600U);
+        std::ranges::copy(filename, maps.begin() + 0x604U);
+    }
+};
 
 void test_maps_music_directory(openswd3::test::Context& test) {
     std::array<u8, 0xA0U> maps{};
@@ -129,41 +146,46 @@ void test_maps_music_directory(openswd3::test::Context& test) {
     constexpr std::string_view second_name{"Map_Eu01.wav"};
     std::ranges::copy(first_name, maps.begin() + 0x74U);
     std::ranges::copy(second_name, maps.begin() + 0x88U);
-
-    LegacyWorldMusicState state;
-    RecordingPorts ports;
+    Fixture fixture;
     test.expect_equal(
-        update_legacy_world_music_request_from_maps(state, maps, 7U, ports),
+        update_legacy_world_music_request_from_maps(
+            fixture.bindings(), maps, 7U, fixture.streams
+        ),
         LegacyWorldMusicMapsStatus::ready,
-        "the MAPS root directories resolve the current map music record"
+        "MAPS directories resolve the map record"
     );
     test.expect_true(
-        state.music_slots[1U] == 1U && state.music_slots[2U] == 2U &&
-            state.request_flags == 0x00080000U,
-        "the decoded eight-byte MAPS record reaches the existing request " "state machine"
+        fixture.state.music_slots[1] == 1U &&
+            fixture.state.music_slots[2] == 2U &&
+            fixture.state.request_flags == 0x00080000U,
+        "the eight-byte record publishes both IDs and restart flags"
     );
     test.expect_equal(
         legacy_music_source_filename_from_maps(maps, 1U),
         std::optional<std::string_view>{first_name},
-        "the first MAPS directory maps a music ID to its source filename"
+        "the first filename resolves through MAPS"
     );
     test.expect_equal(
         legacy_music_source_filename_from_maps(maps, 2U),
         std::optional<std::string_view>{second_name},
-        "the filename view skips the four-byte record prefix"
-    );
-
-    test.expect_equal(
-        update_legacy_world_music_request_from_maps(state, maps, 8U, ports),
-        LegacyWorldMusicMapsStatus::map_not_found,
-        "the zero map ID terminator reports a missing map entry"
+        "the second filename skips its record prefix"
     );
     test.expect_equal(
         update_legacy_world_music_request_from_maps(
-            state, std::span<const u8>{maps}.first(12U), 7U, ports
+            fixture.bindings(), maps, 8U, fixture.streams
+        ),
+        LegacyWorldMusicMapsStatus::map_not_found,
+        "the zero map ID terminates lookup"
+    );
+    test.expect_equal(
+        update_legacy_world_music_request_from_maps(
+            fixture.bindings(),
+            std::span<const u8>{maps}.first(12U),
+            7U,
+            fixture.streams
         ),
         LegacyWorldMusicMapsStatus::payload_out_of_range,
-        "a truncated MAPS directory stops before changing request state"
+        "a truncated directory remains an explicit data error"
     );
 }
 
@@ -171,17 +193,17 @@ void test_path_construction(openswd3::test::Context& test) {
     test.expect_equal(
         build_legacy_music_path("D:\\swd3\\", "Map_Ca00.wav"),
         std::optional<std::string>{"D:\\swd3\\Music\\Map_Ca00.mp3"},
-        "0x0040EB60 preserves prefix and replaces extension with mp3"
+        "the base prefix is preserved"
     );
     test.expect_equal(
         build_legacy_music_path("", "Story.11.wave"),
         std::optional<std::string>{"Music\\Story.mp3"},
-        "the first period terminates the copied legacy basename"
+        "the first period ends the basename"
     );
     test.expect_equal(
         build_legacy_music_path("", "MissingExtension"),
         std::optional<std::string>{},
-        "invalid host data is isolated instead of scanning beyond its view"
+        "a missing period does not scan beyond host memory"
     );
 }
 
@@ -191,218 +213,211 @@ void test_map_request_update(openswd3::test::Context& test) {
         LegacyWorldMusicTableEntry{},
         LegacyWorldMusicTableEntry{8U, 201U, 202U, 0U},
     };
-
     {
-        RecordingPorts ports;
-        ports.stream_absent = false;
-        LegacyWorldMusicState state;
-        state.request_flags = 0x001FFFFFU;
-        state.music_slots[1U] = 1U;
-        state.music_slots[2U] = 2U;
-
-        update_legacy_world_music_request(state, table, 7U, ports);
-        test.expect_equal(state.music_slots[1U], 101U, "first table value");
-        test.expect_equal(state.music_slots[2U], 102U, "second table value");
-        test.expect_equal(
-            state.request_flags,
-            0x000C0000U,
-            "normal-group change clears flags then applies entry bits"
-        );
-        test.expect_equal(
-            ports.events,
-            std::vector<PortEvent>{
-                event(PortCall::stream_absent),
-                event(PortCall::configure_transition, 2, 15),
-                event(PortCall::apply_transition),
-            },
-            "active music receives the exact fade setup call order"
-        );
-    }
-
-    {
-        RecordingPorts ports;
-        LegacyWorldMusicState state;
-        state.request_flags = 0x008C1234U;
-        state.music_slots[1U] = 1U;
-        state.music_slots[2U] = 2U;
-
-        update_legacy_world_music_request(state, table, 7U, ports);
-        test.expect_equal(
-            state.request_flags,
-            0x008C1234U,
-            "alternate group preserves its high group bit and request pair"
+        Fixture fixture;
+        static_cast<void>(fixture.streams.play("existing.mp3", 100, 64, 1));
+        fixture.state.request_flags = 0x001FFFFFU;
+        update_legacy_world_music_request(
+            fixture.bindings(), table, 7U, fixture.streams
         );
         test.expect_true(
-            ports.events.empty(),
-            "alternate group does not query or fade the current stream"
+            fixture.state.music_slots[1] == 101U &&
+                fixture.state.music_slots[2] == 102U &&
+                fixture.state.request_flags == 0x000C0000U &&
+                fixture.state.selected_mode == 2U &&
+                fixture.state.pending_fade_divisor == 15U &&
+                fixture.state.current_fade_divisor == 15U,
+            "a normal-group change publishes IDs and the actual shared fade state"
+        );
+        static_cast<void>(fixture.streams.service());
+        test.expect_equal(
+            fixture.backend.volume,
+            59,
+            "the real stream begins fading with divisor fifteen"
         );
     }
 
     {
-        RecordingPorts ports;
-        LegacyWorldMusicState state;
-        state.request_flags = 0x000C0055U;
-        state.music_slots[1U] = 9U;
-        state.music_slots[2U] = 10U;
-
-        update_legacy_world_music_request(state, table, 99U, ports);
-        test.expect_equal(state.music_slots[1U], 0U, "missing first slot zero");
-        test.expect_equal(
-            state.music_slots[2U], 0U, "missing second slot zero"
+        Fixture fixture;
+        fixture.state.request_flags = 0x008C1234U;
+        update_legacy_world_music_request(
+            fixture.bindings(), table, 7U, fixture.streams
         );
-        test.expect_equal(
-            state.request_flags,
-            0x00000055U,
-            "missing entry clears only the paired request flags"
-        );
-    }
-
-    {
-        RecordingPorts ports;
-        LegacyWorldMusicState state;
-        state.music_slots[1U] = 101U;
-        state.music_slots[2U] = 102U;
-
-        update_legacy_world_music_request(state, table, 7U, ports);
         test.expect_true(
-            ports.events.empty(),
-            "unchanged table values return before stream coordination"
+            fixture.state.request_flags == 0x008C1234U &&
+                fixture.state.selected_mode == 0U &&
+                fixture.state.pending_fade_divisor == 0U,
+            "the alternate group retains flags without starting a fade"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.state.request_flags = 0x000C0055U;
+        fixture.state.music_slots[1] = 9U;
+        fixture.state.music_slots[2] = 10U;
+        update_legacy_world_music_request(
+            fixture.bindings(), table, 99U, fixture.streams
+        );
+        test.expect_true(
+            fixture.state.music_slots[1] == 0U &&
+                fixture.state.music_slots[2] == 0U &&
+                fixture.state.request_flags == 0x55U,
+            "a missing map clears only its IDs and paired flags"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.state.music_slots[1] = 101U;
+        fixture.state.music_slots[2] = 102U;
+        fixture.state.selected_mode = 7U;
+        fixture.state.request_flags = 0x12345678U;
+        update_legacy_world_music_request(
+            fixture.bindings(), table, 7U, fixture.streams
+        );
+        test.expect_true(
+            fixture.state.selected_mode == 7U &&
+                fixture.state.request_flags == 0x12345678U,
+            "unchanged IDs return without clearing flags or configuring a fade"
         );
     }
 }
 
 void test_world_music_service(openswd3::test::Context& test) {
     {
-        RecordingPorts ports;
-        ports.stream_absent = false;
-        LegacyWorldMusicState state;
-        state.request_flags = 2U;
-
+        Fixture fixture;
+        static_cast<void>(fixture.streams.play("existing.mp3", 100, 64, 1));
+        fixture.state.request_flags = 2U;
+        const auto result = service_legacy_world_music(
+            fixture.bindings(), "", fixture.maps, fixture.streams
+        );
         test.expect_true(
-            service_legacy_world_music(state, "", ports),
-            "all machine-level exits report one"
-        );
-        test.expect_equal(
-            ports.events,
-            std::vector<PortEvent>{
-                event(PortCall::poll_transition),
-                event(PortCall::stream_absent),
-            },
-            "an existing stream gates request consumption"
-        );
-        test.expect_equal(state.request_flags, 2U, "gated flags unchanged");
-    }
-
-    {
-        RecordingPorts ports;
-        LegacyWorldMusicState state;
-        state.request_flags = 0U;
-        state.mix_level = 9;
-        state.music_slots[0U] = 0x80000002U;
-        state.music_slots[1U] = 42U;
-        state.music_slots[3U] = 0x80000001U;
-
-        static_cast<void>(service_legacy_world_music(state, "R:\\", ports));
-        test.expect_equal(
-            state.selected_mode,
-            2U,
-            "slot zero pending mode overwrites slot three pending mode"
-        );
-        test.expect_equal(
-            state.music_slots[0U], 2U, "slot zero pending bit is consumed"
-        );
-        test.expect_equal(
-            state.music_slots[3U],
-            1U,
-            "slot three pending bit is consumed first"
-        );
-        test.expect_equal(state.request_flags, 1U, "mode advances to one");
-        test.expect_equal(
-            ports.last_resolved_id, 42U, "normal slot one chosen"
-        );
-        test.expect_equal(
-            ports.events,
-            std::vector<PortEvent>{
-                event(PortCall::poll_transition),
-                event(PortCall::stream_absent),
-                event(PortCall::source_filename, 42),
-                event(PortCall::play_stream, 0, 0, "R:\\Music\\Map_Ca00.mp3"),
-                event(PortCall::set_volume, 9),
-            },
-            "resolve, play and volume order follows 0x0040CECD-0x0040CEE5"
+            !result.requested_path && fixture.state.request_flags == 2U &&
+                fixture.streams.active_stream_count() == 1U,
+            "an existing stream prevents request consumption"
         );
     }
 
     {
-        RecordingPorts ports;
-        LegacyWorldMusicState state;
-        state.request_flags = 2U;
-        state.music_slots[3U] = 88U;
-
-        static_cast<void>(service_legacy_world_music(state, "", ports));
-        test.expect_equal(
-            state.request_flags,
-            3U,
-            "mode above two without restart flag collapses to three"
+        Fixture fixture;
+        fixture.source(42U, "Map_Ca00.wav");
+        fixture.state.mix_level = 9;
+        fixture.state.music_slots[0] = 0x80000002U;
+        fixture.state.music_slots[1] = 42U;
+        fixture.state.music_slots[3] = 0x80000001U;
+        const auto result = service_legacy_world_music(
+            fixture.bindings(), "R:\\", fixture.maps, fixture.streams
         );
-        test.expect_equal(
-            ports.events.size(),
-            std::size_t{2U},
-            "collapse returns before catalog lookup"
+        test.expect_true(
+            fixture.state.selected_mode == 2U &&
+                fixture.state.music_slots[0] == 2U &&
+                fixture.state.music_slots[3] == 1U &&
+                fixture.state.request_flags == 1U,
+            "slot zero consumes its pending bit after slot three and overwrites the selected mode"
         );
-    }
-
-    {
-        RecordingPorts ports;
-        ports.source_filename = "Story_50.mid";
-        LegacyWorldMusicState state;
-        state.request_flags = 0x00AA0002U;
-        state.mix_level = 11;
-        state.music_slots[5U] = 77U;
-
-        static_cast<void>(service_legacy_world_music(state, "", ports));
-        test.expect_equal(
-            ports.last_resolved_id,
-            77U,
-            "alternate restart without first-slot flag selects group slot two"
-        );
-        test.expect_equal(
-            state.request_flags,
-            0x008A0002U,
-            "successful play clears LST bit 0x200000, preserves the scene " "restart bit and writes mode two"
+        test.expect_true(
+            result.requested_path ==
+                    std::optional<std::string>{"R:\\Music\\Map_Ca00.mp3"} &&
+                result.playing &&
+                fixture.backend.paths ==
+                    std::vector<std::string>{*result.requested_path} &&
+                fixture.backend.operations ==
+                    std::vector<char>{'o', 'v', 's', 'v'} &&
+                fixture.backend.volumes == std::vector<i32>{104, 104},
+            "normal slot one resolves from actual MAPS data and plays before the independent volume write"
         );
     }
 
     {
-        RecordingPorts ports;
-        ports.source_filename = "Map_Eu08.wav";
-        LegacyWorldMusicState state;
-        state.request_flags = 0x00820002U;
-        state.music_slots[5U] = 24U;
-
-        static_cast<void>(service_legacy_world_music(state, "", ports));
-        test.expect_equal(
-            ports.last_resolved_id,
-            24U,
-            "scene mode three retains 0x20000 and loops its second slot"
+        Fixture fixture;
+        fixture.state.request_flags = 2U;
+        fixture.state.music_slots[3] = 88U;
+        const auto result = service_legacy_world_music(
+            fixture.bindings(), "", fixture.maps, fixture.streams
         );
-        test.expect_equal(
-            state.request_flags,
-            0x00820002U,
-            "the looping scene request remains in mode two after restart"
+        test.expect_true(
+            fixture.state.request_flags == 3U && !result.requested_path &&
+                !result.missing_source_id,
+            "mode above two without restart returns before filename lookup"
+        );
+    }
+
+    for (const u32 flags : {0x00AA0002U, 0x00820002U}) {
+        Fixture fixture;
+        fixture.source(77U, "Story_50.mid");
+        fixture.state.request_flags = flags;
+        fixture.state.music_slots[5] = 77U;
+        const auto result = service_legacy_world_music(
+            fixture.bindings(), "", fixture.maps, fixture.streams
+        );
+        test.expect_true(
+            result.requested_path ==
+                    std::optional<std::string>{"Music\\Story_50.mp3"} &&
+                result.playing &&
+                fixture.state.request_flags == (flags & ~0x00200000U),
+            "alternate restart selects its second slot and clears 0x200000 while retaining 0x20000"
         );
     }
 
     {
-        RecordingPorts ports;
-        LegacyWorldMusicState state;
-        state.music_slots[1U] = 0x8001U;
+        Fixture fixture;
+        fixture.state.music_slots[1] = 0x8001U;
+        const auto result = service_legacy_world_music(
+            fixture.bindings(), "", fixture.maps, fixture.streams
+        );
+        test.expect_true(
+            !result.requested_path && !result.missing_source_id &&
+                fixture.state.request_flags == 1U,
+            "suppressed music IDs skip MAPS lookup while advancing the mode"
+        );
+    }
 
-        static_cast<void>(service_legacy_world_music(state, "", ports));
-        test.expect_equal(
-            ports.events.size(),
-            std::size_t{2U},
-            "music IDs with bit 0x8000 do not reach the catalog"
+    {
+        Fixture fixture;
+        fixture.state.selected_mode = 2U;
+        fixture.state.current_fade_divisor = 15U;
+        fixture.state.pending_fade_divisor = 15U;
+        fixture.state.music_slots[1] = 42U;
+        const auto result = service_legacy_world_music(
+            fixture.bindings(), "", {}, fixture.streams
+        );
+        test.expect_true(
+            fixture.state.selected_mode == 0U &&
+                fixture.state.current_fade_divisor == 0U &&
+                fixture.state.pending_fade_divisor == 15U &&
+                result.missing_source_id == 42U && !result.playing &&
+                fixture.state.request_flags == 1U,
+            "polling clears a completed fade before an invalid source reports its actual missing ID"
+        );
+    }
+
+    for (const bool fail_open : {false, true}) {
+        Fixture fixture;
+        fixture.source(42U, "Map_Ca00.wav");
+        fixture.state.request_flags = 0x00200000U;
+        fixture.state.mix_level = 6;
+        fixture.state.music_slots[1] = 42U;
+        fixture.backend.open_fails = fail_open;
+        fixture.backend.after_start = [&] {
+            fixture.state.mix_level = -7;
+            fixture.state.request_flags = 0x00AA4400U;
+        };
+        const auto result = service_legacy_world_music(
+            fixture.bindings(), "", fixture.maps, fixture.streams
+        );
+        test.expect_true(
+            result.requested_path.has_value() && result.playing == !fail_open &&
+                fixture.streams.active_stream_count() ==
+                    (fail_open ? 0U : 1U) &&
+                fixture.streams.free_stream_count() == (fail_open ? 2U : 1U) &&
+                fixture.state.request_flags == (fail_open ? 1U : 0x008A4401U),
+            "playback failure retains the original flag updates without inventing an active stream"
+        );
+        test.expect_true(
+            fixture.backend.volumes ==
+                (fail_open ? std::vector<i32>{} : std::vector<i32>{69, 0}),
+            "volume and request flags are reread from the actual shared data after playback"
         );
     }
 }
