@@ -423,20 +423,17 @@ private:
             ? &bindings_.startup.enemies[code - 1U].progress
             : nullptr;
         result_.actor_progress_width = query_legacy_battle_actor_progress_width(
-            actor_progress,
-            &bindings_.startup.timing,
-            {.actor_token = ecx_, .entry_edx = edx_}
+            actor_progress, &bindings_.startup.timing
         );
-        ++result_.fade_width_calls;
-        eax_ = result_.actor_progress_width.return_eax;
-        ecx_ = result_.actor_progress_width.return_ecx;
-        edx_ = result_.actor_progress_width.return_edx;
         if (result_.actor_progress_width.status !=
             LegacyBattleActorProgressWidthStatus::completed) {
             result_.status = Status::actor_progress_width_typed_stop;
             return;
         }
-        result_.fade_width = static_cast<u16>(eax_);
+        const auto width = result_.actor_progress_width.scaled_width;
+        eax_ = static_cast<u32>(width);
+        edx_ = static_cast<u32>(static_cast<std::uint64_t>(width) >> 32U);
+        result_.fade_width = static_cast<u16>(width);
         if (result_.fade_width == 0U) {
             return;
         }

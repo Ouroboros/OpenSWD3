@@ -454,7 +454,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
                 result.fade_width == 20U && result.fade_color == 0xA5A51234U &&
                 result.color_fade_calls == 1U && colors.size() == 1U &&
                 reserved_widths.empty() &&
-                result.actor_progress_width.return_eax == 20U &&
+                result.actor_progress_width.scaled_width == 20 &&
                 colors[0U].arguments[0U] == 0U &&
                 colors[0U].arguments[1U] == 0U &&
                 colors[0U].arguments[2U] == 24U &&
@@ -482,7 +482,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
             !result.fade_drawn && result.fade_color_calls == 0U &&
                 result.return_eax == 0U && result.return_ecx == 0x00528030U &&
                 result.return_edx == 0U &&
-                result.actor_progress_width.truncate_calls == 1U,
+                result.actor_progress_width.scaled_width == 0,
             "selection hint zero fade width skips color and fade while retaining width-query registers"
         );
     }
@@ -507,11 +507,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleSelectionHintFrameStatus::
                         actor_progress_width_typed_stop &&
                 result.metric_text_drawn && !result.fade_drawn &&
-                result.fade_width_calls == 1U &&
                 result.fade_color_calls == 0U &&
-                result.actor_progress_width.return_eax == 0U &&
-                result.actor_progress_width.return_ecx == 0x00528030U &&
-                result.actor_progress_width.return_edx == 690U &&
                 fixture.port.calls_of(Call::reserved_query_fade_width).empty(),
             "selection hint stops at the typed group-B progress read after metric text"
         );
@@ -533,7 +529,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleSelectionHintFrameStatus::
                         format_buffer_typed_stop &&
                 result.formatted_text_length == 20U &&
-                result.text_draw_calls == 1U && result.fade_width_calls == 0U,
+                result.text_draw_calls == 1U && !result.fade_drawn,
             "selection hint formats signed decimals and stops at the first write beyond its twenty-byte stack buffer"
         );
     }
@@ -561,7 +557,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
                 result.metric_value_calls == 1U &&
                 result.fixed_count_lookup.stopped_token == 0x78001234U &&
                 result.metric_pair_calls == 0U &&
-                result.fade_width_calls == 0U && result.return_eax == 0U &&
+                !result.fade_drawn && result.return_eax == 0U &&
                 result.return_ecx == 0x78001234U &&
                 result.return_edx == 0x00000900U,
             "selection hint preserves metric-source and lookup register prefixes when the fixed-count successor is unmapped"

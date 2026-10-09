@@ -141,7 +141,6 @@ struct LegacyBattleSelectionHintFrameResult {
     compat::u32 metric_value_calls{};
     LegacyBattleFixedCountLookupResult fixed_count_lookup{};
     compat::u32 metric_pair_calls{};
-    compat::u32 fade_width_calls{};
     LegacyBattleActorProgressWidthResult actor_progress_width{};
     compat::u32 fade_color_calls{};
     compat::u32 panel_action_update_calls{};

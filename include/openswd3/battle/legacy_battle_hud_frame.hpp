@@ -138,7 +138,6 @@ struct LegacyBattleHudFrameResult {
     compat::u32 top_actor_rows{};
     compat::u32 actor_rows{};
     compat::u32 x87_conversions{};
-    compat::u32 actor_progress_width_calls{};
     LegacyBattleActorProgressWidthResult actor_progress_width{};
     compat::u32 text_panel_calls{};
     std::vector<LegacyBattleTextPanelResult> text_panels;

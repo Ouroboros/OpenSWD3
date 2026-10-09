@@ -31,6 +31,11 @@ result = x87_fistp_qword_round_toward_zero(scaled)
 
 固定映像常量62.0不建立可变owner或替代值；现代typed停点只对应两个实际可变读取。
 
+现代接口借用实际角色和共享时序状态，返回访问状态与signed 64位`scaled_width`。
+删除入口寄存器request、返回寄存器、转换次数及模拟x87栈深度；内部截断函数也直接
+返回signed整数，异常转换保留最小64位整数。读取失败时保持原访问状态和后缀阻断，
+不再把部分执行的寄存器快照作为业务结果。
+
 ## 4. 四个物理caller
 
 完整LST共4个物理callsite：
@@ -43,6 +48,24 @@ result = x87_fistp_qword_round_toward_zero(scaled)
 
 ## 5. caller回收与验证
 
-HUD、调试叠加层和当前目标提示均直接组合typed叶子；四处入口EDX分别取显式frame回复、blocked查询回复、位置查询回复和`345*code`地址中间值。旧HUD地址常量、调试`query_marker_width`和提示`query_fade_width`端口边界已删除或改为reserved兼容槽，生产调用为零。typed-stop分别保留顶部条、位置/行偏移、生命文字等已到达前缀，并阻断颜色、像素或后续HUD阶段；视觉转场、选择帧和逐帧协调器继续按既有父级状态传播。
+HUD、调试叠加层和当前目标提示均直接组合宽度函数，不再向其传入角色token或
+入口EDX。同步移除查询调用计数，绘制仍读取同一实际角色与阈值。
+提示框整体仍使用既有通用调用接口；其未迁移的颜色调用暂按整数宽度恢复原高低位，
+该边界尚未完成清理，本批没有增加新的Port或包装层。
 
-定向测试覆盖u16零扩展、正负阈值、零阈值integer-indefinite、角色读取停点、阈值读取停点、EAX/ECX/EDX与x87栈深度，以及四个caller的正常owner和三类后缀阻断。当前缺少原版组A/组B完整对象、动态`0x004A74CC`、x87控制字异常掩码及四callsite寄存器联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+HUD第二处虽在`0x00459F7F`压入完整EAX，下游`0x00450688..0045068E`将宽度与
+`0xFFFF`相与，随后加2绘制。因此现有调用方提前取低16位不改变最终绘制宽度。
+旧HUD地址常量、调试`query_marker_width`和提示`query_fade_width`端口边界已删除或改为reserved兼容槽，生产调用为零。typed-stop分别保留顶部条、位置/行偏移、生命文字等已到达前缀，并阻断颜色、像素或后续HUD阶段；视觉转场、选择帧和逐帧协调器继续按既有父级状态传播。
+
+定向测试覆盖u16零扩展、正负阈值的整数宽度、零阈值integer-indefinite、角色读取
+失败、阈值读取失败，以及四处绘制的实际宽度、像素和后缀阻断。移除寄存器和查询
+次数断言，保留原有绘制与失败验证。
+
+首次构建发现项目compat命名空间没有64位别名，已改用标准`std::int64_t`与
+`std::uint64_t`。初次错误日志保留在`build/tmp/runtime/actor-progress-width-semantic-core.log`。
+修正后的6并发core/ASan定向setup测试各1/1通过，SDL应用链接通过。
+保留既有`legacy_battle_outcome_resolution_test.cpp:133`窄化警告；本批没有修改该文件。
+完整差异复核与`git diff --check`通过。最终日志为
+`build/tmp/runtime/actor-progress-width-semantic-final-{core,asan,sdl}.log`。
+
+当前缺少原版组A/组B完整对象、动态`0x004A74CC`、x87控制字异常掩码及四callsite寄存器联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。

@@ -3,6 +3,7 @@
 #include "test.hpp"
 
 #include <array>
+#include <limits>
 
 void test_battle_actor_progress(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActorProgressInitializationStatus;
@@ -116,16 +117,11 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
     {
         LegacyBattleActorProgressState actor{.progress = 0xABCD003CU};
         LegacyBattleTimingState timing;
-        const auto result = query_legacy_battle_actor_progress_width(
-            &actor,
-            &timing,
-            {.actor_token = 0x005029D0U, .entry_edx = 0xA5A55A5AU}
-        );
+        const auto result =
+            query_legacy_battle_actor_progress_width(&actor, &timing);
         test.expect_true(
             result.status == LegacyBattleActorProgressWidthStatus::completed &&
-                result.progress_value == 60U && result.return_eax == 4U &&
-                result.return_ecx == 0x005029D0U && result.return_edx == 0U &&
-                result.truncate_calls == 1U && result.x87_stack_depth == 0U,
+                result.scaled_width == 4,
             "actor progress width zero-extends the low word and returns the truncated signed qword"
         );
     }
@@ -133,26 +129,23 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
     {
         LegacyBattleActorProgressState actor{.progress = 60U};
         LegacyBattleTimingState timing{.action_threshold = -900};
-        const auto result = query_legacy_battle_actor_progress_width(
-            &actor, &timing, {.actor_token = 0x00525508U}
-        );
+        const auto result =
+            query_legacy_battle_actor_progress_width(&actor, &timing);
         test.expect_true(
-            result.return_eax == 0xFFFFFFFCU &&
-                result.return_edx == 0xFFFFFFFFU &&
-                result.return_ecx == 0x00525508U,
-            "negative action threshold preserves the signed qword high half"
+            result.scaled_width == -4,
+            "negative action threshold produces a signed width truncated toward zero"
         );
     }
 
     {
         LegacyBattleActorProgressState actor{.progress = 60U};
         LegacyBattleTimingState timing{.action_threshold = 0};
-        const auto result = query_legacy_battle_actor_progress_width(
-            &actor, &timing, {.actor_token = 0x00525508U}
-        );
+        const auto result =
+            query_legacy_battle_actor_progress_width(&actor, &timing);
         test.expect_true(
-            result.return_eax == 0U && result.return_edx == 0x80000000U &&
-                result.truncate_calls == 1U && result.x87_stack_depth == 0U,
+            result.status == LegacyBattleActorProgressWidthStatus::completed &&
+                result.scaled_width ==
+                    std::numeric_limits<std::int64_t>::min(),
             "zero action threshold reaches x87 integer-indefinite conversion"
         );
     }
@@ -163,19 +156,14 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
             .progress_read_accessible = false,
         };
         LegacyBattleTimingState timing;
-        const auto result = query_legacy_battle_actor_progress_width(
-            &actor,
-            &timing,
-            {.actor_token = 0x00525508U, .entry_edx = 0x11223344U}
-        );
+        const auto result =
+            query_legacy_battle_actor_progress_width(&actor, &timing);
         test.expect_true(
             result.status ==
                     LegacyBattleActorProgressWidthStatus::
                         actor_progress_read_typed_stop &&
-                result.return_eax == 0U && result.return_ecx == 0x00525508U &&
-                result.return_edx == 0x11223344U &&
-                result.truncate_calls == 0U && result.x87_stack_depth == 0U,
-            "inaccessible actor progress stops after xor eax with entry EDX intact"
+                actor.progress == 60U,
+            "inaccessible actor progress reports the read failure without changing the actor"
         );
     }
 
@@ -185,19 +173,14 @@ void test_battle_actor_progress(openswd3::test::Context& test) {
             .action_threshold = 900,
             .action_threshold_read_accessible = false,
         };
-        const auto result = query_legacy_battle_actor_progress_width(
-            &actor,
-            &timing,
-            {.actor_token = 0x005029D0U, .entry_edx = 0x55667788U}
-        );
+        const auto result =
+            query_legacy_battle_actor_progress_width(&actor, &timing);
         test.expect_true(
             result.status ==
                     LegacyBattleActorProgressWidthStatus::
                         action_threshold_read_typed_stop &&
-                result.return_eax == 60U && result.return_ecx == 0x005029D0U &&
-                result.return_edx == 0x55667788U &&
-                result.truncate_calls == 0U && result.x87_stack_depth == 1U,
-            "inaccessible threshold stops after the progress fild prefix"
+                actor.progress == 0xCAFE003CU,
+            "inaccessible threshold reports failure after reading progress without changing the actor"
         );
     }
 

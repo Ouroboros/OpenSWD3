@@ -788,7 +788,7 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
             };
             const auto width = openswd3::battle::
                 query_legacy_battle_actor_progress_width(
-                    &progress, &timing, {.actor_token = port.actor_token}
+                    &progress, &timing
                 );
             test.expect_true(
                 result.status ==
@@ -796,7 +796,7 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
                     result.return_eax == 1U &&
                     result.return_ecx == port.actor_token &&
                     progress.progress == 0xFACE0009U &&
-                    width.progress_value == 9U && width.return_eax == 558U,
+                    width.scaled_width == 558,
                 "completion rereads the RNG-mutated progress, wraps only its low word and exposes it directly to the width query"
             );
         }

@@ -6,6 +6,8 @@
 #include "openswd3/battle/legacy_battle_timing.hpp"
 #include "openswd3/compat/types.hpp"
 
+#include <cstdint>
+
 namespace openswd3::battle {
 
 struct LegacyBattleActorGroupBElementState;
@@ -63,21 +65,11 @@ enum class LegacyBattleActorProgressWidthStatus : compat::u8 {
     action_threshold_read_typed_stop,
 };
 
-struct LegacyBattleActorProgressWidthRequest {
-    compat::u32 actor_token{};
-    compat::u32 entry_edx{};
-};
-
 struct LegacyBattleActorProgressWidthResult {
     LegacyBattleActorProgressWidthStatus status{
         LegacyBattleActorProgressWidthStatus::completed
     };
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
-    compat::u32 progress_value{};
-    compat::u32 truncate_calls{};
-    compat::u32 x87_stack_depth{};
+    std::int64_t scaled_width{};
 };
 
 enum class LegacyBattleActorProgressStatus : compat::u8 {
@@ -135,8 +127,7 @@ synchronize_legacy_battle_actor_progress_threshold(
 [[nodiscard]] LegacyBattleActorProgressWidthResult
 query_legacy_battle_actor_progress_width(
     const LegacyBattleActorProgressState* actor,
-    const LegacyBattleTimingState* timing,
-    const LegacyBattleActorProgressWidthRequest& request
+    const LegacyBattleTimingState* timing
 ) noexcept;
 
 // sub_46E520.

@@ -528,11 +528,8 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
                 : nullptr;
             result.actor_progress_width =
                 query_legacy_battle_actor_progress_width(
-                    actor_progress,
-                    &bindings.startup.timing,
-                    {.actor_token = actor, .entry_edx = position.return_edx}
+                    actor_progress, &bindings.startup.timing
                 );
-            ++result.actor_progress_width_calls;
             if (result.actor_progress_width.status !=
                 LegacyBattleActorProgressWidthStatus::completed) {
                 result.status = LegacyBattleDebugOverlayStatus::
@@ -540,7 +537,7 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
                 return result;
             }
             const u32 width =
-                static_cast<u16>(result.actor_progress_width.return_eax);
+                static_cast<u16>(result.actor_progress_width.scaled_width);
             u32 column = 0U;
             while (column < width) {
                 const u32 top = row_offset +

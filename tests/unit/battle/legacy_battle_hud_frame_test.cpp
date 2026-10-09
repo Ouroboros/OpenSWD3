@@ -141,8 +141,7 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
                 has_argument(port, 0x00436AD0U, 2U, 15U) &&
                 has_argument(port, 0x00450490U, 2U, 110U) &&
                 has_argument(port, 0x00450490U, 4U, 28U) &&
-                result.actor_progress_width_calls == 1U &&
-                result.actor_progress_width.return_eax == 5U &&
+                result.actor_progress_width.scaled_width == 5 &&
                 has_argument(port, 0x00450A50U, 4U, 0x99U) &&
                 has_argument(port, 0x0043B110U, 4U, 1U),
             "top actor row uses side position, x87 width, status fade and wrapped pulse"
@@ -194,8 +193,7 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
                 state.tertiary_delta[0] == 7 &&
                 state.tertiary_display[0] == 9 &&
                 result.x87_conversions == 2U &&
-                result.actor_progress_width_calls == 1U &&
-                result.actor_progress_width.return_eax == 7U &&
+                result.actor_progress_width.scaled_width == 7 &&
                 port.count(0x0047CE80U) == 3U &&
                 port.count(0x00436AD0U) == 3U &&
                 has_argument(port, 0x0043B110U, 0U, 116U) &&
@@ -281,10 +279,6 @@ void test_battle_hud_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleHudFrameStatus::
                         actor_progress_width_typed_stop &&
-                result.actor_progress_width_calls == 1U &&
-                result.actor_progress_width.return_eax == 0U &&
-                result.actor_progress_width.return_ecx == 0x005029D0U &&
-                result.actor_progress_width.return_edx == 0x778899AAU &&
                 result.top_actor_rows == 0U && port.count(0x00450490U) == 1U &&
                 port.count(0x004239D0U) == 0U,
             "HUD stops at the typed top-row progress read after the explicit bar prefix"

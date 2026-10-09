@@ -575,8 +575,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                     LegacyBattleDebugOverlayCall::reserved_query_marker_width
                 ) == 0U &&
                 result.current_coordinate_query_calls == 2U &&
-                result.actor_progress_width_calls == 2U &&
-                result.actor_progress_width.return_eax == 2U &&
+                result.actor_progress_width.scaled_width == 2 &&
                 fixture.framebuffer.physical_pixels()[1] == 0xEEEEU &&
                 fixture.framebuffer.physical_pixels()[2] == 0xEEEEU &&
                 fixture.framebuffer.physical_pixels()[9] == 0xEEEEU &&
@@ -715,7 +714,6 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                 fixture.overlay.marker_x == 7 &&
                 fixture.overlay.marker_row == 10 &&
                 result.current_coordinate_query_calls == 1U &&
-                result.actor_progress_width_calls == 0U &&
                 result.marker_actors == 0U && result.marker_pixels == 0U &&
                 port.count(
                     LegacyBattleDebugOverlayCall::reserved_query_marker_position
@@ -740,10 +738,6 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
                         actor_progress_width_typed_stop &&
                 result.text_draws == 7U &&
                 result.current_coordinate_query_calls == 1U &&
-                result.actor_progress_width_calls == 1U &&
-                result.actor_progress_width.return_eax == 0U &&
-                result.actor_progress_width.return_ecx == 0x00525508U &&
-                result.actor_progress_width.return_edx == 0x0053BF4AU &&
                 result.marker_actors == 0U && result.marker_pixels == 0U &&
                 port.count(
                     LegacyBattleDebugOverlayCall::reserved_query_marker_position

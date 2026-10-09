@@ -152,7 +152,6 @@ struct LegacyBattleDebugOverlayResult {
     compat::u32 actor_start_gate_calls{};
     LegacyBattleActorCurrentCoordinateQueryResult current_coordinate_query{};
     compat::u32 current_coordinate_query_calls{};
-    compat::u32 actor_progress_width_calls{};
     LegacyBattleActorProgressWidthResult actor_progress_width{};
 };
 

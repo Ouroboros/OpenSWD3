@@ -175,27 +175,21 @@ LegacyBattleHudFrameResult advance_legacy_battle_hud_frame(
         }
         return true;
     };
-    auto query_actor_progress_width =
-        [&](const u32 index, const u32 token, const u32 entry_edx, u32& width) {
-            const LegacyBattleActorProgressState* actor =
-                index < startup.party.size() ? &startup.party[index].progress
-                                             : nullptr;
-            result.actor_progress_width =
-                query_legacy_battle_actor_progress_width(
-                    actor,
-                    &startup.timing,
-                    {.actor_token = token, .entry_edx = entry_edx}
-                );
-            ++result.actor_progress_width_calls;
-            if (result.actor_progress_width.status !=
-                LegacyBattleActorProgressWidthStatus::completed) {
-                result.status =
-                    LegacyBattleHudFrameStatus::actor_progress_width_typed_stop;
-                return false;
-            }
-            width = result.actor_progress_width.return_eax;
-            return true;
-        };
+    auto query_actor_progress_width = [&](const u32 index, u32& width) {
+        const LegacyBattleActorProgressState* actor =
+            index < startup.party.size() ? &startup.party[index].progress
+                                         : nullptr;
+        result.actor_progress_width =
+            query_legacy_battle_actor_progress_width(actor, &startup.timing);
+        if (result.actor_progress_width.status !=
+            LegacyBattleActorProgressWidthStatus::completed) {
+            result.status =
+                LegacyBattleHudFrameStatus::actor_progress_width_typed_stop;
+            return false;
+        }
+        width = static_cast<u32>(result.actor_progress_width.scaled_width);
+        return true;
+    };
 
     static_cast<void>(invoke(kCallFontReset, {kFontToken, 0U}));
     result.return_value = invoke(kCallFontStyle, {kFontToken, 0xFFFEU}).eax;
@@ -234,18 +228,16 @@ LegacyBattleHudFrameResult advance_legacy_battle_hud_frame(
             const u32 width = truncate_x87_low(ratio_extended(
                 signed_bits(primary.outputs[0]), signed_bits(primary.outputs[1])
             ));
-            const auto explicit_frame = invoke(
+            static_cast<void>(invoke(
                 kCallDrawExplicitFrame,
                 {0x2350U,
                  1U,
                  to_bits(wrapping_add(top_x, 100)),
                  to_bits(wrapping_add(top_y, 8)),
                  width}
-            );
+            ));
             u32 status_value = 0U;
-            if (!query_actor_progress_width(
-                    top_index, token, explicit_frame.edx, status_value
-                )) {
+            if (!query_actor_progress_width(top_index, status_value)) {
                 return result;
             }
             status_value = static_cast<u16>(status_value);
@@ -346,9 +338,7 @@ LegacyBattleHudFrameResult advance_legacy_battle_hud_frame(
         const auto width_blocked = invoke(kCallQueryBlocked, {token});
         if (width_blocked.eax == 0U) {
             u32 status_value = 0U;
-            if (!query_actor_progress_width(
-                    actor_index, token, width_blocked.edx, status_value
-                )) {
+            if (!query_actor_progress_width(actor_index, status_value)) {
                 return result;
             }
             status_value = static_cast<u16>(status_value);
