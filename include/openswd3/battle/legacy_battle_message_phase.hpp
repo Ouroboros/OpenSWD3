@@ -77,7 +77,6 @@ enum class LegacyBattleMessagePhaseCall : compat::u8 {
     set_group_a_actor_mode,
     commit_active_actor,
     configure_actor_action,
-    refresh_actor_message_percent,
     reserved_resolve_action_item_slot,
     reserved_advance_message_100_slot,
     select_message_101_actor,
@@ -112,8 +111,6 @@ struct LegacyBattleMessagePhaseCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
-    bool publish_actor_message_percent{};
-    compat::u16 actor_message_percent{};
     bool publish_group_b_count{};
     compat::u32 group_b_count{};
     bool publish_group_a_count{};
@@ -150,7 +147,6 @@ struct LegacyBattleMessagePhaseCallReply {
 class LegacyBattleMessagePhasePort
     : public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleSummonFramePort,
-      public virtual LegacyBattleActorMessagePercentRefreshPort,
       public virtual LegacyBattleMessagePhaseStatePort,
       public virtual LegacyBattleVictoryRewardPort,
       public virtual LegacyBattleLevelAdvancementPort,
@@ -171,27 +167,6 @@ public:
             .eax = request.eax,
             .ecx = request.ecx,
             .edx = request.edx,
-        };
-    }
-
-    [[nodiscard]] LegacyBattleActorMessagePercentRefreshCallReply
-    invoke_actor_message_percent_refresh(
-        const LegacyBattleActorMessagePercentRefreshCallRequest& request
-    ) override {
-        const auto reply = invoke_message_phase({
-            .call = LegacyBattleMessagePhaseCall::refresh_actor_message_percent,
-            .actor_token = request.actor_token,
-            .arguments = {request.refresh_argument},
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-        });
-        return {
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-            .publish_message_percent = reply.publish_actor_message_percent,
-            .message_percent = reply.actor_message_percent,
         };
     }
 
@@ -307,7 +282,6 @@ struct LegacyBattleMessagePhaseResult {
     LegacyBattleActorTargetSelectionTrace actor_target_selection{};
     compat::u32 sample_calls{};
     compat::u32 target_selection_entry_calls{};
-    compat::u32 actor_message_percent_refresh_calls{};
     LegacyBattleActorMessagePercentRefreshResult
         actor_message_percent_refresh{};
     compat::u32 group_b_action_item_selection_calls{};

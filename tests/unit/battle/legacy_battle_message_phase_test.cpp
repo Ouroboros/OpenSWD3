@@ -791,14 +791,12 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 0U}
         );
-        fixture.port.reply(
-            LegacyBattleMessagePhaseCall::refresh_actor_message_percent,
-            {
-                .eax = 0U,
-                .publish_actor_message_percent = true,
-                .actor_message_percent = 0x55U,
-            }
-        );
+        auto& percent_profile = fixture.startup.party[1U]
+                                    .attribute_aggregation.embedded_profiles[0U];
+        percent_profile[0x48U] = std::byte{30U};
+        percent_profile[0x50U] = std::byte{7U};
+        fixture.port.legacy_battle_fixed_object_state().object_words[2U] =
+            {0U, 7U, 0x55U, 0U, 0U};
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::load_action_item_definition,
             {
@@ -823,9 +821,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             find_call(LegacyBattleMessagePhaseCall::commit_active_actor);
         const auto configured =
             find_call(LegacyBattleMessagePhaseCall::configure_actor_action);
-        const auto resource = find_call(
-            LegacyBattleMessagePhaseCall::refresh_actor_message_percent
-        );
         bool records_reset = true;
         for (const auto& record : fixture.startup.reset.records_524788) {
             records_reset = records_reset && record.value_00 == 0xFFFFFFFFU &&
@@ -838,9 +833,8 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 result.actor_action_mode_calls == 2U &&
                 result.actor_action_modes[0U].return_eip == 0x004671F9U &&
                 result.actor_action_modes[1U].return_eip == 0x004671F9U &&
-                result.actor_message_percent_refresh_calls == 1U &&
-                result.actor_message_percent_refresh.percent_refresh_calls ==
-                    1U &&
+                result.actor_message_percent_refresh.message_percent ==
+                    0x55U &&
                 result.group_b_action_item_selection_calls == 1U &&
                 result.group_b_action_item_selection.random_calls == 2U &&
                 result.group_b_action_item_selection.definition_load_calls ==
@@ -894,13 +888,9 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             "message 99 preserves the configure register snapshot"
         );
         test.expect_true(
-            resource.call ==
-                    LegacyBattleMessagePhaseCall::
-                        refresh_actor_message_percent &&
-                resource.actor_token == 0x00505904U &&
-                resource.arguments[0U] == 30U && resource.eax == 3021U &&
-                resource.edx == 5U,
-            "message 99 refreshes actor percent through only the pending callee and preserves its register snapshot"
+            fixture.action.group_a_action_execution[1U].message_percent ==
+                0x55U,
+            "message 99 refreshes the actor percentage from its embedded profile and the actual shared fixed chain"
         );
     }
     {
@@ -922,14 +912,12 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 0U}
         );
-        fixture.port.reply(
-            LegacyBattleMessagePhaseCall::refresh_actor_message_percent,
-            {
-                .eax = 0x55U,
-                .publish_actor_message_percent = true,
-                .actor_message_percent = 0x55U,
-            }
-        );
+        auto& percent_profile = fixture.startup.party[1U]
+                                    .attribute_aggregation.embedded_profiles[0U];
+        percent_profile[0x48U] = std::byte{30U};
+        percent_profile[0x50U] = std::byte{7U};
+        fixture.port.legacy_battle_fixed_object_state().object_words[2U] =
+            {0U, 7U, 0x55U, 0U, 0U};
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::load_action_item_definition,
             {
@@ -988,14 +976,12 @@ void test_battle_message_phase(openswd3::test::Context& test) {
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::query_actor_completion, {.eax = 0U}
         );
-        fixture.port.reply(
-            LegacyBattleMessagePhaseCall::refresh_actor_message_percent,
-            {
-                .eax = 0x55U,
-                .publish_actor_message_percent = true,
-                .actor_message_percent = 0x55U,
-            }
-        );
+        auto& percent_profile = fixture.startup.party[1U]
+                                    .attribute_aggregation.embedded_profiles[0U];
+        percent_profile[0x48U] = std::byte{30U};
+        percent_profile[0x50U] = std::byte{7U};
+        fixture.port.legacy_battle_fixed_object_state().object_words[2U] =
+            {0U, 7U, 0x55U, 0U, 0U};
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::load_action_item_definition,
             {

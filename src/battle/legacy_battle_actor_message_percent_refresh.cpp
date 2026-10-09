@@ -1,43 +1,56 @@
 #include "openswd3/battle/legacy_battle_actor_message_percent_refresh.hpp"
 
 namespace openswd3::battle {
+namespace {
+
+[[nodiscard]] compat::u16 profile_word(
+    const LegacyBattleGroupASummonProfileRecord& profile,
+    const std::size_t offset
+) noexcept {
+    return static_cast<compat::u16>(profile[offset]) |
+        static_cast<compat::u16>(
+            static_cast<compat::u16>(profile[offset + 1U]) << 8U
+        );
+}
+
+}
 
 LegacyBattleActorMessagePercentRefreshResult
 refresh_legacy_battle_actor_message_percent(
     LegacyBattleGroupAActionExecutionState* const actor,
-    LegacyBattleActorMessagePercentRefreshPort& port,
-    const LegacyBattleActorMessagePercentRefreshRequest& request
-) {
-    LegacyBattleActorMessagePercentRefreshResult result{
-        .return_eax = request.entry_eax,
-        .return_ecx = request.entry_ecx,
-        .return_edx = request.entry_edx,
-    };
-
-    const auto reply = port.invoke_actor_message_percent_refresh({
-        .callee_token = kLegacyBattleActorMessagePercentRefreshCalleeToken,
-        .actor_token = request.actor_token,
-        .refresh_argument = 30U,
-        .eax = result.return_eax,
-        .ecx = request.actor_token,
-        .edx = result.return_edx,
-    });
-    ++result.percent_refresh_calls;
-    result.return_eax = reply.eax;
-    result.return_ecx = reply.ecx;
-    result.return_edx = reply.edx;
-
-    if (actor == nullptr || request.actor_token == 0U) {
+    const LegacyBattleGroupAAttributeAggregationState& attributes,
+    LegacyBattleFixedObjectState& fixed_objects
+) noexcept {
+    LegacyBattleActorMessagePercentRefreshResult result;
+    if (actor == nullptr) {
         result.status = LegacyBattleActorMessagePercentRefreshStatus::
             actor_state_typed_stop;
         return result;
     }
 
-    if (reply.publish_message_percent) {
-        actor->message_percent = reply.message_percent;
+    for (const auto& profile : attributes.embedded_profiles) {
+        if (profile_word(profile, 0x48U) != 30U) {
+            continue;
+        }
+
+        const auto quantity = lookup_legacy_battle_fixed_curve(
+            fixed_objects,
+            {
+                .owner_token = kLegacyBattleFixedDefinitionCurveOwnerToken,
+                .key = profile_word(profile, 0x50U),
+            }
+        );
+        if (quantity.status != LegacyBattleFixedCountStatus::completed) {
+            result.status = LegacyBattleActorMessagePercentRefreshStatus::
+                fixed_record_typed_stop;
+            return result;
+        }
+
+        actor->message_percent = quantity.value;
+        break;
     }
-    result.return_eax =
-        (result.return_eax & 0xFFFF0000U) | actor->message_percent;
+
+    result.message_percent = actor->message_percent;
     return result;
 }
 

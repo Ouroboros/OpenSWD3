@@ -1,25 +1,47 @@
 # 战斗行动者消息百分比刷新 `0x00475160`
 
-状态：`platform_adapted`。本页以完整`Swd3.exe.lst`机器码与指令为行为真值；反编译、命名和未关闭callee仅用于导航。
+以LST机器码及指令为行为依据。本批移除消息百分比Port、callee编号、
+请求/回复、寄存器结果、调用计数，以及消息与帧协调器的对应转发槽。
+未升级历史工作包或原版动态差分验收状态。
 
-## 静态审计
+## 完整调用链
 
-权威主体为`0x00475160..0x00475172`，proc至endp共11行、9条实际指令、1个call、0个跳转、0个局部标签、1个返回点，没有外部`FUNCTION CHUNK`。唯一caller为message phase `0x00466F70`内的`0x0046726F`，唯一callee为尚未审计的`0x00482F10`。
+- `475160..475172`向`482F10`传30，返回前再读角色`+26DC`。
+- `482F10..482F64`依次检查角色`+1A0`和`+244`的有符号WORD。
+  两者均不等于30时保留原`+26DC`；只使用首个匹配记录。
+- 匹配记录的角色`+1A8`或`+24C`为WORD编号，传给固定根`4B8A00`
+  的`4779F0..477A13`查找。查找从根开始比较`+4`的WORD，沿`+0`
+  链接继续；命中取`+8`的WORD，到零链接返回零。
+- 查询完成后写角色`+26DC`。匹配资料但编号未命中时写零，不尝试下一资料。
+- 唯一包装函数调用方为`46726F`。后续`476600`在`476616`读取WORD
+  参数，因此寄存器高位残值不属于百分比业务接口。
 
-函数保存ESI，把入口ECX行动者token同时保存为ESI和callee this指针，向`0x00482F10`压入固定参数30。callee返回后，函数以`mov ax,[esi+0x26DC]`只覆盖EAX低16位；EAX高16位、ECX和EDX均保留callee返回状态，随后恢复ESI并返回。因行动者字段访问发生在callee之后，typed owner缺失只能在callee调用及其已发布副作用之后停止。
+资料来源为角色已有`attribute_aggregation.embedded_profiles`，对应
+`+158/+1FC`两份0xA4资料；资料内`+48/+50`对应类型与编号。
+见[battle-group-a-attribute-aggregation-0046ebb0.md](battle-group-a-attribute-aggregation-0046ebb0.md)。
 
-未审`0x00482F10`继续保留为窄typed port token。其reply可发布更新后的`+0x26DC`消息百分比，再由本函数按权威LST从typed行动者owner读取该word并覆盖AX；不得把整个`0x00475160`继续作为opaque调用，也不得把最终读取现代化为返回值直传或EAX全宽覆盖。
+## 实现及所有权
 
-## Typed实现与caller回收
+函数借用角色、实际内嵌资料和既有`LegacyBattleFixedObjectState`，
+直接查询链表并发布百分比，结果仅含状态和WORD百分比。
+消息99传同一角色索引的startup资料及共享固定对象；后续道具选择直接
+使用百分比。没有新增状态副本、转发包装或模拟寄存器。
 
-新增`LegacyBattleActorMessagePercentRefreshPort/Request/Result`与`refresh_legacy_battle_actor_message_percent`。实现固定callee token和参数30、保留入口及返回寄存器、接收callee百分比发布，并在原版后置字段访问点执行typed-stop。`+0x26DC`复用既有`LegacyBattleGroupAActionExecutionState::message_percent` owner，不增加重复物理状态。
+缺失角色在实际字段读取前报告访问失败；匹配链节点不可读时不写角色字段。
+旧测试中空角色先执行假callee并发布值的行为不对应真实`482F10`的字段读取，
+已替换为实际资料和节点访问验证。
 
-message phase消息99的唯一caller改为typed直连。调用前仍保留原版EAX=`actor_index * 3021`、ECX=group-A行动者token、EDX=`actor_index * 5`；helper返回EAX继续作为后续group-B item resolver的第一个参数。旧`query_actor_resource`整函数opaque槽被收窄并改名为`refresh_actor_message_percent`，frame coordinator保持原枚举数值位置，只转发尚未关闭的`0x00482F10` callee。
+底层固定链查找仍保留其原请求/结果结构，固定对象的上层状态Port也仍存在。
+其他调用者的通用`482F10`路径未在本批迁移，不能据此宣称全链清理完成。
 
-## 测试与oracle
+## 验证
 
-独立单元测试覆盖固定callee token/参数、入口寄存器、callee字段发布、EAX高16位保留、AX从`+0x26DC`覆写、ECX/EDX返回、typed owner缺失和零legacy token均在callee之后停止并保留callee寄存器。message phase回归覆盖唯一production caller、行动者token、固定参数30、原寄存器快照、发布后的百分比向resolver传递以及nested结果与调用计数。
+独立向量覆盖两份资料、负类型不匹配、FFFF编号、根和链节点命中、
+WORD截断、首份资料优先、编号缺失写零、资料不匹配保留值，以及节点
+不可读时保留角色字段。消息99覆盖真实查询后的道具选择及加载失败后缀。
 
-动态差分登记为`blocked_runtime_oracle`：当前缺少原版group-A行动者完整对象、`0x00482F10`内部查找与`0x004779F0`副作用、message phase caller前后寄存器及`+0x26DC`联合捕获后端。该阻塞不影响完整LST静态闭环、typed实现和Linux验证。
-
-定向battle测试为`1/1`，AddressSanitizer为`1/1`且无AddressSanitizer或LeakSanitizer finding，Linux core为`188/188`，Linux app为`194/194`，全部构建日志零warning。inventory连续双生成逐字节一致，稳定为`233/422 = 224 platform_adapted + 9 assembly_exact + 189 pending_audit`，SHA256为`6e03c5b7714886623eb36f34c9d4217dcd356abcc529ab0a7cfca172d9764b52`。
+core与ASan的`battle.legacy_battle_setup`各1/1通过；SDL应用编译链接通过。
+日志为`build/tmp/runtime/actor-message-percent-final-{core,asan,sdl}.log`。
+首轮编译因帧协调器残留枚举分支失败，清除后重验通过；原失败日志保留于
+`actor-message-percent-direct-core.log`。完整差异与LST顺序已复核。
+未运行游戏；没有新增原版动态差分证据。

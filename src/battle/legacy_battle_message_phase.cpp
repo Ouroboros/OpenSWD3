@@ -640,32 +640,20 @@ private:
 
         set_group_a_registers(actor_index, true, false);
         edx_ = attack_index;
-        result_.call_trace.push_back(
-            LegacyBattleMessagePhaseCall::refresh_actor_message_percent
-        );
-        ++result_.call_trace_count;
         result_.actor_message_percent_refresh =
             refresh_legacy_battle_actor_message_percent(
                 &bindings_.action.group_a_action_execution[actor_index],
-                port_,
-                {
-                    .actor_token = ecx_,
-                    .entry_eax = eax_,
-                    .entry_ecx = ecx_,
-                    .entry_edx = edx_,
-                }
+                bindings_.startup.party[actor_index].attribute_aggregation,
+                port_.legacy_battle_fixed_object_state()
             );
-        ++result_.actor_message_percent_refresh_calls;
-        eax_ = result_.actor_message_percent_refresh.return_eax;
-        ecx_ = result_.actor_message_percent_refresh.return_ecx;
-        edx_ = result_.actor_message_percent_refresh.return_edx;
         if (result_.actor_message_percent_refresh.status !=
             LegacyBattleActorMessagePercentRefreshStatus::completed) {
             return stop(
                 LegacyBattleMessagePhaseStatus::actor_message_percent_typed_stop
             );
         }
-        const u32 resource_value = eax_;
+        const u32 resource_value =
+            result_.actor_message_percent_refresh.message_percent;
         ecx_ = actor_index;
         if (actor_index >=
             bindings_.startup.action_mode_source.actor_label_indices.size()) {
