@@ -12,7 +12,10 @@
 
 ## 2. typed析构链
 
-`release_legacy_battle_actor_group_a_element()`复用构造工作包的唯一元素状态。扩展清理`0x00475180`按顺序处理行动者`+0x2BC4` secondary token和`+0` primary/description token；每个非零token通过固定`0x004885A0`窄释放端口，callee正常返回后才清字段。primary成功释放后同步清除已失效的56-byte宿主description内容。
+元素析构复用已有字段，直接借用实际队伍存储，先释放次级资源再释放主记录。
+每项正常撤销登记后才清指针；主记录成功释放后清除56-byte宿主description内容。
+双资源Port、callee、寄存器请求回复和计数已删除，入口不再接收SEH/EDX请求。
+详见[双资源清理](battle-group-a-resource-cleanup-00475180.md)。
 
 公共基础析构直接复用`base_initialization.resource_definition`末尾的说明token及文本所有权。
 零token只读不写；非零先释放实际文本，成功后才清token。
@@ -31,7 +34,7 @@
 - `0x00498393`：unwind状态0 cleanup chunk重载this后的尾跳。
 
 两处直接调用`release_legacy_battle_actor_base()`，基础文本释放Port已删除。
-空的组A元素析构继承层同时删除，函数直接借用尚待迁移的双资源释放接口。
+空的组A元素析构继承层已删除，函数直接借用队伍存储。
 
 ## 4. vector caller边界
 
@@ -41,7 +44,8 @@
 
 当前聚合测试检查资源→说明释放顺序、实际文本失效、扩展异常清理及失败前缀。
 寄存器观察断言随旧合同删除。历史Linux core`198/198`和定向`2/2`记录见基础析构文档；
-本批验证见[说明所有权迁移](battle-actor-description-owned-release.md)。
-向量函数编号与扩展资源协议仍是当前Goal待迁移项，不以compiler边界排除。
+基础说明迁移验证见[说明所有权迁移](battle-actor-description-owned-release.md)，
+当前双资源协议删除验证见[双资源清理](battle-group-a-resource-cleanup-00475180.md)。
+向量函数编号与共享堆协议仍是当前Goal待迁移项，不以compiler边界排除。
 
 原版`0x004885A0`allocator副作用、全局组A对象字节、说明堆、MSVC SEH与vector迭代器缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。

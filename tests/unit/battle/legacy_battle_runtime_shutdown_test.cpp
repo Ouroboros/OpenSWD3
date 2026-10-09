@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_runtime_shutdown.hpp"
+#include "openswd3/battle/legacy_battle_group_a_storage.hpp"
 #include "openswd3/battle/legacy_battle_group_b_storage.hpp"
+#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "test.hpp"
 
 #include <algorithm>
@@ -12,52 +14,54 @@ namespace {
 using namespace openswd3::battle;
 using openswd3::compat::u32;
 
-class ShutdownPort final : public LegacyBattleRenderAuxiliaryBufferReleaser,
-                           public LegacyBattleGroupAResourceReleasePort {
+class ShutdownPort final : public LegacyBattleRenderAuxiliaryBufferReleaser {
 public:
-    explicit ShutdownPort(LegacyBattleGroupBStorage& enemies)
-        : enemies_(enemies) {}
+    ShutdownPort(
+        LegacyBattleStartupState& startup,
+        LegacyBattleGroupAStorage& party,
+        LegacyBattleGroupBStorage& enemies
+    )
+        : startup_(startup), party_(party), enemies_(enemies) {}
 
     void release(const u32 token) noexcept override {
         release_order.push_back(token);
+        actors_live_during_render_release =
+            std::ranges::all_of(
+                startup_.party,
+                [&](const auto& actor) {
+                    return !party_
+                                .record_bytes(
+                                    actor.configuration.actor_record_token
+                                )
+                                .empty() &&
+                        !party_.record_bytes(actor.secondary_resource_token)
+                             .empty();
+                }
+
+            ) &&
+            std::ranges::all_of(*enemies_.actors(), [&](const auto& actor) {
+                return !enemies_.resource_bytes(actor.resource_token).empty();
+            });
     }
 
-    LegacyBattleGroupAResourceReleaseCallReply release_group_a_resource(
-        const LegacyBattleGroupAResourceReleaseCallRequest& request
-    ) override {
-        for (const auto& actor : *enemies_.actors()) {
-            enemies_live_during_party_release =
-                enemies_live_during_party_release &&
-                actor.resource_token != 0U &&
-                !enemies_.resource_bytes(actor.resource_token).empty();
-        }
-
-        party_releases.push_back(request);
-        release_order.push_back(request.resource_token);
-        return {
-            .eax = 0xA0000000U | request.actor_index,
-            .ecx = request.actor_token,
-            .edx = request.resource_offset
-        };
-    }
-
+    LegacyBattleStartupState& startup_;
+    LegacyBattleGroupAStorage& party_;
     LegacyBattleGroupBStorage& enemies_;
     std::vector<u32> release_order;
-    std::vector<LegacyBattleGroupAResourceReleaseCallRequest> party_releases;
-    bool enemies_live_during_party_release{true};
+    bool actors_live_during_render_release{};
 };
 
 }  // namespace
 
 void test_battle_runtime_shutdown(openswd3::test::Context& test) {
-    using namespace openswd3::battle;
-
     {
         LegacyBattleStartupState startup;
+        auto action = std::make_unique<LegacyBattleActionDispatchState>();
+        LegacyBattleGroupAStorage party_resources{startup, *action};
         LegacyBattleGroupBStorage enemies;
         test.expect_true(
-            enemies.construct(),
-            "construct actual enemy allocations for shutdown"
+            party_resources.construct() && enemies.construct(),
+            "construct actual party and enemy allocations for shutdown"
         );
         startup.group_b_lifecycle = enemies.actors();
         startup.render_geometry.auxiliary_buffer_token = 0x12345678U;
@@ -65,10 +69,14 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
             std::make_unique<u32[]>(2U);
         startup.render_geometry.surface_row_offsets =
             std::make_unique<u32[]>(3U);
+        std::array<u32, 10> primary_tokens{};
+        std::array<u32, 10> secondary_tokens{};
         for (u32 index = 0U; index < kLegacyBattleGroupAObjectCount; ++index) {
-            startup.party[index].configuration.actor_record_token =
-                0xA1000000U + index;
-            startup.party[index].secondary_resource_token = 0xA2000000U + index;
+            auto& actor = startup.party[index];
+            primary_tokens[index] = actor.configuration.actor_record_token;
+            secondary_tokens[index] = party_resources.allocate_profile();
+            actor.configuration.profile_token = secondary_tokens[index];
+            actor.secondary_resource_token = secondary_tokens[index];
         }
 
         std::array<u32, 8> enemy_tokens{};
@@ -78,15 +86,19 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
             actor.resource_bytes.fill(0xA5U);
         }
 
-        ShutdownPort port{enemies};
-        const auto result =
-            shutdown_legacy_battle_runtime(startup, port, port, &enemies);
-        std::vector<u32> expected_release_order{0x12345678U};
+        ShutdownPort port{startup, party_resources, enemies};
+        const auto result = shutdown_legacy_battle_runtime(
+            startup, port, &party_resources, &enemies
+        );
         bool party_cleared = true;
         for (u32 index = 0U; index < kLegacyBattleGroupAObjectCount; ++index) {
-            expected_release_order.push_back(0xA2000000U + index);
-            expected_release_order.push_back(0xA1000000U + index);
             party_cleared = party_cleared &&
+                result.group_a_resource_cleanups[index]
+                    .primary_resource_released &&
+                result.group_a_resource_cleanups[index]
+                    .secondary_resource_released &&
+                party_resources.record_bytes(primary_tokens[index]).empty() &&
+                party_resources.record_bytes(secondary_tokens[index]).empty() &&
                 startup.party[index].configuration.actor_record_token == 0U &&
                 startup.party[index].secondary_resource_token == 0U;
         }
@@ -111,20 +123,21 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
                 startup.render_geometry.auxiliary_buffer_token == 0U &&
                 startup.render_geometry.surface_row_offsets == nullptr &&
                 startup.render_geometry.primary_row_offsets == nullptr &&
-                port.party_releases.size() == 20U &&
-                port.release_order == expected_release_order &&
-                port.enemies_live_during_party_release && party_cleared &&
+                port.release_order == std::vector<u32>{0x12345678U} &&
+                port.actors_live_during_render_release && party_cleared &&
                 enemies_cleared,
-            "shutdown releases render and party resources before retiring all eight actual enemy records"
+            "shutdown releases rendering before retiring actual party and enemy records"
         );
     }
 
     {
         LegacyBattleStartupState startup;
         LegacyBattleGroupBStorage enemies;
-        ShutdownPort port{enemies};
+        auto action = std::make_unique<LegacyBattleActionDispatchState>();
+        LegacyBattleGroupAStorage party_resources{startup, *action};
+        ShutdownPort port{startup, party_resources, enemies};
         const auto result =
-            shutdown_legacy_battle_runtime(startup, port, port, nullptr);
+            shutdown_legacy_battle_runtime(startup, port, nullptr, nullptr);
         test.expect_true(
             result.status ==
                     LegacyBattleRuntimeShutdownStatus::
@@ -145,12 +158,25 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
             actor.resource_bytes.fill(0x5AU);
         }
 
-        ShutdownPort port{enemies};
+        auto action = std::make_unique<LegacyBattleActionDispatchState>();
+        LegacyBattleGroupAStorage party_resources{startup, *action};
+        ShutdownPort port{startup, party_resources, enemies};
         const auto result =
-            shutdown_legacy_battle_runtime(startup, port, port, nullptr);
+            shutdown_legacy_battle_runtime(startup, port, nullptr, nullptr);
         test.expect_true(
             result.status == LegacyBattleRuntimeShutdownStatus::completed &&
                 port.release_order.empty() &&
+                std::ranges::all_of(
+                    result.group_a_resource_cleanups,
+                    [](const auto& cleanup) {
+                        return cleanup.status ==
+                            LegacyBattleGroupAResourceCleanupStatus::
+                                completed &&
+                            !cleanup.primary_resource_released &&
+                            !cleanup.secondary_resource_released;
+                    }
+
+                ) &&
                 std::ranges::all_of(
                     result.group_b_resource_cleanups,
                     [](const auto& cleanup) {
@@ -159,6 +185,7 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
                                 completed &&
                             !cleanup.resource_released;
                     }
+
                 ) &&
                 std::ranges::all_of(
                     *startup.group_b_lifecycle,
@@ -168,10 +195,12 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
                                    actor.resource_bytes, [](const auto value) {
                                        return value == 0x5AU;
                                    }
+
                             );
                     }
+
                 ),
-            "eight zero enemy pointers preserve stale bytes and never require a storage release"
+            "zero party and enemy pointers preserve stale bytes and never require storage releases"
         );
     }
 }

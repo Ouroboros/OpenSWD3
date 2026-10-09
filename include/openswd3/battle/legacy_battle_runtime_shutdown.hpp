@@ -48,7 +48,7 @@ struct LegacyBattleRuntimeShutdownResult {
 [[nodiscard]] LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
     LegacyBattleStartupState& startup,
     LegacyBattleRenderAuxiliaryBufferReleaser& render_resources,
-    LegacyBattleGroupAResourceReleasePort& party_resources,
+    LegacyBattleGroupAStorage* party_resources,
     LegacyBattleGroupBStorage* enemy_resources
 ) noexcept;
 

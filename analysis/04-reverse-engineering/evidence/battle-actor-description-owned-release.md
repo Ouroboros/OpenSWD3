@@ -13,8 +13,9 @@
 基础释放的unwind寄存器参数，以及单例析构的寄存器参数和结果包装。
 单例直接返回基础释放的实际状态。
 
-队伍元素入口中的派生资源寄存器协议、共享堆协议及向量函数编号仍待迁移。
-敌方资源协议已在[后续批次](battle-group-b-resource-cleanup-00476a60.md)移除。
+[队伍资源](battle-group-a-resource-cleanup-00475180.md)和
+[敌方资源](battle-group-b-resource-cleanup-00476a60.md)的派生释放协议均已移除。
+共享堆协议及向量函数编号仍待迁移。
 不将剩余协议解释为Goal范围外的compiler边界。
 构造行为及B11/WP316验收等级未改变。
 

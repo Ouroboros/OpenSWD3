@@ -1,33 +1,54 @@
-# 战斗group-A行动者双资源清理 `0x00475180`
+# 队伍角色双资源清理 `00475180`
 
-状态：`platform_adapted`。本页以完整`swd3.exe.lst`机器码与指令为行为真值；反编译、命名和未关闭callee仅用于导航。
+历史分类保持`platform_adapted`，不升级原版动态差分等级。
 
-## 静态审计
+## LST与调用方
 
-权威主体为`0x00475180..0x004751B6`，proc至endp共31行、24条实际指令、2个call、2个跳转、2个局部标签、1个返回点，没有外部`FUNCTION CHUNK`。两个直接caller分别为runtime shutdown内的`0x0045EA42`和group-A元素析构内的`0x0046E4F5`；两个call都指向尚未审计的释放器`0x004885A0`。
+完整主体为`00475180..004751B6`，18条指令，无外部chunk。
+`475183`读取次级指针`+2BC4`；非零在`47518E`释放，返回后`475196`清零。
+随后`4751A0`读取主记录指针`+0`；非零在`4751A7`释放，返回后`4751AF`清零。
+两次释放均调用`4885A0`，不根据其寄存器残值分支。
+零指针跳过对应释放和写入；异常保留已完成的释放与清零，不提前处理后续字段。
 
-函数先读取行动者`+0x2BC4` dword。非零时把该token同时作为栈参数和EAX调用释放器，callee返回后才把字段清零；零值不调用。随后无条件读取行动者`+0` dword并覆盖EAX，以相同规则可选释放并在callee成功后清零。顺序固定为`+0x2BC4`再`+0`，不能合并、倒序或先清字段。
+两个普通调用方是关闭流程`45EA30`与队伍元素析构`46E4D0`。
+关闭顺序保持渲染、十个队伍对象、八个敌方对象；每组按下标递增。
+元素析构先完成双资源清理，再清基础说明。资源异常时先清基础说明，
+基础成功后传播原异常，基础失败沿既有状态返回；基础自身抛出时不重复清理。
 
-若第一token非零而第二token为零，第二次字段读取把EAX覆盖为零，但ECX/EDX仍保留第一次callee返回；若两者都为零，最终EAX为零而ECX/EDX保持入口状态。第二token非零时最终EAX/ECX/EDX来自第二次callee。释放器抛出或失败时当前字段尚未清零，后续字段也不得提前处理。
+## 直接访问实际存储
 
-## Typed实现与caller回收
+删除队伍释放Port、callee编号、字段操作编号、请求/回复、寄存器与调用计数。
+两个调用方直接借用已有`LegacyBattleGroupAStorage`，SDL释放转发方法也已删除。
+关闭不再线程传递EAX/EDX；队伍元素析构不再接收SEH/EDX请求。
 
-新增`LegacyBattleGroupAResourceCleanupState`、窄`LegacyBattleGroupAResourceReleasePort`和`release_legacy_battle_group_a_resources`。唯一typed owner保存`+0` primary token与`+0x2BC4` secondary token；helper精确保留字段读取、零门、固定`0x004885A0` token、callee前寄存器、callee后清零和最终陈旧寄存器。typed owner或legacy行动者token缺失时在首个原版字段访问点停止，不调用释放器。
+关闭直接操作startup中的主记录与次级指针。元素析构操作其已有资源字段，
+主记录释放成功后才清宿主description字节，然后释放基础说明。
+未建立actor或零actor标识保持原访问停止类别。
+全零资源可以没有存储借用；非零资源要求有效存储，不新增空存储成功回退。
 
-runtime shutdown固定十个group-A对象改为直接调用typed helper，并把每槽两个token owner并入既有startup party状态；无论token是否为空，十次cleanup仍全部执行。每个helper的EAX/EDX继续传给下一对象，ECX按原版由下一对象token覆盖；最后一个group-A结果继续传入尚未关闭的group-B析构循环。旧`release_group_a_object`整函数opaque槽收窄为只承载`0x004885A0`资源释放，枚举位置保持稳定。
+存储先撤销登记，之后核心才清指针。未知登记沿既有SDL的`optional::value()`
+失败路径传播，保留当前字段。关闭的既有`noexcept`不变。
+释放使登记查询失效，不声称销毁startup共享字段或回收guest地址保留空间。
+底层共享堆回复仍含寄存器，当前不转发，留待后续迁移。
 
-group-A元素析构的正常与SEH展开路径也回收整函数opaque边界。正常路径执行typed双资源清理后再调用基础析构；primary资源释放后清除宿主description bytes。释放端口抛出时当前token保持、此前已完成的token清零仍保留，并由既有catch路径调用一次基础析构后原样重抛；资源typed-stop也先执行基础析构，再向外层传播停止状态。
+源码扫描中次级字段目前只有清理消费；测试使用实际登记的分配覆盖非零分支。
+这不证明该非零分支已经具备完整生产写入链，也不删除该LST分支。
+SDL仍没有显式调用完整静态元素析构；本批不升级该生产生命周期覆盖。
 
-B11接线将startup的primary指针收敛到configuration.actor_record_token，
-secondary单独保存；引用重载直接操作这两项，旧独立state入口保留适配。
-SDL在窄释放入口转发会话分配登记，不经过render辅助缓冲release接口。
-测试验证十条登记失效与canonical指针清零；详见
-[队伍入战接线](battle-party-startup-runtime-binding.md)。
+## 验证
 
-## 测试与oracle
+叶测试覆盖四种零/非零组合、真实登记失效、重复清理、缺失actor及零actor标识。
+次级指针预先失效时主记录必须仍可访问。
+两个字段指向同一登记时，次级释放成功、主记录重复释放失败；检查次级已清零而
+主指针未清零，独立验证释放顺序及失败前缀。
+元素测试在基础文本释放回调中检查两个资源已经失效；资源失败时检查基础清理、
+异常传播、先前字段清零与未完成的description清理。
+关闭测试在渲染释放时检查两组登记仍有效，随后检查十组双资源和八个敌方记录失效。
+组间及组内循环顺序另由当前源码逐行对照LST，不把末态检查当成全部顺序证明。
 
-独立单元测试覆盖双非零顺序、字段offset、固定callee token、第一次callee陈旧寄存器传入第二次、secondary-only最终EAX归零、primary-only、双零零调用、typed owner缺失、零legacy token、第一释放异常与第二释放异常的部分副作用。runtime shutdown回归覆盖十槽双token共二十次窄释放、每槽secondary→primary顺序、全部清零、空token十次cleanup不省略、group-B八槽位置和尾寄存器；元素析构回归覆盖正常typed清理、description失效和SEH异常顺序。
-
-动态差分登记为`blocked_runtime_oracle`：当前缺少原版十个group-A完整对象、两字段真实分配、`0x004885A0` allocator副作用、runtime shutdown循环寄存器、group-A元素SEH展开及基础析构联合捕获后端。该阻塞不影响完整LST静态闭环、typed实现和Linux验证。
-
-定向battle测试为`1/1`，AddressSanitizer为`1/1`且无AddressSanitizer或LeakSanitizer finding，Linux core为`188/188`，Linux app为`194/194`，全部构建日志零warning。inventory连续双生成逐字节一致，稳定为`234/422 = 225 platform_adapted + 9 assembly_exact + 188 pending_audit`，SHA256为`d8423e666b9ead87b6f72550559d6404920f3c8f81f9644a18e25e0b5430a17e`。
+当前core/ASan setup定向测试各`1/1`通过，SDL构建通过；未启动游戏。
+日志为`build/tmp/runtime/group-a-release-{core,asan,sdl}.log`。
+旧队伍释放类型、方法及请求在`include/src/tests`扫描为零，源码和测试差异已逐项复核。
+历史工作包的core `188/188`、app `194/194`不作为当前批次验证结果。
+原版联合堆与异常捕获仍缺失，`original_diff_verified`保持`blocked_runtime_oracle`。
+全项目协议清理仍未完成；B11/WP316状态不变。

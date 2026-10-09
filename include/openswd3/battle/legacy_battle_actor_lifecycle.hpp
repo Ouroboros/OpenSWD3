@@ -112,11 +112,6 @@ struct LegacyBattleActorGroupAElementCallReply {
     compat::u32 edx{};
 };
 
-struct LegacyBattleActorElementDestructionRequest {
-    compat::u32 seh_chain_token{};
-    compat::u32 entry_edx{};
-};
-
 class LegacyBattleActorGroupAElementConstructionPort {
 public:
     virtual ~LegacyBattleActorGroupAElementConstructionPort() = default;
@@ -388,8 +383,7 @@ release_legacy_battle_actor_group_b_element(
 [[nodiscard]] LegacyBattleActorGroupAElementDestructionResult
 release_legacy_battle_actor_group_a_element(
     LegacyBattleActorGroupAElementState& state,
-    LegacyBattleGroupAResourceReleasePort& port,
-    LegacyBattleActorElementDestructionRequest request = {}
+    LegacyBattleGroupAStorage& resources
 );
 
 // sub_451870: load the singleton token and tail-call its constructor.

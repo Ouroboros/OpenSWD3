@@ -5,7 +5,7 @@ namespace openswd3::battle {
 LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
     LegacyBattleStartupState& startup,
     LegacyBattleRenderAuxiliaryBufferReleaser& render_resources,
-    LegacyBattleGroupAResourceReleasePort& party_resources,
+    LegacyBattleGroupAStorage* party_resources,
     LegacyBattleGroupBStorage* enemy_resources
 ) noexcept {
     LegacyBattleRuntimeShutdownResult result;
@@ -13,8 +13,6 @@ LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
         startup.render_geometry, render_resources
     );
 
-    compat::u32 eax{};
-    compat::u32 edx{};
     compat::u32 object_token = kLegacyBattleGroupAObjectBaseToken;
     for (compat::u32 index = 0U; index < kLegacyBattleGroupAObjectCount;
          ++index) {
@@ -23,16 +21,8 @@ LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
                 startup.party[index].configuration.actor_record_token,
                 startup.party[index].secondary_resource_token,
                 party_resources,
-                {
-                    .actor_token = object_token,
-                    .actor_index = index,
-                    .entry_eax = eax,
-                    .entry_ecx = object_token,
-                    .entry_edx = edx,
-                }
+                object_token
             );
-        eax = result.group_a_resource_cleanups[index].return_eax;
-        edx = result.group_a_resource_cleanups[index].return_edx;
         object_token += kLegacyBattleGroupAObjectStride;
     }
 

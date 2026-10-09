@@ -214,20 +214,12 @@ release_legacy_battle_actor_group_b_element(
 LegacyBattleActorGroupAElementDestructionResult
 release_legacy_battle_actor_group_a_element(
     LegacyBattleActorGroupAElementState& state,
-    LegacyBattleGroupAResourceReleasePort& port,
-    const LegacyBattleActorElementDestructionRequest request
+    LegacyBattleGroupAStorage& resources
 ) {
     LegacyBattleActorGroupAElementDestructionResult result;
     try {
         result.resource_cleanup = release_legacy_battle_group_a_resources(
-            &state.resource_cleanup,
-            port,
-            {
-                .actor_token = state.object_token,
-                .entry_eax = request.seh_chain_token,
-                .entry_ecx = state.object_token,
-                .entry_edx = request.entry_edx,
-            }
+            &state.resource_cleanup, &resources, state.object_token
         );
     } catch (...) {
         result.base_release = release_legacy_battle_actor_base(
