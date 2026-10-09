@@ -1,14 +1,20 @@
 #include "test.hpp"
 
 #include "openswd3/audio_video/legacy_audio_coordination.hpp"
+#include "openswd3/audio_video/legacy_sample_manager.hpp"
+#include "openswd3/audio_video/legacy_sequence_manager.hpp"
+#include "openswd3/audio_video/legacy_stream_manager.hpp"
 
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace {
 
-using openswd3::audio_video::LegacyAudioMaintenancePorts;
+using openswd3::audio_video::LegacyAudioMaintenanceBindings;
 using openswd3::audio_video::LegacyAudioQueueCoordinator;
 using openswd3::audio_video::LegacyAudioQueuePorts;
 using openswd3::audio_video::LegacyAudioQueueState;
@@ -17,6 +23,8 @@ using openswd3::audio_video::kLegacySequencePlaybackType;
 using openswd3::audio_video::kLegacyStreamPlaybackType;
 using openswd3::audio_video::maintain_legacy_audio;
 using openswd3::compat::i32;
+using openswd3::compat::u32;
+using openswd3::compat::u8;
 
 struct QueueEvent {
     std::string call;
@@ -37,7 +45,11 @@ public:
 
     bool stream_absent(const i32 stream_id) override {
         events.push_back({"stream_absent", {}, stream_id});
-        return stream_is_absent;
+        if (maintenance_events) {
+            maintenance_events->push_back("queue");
+        }
+
+        return streams ? streams->stream_absent(stream_id) : stream_is_absent;
     }
 
     void play_sequence(
@@ -74,6 +86,8 @@ public:
         events.push_back({"beep", {}, 0, 0, 0});
     }
 
+    openswd3::audio_video::LegacyStreamManager* streams{};
+    std::vector<std::string>* maintenance_events{};
     bool sequence_is_absent{true};
     bool stream_is_absent{true};
     std::vector<QueueEvent> events;
@@ -191,32 +205,232 @@ void test_stream_queue_and_clear(openswd3::test::Context& test) {
     );
 }
 
-class RecordingMaintenancePorts final : public LegacyAudioMaintenancePorts {
+class MaintenanceBackend final
+    : public openswd3::audio_video::LegacyStreamBackend,
+      public openswd3::audio_video::LegacySequenceBackend,
+      public openswd3::audio_video::LegacySampleBackend {
 public:
-    void service_queue() override {
-        calls.push_back("queue");
-    }
-    void service_streams() override {
-        calls.push_back("stream");
-    }
-    void service_sequences() override {
-        calls.push_back("sequence");
-    }
-    void service_samples() override {
-        calls.push_back("sample");
+    std::string_view last_error() const override {
+        return {};
     }
 
-    std::vector<std::string> calls;
+    u32 open_stream(u32, std::string_view, i32) override {
+        return 1U;
+    }
+
+    void close_stream(u32) override {}
+    void set_stream_user_data(u32, u32, i32 value) override {
+        stream_id = value;
+    }
+
+    i32 stream_user_data(u32, u32) override {
+        return stream_id;
+    }
+
+    void set_stream_volume(u32, i32 value) override {
+        volume = value;
+    }
+
+    i32 stream_volume(u32) override {
+        return volume;
+    }
+
+    void set_stream_loop_count(u32, i32) override {}
+    void start_stream(u32) override {}
+    u32 stream_status(u32) override {
+        events.push_back("stream");
+        return completed ? 2U : 4U;
+    }
+
+    void stream_ms_position(u32, i32& total, i32& current) override {
+        total = 100;
+        current = completed ? 100 : 0;
+    }
+
+    bool open_midi_output(i32, u32& driver) override {
+        driver = 1U;
+        return true;
+    }
+
+    void close_midi_output(u32) override {}
+    u32 allocate_sequence_handle(u32) override {
+        return 1U;
+    }
+
+    void release_sequence_handle(u32) override {}
+    i32 initialize_sequence(u32, std::span<const u8> bytes, u32) override {
+        return bytes.empty() ? 0 : 1;
+    }
+
+    void set_sequence_user_data(u32, u32, i32 value) override {
+        sequence_id = value;
+    }
+
+    i32 sequence_user_data(u32, u32) override {
+        return sequence_id;
+    }
+
+    void set_sequence_volume(u32, i32, i32) override {}
+    void set_sequence_loop_count(u32, i32) override {}
+    void start_sequence(u32) override {}
+    u32 sequence_status(u32) override {
+        events.push_back("sequence");
+        return completed ? 2U : 4U;
+    }
+
+    void end_sequence(u32) override {}
+    u32 driver_token() const override {
+        return 1U;
+    }
+
+    u32 allocate_sample_handle() override {
+        return 1U;
+    }
+
+    void initialize_sample(u32) override {}
+    void release_sample_handle(u32) override {}
+    bool set_sample_file(u32, std::span<const u8> bytes) override {
+        return !bytes.empty();
+    }
+
+    bool set_named_sample_file(
+        u32, std::string_view, std::span<const u8> bytes, u32
+    ) override {
+        return !bytes.empty();
+    }
+
+    void set_sample_user_data(u32, u32, u32 value) override {
+        sample_id = value;
+    }
+
+    u32 sample_user_data(u32, u32) override {
+        return sample_id;
+    }
+
+    void set_sample_volume(u32, i32) override {}
+    void set_sample_pan(u32, i32) override {}
+    void set_sample_loop_count(u32, i32) override {}
+    void start_sample(u32) override {}
+    void end_sample(u32) override {}
+    u32 sample_status(u32) override {
+        events.push_back("sample");
+        return completed ? 2U : 4U;
+    }
+
+    void close_output() override {}
+
+    std::vector<std::string> events;
+    i32 stream_id{};
+    i32 sequence_id{};
+    u32 sample_id{};
+    i32 volume{};
+    bool completed{};
+};
+
+class MaintenanceFiles {
+public:
+    MaintenanceFiles() {
+        root = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
+            ("audio-maintenance-" +
+             std::to_string(
+                 std::chrono::steady_clock::now().time_since_epoch().count()
+             ));
+        std::filesystem::create_directories(root);
+        std::ofstream sequence{root / "sequence.xmi", std::ios::binary};
+        sequence.put('X');
+        std::ofstream archive{root / "samples.snd", std::ios::binary};
+        const std::string index(0x1CU + 3000U * 0x2CU, '\0');
+        archive.write(index.data(), static_cast<std::streamsize>(index.size()));
+    }
+
+    ~MaintenanceFiles() {
+        std::error_code ignored;
+        std::filesystem::remove_all(root, ignored);
+    }
+
+    std::filesystem::path root;
 };
 
 void test_maintenance_order(openswd3::test::Context& test) {
-    RecordingMaintenancePorts ports;
-    test.expect_true(maintain_legacy_audio(ports), "maintenance returns one");
-    test.expect_equal(
-        ports.calls,
-        std::vector<std::string>{"queue", "stream", "sequence", "sample"},
-        "0x0040CF10 order is exact"
-    );
+    for (const bool stream_enabled : {true, false}) {
+        MaintenanceFiles files;
+        MaintenanceBackend backend;
+        openswd3::audio_video::LegacySndArchive archive;
+        openswd3::audio_video::LegacyStreamManager streams{backend};
+        openswd3::audio_video::LegacySequenceManager sequences{backend};
+        openswd3::audio_video::LegacySampleManager samples{backend, archive};
+        RecordingQueuePorts queue_ports;
+        queue_ports.streams = &streams;
+        queue_ports.maintenance_events = &backend.events;
+        LegacyAudioQueueCoordinator queue{queue_ports};
+        LegacyAudioMaintenanceBindings audio{
+            queue, streams, sequences, samples
+        };
+        static_cast<void>(archive.open(files.root / "samples.snd"));
+        static_cast<void>(streams.initialize_pool(1U));
+        static_cast<void>(sequences.initialize_output(1U));
+        static_cast<void>(samples.initialize_pool(1));
+        static_cast<void>(streams.play("stream.mp3", 100, 64, 1));
+        static_cast<void>(
+            sequences.play((files.root / "sequence.xmi").string(), 42, 64, 1)
+        );
+        static_cast<void>(samples.play({
+            .existing_buffer = std::vector<u8>{1U, 2U},
+            .sound_id = 1U,
+            .volume = 64,
+            .loop_count = 1,
+        }));
+        test.expect_true(
+            streams.active_stream_count() == 1U &&
+                sequences.active_sequence_count() == 1U &&
+                samples.active_sample_count() == 1U &&
+                samples.live_buffer_count() == 1U,
+            "maintenance starts with actual active streams, sequences and owned sample bytes"
+        );
+        queue.state().current_playback_type = kLegacyStreamPlaybackType;
+        queue.state().current_playback_id = 100;
+        backend.events.clear();
+        maintain_legacy_audio(audio);
+        test.expect_equal(
+            backend.events,
+            std::vector<std::string>{"queue", "stream", "sequence", "sample"},
+            "active media is serviced in LST order"
+        );
+        test.expect_true(
+            streams.active_stream_count() == 1U &&
+                sequences.active_sequence_count() == 1U &&
+                samples.active_sample_count() == 1U,
+            "active media remains owned after maintenance"
+        );
+        backend.completed = true;
+        streams.set_stream_enabled(stream_enabled);
+        backend.events.clear();
+        maintain_legacy_audio(audio);
+        test.expect_equal(
+            backend.events,
+            std::vector<std::string>{"queue", "stream", "sequence", "sample"},
+            "disabling new stream playback does not skip maintenance or subsequent cleanup"
+        );
+        test.expect_true(
+            sequences.active_sequence_count() == 0U &&
+                sequences.free_sequence_count() == 1U &&
+                samples.active_sample_count() == 0U &&
+                samples.free_sample_count() == 1U &&
+                samples.live_buffer_count() == 0U &&
+                archive.entry(1U)->reference_count == 0U,
+            "completed media returns nodes and releases the sample buffer and archive reference"
+        );
+        test.expect_true(
+            streams.active_stream_count() == 0U &&
+                streams.free_stream_count() == 2U &&
+                queue.state().pending_mode == 3,
+            "queue observes the stream before the same pass releases it"
+        );
+        maintain_legacy_audio(audio);
+        test.expect_equal(
+            queue.state().pending_mode, 0, "queue advances on the next pass"
+        );
+    }
 }
 
 }  // namespace

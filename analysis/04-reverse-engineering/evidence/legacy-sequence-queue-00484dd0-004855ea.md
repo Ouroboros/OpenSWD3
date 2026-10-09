@@ -45,12 +45,12 @@
 
 ## 3. 公共顺序与平台边界
 
-`0x0040CF10` 的机器顺序严格为 queue → stream → sequence → sample，并固定返回
-`AL=1`。该顺序已成为显式 maintenance 端口，窗口事件、显示生命周期和 idle 共用同一
-入口。
+`0x0040CF10..0x0040CF3A`的机器顺序严格为queue → stream → sequence → sample，
+并固定返回`AL=1`。现代入口直接调用实际队列和三个资源管理器；返回值不参与业务判断，
+使用`void`，不把恒一结果描述为播放或回收成功。
 
-`0x00485330` 是 Miles `AIL_serve` 边界，不含游戏内部逻辑；替代实现映射到显式音频
-维护端口。`0x00485360` 的旧 DLL 启动和资源字符串读取属于平台替代边界，启动调用位置
+`0x00485330`是Miles `AIL_serve`边界，不含游戏内部逻辑；替代实现复用实际音频
+维护函数。`0x00485360` 的旧 DLL 启动和资源字符串读取属于平台替代边界，启动调用位置
 保留，但不在核心伪造 Miles DLL。
 
 ## 4. 验证
@@ -59,6 +59,29 @@
   分支、重复 user-data 查询、status 分支和 shutdown 顺序。
 - fake queue ports 锁定两组两条记录、busy 门控、beep→stream、sequence、repeat 和
   pending mode 迁移。
-- 独立 maintenance UT 锁定 queue→stream→sequence→sample。
+- 最初的maintenance UT通过Port调用记录锁定顺序；本次由实际资源测试替代，见第5节。
 - Linux `core` 73/73、Linux `app` 77/77、Windows LLVM `app` 77/77 CTest 通过；未
   启动原版或重写版游戏 EXE。
+
+## 5. 公共维护Port移除
+
+删除`LegacyAudioMaintenancePorts`、SDL派生转发类及`service_audio`全局转发函数。
+`LegacyAudioMaintenanceBindings`只借用实际队列、流、序列和音效管理器，
+不提供虚函数或操作分派。窗口事件、显示维护、世界帧及战斗脚本使用同一个直接入口。
+SDL各使用者按值保存借用关系，资源仍由原有主函数局部对象持有，析构顺序不变。
+
+入口逐条对应LST的四次调用，不按某一次返回值跳过后续维护。流管理器关闭新播放时
+仍维护已有流；样本维护保留其自身开关语义。队列自身的Port仍待后续独立迁移，
+本批不宣称音频模块或全项目所有Port已经移除。
+
+测试使用真实管理器和受控媒体backend，创建合成序列文件与SND索引，观察：
+
+- 活动媒体按队列、流、序列、音效的顺序维护，仍保有实际节点与样本字节。
+- 完成媒体按同一顺序回收节点和样本缓冲区、归还档案引用。
+- 队列查询发生在流回收之前；当前轮保持等待，下一轮才消费待处理模式。
+- 禁止新流播放仍不跳过已有流或后续资源维护。
+
+验证：6并发core与ASan定向音频协调测试各1/1通过，SDL应用链接通过。
+日志无warning/error，`git diff --check`通过；测试后仅补齐新测试方法间的空行。
+日志保存在`build/tmp/runtime/audio-maintenance-direct-{core,asan,sdl}.log`。
+第4节全量结果属于历史记录，不代表本批执行范围；没有启动游戏程序。

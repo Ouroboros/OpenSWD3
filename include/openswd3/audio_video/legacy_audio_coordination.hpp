@@ -77,16 +77,17 @@ private:
     LegacyAudioQueueState state_;
 };
 
-class LegacyAudioMaintenancePorts {
-public:
-    virtual ~LegacyAudioMaintenancePorts() = default;
+class LegacyStreamManager;
+class LegacySequenceManager;
+class LegacySampleManager;
 
-    virtual void service_queue() = 0;
-    virtual void service_streams() = 0;
-    virtual void service_sequences() = 0;
-    virtual void service_samples() = 0;
+struct LegacyAudioMaintenanceBindings {
+    LegacyAudioQueueCoordinator& queue;
+    LegacyStreamManager& streams;
+    LegacySequenceManager& sequences;
+    LegacySampleManager& samples;
 };
 
-[[nodiscard]] bool maintain_legacy_audio(LegacyAudioMaintenancePorts& ports);
+void maintain_legacy_audio(LegacyAudioMaintenanceBindings audio);
 
 }  // namespace openswd3::audio_video

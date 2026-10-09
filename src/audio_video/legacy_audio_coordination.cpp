@@ -1,5 +1,9 @@
 #include "openswd3/audio_video/legacy_audio_coordination.hpp"
 
+#include "openswd3/audio_video/legacy_sample_manager.hpp"
+#include "openswd3/audio_video/legacy_sequence_manager.hpp"
+#include "openswd3/audio_video/legacy_stream_manager.hpp"
+
 namespace openswd3::audio_video {
 
 LegacyAudioQueueCoordinator::LegacyAudioQueueCoordinator(
@@ -111,12 +115,11 @@ compat::i32 LegacyAudioQueueCoordinator::service() {
     return 0;
 }
 
-bool maintain_legacy_audio(LegacyAudioMaintenancePorts& ports) {
-    ports.service_queue();
-    ports.service_streams();
-    ports.service_sequences();
-    ports.service_samples();
-    return true;
+void maintain_legacy_audio(LegacyAudioMaintenanceBindings audio) {
+    static_cast<void>(audio.queue.service());
+    static_cast<void>(audio.streams.service());
+    static_cast<void>(audio.sequences.service());
+    static_cast<void>(audio.samples.service_completed_samples());
 }
 
 }  // namespace openswd3::audio_video

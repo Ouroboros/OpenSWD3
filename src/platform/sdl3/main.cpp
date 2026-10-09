@@ -426,43 +426,6 @@ private:
     openswd3::audio_video::LegacyStreamManager& stream_manager_;
 };
 
-class SdlLegacyAudioMaintenancePorts final
-    : public openswd3::audio_video::LegacyAudioMaintenancePorts {
-public:
-    SdlLegacyAudioMaintenancePorts(
-        openswd3::audio_video::LegacyAudioQueueCoordinator& queue,
-        openswd3::audio_video::LegacyStreamManager& stream_manager,
-        openswd3::audio_video::LegacySequenceManager& sequence_manager,
-        openswd3::audio_video::LegacySampleManager& sample_manager
-    ) noexcept
-        : queue_(queue), stream_manager_(stream_manager),
-          sequence_manager_(sequence_manager), sample_manager_(sample_manager) {
-    }
-
-    void service_queue() override {
-        static_cast<void>(queue_.service());
-    }
-    void service_streams() override {
-        static_cast<void>(stream_manager_.service());
-    }
-    void service_sequences() override {
-        static_cast<void>(sequence_manager_.service());
-    }
-    void service_samples() override {
-        static_cast<void>(sample_manager_.service_completed_samples());
-    }
-
-private:
-    openswd3::audio_video::LegacyAudioQueueCoordinator& queue_;
-    openswd3::audio_video::LegacyStreamManager& stream_manager_;
-    openswd3::audio_video::LegacySequenceManager& sequence_manager_;
-    openswd3::audio_video::LegacySampleManager& sample_manager_;
-};
-
-void service_audio(openswd3::audio_video::LegacyAudioMaintenancePorts& ports) {
-    static_cast<void>(openswd3::audio_video::maintain_legacy_audio(ports));
-}
-
 void shutdown_audio_output(
     openswd3::audio_video::LegacyAudioQueueCoordinator& queue,
     openswd3::audio_video::LegacyStreamManager& stream_manager,
@@ -489,7 +452,7 @@ public:
     SmokeWindowEventPorts(
         const openswd3::rendering::LegacyFramebuffer& framebuffer,
         const openswd3::rendering::LegacyPixelConversionState& pixel_conversion,
-        openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance,
+        openswd3::audio_video::LegacyAudioMaintenanceBindings audio_maintenance,
         openswd3::audio_video::LegacyVideoPlayer& video_player
     )
         : framebuffer_(framebuffer), pixel_conversion_(pixel_conversion),
@@ -529,7 +492,7 @@ public:
     void beep() override {}
 
     void maintain_audio() override {
-        service_audio(audio_maintenance_);
+        openswd3::audio_video::maintain_legacy_audio(audio_maintenance_);
     }
 
     bool
@@ -640,7 +603,7 @@ private:
 
     const openswd3::rendering::LegacyFramebuffer& framebuffer_;
     const openswd3::rendering::LegacyPixelConversionState& pixel_conversion_;
-    openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance_;
+    openswd3::audio_video::LegacyAudioMaintenanceBindings audio_maintenance_;
     openswd3::audio_video::LegacyVideoPlayer& video_player_;
     std::ifstream existing_stream_;
     std::fstream output_stream_;
@@ -1025,7 +988,7 @@ public:
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
         openswd3::audio_video::LegacyStreamManager& stream_manager,
         openswd3::audio_video::LegacySampleManager& sample_manager,
-        openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance,
+        openswd3::audio_video::LegacyAudioMaintenanceBindings audio_maintenance,
         openswd3::compat::u32& frame_interval,
         const bool backend_available,
         bool& ok,
@@ -1069,7 +1032,7 @@ public:
         );
     }
     void maintain_audio() override {
-        service_audio(audio_maintenance_);
+        openswd3::audio_video::maintain_legacy_audio(audio_maintenance_);
     }
     openswd3::compat::u32 battle_active() const noexcept override {
         return battle_active_;
@@ -1179,7 +1142,7 @@ private:
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
     openswd3::audio_video::LegacyStreamManager& stream_manager_;
     openswd3::audio_video::LegacySampleManager& sample_manager_;
-    openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance_;
+    openswd3::audio_video::LegacyAudioMaintenanceBindings audio_maintenance_;
     openswd3::compat::u32& frame_interval_;
     bool backend_available_{};
     bool& ok_;
@@ -1416,7 +1379,7 @@ class SdlDeferredWorldFramePorts final
       public openswd3::rendering::LegacyTimedMessageInputPorts {
 public:
     SdlDeferredWorldFramePorts(
-        openswd3::audio_video::LegacyAudioMaintenancePorts& audio,
+        openswd3::audio_video::LegacyAudioMaintenanceBindings audio,
         openswd3::rendering::LegacyPresentationPorts& presentation,
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
         openswd3::world_map::LegacyWorldHeadSignActionsState*
@@ -1714,7 +1677,7 @@ public:
     }
 
     void maintain_audio() noexcept override {
-        service_audio(audio_);
+        openswd3::audio_video::maintain_legacy_audio(audio_);
     }
 
     void request_world_presentation() noexcept override {
@@ -1736,7 +1699,7 @@ public:
     }
 
 private:
-    openswd3::audio_video::LegacyAudioMaintenancePorts& audio_;
+    openswd3::audio_video::LegacyAudioMaintenanceBindings audio_;
     openswd3::rendering::LegacyPresentationPorts& presentation_;
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
     openswd3::world_map::LegacyWorldHeadSignActionsState* head_sign_actions_{};
@@ -2124,7 +2087,7 @@ public:
         openswd3::input_time_rng::LegacyInputNormalizationState& input_state,
         openswd3::input_time_rng::LegacyMouseState& mouse_state,
         openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state,
-        openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance,
+        openswd3::audio_video::LegacyAudioMaintenanceBindings audio_maintenance,
         openswd3::audio_video::LegacyStreamManager& stream_manager,
         openswd3::audio_video::LegacySampleManager& sample_manager,
         openswd3::audio_video::LegacyVideoPlayer& video_player,
@@ -2507,7 +2470,7 @@ public:
         }
     }
     void maintain_audio() override {
-        service_audio(audio_maintenance_);
+        openswd3::audio_video::maintain_legacy_audio(audio_maintenance_);
     }
 
     [[nodiscard]] openswd3::compat::u32
@@ -5667,7 +5630,7 @@ public:
                 openswd3::asset_runtime::LegacyActionUpdater& action_updater,
                 openswd3::audio_video::LegacySampleManager& sample_manager,
                 openswd3::audio_video::LegacyStreamManager& stream_manager,
-                openswd3::audio_video::LegacyAudioMaintenancePorts&
+                openswd3::audio_video::LegacyAudioMaintenanceBindings
                     audio_maintenance,
                 const openswd3::compat::i32 sample_mix_level,
                 openswd3::rendering::LegacyFramebuffer& framebuffer,
@@ -6100,7 +6063,9 @@ public:
             void beep() noexcept override {}
 
             void service_audio() override {
-                ::service_audio(audio_maintenance_);
+                openswd3::audio_video::maintain_legacy_audio(
+                    audio_maintenance_
+                );
             }
 
             bool prepare_dialog_text(
@@ -6116,7 +6081,7 @@ public:
             openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
             openswd3::audio_video::LegacySampleManager& sample_manager_;
             openswd3::audio_video::LegacyStreamManager& stream_manager_;
-            openswd3::audio_video::LegacyAudioMaintenancePorts&
+            openswd3::audio_video::LegacyAudioMaintenanceBindings
                 audio_maintenance_;
             openswd3::compat::i32 sample_mix_level_{};
             openswd3::rendering::LegacyFramebuffer& framebuffer_;
@@ -9206,7 +9171,7 @@ private:
     openswd3::input_time_rng::LegacyInputNormalizationState& input_state_;
     openswd3::input_time_rng::LegacyMouseState& mouse_state_;
     openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state_;
-    openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance_;
+    openswd3::audio_video::LegacyAudioMaintenanceBindings audio_maintenance_;
     openswd3::audio_video::LegacyStreamManager& stream_manager_;
     openswd3::audio_video::LegacySampleManager& sample_manager_;
     openswd3::audio_video::LegacyVideoPlayer& video_player_;
@@ -9702,9 +9667,9 @@ int main(const int argument_count, char** arguments) {
     openswd3::audio_video::LegacyAudioQueueCoordinator audio_queue(
         audio_queue_ports
     );
-    SdlLegacyAudioMaintenancePorts audio_maintenance(
+    openswd3::audio_video::LegacyAudioMaintenanceBindings audio_maintenance{
         audio_queue, stream_manager, sequence_manager, sample_manager
-    );
+    };
     SdlSmokePlatformBackendPorts backend_ports(
         *renderer,
         texture,

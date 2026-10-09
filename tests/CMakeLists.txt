@@ -2048,6 +2048,10 @@ target_link_libraries(
     openswd3_audio_video_legacy_audio_coordination_tests
     PRIVATE openswd3_audio_video
 )
+target_compile_definitions(
+    openswd3_audio_video_legacy_audio_coordination_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
 
 add_test(
     NAME audio_video.legacy_audio_coordination
