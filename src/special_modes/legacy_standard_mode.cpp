@@ -9372,30 +9372,24 @@ static bool update_party_dialog_item_categories(
     const compat::u32 flags = load_party_dialog_item_flags(record);
     const compat::u32 added_bits = std::bit_cast<compat::u32>(added_value);
     const compat::u32 first_mask = state.item_category_masks[0U];
-    compat::u32 first_entry_edx = flags & first_mask;
-    first_entry_edx &= 0xFFFF7FFFU;
-    if (first_entry_edx == first_mask) {
-        const compat::u16 category_value = static_cast<compat::u16>(
+    const compat::u32 first_masked_flags = flags & first_mask & 0xFFFF7FFFU;
+    if (first_masked_flags == first_mask) {
+        const compat::u16 maximum = static_cast<compat::u16>(
             record.record_bytes[0x44U] |
             (static_cast<compat::u16>(record.record_bytes[0x45U]) << 8U)
         );
-        first_entry_edx = (first_entry_edx & 0xFFFF0000U) | category_value;
         result.fixed_curve = battle::set_legacy_battle_fixed_curve(
             ports.legacy_battle_fixed_object_state(),
-            {
-                .key = category_value,
-                .maximum = item_key,
-                .count = added_bits,
-                .entry_eax = item_key,
-                .entry_ecx = added_bits,
-                .entry_edx = first_entry_edx,
-            }
+            static_cast<compat::u16>(item_key),
+            maximum,
+            static_cast<compat::u16>(added_bits)
         );
         if (result.fixed_curve.status !=
             battle::LegacyBattleFixedCountStatus::completed) {
             return false;
         }
     }
+
     const compat::u32 second_mask = state.item_category_masks[1U];
     compat::u32 second_entry_edx = flags & second_mask;
     second_entry_edx &= 0xFFFF7FFFU;

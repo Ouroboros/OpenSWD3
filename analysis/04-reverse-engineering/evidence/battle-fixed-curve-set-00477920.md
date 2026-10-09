@@ -2,6 +2,13 @@
 
 状态：`platform_adapted`、`unit_tested`、`callers_reclaimed`。
 
+## 当前语义接口
+
+直接接收共享状态、WORD键、WORD最大值和WORD数量。
+返回实际次数、百分比、命中记录和失败位置；删除寄存器request/reply、
+冗余身份及读写、夹限、转换计数。数值仍先写后夹限，再计算并写入百分比。
+下文ABI和寄存器说明仅为原指令证据，不再作为C++接口合同。
+
 ## 1. 完整权威范围与调用图
 
 唯一行为真值为`swd3.exe.lst`。完整主体为`0x00477920..0x004779EF`，从proc到endp共97个物理行、67条实际指令、3个call、5个跳转、5个局部标签和2个返回点，没有外部`FUNCTION CHUNK`。
@@ -63,11 +70,37 @@ maximum为零时不早退。由于unsigned `count >= 0`恒成立，记录先按�
 
 ## 6. Dialog caller回收
 
-Dialog第一分类条件先以记录flags和mask完成`and`及bit15清除；命中后用记录`+0x50`word替换EDX低word，同时保留masked flags高word。typed组合把记录word作为键、解析后的命令ID作为maximum、附加值作为count，并把原callsite的EAX/ECX/EDX完整前缀传给helper。
+Dialog第一分类条件先以记录flags和mask完成`and`及bit15清除；命中后从记录`+0x50`读取最大值WORD。两个调用点均依次压入附加值、记录最大值、物品键、根，因此函数直接接收物品键、记录最大值和附加数量的低WORD。
+
+本次复核发现旧C++和本文曾把键与最大值颠倒：使用记录最大值作为键、物品键作为上限。现已依据`40FC17..40FC2B`和`40FE93..40FEA7`的实参压栈顺序修正。返回后两个调用点均重载记录指针和分类掩码，不依赖本函数的返回寄存器。
 
 原`update_first_item_category`opaque端口已从接口、实现与测试fixture删除。新增与直接修改两条命令都直接组合typed helper；curve stop保留此前库存修改，阻断第二、第三分类、页面刷新、编辑框清理和scratch释放，并以独立`fixed_curve_typed_stop`区别后续typed链故障。第二分类`0x00477A20`现已由`battle-fixed-definition-curve-set-00477a20.md`关闭，并严格位于本helper成功之后。
 
-## 7. 验证与动态差分
+## 本次迁移与参数修正验证
+
+新增路径使用物品键100、记录最大值`0x1234`、数量7：
+真实节点键应为100，次数7，百分比截零为0。
+直接修改路径使用物品键100、记录最大值50、数量77：
+命中键100后次数夹为50、百分比100。
+
+先修改这两条调用方测试，旧实现均失败，日志为
+`build/tmp/runtime/fixed-curve-set-caller-binding-red.log`。
+后续数量分配失败的夹具显式提供曲线根键101及最大值101，
+保留测试原本要验证的“前两类已写、第三类失败”顺序。
+叶测试改为检查实际节点、数量、百分比和失败前缀，不再断言寄存器和调用次数。
+
+core与AddressSanitizer分别构建并执行固定链和菜单，四项各通过1/1。
+SDL应用构建通过，未启动游戏。日志为`build/tmp/runtime/`下
+`fixed-curve-set-semantic-{core-chain,core-menu,asan-chain,asan-menu,sdl}.log`。
+完整源码和测试差异已逐项复核；验证后仅补齐代码块空行，
+`fixed-curve-set-final-format.log`记录非空白内容不变的机械检查。
+生产和测试中已无该request及callee编号调用，原地址仅保留在出处注释。
+定义曲线设置和固定状态Port仍待迁移。
+
+## 7. 历史验证与动态差分
+
+以下完整门禁和寄存器/分配回复夹具为历史记录，不是本批重新执行的验证。
+旧调用方参数顺序及对应断言已由本次LST复核纠正。
 
 叶函数UT覆盖已有根、动态节点二次命中、先写后inclusive夹限、缺键五dword清零、根word回绕、百分比截零、scale高word、maximum零integer indefinite、已有count/scale访问stop及分配清零时allocator ECX高字。Dialog回归覆盖新增与直接修改两个物理caller、真实共享owner上的curve/count双链、完整masked EDX高字、curve stop与后续fixed-count stop的不同前缀。
 

@@ -23096,7 +23096,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             party_dialog_added.fixed_curve.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::allocated_node &&
             party_dialog_added.fixed_curve.count == 7U &&
-            party_dialog_added.fixed_curve.scale == 7U &&
+            party_dialog_added.fixed_curve.scale == 0U &&
             party_dialog_added.fixed_definition_curve.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::allocated_node &&
             party_dialog_added.fixed_definition_curve.maximum == 100U &&
@@ -23114,9 +23114,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             add_curve_node.legacy_token != 0U &&
             add_fixed_state.object_words[1U][0U] ==
                 add_curve_node.legacy_token &&
-            static_cast<u16>(add_curve_node.words[1U]) == 0x1234U &&
+            static_cast<u16>(add_curve_node.words[1U]) == 100U &&
             static_cast<u16>(add_curve_node.words[1U] >> 16U) == 7U &&
-            static_cast<u16>(add_curve_node.words[2U]) == 7U &&
+            static_cast<u16>(add_curve_node.words[2U]) == 0U &&
             add_definition_node.legacy_token != add_curve_node.legacy_token &&
             add_fixed_state.object_words[2U][0U] ==
                 add_definition_node.legacy_token &&
@@ -23144,6 +23144,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     party_dialog_fixed_stop_record.first_value = 1U;
     party_dialog_fixed_stop_record.second_value = 2U;
     party_dialog_fixed_stop_record.record_bytes[0x20U] = 7U;
+    party_dialog_fixed_stop_record.record_bytes[0x44U] = 101U;
     openswd3::special_modes::LegacyPartyDialogState
         party_dialog_fixed_stop_state;
     party_dialog_fixed_stop_state.page_state.item_heads[0U] =
@@ -23152,6 +23153,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     FakePartyDialogPorts party_dialog_fixed_stop_ports;
     auto& fixed_stop_state =
         party_dialog_fixed_stop_ports.legacy_battle_fixed_object_state();
+    fixed_stop_state.object_words[1U][1U] = 101U;
     fixed_stop_state.object_words[2U][0U] = 0x75F00000U;
     fixed_stop_state.object_words[2U][1U] = 1U;
     fixed_stop_state.fixed_count_nodes.push_back({
@@ -23293,15 +23295,15 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 openswd3::battle::LegacyBattleFixedCountStatus::
                     allocation_record_access_typed_stop &&
             party_dialog_curve_stopped.fixed_curve.stopped_offset == 0U &&
-            party_dialog_curve_stopped.fixed_curve.return_eax == 0U &&
-            party_dialog_curve_stopped.fixed_curve.return_ecx == 7U &&
-            party_dialog_curve_stopped.fixed_curve.return_edx == 0U &&
+            party_dialog_curve_stopped.fixed_curve.stopped_token == 0U &&
+            party_dialog_curve_stop_ports.fixed_node_state
+                    .object_words[1U][0U] == 0U &&
             party_dialog_curve_stop_ports.requested_definition_ids.empty() &&
             party_dialog_curve_stop_ports.fixed_node_state.fixed_count_nodes
                 .empty() &&
             party_dialog_curve_stop_ports.fixed_node_memory
                     .outstanding_blocks == 0U,
-        "0x40F890 stops at the reclaimed first fixed-curve allocation after preserving the inventory and full-register prefix before later categories"
+        "0x40F890 preserves the inventory and published null curve link when allocation fails before later categories"
     );
 
     openswd3::special_modes::LegacyPartyDialogState
@@ -23373,11 +23375,14 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     party_dialog_update_record.second_value = 4U;
     party_dialog_update_record.display_name = "update";
     party_dialog_update_record.record_bytes[0x20U] = 3U;
+    party_dialog_update_record.record_bytes[0x44U] = 50U;
     openswd3::special_modes::LegacyPartyDialogState party_dialog_update_state;
     party_dialog_update_state.page_state.item_heads[0U] =
         &party_dialog_update_record;
     party_dialog_update_state.page_state.item_category_masks = {1U, 2U, 4U};
     FakePartyDialogPorts party_dialog_update_ports;
+    party_dialog_update_ports.legacy_battle_fixed_object_state()
+        .object_words[1U][1U] = 100U;
     const auto party_dialog_updated =
         openswd3::special_modes::run_legacy_party_dialog(
             party_dialog_update_state,
@@ -23414,11 +23419,12 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 std::vector<u32>{100U, 100U} &&
             party_dialog_updated.fixed_curve.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::existing_root &&
-            party_dialog_updated.fixed_curve.count == 77U &&
-            party_dialog_updated.fixed_curve.scale == 77U &&
+            party_dialog_updated.fixed_curve.count == 50U &&
+            party_dialog_updated.fixed_curve.scale == 100U &&
+            static_cast<u16>(update_fixed_state.object_words[1U][1U]) == 100U &&
             static_cast<u16>(update_fixed_state.object_words[1U][1U] >> 16U) ==
-                77U &&
-            static_cast<u16>(update_fixed_state.object_words[1U][2U]) == 77U &&
+                50U &&
+            static_cast<u16>(update_fixed_state.object_words[1U][2U]) == 100U &&
             party_dialog_updated.fixed_definition_curve.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::allocated_node &&
             party_dialog_updated.fixed_definition_curve.maximum == 100U &&

@@ -81,41 +81,16 @@ struct LegacyBattleFixedCurveAdvanceResult {
     std::int64_t scaled_value{};
 };
 
-struct LegacyBattleFixedCurveSetRequest {
-    compat::u32 owner_token{kLegacyBattleFixedCurveOwnerToken};
-    compat::u32 key{};
-    compat::u32 maximum{};
-    compat::u32 count{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_ecx{};
-    compat::u32 entry_edx{};
-};
-
 struct LegacyBattleFixedCurveSetResult {
     LegacyBattleFixedCountStatus status{
         LegacyBattleFixedCountStatus::completed
     };
     LegacyBattleFixedCountPath path{LegacyBattleFixedCountPath::none};
-    compat::u32 owner_token{};
     compat::u32 matched_token{};
-    compat::u32 allocation_token{};
     compat::u32 stopped_token{};
     compat::u32 stopped_offset{};
-    compat::u32 chain_link_reads{};
-    compat::u32 key_reads{};
-    compat::u32 link_writes{};
-    compat::u32 dword_zero_writes{};
-    compat::u32 key_writes{};
-    compat::u32 count_writes{};
-    compat::u32 clamp_writes{};
-    compat::u32 scale_writes{};
-    compat::u32 root_key_increments{};
-    compat::u32 truncate_calls{};
     compat::u16 count{};
     compat::u16 scale{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 // Typed closure of legacy 0x00477710. Legacy tokens select records owned by
@@ -161,8 +136,11 @@ advance_legacy_battle_fixed_curve(
 // Missing keys use the same physical curve root and twenty-byte allocator.
 [[nodiscard]] LegacyBattleFixedCurveSetResult set_legacy_battle_fixed_curve(
     LegacyBattleFixedObjectState& state,
-    const LegacyBattleFixedCurveSetRequest& request
-);
+    compat::u16 key,
+    compat::u16 maximum,
+    compat::u16 count,
+    compat::u32 owner_token = kLegacyBattleFixedCurveOwnerToken
+) noexcept;
 
 struct LegacyBattleFixedCurveLookupResult {
     LegacyBattleFixedCountStatus status{
