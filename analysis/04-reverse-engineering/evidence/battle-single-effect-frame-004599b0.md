@@ -1,122 +1,78 @@
 # 战斗单条效果记录帧 `0x004599B0`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+状态：直接调用迁移已通过core、ASan定向测试和SDL链接。
+完整SDL战斗帧和原版动态差分未验收。
 
-## 1. 完整LST范围
+## 权威范围与调用方
 
-权威函数为`0x004599B0..0x00459BE9`，完整269行、10个静态call站点、14个`loc_`标签，无外部FUNCTION CHUNK。9个唯一callee。
+LST范围为`0x004599B0..0x00459BE9`，269行、10个静态调用、9个不同被调函数。
+唯一调用点是组B帧`0x00458244`。
 
-唯一caller是已关闭组B战斗帧`0x004576A0`中的`0x00458244`。本工作包关闭后，caller删除`0x004599B0` opaque token，直接组合typed实现并合并嵌套port call计数；嵌套typed-stop映射为caller的effect-record stop。
+本批删除单效果帧的callee编号、通用参数数组、请求/回复包、`port_calls`、
+寄存器残值与flags拼装，以及组B帧的`SingleEffectPortAdapter`。
+调用方直接借用已有动作更新器、TSW加载器、音频管理器、画布与共享绘制参数。
+Context仅保存这些依赖的引用，不提供操作分派或转发方法。
 
-入口读取actor token、source value和8槽slot index。主/备用record继续使用固定152字节布局：
+## 实际动作记录
 
-```text
-primary:   0x005202A8 + slot * 0x98
-alternate: 0x004FE600 + slot * 0x98
-```
+主记录地址为`0x005202A8 + slot * 0x98`，备用记录地址为
+`0x004FE600 + slot * 0x98`。两组存储直接使用152字节`LegacyActionRecord`，
+不再维护效果记录的字段副本或把记录地址交给外部通用调用修改。
 
-slot越界只在首次主status/complete访问typed-stop。
+- `+0x5A`有符号状态为负时，先清战斗gate，再写调用方共享消息为1。
+- `+0x8C`完成字段为0时，写action ID、清base variant、设置external mode。
+- 直接调用`LegacyActionUpdater::update`；正常返回0时清备用记录和active并返回1。
+- 动作流缺失的正常返回与宿主读取停止、格式错误区分；后者停止后续工作。
+- 结束时重新读取`+0x8C`，等于1才清完整主记录并返回1；其他值保留记录并返回0。
 
-## 2. signed status前缀
+## 图像所有权与坐标
 
-函数先读取主status word。按i16为负时，严格先把battle gate清零，再把唯一共享战斗消息/阶段写1。该dword与startup、动作和预帧路径共用`LegacyBattleSharedPhaseStatePort`。该前缀即使主record complete已等于1也执行；随后成功尾会清整个主record。
+动作更新成功后，把`+0x4A/+0x4C`两个word直接传给`LegacyTswRuntime::load_owned`。
+独立图像使用实际分配的记录、主流和辅助流。加载或后续访问停止时，已分配记录保存在
+本状态的`retained_frames`中，不通过局部对象析构提前执行原函数尚未到达的释放。
 
-## 3. 主record初始化失败
+加载完成才发布主流标识到共享绘制参数。全局镜像值恰等于1时翻转绘制bit0，
+横向偏移变为`width - draw_offset_x`，保持u32回绕。
 
-主complete为0时写source、zero和global mode snapshot，再初始化主record。
+角色数据直接从调用方已有action/startup所有者解析：
 
-初始化完整EAX为0时：
+1. 先读取绘制偏移；任一word为0时读取状态坐标。
+2. 两个偏移均非0时读取基准坐标，然后按u32相加。
+3. X减横向偏移；Y减纵向偏移，最终绘制只取有符号低16位。
+4. 任一坐标读取失败均停止音频、绘制及释放；已加载资源保留。
 
-1. 清同槽备用152字节record；
-2. alternate active清零；
-3. 返回1。
+不再把局部坐标的地址、调用者EAX/EDX或算术flags作为单效果帧接口输出。
+底层坐标函数尚有其他调用者使用的历史接口，属于后续全项目清理范围。
 
-主record此前source/zero/mode写保留，不清主record，不查询resource。
+## 音频、绘制与释放
 
-## 4. resource owner首读
+直接调用`play_legacy_sample`和`set_legacy_sample_pan`。音效ID来自`+0x58`，
+两次分别读取；音量使用原全局值。声像依据
+`base_offset + signed16(X)`的32位回绕结果，以有符号320为界，取-16或16。
+音频包装器只消费音效ID低16位，旧寄存器高半字不再重建。
+set-pan后清`+0x58`，不根据播放返回值提前结束。
 
-初始化成功后按两个u16 key查询resource owner。与前两项不同，本函数在sample之前立即执行`[owner]`读取：
+绘制直接调用`blit_legacy_copy_paths`，使用真实主流与辅助流、共享画布和裁剪区域，
+传入有符号X/Y、宽高和绘制flags。绘制失败保留资源，正常完成或无像素输出才继续释放。
 
-- owner token为0时在首次owner value访问typed-stop；
-- 不发布current resource；
-- 不查询坐标；
-- 不播放sample。
+释放顺序为：释放主流存储，清记录内主流标识，销毁记录。
+共享source标识保留原发布值；辅助span在记录销毁后清空，避免悬空宿主借用。
+删除原`released_owner_value_clears`计数，测试观察实际所有权和存储。
 
-有效owner发布其内部value token、u16宽高和data token。global flip mode等于1时翻转render flags完整bit0，并把base offset改为`u16(width)-record base`。
+## 调用方与验证
 
-## 5. 坐标选择
+组B帧直接传入上述依赖和共享消息引用。结果以`finished`表达原返回1的完成条件，
+只有完成才清pending ID；停止状态直接阻断最终actor步骤。该路径不再累计通用调用次数。
 
-`0x00459AB7`已直接组合角色绘制偏移查询`0x00478400`。组B帧caller把现有action/startup owner一并传入，解析复用startup-owned组B lifecycle的action-execution与action-composition状态，不建立副本。基础X/Y、特殊覆盖与镜像X严格按原顺序只写两个既有dword local的低16位；caller入口flags来自非flip路径的`CMP global_flip,1`或flip路径的32位SUB。
+测试使用编码后的TSW资产、SND资产、真实动作更新器、资源加载器、音频管理器及
+画布绘制。覆盖越界、状态前缀、动作流失败、资源加载停止、左右声像、镜像、
+两种坐标路径、坐标读取失败、实际像素和资源释放。
 
-两个offset低word必须同时非零才在`0x00459AEF`直接组合已关闭的基准坐标查询`0x00478470`：owner按入口actor token从startup/action与Group-B lifecycle canonical状态解析，leaf按X后Y把`position_x-source_y_offset`与`position_y-low16(target_phase_y_adjustment)`写入两个独立零初始化dword local的低16位，再按完整u32分别加原绘制偏移。入口EAX/EDX为X/Y输出token，flags来自第二项低word `CMP offset_y,0`。任一offset为0时仍在`0x00459ADA`直接组合已关闭的`0x004783B0`；该fallback入口EAX为Y输出token，EDX保留绘制偏移leaf残值，flags为到达fallback的零比较结果，X/Y各只覆盖当前offset dword低word。任一绘制偏移、基准坐标或fallback坐标typed-stop都保留初始化、owner发布与flip前缀；X写入后的Y侧故障保留第一项16-bit写入，并抑制sample、render、release与完成尾。
+core定向`battle.legacy_battle_setup`通过1/1，日志为
+`build/tmp/runtime/single-effect-direct-core-pixels.log`。
+ASan同项通过1/1，日志为`build/tmp/runtime/single-effect-direct-asan.log`。
+SDL目标构建链接成功，日志为`build/tmp/runtime/single-effect-direct-sdl.log`。
+早期测试资产目录宏、TSW头和特殊颜色索引问题已修正。
+ASan编译仍报告既有结果结算测试第133行的窄化警告；本批无新增编译警告。
 
-随后：
-
-- Y只把低word减record base-Y；
-- X按完整u32减base offset。
-
-sample参数先取调整后X完整dword，再只覆盖低word为record pan。因此sample参数高word来自调整后坐标，不来自resource或callee寄存器。
-
-## 6. 左右sample pan
-
-play sample后，以`base_offset + signed16(X)`按低32位回绕并以i32比较320：
-
-- 大于等于320：pan参数保留play callee EDX高word，只覆盖DX为record pan，level为16；
-- 小于320：pan参数保留play callee ECX高word，只覆盖CX为record pan，level为-16。
-
-set-pan之后主record pan清零。两条路径都不根据play返回值早退。
-
-## 7. 绘制和释放顺序
-
-resource render参数固定为：
-
-1. signed16 X；
-2. signed16 Y；
-3. owner u16 width；
-4. owner u16 height；
-5. 本地render flags；
-6. owner data token。
-
-owner内部value非0时先释放value；为0时跳过该call。随后无条件把owner内部value槽写0，再释放owner。typed状态以`released_owner_value_clears`记录该真实写时机；共享current resource token继续保留释放前value，不随owner内部槽清零。
-
-## 8. 完成尾
-
-绘制/释放结束或主complete入口已非0后，重新读取主complete：
-
-- 完整值不等于1：返回0，保留主record；
-- 完整值等于1：清整个主152字节record并返回1。
-
-成功尾不清备用record、不写alternate active；只有初始化失败路径清备用状态。
-
-## 9. caller回收
-
-组B帧原pending-effect分支只在pending ID非全1时调用本函数。modern caller现持有完整`LegacyBattleSingleEffectFrameState`：
-
-- actor token使用当前组B物理token；
-- source value使用原共享pending参数；
-- slot使用当前组B index；
-- 子函数返回1才把pending ID写全1；
-- 返回0保持pending ID；
-- 子函数typed-stop立即传播，不执行后续最终actor step；
-- 除已直连的绘制偏移、基准坐标和状态坐标查询外，其余6类callee通过adapter进入caller既有typed端口，计数累加一次，不再发布已关闭函数token。
-
-调用端测试把子record预置complete=1，证明同调用清主record、清pending ID，且port中不存在`0x004599B0`调用。
-
-## 10. 测试与动态差分
-
-定向测试覆盖：
-
-- slot首访问typed-stop；
-- signed status在complete record清零前发布；
-- 初始化失败清备用record与active但保留主前缀；
-- owner零token在任何坐标/sample前停；
-- global flip、绘制偏移的基础/覆盖/镜像owner、基准坐标`position-adjustment`、offset AND门、低字写入后完整u32相加、caller寄存器/flags、X后Y部分提交与故障后缀抑制；
-- fallback坐标直连、输出token、绘制偏移EDX残值与零flags、signed X/Y和data token；
-- fallback坐标Y读取typed-stop保留第一项低字写入并抑制sample、render、release与完成尾；
-- 左侧sample使用坐标高word、pan使用play ECX高word；
-- 右侧pan使用play EDX高word；
-- value非0时value→owner释放，value为0时只释放owner；
-- owner内部value清零计数；
-- caller直连、嵌套状态与pending/final公共尾。
-
-当前缺少原版主/备用record、8类剩余callee共享副作用、resource owner内部槽、actor坐标、sample manager、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+未执行原版或OpenSWD3游戏程序。构建及定向测试不能代表完整战斗或原版动态差分通过。

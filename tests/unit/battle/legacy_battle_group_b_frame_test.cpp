@@ -2543,8 +2543,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.pending_effect_ids[1] = 7U;
         state.pending_effect_argument = 0x66U;
-        state.pending_effect_frame.primary[1].complete = 1U;
-        state.pending_effect_frame.primary[1].source_value = 0x77U;
+        state.pending_effect_frame.primary[1].field_8c = 1U;
+        state.pending_effect_frame.primary[1].action_id = 0x77U;
         state.shared.action.group_a_to_actor[1] = 5U;
         Fixture fixture;
         DispatchPort port;
@@ -2559,7 +2559,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U &&
                 state.pending_effect_ids[1] == 0xFFFFFFFFU &&
-                state.pending_effect_frame.primary[1].source_value == 0U &&
+                state.pending_effect_frame.primary[1].action_id == 0U &&
                 port.count(0x004599B0U) == 0U &&
                 has_call_argument(port, 0x00479850U, 0U, 0x00532CD0U) &&
                 state.final_actor_state[1] == 0U &&
@@ -2573,8 +2573,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         LegacyBattleGroupBFrameState state;
         state.pending_effect_ids[1U] = 7U;
         state.pending_effect_argument = 0x66U;
-        state.pending_effect_frame.primary[1U].complete = 1U;
-        state.pending_effect_frame.primary[1U].source_value = 0x77U;
+        state.pending_effect_frame.primary[1U].field_8c = 1U;
+        state.pending_effect_frame.primary[1U].action_id = 0x77U;
         state.shared.action.group_a_to_actor[1U] = 5U;
         Fixture fixture;
         DispatchPort port;

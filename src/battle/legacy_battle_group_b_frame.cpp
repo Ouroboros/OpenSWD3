@@ -572,94 +572,6 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     return true;
 }
 
-class SingleEffectPortAdapter final : public LegacyBattleEffectCallPort {
-public:
-    explicit SingleEffectPortAdapter(LegacyBattleActionDispatchPort& port)
-        : port_(port) {}
-
-    [[nodiscard]] LegacyBattleDebugHotkeyState&
-    battle_debug_hotkey_state() noexcept override {
-        return port_.battle_debug_hotkey_state();
-    }
-
-    [[nodiscard]] const LegacyBattleDebugHotkeyState&
-    battle_debug_hotkey_state() const noexcept override {
-        return port_.battle_debug_hotkey_state();
-    }
-
-    [[nodiscard]] LegacyBattleEffectCallReply
-    invoke(const LegacyBattleEffectCallRequest& request) override {
-        LegacyBattleActionCallRequest action_request{};
-        action_request.callee_token = request.callee_token;
-        std::copy_n(
-            request.arguments.begin(),
-            action_request.arguments.size(),
-            action_request.arguments.begin()
-        );
-        const auto reply = port_.invoke(action_request);
-        return {
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-            .outputs = reply.outputs,
-            .output_write_mask = reply.output_write_mask,
-        };
-    }
-
-    [[nodiscard]] LegacyBattleActorMetricState&
-    actor_metric_state() noexcept override {
-        return port_.actor_metric_state();
-    }
-
-    [[nodiscard]] const LegacyBattleActorMetricState&
-    actor_metric_state() const noexcept override {
-        return port_.actor_metric_state();
-    }
-
-    [[nodiscard]] LegacyBattleEffectShiftState&
-    effect_shift_state() noexcept override {
-        return port_.effect_shift_state();
-    }
-
-    [[nodiscard]] const LegacyBattleEffectShiftState&
-    effect_shift_state() const noexcept override {
-        return port_.effect_shift_state();
-    }
-
-    [[nodiscard]] LegacyBattleScreenFlashState&
-    screen_flash_state() noexcept override {
-        return port_.screen_flash_state();
-    }
-
-    [[nodiscard]] const LegacyBattleScreenFlashState&
-    screen_flash_state() const noexcept override {
-        return port_.screen_flash_state();
-    }
-
-    [[nodiscard]] LegacyBattleFrameRefreshState&
-    frame_refresh_state() noexcept override {
-        return port_.frame_refresh_state();
-    }
-
-    [[nodiscard]] const LegacyBattleFrameRefreshState&
-    frame_refresh_state() const noexcept override {
-        return port_.frame_refresh_state();
-    }
-
-    [[nodiscard]] LegacyBattleFrameEffectControlState&
-    frame_effect_control_state() noexcept override {
-        return port_.frame_effect_control_state();
-    }
-
-    [[nodiscard]] const LegacyBattleFrameEffectControlState&
-    frame_effect_control_state() const noexcept override {
-        return port_.frame_effect_control_state();
-    }
-
-private:
-    LegacyBattleActionDispatchPort& port_;
-};
-
 void merge_nested(
     LegacyBattleActionDispatchResult& result,
     const LegacyBattleActionDispatchResult& nested
@@ -2464,23 +2376,31 @@ action_decision_done:
     }
 
     if (state.pending_effect_ids[group_b_index] != 0xFFFFFFFFU) {
-        SingleEffectPortAdapter effect_port(port);
         const auto effect = advance_legacy_battle_single_effect_frame(
             state.pending_effect_frame,
-            effect_port,
+            {
+                context.action_updater,
+                context.effect_images,
+                context.effect_samples,
+                context.framebuffer,
+                context.raster,
+                context.shared_request,
+                context.shared_effects,
+                context.jitter,
+            },
+            port.battle_message_state(),
             source_token,
             state.pending_effect_argument,
             group_b_index,
             {.action = &action, .startup = context.startup}
         );
-        result.port_calls += effect.port_calls;
         if (effect.status != LegacyBattleSingleEffectFrameStatus::completed) {
             result.status =
                 LegacyBattleActionDispatchStatus::effect_record_typed_stop;
-            result.return_value = effect.return_value;
+            result.return_value = 0U;
             return result;
         }
-        if (effect.return_value == 1U) {
+        if (effect.finished) {
             state.pending_effect_ids[group_b_index] = 0xFFFFFFFFU;
         }
     }

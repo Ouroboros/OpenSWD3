@@ -1,6 +1,6 @@
 #include "openswd3/battle/legacy_battle_single_effect_frame.hpp"
+#include "openswd3/audio_video/legacy_sample_commands.hpp"
 
-#include <algorithm>
 #include <bit>
 
 namespace openswd3::battle {
@@ -11,90 +11,16 @@ using compat::i32;
 using compat::u16;
 using compat::u32;
 
-constexpr u32 kCallInitializeRecord = 0x004321E0U;
-constexpr u32 kCallLookupResource = 0x00431760U;
-constexpr u32 kCallPlaySample = 0x00485610U;
-constexpr u32 kCallSetSamplePan = 0x00485650U;
-constexpr u32 kCallRenderResource = 0x004170E0U;
-constexpr u32 kCallReleaseResource = 0x004885A0U;
-
-[[nodiscard]] constexpr u16 low_word(const u32 value) noexcept {
-    return static_cast<u16>(value);
-}
-
 [[nodiscard]] constexpr i16 signed_word(const u32 value) noexcept {
-    return std::bit_cast<i16>(low_word(value));
+    return std::bit_cast<i16>(static_cast<u16>(value));
 }
 
-[[nodiscard]] constexpr i32 signed_dword(const u32 value) noexcept {
-    return std::bit_cast<i32>(value);
 }
-
-[[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
-    return std::bit_cast<u32>(value);
-}
-
-void replace_low_word(u32& destination, const u16 value) noexcept {
-    destination = (destination & 0xFFFF0000U) | value;
-}
-
-[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags zero_flags() noexcept {
-    return {
-        .carry = false,
-        .parity = true,
-        .auxiliary_carry = false,
-        .auxiliary_carry_defined = true,
-        .zero = true,
-        .sign = false,
-        .overflow = false,
-    };
-}
-
-[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
-    value &= 0xFFU;
-    value ^= value >> 4U;
-    value ^= value >> 2U;
-    value ^= value >> 1U;
-    return (value & 1U) == 0U;
-}
-
-[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
-subtract_flags(const u32 left, const u32 right) noexcept {
-    const u32 difference = left - right;
-    return {
-        .carry = left < right,
-        .parity = has_even_parity(difference),
-        .auxiliary_carry = ((left ^ right ^ difference) & 0x10U) != 0U,
-        .auxiliary_carry_defined = true,
-        .zero = difference == 0U,
-        .sign = (difference & 0x80000000U) != 0U,
-        .overflow = ((left ^ right) & (left ^ difference) & 0x80000000U) != 0U,
-    };
-}
-
-[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
-compare_word_zero_flags(const u16 value) noexcept {
-    return {
-        .carry = false,
-        .parity = has_even_parity(value),
-        .auxiliary_carry = false,
-        .auxiliary_carry_defined = true,
-        .zero = value == 0U,
-        .sign = (value & 0x8000U) != 0U,
-        .overflow = false,
-    };
-}
-
-[[nodiscard]] constexpr u32 primary_token(const u32 slot) noexcept {
-    return kLegacyBattleEffectPrimaryBaseToken +
-        slot * kLegacyBattleEffectRecordStride;
-}
-
-}  // namespace
 
 LegacyBattleSingleEffectFrameResult advance_legacy_battle_single_effect_frame(
     LegacyBattleSingleEffectFrameState& state,
-    LegacyBattleEffectCallPort& port,
+    LegacyBattleSingleEffectFrameContext context,
+    u32& battle_message,
     const u32 actor_token,
     const u32 source_value,
     const u32 slot_index,
@@ -106,212 +32,177 @@ LegacyBattleSingleEffectFrameResult advance_legacy_battle_single_effect_frame(
             LegacyBattleSingleEffectFrameStatus::slot_index_typed_stop;
         return result;
     }
-    auto invoke = [&](const u32 callee,
-                      const std::initializer_list<u32> arguments = {}) {
-        LegacyBattleEffectCallRequest request{};
-        request.callee_token = callee;
-        std::copy(
-            arguments.begin(), arguments.end(), request.arguments.begin()
-        );
-        ++result.port_calls;
-        return port.invoke(request);
-    };
 
     auto& primary = state.primary[slot_index];
-    if (std::bit_cast<i16>(primary.status_flags) < 0) {
+    if (std::bit_cast<i16>(primary.field_5a) < 0) {
         state.battle_gate = 0U;
-        port.battle_message_state() = 1U;
+        battle_message = 1U;
     }
 
-    if (primary.complete == 0U) {
-        primary.source_value = source_value;
-        primary.zero_value = 0U;
-        primary.mode_snapshot = state.global_mode == 1U ? 1U : 0U;
-        if (invoke(kCallInitializeRecord, {primary_token(slot_index)}).eax ==
-            0U) {
-            state.alternate[slot_index] = {};
-            state.alternate_active[slot_index] = 0U;
-            result.return_value = 1U;
+    if (primary.field_8c == 0U) {
+        primary.action_id = source_value;
+        primary.base_variant = 0U;
+        primary.external_mode = state.global_mode == 1U ? 1U : 0U;
+        const auto update = context.action_updater.update(primary);
+        if (update.status ==
+                asset_runtime::LegacyActionUpdateStatus::malformed_stream ||
+            update.status ==
+                asset_runtime::LegacyActionUpdateStatus::stream_load_stopped) {
+            result.status =
+                LegacyBattleSingleEffectFrameStatus::action_update_typed_stop;
             return result;
         }
 
-        const auto lookup = invoke(
-            kCallLookupResource, {primary.lookup_key_a, primary.lookup_key_b}
-        );
-        if (lookup.eax == 0U) {
+        if (update.return_value == 0U) {
+            state.alternate[slot_index] = {};
+            state.alternate_active[slot_index] = 0U;
+            result.finished = true;
+            return result;
+        }
+
+        if (context.images == nullptr) {
             result.status =
                 LegacyBattleSingleEffectFrameStatus::resource_owner_typed_stop;
             return result;
         }
-        const u32 owner_token = lookup.eax;
-        const u32 owner_value_token = lookup.outputs[0];
-        const u16 width = low_word(lookup.outputs[1]);
-        const u16 height = low_word(lookup.outputs[2]);
-        const u32 data_token = lookup.outputs[3];
-        state.current_resource_value_token = owner_value_token;
 
-        u32 render_flags = primary.render_flags;
-        u32 base_offset = primary.base_offset;
-        u32 render_offset_entry_eax = state.global_flip_mode;
-        auto render_offset_entry_flags =
-            subtract_flags(state.global_flip_mode, 1U);
-        if (state.global_flip_mode == 1U) {
-            render_flags = (render_flags & 1U) != 0U
-                ? render_flags & 0xFFFFFFFEU
-                : render_flags | 1U;
-            const u32 original_base_offset = base_offset;
-            base_offset = static_cast<u32>(width) - base_offset;
-            render_offset_entry_eax = base_offset;
-            render_offset_entry_flags =
-                subtract_flags(static_cast<u32>(width), original_base_offset);
+        auto lookup =
+            context.images->load_owned(primary.field_4a, primary.field_4c);
+        auto* const frame = lookup.frame.get();
+        if (frame != nullptr) {
+            state.retained_frames.push_back(std::move(lookup.frame));
         }
 
-        u32 x = 0U;
-        u32 y = 0U;
-        u16 offset_x_word = low_word(x);
-        u16 offset_y_word = low_word(y);
-        result.render_offset_query = query_legacy_battle_actor_render_offsets(
+        if (lookup.status != asset_runtime::LegacyTswRuntimeStatus::ready ||
+            frame == nullptr) {
+            result.status =
+                LegacyBattleSingleEffectFrameStatus::resource_owner_typed_stop;
+            return result;
+        }
+
+        const u16 width = frame->width;
+        const u16 height = frame->height;
+        context.shared_request.source_token = frame->primary_stream_token;
+        u32 render_flags = primary.mode_flags;
+        u32 base_offset = primary.draw_offset_x;
+        if (state.global_flip_mode == 1U) {
+            render_flags ^= 1U;
+            base_offset = static_cast<u32>(width) - base_offset;
+        }
+
+        u16 offset_x{};
+        u16 offset_y{};
+        const auto offsets = query_legacy_battle_actor_render_offsets(
             resolve_legacy_battle_actor_render_offsets(
                 coordinate_owners, actor_token
             ),
-            &offset_x_word,
-            &offset_y_word,
-            {
-                .actor_token = actor_token,
-                .output_x_token = state.coordinate_output_x_token,
-                .output_y_token = state.coordinate_output_y_token,
-                .entry_eax = render_offset_entry_eax,
-                .entry_edx = state.coordinate_output_x_token,
-                .entry_esi = slot_index * kLegacyBattleEffectRecordStride,
-                .entry_flags = render_offset_entry_flags,
-            }
+            &offset_x,
+            &offset_y
         );
-        ++result.render_offset_query_calls;
-        if (result.render_offset_query.output_writes >= 1U) {
-            replace_low_word(x, offset_x_word);
-        }
-        if (result.render_offset_query.output_writes >= 2U) {
-            replace_low_word(y, offset_y_word);
-        }
-        if (result.render_offset_query.status !=
+        if (offsets.status !=
             LegacyBattleActorRenderOffsetQueryStatus::completed) {
             result.status = LegacyBattleSingleEffectFrameStatus::
                 actor_render_offset_typed_stop;
             return result;
         }
-        if (low_word(x) != 0U && low_word(y) != 0U) {
-            u32 base_x = 0U;
-            u32 base_y = 0U;
-            u16 base_x_word = low_word(base_x);
-            u16 base_y_word = low_word(base_y);
-            result.base_coordinate_query =
-                query_legacy_battle_actor_base_coordinates(
-                    resolve_legacy_battle_actor_coordinates(
-                        coordinate_owners, actor_token
-                    ),
-                    &base_x_word,
-                    &base_y_word,
-                    {
-                        .actor_token = actor_token,
-                        .output_x_token = state.coordinate_output_x_token,
-                        .output_y_token = state.coordinate_output_y_token,
-                        .entry_eax = state.coordinate_output_x_token,
-                        .entry_edx = state.coordinate_output_y_token,
-                        .entry_flags = compare_word_zero_flags(low_word(y)),
-                    }
-                );
-            ++result.base_coordinate_query_calls;
-            if (result.base_coordinate_query.output_writes >= 1U) {
-                replace_low_word(base_x, base_x_word);
-            }
-            if (result.base_coordinate_query.output_writes >= 2U) {
-                replace_low_word(base_y, base_y_word);
-            }
-            if (result.base_coordinate_query.status !=
+
+        u16 position_x{};
+        u16 position_y{};
+        u32 coordinate_x{};
+        u32 coordinate_y{};
+        const auto coordinates = resolve_legacy_battle_actor_coordinates(
+            coordinate_owners, actor_token
+        );
+        if (offset_x != 0U && offset_y != 0U) {
+            const auto position = query_legacy_battle_actor_base_coordinates(
+                coordinates, &position_x, &position_y
+            );
+            if (position.status !=
                 LegacyBattleActorBaseCoordinateQueryStatus::completed) {
                 result.status = LegacyBattleSingleEffectFrameStatus::
                     actor_base_coordinate_typed_stop;
                 return result;
             }
-            x += base_x;
-            y += base_y;
+
+            coordinate_x = static_cast<u32>(offset_x) + position_x;
+            coordinate_y = static_cast<u32>(offset_y) + position_y;
         } else {
-            u16 output_x = low_word(x);
-            u16 output_y = low_word(y);
-            result.coordinate_query = query_legacy_battle_actor_coordinates(
-                resolve_legacy_battle_actor_coordinates(
-                    coordinate_owners, actor_token
-                ),
-                &output_x,
-                &output_y,
-                {
-                    .actor_token = actor_token,
-                    .output_x_token = state.coordinate_output_x_token,
-                    .output_y_token = state.coordinate_output_y_token,
-                    .entry_eax = state.coordinate_output_y_token,
-                    .entry_edx = result.render_offset_query.return_edx,
-                    .entry_flags = zero_flags(),
-                }
+            const auto position = query_legacy_battle_actor_coordinates(
+                coordinates, &position_x, &position_y
             );
-            ++result.coordinate_query_calls;
-            if (result.coordinate_query.output_writes >= 1U) {
-                replace_low_word(x, output_x);
-            }
-            if (result.coordinate_query.output_writes >= 2U) {
-                replace_low_word(y, output_y);
-            }
-            if (result.coordinate_query.status !=
+            if (position.status !=
                 LegacyBattleActorCoordinateQueryStatus::completed) {
                 result.status = LegacyBattleSingleEffectFrameStatus::
                     actor_coordinate_typed_stop;
                 return result;
             }
-        }
-        replace_low_word(
-            y, static_cast<u16>(low_word(y) - primary.base_y_offset)
-        );
-        x -= base_offset;
 
-        u32 sample_argument = x;
-        replace_low_word(sample_argument, primary.pan_value);
-        const auto play = invoke(
-            kCallPlaySample, {sample_argument, state.sample_handle_value}
-        );
-        const i32 edge = signed_dword(
-            base_offset + to_bits(static_cast<i32>(signed_word(x)))
-        );
-        u32 pan_argument = edge >= 320 ? play.edx : play.ecx;
-        replace_low_word(pan_argument, primary.pan_value);
-        static_cast<void>(invoke(
-            kCallSetSamplePan, {pan_argument, edge >= 320 ? 16U : 0xFFFFFFF0U}
-        ));
-        primary.pan_value = 0U;
-
-        static_cast<void>(invoke(
-            kCallRenderResource,
-            {to_bits(static_cast<i32>(signed_word(x))),
-             to_bits(static_cast<i32>(signed_word(y))),
-             width,
-             height,
-             render_flags,
-             data_token}
-        ));
-        if (owner_value_token != 0U) {
-            static_cast<void>(
-                invoke(kCallReleaseResource, {owner_value_token})
-            );
+            coordinate_x = position_x;
+            coordinate_y = position_y;
         }
-        ++state.released_owner_value_clears;
-        static_cast<void>(invoke(kCallReleaseResource, {owner_token}));
+
+        coordinate_y -= primary.draw_offset_y;
+        coordinate_x -= base_offset;
+        if (context.samples == nullptr) {
+            result.status =
+                LegacyBattleSingleEffectFrameStatus::sample_binding_typed_stop;
+            return result;
+        }
+
+        static_cast<void>(audio_video::play_legacy_sample(
+            *context.samples, primary.field_58, state.sample_level
+        ));
+        const i32 edge = std::bit_cast<i32>(
+            base_offset +
+            static_cast<u32>(static_cast<i32>(signed_word(coordinate_x)))
+        );
+        static_cast<void>(audio_video::set_legacy_sample_pan(
+            *context.samples, primary.field_58, edge >= 320 ? 16 : -16
+        ));
+        primary.field_58 = 0U;
+
+        auto& request = context.shared_request;
+        request.destination_x = signed_word(coordinate_x);
+        request.destination_y = signed_word(coordinate_y);
+        request.source_width = width;
+        request.source_height = height;
+        request.flags = render_flags;
+        request.auxiliary = frame->auxiliary_stream;
+        const auto drawn = rendering::blit_legacy_copy_paths(
+            context.framebuffer,
+            {context.raster.clip_left,
+             context.raster.clip_top,
+             context.raster.clip_width,
+             context.raster.clip_height},
+            {.bytes = frame->primary_stream},
+            request,
+            context.shared_effects,
+            context.jitter
+        );
+        if (drawn.status != rendering::LegacyBlitExecutionStatus::completed &&
+            drawn.status != rendering::LegacyBlitExecutionStatus::clipped_out &&
+            drawn.status !=
+                rendering::LegacyBlitExecutionStatus::opacity_disabled) {
+            result.status =
+                LegacyBattleSingleEffectFrameStatus::drawing_typed_stop;
+            return result;
+        }
+
+        if (frame->primary_stream_token != 0U) {
+            std::vector<compat::u8>{}.swap(frame->primary_stream);
+        }
+
+        frame->primary_stream_token = 0U;
+        state.retained_frames.pop_back();
+        request.auxiliary = {};
     }
 
-    if (primary.complete != 1U) {
-        result.return_value = 0U;
-        return result;
+    if (primary.field_8c == 1U) {
+        primary = {};
+        result.finished = true;
     }
-    primary = {};
-    result.return_value = 1U;
+
     return result;
 }
 
-}  // namespace openswd3::battle
+}

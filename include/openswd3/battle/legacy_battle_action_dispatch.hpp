@@ -1,6 +1,8 @@
 #pragma once
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
+#include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
+#include "openswd3/audio_video/legacy_sample_manager.hpp"
 #include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution_state.hpp"
@@ -1465,6 +1467,8 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleIndicatorSoundPort& indicator_sound;
     rendering::LegacyCountdownFlagPorts& countdown_flags;
     std::span<compat::u8> internal_flags;
+    asset_runtime::LegacyTswRuntime* effect_images{};
+    audio_video::LegacySampleManager* effect_samples{};
     LegacyBattleStartupState* startup{};
     LegacyBattleStartupResetBlocks* startup_reset{};
     LegacyBattleTextMessageState* text_messages{};
