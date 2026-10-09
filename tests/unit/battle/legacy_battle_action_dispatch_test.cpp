@@ -515,6 +515,7 @@ struct Fixture {
     [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
     context() {
         return {
+            .screen_flash = startup.screen_flash,
             .framebuffer = framebuffer,
             .raster = raster,
             .shared_request = request,
@@ -1074,7 +1075,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 result.return_value == 0U && state.action_pending == 1U &&
                 state.selected_target_index == 1U &&
                 state.selected_group_b_identity[1] == 1U &&
-                port.screen_flash_state().active == 1U &&
+                fixture.startup.screen_flash.active == 1U &&
                 result.framebuffer_clear_calls == 1U &&
                 fixture.framebuffer.physical_pixels()[0] == 0xFFFFU &&
                 port.battle_pair_primary_value() == 0U &&
@@ -1166,7 +1167,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         test.expect_true(
             result.return_value == 1U && state.current_actor_index == 0xFFFFU &&
                 openswd3::compat::u16(state.scan_push_state) == 0x8000U &&
-                port.screen_flash_state().active == 1U &&
+                fixture.startup.screen_flash.active == 1U &&
                 result.special_four_oh_nine_calls == 1U &&
                 port.count(0x00474E60U) == 0U &&
                 port.count(0x0047CC40U) == 1U &&
@@ -1884,7 +1885,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::framebuffer_typed_stop &&
                 result.framebuffer_clear_calls == 1U &&
-                port.screen_flash_state().active == 1U &&
+                fixture.startup.screen_flash.active == 1U &&
                 fixture.framebuffer.physical_pixels().front() == 0xFFFFU &&
                 fixture.framebuffer.physical_pixels().back() == 0xFFFFU,
             "oversized clear fills owned framebuffer prefix then stops at first out of range pixel"
@@ -4716,7 +4717,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 (*fixture->startup.group_b_lifecycle)[1U]
                         .base_initialization.field_2a94 == 6U &&
                 state->selected_target_index == 1U &&
-                port.screen_flash_state().active == 1U &&
+                fixture->startup.screen_flash.active == 1U &&
                 port.count(0x004787F0U) == 0U &&
                 port.count(0x004751C0U) == 0U && port.count(0x00474B60U) == 0U,
             "action thirty-three directly advances target ready and the inclusive target-property chance without either opaque call"
@@ -7735,7 +7736,7 @@ void test_battle_action_presentation_typed_stop(openswd3::test::Context& test) {
             actor.action_configuration.presentation_enabled == 0U &&
             actor.base_initialization.field_2a94 == 0U &&
             state->current_actor_index == 0xFFFFU &&
-            port->screen_flash_state().active == 0U &&
+            fixture->startup.screen_flash.active == 0U &&
             port->count(0x004787F0U) == 0U,
         "action thirty-three suppresses target publication after the typed presentation write stop"
     );

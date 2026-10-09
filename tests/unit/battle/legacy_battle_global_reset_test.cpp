@@ -347,8 +347,8 @@ void seed_state(
     shift.direction_mode = 9U;
     shift.threshold_word = 9U;
     shift.completion_latch = 9U;
-    port.screen_flash_state().active = 9U;
-    port.screen_flash_state().intensity = 0xFCU;
+    startup.screen_flash.active = 9U;
+    startup.screen_flash.intensity = 0xFCU;
     port.frame_refresh_state().active_surface_token = 0x12345678U;
     port.frame_refresh_state().refresh_pending = 0x8000U;
 
@@ -506,8 +506,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
         ResetPort port;
         startup.display_surfaces = {11U, 22U};
         port.unresolved_display_token = startup.display_surfaces[stopped_slot];
-        port.screen_flash_state().active = 1U;
-        port.screen_flash_state().intensity = 8U;
+        startup.screen_flash.active = 1U;
+        startup.screen_flash.intensity = 8U;
         port.frame_refresh_state().active_surface_token = 0x12345678U;
         port.frame_refresh_state().refresh_pending = 7U;
         auto& control = port.frame_effect_control_state();
@@ -537,8 +537,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 startup.display_surfaces == expected &&
                 result.call_count == 1U && result.write_operations == 0U &&
                 state.write_trace.empty() &&
-                port.screen_flash_state().active == 1U &&
-                port.screen_flash_state().intensity == 8U &&
+                startup.screen_flash.active == 1U &&
+                startup.screen_flash.intensity == 8U &&
                 port.frame_refresh_state().active_surface_token ==
                     0x12345678U &&
                 port.frame_refresh_state().refresh_pending == 7U &&
@@ -1123,8 +1123,8 @@ void test_battle_global_reset(openswd3::test::Context& test) {
                 port.frame_refresh_state().refresh_pending == 0x8000U &&
                 state.unmapped_bytes.contains(0x004A75FEU) == false &&
                 state.unmapped_bytes.contains(0x0053BFCCU) == false &&
-                port.screen_flash_state().active == 0U &&
-                port.screen_flash_state().intensity == 16U &&
+                startup.screen_flash.active == 0U &&
+                startup.screen_flash.intensity == 16U &&
                 byte_at(state, 0x0053C154U) == 0U &&
                 state.unmapped_bytes.contains(0x00520E40U) == false &&
                 byte_at(state, 0x00ABCDEFU) == 0x5AU,

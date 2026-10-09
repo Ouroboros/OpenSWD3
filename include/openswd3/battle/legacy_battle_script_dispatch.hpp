@@ -298,7 +298,6 @@ struct LegacyBattleScriptDispatchCallReply {
 class LegacyBattleScriptDispatchPort
     : public virtual LegacyBattleDebugHotkeyStatePort,
       public virtual LegacyBattleEffectShiftStatePort,
-      public virtual LegacyBattleScreenFlashStatePort,
       public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleLevelAdvancementStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {

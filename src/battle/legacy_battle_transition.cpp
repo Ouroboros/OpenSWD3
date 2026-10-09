@@ -284,7 +284,7 @@ music_path_for(const std::filesystem::path& data_root, const u16 battle_id) {
         .shared_effects = frame_zero.shared_effects,
         .jitter = frame_zero.jitter,
         .pending_rotation = port.effect_shift_state().actor_delta,
-        .flash = port.screen_flash_state(),
+        .flash = startup.screen_flash,
         .refresh = port.frame_refresh_state(),
         .control = port.frame_effect_control_state(),
         .current_actor_index = action.current_actor_index,

@@ -4150,7 +4150,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                 actor.base_initialization.field_2a94 == 6U &&
                 actor.configuration.actor_record[2U] == 0xCAFE0000U &&
                 fixture->shared.selection_gate_b == 1U &&
-                port->screen_flash_state().active == 1U &&
+                fixture->startup.screen_flash.active == 1U &&
                 fixture->shared.selected_target == 0U &&
                 fixture->workspace.cursor == 4U &&
                 port->count(LegacyBattleScriptDispatchCall::frame) == 1U &&
@@ -4187,7 +4187,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                 actor.base_initialization.field_2a94 == 6U &&
                 actor.live_record_value_04 == 0xBEEF0000U &&
                 fixture->shared.selection_gate_c == 1U &&
-                port->screen_flash_state().active == 1U &&
+                fixture->startup.screen_flash.active == 1U &&
                 fixture->shared.selected_target == 2U &&
                 fixture->workspace.cursor == 4U &&
                 port->count(LegacyBattleScriptDispatchCall::frame) == 1U &&
@@ -4225,7 +4225,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                 fixture->startup.party[0U].base_initialization.field_2a94 ==
                     0U &&
                 fixture->shared.selection_gate_b == 0U &&
-                port->screen_flash_state().active == 0U &&
+                fixture->startup.screen_flash.active == 0U &&
                 fixture->workspace.cursor == 0U &&
                 port->count(LegacyBattleScriptDispatchCall::frame) == 0U,
             "case ten suppresses its complete suffix after the typed presentation write stop"
@@ -5590,7 +5590,7 @@ void test_script_actor_selector_sharing(openswd3::test::Context& test) {
                 .shared_effects = effects,
                 .jitter = jitter,
                 .pending_rotation = port.effect_shift_state().actor_delta,
-                .flash = port.screen_flash_state(),
+                .flash = fixture->startup.screen_flash,
                 .refresh = port.frame_refresh_state(),
                 .control = port.frame_effect_control_state(),
                 .current_actor_index = fixture->action.current_actor_index,
@@ -5706,7 +5706,7 @@ void test_script_flash_sharing(openswd3::test::Context& test) {
                 .shared_effects = effects,
                 .jitter = jitter,
                 .pending_rotation = port.effect_shift_state().actor_delta,
-                .flash = port.screen_flash_state(),
+                .flash = fixture->startup.screen_flash,
                 .refresh = port.frame_refresh_state(),
                 .control = port.frame_effect_control_state(),
                 .current_actor_index = fixture->action.current_actor_index,
@@ -5765,8 +5765,8 @@ void test_script_flash_sharing(openswd3::test::Context& test) {
                 consumed && result->status == (stopped
                     ? LegacyBattleScriptDispatchStatus::frame_typed_stop
                     : LegacyBattleScriptDispatchStatus::completed) &&
-                    port.screen_flash_state().active == 1U &&
-                    port.screen_flash_state().intensity == 12U &&
+                    fixture->startup.screen_flash.active == 1U &&
+                    fixture->startup.screen_flash.intensity == 12U &&
                     fixture->workspace.cursor == (stopped ? 0U : 4U),
                 "script ten publishes either actor group flash before the real frame and preserves its consumed state on return or stop"
             );
@@ -5825,7 +5825,7 @@ void test_script_rotation_sharing(openswd3::test::Context& test) {
                 .shared_effects = effects,
                 .jitter = jitter,
                 .pending_rotation = port.effect_shift_state().actor_delta,
-                .flash = port.screen_flash_state(),
+                .flash = fixture->startup.screen_flash,
                 .refresh = port.frame_refresh_state(),
                 .control = port.frame_effect_control_state(),
                 .current_actor_index = fixture->action.current_actor_index,

@@ -49,7 +49,6 @@ class LegacyBattleEffectCallPort
       public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
-      public virtual LegacyBattleScreenFlashStatePort,
       public virtual LegacyBattleFrameEffectControlStatePort,
       public virtual LegacyBattlePairTransitionPort,
       public virtual LegacyBattleGroupARewardProfileStatePort,

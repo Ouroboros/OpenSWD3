@@ -338,7 +338,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         .shared_effects = context.frame_zero.shared_effects,
         .jitter = context.frame_zero.jitter,
         .pending_rotation = port.effect_shift_state().actor_delta,
-        .flash = port.screen_flash_state(),
+        .flash = context.startup.screen_flash,
         .refresh = port.frame_refresh_state(),
         .control = port.frame_effect_control_state(),
         .current_actor_index = context.action_dispatch.current_actor_index,

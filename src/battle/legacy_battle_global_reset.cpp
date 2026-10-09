@@ -637,7 +637,7 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
         port.battle_terminal_latch(),
         port.battle_pair_primary_value(),
         port.battle_color_accumulation_state(),
-        port.screen_flash_state(),
+        startup.screen_flash,
         port.frame_refresh_state(),
         port.frame_effect_control_state(),
         port.actor_metric_state(),

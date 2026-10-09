@@ -617,7 +617,7 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 result.actor_action_targets[1U].return_eip == 0x0045CA7AU &&
                 (state.selected_actor_pair & 0xFFFFU) == 0U &&
                 result.framebuffer_fill_calls == 1U &&
-                port.screen_flash_state().active == 1U &&
+                startup.screen_flash.active == 1U &&
                 port.actor_publication_state().slots[0] == 0U &&
                 result.group_a_effect_reward_calls == 1U &&
                 result.group_a_effect_reward.matched_profiles == 1U &&
@@ -704,7 +704,14 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         metrics.group_b_mode = 1U;
         seed_completed_records(state);
         port.feedback_return = 1U;
-        const auto result = run(state, port, framebuffer);
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->window_rectangle = {
+            0, 0, framebuffer.geometry().surface.width,
+            framebuffer.geometry().surface.height
+        };
+        const auto result =
+            run(state, port, framebuffer, 0x8000U, 0U, startup.get());
         test.expect_true(
             result.return_value == 1U && result.effect_frame_calls == 1U &&
                 result.actor_action_target_calls == 2U &&
@@ -716,7 +723,7 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
                 result.actor_action_targets[1U].flags.zero &&
                 result.framebuffer_fill_calls == 1U &&
                 state.group_b_feedback_actor == 0U &&
-                port.screen_flash_state().active == 0U &&
+                startup->screen_flash.active == 0U &&
                 result.group_a_effect_reward_calls == 0U &&
                 port.count(0x0046F6E0U) == 0U,
             "current group-B single-target group-B feedback fills without publishing the group-A dirty latch"
@@ -909,13 +916,20 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
         metrics.group_a_mode = 0U;
         seed_completed_records(state);
         port.feedback_return = 1U;
-        const auto result = run(state, port, framebuffer);
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->window_rectangle = {
+            0, 0, framebuffer.geometry().surface.width,
+            framebuffer.geometry().surface.height
+        };
+        const auto result =
+            run(state, port, framebuffer, 0x8000U, 0U, startup.get());
         test.expect_true(
             result.status == LegacyBattleEffectCoordinatorStatus::completed &&
                 result.return_value == 1U &&
                 result.framebuffer_fill_calls == 1U &&
                 state.group_a_render_count == 1U &&
-                port.screen_flash_state().active == 1U &&
+                startup->screen_flash.active == 1U &&
                 result.pair_transition_calls == 1U &&
                 framebuffer.physical_pixels().front() == 0xFFFFU &&
                 framebuffer.physical_pixels().back() == 0xFFFFU,

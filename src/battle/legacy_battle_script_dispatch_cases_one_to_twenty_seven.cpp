@@ -501,7 +501,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_ten() {
                 return finish(eax_);
             }
             bindings_.shared.selection_gate_b = 1U;
-            port_.screen_flash_state().active = 1U;
+            bindings_.startup.screen_flash.active = 1U;
             bindings_.shared.selected_target = static_cast<u32>(code - 8);
         } else {
             const u32 actor_index = static_cast<u32>(code);
@@ -525,7 +525,7 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_ten() {
             }
             bindings_.shared.actor_state_words[static_cast<std::size_t>(code)] =
                 static_cast<u32>(code);
-            port_.screen_flash_state().active = 1U;
+            bindings_.startup.screen_flash.active = 1U;
         }
         bindings_.shared.action_completion_gate = 0U;
         set_high_word(

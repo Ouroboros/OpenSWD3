@@ -212,6 +212,7 @@ struct Fixture {
     [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
     context() {
         return {
+            .screen_flash = startup.screen_flash,
             .framebuffer = framebuffer,
             .raster = raster,
             .shared_request = request,

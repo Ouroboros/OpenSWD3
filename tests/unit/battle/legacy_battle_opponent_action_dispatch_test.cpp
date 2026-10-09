@@ -274,6 +274,7 @@ struct Fixture {
     [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
     context() {
         return {
+            .screen_flash = startup->screen_flash,
             .framebuffer = framebuffer,
             .raster = raster,
             .shared_request = request,
@@ -1866,7 +1867,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::framebuffer_typed_stop &&
                 result.framebuffer_clear_calls == 1U &&
-                port.screen_flash_state().active == 1U &&
+                fixture.startup->screen_flash.active == 1U &&
                 fixture.framebuffer.physical_pixels().front() == 0xFFFFU &&
                 fixture.framebuffer.physical_pixels().back() == 0xFFFFU,
             "opponent oversized clear publishes refresh and fills owned prefix before stop"

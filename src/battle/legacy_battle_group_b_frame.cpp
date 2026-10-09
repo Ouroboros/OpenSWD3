@@ -2192,7 +2192,7 @@ action_decision_done:
                             .eax == 1U) {
                         action.group_a_to_actor[group_b_index] = group_b_index;
                         state.completion_selected = 0xFFFFFFFFU;
-                        port.screen_flash_state().active = 1U;
+                        context.screen_flash.active = 1U;
                         if (!fill_completion_surface(context, result)) {
                             return result;
                         }

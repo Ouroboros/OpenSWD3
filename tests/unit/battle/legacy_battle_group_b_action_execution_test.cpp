@@ -202,6 +202,7 @@ struct Fixture {
     RandomPort random;
     SoundPort sound;
     CountdownFlags countdown_flags;
+    openswd3::battle::LegacyBattleScreenFlashState screen_flash;
     std::array<openswd3::compat::u8, 16> flags{};
 
     Fixture() {
@@ -215,6 +216,7 @@ struct Fixture {
     [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
     context() {
         return {
+            .screen_flash = screen_flash,
             .framebuffer = framebuffer,
             .raster = raster,
             .shared_request = request,

@@ -202,6 +202,7 @@ struct Fixture {
     [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
     context() {
         return {
+            .screen_flash = startup->screen_flash,
             .framebuffer = framebuffer,
             .raster = raster,
             .shared_request = request,
@@ -2477,7 +2478,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 pixels[0] == 0xFFFFU && pixels[1] == 0xFFFFU &&
                 state.shared.action.group_a_to_actor[0] == 0U &&
                 state.completion_selected == 0xFFFFFFFFU &&
-                port.screen_flash_state().active == 1U &&
+                fixture.startup->screen_flash.active == 1U &&
                 port.count(0x004786D0U) == 0U,
             "completion surface writes owned prefix after mapping side effects then stops"
         );
@@ -2513,7 +2514,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 pixels[0] == 0x1234U &&
                 state.shared.action.group_a_to_actor[0] == 0U &&
-                port.screen_flash_state().active == 1U,
+                fixture.startup->screen_flash.active == 1U,
             "wrapped zero-byte completion leaves the shared framebuffer untouched after state publication"
         );
     }

@@ -41,7 +41,6 @@ class LegacyBattleGlobalResetRuntimePort
       public LegacyBattleStartupPort,
       public virtual LegacyBattleRetreatCommitStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
-      public virtual LegacyBattleScreenFlashStatePort,
       public virtual LegacyBattleFrameRefreshStatePort,
       public virtual LegacyBattleFrameEffectControlStatePort,
       public virtual LegacyBattlePairTransitionStatePort,

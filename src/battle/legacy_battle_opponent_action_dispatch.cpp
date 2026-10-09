@@ -199,7 +199,6 @@ private:
 }
 
 [[nodiscard]] bool clear_framebuffer(
-    LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result
 ) noexcept {
@@ -212,7 +211,7 @@ private:
 
     const u32 requested_pixels =
         legacy_battle_window_fill_byte_count(*context.startup) >> 1U;
-    port.screen_flash_state().active = 1U;
+    context.screen_flash.active = 1U;
     auto pixels = context.framebuffer.physical_pixels();
     const std::size_t prefix =
         std::min<std::size_t>(requested_pixels, pixels.size());
@@ -476,7 +475,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 )
                         .eax == 1U) {
                 state.selected_target_index = static_cast<u16>(target_index);
-                if (!clear_framebuffer(port, context, result)) {
+                if (!clear_framebuffer(context, result)) {
                     return result;
                 }
             }
@@ -575,7 +574,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             }
             state.group_a_to_actor[target_index] = target_index;
             state.selected_target_index = static_cast<u16>(target_index);
-            if (!clear_framebuffer(port, context, result)) {
+            if (!clear_framebuffer(context, result)) {
                 return result;
             }
         }

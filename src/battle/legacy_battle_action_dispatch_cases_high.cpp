@@ -642,10 +642,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                         {port.battle_pair_primary_value(), 0U, 0U}
                     )
                             .eax == 1U) {
-                    port.screen_flash_state().active = 1U;
+                    context.screen_flash.active = 1U;
                     state.selected_target_index = static_cast<u16>(index);
                     state.selected_group_b_identity[index_u32] = index_u32;
-                    if (!clear_framebuffer(port, context, result)) {
+                    if (!clear_framebuffer(context, result)) {
                         return result;
                     }
                 }
@@ -935,9 +935,9 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             port.battle_pair_primary_value() = 0xFFFFFFFFU;
             state.selected_target_index = static_cast<u16>(group_b_index);
             state.selected_group_b_identity[group_b_index] = group_b_index;
-            port.screen_flash_state().active = 1U;
+            context.screen_flash.active = 1U;
             static_cast<void>(invoke(state, port, kCallSetScreenMode, {1U}));
-            if (!clear_framebuffer(port, context, result)) {
+            if (!clear_framebuffer(context, result)) {
                 return result;
             }
             replace_low_word(state.scan_push_state, 0x8000U);
@@ -1010,8 +1010,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     .eax == 1U) {
             state.selected_target_index = static_cast<u16>(group_b_index);
             state.selected_group_b_identity[group_b_index] = group_b_index;
-            port.screen_flash_state().active = 1U;
-            if (!clear_framebuffer(port, context, result)) {
+            context.screen_flash.active = 1U;
+            if (!clear_framebuffer(context, result)) {
                 return result;
             }
         }
@@ -1249,8 +1249,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             }
             state.selected_target_index = static_cast<u16>(group_b_index);
             state.selected_group_b_identity[group_b_index] = group_b_index;
-            port.screen_flash_state().active = 1U;
-            if (!clear_framebuffer(port, context, result)) {
+            context.screen_flash.active = 1U;
+            if (!clear_framebuffer(context, result)) {
                 return result;
             }
             port.battle_pair_primary_value() = 0U;
@@ -1333,8 +1333,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             }
             state.selected_target_index = static_cast<u16>(group_b_index);
             state.selected_group_b_identity[group_b_index] = group_b_index;
-            port.screen_flash_state().active = 1U;
-            if (!clear_framebuffer(port, context, result)) {
+            context.screen_flash.active = 1U;
+            if (!clear_framebuffer(context, result)) {
                 return result;
             }
         }

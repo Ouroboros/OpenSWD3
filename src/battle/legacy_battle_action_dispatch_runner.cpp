@@ -222,7 +222,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                     state.selected_group_b_identity[group_b_index] =
                         group_b_index;
                     port.battle_pair_primary_value() = 0xFFFFFFFFU;
-                    if (!clear_framebuffer(port, context, result)) {
+                    if (!clear_framebuffer(context, result)) {
                         return result;
                     }
                     const u32 framebuffer_bytes =
@@ -375,7 +375,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
                         state.selected_group_b_identity[group_b_index] =
                             group_b_index;
                         port.battle_pair_primary_value() = 0xFFFFFFFFU;
-                        if (!clear_framebuffer(port, context, result) ||
+                        if (!clear_framebuffer(context, result) ||
                             !update_effect_score(
                                 state, result, group_a_index, 5U
                             )) {
@@ -603,7 +603,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {
             static_cast<void>(invoke(state, port, kCallSetScreenMode, {1U}));
             replace_low_word(state.scan_push_state, 0x8000U);
         }
-        if (!clear_framebuffer(port, context, result)) {
+        if (!clear_framebuffer(context, result)) {
             return result;
         }
         special_framebuffer_cleared = true;

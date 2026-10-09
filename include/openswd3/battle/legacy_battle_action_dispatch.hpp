@@ -187,7 +187,6 @@ class LegacyBattleActionDispatchPort
       public virtual LegacyBattleFrameInputResolutionStatePort,
       public virtual LegacyBattleColorAccumulationStatePort,
       public virtual LegacyBattleEffectShiftStatePort,
-      public virtual LegacyBattleScreenFlashStatePort,
       public virtual LegacyBattleFrameEffectControlStatePort,
       public virtual LegacyBattleGroupASummonMaterializationPort,
       public virtual world_map::LegacyWorldItemListStatePort {
@@ -1439,6 +1438,7 @@ struct LegacyBattleTargetSelectionRuntimeState;
 struct LegacyBattleFinalActorStepState;
 
 struct LegacyBattleActionDispatchContext {
+    LegacyBattleScreenFlashState& screen_flash;
     rendering::LegacyFramebuffer& framebuffer;
     rendering::LegacyRasterGeometryState& raster;
     rendering::LegacyBlitRequest& shared_request;

@@ -709,6 +709,7 @@ struct Fixture {
     [[nodiscard]] openswd3::battle::LegacyBattleActionDispatchContext
     action_context() {
         return {
+            .screen_flash = startup.screen_flash,
             .framebuffer = framebuffer,
             .raster = raster,
             .shared_request = blit_request,
@@ -1625,8 +1626,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         auto& port = *port_storage;
         configure_common_port(port);
         port.effect_shift_state().actor_delta = split_gate == 2U ? 1 : 0;
-        port.screen_flash_state().active = 1U;
-        port.screen_flash_state().intensity = 4U;
+        fixture->startup.screen_flash.active = 1U;
+        fixture->startup.screen_flash.intensity = 4U;
         auto context = fixture->context();
 
         const auto result_storage = std::unique_ptr<
@@ -1670,8 +1671,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         test.expect_true(
             result.frame_effect.color_adjustment_calls == 3U &&
                 result.frame_effect.applied_red_delta == 4 &&
-                port.screen_flash_state().active == 0U &&
-                port.screen_flash_state().intensity == 16U,
+                fixture->startup.screen_flash.active == 0U &&
+                fixture->startup.screen_flash.intensity == 16U,
             "full frame consumes and resets the shared flash through its external image port"
         );
     }

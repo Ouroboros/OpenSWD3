@@ -462,6 +462,7 @@ struct ActorFrameFixture {
         openswd3::battle::LegacyBattleStartupState& startup
     )
         : dispatch{
+              .screen_flash = startup.screen_flash,
               .framebuffer = frame.framebuffer,
               .raster = frame.raster,
               .shared_request = frame.request,
@@ -924,7 +925,7 @@ static void test_battle_transition_visuals(openswd3::test::Context& test) {
         ports.actor_metric_state().values[8] = 3;
         ports.actor_metric_state().values[9] = 4;
         ports.random_values = {99U, 1U, 27U};
-        ports.screen_flash_state().active = 1U;
+        startup.screen_flash.active = 1U;
         startup.party[0].progress.progress = 0xFACE0001U;
         startup.party[0].progress.cache_x = 7U;
         startup.party[0].progress.cache_y = 6U;
@@ -963,8 +964,8 @@ static void test_battle_transition_visuals(openswd3::test::Context& test) {
                 result.frame_effect_calls == 2U &&
                 result.frame_effects[0].applied_red_delta == 16 &&
                 result.frame_effects[1].applied_red_delta == 12 &&
-                ports.screen_flash_state().active == 1U &&
-                ports.screen_flash_state().intensity == 8U &&
+                startup.screen_flash.active == 1U &&
+                startup.screen_flash.intensity == 8U &&
                 result.hud_frame_calls == 2U &&
                 result.actor_frame_sequence_calls == 2U &&
                 ports.hud_requests.size() == 4U &&
@@ -1158,8 +1159,8 @@ static void test_battle_transition_visuals(openswd3::test::Context& test) {
         ports.frame_effect_control_state().primary_suppression = 1U;
         ports.frame_refresh_state().refresh_pending = 1U;
         ports.effect_shift_state().actor_delta = 99;
-        ports.screen_flash_state().active = 1U;
-        ports.screen_flash_state().intensity = 8U;
+        startup.screen_flash.active = 1U;
+        startup.screen_flash.intensity = 8U;
         add_default_surfaces(ports);
         FrameFixture frame;
         frame.action->current_actor_index = 9U;
@@ -1198,8 +1199,8 @@ static void test_battle_transition_visuals(openswd3::test::Context& test) {
                      .surface_operation.callee_returned &&
                 ports.frame_refresh_state().refresh_pending == 1U &&
                 ports.effect_shift_state().actor_delta == 99 &&
-                ports.screen_flash_state().active == 1U &&
-                ports.screen_flash_state().intensity == 8U &&
+                startup.screen_flash.active == 1U &&
+                startup.screen_flash.intensity == 8U &&
                 state.frame_effect.cadence == static_cast<i32>(stop_at - 1U) &&
                 ports.frame_effect_surface_requests.size() == stop_at &&
                 ports.call_count(LegacyBattleTransitionCall::prepare_scene) ==
@@ -1347,8 +1348,8 @@ static void test_battle_transition_visuals(openswd3::test::Context& test) {
         startup.background_rotation_cache.stored_action_id = 1U;
         TransitionPorts ports;
         ports.effect_shift_state().actor_delta = delta;
-        ports.screen_flash_state().active = 1U;
-        ports.screen_flash_state().intensity = 12U;
+        startup.screen_flash.active = 1U;
+        startup.screen_flash.intensity = 12U;
         ports.rotation_update_typed_stop = true;
         add_default_surfaces(ports);
         // Rotation expects literal rows, without 8000/C000 marker runs.
@@ -1393,8 +1394,8 @@ static void test_battle_transition_visuals(openswd3::test::Context& test) {
                     : openswd3::battle::LegacyBattleFrameEffectStatus::
                           rotation_playback_typed_stop) &&
                 ports.effect_shift_state().actor_delta == delta &&
-                ports.screen_flash_state().active == 1U &&
-                ports.screen_flash_state().intensity == 12U &&
+                startup.screen_flash.active == 1U &&
+                startup.screen_flash.intensity == 12U &&
                 ports.call_count(LegacyBattleTransitionCall::prepare_scene) ==
                     0U &&
                 result.frame_draw_calls == 0U && result.release_calls == 0U &&

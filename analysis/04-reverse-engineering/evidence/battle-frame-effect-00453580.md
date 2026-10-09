@@ -332,10 +332,11 @@ ASan构建仍有既有outcome-resolution:137的u16到u8转换warning；
   453725符号扩展强度，三通道调用正常完成后，45377B重读BYTE并加FC。
   结果为零时45378C恢复16，453793清触发；颜色失败不执行衰减后缀。
 
-动作、脚本、效果调用、转场和reset通过virtual state port借同一对象。
-核心帧及两处转场效果context直接借引用，外部绘图端口不持有另一份状态。
-组B单效果适配器把const/非const访问都转发到实际动作端口。
-旧效果、脚本、协调器、组B触发副本已删除，动作清屏改写共享对象。
+闪光由`LegacyBattleStartupState.screen_flash`持有，状态端口已删除。
+动作及组B上下文显式借用闪光引用，独立于其可选startup资源指针；
+脚本、效果协调器、核心帧、转场和reset直接访问已借用的startup对象。
+外部绘图端口不再持有闪光副本，也没有const/非const转发getter。
+动作和敌方清屏不再接收仅用于取得闪光状态的Port参数。
 特殊动作405的473411实际写53BF94，不能按名称把此处迁成闪光。
 当时保留的`frame_refresh_pending`副本现按第20节回收到实际抑制门。
 

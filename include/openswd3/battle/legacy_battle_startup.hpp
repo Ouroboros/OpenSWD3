@@ -28,6 +28,7 @@
 #include "openswd3/battle/legacy_battle_party_item_order.hpp"
 #include "openswd3/battle/legacy_battle_player_item_order.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
+#include "openswd3/battle/legacy_battle_screen_flash.hpp"
 #include "openswd3/battle/legacy_battle_shared_phase.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_runtime.hpp"
 #include "openswd3/battle/legacy_battle_text_message.hpp"
@@ -303,6 +304,7 @@ struct LegacyBattleActionModeSourceState {
 };
 
 struct LegacyBattleStartupState {
+    LegacyBattleScreenFlashState screen_flash;
     LegacyBattleTimingState timing{};
     LegacyBattleRenderGeometry render_geometry{};
     LegacyBattleRenderGeometryBindingObject render_binding_object{};

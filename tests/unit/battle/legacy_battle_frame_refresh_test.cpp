@@ -283,6 +283,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
         openswd3::rendering::LegacyBlitRequest blit{};
         openswd3::rendering::LegacyBlitEffectState effects{};
         openswd3::rendering::LegacyRleRowJitterState jitter{};
+        openswd3::battle::LegacyBattleScreenFlashState flash;
         LegacyBattleFrameEffectContext context{
             .framebuffer = framebuffer,
             .raster = raster,
@@ -290,7 +291,7 @@ void test_battle_frame_refresh(openswd3::test::Context& test) {
             .shared_effects = effects,
             .jitter = jitter,
             .pending_rotation = port.effect_shift_state().actor_delta,
-            .flash = port.screen_flash_state(),
+            .flash = flash,
             .refresh = state,
             .control = control,
             .current_actor_index = action->current_actor_index,

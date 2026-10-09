@@ -596,7 +596,6 @@ private:
 }
 
 [[nodiscard]] inline bool clear_framebuffer(
-    LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result
 ) noexcept {
@@ -609,7 +608,7 @@ private:
 
     const u32 requested_pixels =
         legacy_battle_window_fill_byte_count(*context.startup) >> 1U;
-    port.screen_flash_state().active = 1U;
+    context.screen_flash.active = 1U;
     auto pixels = context.framebuffer.physical_pixels();
     const std::size_t writable =
         std::min<std::size_t>(requested_pixels, pixels.size());
