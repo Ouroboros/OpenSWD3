@@ -141,9 +141,9 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         port.battle_frame_input_resolution_state().target_selection_suppression,
         context.music_path,
         context.music_mix_level,
-        port
+        context.music_streams
     );
-    result.music_started = music.music_started;
+    result.playback_requested = music.playback_requested;
 
     result.frame_input_resolution =
         coordinate_legacy_battle_frame_input_resolution(

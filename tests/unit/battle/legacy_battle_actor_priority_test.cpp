@@ -62,14 +62,6 @@ public:
         return {};
     }
 
-    [[nodiscard]] bool music_stream_absent() override {
-        return false;
-    }
-
-    void start_music(std::span<const openswd3::compat::u8>) override {}
-
-    void set_music_volume(openswd3::compat::i32) override {}
-
     [[nodiscard]] u32 create_temporary_surface(u32, u32) override {
         return 0U;
     }

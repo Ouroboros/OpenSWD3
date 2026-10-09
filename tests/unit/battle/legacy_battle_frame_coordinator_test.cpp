@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <array>
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
@@ -41,6 +42,73 @@ using openswd3::compat::i32;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
+
+class MusicBackend final : public openswd3::audio_video::LegacyStreamBackend {
+public:
+    u32 open_stream(u32, const std::string_view filename, i32) override {
+        paths.emplace_back(filename);
+        operations.push_back('o');
+        return open_fails ? 0U : 1U;
+    }
+
+    std::string_view last_error() const override {
+        return "music open failed";
+    }
+
+    void close_stream(u32) override {
+        operations.push_back('c');
+        playing = false;
+    }
+
+    void set_stream_user_data(u32, u32, const i32 value) override {
+        stream_id = value;
+    }
+
+    i32 stream_user_data(u32, u32) override {
+        return stream_id;
+    }
+
+    void set_stream_volume(u32, const i32 value) override {
+        operations.push_back('v');
+        volume = value;
+        volumes.push_back(value);
+    }
+
+    i32 stream_volume(u32) override {
+        return volume;
+    }
+
+    void set_stream_loop_count(u32, const i32 value) override {
+        loop_count = value;
+    }
+
+    void start_stream(u32) override {
+        operations.push_back('s');
+        playing = true;
+        if (after_start) {
+            after_start();
+        }
+    }
+
+    u32 stream_status(u32) override {
+        return playing ? 4U : 2U;
+    }
+
+    void stream_ms_position(u32, i32& total, i32& current) override {
+        total = 1000;
+        current = 0;
+    }
+
+    std::vector<std::string> paths;
+    std::vector<i32> volumes;
+    std::vector<char> operations;
+    std::function<void()> after_start;
+    i32 stream_id{};
+    i32 volume{};
+    i32 loop_count{};
+    bool playing{};
+    bool open_fails{};
+};
 
 class CoordinatorPort final
     : public openswd3::battle::LegacyBattleFrameCoordinatorPort,
@@ -159,21 +227,6 @@ public:
         return {.eax = eax, .ecx = ecx, .edx = edx};
     }
 
-    [[nodiscard]] bool music_stream_absent() override {
-        music_operations.push_back('q');
-        return music_absent;
-    }
-
-    void start_music(const std::span<const u8> path) override {
-        music_operations.push_back('s');
-        music_paths.push_back(path);
-    }
-
-    void set_music_volume(const i32 level) override {
-        music_operations.push_back('v');
-        music_levels.push_back(level);
-    }
-
     [[nodiscard]] u32
     create_temporary_surface(const u32 owner_token, const u32 format) override {
         surface_creates.push_back({owner_token, format});
@@ -222,7 +275,6 @@ public:
         LegacyBattleFrameCoordinatorCall,
         LegacyBattleFrameCoordinatorCallReply>
         replies;
-    std::vector<std::span<const u8>> music_paths;
     std::vector<std::array<u32, 2>> surface_creates;
     std::vector<std::array<u32, 2>> surface_operations;
     std::vector<openswd3::battle::LegacyBattleSurfaceBlendOperation>
@@ -239,9 +291,6 @@ public:
     u32 outcome_group_b_count{};
     u32 outcome_group_a_count{};
     u32 temporary_surface_token{0x70000000U};
-    bool music_absent{true};
-    std::vector<char> music_operations;
-    std::vector<i32> music_levels;
     u32 surface_operation_return{0x87654321U};
 
     [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
@@ -566,6 +615,8 @@ struct Fixture {
     openswd3::battle::LegacyBattleFrameDrawState frame_zero_state;
     openswd3::battle::LegacyBattleMusicPath music_path{};
     i32 music_mix_level{6};
+    MusicBackend music_backend;
+    openswd3::audio_video::LegacyStreamManager music_streams{music_backend};
     openswd3::battle::LegacyBattleFrameZeroContext frame_zero{
         frame_zero_state,
         framebuffer,
@@ -611,6 +662,7 @@ struct Fixture {
     openswd3::world_map::LegacyWorldStoryVmState story_vm;
 
     Fixture() {
+        static_cast<void>(music_streams.initialize_pool(1U));
         constexpr std::string_view path{"music\\current.mp3"};
         std::ranges::copy(path, music_path.begin());
         constexpr std::array<u16, 6> effect_pixels{
@@ -687,6 +739,7 @@ struct Fixture {
             .raster = raster,
             .music_path = music_path,
             .music_mix_level = music_mix_level,
+            .music_streams = music_streams,
             .frame_effect_port = frame_effect_port,
             .frame_effect_surfaces = frame_effect_surfaces,
             .action_updater = action_updater,
@@ -752,77 +805,76 @@ void configure_common_port(CoordinatorPort& port) {
 }  // namespace
 
 void test_battle_frame_music_prefix(openswd3::test::Context& test) {
-    class MusicPort final
-        : public openswd3::battle::LegacyBattleFrameMusicPrefixPort {
-    public:
-        bool absent{};
-        std::array<char, 3> calls{};
-        u32 count{};
-        i32 committed_level{};
-        const u8* path_data{};
-
-        [[nodiscard]] bool music_stream_absent() override {
-            calls[count++] = 'q';
-            return absent;
-        }
-
-        void start_music(const std::span<const u8> path) override {
-            calls[count++] = 's';
-            path_data = path.data();
-        }
-
-        void set_music_volume(const i32 level) override {
-            calls[count++] = 'v';
-            committed_level = level;
-        }
-    };
     openswd3::battle::LegacyBattleMusicPath path{};
-    path[0U] = 'm';
+    constexpr std::string_view filename{"music\\current.mp3"};
+    std::ranges::copy(filename, path.begin());
+    for (u32 scenario = 0U; scenario < 6U; ++scenario) {
+        MusicBackend backend;
+        {
+            openswd3::audio_video::LegacyStreamManager streams{backend};
+            static_cast<void>(streams.initialize_pool(1U));
+            i32 level = scenario == 2U ? -7 : 6;
+            u32 active{};
+            if (scenario == 0U) {
+                static_cast<void>(streams.play("existing.mp3", 100, 64, 1));
+                backend.paths.clear();
+                backend.volumes.clear();
+                backend.operations.clear();
+            }
 
-    {
-        MusicPort port;
-        u32 active{};
-        const auto result =
-            openswd3::battle::run_legacy_battle_frame_music_prefix(
-                active, 0U, path, 6, port
-            );
-        test.expect_true(
-            active == 1U && !result.music_started && port.count == 1U &&
-                port.calls[0U] == 'q',
-            "frame music prefix skips playback when no stream is absent"
-        );
-    }
+            if (scenario == 3U) {
+                streams.set_stream_enabled(false);
+            }
 
-    {
-        MusicPort port;
-        port.absent = true;
-        u32 active{};
-        const auto result =
-            openswd3::battle::run_legacy_battle_frame_music_prefix(
-                active, 1U, path, 6, port
-            );
-        test.expect_true(
-            active == 1U && !result.music_started &&
-                port.count == 1U &&
-                port.calls[0U] == 'q',
-            "frame music prefix reads the shared suppression byte before playback"
-        );
-    }
+            backend.open_fails = scenario == 4U;
+            if (scenario == 5U) {
+                backend.after_start = [&level] { level = -7; };
+            }
 
-    {
-        MusicPort port;
-        port.absent = true;
-        u32 active{};
-        const auto result =
-            openswd3::battle::run_legacy_battle_frame_music_prefix(
-                active, 0U, path, -7, port
+            const auto result =
+                openswd3::battle::run_legacy_battle_frame_music_prefix(
+                    active, scenario == 1U ? 1U : 0U, path, level, streams
+                );
+            test.expect_true(
+                active == 1U && result.playback_requested == (scenario >= 2U),
+                "the frame publishes its active flag and requests music only with an absent stream and no suppression"
             );
+            if (scenario < 2U || scenario == 3U) {
+                test.expect_true(
+                    backend.paths.empty() && backend.volumes.empty() &&
+                        streams.active_stream_count() ==
+                            (scenario == 0U ? 1U : 0U),
+                    "an existing stream, suppression, or disabled playback does not open or change music"
+                );
+            } else if (scenario == 4U) {
+                test.expect_true(
+                    backend.operations == std::vector<char>{'o'} &&
+                        streams.active_stream_count() == 0U &&
+                        streams.free_stream_count() == 2U,
+                    "a failed open returns the reserved stream node and cannot fabricate playback"
+                );
+            } else {
+                test.expect_true(
+                    backend.paths ==
+                            std::vector<std::string>{
+                                (std::filesystem::path{"music"} / "current.mp3")
+                                    .string()
+                            } &&
+                        backend.operations ==
+                            std::vector<char>{'o', 'v', 's', 'v'} &&
+                        backend.volumes ==
+                            (scenario == 5U ? std::vector<i32>{69, 0}
+                                            : std::vector<i32>{0, 0}) &&
+                        backend.stream_id == 100 && backend.loop_count == 1 &&
+                        streams.active_stream_count() == 1U,
+                    "real stream playback normalizes the path and rereads signed volume after starting"
+                );
+            }
+        }
+
         test.expect_true(
-            active == 1U && result.music_started &&
-                port.path_data == path.data() &&
-                port.committed_level == -7 && port.count == 3U &&
-                port.calls == std::array<char, 3>{'q', 's', 'v'},
-            "frame music prefix plays the borrowed path and commits signed volume before the first unbound call"
+            !backend.playing,
+            "the stream manager releases the music handle on destruction"
         );
     }
 }
@@ -1165,7 +1217,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         auto fixture = std::make_unique<Fixture>();
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
-        port.music_absent = true;
         port.battle_debug_hotkey_state().developer_tools_enabled = 1U;
         fixture->keyboard[0x1DU] = 0x80U;
         fixture->keyboard[0x12U] = 0x80U;
@@ -1186,17 +1237,20 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                         pre_frame_returned_zero &&
                 result.return_value == 0U && state.active == 1U &&
-                result.music_started && port.music_paths.size() == 1U &&
-                port.music_paths.front().data() == fixture->music_path.data() &&
-                port.music_paths.front()[5U] == '\\' &&
+                result.playback_requested &&
+                fixture->music_backend.paths ==
+                    std::vector<std::string>{(std::filesystem::path{"music"} /
+                                              "current.mp3")
+                                                 .string()} &&
                 result.fixed_frame_calls == 0U &&
                 result.frame_effect_calls == 0U && result.lock_calls == 0U &&
                 result.frame_input_resolution_calls == 1U &&
                 result.input_dispatch_calls == 1U &&
                 result.pre_frame_calls == 1U &&
                 result.debug_hotkey_calls == 1U && port.calls.empty() &&
-                port.music_operations == std::vector<char>{'q', 's', 'v'} &&
-                port.music_levels == std::vector<i32>{6},
+                fixture->music_backend.operations ==
+                    std::vector<char>{'o', 'v', 's', 'v'} &&
+                fixture->music_backend.volumes == std::vector<i32>{69, 69},
             "frame coordinator borrows the script music path and sends the independent initial volume"
         );
     }
@@ -1208,7 +1262,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         auto fixture = std::make_unique<Fixture>();
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
-        port.music_absent = true;
         port.battle_frame_input_resolution_state()
             .target_selection_suppression = 1U;
         auto context = fixture->context();
@@ -1224,9 +1277,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto& result = *result_storage;
 
         test.expect_true(
-            state.active == 1U && !result.music_started &&
-                port.music_paths.empty() && port.music_levels.empty() &&
-                port.music_operations == std::vector<char>{'q'},
+            state.active == 1U && !result.playback_requested &&
+                fixture->music_backend.paths.empty() &&
+                fixture->music_backend.volumes.empty() &&
+                fixture->music_streams.active_stream_count() == 0U,
             "message-phase suppression byte prevents the frame's music-start and volume calls"
         );
     }
@@ -1239,7 +1293,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         fixture->music_mix_level = -7;
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
-        port.music_absent = true;
         port.battle_debug_hotkey_state().developer_tools_enabled = 1U;
         fixture->keyboard[0x1DU] = 0x80U;
         fixture->keyboard[0x12U] = 0x80U;
@@ -1258,11 +1311,15 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                         pre_frame_returned_zero &&
-                result.music_started && port.music_paths.size() == 1U &&
-                port.music_paths.front().data() == fixture->music_path.data() &&
-                port.music_paths.front()[6U] == 'b' && port.calls.empty() &&
-                port.music_operations == std::vector<char>{'q', 's', 'v'} &&
-                port.music_levels == std::vector<i32>{-7},
+                result.playback_requested &&
+                fixture->music_backend.paths ==
+                    std::vector<std::string>{(std::filesystem::path{"music"} /
+                                              "burrent.mp3")
+                                                 .string()} &&
+                port.calls.empty() &&
+                fixture->music_backend.operations ==
+                    std::vector<char>{'o', 'v', 's', 'v'} &&
+                fixture->music_backend.volumes == std::vector<i32>{0, 0},
             "frame coordinator reads the live script path and signed music dword at the original calls"
         );
     }

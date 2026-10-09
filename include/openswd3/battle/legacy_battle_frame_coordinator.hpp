@@ -388,8 +388,7 @@ struct LegacyBattleFrameCoordinatorCallReply {
 };
 
 class LegacyBattleFrameCoordinatorPort
-    : public LegacyBattleFrameMusicPrefixPort,
-      public LegacyBattleHudCallPort,
+    : public LegacyBattleHudCallPort,
       public LegacyBattleEffectCallPort,
       public LegacyBattlePreFramePort,
       public LegacyBattleDebugHotkeyPort,
@@ -1962,6 +1961,7 @@ struct LegacyBattleFrameCoordinatorContext {
     rendering::LegacyRasterGeometryState& raster;
     const LegacyBattleMusicPath& music_path;
     const compat::i32& music_mix_level;
+    audio_video::LegacyStreamManager& music_streams;
     LegacyBattleFrameEffectPort& frame_effect_port;
     std::span<const compat::u32> frame_effect_surfaces;
     asset_runtime::LegacyActionUpdater& action_updater;
@@ -2043,7 +2043,7 @@ struct LegacyBattleFrameCoordinatorResult {
         LegacyBattleFrameCoordinatorStatus::completed
     };
     compat::u32 return_value{};
-    bool music_started{};
+    bool playback_requested{};
     compat::u32 lock_calls{};
     compat::u32 unlock_calls{};
     compat::u32 selection_refresh_calls{};

@@ -1767,7 +1767,6 @@ class SdlSmokeIdlePorts final
       public openswd3::battle::LegacyBattleGroupAAttributeAggregationPort,
       public openswd3::battle::LegacyBattleStartupSupplementalPort,
       public openswd3::battle::LegacyBattleBoundedRandomPort,
-      public openswd3::battle::LegacyBattleFrameMusicPrefixPort,
       public virtual openswd3::input_time_rng::LegacyMouseFrameStatePort,
       public virtual openswd3::battle::LegacyBattlePreFramePort,
       public virtual openswd3::battle::LegacyBattleDebugHotkeyPort,
@@ -3386,21 +3385,6 @@ public:
 
     void clear_party_battle_entry_bits() override {}
 
-    [[nodiscard]] bool music_stream_absent() override {
-        return openswd3::audio_video::legacy_stream_absent(stream_manager_);
-    }
-
-    void
-    start_music(const std::span<const openswd3::compat::u8> path) override {
-        static_cast<void>(play_battle_music_path(path));
-    }
-
-    void set_music_volume(const openswd3::compat::i32 level) override {
-        static_cast<void>(openswd3::audio_video::set_legacy_stream_volume(
-            stream_manager_, level
-        ));
-    }
-
     [[nodiscard]] std::span<std::byte>
     debug_record_bytes(const openswd3::compat::u32 token) override {
         auto auxiliary = openswd3::battle::legacy_battle_auxiliary_record_bytes(
@@ -3804,7 +3788,7 @@ public:
                         .target_selection_suppression,
                     battle_script_shared_.music_path,
                     music_mix_level_,
-                    *this
+                    stream_manager_
                 );
             const auto input_gate =
                 openswd3::battle::run_legacy_battle_frame_input_gate_prefix(
@@ -4195,8 +4179,8 @@ public:
             }
             std::string message{"battle frame typed stop before "};
             message.append(stop_boundary);
-            message.append(": music_started=");
-            message.append(prefix.music_started ? "1" : "0");
+            message.append(": music_playback_requested=");
+            message.append(prefix.playback_requested ? "1" : "0");
             message.append(", keyboard_queries=");
             message.append(std::to_string(keyboard_queries));
             message.append(", record_zero_written=");
