@@ -18,6 +18,7 @@
 #include "openswd3/battle/legacy_battle_frame_completion.hpp"
 #include "openswd3/battle/legacy_battle_frame_effect.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
+#include "openswd3/battle/legacy_battle_frame_surface.hpp"
 #include "openswd3/battle/legacy_battle_input_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_message_phase.hpp"
 #include "openswd3/battle/legacy_battle_music_path.hpp"
@@ -74,8 +75,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     frame_input_query_actor_mirror,
     reserved_frame_input_query_group_b_action_six_availability_slot,
     frame_input_query_group_a_candidate,
-    lock_target_surface,
-    unlock_target_surface,
     reserved_refresh_selection_slot,
     reserved_selection_frame_slot,
     reserved_query_actor_action_target,
@@ -404,6 +403,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattlePendingActionPort,
       public LegacyBattleFrameCompletionPort,
       public LegacyBattleFrameInputResolutionPort,
+      public LegacyBattleFrameSurfacePort,
       public LegacyBattleSelectionFramePort,
       public LegacyBattleMessagePhasePort,
       public LegacyBattleTextMessageFramePort,

@@ -59,33 +59,6 @@ private:
     LegacyBattleFrameCoordinatorPort& port_;
 };
 
-class CoordinatorSurfacePort final : public LegacyBattleFrameSurfacePort {
-public:
-    explicit CoordinatorSurfacePort(LegacyBattleFrameCoordinatorPort& port)
-        : port_(port) {}
-
-    [[nodiscard]] LegacyBattleFrameSurfaceReply
-    lock_frame_surface(const u32 surface) override {
-        const auto reply = port_.invoke({
-            .call = LegacyBattleFrameCoordinatorCall::lock_target_surface,
-            .arguments = {surface},
-        });
-        return {.eax = reply.eax, .callee_returned = reply.callee_returned};
-    }
-
-    [[nodiscard]] LegacyBattleFrameSurfaceReply
-    unlock_frame_surface(const u32 surface, const u32 pixels) override {
-        const auto reply = port_.invoke({
-            .call = LegacyBattleFrameCoordinatorCall::unlock_target_surface,
-            .arguments = {surface, pixels},
-        });
-        return {.eax = reply.eax, .callee_returned = reply.callee_returned};
-    }
-
-private:
-    LegacyBattleFrameCoordinatorPort& port_;
-};
-
 [[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
     value &= 0xFFU;
     value ^= value >> 4U;
@@ -351,9 +324,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         return result;
     }
 
-    CoordinatorSurfacePort surface_port(port);
-    const auto surface =
-        prepare_legacy_battle_frame_surface(state, surface_port);
+    const auto surface = prepare_legacy_battle_frame_surface(state, port);
     result.lock_calls += surface.lock_calls;
     result.unlock_calls += surface.unlock_calls;
     result.port_calls += surface.lock_calls + surface.unlock_calls;

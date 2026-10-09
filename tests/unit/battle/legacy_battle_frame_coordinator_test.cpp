@@ -47,6 +47,21 @@ class CoordinatorPort final
       public openswd3::test::LegacyBattleMonDatabaseFixture,
       public openswd3::test::LegacyBattleLevelDatabaseFixture {
 public:
+    std::optional<u32> locked_pixels{0x004CD76CU};
+    bool unlock_succeeds{true};
+    std::vector<u32> locked_surfaces;
+    std::vector<std::pair<u32, u32>> unlocked_surfaces;
+
+    std::optional<u32> lock_frame_surface(const u32 surface) override {
+        locked_surfaces.push_back(surface);
+        return locked_pixels;
+    }
+
+    bool unlock_frame_surface(const u32 surface, const u32 pixels) override {
+        unlocked_surfaces.emplace_back(surface, pixels);
+        return unlock_succeeds;
+    }
+
     [[nodiscard]] LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) override {
         calls.push_back(request);
@@ -713,8 +728,7 @@ base_request() {
 }
 
 void configure_common_port(CoordinatorPort& port) {
-    port.replies[LegacyBattleFrameCoordinatorCall::lock_target_surface].eax =
-        0x004CD76CU;
+    port.locked_pixels = 0x004CD76CU;
     port.replies[LegacyBattleFrameCoordinatorCall::
                      selection_frame_query_group_a_replacement]
         .eax = 0U;
@@ -1370,10 +1384,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         );
     }
 
-    for (const auto stopped_call : {
-             LegacyBattleFrameCoordinatorCall::lock_target_surface,
-             LegacyBattleFrameCoordinatorCall::unlock_target_surface,
-         }) {
+    for (const bool lock_stopped : {false, true}) {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
@@ -1383,7 +1394,11 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         configure_common_port(port);
-        port.replies[stopped_call].callee_returned = false;
+        if (lock_stopped) {
+            port.locked_pixels.reset();
+        }
+
+        port.unlock_succeeds = false;
         auto context = fixture->context();
         const auto result_storage = std::unique_ptr<
             openswd3::battle::LegacyBattleFrameCoordinatorResult>(
@@ -1394,8 +1409,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             )
         );
         const auto& result = *result_storage;
-        const bool lock_stopped = stopped_call ==
-            LegacyBattleFrameCoordinatorCall::lock_target_surface;
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
@@ -1406,9 +1419,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     (lock_stopped ? 0x1357U : 0x004CD76CU) &&
                 result.fixed_frame_calls == 0U &&
                 result.frame_effect_calls == 0U &&
-                port.count(
-                    LegacyBattleFrameCoordinatorCall::unlock_target_surface
-                ) == (lock_stopped ? 0U : 1U),
+                port.unlocked_surfaces.size() == (lock_stopped ? 0U : 1U),
             "full coordinator propagates surface callee stops before abort return or drawing"
         );
     }

@@ -11,18 +11,13 @@ namespace openswd3::battle {
 
 struct LegacyBattleFrameCoordinatorState;
 
-struct LegacyBattleFrameSurfaceReply {
-    compat::u32 eax{};
-    bool callee_returned{};
-};
-
 class LegacyBattleFrameSurfacePort {
 public:
     virtual ~LegacyBattleFrameSurfacePort() = default;
-    [[nodiscard]] virtual LegacyBattleFrameSurfaceReply
-    lock_frame_surface(compat::u32 surface) = 0;
-    [[nodiscard]] virtual LegacyBattleFrameSurfaceReply
-    unlock_frame_surface(compat::u32 surface, compat::u32 pixels) = 0;
+    [[nodiscard]] virtual std::optional<compat::u32>
+    lock_frame_surface(compat::u32 surface);
+    [[nodiscard]] virtual bool
+    unlock_frame_surface(compat::u32 surface, compat::u32 pixels);
 };
 
 enum class LegacyBattleFrameSurfaceStatus : compat::u8 {
@@ -58,9 +53,9 @@ public:
         rendering::LegacyFramebuffer& framebuffer, compat::u32 surface_token
     ) noexcept;
 
-    [[nodiscard]] LegacyBattleFrameSurfaceReply
+    [[nodiscard]] std::optional<compat::u32>
     lock_frame_surface(compat::u32 surface) override;
-    [[nodiscard]] LegacyBattleFrameSurfaceReply
+    [[nodiscard]] bool
     unlock_frame_surface(compat::u32 surface, compat::u32 pixels) override;
     [[nodiscard]] std::span<std::byte>
     pixel_bytes(compat::u32 address) noexcept;

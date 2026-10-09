@@ -1,9 +1,9 @@
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_frame_surface.hpp"
 
-#include <array>
 #include <functional>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "test.hpp"
@@ -18,31 +18,31 @@ struct SurfacePort final : LegacyBattleFrameSurfacePort {
         : state(owner) {}
 
     LegacyBattleFrameCoordinatorState& state;
-    LegacyBattleFrameSurfaceReply locked{0xCAFE1234U, true};
-    LegacyBattleFrameSurfaceReply unlocked{0x88760001U, true};
+    std::optional<u32> locked_pixels{0xCAFE1234U};
+    bool unlock_succeeds{true};
     std::function<void()> during_lock;
     std::function<void()> during_unlock;
-    std::vector<std::array<u32, 3>> calls;
+    std::vector<u32> locked_surfaces;
+    std::vector<std::pair<u32, u32>> unlocked_surfaces;
     bool publication_seen{};
 
-    LegacyBattleFrameSurfaceReply lock_frame_surface(u32 surface) override {
-        calls.push_back({0U, surface, 0U});
+    std::optional<u32> lock_frame_surface(const u32 surface) override {
+        locked_surfaces.push_back(surface);
         if (during_lock) {
             during_lock();
         }
 
-        return locked;
+        return locked_pixels;
     }
 
-    LegacyBattleFrameSurfaceReply
-    unlock_frame_surface(u32 surface, u32 pixels) override {
-        calls.push_back({1U, surface, pixels});
+    bool unlock_frame_surface(const u32 surface, const u32 pixels) override {
+        unlocked_surfaces.emplace_back(surface, pixels);
         publication_seen = state.current_target_pointer_token == pixels;
         if (during_unlock) {
             during_unlock();
         }
 
-        return unlocked;
+        return unlock_succeeds;
     }
 };
 
@@ -58,9 +58,8 @@ void test_battle_frame_surface(openswd3::test::Context& test) {
             state.render_abort_latch = 1U;
             state.active = 1U;
             SurfacePort port(state);
-            port.locked.eax = pointer;
+            port.locked_pixels = pointer;
             port.during_lock = [&] { state.target_surface_token = 0x2000U; };
-
             port.during_unlock = [&] {
                 state.render_abort_latch = latch;
                 state.active = 0x81234567U;
@@ -69,14 +68,13 @@ void test_battle_frame_surface(openswd3::test::Context& test) {
             const auto result =
                 prepare_legacy_battle_frame_surface(state, port);
             test.expect_true(
-                port.calls ==
-                        std::vector<std::array<u32, 3>>{
-                            {0U, 0x1000U, 0U}, {1U, 0x2000U, pointer}
-                        } &&
+                port.locked_surfaces == std::vector<u32>{0x1000U} &&
+                    port.unlocked_surfaces ==
+                        std::vector<std::pair<u32, u32>>{{0x2000U, pointer}} &&
                     port.publication_seen &&
                     state.current_target_pointer_token == pointer &&
                     result.lock_calls == 1U && result.unlock_calls == 1U,
-                "surface prefix reloads the surface and publishes even a zero Lock reply before Unlock"
+                "surface prefix reloads the surface and publishes even a zero pixel address before unlock"
             );
             test.expect_true(
                 result.status ==
@@ -85,7 +83,7 @@ void test_battle_frame_surface(openswd3::test::Context& test) {
                              : LegacyBattleFrameSurfaceStatus::
                                    continue_frame) &&
                     (latch != 1U || result.return_value == 0x81234567U),
-                "surface prefix ignores Unlock HRESULT and rereads exact-one abort and current active DWORD"
+                "surface prefix rereads exact-one abort and current active DWORD after unlock"
             );
         }
     }
@@ -97,8 +95,11 @@ void test_battle_frame_surface(openswd3::test::Context& test) {
         state.render_abort_latch = 1U;
         state.active = 0xFFFFFFFFU;
         SurfacePort port(state);
-        port.locked.callee_returned = !stop_lock;
-        port.unlocked.callee_returned = false;
+        if (stop_lock) {
+            port.locked_pixels.reset();
+        }
+
+        port.unlock_succeeds = false;
         const auto result = prepare_legacy_battle_frame_surface(state, port);
         test.expect_true(
             result.status ==
@@ -109,7 +110,7 @@ void test_battle_frame_surface(openswd3::test::Context& test) {
                 result.unlock_calls == (stop_lock ? 0U : 1U) &&
                 result.return_value == 0U &&
                 state.current_target_pointer_token ==
-                    (stop_lock ? 0x1357U : port.locked.eax),
+                    (stop_lock ? 0x1357U : *port.locked_pixels),
             "stopped surface calls retain only completed publication and never report the abort return"
         );
     }
@@ -137,16 +138,19 @@ void test_battle_frame_surface(openswd3::test::Context& test) {
         LegacyBattleFramebufferSurface binding(framebuffer, 0x1234U);
         test.expect_true(
             binding.pixel_bytes(0U).empty() && binding.pitch_shadow() == 0 &&
-                !binding.lock_frame_surface(0x9999U).callee_returned,
+                !binding.lock_frame_surface(0x9999U).has_value(),
             "unbound pixel addresses and unknown surfaces are not fabricated mappings"
         );
         const auto locked = binding.lock_frame_surface(0x1234U);
-        const auto bytes = binding.pixel_bytes(locked.eax);
-        const auto unlocked = binding.unlock_frame_surface(0x1234U, locked.eax);
+        test.expect_true(locked.has_value(), "known software surface locks");
+        if (!locked.has_value()) {
+            continue;
+        }
+
+        const auto bytes = binding.pixel_bytes(*locked);
+        const bool unlocked = binding.unlock_frame_surface(0x1234U, *locked);
         test.expect_true(
-            locked.callee_returned && locked.eax != 0U &&
-                unlocked.callee_returned && unlocked.eax == 0U &&
-                binding.pitch_shadow() == pitch / 2 &&
+            *locked != 0U && unlocked && binding.pitch_shadow() == pitch / 2 &&
                 bytes.data() ==
                     std::as_writable_bytes(
                         framebuffer.physical_pixels_with_read_guard()
@@ -160,23 +164,20 @@ void test_battle_frame_surface(openswd3::test::Context& test) {
             test.expect_true(
                 std::as_writable_bytes(framebuffer.physical_pixels()).front() ==
                         std::byte{0x5AU} &&
-                    binding.lock_frame_surface(0x1234U).eax == locked.eax &&
-                    binding.pixel_bytes(locked.eax + 1U).data() ==
+                    binding.lock_frame_surface(0x1234U) == locked &&
+                    binding.pixel_bytes(*locked + 1U).data() ==
                         bytes.data() + 1U &&
-                    binding.pixel_bytes(locked.eax - 1U).empty() &&
+                    binding.pixel_bytes(*locked - 1U).empty() &&
                     binding
-                        .pixel_bytes(
-                            locked.eax + static_cast<u32>(bytes.size())
-                        )
+                        .pixel_bytes(*locked + static_cast<u32>(bytes.size()))
                         .empty(),
-                "Unlock keeps the same writable framebuffer and bounded guest identity"
+                "unlock keeps the same writable framebuffer and bounded guest identity"
             );
         }
 
         test.expect_true(
-            !binding.unlock_frame_surface(0x9999U, locked.eax)
-                    .callee_returned &&
-                binding.unlock_frame_surface(0x1234U, 0U).callee_returned &&
+            !binding.unlock_frame_surface(0x9999U, *locked) &&
+                binding.unlock_frame_surface(0x1234U, 0U) &&
                 binding.pitch_shadow() == pitch / 2,
             "software unlock accepts the original zero pointer boundary but rejects unknown surface identity"
         );
@@ -192,7 +193,7 @@ void test_battle_frame_surface(openswd3::test::Context& test) {
             prepared.status == LegacyBattleFrameSurfaceStatus::render_aborted &&
                 prepared.return_value == 0xFEDCBA98U &&
                 prepared.lock_calls == 1U && prepared.unlock_calls == 1U &&
-                state.current_target_pointer_token == locked.eax &&
+                state.current_target_pointer_token == *locked &&
                 binding.pixel_bytes(state.current_target_pointer_token)
                         .data() == bytes.data(),
             "production software binding and shared prefix publish the same actual framebuffer before abort return"
@@ -203,7 +204,7 @@ void test_battle_frame_surface(openswd3::test::Context& test) {
         test.expect_true(
             missing.status == LegacyBattleFrameSurfaceStatus::lock_stopped &&
                 missing.unlock_calls == 0U &&
-                state.current_target_pointer_token == locked.eax,
+                state.current_target_pointer_token == *locked,
             "unknown production surface stops before replacing the previous framebuffer publication"
         );
     }

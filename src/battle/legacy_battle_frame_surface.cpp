@@ -3,7 +3,20 @@
 #include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 
+#include <stdexcept>
+
 namespace openswd3::battle {
+
+std::optional<compat::u32>
+LegacyBattleFrameSurfacePort::lock_frame_surface(compat::u32) {
+    throw std::logic_error("battle surface locking is not bound");
+}
+
+bool LegacyBattleFrameSurfacePort::unlock_frame_surface(
+    compat::u32, compat::u32
+) {
+    throw std::logic_error("battle surface unlocking is not bound");
+}
 
 LegacyBattleFrameSurfaceResult prepare_legacy_battle_frame_surface(
     LegacyBattleFrameCoordinatorState& state, LegacyBattleFrameSurfacePort& port
@@ -11,16 +24,15 @@ LegacyBattleFrameSurfaceResult prepare_legacy_battle_frame_surface(
     LegacyBattleFrameSurfaceResult result;
     ++result.lock_calls;
     const auto locked = port.lock_frame_surface(state.target_surface_token);
-    if (!locked.callee_returned) {
+    if (!locked.has_value()) {
         return result;
     }
 
     // 45326A reloads the surface before 453272 publishes the returned pointer.
     const auto surface = state.target_surface_token;
-    state.current_target_pointer_token = locked.eax;
+    state.current_target_pointer_token = *locked;
     ++result.unlock_calls;
-    const auto unlocked = port.unlock_frame_surface(surface, locked.eax);
-    if (!unlocked.callee_returned) {
+    if (!port.unlock_frame_surface(surface, *locked)) {
         result.status = LegacyBattleFrameSurfaceStatus::unlock_stopped;
         return result;
     }
@@ -40,7 +52,7 @@ LegacyBattleFramebufferSurface::LegacyBattleFramebufferSurface(
 ) noexcept
     : framebuffer_(framebuffer), surface_token_(surface_token) {}
 
-LegacyBattleFrameSurfaceReply
+std::optional<compat::u32>
 LegacyBattleFramebufferSurface::lock_frame_surface(const compat::u32 surface) {
     // Unknown identities are missing bindings, not a DirectDraw HRESULT.
     if (surface != surface_token_) {
@@ -58,11 +70,10 @@ LegacyBattleFramebufferSurface::lock_frame_surface(const compat::u32 surface) {
     }
 
     pitch_shadow_ = framebuffer_.geometry().surface.pitch_bytes >> 1;
-    return {.eax = *pixel_token_, .callee_returned = true};
+    return pixel_token_;
 }
 
-LegacyBattleFrameSurfaceReply
-LegacyBattleFramebufferSurface::unlock_frame_surface(
+bool LegacyBattleFramebufferSurface::unlock_frame_surface(
     const compat::u32 surface, const compat::u32 pixels
 ) {
     if (surface != surface_token_) {
@@ -72,7 +83,7 @@ LegacyBattleFramebufferSurface::unlock_frame_surface(
     // No host lease exists for the software framebuffer. Keep the address
     // mapping alive after this original boundary, including a null argument.
     static_cast<void>(pixels);
-    return {.eax = 0U, .callee_returned = true};
+    return true;
 }
 
 std::span<std::byte> LegacyBattleFramebufferSurface::pixel_bytes(

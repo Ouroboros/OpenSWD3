@@ -71,6 +71,24 @@ callee停点的传播及后续绘制零调用。guest地址耗尽未单独注入
 此前构建发现移除旧调用路径后留下未使用的`invoke`包装器；删除后才取得本轮结果。
 未启动游戏，未新增原版动态差分；WP316仍待审。
 
+### 画布接口命名调用迁移
+
+锁定直接返回可选像素地址；有值的零地址仍是正常返回，空值表示不能完成锁定。
+解锁只返回调用是否完成，不再暴露未被原调用方读取的HRESULT或EAX。
+未绑定接口显式抛出`std::logic_error`，不提供默认成功结果。
+协调器直接使用同一画布端口，删除锁定／解锁操作枚举及`CoordinatorSurfacePort`。
+SDL继续使用借用真实软件画布的实现。上述改动保持`45325E..453286`的surface
+重读、像素地址发布、解锁和中止门顺序；不改变软件画布的地址映射生命周期。
+
+`proc_d0e1`在临时隔离五个已有帧刷新WIP文件后完成验证：
+`battle.legacy_battle_setup`的core、ASan各1/1通过，SDL目标链接通过。
+退出时五个文件全部恢复，SHA256逐一相符；没有隔离或修改PLAN差异。
+日志为`build/tmp/runtime/surface-named-isolated-{core,asan,sdl}.log`，
+恢复记录为`build/tmp/runtime/surface-named-isolation.log`。
+core和ASan均报告已有`legacy_battle_outcome_resolution_test.cpp:133`窄化警告；
+本批未修改该测试。恢复刷新WIP后的工作区仍有此前六个刷新断言失败，
+独立批次通过不代表这些失败已解决。未启动游戏，也未执行原版动态差分。
+
 ## 4. 选择延迟与交互发布
 
 入口读取选择mode和选择值。仅当`mode==1 && value==0xFFFFFFFF`时把mode写0。
