@@ -29,6 +29,73 @@ struct Surface {
     std::vector<u16> pixels;
 };
 
+class MusicBackend final : public openswd3::audio_video::LegacyStreamBackend {
+public:
+    u32 open_stream(u32, const std::string_view filename, i32) override {
+        paths.emplace_back(filename);
+        operations.push_back('o');
+        return open_fails ? 0U : 1U;
+    }
+
+    std::string_view last_error() const override {
+        return "music open failed";
+    }
+
+    void close_stream(u32) override {
+        operations.push_back('c');
+        playing = false;
+    }
+
+    void set_stream_user_data(u32, u32, const i32 value) override {
+        stream_id = value;
+    }
+
+    i32 stream_user_data(u32, u32) override {
+        return stream_id;
+    }
+
+    void set_stream_volume(u32, const i32 value) override {
+        operations.push_back('v');
+        volume = value;
+        volumes.push_back(value);
+    }
+
+    i32 stream_volume(u32) override {
+        return volume;
+    }
+
+    void set_stream_loop_count(u32, const i32 value) override {
+        loop_count = value;
+    }
+
+    void start_stream(u32) override {
+        operations.push_back('s');
+        playing = true;
+        if (after_start) {
+            after_start();
+        }
+    }
+
+    u32 stream_status(u32) override {
+        return playing ? 4U : 2U;
+    }
+
+    void stream_ms_position(u32, i32& total, i32& current) override {
+        total = 1000;
+        current = 0;
+    }
+
+    std::vector<std::string> paths;
+    std::vector<i32> volumes;
+    std::vector<char> operations;
+    std::function<void()> after_start;
+    i32 stream_id{};
+    i32 volume{};
+    i32 loop_count{};
+    bool playing{};
+    bool open_fails{};
+};
+
 class TransitionPorts final
     : public openswd3::battle::LegacyBattleTransitionPort,
       public openswd3::battle::LegacyBattleActionDispatchPort,
@@ -36,6 +103,22 @@ class TransitionPorts final
       public openswd3::battle::LegacyBattleTransitionSurfacePort,
       public openswd3::battle::LegacyBattleSurfaceBlendPort {
 public:
+    TransitionPorts() {
+        static_cast<void>(music.initialize_pool(1U));
+        static_cast<void>(music.play("existing.mp3", 100, 64, 1));
+        music_backend.paths.clear();
+        music_backend.volumes.clear();
+        music_backend.operations.clear();
+    }
+
+    void clear_music() {
+        static_cast<void>(music.shutdown());
+        static_cast<void>(music.initialize_pool(1U));
+        music_backend.paths.clear();
+        music_backend.volumes.clear();
+        music_backend.operations.clear();
+    }
+
     [[nodiscard]] openswd3::battle::LegacyBattleActionCallReply invoke(
         const openswd3::battle::LegacyBattleActionCallRequest& request
     ) override {
@@ -54,12 +137,6 @@ public:
         switch (request.call) {
         case LegacyBattleTransitionCall::create_temporary_surface:
             reply.return_value = 0x80000000U + temporary_count++;
-            break;
-        case LegacyBattleTransitionCall::music_gate:
-            reply.return_value = music_gate_return;
-            break;
-        case LegacyBattleTransitionCall::music_commit:
-            reply.return_value = music_commit_return;
             break;
         case LegacyBattleTransitionCall::random_below:
             if (!random_values.empty()) {
@@ -119,13 +196,6 @@ public:
             .callee_returned = frame_effect_surface_requests.size() !=
                 frame_effect_surface_stop_at,
         };
-    }
-
-    [[nodiscard]] u32
-    start_music(const std::filesystem::path& path, const u32 mode) override {
-        music_paths.push_back(path);
-        music_modes.push_back(mode);
-        return music_start_return;
     }
 
     [[nodiscard]] LegacyBattleTransitionAllocation
@@ -248,8 +318,10 @@ public:
     std::vector<u32> released_tokens;
     std::vector<u32> locked_tokens;
     std::vector<std::pair<u32, u32>> unlocked;
-    std::vector<std::filesystem::path> music_paths;
-    std::vector<u32> music_modes;
+    MusicBackend music_backend;
+    openswd3::audio_video::LegacyStreamManager music{music_backend};
+    i32 music_enabled{1};
+    i32 music_level{6};
     std::vector<i32> blend_metric_indices;
     std::vector<std::array<u32, 3>> blend_screen_creates;
     std::vector<std::array<u32, 2>> blend_temporary_creates;
@@ -266,9 +338,6 @@ public:
     u32 temporary_count{};
     u32 next_text_message_token{0x79000000U};
     u32 next_lock_token{1U};
-    u32 music_gate_return{};
-    u32 music_start_return{0xABCDEF01U};
-    u32 music_commit_return{0x12345678U};
     u32 generic_return{0x11223344U};
     u32 frame_effect_surface_stop_at{};
     bool rotation_update_typed_stop{};
@@ -481,9 +550,98 @@ request(const u32 mode) {
     };
 }
 
+void test_transition_music(openswd3::test::Context& test) {
+    for (const u32 scenario : {0U, 1U, 2U, 3U, 4U}) {
+        openswd3::battle::LegacyBattleTransitionState state;
+        auto startup = startup_state();
+        TransitionPorts ports;
+        ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x40U;
+        add_default_surfaces(ports);
+        if (scenario != 0U) {
+            ports.clear_music();
+        }
+
+        if (scenario == 1U) {
+            ports.music_enabled = 0;
+        }
+
+        if (scenario == 2U) {
+            ports.music_backend.open_fails = true;
+        }
+
+        if (scenario == 3U) {
+            ports.music_backend.after_start = [&ports] {
+                ports.music_level = -7;
+            };
+        }
+
+        if (scenario == 4U) {
+            ports.music_level = -7;
+        }
+
+        FrameFixture frame;
+        const auto result = openswd3::battle::run_legacy_battle_transition(
+            state,
+            *frame.action,
+            startup,
+            ports,
+            ports,
+            ports,
+            ports,
+            frame.context,
+            {ports.music, ports.music_enabled, ports.music_level},
+            request(3U)
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTransitionStatus::completed &&
+                result.music_started == (scenario != 0U) &&
+                state.primary_buffer.released &&
+                state.secondary_buffer.released && ports.random_values.empty(),
+            "music skip and failure preserve completed visual cleanup and the event suppression gate"
+        );
+        if (scenario == 0U) {
+            test.expect_true(
+                state.music_path.empty() && ports.music_backend.paths.empty() &&
+                    ports.music_backend.operations.empty() &&
+                    ports.music.active_stream_count() == 1U,
+                "existing music remains owned without playback or volume changes"
+            );
+        } else if (scenario <= 2U) {
+            test.expect_true(
+                ports.music.active_stream_count() == 0U &&
+                    ports.music_backend.volumes.empty() &&
+                    ports.music_backend.operations ==
+                        (scenario == 1U ? std::vector<char>{}
+                                        : std::vector<char>{'o'}) &&
+                    result.return_value == 0xFFFFFFFFU,
+                "disabled playback and backend failure do not invent a stream or skip the volume lookup"
+            );
+        } else {
+            test.expect_true(
+                ports.music.active_stream_count() == 1U &&
+                    ports.music_backend.volumes ==
+                        (scenario == 3U ? std::vector<i32>{69, 0}
+                                        : std::vector<i32>{0, 0}) &&
+                    ports.music_backend.operations ==
+                        std::vector<char>{'o', 'v', 's', 'v'},
+                "signed music volume is read again after playback from the shared owner"
+            );
+        }
+
+        static_cast<void>(ports.music.shutdown());
+        test.expect_true(
+            ports.music.active_stream_count() == 0U &&
+                ((scenario == 1U || scenario == 2U) ||
+                 ports.music_backend.operations.back() == 'c'),
+            "the stream manager owns and releases successful music streams"
+        );
+    }
+}
+
 }  // namespace
 
-void test_battle_transition(openswd3::test::Context& test) {
+static void test_battle_transition_visuals(openswd3::test::Context& test) {
     for (const u16 next_action : std::array<u16, 3>{0U, 2U, 0xFFFFU}) {
         const auto state_storage =
             std::make_unique<openswd3::battle::LegacyBattleTransitionState>();
@@ -543,6 +701,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                         ports,
                         ports,
                         frame.context,
+                        {ports.music, ports.music_enabled, ports.music_level},
                         request(0U)
                     )
                 )
@@ -573,7 +732,7 @@ void test_battle_transition(openswd3::test::Context& test) {
         TransitionPorts ports;
         ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x40U;
         add_default_surfaces(ports);
-        ports.music_gate_return = 1U;
+        ports.clear_music();
         FrameFixture frame;
 
         const auto result = openswd3::battle::run_legacy_battle_transition(
@@ -585,6 +744,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             ports,
             ports,
             frame.context,
+            {ports.music, ports.music_enabled, ports.music_level},
             request(1U)
         );
 
@@ -640,8 +800,15 @@ void test_battle_transition(openswd3::test::Context& test) {
                     std::filesystem::path(
                         "game-data/music/Battle_Europa01.mp3"
                     ) &&
-                result.music_commit_calls == 1U &&
-                result.return_value == 0x12345678U &&
+                ports.music_backend.paths ==
+                    std::vector<std::string>{state.music_path.string()} &&
+                ports.music_backend.operations ==
+                    std::vector<char>{'o', 'v', 's', 'v'} &&
+                ports.music_backend.volumes == std::vector<i32>{69, 69} &&
+                ports.music_backend.stream_id == 100 &&
+                ports.music_backend.loop_count == 1 &&
+                ports.music.active_stream_count() == 1U &&
+                result.return_value == 69U &&
                 ports.random_values.empty() &&
                 ports.call_count(LegacyBattleTransitionCall::restore_clip) ==
                     2U &&
@@ -693,6 +860,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             ports,
             ports,
             frame.context,
+            {ports.music, ports.music_enabled, ports.music_level},
             transition_request
         );
 
@@ -782,6 +950,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             ports,
             ports,
             frame.context,
+            {ports.music, ports.music_enabled, ports.music_level},
             transition_request
         );
 
@@ -887,6 +1056,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             ports,
             ports,
             frame.context,
+            {ports.music, ports.music_enabled, ports.music_level},
             transition_request
         );
 
@@ -939,7 +1109,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             TransitionPorts ports;
             ports.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x40U;
             add_default_surfaces(ports);
-            ports.music_gate_return = 1U;
+            ports.clear_music();
             FrameFixture frame;
             const auto result = openswd3::battle::run_legacy_battle_transition(
                 state,
@@ -950,6 +1120,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                 ports,
                 ports,
                 frame.context,
+                {ports.music, ports.music_enabled, ports.music_level},
                 request(3U)
             );
             paths_match = paths_match && result.music_started &&
@@ -962,6 +1133,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             "arab china and uncovered battle id ranges preserve independent inclusive music checks"
         );
     }
+
 
     {
         openswd3::battle::LegacyBattleTransitionState state;
@@ -980,6 +1152,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             ports,
             ports,
             frame.context,
+            {ports.music, ports.music_enabled, ports.music_level},
             request(3U)
         );
 
@@ -1020,6 +1193,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                         ports,
                         ports,
                         frame.context,
+                        {ports.music, ports.music_enabled, ports.music_level},
                         request(0U)
                     )
                 )
@@ -1091,6 +1265,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                         ports,
                         ports,
                         frame.context,
+                        {ports.music, ports.music_enabled, ports.music_level},
                         request(0U)
                     )
                 )
@@ -1152,6 +1327,7 @@ void test_battle_transition(openswd3::test::Context& test) {
                         ports,
                         ports,
                         frame.context,
+                        {ports.music, ports.music_enabled, ports.music_level},
                         request(0U)
                     )
                 )
@@ -1216,6 +1392,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             ports,
             ports,
             frame.context,
+            {ports.music, ports.music_enabled, ports.music_level},
             request(1U)
         );
 
@@ -1260,6 +1437,7 @@ void test_battle_transition(openswd3::test::Context& test) {
             ports,
             ports,
             frame.context,
+            {ports.music, ports.music_enabled, ports.music_level},
             request(1U)
         );
 
@@ -1273,4 +1451,9 @@ void test_battle_transition(openswd3::test::Context& test) {
             "short primary allocation stops at eleventh row after both allocations without synthetic unlock or cleanup"
         );
     }
+}
+
+void test_battle_transition(openswd3::test::Context& test) {
+    test_battle_transition_visuals(test);
+    test_transition_music(test);
 }

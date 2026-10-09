@@ -157,7 +157,27 @@ music gate严格等于1才处理。路径先复制data root，再按battle ID低
 - `0x72..0xB9`：`music/Battle_Arab01.mp3`；
 - `0xC6..0x10E`：`music/Battle_China01.mp3`。
 
-ID 0、`0x71`、`0xBA..0xC5`和大于`0x10E`不追加文件名，仍把data root传给music start。start固定mode零；随后music commit收到共享runtime handle。正常后续EAX从commit继续。
+ID 0、`0x71`、`0xBA..0xC5`和大于`0x10E`不追加文件名，仍把data root传给音乐播放函数。
+`0x00452EF4`调用的`0x004856C0`只读取路径参数；caller额外压入的0不是播放模式。
+随后`0x00452EF9..0x00452F00`重新读取`dword_4C9A0C`的有符号音量，
+调用`0x00485850`。此前“runtime handle”的解释错误；该值是音乐音量。
+
+转场现直接调用`legacy_stream_absent`、`play_legacy_stream`及
+`set_legacy_stream_volume`，共用调用方提供的真实`LegacyStreamManager`。
+音乐播放开关与音量通过引用借用，播放之后再读取音量。
+删除音乐通用操作编号、参数数组封装、`start_music`虚方法、无用mode、
+伪音乐handle字段和音乐调用计数。现存转场尾值仍来自实际音量操作，
+后置事件的返回合同不在本批改变。
+
+定向测试使用真实流管理器及可观测音频后端，检查三种地区路径、已有流跳过、
+禁播、后端打开失败、负音量、播放回调修改音量及流释放。
+打开失败或禁播不伪造流，不跳过后续音量查找，也不新增typed-stop。
+首轮core段错误由ASan定位为聚合测试函数栈溢出；新增音乐用例已拆到
+独立测试函数，与原视觉用例顺序执行。最终core与ASan的
+`battle.legacy_battle_setup`各1/1通过，SDL应用编译链接通过，
+三份最终日志无warning/error。日志位于
+`build/tmp/runtime/transition-music-direct-{core-final,asan-final,sdl}.log`。
+当前完整转场函数的调用方仍为单元测试，SDL实际转场接线不由本批验证。
 
 ## 9. 两条低概率事件
 

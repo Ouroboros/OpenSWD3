@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/audio_video/legacy_stream_manager.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_sequence.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_entry.hpp"
@@ -80,8 +81,6 @@ enum class LegacyBattleTransitionCall : compat::u16 {
     draw_full_image,
     transform_image,
     restore_clip,
-    music_gate,
-    music_commit,
     random_below,
     query_actor_mode,
     reserved_enemy_rare_event_slot,
@@ -121,8 +120,6 @@ public:
 
     [[nodiscard]] virtual LegacyBattleTransitionCallReply
     invoke(const LegacyBattleTransitionCallRequest& request) = 0;
-    [[nodiscard]] virtual compat::u32
-    start_music(const std::filesystem::path& path, compat::u32 mode) = 0;
 };
 
 struct LegacyBattleFrameZeroContext {
@@ -136,10 +133,15 @@ struct LegacyBattleFrameZeroContext {
     rendering::LegacyFramePieceProvider& frame_provider;
 };
 
+struct LegacyBattleTransitionMusicContext {
+    audio_video::LegacyStreamManager& streams;
+    const compat::i32& playback_enabled;
+    const compat::i32& mix_level;
+};
+
 struct LegacyBattleTransitionState {
     compat::u32 capture_source_token{0x004AB784U};
     compat::u32 target_surface_token{kLegacyBattleTransitionTargetSurfaceToken};
-    compat::u32 music_runtime_handle{};
     LegacyBattleTransitionAllocation primary_buffer{};
     LegacyBattleTransitionAllocation secondary_buffer{};
     std::vector<compat::u8> primary_command_stream;
@@ -223,7 +225,6 @@ struct LegacyBattleTransitionResult {
     std::array<compat::u32, 4> release_order{};
     compat::u32 release_calls{};
     bool music_started{};
-    compat::u32 music_commit_calls{};
     LegacyBattleAttackOrderEntryResult attack_order{};
     compat::u32 attack_order_calls{};
     LegacyBattleActorProgressThresholdSyncResult
@@ -252,6 +253,7 @@ struct LegacyBattleTransitionResult {
     LegacyBattleTransitionSurfacePort& surface_port,
     LegacyBattleSurfaceBlendPort& blend_port,
     LegacyBattleFrameZeroContext& frame_zero,
+    const LegacyBattleTransitionMusicContext& music,
     const LegacyBattleTransitionRequest& request
 );
 

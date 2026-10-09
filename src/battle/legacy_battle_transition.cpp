@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_transition.hpp"
 
+#include "openswd3/audio_video/legacy_stream_commands.hpp"
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/rendering/legacy_image_command_stream.hpp"
 
@@ -368,6 +369,7 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
     LegacyBattleTransitionSurfacePort& surface_port,
     LegacyBattleSurfaceBlendPort& blend_port,
     LegacyBattleFrameZeroContext& frame_zero,
+    const LegacyBattleTransitionMusicContext& music,
     const LegacyBattleTransitionRequest& request
 ) {
     LegacyBattleTransitionResult result;
@@ -721,19 +723,20 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
     ));
 
     u32 latest_eax =
-        invoke(port, LegacyBattleTransitionCall::music_gate).return_value;
+        static_cast<u32>(audio_video::legacy_stream_absent(music.streams));
     if (latest_eax == 1U) {
         state.music_path =
             music_path_for(request.data_root, startup.battle_id_word);
-        latest_eax = port.start_music(state.music_path, 0U);
+        static_cast<void>(audio_video::play_legacy_stream(
+            music.streams,
+            state.music_path.string(),
+            music.playback_enabled,
+            music.mix_level
+        ));
         result.music_started = true;
-        latest_eax = invoke(
-                         port,
-                         LegacyBattleTransitionCall::music_commit,
-                         {state.music_runtime_handle, 0U, 0U, 0U, 0U, 0U}
-        )
-                         .return_value;
-        ++result.music_commit_calls;
+        latest_eax = static_cast<u32>(audio_video::set_legacy_stream_volume(
+            music.streams, music.mix_level
+        ));
     }
 
     if ((port.battle_debug_hotkey_state().battle_mode_flags_53bc24 & 0x40U) !=
