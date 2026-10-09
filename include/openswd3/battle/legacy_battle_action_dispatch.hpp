@@ -924,6 +924,7 @@ struct LegacyBattleSpecialFourOhFiveRequest {
 
 enum class LegacyBattleSpecialFourOhFiveStatus : compat::u8 {
     completed,
+    frame_refresh_typed_stop,
     actor_state_typed_stop,
     frame_owner_typed_stop,
     shared_state_typed_stop,
@@ -1110,6 +1111,7 @@ struct LegacyBattleActionFourEffectRequest {
 
 enum class LegacyBattleActionFourEffectStatus : compat::u8 {
     completed,
+    frame_refresh_typed_stop,
     actor_state_typed_stop,
     progress_state_typed_stop,
     frame_owner_typed_stop,
@@ -1538,6 +1540,7 @@ struct LegacyBattleActionDispatchContext {
 
 enum class LegacyBattleActionDispatchStatus : compat::u8 {
     completed,
+    frame_refresh_typed_stop,
     group_a_index_typed_stop,
     group_b_index_typed_stop,
     actor_map_typed_stop,

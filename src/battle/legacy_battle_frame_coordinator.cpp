@@ -149,6 +149,22 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     LegacyBattleFrameCoordinatorContext& context,
     const LegacyBattleFrameCoordinatorRequest& request
 ) {
+    const auto previous_source = port.bind_frame_refresh_source(
+        LegacyBattleFrameRefreshSource{
+            context.startup.background.image_record,
+            context.frame_zero.shared_request,
+            state.current_target_pointer_token,
+        }
+    );
+    struct RestoreRefreshSource {
+        LegacyBattleFrameRefreshStatePort& port;
+        std::optional<LegacyBattleFrameRefreshSource> previous;
+
+        ~RestoreRefreshSource() {
+            static_cast<void>(port.bind_frame_refresh_source(previous));
+        }
+    };
+    const RestoreRefreshSource restore_source{port, previous_source};
     LegacyBattleFrameCoordinatorResult result;
     CoordinatorMusicPrefixPort music_port{port};
     const auto music = run_legacy_battle_frame_music_prefix(

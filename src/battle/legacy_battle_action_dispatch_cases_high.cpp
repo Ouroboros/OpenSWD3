@@ -118,7 +118,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         control.green_factor = -12;
         control.blue_factor = -12;
         control.primary_suppression = 1U;
-        refresh_shared_frame(port, result);
+        if (!refresh_shared_frame(port, result)) {
+            return result;
+        }
+
         const u16 summon_index = low_word(state.summon_packed);
         if (summon_index >= state.summon_target_x.size()) {
             result.status =

@@ -1,6 +1,7 @@
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "test.hpp"
+#include "legacy_battle_frame_refresh_fixture.hpp"
 
 #include <algorithm>
 #include <array>
@@ -35,7 +36,8 @@ using FrameSnapshotWords = std::
 
 class DispatchPort final
     : public openswd3::battle::LegacyBattleActionDispatchPort,
-      public openswd3::test::LegacyBattleMonDatabaseFixture {
+      public openswd3::test::LegacyBattleMonDatabaseFixture,
+      public openswd3::test::LegacyBattleFrameRefreshFixture {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
@@ -2498,9 +2500,8 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 auto& control = color_port.frame_effect_control_state();
                 control.primary_suppression = 7U;
                 control.secondary_suppression = 9U;
-                color_port.on_call = [&](const auto& call) {
-                    if (call.callee_token == 0x00416F60U &&
-                        color_port.count(0x00416F60U) == 3U) {
+                color_port.on_refresh_unlock = [&](u32, u32) {
+                    if (color_port.refresh_unlocks.size() == 3U) {
                         control.red_factor =
                             static_cast<openswd3::compat::i16>(final_red);
                         control.green_factor = 0;
@@ -2519,7 +2520,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                     );
                 test.expect_true(
                     color_result.frame_refresh_calls == 1U &&
-                        color_port.count(0x00416F60U) == 3U &&
+                        color_port.refresh_unlocks.size() == 3U &&
                         control.primary_suppression ==
                             (final_red == 0 ? 7U : 1U) &&
                         control.secondary_suppression == 9U &&
@@ -3438,9 +3439,8 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                 auto& control = port.frame_effect_control_state();
                 control.primary_suppression = 7U;
                 control.secondary_suppression = 9U;
-                port.on_call = [&](const auto& call) {
-                    if (call.callee_token == 0x00416F60U &&
-                        port.count(0x00416F60U) == 3U) {
+                port.on_refresh_unlock = [&](u32, u32) {
+                    if (port.refresh_unlocks.size() == 3U) {
                         control.red_factor =
                             static_cast<openswd3::compat::i16>(final_red);
                         control.green_factor = 0;
@@ -3459,7 +3459,7 @@ void test_battle_action_dispatch_part_two(openswd3::test::Context& test) {
                     );
                 test.expect_true(
                     result.frame_refresh_calls == 1U &&
-                        port.count(0x00416F60U) == 3U &&
+                        port.refresh_unlocks.size() == 3U &&
                         control.primary_suppression ==
                             (final_red == 0 ? 7U : 1U) &&
                         control.secondary_suppression == 9U &&

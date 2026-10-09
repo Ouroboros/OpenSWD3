@@ -2,6 +2,7 @@
 #include "openswd3/battle/legacy_battle_group_effect_frame.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
+#include "legacy_battle_frame_refresh_fixture.hpp"
 
 #include <algorithm>
 #include <array>
@@ -46,7 +47,8 @@ effect_resource_owners() {
 }
 
 class GroupEffectPort final
-    : public openswd3::battle::LegacyBattleEffectCallPort {
+    : public openswd3::battle::LegacyBattleEffectCallPort,
+      public openswd3::test::LegacyBattleFrameRefreshFixture {
 public:
     [[nodiscard]] LegacyBattleEffectCallReply
     invoke(const LegacyBattleEffectCallRequest& request) override {
@@ -239,19 +241,18 @@ void test_battle_group_effect_frame(openswd3::test::Context& test) {
         control.primary_suppression = 3U;
         control.secondary_suppression = 7U;
         u32 refresh_observations{};
-        port.on_call = [&](const auto& call) {
-            if (call.callee_token == 0x00485330U) {
-                test.expect_true(
-                    control.primary_suppression == 1U &&
-                        control.secondary_suppression == 1U &&
-                        control.red_factor == 2 && control.green_factor == -1 &&
-                        control.blue_factor == -32768,
-                    "group effect publishes both actual gates before refreshing the shared signed colors"
-                );
-                ++refresh_observations;
-            }
-            if (call.callee_token == 0x00416F60U &&
-                port.count(0x00416F60U) == 3U) {
+        port.on_refresh_audio = [&] {
+            test.expect_true(
+                control.primary_suppression == 1U &&
+                    control.secondary_suppression == 1U &&
+                    control.red_factor == 2 && control.green_factor == -1 &&
+                    control.blue_factor == -32768,
+                "group effect publishes both actual gates before refreshing the shared signed colors"
+            );
+            ++refresh_observations;
+        };
+        port.on_refresh_unlock = [&](u32, u32) {
+            if (port.refresh_unlocks.size() == 3U) {
                 control.primary_suppression = 5U;
                 control.secondary_suppression = 6U;
             }

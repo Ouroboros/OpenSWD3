@@ -1,6 +1,7 @@
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
 #include "test.hpp"
+#include "legacy_battle_frame_refresh_fixture.hpp"
 
 #include <algorithm>
 #include <array>
@@ -24,7 +25,8 @@ using openswd3::compat::u32;
 
 class DispatchPort final
     : public openswd3::battle::LegacyBattleActionDispatchPort,
-      public openswd3::test::LegacyBattleMonDatabaseFixture {
+      public openswd3::test::LegacyBattleMonDatabaseFixture,
+      public openswd3::test::LegacyBattleFrameRefreshFixture {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {

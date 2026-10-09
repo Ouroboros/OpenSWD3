@@ -761,6 +761,12 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             control.primary_suppression = 1U;
             const auto refresh = refresh_legacy_battle_frame(port);
             result.port_calls += refresh.port_calls;
+            if (refresh.status != LegacyBattleFrameRefreshStatus::completed) {
+                result.status =
+                    LegacyBattleActionDispatchStatus::frame_refresh_typed_stop;
+                return result;
+            }
+
             replace_low_word(state.phase_counter, 1U);
             replace_low_word(state.input_mode, 1U);
         }

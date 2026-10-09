@@ -804,6 +804,12 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
         control.blue_factor = std::bit_cast<i16>(primary.shared_word_3a);
         const auto refresh = refresh_legacy_battle_frame(port);
         result.port_calls += refresh.port_calls;
+        if (refresh.status != LegacyBattleFrameRefreshStatus::completed) {
+            result.status =
+                LegacyBattleEffectFrameStatus::frame_refresh_typed_stop;
+            return result;
+        }
+
         control.primary_suppression = 1U;
         control.secondary_suppression = 1U;
     }

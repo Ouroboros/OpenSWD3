@@ -51,8 +51,17 @@ public:
     bool unlock_succeeds{true};
     std::vector<u32> locked_surfaces;
     std::vector<std::pair<u32, u32>> unlocked_surfaces;
+    const std::array<u32, 5>* observed_refresh_background{};
+    openswd3::rendering::LegacyBlitRequest* observed_refresh_request{};
+    u32* observed_refresh_pixels{};
 
     std::optional<u32> lock_frame_surface(const u32 surface) override {
+        if (const auto source = frame_refresh_source()) {
+            observed_refresh_background = &source->background_record;
+            observed_refresh_request = &source->shared_request;
+            observed_refresh_pixels = &source->target_pixel_address;
+        }
+
         locked_surfaces.push_back(surface);
         return locked_pixels;
     }
@@ -1451,6 +1460,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         render_aborted &&
                 result.return_value == 1U && result.lock_calls == 1U &&
                 result.unlock_calls == 1U &&
+                port.observed_refresh_background ==
+                    &context.startup.background.image_record &&
+                port.observed_refresh_request ==
+                    &context.frame_zero.shared_request &&
+                port.observed_refresh_pixels ==
+                    &state.current_target_pointer_token &&
+                !port.frame_refresh_source().has_value() &&
                 state.current_target_pointer_token == 0x004CD76CU &&
                 result.fixed_frame_calls == 0U &&
                 result.frame_effect_calls == 0U,

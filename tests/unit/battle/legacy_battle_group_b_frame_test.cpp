@@ -2,6 +2,7 @@
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
+#include "legacy_battle_frame_refresh_fixture.hpp"
 
 #include <algorithm>
 #include <array>
@@ -29,7 +30,8 @@ struct PausedFrameState final : openswd3::battle::LegacyBattleGroupBFrameState {
 
 class DispatchPort final
     : public openswd3::battle::LegacyBattleActionDispatchPort,
-      public openswd3::test::LegacyBattleMonDatabaseFixture {
+      public openswd3::test::LegacyBattleMonDatabaseFixture,
+      public openswd3::test::LegacyBattleFrameRefreshFixture {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {

@@ -1,106 +1,84 @@
 # 战斗共享画面刷新 `0x0045AF90`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+状态：刷新命名操作与共享数据源迁移已验证；完整SDL帧及原版差分仍未验收。
 
-## 1. 完整LST范围
+## 1. LST范围与接口
 
-权威函数为`0x0045AF90..0x0045B0D7`，从proc到endp完整138行、9个静态call站点、2个`loc_`标签，无外部FUNCTION CHUNK。7个唯一callee。
+权威范围为`0x0045AF90..0x0045B0D7`，完整138行，9个静态调用站点、
+7个被调用函数。既有回收调用方直接使用`refresh_legacy_battle_frame`。
+本批删除刷新操作编号、callee地址表、参数数组、请求／回复包、入口及返回
+EAX/ECX/EDX，以及动作／效果两套invoke转接入口。
 
-十个静态caller中七个已关闭并回收：角色动作分派四处、对手动作分派一处、八槽效果帧一处、群体效果帧一处。三个尚未关闭的caller位于后续战斗函数，不提前修改。
+刷新直接调用音频服务、画布锁定／解锁、背景绘制和三个颜色函数。
+锁定返回可选像素地址，有值的零地址仍是正常结果；其他操作返回是否完成。
+未绑定操作显式抛出`std::logic_error`。刷新结果只含实际完成状态、调用数、
+已完成轮数和是否发生刷新，不提供寄存器残值。
 
-## 2. 三word无变化早退
+## 2. 无变化早退
 
-入口按顺序比较三组snapshot与当前word：
+按顺序比较`4A7632/34/36`快照与当前`53BF36/38/3A`颜色WORD。
+三者均相等时零调用返回，也不访问背景源。任一不等进入两轮刷新。
+当前实现保留比较短路；原版寄存器高位不属于新接口的输出。
 
-1. 先把snapshot 36写入EAX低word，保留caller EAX高word；不等立即刷新；
-2. 相等时把snapshot 38写入ECX低word，保留caller ECX高word；不等立即刷新；
-3. 再相等时把snapshot 3A写入EDX低word，保留caller EDX高word；
-4. 三组均相等时不调用任何callee，返回当前完整EAX。
+## 3. 每轮操作与真实数据源
 
-因比较在每次低word写后发生，较早不等路径不得提前覆盖后续ECX或EDX低word。typed状态显式保存入口和返回EAX/ECX/EDX。
+factor依次为1、2，每轮执行：
 
-## 3. 双surface循环
+1. 音频服务；
+2. 读取双槽中的surface并锁定；
+3. 重读同一surface槽，把锁定结果发布到共享当前像素地址；
+4. 用重读的surface及锁定结果解锁；
+5. 重读实际背景记录首DWORD，发布到共享绘图请求的source；
+6. 按零原点、640×480、零尾参数绘制背景；
+7. 依次处理红、绿、蓝通道。
 
-发生任一变化时固定执行两轮，factor依次为1和2。每轮顺序为：
+`LegacyBattleFrameRefreshSource`借用背景记录、共享绘图请求及当前像素地址，
+不另存背景token或画布镜像。首次获取借用发生在首轮锁定之后、像素发布之前；
+缺少绑定保留音频与锁定前缀，停止后续操作。
 
-1. 调用Miles serve；
-2. 读取对应surface token并锁定，保存完整返回EAX；
-3. 以surface token和锁定返回值解锁；
-4. 捕获共享pitch；
-5. 以固定640×480、零原点和零尾参数准备viewport；
-6. 依次调用红、绿、蓝三项颜色处理。
+核心协调器在调用期间绑定`startup.background.image_record`、
+`frame_zero.shared_request`及`current_target_pointer_token`的真实引用，
+所有返回路径均恢复先前绑定。回归验证三者地址及提前返回后的借用恢复。
 
-两个surface token来自固定连续双槽；循环不以token值增加modern短路。
+## 4. 颜色与最终发布
 
-## 4. signed半值与调用参数
+每个通道分别重读当前颜色和共享像素地址。颜色先按i16扩展，算术右移1，
+再乘factor；负奇数向负无穷取整。计数固定为`0x3C000`。
+因此前一回调改变颜色或画布地址会影响后续通道，不使用循环入口快照。
 
-三项当前word都先按i16扩展，再执行算术右移1。负奇数向负无穷取整，例如全1仍为全1，负3得到负2。结果再按低32位乘当前factor。
+两轮完成后按绿、红、蓝顺序读取当前颜色；发布绿快照，读取viewport，
+发布红快照并读取最终画布，写refresh pending为1，再发布蓝快照及active画布。
+随后锁定viewport，重读viewport，发布像素地址并解锁。
+正常刷新共16次操作。最终锁定回调对当前颜色的修改不覆盖已发布快照。
 
-颜色callee参数固定为：
+## 5. 调用方与失败前缀
 
-```text
-lock_token, 0x0003C000, signed_half * factor
-```
+每项操作失败均立即返回对应状态，不执行后续绘制、颜色处理或发布。
+动作、对手动作、组B执行、单体和群体效果调用方均检查刷新状态，
+失败时保留此前副作用并阻断后续抑制门等写入。
+单体效果的双门仍在刷新后发布，群体效果的双门仍在刷新前发布。
+动作4、404、405和组B执行继续在刷新后检查实际当前颜色。
 
-红值经EAX发布，绿值经EDX发布，蓝值经ECX发布；每个typed请求同时携带调用点完整EAX/ECX/EDX，保留此前callee返回的陈旧高位与覆盖顺序。
+快照、阶段WORD和active画布仍由动作／效果接口共享同一状态。
+下一次效果增长和淡出直接消费该阶段；active画布只参与全1哨兵判断。
+全局重置保留原WORD阶段，只恢复active画布标记。
 
-## 5. 快照与最终surface
+## 6. 本批验证
 
-两轮全部完成后，函数按原顺序把当前38、36、3A分别写入ECX、EAX、EDX低word并更新三项snapshot。
+`proc_1727`完成当前工作区`battle.legacy_battle_setup` 1/1，
+此前六个帧刷新断言失败已消除，无需隔离文件。
+`proc_07b1`完成`battle.actor_frame_316`与setup各1/1。
+`proc_251b`完成core与ASan setup各1/1、SDL目标链接。
+随后修正两处数组索引符号转换警告，`proc_5f43`增量复验上述三项全部通过，
+三份最终日志无warning/error。此前完整编译仍报告既有结果结算测试的窄化警告，
+该测试不属于本批修改。
 
-随后：
+向量覆盖颜色相等零调用、真实背景与像素地址逐次重读、640×480绘制、
+正负奇数半值、两轮次序、16个操作位置逐一失败、缺少数据源的准确停止点、
+调用方失败后的后缀阻断，以及刷新后的实际效果增长／淡出。
 
-1. ECX载入viewport token；
-2. EAX载入最终surface token；
-3. 发布refresh pending为1和active surface token；
-4. 锁定viewport并保存完整EAX；
-5. 以viewport token和锁定值解锁；
-6. 返回最后解锁callee完整EAX。
-
-一次实际刷新动态执行16次port call：双surface各7次，最终surface再2次。
-
-## 6. caller回收
-
-已关闭caller全部删除`0x0045AF90` token并直接组合统一typed刷新器。snapshot、surface、pitch和最终发布字段只存放在动作端口与效果端口共同虚继承的单一刷新状态基类；同一组合端口跨两类接口只存在一个物理typed存储，不在四类帧状态中复制全局：
-
-- 角色动作分派与对手动作分派先发布实际signed三色，再借同一port刷新；
-- 八槽效果帧与群体效果帧把配置WORD发布到同一当前颜色存储；
-- 群体效果帧继续接收刷新器最终EAX/ECX/EDX，供后续陈旧寄存器链使用；
-- 每个caller把内部port call数合并到原结果。
-
-三个后续未关闭caller继续保留工作包中的导航边，不在本项伪造回收。
-
-## 7. 测试与动态差分
-
-定向测试覆盖：动作/效果端口组合后的同一物理刷新存储、三word完全相等零调用早退、入口高word保留、固定双surface与16次调用、640×480参数、正奇数半值、负1/负3算术右移、factor乘法、pitch捕获、snapshot更新、最终surface锁定参数、完整返回EAX，以及七处已关闭caller token消失。
-
-当前缺少原版Miles serve、双surface、lock/unlock、viewport、三项颜色callee、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
-
-## 8. B11实际阶段与画布标记消费
-
-45B0A6写53BF44的WORD 1，45B0B6写4A7574的DWORD最终画布token。
-这两个发布字段现由核心帧、转场和动作14直接借既有刷新状态消费，
-效果context不再另存stage或selected_surface_index。
-4A7574保留原data初值FFFFFFFF；全局复位只恢复该标记，保留WORD阶段。
-组B单效果适配器把刷新状态访问转发到实际动作端口，避免临时端口另存副本。
-
-新增回归调用实际刷新callee，再执行效果增长与淡出；surface表按阶段索引，
-最终画布token只参与全1哨兵判断。定向core/ASan与SDL构建通过；
-位宽、重读、失败前缀及剩余生产接线见
-[阶段共享证据](battle-frame-effect-00453580.md#19-b11画面刷新阶段与画布标记共用实际状态)。
-完整SDL帧与实际续玩仍待完成，不升级原版差分或WP316验收状态。
-
-## 9. B11当前颜色与历史快照分离
-
-53BF36/38/3A由同一画面控制端口持有；4A7632/34/36仍是独立历史快照。
-刷新两重载仅接实际port，删除三项按值颜色参数。45B00D、45B02B、
-45B048及每次循环均在原站点重读，外部callee改色可影响下一通道或下一轮。
-终态45B079/80/86按绿、红、蓝读取；绿、红快照先发布，阶段1之后
-再发布蓝快照与画布标记。最终lock/unlock改变当前颜色不能覆盖快照。
-
-回调测试验证两轮RGB参数3/-5/-6与-32768/32766/-2，最终快照
--3/5/-7独立于lock回调清零的当前颜色；动作与效果组合端口存储同址。
-单效果在刷新后发布双门，群体效果在刷新前发布双门，两者时机不合并。
-三个动作caller刷新后检查当前颜色，而非配置或快照。
-core/ASan setup和actor_frame_316各1/1及SDL链接通过，完整访问与日志见
-[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
+日志位于`build/tmp/runtime/frame-refresh-named-*.log`及
+`build/tmp/runtime/frame-refresh-final-*.log`；最终增量日志为
+`build/tmp/runtime/frame-refresh-warning-fix-{core,asan,sdl}.log`。
+未启动游戏，未执行原版动态差分。完整SDL战斗帧与实际续玩仍未验收；
+不据此升级WP316状态，也不宣称全仓库invoke迁移完成。

@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_actor_progress.hpp"
 #include "test.hpp"
+#include "legacy_battle_frame_refresh_fixture.hpp"
 
 #include <algorithm>
 #include <array>
@@ -18,7 +19,8 @@ using openswd3::battle::LegacyBattleActionCallRequest;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
-class Port final : public openswd3::battle::LegacyBattleActionDispatchPort {
+class Port final : public openswd3::battle::LegacyBattleActionDispatchPort,
+                   public openswd3::test::LegacyBattleFrameRefreshFixture {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
@@ -435,11 +437,44 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
                 {.actor_token = port.actor_token, .target_token = 0x005029D0U}
             );
         test.expect_true(
-            result.status == LegacyBattleGroupBActionExecutionStatus::completed &&
+            result.status ==
+                    LegacyBattleGroupBActionExecutionStatus::completed &&
                 result.return_eax == 0U &&
                 shared.turn_frame_source_token == 0x70001000U &&
-                port.count(0x004170E0U) == 3U,
+                port.count(0x004170E0U) == 1U &&
+                port.refresh_draws.size() == 2U,
             "group B incomplete secondary state draws from the action resource without touching the later render-source pointer"
+        );
+    }
+
+    {
+        LegacyBattleActorGroupBElementState actor;
+        bind_resource(actor);
+        LegacyBattleActionDispatchState dispatch;
+        LegacyBattleGroupAActionExecutionSharedState shared;
+        Port port;
+        port.populate_primary = true;
+        port.primary_flags = 4U;
+        port.refresh_stop_ordinal = 2U;
+        port.frame_effect_control_state().secondary_suppression = 7U;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_action_execution(
+                &actor,
+                shared,
+                dispatch,
+                port,
+                context,
+                {.actor_token = port.actor_token, .target_token = 0x005029D0U}
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleGroupBActionExecutionStatus::
+                        frame_refresh_typed_stop &&
+                result.frame_refresh_calls == 1U &&
+                port.refresh_events.size() == 3U &&
+                port.refresh_draws.empty() && port.count(0x004170E0U) == 0U &&
+                port.frame_effect_control_state().secondary_suppression == 7U,
+            "group B refresh failure blocks drawing and subsequent suppression writes"
         );
     }
 
@@ -570,7 +605,7 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
             "group B secondary effect prepares one secondary record"
         );
         test.expect_true(
-            port.count(0x004170E0U) == 3U,
+            port.count(0x004170E0U) == 1U && port.refresh_draws.size() == 2U,
             "group B secondary effect adds one non-direct draw after the two refresh viewport calls"
         );
     }
@@ -632,9 +667,8 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
             auto& control = color_port.frame_effect_control_state();
             control.primary_suppression = 9U;
             control.secondary_suppression = 7U;
-            color_port.on_call = [&](const auto& call) {
-                if (call.callee_token == 0x00416F60U &&
-                    color_port.count(0x00416F60U) == 3U) {
+            color_port.on_refresh_unlock = [&](u32, u32) {
+                if (color_port.refresh_unlocks.size() == 3U) {
                     control.red_factor = final_red;
                     control.green_factor = 0;
                     control.blue_factor = 0;
@@ -652,7 +686,7 @@ void test_battle_group_b_action_execution(openswd3::test::Context& test) {
                 );
             test.expect_true(
                 color_result.frame_refresh_calls == 1U &&
-                    color_port.count(0x00416F60U) == 3U &&
+                    color_port.refresh_unlocks.size() == 3U &&
                     control.secondary_suppression ==
                         (final_red == 0 ? 7U : 1U) &&
                     control.primary_suppression == 9U &&

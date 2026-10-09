@@ -1,235 +1,166 @@
 #include "openswd3/battle/legacy_battle_frame_refresh.hpp"
 
-#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
-#include "openswd3/battle/legacy_battle_effect_frame.hpp"
-
-#include <algorithm>
-#include <array>
 #include <bit>
-#include <initializer_list>
+#include <stdexcept>
 
 namespace openswd3::battle {
 namespace {
 
-using compat::i16;
-using compat::i32;
-using compat::u16;
-using compat::u32;
-
-constexpr u32 kCallServeAudio = 0x00485330U;
-constexpr u32 kCallLockSurface = 0x00416F10U;
-constexpr u32 kCallUnlockSurface = 0x00416F60U;
-constexpr u32 kCallPrepareViewport = 0x004170E0U;
-constexpr u32 kCallApplyRed = 0x00420560U;
-constexpr u32 kCallApplyGreen = 0x00420600U;
-constexpr u32 kCallApplyBlue = 0x004206F0U;
-
-struct Registers {
-    u32 eax{};
-    u32 ecx{};
-    u32 edx{};
-};
-
-[[nodiscard]] constexpr u32
-replace_low_word(const u32 original, const u16 value) noexcept {
-    return (original & 0xFFFF0000U) | value;
-}
-
-[[nodiscard]] constexpr i32 signed_half(const i16 value) noexcept {
-    const i32 signed_value = static_cast<i32>(value);
+[[nodiscard]] constexpr compat::i32
+signed_half(const compat::i16 value) noexcept {
+    const compat::i32 signed_value = value;
     return signed_value >= 0 ? signed_value / 2 : -((-signed_value + 1) / 2);
 }
 
-[[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
-    return std::bit_cast<u32>(value);
+}  // namespace
+
+bool LegacyBattleFrameRefreshStatePort::serve_refresh_audio() {
+    throw std::logic_error("battle refresh audio is not bound");
 }
 
-template <typename Call>
-[[nodiscard]] LegacyBattleFrameRefreshResult refresh_impl(
-    LegacyBattleFrameRefreshState& state,
-    const LegacyBattleFrameEffectControlState& control,
-    Call&& call
+bool LegacyBattleFrameRefreshStatePort::draw_refresh_background(
+    compat::u32, compat::u32, compat::u32, compat::u32
 ) {
+    throw std::logic_error("battle refresh background is not bound");
+}
+
+bool LegacyBattleFrameRefreshStatePort::apply_refresh_red(
+    compat::u32, compat::u32, compat::i32
+) {
+    throw std::logic_error("battle refresh red channel is not bound");
+}
+
+bool LegacyBattleFrameRefreshStatePort::apply_refresh_green(
+    compat::u32, compat::u32, compat::i32
+) {
+    throw std::logic_error("battle refresh green channel is not bound");
+}
+
+bool LegacyBattleFrameRefreshStatePort::apply_refresh_blue(
+    compat::u32, compat::u32, compat::i32
+) {
+    throw std::logic_error("battle refresh blue channel is not bound");
+}
+
+LegacyBattleFrameRefreshResult
+refresh_legacy_battle_frame(LegacyBattleFrameRefreshStatePort& port) {
+    using compat::u16;
+    using Status = LegacyBattleFrameRefreshStatus;
+    auto& state = port.frame_refresh_state();
+    const auto& control = port.frame_effect_control_state();
     LegacyBattleFrameRefreshResult result;
-    Registers registers{
-        .eax = replace_low_word(state.entry_eax, state.snapshot_word_36),
-        .ecx = state.entry_ecx,
-        .edx = state.entry_edx,
-    };
-    if (state.snapshot_word_36 == std::bit_cast<u16>(control.red_factor)) {
-        registers.ecx = replace_low_word(registers.ecx, state.snapshot_word_38);
-        if (state.snapshot_word_38 ==
-            std::bit_cast<u16>(control.green_factor)) {
-            registers.edx =
-                replace_low_word(registers.edx, state.snapshot_word_3a);
-            if (state.snapshot_word_3a ==
-                std::bit_cast<u16>(control.blue_factor)) {
-                result.return_value = registers.eax;
-                result.final_ecx = registers.ecx;
-                result.final_edx = registers.edx;
-                state.entry_eax = registers.eax;
-                state.entry_ecx = registers.ecx;
-                state.entry_edx = registers.edx;
-                return result;
-            }
-        }
+    if (state.snapshot_word_36 == std::bit_cast<u16>(control.red_factor) &&
+        state.snapshot_word_38 == std::bit_cast<u16>(control.green_factor) &&
+        state.snapshot_word_3a == std::bit_cast<u16>(control.blue_factor)) {
+        return result;
     }
 
     result.refreshed = true;
-    for (u32 factor = 1U; factor <= 2U; ++factor) {
-        registers = call(kCallServeAudio, {}, registers, result);
+    std::optional<LegacyBattleFrameRefreshSource> source;
+    for (compat::i32 factor = 1; factor <= 2; ++factor) {
+        const auto surface_index = static_cast<std::size_t>(factor - 1);
+        ++result.port_calls;
+        if (!port.serve_refresh_audio()) {
+            result.status = Status::audio_stopped;
+            return result;
+        }
 
-        registers.eax = state.surface_tokens[factor - 1U];
-        registers = call(kCallLockSurface, {registers.eax}, registers, result);
-        state.last_lock_token = registers.eax;
+        ++result.port_calls;
+        const auto pixels =
+            port.lock_frame_surface(state.surface_tokens[surface_index]);
+        if (!pixels.has_value()) {
+            result.status = Status::lock_stopped;
+            return result;
+        }
 
-        registers.ecx = state.surface_tokens[factor - 1U];
-        registers = call(
-            kCallUnlockSurface,
-            {registers.ecx, state.last_lock_token},
-            registers,
-            result
-        );
+        const auto surface = state.surface_tokens[surface_index];
+        if (!source.has_value()) {
+            const auto binding = port.frame_refresh_source();
+            if (!binding.has_value()) {
+                result.status = Status::source_binding_typed_stop;
+                return result;
+            }
 
-        registers.edx = state.source_pitch;
-        state.captured_pitch = registers.edx;
-        registers = call(
-            kCallPrepareViewport,
-            {0U, 0U, 640U, 480U, 0U, 0U},
-            registers,
-            result
-        );
+            source.emplace(*binding);
+        }
 
-        registers.eax = to_bits(signed_half(control.red_factor)) * factor;
-        registers.ecx = state.last_lock_token;
-        registers = call(
-            kCallApplyRed,
-            {registers.ecx, 0x0003C000U, registers.eax},
-            registers,
-            result
-        );
+        source->target_pixel_address = *pixels;
+        ++result.port_calls;
+        if (!port.unlock_frame_surface(surface, *pixels)) {
+            result.status = Status::unlock_stopped;
+            return result;
+        }
 
-        registers.edx = to_bits(signed_half(control.green_factor)) * factor;
-        registers.eax = state.last_lock_token;
-        registers = call(
-            kCallApplyGreen,
-            {registers.eax, 0x0003C000U, registers.edx},
-            registers,
-            result
-        );
+        source->shared_request.source_token = source->background_record[0];
+        ++result.port_calls;
+        if (!port.draw_refresh_background(
+                source->target_pixel_address,
+                source->shared_request.source_token,
+                640U,
+                480U
+            )) {
+            result.status = Status::background_stopped;
+            return result;
+        }
 
-        registers.ecx = to_bits(signed_half(control.blue_factor)) * factor;
-        registers.edx = state.last_lock_token;
-        registers = call(
-            kCallApplyBlue,
-            {registers.edx, 0x0003C000U, registers.ecx},
-            registers,
-            result
-        );
+        ++result.port_calls;
+        if (!port.apply_refresh_red(
+                source->target_pixel_address,
+                0x3C000U,
+                signed_half(control.red_factor) * factor
+            )) {
+            result.status = Status::red_stopped;
+            return result;
+        }
+
+        ++result.port_calls;
+        if (!port.apply_refresh_green(
+                source->target_pixel_address,
+                0x3C000U,
+                signed_half(control.green_factor) * factor
+            )) {
+            result.status = Status::green_stopped;
+            return result;
+        }
+
+        ++result.port_calls;
+        if (!port.apply_refresh_blue(
+                source->target_pixel_address,
+                0x3C000U,
+                signed_half(control.blue_factor) * factor
+            )) {
+            result.status = Status::blue_stopped;
+            return result;
+        }
+
         ++result.surface_iterations;
     }
 
     const auto green = std::bit_cast<u16>(control.green_factor);
     const auto red = std::bit_cast<u16>(control.red_factor);
     const auto blue = std::bit_cast<u16>(control.blue_factor);
-    registers.ecx = replace_low_word(registers.ecx, green);
-    registers.eax = replace_low_word(registers.eax, red);
-    registers.edx = replace_low_word(registers.edx, blue);
     state.snapshot_word_38 = green;
+    const auto viewport = state.viewport_token;
     state.snapshot_word_36 = red;
-
-    registers.ecx = state.viewport_token;
-    registers.eax = state.final_surface_token;
+    const auto final_surface = state.final_surface_token;
     state.refresh_pending = 1U;
     state.snapshot_word_3a = blue;
-    state.active_surface_token = registers.eax;
-    registers = call(kCallLockSurface, {registers.ecx}, registers, result);
-    state.last_lock_token = registers.eax;
+    state.active_surface_token = final_surface;
+    ++result.port_calls;
+    const auto pixels = port.lock_frame_surface(viewport);
+    if (!pixels.has_value()) {
+        result.status = Status::lock_stopped;
+        return result;
+    }
 
-    registers.edx = state.viewport_token;
-    registers = call(
-        kCallUnlockSurface,
-        {registers.edx, state.last_lock_token},
-        registers,
-        result
-    );
-    result.return_value = registers.eax;
-    result.final_ecx = registers.ecx;
-    result.final_edx = registers.edx;
-    state.entry_eax = registers.eax;
-    state.entry_ecx = registers.ecx;
-    state.entry_edx = registers.edx;
+    const auto surface = state.viewport_token;
+    source->target_pixel_address = *pixels;
+    ++result.port_calls;
+    if (!port.unlock_frame_surface(surface, *pixels)) {
+        result.status = Status::unlock_stopped;
+    }
+
     return result;
-}
-
-[[nodiscard]] std::array<u32, 8>
-action_arguments(const std::initializer_list<u32> values) noexcept {
-    std::array<u32, 8> result{};
-    std::copy(values.begin(), values.end(), result.begin());
-    return result;
-}
-
-[[nodiscard]] std::array<u32, 12>
-effect_arguments(const std::initializer_list<u32> values) noexcept {
-    std::array<u32, 12> result{};
-    std::copy(values.begin(), values.end(), result.begin());
-    return result;
-}
-
-}  // namespace
-
-LegacyBattleFrameRefreshResult
-refresh_legacy_battle_frame(LegacyBattleActionDispatchPort& port) {
-    auto call = [&port](
-                    const u32 callee,
-                    const std::initializer_list<u32> arguments,
-                    const Registers registers,
-                    LegacyBattleFrameRefreshResult& result
-                ) {
-        ++result.port_calls;
-        const auto reply = port.invoke({
-            .callee_token = callee,
-            .arguments = action_arguments(arguments),
-            .eax = registers.eax,
-            .ecx = registers.ecx,
-            .edx = registers.edx,
-        });
-        return Registers{
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-        };
-    };
-    return refresh_impl(
-        port.frame_refresh_state(), port.frame_effect_control_state(), call
-    );
-}
-
-LegacyBattleFrameRefreshResult
-refresh_legacy_battle_frame(LegacyBattleEffectCallPort& port) {
-    auto call = [&port](
-                    const u32 callee,
-                    const std::initializer_list<u32> arguments,
-                    const Registers registers,
-                    LegacyBattleFrameRefreshResult& result
-                ) {
-        ++result.port_calls;
-        const auto reply = port.invoke({
-            .callee_token = callee,
-            .arguments = effect_arguments(arguments),
-            .eax = registers.eax,
-            .ecx = registers.ecx,
-            .edx = registers.edx,
-        });
-        return Registers{
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-        };
-    };
-    return refresh_impl(
-        port.frame_refresh_state(), port.frame_effect_control_state(), call
-    );
 }
 
 }  // namespace openswd3::battle

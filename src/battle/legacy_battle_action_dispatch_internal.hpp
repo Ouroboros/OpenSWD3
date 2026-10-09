@@ -548,12 +548,19 @@ private:
     return true;
 }
 
-inline void refresh_shared_frame(
+[[nodiscard]] inline bool refresh_shared_frame(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchResult& result
 ) {
     const auto refresh = refresh_legacy_battle_frame(port);
     result.port_calls += refresh.port_calls;
+    if (refresh.status != LegacyBattleFrameRefreshStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::frame_refresh_typed_stop;
+        return false;
+    }
+
+    return true;
 }
 
 [[nodiscard]] inline bool rebuild_shared_actor_metrics(

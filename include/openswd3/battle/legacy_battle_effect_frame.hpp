@@ -182,6 +182,7 @@ struct LegacyBattleEffectFrameState
 
 enum class LegacyBattleEffectFrameStatus : compat::u8 {
     completed,
+    frame_refresh_typed_stop,
     slot_index_typed_stop,
     argument_object_typed_stop,
     resource_owner_typed_stop,

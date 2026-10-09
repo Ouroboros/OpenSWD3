@@ -581,9 +581,11 @@ LegacyBattleGroupEffectFrameResult advance_legacy_battle_group_effect_frame(
         registers.eax = 1U;
         const auto refresh = refresh_legacy_battle_frame(port);
         result.port_calls += refresh.port_calls;
-        registers.eax = refresh.return_value;
-        registers.ecx = refresh.final_ecx;
-        registers.edx = refresh.final_edx;
+        if (refresh.status != LegacyBattleFrameRefreshStatus::completed) {
+            result.status =
+                LegacyBattleGroupEffectFrameStatus::frame_refresh_typed_stop;
+            return result;
+        }
     }
 
     if (state.alternate_active[slot_index] == 1U) {

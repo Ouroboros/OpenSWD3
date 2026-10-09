@@ -15,6 +15,7 @@ struct LegacyBattleGroupAActionExecutionSharedState;
 
 enum class LegacyBattleGroupBActionExecutionStatus : compat::u8 {
     completed,
+    frame_refresh_typed_stop,
     actor_state_typed_stop,
     action_resource_typed_stop,
     render_source_typed_stop,

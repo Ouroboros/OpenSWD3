@@ -641,9 +641,13 @@ LegacyBattleActionFourEffectResult advance_legacy_battle_action_four_effect(
     result.frame_refresh = refresh_legacy_battle_frame(port);
     ++result.frame_refresh_calls;
     result.port_calls += result.frame_refresh.port_calls;
-    registers.eax = result.frame_refresh.return_value;
-    registers.ecx = result.frame_refresh.final_ecx;
-    registers.edx = result.frame_refresh.final_edx;
+    if (result.frame_refresh.status !=
+        LegacyBattleFrameRefreshStatus::completed) {
+        result.status =
+            LegacyBattleActionFourEffectStatus::frame_refresh_typed_stop;
+        return result;
+    }
+
     if (control.red_factor != 0 || control.green_factor != 0 ||
         control.blue_factor != 0) {
         control.primary_suppression = 1U;

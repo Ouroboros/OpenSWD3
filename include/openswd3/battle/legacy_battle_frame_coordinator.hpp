@@ -403,7 +403,7 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattlePendingActionPort,
       public LegacyBattleFrameCompletionPort,
       public LegacyBattleFrameInputResolutionPort,
-      public LegacyBattleFrameSurfacePort,
+      public virtual LegacyBattleFrameSurfacePort,
       public LegacyBattleSelectionFramePort,
       public LegacyBattleMessagePhasePort,
       public LegacyBattleTextMessageFramePort,

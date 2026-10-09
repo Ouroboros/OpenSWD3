@@ -537,9 +537,12 @@ advance_legacy_battle_group_b_action_execution(
     const auto refresh = refresh_legacy_battle_frame(port);
     ++result.frame_refresh_calls;
     result.port_calls += refresh.port_calls;
-    registers.eax = refresh.return_value;
-    registers.ecx = refresh.final_ecx;
-    registers.edx = refresh.final_edx;
+    if (refresh.status != LegacyBattleFrameRefreshStatus::completed) {
+        result.status =
+            LegacyBattleGroupBActionExecutionStatus::frame_refresh_typed_stop;
+        return result;
+    }
+
     if (control.red_factor != 0 || control.green_factor != 0 ||
         control.blue_factor != 0) {
         control.secondary_suppression = 1U;

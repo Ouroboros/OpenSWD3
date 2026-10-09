@@ -636,10 +636,6 @@ LegacyBattleSpecialFourOhFiveResult advance_legacy_battle_special_four_oh_five(
         }
     ));
 
-    auto& frame_refresh_state = port.frame_refresh_state();
-    frame_refresh_state.entry_eax = registers.eax;
-    frame_refresh_state.entry_ecx = registers.ecx;
-    frame_refresh_state.entry_edx = registers.edx;
     auto& control = port.frame_effect_control_state();
     control.red_factor = std::bit_cast<i16>(special.field_64);
     control.green_factor = std::bit_cast<i16>(special.field_66);
@@ -647,9 +643,13 @@ LegacyBattleSpecialFourOhFiveResult advance_legacy_battle_special_four_oh_five(
     result.frame_refresh = refresh_legacy_battle_frame(port);
     ++result.frame_refresh_calls;
     result.port_calls += result.frame_refresh.port_calls;
-    registers.eax = result.frame_refresh.return_value;
-    registers.ecx = result.frame_refresh.final_ecx;
-    registers.edx = result.frame_refresh.final_edx;
+    if (result.frame_refresh.status !=
+        LegacyBattleFrameRefreshStatus::completed) {
+        result.status =
+            LegacyBattleSpecialFourOhFiveStatus::frame_refresh_typed_stop;
+        return result;
+    }
+
     if (control.red_factor != 0 || control.green_factor != 0 ||
         control.blue_factor != 0) {
         control.primary_suppression = 1U;

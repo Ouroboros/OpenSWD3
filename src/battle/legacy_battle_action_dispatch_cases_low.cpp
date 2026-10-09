@@ -617,7 +617,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             replace_low_word(state.phase_counter, 1U);
             state.selected_target_index = static_cast<u16>(group_b_index);
             control.primary_suppression = 1U;
-            refresh_shared_frame(port, result);
+            if (!refresh_shared_frame(port, result)) {
+                return result;
+            }
+
             if (low_word(invoke(
                              state,
                              port,
@@ -823,8 +826,11 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             control.blue_factor = -12;
             replace_low_word(state.phase_counter, 1U);
             control.primary_suppression = 1U;
-            refresh_shared_frame(port, result);
+            if (!refresh_shared_frame(port, result)) {
+                return result;
+            }
         }
+
         result.action_thirteen = advance_legacy_battle_action_thirteen(
             &state.group_a_target_phases[group_a_index],
             &state.group_a_action_execution[group_a_index],
@@ -894,7 +900,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             control.blue_factor = -12;
             replace_low_word(state.phase_counter, 1U);
             control.primary_suppression = 1U;
-            refresh_shared_frame(port, result);
+            if (!refresh_shared_frame(port, result)) {
+                return result;
+            }
+
             port.frame_refresh_state().refresh_pending = 1U;
         }
         result.action_fourteen = advance_legacy_battle_action_fourteen(
