@@ -3806,13 +3806,11 @@ struct LegacyPartyDialogPageResult {
     LegacyPartyDialogPageStatus status{LegacyPartyDialogPageStatus::completed};
     compat::i32 legacy_return_value{1};
     compat::u32 rendered_row_count{};
-    compat::u32 added_value_query_count{};
     battle::LegacyBattleFixedCountLookupResult fixed_count{};
     battle::LegacyBattleFixedCurveLookupResult fixed_curve{};
     battle::LegacyBattleFixedDefinitionCurveLookupResult
         fixed_definition_curve{};
     compat::u32 fixed_count_query_count{};
-    compat::u32 fixed_curve_query_count{};
     compat::u32 fixed_definition_curve_query_count{};
     bool rows_cleared{};
 };
@@ -7600,7 +7598,6 @@ struct LegacyStandardModeGuardianAttributeSummaryResult {
     battle::LegacyBattleFixedDefinitionCurveLookupResult
         fixed_definition_curve{};
     compat::u32 fixed_count_query_count{};
-    compat::u32 fixed_curve_query_count{};
     compat::u32 fixed_definition_curve_query_count{};
 };
 

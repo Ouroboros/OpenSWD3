@@ -35,10 +35,8 @@ refresh_legacy_battle_actor_message_percent(
 
         const auto quantity = lookup_legacy_battle_fixed_curve(
             fixed_objects,
-            {
-                .owner_token = kLegacyBattleFixedDefinitionCurveOwnerToken,
-                .key = profile_word(profile, 0x50U),
-            }
+            profile_word(profile, 0x50U),
+            kLegacyBattleFixedDefinitionCurveOwnerToken
         );
         if (quantity.status != LegacyBattleFixedCountStatus::completed) {
             result.status = LegacyBattleActorMessagePercentRefreshStatus::

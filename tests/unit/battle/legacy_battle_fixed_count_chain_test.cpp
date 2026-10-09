@@ -1053,23 +1053,13 @@ void test_curve_lookup_records_and_missing(openswd3::test::Context& test) {
     root[2U] = 0xBBBB5678U;
 
     const auto root_hit = openswd3::battle::lookup_legacy_battle_fixed_curve(
-        state,
-        {
-            .key = 0xDEAD1234U,
-            .entry_eax = 0x11111111U,
-            .entry_ecx = 0xCCCCFFFFU,
-            .entry_edx = 0xDDDDDDDDU,
-        }
+        state, 0x1234U
     );
     test.expect_true(
         root_hit.status == LegacyBattleFixedCountStatus::completed &&
             root_hit.value == 0x5678U &&
-            root_hit.matched_token == 0x004ACBA8U && root_hit.key_reads == 1U &&
-            root_hit.chain_link_reads == 0U && root_hit.value_reads == 1U &&
-            root_hit.return_eax == 0x004A5678U &&
-            root_hit.return_ecx == 0xCCCC1234U &&
-            root_hit.return_edx == 0xDDDDDDDDU,
-        "fixed curve lookup truncates the key and preserves the root token high word on a root hit"
+            root_hit.matched_token == 0x004ACBA8U,
+        "fixed curve lookup compares word keys and reads the value word from the root"
     );
 
     root[0U] = 0x7E001234U;
@@ -1080,40 +1070,21 @@ void test_curve_lookup_records_and_missing(openswd3::test::Context& test) {
         .accessible_bytes = 0x14U,
     });
     const auto node_hit = openswd3::battle::lookup_legacy_battle_fixed_curve(
-        state,
-        {
-            .key = 0xFFFF2345U,
-            .entry_ecx = 0xABCD0000U,
-            .entry_edx = 0x12345678U,
-        }
+        state, 0x2345U
     );
     test.expect_true(
         node_hit.status == LegacyBattleFixedCountStatus::completed &&
             node_hit.value == 0x4321U &&
-            node_hit.matched_token == 0x7E001234U && node_hit.key_reads == 2U &&
-            node_hit.chain_link_reads == 1U && node_hit.value_reads == 1U &&
-            node_hit.return_eax == 0x7E004321U &&
-            node_hit.return_ecx == 0xABCD2345U &&
-            node_hit.return_edx == 0x12345678U,
-        "fixed curve lookup follows one link and preserves the matched dynamic token high word"
+            node_hit.matched_token == 0x7E001234U,
+        "fixed curve lookup follows the actual link and returns the matched node value"
     );
 
     const auto missing = openswd3::battle::lookup_legacy_battle_fixed_curve(
-        state,
-        {
-            .key = 0xAAAA7777U,
-            .entry_eax = 0xFFFFFFFFU,
-            .entry_ecx = 0xBCDE1111U,
-            .entry_edx = 0x87654321U,
-        }
+        state, 0x7777U
     );
     test.expect_true(
         missing.status == LegacyBattleFixedCountStatus::completed &&
-            missing.value == 0U && missing.matched_token == 0U &&
-            missing.key_reads == 2U && missing.chain_link_reads == 2U &&
-            missing.value_reads == 0U && missing.return_eax == 0U &&
-            missing.return_ecx == 0xBCDE7777U &&
-            missing.return_edx == 0x87654321U,
+            missing.value == 0U && missing.matched_token == 0U,
         "missing fixed curve lookup returns zero only after scanning the existing chain"
     );
 }
@@ -1126,71 +1097,38 @@ void test_curve_lookup_access_stops(openswd3::test::Context& test) {
         .accessible_bytes = 5U,
     });
     const auto key_stop = openswd3::battle::lookup_legacy_battle_fixed_curve(
-        state,
-        {
-            .owner_token = 0x7F001234U,
-            .key = 0xAAAA2222U,
-            .entry_eax = 0xBBBBBBBBU,
-            .entry_ecx = 0xCCCC0000U,
-            .entry_edx = 0xDDDDDDDDU,
-        }
+        state, 0x2222U, 0x7F001234U
     );
     test.expect_true(
         key_stop.status ==
                 LegacyBattleFixedCountStatus::record_access_typed_stop &&
             key_stop.stopped_token == 0x7F001234U &&
-            key_stop.stopped_offset == 4U && key_stop.key_reads == 0U &&
-            key_stop.chain_link_reads == 0U && key_stop.value_reads == 0U &&
-            key_stop.return_eax == 0x7F001234U &&
-            key_stop.return_ecx == 0xCCCC2222U &&
-            key_stop.return_edx == 0xDDDDDDDDU,
-        "fixed curve lookup stops at the first inaccessible owner key read after loading EAX and CX"
+            key_stop.stopped_offset == 4U,
+        "fixed curve lookup reports the first inaccessible owner key"
     );
 
     state.fixed_count_nodes.front().accessible_bytes = 8U;
     const auto value_stop = openswd3::battle::lookup_legacy_battle_fixed_curve(
-        state,
-        {
-            .owner_token = 0x7F001234U,
-            .key = 0x2222U,
-            .entry_ecx = 0xEEEE0000U,
-            .entry_edx = 0xFFFFFFFFU,
-        }
+        state, 0x2222U, 0x7F001234U
     );
     test.expect_true(
         value_stop.status ==
                 LegacyBattleFixedCountStatus::record_access_typed_stop &&
             value_stop.stopped_token == 0x7F001234U &&
-            value_stop.stopped_offset == 8U && value_stop.key_reads == 1U &&
-            value_stop.chain_link_reads == 0U && value_stop.value_reads == 0U &&
-            value_stop.return_eax == 0x7F001234U &&
-            value_stop.return_ecx == 0xEEEE2222U &&
-            value_stop.return_edx == 0xFFFFFFFFU,
-        "fixed curve lookup stops at the inaccessible hit value before replacing AX"
+            value_stop.stopped_offset == 8U,
+        "fixed curve lookup reports an inaccessible matching value"
     );
 
     state = {};
     state.object_words[1U][0U] = 0x7F00ABCDU;
     state.object_words[1U][1U] = 1U;
     const auto next_key_stop =
-        openswd3::battle::lookup_legacy_battle_fixed_curve(
-            state,
-            {
-                .key = 2U,
-                .entry_ecx = 0x12340000U,
-                .entry_edx = 0x56789ABCU,
-            }
-        );
+        openswd3::battle::lookup_legacy_battle_fixed_curve(state, 2U);
     test.expect_true(
         next_key_stop.status ==
                 LegacyBattleFixedCountStatus::record_access_typed_stop &&
             next_key_stop.stopped_token == 0x7F00ABCDU &&
-            next_key_stop.stopped_offset == 4U &&
-            next_key_stop.key_reads == 1U &&
-            next_key_stop.chain_link_reads == 1U &&
-            next_key_stop.return_eax == 0x7F00ABCDU &&
-            next_key_stop.return_ecx == 0x12340002U &&
-            next_key_stop.return_edx == 0x56789ABCU,
+            next_key_stop.stopped_offset == 4U,
         "fixed curve lookup stops at the real key read of an unmapped linked token"
     );
 }

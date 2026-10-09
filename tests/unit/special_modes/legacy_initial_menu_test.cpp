@@ -7600,10 +7600,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     sm::LegacyStandardModeGuardianAttributeSummaryStatus::
                         completed &&
                 zero_summary.legacy_return_value == 0 && zero_values &&
-                zero_summary.fixed_curve_query_count == 1U &&
-                zero_summary.fixed_curve.return_eax == 0x004A0190U &&
-                zero_summary.fixed_curve.return_ecx == 0xAABB0007U &&
-                zero_summary.fixed_curve.return_edx == 0x004FCD4CU &&
+                zero_summary.fixed_curve.value == 400U &&
                 zero_ports.cache_steps.empty() &&
                 pair_summary.legacy_return_value == 7 && pair_values &&
                 pair_summary.fixed_definition_curve_query_count == 1U &&
@@ -7719,9 +7716,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                         fixed_curve_typed_stop &&
                 fixed_curve_stopped.fixed_curve.stopped_token == 0x78001234U &&
                 fixed_curve_stopped.fixed_curve.stopped_offset == 4U &&
-                fixed_curve_stopped.fixed_curve.return_eax == 0x78001234U &&
-                fixed_curve_stopped.fixed_curve.return_ecx == 0xCCDD0007U &&
-                fixed_curve_stopped.fixed_curve.return_edx == 0x004FCD4CU &&
                 fixed_definition_stopped.status ==
                     sm::LegacyStandardModeGuardianAttributeSummaryStatus::
                         fixed_definition_curve_typed_stop &&
@@ -22723,7 +22717,6 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             populated_member_party_dialog_page.legacy_return_value == 1 &&
             populated_member_party_dialog_page.rows_cleared &&
             populated_member_party_dialog_page.rendered_row_count == 17U &&
-            populated_member_party_dialog_page.added_value_query_count == 0U &&
             member_party_dialog_page_ports.deleted_rows.size() == 17U &&
             member_party_dialog_page_ports.requests.size() == 68U &&
             member_party_dialog_page_ports.requests[0U].text ==
@@ -22806,15 +22799,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         populated_item_party_dialog_page.rendered_row_count == 2U &&
-            populated_item_party_dialog_page.added_value_query_count == 5U &&
-            populated_item_party_dialog_page.fixed_curve_query_count == 1U &&
             populated_item_party_dialog_page.fixed_curve.matched_token ==
                 openswd3::battle::kLegacyBattleFixedCurveOwnerToken &&
-            populated_item_party_dialog_page.fixed_curve.return_eax ==
-                0x004A0014U &&
-            populated_item_party_dialog_page.fixed_curve.return_ecx ==
-                0xFFFF0064U &&
-            populated_item_party_dialog_page.fixed_curve.return_edx == 100U &&
+            populated_item_party_dialog_page.fixed_curve.value == 20U &&
             populated_item_party_dialog_page
                     .fixed_definition_curve_query_count == 2U &&
             populated_item_party_dialog_page.fixed_definition_curve.path ==
@@ -22836,10 +22823,6 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             item_party_dialog_page_ports.requests[6U].text == "600" &&
             item_party_dialog_page_ports.requests[7U].text == "30/3" &&
             populated_stored_item_party_dialog_page.rendered_row_count == 2U &&
-            populated_stored_item_party_dialog_page.added_value_query_count ==
-                0U &&
-            populated_stored_item_party_dialog_page.fixed_curve_query_count ==
-                0U &&
             populated_stored_item_party_dialog_page
                     .fixed_definition_curve_query_count == 0U &&
             stored_item_party_dialog_page_ports.requests[3U].text.empty() &&
@@ -22916,12 +22899,6 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 0x7F00ABCDU &&
             stopped_query_party_dialog_page_result.fixed_curve.stopped_offset ==
                 4U &&
-            stopped_query_party_dialog_page_result.fixed_curve.return_eax ==
-                0x7F00ABCDU &&
-            stopped_query_party_dialog_page_result.fixed_curve.return_ecx ==
-                0xFFFF0064U &&
-            stopped_query_party_dialog_page_result.fixed_curve.return_edx ==
-                100U &&
             stopped_query_party_dialog_page_result.rows_cleared &&
             stopped_query_party_dialog_page_result.rendered_row_count == 0U &&
             definition_stopped_party_dialog_page_result.status ==

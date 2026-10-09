@@ -9223,25 +9223,15 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
             if (matches(state.item_category_masks[0U])) {
                 result.fixed_curve = battle::lookup_legacy_battle_fixed_curve(
                     ports.legacy_battle_fixed_object_state(),
-                    {
-                        .key = record->text_index,
-                        .entry_eax = 0xFFFFFFFFU,
-                        .entry_ecx = 0xFFFFFFFFU,
-                        .entry_edx =
-                            (state.item_category_masks[0U] & 0xFFFF0000U) |
-                            record->text_index,
-                    }
+                    record->text_index
                 );
-                ++result.fixed_curve_query_count;
-                ++result.added_value_query_count;
                 if (result.fixed_curve.status !=
                     battle::LegacyBattleFixedCountStatus::completed) {
                     result.status =
                         LegacyPartyDialogPageStatus::fixed_curve_typed_stop;
                     return result;
                 }
-                added_value =
-                    static_cast<compat::u16>(result.fixed_curve.return_eax);
+                added_value = result.fixed_curve.value;
                 denominator = 0;
             }
             if (matches(state.item_category_masks[1U])) {
@@ -9267,7 +9257,6 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
                         }
                     );
                 ++result.fixed_definition_curve_query_count;
-                ++result.added_value_query_count;
                 if (result.fixed_definition_curve.status !=
                     battle::LegacyBattleFixedDefinitionCurveLookupStatus::
                         completed) {
@@ -9287,7 +9276,6 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
                     }
                 );
                 ++result.fixed_count_query_count;
-                ++result.added_value_query_count;
                 if (result.fixed_count.status !=
                     battle::LegacyBattleFixedCountStatus::completed) {
                     result.status =
@@ -18616,16 +18604,8 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
         }
         if (seed->text_index != 0xFFDCU) {
             result.fixed_curve = battle::lookup_legacy_battle_fixed_curve(
-                ports.legacy_battle_fixed_object_state(),
-                {
-                    .key = seed->text_index,
-                    .entry_eax = seed->text_index,
-                    .entry_ecx = state.attribute_cache_token +
-                        static_cast<compat::u32>(destination_offset),
-                    .entry_edx = kGuardianAttributeScratchToken,
-                }
+                ports.legacy_battle_fixed_object_state(), seed->text_index
             );
-            ++result.fixed_curve_query_count;
             if (result.fixed_curve.status !=
                 battle::LegacyBattleFixedCountStatus::completed) {
                 result.status =
@@ -18633,9 +18613,7 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
                         fixed_curve_typed_stop;
                 return result;
             }
-            write_dword(
-                0x44U, static_cast<compat::u16>(result.fixed_curve.return_eax)
-            );
+            write_dword(0x44U, result.fixed_curve.value);
         }
     }
 

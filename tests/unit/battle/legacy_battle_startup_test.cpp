@@ -2908,16 +2908,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                     openswd3::world_map::kLegacyItemSentinelId &&
                 result.party_attribute_aggregations[0U]
                         .embedded_profile_applications[0U]
-                        .fixed_curve_query_count == 1U &&
-                result.party_attribute_aggregations[0U]
-                        .embedded_profile_applications[0U]
-                        .fixed_curve.return_eax == 0x004B0014U &&
-                result.party_attribute_aggregations[0U]
-                        .embedded_profile_applications[0U]
-                        .fixed_curve.return_ecx == 0x00500009U &&
-                result.party_attribute_aggregations[0U]
-                        .embedded_profile_applications[0U]
-                        .fixed_curve.return_edx == 0x005029D0U &&
+                        .fixed_curve.value == 20U &&
                 result.party_value_pair_calls == 2U &&
                 state.party[0U].value_pair.primary_value ==
                     party_items.legacy_head_token &&

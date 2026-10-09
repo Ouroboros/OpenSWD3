@@ -161,31 +161,19 @@ apply_legacy_battle_group_a_embedded_profile(
     if (switch_index == 2U) {
         result.fixed_curve = lookup_legacy_battle_fixed_curve(
             port.legacy_battle_fixed_object_state(),
-            {
-                .owner_token = kLegacyBattleEmbeddedProfileItemListToken,
-                .key = item_id,
-                .entry_eax = item_id,
-                .entry_ecx = actor_token,
-                .entry_edx = request.entry_edx,
-            }
+            item_id,
+            kLegacyBattleEmbeddedProfileItemListToken
         );
-        ++result.fixed_curve_query_count;
         if (result.fixed_curve.status !=
             LegacyBattleFixedCountStatus::completed) {
             result.status = LegacyBattleGroupAEmbeddedProfileApplicationStatus::
                 fixed_curve_typed_stop;
-            result.return_eax = result.fixed_curve.return_eax;
-            result.return_ecx = result.fixed_curve.return_ecx;
-            result.return_edx = result.fixed_curve.return_edx;
             return result;
         }
 
-        u32 eax = replace_low_word(
-            result.fixed_curve.return_eax,
-            static_cast<u16>(result.fixed_curve.return_eax) >> 1U
-        );
-        u32 ecx = result.fixed_curve.return_ecx;
-        u32 edx = result.fixed_curve.return_edx;
+        u32 eax = result.fixed_curve.value >> 1U;
+        u32 ecx = result.return_ecx;
+        u32 edx = result.return_edx;
         const u16 quantity_rate = static_cast<u16>(eax);
         u32 extra = 0U;
         if (quantity_rate != 0U) {
@@ -252,35 +240,23 @@ apply_legacy_battle_group_a_embedded_profile(
 
     result.fixed_curve = lookup_legacy_battle_fixed_curve(
         port.legacy_battle_fixed_object_state(),
-        {
-            .owner_token = kLegacyBattleEmbeddedProfileItemListToken,
-            .key = item_id,
-            .entry_eax = 1U,
-            .entry_ecx = actor_token,
-            .entry_edx = replace_low_word(request.entry_edx, item_id),
-        }
+        item_id,
+        kLegacyBattleEmbeddedProfileItemListToken
     );
-    ++result.fixed_curve_query_count;
     if (result.fixed_curve.status != LegacyBattleFixedCountStatus::completed) {
         result.status = LegacyBattleGroupAEmbeddedProfileApplicationStatus::
             fixed_curve_typed_stop;
-        result.return_eax = result.fixed_curve.return_eax;
-        result.return_ecx = result.fixed_curve.return_ecx;
-        result.return_edx = result.fixed_curve.return_edx;
         return result;
     }
 
     if (actor_token == 0U) {
         result.status = LegacyBattleGroupAEmbeddedProfileApplicationStatus::
             actor_state_typed_stop;
-        result.return_eax = result.fixed_curve.return_eax;
-        result.return_ecx = result.fixed_curve.return_ecx;
-        result.return_edx = result.fixed_curve.return_edx;
         return result;
     }
 
-    const u16 item_quantity = static_cast<u16>(result.fixed_curve.return_eax);
-    u32 scan_edx = result.fixed_curve.return_edx;
+    const u16 item_quantity = result.fixed_curve.value;
+    u32 scan_edx = result.return_edx;
     for (u32 byte_index = 0U; byte_index < 9U; ++byte_index) {
         const u8 source_byte = profile_byte(*profile, 0x92U + byte_index);
         ++result.bytes_scanned;

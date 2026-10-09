@@ -41,7 +41,6 @@ struct LegacyBattleGroupAEmbeddedProfileApplicationResult {
     compat::u16 profile_kind{};
     compat::u16 item_id{};
     LegacyBattleFixedCurveLookupResult fixed_curve{};
-    compat::u32 fixed_curve_query_count{};
     compat::u32 status_writes{};
     compat::u32 actor_word_writes{};
     compat::u32 actor_byte_writes{};

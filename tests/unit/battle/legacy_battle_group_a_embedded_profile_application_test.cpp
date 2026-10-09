@@ -179,12 +179,9 @@ void test_battle_group_a_embedded_profile_application(
             result.status ==
                     LegacyBattleGroupAEmbeddedProfileApplicationStatus::
                         completed &&
-                result.fixed_curve_query_count == 1U &&
                 result.fixed_curve.matched_token ==
                     kLegacyBattleEmbeddedProfileItemListToken &&
-                result.fixed_curve.return_eax == 0x004B000BU &&
-                result.fixed_curve.return_ecx == 0x00501234U &&
-                result.fixed_curve.return_edx == 0x87654321U &&
+                result.fixed_curve.value == 11U &&
                 result.actor_word_writes == 1U &&
                 actor_word(configuration.actor_record, 0x26U) == 1150U &&
                 result.return_eax == 0x00000AF0U && result.return_ecx == 0U &&
@@ -224,10 +221,7 @@ void test_battle_group_a_embedded_profile_application(
                 result.modified_byte_index == 2U &&
                 result.actor_byte_writes == 1U &&
                 actor_byte(configuration.actor_record, 0x2FU) == 114U &&
-                result.fixed_curve_query_count == 1U &&
-                result.fixed_curve.return_eax == 0x004B0032U &&
-                result.fixed_curve.return_ecx == 0x00502222U &&
-                result.fixed_curve.return_edx == 0xAABB2222U &&
+                result.fixed_curve.value == 50U &&
                 result.return_eax == 0x99990072U && result.return_ecx == 2U &&
                 result.return_edx == 0xFFFFE668U,
             "byte kind stops at the first nonzero byte and preserves both low-byte product truncations and wrapped negative delta"
@@ -250,14 +244,10 @@ void test_battle_group_a_embedded_profile_application(
             result.status ==
                     LegacyBattleGroupAEmbeddedProfileApplicationStatus::
                         completed &&
-                result.fixed_curve_query_count == 1U &&
-                result.fixed_curve.return_eax == 0x004B0014U &&
-                result.fixed_curve.return_ecx == 0x00503333U &&
-                result.fixed_curve.return_edx == 0x00003333U &&
+                result.fixed_curve.value == 20U &&
                 result.bytes_scanned == 9U && result.actor_byte_writes == 0U &&
-                result.return_eax == 8U && result.return_ecx == 9U &&
-                result.return_edx == 0x00003300U,
-            "nine zero bytes return without dereferencing the missing actor record and retain the query edx upper bytes"
+                result.return_eax == 8U && result.return_ecx == 9U,
+            "nine zero bytes return without dereferencing the missing actor record"
         );
     }
 
@@ -334,9 +324,8 @@ void test_battle_group_a_embedded_profile_application(
                 zero_record_stop.status ==
                     LegacyBattleGroupAEmbeddedProfileApplicationStatus::
                         actor_record_typed_stop &&
-                zero_record_stop.return_eax == 0x004B0000U &&
-                zero_record_stop.return_ecx == 0x00501234U &&
-                zero_record_stop.return_edx == 0U,
+                zero_record_stop.fixed_curve.value == 1U &&
+                zero_record_stop.actor_word_writes == 0U,
             "typed stops occur only at the original profile, actor, and rate-dependent actor-record accesses"
         );
     }
@@ -368,17 +357,11 @@ void test_battle_group_a_embedded_profile_application(
             result.status ==
                     LegacyBattleGroupAEmbeddedProfileApplicationStatus::
                         fixed_curve_typed_stop &&
-                result.fixed_curve_query_count == 1U &&
                 result.fixed_curve.stopped_token == 0x7F00ABCDU &&
                 result.fixed_curve.stopped_offset == 4U &&
-                result.fixed_curve.key_reads == 1U &&
-                result.fixed_curve.chain_link_reads == 1U &&
-                result.return_eax == 0x7F00ABCDU &&
-                result.return_ecx == 0x00504444U &&
-                result.return_edx == 0xAABB4444U &&
                 result.actor_word_writes == 0U &&
                 result.actor_byte_writes == 0U,
-            "embedded profile propagation stops at the original linked key read with the complete legacy register prefix"
+            "embedded profile propagation stops at the inaccessible linked key before changing actor fields"
         );
     }
 }
