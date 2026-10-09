@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_group_a_resource_cleanup.hpp"
 #include "openswd3/battle/legacy_battle_group_b_resource_cleanup.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
@@ -41,22 +42,14 @@ struct LegacyBattleRuntimeShutdownResult {
         group_a_resource_cleanups{};
     std::array<LegacyBattleGroupBResourceCleanupResult, 8>
         group_b_resource_cleanups{};
-    compat::u32 render_cleanup_calls{};
-    compat::u32 group_a_calls{};
-    compat::u32 group_a_resource_calls{};
-    compat::u32 group_b_calls{};
-    compat::u32 group_b_resource_calls{};
     compat::u32 stopped_group_b_index{};
-    compat::u32 return_value{};
-    compat::u32 final_ecx{};
-    compat::u32 final_edx{};
 };
 
 [[nodiscard]] LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
     LegacyBattleStartupState& startup,
     LegacyBattleRenderAuxiliaryBufferReleaser& render_resources,
     LegacyBattleGroupAResourceReleasePort& party_resources,
-    LegacyBattleGroupBResourceReleasePort& enemy_resources
+    LegacyBattleGroupBStorage* enemy_resources
 ) noexcept;
 
 }  // namespace openswd3::battle

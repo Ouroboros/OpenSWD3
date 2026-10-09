@@ -2,6 +2,8 @@
 #include "openswd3/battle/legacy_battle_file_lifecycle.hpp"
 #include "openswd3/battle/legacy_battle_render_geometry.hpp"
 
+#include "openswd3/battle/legacy_battle_group_b_storage.hpp"
+
 #include <algorithm>
 #include <memory>
 #include <stdexcept>
@@ -91,34 +93,6 @@ void bind_description_release(
         )
     );
 }
-
-class TrackingGroupBElementDestructionPort final
-    : public openswd3::battle::LegacyBattleGroupBResourceReleasePort {
-public:
-    [[nodiscard]]
-    openswd3::battle::LegacyBattleGroupBResourceReleaseCallReply
-    release_group_b_resource(
-        const openswd3::battle::LegacyBattleGroupBResourceReleaseCallRequest&
-            request
-    ) override {
-        events.push_back(3U);
-        resource_requests.push_back(request);
-        if (throw_from_extension) {
-            throw std::runtime_error{"group-B extension destruction failed"};
-        }
-
-        return extension_reply;
-    }
-
-    openswd3::battle::LegacyBattleGroupBResourceReleaseCallReply
-        extension_reply{};
-    std::vector<openswd3::battle::LegacyBattleGroupBResourceReleaseCallRequest>
-        resource_requests;
-    bool throw_from_extension{};
-    bool throw_from_base{};
-    bool reject_base{};
-    std::vector<u32> events;
-};
 
 class TrackingGroupAElementDestructionPort final
     : public openswd3::battle::LegacyBattleGroupAResourceReleasePort {
@@ -663,90 +637,90 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
     }
 
     {
-        openswd3::battle::LegacyBattleActorGroupBElementState state{
-            .object_token = 0x00525508U,
-            .resource_token = 0x71000000U,
-        };
+        openswd3::battle::LegacyBattleGroupBStorage resources;
+        test.expect_true(
+            resources.construct(),
+            "construct enemy record for element destruction"
+        );
+        auto& state = (*resources.actors())[0U];
+        const auto resource_token = state.resource_token;
         state.resource_bytes.fill(0xA5U);
         write_actor_base_description_token(
             state.action_composition.resource_definition, 0x71100000U
         );
-        state.action_composition.resource_definition_description = {1U, 2U};
-        TrackingGroupBElementDestructionPort port;
-        port.extension_reply = {.eax = 1U, .ecx = 2U, .edx = 3U};
-        bind_description_release(
-            state.action_composition.resource_definition_description,
-            port.events,
-            port.reject_base,
-            port.throw_from_base
+        using Text = openswd3::battle::LegacyBattleMonText;
+        auto bytes = std::make_shared<Text::Storage>(Text::Storage{1U, 2U});
+        bool record_released_before_description = false;
+        state.action_composition.resource_definition_description.bind(
+            bytes, std::make_shared<const Text::Release>([&] {
+                record_released_before_description =
+                    state.resource_token == 0U &&
+                    resources.resource_bytes(resource_token).empty();
+                Text::Storage{}.swap(*bytes);
+                return true;
+            })
         );
         const auto result =
             openswd3::battle::release_legacy_battle_actor_group_b_element(
-                state,
-                port,
-                {.seh_chain_token = 0x76543210U, .entry_edx = 0x89ABCDEFU}
+                state, resources
             );
         test.expect_true(
-            port.events == std::vector<u32>{3U, 4U} &&
-                state.resource_token == 0U &&
-                std::ranges::all_of(
-                    state.resource_bytes,
-                    [](const auto value) { return value == 0U; }
-                ) &&
-                result.resource_cleanup.resource_release_calls == 1U &&
+            result.status ==
+                    openswd3::battle::
+                        LegacyBattleActorGroupBElementDestructionStatus::
+                            completed &&
                 result.resource_cleanup.resource_released &&
-                result.base_release.status ==
-                    openswd3::battle::LegacyBattleActorBaseReleaseStatus::
-                        completed &&
+                record_released_before_description && bytes->empty() &&
                 read_actor_base_description_token(
                     state.action_composition.resource_definition
                 ) == 0U &&
-                state.action_composition.resource_definition_description
-                    .empty() &&
-                port.resource_requests.size() == 1U &&
-                port.resource_requests[0U].callee_token == 0x004885A0U &&
-                port.resource_requests[0U].actor_token == state.object_token &&
-                port.resource_requests[0U].actor_index == 0U &&
-                port.resource_requests[0U].resource_token == 0x71000000U &&
-                port.resource_requests[0U].resource_offset == 0x0CU &&
-                port.resource_requests[0U].eax == 0x71000000U &&
-                port.resource_requests[0U].ecx == state.object_token &&
-                port.resource_requests[0U].edx == 0x89ABCDEFU,
-            "group-B element destruction releases its record before the owned base description"
+                std::ranges::all_of(
+                    state.resource_bytes,
+                    [](const auto value) { return value == 0U; }
+                ),
+            "enemy element retires its actual record before releasing the base description"
         );
     }
 
     {
-        openswd3::battle::LegacyBattleActorGroupBElementState state{
-            .object_token = 0x00528030U,
-            .resource_token = 0x72000000U,
-        };
+        openswd3::battle::LegacyBattleGroupBStorage resources;
+        test.expect_true(
+            resources.construct(), "construct enemy record for rejected release"
+        );
+        auto& state = (*resources.actors())[1U];
+        const auto resource_token = state.resource_token;
+        test.expect_true(
+            resources.release_heap_block(resource_token).has_value(),
+            "retire record while retaining stale pointer"
+        );
         state.resource_bytes.fill(0x5AU);
         write_actor_base_description_token(
             state.action_composition.resource_definition, 0x72100000U
         );
         state.action_composition.resource_definition_description = {3U, 4U};
-        TrackingGroupBElementDestructionPort port;
+        std::vector<u32> events;
+        bool reject = false;
+        bool throw_from_release = false;
         bind_description_release(
             state.action_composition.resource_definition_description,
-            port.events,
-            port.reject_base,
-            port.throw_from_base
+            events,
+            reject,
+            throw_from_release
         );
-        port.throw_from_extension = true;
         bool caught = false;
         try {
             static_cast<void>(
                 openswd3::battle::release_legacy_battle_actor_group_b_element(
-                    state, port
+                    state, resources
                 )
             );
-        } catch (const std::runtime_error&) {
+        } catch (const std::bad_optional_access&) {
             caught = true;
         }
+
         test.expect_true(
-            caught && port.events == std::vector<u32>{3U, 4U} &&
-                state.resource_token == 0x72000000U &&
+            caught && events == std::vector<u32>{4U} &&
+                state.resource_token == resource_token &&
                 std::ranges::all_of(
                     state.resource_bytes,
                     [](const auto value) { return value == 0x5AU; }
@@ -756,101 +730,69 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 ) == 0U &&
                 state.action_composition.resource_definition_description
                     .empty(),
-            "group-B extension failure invokes the SEH base cleanup before propagating"
+            "rejected actual record release cleans the base description before propagating"
         );
     }
 
-    {
-        openswd3::battle::LegacyBattleActorGroupBElementState state{
-            .object_token = 0x0052AB58U,
-            .resource_token = 0x73000000U,
-        };
-        state.resource_bytes.fill(0xA5U);
+    for (const bool throw_from_base : {false, true}) {
+        openswd3::battle::LegacyBattleGroupBStorage resources;
+        test.expect_true(
+            resources.construct(), "construct enemy record for base failure"
+        );
+        auto& state = (*resources.actors())[2U];
+        const auto resource_token = state.resource_token;
         write_actor_base_description_token(
             state.action_composition.resource_definition, 0x73100000U
         );
         state.action_composition.resource_definition_description = {5U, 6U};
-        TrackingGroupBElementDestructionPort port;
+        std::vector<u32> events;
+        bool reject = !throw_from_base;
+        bool throw_from_release = throw_from_base;
         bind_description_release(
             state.action_composition.resource_definition_description,
-            port.events,
-            port.reject_base,
-            port.throw_from_base
+            events,
+            reject,
+            throw_from_release
         );
-        port.throw_from_base = true;
         bool caught = false;
+        openswd3::battle::LegacyBattleActorGroupBElementDestructionResult
+            result;
         try {
-            static_cast<void>(
+            result =
                 openswd3::battle::release_legacy_battle_actor_group_b_element(
-                    state, port
-                )
-            );
+                    state, resources
+                );
         } catch (const std::runtime_error&) {
             caught = true;
         }
+
         test.expect_true(
-            caught && port.events == std::vector<u32>{3U, 4U} &&
+            caught == throw_from_base && events == std::vector<u32>{4U} &&
                 state.resource_token == 0U &&
-                std::ranges::all_of(
-                    state.resource_bytes,
-                    [](const auto value) { return value == 0U; }
-                ) &&
+                resources.resource_bytes(resource_token).empty() &&
                 read_actor_base_description_token(
                     state.action_composition.resource_definition
                 ) == 0x73100000U &&
                 state.action_composition.resource_definition_description
-                        .size() == 2U,
-            "group-B base failure propagates without invoking the base cleanup twice"
+                        .size() == 2U &&
+                (throw_from_base ||
+                 result.status ==
+                     openswd3::battle::
+                         LegacyBattleActorGroupBElementDestructionStatus::
+                             base_release_typed_stop),
+            "base failure retains completed record release without repeating description release"
         );
     }
 
     {
+        openswd3::battle::LegacyBattleGroupBStorage resources;
         openswd3::battle::LegacyBattleActorGroupBElementState state{
-            .object_token = 0x0052D680U,
-        };
-        write_actor_base_description_token(
-            state.action_composition.resource_definition, 0x74100000U
-        );
-        state.action_composition.resource_definition_description = {7U, 8U};
-        TrackingGroupBElementDestructionPort port;
-        bind_description_release(
-            state.action_composition.resource_definition_description,
-            port.events,
-            port.reject_base,
-            port.throw_from_base
-        );
-        port.reject_base = true;
-        const auto result =
-            openswd3::battle::release_legacy_battle_actor_group_b_element(
-                state, port, {.seh_chain_token = 0x87654321U}
-            );
-        test.expect_true(
-            result.status ==
-                    openswd3::battle::
-                        LegacyBattleActorGroupBElementDestructionStatus::
-                            base_release_typed_stop &&
-                result.base_release.status ==
-                    openswd3::battle::LegacyBattleActorBaseReleaseStatus::
-                        release_call_typed_stop &&
-                port.events == std::vector<u32>{4U} &&
-                read_actor_base_description_token(
-                    state.action_composition.resource_definition
-                ) == 0x74100000U &&
-                state.action_composition.resource_definition_description
-                        .size() == 2U,
-            "group-B base typed-stop blocks the outer SEH epilogue"
-        );
-    }
-
-    {
-        openswd3::battle::LegacyBattleActorGroupBElementState state{
-            .resource_token = 0x74000000U,
+            .resource_token = 0x74000000U
         };
         state.resource_bytes.fill(0x6BU);
-        TrackingGroupBElementDestructionPort port;
         const auto result =
             openswd3::battle::release_legacy_battle_actor_group_b_element(
-                state, port, {.seh_chain_token = 0x87654321U}
+                state, resources
             );
         test.expect_true(
             result.status ==
@@ -863,13 +805,12 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 result.base_release.status ==
                     openswd3::battle::LegacyBattleActorBaseReleaseStatus::
                         object_read_typed_stop &&
-                port.events.empty() && port.resource_requests.empty() &&
                 state.resource_token == 0x74000000U &&
                 std::ranges::all_of(
                     state.resource_bytes,
                     [](const auto value) { return value == 0x6BU; }
                 ),
-            "group-B resource fault reaches the same actor fault in the SEH base cleanup"
+            "invalid enemy actor preserves the record at both original access boundaries"
         );
     }
 

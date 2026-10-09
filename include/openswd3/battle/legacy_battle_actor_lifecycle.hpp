@@ -381,8 +381,7 @@ construct_legacy_battle_actor_group_b_element(
 [[nodiscard]] LegacyBattleActorGroupBElementDestructionResult
 release_legacy_battle_actor_group_b_element(
     LegacyBattleActorGroupBElementState& state,
-    LegacyBattleGroupBResourceReleasePort& port,
-    LegacyBattleActorElementDestructionRequest request = {}
+    LegacyBattleGroupBStorage& resources
 );
 
 // sub_46E4D0 with its SEH unwind chunk at loc_498390.

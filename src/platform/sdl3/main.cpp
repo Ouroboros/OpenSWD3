@@ -1152,8 +1152,7 @@ private:
 class SmokeShutdownPorts final
     : public openswd3::app::ShutdownPorts,
       public openswd3::battle::LegacyBattleRenderAuxiliaryBufferReleaser,
-      public openswd3::battle::LegacyBattleGroupAResourceReleasePort,
-      public openswd3::battle::LegacyBattleGroupBResourceReleasePort {
+      public openswd3::battle::LegacyBattleGroupAResourceReleasePort {
 public:
     SmokeShutdownPorts(
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
@@ -1305,7 +1304,7 @@ public:
 
     void release_battle_runtime() override {
         static_cast<void>(openswd3::battle::shutdown_legacy_battle_runtime(
-            battle_runtime_, *this, *this, *this
+            battle_runtime_, *this, *this, battle_enemy_storage_
         ));
     }
 
@@ -1318,17 +1317,6 @@ public:
     ) override {
         const auto released =
             battle_party_storage_->release_heap_block(request.resource_token)
-                .value();
-        return {.eax = released.eax, .ecx = released.ecx, .edx = released.edx};
-    }
-
-    [[nodiscard]] openswd3::battle::LegacyBattleGroupBResourceReleaseCallReply
-    release_group_b_resource(
-        const openswd3::battle::LegacyBattleGroupBResourceReleaseCallRequest&
-            request
-    ) override {
-        const auto released =
-            battle_enemy_storage_->release_heap_block(request.resource_token)
                 .value();
         return {.eax = released.eax, .ecx = released.ecx, .edx = released.edx};
     }

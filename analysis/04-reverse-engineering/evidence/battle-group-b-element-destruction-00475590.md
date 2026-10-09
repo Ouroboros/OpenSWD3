@@ -18,14 +18,16 @@
 
 ## 3. typed owner与直组装
 
-`LegacyBattleActorGroupBElementState`继续作为唯一物理owner，承接对象token、对象`+0x0C`资源token、164-byte独立资源记录及公共`actor+0x10..+0xB3` definition。扩展资源析构`0x00476A60`已typed关闭：非零`+0x0C` token只在固定CRT释放callee正常返回后清零并失效独立资源内容。
+`LegacyBattleActorGroupBElementState`承接对象标识、独立资源记录及公共definition。
+扩展资源析构直接借用实际敌方存储，非零资源先撤销登记，成功后才清指针和记录。
+敌方释放Port、callee、寄存器请求回复及计数已删除，详见[资源释放](battle-group-b-resource-cleanup-00476a60.md)。
 
 公共基础析构直接复用`action_composition.resource_definition`末尾的说明token及文本所有权。
 零token只读不写；非零先释放实际文本，成功后才清token。
 读失败、释放失败及释放后写失败均保留对应前缀，已释放的共享文本视图同时失效。
 
 基础说明Port及空的组B元素析构继承层已删除。
-函数直接借用尚待迁移的独立资源接口；基础说明由其既有所有权释放。
+函数直接借用敌方存储，不再接收SEH/EDX参数；基础说明由其既有所有权释放。
 
 ## 4. 两处基础析构到达点与寄存器
 
@@ -59,6 +61,6 @@ MSVC向量helper自身仍负责八对象前向构造、构造失败逆向回滚�
 当前聚合回归检查独立资源→说明顺序、实际文本释放、异常展开及失败前缀。
 历史Linux core`198/198`和定向`2/2`记录见基础析构文档；
 本批验证见[说明所有权迁移](battle-actor-description-owned-release.md)。
-向量函数编号与扩展资源协议仍是当前Goal待迁移项，不以compiler边界排除。
+向量函数编号和共享堆协议仍是当前Goal待迁移项，不以compiler边界排除。
 
 当前没有原版八个组B完整对象、真实资源/说明堆、CRT释放callee副作用、MSVC SEH链、向量迭代与异常回滚联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。

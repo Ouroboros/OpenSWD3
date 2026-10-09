@@ -160,23 +160,12 @@ construct_legacy_battle_actor_group_b_element(
 LegacyBattleActorGroupBElementDestructionResult
 release_legacy_battle_actor_group_b_element(
     LegacyBattleActorGroupBElementState& state,
-    LegacyBattleGroupBResourceReleasePort& port,
-    const LegacyBattleActorElementDestructionRequest request
+    LegacyBattleGroupBStorage& resources
 ) {
     LegacyBattleActorGroupBElementDestructionResult result;
     try {
         result.resource_cleanup = release_legacy_battle_group_b_resource(
-            &state,
-            port,
-            {
-                .actor_token = state.object_token,
-                .actor_index =
-                    (state.object_token - kLegacyBattleActorGroupBBaseToken) /
-                    kLegacyBattleActorGroupBElementSize,
-                .entry_eax = request.seh_chain_token,
-                .entry_ecx = state.object_token,
-                .entry_edx = request.entry_edx,
-            }
+            &state, &resources, state.object_token
         );
     } catch (...) {
         result.base_release = release_legacy_battle_actor_base(

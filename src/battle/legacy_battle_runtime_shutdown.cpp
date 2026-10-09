@@ -6,16 +6,14 @@ LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
     LegacyBattleStartupState& startup,
     LegacyBattleRenderAuxiliaryBufferReleaser& render_resources,
     LegacyBattleGroupAResourceReleasePort& party_resources,
-    LegacyBattleGroupBResourceReleasePort& enemy_resources
+    LegacyBattleGroupBStorage* enemy_resources
 ) noexcept {
     LegacyBattleRuntimeShutdownResult result;
     result.render_cleanup = release_legacy_battle_render_resources(
         startup.render_geometry, render_resources
     );
-    result.render_cleanup_calls = 1U;
 
     compat::u32 eax{};
-    compat::u32 ecx{};
     compat::u32 edx{};
     compat::u32 object_token = kLegacyBattleGroupAObjectBaseToken;
     for (compat::u32 index = 0U; index < kLegacyBattleGroupAObjectCount;
@@ -33,11 +31,7 @@ LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
                     .entry_edx = edx,
                 }
             );
-        ++result.group_a_calls;
-        result.group_a_resource_calls +=
-            result.group_a_resource_cleanups[index].resource_release_calls;
         eax = result.group_a_resource_cleanups[index].return_eax;
-        ecx = result.group_a_resource_cleanups[index].return_ecx;
         edx = result.group_a_resource_cleanups[index].return_edx;
         object_token += kLegacyBattleGroupAObjectStride;
     }
@@ -50,39 +44,19 @@ LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
             : &(*startup.group_b_lifecycle)[index];
         result.group_b_resource_cleanups[index] =
             release_legacy_battle_group_b_resource(
-                actor,
-                enemy_resources,
-                {
-                    .actor_token = object_token,
-                    .actor_index = index,
-                    .entry_eax = eax,
-                    .entry_ecx = object_token,
-                    .entry_edx = edx,
-                }
+                actor, enemy_resources, object_token
             );
-        ++result.group_b_calls;
-        result.group_b_resource_calls +=
-            result.group_b_resource_cleanups[index].resource_release_calls;
-        eax = result.group_b_resource_cleanups[index].return_eax;
-        ecx = result.group_b_resource_cleanups[index].return_ecx;
-        edx = result.group_b_resource_cleanups[index].return_edx;
         if (result.group_b_resource_cleanups[index].status !=
             LegacyBattleGroupBResourceCleanupStatus::completed) {
             result.status =
                 LegacyBattleRuntimeShutdownStatus::group_b_resource_typed_stop;
             result.stopped_group_b_index = index;
-            result.return_value = eax;
-            result.final_ecx = ecx;
-            result.final_edx = edx;
             return result;
         }
 
         object_token += kLegacyBattleGroupBObjectStride;
     }
 
-    result.return_value = eax;
-    result.final_ecx = ecx;
-    result.final_edx = edx;
     return result;
 }
 
