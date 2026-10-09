@@ -15,12 +15,6 @@ struct LegacyBattleGroupAEmbeddedProfileApplicationState {
     compat::u32 status_bits{};
 };
 
-class LegacyBattleGroupAEmbeddedProfileApplicationPort
-    : public virtual LegacyBattleFixedObjectStatePort {
-public:
-    ~LegacyBattleGroupAEmbeddedProfileApplicationPort() override = default;
-};
-
 struct LegacyBattleGroupAEmbeddedProfileApplicationRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_edx{};
@@ -59,7 +53,7 @@ apply_legacy_battle_group_a_embedded_profile(
     const LegacyBattleGroupASummonProfileRecord* profile,
     compat::u32 actor_token,
     compat::u32 profile_token,
-    LegacyBattleGroupAEmbeddedProfileApplicationPort& port,
+    LegacyBattleFixedObjectState& fixed_objects,
     const LegacyBattleGroupAEmbeddedProfileApplicationRequest& request = {}
 );
 

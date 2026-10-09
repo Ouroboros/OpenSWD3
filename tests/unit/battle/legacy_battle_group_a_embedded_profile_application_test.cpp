@@ -9,20 +9,19 @@
 
 namespace {
 
-using openswd3::battle::LegacyBattleGroupAEmbeddedProfileApplicationPort;
+using openswd3::battle::LegacyBattleFixedObjectState;
 using openswd3::battle::LegacyBattleGroupASummonProfileRecord;
 using openswd3::battle::kLegacyBattleEmbeddedProfileItemListToken;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
-struct ItemQuantityPort final
-    : LegacyBattleGroupAEmbeddedProfileApplicationPort {};
-
 void publish_item_quantity(
-    ItemQuantityPort& port, const u16 item_id, const u16 quantity
+    LegacyBattleFixedObjectState& fixed_objects,
+    const u16 item_id,
+    const u16 quantity
 ) {
-    auto& roots = port.legacy_battle_fixed_object_state().object_words;
+    auto& roots = fixed_objects.object_words;
     auto& root = roots[2U];
     root[0U] = 0U;
     root[1U] = item_id;
@@ -94,7 +93,7 @@ void test_battle_group_a_embedded_profile_application(
         };
         LegacyBattleGroupAConfigurationState configuration;
         LegacyBattleGroupASummonProfileRecord profile{};
-        ItemQuantityPort port;
+        LegacyBattleFixedObjectState port;
         set_profile_word(profile, 0x48U, 49U);
         const auto default_result =
             apply_legacy_battle_group_a_embedded_profile(
@@ -147,8 +146,7 @@ void test_battle_group_a_embedded_profile_application(
                 default_result.return_ecx == 0U &&
                 default_result.return_edx == 0x87654321U &&
                 flag_results_match && state.status_bits == 0xA5B6C7FDU &&
-                port.legacy_battle_fixed_object_state().object_words[2U][1U] ==
-                    0U,
+                port.object_words[2U][1U] == 0U,
             "default kind leaves the actor untouched while six fixed kinds OR only their original low-byte status masks"
         );
     }
@@ -162,7 +160,7 @@ void test_battle_group_a_embedded_profile_application(
         LegacyBattleGroupASummonProfileRecord profile{};
         set_profile_word(profile, 0x48U, 52U);
         set_profile_word(profile, 0x50U, 0x1234U);
-        ItemQuantityPort port;
+        LegacyBattleFixedObjectState port;
         publish_item_quantity(port, 0x1234U, 11U);
 
         const auto result = apply_legacy_battle_group_a_embedded_profile(
@@ -200,7 +198,7 @@ void test_battle_group_a_embedded_profile_application(
         set_profile_word(profile, 0x48U, 51U);
         set_profile_word(profile, 0x50U, 0x2222U);
         set_profile_byte(profile, 0x94U, 3U);
-        ItemQuantityPort port;
+        LegacyBattleFixedObjectState port;
         publish_item_quantity(port, 0x2222U, 50U);
 
         const auto result = apply_legacy_battle_group_a_embedded_profile(
@@ -233,7 +231,7 @@ void test_battle_group_a_embedded_profile_application(
         LegacyBattleGroupASummonProfileRecord profile{};
         set_profile_word(profile, 0x48U, 51U);
         set_profile_word(profile, 0x50U, 0x3333U);
-        ItemQuantityPort port;
+        LegacyBattleFixedObjectState port;
         publish_item_quantity(port, 0x3333U, 20U);
 
         const auto result = apply_legacy_battle_group_a_embedded_profile(
@@ -255,7 +253,7 @@ void test_battle_group_a_embedded_profile_application(
         LegacyBattleGroupAEmbeddedProfileApplicationState state;
         LegacyBattleGroupAConfigurationState configuration;
         LegacyBattleGroupASummonProfileRecord profile{};
-        ItemQuantityPort profile_port;
+        LegacyBattleFixedObjectState profile_port;
         const auto profile_stop = apply_legacy_battle_group_a_embedded_profile(
             &state,
             configuration,
@@ -267,7 +265,7 @@ void test_battle_group_a_embedded_profile_application(
         );
 
         set_profile_word(profile, 0x48U, 50U);
-        ItemQuantityPort actor_port;
+        LegacyBattleFixedObjectState actor_port;
         const auto actor_stop = apply_legacy_battle_group_a_embedded_profile(
             nullptr,
             configuration,
@@ -280,7 +278,7 @@ void test_battle_group_a_embedded_profile_application(
 
         set_profile_word(profile, 0x48U, 52U);
         set_profile_word(profile, 0x50U, 0x1234U);
-        ItemQuantityPort nonzero_record_port;
+        LegacyBattleFixedObjectState nonzero_record_port;
         publish_item_quantity(nonzero_record_port, 0x1234U, 11U);
         const auto nonzero_record_stop =
             apply_legacy_battle_group_a_embedded_profile(
@@ -292,7 +290,7 @@ void test_battle_group_a_embedded_profile_application(
                 nonzero_record_port
             );
 
-        ItemQuantityPort zero_record_port;
+        LegacyBattleFixedObjectState zero_record_port;
         publish_item_quantity(zero_record_port, 0x1234U, 1U);
         const auto zero_record_stop =
             apply_legacy_battle_group_a_embedded_profile(
@@ -338,8 +336,8 @@ void test_battle_group_a_embedded_profile_application(
         LegacyBattleGroupASummonProfileRecord profile{};
         set_profile_word(profile, 0x48U, 51U);
         set_profile_word(profile, 0x50U, 0x4444U);
-        ItemQuantityPort port;
-        auto& root = port.legacy_battle_fixed_object_state().object_words[2U];
+        LegacyBattleFixedObjectState port;
+        auto& root = port.object_words[2U];
         root[0U] = 0x7F00ABCDU;
         root[1U] = 1U;
 

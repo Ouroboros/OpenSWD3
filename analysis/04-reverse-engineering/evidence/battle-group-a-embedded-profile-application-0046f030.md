@@ -2,6 +2,23 @@
 
 状态：`platform_adapted`。完整LST、八项跳表、typed实现、上一属性汇总caller、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
 
+## 当前固定状态借用
+
+嵌入资料应用直接接收`LegacyBattleFixedObjectState&`。
+已删除空`LegacyBattleGroupAEmbeddedProfileApplicationPort`及仅转借状态的
+`EmbeddedProfileApplicationPortAdapter`；测试直接持有固定状态数据。
+属性汇总仍把原共享状态传入，类型51/52仍在各自原位置查询根`004B8A00`。
+六类状态位、数量算法、失败出口和实际写入顺序均不改变。
+
+core与AddressSanitizer的`battle.legacy_battle_setup`各通过1/1，
+其中实际执行嵌入资料、属性汇总与初始化回归；SDL构建通过，未启动游戏。
+日志在`build/tmp/runtime/embedded-profile-direct-state-`前缀下：
+`core-final.log`、`asan.log`、`sdl.log`。
+首轮编译因误用const引用失败，已恢复查询所需的可变引用；`core.log`保留失败记录。
+完整代码差异和LST主体、跳表、唯一调用点已复核，旧空Port及适配器无代码引用。
+入口寄存器请求/结果、访问计数、属性汇总协议以及上游公共固定状态Port
+仍待后续迁移；下文完整门禁是历史记录。
+
 ## 1. 完整权威范围与ABI
 
 权威LST主体为`0x0046F030..0x0046F1CC`，从proc到endp共225行，其中213个非标签物理行、146条实际指令、2个call、6个跳转、12个局部标签、9个返回点，没有外部`FUNCTION CHUNK`。紧邻主体后的八项跳表`0x0046F1D0..0x0046F1EC`也已逐项核对。函数是thiscall，唯一栈参数为0xA4内嵌物品资料token，所有出口均以`retn 4`弹栈。
@@ -40,7 +57,7 @@
 
 全程序唯一静态caller位于上一项16槽物品属性汇总的槽7/8公共分支；同一callsite在固定16轮中实际执行两次。调用前EAX为对应内嵌资料token，ECX/EDX均为角色token。typed汇总在复制0xA4资料并执行可选item id覆盖后直接调用本实现，子stop保留此前七或八槽的复制、累加、诊断与副作用。
 
-旧整函数opaque枚举槽及数量查询转发槽均保留为reserved且生产零调用；startup与属性汇总通过虚继承暴露同一个`LegacyBattleFixedObjectStatePort`，内嵌资料应用直接消费唯一fixed-object owner。两个typed结果随属性汇总结果发布，后续槽和最终寄存器仍由上一函数按原循环覆盖。
+旧整函数opaque枚举槽及数量查询转发槽均保留为reserved且生产零调用；startup与属性汇总仍通过`LegacyBattleFixedObjectStatePort`借用原共享状态。本入口已直接接收该数据引用，不再创建适配器或附带另一份未使用的固定状态。两个typed结果随属性汇总结果发布，后续槽和最终寄存器仍由上一函数按原循环覆盖。
 
 ## 7. 验证状态
 

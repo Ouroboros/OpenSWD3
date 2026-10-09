@@ -176,23 +176,6 @@ void add_early_bonus(
     ++result.early_bonus_additions;
 }
 
-class EmbeddedProfileApplicationPortAdapter final
-    : public LegacyBattleGroupAEmbeddedProfileApplicationPort {
-public:
-    explicit EmbeddedProfileApplicationPortAdapter(
-        LegacyBattleGroupAAttributeAggregationPort& port
-    ) noexcept
-        : port_(port) {}
-
-    [[nodiscard]] LegacyBattleFixedObjectState&
-    legacy_battle_fixed_object_state() noexcept override {
-        return port_.legacy_battle_fixed_object_state();
-    }
-
-private:
-    LegacyBattleGroupAAttributeAggregationPort& port_;
-};
-
 }  // namespace
 
 LegacyBattleGroupAAttributeSourceTable
@@ -349,7 +332,6 @@ aggregate_legacy_battle_group_a_attributes(
             }
             const u32 embedded_profile_token =
                 actor_token + (embedded_index == 0U ? 0x158U : 0x1FCU);
-            EmbeddedProfileApplicationPortAdapter application_port(port);
             auto& application =
                 result.embedded_profile_applications[embedded_index];
             application = apply_legacy_battle_group_a_embedded_profile(
@@ -358,7 +340,7 @@ aggregate_legacy_battle_group_a_attributes(
                 &embedded,
                 actor_token,
                 embedded_profile_token,
-                application_port,
+                port.legacy_battle_fixed_object_state(),
                 {
                     .entry_eax = embedded_profile_token,
                     .entry_edx = actor_token,

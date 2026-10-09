@@ -91,7 +91,7 @@ apply_legacy_battle_group_a_embedded_profile(
     const LegacyBattleGroupASummonProfileRecord* profile,
     const u32 actor_token,
     const u32 profile_token,
-    LegacyBattleGroupAEmbeddedProfileApplicationPort& port,
+    LegacyBattleFixedObjectState& fixed_objects,
     const LegacyBattleGroupAEmbeddedProfileApplicationRequest& request
 ) {
     LegacyBattleGroupAEmbeddedProfileApplicationResult result{
@@ -160,7 +160,7 @@ apply_legacy_battle_group_a_embedded_profile(
     result.item_id = item_id;
     if (switch_index == 2U) {
         result.fixed_curve = lookup_legacy_battle_fixed_curve(
-            port.legacy_battle_fixed_object_state(),
+            fixed_objects,
             item_id,
             kLegacyBattleEmbeddedProfileItemListToken
         );
@@ -239,7 +239,7 @@ apply_legacy_battle_group_a_embedded_profile(
     }
 
     result.fixed_curve = lookup_legacy_battle_fixed_curve(
-        port.legacy_battle_fixed_object_state(),
+        fixed_objects,
         item_id,
         kLegacyBattleEmbeddedProfileItemListToken
     );
