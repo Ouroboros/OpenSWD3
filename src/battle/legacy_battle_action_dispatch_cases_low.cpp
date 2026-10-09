@@ -490,8 +490,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             );
             const i16 target_code = signed_low_word(target_code_reply.eax);
             result.fixed_count_lookup = lookup_legacy_battle_fixed_count(
-                port.legacy_battle_fixed_object_state(),
-                static_cast<u16>(target_code)
+                port, static_cast<u16>(target_code)
             );
             if (result.fixed_count_lookup.status !=
                 LegacyBattleFixedCountStatus::completed) {
@@ -668,9 +667,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
                 {group_b_token(group_b_index)}
             );
             result.fixed_count = accumulate_legacy_battle_fixed_count(
-                port.legacy_battle_fixed_object_state(),
-                static_cast<u16>(target_code.eax),
-                1U
+                port, static_cast<u16>(target_code.eax), 1U
             );
             if (result.fixed_count.status !=
                 LegacyBattleFixedCountStatus::completed) {

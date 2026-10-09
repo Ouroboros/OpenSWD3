@@ -16,8 +16,9 @@ core与AddressSanitizer的`battle.legacy_battle_setup`各通过1/1，
 `core-final.log`、`asan.log`、`sdl.log`。
 首轮编译因误用const引用失败，已恢复查询所需的可变引用；`core.log`保留失败记录。
 完整代码差异和LST主体、跳表、唯一调用点已复核，旧空Port及适配器无代码引用。
-入口寄存器请求/结果、访问计数、属性汇总协议以及上游公共固定状态Port
-仍待后续迁移；下文完整门禁是历史记录。
+[上游公共固定状态Port](battle-fixed-state-direct-data.md)随后已移除。
+入口寄存器请求/结果、访问计数与属性汇总协议仍待后续迁移；
+下文完整门禁是历史记录。
 
 ## 1. 完整权威范围与ABI
 
@@ -57,7 +58,7 @@ core与AddressSanitizer的`battle.legacy_battle_setup`各通过1/1，
 
 全程序唯一静态caller位于上一项16槽物品属性汇总的槽7/8公共分支；同一callsite在固定16轮中实际执行两次。调用前EAX为对应内嵌资料token，ECX/EDX均为角色token。typed汇总在复制0xA4资料并执行可选item id覆盖后直接调用本实现，子stop保留此前七或八槽的复制、累加、诊断与副作用。
 
-旧整函数opaque枚举槽及数量查询转发槽均保留为reserved且生产零调用；startup与属性汇总仍通过`LegacyBattleFixedObjectStatePort`借用原共享状态。本入口已直接接收该数据引用，不再创建适配器或附带另一份未使用的固定状态。两个typed结果随属性汇总结果发布，后续槽和最终寄存器仍由上一函数按原循环覆盖。
+旧整函数opaque枚举槽及数量查询转发槽均保留为reserved且生产零调用；startup及SDL调用方已显式向属性汇总传入原共享状态。属性汇总与本入口直接接收该数据引用，不再通过固定状态Port、getter或附带另一份未使用的固定状态。两个typed结果随属性汇总结果发布，后续槽和最终寄存器仍由上一函数按原循环覆盖。
 
 ## 7. 验证状态
 

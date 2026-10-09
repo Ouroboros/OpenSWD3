@@ -795,8 +795,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                                     .attribute_aggregation.embedded_profiles[0U];
         percent_profile[0x48U] = std::byte{30U};
         percent_profile[0x50U] = std::byte{7U};
-        fixture.port.legacy_battle_fixed_object_state().object_words[2U] =
-            {0U, 7U, 0x55U, 0U, 0U};
+        fixture.port.object_words[2U] = {0U, 7U, 0x55U, 0U, 0U};
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::load_action_item_definition,
             {
@@ -916,8 +915,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                                     .attribute_aggregation.embedded_profiles[0U];
         percent_profile[0x48U] = std::byte{30U};
         percent_profile[0x50U] = std::byte{7U};
-        fixture.port.legacy_battle_fixed_object_state().object_words[2U] =
-            {0U, 7U, 0x55U, 0U, 0U};
+        fixture.port.object_words[2U] = {0U, 7U, 0x55U, 0U, 0U};
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::load_action_item_definition,
             {
@@ -980,8 +978,7 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                                     .attribute_aggregation.embedded_profiles[0U];
         percent_profile[0x48U] = std::byte{30U};
         percent_profile[0x50U] = std::byte{7U};
-        fixture.port.legacy_battle_fixed_object_state().object_words[2U] =
-            {0U, 7U, 0x55U, 0U, 0U};
+        fixture.port.object_words[2U] = {0U, 7U, 0x55U, 0U, 0U};
         fixture.port.reply(
             LegacyBattleMessagePhaseCall::load_action_item_definition,
             {

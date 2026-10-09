@@ -50,7 +50,7 @@
 
 实现保留先链接、清零与x87除法交错、字段写入、根word递增和第二次转换的顺序。
 根和动态节点仍使用同一共享状态；节点改由实际容器分配和持有。
-分配Port、寄存器请求/回复和转发已删除，固定状态Port尚待后续迁移。
+分配Port、寄存器请求/回复和转发已删除；[固定状态访问](battle-fixed-state-direct-data.md)随后也已移除Port。
 当前分配与测试合同见[实际分配记录](battle-fixed-chain-owned-allocation.md)。
 本文allocator寄存器及短区回复描述保留为原指令和历史夹具分析。
 
@@ -84,7 +84,7 @@ fixed-curve typed-stop保留两次motion清零和helper内部前缀，阻断共�
 本批仅同步另外两个曲线设置函数对同一截零函数的调用。
 [普通曲线设置](battle-fixed-curve-set-00477920.md)与
 [定义曲线设置](battle-fixed-definition-curve-set-00477a20.md)随后已完成语义迁移。
-固定状态Port及MON内部剩余协议仍待处理。
+固定状态Port已移除，MON及固定对象清零中的剩余协议仍待处理。
 
 调用方在写入共享动作数值后，不再使用曲线返回寄存器作为业务输入。
 后续跳过判断在`47CD60`覆盖EAX，按自身参数与状态判断；其DX比较使用

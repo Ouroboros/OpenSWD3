@@ -885,7 +885,7 @@ LegacyBattleTargetEffectResult apply_legacy_battle_target_effect(
     }
     shared->shared_motion_word = 0U;
     result.fixed_curve = advance_legacy_battle_fixed_curve(
-        port.legacy_battle_fixed_object_state(),
+        port,
         actor->effect_curve_index,
         actor->effect_curve_value_b,
         actor->effect_curve_value_a

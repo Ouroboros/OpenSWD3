@@ -54,7 +54,7 @@ next为零时以固定大小20调用分配包装器。callee返回后原函数�
 
 固定根、相邻两个header和动态节点仍使用同一个共享状态。
 设置和累加直接在状态容器分配节点，分配Port及其寄存器协议已删除。
-固定状态Port本身仍待后续迁移；没有在Dialog、Fame载入或SDL建立第二条链。
+[固定状态访问](battle-fixed-state-direct-data.md)随后已移除Port；没有在Dialog、Fame载入或SDL建立第二条链。
 当前分配合同与验证覆盖见[实际分配记录](battle-fixed-chain-owned-allocation.md)。
 本文allocator寄存器及短区回复描述为原指令和历史夹具分析，不再是当前分配接口。
 
@@ -80,7 +80,7 @@ core和AddressSanitizer分别构建并执行固定链、菜单两个定向目标
 SDL应用构建通过。未启动游戏程序。
 日志位于`build/tmp/runtime/fixed-count-set-semantic-`前缀下：
 `core-chain.log`、`core-menu.log`、`asan-chain.log`、`asan-menu.log`与`sdl.log`。
-源码与测试差异已逐项核对。数量累加、次数递增与两种曲线设置随后已迁移；固定状态Port及MON内部剩余协议仍待处理。
+源码与测试差异已逐项核对。数量累加、次数递增与两种曲线设置随后已迁移；固定状态Port已移除，MON及固定对象清零中的剩余协议仍待处理。
 
 ## 8. 动态差分
 

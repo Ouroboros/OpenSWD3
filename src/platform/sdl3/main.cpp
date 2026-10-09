@@ -1747,7 +1747,7 @@ class SdlSmokeIdlePorts final
       public virtual openswd3::battle::
           LegacyBattleFrameInputResolutionStatePort,
       public openswd3::battle::LegacyBattleLevelProfilePort,
-      public virtual openswd3::battle::LegacyBattleFixedObjectStatePort,
+      public virtual openswd3::battle::LegacyBattleFixedObjectState,
       public openswd3::rendering::LegacyPresentationPorts,
       public openswd3::audio_video::LegacyVideoFramePorts,
       public openswd3::world_map::LegacyWorldLoadProgressPorts {
@@ -3112,6 +3112,7 @@ public:
                                     0x2F34U,
                             0x004C8AD0U + source * 0x40U,
                             battle_runtime_.window_token,
+                            *this,
                             *this,
                             &battle_action_dispatch_
                                  .group_a_action_execution[index]
@@ -8252,7 +8253,7 @@ public:
             if (saved->block_present[3U]) {
                 const auto fame =
                     openswd3::battle::restore_legacy_battle_save_fame(
-                        *saved, legacy_battle_fixed_object_state()
+                        *saved, *this
                     );
                 if (fame.status !=
                     openswd3::battle::LegacyBattleSaveFameStatus::ready) {

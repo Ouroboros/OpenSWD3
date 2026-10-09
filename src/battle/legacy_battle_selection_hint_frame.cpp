@@ -299,8 +299,7 @@ private:
         });
         ++result_.metric_source_calls;
         result_.fixed_count_lookup = lookup_legacy_battle_fixed_count(
-            port_.legacy_battle_fixed_object_state(),
-            static_cast<u16>(source.eax)
+            port_, static_cast<u16>(source.eax)
         );
         if (result_.fixed_count_lookup.status !=
             LegacyBattleFixedCountStatus::completed) {

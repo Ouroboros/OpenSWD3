@@ -152,7 +152,7 @@ class LegacyBattleStartupPort
       public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleActorMetricStatePort,
       public virtual LegacyBattleActorPublicationStatePort,
-      public virtual LegacyBattleFixedObjectStatePort,
+      public virtual LegacyBattleFixedObjectState,
       public virtual LegacyBattleSharedPhaseStatePort,
       public virtual LegacyBattleTargetSelectionRuntimeStatePort,
       public virtual world_map::LegacyWorldItemListStatePort {

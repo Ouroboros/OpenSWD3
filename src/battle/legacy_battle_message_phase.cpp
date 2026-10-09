@@ -644,7 +644,7 @@ private:
             refresh_legacy_battle_actor_message_percent(
                 &bindings_.action.group_a_action_execution[actor_index],
                 bindings_.startup.party[actor_index].attribute_aggregation,
-                port_.legacy_battle_fixed_object_state()
+                port_
             );
         if (result_.actor_message_percent_refresh.status !=
             LegacyBattleActorMessagePercentRefreshStatus::completed) {

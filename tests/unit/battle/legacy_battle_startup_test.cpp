@@ -2714,8 +2714,7 @@ void test_battle_startup(openswd3::test::Context& test) {
         embedded_word_profile[0x49U] = 0U;
         embedded_word_profile[0x50U] = 9U;
         embedded_word_profile[0x51U] = 0U;
-        auto& embedded_quantity_root =
-            ports.legacy_battle_fixed_object_state().object_words[2U];
+        auto& embedded_quantity_root = ports.object_words[2U];
         embedded_quantity_root[1U] = 9U;
         embedded_quantity_root[2U] = 20U;
         player_items.player_inventory_head_token = 0x00600000U;

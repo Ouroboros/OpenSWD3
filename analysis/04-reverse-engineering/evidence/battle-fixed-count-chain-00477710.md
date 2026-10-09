@@ -53,11 +53,11 @@ next为0时以固定大小`0x14`调用`0x00487C10`。allocator reply的EAX、ECX
 
 ## 5. 唯一owner与平台适配
 
-`0x004B9F00`根的五个物理dword与`0x004776F0`固定对象清零helper复用同一个`LegacyBattleFixedObjectStatePort` owner。动态20字节节点也存入该owner的`fixed_count_nodes`，没有在动作分派、最终角色状态或SDL profile中建立第二条影子链。
+`0x004B9F00`根的五个物理dword与`0x004776F0`固定对象清零helper复用同一个`LegacyBattleFixedObjectState`实例。动态20字节节点也存入该owner的`fixed_count_nodes`，没有在动作分派、最终角色状态或SDL profile中建立第二条影子链。
 
 节点现在由共享状态的实际容器分配和持有，guest身份由既有地址保留器生成。
 固定链分配Port、寄存器请求/回复和动作Port中的invoke转发均已删除。
-固定状态Port本身仍待后续迁移。
+[固定状态访问](battle-fixed-state-direct-data.md)随后已移除Port，直接共享原数据。
 当前分配合同与验证覆盖见[实际分配记录](battle-fixed-chain-owned-allocation.md)。
 本文分配寄存器、短区和分配别名描述保留为原指令及历史夹具分析，
 不再表示当前分配接口可接收这些模拟回复。
@@ -68,7 +68,7 @@ next为0时以固定大小`0x14`调用`0x00487C10`。allocator reply的EAX、ECX
 
 最终角色步进`0x0045AA00`的组B路径在描述符和动作查询后直接组合同一helper。typed-stop阻断攻击顺序移除、处理计数、终止门和组B reset后缀；成功后才继续。两个caller固定传入delta 1，并共享同一端口物理owner，因此同键在后续调用命中既有记录而不会再次分配。
 
-数量设置、查询、次数递增与两种曲线设置已分别迁移为语义接口；固定状态Port及MON内部剩余协议仍待处理。
+数量设置、查询、次数递增与两种曲线设置已分别迁移为语义接口；固定状态Port已移除，MON及固定对象清零中的剩余协议仍待处理。
 
 ## 7. 双向追溯
 
@@ -97,7 +97,7 @@ core与AddressSanitizer分别执行固定链独立目标和角色帧316目标，
 SDL应用构建通过，未启动游戏。
 日志位于`build/tmp/runtime/fixed-count-accumulate-semantic-`前缀下：
 `core-chain.log`、`core-actor.log`、`asan-chain.log`、`asan-actor.log`及`sdl.log`。
-实现、调用方与测试差异已逐项复核；固定状态Port和其他曲线接口仍未迁移完毕。
+实现、调用方与测试差异已逐项复核；固定状态Port和其他曲线接口随后已迁移，尚不代表全项目迁移完成。
 
 ## 8. 历史验证与动态差分
 

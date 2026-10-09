@@ -270,11 +270,6 @@ public:
         };
     }
 
-    [[nodiscard]] LegacyBattleFixedObjectState&
-    legacy_battle_fixed_object_state() noexcept override {
-        return port_.legacy_battle_fixed_object_state();
-    }
-
 private:
     LegacyBattleStartupPort& port_;
 };
@@ -1578,6 +1573,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                 actor_token,
                 0x004C8AD0U + source * 0x40U,
                 request.window_token,
+                port,
                 attribute_aggregation_port
             );
         ++result.party_attribute_aggregation_calls;

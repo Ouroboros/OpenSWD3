@@ -57,7 +57,7 @@ maximum为零时不早退。inclusive夹限先把count写零，再形成`0/0` Na
 
 固定根`0x004B8A00`和动态节点仍使用同一共享状态。
 节点直接由状态容器分配和持有，共用的分配Port及寄存器协议已删除。
-固定状态Port本身尚待后续迁移。
+[固定状态访问](battle-fixed-state-direct-data.md)随后已移除Port，直接共享原数据。
 当前分配与测试合同见[实际分配记录](battle-fixed-chain-owned-allocation.md)。
 本文allocator寄存器及短区回复描述保留为原指令和历史夹具分析。
 
@@ -100,7 +100,7 @@ SDL应用构建通过，未启动游戏。日志位于`build/tmp/runtime/`下：
 首轮断言失败日志为`fixed-definition-curve-set-core-chain.log`。
 完整源码与测试差异已逐项复核；固定链接口及实现已无寄存器参数/结果、
 x87模拟或访问计数。本批旧callee编号仅保留在出处注释中。
-固定状态Port及MON内部剩余协议仍待后续迁移。
+固定状态Port已移除，MON及固定对象清零中的剩余协议仍待后续迁移。
 
 ## 7. 历史验证与动态差分
 

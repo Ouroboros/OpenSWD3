@@ -75,10 +75,9 @@ struct LegacyBattleGroupAAttributeAggregationCallReply {
     compat::u32 edx{};
 };
 
-class LegacyBattleGroupAAttributeAggregationPort
-    : public virtual LegacyBattleFixedObjectStatePort {
+class LegacyBattleGroupAAttributeAggregationPort {
 public:
-    ~LegacyBattleGroupAAttributeAggregationPort() override = default;
+    virtual ~LegacyBattleGroupAAttributeAggregationPort() = default;
 
     [[nodiscard]] virtual LegacyBattleGroupAAttributeAggregationCallReply
     invoke_group_a_attribute_aggregation(
@@ -128,6 +127,7 @@ aggregate_legacy_battle_group_a_attributes(
     compat::u32 actor_token,
     compat::u32 source_table_token,
     compat::u32 window_token,
+    LegacyBattleFixedObjectState& fixed_objects,
     LegacyBattleGroupAAttributeAggregationPort& port,
     // Standalone callers own only workspace; SDL also borrows actor +2F1A.
     compat::u16* effect_curve_index = nullptr

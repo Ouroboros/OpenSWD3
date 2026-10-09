@@ -16,14 +16,12 @@ namespace {
 LegacyBattleObjectResetResult reset_legacy_battle_objects(
     LegacyBattleObjectResetState& state,
     LegacyBattleGlobalResetPort& global_reset_port,
-    LegacyBattleFixedObjectStatePort& fixed_object_state_port,
+    LegacyBattleFixedObjectState& fixed_object_state,
     LegacyBattleActorObjectResetPort& actor_reset_port
 ) {
     LegacyBattleObjectResetResult result;
     LegacyBattleObjectResetCallReply registers =
         global_reset_port.reset_global_state();
-    auto& fixed_object_state =
-        fixed_object_state_port.legacy_battle_fixed_object_state();
     result.global_reset_reply = registers;
     result.global_reset_calls = 1U;
 

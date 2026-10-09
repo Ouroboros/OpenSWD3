@@ -35,6 +35,7 @@ struct AttributePort final : LegacyBattleGroupAAttributeAggregationPort {
         };
     }
 
+    openswd3::battle::LegacyBattleFixedObjectState fixed_objects;
     std::function<void()> on_report;
     std::vector<LegacyBattleGroupAAttributeAggregationCallRequest> requests;
 };
@@ -144,6 +145,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
             0x005029D0U,
             0x004C8AD0U + row * 0x40U,
             0U,
+            port.fixed_objects,
             port
         );
         test.expect_true(
@@ -181,6 +183,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
             0x005029D0U,
             0x004C8AD0U,
             0U,
+            port.fixed_objects,
             port
         );
         test.expect_true(
@@ -235,6 +238,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
             0x005029D0U,
             0x004C8B50U,
             0U,
+            port.fixed_objects,
             port,
             &effect_curve_index
         );
@@ -261,6 +265,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
                 0x005029D0U,
                 0x004C8B50U,
                 0U,
+                port.fixed_objects,
                 port,
                 &effect_curve_index
             );
@@ -305,6 +310,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
             0x005029D0U,
             0x004C8AD0U,
             0U,
+            port.fixed_objects,
             port
         );
         test.expect_true(
@@ -382,6 +388,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
             0x005029D0U,
             0x004C8AD0U,
             0x12345678U,
+            port.fixed_objects,
             port
         );
 
@@ -451,7 +458,15 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
         AttributePort port;
 
         const auto result = aggregate_legacy_battle_group_a_attributes(
-            &state, workspace, configuration, nullptr, 0x005029D0U, 0U, 0U, port
+            &state,
+            workspace,
+            configuration,
+            nullptr,
+            0x005029D0U,
+            0U,
+            0U,
+            port.fixed_objects,
+            port
         );
 
         test.expect_true(
@@ -493,6 +508,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
             0x005029D0U,
             0x004C8AD0U,
             0x12345678U,
+            port.fixed_objects,
             port
         );
 
@@ -535,6 +551,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
                 0x005029D0U,
                 0x004C8AD0U,
                 0U,
+                actor_state_port.fixed_objects,
                 actor_state_port
             );
 
@@ -552,6 +569,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
             0x005029D0U,
             0x004C8AD0U,
             0U,
+            source_port.fixed_objects,
             source_port
         );
 
@@ -571,6 +589,7 @@ void test_battle_group_a_attribute_aggregation(openswd3::test::Context& test) {
                 0x005029D0U,
                 0x004C8AD0U,
                 0U,
+                actor_record_port.fixed_objects,
                 actor_record_port
             );
 

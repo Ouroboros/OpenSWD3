@@ -207,6 +207,7 @@ aggregate_legacy_battle_group_a_attributes(
     const u32 actor_token,
     const u32 source_table_token,
     const u32 window_token,
+    LegacyBattleFixedObjectState& fixed_objects,
     LegacyBattleGroupAAttributeAggregationPort& port,
     u16* const effect_curve_index
 ) {
@@ -340,7 +341,7 @@ aggregate_legacy_battle_group_a_attributes(
                 &embedded,
                 actor_token,
                 embedded_profile_token,
-                port.legacy_battle_fixed_object_state(),
+                fixed_objects,
                 {
                     .entry_eax = embedded_profile_token,
                     .entry_edx = actor_token,

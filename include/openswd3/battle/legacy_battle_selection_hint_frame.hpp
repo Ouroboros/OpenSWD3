@@ -64,7 +64,7 @@ struct LegacyBattleSelectionHintFrameCallReply {
 };
 
 class LegacyBattleSelectionHintFramePort
-    : public virtual LegacyBattleFixedObjectStatePort {
+    : public virtual LegacyBattleFixedObjectState {
 public:
     virtual ~LegacyBattleSelectionHintFramePort() = default;
 

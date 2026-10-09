@@ -22,7 +22,7 @@ struct Event {
 
 class TrackingObjectResetPorts final
     : public openswd3::battle::LegacyBattleGlobalResetPort,
-      public openswd3::battle::LegacyBattleFixedObjectStatePort,
+      public openswd3::battle::LegacyBattleFixedObjectState,
       public openswd3::battle::LegacyBattleActorObjectResetPort {
 public:
     [[nodiscard]] LegacyBattleObjectResetCallReply
@@ -41,14 +41,12 @@ public:
                 std::ranges::all_of(observed_state->table, [](const u32 word) {
                     return word == 0U;
                 });
-            fixed_objects_were_clear_before_actor_loop = std::ranges::all_of(
-                legacy_battle_fixed_object_state().object_words,
-                [](const auto& words) {
+            fixed_objects_were_clear_before_actor_loop =
+                std::ranges::all_of(this->object_words, [](const auto& words) {
                     return std::ranges::all_of(words, [](const u32 word) {
                         return word == 0U;
                     });
-                }
-            );
+                });
         }
         return {
             .eax = request.actor_token ^ 0xA5A5A5A5U,
@@ -98,7 +96,7 @@ void test_battle_object_reset(openswd3::test::Context& test) {
 
     TrackingObjectResetPorts ports;
     ports.observed_state = &state;
-    for (auto& words : ports.legacy_battle_fixed_object_state().object_words) {
+    for (auto& words : ports.object_words) {
         words.fill(0xC0DEC0DEU);
     }
 

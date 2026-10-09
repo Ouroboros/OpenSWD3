@@ -32,24 +32,6 @@ struct LegacyBattleFixedObjectState {
     std::pmr::list<LegacyBattleFixedCountNodeState> fixed_count_nodes;
 };
 
-class LegacyBattleFixedObjectStatePort {
-public:
-    virtual ~LegacyBattleFixedObjectStatePort() = default;
-
-    [[nodiscard]] virtual LegacyBattleFixedObjectState&
-    legacy_battle_fixed_object_state() noexcept {
-        return state_;
-    }
-
-    [[nodiscard]] virtual const LegacyBattleFixedObjectState&
-    legacy_battle_fixed_object_state() const noexcept {
-        return state_;
-    }
-
-private:
-    LegacyBattleFixedObjectState state_{};
-};
-
 enum class LegacyBattleFixedObjectResetStatus : compat::u8 {
     completed,
     object_write_typed_stop,

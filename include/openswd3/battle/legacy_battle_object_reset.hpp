@@ -61,7 +61,7 @@ struct LegacyBattleObjectResetResult {
 [[nodiscard]] LegacyBattleObjectResetResult reset_legacy_battle_objects(
     LegacyBattleObjectResetState& state,
     LegacyBattleGlobalResetPort& global_reset_port,
-    LegacyBattleFixedObjectStatePort& fixed_object_state_port,
+    LegacyBattleFixedObjectState& fixed_object_state,
     LegacyBattleActorObjectResetPort& actor_reset_port
 );
 

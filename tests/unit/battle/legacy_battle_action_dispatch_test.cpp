@@ -1251,15 +1251,12 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
             port.world_item_list_state().player_inventory.front();
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
-                port.legacy_battle_fixed_object_state()
-                        .fixed_count_nodes.size() == 1U &&
+                port.fixed_count_nodes.size() == 1U &&
                 result.fixed_count.path ==
                     openswd3::battle::LegacyBattleFixedCountPath::
                         allocated_node &&
                 port.count(0x00487C10U) == 1U &&
-                port.legacy_battle_fixed_object_state()
-                        .fixed_count_nodes.front()
-                        .words[1U] == 0x00010001U &&
+                port.fixed_count_nodes.front().words[1U] == 0x00010001U &&
                 result.player_item_calls == 1U &&
                 result.player_item.return_token == 0x0063000CU &&
                 item.item_id == 7U && item.quantity_b == 1U &&
@@ -3942,8 +3939,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         static LegacyBattleGroupAActionExecutionSharedState curve_stop_shared;
         curve_stop_shared.shared_motion_word = 8U;
         static DispatchPort curve_stop_port;
-        auto& curve_stop_state =
-            curve_stop_port.legacy_battle_fixed_object_state();
+        auto& curve_stop_state = curve_stop_port;
         curve_stop_state.object_words[1U][0U] = 0x7A000000U;
         curve_stop_state.object_words[1U][1U] = 8U;
         curve_stop_state.fixed_count_nodes.push_back({
@@ -3996,8 +3992,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         skip_actor.field_26c0 = 0x80U;
         static LegacyBattleGroupAActionExecutionSharedState skip_shared;
         static DispatchPort skip_port;
-        skip_port.legacy_battle_fixed_object_state().object_words[1U][1U] =
-            (0x8000U << 16U) | 0x3333U;
+        skip_port.object_words[1U][1U] = (0x8000U << 16U) | 0x3333U;
         skip_port.push(
             0x0047CD60U,
             {.eax = 0xAAAAAAAAU, .ecx = 0xBBBBBBBBU, .edx = 0xCCCCCCCCU}
@@ -7151,8 +7146,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         port.push(
             0x0047F910U, {.eax = 7U, .ecx = 0xAABBCCDDU, .edx = 0x12340000U}
         );
-        port.legacy_battle_fixed_object_state().object_words[0U][1U] =
-            (20U << 16U) | 7U;
+        port.object_words[0U][1U] = (20U << 16U) | 7U;
         auto context = fixture.context();
         const auto result = dispatch(state, port, context, 0U, 0U);
         test.expect_true(
@@ -7228,8 +7222,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         port->push(
             0x0047F910U, {.eax = 7U, .ecx = 0xAABBCCDDU, .edx = 0x12340000U}
         );
-        port->legacy_battle_fixed_object_state().object_words[0U][0U] =
-            0x7A001234U;
+        (*port).object_words[0U][0U] = 0x7A001234U;
         auto context = fixture->context();
         const auto stopped = dispatch(*state, *port, context, 0U, 0U);
         test.expect_true(

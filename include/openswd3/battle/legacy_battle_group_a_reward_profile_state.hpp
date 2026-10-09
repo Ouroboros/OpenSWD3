@@ -28,7 +28,7 @@ struct LegacyBattleGroupARewardProfileState {
 };
 
 class LegacyBattleGroupARewardProfileStatePort
-    : public virtual LegacyBattleFixedObjectStatePort {
+    : public virtual LegacyBattleFixedObjectState {
 public:
     [[nodiscard]] virtual LegacyBattleGroupARewardProfileState&
     group_a_reward_profile_state() noexcept {

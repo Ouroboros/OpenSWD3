@@ -1267,8 +1267,7 @@ class FakePartyDialogPagePorts
 public:
     FakePartyDialogPagePorts() {
         definition[0x44U] = 3U;
-        legacy_battle_fixed_object_state().object_words[2U][1U] =
-            (30U << 16U) | 600U;
+        this->object_words[2U][1U] = (30U << 16U) | 600U;
     }
 
     std::optional<i32> clear_rows() noexcept override {
@@ -1286,11 +1285,16 @@ class FakePartyDialogPorts final
       public virtual openswd3::special_modes::LegacyPartyDialogPorts,
       public openswd3::test::LegacyBattleLevelDatabaseFixture {
 public:
-    FakePartyDialogPorts() {
+    explicit FakePartyDialogPorts(
+        std::pmr::memory_resource* memory = std::pmr::get_default_resource()
+    )
+        : openswd3::battle::LegacyBattleFixedObjectState{
+              .fixed_count_nodes{memory}
+          } {
         record_available = true;
         level_value = 0x12345678U;
         definition[0x44U] = 100U;
-        legacy_battle_fixed_object_state().object_words[2U] = {};
+        this->object_words[2U] = {};
     }
 
     std::optional<i32> insert_column(
@@ -1361,20 +1365,7 @@ public:
         main_events.push_back("delete-error");
         ++deletion_error_count;
     }
-    [[nodiscard]] openswd3::battle::LegacyBattleFixedObjectState&
-    legacy_battle_fixed_object_state() noexcept override {
-        return fixed_node_state;
-    }
 
-    [[nodiscard]] const openswd3::battle::LegacyBattleFixedObjectState&
-    legacy_battle_fixed_object_state() const noexcept override {
-        return fixed_node_state;
-    }
-
-    openswd3::test::FixedNodeMemoryResource fixed_node_memory;
-    openswd3::battle::LegacyBattleFixedObjectState fixed_node_state{
-        .fixed_count_nodes{&fixed_node_memory}
-    };
     bool command_allocation_available{true};
     u32 command_release_count{};
     u32 insertion_error_count{};
@@ -1547,8 +1538,7 @@ public:
         record_available = true;
         level_value = static_cast<u32>(calculated_value);
         definition[0x44U] = 10U;
-        legacy_battle_fixed_object_state().object_words[2U][1U] =
-            (2U << 16U) | 77U;
+        this->object_words[2U][1U] = (2U << 16U) | 77U;
     }
 
     u32 allocate_character_attributes_buffer(const u32 size) noexcept override {
@@ -4043,8 +4033,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     state.visible_record_count = 9U;
     state.viewport_extent = 9U;
     GuardianPorts ports;
-    ports.legacy_battle_fixed_object_state().object_words[1U][1U] = 7U;
-    ports.legacy_battle_fixed_object_state().object_words[1U][2U] = 2U;
+    ports.object_words[1U][1U] = 7U;
+    ports.object_words[1U][2U] = 2U;
     const auto initialized =
         sm::initialize_legacy_standard_mode_guardian_system(
             state, records, {}, ports
@@ -7083,10 +7073,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
           public openswd3::test::LegacyBattleMonDatabaseFixture {
     public:
         SelectionPorts() {
-            legacy_battle_fixed_object_state().object_words[1U][1U] = 7U;
-            legacy_battle_fixed_object_state().object_words[1U][2U] = 400U;
-            legacy_battle_fixed_object_state().object_words[2U][1U] =
-                (0x1234U << 16U) | 7U;
+            this->object_words[1U][1U] = 7U;
+            this->object_words[1U][2U] = 400U;
+            this->object_words[2U][1U] = (0x1234U << 16U) | 7U;
             definition[0x44U] = 0x78U;
             definition[0x45U] = 0x56U;
         }
@@ -7558,8 +7547,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         party_state.guardian_slot = 9U;
         SelectionPorts bonus_ports;
-        bonus_ports.legacy_battle_fixed_object_state().object_words[0U][1U] =
-            (400U << 16U) | 7U;
+        bonus_ports.object_words[0U][1U] = (400U << 16U) | 7U;
         const auto bonus_summary =
             sm::finalize_legacy_standard_mode_guardian_attribute_summary(
                 party_state, &summary_seed, 0x140U, bonus_ports
@@ -7640,8 +7628,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         party_state.attribute_cache_token = 0xCCDD1000U;
         SelectionPorts fixed_curve_stopped_ports;
         auto& fixed_curve_stop_root =
-            fixed_curve_stopped_ports.legacy_battle_fixed_object_state()
-                .object_words[1U];
+            fixed_curve_stopped_ports.object_words[1U];
         fixed_curve_stop_root[0U] = 0x78001234U;
         fixed_curve_stop_root[1U] = 1U;
         const auto fixed_curve_stopped =
@@ -7652,8 +7639,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         party_state.guardian_slot = 7U;
         SelectionPorts fixed_definition_stopped_ports;
         auto& fixed_definition_stop_root =
-            fixed_definition_stopped_ports.legacy_battle_fixed_object_state()
-                .object_words[2U];
+            fixed_definition_stopped_ports.object_words[2U];
         fixed_definition_stop_root[0U] = 0x77005678U;
         fixed_definition_stop_root[1U] = 0U;
         const auto fixed_definition_stopped =
@@ -7669,8 +7655,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             cache_dword(0x18CU) == 0x5A5A5A5AU;
         party_state.guardian_slot = 9U;
         SelectionPorts fixed_count_stopped_ports;
-        fixed_count_stopped_ports.legacy_battle_fixed_object_state()
-            .object_words[0U][0U] = 0x77001234U;
+        fixed_count_stopped_ports.object_words[0U][0U] = 0x77001234U;
         const auto fixed_count_stopped =
             sm::finalize_legacy_standard_mode_guardian_attribute_summary(
                 party_state, &summary_seed, 0x140U, fixed_count_stopped_ports
@@ -7838,8 +7823,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         cache_state.guardian_slot = 9U;
         SelectionPorts cache_ports;
-        cache_ports.legacy_battle_fixed_object_state().object_words[0U][1U] =
-            (400U << 16U) | 7U;
+        cache_ports.object_words[0U][1U] = (400U << 16U) | 7U;
         const auto cache =
             sm::refresh_legacy_standard_mode_guardian_attribute_cache(
                 cache_state, cache_ports
@@ -7882,8 +7866,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             stopped_ports.cache_failure_stage = stage;
             stopped_ports.cache_failure_party = 2U;
             if (stage == 3) {
-                stopped_ports.legacy_battle_fixed_object_state()
-                    .object_words[0U][0U] = 0x79001234U;
+                stopped_ports.object_words[0U][0U] = 0x79001234U;
             }
             const auto stopped =
                 sm::refresh_legacy_standard_mode_guardian_attribute_cache(
@@ -9510,10 +9493,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
           public openswd3::test::LegacyBattleMonDatabaseFixture {
     public:
         InputPorts() {
-            legacy_battle_fixed_object_state().object_words[1U][1U] = 7U;
-            legacy_battle_fixed_object_state().object_words[1U][2U] = 400U;
-            legacy_battle_fixed_object_state().object_words[2U][1U] =
-                (0x1234U << 16U) | 7U;
+            this->object_words[1U][1U] = 7U;
+            this->object_words[1U][2U] = 400U;
+            this->object_words[2U][1U] = (0x1234U << 16U) | 7U;
             definition[0x44U] = 0x78U;
             definition[0x45U] = 0x56U;
         }
@@ -13507,7 +13489,7 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
     state.action_records[6U].action_id = 0x12345678U;
     state.mode_flags = 7;
     RuntimePorts ports;
-    auto& fixed_count_state = ports.legacy_battle_fixed_object_state();
+    auto& fixed_count_state = ports;
     fixed_count_state.object_words[0U][1U] = (1U << 16U) | 1U;
     auto* previous_fixed_count_words = &fixed_count_state.object_words[0U];
     for (u32 record_id = 2U; record_id <= 500U; ++record_id) {
@@ -22761,12 +22743,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     item_party_dialog_page.item_heads[1U] = &dialog_page_first_item;
     item_party_dialog_page.item_category_masks = {1U, 2U, 4U};
     FakePartyDialogPagePorts item_party_dialog_page_ports;
-    item_party_dialog_page_ports.legacy_battle_fixed_object_state()
-        .object_words[0U][1U] = (40U << 16U) | 100U;
-    item_party_dialog_page_ports.legacy_battle_fixed_object_state()
-        .object_words[1U][1U] = 100U;
-    item_party_dialog_page_ports.legacy_battle_fixed_object_state()
-        .object_words[1U][2U] = 20U;
+    item_party_dialog_page_ports.object_words[0U][1U] = (40U << 16U) | 100U;
+    item_party_dialog_page_ports.object_words[1U][1U] = 100U;
+    item_party_dialog_page_ports.object_words[1U][2U] = 20U;
     const auto populated_item_party_dialog_page =
         openswd3::special_modes::populate_legacy_party_dialog_page(
             item_party_dialog_page, item_party_dialog_page_ports
@@ -22831,8 +22810,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         stopped_query_party_dialog_page = item_party_dialog_page;
     FakePartyDialogPagePorts stopped_query_party_dialog_page_ports;
     auto& stopped_curve_root =
-        stopped_query_party_dialog_page_ports.legacy_battle_fixed_object_state()
-            .object_words[1U];
+        stopped_query_party_dialog_page_ports.object_words[1U];
     stopped_curve_root[0U] = 0x7F00ABCDU;
     stopped_curve_root[1U] = 0U;
     const auto stopped_query_party_dialog_page_result =
@@ -22842,10 +22820,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     FakePartyDialogPagePorts definition_stopped_party_dialog_page_ports;
     definition_stopped_party_dialog_page_ports
-        .legacy_battle_fixed_object_state()
         .object_words[1U][1U] = 100U;
     auto& definition_stopped_root = definition_stopped_party_dialog_page_ports
-                                        .legacy_battle_fixed_object_state()
                                         .object_words[2U];
     definition_stopped_root[0U] = 0x7F00DCBAU;
     definition_stopped_root[1U] = 0U;
@@ -23056,7 +23032,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     openswd3::special_modes::LegacyPartyDialogState party_dialog_add_state;
     party_dialog_add_state.page_state.item_heads[0U] = &party_dialog_add_record;
     party_dialog_add_state.page_state.item_category_masks = {1U, 2U, 4U};
-    FakePartyDialogPorts party_dialog_add_ports;
+    openswd3::test::FixedNodeMemoryResource party_dialog_add_memory;
+    FakePartyDialogPorts party_dialog_add_ports{&party_dialog_add_memory};
     const auto party_dialog_added =
         openswd3::special_modes::run_legacy_party_dialog(
             party_dialog_add_state,
@@ -23080,8 +23057,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         party_dialog_add_ports.main_events.end(),
         "release-command"
     );
-    const auto& add_fixed_state =
-        party_dialog_add_ports.legacy_battle_fixed_object_state();
+    const auto& add_fixed_state = party_dialog_add_ports;
     const auto& add_curve_node = add_fixed_state.fixed_count_nodes.front();
     const auto& add_definition_node =
         *std::next(add_fixed_state.fixed_count_nodes.begin());
@@ -23104,7 +23080,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             party_dialog_added.fixed_definition_curve.scale == 7U &&
             party_dialog_added.fixed_count.path ==
                 openswd3::battle::LegacyBattleFixedCountPath::existing_node &&
-            party_dialog_add_ports.fixed_node_memory.outstanding_blocks == 3U &&
+            party_dialog_add_memory.outstanding_blocks == 3U &&
             party_dialog_add_ports.requested_definition_ids ==
                 std::vector<u32>{100U, 100U} &&
             add_fixed_state.fixed_count_nodes.size() == 3U &&
@@ -23150,9 +23126,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     party_dialog_fixed_stop_state.page_state.item_heads[0U] =
         &party_dialog_fixed_stop_record;
     party_dialog_fixed_stop_state.page_state.item_category_masks = {1U, 2U, 4U};
-    FakePartyDialogPorts party_dialog_fixed_stop_ports;
-    auto& fixed_stop_state =
-        party_dialog_fixed_stop_ports.legacy_battle_fixed_object_state();
+    openswd3::test::FixedNodeMemoryResource party_dialog_fixed_stop_memory;
+    FakePartyDialogPorts party_dialog_fixed_stop_ports{
+        &party_dialog_fixed_stop_memory
+    };
+    auto& fixed_stop_state = party_dialog_fixed_stop_ports;
     fixed_stop_state.object_words[1U][1U] = 101U;
     fixed_stop_state.object_words[2U][0U] = 0x75F00000U;
     fixed_stop_state.object_words[2U][1U] = 1U;
@@ -23161,7 +23139,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         .words = {0U, 101U, 0U, 0U, 0U},
         .accessible_bytes = 0x14U,
     });
-    party_dialog_fixed_stop_ports.fixed_node_memory.allocation_enabled = false;
+    party_dialog_fixed_stop_memory.allocation_enabled = false;
     const auto party_dialog_fixed_stopped =
         openswd3::special_modes::run_legacy_party_dialog(
             party_dialog_fixed_stop_state,
@@ -23194,8 +23172,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             party_dialog_fixed_stopped.fixed_definition_curve.scale == 7U &&
             party_dialog_fixed_stop_ports.requested_definition_ids ==
                 std::vector<u32>{101U} &&
-            party_dialog_fixed_stop_ports.legacy_battle_fixed_object_state()
-                    .object_words[0U][0U] == 0U,
+            party_dialog_fixed_stop_ports.object_words[0U][0U] == 0U,
         "0x40F890 preserves the inventory and both earlier typed curves when the shared fixed-count allocation faults before refresh or scratch release"
     );
 
@@ -23211,9 +23188,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     party_dialog_definition_stop_state.page_state.item_category_masks = {
         1U, 2U, 4U
     };
-    FakePartyDialogPorts party_dialog_definition_stop_ports;
-    party_dialog_definition_stop_ports.fixed_node_memory.allocation_enabled =
-        false;
+    openswd3::test::FixedNodeMemoryResource party_dialog_definition_stop_memory;
+    FakePartyDialogPorts party_dialog_definition_stop_ports{
+        &party_dialog_definition_stop_memory
+    };
+    party_dialog_definition_stop_memory.allocation_enabled = false;
     const auto party_dialog_definition_stopped =
         openswd3::special_modes::run_legacy_party_dialog(
             party_dialog_definition_stop_state,
@@ -23267,8 +23246,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     party_dialog_curve_stop_state.page_state.item_category_masks = {
         0x12340001U, 2U, 4U
     };
-    FakePartyDialogPorts party_dialog_curve_stop_ports;
-    party_dialog_curve_stop_ports.fixed_node_memory.allocation_enabled = false;
+    openswd3::test::FixedNodeMemoryResource party_dialog_curve_stop_memory;
+    FakePartyDialogPorts party_dialog_curve_stop_ports{
+        &party_dialog_curve_stop_memory
+    };
+    party_dialog_curve_stop_memory.allocation_enabled = false;
     const auto party_dialog_curve_stopped =
         openswd3::special_modes::run_legacy_party_dialog(
             party_dialog_curve_stop_state,
@@ -23296,13 +23278,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                     allocation_record_access_typed_stop &&
             party_dialog_curve_stopped.fixed_curve.stopped_offset == 0U &&
             party_dialog_curve_stopped.fixed_curve.stopped_token == 0U &&
-            party_dialog_curve_stop_ports.fixed_node_state
-                    .object_words[1U][0U] == 0U &&
+            party_dialog_curve_stop_ports.object_words[1U][0U] == 0U &&
             party_dialog_curve_stop_ports.requested_definition_ids.empty() &&
-            party_dialog_curve_stop_ports.fixed_node_state.fixed_count_nodes
-                .empty() &&
-            party_dialog_curve_stop_ports.fixed_node_memory
-                    .outstanding_blocks == 0U,
+            party_dialog_curve_stop_ports.fixed_count_nodes.empty() &&
+            party_dialog_curve_stop_memory.outstanding_blocks == 0U,
         "0x40F890 preserves the inventory and published null curve link when allocation fails before later categories"
     );
 
@@ -23380,9 +23359,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     party_dialog_update_state.page_state.item_heads[0U] =
         &party_dialog_update_record;
     party_dialog_update_state.page_state.item_category_masks = {1U, 2U, 4U};
-    FakePartyDialogPorts party_dialog_update_ports;
-    party_dialog_update_ports.legacy_battle_fixed_object_state()
-        .object_words[1U][1U] = 100U;
+    openswd3::test::FixedNodeMemoryResource party_dialog_update_memory;
+    FakePartyDialogPorts party_dialog_update_ports{&party_dialog_update_memory};
+    party_dialog_update_ports.object_words[1U][1U] = 100U;
     const auto party_dialog_updated =
         openswd3::special_modes::run_legacy_party_dialog(
             party_dialog_update_state,
@@ -23406,8 +23385,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         party_dialog_update_ports.main_events.end(),
         "clear-rows"
     );
-    const auto& update_fixed_state =
-        party_dialog_update_ports.legacy_battle_fixed_object_state();
+    const auto& update_fixed_state = party_dialog_update_ports;
     const auto& update_definition_node =
         update_fixed_state.fixed_count_nodes.front();
     const auto& update_fixed_node = update_fixed_state.fixed_count_nodes.back();
@@ -23439,8 +23417,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             static_cast<u16>(update_fixed_state.object_words[0U][1U]) == 1U &&
             static_cast<u16>(update_fixed_node.words[1U]) == 100U &&
             static_cast<u16>(update_fixed_node.words[1U] >> 16U) == 20U &&
-            party_dialog_update_ports.fixed_node_memory.outstanding_blocks ==
-                2U &&
+            party_dialog_update_memory.outstanding_blocks == 2U &&
             update_release < update_refresh,
         "0x40F890 directly updates a found player item, preserves a negative signed quantity, sets both typed curves, clamps the low-ID fixed count to twenty, then releases before refresh"
     );
@@ -23469,8 +23446,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             party_dialog_masked_key_ports
         );
     const auto& masked_key_node =
-        party_dialog_masked_key_ports.legacy_battle_fixed_object_state()
-            .fixed_count_nodes.front();
+        party_dialog_masked_key_ports.fixed_count_nodes.front();
     test.expect_true(
         party_dialog_masked_key_updated.action ==
                 PartyDialogAction::item_updated &&
@@ -26089,8 +26065,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         103U, 104U, 105U
     };
     FakeCharacterAttributesPorts character_attributes_rebuild_ports;
-    character_attributes_rebuild_ports.legacy_battle_fixed_object_state()
-        .object_words[2U][1U] = (10U << 16U) | 77U;
+    character_attributes_rebuild_ports.object_words[2U][1U] =
+        (10U << 16U) | 77U;
     const auto character_attributes_rebuild =
         openswd3::special_modes::rebuild_legacy_character_attributes(
             character_attributes_rebuild_state,
@@ -26153,8 +26129,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     character_attributes_rebuild_zero_state.contributions[1U][7U].kind = 0x33U;
     FakeCharacterAttributesPorts character_attributes_rebuild_zero_ports;
     character_attributes_rebuild_zero_ports.definition[0x44U] = 0U;
-    character_attributes_rebuild_zero_ports.legacy_battle_fixed_object_state()
-        .object_words[2U][1U] = (10U << 16U) | 77U;
+    character_attributes_rebuild_zero_ports.object_words[2U][1U] =
+        (10U << 16U) | 77U;
     const auto character_attributes_rebuild_zero =
         openswd3::special_modes::rebuild_legacy_character_attributes(
             character_attributes_rebuild_zero_state,
@@ -26166,7 +26142,6 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         character_attributes_rebuild_definition_stop_ports;
     auto& character_definition_stop_root =
         character_attributes_rebuild_definition_stop_ports
-            .legacy_battle_fixed_object_state()
             .object_words[2U];
     character_definition_stop_root[0U] = 0x7F00CDEFU;
     character_definition_stop_root[1U] = 0U;

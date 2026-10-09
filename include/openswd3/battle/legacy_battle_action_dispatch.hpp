@@ -175,7 +175,7 @@ public:
 
 class LegacyBattleActionDispatchPort
     : public virtual LegacyBattleMonDatabasePort,
-      public virtual LegacyBattleFixedObjectStatePort,
+      public virtual LegacyBattleFixedObjectState,
       public virtual LegacyBattleSummonFramePort,
       public virtual LegacyBattleRetreatCommitPort,
       public virtual LegacyBattleActorMetricStatePort,

@@ -212,8 +212,7 @@ void prepare_label_and_metric(Fixture& fixture, const u32 metric) {
     fixture.port.reply(Call::draw_text, {});
     fixture.port.reply(Call::configure_font_width, {});
     fixture.port.reply(Call::query_metric_source, {.eax = 0x900U});
-    fixture.port.legacy_battle_fixed_object_state().object_words[0U][1U] =
-        (metric << 16U) | 0x900U;
+    fixture.port.object_words[0U][1U] = (metric << 16U) | 0x900U;
 }
 
 }  // namespace
@@ -366,8 +365,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
         fixture.port.reply(Call::draw_text, {});
         fixture.port.reply(Call::configure_font_width, {});
         fixture.port.reply(Call::query_metric_source, {.eax = 0x900U});
-        fixture.port.legacy_battle_fixed_object_state().object_words[0U][1U] =
-            (10U << 16U) | 0x900U;
+        fixture.port.object_words[0U][1U] = (10U << 16U) | 0x900U;
         fixture.port.reply(
             Call::query_metric_pair,
             {
@@ -543,8 +541,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
         fixture.port.reply(Call::draw_text, {});
         fixture.port.reply(Call::configure_font_width, {});
         fixture.port.reply(Call::query_metric_source, {.eax = 0x900U});
-        fixture.port.legacy_battle_fixed_object_state().object_words[0U][0U] =
-            0x78001234U;
+        fixture.port.object_words[0U][0U] = 0x78001234U;
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_hint_frame(
                 fixture.bindings(), fixture.port, request()

@@ -822,7 +822,7 @@ struct LegacyCharacterAttributesState {
 class LegacyCharacterAttributesPorts
     : public virtual battle::LegacyBattleMonDatabasePort,
       public virtual battle::LegacyBattleLevelDatabasePort,
-      public virtual battle::LegacyBattleFixedObjectStatePort {
+      public virtual battle::LegacyBattleFixedObjectState {
 public:
     ~LegacyCharacterAttributesPorts() override = default;
     [[nodiscard]] virtual compat::u32
@@ -3777,7 +3777,7 @@ struct LegacyPartyDialogPageState {
 
 class LegacyPartyDialogPagePorts
     : public virtual LegacyPartyDialogReplaceRowPorts,
-      public virtual battle::LegacyBattleFixedObjectStatePort,
+      public virtual battle::LegacyBattleFixedObjectState,
       public virtual battle::LegacyBattleMonDatabasePort {
 public:
     ~LegacyPartyDialogPagePorts() override = default;
@@ -4805,7 +4805,7 @@ struct LegacyStandardModeGuardianInitializationState;
 
 class LegacyStandardModeGuardianAttributeCachePorts
     : public virtual LegacyGuardianAttributeApplicationPorts,
-      public virtual battle::LegacyBattleFixedObjectStatePort {
+      public virtual battle::LegacyBattleFixedObjectState {
 public:
     virtual ~LegacyStandardModeGuardianAttributeCachePorts() = default;
     [[nodiscard]] virtual std::optional<std::array<compat::u8, 0x38U>>
@@ -6570,7 +6570,7 @@ public:
 
 class LegacyStandardModeRuntimeInitializationPorts
     : public LegacyStandardModeEntryConsumptionPorts,
-      public virtual battle::LegacyBattleFixedObjectStatePort {
+      public virtual battle::LegacyBattleFixedObjectState {
 public:
     ~LegacyStandardModeRuntimeInitializationPorts() override = default;
 };

@@ -2834,7 +2834,7 @@ LegacyCharacterAttributesRebuildResult rebuild_legacy_character_attributes(
         compat::u16 count{};
         result.fixed_definition_curve =
             battle::lookup_legacy_battle_fixed_definition_curve(
-                ports.legacy_battle_fixed_object_state(),
+                ports,
                 ports,
                 static_cast<compat::u16>(contribution.lookup_key),
                 &maximum,
@@ -9210,8 +9210,7 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
             };
             if (matches(state.item_category_masks[0U])) {
                 result.fixed_curve = battle::lookup_legacy_battle_fixed_curve(
-                    ports.legacy_battle_fixed_object_state(),
-                    record->text_index
+                    ports, record->text_index
                 );
                 if (result.fixed_curve.status !=
                     battle::LegacyBattleFixedCountStatus::completed) {
@@ -9227,11 +9226,7 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
                 compat::u16 count{};
                 result.fixed_definition_curve =
                     battle::lookup_legacy_battle_fixed_definition_curve(
-                        ports.legacy_battle_fixed_object_state(),
-                        ports,
-                        record->text_index,
-                        &maximum,
-                        &count
+                        ports, ports, record->text_index, &maximum, &count
                     );
                 if (result.fixed_definition_curve.status !=
                     battle::LegacyBattleFixedDefinitionCurveLookupStatus::
@@ -9245,8 +9240,7 @@ LegacyPartyDialogPageResult populate_legacy_party_dialog_page(
             }
             const auto query_fixed_count = [&]() {
                 result.fixed_count = battle::lookup_legacy_battle_fixed_count(
-                    ports.legacy_battle_fixed_object_state(),
-                    record->text_index
+                    ports, record->text_index
                 );
                 if (result.fixed_count.status !=
                     battle::LegacyBattleFixedCountStatus::completed) {
@@ -9379,7 +9373,7 @@ static bool update_party_dialog_item_categories(
             (static_cast<compat::u16>(record.record_bytes[0x45U]) << 8U)
         );
         result.fixed_curve = battle::set_legacy_battle_fixed_curve(
-            ports.legacy_battle_fixed_object_state(),
+            ports,
             static_cast<compat::u16>(item_key),
             maximum,
             static_cast<compat::u16>(added_bits)
@@ -9395,10 +9389,7 @@ static bool update_party_dialog_item_categories(
     if (second_masked_flags == second_mask) {
         result.fixed_definition_curve =
             battle::set_legacy_battle_fixed_definition_curve(
-                ports.legacy_battle_fixed_object_state(),
-                ports,
-                item_key,
-                static_cast<compat::u16>(added_bits)
+                ports, ports, item_key, static_cast<compat::u16>(added_bits)
             );
         if (result.fixed_definition_curve.status !=
             battle::LegacyBattleFixedDefinitionCurveSetStatus::completed) {
@@ -9411,7 +9402,7 @@ static bool update_party_dialog_item_categories(
     masked_flags &= 0xFFFF7FFFU;
     if (masked_flags == third_mask) {
         result.fixed_count = battle::set_legacy_battle_fixed_count(
-            ports.legacy_battle_fixed_object_state(),
+            ports,
             static_cast<compat::u16>(item_key),
             static_cast<compat::u16>(added_bits)
         );
@@ -9423,7 +9414,7 @@ static bool update_party_dialog_item_categories(
 
     if (record.text_index != 0U && record.text_index <= 0x01F4U) {
         result.fixed_count = battle::set_legacy_battle_fixed_count(
-            ports.legacy_battle_fixed_object_state(),
+            ports,
             static_cast<compat::u16>(item_key),
             static_cast<compat::u16>(added_bits)
         );
@@ -14644,8 +14635,7 @@ initialize_legacy_standard_mode_runtime(
     state.queried_status.fill(0U);
     for (compat::u32 record_id = 1U; record_id <= 0x1F4U; ++record_id) {
         result.fixed_count = battle::lookup_legacy_battle_fixed_count(
-            ports.legacy_battle_fixed_object_state(),
-            static_cast<compat::u16>(record_id)
+            ports, static_cast<compat::u16>(record_id)
         );
         if (result.fixed_count.status !=
             battle::LegacyBattleFixedCountStatus::completed) {
@@ -18548,7 +18538,7 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
         }
         if (seed->text_index != 0xFFDCU) {
             result.fixed_curve = battle::lookup_legacy_battle_fixed_curve(
-                ports.legacy_battle_fixed_object_state(), seed->text_index
+                ports, seed->text_index
             );
             if (result.fixed_curve.status !=
                 battle::LegacyBattleFixedCountStatus::completed) {
@@ -18573,11 +18563,7 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
             compat::u16 count{};
             result.fixed_definition_curve =
                 battle::lookup_legacy_battle_fixed_definition_curve(
-                    ports.legacy_battle_fixed_object_state(),
-                    ports,
-                    seed->text_index,
-                    &maximum,
-                    &count
+                    ports, ports, seed->text_index, &maximum, &count
                 );
             if (result.fixed_definition_curve.status !=
                 battle::LegacyBattleFixedDefinitionCurveLookupStatus::
@@ -18606,8 +18592,7 @@ finalize_legacy_standard_mode_guardian_attribute_summary(
         result.legacy_return_value = seed->text_index;
         if (seed->text_index != 0xFFDCU) {
             result.fixed_count = battle::lookup_legacy_battle_fixed_count(
-                ports.legacy_battle_fixed_object_state(),
-                seed->text_index
+                ports, seed->text_index
             );
             if (result.fixed_count.status !=
                 battle::LegacyBattleFixedCountStatus::completed) {

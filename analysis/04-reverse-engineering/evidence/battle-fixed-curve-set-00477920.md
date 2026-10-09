@@ -47,7 +47,7 @@
 
 固定根`0x004ACBA8`与动态节点仍使用同一共享状态。
 节点改由实际状态容器分配和持有，分配Port、寄存器回复及转发已删除。
-固定状态Port尚待后续迁移，没有建立第二条链。
+[固定状态访问](battle-fixed-state-direct-data.md)随后已移除Port，没有建立第二条链。
 当前分配与测试合同见[实际分配记录](battle-fixed-chain-owned-allocation.md)。
 本文allocator寄存器及短区回复描述保留为原指令和历史夹具分析。
 
@@ -96,7 +96,7 @@ SDL应用构建通过，未启动游戏。日志为`build/tmp/runtime/`下
 `fixed-curve-set-final-format.log`记录非空白内容不变的机械检查。
 生产和测试中已无该request及callee编号调用，原地址仅保留在出处注释。
 [定义曲线设置](battle-fixed-definition-curve-set-00477a20.md)随后已完成语义迁移；
-固定状态Port及MON内部剩余协议仍待处理。
+固定状态Port已移除，MON及固定对象清零中的剩余协议仍待处理。
 
 ## 7. 历史验证与动态差分
 

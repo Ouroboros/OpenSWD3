@@ -907,11 +907,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleFixedCountPath::
                         allocated_node &&
                 port.count(0x004783B0U) == 0U &&
-                port.legacy_battle_fixed_object_state()
-                        .fixed_count_nodes.size() == 1U &&
-                port.legacy_battle_fixed_object_state()
-                        .fixed_count_nodes.front()
-                        .words[1U] == 0x00010055U &&
+                port.fixed_count_nodes.size() == 1U &&
+                port.fixed_count_nodes.front().words[1U] == 0x00010055U &&
                 port.count(0x00475870U) == 0U,
             "every non-one selector reads group B coordinates before descriptor, action and reset suffix"
         );
