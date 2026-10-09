@@ -1,51 +1,48 @@
 #include "openswd3/battle/legacy_battle_frame_completion.hpp"
 #include "test.hpp"
 
-#include <functional>
+#include <memory>
 #include <vector>
 
 namespace {
 
-using openswd3::battle::LegacyBattleFrameCompletionCallReply;
-using openswd3::battle::LegacyBattleFrameCompletionCallRequest;
-using openswd3::battle::LegacyBattleFrameCompletionPort;
+using openswd3::battle::LegacyBattleFrameCompletionStatus;
+using openswd3::battle::update_legacy_battle_frame_completion;
 using openswd3::compat::u32;
 
-class CompletionPort final : public LegacyBattleFrameCompletionPort {
-public:
-    [[nodiscard]] LegacyBattleFrameCompletionCallReply invoke_frame_completion(
-        const LegacyBattleFrameCompletionCallRequest& request
-    ) override {
-        calls.push_back(request);
-        return on_call ? on_call(request, calls.size()) : default_reply;
+struct Fixture {
+    std::unique_ptr<openswd3::battle::LegacyBattleStartupState> startup_owner{
+        std::make_unique<openswd3::battle::LegacyBattleStartupState>()
+    };
+    std::unique_ptr<openswd3::battle::LegacyBattleActionDispatchState>
+        action_owner{std::make_unique<
+            openswd3::battle::LegacyBattleActionDispatchState>()};
+    openswd3::battle::LegacyBattleStartupState& startup{*startup_owner};
+    openswd3::battle::LegacyBattleActionDispatchState& action{*action_owner};
+    openswd3::battle::LegacyBattleActorMetricState& actors{
+        startup.actor_metrics
+    };
+    openswd3::battle::LegacyBattleFinalActorStepState final_actor;
+    openswd3::battle::LegacyBattleOutcomeResolutionState outcome;
+    std::vector<openswd3::battle::LegacyBattleActorFrameLinkedNode> nodes;
+    u32 message_state{};
+
+    Fixture() {
+        actors.priority_actor_index = 0xFFFFFFFFU;
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
     }
 
-    std::vector<LegacyBattleFrameCompletionCallRequest> calls;
-    std::function<LegacyBattleFrameCompletionCallReply(
-        const LegacyBattleFrameCompletionCallRequest&, std::size_t
-    )>
-        on_call;
-    LegacyBattleFrameCompletionCallReply default_reply{};
-};
-
-struct Fixture {
-    openswd3::battle::LegacyBattleActorMetricState actors;
-    openswd3::battle::LegacyBattleFinalActorStepState final_actor;
-    openswd3::battle::LegacyBattleActionDispatchState action;
-    openswd3::battle::LegacyBattleOutcomeResolutionState outcome;
-    openswd3::battle::LegacyBattleStartupResetBlocks startup_reset;
-    u32 message_state{};
-    CompletionPort port;
-
-    [[nodiscard]] openswd3::battle::LegacyBattleFrameCompletionBindings
-    bindings() {
+    openswd3::battle::LegacyBattleFrameCompletionBindings bindings() {
         return {
             .actors = actors,
             .final_actor = final_actor,
             .action = action,
             .outcome = outcome,
-            .startup_reset = startup_reset,
+            .startup = startup,
             .message_state = message_state,
+            .action_nodes = nodes,
         };
     }
 };
@@ -53,205 +50,210 @@ struct Fixture {
 }  // namespace
 
 void test_battle_frame_completion(openswd3::test::Context& test) {
-    using openswd3::battle::LegacyBattleFrameCompletionStatus;
-    using openswd3::battle::update_legacy_battle_frame_completion;
-
     {
         Fixture fixture;
         fixture.actors.priority_actor_index = 7U;
-
-        const auto result = update_legacy_battle_frame_completion(
-            fixture.bindings(),
-            fixture.port,
-            0x11112222U,
-            0x33334444U,
-            0x55556666U
-        );
-
+        fixture.actors.group_a_count = 0xFFFFFFFFU;
+        const auto result =
+            update_legacy_battle_frame_completion(fixture.bindings());
         test.expect_true(
             result.status == LegacyBattleFrameCompletionStatus::completed &&
-                result.return_eax == 0U && result.return_ecx == 0x33334444U &&
-                result.return_edx == 0x55556666U &&
-                result.mask_query_calls == 0U && fixture.port.calls.empty(),
-            "a selected current actor returns zero while preserving entry ECX and EDX before both group scans"
+                !result.group_a_committed && !result.group_b_committed &&
+                fixture.message_state == 0U,
+            "a selected actor skips both groups before any actor or node access"
         );
     }
 
     {
         Fixture fixture;
-        fixture.actors.priority_actor_index = 0xFFFFFFFFU;
         fixture.actors.group_a_count = 3U;
-        fixture.port.frame_completion_state()
-            .group_a_fields[0]
-            .skip_mask_query_a = 1U;
+        fixture.action.group_a_action_execution[0]
+            .action_twenty_seven_motion_mode = 1U;
+        fixture.startup.party[1].progress.scene_identity = 1U;
+        fixture.action.group_a_action_execution[2]
+            .action_twenty_seven_motion_mode = 2U;
+        fixture.startup.party[2].progress.scene_identity = 0xFFFFFFFFU;
+        fixture.startup.party[2].base_initialization.linked_action_head_token =
+            1U;
+        fixture.nodes = {{1U, 0U, 0x10004U}};
+        fixture.action.phase_counter = 0x01010000U;
         fixture.final_actor.excluded_group_a_count = 1U;
         fixture.final_actor.removed_group_a_count = 0xFFU;
-        fixture.port.on_call = [&](const auto&, const std::size_t) {
-            fixture.actors.group_a_count = 2U;
-            return LegacyBattleFrameCompletionCallReply{
-                .eax = 1U,
-                .ecx = 0xAAAABBBBU,
-                .edx = 0xCCCCDDDDU,
-            };
-        };
-
-        const auto result = update_legacy_battle_frame_completion(
-            fixture.bindings(), fixture.port, 0U, 0x12345678U, 0x89ABCDEFU
-        );
-
+        const auto result =
+            update_legacy_battle_frame_completion(fixture.bindings());
         test.expect_true(
             result.group_a_committed && !result.group_b_committed &&
-                result.return_eax == 1U && result.return_ecx == 0x100U &&
-                result.return_edx == 1U && result.group_a_scanned == 2U &&
                 result.group_a_ready_count == 1U &&
-                result.mask_query_calls == 1U &&
-                fixture.port.calls[0].actor_token == 0x00505904U &&
-                fixture.port.calls[0].actor_index == 1U &&
-                fixture.port.calls[0].actor_group == 1U &&
-                fixture.port.calls[0].mask == 4U &&
-                fixture.port.calls[0].eax == 3U &&
-                fixture.port.calls[0].ecx == 0x00505904U &&
-                fixture.port.calls[0].edx == 0x89ABCDEFU &&
                 fixture.final_actor.removed_group_a_count == 0U &&
                 fixture.message_state == 0x67U,
-            "group A skips either exact-one object flag, reloads a shrunken live count after the query, wraps the ready byte, and publishes message 103"
+            "group A reads actual skip fields with exact-one tests and wraps the removed byte when publishing message 103"
         );
     }
 
     {
         Fixture fixture;
-        fixture.actors.priority_actor_index = 0xFFFFFFFFU;
+        fixture.actors.group_a_count = 1U;
+        fixture.startup.party[0].base_initialization.linked_action_head_token =
+            1U;
+        fixture.nodes = {{1U, 2U, 0x40000U}, {2U, 99U, 4U}};
+        const auto result =
+            update_legacy_battle_frame_completion(fixture.bindings());
+        test.expect_true(
+            result.group_a_committed && result.group_a_ready_count == 1U &&
+                result.missing_action_node == 0U,
+            "the query follows next pointers and stops on mask four before reading an invalid trailing link"
+        );
+    }
+
+    {
+        Fixture fixture;
         fixture.actors.group_a_count = 11U;
-        for (auto& fields :
-             fixture.port.frame_completion_state().group_a_fields) {
-            fields.skip_mask_query_b = 1U;
+        for (auto& actor : fixture.startup.party) {
+            actor.progress.scene_identity = 1U;
         }
 
-        const auto result = update_legacy_battle_frame_completion(
-            fixture.bindings(), fixture.port, 0U, 0x12345678U, 0x89ABCDEFU
-        );
-
+        const auto result =
+            update_legacy_battle_frame_completion(fixture.bindings());
         test.expect_true(
             result.status ==
                     LegacyBattleFrameCompletionStatus::
                         group_a_fields_typed_stop &&
-                result.stopped_index == 10U && result.group_a_scanned == 10U &&
-                result.mask_query_calls == 0U && result.return_eax == 11U &&
-                result.return_ecx == 0x12345678U &&
-                result.return_edx == 0x89ABCDEFU && fixture.message_state == 0U,
-            "the eleventh direct group-A field read stops after ten complete skip checks without entering the group-B path"
+                result.stopped_index == 10U && fixture.message_state == 0U,
+            "the eleventh group-A field access retains the existing boundary stop"
         );
     }
 
     {
         Fixture fixture;
-        fixture.actors.priority_actor_index = 0xFFFFFFFFU;
         fixture.actors.group_b_count = 2U;
         fixture.action.packed_actor_counter = 0xAABBCCFFU;
         fixture.final_actor.terminal_mode = 7U;
-        fixture.port.on_call = [](const auto&, const std::size_t call) {
-            return call == 1U
-                ? LegacyBattleFrameCompletionCallReply{
-                      .eax = 1U,
-                      .ecx = 0xAAAA0011U,
-                      .edx = 0x11112222U,
-                  }
-                : LegacyBattleFrameCompletionCallReply{
-                      .eax = 1U,
-                      .ecx = 0x12345678U,
-                      .edx = 0x33334444U,
-                  };
-        };
-
-        const auto result = update_legacy_battle_frame_completion(
-            fixture.bindings(), fixture.port, 0U, 0x01020304U, 0x05060708U
-        );
-
+        (*fixture.startup.group_b_lifecycle)[0]
+            .base_initialization.linked_action_head_token = 1U;
+        (*fixture.startup.group_b_lifecycle)[1]
+            .base_initialization.linked_action_head_token = 2U;
+        fixture.nodes = {{1U, 0U, 4U}, {2U, 0U, 4U}};
+        const auto result =
+            update_legacy_battle_frame_completion(fixture.bindings());
         test.expect_true(
             result.group_b_committed && !result.group_a_committed &&
-                result.return_eax == 1U && result.return_ecx == 0x12345602U &&
-                result.return_edx == 0x101U && result.group_b_scanned == 2U &&
                 result.group_b_ready_count == 2U &&
-                result.mask_query_calls == 2U &&
-                fixture.port.calls[0].actor_token == 0x00525508U &&
-                fixture.port.calls[1].actor_token == 0x00528030U &&
                 fixture.action.packed_actor_counter == 0xAABBCC01U &&
-                fixture.startup_reset.value_53c048 == 1U &&
+                fixture.startup.reset.value_53c048 == 1U &&
                 fixture.final_actor.terminal_mode == 0U &&
                 fixture.message_state == 0x63U,
-            "group B preserves the final query ECX high bytes, compares the full signed count, wraps only the packed low byte, and publishes message 99"
+            "group B reads both owned actor lists and wraps only the packed low byte when publishing message 99"
         );
     }
 
-    {
+    for (const u32 removed : {0U, 254U}) {
         Fixture fixture;
-        fixture.actors.priority_actor_index = 0xFFFFFFFFU;
-        fixture.actors.group_b_count = 1U;
-        fixture.port.default_reply = {
-            .eax = 2U,
-            .ecx = 0xAABBCCDDU,
-            .edx = 0x11223344U,
-        };
-
-        const auto result = update_legacy_battle_frame_completion(
-            fixture.bindings(), fixture.port, 0U, 0U, 0U
-        );
-
-        test.expect_true(
-            result.return_eax == 0U && result.return_ecx == 0xAABBCC00U &&
-                result.return_edx == 0x11223344U &&
-                result.group_b_ready_count == 0U &&
-                fixture.startup_reset.value_53c048 == 0U &&
-                fixture.message_state == 0U,
-            "only an exact-one mask query counts ready while the zero-ready tail keeps the last callee EDX and replaces only CL"
-        );
-    }
-
-    {
-        Fixture fixture;
-        fixture.actors.priority_actor_index = 0xFFFFFFFFU;
-        fixture.actors.group_b_count = 1U;
-        fixture.port.on_call = [&](const auto&, const std::size_t call) {
-            if (call == 1U) {
-                fixture.actors.group_b_count = 3U;
-            }
-            return LegacyBattleFrameCompletionCallReply{
-                .eax = 0U,
-                .ecx = static_cast<u32>(0x44000000U + call),
-                .edx = static_cast<u32>(0x55000000U + call),
-            };
-        };
-
-        const auto result = update_legacy_battle_frame_completion(
-            fixture.bindings(), fixture.port, 0U, 0U, 0U
-        );
-
-        test.expect_true(
-            result.group_b_scanned == 3U && result.mask_query_calls == 3U &&
-                fixture.port.calls[2].actor_token == 0x0052AB58U &&
-                result.return_ecx == 0x44000000U &&
-                result.return_edx == 0x55000003U,
-            "the group-B loop rereads a count grown by the first query and adds no modern iteration cap"
-        );
-    }
-
-    {
-        Fixture fixture;
-        fixture.actors.priority_actor_index = 0xFFFFFFFFU;
         fixture.actors.group_a_count = 1U;
-        fixture.outcome.darkening_gate = 1U;
-        fixture.startup_reset.value_53c048 = 1U;
-        fixture.port.default_reply = {.eax = 1U, .ecx = 9U, .edx = 10U};
-
-        const auto result = update_legacy_battle_frame_completion(
-            fixture.bindings(), fixture.port, 0U, 0U, 0U
-        );
-
+        fixture.action.phase_counter = 0x00020000U;
+        fixture.final_actor.removed_group_a_count =
+            static_cast<openswd3::compat::u8>(removed);
+        fixture.startup.party[0].base_initialization.linked_action_head_token =
+            1U;
+        fixture.nodes = {{1U, 0U, 4U}};
+        const auto result =
+            update_legacy_battle_frame_completion(fixture.bindings());
         test.expect_true(
-            result.return_eax == 0U && result.return_ecx == 1U &&
-                result.return_edx == 1U && !result.group_a_committed &&
-                !result.group_b_committed && fixture.message_state == 0U,
-            "the shared darkening gate blocks a satisfied group-A threshold before the live group-B completion gate returns zero"
+            result.group_a_committed == (removed == 254U) &&
+                result.group_a_ready_count == 1U &&
+                fixture.message_state == (removed == 254U ? 0x67U : 0U),
+            "group A compares against 255 after byte subtraction underflows"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.actors.group_b_count = 1U;
+        auto result = update_legacy_battle_frame_completion(fixture.bindings());
+        test.expect_true(
+            result.status == LegacyBattleFrameCompletionStatus::completed &&
+                !result.group_b_committed && result.group_b_ready_count == 0U,
+            "an empty actor list needs no node allocation and does not complete the group"
+        );
+        fixture.startup.group_b_lifecycle.reset();
+        result = update_legacy_battle_frame_completion(fixture.bindings());
+        test.expect_true(
+            result.status ==
+                    LegacyBattleFrameCompletionStatus::
+                        group_b_fields_typed_stop &&
+                result.stopped_index == 0U && fixture.message_state == 0U,
+            "a nonzero group count cannot silently use missing actor storage"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.actors.group_b_count = 1U;
+        fixture.outcome.darkening_gate = 1U;
+        (*fixture.startup.group_b_lifecycle)[0]
+            .base_initialization.linked_action_head_token = 1U;
+        fixture.nodes = {{1U, 0U, 4U}};
+        const auto result =
+            update_legacy_battle_frame_completion(fixture.bindings());
+        test.expect_true(
+            !result.group_b_committed && result.group_b_ready_count == 1U &&
+                fixture.startup.reset.value_53c048 == 0U &&
+                fixture.message_state == 0U,
+            "darkening suppresses group-B completion without publishing its latch or message"
+        );
+    }
+
+    for (const u32 mask : {0U, 2U, 0x40000U, 4U}) {
+        Fixture fixture;
+        fixture.actors.group_b_count = 1U;
+        (*fixture.startup.group_b_lifecycle)[0]
+            .base_initialization.linked_action_head_token = 1U;
+        fixture.nodes = {{1U, 0U, mask ^ 4U}};
+        auto bindings = fixture.bindings();
+        fixture.nodes[0].status_mask = mask;
+        const auto result = update_legacy_battle_frame_completion(bindings);
+        test.expect_true(
+            result.group_b_committed == (mask == 4U) &&
+                fixture.message_state == (mask == 4U ? 0x63U : 0U),
+            "only the actual node mask bit four completes the group"
+        );
+    }
+
+    for (const u32 darkening : {0U, 1U}) {
+        Fixture fixture;
+        fixture.actors.group_a_count = 1U;
+        fixture.actors.group_b_count = 1U;
+        fixture.outcome.darkening_gate = darkening;
+        fixture.startup.reset.value_53c048 = 1U;
+        fixture.startup.party[0].base_initialization.linked_action_head_token =
+            1U;
+        fixture.nodes = {{1U, 0U, 4U}};
+        const auto result =
+            update_legacy_battle_frame_completion(fixture.bindings());
+        test.expect_true(
+            result.group_a_committed == (darkening == 0U) &&
+                !result.group_b_committed &&
+                fixture.message_state == (darkening == 0U ? 0x67U : 0U),
+            "darkening blocks group A and the shared completion latch blocks the group-B fallback"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.actors.group_a_count = 2U;
+        fixture.startup.party[0].base_initialization.linked_action_head_token =
+            1U;
+        fixture.startup.party[1].base_initialization.linked_action_head_token =
+            2U;
+        fixture.nodes = {{1U, 0U, 4U}, {2U, 3U, 0U}};
+        const auto result =
+            update_legacy_battle_frame_completion(fixture.bindings());
+        test.expect_true(
+            result.status ==
+                    LegacyBattleFrameCompletionStatus::action_node_typed_stop &&
+                result.stopped_index == 1U &&
+                result.missing_action_node == 3U &&
+                result.group_a_ready_count == 1U && fixture.message_state == 0U,
+            "missing node storage preserves the scanned prefix and cannot become a fabricated false query"
         );
     }
 }

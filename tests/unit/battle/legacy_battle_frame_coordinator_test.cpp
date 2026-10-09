@@ -74,14 +74,6 @@ public:
     [[nodiscard]] LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) override {
         calls.push_back(request);
-        if (request.call ==
-                LegacyBattleFrameCoordinatorCall::
-                    frame_completion_query_actor &&
-            completion_group_a_count_after_query.has_value()) {
-            actor_metric_state().group_a_count =
-                *completion_group_a_count_after_query;
-            completion_group_a_count_after_query.reset();
-        }
         const auto found = replies.find(request.call);
         return found == replies.end() ? default_reply : found->second;
     }
@@ -246,7 +238,6 @@ public:
     bool publish_outcome_counts{};
     u32 outcome_group_b_count{};
     u32 outcome_group_a_count{};
-    std::optional<u32> completion_group_a_count_after_query;
     u32 temporary_surface_token{0x70000000U};
     bool music_absent{true};
     std::vector<char> music_operations;
@@ -907,7 +898,6 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
                         group_b_opponent_mode_typed_stop &&
                 result.actor_frame_sequence.frame_results[0U]
                         .group_b_opponent_mode_calls == 1U &&
-                result.frame_completion_calls == 0U &&
                 result.fixed_frame_calls == 0U,
             "missing opponent resource stops after actor update and before frame completion or drawing"
         );
@@ -1737,8 +1727,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                         completed &&
-                result.frame_completion_calls == 1U &&
-                result.frame_completion.return_eax == 0U &&
+                !result.frame_completion.group_a_committed &&
+                !result.frame_completion.group_b_committed &&
                 result.pending_action_calls == 1U &&
                 result.pending_actions.status ==
                     openswd3::battle::LegacyBattlePendingActionStatus::
@@ -2734,8 +2724,6 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.actor_metric_state().priority_actor_index = 0U;
         auto context = fixture->context();
         auto request = base_request();
-        request.post_actor_frame_ecx_snapshot = 0x12345678U;
-        request.post_actor_frame_edx_snapshot = 0x89ABCDEFU;
 
         const auto result_storage = std::unique_ptr<
             openswd3::battle::LegacyBattleFrameCoordinatorResult>(
@@ -2748,14 +2736,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto& result = *result_storage;
 
         test.expect_true(
-            result.frame_completion_calls == 1U &&
-                result.frame_completion.return_eax == 0U &&
-                result.frame_completion.return_ecx == 0x12345678U &&
-                result.frame_completion.return_edx == 0x89ABCDEFU &&
-                result.frame_completion.mask_query_calls == 0U &&
+            !result.frame_completion.group_a_committed &&
+                !result.frame_completion.group_b_committed &&
+                result.frame_completion.group_a_ready_count == 0U &&
+                result.frame_completion.group_b_ready_count == 0U &&
                 result.pending_actions.initial_count == 0U &&
                 result.effect_coordinator_calls == 1U,
-            "the closed completion stage preserves post-actor-frame ECX and EDX on its selected-actor zero return before pending actions"
+            "completion skips both groups while an actor is selected and continues into pending actions"
         );
     }
     {
@@ -2771,8 +2758,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.actor_metric_state().group_a_count = 1U;
         fixture->startup.party[0U].position_x = 1U;
         fixture->startup.party[0U].position_y = 1U;
-        port.completion_group_a_count_after_query = 11U;
-        // Isolate completion's mapping failure after the paused actor frame.
+        fixture->startup.party[0U].base_initialization.linked_action_head_token =
+            0x9000U;
         fixture->action_dispatch.frame_enabled = 0U;
         auto dispatch_context = fixture->action_context();
         dispatch_context.attack_order_adjacent_record =
@@ -2804,12 +2791,33 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                         completed &&
                 result.frame_completion.status ==
                     openswd3::battle::LegacyBattleFrameCompletionStatus::
-                        group_a_fields_typed_stop &&
-                result.frame_completion.stopped_index == 10U &&
+                        action_node_typed_stop &&
+                result.frame_completion.stopped_index == 0U &&
+                result.frame_completion.missing_action_node == 0x9000U &&
                 result.pending_action_calls == 0U &&
                 result.effect_coordinator_calls == 0U &&
                 result.fixed_frame_calls == 0U,
             "frame-completion typed stop preserves the completed actor-frame stage then blocks pending actions effects and rendering"
+        );
+
+        const std::array<openswd3::battle::LegacyBattleActorFrameLinkedNode, 1>
+            action_nodes{{{0x9000U, 0U, 4U}}};
+        context.actor_action_nodes = action_nodes;
+        const auto resumed = std::unique_ptr<
+            openswd3::battle::LegacyBattleFrameCoordinatorResult>(
+            new openswd3::battle::LegacyBattleFrameCoordinatorResult(
+                openswd3::battle::run_legacy_battle_frame_coordinator(
+                    state, port, context, base_request()
+                )
+            )
+        );
+        test.expect_true(
+            resumed->frame_completion.status ==
+                    openswd3::battle::LegacyBattleFrameCompletionStatus::completed &&
+                resumed->frame_completion.group_a_committed &&
+                resumed->frame_completion.group_a_ready_count == 1U &&
+                resumed->pending_action_calls == 1U,
+            "the coordinator reads the supplied live node for the existing actor head and continues after a completed group-A update"
         );
     }
     {

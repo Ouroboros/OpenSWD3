@@ -413,21 +413,15 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             LegacyBattleFrameCoordinatorStatus::actor_frame_typed_stop;
         return result;
     }
-    result.frame_completion = update_legacy_battle_frame_completion(
-        {
-            .actors = port.actor_metric_state(),
-            .final_actor = context.final_actor_step,
-            .action = context.action_dispatch,
-            .outcome = port.outcome_resolution_state(),
-            .startup_reset = context.startup.reset,
-            .message_state = port.battle_message_state(),
-        },
-        port,
-        result.actor_frame_sequence.return_value,
-        request.post_actor_frame_ecx_snapshot,
-        request.post_actor_frame_edx_snapshot
-    );
-    ++result.frame_completion_calls;
+    result.frame_completion = update_legacy_battle_frame_completion({
+        .actors = port.actor_metric_state(),
+        .final_actor = context.final_actor_step,
+        .action = context.action_dispatch,
+        .outcome = port.outcome_resolution_state(),
+        .startup = context.startup,
+        .message_state = port.battle_message_state(),
+        .action_nodes = context.actor_action_nodes,
+    });
     if (result.frame_completion.status !=
         LegacyBattleFrameCompletionStatus::completed) {
         result.status =
@@ -442,8 +436,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
                 &port.effect_coordinator_state().intensity_records[0],
             .global_mode = port.effect_coordinator_state().global_mode,
         },
-        port,
-        result.frame_completion.return_edx
+        port
     );
     ++result.pending_action_calls;
     if (result.pending_actions.status !=

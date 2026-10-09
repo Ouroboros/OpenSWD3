@@ -849,6 +849,7 @@ public:
 struct LegacyBattleActorFrameLinkedNode {
     compat::u32 token{};
     compat::u32 next_token{};
+    compat::u32 status_mask{};
 };
 
 class LegacyBattleActorFrameLinkedNodeResolverPort {

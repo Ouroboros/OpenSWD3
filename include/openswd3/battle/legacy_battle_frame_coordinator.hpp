@@ -92,7 +92,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     pending_action_ready_query,
     pending_action_commit_actor,
     reserved_pending_action_remove_actor_record,
-    frame_completion_query_actor,
     attack_order_dequeue_query_actor,
     selection_frame_query_group_a_replacement,
     reserved_selection_frame_prepare_selected_actor_slot,
@@ -400,7 +399,6 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattleVerticalShiftPort,
       public LegacyBattleAttackOrderDequeuePort,
       public LegacyBattlePendingActionPort,
-      public LegacyBattleFrameCompletionPort,
       public LegacyBattleFrameInputResolutionPort,
       public virtual LegacyBattleFrameSurfacePort,
       public LegacyBattleSelectionFramePort,
@@ -1896,26 +1894,6 @@ public:
         return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
     }
 
-    [[nodiscard]] LegacyBattleFrameCompletionCallReply invoke_frame_completion(
-        const LegacyBattleFrameCompletionCallRequest& request
-    ) override {
-        const auto reply = invoke({
-            .call =
-                LegacyBattleFrameCoordinatorCall::frame_completion_query_actor,
-            .arguments =
-                {
-                    request.actor_token,
-                    request.actor_index,
-                    request.actor_group,
-                    request.mask,
-                },
-            .eax = request.eax,
-            .ecx = request.ecx,
-            .edx = request.edx,
-        });
-        return {.eax = reply.eax, .ecx = reply.ecx, .edx = reply.edx};
-    }
-
     [[nodiscard]] compat::u32 resolve_vertical_shift_surface(
         const compat::u32 owner_token, const compat::u32 selector
     ) override {
@@ -1958,8 +1936,6 @@ struct LegacyBattleFrameCoordinatorRequest {
     LegacyBattleEffectCoordinatorRequest effect_coordinator_request{};
     compat::u32 attack_order_dequeue_edx_snapshot{};
     LegacyBattleSelectionFrameRequest selection_frame_request{};
-    compat::u32 post_actor_frame_ecx_snapshot{};
-    compat::u32 post_actor_frame_edx_snapshot{};
     compat::u32 post_frame_zero_ecx_snapshot{};
     compat::u32 post_tiled_frame_ecx_snapshot{};
     compat::u32 post_tiled_frame_edx_snapshot{};
@@ -2015,6 +1991,7 @@ struct LegacyBattleFrameCoordinatorContext {
     world_map::LegacyWorldPlayerControlState& player_control;
     world_map::LegacyWorldStoryVmState& story_vm;
     compat::u32& target_ready_gate;
+    std::span<const LegacyBattleActorFrameLinkedNode> actor_action_nodes{};
     LegacyBattleActorFrameAdvanceContext* actor_frames{};
     std::span<const compat::u8> maps_payload{};
     std::span<compat::u8> shared_text{};
@@ -2096,7 +2073,6 @@ struct LegacyBattleFrameCoordinatorResult {
     LegacyBattleActorFrameSequenceResult actor_frame_sequence{};
     compat::u32 actor_frame_sequence_calls{};
     LegacyBattleFrameCompletionResult frame_completion{};
-    compat::u32 frame_completion_calls{};
     LegacyBattlePendingActionResult pending_actions{};
     compat::u32 pending_action_calls{};
     LegacyBattleEffectCoordinatorResult effect_coordinator{};
