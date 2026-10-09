@@ -144,3 +144,30 @@ MAPS来源直接使用既有目录读取函数，流操作直接使用真实`Leg
 完整差异审查和`git diff --check`通过；审查后仅修正测试诊断中对淡出除数的措辞。
 日志为`build/tmp/runtime/world-music-without-port-{core,asan,media,sdl}.log`。
 历史第6节数字不代表本批执行范围。
+
+## 8. 媒体获取Port移除
+
+删除`LegacyMediaAcquisitionPorts`及其测试替身。配置目录解析直接维护借入的实际
+音频资源，再设置等待位，调用`resource_io::legacy_exclusive_file_probe`查找标记。
+两种布局顺序、不可用返回以及取消时保留等待位的独立操作均不变，不新增等待或停点。
+
+`0x00412050..0x004120A0`以零访问权限、零共享、`OPEN_EXISTING`及
+`0x10000080`打开标记，成功后关闭句柄，不读取内容。复用的Windows探测实现保留
+这些参数。POSIX探测补充`fstat`目录拒绝，避免目录冒充标记；所有已打开的描述符
+均在返回前关闭，失败原因保留给可选错误缓冲区。未修改既有POSIX共享和访问权限适配。
+
+媒体测试改用实际临时文件与目录，覆盖直接布局、嵌套布局、两者同时存在时的优先级、
+两者缺失、父路径不是目录，以及直接标记是目录时的嵌套回退。通过实际流回收与共享
+标志观察证明音频维护发生在等待位设置前，删除探测列表和调用次数模拟。
+已有音频协调测试的backend提取为共用测试资料，原有队列与维护断言保留。
+
+调用方扫描表明该配置目录API目前只有单元测试调用，尚未接入SDL启动流程。
+本批只证明API和全部现有调用方迁移，不把链接成功写成完整启动或真实光盘验证。
+音频队列Port也仍未迁移：LST `0x004855C4`要求播放流前调用`MessageBeep(0)`，
+现有SDL队列实现的提示音为空；后续须落实实际平台行为，不能替换为另一个空转发层。
+
+6并发验证通过：媒体获取、文件探测、共用资料提取后的音频协调，core与ASan
+各3项定向测试通过；SDL应用链接通过。完整差异复核与`git diff --check`通过。
+最终媒体及链接日志为`build/tmp/runtime/media-acquisition-final-{core,asan,sdl}.log`，
+文件测试为`media-acquisition-file-probe-{core,asan}.log`，音频协调测试为
+`media-acquisition-shared-fixture-{core,asan}.log`，均位于同一日志目录。

@@ -57,9 +57,21 @@ bool legacy_exclusive_file_probe(
     return true;
 #else
     const int file = ::open(path.c_str(), O_RDONLY);
-    if (file == -1) {
+    int failure = file == -1 ? errno : 0;
+    if (file != -1) {
+        struct stat information{};
+        if (::fstat(file, &information) != 0) {
+            failure = errno;
+        } else if (S_ISDIR(information.st_mode)) {
+            failure = EISDIR;
+        }
+
+        static_cast<void>(::close(file));
+    }
+
+    if (failure != 0) {
         if (!error_buffer.empty()) {
-            const char* const message = std::strerror(errno);
+            const char* const message = std::strerror(failure);
             const std::size_t copied =
                 std::min(error_buffer.size() - 1U, std::strlen(message));
             std::copy_n(message, copied, error_buffer.begin());
@@ -69,7 +81,6 @@ bool legacy_exclusive_file_probe(
         return false;
     }
 
-    static_cast<void>(::close(file));
     return true;
 #endif
 }

@@ -334,6 +334,17 @@ void test_exclusive_file_probe(openswd3::test::Context& test) {
         error[0] != '\0',
         "failed probe formats the platform error into the caller buffer"
     );
+    std::filesystem::create_directory(tree.path("directory"));
+    error.fill('\0');
+    test.expect_false(
+        legacy_exclusive_file_probe(tree.path("directory"), error),
+        "a directory is not a file handle opened without backup semantics"
+    );
+    test.expect_true(error[0] != '\0', "directory rejection reports an error");
+    test.expect_true(
+        std::filesystem::remove(tree.path("directory")),
+        "a rejected directory probe retains no open handle"
+    );
 }
 
 }  // namespace

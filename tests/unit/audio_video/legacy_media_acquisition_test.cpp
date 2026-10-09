@@ -1,13 +1,14 @@
 #include "test.hpp"
+#include "legacy_audio_fixture.hpp"
 
 #include "openswd3/audio_video/legacy_media_acquisition.hpp"
 
+#include <chrono>
 #include <filesystem>
-#include <vector>
+#include <fstream>
 
 namespace {
 
-using openswd3::audio_video::LegacyMediaAcquisitionPorts;
 using openswd3::audio_video::LegacyMediaLocationStatus;
 using openswd3::audio_video::begin_legacy_media_wait;
 using openswd3::audio_video::cancel_legacy_media_wait;
@@ -16,20 +17,37 @@ using openswd3::audio_video::legacy_optical_media_marker_path;
 using openswd3::audio_video::resolve_configured_legacy_media;
 using openswd3::compat::u32;
 
-class RecordingPorts final : public LegacyMediaAcquisitionPorts {
+class MediaFixture {
 public:
-    void service_audio() override {
-        ++service_count;
+    MediaFixture() {
+        root = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
+            ("media-acquisition-" +
+             std::to_string(
+                 std::chrono::steady_clock::now().time_since_epoch().count()
+             ));
+        std::filesystem::create_directories(root / "swd3");
+        static_cast<void>(streams.initialize_pool(1U));
+        static_cast<void>(streams.play("completed.mp3", 100, 64, 1));
+        backend.completed = true;
     }
 
-    bool file_exists(const std::filesystem::path& path) override {
-        probes.push_back(path);
-        return path == available_path;
+    ~MediaFixture() {
+        std::error_code ignored;
+        std::filesystem::remove_all(root, ignored);
     }
 
-    std::filesystem::path available_path;
-    std::vector<std::filesystem::path> probes;
-    std::size_t service_count{};
+    openswd3::audio_video::LegacyAudioMaintenanceBindings audio() {
+        return {queue, streams, sequences, samples};
+    }
+
+    std::filesystem::path root;
+    openswd3::test::MaintenanceBackend backend;
+    openswd3::audio_video::LegacySndArchive archive;
+    openswd3::audio_video::LegacyStreamManager streams{backend};
+    openswd3::audio_video::LegacySequenceManager sequences{backend};
+    openswd3::audio_video::LegacySampleManager samples{backend, archive};
+    openswd3::test::RecordingQueuePorts queue_ports;
+    openswd3::audio_video::LegacyAudioQueueCoordinator queue{queue_ports};
 };
 
 void test_flag_transitions(openswd3::test::Context& test) {
@@ -49,82 +67,96 @@ void test_flag_transitions(openswd3::test::Context& test) {
 }
 
 void test_media_path_resolution(openswd3::test::Context& test) {
-    const std::filesystem::path root{"/media/disc"};
-    test.expect_equal(
-        legacy_optical_media_marker_path(root),
-        root / "swd3" / "swd3_dvd.dat",
-        "original optical-media layout is root/swd3/swd3_dvd.dat"
-    );
+    for (const bool direct : {false, true}) {
+        for (const bool nested : {false, true}) {
+            MediaFixture fixture;
+            const auto direct_marker = fixture.root / "swd3_dvd.dat";
+            const auto nested_marker = fixture.root / "swd3" / "swd3_dvd.dat";
+            if (direct) {
+                std::ofstream{direct_marker, std::ios::binary}.put('\0');
+            }
 
-    {
-        RecordingPorts ports;
-        ports.available_path = root / "swd3_dvd.dat";
-        u32 flags{};
-        const auto result = resolve_configured_legacy_media(root, flags, ports);
+            if (nested) {
+                std::ofstream{nested_marker, std::ios::binary}.put('\0');
+            }
 
-        test.expect_equal(
-            result.status,
-            LegacyMediaLocationStatus::available,
-            "configured game directory is accepted directly"
-        );
-        test.expect_equal(result.game_directory, root, "direct game root");
-        test.expect_false(
-            result.used_original_disc_layout,
-            "direct directory is the modern compatibility path"
-        );
-        test.expect_equal(flags, 0U, "direct success clears wait state");
-        test.expect_equal(ports.service_count, std::size_t{1U}, "audio served");
-        test.expect_equal(
-            ports.probes,
-            std::vector<std::filesystem::path>{root / "swd3_dvd.dat"},
-            "direct marker is checked first"
-        );
+            test.expect_equal(
+                legacy_optical_media_marker_path(fixture.root),
+                nested_marker,
+                "original optical-media layout is root/swd3/swd3_dvd.dat"
+            );
+            u32 flags{0x84U};
+            fixture.backend.process_flags = &flags;
+            const auto result = resolve_configured_legacy_media(
+                fixture.root, flags, fixture.audio()
+            );
+            test.expect_equal(
+                fixture.backend.observed_process_flags,
+                std::optional<u32>{0x84U},
+                "actual audio maintenance precedes setting the wait bit"
+            );
+            test.expect_true(
+                fixture.streams.active_stream_count() == 0U &&
+                    fixture.streams.free_stream_count() == 2U &&
+                    fixture.queue.state().pending_mode == 0,
+                "media lookup services the actual queue and reclaims completed streams"
+            );
+            test.expect_equal(
+                flags,
+                0x84U,
+                "every result clears wait and preserves unrelated flags"
+            );
+            if (direct || nested) {
+                test.expect_true(
+                    result.status == LegacyMediaLocationStatus::available &&
+                        result.game_directory ==
+                            (direct ? fixture.root : fixture.root / "swd3") &&
+                        result.marker_path ==
+                            (direct ? direct_marker : nested_marker) &&
+                        result.used_original_disc_layout == !direct,
+                    "actual marker files resolve the configured directory before the nested layout"
+                );
+            } else {
+                test.expect_true(
+                    result.status == LegacyMediaLocationStatus::unavailable &&
+                        result.game_directory.empty() &&
+                        result.marker_path.empty() &&
+                        !std::filesystem::exists(direct_marker) &&
+                        !std::filesystem::exists(nested_marker),
+                    "failed probes report unavailable without creating marker files"
+                );
+            }
+        }
     }
 
     {
-        RecordingPorts ports;
-        ports.available_path = root / "swd3" / "swd3_dvd.dat";
-        u32 flags{0x80U};
-        const auto result = resolve_configured_legacy_media(root, flags, ports);
-
-        test.expect_equal(
-            result.status,
-            LegacyMediaLocationStatus::available,
-            "original disc directory remains accepted"
-        );
-        test.expect_equal(
-            result.game_directory,
-            root / "swd3",
-            "disc root resolves to its nested game directory"
+        MediaFixture fixture;
+        std::filesystem::create_directory(fixture.root / "swd3_dvd.dat");
+        const auto marker = fixture.root / "swd3" / "swd3_dvd.dat";
+        std::ofstream{marker, std::ios::binary}.put('\0');
+        u32 flags{};
+        const auto result = resolve_configured_legacy_media(
+            fixture.root, flags, fixture.audio()
         );
         test.expect_true(
-            result.used_original_disc_layout,
-            "result records original disc layout"
-        );
-        test.expect_equal(flags, 0x80U, "unrelated flags are preserved");
-        test.expect_equal(
-            ports.probes,
-            std::vector<std::filesystem::path>{
-                root / "swd3_dvd.dat",
-                root / "swd3" / "swd3_dvd.dat",
-            },
-            "legacy nested marker follows the configured-directory probe"
+            result.status == LegacyMediaLocationStatus::available &&
+                result.used_original_disc_layout &&
+                result.marker_path == marker && flags == 0U,
+            "a directory cannot masquerade as the marker or prevent nested-file fallback"
         );
     }
 
-    {
-        RecordingPorts ports;
-        u32 flags{0x40U};
-        const auto result = resolve_configured_legacy_media(root, flags, ports);
-
-        test.expect_equal(
-            result.status,
-            LegacyMediaLocationStatus::unavailable,
-            "missing marker is explicit instead of entering an optical loop"
-        );
-        test.expect_equal(flags, 0x40U, "unavailable result clears wait bit");
-        test.expect_equal(ports.probes.size(), std::size_t{2U}, "two layouts");
-    }
+    MediaFixture fixture;
+    const auto regular_file = fixture.root / "not-a-directory";
+    std::ofstream{regular_file, std::ios::binary}.put('\0');
+    u32 flags{0x40U};
+    const auto result =
+        resolve_configured_legacy_media(regular_file, flags, fixture.audio());
+    test.expect_true(
+        result.status == LegacyMediaLocationStatus::unavailable &&
+            flags == 0x40U,
+        "an invalid parent path follows the normal unavailable path without throwing"
+    );
 }
 
 }  // namespace

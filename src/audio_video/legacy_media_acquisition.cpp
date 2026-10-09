@@ -1,5 +1,7 @@
 #include "openswd3/audio_video/legacy_media_acquisition.hpp"
 
+#include "openswd3/resource_io/legacy_file.hpp"
+
 namespace openswd3::audio_video {
 namespace {
 
@@ -29,14 +31,14 @@ legacy_optical_media_marker_path(const std::filesystem::path& media_root) {
 LegacyMediaLocationResult resolve_configured_legacy_media(
     const std::filesystem::path& configured_data_directory,
     compat::u32& process_flags,
-    LegacyMediaAcquisitionPorts& ports
+    LegacyAudioMaintenanceBindings audio
 ) {
-    ports.service_audio();
+    maintain_legacy_audio(audio);
     begin_legacy_media_wait(process_flags);
 
     const std::filesystem::path direct_marker =
         configured_data_directory / kLegacyMediaMarkerFilename;
-    if (ports.file_exists(direct_marker)) {
+    if (resource_io::legacy_exclusive_file_probe(direct_marker)) {
         complete_legacy_media_wait(process_flags);
         return {
             LegacyMediaLocationStatus::available,
@@ -48,7 +50,7 @@ LegacyMediaLocationResult resolve_configured_legacy_media(
 
     const std::filesystem::path disc_marker =
         legacy_optical_media_marker_path(configured_data_directory);
-    if (ports.file_exists(disc_marker)) {
+    if (resource_io::legacy_exclusive_file_probe(disc_marker)) {
         complete_legacy_media_wait(process_flags);
         return {
             LegacyMediaLocationStatus::available,
