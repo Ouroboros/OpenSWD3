@@ -71,11 +71,7 @@ struct Fixture {
 
     LegacyBattleActorStartupResetResult reset() {
         return reset_legacy_battle_group_a_for_startup(
-            *startup,
-            action,
-            final_actor,
-            heap,
-            {.actor_index = 0U, .entry_edx = 7U}
+            *startup, action, final_actor, heap, {.actor_index = 0U}
         );
     }
 };
@@ -392,7 +388,7 @@ void test_battle_group_a_startup_reset(openswd3::test::Context& test) {
         const auto& party = fixture.startup->party[0U];
         test.expect_true(
             result.status == LegacyBattleActorStartupResetStatus::completed &&
-                result.returned && fixture.heap.released.empty() &&
+                fixture.heap.released.empty() &&
                 party.configuration.actor_record_token == 0x71000000U &&
                 party.secondary_resource_token == 0x72000000U &&
                 std::ranges::all_of(

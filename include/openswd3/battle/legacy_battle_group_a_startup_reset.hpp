@@ -35,7 +35,6 @@ struct LegacyBattleGroupAStartupResetRequest {
     compat::u32 actor_index{};
     compat::u32 object_readable_bytes{kLegacyBattleActorGroupAElementSize};
     compat::u32 object_writable_bytes{kLegacyBattleActorGroupAElementSize};
-    compat::u32 entry_edx{};
 };
 
 // 0x0047D350 at the initial-party caller, borrowing its existing owners.

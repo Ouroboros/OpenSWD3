@@ -145,10 +145,9 @@ LegacyBattleGroupBStorage::initialize_enemy(
         startup.enemies[index].progress,
         action.group_b_reward_scale[index],
         particle,
-        *this,
-        0U
+        *this
     );
-    if (!reset.returned) {
+    if (reset.status != LegacyBattleActorStartupResetStatus::completed) {
         return LegacyBattleGroupBStartupBindingStatus::actor_reset_typed_stop;
     }
 

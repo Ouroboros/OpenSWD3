@@ -26,8 +26,7 @@ public:
 
 // Each access borrows the actor's existing storage. Implementations must not
 // copy an actor into a second persistent image and synchronize it afterward.
-class LegacyBattleActorStartupResetPort
-    : public LegacyBattleActorStartupResetHeapPort {
+class LegacyBattleActorStartupResetPort {
 public:
     virtual ~LegacyBattleActorStartupResetPort() = default;
 
@@ -54,12 +53,8 @@ struct LegacyBattleActorStartupResetResult {
     LegacyBattleActorStartupResetStatus status{
         LegacyBattleActorStartupResetStatus::completed
     };
-    LegacyBattleActorStartupResetRegisters registers{};
     compat::u32 stopped_instruction{};
     compat::u32 stopped_offset_or_token{};
-    compat::u32 actor_writes{};
-    compat::u32 heap_release_calls{};
-    bool returned{};
 };
 
 // 0x0047D350 and its constant-one 0x0047E950 call. The zero-argument
@@ -67,8 +62,7 @@ struct LegacyBattleActorStartupResetResult {
 [[nodiscard]] LegacyBattleActorStartupResetResult
 reset_legacy_battle_actor_for_startup(
     LegacyBattleActorStartupResetPort& port,
-    compat::u32 actor_token,
-    compat::u32 entry_edx
+    LegacyBattleActorStartupResetHeapPort& heap
 );
 
 }  // namespace openswd3::battle

@@ -17,8 +17,7 @@ reset_legacy_battle_group_b_for_startup(
     LegacyBattleActorProgressState& progress,
     LegacyBattleRewardScaleActorState& reward,
     LegacyBattleTargetPhaseState& particle,
-    LegacyBattleActorStartupResetHeapPort& heap,
-    compat::u32 entry_edx
+    LegacyBattleActorStartupResetHeapPort& heap
 );
 
 }  // namespace openswd3::battle

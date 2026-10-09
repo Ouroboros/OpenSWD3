@@ -15,7 +15,8 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 using namespace openswd3::battle;
 
-class ResetPort final : public LegacyBattleActorStartupResetPort {
+class ResetPort final : public LegacyBattleActorStartupResetPort,
+                        public LegacyBattleActorStartupResetHeapPort {
 public:
     ResetPort() {
         actor.fill(0xA5U);
@@ -105,12 +106,12 @@ public:
 
 void test_reset_ranges(openswd3::test::Context& test) {
     ResetPort port;
-    const auto result =
-        reset_legacy_battle_actor_for_startup(port, 0x00525508U, 0x1234ABCDU);
-    test.expect_true(result.returned, "actor reset returns");
-    test.expect_equal(result.registers.eax, 0xFFFFFFFFU, "reset EAX");
-    test.expect_equal(result.registers.ecx, 0x00527F5EU, "reset ECX");
-    test.expect_equal(result.registers.edx, 0x1234ABCDU, "no-free EDX");
+    const auto result = reset_legacy_battle_actor_for_startup(port, port);
+    test.expect_equal(
+        result.status,
+        LegacyBattleActorStartupResetStatus::completed,
+        "actor reset completes"
+    );
 
     // Byte intervals independently derived from the REP/STOS instructions.
     constexpr std::array<std::array<u32, 2>, 8> zero_ranges{{
@@ -169,13 +170,17 @@ void test_resource_release(openswd3::test::Context& test) {
             port.store(0x2AA0U, runtime);
             port.store(0x000CU, resource);
             const auto result =
-                reset_legacy_battle_actor_for_startup(port, 0x00525508U, 0U);
+                reset_legacy_battle_actor_for_startup(port, port);
             const bool frees = runtime == 1U && resource != 0U;
-            test.expect_true(result.returned, "resource branch returns");
             test.expect_equal(
-                result.heap_release_calls,
-                frees ? 1U : 0U,
-                "only exact-one ownership frees"
+                result.status,
+                LegacyBattleActorStartupResetStatus::completed,
+                "resource branch completes"
+            );
+            test.expect_equal(
+                port.released,
+                frees ? std::vector<u32>{resource} : std::vector<u32>{},
+                "only exact-one ownership frees the resource"
             );
             test.expect_equal(
                 port.load(0x000CU),
@@ -191,11 +196,6 @@ void test_resource_release(openswd3::test::Context& test) {
                     0xA5A5A5A5U,
                     "defaults follow free"
                 );
-                test.expect_equal(
-                    result.registers.edx,
-                    0xCAFE1234U,
-                    "free EDX survives suffix"
-                );
             }
         }
     }
@@ -204,7 +204,7 @@ void test_resource_release(openswd3::test::Context& test) {
     failed.store(0x2AA0U, 1U);
     failed.store(0x000CU, 0xD000U);
     failed.fail_release_token = 0xD000U;
-    const auto result = reset_legacy_battle_actor_for_startup(failed, 1U, 0U);
+    const auto result = reset_legacy_battle_actor_for_startup(failed, failed);
     test.expect_equal(
         result.status,
         LegacyBattleActorStartupResetStatus::heap_release_typed_stop,
@@ -231,7 +231,7 @@ void test_linked_release(openswd3::test::Context& test) {
             port.fail_release_token = 0x2000U;
         }
 
-        const auto result = reset_legacy_battle_actor_for_startup(port, 1U, 0U);
+        const auto result = reset_legacy_battle_actor_for_startup(port, port);
         test.expect_equal(
             port.released,
             std::vector<u32>{0x1000U, 0x2000U},
@@ -248,7 +248,9 @@ void test_linked_release(openswd3::test::Context& test) {
             "word mask precedes free"
         );
         test.expect_equal(
-            result.returned, !fail_second, "second free failure stops suffix"
+            result.status == LegacyBattleActorStartupResetStatus::completed,
+            !fail_second,
+            "second free failure stops suffix"
         );
         if (fail_second) {
             test.expect_equal(
@@ -264,14 +266,14 @@ void test_linked_release(openswd3::test::Context& test) {
 
     ResetPort missing;
     missing.store(0x2584U, 0x1000U);
-    const auto result = reset_legacy_battle_actor_for_startup(missing, 1U, 0U);
+    const auto result = reset_legacy_battle_actor_for_startup(missing, missing);
     test.expect_equal(
         result.status,
         LegacyBattleActorStartupResetStatus::linked_action_read_typed_stop,
         "unknown node stops at next read"
     );
     test.expect_equal(missing.load(0x2584U), 0U, "detachment survives failure");
-    test.expect_equal(result.heap_release_calls, 0U, "invalid node not freed");
+    test.expect_true(missing.released.empty(), "invalid node not freed");
 }
 
 void test_read_and_release_boundaries(openswd3::test::Context& test) {
@@ -286,7 +288,7 @@ void test_read_and_release_boundaries(openswd3::test::Context& test) {
         port.store(0x2AA0U, 1U);
         port.store(0x000CU, 0xD000U);
         port.fail_read_offset = read[0];
-        const auto result = reset_legacy_battle_actor_for_startup(port, 1U, 0U);
+        const auto result = reset_legacy_battle_actor_for_startup(port, port);
         test.expect_equal(
             result.status,
             LegacyBattleActorStartupResetStatus::actor_read_typed_stop,
@@ -306,10 +308,8 @@ void test_read_and_release_boundaries(openswd3::test::Context& test) {
             0xD000U,
             "resource pointer survives read failure"
         );
-        test.expect_equal(
-            result.heap_release_calls,
-            0U,
-            "failed read does not release resource"
+        test.expect_true(
+            port.released.empty(), "failed read does not release resource"
         );
     }
 
@@ -317,8 +317,10 @@ void test_read_and_release_boundaries(openswd3::test::Context& test) {
     ignored_resource.store(0x2AA0U, 2U);
     ignored_resource.fail_read_offset = 0x000CU;
     test.expect_true(
-        reset_legacy_battle_actor_for_startup(ignored_resource, 1U, 0U)
-            .returned,
+        reset_legacy_battle_actor_for_startup(
+            ignored_resource, ignored_resource
+        )
+                .status == LegacyBattleActorStartupResetStatus::completed,
         "non-one ownership does not read resource pointer"
     );
 
@@ -328,7 +330,7 @@ void test_read_and_release_boundaries(openswd3::test::Context& test) {
     // 998 REP/STOS writes, then the three constant-one cleanup writes.
     failed_clear.fail_write_ordinal = 1001U;
     const auto clear_result =
-        reset_legacy_battle_actor_for_startup(failed_clear, 1U, 0U);
+        reset_legacy_battle_actor_for_startup(failed_clear, failed_clear);
     test.expect_equal(
         clear_result.stopped_instruction,
         0x0047D43EU,
@@ -352,7 +354,7 @@ void test_read_and_release_boundaries(openswd3::test::Context& test) {
     missing_second.store(0x2584U, 0x1000U);
     missing_second.nodes = {{0x1000U, 0x2000U}};
     const auto missing_result =
-        reset_legacy_battle_actor_for_startup(missing_second, 1U, 0U);
+        reset_legacy_battle_actor_for_startup(missing_second, missing_second);
     test.expect_equal(
         missing_result.stopped_offset_or_token,
         0x2000U,
@@ -373,18 +375,22 @@ void test_read_and_release_boundaries(openswd3::test::Context& test) {
 void test_write_stops(openswd3::test::Context& test) {
     ResetPort baseline;
     const auto complete =
-        reset_legacy_battle_actor_for_startup(baseline, 1U, 0U);
-    for (u32 ordinal = 0U; ordinal < complete.actor_writes; ++ordinal) {
+        reset_legacy_battle_actor_for_startup(baseline, baseline);
+    test.expect_equal(
+        complete.status,
+        LegacyBattleActorStartupResetStatus::completed,
+        "baseline writes complete"
+    );
+    for (u32 ordinal = 0U; ordinal < baseline.writes; ++ordinal) {
         ResetPort port;
         port.fail_write_ordinal = ordinal;
-        const auto result = reset_legacy_battle_actor_for_startup(port, 1U, 0U);
+        const auto result = reset_legacy_battle_actor_for_startup(port, port);
         test.expect_equal(
             result.status,
             LegacyBattleActorStartupResetStatus::actor_write_typed_stop,
             "each failed store stops"
         );
-        test.expect_equal(result.actor_writes, ordinal, "exact written prefix");
-        test.expect_false(result.returned, "failed store does not return");
+        test.expect_equal(port.writes, ordinal, "exact written prefix");
         test.expect_equal(
             port.load(0x2B20U),
             0xA5A5A5A5U,

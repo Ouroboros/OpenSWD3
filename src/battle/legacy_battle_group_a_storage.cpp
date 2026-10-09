@@ -110,7 +110,7 @@ LegacyBattleGroupAStorage::initialize_party(
         *this,
         {.actor_index = static_cast<compat::u32>(index)}
     );
-    if (!reset.returned) {
+    if (reset.status != LegacyBattleActorStartupResetStatus::completed) {
         return Status::actor_reset_typed_stop;
     }
 

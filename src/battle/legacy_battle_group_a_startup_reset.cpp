@@ -79,7 +79,6 @@ public:
         LegacyBattleStartupState& startup,
         LegacyBattleActionDispatchState& action,
         LegacyBattleFinalActorStepState& final_actor,
-        LegacyBattleActorStartupResetHeapPort& heap,
         const LegacyBattleGroupAStartupResetRequest request
     )
         : party_(startup.party[request.actor_index]),
@@ -88,7 +87,7 @@ public:
           availability_(
               final_actor.group_a_availability_blocks[request.actor_index]
           ),
-          heap_(heap), request_(request),
+          request_(request),
           view_(resolve_legacy_battle_actor_runtime_reset(
               {.action = &action, .startup = &startup},
               kLegacyBattleActorGroupABaseToken +
@@ -191,15 +190,6 @@ public:
         return true;
     }
 
-    std::optional<u32> read_linked_action_next(const u32 token) override {
-        return heap_.read_linked_action_next(token);
-    }
-
-    std::optional<LegacyBattleActorStartupResetRegisters>
-    release_heap_block(const u32 token) override {
-        return heap_.release_heap_block(token);
-    }
-
 private:
     bool readable(const u32 offset, const u32 bytes) const noexcept {
         return offset <= request_.object_readable_bytes &&
@@ -210,7 +200,6 @@ private:
     LegacyBattleGroupAActionExecutionState& action_;
     LegacyBattleTargetPhaseState& particle_;
     LegacyBattleActorAvailabilityBlockState& availability_;
-    LegacyBattleActorStartupResetHeapPort& heap_;
     LegacyBattleGroupAStartupResetRequest request_;
     LegacyBattleActorRuntimeResetView view_;
 };
@@ -228,19 +217,13 @@ LegacyBattleActorStartupResetResult reset_legacy_battle_group_a_for_startup(
         return {
             .status =
                 LegacyBattleActorStartupResetStatus::actor_write_typed_stop,
-            .registers = {.eax = 0U, .ecx = 0x26U, .edx = request.entry_edx},
             .stopped_instruction = 0x0047D362U,
             .stopped_offset_or_token = 0x02A0U,
         };
     }
 
-    GroupAResetPort port{startup, action, final_actor, heap, request};
-    return reset_legacy_battle_actor_for_startup(
-        port,
-        kLegacyBattleActorGroupABaseToken +
-            request.actor_index * kLegacyBattleActorGroupAElementSize,
-        request.entry_edx
-    );
+    GroupAResetPort port{startup, action, final_actor, request};
+    return reset_legacy_battle_actor_for_startup(port, heap);
 }
 
 }  // namespace openswd3::battle

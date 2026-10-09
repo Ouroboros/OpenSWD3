@@ -81,11 +81,10 @@ public:
         LegacyBattleActorGroupBElementState& actor,
         LegacyBattleActorProgressState& progress,
         LegacyBattleRewardScaleActorState& reward,
-        LegacyBattleTargetPhaseState& particle,
-        LegacyBattleActorStartupResetHeapPort& heap
+        LegacyBattleTargetPhaseState& particle
     )
         : actor_(actor), progress_(progress), reward_(reward),
-          particle_(particle), heap_(heap),
+          particle_(particle),
           view_{
               .residual = &actor.runtime_reset,
               .progress = &progress,
@@ -192,15 +191,6 @@ public:
         return true;
     }
 
-    std::optional<u32> read_linked_action_next(const u32 token) override {
-        return heap_.read_linked_action_next(token);
-    }
-
-    std::optional<LegacyBattleActorStartupResetRegisters>
-    release_heap_block(const u32 token) override {
-        return heap_.release_heap_block(token);
-    }
-
 private:
     bool readable(const u32 offset, const u32 bytes) const noexcept {
         return offset <= actor_.object_readable_bytes &&
@@ -211,7 +201,6 @@ private:
     LegacyBattleActorProgressState& progress_;
     LegacyBattleRewardScaleActorState& reward_;
     LegacyBattleTargetPhaseState& particle_;
-    LegacyBattleActorStartupResetHeapPort& heap_;
     LegacyBattleActorRuntimeResetView view_;
 };
 
@@ -222,13 +211,10 @@ LegacyBattleActorStartupResetResult reset_legacy_battle_group_b_for_startup(
     LegacyBattleActorProgressState& progress,
     LegacyBattleRewardScaleActorState& reward,
     LegacyBattleTargetPhaseState& particle,
-    LegacyBattleActorStartupResetHeapPort& heap,
-    const u32 entry_edx
+    LegacyBattleActorStartupResetHeapPort& heap
 ) {
-    GroupBResetPort port{actor, progress, reward, particle, heap};
-    return reset_legacy_battle_actor_for_startup(
-        port, actor.object_token, entry_edx
-    );
+    GroupBResetPort port{actor, progress, reward, particle};
+    return reset_legacy_battle_actor_for_startup(port, heap);
 }
 
 }  // namespace openswd3::battle

@@ -123,12 +123,10 @@ constexpr std::array kScalarWrites{
 
 LegacyBattleActorStartupResetResult reset_legacy_battle_actor_for_startup(
     LegacyBattleActorStartupResetPort& port,
-    const u32 actor_token,
-    const u32 entry_edx
+    LegacyBattleActorStartupResetHeapPort& heap
 ) {
     using Status = LegacyBattleActorStartupResetStatus;
     LegacyBattleActorStartupResetResult result{};
-    result.registers.edx = entry_edx;
     const auto stop =
         [&](const Status status, const u32 instruction, const u32 location) {
             result.status = status;
@@ -150,29 +148,23 @@ LegacyBattleActorStartupResetResult reset_legacy_battle_actor_for_startup(
             return false;
         }
 
-        ++result.actor_writes;
         return true;
     };
     const auto release = [&](const u32 instruction, const u32 token) {
-        ++result.heap_release_calls;
-        const auto reply = port.release_heap_block(token);
+        const auto reply = heap.release_heap_block(token);
         if (!reply.has_value()) {
             stop(Status::heap_release_typed_stop, instruction, token);
             return false;
         }
 
-        result.registers = *reply;
         return true;
     };
 
     for (const auto& block : kZeroBlocks) {
-        result.registers.ecx = block.dwords;
         for (u32 index = 0U; index < block.dwords; ++index) {
             if (!write(block.instruction, block.offset + index * 4U, 4U, 0U)) {
                 return result;
             }
-
-            --result.registers.ecx;
         }
 
         if (block.trailing_word_instruction != 0U &&
@@ -187,14 +179,12 @@ LegacyBattleActorStartupResetResult reset_legacy_battle_actor_for_startup(
     }
 
     // 0x0047E950(actor, 1): detach the chain before releasing its nodes.
-    result.registers.ecx = actor_token;
     auto head = port.read_actor_dword(0x2584U);
     if (!head.has_value()) {
         stop(Status::actor_read_typed_stop, 0x0047F0BFU, 0x2584U);
         return result;
     }
 
-    result.registers.eax = *head;
     const auto mode = port.read_actor_word(0x26D0U);
     if (!mode.has_value()) {
         stop(Status::actor_read_typed_stop, 0x0047F0C5U, 0x26D0U);
@@ -208,7 +198,7 @@ LegacyBattleActorStartupResetResult reset_legacy_battle_actor_for_startup(
     }
 
     while (*head != 0U) {
-        const auto next = port.read_linked_action_next(*head);
+        const auto next = heap.read_linked_action_next(*head);
         if (!next.has_value()) {
             stop(Status::linked_action_read_typed_stop, 0x0047F0DEU, *head);
             return result;
@@ -219,7 +209,6 @@ LegacyBattleActorStartupResetResult reset_legacy_battle_actor_for_startup(
         }
 
         head = next;
-        result.registers.eax = *head;
     }
 
     const auto runtime = port.read_actor_dword(0x2AA0U);
@@ -228,7 +217,6 @@ LegacyBattleActorStartupResetResult reset_legacy_battle_actor_for_startup(
         return result;
     }
 
-    result.registers.eax = *runtime;
     if (*runtime == 1U) {
         const auto resource = port.read_actor_dword(0x000CU);
         if (!resource.has_value()) {
@@ -236,7 +224,6 @@ LegacyBattleActorStartupResetResult reset_legacy_battle_actor_for_startup(
             return result;
         }
 
-        result.registers.eax = *resource;
         if (*resource != 0U) {
             if (!release(0x0047D436U, *resource) ||
                 !write(0x0047D43EU, 0x000CU, 4U, 0U)) {
@@ -245,15 +232,12 @@ LegacyBattleActorStartupResetResult reset_legacy_battle_actor_for_startup(
         }
     }
 
-    result.registers.ecx = actor_token + 0x2A56U;
-    result.registers.eax = 0xFFFFFFFFU;
     for (const auto& field : kScalarWrites) {
         if (!write(field.instruction, field.offset, field.size, field.value)) {
             return result;
         }
     }
 
-    result.returned = true;
     return result;
 }
 

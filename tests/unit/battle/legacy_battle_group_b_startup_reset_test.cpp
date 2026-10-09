@@ -410,10 +410,10 @@ void test_battle_group_b_startup_reset(openswd3::test::Context& test) {
         const auto* workspace =
             actor.action_execution.special_four_hundred_workspace.get();
         const auto result = reset_legacy_battle_group_b_for_startup(
-            actor, progress, reward, particle, heap, 0U
+            actor, progress, reward, particle, heap
         );
         test.expect_equal(
-            result.returned,
+            result.status == LegacyBattleActorStartupResetStatus::completed,
             !fail_release,
             "borrowed reset propagates real heap callback stop"
         );
@@ -563,7 +563,7 @@ void test_battle_group_b_startup_reset(openswd3::test::Context& test) {
     LegacyBattleTargetPhaseState particle;
     ObservingHeap heap{actor, progress};
     const auto result = reset_legacy_battle_group_b_for_startup(
-        actor, progress, reward, particle, heap, 0U
+        actor, progress, reward, particle, heap
     );
     test.expect_equal(
         result.stopped_instruction,

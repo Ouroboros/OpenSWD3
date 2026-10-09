@@ -31,9 +31,12 @@ actor+0由configuration.actor_record_token持有；+2BC4单独保存secondary。
 
 ### 每次入战重置：0047D350..0047D632
 
-`reset_legacy_battle_group_a_for_startup`复用原逐指令reset解释器。
+`reset_legacy_battle_group_a_for_startup`复用共用的逐次字段重置函数。
 每条写指令使用临时ABI图像编解码，立即提交到既有字段；不缓存持久actor图像。
 额外存储只承接尚无owner的字节区与标量。
+[启动重置接口](battle-actor-startup-reset-semantic.md)随后已删除寄存器
+参数、结果、重复完成标记和访问计数，直接借用堆，删除队伍视图中的堆转发。
+生产调用方检查完成状态；共享堆释放协议仍待与关闭流程共同迁移。
 
 +26C8借用属性应用状态；+2A87借用粒子phase的模式字节；+2AE4借用
 final_actor的availability。既有ABI映射覆盖的动作、进度、配置、坐标保持原归属。
