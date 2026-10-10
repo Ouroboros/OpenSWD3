@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "93e461a6",
+  "last_reviewed_source_revision": "2b89c8ea8d381993f315dabe7c143c45f26fb4d7",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -37,9 +37,27 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "93e461a6",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-insert-0045ee70.md",
-      "reason": "行动追加与位置插入使用实际可选结果，删除对应寄存器结果和调用计数，上下文借用实际相邻存储及队员来源；行动移除及其他动作仍有callee编号、参数数组、寄存器请求回复与计数，整项继续pending"
+      "last_reviewed_commit": "2b89c8ea",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-remove-0045efb0.md",
+      "reason": "行动追加、插入与移除使用实际可选结果，共享队列、强度及队员来源，移除寄存器和计数已删除；其他动作仍有callee编号、参数数组、寄存器请求回复与计数，整项继续pending"
+    },
+    "battle/legacy_battle_opponent_action_dispatch": {
+      "status": "pending",
+      "last_reviewed_commit": "2b89c8ea",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-remove-0045efb0.md",
+      "reason": "两个移除调用点共享实际队列和强度存储并使用可选结果；其他对手动作仍有通用操作、参数数组、寄存器请求回复、计数及Port，父链继续pending"
+    },
+    "battle/legacy_battle_final_actor_step": {
+      "status": "pending",
+      "last_reviewed_commit": "2b89c8ea",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-remove-0045efb0.md",
+      "reason": "两个移除调用点直接借用实际来源，删除对应寄存器结果和调用计数，失败保留角色清理前缀；其他最终角色操作仍有通用请求、寄存器回复、计数及Port，完整父链未迁移"
+    },
+    "battle/legacy_battle_pending_action_commit": {
+      "status": "pending",
+      "last_reviewed_commit": "2b89c8ea",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-pending-action-commit-0045eb40.md",
+      "reason": "发布与移除使用同一实时归一索引和实际强度存储，删除移除寄存器传播、调用计数及两层保留槽；准备、ready、提交与父函数其他通用请求、寄存器结果、计数和Port仍在，整项继续pending"
     },
     "battle/legacy_battle_attack_order_entry": {
       "status": "verified",
@@ -73,17 +91,33 @@
       ],
       "reason": "位置插入直接移动共享队列并转移实际队员暂存数据，删除寄存器结果、扫描和调用计数及脚本操作槽；全部当前调用方共用来源、双门与实际相邻强度记录，保留满表BUG、逐DWORD次序、signed比较、回绕与失败前缀，经core/ASan四项定向验证及SDL链接；完整战斗和原版差分不升级"
     },
+    "battle/legacy_battle_attack_order_remove": {
+      "status": "verified",
+      "verification_commit": "2b89c8ea8d381993f315dabe7c143c45f26fb4d7",
+      "files": [
+        "include/openswd3/battle/legacy_battle_attack_order_remove.hpp",
+        "src/battle/legacy_battle_attack_order_remove.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-remove-0045efb0.md",
+      "validation_logs": [
+        "build/tmp/runtime/attack-order-remove-core.log",
+        "build/tmp/runtime/attack-order-remove-asan.log",
+        "build/tmp/runtime/attack-order-remove-callers-core.log",
+        "build/tmp/runtime/attack-order-remove-callers-asan.log"
+      ],
+      "reason": "移除直接扫描共享队列并逐DWORD左移，九个调用点及嵌套汇总使用实际可选结果，删除寄存器、扫描和调用计数与保留操作槽；保留完整目标首匹配、实际相邻读取、双重尾填充及失败前缀，组A使用发布时同一实时归一索引，经core/ASan四项定向验证与SDL链接；父链和原版差分不升级"
+    },
     "battle/legacy_battle_group_a_frame": {
       "status": "pending",
-      "last_reviewed_commit": "93e461a6",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-insert-0045ee70.md",
-      "reason": "行动追加与位置插入直接借用唯一队列、队员来源、双门和相邻强度，插入及嵌套汇总传递实际可选结果；行动移除计数及其他角色帧通用操作、参数包、寄存器结果与计数仍在，整项继续pending"
+      "last_reviewed_commit": "2b89c8ea",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-remove-0045efb0.md",
+      "reason": "追加、插入及移除共享实际队列和相邻强度，移除汇总已用可选结果并删除计数；其他角色帧通用操作、参数包、寄存器结果、计数及Port仍在，整项继续pending"
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",
-      "last_reviewed_commit": "93e461a6",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-insert-0045ee70.md",
-      "reason": "敌方追加直接写唯一队列，嵌套插入汇总删除计数并传递实际可选结果；行动移除计数及其他对手帧通用操作、参数包、寄存器请求回复与计数仍在，SDL完整角色帧及实机条件仍未验证"
+      "last_reviewed_commit": "2b89c8ea",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-remove-0045efb0.md",
+      "reason": "敌方追加及最终移除直接借用唯一队列和强度，嵌套移除删除计数并传递可选结果；其他对手帧通用操作、参数包、寄存器请求回复、计数及Port仍在，SDL完整角色帧及实机条件未验证"
     },
     "battle/legacy_battle_transition": {
       "status": "pending",
@@ -197,9 +231,9 @@
     },
     "battle/legacy_battle_frame_coordinator": {
       "status": "pending",
-      "last_reviewed_commit": "93e461a6",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-insert-0045ee70.md",
-      "reason": "出队、追加与位置插入共享启动队列，角色插入同步借用同一队员来源、双门和强度存储，旁路绑定被实际owner替换；其他帧业务仍有通用操作、参数数组、寄存器请求回复与计数，完整SDL角色帧及实际游戏流程未验收"
+      "last_reviewed_commit": "2b89c8ea",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-remove-0045efb0.md",
+      "reason": "出队、追加、插入与移除共享启动队列，角色与待执行提交借用同一实际强度存储，移除保留转发槽已删除；其他帧业务仍有通用操作、参数数组、寄存器请求回复、计数及Port，完整SDL角色帧和实际游戏流程未验收"
     },
     "battle/legacy_battle_frame_music_prefix": {
       "status": "verified",
