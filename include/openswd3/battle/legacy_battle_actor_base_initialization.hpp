@@ -35,11 +35,6 @@ struct LegacyBattleActorBaseInitializationOwner {
     LegacyBattleGroupAActionExecutionState action_execution{};
 };
 
-struct LegacyBattleActorBaseInitializationRequest {
-    compat::u32 object_token{};
-    compat::u32 writable_bytes{kLegacyBattleActorBaseMinimumWritableBytes};
-};
-
 enum class LegacyBattleActorBaseInitializationStatus : compat::u8 {
     completed,
     object_write_typed_stop,
@@ -53,9 +48,6 @@ struct LegacyBattleActorBaseInitializationResult {
     compat::u32 word_writes{};
     compat::u32 byte_writes{};
     compat::u32 stopped_object_offset{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 // Typed closure of legacy 0x00478250. The spans are views of the physical
@@ -68,13 +60,13 @@ initialize_legacy_battle_actor_base(
     LegacyBattleMonText& resource_definition_description,
     std::span<compat::u8> action_text,
     compat::u16& action_kind,
-    LegacyBattleActorBaseInitializationRequest request
+    compat::u32 writable_bytes = kLegacyBattleActorBaseMinimumWritableBytes
 ) noexcept;
 
 [[nodiscard]] LegacyBattleActorBaseInitializationResult
 initialize_legacy_battle_actor_base(
     LegacyBattleActorBaseInitializationOwner& owner,
-    LegacyBattleActorBaseInitializationRequest request
+    compat::u32 writable_bytes = kLegacyBattleActorBaseMinimumWritableBytes
 ) noexcept;
 
 }  // namespace openswd3::battle

@@ -8,7 +8,7 @@
 
 调用顺序固定：
 
-1. 保存this并调用尚未审计的基础角色构造`0x00478250`。
+1. 保存this并调用基础角色构造`0x00478250`。
 2. 清EAX后依次把对象`+0x2F26`与`+0x2F18`两个word写零；基础构造返回EAX因此不可见。
 3. 分配固定`0x38` bytes。
 4. 先把分配token写入对象`+0`，再按14个dword清零分配记录。
@@ -20,7 +20,10 @@
 
 `LegacyBattleActorGroupAElementState`唯一承接对象token、公共前部typed owner、`+0`附属记录token、精确56-byte记录和两个尾部word。公共构造`0x00478250`已经独立关闭，caller直接调用`initialize_legacy_battle_actor_base()`；元素端口只保留尚待独立回收的分配器。公共前部typed-stop会阻断两个尾部word清零、分配、token发布和56-byte写入。
 
-正常分配时清完整56 bytes并返回this，ECX固定零、EDX保留分配回复。零分配时发布`description_write_typed_stop`，保留公共前部和两项字段清零及零token，但不修改既有记录字节；停止寄存器为`EAX=0`、`ECX=0x0E`和分配callee的EDX，精确对应首次真实`rep stosd`写入点。
+正常分配时清完整56 bytes并返回完成状态。零分配时发布
+`description_write_typed_stop`，保留公共前部、两项字段清零和零token，
+不修改既有记录字节。结果保留写入进展，删除EAX/ECX/EDX及基础构造调用计数；
+原寄存器事实仍见第1节。现有生产存储只消费构造状态。
 
 物理对象地址和分配地址均为`compat::u32` token，不转换为主机指针。记录使用单一内嵌typed存储，不与角色startup摘要或结算字段复制。
 
@@ -37,6 +40,10 @@ configuration.actor_record提供。逐DWORD短目标与首派生字段写失败�
 
 ## 4. 验证状态
 
-正常测试验证公共前部64次typed写→两word清零→56-byte分配→记录清零顺序、token发布、完整this返回、ECX零和EDX保留。公共前部typed-stop测试验证后续两个word与分配均未发生；零分配测试验证公共前部和两个word与token副作用完成、56-byte旧内容不变，并锁定首次记录写入点的`ECX=0x0E`。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning。
+历史测试验证公共前部64次typed写→两word清零→56-byte分配→记录清零顺序、token发布、完整this返回、ECX零和EDX保留。公共前部typed-stop测试验证后续两个word与分配均未发生；零分配测试验证公共前部和两个word与token副作用完成、56-byte旧内容不变，并锁定首次记录写入点的`ECX=0x0E`。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning。
 
-inventory生成器连续双跑逐字节一致，正式计数为`168/422 = 159 platform_adapted + 9 assembly_exact + 254 pending_audit`，SHA256为`ecc7299e3826e585f760568696ce83324239e2784feb5466b7dccafa10552141`。原版基础构造副作用、动态分配地址、全局对象字节和MSVC向量异常回滚缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+当前测试按状态、实际字段、资源token和逐DWORD写入前缀断言，
+增加空对象调用方检查。验证及剩余协议范围见
+[基础初始化](battle-actor-base-initialization-00478250.md)。
+
+历史inventory生成器连续双跑逐字节一致，正式计数为`168/422 = 159 platform_adapted + 9 assembly_exact + 254 pending_audit`，SHA256为`ecc7299e3826e585f760568696ce83324239e2784feb5466b7dccafa10552141`。原版基础构造副作用、动态分配地址、全局对象字节和MSVC向量异常回滚缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。

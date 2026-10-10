@@ -15,19 +15,12 @@ construct_legacy_battle_actor_group_a_element(
         state.resource_definition_description,
         state.action_text,
         state.action_kind,
-        {
-            .object_token = state.object_token,
-            .writable_bytes = state.object_writable_bytes,
-        }
+        state.object_token != 0U ? state.object_writable_bytes : 0U
     );
-    ++result.base_constructor_calls;
     if (result.base_initialization.status !=
         LegacyBattleActorBaseInitializationStatus::completed) {
         result.status = LegacyBattleActorGroupAElementConstructionStatus::
             base_construction_typed_stop;
-        result.return_eax = result.base_initialization.return_eax;
-        result.return_ecx = result.base_initialization.return_ecx;
-        result.return_edx = result.base_initialization.return_edx;
         return result;
     }
 
@@ -35,9 +28,6 @@ construct_legacy_battle_actor_group_a_element(
         result.status = LegacyBattleActorGroupAElementConstructionStatus::
             object_write_typed_stop;
         result.stopped_object_offset = 0x2F26U;
-        result.return_eax = 0U;
-        result.return_ecx = result.base_initialization.return_ecx;
-        result.return_edx = result.base_initialization.return_edx;
         return result;
     }
 
@@ -47,13 +37,9 @@ construct_legacy_battle_actor_group_a_element(
     const auto allocation = port.allocate(0x38U);
     ++result.allocation_calls;
     state.primary_resource_token = allocation.eax;
-    result.return_ecx = allocation.ecx;
-    result.return_edx = allocation.edx;
     if (state.primary_resource_token == 0U) {
         result.status = LegacyBattleActorGroupAElementConstructionStatus::
             description_write_typed_stop;
-        result.return_eax = 0U;
-        result.return_ecx = 0x0EU;
         return result;
     }
 
@@ -62,8 +48,6 @@ construct_legacy_battle_actor_group_a_element(
         if (state.description_bytes.size() < offset + 4U) {
             result.status = LegacyBattleActorGroupAElementConstructionStatus::
                 description_write_typed_stop;
-            result.return_eax = 0U;
-            result.return_ecx = 14U - index;
             return result;
         }
 
@@ -74,8 +58,6 @@ construct_legacy_battle_actor_group_a_element(
         result.description_bytes_written += 4U;
     }
 
-    result.return_eax = state.object_token;
-    result.return_ecx = 0U;
     return result;
 }
 
@@ -119,32 +101,21 @@ construct_legacy_battle_actor_group_b_element(
         state.action_composition.resource_definition_description,
         state.action_composition.action_text,
         state.action_composition.action_kind,
-        {
-            .object_token = state.object_token,
-            .writable_bytes = state.object_writable_bytes,
-        }
+        state.object_token != 0U ? state.object_writable_bytes : 0U
     );
-    ++result.base_constructor_calls;
     if (result.base_initialization.status !=
         LegacyBattleActorBaseInitializationStatus::completed) {
         result.status = LegacyBattleActorGroupBElementConstructionStatus::
             base_construction_typed_stop;
-        result.return_eax = result.base_initialization.return_eax;
-        result.return_ecx = result.base_initialization.return_ecx;
-        result.return_edx = result.base_initialization.return_edx;
         return result;
     }
 
     const auto allocation = port.allocate(0xA4U);
     ++result.allocation_calls;
     state.resource_token = allocation.eax;
-    result.return_ecx = allocation.ecx;
-    result.return_edx = allocation.edx;
     if (state.resource_token == 0U) {
         result.status = LegacyBattleActorGroupBElementConstructionStatus::
             resource_write_typed_stop;
-        result.return_eax = 0U;
-        result.return_ecx = 0x29U;
         return result;
     }
 
@@ -152,8 +123,6 @@ construct_legacy_battle_actor_group_b_element(
     state.resource_description.clear();
     result.resource_bytes_written =
         static_cast<compat::u32>(state.resource_bytes.size());
-    result.return_eax = state.object_token;
-    result.return_ecx = 0U;
     return result;
 }
 
@@ -367,23 +336,13 @@ initialize_legacy_battle_actor_group_b_static_lifecycle(
     return result;
 }
 
-LegacyBattleActorSingletonOperationResult
+LegacyBattleActorBaseInitializationResult
 construct_legacy_battle_actor_singleton(
     LegacyBattleActorSingletonState& state
 ) {
-    LegacyBattleActorSingletonOperationResult result{
-        .object_token = kLegacyBattleActorSingletonToken,
-    };
-    result.base_initialization = initialize_legacy_battle_actor_base(
-        state.base_initialization,
-        {
-            .object_token = result.object_token,
-            .writable_bytes = state.object_writable_bytes,
-        }
+    return initialize_legacy_battle_actor_base(
+        state.base_initialization, state.object_writable_bytes
     );
-    result.object_operation_calls = 1U;
-    result.return_value = result.base_initialization.return_eax;
-    return result;
 }
 
 LegacyBattleActorBaseReleaseResult
@@ -404,22 +363,18 @@ initialize_legacy_battle_actor_singleton_static_lifecycle(
     LegacyBattleActorExitRegistrationPort& exit_registration_port
 ) {
     LegacyBattleActorSingletonStaticInitializationResult result;
-    const auto construction = construct_legacy_battle_actor_singleton(state);
-    result.construction = construction.base_initialization;
-    result.construction_return_value = construction.return_value;
-    result.construct_calls = 1U;
-    if (construction.base_initialization.status !=
+    result.construction = construct_legacy_battle_actor_singleton(state);
+    if (result.construction.status !=
         LegacyBattleActorBaseInitializationStatus::completed) {
         result.status = LegacyBattleActorSingletonStaticInitializationStatus::
             construction_typed_stop;
-        result.return_value = construction.return_value;
         return result;
     }
 
-    result.return_value = exit_registration_port.register_exit_cleanup(
-        kLegacyBattleActorSingletonExitCleanupToken
-    );
-    result.exit_registration_calls = 1U;
+    result.exit_registration_result =
+        exit_registration_port.register_exit_cleanup(
+            kLegacyBattleActorSingletonExitCleanupToken
+        );
     return result;
 }
 

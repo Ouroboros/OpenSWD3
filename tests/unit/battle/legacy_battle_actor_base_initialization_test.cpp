@@ -68,23 +68,16 @@ is_initialized(const LegacyBattleActorBaseInitializationOwner& owner) {
 
 void test_complete_initialization(openswd3::test::Context& test) {
     auto owner = seeded_owner();
-    const auto result = openswd3::battle::initialize_legacy_battle_actor_base(
-        owner,
-        {
-            .object_token = 0x00521598U,
-            .writable_bytes = 0x2B28U,
-        }
-    );
+    const auto result =
+        openswd3::battle::initialize_legacy_battle_actor_base(owner, 0x2B28U);
 
     test.expect_true(
         is_initialized(owner) &&
             result.status ==
                 LegacyBattleActorBaseInitializationStatus::completed &&
             result.dword_writes == 53U && result.word_writes == 10U &&
-            result.byte_writes == 1U && result.stopped_object_offset == 0U &&
-            result.return_eax == 0x00521598U && result.return_ecx == 0U &&
-            result.return_edx == 0x00521598U,
-        "actor base initialization preserves all 64 physical writes and returns the actor token"
+            result.byte_writes == 1U && result.stopped_object_offset == 0U,
+        "actor base initialization preserves all 64 physical writes"
     );
 }
 
@@ -97,11 +90,7 @@ void test_target_index_write_stops(openswd3::test::Context& test) {
             0x2A56U + static_cast<u32>(accessible_indices * sizeof(u32));
         const auto result =
             openswd3::battle::initialize_legacy_battle_actor_base(
-                owner,
-                {
-                    .object_token = 0x10000000U,
-                    .writable_bytes = writable_bytes,
-                }
+                owner, writable_bytes
             );
 
         bool prefix_matches = true;
@@ -120,31 +109,27 @@ void test_target_index_write_stops(openswd3::test::Context& test) {
                         object_write_typed_stop &&
                 result.dword_writes == accessible_indices &&
                 result.word_writes == 0U && result.byte_writes == 0U &&
-                result.stopped_object_offset == writable_bytes &&
-                result.return_eax == 0xFFFFFFFFU &&
-                result.return_ecx == 0x10002A56U &&
-                result.return_edx == 0x10000000U,
+                result.stopped_object_offset == writable_bytes,
             "actor base initialization stops at each target-index write with the completed prefix"
         );
     }
 
-    auto null_owner = seeded_owner();
-    const auto null_result =
+    auto inaccessible_owner = seeded_owner();
+    const auto inaccessible_result =
         openswd3::battle::initialize_legacy_battle_actor_base(
-            null_owner,
-            {
-                .object_token = 0U,
-                .writable_bytes = 0x2B28U,
-            }
+            inaccessible_owner, 0U
         );
     test.expect_true(
-        null_result.status ==
+        inaccessible_result.status ==
                 LegacyBattleActorBaseInitializationStatus::
                     object_write_typed_stop &&
-            null_result.stopped_object_offset == 0x2A56U &&
-            null_result.return_eax == 0xFFFFFFFFU &&
-            null_result.return_ecx == 0x2A56U && null_result.return_edx == 0U,
-        "a null actor stops at the first original target-index write"
+            inaccessible_result.stopped_object_offset == 0x2A56U &&
+            inaccessible_result.dword_writes == 0U &&
+            inaccessible_result.word_writes == 0U &&
+            inaccessible_result.byte_writes == 0U &&
+            inaccessible_owner.action_execution.target_indices ==
+                seeded_owner().action_execution.target_indices,
+        "an inaccessible actor stops at the first original target-index write"
     );
 }
 
@@ -176,11 +161,7 @@ void test_intermediate_high_write_stops(openswd3::test::Context& test) {
         auto owner = seeded_owner();
         const auto result =
             openswd3::battle::initialize_legacy_battle_actor_base(
-                owner,
-                {
-                    .object_token = 0x18000000U,
-                    .writable_bytes = stop_case.writable_bytes,
-                }
+                owner, stop_case.writable_bytes
             );
         test.expect_true(
             result.status ==
@@ -190,8 +171,6 @@ void test_intermediate_high_write_stops(openswd3::test::Context& test) {
                 result.word_writes == stop_case.expected_word_writes &&
                 result.byte_writes == 0U &&
                 result.stopped_object_offset == stop_case.stopped_offset &&
-                result.return_eax == 0U && result.return_ecx == 0x18002630U &&
-                result.return_edx == 0x18000000U &&
                 owner.fields.field_26bc == 0x33333333U &&
                 owner.fields.linked_action_head_token == 0x11111111U,
             "actor base initialization stops at each reachable intermediate high-field write"
@@ -201,13 +180,8 @@ void test_intermediate_high_write_stops(openswd3::test::Context& test) {
 
 void test_late_direct_write_stop(openswd3::test::Context& test) {
     auto owner = seeded_owner();
-    const auto result = openswd3::battle::initialize_legacy_battle_actor_base(
-        owner,
-        {
-            .object_token = 0x20000000U,
-            .writable_bytes = 0x2A94U,
-        }
-    );
+    const auto result =
+        openswd3::battle::initialize_legacy_battle_actor_base(owner, 0x2A94U);
 
     test.expect_true(
         result.status ==
@@ -216,8 +190,6 @@ void test_late_direct_write_stop(openswd3::test::Context& test) {
             result.dword_writes == 6U && result.word_writes == 10U &&
             result.byte_writes == 0U &&
             result.stopped_object_offset == 0x2A94U &&
-            result.return_eax == 0U && result.return_ecx == 0x20002630U &&
-            result.return_edx == 0x20000000U &&
             owner.fields.field_2a94 == 0x88U &&
             owner.fields.field_26bc == 0x33333333U &&
             owner.fields.linked_action_head_token == 0x11111111U &&
@@ -243,10 +215,7 @@ void test_action_text_write_stops(openswd3::test::Context& test) {
                     accessible_dwords * sizeof(u32)
                 ),
                 owner.action_execution.action_kind,
-                {
-                    .object_token = 0x30000000U,
-                    .writable_bytes = 0x2B28U,
-                }
+                0x2B28U
             );
 
         bool prefix_matches = true;
@@ -265,9 +234,7 @@ void test_action_text_write_stops(openswd3::test::Context& test) {
                 result.dword_writes == 8U + accessible_dwords &&
                 result.word_writes == 10U && result.byte_writes == 1U &&
                 result.stopped_object_offset ==
-                    0x2630U + accessible_dwords * sizeof(u32) &&
-                result.return_eax == 0U && result.return_ecx == 0x30002630U &&
-                result.return_edx == 0x30000000U,
+                    0x2630U + accessible_dwords * sizeof(u32),
             "actor base initialization preserves each completed action-text dword before a typed stop"
         );
     }
@@ -288,10 +255,7 @@ void test_definition_write_stops(openswd3::test::Context& test) {
                 owner.resource_definition_description,
                 owner.action_text,
                 owner.action_execution.action_kind,
-                {
-                    .object_token = 0x40000000U,
-                    .writable_bytes = 0x2B28U,
-                }
+                0x2B28U
             );
 
         bool prefix_matches = true;
@@ -310,10 +274,7 @@ void test_definition_write_stops(openswd3::test::Context& test) {
                         object_write_typed_stop &&
                 result.dword_writes == 12U + accessible &&
                 result.word_writes == 10U && result.byte_writes == 1U &&
-                result.stopped_object_offset == 0x10U + accessible * 4U &&
-                result.return_eax == 0U &&
-                result.return_ecx == 0x29U - accessible &&
-                result.return_edx == 0x40000000U,
+                result.stopped_object_offset == 0x10U + accessible * 4U,
             "actor base initialization preserves every rep-stos dword prefix and the unreached description owner"
         );
     }

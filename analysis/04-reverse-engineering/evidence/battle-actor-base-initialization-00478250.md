@@ -1,6 +1,7 @@
 # 战斗角色公共前部初始化 `0x00478250`
 
-状态：`platform_adapted`。完整LST、全部三处物理xref、64次写入顺序、寄存器残留、typed停止点与caller直组装均已收敛。
+状态：`platform_adapted`。保留64次写入顺序、已有停止点及三处调用方；
+当前接口使用实际字段与可写长度，返回状态、写入进展和失败位置。
 
 ## 1. 完整权威范围
 
@@ -32,10 +33,16 @@
 
 `initialize_legacy_battle_actor_base()`按原指令顺序逐次检查对象可写前缀，并对动作文本和definition独立检查typed视图长度：
 
-- 第一至第四目标槽停止时，保留已完成槽，返回`EAX=0xFFFFFFFF`、`ECX=this+0x2A56`、`EDX=this`。
-- `xor eax,eax`之后的任一直接字段或动作文本写停止时，保留全部已完成前缀，返回`EAX=0`、`ECX=this+0x2630`、`EDX=this`。
-- 41-dword definition清零中途停止时，保留已清dword，`ECX`为尚未执行的dword数，`EAX=0`、`EDX=this`；最后token dword未完成时不清说明bytes。
-- 正常完成才返回`EAX=this`、`ECX=0`、`EDX=this`。
+- 第一至第四目标槽停止时，保留已完成槽。
+- 后续直接字段或动作文本写停止时，保留全部已完成前缀。
+- definition清零中途停止时，保留已清dword；最后token dword未完成时不清说明。
+- 正常完成返回`completed`，失败返回原写位置及已完成的写入数量。
+
+删除初始化请求中的对象token及全部寄存器输出。角色缺失时，组A/B调用方
+把既有不可访问条件传为零可写长度，仍在首个`+0x2A56`写入处停止。
+三处调用方均不消费基础构造的原机器寄存器残值：组A立即清EAX，组B
+随后分配，单例进入退出注册。因此元素构造结果及单例构造包装也删除
+寄存器传递和基础构造调用计数，不从停止位置反推机器寄存器。
 
 没有空对象、短对象、短文本或短definition的防御性继续路径；全部在原始写访问处typed-stop。
 
@@ -65,12 +72,22 @@
 - `0x004782F5..0x004782FA`：41-dword definition清零。
 - `0x004782FC..0x004782FF`：返回this并恢复EDI。
 
-C++到LST反向追溯覆盖全部35条指令、64次物理写、三处xref、definition token所有权、正常返回和每类typed停止寄存器。
+C++到LST反向追溯覆盖64次物理写、三处xref、definition说明清除时机与
+每类停止前缀。寄存器赋值、保存恢复和this返回只记录原ABI事实；它们没有
+新的业务状态或调用方消费，不进入现代函数结果。
 
 ## 6. 验证与动态差分
 
 独立定向测试覆盖正常64写、全部四个目标槽边界、可达的`+0x2A68/+0x2A6A/+0x2A6C/+0x2A94`高偏移直接写边界、全部四个动作文本dword边界及41个definition dword边界；caller聚合测试覆盖组A、组B和单例的正常直组装、后缀顺序与公共前部typed-stop阻断。
 
-验证：定向测试`2/2`、AddressSanitizer`197/197`、Linux core`197/197`、Linux app`203/203`及连续10轮完整core全部通过，源码零warning，无sanitizer finding或runtime error。inventory连续双生成逐字节一致，正式计数为`276/422 = 266 platform_adapted + 10 assembly_exact + 146 pending_audit`，SHA256为`6ef0923452f60cf13342d07e9bd6ef861b3b5100602169723c1ee53b61679cd0`。
+历史验证：定向测试`2/2`、AddressSanitizer`197/197`、Linux core`197/197`、Linux app`203/203`及连续10轮完整core全部通过，源码零warning，无sanitizer finding或runtime error。inventory连续双生成逐字节一致，正式计数为`276/422 = 266 platform_adapted + 10 assembly_exact + 146 pending_audit`，SHA256为`6ef0923452f60cf13342d07e9bd6ef861b3b5100602169723c1ee53b61679cd0`。
+
+本轮基础初始化及setup调用方定向测试：core各1/1、ASan各1/1通过，
+SDL应用目标编译链接通过。日志为`build/tmp/runtime/actor-base-init-`
+前缀的`core.log`、`callers-core.log`、`asan.log`、`callers-asan.log`和
+`sdl.log`。基类写入边界、组A/B空对象阻断及未执行注册的空结果均已验证。
+调用方构建保留既有outcome-resolution测试第133行整数窄化警告。
+未运行游戏或原版动态差分。
+向量构造、分配端口和退出注册协议仍待迁移，不能由本函数迁移推定完成。
 
 当前没有原版组A/组B/单例完整对象字节、异常写访问、definition说明堆所有权及三caller联合寄存器捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整35条指令的静态与typed闭环。

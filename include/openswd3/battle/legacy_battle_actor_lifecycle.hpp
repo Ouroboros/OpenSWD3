@@ -9,6 +9,7 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -234,13 +235,9 @@ struct LegacyBattleActorGroupAElementConstructionResult {
         LegacyBattleActorGroupAElementConstructionStatus::completed
     };
     LegacyBattleActorBaseInitializationResult base_initialization{};
-    compat::u32 base_constructor_calls{};
     compat::u32 allocation_calls{};
     compat::u32 description_bytes_written{};
     compat::u32 stopped_object_offset{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 enum class LegacyBattleActorGroupBElementConstructionStatus : compat::u8 {
@@ -254,12 +251,8 @@ struct LegacyBattleActorGroupBElementConstructionResult {
         LegacyBattleActorGroupBElementConstructionStatus::completed
     };
     LegacyBattleActorBaseInitializationResult base_initialization{};
-    compat::u32 base_constructor_calls{};
     compat::u32 allocation_calls{};
     compat::u32 resource_bytes_written{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 enum class LegacyBattleActorGroupBElementDestructionStatus : compat::u8 {
@@ -328,13 +321,6 @@ struct LegacyBattleActorGroupBStaticInitializationResult {
     compat::u32 return_value{};
 };
 
-struct LegacyBattleActorSingletonOperationResult {
-    compat::u32 object_token{};
-    LegacyBattleActorBaseInitializationResult base_initialization{};
-    compat::u32 object_operation_calls{};
-    compat::u32 return_value{};
-};
-
 enum class LegacyBattleActorSingletonStaticInitializationStatus : compat::u8 {
     completed,
     construction_typed_stop,
@@ -345,10 +331,7 @@ struct LegacyBattleActorSingletonStaticInitializationResult {
         LegacyBattleActorSingletonStaticInitializationStatus::completed
     };
     LegacyBattleActorBaseInitializationResult construction{};
-    compat::u32 construct_calls{};
-    compat::u32 construction_return_value{};
-    compat::u32 exit_registration_calls{};
-    compat::u32 return_value{};
+    std::optional<compat::u32> exit_registration_result;
 };
 
 // sub_46E490, borrowing the session's existing actor fields and record.
@@ -387,7 +370,7 @@ release_legacy_battle_actor_group_a_element(
 );
 
 // sub_451870: load the singleton token and tail-call its constructor.
-[[nodiscard]] LegacyBattleActorSingletonOperationResult
+[[nodiscard]] LegacyBattleActorBaseInitializationResult
 construct_legacy_battle_actor_singleton(LegacyBattleActorSingletonState& state);
 
 // sub_451890: load the singleton token and tail-call its destructor.

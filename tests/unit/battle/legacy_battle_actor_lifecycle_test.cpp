@@ -352,10 +352,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 primary_token == 0x71000000U && prefix_matches &&
                 result.allocation_calls == 1U &&
                 port.allocation_size == 0x38U &&
-                result.description_bytes_written == writable / 4U * 4U &&
-                result.return_ecx == 14U - writable / 4U &&
-                result.return_eax == (writable == 56U ? 0x005029D0U : 0U) &&
-                result.return_edx == 0x12345678U,
+                result.description_bytes_written == writable / 4U * 4U,
             "borrowed construction publishes allocation and preserves each completed record-clear DWORD"
         );
     }
@@ -378,10 +375,11 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                         LegacyBattleActorGroupAElementConstructionStatus::
                             object_write_typed_stop &&
                 result.stopped_object_offset == 0x2F26U &&
-                result.base_constructor_calls == 1U && port.events.empty() &&
-                state.field_2f18 == 3U && state.field_2f26 == 4U &&
-                result.return_eax == 0U && result.return_ecx == 0U &&
-                result.return_edx == state.object_token,
+                result.base_initialization.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseInitializationStatus::completed &&
+                port.events.empty() && state.field_2f18 == 3U &&
+                state.field_2f26 == 4U,
             "group-A constructor stops at the first field write before allocation"
         );
     }
@@ -430,11 +428,8 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 result.base_initialization.status ==
                     openswd3::battle::
                         LegacyBattleActorBaseInitializationStatus::completed &&
-                result.base_constructor_calls == 1U &&
                 result.allocation_calls == 1U &&
-                result.description_bytes_written == 0x38U &&
-                result.return_eax == state.object_token &&
-                result.return_ecx == 0U && result.return_edx == 0x99AABBCCU,
+                result.description_bytes_written == 0x38U,
             "group-A element construction clears fields before allocating and zeroing its description"
         );
     }
@@ -463,10 +458,8 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleActorGroupAElementConstructionStatus::
                             description_write_typed_stop &&
-                result.description_bytes_written == 0U &&
-                result.return_eax == 0U && result.return_ecx == 0x0EU &&
-                result.return_edx == 8U,
-            "zero description allocation stops with the rep-stos count after both field clears"
+                result.description_bytes_written == 0U,
+            "zero description allocation stops before record clearing after both field clears"
         );
     }
 
@@ -512,11 +505,8 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 result.base_initialization.status ==
                     openswd3::battle::
                         LegacyBattleActorBaseInitializationStatus::completed &&
-                result.base_constructor_calls == 1U &&
                 result.allocation_calls == 1U &&
-                result.resource_bytes_written == 0xA4U &&
-                result.return_eax == state.object_token &&
-                result.return_ecx == 0U && result.return_edx == 0x99AABBCCU,
+                result.resource_bytes_written == 0xA4U,
             "group-B element construction invokes the base before allocating and zeroing its resource"
         );
     }
@@ -544,19 +534,18 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleActorGroupBElementConstructionStatus::
                             resource_write_typed_stop &&
-                result.base_constructor_calls == 1U &&
                 result.allocation_calls == 1U &&
-                result.resource_bytes_written == 0U &&
-                result.return_eax == 0U && result.return_ecx == 0x29U &&
-                result.return_edx == 8U,
+                result.resource_bytes_written == 0U,
             "zero group-B allocation stops at the first resource write after publishing the null token"
         );
     }
 
-    {
+    for (const bool missing_actor : {false, true}) {
         openswd3::battle::LegacyBattleActorGroupAElementState state{
-            .object_token = 0x005029D0U,
-            .object_writable_bytes = 0x2A56U,
+            .object_token = missing_actor ? 0U : 0x005029D0U,
+            .object_writable_bytes = missing_actor
+                ? openswd3::battle::kLegacyBattleActorGroupAElementSize
+                : 0x2A56U,
             .field_2f18 = 0x1111U,
             .field_2f26 = 0x2222U,
         };
@@ -580,19 +569,18 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleActorGroupAElementConstructionStatus::
                             base_construction_typed_stop &&
-                result.base_constructor_calls == 1U &&
-                result.allocation_calls == 0U &&
-                result.return_eax == 0xFFFFFFFFU &&
-                result.return_ecx == 0x00505426U &&
-                result.return_edx == state.object_token,
+                result.base_initialization.stopped_object_offset == 0x2A56U &&
+                result.allocation_calls == 0U,
             "group-A construction stops before tail fields and allocation when the common prefix is inaccessible"
         );
     }
 
-    {
+    for (const bool missing_actor : {false, true}) {
         openswd3::battle::LegacyBattleActorGroupBElementState state{
-            .object_token = 0x00525508U,
-            .object_writable_bytes = 0x2A56U,
+            .object_token = missing_actor ? 0U : 0x00525508U,
+            .object_writable_bytes = missing_actor
+                ? openswd3::battle::kLegacyBattleActorGroupBElementSize
+                : 0x2A56U,
             .resource_token = 0x71000000U,
         };
         state.action_execution.target_indices.fill(0x12345678U);
@@ -610,11 +598,8 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleActorGroupBElementConstructionStatus::
                             base_construction_typed_stop &&
-                result.base_constructor_calls == 1U &&
-                result.allocation_calls == 0U &&
-                result.return_eax == 0xFFFFFFFFU &&
-                result.return_ecx == 0x00527F5EU &&
-                result.return_edx == state.object_token,
+                result.base_initialization.stopped_object_offset == 0x2A56U &&
+                result.allocation_calls == 0U,
             "group-B construction stops before allocation when the common prefix is inaccessible"
         );
     }
@@ -1057,11 +1042,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 result.construction.status ==
                     openswd3::battle::
                         LegacyBattleActorBaseInitializationStatus::completed &&
-                result.construct_calls == 1U &&
-                result.construction_return_value ==
-                    openswd3::battle::kLegacyBattleActorSingletonToken &&
-                result.exit_registration_calls == 1U &&
-                result.return_value == registration_result,
+                result.exit_registration_result == registration_result,
             "actor singleton typed construction precedes its exit registration"
         );
     }
@@ -1086,14 +1067,9 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 singleton_state
             );
         test.expect_true(
-            construction.object_token ==
-                    openswd3::battle::kLegacyBattleActorSingletonToken &&
-                construction.base_initialization.status ==
+            construction.status ==
                     openswd3::battle::
                         LegacyBattleActorBaseInitializationStatus::completed &&
-                construction.object_operation_calls == 1U &&
-                construction.return_value ==
-                    openswd3::battle::kLegacyBattleActorSingletonToken &&
                 destruction.status ==
                     openswd3::battle::LegacyBattleActorBaseReleaseStatus::
                         completed &&
@@ -1156,10 +1132,12 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleActorSingletonStaticInitializationStatus::
                             construction_typed_stop &&
-                result.construct_calls == 1U &&
-                result.exit_registration_calls == 0U &&
-                result.construction_return_value == 0xFFFFFFFFU &&
-                result.return_value == 0xFFFFFFFFU,
+                !result.exit_registration_result.has_value() &&
+                result.construction.status ==
+                    openswd3::battle::
+                        LegacyBattleActorBaseInitializationStatus::
+                            object_write_typed_stop &&
+                result.construction.stopped_object_offset == 0x2A56U,
             "singleton static construction stops before exit registration when the common prefix is inaccessible"
         );
     }
