@@ -1071,6 +1071,10 @@ AX和地址计算且不修改owner。已关闭结果奖励整理直接消费索�
 正常尾EDX继续传给待执行动作；子typed-stop阻断后续全部阶段。
 
 `audit_order=102`的`0x0045EDF0`已关闭为`platform_adapted`。
+`dfc16ccd`已迁移追加接口及当前调用方：直接写同一队列，返回可选
+实际写入索引，删除寄存器协议与调用计数。以下寄存器叙述仅记录
+原LST结束状态；当前接口与验证见
+[行动追加证据](../evidence/battle-attack-order-entry-0045edf0.md)。
 完整权威LST主体`0x0045EDF0..0x0045EE69`从proc到endp共71行、37条实际指令、0个call、6个跳转、
 5个局部标签且无外部chunk。两参数cdecl叶函数只接受完整类型1/2；
 其他值在EAX连续递减两次后立即返回并保持ECX/EDX。
