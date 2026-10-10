@@ -18,7 +18,7 @@
 
 ## 2. typed对象与停止点
 
-`LegacyBattleActorGroupAElementState`唯一承接对象token、公共前部typed owner、`+0`附属记录token、精确56-byte记录和两个尾部word。公共构造`0x00478250`已经独立关闭，caller直接调用`initialize_legacy_battle_actor_base()`；元素端口只保留尚待独立回收的分配器。公共前部typed-stop会阻断两个尾部word清零、分配、token发布和56-byte写入。
+`LegacyBattleActorGroupAElementState`唯一承接对象token、公共前部typed owner、`+0`附属记录token、精确56-byte记录和两个尾部word。公共构造`0x00478250`已经独立关闭，caller直接调用`initialize_legacy_battle_actor_base()`；分配端口已删除，直接预留完整记录地址并写入实际存储登记。公共前部typed-stop会阻断两个尾部word清零、分配、token发布和56-byte写入。
 
 正常分配时清完整56 bytes并返回完成状态。零分配时发布
 `description_write_typed_stop`，保留公共前部、两项字段清零和零token，
@@ -44,6 +44,8 @@ configuration.actor_record提供。逐DWORD短目标与首派生字段写失败�
 
 当前测试按状态、实际字段、资源token和逐DWORD写入前缀断言，
 增加空对象调用方检查。验证及剩余协议范围见
-[基础初始化](battle-actor-base-initialization-00478250.md)。
+[基础初始化](battle-actor-base-initialization-00478250.md)；
+分配协议迁移及真实地址耗尽验证见
+[构造资源登记](battle-actor-construction-resource-registration.md)。
 
 历史inventory生成器连续双跑逐字节一致，正式计数为`168/422 = 159 platform_adapted + 9 assembly_exact + 254 pending_audit`，SHA256为`ecc7299e3826e585f760568696ce83324239e2784feb5466b7dccafa10552141`。原版基础构造副作用、动态分配地址、全局对象字节和MSVC向量异常回滚缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。

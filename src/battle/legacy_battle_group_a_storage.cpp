@@ -11,27 +11,6 @@
 namespace openswd3::battle {
 namespace {
 
-class RecordAllocation final
-    : public LegacyBattleActorGroupAElementConstructionPort {
-public:
-    explicit RecordAllocation(compat::u32& allocation) noexcept
-        : allocation_(allocation) {}
-
-    LegacyBattleActorGroupAElementCallReply
-    allocate(const compat::u32 bytes) override {
-        const auto token = asset_runtime::reserve_legacy_guest_bytes(bytes);
-        if (!token) {
-            return {};
-        }
-
-        allocation_ = *token;
-        return {.eax = *token};
-    }
-
-private:
-    compat::u32& allocation_;
-};
-
 template <typename T, std::size_t Count>
 std::span<compat::u8> bytes_of(std::array<T, Count>& values) noexcept {
     return {reinterpret_cast<compat::u8*>(values.data()), sizeof(values)};
@@ -56,7 +35,6 @@ bool LegacyBattleGroupAStorage::construct() {
         party.workspace.object_token = kLegacyBattleActorGroupABaseToken +
             static_cast<compat::u32>(constructed_) *
                 kLegacyBattleActorGroupAElementSize;
-        RecordAllocation allocation{allocations_[constructed_]};
         const auto result = construct_legacy_battle_actor_group_a_element(
             {
                 .object_token = kLegacyBattleActorGroupABaseToken +
@@ -76,7 +54,7 @@ bool LegacyBattleGroupAStorage::construct() {
                     party.configuration.actor_record_token,
                 .description_bytes = bytes_of(party.configuration.actor_record),
             },
-            allocation
+            allocations_[constructed_]
         );
         if (result.status !=
             LegacyBattleActorGroupAElementConstructionStatus::completed) {

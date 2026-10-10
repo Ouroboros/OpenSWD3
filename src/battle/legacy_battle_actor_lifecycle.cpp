@@ -1,11 +1,13 @@
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 
+#include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
+
 namespace openswd3::battle {
 
 LegacyBattleActorGroupAElementConstructionResult
 construct_legacy_battle_actor_group_a_element(
     const LegacyBattleActorGroupAElementConstructionView state,
-    LegacyBattleActorGroupAElementConstructionPort& port
+    compat::u32& registered_resource
 ) {
     LegacyBattleActorGroupAElementConstructionResult result;
     result.base_initialization = initialize_legacy_battle_actor_base(
@@ -34,9 +36,12 @@ construct_legacy_battle_actor_group_a_element(
     state.field_2f26 = 0U;
     state.field_2f18 = 0U;
 
-    const auto allocation = port.allocate(0x38U);
-    ++result.allocation_calls;
-    state.primary_resource_token = allocation.eax;
+    const auto allocation = asset_runtime::reserve_legacy_guest_bytes(0x38U);
+    if (allocation) {
+        registered_resource = *allocation;
+    }
+
+    state.primary_resource_token = allocation.value_or(0U);
     if (state.primary_resource_token == 0U) {
         result.status = LegacyBattleActorGroupAElementConstructionStatus::
             description_write_typed_stop;
@@ -63,8 +68,7 @@ construct_legacy_battle_actor_group_a_element(
 
 LegacyBattleActorGroupAElementConstructionResult
 construct_legacy_battle_actor_group_a_element(
-    LegacyBattleActorGroupAElementState& state,
-    LegacyBattleActorGroupAElementConstructionPort& port
+    LegacyBattleActorGroupAElementState& state, compat::u32& registered_resource
 ) {
     auto& base = state.base_initialization;
     return construct_legacy_battle_actor_group_a_element(
@@ -84,14 +88,13 @@ construct_legacy_battle_actor_group_a_element(
                 state.resource_cleanup.primary_resource_token,
             .description_bytes = state.description_bytes,
         },
-        port
+        registered_resource
     );
 }
 
 LegacyBattleActorGroupBElementConstructionResult
 construct_legacy_battle_actor_group_b_element(
-    LegacyBattleActorGroupBElementState& state,
-    LegacyBattleActorGroupBElementConstructionPort& port
+    LegacyBattleActorGroupBElementState& state, compat::u32& registered_resource
 ) {
     LegacyBattleActorGroupBElementConstructionResult result;
     result.base_initialization = initialize_legacy_battle_actor_base(
@@ -110,9 +113,12 @@ construct_legacy_battle_actor_group_b_element(
         return result;
     }
 
-    const auto allocation = port.allocate(0xA4U);
-    ++result.allocation_calls;
-    state.resource_token = allocation.eax;
+    const auto allocation = asset_runtime::reserve_legacy_guest_bytes(0xA4U);
+    if (allocation) {
+        registered_resource = *allocation;
+    }
+
+    state.resource_token = allocation.value_or(0U);
     if (state.resource_token == 0U) {
         result.status = LegacyBattleActorGroupBElementConstructionStatus::
             resource_write_typed_stop;

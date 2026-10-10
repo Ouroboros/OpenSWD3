@@ -1,6 +1,5 @@
 #include "openswd3/battle/legacy_battle_group_b_storage.hpp"
 
-#include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_configuration.hpp"
@@ -10,28 +9,6 @@
 
 namespace openswd3::battle {
 namespace {
-
-class ResourceAllocation final
-    : public LegacyBattleActorGroupBElementConstructionPort {
-public:
-    explicit ResourceAllocation(compat::u32& token) noexcept : token_(token) {}
-
-    LegacyBattleActorGroupBElementCallReply
-    allocate(const compat::u32 size) override {
-        // The caller supplies the existing 0xA4-byte actor record as the
-        // backing allocation. Reserve its complete guest address range.
-        const auto token = asset_runtime::reserve_legacy_guest_bytes(size);
-        if (!token) {
-            return {};
-        }
-
-        token_ = *token;
-        return {.eax = token_};
-    }
-
-private:
-    compat::u32& token_;
-};
 
 class StoredEnemyModes final : public LegacyBattleGroupBStartupModePort {
 public:
@@ -110,9 +87,9 @@ bool LegacyBattleGroupBStorage::construct() {
         actor.object_token = kLegacyBattleActorGroupBBaseToken +
             static_cast<compat::u32>(constructed_) *
                 kLegacyBattleActorGroupBElementSize;
-        ResourceAllocation allocation{resources_[constructed_]};
-        const auto result =
-            construct_legacy_battle_actor_group_b_element(actor, allocation);
+        const auto result = construct_legacy_battle_actor_group_b_element(
+            actor, resources_[constructed_]
+        );
         if (result.status !=
             LegacyBattleActorGroupBElementConstructionStatus::completed) {
             construction_stopped_ = true;

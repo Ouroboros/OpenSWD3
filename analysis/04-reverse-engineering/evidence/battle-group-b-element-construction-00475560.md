@@ -24,7 +24,7 @@
 
 `LegacyBattleActorGroupBElementState`唯一承接对象token、对象`+0x0C`资源token和精确164-byte资源记录。物理地址继续只作为`compat::u32` token；资源内容由单一typed数组承接，不复制到动作dispatch或startup摘要状态。
 
-公共基础构造`0x00478250`已经独立审计并由caller直接组合。它复用组B现有`action_composition.resource_definition/action_text/action_kind`和`action_execution`唯一owner，只为此前未命名字段补充公共typed owner；没有复制第二份动作或definition状态。元素端口只保留固定大小分配器。公共前部typed-stop会阻断分配、`+0x0C` token发布和164-byte资源写入。
+公共基础构造`0x00478250`已经独立审计并由caller直接组合。它复用组B现有`action_composition.resource_definition/action_text/action_kind`和`action_execution`唯一owner，只为此前未命名字段补充公共typed owner；没有复制第二份动作或definition状态。分配端口已删除，直接预留完整记录地址并写入实际存储登记。公共前部typed-stop会阻断分配、`+0x0C` token发布和164-byte资源写入。
 
 分配地址为零时，原版已完成公共前部构造及对象`+0x0C`零token发布，
 随后在首次`rep stosd`访问零地址时故障。现代函数在同一访问点报告
@@ -58,6 +58,8 @@
 历史定向测试、AddressSanitizer、Linux core `188/188`与Linux app `194/194`全部通过，源码零warning。
 
 当前回归检查实际字段与资源字节、空对象及短对象阻断、零分配发布前缀。
-验证及剩余协议范围见[基础初始化](battle-actor-base-initialization-00478250.md)。
+基础写入验证见[基础初始化](battle-actor-base-initialization-00478250.md)；
+当前分配、登记及真实地址耗尽验证见
+[构造资源登记](battle-actor-construction-resource-registration.md)。
 
 当前没有原版八个组B完整对象、公共基础构造字节、真实分配地址、全局数组、析构回滚与MSVC向量EH联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整16条指令的静态闭环和Linux验证。

@@ -107,20 +107,6 @@ struct LegacyBattleActorGroupAElementConstructionView {
     std::span<compat::u8> description_bytes;
 };
 
-struct LegacyBattleActorGroupAElementCallReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
-class LegacyBattleActorGroupAElementConstructionPort {
-public:
-    virtual ~LegacyBattleActorGroupAElementConstructionPort() = default;
-
-    [[nodiscard]] virtual LegacyBattleActorGroupAElementCallReply
-    allocate(compat::u32 size) = 0;
-};
-
 struct LegacyBattleGroupBActionRecord {
     std::array<std::byte, 0x14> prefix{};
     compat::u16 action_id{};
@@ -199,20 +185,6 @@ struct LegacyBattleActorGroupBElementState {
     LegacyBattleGroupAActionExecutionState action_execution{};
 };
 
-struct LegacyBattleActorGroupBElementCallReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-};
-
-class LegacyBattleActorGroupBElementConstructionPort {
-public:
-    virtual ~LegacyBattleActorGroupBElementConstructionPort() = default;
-
-    [[nodiscard]] virtual LegacyBattleActorGroupBElementCallReply
-    allocate(compat::u32 size) = 0;
-};
-
 struct LegacyBattleActorSingletonState {
     compat::u32 object_readable_bytes{
         kLegacyBattleActorBaseMinimumWritableBytes
@@ -235,7 +207,6 @@ struct LegacyBattleActorGroupAElementConstructionResult {
         LegacyBattleActorGroupAElementConstructionStatus::completed
     };
     LegacyBattleActorBaseInitializationResult base_initialization{};
-    compat::u32 allocation_calls{};
     compat::u32 description_bytes_written{};
     compat::u32 stopped_object_offset{};
 };
@@ -251,7 +222,6 @@ struct LegacyBattleActorGroupBElementConstructionResult {
         LegacyBattleActorGroupBElementConstructionStatus::completed
     };
     LegacyBattleActorBaseInitializationResult base_initialization{};
-    compat::u32 allocation_calls{};
     compat::u32 resource_bytes_written{};
 };
 
@@ -338,21 +308,19 @@ struct LegacyBattleActorSingletonStaticInitializationResult {
 [[nodiscard]] LegacyBattleActorGroupAElementConstructionResult
 construct_legacy_battle_actor_group_a_element(
     LegacyBattleActorGroupAElementConstructionView state,
-    LegacyBattleActorGroupAElementConstructionPort& port
+    compat::u32& registered_resource
 );
 
 // Standalone owned-state adapter.
 [[nodiscard]] LegacyBattleActorGroupAElementConstructionResult
 construct_legacy_battle_actor_group_a_element(
-    LegacyBattleActorGroupAElementState& state,
-    LegacyBattleActorGroupAElementConstructionPort& port
+    LegacyBattleActorGroupAElementState& state, compat::u32& registered_resource
 );
 
 // sub_475560.
 [[nodiscard]] LegacyBattleActorGroupBElementConstructionResult
 construct_legacy_battle_actor_group_b_element(
-    LegacyBattleActorGroupBElementState& state,
-    LegacyBattleActorGroupBElementConstructionPort& port
+    LegacyBattleActorGroupBElementState& state, compat::u32& registered_resource
 );
 
 // sub_475590 with its SEH unwind chunk at loc_4983B0.
