@@ -65,6 +65,8 @@ struct Fixture {
     LegacyBattleScriptSharedState shared;
     openswd3::story_scene::LegacyDialogRuntimeState dialogs;
     LegacyBattleScriptWorkspace workspace;
+    std::array<openswd3::battle::LegacyBattleIntensityEffectRecord, 8>
+        adjacent_intensity_records{};
     u32 message_state{};
 
     Fixture() {
@@ -87,6 +89,7 @@ struct Fixture {
             .shared = shared,
             .dialogs = dialogs,
             .message_state = message_state,
+            .adjacent_intensity_records = adjacent_intensity_records,
         };
     }
 
@@ -4043,17 +4046,81 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
         for (auto& record : fixture.startup.reset.records_524788) {
             record.value_00 = 0xFFFFFFFFU;
         }
-        static_cast<void>(run_legacy_battle_script_dispatch(
+        const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
-        ));
+        );
         test.expect_true(
-            fixture.workspace.cursor == 6U &&
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture.workspace.cursor == 6U &&
                 fixture.startup.reset.records_524788[0].value_00 == 0U &&
-                fixture.startup.reset.records_524788[0].value_08 == 2U &&
-                port.count(
-                    LegacyBattleScriptDispatchCall::attack_order_insert
-                ) == 0U,
+                fixture.startup.reset.records_524788[0].value_08 == 2U,
             "case nine directly inserts the group-B attack-order record"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(9);
+        fixture->write_u16(2U, 0U);
+        fixture->write_u16(4U, 0U);
+        for (std::size_t index = 0U; index < 17U; ++index) {
+            fixture->startup.reset.records_524788[index].value_00 =
+                static_cast<u32>(index) + 20U;
+        }
+
+        auto& empty = fixture->startup.reset.records_524788[17U];
+        empty.value_00 = 0xFFFFFFFFU;
+        empty.value_04 = 0x12345678U;
+        empty.value_08 = 0x5678U;
+        empty.value_0a = 0x1234U;
+        fixture->adjacent_intensity_records[0U].unknown_1c.fill(0xA5U);
+        const auto result = run_battle_script_dispatch_on_heap(*fixture, *port);
+        const auto& adjacent = fixture->adjacent_intensity_records[0U];
+        test.expect_true(
+            result->status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture->workspace.cursor == 6U &&
+                fixture->startup.reset.records_524788[0U].value_00 == 0U &&
+                fixture->startup.reset.records_524788[1U].value_00 == 20U &&
+                fixture->startup.reset.records_524788[17U].value_00 == 36U &&
+                adjacent.source_value == 0xFFFFFFFFU &&
+                adjacent.value_04 == 0x12345678U &&
+                adjacent.secondary_value == 0x12345678U &&
+                adjacent.unknown_1c[0U] == 0xA5U,
+            "script insertion borrows the real adjacent intensity record when the last queue slot is empty"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        auto port = std::make_unique<Port>();
+        fixture->opcode(21);
+        fixture->write_u16(2U, 9U);
+        fixture->write_u16(4U, 0x1111U);
+        auto& sources = fixture->startup.reset.block_520e90;
+        sources[1U] = 0xDEADBEEFU;
+        sources[5U] = 0xAAAAAAAAU;
+        sources[6U] = 22U;
+        sources[7U] = 33U;
+        sources[8U] = 0xFFFF4444U;
+        sources[9U] = 55U;
+        fixture->startup.reset.value_53bf80 = 9U;
+        fixture->startup.reset.value_53bfd0 = 8U;
+        const auto result = run_battle_script_dispatch_on_heap(*fixture, *port);
+        const auto& record = fixture->startup.reset.records_524788[0U];
+        test.expect_true(
+            result->status == LegacyBattleScriptDispatchStatus::completed &&
+                record.value_00 == 9U && record.value_08 == 1U &&
+                record.value_0c == 1U && record.value_14 == 22U &&
+                record.value_18 == 33U && record.value_0a == 0x4444U &&
+                record.value_04 == 55U && sources[1U] == 0xDEADBEEFU &&
+                std::ranges::all_of(
+                    std::span{sources}.subspan(5U, 5U),
+                    [](const u32 value) { return value == 0U; }
+                ) &&
+                fixture->startup.reset.value_53bf80 == 0U &&
+                fixture->startup.reset.value_53bfd0 == 0U,
+            "party script marks the correct five-DWORD source group then consumes it and clears the canonical startup gates"
         );
     }
 

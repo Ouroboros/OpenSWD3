@@ -144,8 +144,6 @@ struct LegacyBattleScriptSharedState {
     compat::u32 panel_head_token{};
     compat::u32 effect_head_token{};
     compat::u16 effect_mask{};
-    compat::u32 attack_order_primary_gate{};
-    compat::u32 attack_order_secondary_gate{};
     std::array<compat::u32, 4> shutdown_values{};      // 0x0053CE5C..0x0053CE68
     std::array<compat::u16, 18> actor_target_words{};  // 0x005028AC
     std::array<compat::u32, 18> actor_state_words{};
@@ -176,6 +174,7 @@ struct LegacyBattleScriptDispatchBindings {
     story_scene::LegacyDialogRuntimeState& dialogs;
     compat::u32& message_state;
     std::string_view asset_root_path{};  // Buffer at 0x004A94BC
+    std::span<LegacyBattleIntensityEffectRecord> adjacent_intensity_records{};
 };
 
 // Resolve the same allocation before or after sub_40BB20 links it. An
@@ -218,7 +217,6 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     group_b_order = 0x0045B5A0U,
     global_reset = 0x0045B630U,
     player_item_quantity = 0x0045D180U,
-    attack_order_insert = 0x0045EE70U,
     script_page_load = 0x0046E1E0U,
     reserved_script_shutdown = 0x0046E260U,
     reserved_script_curve_sample = 0x0046E290U,

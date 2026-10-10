@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v1321
+版本：v1322
 
-最后更新：2026-10-09
+最后更新：2026-10-10
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：优先完成 B11 原版读档；B10 Workpack 316 暂停。
+当前步骤：移除项目自有通用调用体系；B11与Workpack 316待验证。
 
 ## 0. 执行约定
 
@@ -382,18 +382,19 @@ B7以后已经完成的详细执行记录见
 [`execution-progress-history-pi.md`](execution-progress-history-pi.md)。该文件只
 保存历史，不定义当前执行顺序、状态或断点。
 
-当前优先处理B11读档与续玩。用户已确认LOAD正常；实机进入战斗后退出，继续排除该续
-玩阻断，并补齐原版选档界面与存档恢复的未完成项。未通过实际续玩前不验收。B10 保持
-Workpack 316 `pending_audit`、`315/422`，不得开始317。
+当前按最新GOAL优先移除项目自有通用调用体系。全仓相关调用链、
+实际共享数据和资源所有权均需审查；完整清理尚未验收。
+B11保留用户确认LOAD正常的事实，完整战斗接线及实际续玩仍未验收。
+B10保持Workpack 316 `pending_audit`、`315/422`，不得开始317。
 
-### 当前 WORKPACK REVIEW 计划：B11 读档与续玩
+### 当前 WORKPACK REVIEW 计划：通用调用体系迁移
 
-当前状态：用户已确认LOAD正常；完整战斗接线与实际续玩尚未完成。
-临时选档界面不计作原版界面完成，B11保持进行中。
-当前REVIEW：恢复战斗画面刷新，进行中。
-同一行为及必要调用方共同验证、审查后独立发布。
+当前状态：按独立业务切片持续迁移，整体清理未完成。
+当前REVIEW：每批同步必要调用方、测试和证据，验证后立即提交推送。
+同一时间只推进一个批次；全仓扫描和逐项语义复核后判断整体完成。
+执行与证据入口见[通用调用迁移][plan-ref-14]。
 
-后续执行顺序：
+迁移完成后，恢复B11原有执行顺序：
 
 1. 接通完整战斗初始化、帧更新、绘制及返回世界的路径，验证旧存档
    进入战斗、结束返回和再次进入战斗的生命周期。
@@ -445,3 +446,4 @@ inventory状态。
 [plan-ref-11]: ../analysis/04-reverse-engineering/evidence/battle-actor-frame-presentation-00479850.md
 [plan-ref-12]: ../analysis/04-reverse-engineering/evidence/battle-actor-frame-v4b-407-audit.md
 [plan-ref-13]: ../analysis/04-reverse-engineering/evidence/battle-action-seven-list-source-00470180.md
+[plan-ref-14]: ../analysis/04-reverse-engineering/evidence/invoke-migration-progress.md

@@ -400,6 +400,14 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         context.actor_frames->dispatch.startup_reset = &context.startup.reset;
         context.actor_frames->dispatch.attack_order_records =
             context.startup.reset.records_524788;
+        context.actor_frames->dispatch.attack_order_adjacent_intensity_records =
+            port.effect_coordinator_state().intensity_records;
+        context.actor_frames->dispatch.attack_order_party_sources =
+            context.startup.reset.block_520e90;
+        context.actor_frames->dispatch.attack_order_primary_gate =
+            &context.startup.reset.value_53bf80;
+        context.actor_frames->dispatch.attack_order_secondary_gate =
+            &context.startup.reset.value_53bfd0;
         context.actor_frames->dispatch.text_messages =
             &context.startup.text_messages;
     }

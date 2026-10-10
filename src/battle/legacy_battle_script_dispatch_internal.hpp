@@ -1288,17 +1288,16 @@ private:
         auto inserted = insert_legacy_battle_attack_order_entry(
             {
                 .records = bindings_.startup.reset.records_524788,
+                .adjacent_intensity_records =
+                    bindings_.adjacent_intensity_records,
                 .party_source_words = bindings_.startup.reset.block_520e90,
-                .primary_gate = &bindings_.shared.attack_order_primary_gate,
-                .secondary_gate = &bindings_.shared.attack_order_secondary_gate,
+                .primary_gate = &bindings_.startup.reset.value_53bf80,
+                .secondary_gate = &bindings_.startup.reset.value_53bfd0,
             },
             type,
             value,
             position
         );
-        eax_ = inserted.return_eax;
-        ecx_ = inserted.return_ecx;
-        edx_ = inserted.return_edx;
         if (inserted.status != LegacyBattleAttackOrderInsertStatus::completed) {
             result_.status =
                 LegacyBattleScriptDispatchStatus::attack_order_typed_stop;
@@ -1476,7 +1475,8 @@ private:
                 }
                 if (action_code == 11U) {
                     bindings_.startup.reset
-                        .block_520e90[static_cast<std::size_t>(index)] = 1U;
+                        .block_520e90[static_cast<std::size_t>(index) * 5U] =
+                        1U;
                 }
             } else {
                 const u32 index = static_cast<u32>(code);

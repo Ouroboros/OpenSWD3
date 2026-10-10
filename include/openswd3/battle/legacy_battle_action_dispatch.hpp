@@ -1449,6 +1449,8 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleStartupResetBlocks* startup_reset{};
     LegacyBattleTextMessageState* text_messages{};
     std::span<LegacyBattleStartupResetRecord> attack_order_records;
+    std::span<LegacyBattleIntensityEffectRecord>
+        attack_order_adjacent_intensity_records{};
     std::span<compat::u32> attack_order_party_sources;
     compat::u32* attack_order_primary_gate{};
     compat::u32* attack_order_secondary_gate{};
@@ -1692,8 +1694,7 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleRetreatCommitResult retreat_commit{};
     compat::u32 retreat_commit_calls{};
     std::optional<LegacyBattleAttackOrderEntryResult> attack_order;
-    LegacyBattleAttackOrderInsertResult attack_order_insert{};
-    compat::u32 attack_order_insert_calls{};
+    std::optional<LegacyBattleAttackOrderInsertResult> attack_order_insert;
     LegacyBattleAttackOrderRemoveResult attack_order_remove{};
     compat::u32 attack_order_remove_calls{};
     LegacyBattleGroupASummonMaterializationResult summon_materialization{};

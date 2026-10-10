@@ -958,10 +958,10 @@ void merge_nested_result(
         outer.attack_order = nested.attack_order;
     }
 
-    outer.attack_order_insert_calls += nested.attack_order_insert_calls;
-    if (nested.attack_order_insert_calls != 0U) {
+    if (nested.attack_order_insert.has_value()) {
         outer.attack_order_insert = nested.attack_order_insert;
     }
+
     outer.attack_order_remove_calls += nested.attack_order_remove_calls;
     if (nested.attack_order_remove_calls != 0U) {
         outer.attack_order_remove = nested.attack_order_remove;
@@ -1869,6 +1869,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         result.attack_order_insert = insert_legacy_battle_attack_order_entry(
             LegacyBattleAttackOrderInsertBindings{
                 .records = context.attack_order_records,
+                .adjacent_intensity_records =
+                    context.attack_order_adjacent_intensity_records,
                 .party_source_words = context.attack_order_party_sources,
                 .primary_gate = context.attack_order_primary_gate,
                 .secondary_gate = context.attack_order_secondary_gate,
@@ -1877,8 +1879,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             group_a_index + 8U,
             0xFFFFFFFFU
         );
-        ++result.attack_order_insert_calls;
-        if (result.attack_order_insert.status !=
+        if (result.attack_order_insert->status !=
             LegacyBattleAttackOrderInsertStatus::completed) {
             result.status = LegacyBattleActionDispatchStatus::
                 attack_order_insert_typed_stop;

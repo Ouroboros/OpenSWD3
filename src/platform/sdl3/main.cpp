@@ -4313,6 +4313,8 @@ public:
                 .dialogs = world_dialogs_,
                 .message_state = battle_message_state_,
                 .asset_root_path = asset_root_path,
+                .adjacent_intensity_records =
+                    effect_coordinator_state().intensity_records,
             },
             *this
         );

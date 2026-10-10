@@ -656,10 +656,10 @@ void merge_nested(
         result.attack_order = nested.attack_order;
     }
 
-    result.attack_order_insert_calls += nested.attack_order_insert_calls;
-    if (nested.attack_order_insert_calls != 0U) {
+    if (nested.attack_order_insert.has_value()) {
         result.attack_order_insert = nested.attack_order_insert;
     }
+
     result.attack_order_remove_calls += nested.attack_order_remove_calls;
     if (nested.attack_order_remove_calls != 0U) {
         result.attack_order_remove = nested.attack_order_remove;

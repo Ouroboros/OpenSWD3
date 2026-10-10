@@ -1,13 +1,12 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_effect_frame.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
+#include <optional>
 #include <span>
 
 namespace openswd3::battle {
-
-inline constexpr compat::u32 kLegacyBattleAttackOrderPartySourceBase =
-    0x00520E90U;
 
 enum class LegacyBattleAttackOrderInsertStatus : compat::u8 {
     completed,
@@ -22,6 +21,7 @@ enum class LegacyBattleAttackOrderInsertStatus : compat::u8 {
 
 struct LegacyBattleAttackOrderInsertBindings {
     std::span<LegacyBattleStartupResetRecord> records;
+    std::span<LegacyBattleIntensityEffectRecord> adjacent_intensity_records{};
     std::span<compat::u32> party_source_words;
     compat::u32* primary_gate{};
     compat::u32* secondary_gate{};
@@ -31,14 +31,9 @@ struct LegacyBattleAttackOrderInsertResult {
     LegacyBattleAttackOrderInsertStatus status{
         LegacyBattleAttackOrderInsertStatus::completed
     };
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
-    compat::u32 scanned_records{};
+    std::optional<compat::u32> written_offset;
     compat::u32 shifted_records{};
-    compat::u32 inserted_index{0xFFFFFFFFU};
     compat::u32 source_words_cleared{};
-    bool record_written{};
 };
 
 // Insert one attack-order record at the requested position while preserving

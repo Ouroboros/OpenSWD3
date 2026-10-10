@@ -935,6 +935,13 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
         std::array<openswd3::battle::LegacyBattleStartupResetRecord, 18>
             unrelated_records{};
         dispatch_context.attack_order_records = unrelated_records;
+        std::array<u32, 50> unrelated_sources{};
+        u32 unrelated_primary_gate = 9U;
+        u32 unrelated_secondary_gate = 8U;
+        dispatch_context.attack_order_party_sources = unrelated_sources;
+        dispatch_context.attack_order_primary_gate = &unrelated_primary_gate;
+        dispatch_context.attack_order_secondary_gate =
+            &unrelated_secondary_gate;
         openswd3::battle::LegacyBattleActorFrameAdvanceContext actor_frames{
             fixture->actor_frame_state, *port, dispatch_context
         };
@@ -991,6 +998,19 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
                 unrelated_records[0U].value_00 == 0xFFFFFFFFU &&
                 unrelated_records[0U].value_08 == 0U,
             "dequeue and the following opponent update share the startup queue while an unrelated supplied queue remains untouched"
+        );
+        test.expect_true(
+            dispatch_context.attack_order_party_sources.data() ==
+                    fixture->startup.reset.block_520e90.data() &&
+                dispatch_context.attack_order_primary_gate ==
+                    &fixture->startup.reset.value_53bf80 &&
+                dispatch_context.attack_order_secondary_gate ==
+                    &fixture->startup.reset.value_53bfd0 &&
+                dispatch_context.attack_order_adjacent_intensity_records
+                        .data() ==
+                    port->effect_coordinator_state().intensity_records.data() &&
+                unrelated_primary_gate == 9U && unrelated_secondary_gate == 8U,
+            "coordinator binds actor insertion to the same actual party sources, gates and adjacent intensity owner"
         );
     }
 

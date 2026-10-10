@@ -1490,6 +1490,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 );
             test.expect_true(
                 result.return_value == 1U &&
+                    !result.attack_order_insert.has_value() &&
                     state.final_actor_step.queued_actor_code == 9U &&
                     state.final_actor_step.actor_order[0] == 10U &&
                     state.final_actor_step.actor_order[1] == 0U,
@@ -1503,6 +1504,14 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto& state = *state_storage;
             state.action.group_a_action_execution[2U].idle_state_latch = 1U;
             Fixture fixture;
+            fixture.attack_order_party_sources[9U] = 0xDEADBEEFU;
+            fixture.attack_order_party_sources[10U] = 11U;
+            fixture.attack_order_party_sources[11U] = 22U;
+            fixture.attack_order_party_sources[12U] = 33U;
+            fixture.attack_order_party_sources[13U] = 44U;
+            fixture.attack_order_party_sources[14U] = 55U;
+            fixture.attack_order_primary_gate = 9U;
+            fixture.attack_order_secondary_gate = 8U;
             DispatchPort port;
             port.push(0x0047F920U, {.eax = 0U});
             auto context = fixture.context();
@@ -1515,13 +1524,21 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state.actors[2].frame_started == 1U &&
                     port.actor_metric_state().priority_actor_index ==
                         0xFFFFFFFFU &&
-                    result.attack_order_insert_calls == 1U &&
-                    result.attack_order_insert.record_written &&
+                    result.attack_order_insert.has_value() &&
+                    result.attack_order_insert->written_offset == 0U &&
+                    fixture.attack_order_party_sources[9U] == 0xDEADBEEFU &&
+                    std::ranges::all_of(
+                        std::span{fixture.attack_order_party_sources}.subspan(
+                            10U, 5U
+                        ),
+                        [](const u32 value) { return value == 0U; }
+                    ) &&
+                    fixture.attack_order_primary_gate == 0U &&
+                    fixture.attack_order_secondary_gate == 0U &&
                     result.attack_order_remove_calls == 1U &&
                     result.attack_order_remove.matched &&
                     fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
                     fixture.attack_order_records[0].value_08 == 0U &&
-                    port.count(0x0045EE70U) == 0U &&
                     port.count(0x0045EFB0U) == 0U,
                 "started actor is registered then removed directly by the composed final actor suffix"
             );
@@ -1639,6 +1656,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             attack_order_insert_typed_stop &&
+                    result.attack_order_insert.has_value() &&
+                    result.attack_order_insert->written_offset == 0U &&
                     state.actors[2].frame_started == 1U &&
                     state.final_actor_step.active_actor_code == 10U &&
                     fixture.attack_order_records[0].value_00 == 10U &&
