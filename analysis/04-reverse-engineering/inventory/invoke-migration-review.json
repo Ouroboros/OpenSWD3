@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "8732af27",
+  "last_reviewed_source_revision": "9f1ee804",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -90,6 +90,20 @@
         "build/tmp/runtime/actor-heap-release-asan.log"
       ],
       "reason": "直接扫描角色资料与共享固定链并写入百分比；当前setup测试覆盖"
+    },
+    "battle/legacy_battle_definition_archive": {
+      "status": "verified",
+      "verification_commit": "9f1ee804",
+      "files": [
+        "include/openswd3/battle/legacy_battle_definition_archive.hpp",
+        "src/battle/legacy_battle_definition_archive.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-definition-archive-owned-files.md",
+      "validation_logs": [
+        "build/tmp/runtime/definition-owned-core-final.log",
+        "build/tmp/runtime/definition-owned-asan.log"
+      ],
+      "reason": "头部与记录直接读实际文件，删除FilePort、编号句柄、寄存器协议和计数；startup及SDL全部直接调用方已回收，真实短读/符号选择/寻址失败/描述符寿命经core与ASan验证"
     },
     "battle/legacy_battle_file_lifecycle": {
       "status": "pending",
@@ -205,6 +219,12 @@
       "evidence": "analysis/04-reverse-engineering/evidence/battle-shutdown-direct-resource-binding.md",
       "last_reviewed_commit": "1611749e",
       "reason": "角色与绘图资源已直接释放，辅助缓冲端口及SDL空实现已删除；非空辅助缓冲生产来源与整链所有权仍待验收"
+    },
+    "battle/legacy_battle_startup": {
+      "status": "pending",
+      "last_reviewed_commit": "9f1ee804",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-definition-archive-owned-files.md",
+      "reason": "FFD文件协议及调用方已迁移，共享头部与记录保持真实短读和失败寿命；startup仍有通用操作枚举、参数数组、寄存器请求结果和调用计数，不能把整个启动接口族计为完成"
     },
     "battle/legacy_battle_screen_flash": {
       "status": "verified",

@@ -1,16 +1,16 @@
 {
-  "source_revision": "8732af2729cbcdbabece82c7365ef44e8596cf4e",
+  "source_revision": "9f1ee804f982b9af36ef96687bbe3dcba210ac69",
   "baseline_revision": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scanned_production_files": 872,
   "candidate_units": 324,
   "excluded_units": 4,
   "candidate_units_after_exclusions": 320,
-  "verified_units": 10,
-  "pending_units": 310,
+  "verified_units": 11,
+  "pending_units": 309,
   "pending_without_scan_signals": 9,
-  "pending_with_scan_signals": 301,
-  "last_reviewed_source_revision": "8732af2729cbcdbabece82c7365ef44e8596cf4e",
+  "pending_with_scan_signals": 300,
+  "last_reviewed_source_revision": "9f1ee804f982b9af36ef96687bbe3dcba210ac69",
   "source_commits_since_last_review": 0,
-  "candidate_review_coverage_percent": 3.1,
+  "candidate_review_coverage_percent": 3.4,
   "scope_exhaustiveness_verified": false
 }
