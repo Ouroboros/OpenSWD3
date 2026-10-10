@@ -175,14 +175,14 @@ summary = {
     'scanned_production_files': metadata['current']['scanned_files'],
     'candidate_units': len(rows),
     'excluded_units': counts['excluded'],
-    'scope_units': total,
+    'candidate_units_after_exclusions': total,
     'verified_units': counts['verified'],
     'pending_units': total - counts['verified'],
     'pending_without_scan_signals': pending_without_signals,
     'pending_with_scan_signals': total - counts['verified'] - pending_without_signals,
     'last_reviewed_source_revision': reviewed_revision,
     'source_commits_since_last_review': len(unreviewed_commits),
-    'ledger_percent': round(100 * counts['verified'] / total, 1) if total else 0,
+    'candidate_review_coverage_percent': round(100 * counts['verified'] / total, 1) if total else 0,
     'scope_exhaustiveness_verified': False,
 }
 (output / 'progress-summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2) + '\n')
