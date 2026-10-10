@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "9f1ee804",
+  "last_reviewed_source_revision": "fe380352",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -34,6 +34,24 @@
         "build/tmp/runtime/world-music-without-port-asan.log"
       ],
       "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
+    },
+    "battle/legacy_battle_attack_order_dequeue": {
+      "status": "verified",
+      "verification_commit": "fe380352",
+      "files": [
+        "include/openswd3/battle/legacy_battle_attack_order_dequeue.hpp",
+        "src/battle/legacy_battle_attack_order_dequeue.cpp",
+        "include/openswd3/battle/legacy_battle_frame_selection.hpp",
+        "src/battle/legacy_battle_frame_selection.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-dequeue-0045f020.md",
+      "validation_logs": [
+        "build/tmp/runtime/attack-order-direct-core.log",
+        "build/tmp/runtime/attack-order-direct-asan.log",
+        "build/tmp/runtime/attack-order-direct-callers-core.log",
+        "build/tmp/runtime/attack-order-direct-callers-asan.log"
+      ],
+      "reason": "出队直接借用物理队列和共享角色字段，全部直接调用方已回收；无界扫描、回绕、七DWORD复制、满表清理及实际访问失败前缀经core与ASan验证，SDL链接通过"
     },
     "battle/legacy_battle_actor_base_initialization": {
       "status": "verified",
@@ -121,6 +139,12 @@
       "evidence": "analysis/04-reverse-engineering/evidence/battle-frame-completion-0045ec80.md",
       "reason": "查询已迁移；生产角色动作节点的创建和所有权链尚未闭合"
     },
+    "battle/legacy_battle_frame_coordinator": {
+      "status": "pending",
+      "last_reviewed_commit": "fe380352",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-dequeue-0045f020.md",
+      "reason": "已删除行动出队的寄存器查询转发、操作槽、EDX快照及刷新计数；其他帧业务仍保留通用操作、参数数组、寄存器请求回复与计数，整项继续pending"
+    },
     "battle/legacy_battle_frame_music_prefix": {
       "status": "verified",
       "verification_commit": "ad5c3f70",
@@ -134,6 +158,22 @@
         "build/tmp/runtime/frame-music-without-port-asan.log"
       ],
       "reason": "实际流管理器与共享路径音量直接接入帧调用方"
+    },
+    "battle/legacy_battle_frame_selection": {
+      "status": "verified",
+      "verification_commit": "fe380352",
+      "files": [
+        "include/openswd3/battle/legacy_battle_frame_selection.hpp",
+        "src/battle/legacy_battle_frame_selection.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-frame-selection-runtime-binding.md",
+      "validation_logs": [
+        "build/tmp/runtime/attack-order-direct-core.log",
+        "build/tmp/runtime/attack-order-direct-asan.log",
+        "build/tmp/runtime/attack-order-direct-callers-core.log",
+        "build/tmp/runtime/attack-order-direct-callers-asan.log"
+      ],
+      "reason": "帧选择直接共享队列、角色、动作与输出字段，SDL及核心调用方已迁移；删除查询Port和EDX协议，可选实际结果表达未出队，精确门、WORD延迟、坐标发布及失败后缀经core与ASan验证"
     },
     "battle/legacy_battle_group_a_resource_cleanup": {
       "status": "pending",
