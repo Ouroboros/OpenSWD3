@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
+  "scope_exhaustiveness_verified": false,
+  "unit_aliases": {
+    "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
+    "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
+    "battle/legacy_battle_actor_frame_io_helpers": "battle/legacy_battle_actor_frame_presentation",
+    "battle/legacy_battle_actor_frame_route_internal": "battle/legacy_battle_actor_frame_presentation",
+    "battle/legacy_battle_actor_frame_route_phase_1": "battle/legacy_battle_actor_frame_presentation",
+    "battle/legacy_battle_actor_frame_route_phase_2": "battle/legacy_battle_actor_frame_presentation",
+    "battle/legacy_battle_actor_frame_route_phase_3": "battle/legacy_battle_actor_frame_presentation",
+    "battle/legacy_battle_actor_frame_route_phase_4": "battle/legacy_battle_actor_frame_presentation",
+    "battle/legacy_battle_actor_frame_route_phase_5": "battle/legacy_battle_actor_frame_presentation",
+    "battle/legacy_battle_actor_frame_route_phase_6": "battle/legacy_battle_actor_frame_presentation"
+  },
+  "units": {
+    "audio_video/legacy_media_acquisition": {
+      "status": "pending",
+      "evidence": "analysis/04-reverse-engineering/evidence/legacy-world-music-media-0040cdd0-00411c8b.md",
+      "reason": "当前实际调用方仅测试，SDL启动调用链尚未接入"
+    },
+    "audio_video/legacy_world_music": {
+      "status": "verified",
+      "verification_commit": "e3cd52ee",
+      "files": [
+        "include/openswd3/audio_video/legacy_world_music.hpp",
+        "src/audio_video/legacy_world_music.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/legacy-world-music-media-0040cdd0-00411c8b.md",
+      "validation_logs": [
+        "build/tmp/runtime/world-music-without-port-core.log",
+        "build/tmp/runtime/world-music-without-port-asan.log"
+      ],
+      "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
+    },
+    "battle/legacy_battle_actor_base_release": {
+      "status": "pending",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-description-owned-release.md",
+      "reason": "叶函数已迁移；向量析构协议及完整静态元素析构生产接线尚未闭合"
+    },
+    "battle/legacy_battle_actor_message_percent_refresh": {
+      "status": "verified",
+      "verification_commit": "24eac681",
+      "files": [
+        "include/openswd3/battle/legacy_battle_actor_message_percent_refresh.hpp",
+        "src/battle/legacy_battle_actor_message_percent_refresh.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-message-percent-refresh-00475160.md",
+      "validation_logs": [
+        "build/tmp/runtime/actor-heap-release-core.log",
+        "build/tmp/runtime/actor-heap-release-asan.log"
+      ],
+      "reason": "直接扫描角色资料与共享固定链并写入百分比；当前setup测试覆盖"
+    },
+    "battle/legacy_battle_fixed_object_reset": {
+      "status": "pending",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-fixed-object-reset-004776f0.md",
+      "reason": "叶函数已迁移；父级完整对象初始化生产接线尚未闭合"
+    },
+    "battle/legacy_battle_frame_completion": {
+      "status": "pending",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-frame-completion-0045ec80.md",
+      "reason": "查询已迁移；生产角色动作节点的创建和所有权链尚未闭合"
+    },
+    "battle/legacy_battle_frame_music_prefix": {
+      "status": "verified",
+      "verification_commit": "ad5c3f70",
+      "files": [
+        "include/openswd3/battle/legacy_battle_frame_music_prefix.hpp",
+        "src/battle/legacy_battle_frame_music_prefix.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-frame-music-direct-00453200.md",
+      "validation_logs": [
+        "build/tmp/runtime/frame-music-without-port-core.log",
+        "build/tmp/runtime/frame-music-without-port-asan.log"
+      ],
+      "reason": "实际流管理器与共享路径音量直接接入帧调用方"
+    },
+    "battle/legacy_battle_group_a_resource_cleanup": {
+      "status": "pending",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-group-a-resource-cleanup-00475180.md",
+      "reason": "释放已迁移；非零次级资源的生产创建及所有权来源尚未证明"
+    },
+    "battle/legacy_battle_group_b_resource_cleanup": {
+      "status": "verified",
+      "verification_commit": "24eac681",
+      "files": [
+        "include/openswd3/battle/legacy_battle_group_b_resource_cleanup.hpp",
+        "src/battle/legacy_battle_group_b_resource_cleanup.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-group-b-resource-cleanup-00476a60.md",
+      "validation_logs": [
+        "build/tmp/runtime/actor-heap-release-core.log",
+        "build/tmp/runtime/actor-heap-release-asan.log"
+      ],
+      "reason": "关闭及元素析构直接撤销实际敌方资源登记并按顺序清字段"
+    },
+    "battle/legacy_battle_mon_file_runtime": {
+      "status": "verified",
+      "verification_commit": "2820c6e0",
+      "files": [
+        "include/openswd3/battle/legacy_battle_mon_file_runtime.hpp",
+        "src/battle/legacy_battle_mon_file_runtime.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-mon-file-runtime-binding.md",
+      "validation_logs": [
+        "build/tmp/runtime/mon-final-staged-definition.log",
+        "build/tmp/runtime/mon-final-definition-asan.log"
+      ],
+      "reason": "实际文件所有权及具名打开定位读取操作已替换通用协议"
+    },
+    "battle/legacy_battle_mon_stream_runtime": {
+      "status": "verified",
+      "verification_commit": "2820c6e0",
+      "files": [
+        "include/openswd3/battle/legacy_battle_mon_stream_runtime.hpp",
+        "src/battle/legacy_battle_mon_stream_runtime.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-mon-stream-runtime-binding.md",
+      "validation_logs": [
+        "build/tmp/runtime/mon-final-staged-definition.log",
+        "build/tmp/runtime/mon-final-definition-asan.log"
+      ],
+      "reason": "实际流缓冲所有权与具名访问操作已替换通用协议"
+    },
+    "battle/legacy_battle_mon_text_runtime": {
+      "status": "verified",
+      "verification_commit": "2820c6e0",
+      "files": [
+        "include/openswd3/battle/legacy_battle_mon_text_runtime.hpp",
+        "src/battle/legacy_battle_mon_text_runtime.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-mon-file-runtime-binding.md",
+      "validation_logs": [
+        "build/tmp/runtime/mon-final-staged-release.log",
+        "build/tmp/runtime/mon-final-release-asan.log"
+      ],
+      "reason": "实际说明文字分配释放及调用方已替换通用协议"
+    },
+    "battle/legacy_battle_runtime_shutdown": {
+      "status": "pending",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-shutdown-direct-resource-binding.md",
+      "reason": "角色释放已接通；渲染辅助缓冲仍借用释放接口且SDL实现为空"
+    },
+    "battle/legacy_battle_screen_flash": {
+      "status": "verified",
+      "verification_commit": "74dec715",
+      "files": [
+        "include/openswd3/battle/legacy_battle_screen_flash.hpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-screen-flash-direct-state.md",
+      "validation_logs": [
+        "build/tmp/runtime/screen-flash-shared-final-core.log",
+        "build/tmp/runtime/screen-flash-shared-final-asan.log"
+      ],
+      "reason": "触发衰减与复位直接共享同一startup闪光状态"
+    },
+    "battle/legacy_battle_single_effect_frame": {
+      "status": "pending",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-single-effect-frame-004599b0.md",
+      "reason": "独立函数已迁移；完整生产调用路径可达性尚未证明"
+    },
+    "platform/legacy_command_line": {
+      "status": "excluded",
+      "verification_commit": "24eac681",
+      "files": [
+        "src/platform/sdl3/legacy_command_line.cpp",
+        "src/platform/sdl3/legacy_command_line.hpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
+      "reason": "argc/argv及命令行重建，不是业务调用参数包"
+    },
+    "platform/legacy_sample_backend_sdl3": {
+      "status": "excluded",
+      "verification_commit": "24eac681",
+      "files": [
+        "src/platform/sdl3/legacy_sample_backend_sdl3.cpp",
+        "src/platform/sdl3/legacy_sample_backend_sdl3.hpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
+      "reason": "operation仅为SDL错误消息前缀字符串，不是调用操作编号"
+    },
+    "rendering/legacy_blitter": {
+      "status": "pending",
+      "evidence": "analysis/04-reverse-engineering/evidence/legacy-blitter-copy-004170e0.md",
+      "reason": "私有像素策略本身不是通用调用，但公开选择结果仍含原函数地址枚举，整体保留待审查"
+    },
+    "resource_io/data_directory": {
+      "status": "excluded",
+      "verification_commit": "24eac681",
+      "files": [
+        "include/openswd3/resource_io/data_directory.hpp",
+        "src/resource_io/data_directory.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
+      "reason": "数据目录命令行选项解析，不是通用调用参数数组"
+    },
+    "world_map/legacy_world_role_surface_occupancy": {
+      "status": "excluded",
+      "verification_commit": "24eac681",
+      "files": [
+        "src/world_map/legacy_world_role_surface_occupancy.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
+      "reason": "私有模板接收实际位运算函数并修改格子，没有callee编号或寄存器协议"
+    }
+  }
+}

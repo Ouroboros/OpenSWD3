@@ -1,0 +1,12 @@
+{
+  "source_revision": "24eac68179851956df351a3f7b6d9bdf191d90ec",
+  "baseline_revision": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
+  "scanned_production_files": 871,
+  "candidate_units": 324,
+  "excluded_units": 4,
+  "scope_units": 320,
+  "verified_units": 8,
+  "pending_units": 312,
+  "ledger_percent": 2.5,
+  "scope_exhaustiveness_verified": false
+}
