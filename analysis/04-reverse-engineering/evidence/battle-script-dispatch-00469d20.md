@@ -375,9 +375,24 @@ case56把`script+2`作为组Bactor u16并写入packed状态高word。caller按`s
 
 ### case `61`
 
-从`script+2`起按u16扫描，以首个`0xFFFF`终止并得到元素数；没有现代长度上限，越界只在首次真实脚本读取点typed-stop。随后逐元素按`<=7`组B、`>7`组A调用角色查询，保留两个u16循环计数。
+每次进入先写扫描WORD 1、数量WORD 0，再清同一action.frame_enabled。
+从script+2逐WORD扫描FFFF；每个非终止项立即递增并发布扫描与数量，
+原脚本读取故障保留部分前缀，不新增列表长度停止。随后清两个查询游标。
+零项直接完成，保持cursor，不执行查询或后续加载。
 
-若所有查询的AX都为零，cursor先定位到终止字后的首个word，以该word的signed值调用脚本准备callee，cursor保持在该word，三个计数全部清零并返回1。若任一查询AX非零，则不调用准备callee，cursor改为原位置加`2*count+8`，只清两个循环索引，保留元素数word并返回1。空列表走全假路径，仍读取并调用终止字后的word。两条cursor和清理不对称不可合并。
+每项读取角色代码后先清同一帧门、发布packed_actor_state高WORD，再按
+无符号代码0..7借敌方字段、>7减8借队员字段，直接查询实际目标计数。
+只有完整WORD零值增加通过游标；8000与FFFF均非零。
+两个原查询故障保留共享前缀与真实前驱，抑制游标、加载及清理后缀。
+
+全部为零时先推进cursor至count*2+4，读取signed后续WORD再加载。
+加载正常返回后重读共享数量和通过游标；相等才清数量及两个游标。
+不等时清两个游标、从当前cursor加count*2+8，保留数量。
+加载失败保留已经推进的cursor。原不对称清理与重读顺序保持。
+
+当前查询已删除请求数组、寄存器结果、轨迹、计数、resolver和转发；
+[当前源码验证及限制](battle-actor-target-selection-count-query-00478ab0.md)
+独立记录。case61的加载及脚本父级其他协议仍待迁移，不提升B11或完整帧。
 
 ### case `62`
 

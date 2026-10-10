@@ -1176,45 +1176,6 @@ private:
         return true;
     }
 
-    [[nodiscard]] bool query_actor_target_selection_count(
-        const u32 actor_token,
-        const u32 entry_eax,
-        const u32 entry_edx,
-        const LegacyBattleActorCoordinateFlags& entry_flags
-    ) {
-        if (!execute_legacy_battle_actor_target_selection_count_query_call(
-                result_.actor_target_selection_count_query,
-                request_.actor_target_selection_count_query_requests,
-                {
-                    .action = &bindings_.action,
-                    .startup = &bindings_.startup,
-                },
-                0x0046D429U,
-                0x0046D42EU,
-                actor_token,
-                entry_eax,
-                entry_edx,
-                entry_flags,
-                true
-            )) {
-            eax_ = result_.actor_target_selection_count_query.last.return_eax;
-            ecx_ = result_.actor_target_selection_count_query.last.return_ecx;
-            edx_ = result_.actor_target_selection_count_query.last.return_edx;
-            if (result_.actor_target_selection_count_query.last.flags_known) {
-                flags_ = result_.actor_target_selection_count_query.last.flags;
-            }
-            result_.status = LegacyBattleScriptDispatchStatus::
-                actor_target_selection_count_query_typed_stop;
-            return false;
-        }
-
-        eax_ = result_.actor_target_selection_count_query.last.return_eax;
-        ecx_ = result_.actor_target_selection_count_query.last.return_ecx;
-        edx_ = result_.actor_target_selection_count_query.last.return_edx;
-        flags_ = result_.actor_target_selection_count_query.last.flags;
-        return true;
-    }
-
     [[nodiscard]] bool increment_actor_start_gate(
         const u32 actor_token,
         const u32 entry_eax,

@@ -222,30 +222,35 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty() {
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_one() {
-    u16 count = workspace_.word_d;
-    u16 inner = high_word(workspace_.packed_value_b);
-    u16 outer = low_word(workspace_.packed_value_b);
-    if (count == 0U && inner == 0U && outer == 0U) {
-        u16 scan = 1U;
-        for (;;) {
-            u16 value{};
-            if (!read_u16(
-                    wrapping_add(
-                        workspace_.cursor, static_cast<u32>(scan) * 2U
-                    ),
-                    value
-                )) {
-                return finish();
-            }
-            if (value == 0xFFFFU) {
-                break;
-            }
-            ++scan;
-            ++count;
+    set_high_word(workspace_.packed_value_b, 1U);
+    workspace_.word_d = 0U;
+    bindings_.action.frame_enabled = 0U;
+    for (;;) {
+        u16 value{};
+        if (!read_u16(
+                wrapping_add(
+                    workspace_.cursor,
+                    static_cast<u32>(high_word(workspace_.packed_value_b)) * 2U
+                ),
+                value
+            )) {
+            return finish();
         }
-        workspace_.word_d = count;
+
+        if (value == 0xFFFFU) {
+            break;
+        }
+
+        set_high_word(
+            workspace_.packed_value_b,
+            static_cast<u16>(high_word(workspace_.packed_value_b) + 1U)
+        );
+        ++workspace_.word_d;
     }
-    while (outer < count) {
+
+    workspace_.packed_value_b = 0U;
+    while (low_word(workspace_.packed_value_b) < workspace_.word_d) {
+        const u16 outer = low_word(workspace_.packed_value_b);
         u16 actor{};
         if (!read_u16(
                 wrapping_add(
@@ -255,56 +260,96 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_sixty_one() {
             )) {
             return finish();
         }
+
+        bindings_.action.frame_enabled = 0U;
+        set_high_word(workspace_.packed_actor_state, actor);
         const bool group_a = actor > 7U;
         const u32 actor_index =
             group_a ? static_cast<u32>(actor) - 8U : static_cast<u32>(actor);
-        const u32 token = group_a ? kLegacyBattleScriptGroupABaseToken +
-                kLegacyBattleScriptGroupAElementSize * actor_index
-                                  : kLegacyBattleScriptGroupBBaseToken +
-                kLegacyBattleScriptGroupBElementSize * actor_index;
+        const u16* target_selection_count{};
         if (group_a) {
             eax_ = 3021U * actor_index;
+            ecx_ = kLegacyBattleScriptGroupABaseToken +
+                kLegacyBattleScriptGroupAElementSize * actor_index;
             edx_ = outer;
             flags_ = subtract_flags(1008U * actor_index, actor_index);
+            if (actor_index <
+                bindings_.action.group_a_action_execution.size()) {
+                target_selection_count =
+                    &bindings_.action.group_a_action_execution[actor_index]
+                         .target_selection_count;
+            }
         } else {
             eax_ = actor_index;
+            ecx_ = kLegacyBattleScriptGroupBBaseToken +
+                kLegacyBattleScriptGroupBElementSize * actor_index;
             edx_ = 1381U * actor_index;
             flags_ = subtract_flags(24U * actor_index, actor_index);
+            if (bindings_.startup.group_b_lifecycle != nullptr &&
+                actor_index < bindings_.startup.group_b_lifecycle->size()) {
+                target_selection_count =
+                    &(*bindings_.startup.group_b_lifecycle)[actor_index]
+                         .action_execution.target_selection_count;
+            }
         }
 
-        if (!query_actor_target_selection_count(token, eax_, edx_, flags_)) {
+        result_.actor_target_selection_count_query =
+            query_legacy_battle_actor_target_selection_count(
+                target_selection_count,
+                request_.actor_target_selection_count_query_access
+            );
+        const auto& query = *result_.actor_target_selection_count_query;
+        if (query.value.has_value()) {
+            set_low_word(eax_, *query.value);
+        }
+
+        if (query.status !=
+            LegacyBattleActorTargetSelectionCountQueryStatus::completed) {
+            result_.status = LegacyBattleScriptDispatchStatus::
+                actor_target_selection_count_query_typed_stop;
             return finish(eax_);
         }
 
-        flags_ = test_word_flags(low_word(eax_));
+        flags_ = test_word_flags(*query.value);
         if (flags_.zero) {
-            ++inner;
+            const u16 inner =
+                static_cast<u16>(high_word(workspace_.packed_value_b) + 1U);
             set_high_word(workspace_.packed_value_b, inner);
-            if (inner == count) {
+            if (inner == workspace_.word_d) {
+                edx_ = workspace_.cursor;
+                ecx_ = workspace_.word_d;
+                flags_ = test_word_flags(0U);
                 workspace_.cursor = wrapping_add(
-                    workspace_.cursor, static_cast<u32>(count) * 2U + 4U
+                    workspace_.cursor,
+                    static_cast<u32>(workspace_.word_d) * 2U + 4U
                 );
                 u16 next{};
                 if (!read_u16(workspace_.cursor, next)) {
                     return finish();
                 }
+                eax_ = std::bit_cast<u32>(signed_word(next));
                 if (!invoke(
                         LegacyBattleScriptDispatchCall::script_page_load,
                         0U,
-                        {std::bit_cast<u32>(signed_word(next))}
+                        {eax_}
                     )) {
                     return finish(eax_);
                 }
                 break;
             }
         }
-        ++outer;
-        set_low_word(workspace_.packed_value_b, outer);
+        set_low_word(
+            workspace_.packed_value_b,
+            static_cast<u16>(low_word(workspace_.packed_value_b) + 1U)
+        );
     }
-    if (inner != count) {
-        workspace_.cursor =
-            wrapping_add(workspace_.cursor, static_cast<u32>(count) * 2U + 8U);
+
+    edx_ = 0U;
+    if (high_word(workspace_.packed_value_b) != workspace_.word_d) {
         workspace_.packed_value_b = 0U;
+        workspace_.cursor = wrapping_add(
+            workspace_.cursor, static_cast<u32>(workspace_.word_d) * 2U + 8U
+        );
     } else {
         workspace_.word_d = 0U;
         workspace_.packed_value_b = 0U;

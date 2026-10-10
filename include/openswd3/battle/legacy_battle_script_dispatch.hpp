@@ -388,8 +388,8 @@ struct LegacyBattleScriptDispatchRequest {
         actor_presentation_activation_requests{};
     LegacyBattleActorTargetSelectionRequestList
         actor_target_selection_requests{};
-    LegacyBattleActorTargetSelectionCountQueryCallRequests
-        actor_target_selection_count_query_requests{};
+    LegacyBattleActorTargetSelectionCountQueryAccess
+        actor_target_selection_count_query_access{};
     LegacyBattleActorStartGateIncrementCallRequests
         actor_start_gate_increment_requests{};
 };
@@ -450,8 +450,8 @@ struct LegacyBattleScriptDispatchResult {
     LegacyBattleActorPresentationActivationCallTrace
         actor_presentation_activation{};
     LegacyBattleActorTargetSelectionTrace actor_target_selection{};
-    LegacyBattleActorTargetSelectionCountQueryTrace
-        actor_target_selection_count_query{};
+    std::optional<LegacyBattleActorTargetSelectionCountQueryResult>
+        actor_target_selection_count_query;
     LegacyBattleActorStartGateIncrementTrace actor_start_gate_increment{};
     std::vector<LegacyBattleScriptDispatchCall> call_trace;
 };
