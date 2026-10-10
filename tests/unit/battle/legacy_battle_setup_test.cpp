@@ -47,6 +47,7 @@ void test_battle_retreat_commit(openswd3::test::Context& test);
 void test_battle_actor_frame_sequence(openswd3::test::Context& test);
 void test_battle_actor_lifecycle(openswd3::test::Context& test);
 void test_battle_actor_array_unwind_termination();
+void test_battle_party_array_unwind_termination();
 void test_battle_actor_startup_reset(openswd3::test::Context& test);
 void test_battle_group_a_startup_reset(openswd3::test::Context& test);
 void test_battle_group_b_startup_reset(openswd3::test::Context& test);
@@ -7383,6 +7384,12 @@ int main(int argc, char* argv[]) {
     if (argc == 2 &&
         std::string_view{argv[1]} == "--actor-array-unwind-termination") {
         test_battle_actor_array_unwind_termination();
+        return 0;
+    }
+
+    if (argc == 2 &&
+        std::string_view{argv[1]} == "--party-array-unwind-termination") {
+        test_battle_party_array_unwind_termination();
         return 0;
     }
 

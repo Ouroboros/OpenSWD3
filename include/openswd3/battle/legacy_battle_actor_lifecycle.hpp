@@ -18,8 +18,6 @@ namespace openswd3::battle {
 inline constexpr compat::u32 kLegacyBattleActorGroupABaseToken = 0x005029D0U;
 inline constexpr compat::u32 kLegacyBattleActorGroupAElementSize = 0x2F34U;
 inline constexpr compat::u32 kLegacyBattleActorGroupAElementCount = 10U;
-inline constexpr compat::u32 kLegacyBattleActorGroupADestructorToken =
-    0x0046E4D0U;
 inline constexpr compat::u32 kLegacyBattleActorGroupAExitCleanupToken =
     0x004517E0U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBBaseToken = 0x00525508U;
@@ -32,22 +30,6 @@ inline constexpr compat::u32 kLegacyBattleActorGroupBExitCleanupToken =
 inline constexpr compat::u32 kLegacyBattleActorSingletonToken = 0x00521598U;
 inline constexpr compat::u32 kLegacyBattleActorSingletonExitCleanupToken =
     0x00451890U;
-
-struct LegacyBattleActorVectorDestructionRequest {
-    compat::u32 base_token{};
-    compat::u32 element_size{};
-    compat::u32 element_count{};
-    compat::u32 destructor_token{};
-};
-
-class LegacyBattleActorVectorDestructionPort {
-public:
-    virtual ~LegacyBattleActorVectorDestructionPort() = default;
-
-    [[nodiscard]] virtual compat::u32 destroy_vector(
-        const LegacyBattleActorVectorDestructionRequest& request
-    ) = 0;
-};
 
 class LegacyBattleActorExitRegistrationPort {
 public:
@@ -82,6 +64,17 @@ struct LegacyBattleActorGroupAElementConstructionView {
     compat::u16& field_2f26;
     compat::u32& primary_resource_token;
     std::span<compat::u8> description_bytes;
+};
+
+struct LegacyBattleActorGroupAElementDestructionView {
+    compat::u32 object_token{};
+    compat::u32 object_readable_bytes{kLegacyBattleActorGroupAElementSize};
+    compat::u32 object_writable_bytes{kLegacyBattleActorGroupAElementSize};
+    compat::u32& primary_resource_token;
+    compat::u32& secondary_resource_token;
+    std::span<compat::u8> description_bytes;
+    std::span<compat::u8> resource_definition;
+    LegacyBattleMonText& resource_definition_description;
 };
 
 struct LegacyBattleGroupBActionRecord {
@@ -231,9 +224,8 @@ struct LegacyBattleActorGroupAElementDestructionResult {
 };
 
 struct LegacyBattleActorGroupADestructionResult {
-    LegacyBattleActorVectorDestructionRequest request{};
-    compat::u32 vector_destructor_calls{};
-    compat::u32 return_value{};
+    std::optional<compat::u32> stopped_actor_index;
+    LegacyBattleActorGroupAElementDestructionResult element{};
 };
 
 struct LegacyBattleActorGroupBDestructionResult {
@@ -293,7 +285,7 @@ release_legacy_battle_actor_group_b_element(
 // sub_46E4D0 with its SEH unwind chunk at loc_498390.
 [[nodiscard]] LegacyBattleActorGroupAElementDestructionResult
 release_legacy_battle_actor_group_a_element(
-    LegacyBattleActorGroupAElementState& state,
+    LegacyBattleActorGroupAElementDestructionView state,
     LegacyBattleGroupAStorage& resources
 );
 
@@ -304,12 +296,6 @@ construct_legacy_battle_actor_singleton(LegacyBattleActorSingletonState& state);
 // sub_451890: load the singleton token and tail-call its destructor.
 [[nodiscard]] LegacyBattleActorBaseReleaseResult
 release_legacy_battle_actor_singleton(LegacyBattleActorSingletonState& state);
-
-// sub_4517E0: wrap the compiler vector-destruction iterator for group A.
-[[nodiscard]] LegacyBattleActorGroupADestructionResult
-release_legacy_battle_actor_group_a(
-    LegacyBattleActorVectorDestructionPort& destruction_port
-);
 
 [[nodiscard]] LegacyBattleActorGroupBDestructionResult
 release_legacy_battle_actor_group_b(LegacyBattleGroupBStorage& actors);

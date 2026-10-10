@@ -765,6 +765,14 @@ add_test(
     NAME battle.legacy_battle_actor_array_unwind
     COMMAND ${CMAKE_COMMAND}
         "-DTEST_PROGRAM=$<TARGET_FILE:openswd3_battle_legacy_battle_setup_tests>"
+        "-DTEST_ARGUMENT=--actor-array-unwind-termination"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/support/actor_array_unwind_termination.cmake"
+)
+add_test(
+    NAME battle.legacy_battle_party_array_unwind
+    COMMAND ${CMAKE_COMMAND}
+        "-DTEST_PROGRAM=$<TARGET_FILE:openswd3_battle_legacy_battle_setup_tests>"
+        "-DTEST_ARGUMENT=--party-array-unwind-termination"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/support/actor_array_unwind_termination.cmake"
 )
 
@@ -4106,6 +4114,7 @@ openswd3_lock_shared_test_executable(
     battle_setup
     battle.legacy_battle_setup
     battle.legacy_battle_actor_array_unwind
+    battle.legacy_battle_party_array_unwind
 )
 openswd3_lock_shared_test_executable(
     act_archive

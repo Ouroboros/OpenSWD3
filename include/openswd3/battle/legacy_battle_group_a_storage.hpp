@@ -37,6 +37,7 @@ public:
     operator=(const LegacyBattleGroupAStorage&) = delete;
 
     [[nodiscard]] bool construct();
+    [[nodiscard]] LegacyBattleActorGroupADestructionResult release();
     [[nodiscard]] LegacyBattleGroupAStartupBindingStatus initialize_party(
         std::size_t index,
         LegacyBattleFinalActorStepState& final_actor,

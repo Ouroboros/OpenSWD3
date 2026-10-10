@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_group_a_storage.hpp"
 #include "openswd3/battle/legacy_battle_group_b_storage.hpp"
 
+#include <algorithm>
 #include <exception>
 
 namespace openswd3::battle {
@@ -192,17 +193,21 @@ release_legacy_battle_actor_group_b_element(
 
 LegacyBattleActorGroupAElementDestructionResult
 release_legacy_battle_actor_group_a_element(
-    LegacyBattleActorGroupAElementState& state,
+    LegacyBattleActorGroupAElementDestructionView state,
     LegacyBattleGroupAStorage& resources
 ) {
     LegacyBattleActorGroupAElementDestructionResult result;
     try {
         result.resource_cleanup = release_legacy_battle_group_a_resources(
-            &state.resource_cleanup, &resources, state.object_token
+            state.primary_resource_token,
+            state.secondary_resource_token,
+            &resources,
+            state.object_token
         );
     } catch (...) {
         result.base_release = release_legacy_battle_actor_base(
-            state.base_initialization,
+            state.resource_definition,
+            state.resource_definition_description,
             {
                 .object_token = state.object_token,
                 .readable_bytes = state.object_readable_bytes,
@@ -227,11 +232,12 @@ release_legacy_battle_actor_group_a_element(
     }
 
     if (result.resource_cleanup.primary_resource_released) {
-        state.description_bytes.fill(0U);
+        std::ranges::fill(state.description_bytes, 0U);
     }
 
     result.base_release = release_legacy_battle_actor_base(
-        state.base_initialization,
+        state.resource_definition,
+        state.resource_definition_description,
         {
             .object_token = state.object_token,
             .readable_bytes = state.object_readable_bytes,
@@ -243,22 +249,6 @@ release_legacy_battle_actor_group_a_element(
             base_release_typed_stop;
     }
 
-    return result;
-}
-
-LegacyBattleActorGroupADestructionResult release_legacy_battle_actor_group_a(
-    LegacyBattleActorVectorDestructionPort& destruction_port
-) {
-    LegacyBattleActorGroupADestructionResult result{
-        .request = {
-            .base_token = kLegacyBattleActorGroupABaseToken,
-            .element_size = kLegacyBattleActorGroupAElementSize,
-            .element_count = kLegacyBattleActorGroupAElementCount,
-            .destructor_token = kLegacyBattleActorGroupADestructorToken,
-        },
-    };
-    result.return_value = destruction_port.destroy_vector(result.request);
-    result.vector_destructor_calls = 1U;
     return result;
 }
 

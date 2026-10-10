@@ -151,19 +151,64 @@ struct GroupAReleaseStorage {
     openswd3::battle::LegacyBattleGroupAStorage storage{*startup, *action};
 };
 
-class TrackingGroupALifecyclePort final
-    : public openswd3::battle::LegacyBattleActorVectorDestructionPort,
-      public openswd3::battle::LegacyBattleActorExitRegistrationPort {
-public:
-    [[nodiscard]] u32 destroy_vector(
-        const openswd3::battle::LegacyBattleActorVectorDestructionRequest&
-            request
-    ) override {
-        events.push_back(3U);
-        last_destruction_request = request;
-        return destruction_result;
-    }
+struct PartyArrayReleaseFixture {
+    std::vector<u32> events;
+    std::array<DescriptionReleaseFailure, 10U> failures{};
+    std::array<u32, 10U> primary_tokens{};
+    std::array<u32, 10U> secondary_tokens{};
+    bool resources_released_first{true};
+    GroupAReleaseStorage actors;
 
+    PartyArrayReleaseFixture() {
+        if (!actors.storage.construct()) {
+            throw std::runtime_error{"party release fixture allocation failed"};
+        }
+
+        using Text = openswd3::battle::LegacyBattleMonText;
+        for (u32 index = 0U; index < 10U; ++index) {
+            auto& party = actors.startup->party[index];
+            primary_tokens[index] = party.configuration.actor_record_token;
+            secondary_tokens[index] = actors.storage.allocate_profile();
+            party.configuration.profile_token = secondary_tokens[index];
+            auto bytes = std::make_shared<Text::Storage>(Text::Storage{1U, 0U});
+            party.base_resource_definition_description.bind(
+                bytes,
+                std::make_shared<const Text::Release>([this, index, bytes] {
+                    events.push_back(index);
+                    const auto& configuration =
+                        actors.startup->party[index].configuration;
+                    resources_released_first = resources_released_first &&
+                        configuration.actor_record_token == 0U &&
+                        configuration.profile_token == 0U &&
+                        actors.storage.record_bytes(primary_tokens[index])
+                            .empty() &&
+                        actors.storage.record_bytes(secondary_tokens[index])
+                            .empty();
+                    if (failures[index] ==
+                        DescriptionReleaseFailure::exception) {
+                        throw std::runtime_error{
+                            "party description release failed"
+                        };
+                    }
+
+                    if (failures[index] == DescriptionReleaseFailure::reject) {
+                        return false;
+                    }
+
+                    Text::Storage{}.swap(*bytes);
+                    return true;
+                })
+            );
+            write_actor_base_description_token(
+                party.base_resource_definition, 0x62000000U + index * 16U
+            );
+        }
+    }
+};
+
+class TrackingGroupALifecyclePort final
+    : public openswd3::battle::LegacyBattleActorExitRegistrationPort {
+public:
     [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
         events.push_back(2U);
         registered_cleanup_token = cleanup_token;
@@ -190,11 +235,8 @@ public:
 
     GroupAReleaseStorage* observed_storage{};
     bool construction_observed_at_registration{};
-    u32 destruction_result{};
     u32 registration_result{};
     u32 registered_cleanup_token{};
-    openswd3::battle::LegacyBattleActorVectorDestructionRequest
-        last_destruction_request{};
     std::vector<u32> events;
 };
 
@@ -292,17 +334,20 @@ public:
     std::vector<u32> events;
 };
 
-[[nodiscard]] bool is_group_a_request(
-    const openswd3::battle::LegacyBattleActorVectorDestructionRequest& request
-) noexcept {
-    return request.base_token ==
-        openswd3::battle::kLegacyBattleActorGroupABaseToken &&
-        request.element_size ==
-        openswd3::battle::kLegacyBattleActorGroupAElementSize &&
-        request.element_count ==
-        openswd3::battle::kLegacyBattleActorGroupAElementCount &&
-        request.destructor_token ==
-        openswd3::battle::kLegacyBattleActorGroupADestructorToken;
+openswd3::battle::LegacyBattleActorGroupAElementDestructionView
+destruction_view(openswd3::battle::LegacyBattleActorGroupAElementState& state) {
+    return {
+        .object_token = state.object_token,
+        .object_readable_bytes = state.object_readable_bytes,
+        .object_writable_bytes = state.object_writable_bytes,
+        .primary_resource_token = state.resource_cleanup.primary_resource_token,
+        .secondary_resource_token =
+            state.resource_cleanup.secondary_resource_token,
+        .description_bytes = state.description_bytes,
+        .resource_definition = state.base_initialization.resource_definition,
+        .resource_definition_description =
+            state.base_initialization.resource_definition_description,
+    };
 }
 
 }  // namespace
@@ -324,6 +369,23 @@ void test_battle_actor_array_unwind_termination() {
     static_cast<void>(
         openswd3::battle::release_legacy_battle_actor_group_b(actors.storage)
     );
+}
+
+void test_battle_party_array_unwind_termination() {
+    PartyArrayReleaseFixture fixture;
+    fixture.failures[6U] = DescriptionReleaseFailure::exception;
+    fixture.failures[5U] = DescriptionReleaseFailure::exception;
+    static const PartyArrayReleaseFixture* termination_fixture;
+    termination_fixture = &fixture;
+    std::set_terminate([] {
+        const auto& current = *termination_fixture;
+        const auto& events = current.events;
+        const bool expected = current.resources_released_first &&
+            events.size() == 5U && events[0U] == 9U && events[1U] == 8U &&
+            events[2U] == 7U && events[3U] == 6U && events[4U] == 5U;
+        std::_Exit(expected ? 86 : 87);
+    });
+    static_cast<void>(fixture.actors.storage.release());
 }
 
 void test_battle_actor_lifecycle(openswd3::test::Context& test) {
@@ -830,7 +892,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         );
         const auto result =
             openswd3::battle::release_legacy_battle_actor_group_a_element(
-                state, fixture.storage
+                destruction_view(state), fixture.storage
             );
         test.expect_true(
             resources_released_before_description && bytes->empty() &&
@@ -862,7 +924,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         GroupAReleaseStorage fixture;
         const auto result =
             openswd3::battle::release_legacy_battle_actor_group_a_element(
-                state, fixture.storage
+                destruction_view(state), fixture.storage
             );
         test.expect_true(
             result.status ==
@@ -921,7 +983,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         try {
             static_cast<void>(
                 openswd3::battle::release_legacy_battle_actor_group_a_element(
-                    state, fixture.storage
+                    destruction_view(state), fixture.storage
                 )
             );
         } catch (const std::bad_optional_access&) {
@@ -1518,19 +1580,127 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
     }
 
     {
-        TrackingGroupALifecyclePort destruction_port;
-        destruction_port.destruction_result = 0x87654321U;
-        const auto result =
-            openswd3::battle::release_legacy_battle_actor_group_a(
-                destruction_port
-            );
+        PartyArrayReleaseFixture fixture;
+        const auto result = fixture.actors.storage.release();
         test.expect_true(
-            destruction_port.events == std::vector<u32>{3U} &&
-                result.vector_destructor_calls == 1U &&
-                result.return_value == 0x87654321U &&
-                is_group_a_request(result.request) &&
-                is_group_a_request(destruction_port.last_destruction_request),
-            "actor group A wrapper forwards exact vector destruction constants"
+            !result.stopped_actor_index && fixture.resources_released_first &&
+                fixture.events ==
+                    std::vector<u32>{9U, 8U, 7U, 6U, 5U, 4U, 3U, 2U, 1U, 0U},
+            "party array releases real shared actor fields in reverse order"
+        );
+        for (const auto& actor : fixture.actors.startup->party) {
+            test.expect_true(
+                read_actor_base_description_token(
+                    actor.base_resource_definition
+                ) == 0U &&
+                    actor.base_resource_definition_description.empty(),
+                "party array clears the shared base description after resource retirement"
+            );
+        }
+    }
+
+    for (const auto failure :
+         {DescriptionReleaseFailure::reject,
+          DescriptionReleaseFailure::exception}) {
+        for (u32 failed_index = 0U; failed_index < 10U; ++failed_index) {
+            PartyArrayReleaseFixture fixture;
+            fixture.failures[failed_index] = failure;
+            openswd3::battle::LegacyBattleActorGroupADestructionResult result;
+            bool propagated = false;
+            try {
+                result = fixture.actors.storage.release();
+            } catch (const std::runtime_error& error) {
+                propagated = std::string_view{error.what()} ==
+                    "party description release failed";
+            }
+
+            const bool unwinding =
+                failure == DescriptionReleaseFailure::exception;
+            test.expect_true(
+                propagated == unwinding && fixture.resources_released_first &&
+                    (unwinding ||
+                     (result.stopped_actor_index == failed_index &&
+                      result.element.base_release.status ==
+                          openswd3::battle::LegacyBattleActorBaseReleaseStatus::
+                              release_call_typed_stop)),
+                "party array preserves a semantic failure or propagates its original exception"
+            );
+            std::vector<u32> expected;
+            for (u32 remaining = 10U; remaining != 0U;) {
+                const auto index = --remaining;
+                const bool visited = unwinding || index >= failed_index;
+                if (visited) {
+                    expected.push_back(index);
+                }
+
+                const auto& party = fixture.actors.startup->party[index];
+                test.expect_true(
+                    fixture.actors.storage
+                                .record_bytes(fixture.primary_tokens[index])
+                                .empty() == visited &&
+                        fixture.actors.storage
+                                .record_bytes(fixture.secondary_tokens[index])
+                                .empty() == visited &&
+                        (party.configuration.actor_record_token == 0U) ==
+                            visited &&
+                        (party.configuration.profile_token == 0U) == visited &&
+                        (read_actor_base_description_token(
+                             party.base_resource_definition
+                         ) == 0U) == (visited && index != failed_index),
+                    "party release mutates actual shared tokens and preserves the failed description"
+                );
+            }
+
+            test.expect_true(
+                fixture.events == expected,
+                "party array unwind excludes the throwing actor and visits earlier actors"
+            );
+        }
+    }
+
+    for (const bool fail_secondary : {false, true}) {
+        PartyArrayReleaseFixture fixture;
+        const auto stale = fail_secondary ? fixture.secondary_tokens[4U]
+                                          : fixture.primary_tokens[4U];
+        test.expect_true(
+            fixture.actors.storage.release_heap_block(stale),
+            "retire one allocation to exercise a real failed release"
+        );
+        bool propagated = false;
+        try {
+            static_cast<void>(fixture.actors.storage.release());
+        } catch (const std::bad_optional_access&) {
+            propagated = true;
+        }
+
+        const auto& party = fixture.actors.startup->party[4U];
+        test.expect_true(
+            propagated &&
+                fixture.events ==
+                    std::vector<u32>{9U, 8U, 7U, 6U, 5U, 4U, 3U, 2U, 1U, 0U} &&
+                party.configuration.actor_record_token ==
+                    fixture.primary_tokens[4U] &&
+                party.configuration.profile_token ==
+                    (fail_secondary ? fixture.secondary_tokens[4U] : 0U) &&
+                fixture.actors.storage.record_bytes(fixture.primary_tokens[4U])
+                        .empty() == !fail_secondary &&
+                party.base_resource_definition_description.empty(),
+            "party release retains secondary-before-primary ordering and runs base cleanup after failure"
+        );
+    }
+
+    {
+        PartyArrayReleaseFixture fixture;
+        fixture.failures[6U] = DescriptionReleaseFailure::exception;
+        fixture.failures[3U] = DescriptionReleaseFailure::reject;
+        const auto result = fixture.actors.storage.release();
+        test.expect_true(
+            result.stopped_actor_index == 3U &&
+                fixture.events ==
+                    std::vector<u32>{9U, 8U, 7U, 6U, 5U, 4U, 3U} &&
+                !fixture.actors.storage.record_bytes(fixture.primary_tokens[2U])
+                     .empty(),
+            "party unwind preserves a subsequent fault snapshot and the untouched prefix"
         );
     }
 }

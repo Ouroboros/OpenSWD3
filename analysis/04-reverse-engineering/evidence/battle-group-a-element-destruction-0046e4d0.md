@@ -17,7 +17,9 @@
 双资源Port、callee、寄存器请求回复和计数已删除，入口不再接收SEH/EDX请求。
 详见[双资源清理](battle-group-a-resource-cleanup-00475180.md)。
 
-公共基础析构直接复用`base_initialization.resource_definition`末尾的说明token及文本所有权。
+公共基础析构直接借用角色定义末尾的说明token及实际文本所有权。
+元素入口的引用/span视图同时用于独立字段测试和队伍存储的共享字段，
+无需复制角色状态或在释放后回写。
 零token只读不写；非零先释放实际文本，成功后才清token。
 基础释放Port、callee编号、寄存器回复与计数已删除，三类访问失败前缀保持。
 
@@ -38,7 +40,10 @@
 
 ## 4. vector caller边界
 
-本函数没有普通call caller，地址同时传给组A编译器向量构造迭代器的异常回滚参数和向量析构迭代器的元素回调。构造/析构元素回调现均关闭；两个包装器证据已更新，现存vector port只隔离MSVC对全局十对象数组的前向构造、失败逆向回滚、逆序析构与异常展开。
+LST中本函数地址传给构造迭代器的异常回滚参数及析构迭代器。
+现代代码由实际队伍存储直接逆序调用，向量请求及Port已删除。
+见[队伍数组析构](battle-actor-group-a-vector-destruction-004517e0.md)。
+构造期异常展开、退出注册及会话最终销毁仍需继续迁移。
 
 ## 5. 验证状态
 
@@ -46,6 +51,7 @@
 寄存器观察断言随旧合同删除。历史Linux core`198/198`和定向`2/2`记录见基础析构文档；
 基础说明迁移验证见[说明所有权迁移](battle-actor-description-owned-release.md)，
 当前双资源协议删除验证见[双资源清理](battle-group-a-resource-cleanup-00475180.md)。
-向量函数编号与共享堆协议仍是当前Goal待迁移项，不以compiler边界排除。
+数组析构迁移的当前验证记录见队伍数组析构文档；剩余退出协议与完整
+资源生命周期仍属当前Goal，不以compiler边界排除。
 
 原版`0x004885A0`allocator副作用、全局组A对象字节、说明堆、MSVC SEH与vector迭代器缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。

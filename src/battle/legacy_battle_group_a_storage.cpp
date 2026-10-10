@@ -7,6 +7,7 @@
 
 #include <bit>
 #include <algorithm>
+#include <exception>
 
 namespace openswd3::battle {
 namespace {
@@ -66,6 +67,55 @@ bool LegacyBattleGroupAStorage::construct() {
     }
 
     return true;
+}
+
+LegacyBattleActorGroupADestructionResult LegacyBattleGroupAStorage::release() {
+    LegacyBattleActorGroupADestructionResult result;
+    auto remaining = kLegacyBattleActorGroupAElementCount;
+    const auto release_remaining = [&] {
+        while (remaining != 0U) {
+            --remaining;
+            auto& party = startup_.party[remaining];
+            result.element = release_legacy_battle_actor_group_a_element(
+                {
+                    .object_token = party.workspace.object_token,
+                    .primary_resource_token =
+                        party.configuration.actor_record_token,
+                    .secondary_resource_token =
+                        party.configuration.profile_token,
+                    .description_bytes =
+                        bytes_of(party.configuration.actor_record),
+                    .resource_definition = party.base_resource_definition,
+                    .resource_definition_description =
+                        party.base_resource_definition_description,
+                },
+                *this
+            );
+            if (result.element.status !=
+                LegacyBattleActorGroupAElementDestructionStatus::completed) {
+                result.stopped_actor_index = remaining;
+                return;
+            }
+        }
+    };
+
+    try {
+        release_remaining();
+    } catch (...) {
+        try {
+            release_remaining();
+        } catch (...) {
+            std::terminate();
+        }
+
+        if (result.stopped_actor_index) {
+            return result;
+        }
+
+        throw;
+    }
+
+    return result;
 }
 
 LegacyBattleGroupAStartupBindingStatus
