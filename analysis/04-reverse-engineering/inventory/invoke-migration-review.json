@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "bf13ed498f00c04492dfce444e8fbbaecdd330ea",
+  "last_reviewed_source_revision": "5a2e0d0edd72f64fca8f15493a9212fc584dc094",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -34,6 +34,20 @@
         "build/tmp/runtime/world-music-without-port-asan.log"
       ],
       "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
+    },
+    "battle/legacy_battle_actor_target_selection_count_query": {
+      "status": "verified",
+      "verification_commit": "5a2e0d0edd72f64fca8f15493a9212fc584dc094",
+      "files": [
+        "include/openswd3/battle/legacy_battle_actor_target_selection_count_query.hpp",
+        "src/battle/legacy_battle_actor_target_selection_count_query.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-count-query-00478ab0.md",
+      "validation_logs": [
+        "build/tmp/runtime/target-count-query-direct-core.log",
+        "build/tmp/runtime/target-count-query-direct-asan.log"
+      ],
+      "reason": "唯一脚本caller直接读取双方实际共享WORD，删除查询owner/resolver、寄存器请求结果、模拟栈、请求数组、地址轨迹、计数及纯转发；保留原读/返回故障与真实前驱，按LST恢复逐WORD扫描、共享帧门及角色发布、空列表不加载和加载后数量重读；独立字段/边界/混合列表及故障向量经core/ASan setup各1/1与SDL链接验证；父链及完整游戏仍未验收"
     },
     "battle/legacy_battle_actor_target_selection_latch_set": {
       "status": "verified",
@@ -412,9 +426,9 @@
     },
     "battle/legacy_battle_script_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "93e461a6",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-insert-0045ee70.md",
-      "reason": "脚本位置插入删除操作槽与寄存器回显，借用真实相邻强度与startup双门，队员源发布按五DWORD步长修正；其他脚本仍有操作编号、参数数组、寄存器请求回复、计数和Port，整项继续pending"
+      "last_reviewed_commit": "5a2e0d0e",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-count-query-00478ab0.md",
+      "reason": "case61直接读取实际角色目标WORD，查询请求/寄存器/轨迹/计数/转发已删除，扫描前缀及加载后重读按LST恢复；当前公共头仍有操作枚举、八项参数数组、寄存器请求回复与调用轨迹，runner仍拼装通用请求并调用Port，其他计数和加载协议未迁移，整项继续pending"
     },
     "battle/legacy_battle_startup": {
       "status": "pending",
