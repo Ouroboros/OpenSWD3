@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "c5b16af7",
+  "last_reviewed_source_revision": "1611749e",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -194,10 +194,17 @@
       ],
       "reason": "实际说明文字分配释放及调用方已替换通用协议"
     },
+    "battle/legacy_battle_render_geometry": {
+      "status": "pending",
+      "last_reviewed_commit": "1611749e",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-render-auxiliary-owned-release.md",
+      "reason": "辅助缓冲已实际持有并释放；静态退出登记与绑定对象仍含编号、寄存器及调用计数，非空辅助缓冲生产来源待复核"
+    },
     "battle/legacy_battle_runtime_shutdown": {
       "status": "pending",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-shutdown-direct-resource-binding.md",
-      "reason": "角色释放已接通；渲染辅助缓冲仍借用释放接口且SDL实现为空"
+      "last_reviewed_commit": "1611749e",
+      "reason": "角色与绘图资源已直接释放，辅助缓冲端口及SDL空实现已删除；非空辅助缓冲生产来源与整链所有权仍待验收"
     },
     "battle/legacy_battle_screen_flash": {
       "status": "verified",
