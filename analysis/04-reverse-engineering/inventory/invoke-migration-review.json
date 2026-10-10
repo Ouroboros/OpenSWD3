@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "fe380352",
+  "last_reviewed_source_revision": "dfc16ccd",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -34,6 +34,46 @@
         "build/tmp/runtime/world-music-without-port-asan.log"
       ],
       "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
+    },
+    "battle/legacy_battle_action_dispatch": {
+      "status": "pending",
+      "last_reviewed_commit": "dfc16ccd",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-entry-0045edf0.md",
+      "reason": "行动25直接追加共享记录，删除该追加的寄存器协议及调用计数，结果改为实际可选结果；其他动作仍有callee编号、通用参数数组、寄存器请求回复与计数，整项继续pending"
+    },
+    "battle/legacy_battle_attack_order_entry": {
+      "status": "verified",
+      "verification_commit": "dfc16ccd",
+      "files": [
+        "include/openswd3/battle/legacy_battle_attack_order_entry.hpp",
+        "src/battle/legacy_battle_attack_order_entry.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-entry-0045edf0.md",
+      "validation_logs": [
+        "build/tmp/runtime/attack-order-append-core.log",
+        "build/tmp/runtime/attack-order-append-asan.log",
+        "build/tmp/runtime/attack-order-append-callers-core.log",
+        "build/tmp/runtime/attack-order-append-callers-asan.log"
+      ],
+      "reason": "追加直接写共享队列并返回实际可选索引，三个直接调用方及嵌套汇总已移除该寄存器协议和计数；固定18槽、两项字段写、满表无写、短视图停点及核心同帧出队后追加唯一队列经core/ASan验证，SDL构建通过；完整游戏流程不升级"
+    },
+    "battle/legacy_battle_group_a_frame": {
+      "status": "pending",
+      "last_reviewed_commit": "dfc16ccd",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-entry-0045edf0.md",
+      "reason": "已删除行动追加的汇总计数，传递实际可选结果并借用核心唯一队列；位置插入和其他角色帧业务仍有通用操作、参数包、寄存器结果与计数，整项继续pending"
+    },
+    "battle/legacy_battle_group_b_frame": {
+      "status": "pending",
+      "last_reviewed_commit": "dfc16ccd",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-entry-0045edf0.md",
+      "reason": "敌方进度更新后直接追加唯一共享队列，删除入口寄存器、追加计数及嵌套计数汇总；其他对手帧业务仍有通用操作、参数包、寄存器请求回复与计数，SDL完整角色帧及实机条件可达性仍未验证"
+    },
+    "battle/legacy_battle_transition": {
+      "status": "pending",
+      "last_reviewed_commit": "dfc16ccd",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-entry-0045edf0.md",
+      "reason": "转场敌方条件直接追加启动队列，删除该寄存器结果、计数、无用操作槽和死EAX赋值；其他转场业务仍有通用操作、参数数组、寄存器回复及转接接口，整项继续pending"
     },
     "battle/legacy_battle_attack_order_dequeue": {
       "status": "verified",
@@ -141,9 +181,9 @@
     },
     "battle/legacy_battle_frame_coordinator": {
       "status": "pending",
-      "last_reviewed_commit": "fe380352",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-dequeue-0045f020.md",
-      "reason": "已删除行动出队的寄存器查询转发、操作槽、EDX快照及刷新计数；其他帧业务仍保留通用操作、参数数组、寄存器请求回复与计数，整项继续pending"
+      "last_reviewed_commit": "dfc16ccd",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-entry-0045edf0.md",
+      "reason": "已删除出队查询协议并把角色帧追加绑定到同一启动队列，验证同帧出队后敌方写回唯一队列；其他帧业务仍保留通用操作、参数数组、寄存器请求回复与计数，SDL完整角色帧接线及实际游戏流程仍未验收"
     },
     "battle/legacy_battle_frame_music_prefix": {
       "status": "verified",
