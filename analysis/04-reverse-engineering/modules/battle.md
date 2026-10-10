@@ -4451,24 +4451,18 @@ inventory SHA-256为`bf69e0e06746fc36650e43f0edea4b3deb5b4b0885026b976e09246f655
 动态差分因原版完整Group-A/Group-B actor backing、`+0x2AA8`异常字段页、
 RET异常栈页及三处caller联合寄存器、flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-本轮再完成`audit_order=313`的`0x00478B40`
-战斗角色目标选择latch查询函数及两个已关闭父函数中的四处物理CALL。
-完整权威LST主体`0x00478B40..0x00478B46`共7字节、2条实际指令、0个callee、0个分支和1个普通`ret`；
-函数只把actor `+0x2AA8`完整dword读入EAX后返回，保持ECX、EDX和算术flags。
-typed实现复用Workpack 312的Group-A runtime-reset与Group-B lifecycle canonical owner、
-view和resolver，保留字段读、RET读、ESP/EIP、两个真实停止点及RET失败时已提交EAX的部分结果。
-Group-A frame三处和Group-B frame一处CALL全部在原位置直接组合typed leaf；
-`0x00456F12`保留TEST flags穿过MOV驱动JNZ，其他三处保留完整dword `CMP 1`，
-Group-B typed-stop保留action-target clear前缀。leaf非零request offset有直接测试；
-父frame保留nested offset转发和trace merge接线，但当前nested dispatcher不消费getter，
-未伪造不可执行调用。生产generic `0x00478B40`调用归零，没有延期CALL。验证：定向测试、
-AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core、
-新文件全量与旧文件changed-range clang-format、零源码warning、测试失败、sanitizer finding、
-inventory双生成及release审计均通过；未启动原版或OpenSWD3游戏程序。
-工作包为`313/422 = 303 platform_adapted + 10 assembly_exact + 109 pending_audit`；
-inventory SHA-256为`2a55f9cf35d6a4c01024b6e95ddc4c2344a9f4e7e9fd34eece7275514894f879`。
-动态差分因原版完整Group-A/Group-B actor backing、`+0x2AA8`异常字段页、
-RET异常栈页及四处caller联合寄存器、flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
+Workpack313目标选择标记查询现直接借用实际共享DWORD。
+完整LST仍为`00478B40..00478B46`两条指令。三处队员帧及一处敌方帧
+已删除查询寄存器请求、地址表、轨迹、计数、offset及转发执行器。
+队员字段位于startup runtime reset；敌方字段位于startup lifecycle。
+四处保留各自完整DWORD的精确1或非零条件、实际读取时点及两种原故障前缀。
+队员收尾首个衰减前按0045714A重读敌方数量，敌方收尾按内存比较数量。
+本批core/ASan setup与角色帧各1/1、SDL链接通过；仅ASan setup有
+一次既有结算窄化警告。源码身份、独立向量、当前门禁及限制见
+[battle-actor-target-selection-latch-query-00478b40.md](../evidence/battle-actor-target-selection-latch-query-00478b40.md)。
+历史313的寄存器合同、199/199、205/205及十轮验证已归档在Git历史，
+不代替当前语义迁移的验证。分类保持`platform_adapted`，原版动态差分
+仍为`blocked_runtime_oracle`。两组帧及动作其他协议、316/318和B11仍待验收。
 
 本轮再完成`audit_order=314`的`0x00478B50`
 战斗角色启动门latch查询函数及已关闭Group-B frame中的唯一物理CALL。

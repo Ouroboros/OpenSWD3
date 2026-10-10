@@ -317,42 +317,6 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     return false;
 }
 
-[[nodiscard]] bool query_actor_target_selection_latch(
-    LegacyBattleActionDispatchContext& context,
-    LegacyBattleActionDispatchResult& result,
-    const u32 actor_token,
-    const u32 call_address,
-    const u32 return_address,
-    const u32 entry_eax,
-    const u32 entry_edx,
-    const LegacyBattleActorCoordinateFlags& entry_flags,
-    u32& value,
-    const bool entry_flags_known = true
-) {
-    if (execute_legacy_battle_actor_target_selection_latch_query_call(
-            result.actor_target_selection_latch_query,
-            context.actor_target_selection_latch_query_requests,
-            {.startup = context.startup},
-            call_address,
-            return_address,
-            actor_token,
-            entry_eax,
-            entry_edx,
-            entry_flags,
-            entry_flags_known,
-            context.actor_target_selection_latch_query_request_offset
-        )) {
-        value = result.actor_target_selection_latch_query.last.return_eax;
-        return true;
-    }
-
-    result.status = LegacyBattleActionDispatchStatus::
-        actor_target_selection_latch_query_typed_stop;
-    result.return_value =
-        result.actor_target_selection_latch_query.last.return_eax;
-    return false;
-}
-
 [[nodiscard]] bool increment_selected_group_a_start_gate(
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchContext& context,
@@ -586,31 +550,6 @@ void merge_nested(
     if (nested.actor_action_target_clear.calls != 0U) {
         result.actor_action_target_clear.last =
             nested.actor_action_target_clear.last;
-    }
-    for (std::size_t index = 0U;
-         index < nested.actor_target_selection_latch_query.calls;
-         ++index) {
-        const std::size_t destination =
-            result.actor_target_selection_latch_query.calls + index;
-        if (destination <
-            result.actor_target_selection_latch_query.call_addresses.size()) {
-            result.actor_target_selection_latch_query
-                .call_addresses[destination] =
-                nested.actor_target_selection_latch_query.call_addresses[index];
-            result.actor_target_selection_latch_query
-                .return_addresses[destination] =
-                nested.actor_target_selection_latch_query
-                    .return_addresses[index];
-            result.actor_target_selection_latch_query
-                .actor_tokens[destination] =
-                nested.actor_target_selection_latch_query.actor_tokens[index];
-        }
-    }
-    result.actor_target_selection_latch_query.calls +=
-        nested.actor_target_selection_latch_query.calls;
-    if (nested.actor_target_selection_latch_query.calls != 0U) {
-        result.actor_target_selection_latch_query.last =
-            nested.actor_target_selection_latch_query.last;
     }
     result.group_a_actor_cleanup_calls += nested.group_a_actor_cleanup_calls;
     if (nested.group_a_actor_cleanup_calls != 0U) {
@@ -1719,8 +1658,6 @@ action_decision_done:
             }
             const u32 target_index = low_word(action_target_value);
             auto nested_context = context;
-            nested_context.actor_target_selection_latch_query_request_offset +=
-                result.actor_target_selection_latch_query.calls;
             nested_context.actor_gate_decay_request_offset +=
                 result.actor_gate_decay.calls;
             nested_context.actor_action_target_clear_request_offset +=
@@ -1767,26 +1704,34 @@ action_decision_done:
                     )) {
                     return result;
                 }
-                u32 selection_complete_value{};
-                if (!query_actor_target_selection_latch(
-                        context,
-                        result,
-                        source_token,
-                        0x00457EC3U,
-                        0x00457EC8U,
-                        result.actor_action_target_clear.last.return_eax,
-                        result.actor_action_target_clear.last.return_edx,
-                        result.actor_action_target_clear.last.flags,
-                        selection_complete_value,
-                        result.actor_action_target_clear.last.flags_known
-                    )) {
+                result.actor_target_selection_latch_query =
+                    query_legacy_battle_actor_target_selection_latch(
+                        context.startup != nullptr &&
+                                context.startup->group_b_lifecycle != nullptr
+                            ? &(
+                                   *context.startup->group_b_lifecycle
+                              )[group_b_index]
+                                   .runtime_reset.target_selection_latch
+                            : nullptr,
+                        context.actor_target_selection_latch_query_access
+                    );
+                const auto& selection_complete =
+                    *result.actor_target_selection_latch_query;
+                if (selection_complete.status !=
+                    LegacyBattleActorTargetSelectionLatchQueryStatus::
+                        completed) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        actor_target_selection_latch_query_typed_stop;
+                    result.return_value = selection_complete.value.value_or(
+                        result.actor_action_target_clear.last.return_eax
+                    );
                     return result;
                 }
-                const auto& selection_complete =
-                    result.actor_target_selection_latch_query.last;
-                if (selection_complete_value == 1U) {
-                    u32 decay_entry_eax = selection_complete.return_eax;
-                    u32 decay_entry_edx = selection_complete.return_edx;
+
+                if (*selection_complete.value == 1U) {
+                    u32 decay_entry_eax = *selection_complete.value;
+                    u32 decay_entry_edx =
+                        result.actor_action_target_clear.last.return_edx;
                     auto decay_entry_flags =
                         subtract_flags(to_bits(action.group_a_count), 0U);
                     if (action.group_a_count > 0) {

@@ -1,149 +1,124 @@
-# 战斗角色目标选择 latch 查询（0x00478B40）
+# 战斗角色读取目标选择标记（0x00478B40）
 
-## 1. 范围、边界与 ABI
+分类保持`platform_adapted`。本查询及全部四个实际caller的语义迁移已验证。
+双方帧及动作父链仍有其他通用协议，不能升级整条父链验收。
 
-权威 LST 把 `sub_478B40` 锁定为 `0x00478B40..0x00478B46`，半开区间为
-`0x00478B40..0x00478B47`。主体共 7 字节、2 条实际指令、0 个 callee、0 个分支和
-1 个普通 `ret`，没有外部 chunk 或中段入口。`0x00478B47..0x00478B4F` 是下一函数前的
-对齐填充。
+## 1. 完整物理范围与顺序
 
-```text
-0x00478B40  mov eax, dword ptr [ecx+0x2AA8]
-0x00478B46  ret
-```
-
-入口 ECX 是 actor token。正常返回时 EAX 被完整替换为 `actor+0x2AA8` 的 dword，ECX、
-EDX 和 arithmetic flags 保持入口值，ESP 增加 4，EIP 为物理返回地址。
-
-## 2. 字段、访问顺序与停止点
-
-严格物理访问顺序为：
-
-1. 从 `actor+0x2AA8` 读取完整 dword 到 EAX；
-2. RET 从 `[ESP]` 读取返回地址。
-
-现代实现保留两个独立 typed-stop：
-
-- 字段读不可达时不提交 EAX，ECX、EDX、flags 和 ESP 保持，EIP 停在
-  `0x00478B40`；
-- RET 读取不可达时 EAX 已提交完整字段值，ESP 不推进，EIP 停在
-  `0x00478B46`。
-
-正常返回与两个停止点都不把字段值布尔化。`0`、`1`、`2`、`0x7FFFFFFF`、
-`0x80000000` 和 `0xFFFFFFFF` 均按完整 32 位值处理。
-
-## 3. canonical owner
-
-getter 复用 Workpack 312 已收敛的 actor-local canonical 字段和 resolver：
-
-- Group-A：`LegacyBattleStartupState::group_a_runtime_reset[index]`
-  的 `target_selection_latch`；
-- Group-B：`LegacyBattleStartupState::group_b_lifecycle[index].runtime_reset`
-  的 `target_selection_latch`。
-
-getter 与 setter 共用 `LegacyBattleActorTargetSelectionLatchView`、
-`LegacyBattleActorTargetSelectionLatchOwners` 和
-`resolve_legacy_battle_actor_target_selection_latch`，没有第二套 actor 状态、字段缓存或
-解析器。
-
-## 4. 四个已关闭父 CALL
-
-完整 LST 只有四处真实 `E8` CALL；`__thiscall` 原型注释不是物理调用。两个父函数均已
-关闭，本工作包没有延期 caller。
+唯一行为真值为LST `00478B40..00478B46`。完整7字节、2条指令，
+无callee、分支、外部chunk或中段入口。`00478B47..00478B4F`为填充。
 
 ```text
-sub_456680  0x00456B60 -> 0x00456B65
-sub_456680  0x00456F12 -> 0x00456F17
-sub_456680  0x00457140 -> 0x00457145
-sub_4576A0  0x00457EC3 -> 0x00457EC8
+00478B40  mov eax, [ecx+2AA8h]
+00478B46  ret
 ```
 
-### 4.1 `0x00456B60`
+读取完整DWORD，不截断、不把非零归一化。MOV/RET保持ECX、EDX和flags。
+原字段访问失败发生于读取前，原RET访问失败发生于读取之后。
 
-Group-A frame 以当前 Group-A actor token 调用 getter。返回后执行完整 dword
-`cmp eax,1`；只有值严格等于 1 才进入选择完成后缀，`2` 等其他值走不等分支。
-typed-stop 阻断 CMP 和两侧后缀。
+## 2. 实际共享字段与语义结果
 
-### 4.2 `0x00456F12`
+`query_legacy_battle_actor_target_selection_latch`直接借用实际`const u32*`。
+队员字段属于`startup.group_a_runtime_reset[index]`；敌方字段属于
+`startup.group_b_lifecycle[index].runtime_reset`。生命周期及双方不同
+索引的字段保持，查询不再经token resolver，不增加状态副本或写回。
 
-Group-A frame 在 action-mode 查询和共享状态前缀后调用 getter。返回后执行
-`test eax,eax`，随后的 MOV 覆盖 EAX 但不修改 TEST flags，JNZ 仍由 getter 的完整
-零/非零结果决定。测试以 `0x80000000` 证明非零 dword 不能布尔化成其他窄值。typed-stop
-保留 caller 前缀并阻断 TEST、MOV 和两侧后缀。
+结果仅保留状态及可选实际DWORD。字段不可读时value为空；RET访问失败
+保留已经读取的实际值。空字段表示原共享存储不可达，仍发生原字段停点，
+不会得到零或成功。访问描述仅表达这两个既有故障条件。
+父结果的可选查询结果区分未执行与已执行，包括失败执行。
 
-### 4.3 `0x00457140`
+删除寄存器request/reply、调用/返回地址表、请求数组和offset、读与调用
+计数、栈token、flags/ESP/EIP、trace和两层转发执行器。两个nested
+动作dispatcher实际没有本查询调用；删除无业务消费的offset转发及trace合并。
+尚未迁移的setter、target selection、gate decay和父级协议继续单独登记。
 
-Group-A frame 仅在前置 ZF 没有绕过 CALL 时执行 getter。返回后执行完整 dword
-`cmp eax,1`；值等于 1 才进入 Group-B gate-decay 后缀。typed-stop 保留此前 action-target
-clear 与本地清理前缀，并阻断 CMP 和 gate-decay 后缀。
+## 3. 全部四个实际调用方
 
-### 4.4 `0x00457EC3`
+完整LST只有以下四个真实CALL：
 
-Group-B frame 先读取并清空 action target，再以同一 Group-B actor token 调用 getter。
-返回后执行完整 dword `cmp eax,1`；值等于 1 才进入 Group-A gate-decay 后缀。typed-stop
-保留已提交的 action-target clear，并阻断比较、衰减和 runtime-reset 后缀。
+```text
+00456B60 -> 00456B65
+00456F12 -> 00456F17
+00457140 -> 00457145
+00457EC3 -> 00457EC8
+```
 
-四处 caller 都记录物理 CALL、return 和 actor token。生产路径不再通过 generic port 调用
-`0x00478B40`。
+前三处读取当前队员的同一实际字段，第四处读取当前敌方字段。
+读取仍发生在前驱操作之后，没有提前缓存或跨角色替代。
 
-## 5. request、trace 与嵌套边界
+### 3.1 队员选择目标后：00456B60
 
-request 与 trace 使用惰性 heap-backed array，避免把大型聚合测试状态压入栈帧。leaf call
-wrapper 以 `request_offset + trace.calls` 选择请求，并有非零 offset 的直接测试。
+先保留可达的标记置位和目标写入，再读当前队员。`CMP EAX,1`仅精确1
+进入选择完成后缀；0、2、00010001、80000000及FFFFFFFF均不是1。
+原EDX直接从前驱terminal或target selection沿用。失败保留置位/选择
+前缀并阻断比较两侧后缀；字段失败沿用前驱EAX，RET失败使用实际读值。
 
-Group-A 与 Group-B frame 会在进入 nested dispatcher 前转发已消费 call 数，并支持合并
-nested trace。机械搜索确认当前 getter 仅由本节四个 frame CALL 消费；现有 nested action 和
-opponent dispatcher 不调用该 getter，因此不存在可执行的 nested getter request 消费路径。
-本工作包保留前向接线，但不伪造不存在的动态调用或测试。
+### 3.2 队员检查目标：00456F12
 
-## 6. 双向追溯与测试范围
+前驱目标回合完成值为0时，先写53C010=1及角色WORD，再读当前队员。
+`00456F17 TEST EAX,EAX`后，`00456F19 MOV EAX,[53AE7C]`不改变TEST
+结果；`00456F1E JNZ 0045704B`接受任意非零DWORD。此处不能使用精确1
+判断。零分支不替代非零分支的敌方启动门递增。失败保留前缀并阻断
+TEST、MOV及全部候选/递增/列表后缀。
 
-LST 到 C++ 已覆盖完整 dword 字段读、普通 RET、两个真实访问点、EAX 完整覆盖、ECX/EDX
-与 flags 保持、ESP/EIP 和 partial commit。C++ 到 LST 反向追溯覆盖 canonical resolver、
-惰性 request/trace、显式 request offset、四个物理 caller 和父级后缀抑制，没有无来源业务
-分支或状态写。
+### 3.3 队员行动收尾：00457140
 
-汇编独立测试覆盖：
+先清目标及本地共享门，再按已捕获的SI低WORD比较FFFF；哨兵绕过查询。
+其他值查询后`CMP EAX,1`：精确1遍历敌方衰减，否则只衰减选择的对象。
+两种查询故障均保留目标清理及九处共享清零，阻断衰减与提交后缀。
 
-- Group-A、Group-B、非法、未对齐和越界 token；
-- 六组完整 dword 值；
-- 字段读停止、RET 停止及不同提交前缀；
-- EAX、ECX、EDX、flags、known 状态、ESP、EIP 和物理返回地址；
-- 非零 request offset；
-- 四组 CALL/return/actor 物理身份；
-- 四个父 caller 的等于、不等于、零、非零与 typed-stop 后缀抑制；
-- `0x00457EC3` 停止时保留 action-target clear；
-- production generic/raw `0x00478B40` 调用归零。
+`0045714A`在精确1分支先重新加载敌方数量到EAX，再执行TEST和循环。
+旧桥接遗漏此reload，本批首个衰减调用改用实际敌方数量，EDX仍从target
+clear沿用。数量2、标记1的首个衰减读失败保留EAX=2；非一标记的
+单对象分支仍按原索引算术重建EAX/EDX。其余循环和衰减协议尚未迁移。
 
-最后一轮完整正向与反向追溯没有产生新的未解释差异。
+### 3.4 敌方行动收尾：00457EC3
 
-## 7. 分类与动态差分状态
+行动返回精确1后，先清53BF9C、读取并保存target signedWORD、清目标，
+再读同一敌方字段。`CMP EAX,1`仅精确1遍历队员，其余走选择对象分支。
+`00457ED1`按内存比较队员数量，不覆盖EAX，因此首次队员衰减仍接收
+实际标记1及target clear的EDX。不能套用队员收尾的数量reload。
+查询失败保留target clear和前面的共享清理，阻断比较、衰减、reset后缀。
 
-任意 32 位 actor token、字段页和 RET 栈页无法由现代 C++ 直接合法解引用。canonical token
-resolver、原访问点 typed-stop、惰性 request/trace 和显式 request offset 是最小平台边界，
-因此本目标登记为 `platform_adapted`，不能以 owner、span、测试通过或 typed-stop 单独标记为
-`assembly_exact`。
+## 4. 双向复核与独立向量
 
-当前缺少原版完整 Group-A/Group-B actor backing、`+0x2AA8` 异常字段页、RET 异常栈页，
-以及四个 caller/callee 的联合寄存器、flags 与 SEH 捕获后端。原版动态差分登记为
-`blocked_runtime_oracle`，不得写成 `original_diff_verified`。
+字段读对应实际借用及value发布；RET对应完成或已读值保留的原故障。
+四处CMP/TEST对应各自完整值条件。仍未迁移callee的EDX来源和原EAX
+reload在父层直接接线，叶结果不回传寄存器。原访问停点没有扩展。
 
-## 8. 验证与关闭状态
+独立测试覆盖七类完整DWORD、双方不同索引、后续写入重读、不改字段、
+缺失字段、两种原故障，以及四个caller故障前缀。队员索引2读取自身
+字段，索引0的精确1不能替代它。实际目标选择写入后读取同一标记。
+队员目标检查借两名敌方：非零分支把门7→8及9→10；零只递增所选
+对象，另一门保持9。00456F3C返回非一时，00457049跳到00456FE1递增
+所选对象，不能把零分支断言为不递增。双方收尾通过
+全体/单对象实际衰减分支及其失败前缀证明精确1比较；高位00010001
+不被当成1。队员数量2验证首个衰减失败前的数量reload。
 
-- 定向 `openswd3_battle_legacy_battle_setup_tests` 退出码为零；
-- Linux core `199/199`、Linux app `205/205`、ASan/UBSan core `199/199` 全部通过；
-- ASan/UBSan 日志为零 sanitizer finding，core、app 与 sanitizer 日志为零 warning、error
-  和测试失败；
-- 连续十轮串行 Linux core 均为 `199/199`；
-- LST 摘录 SHA-256 分别为
-  `4000e3dac0c87c45bcc041df3c7d406024a6fb0aa157968f1edaca30088dd98d` 和
-  `c54a5f8038f3eff8ded6a8f08071dfde7db1a71bc72d0cfc3ac71002bc700c39`；
-- inventory 连续两次生成逐字节一致，结果为
-  `313/422 = 303 platform_adapted + 10 assembly_exact + 109 pending_audit`，SHA-256 为
-  `2a55f9cf35d6a4c01024b6e95ddc4c2344a9f4e7e9fd34eece7275514894f879`；
-- 新文件全量 clang-format、旧文件 changed-range clang-format、`git diff --check` 和
-  release 静态审计全部通过；
-- 未启动原版或 OpenSWD3 游戏程序。
+## 5. 定向验证与未完成范围
 
-Workpack 313 以 `platform_adapted` 关闭。下一条 inventory 游标为
-`audit_order=314 / 0x00478B50 / sub_478B50`。
+当前源码与测试的实际门禁均通过：
+
+- core setup：1/1，10.87s。
+- core actor_frame_316：1/1，31.05s。
+- AddressSanitizer setup：1/1，19.06s。
+- AddressSanitizer actor_frame_316：1/1，33.08s。
+- SDL openswd3编译并链接。
+
+日志为`build/tmp/runtime/target-latch-direct-{core,callers-core,asan,
+callers-asan,sdl}.log`。只有ASan setup含既有结算测试133行WORD转BYTE
+警告一次；其他四份日志无警告/错误，未修改该无关测试。
+`verify-target-latch-direct-publication.py`及`target-latch-direct-publication-check.log`
+确认八份源码/测试身份、四个真实测试、SDL、两条完整指令、四个实际
+caller、原故障顺序、两类比较及不同EAX/EDX继续路径和空白检查。
+
+数量reload前被停止的运行、前驱默认返回1导致递增向量未进入预期路径
+的失败，以及误把零分支断言为不递增的失败/诊断，都仅为历史，不作为
+验收。按LST 00457049→00456FE1修正两名敌方向量，并明确模拟前驱
+真实条件后重跑全部门禁。源码或测试改变后旧日志不再支持验收。
+
+Workpack313原CPU合同、199/199、205/205及十轮验证已归档在Git历史，
+不代替当前语义接口和实际调用方的验证。分类仍为`platform_adapted`。
+原版动态差分为`blocked_runtime_oracle`；没有启动游戏程序。
+B10游标、Workpack316/318、B11实际续玩及整体通用调用迁移均未升级。

@@ -1493,9 +1493,8 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorTargetSelectionLatchSetCallRequests
         actor_target_selection_latch_set_requests{};
     std::size_t actor_target_selection_latch_set_request_offset{};
-    LegacyBattleActorTargetSelectionLatchQueryCallRequests
-        actor_target_selection_latch_query_requests{};
-    std::size_t actor_target_selection_latch_query_request_offset{};
+    LegacyBattleActorTargetSelectionLatchQueryAccess
+        actor_target_selection_latch_query_access{};
     LegacyBattleActorTargetSelectionCountIncrementCallRequests
         actor_target_selection_count_increment_requests{};
     LegacyBattleActorStartGateIncrementCallRequests
@@ -1659,8 +1658,8 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleActorTargetSelectionTrace actor_target_selection{};
     LegacyBattleActorTargetSelectionLatchSetTrace
         actor_target_selection_latch_set{};
-    LegacyBattleActorTargetSelectionLatchQueryTrace
-        actor_target_selection_latch_query{};
+    std::optional<LegacyBattleActorTargetSelectionLatchQueryResult>
+        actor_target_selection_latch_query;
     LegacyBattleActorTargetSelectionCountIncrementTrace
         actor_target_selection_count_increment{};
     LegacyBattleActorStartGateIncrementTrace actor_start_gate_increment{};
