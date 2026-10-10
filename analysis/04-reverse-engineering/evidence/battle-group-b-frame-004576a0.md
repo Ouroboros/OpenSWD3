@@ -93,7 +93,14 @@ CALL轨迹、参数数组及计数；父层可选实际结果保留读取/返回
 scanned - defeated highword - excluded lowword - packed actor lowbyte
 ```
 
-最终比较使用signed `jl`，因此progress和阈值都按i32解释。达到阈值后从组A索引0向后找首个非terminal，设置target-ready、prepare selection并发布索引；无论是否找到都把action pending写1。
+最终比较使用signed `jl`，因此progress和阈值都按i32解释。
+达到阈值后从组A索引0向后找首个非terminal。命中时先发布target-ready，
+004578FB直接把当前敌方共享目标标记写为1，正常后才选择目标及写pending。
+原字段写/返回故障保留ready前缀，阻断选择与pending；后续选择沿用
+实际terminal EAX/EDX及CMP结果。正常搜索结束，无论是否找到都写pending。
+00457754仍要求优先角色等于当前敌方索引；非零索引测试保留该前置条件。
+见[共享目标标记置位](battle-actor-target-selection-latch-set-00478b30.md)。
+双方帧及动作其他协议仍待迁移。
 
 ## 4. 随机选择初始化
 

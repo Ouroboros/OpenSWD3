@@ -4434,22 +4434,20 @@ inventory SHA-256为`805e441154895295cfae0ded8ff186748d3058f355b22dcb07b2c84da06
 动态差分因原版完整Group-A/Group-B actor backing、`+0x29A2`异常字段页、
 RET异常栈页及五处caller联合寄存器、flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-本轮再完成`audit_order=312`的`0x00478B30`
-战斗角色目标选择latch设置函数及三个已关闭父函数中的三处物理CALL。
-完整权威LST主体`0x00478B30..0x00478B3A`共11字节、2条实际指令、0个callee、0个分支和1个普通`ret`；
-函数无条件把actor `+0x2AA8`完整dword写为1后返回，不修改EAX、ECX、EDX或算术flags。
-typed实现把既有runtime-reset residual字段语义化为`target_selection_latch`，
-复用Group-A runtime-reset与Group-B lifecycle canonical owner，保留字段写、RET读、ESP/EIP、
-两个真实停止点及RET失败时的部分提交。action dispatch、
-Group-A frame与Group-B frame各一处CALL全部在原位置直接组合typed leaf；全局request offset、
-Group-A嵌套dispatch、三组物理trace、命中terminal回复与typed-stop后缀抑制均有测试，没有延期CALL。
-验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205全部通过。格式化后完整门禁、
-连续10轮core、新文件全量与旧文件changed-range clang-format、零OpenSWD3源码warning、测试失败、
-sanitizer finding、inventory双生成、TMP分类及完整release审计均通过；未启动原版或OpenSWD3游戏程序。
-工作包为`312/422 = 302 platform_adapted + 10 assembly_exact + 110 pending_audit`；
-inventory SHA-256为`bf69e0e06746fc36650e43f0edea4b3deb5b4b0885026b976e09246f6559dd9d`。
-动态差分因原版完整Group-A/Group-B actor backing、`+0x2AA8`异常字段页、
-RET异常栈页及三处caller联合寄存器、flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
+Workpack312目标选择置位直接把实际共享DWORD写为1。
+完整LST仍为00478B30..00478B3A两条指令，不读取旧字段。
+动作发布及双方帧三处调用使用当前实际索引和原startup存储，
+删除置位寄存器请求回复、resolver、地址表、请求数组/offset、
+轨迹、计数及纯转发；嵌套动作只汇入已执行的语义状态。
+字段写失败保留旧值，返回失败保留1；三个caller保留前驱共享写，
+阻断正常后缀，尚未迁移的后续选择直接沿用真实terminal前驱。
+敌方非零索引向量仍遵循优先角色相等条件及四次terminal查询顺序。
+本批源码身份、独立向量、当前门禁及限制见
+[battle-actor-target-selection-latch-set-00478b30.md](../evidence/battle-actor-target-selection-latch-set-00478b30.md)。
+历史312的寄存器合同、199/199、205/205和十轮验证已归档在Git历史，
+不代替当前语义迁移验收。分类保持`platform_adapted`，原版动态差分
+仍为`blocked_runtime_oracle`。双方帧、动作其他协议及316/318和B11
+均未因本切片升级验收。
 
 Workpack313目标选择标记查询现直接借用实际共享DWORD。
 完整LST仍为`00478B40..00478B46`两条指令。三处队员帧及一处敌方帧

@@ -17,6 +17,7 @@ namespace {
 
 using openswd3::battle::LegacyBattleActionCallReply;
 using openswd3::battle::LegacyBattleActionCallRequest;
+using openswd3::battle::LegacyBattleActorTargetSelectionLatchSetStatus;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::compat::u8;
@@ -1266,8 +1267,10 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.actor_metric_state().priority_actor_index = 0U;
-        port.push(0x004786A0U, {.eax = 0U});
-        port.push(0x004786A0U, {.eax = 0U});
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x0047CE80U, {.eax = 0x92345678U, .edx = 0x89ABCDEFU});
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
@@ -1277,13 +1280,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.return_value == 0U && state.phase_progress == 1U &&
                 state.shared.target_ready_gate == 1U &&
                 state.shared.action.action_pending_aux == 1U &&
-                result.actor_target_selection_latch_set.calls == 1U &&
-                result.actor_target_selection_latch_set.call_addresses[0U] ==
-                    0x004578FBU &&
-                result.actor_target_selection_latch_set.return_addresses[0U] ==
-                    0x00457900U &&
-                result.actor_target_selection_latch_set.actor_tokens[0U] ==
-                    0x00525508U &&
+                result.actor_target_selection_latch_set ==
+                    LegacyBattleActorTargetSelectionLatchSetStatus::completed &&
                 (*fixture.startup->group_b_lifecycle)[0U]
                         .runtime_reset.target_selection_latch == 1U &&
                 port.count(0x00478B30U) == 0U &&
@@ -1291,12 +1289,17 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 result.actor_target_selection.call_addresses[0U] ==
                     0x00457903U &&
                 result.actor_target_selection.argument_values[0U] == 0U &&
+                result.actor_target_selection.last.return_eax == 0x92340000U &&
+                result.actor_target_selection.last.return_edx == 0x89ABCDEFU &&
+                result.actor_target_selection.last.flags.sign &&
+                !result.actor_target_selection.last.flags.zero &&
+                !result.actor_target_selection.last.flags.carry &&
                 port.count(0x00483820U) == 0U,
             "phase mode candidate rebuild sets the Group-B selection latch before publishing the first Group-A target"
         );
     }
 
-    {
+    for (const bool latch_writable : {false, true}) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.phase_mode = 1U;
@@ -1305,34 +1308,66 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         state.shared.actor_ai_primary[0U] = 1U;
         state.phase_progress = 1U;
         Fixture fixture;
+        (*fixture.startup->group_b_lifecycle)[0U]
+            .runtime_reset.target_selection_latch = 0x00010001U;
+        (*fixture.startup->group_b_lifecycle)[3U]
+            .runtime_reset.target_selection_latch = 0x80000000U;
         DispatchPort port;
-        port.actor_metric_state().priority_actor_index = 0U;
-        port.push(0x004786A0U, {.eax = 0U});
-        port.push(0x004786A0U, {.eax = 0U});
+        port.actor_metric_state().priority_actor_index = 3U;
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x0047CE80U, {.eax = 0x92345678U, .edx = 0x89ABCDEFU});
         auto context = fixture.context();
-        context.actor_target_selection_latch_set_requests.count = 1U;
-        context.actor_target_selection_latch_set_requests.calls[0U]
-            .access.target_selection_latch_writable = false;
+        context.actor_target_selection_latch_set_access
+            .target_selection_latch_writable = latch_writable;
+        context.actor_target_selection_latch_set_access
+            .return_address_readable = !latch_writable;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state, port, context, 3U
             );
+        test.expect_equal(
+            result.status,
+            LegacyBattleActionDispatchStatus::
+                actor_target_selection_latch_set_typed_stop,
+            "Group-B nonzero source index reaches the latch fault boundary"
+        );
+        test.expect_equal(
+            state.shared.target_ready_gate,
+            1U,
+            "Group-B latch fault retains target readiness"
+        );
+        test.expect_equal(
+            result.actor_target_selection_latch_set,
+            latch_writable ? LegacyBattleActorTargetSelectionLatchSetStatus::
+                                 return_address_read_typed_stop
+                           : LegacyBattleActorTargetSelectionLatchSetStatus::
+                                 target_selection_latch_write_typed_stop,
+            "Group-B latch fault retains the executed write status"
+        );
+        test.expect_equal(
+            (*fixture.startup->group_b_lifecycle)[0U]
+                .runtime_reset.target_selection_latch,
+            0x00010001U,
+            "Group-B latch fault leaves the unrelated enemy field unchanged"
+        );
+        test.expect_equal(
+            (*fixture.startup->group_b_lifecycle)[3U]
+                .runtime_reset.target_selection_latch,
+            latch_writable ? 1U : 0x80000000U,
+            "Group-B field fault preserves the old DWORD and return fault retains one at the actual enemy index"
+        );
+        test.expect_equal(
+            result.return_value,
+            0x92345678U,
+            "Group-B latch fault preserves the actual predecessor terminal return"
+        );
         test.expect_true(
-            result.status ==
-                    LegacyBattleActionDispatchStatus::
-                        actor_target_selection_latch_set_typed_stop &&
-                state.shared.target_ready_gate == 1U &&
-                result.actor_target_selection_latch_set.calls == 1U &&
-                result.actor_target_selection_latch_set.last.status ==
-                    openswd3::battle::
-                        LegacyBattleActorTargetSelectionLatchSetStatus::
-                            target_selection_latch_write_typed_stop &&
-                (*fixture.startup->group_b_lifecycle)[0U]
-                        .runtime_reset.target_selection_latch == 0U &&
-                result.actor_target_selection.calls == 0U &&
+            result.actor_target_selection.calls == 0U &&
                 state.shared.action.action_pending_aux == 0U &&
                 port.count(0x00478B30U) == 0U,
-            "Group-B latch write stop preserves target readiness and suppresses target publication and action pending"
+            "Group-B latch fault suppresses target selection and pending publication"
         );
     }
 

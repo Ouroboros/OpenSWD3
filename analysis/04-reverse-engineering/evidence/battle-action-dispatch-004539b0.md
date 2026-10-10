@@ -163,6 +163,13 @@ action runtime bit15未置位时，直接调用已关闭`0x00450F90`。其返回
 - 写scene value 1，调用scene与selection finalize；
 - action runtime低word置bit15，返回0。
 
+00454BAE在scene发布之后直接把当前队员共享目标标记写为1。
+不再使用置位寄存器协议、请求数组、轨迹、计数或转发函数。
+字段写故障保留原值；返回故障保留1；两者保留scene前缀，
+阻断bit15及正常收尾，失败值沿用scene实际返回。
+见[共享目标标记置位](battle-actor-target-selection-latch-set-00478b30.md)。
+动作其他协议仍待迁移。
+
 bit15已置时，bit0仍为0则返回0；bit0为1则置fade active并返回1。
 
 ## 12. case 23–27

@@ -394,18 +394,25 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                 kCallPublishScene,
                 {0x5FDU, 0x004FE5D4U + 4U * group_a_index}
             );
-            if (!set_actor_target_selection_latch(
-                    context,
-                    result,
-                    actor_token,
-                    0x00454BAEU,
-                    0x00454BB3U,
-                    published_scene.eax,
-                    published_scene.edx,
-                    published_scene.flags
-                )) {
+            result.actor_target_selection_latch_set =
+                set_legacy_battle_actor_target_selection_latch(
+                    context.startup != nullptr &&
+                            context.startup->group_a_runtime_reset != nullptr
+                        ? &(
+                               *context.startup->group_a_runtime_reset
+                          )[group_a_index]
+                               .target_selection_latch
+                        : nullptr,
+                    context.actor_target_selection_latch_set_access
+                );
+            if (*result.actor_target_selection_latch_set !=
+                LegacyBattleActorTargetSelectionLatchSetStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_target_selection_latch_set_typed_stop;
+                result.return_value = published_scene.eax;
                 return result;
             }
+
             state.action_runtime_flags |= 0x8000U;
             return result;
         }

@@ -31,7 +31,9 @@
 删除寄存器request/reply、调用/返回地址表、请求数组和offset、读与调用
 计数、栈token、flags/ESP/EIP、trace和两层转发执行器。两个nested
 动作dispatcher实际没有本查询调用；删除无业务消费的offset转发及trace合并。
-尚未迁移的setter、target selection、gate decay和父级协议继续单独登记。
+相邻setter现直接置位同一共享字段，见
+[目标标记置位](battle-actor-target-selection-latch-set-00478b30.md)。
+target selection、gate decay和父级协议继续单独登记为待迁移。
 
 ## 3. 全部四个实际调用方
 

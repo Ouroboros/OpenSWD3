@@ -110,7 +110,14 @@ selection mode非0时遍历组A：两个AI标记都不等于1、other actor查�
 
 selection mode为0时遍历组B：terminal对象及已映射对象计入terminal-like；非terminal且映射全1时清控制、选择对象并累加progress。达到`group_b_count-terminal_like`后从第一个组B对象向后找首个非terminal。
 
-选中后发布target-ready、prepare selection与索引。随后selection complete等于1时按AI标记或delay成功走两类门清理；delay mode等于4时另调用固定finalize。
+选中后先发布target-ready，00456B51直接把当前队员共享目标标记写为1。
+正常返回才选择索引并读取同一标记。原字段写/返回故障保留ready前缀，
+阻断选择与查询；后续选择沿用实际terminal EAX/EDX及CMP结果。
+嵌套动作只汇入已执行的置位状态；旧置位offset、轨迹和计数已删除。
+见[共享目标标记置位](battle-actor-target-selection-latch-set-00478b30.md)。
+双方帧及动作其他协议仍待迁移。
+
+随后selection complete等于1时按AI标记或delay成功走两类门清理；delay mode等于4时另调用固定finalize。
 
 ## 7. 已关闭动作主分派caller回收
 

@@ -1817,37 +1817,4 @@ LegacyBattleSummonFrameResult advance_legacy_battle_summon_frame(
     return result;
 }
 
-[[nodiscard]] bool set_actor_target_selection_latch(
-    LegacyBattleActionDispatchContext& context,
-    LegacyBattleActionDispatchResult& result,
-    const u32 actor_token,
-    const u32 call_address,
-    const u32 return_address,
-    const u32 entry_eax,
-    const u32 entry_edx,
-    const LegacyBattleActorCoordinateFlags& entry_flags
-) noexcept {
-    if (execute_legacy_battle_actor_target_selection_latch_set_call(
-            result.actor_target_selection_latch_set,
-            context.actor_target_selection_latch_set_requests,
-            {.startup = context.startup},
-            call_address,
-            return_address,
-            actor_token,
-            entry_eax,
-            entry_edx,
-            entry_flags,
-            true,
-            context.actor_target_selection_latch_set_request_offset
-        )) {
-        return true;
-    }
-
-    result.status = LegacyBattleActionDispatchStatus::
-        actor_target_selection_latch_set_typed_stop;
-    result.return_value =
-        result.actor_target_selection_latch_set.last.return_eax;
-    return false;
-}
-
 }  // namespace openswd3::battle

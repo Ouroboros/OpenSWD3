@@ -15,6 +15,7 @@ namespace {
 
 using openswd3::battle::LegacyBattleActionCallReply;
 using openswd3::battle::LegacyBattleActionCallRequest;
+using openswd3::battle::LegacyBattleActorTargetSelectionLatchSetStatus;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
@@ -1718,7 +1719,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             DispatchPort port;
             port.push(0x0047CE80U, {.eax = 0U});
             port.push(0x0047CE80U, {.eax = 0U});
-            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0x92345678U, .edx = 0x89ABCDEFU});
             auto context = fixture.context();
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
@@ -1726,13 +1727,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 );
             test.expect_true(
                 result.return_value == 1U && state.actors[0].progress == 2U &&
-                    result.actor_target_selection_latch_set.calls == 1U &&
-                    result.actor_target_selection_latch_set
-                            .call_addresses[0U] == 0x00456B51U &&
-                    result.actor_target_selection_latch_set
-                            .return_addresses[0U] == 0x00456B56U &&
-                    result.actor_target_selection_latch_set.actor_tokens[0U] ==
-                        0x005029D0U &&
+                    result.actor_target_selection_latch_set ==
+                        LegacyBattleActorTargetSelectionLatchSetStatus::
+                            completed &&
                     (*fixture.startup.group_a_runtime_reset)[0U]
                             .target_selection_latch == 1U &&
                     port.count(0x00478B30U) == 0U &&
@@ -1756,6 +1753,13 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     result.actor_target_selection.call_addresses[0U] ==
                         0x00456B59U &&
                     result.actor_target_selection.argument_values[0U] == 0U &&
+                    result.actor_target_selection.last.return_eax ==
+                        0x92340000U &&
+                    result.actor_target_selection.last.return_edx ==
+                        0x89ABCDEFU &&
+                    result.actor_target_selection.last.flags.sign &&
+                    !result.actor_target_selection.last.flags.zero &&
+                    !result.actor_target_selection.last.flags.carry &&
                     port.count(0x00478AA0U) == 0U,
                 "completed actor scans unmapped live opponents, sets and queries the source selection latch, increments each canonical target count, and selects the first live index"
             );
@@ -1782,7 +1786,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 );
             test.expect_true(
                 result.status == LegacyBattleActionDispatchStatus::completed &&
-                    result.actor_target_selection_latch_set.calls == 0U &&
+                    !result.actor_target_selection_latch_set.has_value() &&
                     result.actor_target_selection.calls == 0U &&
                     result.actor_target_selection_latch_query.has_value() &&
                     result.actor_target_selection_latch_query->value ==
@@ -1816,7 +1820,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_target_selection_latch_query_typed_stop &&
-                    result.actor_target_selection_latch_set.calls == 0U &&
+                    !result.actor_target_selection_latch_set.has_value() &&
                     result.actor_target_selection.calls == 0U &&
                     result.actor_target_selection_latch_query.has_value() &&
                     result.actor_target_selection_latch_query->value
@@ -1834,12 +1838,12 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             );
         }
 
-        {
+        for (const bool latch_writable : {false, true}) {
             auto state_storage =
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
-            state.actor_enabled[0U] = 1U;
-            state.actors[0U].action_complete = 1U;
+            state.actor_enabled[2U] = 1U;
+            state.actors[2U].action_complete = 1U;
             state.action.group_b_count = 2;
             state.action.group_a_to_actor[0U] = 0xFFFFFFFFU;
             state.action.group_a_to_actor[1U] = 0xFFFFFFFFU;
@@ -1847,33 +1851,44 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             fixture.startup.group_b_lifecycle = std::make_shared<std::array<
                 openswd3::battle::LegacyBattleActorGroupBElementState,
                 openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 0x00010001U;
+            (*fixture.startup.group_a_runtime_reset)[2U]
+                .target_selection_latch = 0x80000000U;
             DispatchPort port;
             port.push(0x0047CE80U, {.eax = 0U});
             port.push(0x0047CE80U, {.eax = 0U});
-            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0x92345678U, .edx = 0x89ABCDEFU});
             auto context = fixture.context();
-            context.actor_target_selection_latch_set_requests.count = 1U;
-            context.actor_target_selection_latch_set_requests.calls[0U]
-                .access.target_selection_latch_writable = false;
+            context.actor_target_selection_latch_set_access
+                .target_selection_latch_writable = latch_writable;
+            context.actor_target_selection_latch_set_access
+                .return_address_readable = !latch_writable;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
-                    state, port, context, 0U
+                    state, port, context, 2U
                 );
             test.expect_true(
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_target_selection_latch_set_typed_stop &&
                     state.target_ready_gate == 1U &&
-                    result.actor_target_selection_latch_set.calls == 1U &&
-                    result.actor_target_selection_latch_set.last.status ==
-                        openswd3::battle::
-                            LegacyBattleActorTargetSelectionLatchSetStatus::
-                                target_selection_latch_write_typed_stop &&
+                    result.actor_target_selection_latch_set ==
+                        (latch_writable
+                             ? LegacyBattleActorTargetSelectionLatchSetStatus::
+                                   return_address_read_typed_stop
+                             : LegacyBattleActorTargetSelectionLatchSetStatus::
+                                   target_selection_latch_write_typed_stop) &&
                     (*fixture.startup.group_a_runtime_reset)[0U]
-                            .target_selection_latch == 0U &&
+                            .target_selection_latch == 0x00010001U &&
+                    (*fixture.startup.group_a_runtime_reset)[2U]
+                            .target_selection_latch ==
+                        (latch_writable ? 1U : 0x80000000U) &&
+                    result.return_value == 0x92345678U &&
                     result.actor_target_selection.calls == 0U &&
+                    !result.actor_target_selection_latch_query.has_value() &&
                     port.count(0x00478B30U) == 0U,
-                "Group-A latch write stop preserves target readiness and suppresses target publication"
+                "Group-A latch faults preserve readiness and the terminal return, write only the actual source index, and suppress selection and its query"
             );
         }
 
@@ -2057,12 +2072,6 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             port.push(0x0047CE80U, {.eax = 0U});
             port.push(0x0047CE80U, {.eax = 0U});
             auto context = fixture.context();
-            context.actor_target_selection_latch_set_request_offset = 1U;
-            context.actor_target_selection_latch_set_requests.count = 2U;
-            context.actor_target_selection_latch_set_requests.calls[0U]
-                .access.target_selection_latch_writable = false;
-            context.actor_target_selection_latch_set_requests.calls[1U]
-                .entry_esp = 0x88001000U;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
@@ -2088,22 +2097,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 "Group-A nested action dispatch reaches action twenty-two scene publication"
             );
             test.expect_true(
-                result.actor_target_selection_latch_set.calls == 1U,
-                "Group-A nested action dispatch returns one merged latch call"
-            );
-            test.expect_true(
-                result.actor_target_selection_latch_set.call_addresses[0U] ==
-                        0x00454BAEU &&
-                    result.actor_target_selection_latch_set
-                            .return_addresses[0U] == 0x00454BB3U &&
-                    result.actor_target_selection_latch_set.actor_tokens[0U] ==
-                        0x005029D0U,
-                "Group-A nested action dispatch merges the physical latch caller identity"
-            );
-            test.expect_true(
-                result.actor_target_selection_latch_set.last.return_esp ==
-                    0x88001004U,
-                "Group-A nested action dispatch preserves the latch request offset"
+                result.actor_target_selection_latch_set ==
+                    LegacyBattleActorTargetSelectionLatchSetStatus::completed,
+                "Group-A nested action dispatch retains the actual latch write status"
             );
             test.expect_true(
                 (*fixture.startup.group_a_runtime_reset)[0U]

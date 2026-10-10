@@ -20,6 +20,7 @@ namespace {
 using openswd3::battle::LegacyBattleActionCallReply;
 using openswd3::battle::LegacyBattleActionCallRequest;
 using openswd3::battle::LegacyBattleActionDispatchContext;
+using openswd3::battle::LegacyBattleActorTargetSelectionLatchSetStatus;
 using openswd3::battle::LegacyBattleActorFrameEntryRequest;
 using openswd3::battle::LegacyBattleActorFrameEntryRoutePorts;
 using openswd3::battle::LegacyBattleActionMessageProfile;
@@ -1714,54 +1715,58 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 result.actor_gate_decay.return_addresses[0U] == 0x00454A62U &&
                 result.actor_gate_decay.actor_tokens[0U] == 0x00525508U &&
                 result.actor_gate_decay.last.returned &&
-                result.actor_target_selection_latch_set.calls == 1U &&
-                result.actor_target_selection_latch_set.call_addresses[0U] ==
-                    0x00454BAEU &&
-                result.actor_target_selection_latch_set.return_addresses[0U] ==
-                    0x00454BB3U &&
-                result.actor_target_selection_latch_set.actor_tokens[0U] ==
-                    0x005029D0U &&
+                result.actor_target_selection_latch_set ==
+                    LegacyBattleActorTargetSelectionLatchSetStatus::completed &&
                 (*fixture.startup.group_a_runtime_reset)[0U]
                         .target_selection_latch == 1U &&
                 port.count(0x00478B30U) == 0U &&
                 (state.action_runtime_flags & 0x8000U) != 0U &&
                 state.scene_value == 1U && state.available_actor_count == 1 &&
                 state.group_a_action_execution[0U].action_target == 0U,
-            "action twenty two sets the actor selection latch through physical caller 00454BAE before activating the runtime flag"
+            "action twenty two writes the shared selection latch before activating the runtime flag"
         );
     }
 
-    {
+    for (const bool latch_writable : {false, true}) {
         LegacyBattleActionDispatchState state;
         state.group_b_count = 1;
         state.status_indicator.tick_counter = 24U;
         state.status_indicator.intensity = 32U;
         state.status_indicator.intensity_countdown = 32U;
         Fixture fixture;
+        (*fixture.startup.group_a_runtime_reset)[0U].target_selection_latch =
+            0x00010001U;
+        (*fixture.startup.group_a_runtime_reset)[2U].target_selection_latch =
+            0x80000000U;
         DispatchPort port;
         port.action = 22U;
+        port.replies[0x004707B0U].push_back({.eax = 0x92345678U});
         auto context = fixture.context();
-        context.actor_target_selection_latch_set_requests.count = 1U;
-        context.actor_target_selection_latch_set_requests.calls[0U]
-            .access.target_selection_latch_writable = false;
-        const auto result = dispatch(state, port, context, 0U, 0U);
+        context.actor_target_selection_latch_set_access
+            .target_selection_latch_writable = latch_writable;
+        context.actor_target_selection_latch_set_access
+            .return_address_readable = !latch_writable;
+        const auto result = dispatch(state, port, context, 2U, 0U);
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_target_selection_latch_set_typed_stop &&
-                result.actor_target_selection_latch_set.calls == 1U &&
-                result.actor_target_selection_latch_set.last.status ==
-                    openswd3::battle::
-                        LegacyBattleActorTargetSelectionLatchSetStatus::
-                            target_selection_latch_write_typed_stop &&
-                result.actor_target_selection_latch_set.last.return_eip ==
-                    0x00478B30U &&
+                result.actor_target_selection_latch_set ==
+                    (latch_writable
+                         ? LegacyBattleActorTargetSelectionLatchSetStatus::
+                               return_address_read_typed_stop
+                         : LegacyBattleActorTargetSelectionLatchSetStatus::
+                               target_selection_latch_write_typed_stop) &&
                 (*fixture.startup.group_a_runtime_reset)[0U]
-                        .target_selection_latch == 0U &&
-                state.scene_value == 1U &&
+                        .target_selection_latch == 0x00010001U &&
+                (*fixture.startup.group_a_runtime_reset)[2U]
+                        .target_selection_latch ==
+                    (latch_writable ? 1U : 0x80000000U) &&
+                result.return_value == 0x92345678U && state.scene_value == 1U &&
+                port.count(0x004707B0U) == 1U &&
                 (state.action_runtime_flags & 0x8000U) == 0U &&
                 port.count(0x00478B30U) == 0U,
-            "action-dispatch latch write stop preserves scene publication and suppresses runtime activation"
+            "action latch field and return faults preserve publication and its return value, use the actual source index, and suppress activation"
         );
     }
 

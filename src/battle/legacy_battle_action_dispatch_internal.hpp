@@ -11,21 +11,6 @@
 #include <cstring>
 #include <limits>
 
-namespace openswd3::battle {
-
-[[nodiscard]] bool set_actor_target_selection_latch(
-    LegacyBattleActionDispatchContext& context,
-    LegacyBattleActionDispatchResult& result,
-    compat::u32 actor_token,
-    compat::u32 call_address,
-    compat::u32 return_address,
-    compat::u32 entry_eax,
-    compat::u32 entry_edx,
-    const LegacyBattleActorCoordinateFlags& entry_flags
-) noexcept;
-
-}  // namespace openswd3::battle
-
 namespace openswd3::battle::action_dispatch_detail {
 
 using compat::i16;
