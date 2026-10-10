@@ -208,20 +208,6 @@ struct PartyArrayReleaseFixture {
     }
 };
 
-class TrackingBattleRenderGeometryExitRegistrationPort final
-    : public openswd3::battle::LegacyBattleRenderGeometryExitRegistrationPort {
-public:
-    [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
-        registered_cleanup_token = cleanup_token;
-        ++calls;
-        return registration_result;
-    }
-
-    u32 registration_result{};
-    u32 registered_cleanup_token{};
-    u32 calls{};
-};
-
 openswd3::battle::LegacyBattleActorGroupAElementDestructionView
 destruction_view(openswd3::battle::LegacyBattleActorGroupAElementState& state) {
     return {
@@ -1648,47 +1634,71 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const bool reject_registration : {false, true}) {
+        bool earlier_cleanup_observed{};
         openswd3::battle::LegacyBattleRenderGeometry geometry;
-        TrackingBattleRenderGeometryExitRegistrationPort registration_port;
-        registration_port.registration_result = 0x2468ACE0U;
-        const auto initialization = openswd3::battle::
-            initialize_legacy_battle_render_geometry_static_lifecycle(
-                geometry, registration_port
-            );
         auto released = std::make_shared<bool>(false);
-        geometry.auxiliary_buffer.reset(new u8[16U]);
-        geometry.auxiliary_buffer.get_deleter() = [released](u8* buffer) {
-            delete[] buffer;
-            *released = true;
-        };
+        {
+            openswd3::battle::LegacyBattleExitCleanups cleanups{
+                reject_registration ? std::pmr::null_memory_resource()
+                                    : std::pmr::get_default_resource()
+            };
+            if (!reject_registration) {
+                test.expect_true(
+                    cleanups.add([&] {
+                        earlier_cleanup_observed =
+                            geometry.auxiliary_buffer == nullptr &&
+                            geometry.surface_row_offsets == nullptr &&
+                            geometry.primary_row_offsets == nullptr;
+                        return true;
+                    }),
+                    "register an earlier cleanup before drawing resources"
+                );
+            }
 
-        const auto cleanup = openswd3::battle::
-            release_legacy_battle_render_geometry_static_lifecycle(geometry);
+            const bool registered = openswd3::battle::
+                initialize_legacy_battle_render_geometry_static_lifecycle(
+                    geometry, cleanups
+                );
+            test.expect_true(
+                registered == !reject_registration &&
+                    cleanups.empty() == reject_registration &&
+                    geometry.primary_row_offsets != nullptr &&
+                    geometry.surface_row_offsets != nullptr &&
+                    geometry.primary_row_offsets[767U] == 767U * 0x500U &&
+                    geometry.surface_row_offsets[479U] == 479U * 0x280U &&
+                    geometry.right == 640 && geometry.bottom == 480,
+                "registration failure retains the actual initialized drawing tables and rectangle"
+            );
+            geometry.auxiliary_buffer.reset(new u8[16U]);
+            geometry.auxiliary_buffer.get_deleter() = [released](u8* buffer) {
+                delete[] buffer;
+                *released = true;
+            };
+        }
+
+        if (reject_registration) {
+            test.expect_true(
+                !*released && geometry.auxiliary_buffer != nullptr &&
+                    geometry.primary_row_offsets != nullptr &&
+                    geometry.surface_row_offsets != nullptr,
+                "failed exit registration does not release the constructed drawing object"
+            );
+            static_cast<void>(
+                openswd3::battle::release_legacy_battle_render_resources(geometry)
+            );
+        } else {
+            test.expect_true(
+                earlier_cleanup_observed,
+                "drawing resources are released before the earlier registered cleanup"
+            );
+        }
+
         test.expect_true(
-            initialization.owner_token ==
-                    openswd3::battle::kLegacyBattleRenderGeometryOwnerToken &&
-                initialization.initialization.status ==
-                    openswd3::battle::LegacyBattleRenderInitializationStatus::
-                        completed &&
-                initialization.initialization_calls == 1U &&
-                initialization.exit_registration_calls == 1U &&
-                initialization.return_value == 0x2468ACE0U &&
-                registration_port.calls == 1U &&
-                registration_port.registered_cleanup_token ==
-                    openswd3::battle::
-                        kLegacyBattleRenderGeometryExitCleanupToken &&
-                cleanup.owner_token ==
-                    openswd3::battle::kLegacyBattleRenderGeometryOwnerToken &&
-                cleanup.cleanup_calls == 1U &&
-                cleanup.cleanup.auxiliary_buffer_released &&
-                cleanup.cleanup.surface_row_offsets_released &&
-                cleanup.cleanup.primary_row_offsets_released &&
-                *released &&
-                geometry.primary_row_offsets == nullptr &&
+            *released && geometry.primary_row_offsets == nullptr &&
                 geometry.surface_row_offsets == nullptr &&
                 geometry.auxiliary_buffer == nullptr,
-            "render geometry static lifecycle initializes registers and releases one owner"
+            "registered scope exit or explicit cleanup frees all actual drawing allocations"
         );
     }
 

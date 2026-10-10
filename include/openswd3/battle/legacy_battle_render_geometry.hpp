@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/battle/legacy_battle_exit_cleanups.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 
@@ -12,8 +13,6 @@ namespace openswd3::battle {
 inline constexpr std::size_t kLegacyBattleDirectionCount = 360U;
 inline constexpr compat::u32 kLegacyBattleRenderGeometryOwnerToken =
     0x0053B0B8U;
-inline constexpr compat::u32 kLegacyBattleRenderGeometryExitCleanupToken =
-    0x004518D0U;
 inline constexpr compat::u32 kLegacyBattleRenderGeometryBindingObjectToken =
     0x004FF5B8U;
 
@@ -91,14 +90,6 @@ struct LegacyBattleRenderGeometryBindingObjectInitializationResult {
     compat::u32 return_edx{};
 };
 
-class LegacyBattleRenderGeometryExitRegistrationPort {
-public:
-    virtual ~LegacyBattleRenderGeometryExitRegistrationPort() = default;
-
-    [[nodiscard]] virtual compat::u32
-    register_exit_cleanup(compat::u32 cleanup_token) = 0;
-};
-
 class LegacyBattleRowOffsetAllocator {
 public:
     virtual ~LegacyBattleRowOffsetAllocator() = default;
@@ -172,20 +163,6 @@ struct LegacyBattleRenderGeometryBindingInitializationResult {
     compat::u32 return_value{};
 };
 
-struct LegacyBattleRenderGeometryStaticInitializationResult {
-    compat::u32 owner_token{};
-    LegacyBattleRenderInitializationResult initialization{};
-    compat::u32 initialization_calls{};
-    compat::u32 exit_registration_calls{};
-    compat::u32 return_value{};
-};
-
-struct LegacyBattleRenderGeometryStaticCleanupResult {
-    compat::u32 owner_token{};
-    LegacyBattleRenderCleanupResult cleanup{};
-    compat::u32 cleanup_calls{};
-};
-
 // sub_434350.
 [[nodiscard]] bool
 advance_legacy_battle_line_raster(LegacyBattleLineRaster& raster) noexcept;
@@ -255,16 +232,9 @@ forward_legacy_battle_render_geometry_binding_static_initialization(
 ) noexcept;
 
 // sub_4518A0 with loc_4518C0 and attached constructor sub_4518B0.
-[[nodiscard]] LegacyBattleRenderGeometryStaticInitializationResult
-initialize_legacy_battle_render_geometry_static_lifecycle(
+[[nodiscard]] bool initialize_legacy_battle_render_geometry_static_lifecycle(
     LegacyBattleRenderGeometry& geometry,
-    LegacyBattleRenderGeometryExitRegistrationPort& exit_registration_port
-) noexcept;
-
-// attached exit wrapper sub_4518D0.
-[[nodiscard]] LegacyBattleRenderGeometryStaticCleanupResult
-release_legacy_battle_render_geometry_static_lifecycle(
-    LegacyBattleRenderGeometry& geometry
+    LegacyBattleExitCleanups& cleanups
 ) noexcept;
 
 // sub_433E20.

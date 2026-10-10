@@ -1,68 +1,55 @@
-# 战斗渲染几何静态生命周期注册 `0x004518A0`
+# 战斗绘图静态初始化与退出清理
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+## 原版范围
 
-## 1. 完整范围与附件
+权威LST为`004518A0..004518A9`、外部chunk`004518C0..004518CB`，
+以及构造附件`004518B0..004518B9`和退出附件`004518D0..004518D9`。
+初始化表项位于`0049E064`，对象地址为`0053B0B8`。
 
-权威LST主体为`0x004518A0..0x004518A9`，并声明外部`FUNCTION CHUNK AT 0x004518C0 SIZE 0x0C`。完整主函数为13行主体加10行chunk，共23行。
+- `4518A0`调用构造附件；`4518A5`无条件转到登记chunk。
+- `4518B0`把同一对象传给`433C40`，直接建立行偏移表、矩形与方向向量。
+- `4518C0`登记`4518D0`，返回`487BA0`的登记结果。
+- `4518D0`把同一对象传给`433D70`，直接清理绘图资源。
 
-工作包未单列两个附件：
+登记函数`487BA0..487BB7`以零表示成功，以全一位表示分配失败。
+失败不会撤销已完成的构造。初始化迭代器`48A490..48A4B4`不检查
+返回寄存器；退出迭代器`48A3F0..48A41A`逆序执行登记函数。
 
-- `0x004518B0`共9行，加载固定owner `0x0053B0B8`到ECX并尾跳已关闭几何初始化`0x00433C40`；
-- `0x004518D0`共9行，加载同一owner并尾跳已关闭资源清理`0x00433D70`。
+## 实际对象与清理集合
 
-本项把主函数、chunk与两个附件一起闭合，但工作包只计主函数一次。
+静态初始化直接调用既有几何构造，然后向`LegacyBattleExitCleanups`
+登记借用同一几何对象的实际函数。接口只返回登记是否成功。
+删除退出登记Port、退出编号、寄存器结果、调用计数及纯清理包装。
 
-## 2. 静态初始化顺序
+构造结果仍不控制登记分支；登记分配失败保留已建立的两张行表及矩形。
+清理函数直接释放辅助缓冲、surface行表和primary行表；原释放路径
+没有可继续处理的失败结果，回调的true只表示该清理已执行返回。
+资源的真实所有权见[辅助缓冲清理](battle-render-auxiliary-owned-release.md)。
 
-函数无显式参数、无普通CODE XREF；唯一DATA XREF为`.data:0x0049E064`。
+## SDL调用与生命周期
 
-主体调用构造附件后无条件跳入chunk。modern直接对同一typed `LegacyBattleRenderGeometry`调用已关闭`initialize_legacy_battle_render_geometry`，保留初始化status、行表、矩形、方向向量与返回指针；不建立opaque构造端口。
+SDL会话在队伍和敌方构造之后，初始化既有
+`battle_runtime_.render_geometry`并登记清理，随后才进入帧初始化。
+登记失败不增加启动停止条件。没有另建绘图对象或复制缓冲。
 
-即使初始化返回typed-stop状态，原静态包装器也无分支，仍继续注册退出函数。modern保持这一顺序。
+清理集合逆序执行，因此绘图清理先于已登记的敌方和队伍析构。
+集合在角色存储销毁前析构；它借用的battle startup对象声明在会话之前，
+在会话之后销毁。正常关闭已显式释放资源时，退出清理跳过空指针。
+全局复位重建同一几何状态也不改变回调所借用的对象地址。
 
-## 3. 外部chunk与返回EAX
+## 验证
 
-chunk压入退出附件`0x004518D0`，调用CRT `_atexit`，caller回收参数并返回。最终EAX为注册完整结果，不是几何初始化返回。
+测试实际分配两张行表及辅助字节数组，检查行偏移和矩形值，随后通过
+清理集合的作用域退出确认三项实际释放。先登记的观察函数确认绘图资源
+已先清理，覆盖逆序执行。使用null PMR资源强制登记分配失败，检查
+已构造资源继续存活，之后显式清理能够正常释放。
 
-typed registration port显式接收退出token `0x004518D0`。测试以非零bit pattern证明最终返回直接来自注册。
+日志：`build/tmp/runtime/render-geometry-exit-{core,asan,sdl}.log`。
+core与ASan的setup定向测试各1/1通过；SDL目标编译链接通过，未启动游戏。
+core及ASan保留既有outcome-resolution测试第133行整数窄化警告。
+完整源码差异与LST顺序、SDL构造及析构顺序均已复核；
+`git diff --check`通过。
 
-## 4. 退出附件与closed清理
-
-退出附件对同一owner尾跳`0x00433D70`。modern wrapper直接调用已关闭`release_legacy_battle_render_resources`，保留：
-
-1. 附属缓冲释放；
-2. surface行表释放；
-3. primary行表释放。
-
-测试在静态初始化实际建立两张行表后注入附属token，再执行退出wrapper，验证三个释放结果、回调token与owner字段归零。
-
-owner地址以常量token `0x0053B0B8`记录，不把32位旧地址当主机指针。
-
-## 5. 双向追溯
-
-- `0x004518A0..0x004518A4`：调用固定owner构造附件；
-- `0x004518A5..0x004518A9`：无条件跳入外部chunk；
-- `0x004518B0..0x004518B9`：加载owner并尾跳closed初始化；
-- `0x004518C0..0x004518CB`：注册退出附件并返回`_atexit` EAX；
-- `0x004518D0..0x004518D9`：加载同一owner并尾跳closed清理。
-
-C++到LST反向追溯覆盖主函数23行、两个各9行附件、固定owner、closed构造/清理和CRT边界。
-
-## 6. 验证与动态差分
-
-定向测试覆盖：
-
-- 固定owner token；
-- closed初始化只调用一次并成功发布两张行表；
-- 退出注册收到精确cleanup token；
-- 注册EAX成为主函数返回；
-- closed cleanup只调用一次；
-- 附属缓冲回调先行且token精确；
-- surface与primary行表均释放；
-- 三个owner字段最终为空；
-- 既有几何初始化、失败与泄漏兼容测试未回归。
-
-battle聚合目标零warning构建及定向测试通过。
-
-当前没有原版静态owner内存、两张行表/附属缓冲与CRT注册联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。主函数、外部chunk及两个附件已完成typed闭环。
+绘图绑定对象仍保留编号及寄存器式结果，非空辅助缓冲的生产分配来源
+仍待复核。本批不验收整个绘图接口族、B11、WP316或实际游戏流程。
+原版联合捕获缺失，`original_diff_verified`仍为`blocked_runtime_oracle`。

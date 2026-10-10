@@ -19,6 +19,8 @@ ABI为thiscall：ECX是全局战斗绘制owner；无栈参数；正常出口在E
 另调用`0x00489654`九十次逻辑迭代。该CRT叶子临时把x87控制字改为向零截断，以`fistp qword`转换当前ST(0)，恢复控制字后返回低32位。
 
 现代实现直接组合三个已关闭battle入口，不保留opaque回调。
+静态登记已在[独立批次](battle-render-geometry-static-lifecycle-004518a0.md)
+改为实际清理集合，并由SDL会话初始化同一绘图对象；本体数值行为不变。
 
 ## 2. 两张旧行表的预清零与泄漏
 

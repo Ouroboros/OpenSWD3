@@ -460,33 +460,15 @@ forward_legacy_battle_render_geometry_binding_static_initialization(
     return initialize_legacy_battle_render_geometry_binding(object);
 }
 
-LegacyBattleRenderGeometryStaticInitializationResult
-initialize_legacy_battle_render_geometry_static_lifecycle(
+bool initialize_legacy_battle_render_geometry_static_lifecycle(
     LegacyBattleRenderGeometry& geometry,
-    LegacyBattleRenderGeometryExitRegistrationPort& exit_registration_port
+    LegacyBattleExitCleanups& cleanups
 ) noexcept {
-    LegacyBattleRenderGeometryStaticInitializationResult result{
-        .owner_token = kLegacyBattleRenderGeometryOwnerToken,
-    };
-    result.initialization = initialize_legacy_battle_render_geometry(geometry);
-    result.initialization_calls = 1U;
-    result.return_value = exit_registration_port.register_exit_cleanup(
-        kLegacyBattleRenderGeometryExitCleanupToken
-    );
-    result.exit_registration_calls = 1U;
-    return result;
-}
-
-LegacyBattleRenderGeometryStaticCleanupResult
-release_legacy_battle_render_geometry_static_lifecycle(
-    LegacyBattleRenderGeometry& geometry
-) noexcept {
-    LegacyBattleRenderGeometryStaticCleanupResult result{
-        .owner_token = kLegacyBattleRenderGeometryOwnerToken,
-    };
-    result.cleanup = release_legacy_battle_render_resources(geometry);
-    result.cleanup_calls = 1U;
-    return result;
+    static_cast<void>(initialize_legacy_battle_render_geometry(geometry));
+    return cleanups.add([&geometry] {
+        static_cast<void>(release_legacy_battle_render_resources(geometry));
+        return true;
+    });
 }
 
 LegacyBattleRowOffsetResult rebuild_legacy_battle_primary_row_offsets(
