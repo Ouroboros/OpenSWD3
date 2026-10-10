@@ -120,7 +120,7 @@ public:
         return {
             .status = LegacyBattleRowOffsetStatus::allocation_failed,
             .requested_bytes = requested_bytes,
-            .legacy_return_value = 0U,
+            .rows_written = 0U,
         };
     }
 
@@ -130,7 +130,7 @@ public:
         return {
             .status = LegacyBattleRowOffsetStatus::completed,
             .requested_bytes = requested_bytes,
-            .legacy_return_value = 0U,
+            .rows_written = 0U,
         };
     }
 
@@ -142,7 +142,7 @@ public:
             return {
                 .status = LegacyBattleRowOffsetStatus::write_out_of_range,
                 .requested_bytes = requested_bytes,
-                .legacy_return_value = row_index,
+                .rows_written = row_index - 1U,
             };
         }
         row_offsets[row_index - 1U] = byte_offset;
@@ -155,7 +155,7 @@ public:
     return {
         .status = LegacyBattleRowOffsetStatus::completed,
         .requested_bytes = requested_bytes,
-        .legacy_return_value = row_index,
+        .rows_written = row_index,
     };
 }
 
@@ -376,7 +376,6 @@ LegacyBattleRenderInitializationResult initialize_legacy_battle_render_geometry(
 
     publish_direction_vectors(geometry.direction_vectors);
     result.direction_vectors_published = true;
-    result.legacy_return_value = &geometry;
     return result;
 }
 
@@ -504,18 +503,15 @@ LegacyBattleHostSurfaceResult set_legacy_battle_host_surface(
         return {
             .row_offsets = row_offsets,
             .rectangle_published = false,
-            .legacy_return_value =
-                std::bit_cast<compat::i32>(row_offsets.legacy_return_value),
         };
     }
 
-    const compat::i32 bottom = set_legacy_battle_render_rectangle(
+    static_cast<void>(set_legacy_battle_render_rectangle(
         geometry, 0, 0, surface_width, surface_height
-    );
+    ));
     return {
         .row_offsets = row_offsets,
         .rectangle_published = true,
-        .legacy_return_value = bottom,
     };
 }
 

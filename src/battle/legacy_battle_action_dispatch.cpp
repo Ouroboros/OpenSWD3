@@ -599,7 +599,7 @@ LegacyBattleTargetPhaseStartResult start_legacy_battle_target_phase(
     ++result.host_surface_calls;
     if (result.host_surface.row_offsets.status ==
         LegacyBattleRowOffsetStatus::write_out_of_range) {
-        result.return_eax = result.host_surface.row_offsets.legacy_return_value;
+        result.return_eax = result.host_surface.row_offsets.rows_written + 1U;
         result.return_eip = kHostSurfaceRowOffsetWriteInstruction;
         result.status =
             LegacyBattleTargetPhaseStartStatus::host_surface_typed_stop;

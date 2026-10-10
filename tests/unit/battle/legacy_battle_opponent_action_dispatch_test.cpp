@@ -1162,6 +1162,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 result.target_phase_start.host_surface.row_offsets.status ==
                     openswd3::battle::LegacyBattleRowOffsetStatus::
                         write_out_of_range &&
+                result.target_phase_start.host_surface.row_offsets
+                        .rows_written == 1U &&
+                fixture.startup->render_geometry.surface_row_offsets[0U] ==
+                    0U &&
+                result.target_phase_start.return_eax == 2U &&
                 result.target_phase_start.return_eip == 0x00433EEFU &&
                 result.target_phase_start.decode_calls == 1U &&
                 result.target_phase_start.property_query_calls == 1U &&

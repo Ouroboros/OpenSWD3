@@ -6788,7 +6788,8 @@ void test_render_geometry_initialization_and_direction_table(
             result.surface_row_offsets.status ==
                 LegacyBattleRowOffsetStatus::completed &&
             result.rectangle_published && result.direction_vectors_published &&
-            result.legacy_return_value == &geometry &&
+            result.primary_row_offsets.rows_written == 768U &&
+            result.surface_row_offsets.rows_written == 480U &&
             allocator.requests == std::vector<u32>{0xC00U, 0x780U} &&
             geometry.primary_row_stride == 0x500 &&
             geometry.primary_row_count == 0x300 &&
@@ -6858,7 +6859,8 @@ void test_render_geometry_initialization_failures(
                     LegacyBattleRowOffsetStatus::allocation_failed &&
                 result.rectangle_published &&
                 result.direction_vectors_published &&
-                result.legacy_return_value == &geometry &&
+                result.primary_row_offsets.rows_written == 0U &&
+                result.surface_row_offsets.rows_written == 0U &&
                 geometry.primary_row_stride == 11 &&
                 geometry.primary_row_count == 22 &&
                 geometry.surface_width == 10 && geometry.surface_height == 20 &&
@@ -6888,7 +6890,7 @@ void test_render_geometry_initialization_failures(
                     LegacyBattleRowOffsetStatus::write_out_of_range &&
                 !result.rectangle_published &&
                 !result.direction_vectors_published &&
-                result.legacy_return_value == nullptr &&
+                result.primary_row_offsets.rows_written == 0U &&
                 geometry.primary_row_stride == 0x500 &&
                 geometry.primary_row_count == 0x300 &&
                 geometry.direction_vectors.horizontal[0U] == 7 &&
@@ -6921,7 +6923,8 @@ void test_render_geometry_initialization_failures(
                     LegacyBattleRowOffsetStatus::write_out_of_range &&
                 !result.rectangle_published &&
                 !result.direction_vectors_published &&
-                result.legacy_return_value == nullptr &&
+                result.primary_row_offsets.rows_written == 768U &&
+                result.surface_row_offsets.rows_written == 0U &&
                 geometry.surface_width == 0x280 &&
                 geometry.surface_height == 0x1E0 && geometry.left == 1 &&
                 geometry.top == 2 && geometry.right == 3 &&
@@ -6943,7 +6946,7 @@ void test_primary_row_offsets_normal_and_fixed_caller(
         );
     test.expect_true(
         normal.status == LegacyBattleRowOffsetStatus::completed &&
-            normal.requested_bytes == 12U && normal.legacy_return_value == 3U &&
+            normal.requested_bytes == 12U && normal.rows_written == 3U &&
             geometry.primary_row_stride == 0x7FFFFFFF &&
             geometry.primary_row_count == 3 &&
             geometry.primary_row_offsets[0U] == 0U &&
@@ -6959,7 +6962,7 @@ void test_primary_row_offsets_normal_and_fixed_caller(
     test.expect_true(
         fixed.status == LegacyBattleRowOffsetStatus::completed &&
             fixed.requested_bytes == 0xC00U &&
-            fixed.legacy_return_value == 0x300U &&
+            fixed.rows_written == 0x300U &&
             geometry.primary_row_offsets[0U] == 0U &&
             geometry.primary_row_offsets[1U] == 0x500U &&
             geometry.primary_row_offsets[0x2FFU] == 0xEFB00U,
@@ -6986,7 +6989,7 @@ void test_primary_row_offsets_allocation_boundaries(
         );
     test.expect_true(
         failed.status == LegacyBattleRowOffsetStatus::allocation_failed &&
-            failed.requested_bytes == 12U && failed.legacy_return_value == 0U &&
+            failed.requested_bytes == 12U && failed.rows_written == 0U &&
             failed_allocator.pointer_was_clear &&
             geometry.primary_row_offsets == nullptr &&
             geometry.primary_row_stride == 111 &&
@@ -7002,7 +7005,7 @@ void test_primary_row_offsets_allocation_boundaries(
         );
     test.expect_true(
         zero.status == LegacyBattleRowOffsetStatus::completed &&
-            zero.requested_bytes == 0U && zero.legacy_return_value == 0U &&
+            zero.requested_bytes == 0U && zero.rows_written == 0U &&
             zero_allocator.pointer_was_clear &&
             geometry.primary_row_offsets != nullptr &&
             geometry.primary_row_stride == -17 &&
@@ -7021,7 +7024,7 @@ void test_primary_row_offsets_allocation_boundaries(
     test.expect_true(
         negative.status == LegacyBattleRowOffsetStatus::completed &&
             negative.requested_bytes == 0xFFFFFFFCU &&
-            negative.legacy_return_value == 0U &&
+            negative.rows_written == 0U &&
             geometry.primary_row_offsets[0U] == 0xDEADBEEFU &&
             geometry.primary_row_stride == 9 &&
             geometry.primary_row_count == -1,
@@ -7042,7 +7045,7 @@ void test_primary_row_offsets_wrapped_allocation_prefix(
         );
     test.expect_true(
         result.status == LegacyBattleRowOffsetStatus::write_out_of_range &&
-            result.requested_bytes == 4U && result.legacy_return_value == 2U &&
+            result.requested_bytes == 4U && result.rows_written == 1U &&
             geometry.primary_row_stride == 0x500 &&
             geometry.primary_row_count == wrapped_row_count &&
             geometry.primary_row_offsets[0U] == 0U,
@@ -7067,7 +7070,7 @@ void test_surface_row_offsets_and_rectangle_consumption(
     test.expect_true(
         fixed.status == LegacyBattleRowOffsetStatus::completed &&
             fixed.requested_bytes == 1920U &&
-            fixed.legacy_return_value == 480U &&
+            fixed.rows_written == 480U &&
             geometry.surface_width == 640 && geometry.surface_height == 480 &&
             geometry.surface_row_offsets[0U] == 0U &&
             geometry.surface_row_offsets[1U] == 640U &&
@@ -7122,7 +7125,7 @@ void test_surface_row_offsets_failure_and_wrapped_prefix(
     test.expect_true(
         wrapped.status == LegacyBattleRowOffsetStatus::write_out_of_range &&
             wrapped.requested_bytes == 4U &&
-            wrapped.legacy_return_value == 2U &&
+            wrapped.rows_written == 1U &&
             geometry.surface_width == 0x280 &&
             geometry.surface_height == wrapped_row_count &&
             geometry.surface_row_offsets[0U] == 0U,
@@ -7137,8 +7140,8 @@ void test_host_surface_fixed_caller_and_failure(openswd3::test::Context& test) {
     test.expect_true(
         fixed.row_offsets.status == LegacyBattleRowOffsetStatus::completed &&
             fixed.row_offsets.requested_bytes == 4320U &&
-            fixed.row_offsets.legacy_return_value == 1080U &&
-            fixed.rectangle_published && fixed.legacy_return_value == 1080 &&
+            fixed.row_offsets.rows_written == 1080U &&
+            fixed.rectangle_published &&
             geometry.surface_width == 1920 && geometry.surface_height == 1080 &&
             geometry.left == 0 && geometry.top == 0 && geometry.right == 1920 &&
             geometry.bottom == 1080 &&
@@ -7156,11 +7159,11 @@ void test_host_surface_fixed_caller_and_failure(openswd3::test::Context& test) {
         failed.row_offsets.status ==
                 LegacyBattleRowOffsetStatus::allocation_failed &&
             failed.row_offsets.requested_bytes == 2400U &&
-            failed.row_offsets.legacy_return_value == 0U &&
+            failed.row_offsets.rows_written == 0U &&
             failed_allocator.pointer_was_clear &&
             geometry.surface_row_offsets == nullptr &&
             geometry.surface_width == 800 && geometry.surface_height == 600 &&
-            failed.rectangle_published && failed.legacy_return_value == 600 &&
+            failed.rectangle_published &&
             geometry.left == 0 && geometry.top == 0 && geometry.right == 800 &&
             geometry.bottom == 600,
         "host surface keeps prepublished dimensions and rectangle on failure"
@@ -7186,8 +7189,8 @@ void test_host_surface_typed_stop_and_nonpositive_dimensions(
         wrapped.row_offsets.status ==
                 LegacyBattleRowOffsetStatus::write_out_of_range &&
             wrapped.row_offsets.requested_bytes == 4U &&
-            wrapped.row_offsets.legacy_return_value == 2U &&
-            !wrapped.rectangle_published && wrapped.legacy_return_value == 2 &&
+            wrapped.row_offsets.rows_written == 1U &&
+            !wrapped.rectangle_published &&
             geometry.surface_width == 640 &&
             geometry.surface_height == wrapped_height &&
             geometry.surface_row_offsets[0U] == 0U && geometry.left == 11 &&
@@ -7203,9 +7206,8 @@ void test_host_surface_typed_stop_and_nonpositive_dimensions(
     test.expect_true(
         negative.row_offsets.status == LegacyBattleRowOffsetStatus::completed &&
             negative.row_offsets.requested_bytes == 0xFFFFFFE4U &&
-            negative.row_offsets.legacy_return_value == 0U &&
+            negative.row_offsets.rows_written == 0U &&
             negative.rectangle_published &&
-            negative.legacy_return_value == -7 &&
             geometry.surface_width == -5 && geometry.surface_height == -7 &&
             geometry.left == 0 && geometry.top == 0 && geometry.right == -5 &&
             geometry.bottom == -7,

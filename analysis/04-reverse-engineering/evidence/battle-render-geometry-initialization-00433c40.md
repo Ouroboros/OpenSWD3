@@ -172,7 +172,9 @@ index   horizontal   vertical
 - `primary_row_offsets_write_out_of_range`：主表原写点停止；
 - `surface_row_offsets_write_out_of_range`：surface表原写点停止。
 
-后两种状态不发布正常返回owner，不把原内存破坏域伪造为成功。
+现代接口删除返回owner指针回显，调用方直接持有同一绘图对象。
+后两种状态保留实际写入前缀并阻止后缀；不会报告completed。
+各行表结果提供实际写入行数，详见[语义结果迁移](battle-render-semantic-results.md)。
 
 ## 11. 双向追溯
 

@@ -97,13 +97,12 @@ enum class LegacyBattleRowOffsetStatus : compat::u8 {
 struct LegacyBattleRowOffsetResult {
     LegacyBattleRowOffsetStatus status{LegacyBattleRowOffsetStatus::completed};
     compat::u32 requested_bytes{};
-    compat::u32 legacy_return_value{};
+    compat::u32 rows_written{};
 };
 
 struct LegacyBattleHostSurfaceResult {
     LegacyBattleRowOffsetResult row_offsets{};
     bool rectangle_published{};
-    compat::i32 legacy_return_value{};
 };
 
 enum class LegacyBattleRenderInitializationStatus : compat::u8 {
@@ -142,7 +141,6 @@ struct LegacyBattleRenderInitializationResult {
     LegacyBattleRowOffsetResult surface_row_offsets{};
     bool rectangle_published{};
     bool direction_vectors_published{};
-    LegacyBattleRenderGeometry* legacy_return_value{};
 };
 
 // sub_434350.
