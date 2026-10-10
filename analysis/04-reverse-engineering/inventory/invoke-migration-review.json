@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "f5c7d24b",
+  "last_reviewed_source_revision": "8732af27",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -196,9 +196,9 @@
     },
     "battle/legacy_battle_render_geometry": {
       "status": "pending",
-      "last_reviewed_commit": "f5c7d24b",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-render-geometry-binding-object-initialization-0045f0f0.md",
-      "reason": "辅助缓冲、退出登记及绑定初始化已迁移并接入SDL；其余绘图返回字段、分配接口与非空辅助缓冲生产来源仍待逐项复核，不以扫描信号消失验收整项"
+      "last_reviewed_commit": "8732af27",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-render-semantic-results.md",
+      "reason": "辅助缓冲、退出登记及绑定初始化已迁移；建表返回实际写入量并删除对象及底边回显，故障消费者保持原路径；分配接口与非空辅助缓冲生产来源仍待逐项复核，继续pending"
     },
     "battle/legacy_battle_runtime_shutdown": {
       "status": "pending",
