@@ -832,12 +832,9 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         result.attack_order = append_legacy_battle_attack_order_entry(
             context.attack_order_records,
             2U,
-            state.stored_group_b_index,
-            state.choice_cursor - 1U,
-            0U
+            state.stored_group_b_index
         );
-        ++result.attack_order_calls;
-        if (result.attack_order.status !=
+        if (result.attack_order->status !=
             LegacyBattleAttackOrderEntryStatus::completed) {
             result.status =
                 LegacyBattleActionDispatchStatus::attack_order_typed_stop;

@@ -398,6 +398,8 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             port.battle_victory_reward_state().group_a_skip_secondary;
         context.actor_frames->dispatch.startup = &context.startup;
         context.actor_frames->dispatch.startup_reset = &context.startup.reset;
+        context.actor_frames->dispatch.attack_order_records =
+            context.startup.reset.records_524788;
         context.actor_frames->dispatch.text_messages =
             &context.startup.text_messages;
     }

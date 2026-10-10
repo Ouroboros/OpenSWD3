@@ -954,10 +954,10 @@ void merge_nested_result(
     if (nested.group_a_actor_cleanup_calls != 0U) {
         outer.group_a_actor_cleanup = nested.group_a_actor_cleanup;
     }
-    outer.attack_order_calls += nested.attack_order_calls;
-    if (nested.attack_order_calls != 0U) {
+    if (nested.attack_order.has_value()) {
         outer.attack_order = nested.attack_order;
     }
+
     outer.attack_order_insert_calls += nested.attack_order_insert_calls;
     if (nested.attack_order_insert_calls != 0U) {
         outer.attack_order_insert = nested.attack_order_insert;

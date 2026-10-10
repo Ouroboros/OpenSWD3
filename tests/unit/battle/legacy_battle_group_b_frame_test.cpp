@@ -1144,11 +1144,10 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 port.count(0x0047DAD0U) == 1U &&
                 port.count(0x004755E0U) == 0U &&
                 fixture.startup->enemies[2U].progress.action_complete == 1U &&
-                result.attack_order_calls == 1U &&
-                result.attack_order.written_index == 0U &&
+                result.attack_order.has_value() &&
+                result.attack_order->written_index == 0U &&
                 fixture.attack_order_records[0].value_00 == 2U &&
                 fixture.attack_order_records[0].value_08 == 2U &&
-                port.count(0x0045EDF0U) == 0U &&
                 state.shared.action_block_gate == 0x5650U,
             "live opponent update directly advances progress and appends its index when message gates allow"
         );
@@ -1174,7 +1173,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                         group_b_progress_typed_stop &&
                 port.count(0x0047DAD0U) == 1U &&
                 port.count(0x004755E0U) == 0U &&
-                result.attack_order_calls == 0U &&
+                !result.attack_order.has_value() &&
                 fixture.startup->enemies[2U].progress.progress == 0U,
             "group B frame preserves the opponent update before the direct progress resource stop"
         );
@@ -1198,10 +1197,12 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::attack_order_typed_stop &&
-                result.attack_order.status ==
+                result.attack_order.has_value() &&
+                result.attack_order->status ==
                     openswd3::battle::LegacyBattleAttackOrderEntryStatus::
                         record_typed_stop &&
-                result.attack_order.return_eax == 0x00524788U &&
+                !result.attack_order->written_index.has_value() &&
+                fixture.startup->enemies[2U].progress.action_complete == 1U &&
                 port.count(0x004755E0U) == 0U && port.count(0x004786A0U) == 0U,
             "attack-order typed stop preserves the opponent update prefix then blocks the remaining frame path"
         );

@@ -652,10 +652,10 @@ void merge_nested(
     if (nested.group_a_actor_cleanup_calls != 0U) {
         result.group_a_actor_cleanup = nested.group_a_actor_cleanup;
     }
-    result.attack_order_calls += nested.attack_order_calls;
-    if (nested.attack_order_calls != 0U) {
+    if (nested.attack_order.has_value()) {
         result.attack_order = nested.attack_order;
     }
+
     result.attack_order_insert_calls += nested.attack_order_insert_calls;
     if (nested.attack_order_insert_calls != 0U) {
         result.attack_order_insert = nested.attack_order_insert;
@@ -816,12 +816,11 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                 }
                 if (progress.return_eax == 1U &&
                     port.battle_message_state() != 0x67U) {
-                    result
-                        .attack_order = append_legacy_battle_attack_order_entry(
-                        context.attack_order_records, 2U, group_b_index, 0U, 0U
-                    );
-                    ++result.attack_order_calls;
-                    if (result.attack_order.status !=
+                    result.attack_order =
+                        append_legacy_battle_attack_order_entry(
+                            context.attack_order_records, 2U, group_b_index
+                        );
+                    if (result.attack_order->status !=
                         LegacyBattleAttackOrderEntryStatus::completed) {
                         result.status = LegacyBattleActionDispatchStatus::
                             attack_order_typed_stop;

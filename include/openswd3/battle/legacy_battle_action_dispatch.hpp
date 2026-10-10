@@ -1691,8 +1691,7 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 pair_transition_calls{};
     LegacyBattleRetreatCommitResult retreat_commit{};
     compat::u32 retreat_commit_calls{};
-    LegacyBattleAttackOrderEntryResult attack_order{};
-    compat::u32 attack_order_calls{};
+    std::optional<LegacyBattleAttackOrderEntryResult> attack_order;
     LegacyBattleAttackOrderInsertResult attack_order_insert{};
     compat::u32 attack_order_insert_calls{};
     LegacyBattleAttackOrderRemoveResult attack_order_remove{};

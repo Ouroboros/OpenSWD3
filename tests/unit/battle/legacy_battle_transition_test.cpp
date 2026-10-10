@@ -879,14 +879,10 @@ static void test_battle_transition_visuals(openswd3::test::Context& test) {
                 result.transform_calls == 34U &&
                 result.temporary_surface_calls == 35U &&
                 result.surface_operation_calls == 36U &&
-                result.attack_order_calls == 1U &&
-                result.attack_order.written &&
-                result.attack_order.written_index == 0U &&
+                result.attack_order.has_value() &&
+                result.attack_order->written_index == 0U &&
                 startup.reset.records_524788[0].value_00 == 1U &&
                 startup.reset.records_524788[0].value_08 == 2U &&
-                ports.call_count(
-                    LegacyBattleTransitionCall::reserved_enemy_rare_event_slot
-                ) == 0U &&
                 result.prepared_party_actors == 2U &&
                 ports.call_count(
                     LegacyBattleTransitionCall::prepare_actor_message

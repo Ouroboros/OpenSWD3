@@ -932,6 +932,9 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
         fixture->action_dispatch.frame_enabled = 1U;
         fixture->action_dispatch.actor_progress_gate = 0x55U;
         auto dispatch_context = fixture->action_context();
+        std::array<openswd3::battle::LegacyBattleStartupResetRecord, 18>
+            unrelated_records{};
+        dispatch_context.attack_order_records = unrelated_records;
         openswd3::battle::LegacyBattleActorFrameAdvanceContext actor_frames{
             fixture->actor_frame_state, *port, dispatch_context
         };
@@ -977,6 +980,17 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
                 fixture->action_dispatch.selection_cache_gate_b == 0U &&
                 fixture->action_dispatch.resolution_latch == 9U,
             "45328C observes menu cancellation and resumes delayed actor selection"
+        );
+        const auto& actor_result =
+            result.actor_frame_sequence.frame_results[0U];
+        test.expect_true(
+            actor_result.attack_order.has_value() &&
+                actor_result.attack_order->written_index == 0U &&
+                fixture->startup.reset.records_524788[0U].value_00 == 0U &&
+                fixture->startup.reset.records_524788[0U].value_08 == 2U &&
+                unrelated_records[0U].value_00 == 0xFFFFFFFFU &&
+                unrelated_records[0U].value_08 == 0U,
+            "dequeue and the following opponent update share the startup queue while an unrelated supplied queue remains untouched"
         );
     }
 

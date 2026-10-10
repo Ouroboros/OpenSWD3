@@ -14,6 +14,7 @@
 
 #include <array>
 #include <filesystem>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -83,7 +84,6 @@ enum class LegacyBattleTransitionCall : compat::u16 {
     restore_clip,
     random_below,
     query_actor_mode,
-    reserved_enemy_rare_event_slot,
     prepare_actor_message,
     reset_actor_message,
     reserved_actor_progress_update,
@@ -224,8 +224,7 @@ struct LegacyBattleTransitionResult {
     std::array<compat::u32, 4> release_order{};
     compat::u32 release_calls{};
     bool music_started{};
-    LegacyBattleAttackOrderEntryResult attack_order{};
-    compat::u32 attack_order_calls{};
+    std::optional<LegacyBattleAttackOrderEntryResult> attack_order;
     LegacyBattleActorProgressThresholdSyncResult
         actor_progress_threshold_sync{};
     LegacyBattleActorProgressResult actor_progress{};

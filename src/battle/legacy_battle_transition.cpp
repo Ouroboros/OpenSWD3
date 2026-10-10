@@ -780,16 +780,14 @@ LegacyBattleTransitionResult run_legacy_battle_transition(
                              .return_value;
             if (latest_eax != 1U) {
                 result.attack_order = append_legacy_battle_attack_order_entry(
-                    startup.reset.records_524788, 2U, index, 0U, 0U
+                    startup.reset.records_524788, 2U, index
                 );
-                ++result.attack_order_calls;
-                if (result.attack_order.status !=
+                if (result.attack_order->status !=
                     LegacyBattleAttackOrderEntryStatus::completed) {
                     result.status =
                         LegacyBattleTransitionStatus::attack_order_typed_stop;
                     return result;
                 }
-                latest_eax = result.attack_order.return_eax;
             }
         }
         for (u32 index = 0U;

@@ -2,128 +2,160 @@
 #include "test.hpp"
 
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <span>
 
 namespace {
 
 using openswd3::compat::u32;
+using Record = openswd3::battle::LegacyBattleStartupResetRecord;
 
-[[nodiscard]] std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
-records() {
-    return {};
+[[nodiscard]] bool equal_records(
+    const std::span<const Record> actual,
+    const std::span<const Record> expected
+) {
+    for (std::size_t index = 0U; index < actual.size(); ++index) {
+        if (std::bit_cast<std::array<u32, 7>>(actual[index]) !=
+            std::bit_cast<std::array<u32, 7>>(expected[index])) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 }  // namespace
 
 void test_battle_attack_order_entry(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleAttackOrderEntryStatus;
+    using openswd3::battle::append_legacy_battle_attack_order_entry;
 
-    {
-        auto entries = records();
-        const auto zero =
-            openswd3::battle::append_legacy_battle_attack_order_entry(
-                entries, 0U, 0x12345678U, 0x13572468U, 0x89ABCDEFU
-            );
-        const auto three =
-            openswd3::battle::append_legacy_battle_attack_order_entry(
-                entries, 3U, 0x87654321U, 0x13572468U, 0x89ABCDEFU
-            );
-
-        test.expect_true(
-            zero.return_eax == 0xFFFFFFFEU && zero.return_ecx == 0x13572468U &&
-                zero.return_edx == 0x89ABCDEFU && !zero.written &&
-                three.return_eax == 1U && three.return_ecx == 0x13572468U &&
-                three.return_edx == 0x89ABCDEFU && !three.written &&
-                entries[0].value_00 == 0xFFFFFFFFU,
-            "types outside one and two return after the exact pair of decrements without scanning records"
-        );
-    }
-
-    {
-        auto entries = records();
-        entries[0].value_00 = 9U;
-        entries[1].value_00 = 8U;
-        entries[2].value_04 = 0xA5A55A5AU;
-        entries[2].value_0a = 0x7788U;
-
+    for (const u32 type : {0U, 3U, 0x10001U, 0x10002U, 0xFFFFFFFFU}) {
+        std::array<Record, 18> entries{};
+        const auto before = entries;
         const auto result =
-            openswd3::battle::append_legacy_battle_attack_order_entry(
-                entries, 2U, 0x12345678U, 0x11112222U, 0x33334444U
-            );
+            append_legacy_battle_attack_order_entry(entries, type, 0x12345678U);
+        const auto unmapped =
+            append_legacy_battle_attack_order_entry({}, type, 0x12345678U);
 
         test.expect_true(
             result.status == LegacyBattleAttackOrderEntryStatus::completed &&
-                result.written && result.written_index == 2U &&
-                result.scanned_records == 3U && result.return_eax == 0x38U &&
-                result.return_ecx == 0x12345678U &&
-                result.return_edx == 0x33334444U &&
-                entries[2].value_00 == 0x12345678U &&
-                entries[2].value_08 == 2U &&
-                entries[2].value_04 == 0xA5A55A5AU &&
-                entries[2].value_0a == 0x7788U,
-            "type two scans by 0x1C and writes only the value and type word while returning the value in ECX"
+                !result.written_index.has_value() &&
+                unmapped.status ==
+                    LegacyBattleAttackOrderEntryStatus::completed &&
+                !unmapped.written_index.has_value() &&
+                equal_records(entries, before),
+            "only the full types one and two access the queue"
         );
     }
 
-    {
-        auto entries = records();
-        entries[0].value_00 = 4U;
+    for (const u32 type : {1U, 2U}) {
+        for (const u32 slot : {0U, 2U, 17U}) {
+            std::array<Record, 18> entries{};
+            for (std::size_t index = 0U; index < entries.size(); ++index) {
+                entries[index] = {
+                    .value_00 = static_cast<u32>(index),
+                    .value_04 = 0xA5A55A5AU,
+                    .value_08 = 0x1234U,
+                    .value_0a = 0x7788U,
+                    .value_0c = 0x11223344U,
+                    .value_10 = 0x55667788U,
+                    .value_14 = 0x99AABBCCU,
+                    .value_18 = 0xDDEEFF00U,
+                };
+            }
 
-        const auto result =
-            openswd3::battle::append_legacy_battle_attack_order_entry(
-                entries, 1U, 0xDEADBEEFU, 0x55667788U, 0x99AABBCCU
+            entries[slot].value_00 = 0xFFFFFFFFU;
+            auto expected = entries;
+            expected[slot].value_00 = 0xDEADBEEFU;
+            expected[slot].value_08 =
+                static_cast<openswd3::compat::u16>(type);
+
+            const auto result =
+                append_legacy_battle_attack_order_entry(
+                    entries, type, 0xDEADBEEFU
+                );
+
+            test.expect_true(
+                result.status ==
+                        LegacyBattleAttackOrderEntryStatus::completed &&
+                    result.written_index == slot &&
+                    equal_records(entries, expected),
+                "both types write only the first empty record value and type word including the last fixed slot"
             );
+        }
+    }
+
+    {
+        std::array<Record, 18> entries{};
+        const auto first =
+            append_legacy_battle_attack_order_entry(entries, 1U, 0xFFFFFFFFU);
+        const auto second =
+            append_legacy_battle_attack_order_entry(entries, 2U, 0x80000000U);
 
         test.expect_true(
-            result.written && result.written_index == 1U &&
-                result.return_eax == 0x1CU && result.return_ecx == 1U &&
-                result.return_edx == 0xDEADBEEFU &&
-                entries[1].value_00 == 0xDEADBEEFU && entries[1].value_08 == 1U,
-            "type one keeps the slot index in ECX and loads the value into EDX before the two stores"
+            first.written_index == 0U && second.written_index == 0U &&
+                entries[0U].value_00 == 0x80000000U &&
+                entries[0U].value_08 == 2U &&
+                entries[1U].value_00 == 0xFFFFFFFFU,
+            "an all-one appended value remains an empty slot for the next append"
         );
     }
 
-    {
-        auto entries = records();
-        for (std::size_t index = 0U; index < entries.size(); ++index) {
+    for (const u32 type : {1U, 2U}) {
+        std::array<Record, 19> entries{};
+        for (std::size_t index = 0U; index < 18U; ++index) {
             entries[index].value_00 = static_cast<u32>(index);
         }
 
+        const auto before = entries;
         const auto result =
-            openswd3::battle::append_legacy_battle_attack_order_entry(
-                entries, 2U, 0x55U, 0xBBBBBBBBU, 0xCCCCCCCCU
-            );
+            append_legacy_battle_attack_order_entry(entries, type, 0x55U);
 
         test.expect_true(
-            !result.written && result.scanned_records == 18U &&
-                result.return_eax == 0x00524980U && result.return_ecx == 18U &&
-                result.return_edx == 0xCCCCCCCCU,
-            "a full fixed record range returns the one-past physical address and count without writing"
+            result.status == LegacyBattleAttackOrderEntryStatus::completed &&
+                !result.written_index.has_value() &&
+                equal_records(entries, before),
+            "a full eighteen-record queue remains unchanged even with an empty nineteenth record in the supplied span"
         );
     }
 
-    {
-        auto entries = records();
-        entries[0].value_00 = 7U;
-        entries[1].value_00 = 8U;
+    for (const u32 type : {1U, 2U}) {
+        std::array<Record, 18> entries{};
+        entries[0U].value_00 = 7U;
+        entries[1U].value_00 = 8U;
+        const auto before = entries;
         const auto result =
-            openswd3::battle::append_legacy_battle_attack_order_entry(
-                std::span{entries}.first(2U),
-                1U,
-                0x55U,
-                0xBBBBBBBBU,
-                0xCCCCCCCCU
+            append_legacy_battle_attack_order_entry(
+                std::span{entries}.first(2U), type, 0x55U
             );
+        const auto empty =
+            append_legacy_battle_attack_order_entry({}, type, 0x55U);
 
         test.expect_true(
             result.status ==
                     LegacyBattleAttackOrderEntryStatus::record_typed_stop &&
-                !result.written && result.scanned_records == 2U &&
-                result.return_eax == 0x005247C0U && result.return_ecx == 2U &&
-                result.return_edx == 0xCCCCCCCCU && entries[0].value_00 == 7U &&
-                entries[1].value_00 == 8U,
-            "a short typed owner stops only at the next real value read after preserving the occupied prefix"
+                !result.written_index.has_value() &&
+                empty.status ==
+                    LegacyBattleAttackOrderEntryStatus::record_typed_stop &&
+                !empty.written_index.has_value() &&
+                equal_records(entries, before),
+            "short queue views stop at the first unavailable record without changing the occupied prefix"
+        );
+
+        const auto early =
+            append_legacy_battle_attack_order_entry(
+                std::span{entries}.subspan(2U, 1U), type, 0x55U
+            );
+        auto expected = before;
+        expected[2U].value_00 = 0x55U;
+        expected[2U].value_08 = static_cast<openswd3::compat::u16>(type);
+
+        test.expect_true(
+            early.status == LegacyBattleAttackOrderEntryStatus::completed &&
+                early.written_index == 0U && equal_records(entries, expected),
+            "an available empty record completes before any later unavailable record is accessed"
         );
     }
 }

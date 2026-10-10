@@ -684,7 +684,11 @@ void test_battle_group_b_action_composition_action_caller(
                 result.group_b_action_composition_calls == 1U &&
                 result.actor_action_mode_calls == 1U &&
                 result.actor_action_modes[0U].return_eip == 0x004761BAU &&
-                result.attack_order_calls == 1U && state->message_gate == 0U &&
+                result.attack_order.has_value() &&
+                result.attack_order->written_index == 0U &&
+                fixture->attack_order_records[0U].value_00 == 0U &&
+                fixture->attack_order_records[0U].value_08 == 2U &&
+                state->message_gate == 0U &&
                 port.battle_message_state() == 0x2468U &&
                 actor.action_composition.action_text[0U] == 'A' &&
                 actor.action_composition.derived_words[0U] == 8U &&
@@ -746,7 +750,7 @@ void test_battle_group_b_action_composition_action_caller(
                 state->group_b_status_words[0U] == 0x4000U &&
                 state->message_gate == 0x55U &&
                 port.battle_message_state() == 0U &&
-                result.attack_order_calls == 0U &&
+                !result.attack_order.has_value() &&
                 fixture->attack_order_records[0U].value_08 == 0U &&
                 port.count(0x00476DB0U) == 0U &&
                 port.count(0x00499168U) == 0U &&
@@ -798,7 +802,10 @@ void test_battle_group_b_action_profile_selection_action_caller(
                 result.group_b_action_profile_selection.output_value == 0x56U &&
                 result.actor_action_mode_calls == 1U &&
                 result.actor_action_modes[0U].return_eip == 0x004762C3U &&
-                result.attack_order_calls == 1U &&
+                result.attack_order.has_value() &&
+                result.attack_order->written_index == 0U &&
+                fixture->attack_order_records[0U].value_00 == 0U &&
+                fixture->attack_order_records[0U].value_08 == 2U &&
                 state->group_b_status_words[0U] == 0x8002U &&
                 state->message_aux == 1U &&
                 port.battle_message_state() == 0x56U &&
@@ -857,7 +864,7 @@ void test_battle_group_b_action_profile_selection_action_caller(
                 actor.action_configuration.profile_buffer[0U] ==
                     std::byte{0U} &&
                 actor.action_composition.derived_words[0U] == 0U &&
-                result.attack_order_calls == 0U &&
+                !result.attack_order.has_value() &&
                 fixture->attack_order_records[0U].value_08 == 0U &&
                 port.count(0x00476A80U) == 0U && port.allocation_calls == 1U &&
                 port.release_calls == 0U && port.count(0x00476250U) == 0U,
@@ -7285,7 +7292,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                         stack_write_typed_stop &&
                 state.stored_group_b_index == 0U &&
                 state.stored_group_a_index == 0U &&
-                result.attack_order_calls == 0U &&
+                !result.attack_order.has_value() &&
                 fixture.attack_order_records[0U].value_00 == 0xFFFFFFFFU,
             "action twenty-five runtime-reset stop keeps CALL-prefix indices and suppresses attack-order removal"
         );
@@ -7341,11 +7348,10 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.attack_order_calls == 1U &&
-                result.attack_order.written_index == 0U &&
+                result.attack_order.has_value() &&
+                result.attack_order->written_index == 0U &&
                 fixture.attack_order_records[0].value_00 == 0U &&
                 fixture.attack_order_records[0].value_08 == 2U &&
-                port.count(0x0045EDF0U) == 0U &&
                 state.current_actor_index == 0xFFFFU &&
                 result.return_value == 1U,
             "action twenty five directly appends the selected opponent to the shared attack order"
@@ -7370,6 +7376,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::attack_order_typed_stop &&
+                result.attack_order.has_value() &&
+                !result.attack_order->written_index.has_value() &&
                 state.group_b_status_words[0] != 0U &&
                 result.return_value == 0U,
             "attack-order typed stop preserves the choice status write then blocks action completion"
