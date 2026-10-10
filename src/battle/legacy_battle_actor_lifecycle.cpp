@@ -291,8 +291,7 @@ release_legacy_battle_actor_group_b(LegacyBattleGroupBStorage& actors) {
 
 LegacyBattleActorGroupAStaticInitializationResult
 initialize_legacy_battle_actor_group_a_static_lifecycle(
-    LegacyBattleGroupAStorage& actors,
-    LegacyBattleActorExitRegistrationPort& exit_registration_port
+    LegacyBattleGroupAStorage& actors, LegacyBattleExitCleanups& cleanups
 ) {
     LegacyBattleActorGroupAStaticInitializationResult result;
     result.constructed = actors.construct();
@@ -300,17 +299,16 @@ initialize_legacy_battle_actor_group_a_static_lifecycle(
         return result;
     }
 
-    result.exit_registration_result =
-        exit_registration_port.register_exit_cleanup(
-            kLegacyBattleActorGroupAExitCleanupToken
-        );
+    result.cleanup_registered = cleanups.add([&actors] {
+        return !actors.release().stopped_actor_index;
+    });
+
     return result;
 }
 
 LegacyBattleActorGroupBStaticInitializationResult
 initialize_legacy_battle_actor_group_b_static_lifecycle(
-    LegacyBattleGroupBStorage& actors,
-    LegacyBattleActorExitRegistrationPort& exit_registration_port
+    LegacyBattleGroupBStorage& actors, LegacyBattleExitCleanups& cleanups
 ) {
     LegacyBattleActorGroupBStaticInitializationResult result;
     result.constructed = actors.construct();
@@ -318,10 +316,10 @@ initialize_legacy_battle_actor_group_b_static_lifecycle(
         return result;
     }
 
-    result.exit_registration_result =
-        exit_registration_port.register_exit_cleanup(
-            kLegacyBattleActorGroupBExitCleanupToken
-        );
+    result.cleanup_registered = cleanups.add([&actors] {
+        return !release_legacy_battle_actor_group_b(actors).stopped_actor_index;
+    });
+
     return result;
 }
 
@@ -348,8 +346,7 @@ release_legacy_battle_actor_singleton(LegacyBattleActorSingletonState& state) {
 
 LegacyBattleActorSingletonStaticInitializationResult
 initialize_legacy_battle_actor_singleton_static_lifecycle(
-    LegacyBattleActorSingletonState& state,
-    LegacyBattleActorExitRegistrationPort& exit_registration_port
+    LegacyBattleActorSingletonState& state, LegacyBattleExitCleanups& cleanups
 ) {
     LegacyBattleActorSingletonStaticInitializationResult result;
     result.construction = construct_legacy_battle_actor_singleton(state);
@@ -360,10 +357,12 @@ initialize_legacy_battle_actor_singleton_static_lifecycle(
         return result;
     }
 
-    result.exit_registration_result =
-        exit_registration_port.register_exit_cleanup(
-            kLegacyBattleActorSingletonExitCleanupToken
+    result.cleanup_registered = cleanups.add([&state] {
+        return !legacy_battle_actor_base_release_stopped(
+            release_legacy_battle_actor_singleton(state).status
         );
+    });
+
     return result;
 }
 

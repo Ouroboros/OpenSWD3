@@ -2128,7 +2128,11 @@ public:
           world_effects_{.pixel_conversion = pixel_conversion},
           shutdown_ports_(shutdown_ports), exit_ports_(exit_ports), ok_(ok),
           running_(running) {
-        if (!battle_group_a_storage_.construct()) {
+        if (!openswd3::battle::
+                 initialize_legacy_battle_actor_group_a_static_lifecycle(
+                     battle_group_a_storage_, battle_exit_cleanups_
+                 )
+                     .constructed) {
             openswd3::diagnostics::log_error(
                 "battle party static construction stopped"
             );
@@ -2138,7 +2142,11 @@ public:
         }
 
         battle_runtime_.group_b_lifecycle = battle_group_b_storage_.actors();
-        if (!battle_group_b_storage_.construct()) {
+        if (!openswd3::battle::
+                 initialize_legacy_battle_actor_group_b_static_lifecycle(
+                     battle_group_b_storage_, battle_exit_cleanups_
+                 )
+                     .constructed) {
             openswd3::diagnostics::log_error(
                 "battle enemy static construction stopped"
             );
@@ -9227,6 +9235,7 @@ private:
     openswd3::battle::LegacyBattleGroupAStorage battle_group_a_storage_{
         battle_runtime_, battle_action_dispatch_
     };
+    openswd3::battle::LegacyBattleExitCleanups battle_exit_cleanups_;
     openswd3::battle::LegacyBattleActorMetricState& battle_actor_metrics_{
         actor_metric_state()
     };

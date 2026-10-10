@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <exception>
 #include <memory>
+#include <memory_resource>
 #include <stdexcept>
 #include <string_view>
 #include <vector>
@@ -206,71 +207,6 @@ struct PartyArrayReleaseFixture {
     }
 };
 
-class TrackingGroupALifecyclePort final
-    : public openswd3::battle::LegacyBattleActorExitRegistrationPort {
-public:
-    [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
-        events.push_back(2U);
-        registered_cleanup_token = cleanup_token;
-        construction_observed_at_registration =
-            observed_storage != nullptr &&
-            std::ranges::all_of(
-                observed_storage->startup->party, [this](const auto& actor) {
-                    const auto record = observed_storage->storage.record_bytes(
-                        actor.configuration.actor_record_token
-                    );
-                    return record.size() == 0x38U &&
-                        record.data() ==
-                        reinterpret_cast<const u8*>(
-                            actor.configuration.actor_record.data()
-                        ) &&
-                        actor.final_processing.replacement_action_kind == 0U &&
-                        std::ranges::all_of(record, [](const auto value) {
-                               return value == 0U;
-                           });
-                }
-            );
-        return registration_result;
-    }
-
-    GroupAReleaseStorage* observed_storage{};
-    bool construction_observed_at_registration{};
-    u32 registration_result{};
-    u32 registered_cleanup_token{};
-    std::vector<u32> events;
-};
-
-class TrackingGroupBStaticLifecyclePort final
-    : public openswd3::battle::LegacyBattleActorExitRegistrationPort {
-public:
-    [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
-        events.push_back(5U);
-        registered_cleanup_token = cleanup_token;
-        construction_observed_at_registration =
-            observed_storage != nullptr &&
-            std::ranges::all_of(
-                *observed_storage->actors(), [this](const auto& actor) {
-                    const auto record =
-                        observed_storage->resource_bytes(actor.resource_token);
-                    return actor.resource_token != 0U &&
-                        record.size() == 0xA4U &&
-                        record.data() == actor.resource_bytes.data() &&
-                        actor.action_execution.action_target == 0xFFFFU &&
-                        std::ranges::all_of(record, [](const auto value) {
-                               return value == 0U;
-                           });
-                }
-            );
-        return registration_result;
-    }
-
-    openswd3::battle::LegacyBattleGroupBStorage* observed_storage{};
-    bool construction_observed_at_registration{};
-    u32 registration_result{};
-    u32 registered_cleanup_token{};
-    std::vector<u32> events;
-};
-
 class TrackingBattleFileExitRegistrationPort final
     : public openswd3::battle::LegacyBattleFileExitRegistrationPort {
 public:
@@ -311,27 +247,6 @@ public:
     }
 
     std::vector<u32> released;
-};
-
-class TrackingActorSingletonStaticLifecyclePort final
-    : public openswd3::battle::LegacyBattleActorExitRegistrationPort {
-public:
-    [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
-        events.push_back(8U);
-        registered_cleanup_token = cleanup_token;
-        construction_observed_at_registration = observed_state != nullptr &&
-            observed_state->base_initialization.action_execution
-                    .action_target == 0xFFFFU &&
-            observed_state->base_initialization.action_execution
-                    .target_indices[0U] == 0xFFFFFFFFU;
-        return registration_result;
-    }
-
-    const openswd3::battle::LegacyBattleActorSingletonState* observed_state{};
-    u32 registration_result{};
-    u32 registered_cleanup_token{};
-    bool construction_observed_at_registration{};
-    std::vector<u32> events;
 };
 
 openswd3::battle::LegacyBattleActorGroupAElementDestructionView
@@ -389,6 +304,164 @@ void test_battle_party_array_unwind_termination() {
 }
 
 void test_battle_actor_lifecycle(openswd3::test::Context& test) {
+    {
+        std::array<std::byte, 1024U> buffer;
+        std::pmr::monotonic_buffer_resource memory{
+            buffer.data(), buffer.size(), std::pmr::null_memory_resource()
+        };
+        std::vector<u32> released;
+        openswd3::battle::LegacyBattleExitCleanups cleanups{&memory};
+        u32 registered = 0U;
+        bool rejected = false;
+        for (u32 index = 0U; index < 128U; ++index) {
+            if (!cleanups.add([&released, index] {
+                    released.push_back(index);
+                    return true;
+                })) {
+                rejected = true;
+                break;
+            }
+
+            ++registered;
+        }
+
+        test.expect_true(
+            rejected && registered != 0U && released.empty(),
+            "real registration memory exhaustion retains earlier pending cleanups"
+        );
+        test.expect_true(
+            cleanups.release() && cleanups.empty(),
+            "registered cleanup resources are consumed"
+        );
+        std::vector<u32> expected;
+        while (registered != 0U) {
+            expected.push_back(--registered);
+        }
+
+        test.expect_true(
+            released == expected,
+            "exit cleanup registration retains reverse order after allocation failure"
+        );
+    }
+
+    for (const bool throw_failure : {false, true}) {
+        std::vector<u32> released;
+        openswd3::battle::LegacyBattleExitCleanups cleanups;
+        test.expect_true(
+            cleanups.add([&] {
+                released.push_back(1U);
+                return true;
+            }),
+            "register earliest cleanup"
+        );
+        test.expect_true(
+            cleanups.add([&] {
+                released.push_back(2U);
+                if (throw_failure) {
+                    throw std::runtime_error{"exit cleanup failed"};
+                }
+
+                return false;
+            }),
+            "register failed cleanup"
+        );
+        test.expect_true(
+            cleanups.add([&] {
+                released.push_back(3U);
+                return true;
+            }),
+            "register latest cleanup"
+        );
+        bool propagated = false;
+        bool completed = false;
+        try {
+            completed = cleanups.release();
+        } catch (const std::runtime_error&) {
+            propagated = true;
+        }
+
+        test.expect_true(
+            !completed && propagated == throw_failure &&
+                released == std::vector<u32>{3U, 2U} && cleanups.release() &&
+                cleanups.empty(),
+            "failed exit cleanup preserves the prefix without retry on destruction"
+        );
+    }
+
+    {
+        GroupAReleaseStorage party;
+        openswd3::battle::LegacyBattleGroupBStorage enemy;
+        openswd3::battle::LegacyBattleActorSingletonState singleton;
+        std::vector<u32> released;
+        {
+            openswd3::battle::LegacyBattleExitCleanups cleanups;
+            const auto party_result = openswd3::battle::
+                initialize_legacy_battle_actor_group_a_static_lifecycle(
+                    party.storage, cleanups
+                );
+            const auto enemy_result = openswd3::battle::
+                initialize_legacy_battle_actor_group_b_static_lifecycle(
+                    enemy, cleanups
+                );
+            const auto singleton_result = openswd3::battle::
+                initialize_legacy_battle_actor_singleton_static_lifecycle(
+                    singleton, cleanups
+                );
+            test.expect_true(
+                party_result.cleanup_registered == true &&
+                    enemy_result.cleanup_registered == true &&
+                    singleton_result.cleanup_registered == true,
+                "all actor families register actual cleanup functions"
+            );
+            const auto bind = [&released](
+                                  auto& definition,
+                                  auto& description,
+                                  const u32 marker
+                              ) {
+                using Text = openswd3::battle::LegacyBattleMonText;
+                auto bytes = std::make_shared<Text::Storage>(Text::Storage{1U});
+                description.bind(
+                    bytes,
+                    std::make_shared<const Text::Release>(
+                        [bytes, &released, marker] {
+                            released.push_back(marker);
+                            bytes->clear();
+                            return true;
+                        }
+                    )
+                );
+                write_actor_base_description_token(
+                    definition, 0x62000000U + marker * 16U
+                );
+            };
+
+            bind(
+                party.startup->party[0U].base_resource_definition,
+                party.startup->party[0U].base_resource_definition_description,
+                1U
+            );
+            bind(
+                (*enemy.actors())[0U].action_composition.resource_definition,
+                (*enemy.actors())[0U]
+                    .action_composition.resource_definition_description,
+                2U
+            );
+            bind(
+                singleton.base_initialization.resource_definition,
+                singleton.base_initialization.resource_definition_description,
+                3U
+            );
+        }
+
+        test.expect_true(
+            released == std::vector<u32>{3U, 2U, 1U} &&
+                party.startup->party[0U].configuration.actor_record_token ==
+                    0U &&
+                (*enemy.actors())[0U].resource_token == 0U,
+            "scope destruction releases singleton then enemy then party while owners are alive"
+        );
+    }
+
     for (const std::size_t writable : {0U, 3U, 4U, 55U, 56U}) {
         openswd3::battle::LegacyBattleActorBaseInitializationOwner base;
         std::array<u8, 0x38U> record;
@@ -1015,21 +1088,18 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
             party.final_processing.replacement_action_kind = 0xBEEFU;
         }
 
-        TrackingGroupALifecyclePort lifecycle_port;
-        lifecycle_port.observed_storage = &actors;
-        lifecycle_port.registration_result = registration_result;
+        openswd3::battle::LegacyBattleExitCleanups lifecycle_port{
+            registration_result == 0U ? std::pmr::get_default_resource()
+                                      : std::pmr::null_memory_resource()
+        };
         const auto result = openswd3::battle::
             initialize_legacy_battle_actor_group_a_static_lifecycle(
                 actors.storage, lifecycle_port
             );
         test.expect_true(
-            lifecycle_port.events == std::vector<u32>{2U} &&
-                lifecycle_port.construction_observed_at_registration &&
-                lifecycle_port.registered_cleanup_token ==
-                    openswd3::battle::
-                        kLegacyBattleActorGroupAExitCleanupToken &&
+            lifecycle_port.empty() == (registration_result != 0U) &&
                 result.constructed &&
-                result.exit_registration_result == registration_result,
+                result.cleanup_registered == (registration_result == 0U),
             "all ten borrowed party records are constructed before exit registration"
         );
         for (u32 index = 0U; index < 10U; ++index) {
@@ -1037,7 +1107,17 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 actors.startup->party[index].workspace.object_token ==
                         0x005029D0U + index * 0x2F34U &&
                     actors.action->group_a_action_execution[index]
-                            .action_target == 0xFFFFU,
+                            .action_target == 0xFFFFU &&
+                    actors.startup->party[index]
+                            .final_processing.replacement_action_kind == 0U &&
+                    actors.storage
+                            .record_bytes(actors.startup->party[index]
+                                              .configuration.actor_record_token)
+                            .size() == 0x38U &&
+                    std::ranges::all_of(
+                        actors.startup->party[index].configuration.actor_record,
+                        [](const auto value) { return value == 0U; }
+                    ),
                 "party construction binds the original locations and shared action fields"
             );
         }
@@ -1059,14 +1139,14 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         const auto address_block =
             block_dynamic_reservations(failed_index * 0x40U);
         test.expect_true(address_block != nullptr, "limit party reservations");
-        TrackingGroupALifecyclePort lifecycle_port;
+        openswd3::battle::LegacyBattleExitCleanups lifecycle_port;
         const auto result = openswd3::battle::
             initialize_legacy_battle_actor_group_a_static_lifecycle(
                 actors.storage, lifecycle_port
             );
         test.expect_true(
-            !result.constructed && !result.exit_registration_result &&
-                lifecycle_port.events.empty(),
+            !result.constructed && !result.cleanup_registered &&
+                lifecycle_port.empty(),
             "an incomplete party array cannot register exit cleanup"
         );
         std::array<u32, 10U> resource_tokens{};
@@ -1110,8 +1190,8 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 actors.storage, lifecycle_port
             );
         test.expect_true(
-            !retry.constructed && !retry.exit_registration_result &&
-                lifecycle_port.events.empty(),
+            !retry.constructed && !retry.cleanup_registered &&
+                lifecycle_port.empty(),
             "stopped party construction cannot retry or register cleanup"
         );
         for (u32 index = 0U; index < 10U; ++index) {
@@ -1130,27 +1210,34 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
             actor.action_execution.action_target = 0U;
         }
 
-        TrackingGroupBStaticLifecyclePort lifecycle_port;
-        lifecycle_port.observed_storage = &storage;
-        lifecycle_port.registration_result = registration_result;
+        openswd3::battle::LegacyBattleExitCleanups lifecycle_port{
+            registration_result == 0U ? std::pmr::get_default_resource()
+                                      : std::pmr::null_memory_resource()
+        };
         const auto result = openswd3::battle::
             initialize_legacy_battle_actor_group_b_static_lifecycle(
                 storage, lifecycle_port
             );
         test.expect_true(
-            lifecycle_port.events == std::vector<u32>{5U} &&
-                lifecycle_port.construction_observed_at_registration &&
-                lifecycle_port.registered_cleanup_token ==
-                    openswd3::battle::
-                        kLegacyBattleActorGroupBExitCleanupToken &&
+            lifecycle_port.empty() == (registration_result != 0U) &&
                 result.constructed &&
-                result.exit_registration_result == registration_result,
+                result.cleanup_registered == (registration_result == 0U),
             "all eight real enemy records are constructed before exit registration"
         );
         for (std::size_t index = 0U; index < 8U; ++index) {
             test.expect_true(
                 (*storage.actors())[index].object_token ==
-                    0x00525508U + static_cast<u32>(index) * 0x2B28U,
+                        0x00525508U + static_cast<u32>(index) * 0x2B28U &&
+                    (*storage.actors())[index].action_execution.action_target ==
+                        0xFFFFU &&
+                    storage.resource_bytes(
+                               (*storage.actors())[index].resource_token
+                    )
+                            .size() == 0xA4U &&
+                    std::ranges::all_of(
+                        (*storage.actors())[index].resource_bytes,
+                        [](const auto value) { return value == 0U; }
+                    ),
                 "enemy construction uses the original eight actor locations"
             );
         }
@@ -1168,14 +1255,14 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         const auto address_block =
             block_dynamic_reservations(failed_index * 0xB0U);
         test.expect_true(address_block != nullptr, "limit enemy reservations");
-        TrackingGroupBStaticLifecyclePort lifecycle_port;
+        openswd3::battle::LegacyBattleExitCleanups lifecycle_port;
         const auto result = openswd3::battle::
             initialize_legacy_battle_actor_group_b_static_lifecycle(
                 storage, lifecycle_port
             );
         test.expect_true(
-            !result.constructed && !result.exit_registration_result &&
-                lifecycle_port.events.empty(),
+            !result.constructed && !result.cleanup_registered &&
+                lifecycle_port.empty(),
             "an incomplete enemy array cannot register exit cleanup"
         );
         std::array<u32, 8U> resource_tokens{};
@@ -1212,8 +1299,8 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 storage, lifecycle_port
             );
         test.expect_true(
-            !retry.constructed && !retry.exit_registration_result &&
-                lifecycle_port.events.empty(),
+            !retry.constructed && !retry.cleanup_registered &&
+                lifecycle_port.empty(),
             "a stopped enemy construction cannot retry or register cleanup"
         );
         for (u32 index = 0U; index < 8U; ++index) {
@@ -1230,19 +1317,20 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         singleton_state.base_initialization.resource_definition.fill(0xA5U);
         singleton_state.base_initialization.action_execution.target_indices
             .fill(0U);
-        TrackingActorSingletonStaticLifecyclePort lifecycle_port;
-        lifecycle_port.observed_state = &singleton_state;
-        lifecycle_port.registration_result = registration_result;
+        openswd3::battle::LegacyBattleExitCleanups lifecycle_port{
+            registration_result == 0U ? std::pmr::get_default_resource()
+                                      : std::pmr::null_memory_resource()
+        };
         const auto result = openswd3::battle::
             initialize_legacy_battle_actor_singleton_static_lifecycle(
                 singleton_state, lifecycle_port
             );
         test.expect_true(
-            lifecycle_port.events == std::vector<u32>{8U} &&
-                lifecycle_port.construction_observed_at_registration &&
-                lifecycle_port.registered_cleanup_token ==
-                    openswd3::battle::
-                        kLegacyBattleActorSingletonExitCleanupToken &&
+            lifecycle_port.empty() == (registration_result != 0U) &&
+                singleton_state.base_initialization.action_execution
+                        .action_target == 0xFFFFU &&
+                singleton_state.base_initialization.action_execution
+                        .target_indices[0U] == 0xFFFFFFFFU &&
                 result.status ==
                     openswd3::battle::
                         LegacyBattleActorSingletonStaticInitializationStatus::
@@ -1250,7 +1338,7 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 result.construction.status ==
                     openswd3::battle::
                         LegacyBattleActorBaseInitializationStatus::completed &&
-                result.exit_registration_result == registration_result,
+                result.cleanup_registered == (registration_result == 0U),
             "actor singleton typed construction precedes its exit registration"
         );
     }
@@ -1324,23 +1412,20 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         singleton_state.object_writable_bytes = 0x2A56U;
         singleton_state.base_initialization.action_execution.target_indices
             .fill(0x12345678U);
-        TrackingActorSingletonStaticLifecyclePort lifecycle_port;
-        lifecycle_port.observed_state = &singleton_state;
-        lifecycle_port.registration_result = 0xFFFFFFFFU;
+        openswd3::battle::LegacyBattleExitCleanups lifecycle_port;
         const auto result = openswd3::battle::
             initialize_legacy_battle_actor_singleton_static_lifecycle(
                 singleton_state, lifecycle_port
             );
         test.expect_true(
-            lifecycle_port.events.empty() &&
-                !lifecycle_port.construction_observed_at_registration &&
+            lifecycle_port.empty() &&
                 singleton_state.base_initialization.action_execution
                         .target_indices[0U] == 0x12345678U &&
                 result.status ==
                     openswd3::battle::
                         LegacyBattleActorSingletonStaticInitializationStatus::
                             construction_typed_stop &&
-                !result.exit_registration_result.has_value() &&
+                !result.cleanup_registered.has_value() &&
                 result.construction.status ==
                     openswd3::battle::
                         LegacyBattleActorBaseInitializationStatus::

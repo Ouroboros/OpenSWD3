@@ -43,7 +43,8 @@
 LST中本函数地址传给构造迭代器的异常回滚参数及析构迭代器。
 现代代码由实际队伍存储直接逆序调用，向量请求及Port已删除。
 见[队伍数组析构](battle-actor-group-a-vector-destruction-004517e0.md)。
-构造期异常展开、退出注册及会话最终销毁仍需继续迁移。
+角色退出登记已由[实际清理集合](battle-actor-owned-exit-cleanup.md)承担；
+构造期异常展开及其他会话资源销毁仍需继续迁移。
 
 ## 5. 验证状态
 
@@ -51,7 +52,7 @@ LST中本函数地址传给构造迭代器的异常回滚参数及析构迭代�
 寄存器观察断言随旧合同删除。历史Linux core`198/198`和定向`2/2`记录见基础析构文档；
 基础说明迁移验证见[说明所有权迁移](battle-actor-description-owned-release.md)，
 当前双资源协议删除验证见[双资源清理](battle-group-a-resource-cleanup-00475180.md)。
-数组析构迁移的当前验证记录见队伍数组析构文档；剩余退出协议与完整
+数组析构迁移的当前验证记录见队伍数组析构文档；其他退出协议与完整
 资源生命周期仍属当前Goal，不以compiler边界排除。
 
 原版`0x004885A0`allocator副作用、全局组A对象字节、说明堆、MSVC SEH与vector迭代器缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。

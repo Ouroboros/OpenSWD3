@@ -3,6 +3,7 @@
 #include "openswd3/battle/legacy_battle_actor_base_initialization.hpp"
 #include "openswd3/battle/legacy_battle_actor_base_release.hpp"
 #include "openswd3/battle/legacy_battle_actor_runtime_reset.hpp"
+#include "openswd3/battle/legacy_battle_exit_cleanups.hpp"
 #include "openswd3/battle/legacy_battle_group_a_resource_cleanup.hpp"
 #include "openswd3/battle/legacy_battle_group_b_resource_cleanup.hpp"
 #include "openswd3/compat/types.hpp"
@@ -18,26 +19,12 @@ namespace openswd3::battle {
 inline constexpr compat::u32 kLegacyBattleActorGroupABaseToken = 0x005029D0U;
 inline constexpr compat::u32 kLegacyBattleActorGroupAElementSize = 0x2F34U;
 inline constexpr compat::u32 kLegacyBattleActorGroupAElementCount = 10U;
-inline constexpr compat::u32 kLegacyBattleActorGroupAExitCleanupToken =
-    0x004517E0U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBBaseToken = 0x00525508U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBElementSize = 0x2B28U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBElementCount = 8U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBResourceStateBaseToken =
     0x73000000U;
-inline constexpr compat::u32 kLegacyBattleActorGroupBExitCleanupToken =
-    0x00451840U;
 inline constexpr compat::u32 kLegacyBattleActorSingletonToken = 0x00521598U;
-inline constexpr compat::u32 kLegacyBattleActorSingletonExitCleanupToken =
-    0x00451890U;
-
-class LegacyBattleActorExitRegistrationPort {
-public:
-    virtual ~LegacyBattleActorExitRegistrationPort() = default;
-
-    [[nodiscard]] virtual compat::u32
-    register_exit_cleanup(compat::u32 cleanup_token) = 0;
-};
 
 struct LegacyBattleActorGroupAElementState {
     compat::u32 object_token{};
@@ -235,12 +222,12 @@ struct LegacyBattleActorGroupBDestructionResult {
 
 struct LegacyBattleActorGroupAStaticInitializationResult {
     bool constructed{};
-    std::optional<compat::u32> exit_registration_result;
+    std::optional<bool> cleanup_registered;
 };
 
 struct LegacyBattleActorGroupBStaticInitializationResult {
     bool constructed{};
-    std::optional<compat::u32> exit_registration_result;
+    std::optional<bool> cleanup_registered;
 };
 
 enum class LegacyBattleActorSingletonStaticInitializationStatus : compat::u8 {
@@ -253,7 +240,7 @@ struct LegacyBattleActorSingletonStaticInitializationResult {
         LegacyBattleActorSingletonStaticInitializationStatus::completed
     };
     LegacyBattleActorBaseInitializationResult construction{};
-    std::optional<compat::u32> exit_registration_result;
+    std::optional<bool> cleanup_registered;
 };
 
 // sub_46E490, borrowing the session's existing actor fields and record.
@@ -304,21 +291,21 @@ release_legacy_battle_actor_group_b(LegacyBattleGroupBStorage& actors);
 [[nodiscard]] LegacyBattleActorGroupAStaticInitializationResult
 initialize_legacy_battle_actor_group_a_static_lifecycle(
     LegacyBattleGroupAStorage& actors,
-    LegacyBattleActorExitRegistrationPort& exit_registration_port
+    LegacyBattleExitCleanups& cleanups
 );
 
 // sub_451800 plus its external function chunk at loc_451830.
 [[nodiscard]] LegacyBattleActorGroupBStaticInitializationResult
 initialize_legacy_battle_actor_group_b_static_lifecycle(
     LegacyBattleGroupBStorage& actors,
-    LegacyBattleActorExitRegistrationPort& exit_registration_port
+    LegacyBattleExitCleanups& cleanups
 );
 
 // sub_451860 plus its external function chunk at loc_451880.
 [[nodiscard]] LegacyBattleActorSingletonStaticInitializationResult
 initialize_legacy_battle_actor_singleton_static_lifecycle(
     LegacyBattleActorSingletonState& state,
-    LegacyBattleActorExitRegistrationPort& exit_registration_port
+    LegacyBattleExitCleanups& cleanups
 );
 
 }  // namespace openswd3::battle
