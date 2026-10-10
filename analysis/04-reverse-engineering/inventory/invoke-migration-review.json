@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "c5dee2ea80e442745cffdcbfad6ef4e188420de8",
+  "last_reviewed_source_revision": "bf13ed498f00c04492dfce444e8fbbaecdd330ea",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -34,6 +34,22 @@
         "build/tmp/runtime/world-music-without-port-asan.log"
       ],
       "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
+    },
+    "battle/legacy_battle_actor_target_selection_latch_set": {
+      "status": "verified",
+      "verification_commit": "bf13ed498f00c04492dfce444e8fbbaecdd330ea",
+      "files": [
+        "include/openswd3/battle/legacy_battle_actor_target_selection_latch_set.hpp",
+        "src/battle/legacy_battle_actor_target_selection_latch_set.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-latch-set-00478b30.md",
+      "validation_logs": [
+        "build/tmp/runtime/target-latch-set-direct-core.log",
+        "build/tmp/runtime/target-latch-set-direct-callers-core.log",
+        "build/tmp/runtime/target-latch-set-direct-asan.log",
+        "build/tmp/runtime/target-latch-set-direct-callers-asan.log"
+      ],
+      "reason": "三处caller直接把当前双方角色实际共享DWORD写为1，删除置位resolver、寄存器请求回复、请求数组、地址表、轨迹、计数、offset及纯转发；写故障保留旧值、返回故障保留1，场景/ready前缀及正常选择续接经四项core/ASan定向测试与SDL链接验证；七类完整值、不同索引、重复写及嵌套实际状态已覆盖；父链及完整游戏仍未验收"
     },
     "battle/legacy_battle_actor_target_selection_latch_query": {
       "status": "verified",
@@ -81,9 +97,9 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "c5dee2ea",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-latch-query-00478b40.md",
-      "reason": "行动队列使用实际结果，启动与目标选择标记上下文删除查询请求数组和offset、寄存器结果、轨迹及计数并使用可选实际读取；目标选择nested转发与合并无实际消费已删除；其他动作仍有callee编号、参数数组、寄存器请求回复与计数，整项继续pending"
+      "last_reviewed_commit": "bf13ed49",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-latch-set-00478b30.md",
+      "reason": "行动队列及启动/目标标记查询使用实际共享数据与可选结果；场景发布后直接写当前队员目标标记，删除置位请求、寄存器、轨迹、计数、offset和纯转发，嵌套只合并已执行状态；原写/返回故障保留场景及实际前驱，阻断激活；其他动作仍有callee编号、参数数组、寄存器请求回复与计数，整项继续pending"
     },
     "battle/legacy_battle_opponent_action_dispatch": {
       "status": "pending",
@@ -153,15 +169,15 @@
     },
     "battle/legacy_battle_group_a_frame": {
       "status": "pending",
-      "last_reviewed_commit": "c5dee2ea",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-latch-query-00478b40.md",
-      "reason": "队列和数字子操作使用实际共享数据；三处目标选择标记直接读取当前队员DWORD，删除对应请求、寄存器结果、轨迹、计数和转发；保留精确1/非零两类分支、原故障前缀和首个敌方衰减数量reload；其他角色帧通用操作、参数包、寄存器结果、计数及Port仍在，整项继续pending"
+      "last_reviewed_commit": "bf13ed49",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-latch-set-00478b30.md",
+      "reason": "队列、数字子操作及三处目标标记查询使用实际共享数据；候选命中后直接写当前队员目标标记，删除置位请求、寄存器、轨迹、计数、offset和转发；保留ready与原故障前缀，后续选择沿用实际terminal，嵌套只合并已执行状态；其他角色帧通用操作、参数包、寄存器结果、计数及Port仍在，整项继续pending"
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",
-      "last_reviewed_commit": "c5dee2ea",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-latch-query-00478b40.md",
-      "reason": "队列与数字绘制使用实际数据，候选扫描直接读共享启动标记；目标清理后直接读当前敌方选择DWORD并删除对应请求、寄存器、轨迹、计数和转发；精确1与原故障前缀保持，首个衰减沿用原读取值及前驱EDX；其他对手帧通用操作、参数包、寄存器请求回复、计数及Port仍在，完整SDL角色帧与实际游戏仍未验收"
+      "last_reviewed_commit": "bf13ed49",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-latch-set-00478b30.md",
+      "reason": "队列、数字绘制及启动/目标标记查询使用实际共享数据；候选命中后直接写当前敌方目标标记，删除置位请求、寄存器、轨迹、计数、offset和转发；保留四次terminal与优先角色相等前置条件，ready和原故障前缀保持，选择沿用实际前驱；其他对手帧通用操作、参数包、寄存器请求回复、计数及Port仍在，完整SDL角色帧与实际游戏仍未验收"
     },
     "battle/legacy_battle_transition": {
       "status": "pending",
