@@ -969,7 +969,8 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
             "menu cancellation releases the wait read by opponent update"
         );
         test.expect_true(
-            result.selection_refresh_calls == 1U &&
+            result.attack_order_dequeue &&
+                result.attack_order_dequeue->output_dwords == 7U &&
                 state->selection_delay == 0U &&
                 fixture->script_workspace.coordinate_y == 0 &&
                 fixture->final_actor_step.selection_gate == 1U &&
@@ -1005,7 +1006,7 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
                         LegacyBattleFrameCoordinatorStatus::completed &&
                     fixture->action_dispatch.action_pending_aux ==
                         expected_gate &&
-                    result.selection_refresh_calls == (dequeued ? 1U : 0U) &&
+                    result.attack_order_dequeue.has_value() == dequeued &&
                     state->selection_delay == (dequeued ? 0U : 0x10U) &&
                     fixture->final_actor_step.selection_gate ==
                         (dequeued ? 1U : 0U),
@@ -3044,10 +3045,10 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                         input_return_three &&
                 result.return_value == 3U &&
-                result.selection_refresh_calls == 1U &&
-                result.attack_order_dequeue.status ==
+                result.attack_order_dequeue &&
+                result.attack_order_dequeue->status ==
                     LegacyBattleAttackOrderDequeueStatus::completed &&
-                result.attack_order_dequeue.actor_query_calls == 0U &&
+                result.attack_order_dequeue->output_dwords == 7U &&
                 state.selection_delay == 0U &&
                 fixture->script_workspace.coordinate_y == 5 &&
                 port.actor_metric_state().priority_actor_record_tail ==
@@ -3108,62 +3109,46 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             "full pre-input path reaches both countdowns and returns three on internal bit seventeen"
         );
     }
-    for (const bool returned : {false, true}) {
+    for (const u32 actor_code : {7U, 8U, 17U}) {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
         state.selection_delay = 0x10U;
         auto fixture = std::make_unique<Fixture>();
-        fixture->startup.reset.records_524788[0].value_00 = 8U;
+        fixture->startup.reset.records_524788[0].value_00 = actor_code;
         fixture->startup.reset.records_524788[1].value_00 = 0xFFFFFFFFU;
         fixture->internal_flags[0x11U >> 3U] =
             static_cast<u8>(1U << (0x11U & 7U));
         const auto port_storage = std::make_unique<CoordinatorPort>();
         auto& port = *port_storage;
         configure_common_port(port);
-        port.replies[LegacyBattleFrameCoordinatorCall::
-                         attack_order_dequeue_query_actor] = {
-            .eax = 0U,
-            .ecx = 0x005029D0U,
-            .edx = 0x13572468U,
-            .callee_returned = returned,
-        };
         auto context = fixture->context();
-        auto request = base_request();
-        request.attack_order_dequeue_edx_snapshot = 0x24681357U;
-
         const auto result_storage = std::unique_ptr<
             openswd3::battle::LegacyBattleFrameCoordinatorResult>(
             new openswd3::battle::LegacyBattleFrameCoordinatorResult(
                 openswd3::battle::run_legacy_battle_frame_coordinator(
-                    state, port, context, request
+                    state, port, context, base_request()
                 )
             )
         );
         const auto& result = *result_storage;
-        const auto query =
-            std::ranges::find_if(port.calls, [](const auto& call) {
-                return call.call ==
-                    LegacyBattleFrameCoordinatorCall::
-                        attack_order_dequeue_query_actor;
-            });
 
-        if (!returned) {
+        if (actor_code == 7U) {
             test.expect_true(
                 result.status ==
                         openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                             attack_order_dequeue_typed_stop &&
-                    result.attack_order_dequeue.status ==
+                    result.attack_order_dequeue &&
+                    result.attack_order_dequeue->status ==
                         LegacyBattleAttackOrderDequeueStatus::
                             actor_query_typed_stop &&
-                    result.attack_order_dequeue.actor_query_calls == 1U &&
-                    result.attack_order_dequeue.output_dwords == 0U &&
+                    result.attack_order_dequeue->output_dwords == 0U &&
                     state.selection_delay == 16U &&
-                    fixture->startup.reset.records_524788[0].value_00 == 8U &&
+                    fixture->startup.reset.records_524788[0].value_00 == 7U &&
                     result.frame_effect_calls == 0U &&
                     result.actor_frame_sequence_calls == 0U &&
                     result.fixed_frame_calls == 0U,
-                "dequeue query stop preserves its prefix and blocks every later frame stage"
+                "unmapped actor stops before output and every later frame stage"
             );
             continue;
         }
@@ -3172,16 +3157,13 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleFrameCoordinatorStatus::
                         input_return_three &&
-                result.attack_order_dequeue.actor_query_calls == 1U &&
-                query != port.calls.end() &&
-                query->arguments[0] == 0x005029D0U &&
-                query->arguments[1] == 8U && query->arguments[2] == 0U &&
-                query->eax == 0U && query->ecx == 0x005029D0U &&
-                query->edx == 0x24681357U &&
-                fixture->script_workspace.coordinate_y == 8 &&
+                result.attack_order_dequeue &&
+                result.attack_order_dequeue->output_dwords == 7U &&
+                fixture->script_workspace.coordinate_y ==
+                    static_cast<openswd3::compat::i32>(actor_code) &&
                 fixture->startup.reset.records_524788[0].value_00 ==
                     0xFFFFFFFFU,
-            "selection refresh directly dequeues a group-A record through the remaining actor-query boundary"
+            "frame selection directly reads physical group-A slots and removes the action"
         );
     }
     {

@@ -10,45 +10,8 @@
 
 namespace openswd3::battle {
 
-LegacyBattleAttackOrderRuntimePort::LegacyBattleAttackOrderRuntimePort(
-    LegacyBattleActionDispatchState& action, LegacyBattleStartupState& startup
-) noexcept
-    : action_(action), startup_(startup) {}
-
-LegacyBattleAttackOrderDequeueActorReply
-LegacyBattleAttackOrderRuntimePort::query_actor(
-    const LegacyBattleAttackOrderDequeueActorRequest& request
-) {
-    LegacyBattleAttackOrderDequeueActorReply reply{
-        .eax = request.stale_eax,
-        .ecx = request.actor_token,
-        .edx = request.stale_edx,
-        .callee_returned = false,
-    };
-    if (request.actor_token < kLegacyBattleAttackOrderDequeueGroupABase) {
-        return reply;
-    }
-
-    const auto offset =
-        request.actor_token - kLegacyBattleAttackOrderDequeueGroupABase;
-    const auto index = offset / kLegacyBattleAttackOrderDequeueGroupAStride;
-    if (offset % kLegacyBattleAttackOrderDequeueGroupAStride != 0U ||
-        index >= startup_.party.size() ||
-        index >= action_.group_a_action_execution.size()) {
-        return reply;
-    }
-
-    reply.eax = (startup_.party[index].progress.mode_gate & 0x40U) != 0U
-        ? 1U
-        : action_.group_a_action_execution[index].special_mode;
-    reply.callee_returned = true;
-    return reply;
-}
-
 LegacyBattleFrameSelectionResult prepare_legacy_battle_frame_selection(
-    LegacyBattleFrameSelectionBindings bindings,
-    LegacyBattleAttackOrderDequeuePort& port,
-    const compat::u32 dequeue_entry_edx
+    LegacyBattleFrameSelectionBindings bindings
 ) {
     LegacyBattleFrameSelectionResult result;
     auto mode = bindings.action.action_pending_aux;
@@ -69,27 +32,20 @@ LegacyBattleFrameSelectionResult prepare_legacy_battle_frame_selection(
         bindings.final_actor.selection_gate == 0U &&
         bindings.action.frame_enabled == 1U && mode == 0U) {
         if (bindings.delay >= 0x10U) {
-            result.dequeue_called = true;
-            result.dequeue = dequeue_legacy_battle_attack_order_entry(
-                {
-                    .records = bindings.records,
-                    .adjacent_intensity_records =
-                        bindings.adjacent_intensity_records,
-                    .output =
-                        {
-                            .value_00 = &bindings.metrics.priority_actor_index,
-                            .tail_dwords =
-                                bindings.metrics.priority_actor_record_tail,
-                        },
-                },
-                port,
-                {
-                    .entry_eax = mode,
-                    .entry_ecx = selected,
-                    .entry_edx = dequeue_entry_edx,
-                }
-            );
-            if (result.dequeue.status !=
+            result.dequeue = dequeue_legacy_battle_attack_order_entry({
+                .records = bindings.records,
+                .adjacent_intensity_records =
+                    bindings.adjacent_intensity_records,
+                .output =
+                    {
+                        .value_00 = &bindings.metrics.priority_actor_index,
+                        .tail_dwords =
+                            bindings.metrics.priority_actor_record_tail,
+                    },
+                .party = bindings.party,
+                .party_actions = bindings.action.group_a_action_execution,
+            });
+            if (result.dequeue->status !=
                 LegacyBattleAttackOrderDequeueStatus::completed) {
                 result.status =
                     LegacyBattleFrameSelectionStatus::dequeue_typed_stop;

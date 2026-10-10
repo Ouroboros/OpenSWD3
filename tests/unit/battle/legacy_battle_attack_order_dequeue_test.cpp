@@ -1,49 +1,29 @@
 #include "openswd3/battle/legacy_battle_attack_order_dequeue.hpp"
 
+#include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
+
 #include <array>
-#include <vector>
+#include <memory>
 
 #include "test.hpp"
 
 namespace {
 
-using openswd3::battle::LegacyBattleAttackOrderDequeueActorReply;
-using openswd3::battle::LegacyBattleAttackOrderDequeueActorRequest;
 using openswd3::battle::LegacyBattleAttackOrderDequeueBindings;
-using openswd3::battle::LegacyBattleAttackOrderDequeueOutput;
-using openswd3::battle::LegacyBattleAttackOrderDequeuePort;
-using openswd3::battle::LegacyBattleAttackOrderDequeueRequest;
 using openswd3::battle::LegacyBattleAttackOrderDequeueStatus;
+using openswd3::battle::LegacyBattleGroupAActionExecutionState;
 using openswd3::battle::LegacyBattleIntensityEffectRecord;
+using openswd3::battle::LegacyBattlePartyStartupRecord;
 using openswd3::battle::LegacyBattleStartupResetRecord;
+using openswd3::battle::dequeue_legacy_battle_attack_order_entry;
 using openswd3::compat::u8;
 using openswd3::compat::u32;
 
-class ActorPort final : public LegacyBattleAttackOrderDequeuePort {
-public:
-    [[nodiscard]] LegacyBattleAttackOrderDequeueActorReply query_actor(
-        const LegacyBattleAttackOrderDequeueActorRequest& request
-    ) override {
-        calls.push_back(request);
-        if (next_reply < replies.size()) {
-            return replies[next_reply++];
-        }
-        return {
-            .eax = default_eax,
-            .ecx = request.actor_token,
-            .edx = request.stale_edx,
-        };
-    }
-
-    std::vector<LegacyBattleAttackOrderDequeueActorRequest> calls;
-    std::vector<LegacyBattleAttackOrderDequeueActorReply> replies;
-    std::size_t next_reply{};
-    u32 default_eax{};
-};
-
 struct Fixture {
-    std::array<LegacyBattleStartupResetRecord, 18> records;
-    std::array<LegacyBattleIntensityEffectRecord, 8> intensity;
+    std::array<LegacyBattleStartupResetRecord, 18> records{};
+    std::array<LegacyBattleIntensityEffectRecord, 8> intensity{};
+    std::array<LegacyBattlePartyStartupRecord, 10> party{};
+    std::array<LegacyBattleGroupAActionExecutionState, 10> party_actions{};
     u32 output_first{0xAAAAAAAAU};
     std::array<u32, 6> output_tail{
         0xBBBBBBBBU,
@@ -53,17 +33,11 @@ struct Fixture {
         0x11111111U,
         0x22222222U,
     };
-    ActorPort port;
 
     Fixture() {
         for (auto& record : records) {
-            clear_record(record);
+            record.value_00 = 0xFFFFFFFFU;
         }
-    }
-
-    static void clear_record(LegacyBattleStartupResetRecord& record) {
-        record = {};
-        record.value_00 = 0xFFFFFFFFU;
     }
 
     static void seed_record(
@@ -83,10 +57,9 @@ struct Fixture {
         return {
             .records = records,
             .adjacent_intensity_records = intensity,
-            .output = LegacyBattleAttackOrderDequeueOutput{
-                .value_00 = &output_first,
-                .tail_dwords = output_tail,
-            },
+            .output = {.value_00 = &output_first, .tail_dwords = output_tail},
+            .party = party,
+            .party_actions = party_actions,
         };
     }
 };
@@ -110,10 +83,11 @@ struct Fixture {
             return false;
         }
     }
+
     return true;
 }
 
-void write_u32(std::array<u8, 0x2E>& bytes, const u32 offset, const u32 value) {
+void write_u32(std::span<u8> bytes, const u32 offset, const u32 value) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
     bytes[offset + 2U] = static_cast<u8>(value >> 16U);
@@ -123,188 +97,249 @@ void write_u32(std::array<u8, 0x2E>& bytes, const u32 offset, const u32 value) {
 }  // namespace
 
 void test_battle_attack_order_dequeue(openswd3::test::Context& test) {
-
     {
-        Fixture fixture;
-        const auto before = fixture.records;
+        auto fixture = std::make_unique<Fixture>();
+        Fixture::seed_record(fixture->records[0], 0xFFFFFFFFU, 0x100U);
+        const auto before = fixture->records;
         const auto result =
-            openswd3::battle::dequeue_legacy_battle_attack_order_entry(
-                fixture.bindings(),
-                fixture.port,
-                {.entry_eax = 0x11111111U,
-                 .entry_ecx = 0x22222222U,
-                 .entry_edx = 0x33333333U}
-            );
-
+            dequeue_legacy_battle_attack_order_entry(fixture->bindings());
         test.expect_true(
             result.status == LegacyBattleAttackOrderDequeueStatus::completed &&
                 result.selected_index == 0U && result.output_dwords == 7U &&
-                result.actor_query_calls == 0U &&
-                fixture.output_first == 0xFFFFFFFFU &&
-                same_records(fixture.records, before) &&
-                result.return_eax == 0x00524788U && result.return_ecx == 0U &&
-                result.return_edx == 0x33333333U,
-            "an empty first record is copied without mutating the attack order"
+                fixture->output_first == 0xFFFFFFFFU &&
+                fixture->output_tail ==
+                    std::array<u32, 6>{
+                        0x101U, 0x01030102U, 0x104U, 0x105U, 0x106U, 0x107U
+                    } &&
+                same_records(fixture->records, before) &&
+                result.shifted_records == 0U && result.cleared_records == 0U,
+            "an empty record copies all seven DWORDs without changing the queue"
         );
     }
 
     {
-        Fixture fixture;
-        Fixture::seed_record(fixture.records[0], 3U, 0x100U);
-        Fixture::seed_record(fixture.records[1], 9U, 0x200U);
-        const auto expected = fixture.records[1];
+        auto fixture = std::make_unique<Fixture>();
+        Fixture::seed_record(fixture->records[0], 3U, 0x100U);
+        Fixture::seed_record(fixture->records[1], 9U, 0x200U);
+        const auto expected = fixture->records[1];
         const auto result =
-            openswd3::battle::dequeue_legacy_battle_attack_order_entry(
-                fixture.bindings(), fixture.port
-            );
-
+            dequeue_legacy_battle_attack_order_entry(fixture->bindings());
         test.expect_true(
             result.status == LegacyBattleAttackOrderDequeueStatus::completed &&
-                fixture.output_first == 3U &&
-                same_record(fixture.records[0], expected) &&
-                fixture.records[1].value_00 == 0xFFFFFFFFU &&
-                fixture.records[1].value_04 == 0U &&
-                result.shifted_records == 17U &&
-                result.cleared_records == 17U && result.return_eax == 0U &&
-                result.return_ecx == 0U && result.return_edx == 0x00524980U,
-            "a group-B record is copied, removed, and followed by an all-one zero tail"
+                fixture->output_first == 3U &&
+                same_record(fixture->records[0], expected) &&
+                fixture->records[1].value_00 == 0xFFFFFFFFU &&
+                fixture->records[1].value_04 == 0U &&
+                result.shifted_records == 17U && result.cleared_records == 17U,
+            "a group-B record is removed before the all-one zero tail is restored"
         );
     }
 
-    {
-        Fixture fixture;
-        Fixture::seed_record(fixture.records[0], 8U, 0x100U);
-        Fixture::seed_record(fixture.records[1], 9U, 0x200U);
-        fixture.port.replies = {
-            {.eax = 1U, .ecx = 0x11111111U, .edx = 0x22222222U},
-            {.eax = 0U, .ecx = 0x33333333U, .edx = 0x44444444U},
-        };
-        const auto result =
-            openswd3::battle::dequeue_legacy_battle_attack_order_entry(
-                fixture.bindings(), fixture.port
+    for (const u32 special : {0U, 1U, 2U, 0xFFFFFFFFU}) {
+        for (const u32 flags : {0U, 0x40U, 0x4000U}) {
+            auto fixture = std::make_unique<Fixture>();
+            Fixture::seed_record(fixture->records[0], 8U, 0x100U);
+            Fixture::seed_record(fixture->records[1], 9U, 0x200U);
+            fixture->party[0].progress.mode_gate = flags;
+            fixture->party_actions[0].special_mode = special;
+            fixture->party_actions[1].special_mode = 2U;
+            const auto result =
+                dequeue_legacy_battle_attack_order_entry(fixture->bindings());
+            const bool skipped = (flags & 0x40U) != 0U || special == 1U;
+            test.expect_true(
+                result.status ==
+                        LegacyBattleAttackOrderDequeueStatus::completed &&
+                    result.selected_index == (skipped ? 1U : 0U) &&
+                    fixture->output_first == (skipped ? 9U : 8U) &&
+                    fixture->party[0].progress.mode_gate == flags &&
+                    fixture->party_actions[0].special_mode == special,
+                "group-A selection reads the real byte bit six and exact special value"
             );
-
-        test.expect_true(
-            result.selected_index == 1U && fixture.output_first == 9U &&
-                result.actor_query_calls == 2U &&
-                fixture.port.calls[0].actor_token == 0x005029D0U &&
-                fixture.port.calls[0].stale_eax == 0U &&
-                fixture.port.calls[1].actor_token == 0x00505904U &&
-                fixture.port.calls[1].stale_eax == 0xBCDU,
-            "leading group-A records use the exact actor token arithmetic and stop on the first non-one reply"
-        );
+        }
     }
 
-    {
-        Fixture fixture;
-        Fixture::seed_record(fixture.records[0], 7U, 0x100U);
-        fixture.port.replies = {
-            {.eax = 0U, .ecx = 0x12345678U, .edx = 0x87654321U},
-        };
-        static_cast<void>(
-            openswd3::battle::dequeue_legacy_battle_attack_order_entry(
-                fixture.bindings(), fixture.port
-            )
-        );
-
-        test.expect_true(
-            fixture.port.calls.size() == 1U &&
-                fixture.port.calls[0].actor_index == 0xFFFFFFFFU &&
-                fixture.port.calls[0].stale_eax == 0xFFFFF433U &&
-                fixture.port.calls[0].actor_token == 0x004FFA9CU,
-            "record value seven preserves the one-before group-A token underflow"
-        );
-    }
-
-    {
-        Fixture fixture;
-        Fixture::seed_record(fixture.records[0], 0x80000007U, 0x100U);
+    for (const u32 code : {7U, 18U}) {
+        auto fixture = std::make_unique<Fixture>();
+        Fixture::seed_record(fixture->records[0], code, 0x100U);
+        const auto before = fixture->records;
         const auto result =
-            openswd3::battle::dequeue_legacy_battle_attack_order_entry(
-                fixture.bindings(), fixture.port
-            );
-
+            dequeue_legacy_battle_attack_order_entry(fixture->bindings());
         test.expect_true(
-            result.actor_query_calls == 0U &&
-                fixture.output_first == 0x80000007U,
-            "the initial record comparison remains signed"
+            result.status ==
+                    LegacyBattleAttackOrderDequeueStatus::
+                        actor_query_typed_stop &&
+                result.output_dwords == 0U &&
+                fixture->output_first == 0xAAAAAAAAU &&
+                same_records(fixture->records, before),
+            "actor underflow and one-past the physical ten slots stop before output"
         );
     }
 
     {
-        Fixture fixture;
-        Fixture::seed_record(fixture.records[0], 3U, 0x12340000U);
+        auto fixture = std::make_unique<Fixture>();
+        fixture->records[0].value_00 = 8U;
+        fixture->records[1].value_00 = 17U;
+        fixture->records[2].value_00 = 3U;
+        fixture->party_actions[0].special_mode = 1U;
+        fixture->party[9].progress.mode_gate = 0x40U;
+        auto bindings = fixture->bindings();
+        bindings.party_actions = std::span{fixture->party_actions}.first(1U);
+        const auto result = dequeue_legacy_battle_attack_order_entry(bindings);
+        test.expect_true(
+            result.status == LegacyBattleAttackOrderDequeueStatus::completed &&
+                result.selected_index == 2U && fixture->output_first == 3U,
+            "bit six skips the last physical actor without reading special state"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->records[0].value_00 = 8U;
+        fixture->records[1].value_00 = 9U;
+        fixture->party_actions[0].special_mode = 1U;
+        const auto before = fixture->records;
+        auto bindings = fixture->bindings();
+        bindings.party_actions = std::span{fixture->party_actions}.first(1U);
+        const auto result = dequeue_legacy_battle_attack_order_entry(bindings);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleAttackOrderDequeueStatus::
+                        actor_query_typed_stop &&
+                result.output_dwords == 0U &&
+                fixture->output_first == 0xAAAAAAAAU &&
+                same_records(fixture->records, before),
+            "missing special state stops only after the preceding actor was skipped"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->records[0].value_00 = 0x40000008U;
+        fixture->records[1].value_00 = 3U;
+        fixture->party_actions[0].special_mode = 1U;
+        const auto result =
+            dequeue_legacy_battle_attack_order_entry(fixture->bindings());
+        test.expect_true(
+            result.status == LegacyBattleAttackOrderDequeueStatus::completed &&
+                result.selected_index == 1U && fixture->output_first == 3U,
+            "actor multiplication wraps to the real first physical slot"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Fixture::seed_record(fixture->records[0], 0x80000007U, 0x100U);
+        auto bindings = fixture->bindings();
+        bindings.party = {};
+        bindings.party_actions = {};
+        const auto result = dequeue_legacy_battle_attack_order_entry(bindings);
+        test.expect_true(
+            result.status == LegacyBattleAttackOrderDequeueStatus::completed &&
+                fixture->output_first == 0x80000007U,
+            "signed negative queue values do not read an actor"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Fixture::seed_record(fixture->records[0], 3U, 0x12340000U);
         std::array<u32, 2> short_tail{0xAAAAAAAAU, 0xBBBBBBBBU};
-        auto bindings = fixture.bindings();
+        auto bindings = fixture->bindings();
         bindings.output.tail_dwords = short_tail;
-        const auto before = fixture.records;
-        const auto result =
-            openswd3::battle::dequeue_legacy_battle_attack_order_entry(
-                bindings, fixture.port
-            );
-
+        const auto before = fixture->records;
+        const auto result = dequeue_legacy_battle_attack_order_entry(bindings);
         test.expect_true(
             result.status ==
                     LegacyBattleAttackOrderDequeueStatus::
                         output_destination_typed_stop &&
-                result.output_dwords == 3U && fixture.output_first == 3U &&
+                result.output_dwords == 3U && fixture->output_first == 3U &&
                 short_tail[0] == 0x12340001U && short_tail[1] == 0x00030002U &&
-                result.return_eax == 0x00524788U && result.return_ecx == 4U &&
-                same_records(fixture.records, before),
-            "a short caller output stops on the first real movsd destination and preserves its prefix"
+                same_records(fixture->records, before),
+            "a short output keeps the exact copied prefix and leaves the queue intact"
         );
     }
 
     {
-        Fixture fixture;
-        Fixture::seed_record(fixture.records[0], 8U, 0x100U);
-        Fixture::seed_record(fixture.records[1], 8U, 0x200U);
-        fixture.port.default_eax = 1U;
-        auto bindings = fixture.bindings();
-        bindings.records = std::span{fixture.records}.first(2U);
-        const auto result =
-            openswd3::battle::dequeue_legacy_battle_attack_order_entry(
-                bindings, fixture.port, {.entry_edx = 0x13572468U}
-            );
+        auto fixture = std::make_unique<Fixture>();
+        fixture->records[0].value_00 = 3U;
+        auto bindings = fixture->bindings();
+        bindings.output.value_00 = nullptr;
+        const auto before = fixture->records;
+        const auto result = dequeue_legacy_battle_attack_order_entry(bindings);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleAttackOrderDequeueStatus::
+                        output_destination_typed_stop &&
+                result.output_dwords == 0U &&
+                same_records(fixture->records, before),
+            "an unavailable first output field stops at the first store"
+        );
+    }
 
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Fixture::seed_record(fixture->records[0], 3U, 0x100U);
+        Fixture::seed_record(fixture->records[1], 2U, 0x200U);
+        const auto expected = fixture->records[1];
+        auto bindings = fixture->bindings();
+        bindings.records = std::span{fixture->records}.first(2U);
+        const auto result = dequeue_legacy_battle_attack_order_entry(bindings);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleAttackOrderDequeueStatus::
+                        shift_source_typed_stop &&
+                result.output_dwords == 7U && result.shifted_records == 1U &&
+                result.cleared_records == 0U && fixture->output_first == 3U &&
+                same_record(fixture->records[0], expected) &&
+                same_record(fixture->records[1], expected),
+            "a missing shift source preserves output and the completed left shift"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Fixture::seed_record(fixture->records[0], 8U, 0x100U);
+        Fixture::seed_record(fixture->records[1], 8U, 0x200U);
+        fixture->party_actions[0].special_mode = 1U;
+        auto bindings = fixture->bindings();
+        bindings.records = std::span{fixture->records}.first(2U);
+        const auto before = fixture->records;
+        const auto result = dequeue_legacy_battle_attack_order_entry(bindings);
         test.expect_true(
             result.status ==
                     LegacyBattleAttackOrderDequeueStatus::
                         record_scan_typed_stop &&
-                result.actor_query_calls == 2U && result.return_eax == 1U &&
-                result.return_ecx == 0x005029D0U &&
-                result.return_edx == 0x13572468U,
-            "a short attack-order owner stops at the next physical record read after preserving completed queries"
+                result.output_dwords == 0U &&
+                fixture->output_first == 0xAAAAAAAAU &&
+                same_records(fixture->records, before),
+            "a short queue stops on the next physical scan read before copying"
         );
     }
 
     {
-        Fixture fixture;
-        for (auto& record : fixture.records) {
+        auto fixture = std::make_unique<Fixture>();
+        for (auto& record : fixture->records) {
             Fixture::seed_record(record, 8U, 0x100U);
         }
-        fixture.port.default_eax = 1U;
-        fixture.intensity[0].source_value = 3U;
-        fixture.intensity[0].value_04 = 0x11111111U;
-        fixture.intensity[0].secondary_value = 0x22222222U;
-        fixture.intensity[0].value_0c = 0x33333333U;
-        fixture.intensity[0].x_offset = 0x44444444U;
-        fixture.intensity[0].y_offset = 0x55555555U;
-        fixture.intensity[0].render_flags = 0x66666666U;
-        const auto before = fixture.records;
-        const auto result =
-            openswd3::battle::dequeue_legacy_battle_attack_order_entry(
-                fixture.bindings(), fixture.port, {.entry_edx = 0x77777777U}
-            );
 
+        fixture->party_actions[0].special_mode = 1U;
+        fixture->intensity[0].source_value = 3U;
+        fixture->intensity[0].value_04 = 0x11111111U;
+        fixture->intensity[0].secondary_value = 0x22222222U;
+        fixture->intensity[0].value_0c = 0x33333333U;
+        fixture->intensity[0].x_offset = 0x44444444U;
+        fixture->intensity[0].y_offset = 0x55555555U;
+        fixture->intensity[0].render_flags = 0x66666666U;
+        const auto before = fixture->records;
+        const auto result =
+            dequeue_legacy_battle_attack_order_entry(fixture->bindings());
         test.expect_true(
             result.status == LegacyBattleAttackOrderDequeueStatus::completed &&
                 result.selected_index == 18U &&
                 result.selected_from_adjacent_intensity &&
-                result.actor_query_calls == 18U &&
-                same_records(fixture.records, before) &&
-                fixture.output_first == 3U &&
-                fixture.output_tail ==
+                same_records(fixture->records, before) &&
+                fixture->output_first == 3U &&
+                fixture->output_tail ==
                     std::array<u32, 6>{
                         0x11111111U,
                         0x22222222U,
@@ -312,68 +347,132 @@ void test_battle_attack_order_dequeue(openswd3::test::Context& test) {
                         0x44444444U,
                         0x55555555U,
                         0x66666666U,
-                    } &&
-                result.return_eax == 0x00524980U && result.return_ecx == 18U &&
-                result.return_edx == 0x77777777U,
-            "a full attack order continues into the exact adjacent intensity-record prefix"
+                    },
+            "a full queue continues into the adjacent intensity prefix"
         );
     }
 
     {
-        Fixture fixture;
-        for (auto& record : fixture.records) {
+        auto fixture = std::make_unique<Fixture>();
+        for (auto& record : fixture->records) {
             Fixture::seed_record(record, 8U, 0x100U);
         }
-        fixture.port.default_eax = 1U;
-        fixture.intensity[0].source_value = 8U;
-        write_u32(fixture.intensity[0].unknown_1c, 0U, 2U);
-        const auto result =
-            openswd3::battle::dequeue_legacy_battle_attack_order_entry(
-                fixture.bindings(), fixture.port
-            );
 
+        fixture->party_actions[0].special_mode = 1U;
+        fixture->intensity[0].source_value = 8U;
+        write_u32(fixture->intensity[0].unknown_1c, 0U, 2U);
+        const auto result =
+            dequeue_legacy_battle_attack_order_entry(fixture->bindings());
         test.expect_true(
-            result.selected_index == 19U && result.actor_query_calls == 19U &&
-                fixture.output_first == 2U,
-            "the unbounded 28-byte scan preserves its second physical intensity-record position"
+            result.selected_index == 19U && fixture->output_first == 2U,
+            "the adjacent scan keeps its 28-byte stride within an intensity record"
         );
     }
 
     {
-        Fixture fixture;
-        for (auto& record : fixture.records) {
+        auto fixture = std::make_unique<Fixture>();
+        for (auto& record : fixture->records) {
             Fixture::seed_record(record, 8U, 0x100U);
         }
-        fixture.port.default_eax = 1U;
-        auto bindings = fixture.bindings();
-        bindings.adjacent_intensity_records = {};
-        const auto result =
-            openswd3::battle::dequeue_legacy_battle_attack_order_entry(
-                bindings, fixture.port, {.entry_edx = 0xCAFEBABEU}
-            );
 
+        fixture->party_actions[0].special_mode = 1U;
+        auto bindings = fixture->bindings();
+        bindings.adjacent_intensity_records = {};
+        const auto before = fixture->records;
+        const auto result = dequeue_legacy_battle_attack_order_entry(bindings);
         test.expect_true(
             result.status ==
                     LegacyBattleAttackOrderDequeueStatus::
                         record_scan_typed_stop &&
-                result.actor_query_calls == 18U && result.return_eax == 1U &&
-                result.return_ecx == 0x005029D0U &&
-                result.return_edx == 0xCAFEBABEU,
-            "the first unavailable adjacent dword is the typed stop after eighteen successful actor queries"
+                result.output_dwords == 0U &&
+                fixture->output_first == 0xAAAAAAAAU &&
+                same_records(fixture->records, before),
+            "missing adjacent storage stops after the eighteen skipped records"
         );
     }
 
     {
-        Fixture fixture;
-        for (u32 index = 0U; index < fixture.records.size(); ++index) {
-            Fixture::seed_record(fixture.records[index], 2U, index * 0x100U);
+        auto fixture = std::make_unique<Fixture>();
+        for (auto& record : fixture->records) {
+            record.value_00 = 8U;
         }
-        const auto result =
-            openswd3::battle::dequeue_legacy_battle_attack_order_entry(
-                fixture.bindings(), fixture.port
+
+        fixture->party_actions[0].special_mode = 1U;
+        fixture->intensity[0].source_value = 8U;
+        write_u32(fixture->intensity[0].unknown_1c, 0U, 8U);
+        write_u32(fixture->intensity[0].unknown_1c, 28U, 8U);
+        write_u32(fixture->intensity[0].unknown_4e, 6U, 8U);
+        write_u32(fixture->intensity[0].unknown_4e, 34U, 8U);
+        write_u32(fixture->intensity[0].unknown_4e, 62U, 3U);
+        fixture->intensity[0].mode_snapshot = 0x12345678U;
+        fixture->intensity[0].value_94 = 0x87654321U;
+        auto bindings = fixture->bindings();
+        bindings.adjacent_intensity_records =
+            std::span{fixture->intensity}.first(1U);
+        const auto before = fixture->records;
+        const auto result = dequeue_legacy_battle_attack_order_entry(bindings);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleAttackOrderDequeueStatus::
+                        output_source_typed_stop &&
+                result.selected_index == 23U && result.output_dwords == 3U &&
+                fixture->output_first == 3U &&
+                fixture->output_tail[0] == 0x12345678U &&
+                fixture->output_tail[1] == 0x87654321U &&
+                fixture->output_tail[2] == 0xDDDDDDDDU &&
+                same_records(fixture->records, before),
+            "a short adjacent source preserves three copied DWORDs before stopping"
+        );
+    }
+
+    for (const u32 selected_index : {1U, 17U}) {
+        auto fixture = std::make_unique<Fixture>();
+        for (u32 index = 0U; index < fixture->records.size(); ++index) {
+            Fixture::seed_record(
+                fixture->records[index],
+                index < selected_index ? 8U : 2U,
+                index * 0x100U
             );
+        }
+
+        fixture->party_actions[0].special_mode = 1U;
+        const auto before = fixture->records;
+        const auto result =
+            dequeue_legacy_battle_attack_order_entry(fixture->bindings());
+        bool retained_prefix = true;
+        bool cleared_tail = true;
+        for (u32 index = 0U; index < selected_index; ++index) {
+            retained_prefix = retained_prefix &&
+                same_record(fixture->records[index], before[index]);
+        }
+
+        for (u32 index = selected_index; index < fixture->records.size();
+             ++index) {
+            cleared_tail = cleared_tail &&
+                fixture->records[index].value_00 == 0xFFFFFFFFU &&
+                fixture->records[index].value_04 == 0U;
+        }
+
+        test.expect_true(
+            result.status == LegacyBattleAttackOrderDequeueStatus::completed &&
+                result.selected_index == selected_index &&
+                result.shifted_records == 17U - selected_index &&
+                result.cleared_records == 18U - selected_index &&
+                retained_prefix && cleared_tail,
+            "a full table clears from the selected slot and retains skipped records"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        for (u32 index = 0U; index < fixture->records.size(); ++index) {
+            Fixture::seed_record(fixture->records[index], 2U, index * 0x100U);
+        }
+
+        const auto result =
+            dequeue_legacy_battle_attack_order_entry(fixture->bindings());
         bool all_empty = true;
-        for (const auto& record : fixture.records) {
+        for (const auto& record : fixture->records) {
             all_empty = all_empty && record.value_00 == 0xFFFFFFFFU &&
                 record.value_04 == 0U && record.value_08 == 0U &&
                 record.value_0a == 0U && record.value_0c == 0U &&
@@ -384,7 +483,7 @@ void test_battle_attack_order_dequeue(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleAttackOrderDequeueStatus::completed &&
                 all_empty && result.cleared_records == 18U,
-            "a full nonempty table preserves the original fallback that clears from the selected slot"
+            "a full table preserves clearing from the original selected slot"
         );
     }
 }

@@ -38,6 +38,7 @@
 #include <bit>
 #include <filesystem>
 #include <list>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -92,7 +93,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     pending_action_ready_query,
     pending_action_commit_actor,
     reserved_pending_action_remove_actor_record,
-    attack_order_dequeue_query_actor,
     selection_frame_query_group_a_replacement,
     reserved_selection_frame_prepare_selected_actor_slot,
     selection_frame_query_selected_actor_release,
@@ -395,7 +395,6 @@ class LegacyBattleFrameCoordinatorPort
       public LegacyBattleOutcomeResolutionPort,
       public LegacyBattleContextPromptPort,
       public LegacyBattleVerticalShiftPort,
-      public LegacyBattleAttackOrderDequeuePort,
       public LegacyBattlePendingActionPort,
       public LegacyBattleFrameInputResolutionPort,
       public virtual LegacyBattleFrameSurfacePort,
@@ -1809,32 +1808,6 @@ public:
     [[nodiscard]] virtual compat::u32
     operate_surface(compat::u32 object_token, compat::u32 source_token) = 0;
 
-    [[nodiscard]] LegacyBattleAttackOrderDequeueActorReply query_actor(
-        const LegacyBattleAttackOrderDequeueActorRequest& request
-    ) override {
-        const auto reply = invoke({
-            .call = LegacyBattleFrameCoordinatorCall::
-                attack_order_dequeue_query_actor,
-            .arguments =
-                {
-                    request.actor_token,
-                    request.actor_code,
-                    request.actor_index,
-                    request.stale_eax,
-                    request.stale_edx,
-                },
-            .eax = request.stale_eax,
-            .ecx = request.actor_token,
-            .edx = request.stale_edx,
-        });
-        return {
-            .eax = reply.eax,
-            .ecx = reply.ecx,
-            .edx = reply.edx,
-            .callee_returned = reply.callee_returned,
-        };
-    }
-
     [[nodiscard]] LegacyBattlePendingActionCallReply invoke_pending_action(
         const LegacyBattlePendingActionCallRequest& request
     ) override {
@@ -1928,7 +1901,6 @@ struct LegacyBattleFrameCoordinatorRequest {
     std::array<LegacyBattleActorActionTargetRequest, 2>
         actor_priority_action_target_requests{};
     LegacyBattleEffectCoordinatorRequest effect_coordinator_request{};
-    compat::u32 attack_order_dequeue_edx_snapshot{};
     LegacyBattleSelectionFrameRequest selection_frame_request{};
     compat::u32 post_frame_zero_ecx_snapshot{};
     compat::u32 post_tiled_frame_ecx_snapshot{};
@@ -2041,8 +2013,7 @@ struct LegacyBattleFrameCoordinatorResult {
     bool playback_requested{};
     compat::u32 lock_calls{};
     compat::u32 unlock_calls{};
-    compat::u32 selection_refresh_calls{};
-    LegacyBattleAttackOrderDequeueResult attack_order_dequeue{};
+    std::optional<LegacyBattleAttackOrderDequeueResult> attack_order_dequeue;
     LegacyBattleFrameInputResolutionResult frame_input_resolution{};
     compat::u32 frame_input_resolution_calls{};
     LegacyBattleInputDispatchResult input_dispatch{};

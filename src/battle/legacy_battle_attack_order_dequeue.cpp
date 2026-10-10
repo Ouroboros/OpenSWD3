@@ -1,5 +1,7 @@
 #include "openswd3/battle/legacy_battle_attack_order_dequeue.hpp"
 
+#include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
+
 #include <bit>
 #include <cstddef>
 
@@ -28,17 +30,23 @@ static_assert(sizeof(LegacyBattleIntensityEffectRecord) == 0x98U);
     switch (index) {
     case 0U:
         return record.value_00;
+
     case 1U:
         return record.value_04;
+
     case 2U:
         return static_cast<u32>(record.value_08) |
             (static_cast<u32>(record.value_0a) << 16U);
+
     case 3U:
         return record.value_0c;
+
     case 4U:
         return record.value_10;
+
     case 5U:
         return record.value_14;
+
     default:
         return record.value_18;
     }
@@ -51,22 +59,28 @@ constexpr void set_record_dword(
     case 0U:
         record.value_00 = value;
         break;
+
     case 1U:
         record.value_04 = value;
         break;
+
     case 2U:
         record.value_08 = static_cast<u16>(value);
         record.value_0a = static_cast<u16>(value >> 16U);
         break;
+
     case 3U:
         record.value_0c = value;
         break;
+
     case 4U:
         record.value_10 = value;
         break;
+
     case 5U:
         record.value_14 = value;
         break;
+
     default:
         record.value_18 = value;
         break;
@@ -88,11 +102,13 @@ constexpr void set_record_dword(
         if ((attack_offset & 3U) != 0U) {
             return false;
         }
+
         const u32 record_index = attack_offset / kRecordSize;
         const u32 dword_index = (attack_offset % kRecordSize) / 4U;
         if (record_index >= bindings.records.size()) {
             return false;
         }
+
         value = record_dword(bindings.records[record_index], dword_index);
         return true;
     }
@@ -124,15 +140,18 @@ constexpr void set_record_dword(
         address >= kLegacyBattleAttackOrderDequeueRecordEnd) {
         return false;
     }
+
     const u32 offset = address - kLegacyBattleAttackOrderDequeueRecordBase;
     if ((offset & 3U) != 0U) {
         return false;
     }
+
     const u32 record_index = offset / kRecordSize;
     const u32 dword_index = (offset % kRecordSize) / 4U;
     if (record_index >= bindings.records.size()) {
         return false;
     }
+
     set_record_dword(bindings.records[record_index], dword_index, value);
     return true;
 }
@@ -146,115 +165,92 @@ constexpr void set_record_dword(
         if (output.value_00 == nullptr) {
             return false;
         }
+
         *output.value_00 = value;
         return true;
     }
+
     if (index - 1U >= output.tail_dwords.size()) {
         return false;
     }
+
     output.tail_dwords[index - 1U] = value;
     return true;
-}
-
-constexpr void publish_registers(
-    LegacyBattleAttackOrderDequeueResult& result,
-    const u32 eax,
-    const u32 ecx,
-    const u32 edx
-) noexcept {
-    result.return_eax = eax;
-    result.return_ecx = ecx;
-    result.return_edx = edx;
 }
 
 }  // namespace
 
 LegacyBattleAttackOrderDequeueResult dequeue_legacy_battle_attack_order_entry(
-    LegacyBattleAttackOrderDequeueBindings bindings,
-    LegacyBattleAttackOrderDequeuePort& port,
-    const LegacyBattleAttackOrderDequeueRequest& request
+    LegacyBattleAttackOrderDequeueBindings bindings
 ) {
     LegacyBattleAttackOrderDequeueResult result;
-    u32 eax = request.entry_eax;
-    u32 ecx = request.entry_ecx;
-    u32 edx = request.entry_edx;
-    u32 ebx = 0U;
-    u32 esi = kLegacyBattleAttackOrderDequeueRecordBase;
+    u32 selected_index = 0U;
+    u32 scan_address = kLegacyBattleAttackOrderDequeueRecordBase;
 
     for (;;) {
         u32 value = 0U;
-        if (!read_physical_dword(bindings, esi, value)) {
+        if (!read_physical_dword(bindings, scan_address, value)) {
             result.status =
                 LegacyBattleAttackOrderDequeueStatus::record_scan_typed_stop;
-            publish_registers(result, eax, ecx, edx);
             return result;
         }
-        eax = value;
-        if (signed_bits(eax) < 7) {
+
+        if (signed_bits(value) < 7) {
             break;
         }
 
-        const u32 actor_code = eax;
-        ecx = actor_code - 8U;
-        eax = ecx;
-        eax <<= 6U;
-        eax -= ecx;
-        eax <<= 4U;
-        eax -= ecx;
-        eax = eax + eax * 2U;
-        const u32 actor_index = actor_code - 8U;
-        ecx = kLegacyBattleAttackOrderDequeueGroupABase + eax * 4U;
-        const auto reply = port.query_actor({
-            .actor_token = ecx,
-            .actor_code = actor_code,
-            .actor_index = actor_index,
-            .stale_eax = eax,
-            .stale_edx = edx,
-        });
-        ++result.actor_query_calls;
-        eax = reply.eax;
-        ecx = reply.ecx;
-        edx = reply.edx;
-        if (!reply.callee_returned) {
+        const u32 actor_address = kLegacyBattleAttackOrderDequeueGroupABase +
+            (value - 8U) * kLegacyBattleAttackOrderDequeueGroupAStride;
+        const u32 actor_offset =
+            actor_address - kLegacyBattleAttackOrderDequeueGroupABase;
+        const u32 actor_index =
+            actor_offset / kLegacyBattleAttackOrderDequeueGroupAStride;
+        if (actor_address < kLegacyBattleAttackOrderDequeueGroupABase ||
+            actor_offset % kLegacyBattleAttackOrderDequeueGroupAStride != 0U ||
+            actor_index >= bindings.party.size()) {
             result.status =
                 LegacyBattleAttackOrderDequeueStatus::actor_query_typed_stop;
-            publish_registers(result, eax, ecx, edx);
             return result;
         }
 
-        if (eax != 1U) {
-            break;
+        if ((bindings.party[actor_index].progress.mode_gate & 0x40U) == 0U) {
+            if (actor_index >= bindings.party_actions.size()) {
+                result.status = LegacyBattleAttackOrderDequeueStatus::
+                    actor_query_typed_stop;
+                return result;
+            }
+
+            if (bindings.party_actions[actor_index].special_mode != 1U) {
+                break;
+            }
         }
 
-        ++ebx;
-        esi += kRecordSize;
+        ++selected_index;
+        scan_address += kRecordSize;
     }
 
-    const u32 selected_address =
-        kLegacyBattleAttackOrderDequeueRecordBase + ebx * kRecordSize;
-    result.selected_index = ebx;
-    result.selected_from_adjacent_intensity = ebx >= kRecordCount;
-    eax = selected_address;
-    ecx = kRecordDwords;
-    esi = eax;
+    const u32 selected_address = kLegacyBattleAttackOrderDequeueRecordBase +
+        selected_index * kRecordSize;
+    result.selected_index = selected_index;
+    result.selected_from_adjacent_intensity = selected_index >= kRecordCount;
 
     for (u32 dword_index = 0U; dword_index < kRecordDwords; ++dword_index) {
         u32 value = 0U;
-        if (!read_physical_dword(bindings, esi, value)) {
+        if (!read_physical_dword(
+                bindings, selected_address + dword_index * 4U, value
+            )) {
             result.status =
                 LegacyBattleAttackOrderDequeueStatus::output_source_typed_stop;
-            publish_registers(result, eax, ecx, edx);
             return result;
         }
+
         if (!write_output_dword(bindings.output, dword_index, value)) {
             result.status = LegacyBattleAttackOrderDequeueStatus::
                 output_destination_typed_stop;
-            publish_registers(result, eax, ecx, edx);
             return result;
         }
+
         ++result.output_dwords;
-        esi += 4U;
-        --ecx;
     }
 
     u32 selected_value = 0U;
@@ -262,98 +258,95 @@ LegacyBattleAttackOrderDequeueResult dequeue_legacy_battle_attack_order_entry(
         read_physical_dword(bindings, selected_address, selected_value)
     );
     if (selected_value == 0xFFFFFFFFU) {
-        publish_registers(result, eax, ecx, edx);
         return result;
     }
 
-    u32 edi = selected_address;
-    if (signed_bits(ebx) < 0x11) {
+    u32 destination_address = selected_address;
+    if (signed_bits(selected_index) < 0x11) {
         for (;;) {
-            eax = edi + kRecordSize;
-            ecx = kRecordDwords;
-            esi = eax;
+            const u32 source_address = destination_address + kRecordSize;
             for (u32 dword_index = 0U; dword_index < kRecordDwords;
                  ++dword_index) {
                 u32 value = 0U;
-                if (!read_physical_dword(bindings, esi, value)) {
+                if (!read_physical_dword(
+                        bindings, source_address + dword_index * 4U, value
+                    )) {
                     result.status = LegacyBattleAttackOrderDequeueStatus::
                         shift_source_typed_stop;
-                    publish_registers(result, eax, ecx, edx);
                     return result;
                 }
+
                 if (!write_attack_dword(
-                        bindings, edi + dword_index * 4U, value
+                        bindings, destination_address + dword_index * 4U, value
                     )) {
                     result.status = LegacyBattleAttackOrderDequeueStatus::
                         shift_destination_typed_stop;
-                    publish_registers(result, eax, ecx, edx);
                     return result;
                 }
-                esi += 4U;
-                --ecx;
             }
+
             ++result.shifted_records;
-            edi = eax;
-            if (edi >= kLegacyBattleAttackOrderDequeueRecordEnd - kRecordSize) {
+            destination_address = source_address;
+            if (destination_address >=
+                kLegacyBattleAttackOrderDequeueRecordEnd - kRecordSize) {
                 break;
             }
         }
     }
 
-    ecx = 0U;
-    eax = kLegacyBattleAttackOrderDequeueRecordBase;
+    u32 cleanup_index = selected_index;
+    u32 empty_index = 0U;
+    scan_address = kLegacyBattleAttackOrderDequeueRecordBase;
     for (;;) {
         u32 value = 0U;
-        if (!read_physical_dword(bindings, eax, value)) {
+        if (!read_physical_dword(bindings, scan_address, value)) {
             result.status =
                 LegacyBattleAttackOrderDequeueStatus::empty_scan_typed_stop;
-            publish_registers(result, eax, ecx, edx);
             return result;
         }
+
         if (value == 0xFFFFFFFFU) {
-            ebx = ecx;
+            cleanup_index = empty_index;
             break;
         }
-        eax += kRecordSize;
-        ++ecx;
-        if (eax >= kLegacyBattleAttackOrderDequeueRecordEnd) {
+
+        scan_address += kRecordSize;
+        ++empty_index;
+        if (scan_address >= kLegacyBattleAttackOrderDequeueRecordEnd) {
             break;
         }
     }
 
-    if (signed_bits(ebx) >= static_cast<i32>(kRecordCount)) {
-        publish_registers(result, eax, ecx, edx);
+    if (signed_bits(cleanup_index) >= static_cast<i32>(kRecordCount)) {
         return result;
     }
 
-    edx = kLegacyBattleAttackOrderDequeueRecordBase + ebx * kRecordSize;
+    destination_address =
+        kLegacyBattleAttackOrderDequeueRecordBase + cleanup_index * kRecordSize;
     for (;;) {
-        ecx = kRecordDwords;
-        eax = 0U;
-        edi = edx;
-        edx += kRecordSize;
         for (u32 dword_index = 0U; dword_index < kRecordDwords; ++dword_index) {
-            if (!write_attack_dword(bindings, edi + dword_index * 4U, 0U)) {
+            if (!write_attack_dword(
+                    bindings, destination_address + dword_index * 4U, 0U
+                )) {
                 result.status =
                     LegacyBattleAttackOrderDequeueStatus::cleanup_typed_stop;
-                publish_registers(result, eax, ecx, edx);
                 return result;
             }
-            --ecx;
         }
-        if (!write_attack_dword(bindings, edx - kRecordSize, 0xFFFFFFFFU)) {
+
+        if (!write_attack_dword(bindings, destination_address, 0xFFFFFFFFU)) {
             result.status =
                 LegacyBattleAttackOrderDequeueStatus::cleanup_typed_stop;
-            publish_registers(result, eax, ecx, edx);
             return result;
         }
+
         ++result.cleared_records;
-        if (edx >= kLegacyBattleAttackOrderDequeueRecordEnd) {
+        destination_address += kRecordSize;
+        if (destination_address >= kLegacyBattleAttackOrderDequeueRecordEnd) {
             break;
         }
     }
 
-    publish_registers(result, eax, ecx, edx);
     return result;
 }
 

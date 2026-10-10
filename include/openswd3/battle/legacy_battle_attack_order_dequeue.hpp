@@ -25,36 +25,8 @@ struct LegacyBattleAttackOrderDequeueBindings {
     std::span<LegacyBattleStartupResetRecord> records;
     std::span<LegacyBattleIntensityEffectRecord> adjacent_intensity_records;
     LegacyBattleAttackOrderDequeueOutput output;
-};
-
-struct LegacyBattleAttackOrderDequeueRequest {
-    compat::u32 entry_eax{};
-    compat::u32 entry_ecx{};
-    compat::u32 entry_edx{};
-};
-
-struct LegacyBattleAttackOrderDequeueActorRequest {
-    compat::u32 actor_token{};
-    compat::u32 actor_code{};
-    compat::u32 actor_index{};
-    compat::u32 stale_eax{};
-    compat::u32 stale_edx{};
-};
-
-struct LegacyBattleAttackOrderDequeueActorReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-    // An unavailable actor mapping stops at the original query access.
-    bool callee_returned{true};
-};
-
-class LegacyBattleAttackOrderDequeuePort {
-public:
-    virtual ~LegacyBattleAttackOrderDequeuePort() = default;
-
-    [[nodiscard]] virtual LegacyBattleAttackOrderDequeueActorReply
-    query_actor(const LegacyBattleAttackOrderDequeueActorRequest& request) = 0;
+    std::span<const LegacyBattlePartyStartupRecord> party;
+    std::span<const LegacyBattleGroupAActionExecutionState> party_actions;
 };
 
 enum class LegacyBattleAttackOrderDequeueStatus : compat::u8 {
@@ -73,25 +45,16 @@ struct LegacyBattleAttackOrderDequeueResult {
     LegacyBattleAttackOrderDequeueStatus status{
         LegacyBattleAttackOrderDequeueStatus::completed
     };
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
     compat::u32 selected_index{0xFFFFFFFFU};
-    compat::u32 actor_query_calls{};
     compat::u32 output_dwords{};
     compat::u32 shifted_records{};
     compat::u32 cleared_records{};
     bool selected_from_adjacent_intensity{};
 };
 
-// Typed closure of legacy 0x0045F020. It scans from the fixed attack-order
-// base, copies one complete physical record to the caller output, then removes
-// the selected record and restores the all-one/zero tail convention.
 [[nodiscard]] LegacyBattleAttackOrderDequeueResult
 dequeue_legacy_battle_attack_order_entry(
-    LegacyBattleAttackOrderDequeueBindings bindings,
-    LegacyBattleAttackOrderDequeuePort& port,
-    const LegacyBattleAttackOrderDequeueRequest& request = {}
+    LegacyBattleAttackOrderDequeueBindings bindings
 );
 
 }  // namespace openswd3::battle

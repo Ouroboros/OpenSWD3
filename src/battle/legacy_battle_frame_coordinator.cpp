@@ -319,12 +319,10 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
             .records = context.startup.reset.records_524788,
             .adjacent_intensity_records =
                 port.effect_coordinator_state().intensity_records,
-        },
-        port,
-        request.attack_order_dequeue_edx_snapshot
+            .party = context.startup.party,
+        }
     );
     result.attack_order_dequeue = selection.dequeue;
-    result.selection_refresh_calls += selection.dequeue_called ? 1U : 0U;
     if (selection.status != LegacyBattleFrameSelectionStatus::completed) {
         result.status =
             LegacyBattleFrameCoordinatorStatus::attack_order_dequeue_typed_stop;

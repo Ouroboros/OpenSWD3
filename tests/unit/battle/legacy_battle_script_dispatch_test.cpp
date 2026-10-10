@@ -3650,9 +3650,6 @@ void test_battle_script_frame_stop(openswd3::test::Context& test) {
         fixture->metrics.priority_actor_index = 0xFFFFFFFFU;
         fixture->final_actor.selection_gate = 0U;
         u16 delay = 15U;
-        openswd3::battle::LegacyBattleAttackOrderRuntimePort selection_port{
-            fixture->action, fixture->startup
-        };
         auto select = [&] {
             return openswd3::battle::prepare_legacy_battle_frame_selection(
                 {fixture->action,
@@ -3661,8 +3658,8 @@ void test_battle_script_frame_stop(openswd3::test::Context& test) {
                  fixture->workspace,
                  delay,
                  fixture->startup.reset.records_524788,
-                 {}},
-                selection_port
+                 {},
+                 fixture->startup.party}
             );
         };
         bool paused{};
@@ -3674,7 +3671,7 @@ void test_battle_script_frame_stop(openswd3::test::Context& test) {
 
             const auto selection = select();
             paused = fixture->action.frame_enabled == 0U && delay == 15U &&
-                !selection.dequeue_called;
+                !selection.dequeue;
         };
         const auto result = run_legacy_battle_script_dispatch(
             fixture->workspace, fixture->bindings(), port
@@ -3683,7 +3680,7 @@ void test_battle_script_frame_stop(openswd3::test::Context& test) {
         const auto dequeued = select();
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
-                paused && !resumed.dequeue_called && dequeued.dequeue_called &&
+                paused && !resumed.dequeue && dequeued.dequeue &&
                 fixture->action.frame_enabled == 1U && delay == 0U &&
                 fixture->metrics.priority_actor_index == 5U &&
                 fixture->workspace.coordinate_y == 5,

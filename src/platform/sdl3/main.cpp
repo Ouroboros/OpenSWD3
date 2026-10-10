@@ -4095,12 +4095,6 @@ public:
                                         stop_boundary =
                                             "0x00453277 -> sub_416F60";
                                     } else {
-                                        openswd3::battle::
-                                            LegacyBattleAttackOrderRuntimePort
-                                                selection_port(
-                                                    battle_action_dispatch_,
-                                                    battle_runtime_
-                                                );
                                         const auto selection = openswd3::battle::
                                             prepare_legacy_battle_frame_selection(
                                                 {
@@ -4121,8 +4115,9 @@ public:
                                                     .adjacent_intensity_records =
                                                         effect_coordinator_state()
                                                             .intensity_records,
-                                                },
-                                                selection_port
+                                                    .party =
+                                                        battle_runtime_.party,
+                                                }
                                             );
                                         stop_boundary = selection.status ==
                                                 openswd3::battle::
