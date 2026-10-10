@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 
 #include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
+#include "openswd3/battle/legacy_battle_group_b_storage.hpp"
 
 namespace openswd3::battle {
 
@@ -259,23 +260,6 @@ LegacyBattleActorGroupAConstructionResult construct_legacy_battle_actor_group_a(
     return result;
 }
 
-LegacyBattleActorGroupBConstructionResult construct_legacy_battle_actor_group_b(
-    LegacyBattleActorVectorConstructionPort& construction_port
-) {
-    LegacyBattleActorGroupBConstructionResult result{
-        .request = {
-            .base_token = kLegacyBattleActorGroupBBaseToken,
-            .element_size = kLegacyBattleActorGroupBElementSize,
-            .element_count = kLegacyBattleActorGroupBElementCount,
-            .constructor_token = kLegacyBattleActorGroupBConstructorToken,
-            .destructor_token = kLegacyBattleActorGroupBDestructorToken,
-        },
-    };
-    result.return_value = construction_port.construct_vector(result.request);
-    result.vector_constructor_calls = 1U;
-    return result;
-}
-
 LegacyBattleActorGroupADestructionResult release_legacy_battle_actor_group_a(
     LegacyBattleActorVectorDestructionPort& destruction_port
 ) {
@@ -327,18 +311,19 @@ initialize_legacy_battle_actor_group_a_static_lifecycle(
 
 LegacyBattleActorGroupBStaticInitializationResult
 initialize_legacy_battle_actor_group_b_static_lifecycle(
-    LegacyBattleActorVectorConstructionPort& construction_port,
+    LegacyBattleGroupBStorage& actors,
     LegacyBattleActorExitRegistrationPort& exit_registration_port
 ) {
     LegacyBattleActorGroupBStaticInitializationResult result;
-    const auto construction =
-        construct_legacy_battle_actor_group_b(construction_port);
-    result.construction_return_value = construction.return_value;
-    result.construct_calls = 1U;
-    result.return_value = exit_registration_port.register_exit_cleanup(
-        kLegacyBattleActorGroupBExitCleanupToken
-    );
-    result.exit_registration_calls = 1U;
+    result.constructed = actors.construct();
+    if (!result.constructed) {
+        return result;
+    }
+
+    result.exit_registration_result =
+        exit_registration_port.register_exit_cleanup(
+            kLegacyBattleActorGroupBExitCleanupToken
+        );
     return result;
 }
 

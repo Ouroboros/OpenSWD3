@@ -29,8 +29,6 @@ inline constexpr compat::u32 kLegacyBattleActorGroupBElementSize = 0x2B28U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBElementCount = 8U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBResourceStateBaseToken =
     0x73000000U;
-inline constexpr compat::u32 kLegacyBattleActorGroupBConstructorToken =
-    0x00475560U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBDestructorToken =
     0x00475590U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBExitCleanupToken =
@@ -259,12 +257,6 @@ struct LegacyBattleActorGroupAConstructionResult {
     compat::u32 return_value{};
 };
 
-struct LegacyBattleActorGroupBConstructionResult {
-    LegacyBattleActorVectorConstructionRequest request{};
-    compat::u32 vector_constructor_calls{};
-    compat::u32 return_value{};
-};
-
 struct LegacyBattleActorGroupADestructionResult {
     LegacyBattleActorVectorDestructionRequest request{};
     compat::u32 vector_destructor_calls{};
@@ -285,10 +277,8 @@ struct LegacyBattleActorGroupAStaticInitializationResult {
 };
 
 struct LegacyBattleActorGroupBStaticInitializationResult {
-    compat::u32 construct_calls{};
-    compat::u32 construction_return_value{};
-    compat::u32 exit_registration_calls{};
-    compat::u32 return_value{};
+    bool constructed{};
+    std::optional<compat::u32> exit_registration_result;
 };
 
 enum class LegacyBattleActorSingletonStaticInitializationStatus : compat::u8 {
@@ -351,12 +341,6 @@ construct_legacy_battle_actor_group_a(
     LegacyBattleActorVectorConstructionPort& construction_port
 );
 
-// sub_451810: wrap the compiler vector-construction iterator for group B.
-[[nodiscard]] LegacyBattleActorGroupBConstructionResult
-construct_legacy_battle_actor_group_b(
-    LegacyBattleActorVectorConstructionPort& construction_port
-);
-
 // sub_4517E0: wrap the compiler vector-destruction iterator for group A.
 [[nodiscard]] LegacyBattleActorGroupADestructionResult
 release_legacy_battle_actor_group_a(
@@ -379,7 +363,7 @@ initialize_legacy_battle_actor_group_a_static_lifecycle(
 // sub_451800 plus its external function chunk at loc_451830.
 [[nodiscard]] LegacyBattleActorGroupBStaticInitializationResult
 initialize_legacy_battle_actor_group_b_static_lifecycle(
-    LegacyBattleActorVectorConstructionPort& construction_port,
+    LegacyBattleGroupBStorage& actors,
     LegacyBattleActorExitRegistrationPort& exit_registration_port
 );
 
