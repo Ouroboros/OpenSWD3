@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -36,6 +37,10 @@ public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
+        if (before_invoke) {
+            before_invoke(request);
+        }
+
         if (rewrite_rules_on_primary_terminal &&
             request.callee_token == 0x0047CE80U &&
             request.arguments[0U] ==
@@ -86,6 +91,7 @@ public:
         ));
     }
 
+    std::function<void(const LegacyBattleActionCallRequest&)> before_invoke;
     bool rewrite_rules_on_primary_terminal{};
     std::optional<u32> priority_after_sweep;
     u32 rule_writes{};
@@ -580,20 +586,12 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 state, port, context, 0U
             );
         test.expect_true(
-            result.actor_start_gate_latch_query.calls == 1U &&
-                result.actor_start_gate_latch_query.call_addresses[0U] ==
-                    0x00457842U &&
-                result.actor_start_gate_latch_query.return_addresses[0U] ==
-                    0x00457847U &&
-                result.actor_start_gate_latch_query.actor_tokens[0U] ==
-                    openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                result.actor_start_gate_latch_query.last.returned &&
-                result.actor_start_gate_latch_query.last.return_eax == 1U &&
-                result.actor_start_gate_latch_query.last.return_edx ==
-                    0xA5A55A5AU &&
+            result.actor_start_gate_latch_query &&
+                result.actor_start_gate_latch_query->value == 1U &&
+                state.shared.action.group_a_action_execution[0U]
+                        .start_gate_latch == 1U &&
                 result.actor_turn_completion_calls == 0U &&
-                result.actor_start_gate_increment.calls == 0U &&
-                port.count(0x00478B50U) == 0U,
+                result.actor_start_gate_increment.calls == 0U,
             "Group-B caller 00457842 skips the candidate suffix only for an exact start-gate latch value of one"
         );
     }
@@ -620,11 +618,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_turn_completion_typed_stop &&
-                result.actor_start_gate_latch_query.calls == 1U &&
-                result.actor_start_gate_latch_query.last.return_eax ==
-                    0x80000000U &&
-                result.actor_start_gate_latch_query.last.return_edx ==
-                    0xA5A55A5AU &&
+                result.actor_start_gate_latch_query &&
+                result.actor_start_gate_latch_query->value == 0x80000000U &&
                 result.actor_turn_completion_calls == 1U &&
                 result.actor_turn_completion.return_eax == 0x80000000U &&
                 result.actor_turn_completion.return_edx == 0xA5A55A5AU &&
@@ -634,8 +629,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 result.actor_turn_completion.flags.auxiliary_carry &&
                 !result.actor_turn_completion.flags.zero &&
                 !result.actor_turn_completion.flags.sign &&
-                result.actor_turn_completion.flags.overflow &&
-                port.count(0x00478B50U) == 0U,
+                result.actor_turn_completion.flags.overflow,
             "Group-B caller 00457842 compares the complete non-one latch dword before querying turn completion"
         );
     }
@@ -651,11 +645,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
-        context.actor_start_gate_latch_query_requests.count = 1U;
-        context.actor_start_gate_latch_query_requests.calls[0U].entry_esp =
-            0x8B001000U;
-        context.actor_start_gate_latch_query_requests.calls[0U]
-            .access.start_gate_latch_readable = false;
+        context.actor_start_gate_latch_query_access.start_gate_latch_readable =
+            false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
                 state, port, context, 0U
@@ -664,33 +655,19 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_start_gate_latch_query_typed_stop &&
-                result.actor_start_gate_latch_query.calls == 1U &&
-                result.actor_start_gate_latch_query.last.status ==
+                result.actor_start_gate_latch_query &&
+                result.actor_start_gate_latch_query->status ==
                     openswd3::battle::
                         LegacyBattleActorStartGateLatchQueryStatus::
                             start_gate_latch_read_typed_stop &&
-                result.actor_start_gate_latch_query.last.return_eax == 0U &&
-                result.actor_start_gate_latch_query.last.return_edx ==
-                    0xA5A55A5AU &&
-                result.actor_start_gate_latch_query.last.return_esp ==
-                    0x8B001000U &&
-                result.actor_start_gate_latch_query.last.return_eip ==
-                    0x00478B50U &&
-                result.actor_start_gate_latch_query.last.flags.carry &&
-                result.actor_start_gate_latch_query.last.flags.parity &&
-                result.actor_start_gate_latch_query.last.flags
-                    .auxiliary_carry_defined &&
-                result.actor_start_gate_latch_query.last.flags
-                    .auxiliary_carry &&
-                !result.actor_start_gate_latch_query.last.flags.zero &&
-                result.actor_start_gate_latch_query.last.flags.sign &&
-                !result.actor_start_gate_latch_query.last.flags.overflow &&
+                !result.actor_start_gate_latch_query->value &&
+                result.return_value == 0U &&
                 result.actor_turn_completion_calls == 0U &&
                 result.actor_idle_state_calls == 0U &&
                 result.actor_start_gate_increment.calls == 0U &&
                 result.group_a_iterations == 0U &&
-                port.count(0x00478B50U) == 0U,
-            "Group-B caller 00457842 field stop preserves the blocked-query prefix and suppresses the candidate suffix"
+                port.count(0x0047D930U) == 1U,
+            "Group-B latch field stop preserves the blocked-query prefix and suppresses the candidate suffix"
         );
     }
 
@@ -707,11 +684,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x0047D930U, {.eax = 0U, .edx = 0xA5A55A5AU});
         auto context = fixture.context();
-        context.actor_start_gate_latch_query_requests.count = 1U;
-        context.actor_start_gate_latch_query_requests.calls[0U].entry_esp =
-            0x8B002000U;
-        context.actor_start_gate_latch_query_requests.calls[0U]
-            .access.return_address_readable = false;
+        context.actor_start_gate_latch_query_access.return_address_readable =
+            false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
                 state, port, context, 0U
@@ -720,29 +694,64 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_start_gate_latch_query_typed_stop &&
-                result.actor_start_gate_latch_query.calls == 1U &&
-                result.actor_start_gate_latch_query.last.status ==
+                result.actor_start_gate_latch_query &&
+                result.actor_start_gate_latch_query->status ==
                     openswd3::battle::
                         LegacyBattleActorStartGateLatchQueryStatus::
                             return_address_read_typed_stop &&
-                result.actor_start_gate_latch_query.last.return_eax ==
-                    0x80000000U &&
-                result.actor_start_gate_latch_query.last.return_edx ==
-                    0xA5A55A5AU &&
-                result.actor_start_gate_latch_query.last
-                        .start_gate_latch_reads == 1U &&
-                result.actor_start_gate_latch_query.last.return_esp ==
-                    0x8B002000U &&
-                result.actor_start_gate_latch_query.last.return_eip ==
-                    0x00478B56U &&
-                result.actor_start_gate_latch_query.last.return_address_reads ==
-                    0U &&
+                result.actor_start_gate_latch_query->value == 0x80000000U &&
+                result.return_value == 0x80000000U &&
                 result.actor_turn_completion_calls == 0U &&
                 result.actor_idle_state_calls == 0U &&
                 result.actor_start_gate_increment.calls == 0U &&
                 result.group_a_iterations == 0U &&
-                port.count(0x00478B50U) == 0U,
-            "Group-B caller 00457842 RET stop keeps the committed latch dword and suppresses the post-call comparison"
+                port.count(0x0047D930U) == 1U,
+            "Group-B latch return stop keeps the read dword and suppresses the post-call comparison"
+        );
+    }
+
+    {
+        LegacyBattleGroupBFrameState state;
+        state.shared.action.frame_enabled = 1U;
+        state.post_update_gate[0U] = 1U;
+        state.phase_mode = 1U;
+        state.shared.action.group_a_count = 2;
+        state.shared.action.group_a_action_execution[1U].start_gate_latch = 1U;
+        Fixture fixture;
+        DispatchPort port;
+        port.actor_metric_state().priority_actor_index = 0U;
+        port.before_invoke = [&](const LegacyBattleActionCallRequest& request) {
+            if (request.callee_token != 0x0047D930U) {
+                return;
+            }
+
+            const u32 index = request.arguments[0U] ==
+                    openswd3::battle::kLegacyBattleActionGroupABaseToken
+                ? 0U
+                : 1U;
+            state.shared.action.group_a_action_execution[index]
+                .start_gate_latch = index == 0U ? 1U : 0x00010001U;
+        };
+        auto context = fixture.context();
+        context.actor_turn_completion_request.access.latch_readable = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_b_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_turn_completion_typed_stop &&
+                result.actor_start_gate_latch_query &&
+                result.actor_start_gate_latch_query->value == 0x00010001U &&
+                state.shared.action.group_a_action_execution[0U]
+                        .start_gate_latch == 1U &&
+                state.shared.action.group_a_action_execution[1U]
+                        .start_gate_latch == 0x00010001U &&
+                port.count(0x0047D930U) == 2U &&
+                result.actor_turn_completion_calls == 1U &&
+                result.group_a_iterations == 1U,
+            "candidate scan rereads each live party latch after its predecessor and compares the full dword"
         );
     }
 

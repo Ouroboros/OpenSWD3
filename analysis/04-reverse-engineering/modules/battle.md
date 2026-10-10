@@ -4474,12 +4474,16 @@ RET异常栈页及四处caller联合寄存器、flags与SEH捕获后端缺失而
 战斗角色启动门latch查询函数及已关闭Group-B frame中的唯一物理CALL。
 完整权威LST主体`0x00478B50..0x00478B56`共7字节、2条实际指令、0个callee、0个分支和1个普通`ret`；
 函数只把actor `+0x2AE0`完整dword读入EAX后返回，保持ECX、EDX和算术flags。
-typed实现复用Group-A action-execution与Group-B startup/lifecycle canonical `start_gate_latch`
-owner、view和resolver，保留字段读、RET读、ESP/EIP、两个真实停止点及RET失败时已提交EAX的部分结果。
-唯一caller `0x00457842 -> 0x00457847`直接组合typed leaf，
-保留blocked查询的EAX/EDX与`CMP EAX,1` flags；返回后只在完整latch值精确等于1时跳过候选后缀，`0`、
-`2`、`0x80000000`和其他非1 dword继续回合完成查询。typed-stop保留terminal、
-AI与blocked查询前缀并抑制全部caller后缀；production raw调用和测试raw reply均归零，没有延期CALL。
+当前迁移直接借Group-A action与Group-B startup/lifecycle的实际`start_gate_latch`。
+结果为读取状态及可选完整DWORD；两种原读取/返回故障的前缀保留。
+删除寄存器request/reply、CALL数组、请求offset、调用计数和转发执行器。
+唯一caller `0x00457842 -> 0x00457847`在blocked之后读取当前队员字段，
+只在完整值精确1时跳过；高位非一值继续回合查询，EDX沿用blocked实际返回。
+两种故障阻断候选后缀；前驱回调与两队员向量检查实时读取及完整比较。
+本批core/ASan setup与actor_frame_316各1/1、SDL编译链接通过；
+setup只有既有结算测试窄化警告，caller/SDL无警告或错误；见
+[battle-actor-start-gate-latch-query-00478b50.md](../evidence/battle-actor-start-gate-latch-query-00478b50.md)。
+以下314工作包CPU合同与完整门禁为历史记录，不替代本批定向验证。
 验证：定向测试、AddressSanitizer/UBSan `199/199`、Linux core `199/199`、
 Linux app `205/205`全部通过；连续10轮完整core、新文件全量与旧文件changed-range clang-format、
 零源码warning、测试失败、sanitizer finding、runtime error、inventory双生成及完整release审计均通过，

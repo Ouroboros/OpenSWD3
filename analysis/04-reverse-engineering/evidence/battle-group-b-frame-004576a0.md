@@ -60,11 +60,20 @@ phase progress = u32(group_b_count) - processed low byte
 - 非terminal；
 - 固定actor AI dword不等于1；
 - blocked查询不等于1；
-- excluded查询不等于1；
+- 直接读取当前队员共享启动标记，完整DWORD不等于1；
 - `0x0045784D`直接组合typed回合完成查询，从共享action state的`group_a_action_execution[]` canonical owner读取完整latch，且latch为0；
 - 当前组B对象idle为0。
 
-caller把excluded getter的完整EAX/EDX、紧随其后的`cmp eax,1` flags与真实返回地址传入leaf。getter停止发生在后续TEST前，保留terminal、blocked与excluded调用前缀，阻断source idle、clear control、prepare target、progress累加和剩余循环。生产路径不再通过generic端口调用`0x00478690`。
+`00457842`直接借队员既有`start_gate_latch`，前驱blocked修改后才读取。
+只有完整值1跳过候选；高位非一值继续。叶查询删除寄存器request/reply、
+CALL轨迹、参数数组及计数；父层可选实际结果保留读取/返回故障的不同前缀。
+下一个回合查询直接沿用blocked EDX，并以实际完整标记重建CMP结果。
+两种原查询故障均阻断回合、idle、control清理、启动门递增和候选后缀。
+见[实际启动标记](battle-actor-start-gate-latch-query-00478b50.md)。
+
+回合getter停止发生在后续TEST前，保留terminal、blocked与启动标记读取前缀，
+阻断source idle、clear control、prepare target、progress累加和剩余循环。
+生产路径不再通过generic端口调用`0x00478690`。
 
 进入正数循环前，原EBX被写1；`group_a_count<=0`则保留入口的`stride*index`陈旧EBX。
 

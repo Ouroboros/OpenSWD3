@@ -215,42 +215,6 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     return false;
 }
 
-[[nodiscard]] bool query_actor_start_gate_latch(
-    LegacyBattleActionDispatchState& action,
-    LegacyBattleActionDispatchContext& context,
-    LegacyBattleActionDispatchResult& result,
-    const u32 actor_token,
-    const u32 call_address,
-    const u32 return_address,
-    const u32 entry_eax,
-    const u32 entry_edx,
-    const LegacyBattleActorCoordinateFlags& entry_flags,
-    u32& value,
-    const bool entry_flags_known = true
-) {
-    if (execute_legacy_battle_actor_start_gate_latch_query_call(
-            result.actor_start_gate_latch_query,
-            context.actor_start_gate_latch_query_requests,
-            {.action = &action, .startup = context.startup},
-            call_address,
-            return_address,
-            actor_token,
-            entry_eax,
-            entry_edx,
-            entry_flags,
-            entry_flags_known,
-            context.actor_start_gate_latch_query_request_offset
-        )) {
-        value = result.actor_start_gate_latch_query.last.return_eax;
-        return true;
-    }
-
-    result.status = LegacyBattleActionDispatchStatus::
-        actor_start_gate_latch_query_typed_stop;
-    result.return_value = result.actor_start_gate_latch_query.last.return_eax;
-    return false;
-}
-
 [[nodiscard]] bool decay_actor_gates(
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchContext& context,
@@ -914,23 +878,33 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         port, kCallQueryActorBlocked, {target}
                                     );
                                     if (blocked.eax != 1U) {
-                                        u32 start_gate_latch{};
-                                        if (!query_actor_start_gate_latch(
-                                                action,
-                                                context,
-                                                result,
-                                                target,
-                                                0x00457842U,
-                                                0x00457847U,
-                                                blocked.eax,
-                                                blocked.edx,
-                                                subtract_flags(
-                                                    blocked.eax, stale_ebx
-                                                ),
-                                                start_gate_latch
-                                            )) {
+                                        result.actor_start_gate_latch_query =
+                                            query_legacy_battle_actor_start_gate_latch(
+                                                &action
+                                                     .group_a_action_execution
+                                                         [uindex]
+                                                     .start_gate_latch,
+                                                context
+                                                    .actor_start_gate_latch_query_access
+                                            );
+                                        const auto& start_gate =
+                                            *result
+                                                 .actor_start_gate_latch_query;
+                                        if (start_gate.status !=
+                                            LegacyBattleActorStartGateLatchQueryStatus::
+                                                completed) {
+                                            result.status =
+                                                LegacyBattleActionDispatchStatus::
+                                                    actor_start_gate_latch_query_typed_stop;
+                                            result.return_value =
+                                                start_gate.value.value_or(
+                                                    blocked.eax
+                                                );
                                             return result;
                                         }
+
+                                        const u32 start_gate_latch =
+                                            *start_gate.value;
                                         if (start_gate_latch != 1U) {
                                             u32 target_turn_completion{};
                                             if (!query_turn_completion(
@@ -941,9 +915,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                                          context.startup},
                                                     target,
                                                     start_gate_latch,
-                                                    result
-                                                        .actor_start_gate_latch_query
-                                                        .last.return_edx,
+                                                    blocked.edx,
                                                     subtract_flags(
                                                         start_gate_latch,
                                                         stale_ebx
