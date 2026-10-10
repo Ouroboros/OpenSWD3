@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <memory>
 #include <memory_resource>
 #include <stdexcept>
@@ -205,24 +206,6 @@ struct PartyArrayReleaseFixture {
             );
         }
     }
-};
-
-class TrackingBattleFileExitRegistrationPort final
-    : public openswd3::battle::LegacyBattleFileExitRegistrationPort {
-public:
-    [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
-        registered_cleanup_token = cleanup_token;
-        file_constructed_at_registration =
-            observed_owner != nullptr && observed_owner->file.has_value();
-        ++calls;
-        return result;
-    }
-
-    openswd3::battle::LegacyBattleFileOwner* observed_owner{};
-    u32 result{};
-    u32 registered_cleanup_token{};
-    u32 calls{};
-    bool file_constructed_at_registration{};
 };
 
 class TrackingBattleRenderGeometryExitRegistrationPort final
@@ -1527,35 +1510,87 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const bool reject_registration : {false, true}) {
         openswd3::battle::LegacyBattleFileOwner owner;
-        TrackingBattleFileExitRegistrationPort registration_port;
-        registration_port.observed_owner = &owner;
-        registration_port.result = 0x76543210U;
-        const auto initialization =
-            openswd3::battle::initialize_legacy_battle_file_static_lifecycle(
-                owner, registration_port
-            );
-        const auto cleanup =
-            openswd3::battle::release_legacy_battle_file(owner);
-        test.expect_true(
-            initialization.construction.owner_token ==
-                    openswd3::battle::kLegacyBattleFileOwnerToken &&
-                initialization.construction.construction_calls == 1U &&
-                initialization.construction.return_value ==
-                    openswd3::battle::kLegacyBattleFileOwnerToken &&
-                initialization.exit_registration_calls == 1U &&
-                initialization.return_value == 0x76543210U &&
-                registration_port.calls == 1U &&
-                registration_port.registered_cleanup_token ==
-                    openswd3::battle::kLegacyBattleFileExitCleanupToken &&
-                registration_port.file_constructed_at_registration &&
-                cleanup.owner_token ==
-                    openswd3::battle::kLegacyBattleFileOwnerToken &&
-                cleanup.cleanup_calls == 1U && cleanup.file_destroyed &&
-                !owner.file.has_value(),
-            "battle file static lifecycle constructs registers and destroys one owner"
+        const std::filesystem::path fixture_path{__FILE__};
+#if defined(__linux__)
+        const auto file_is_open = [&] {
+            for (const auto& entry :
+                 std::filesystem::directory_iterator{"/proc/self/fd"}) {
+                std::error_code error;
+                if (std::filesystem::equivalent(
+                        entry.path(), fixture_path, error
+                    )) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        test.expect_false(
+            file_is_open(), "fixture starts without an open handle"
         );
+#endif
+        {
+            openswd3::battle::LegacyBattleExitCleanups cleanups{
+                reject_registration ? std::pmr::null_memory_resource()
+                                    : std::pmr::get_default_resource()
+            };
+            const bool registered = openswd3::battle::
+                initialize_legacy_battle_file_static_lifecycle(owner, cleanups);
+            test.expect_true(
+                registered == !reject_registration && owner.file.has_value() &&
+                    cleanups.empty() == reject_registration,
+                "registration failure retains the already constructed file"
+            );
+            test.expect_true(
+                owner.file->open(
+                    fixture_path,
+                    openswd3::resource_io::LegacyFileCreation::open_existing,
+                    openswd3::resource_io::LegacyFileAccess::read,
+                    openswd3::resource_io::LegacyFileSharing::exclusive,
+                    openswd3::resource_io::LegacyFileOpenBehavior::direct_api
+                ),
+                "constructed file owns a real read-only handle"
+            );
+            test.expect_true(
+                owner.file->create_read_only_mapping(),
+                "file cleanup owns a real mapping"
+            );
+            const auto* view = owner.file->map_view();
+            test.expect_true(
+                view != nullptr, "file cleanup owns a mapped view"
+            );
+            if (view != nullptr) {
+                test.expect_true(
+                    view[0U] == '#', "mapped source bytes are readable"
+                );
+            }
+
+#if defined(__linux__)
+            test.expect_true(
+                file_is_open(), "file handle is live before cleanup"
+            );
+#endif
+        }
+
+        test.expect_true(
+            owner.file.has_value() == reject_registration,
+            "only registered cleanup destroys the same file on scope exit"
+        );
+#if defined(__linux__)
+        test.expect_true(
+            file_is_open() == reject_registration,
+            "registered cleanup closes the actual file descriptor"
+        );
+#endif
+        owner.file.reset();
+#if defined(__linux__)
+        test.expect_false(
+            file_is_open(), "remaining owner closes its file handle"
+        );
+#endif
     }
 
     {

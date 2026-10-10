@@ -91,6 +91,11 @@
       ],
       "reason": "直接扫描角色资料与共享固定链并写入百分比；当前setup测试覆盖"
     },
+    "battle/legacy_battle_file_lifecycle": {
+      "status": "pending",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-file-static-lifecycle-00451900.md",
+      "reason": "已删除退出登记Port、编号、调用计数和寄存器结果，真实文件与映射随清理集合析构；当前调用方仅测试，独立文件对象的SDL业务接线仍未核验"
+    },
     "battle/legacy_battle_fixed_object_reset": {
       "status": "pending",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-fixed-object-reset-004776f0.md",
