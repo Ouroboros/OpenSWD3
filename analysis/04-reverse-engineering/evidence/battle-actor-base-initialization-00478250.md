@@ -88,7 +88,7 @@ SDL应用目标编译链接通过。日志为`build/tmp/runtime/actor-base-init-
 `sdl.log`。基类写入边界、组A/B空对象阻断及未执行注册的空结果均已验证。
 调用方构建保留既有outcome-resolution测试第133行整数窄化警告。
 未运行游戏或原版动态差分。
-向量构造和退出注册协议仍待迁移，不能由本函数迁移推定完成。
+数组析构和退出注册协议仍待迁移，不能由本函数迁移推定完成。
 构造分配的后续迁移见[资源登记](battle-actor-construction-resource-registration.md)。
 
 当前没有原版组A/组B/单例完整对象字节、异常写访问、definition说明堆所有权及三caller联合寄存器捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整35条指令的静态与typed闭环。

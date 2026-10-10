@@ -18,8 +18,6 @@ namespace openswd3::battle {
 inline constexpr compat::u32 kLegacyBattleActorGroupABaseToken = 0x005029D0U;
 inline constexpr compat::u32 kLegacyBattleActorGroupAElementSize = 0x2F34U;
 inline constexpr compat::u32 kLegacyBattleActorGroupAElementCount = 10U;
-inline constexpr compat::u32 kLegacyBattleActorGroupAConstructorToken =
-    0x0046E490U;
 inline constexpr compat::u32 kLegacyBattleActorGroupADestructorToken =
     0x0046E4D0U;
 inline constexpr compat::u32 kLegacyBattleActorGroupAExitCleanupToken =
@@ -37,28 +35,11 @@ inline constexpr compat::u32 kLegacyBattleActorSingletonToken = 0x00521598U;
 inline constexpr compat::u32 kLegacyBattleActorSingletonExitCleanupToken =
     0x00451890U;
 
-struct LegacyBattleActorVectorConstructionRequest {
-    compat::u32 base_token{};
-    compat::u32 element_size{};
-    compat::u32 element_count{};
-    compat::u32 constructor_token{};
-    compat::u32 destructor_token{};
-};
-
 struct LegacyBattleActorVectorDestructionRequest {
     compat::u32 base_token{};
     compat::u32 element_size{};
     compat::u32 element_count{};
     compat::u32 destructor_token{};
-};
-
-class LegacyBattleActorVectorConstructionPort {
-public:
-    virtual ~LegacyBattleActorVectorConstructionPort() = default;
-
-    [[nodiscard]] virtual compat::u32 construct_vector(
-        const LegacyBattleActorVectorConstructionRequest& request
-    ) = 0;
 };
 
 class LegacyBattleActorVectorDestructionPort {
@@ -251,12 +232,6 @@ struct LegacyBattleActorGroupAElementDestructionResult {
     LegacyBattleActorBaseReleaseResult base_release{};
 };
 
-struct LegacyBattleActorGroupAConstructionResult {
-    LegacyBattleActorVectorConstructionRequest request{};
-    compat::u32 vector_constructor_calls{};
-    compat::u32 return_value{};
-};
-
 struct LegacyBattleActorGroupADestructionResult {
     LegacyBattleActorVectorDestructionRequest request{};
     compat::u32 vector_destructor_calls{};
@@ -270,10 +245,8 @@ struct LegacyBattleActorGroupBDestructionResult {
 };
 
 struct LegacyBattleActorGroupAStaticInitializationResult {
-    compat::u32 construct_calls{};
-    compat::u32 construction_return_value{};
-    compat::u32 exit_registration_calls{};
-    compat::u32 return_value{};
+    bool constructed{};
+    std::optional<compat::u32> exit_registration_result;
 };
 
 struct LegacyBattleActorGroupBStaticInitializationResult {
@@ -335,12 +308,6 @@ construct_legacy_battle_actor_singleton(LegacyBattleActorSingletonState& state);
 [[nodiscard]] LegacyBattleActorBaseReleaseResult
 release_legacy_battle_actor_singleton(LegacyBattleActorSingletonState& state);
 
-// sub_4517B0: wrap the compiler vector-construction iterator for group A.
-[[nodiscard]] LegacyBattleActorGroupAConstructionResult
-construct_legacy_battle_actor_group_a(
-    LegacyBattleActorVectorConstructionPort& construction_port
-);
-
 // sub_4517E0: wrap the compiler vector-destruction iterator for group A.
 [[nodiscard]] LegacyBattleActorGroupADestructionResult
 release_legacy_battle_actor_group_a(
@@ -356,7 +323,7 @@ release_legacy_battle_actor_group_b(
 // sub_4517A0 plus its external function chunk at loc_4517D0.
 [[nodiscard]] LegacyBattleActorGroupAStaticInitializationResult
 initialize_legacy_battle_actor_group_a_static_lifecycle(
-    LegacyBattleActorVectorConstructionPort& construction_port,
+    LegacyBattleGroupAStorage& actors,
     LegacyBattleActorExitRegistrationPort& exit_registration_port
 );
 

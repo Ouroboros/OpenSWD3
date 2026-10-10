@@ -25,7 +25,8 @@
 
 删除敌方构造包装函数、`LegacyBattleActorGroupBConstructionResult`、
 敌方构造函数地址常量，以及该路径的调用计数和无消费者的EAX快照。
-没有增加替代包装层。组A尚有独立迁移工作，公共构造Port暂由组A使用。
+没有增加替代包装层。队伍构造入口随后也改为实际存储，公共构造Port
+已随[队伍数组构造](battle-actor-group-a-vector-construction-004517b0.md)删除。
 
 ## 故障快照与异常展开
 

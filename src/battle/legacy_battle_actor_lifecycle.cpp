@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_actor_lifecycle.hpp"
 
 #include "openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
+#include "openswd3/battle/legacy_battle_group_a_storage.hpp"
 #include "openswd3/battle/legacy_battle_group_b_storage.hpp"
 
 namespace openswd3::battle {
@@ -243,23 +244,6 @@ release_legacy_battle_actor_group_a_element(
     return result;
 }
 
-LegacyBattleActorGroupAConstructionResult construct_legacy_battle_actor_group_a(
-    LegacyBattleActorVectorConstructionPort& construction_port
-) {
-    LegacyBattleActorGroupAConstructionResult result{
-        .request = {
-            .base_token = kLegacyBattleActorGroupABaseToken,
-            .element_size = kLegacyBattleActorGroupAElementSize,
-            .element_count = kLegacyBattleActorGroupAElementCount,
-            .constructor_token = kLegacyBattleActorGroupAConstructorToken,
-            .destructor_token = kLegacyBattleActorGroupADestructorToken,
-        },
-    };
-    result.return_value = construction_port.construct_vector(result.request);
-    result.vector_constructor_calls = 1U;
-    return result;
-}
-
 LegacyBattleActorGroupADestructionResult release_legacy_battle_actor_group_a(
     LegacyBattleActorVectorDestructionPort& destruction_port
 ) {
@@ -294,18 +278,19 @@ LegacyBattleActorGroupBDestructionResult release_legacy_battle_actor_group_b(
 
 LegacyBattleActorGroupAStaticInitializationResult
 initialize_legacy_battle_actor_group_a_static_lifecycle(
-    LegacyBattleActorVectorConstructionPort& construction_port,
+    LegacyBattleGroupAStorage& actors,
     LegacyBattleActorExitRegistrationPort& exit_registration_port
 ) {
     LegacyBattleActorGroupAStaticInitializationResult result;
-    const auto construction =
-        construct_legacy_battle_actor_group_a(construction_port);
-    result.construct_calls = 1U;
-    result.construction_return_value = construction.return_value;
-    result.return_value = exit_registration_port.register_exit_cleanup(
-        kLegacyBattleActorGroupAExitCleanupToken
-    );
-    result.exit_registration_calls = 1U;
+    result.constructed = actors.construct();
+    if (!result.constructed) {
+        return result;
+    }
+
+    result.exit_registration_result =
+        exit_registration_port.register_exit_cleanup(
+            kLegacyBattleActorGroupAExitCleanupToken
+        );
     return result;
 }
 
