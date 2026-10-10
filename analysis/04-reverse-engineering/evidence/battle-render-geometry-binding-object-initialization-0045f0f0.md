@@ -34,12 +34,29 @@ EBX从0、EDI从0开始，ESI指向`this+0x3108`。每轮严格执行：
 
 ## 4. caller回收
 
-唯一caller是已关闭`0x004518F0`固定参数包装器。它先压入几何owner token，再把绑定对象token写入ECX，调用本函数并直接返回。旧`LegacyBattleRenderGeometryBindingObjectInitializationPort`已删除；包装器和相邻静态thunk现在接收唯一typed绑定对象owner并直接组合本初始化，不再允许端口伪造返回值。
+原版唯一caller为`004518F0`，由静态表中的`004518E0`尾跳进入。
+现代调用方直接传入实际共享绑定对象和需写入内存镜像的32位几何地址，
+不传递绑定对象地址作为调用协议。初始化返回void，删除寄存器结果、
+写入计数以及两层纯转发包装。
 
-包装器返回值因此固定为绑定对象token，且内部初始化次数仍为1。相邻静态thunk只转发同一typed owner，不产生第二份对象状态。
+SDL在几何静态初始化之后直接初始化`battle_runtime_.render_binding_object`；
+入战资源读取继续借用这一对象。初始化只写几何地址和30条记录。
+`legacy_battle_definition_archive.cpp`仍按旧偏移读取对象字节，因此保留
+精确内存布局和32位地址数据，不将它替换成宽度不同的宿主指针。
+DAT读取本身的寄存器协议属于独立未完成范围。
 
 ## 5. 验证与动态差分
 
-定向测试覆盖精确`0x31F4`尺寸、三个关键offset、30条ordinal、全部五步四分桶、头部与保留区逐字节保持、任意测试token写入、EAX/ECX/EDX返回、固定token包装器和静态thunk直连。
+定向测试检查实际对象的`0x31F4`尺寸、30条ordinal、全部五步四分桶、
+头部及保留区逐字节保持和完整32位几何地址写入；三个关键offset继续
+由编译期断言约束。删除寄存器回显、计数与转发包装断言。
+setup入口同时执行DAT头部、记录读取和入战调用方测试。
+
+core日志为`build/tmp/runtime/render-binding-direct-core-resumed.log`；
+ASan及SDL日志为`build/tmp/runtime/render-binding-direct-{asan,sdl}.log`。
+core和ASan的setup定向测试各1/1通过，SDL编译链接通过，未启动游戏。
+ASan保留既有outcome-resolution测试第133行整数窄化警告。
+源码双向复核确认实际写入、未写区域、固定循环边界及SDL调用顺序；
+删除的返回字段没有业务消费者，`git diff --check`通过。
 
 当前缺少原版完整绑定对象内存、后续资源文件读入、几何owner共享状态和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -2504,10 +2504,9 @@ void test_battle_startup(openswd3::test::Context& test) {
             {0x00C9U, 7U},
             {0x1BB0U, 1U},
         };
-        static_cast<void>(
-            openswd3::battle::initialize_legacy_battle_render_geometry_binding(
-                state.render_binding_object
-            )
+        openswd3::battle::initialize_legacy_battle_render_geometry_binding_object(
+            state.render_binding_object,
+            openswd3::battle::kLegacyBattleRenderGeometryOwnerToken
         );
         auto startup_request = request(0xABCD0001U);
         startup_request.window_token = 0x12340000U;

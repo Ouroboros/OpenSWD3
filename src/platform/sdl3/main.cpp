@@ -2155,6 +2155,10 @@ public:
             initialize_legacy_battle_render_geometry_static_lifecycle(
                 battle_runtime_.render_geometry, battle_exit_cleanups_
             ));
+        openswd3::battle::initialize_legacy_battle_render_geometry_binding_object(
+            battle_runtime_.render_binding_object,
+            openswd3::battle::kLegacyBattleRenderGeometryOwnerToken
+        );
 
         openswd3::app::configure_display_refresh_clock(
             display_refresh_clock_,

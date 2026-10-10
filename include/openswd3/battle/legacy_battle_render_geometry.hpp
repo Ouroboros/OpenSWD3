@@ -81,15 +81,6 @@ struct LegacyBattleRenderGeometryBindingObject {
         index_records{};
 };
 
-struct LegacyBattleRenderGeometryBindingObjectInitializationResult {
-    compat::u32 binding_object_token{};
-    compat::u32 render_geometry_owner_token{};
-    compat::u32 records_written{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
-};
-
 class LegacyBattleRowOffsetAllocator {
 public:
     virtual ~LegacyBattleRowOffsetAllocator() = default;
@@ -154,15 +145,6 @@ struct LegacyBattleRenderInitializationResult {
     LegacyBattleRenderGeometry* legacy_return_value{};
 };
 
-struct LegacyBattleRenderGeometryBindingInitializationResult {
-    compat::u32 binding_object_token{};
-    compat::u32 render_geometry_owner_token{};
-    LegacyBattleRenderGeometryBindingObjectInitializationResult
-        object_initialization{};
-    compat::u32 initialization_calls{};
-    compat::u32 return_value{};
-};
-
 // sub_434350.
 [[nodiscard]] bool
 advance_legacy_battle_line_raster(LegacyBattleLineRaster& raster) noexcept;
@@ -212,23 +194,9 @@ initialize_legacy_battle_render_geometry(
 ) noexcept;
 
 // sub_45F0F0: initialize the exact binding-object owner and index records.
-[[nodiscard]] LegacyBattleRenderGeometryBindingObjectInitializationResult
-initialize_legacy_battle_render_geometry_binding_object(
+void initialize_legacy_battle_render_geometry_binding_object(
     LegacyBattleRenderGeometryBindingObject& object,
-    compat::u32 binding_object_token,
     compat::u32 render_geometry_owner_token
-) noexcept;
-
-// sub_4518F0: call the closed binding-object initializer with fixed tokens.
-[[nodiscard]] LegacyBattleRenderGeometryBindingInitializationResult
-initialize_legacy_battle_render_geometry_binding(
-    LegacyBattleRenderGeometryBindingObject& object
-) noexcept;
-
-// sub_4518E0: tail-forward to the adjacent typed initialization helper.
-[[nodiscard]] LegacyBattleRenderGeometryBindingInitializationResult
-forward_legacy_battle_render_geometry_binding_static_initialization(
-    LegacyBattleRenderGeometryBindingObject& object
 ) noexcept;
 
 // sub_4518A0 with loc_4518C0 and attached constructor sub_4518B0.

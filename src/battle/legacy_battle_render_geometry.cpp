@@ -387,10 +387,8 @@ LegacyBattleRenderInitializationResult initialize_legacy_battle_render_geometry(
     return initialize_legacy_battle_render_geometry(geometry, allocator);
 }
 
-LegacyBattleRenderGeometryBindingObjectInitializationResult
-initialize_legacy_battle_render_geometry_binding_object(
+void initialize_legacy_battle_render_geometry_binding_object(
     LegacyBattleRenderGeometryBindingObject& object,
-    const compat::u32 binding_object_token,
     const compat::u32 render_geometry_owner_token
 ) noexcept {
     static_assert(
@@ -411,10 +409,6 @@ initialize_legacy_battle_render_geometry_binding_object(
     );
     static_assert(sizeof(LegacyBattleRenderGeometryBindingObject) == 0x31F4U);
 
-    LegacyBattleRenderGeometryBindingObjectInitializationResult result{
-        .binding_object_token = binding_object_token,
-        .render_geometry_owner_token = render_geometry_owner_token,
-    };
     object.render_geometry_owner_token = render_geometry_owner_token;
 
     compat::u32 ordinal = 0U;
@@ -426,38 +420,6 @@ initialize_legacy_battle_render_geometry_binding_object(
         ++ordinal;
         five_step += 5U;
     } while (static_cast<compat::i32>(five_step) < 0x96);
-
-    result.records_written = ordinal;
-    result.return_eax = binding_object_token;
-    result.return_ecx = binding_object_token;
-    result.return_edx = 0U;
-    return result;
-}
-
-LegacyBattleRenderGeometryBindingInitializationResult
-initialize_legacy_battle_render_geometry_binding(
-    LegacyBattleRenderGeometryBindingObject& object
-) noexcept {
-    LegacyBattleRenderGeometryBindingInitializationResult result{
-        .binding_object_token = kLegacyBattleRenderGeometryBindingObjectToken,
-        .render_geometry_owner_token = kLegacyBattleRenderGeometryOwnerToken,
-    };
-    result.object_initialization =
-        initialize_legacy_battle_render_geometry_binding_object(
-            object,
-            result.binding_object_token,
-            result.render_geometry_owner_token
-        );
-    result.return_value = result.object_initialization.return_eax;
-    result.initialization_calls = 1U;
-    return result;
-}
-
-LegacyBattleRenderGeometryBindingInitializationResult
-forward_legacy_battle_render_geometry_binding_static_initialization(
-    LegacyBattleRenderGeometryBindingObject& object
-) noexcept {
-    return initialize_legacy_battle_render_geometry_binding(object);
 }
 
 bool initialize_legacy_battle_render_geometry_static_lifecycle(
