@@ -288,10 +288,11 @@ struct Fixture {
             .internal_flags = flags,
             .startup = startup.get(),
             .attack_order_records = attack_order_records,
+            .attack_order_adjacent_intensity_records =
+                {&attack_order_adjacent_record, 1U},
             .attack_order_party_sources = attack_order_party_sources,
             .attack_order_primary_gate = &attack_order_primary_gate,
             .attack_order_secondary_gate = &attack_order_secondary_gate,
-            .attack_order_adjacent_record = &attack_order_adjacent_record,
             .status_indicator_action_eax_snapshot = 0U,
             .group_a_skip_primary = {},
             .group_a_skip_secondary = {},
@@ -1230,10 +1231,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 state.active_target_code == 0U &&
                 port.actor_metric_state().priority_actor_index == 0xFFFFFFFFU &&
                 state.active_effect_gate == 0U &&
-                result.attack_order_remove_calls == 1U &&
-                result.attack_order_remove.matched &&
-                fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
-                port.count(0x0045EFB0U) == 0U,
+                result.attack_order_remove.has_value() &&
+                result.attack_order_remove->removed_index.has_value() &&
+                fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU,
             "opponent action seven wraps packed low byte and clears matching active targets"
         );
     }
@@ -1278,7 +1278,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 observed.esp == snapshot.entry_esp && observed.eax == 0U &&
                 returned.status ==
                     LegacyBattleActionDispatchStatus::completed &&
-                returned.attack_order_remove_calls == 0U &&
+                !returned.attack_order_remove.has_value() &&
                 port.count(0x00479850U) == 0U,
             "real opponent-seven caller uses Group-A canonical owner and physical child RET before EAX-zero parent suffix"
         );
@@ -1292,7 +1292,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleActorFrameCallerRunStatus::
                         caller_stack_write_typed_stop &&
                 observed.eip == 0x0045650FU &&
-                stopped.attack_order_remove_calls == 0U &&
+                !stopped.attack_order_remove.has_value() &&
                 port.count(0x00479850U) == 0U,
             "real opponent-seven caller suppresses every parent suffix after the physical CALL stack write stop"
         );
@@ -1325,7 +1325,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                         actor_read_typed_stop &&
                 observed.child.stopped_token == 0x00522C94U &&
                 observed.admission.child_request.actor_token == 0x005201D8U &&
-                bound.attack_order_remove_calls == 0U &&
+                !bound.attack_order_remove.has_value() &&
                 port.count(0x00479850U) == 0U,
             "explicit opponent-seven A10 call reaches the physical child read without inventing mapped data"
         );
@@ -1362,7 +1362,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                     0U &&
                 result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U &&
-                result.attack_order_remove_calls == 1U &&
+                result.attack_order_remove.has_value() &&
                 fixture.attack_order_records[0U].value_00 == 0xFFFFFFFFU &&
                 state.active_target_code == 0U && port.count(0x00479850U) == 0U,
             std::string{"real opponent-seven typed EAX-one suffix: child="} +
@@ -1370,9 +1370,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 " eip=" + std::to_string(observed.eip) +
                 " eax=" + std::to_string(observed.eax) +
                 " parent=" + std::to_string(static_cast<int>(result.status)) +
-                " return=" + std::to_string(result.return_value) +
-                " remove=" +
-                std::to_string(result.attack_order_remove_calls)
+                " return=" + std::to_string(result.return_value) + " remove=" +
+                std::to_string(result.attack_order_remove.has_value())
         );
     }
 

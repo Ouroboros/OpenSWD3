@@ -472,12 +472,12 @@ private:
     result.attack_order_remove = remove_legacy_battle_attack_order_entry(
         {
             .records = context.attack_order_records,
-            .adjacent_intensity_record = context.attack_order_adjacent_record,
+            .adjacent_intensity_records =
+                context.attack_order_adjacent_intensity_records,
         },
         value
     );
-    ++result.attack_order_remove_calls;
-    if (result.attack_order_remove.status !=
+    if (result.attack_order_remove->status !=
         LegacyBattleAttackOrderRemoveStatus::completed) {
         result.status =
             LegacyBattleActionDispatchStatus::attack_order_remove_typed_stop;

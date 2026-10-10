@@ -660,10 +660,10 @@ void merge_nested(
         result.attack_order_insert = nested.attack_order_insert;
     }
 
-    result.attack_order_remove_calls += nested.attack_order_remove_calls;
-    if (nested.attack_order_remove_calls != 0U) {
+    if (nested.attack_order_remove.has_value()) {
         result.attack_order_remove = nested.attack_order_remove;
     }
+
     result.status_indicator = nested.status_indicator;
     result.scale_scan = nested.scale_scan;
     result.action_code = nested.action_code;
@@ -2312,7 +2312,8 @@ action_decision_done:
         port,
         {
             .records = context.attack_order_records,
-            .adjacent_intensity_record = context.attack_order_adjacent_record,
+            .adjacent_intensity_records =
+                context.attack_order_adjacent_intensity_records,
         },
         mapped_actor,
         0U,

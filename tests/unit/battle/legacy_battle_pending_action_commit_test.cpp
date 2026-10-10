@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_pending_action_commit.hpp"
 #include "test.hpp"
 
+#include <algorithm>
 #include <deque>
 #include <map>
 #include <optional>
@@ -31,15 +32,13 @@ public:
                 order_after_prepare.reset();
             }
             break;
+
         case LegacyBattlePendingActionCall::commit_actor:
             events.emplace_back("commit");
             if (order_after_commit.has_value()) {
                 actor_metric_state().actor_order[0] = *order_after_commit;
                 order_after_commit.reset();
             }
-            break;
-        case LegacyBattlePendingActionCall::reserved_remove_actor_record:
-            events.emplace_back("reserved-remove");
             break;
         }
         auto& queue = replies[request.call];
@@ -95,7 +94,7 @@ public:
     return {
         .ready_actor_slots = ready_slots,
         .attack_order_records = port.records,
-        .attack_order_adjacent_record = &port.adjacent_record,
+        .attack_order_adjacent_intensity_records = {&port.adjacent_record, 1U},
         .global_mode = global_mode,
     };
 }
@@ -190,7 +189,7 @@ void test_battle_pending_action_commit(openswd3::test::Context& test) {
             result.status == LegacyBattlePendingActionStatus::completed &&
                 result.scanned_slots == 2U && result.prepare_calls == 2U &&
                 result.ready_calls == 2U && result.commit_calls == 2U &&
-                result.remove_calls == 1U &&
+                result.attack_order_remove.has_value() &&
                 prepare_b.actor_token == 0x0052AB58U &&
                 prepare_b.eax == 0x00000ACAU && prepare_b.edx == 0x000002B2U &&
                 commit_b.eax == 0x000002B2U && commit_b.edx == 2U &&
@@ -242,12 +241,85 @@ void test_battle_pending_action_commit(openswd3::test::Context& test) {
                 ready_slots[4] == 0xFFFFFFFFU && commit.actor_code == 4U &&
                 commit.actor_token == 0x005301A8U && commit.edx == 4U &&
                 port.actor_publication_state().slots[5] == 5U &&
-                result.attack_order_remove.matched &&
-                result.attack_order_remove.matched_index == 0U &&
+                result.attack_order_remove.has_value() &&
+                result.attack_order_remove->removed_index.has_value() &&
+                result.attack_order_remove->removed_index == 0U &&
                 port.records[0].value_00 == 0xFFFFFFFFU &&
-                result.return_value == 0xFFFFFFFFU && result.final_ecx == 0U &&
-                result.final_edx == 5U,
+                result.attack_order_remove->shifted_records == 18U &&
+                result.attack_order_remove->tail_dwords_written == 14U,
             "each callee observes the live actor order while the initial signed group branch remains fixed"
+        );
+    }
+
+    {
+        PendingActionPort port;
+        auto& metrics = port.actor_metric_state();
+        metrics.group_a_count = 1U;
+        metrics.actor_order[0U] = 8U;
+        port.order_after_commit = 9U;
+        std::array<u32, 18> ready_slots{};
+        port.ready_replies.push_back({.eax = 0U});
+        port.push(LegacyBattlePendingActionCall::prepare_actor, {});
+        port.push(LegacyBattlePendingActionCall::commit_actor, {.eax = 1U});
+        port.records[0U].value_00 = 9U;
+        port.records[1U].value_00 = 1U;
+        port.records[2U].value_00 = 17U;
+        const auto adjacent_before = port.adjacent_record;
+
+        const auto result =
+            openswd3::battle::commit_legacy_battle_pending_actions(
+                bindings(port, ready_slots, 0U), port
+            );
+
+        test.expect_true(
+            result.status == LegacyBattlePendingActionStatus::completed &&
+                result.scanned_slots == 1U &&
+                port.actor_publication_state().slots[1U] == 1U &&
+                result.attack_order_remove.has_value() &&
+                result.attack_order_remove->removed_index == 1U &&
+                result.attack_order_remove->shifted_records == 17U &&
+                result.attack_order_remove->tail_dwords_written == 14U &&
+                port.records[0U].value_00 == 9U &&
+                port.records[1U].value_00 == 17U &&
+                std::ranges::equal(
+                    std::as_bytes(std::span{&port.adjacent_record, 1U}),
+                    std::as_bytes(std::span{&adjacent_before, 1U})
+                ),
+            "Group A publishes and removes the live index after subtracting eight while retaining the encoded party record"
+        );
+    }
+
+    {
+        PendingActionPort port;
+        auto& metrics = port.actor_metric_state();
+        metrics.group_b_count = 1U;
+        metrics.actor_order[0U] = 5U;
+        std::array<u32, 18> ready_slots{};
+        port.ready_replies.push_back({.eax = 0U});
+        port.push(LegacyBattlePendingActionCall::prepare_actor, {});
+        port.push(LegacyBattlePendingActionCall::commit_actor, {.eax = 1U});
+        const auto before = port.records;
+        auto call_bindings = bindings(port, ready_slots, 0U);
+        call_bindings.attack_order_adjacent_intensity_records = {};
+
+        const auto result =
+            openswd3::battle::commit_legacy_battle_pending_actions(
+                call_bindings, port
+            );
+
+        test.expect_true(
+            result.status == LegacyBattlePendingActionStatus::completed &&
+                result.scanned_slots == 1U &&
+                port.actor_publication_state().slots[5U] == 5U &&
+                result.attack_order_remove.has_value() &&
+                !result.attack_order_remove->removed_index.has_value() &&
+                result.attack_order_remove->shifted_records == 0U &&
+                result.attack_order_remove->tail_dwords_written == 0U &&
+                std::ranges::equal(
+                    std::as_bytes(std::span{port.records}),
+                    std::as_bytes(std::span{before})
+                ),
+            "an executed no-match removal retains publication and completes the slot without reading an absent adjacent view"
         );
     }
 
@@ -305,7 +377,8 @@ void test_battle_pending_action_commit(openswd3::test::Context& test) {
                 result.return_value == 0xFFFFFFF7U &&
                 result.final_ecx == 0x01020304U &&
                 result.final_edx == 0x05060708U &&
-                result.publication_writes == 0U && result.remove_calls == 0U,
+                result.publication_writes == 0U &&
+                !result.attack_order_remove.has_value(),
             "publication overflow stops after the actor commit and normalized live order reload"
         );
     }
@@ -321,7 +394,7 @@ void test_battle_pending_action_commit(openswd3::test::Context& test) {
         port.push(LegacyBattlePendingActionCall::commit_actor, {.eax = 1U});
         port.records[17].value_00 = 0U;
         auto call_bindings = bindings(port, ready_slots, 0U);
-        call_bindings.attack_order_adjacent_record = nullptr;
+        call_bindings.attack_order_adjacent_intensity_records = {};
 
         const auto result =
             openswd3::battle::commit_legacy_battle_pending_actions(
@@ -332,11 +405,10 @@ void test_battle_pending_action_commit(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattlePendingActionStatus::
                         attack_order_remove_typed_stop &&
-                result.publication_writes == 1U && result.remove_calls == 1U &&
+                result.publication_writes == 1U &&
+                result.attack_order_remove.has_value() &&
                 result.scanned_slots == 0U &&
-                result.return_value == 0x00524980U && result.final_ecx == 7U &&
-                result.final_edx == 0U &&
-                result.attack_order_remove.status ==
+                result.attack_order_remove->status ==
                     openswd3::battle::LegacyBattleAttackOrderRemoveStatus::
                         adjacent_record_typed_stop,
             "pending action removal stop preserves actor publication then blocks slot completion"

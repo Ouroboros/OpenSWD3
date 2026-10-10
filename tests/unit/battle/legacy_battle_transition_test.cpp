@@ -476,10 +476,11 @@ struct ActorFrameFixture {
               .internal_flags = internal_flags,
               .startup = &startup,
               .attack_order_records = startup.reset.records_524788,
+              .attack_order_adjacent_intensity_records =
+                  {&attack_order_adjacent_record, 1U},
               .attack_order_party_sources = startup.reset.block_520e90,
               .attack_order_primary_gate = &startup.reset.value_53bf80,
               .attack_order_secondary_gate = &startup.reset.value_53bfd0,
-              .attack_order_adjacent_record = &attack_order_adjacent_record,
               .group_a_skip_primary = {},
               .group_a_skip_secondary = {},
           },

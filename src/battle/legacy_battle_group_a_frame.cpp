@@ -962,10 +962,10 @@ void merge_nested_result(
         outer.attack_order_insert = nested.attack_order_insert;
     }
 
-    outer.attack_order_remove_calls += nested.attack_order_remove_calls;
-    if (nested.attack_order_remove_calls != 0U) {
+    if (nested.attack_order_remove.has_value()) {
         outer.attack_order_remove = nested.attack_order_remove;
     }
+
     if (nested.status != LegacyBattleActionDispatchStatus::completed) {
         outer.status = nested.status;
     }
@@ -1008,7 +1008,8 @@ void merge_nested_result(
         port,
         {
             .records = context.attack_order_records,
-            .adjacent_intensity_record = context.attack_order_adjacent_record,
+            .adjacent_intensity_records =
+                context.attack_order_adjacent_intensity_records,
         },
         actor_index,
         1U,

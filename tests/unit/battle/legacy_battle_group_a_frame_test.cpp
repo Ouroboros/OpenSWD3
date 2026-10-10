@@ -255,10 +255,11 @@ struct Fixture {
             .startup_reset = &startup_reset,
             .text_messages = &text_messages,
             .attack_order_records = attack_order_records,
+            .attack_order_adjacent_intensity_records =
+                {&attack_order_adjacent_record, 1U},
             .attack_order_party_sources = attack_order_party_sources,
             .attack_order_primary_gate = &attack_order_primary_gate,
             .attack_order_secondary_gate = &attack_order_secondary_gate,
-            .attack_order_adjacent_record = &attack_order_adjacent_record,
             .status_indicator_action_eax_snapshot = 0U,
             .shared_action_dispatch = &shared_action,
             .shared_final_actor = &shared_final_actor,
@@ -1535,11 +1536,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     ) &&
                     fixture.attack_order_primary_gate == 0U &&
                     fixture.attack_order_secondary_gate == 0U &&
-                    result.attack_order_remove_calls == 1U &&
-                    result.attack_order_remove.matched &&
+                    result.attack_order_remove.has_value() &&
+                    result.attack_order_remove->removed_index.has_value() &&
                     fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
-                    fixture.attack_order_records[0].value_08 == 0U &&
-                    port.count(0x0045EFB0U) == 0U,
+                    fixture.attack_order_records[0].value_08 == 0U,
                 "started actor is registered then removed directly by the composed final actor suffix"
             );
         }

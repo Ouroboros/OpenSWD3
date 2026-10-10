@@ -235,7 +235,6 @@ struct Fixture {
             .attack_order_party_sources = {},
             .attack_order_primary_gate = nullptr,
             .attack_order_secondary_gate = nullptr,
-            .attack_order_adjacent_record = nullptr,
             .status_indicator_action_eax_snapshot = 0U,
             .shared_action_dispatch = nullptr,
             .shared_final_actor = nullptr,

@@ -531,10 +531,11 @@ struct Fixture {
             .startup_reset = &startup_reset,
             .text_messages = &text_messages,
             .attack_order_records = attack_order_records,
+            .attack_order_adjacent_intensity_records =
+                {&attack_order_adjacent_record, 1U},
             .attack_order_party_sources = attack_order_party_sources,
             .attack_order_primary_gate = &attack_order_primary_gate,
             .attack_order_secondary_gate = &attack_order_secondary_gate,
-            .attack_order_adjacent_record = &attack_order_adjacent_record,
             .status_indicator_action_eax_snapshot = 0U,
             .group_a_skip_primary = {},
             .group_a_skip_secondary = {},
@@ -4763,15 +4764,14 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.attack_order_remove_calls == 1U &&
-                result.attack_order_remove.matched &&
+                result.attack_order_remove.has_value() &&
+                result.attack_order_remove->removed_index.has_value() &&
                 fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
                 (state.packed_actor_counter & 0xFFU) == 1U &&
                 result.actor_action_mode_calls == 1U &&
                 result.actor_action_mode.return_eip == 0x0045550CU &&
                 state.group_a_action_execution[0U].action_kind == 0U &&
-                port.count(0x00478710U) == 0U &&
-                port.count(0x0045EFB0U) == 0U && result.return_value == 1U,
+                port.count(0x00478710U) == 0U && result.return_value == 1U,
             "action seven removes the opponent directly from the shared attack order before publishing completion"
         );
     }
@@ -4824,7 +4824,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 observed.eip == 0x004554FBU &&
                 observed.esp == snapshot.entry_esp && observed.eax == 0U &&
                 result.status == LegacyBattleActionDispatchStatus::completed &&
-                result.attack_order_remove_calls == 0U &&
+                !result.attack_order_remove.has_value() &&
                 port.count(0x00479850U) == 0U,
             "real action-seven caller takes explicit parent snapshot, physical child RET, and EAX-zero parent suffix without opaque frame port"
         );
@@ -4873,7 +4873,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                         actor_read_typed_stop &&
                 observed.child.stopped_token == 0x0053D904U &&
                 observed.admission.child_request.actor_token == 0x0053AE48U &&
-                bound.attack_order_remove_calls == 0U &&
+                !bound.attack_order_remove.has_value() &&
                 bound.actor_action_mode_calls == 0U &&
                 port.count(0x00479850U) == 0U,
             "explicit action-seven B8 call reaches the physical child read; without physical owner it cannot claim a legacy return"
@@ -4912,7 +4912,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                     0U &&
                 result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U &&
-                result.attack_order_remove_calls == 1U &&
+                result.attack_order_remove.has_value() &&
                 fixture.attack_order_records[0U].value_00 == 0xFFFFFFFFU &&
                 port.count(0x00479850U) == 0U,
             std::string{"real action-seven typed EAX-one suffix: child="} +
@@ -4920,8 +4920,8 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 " eip=" + std::to_string(observed.eip) +
                 " eax=" + std::to_string(observed.eax) +
                 " parent=" + std::to_string(static_cast<int>(result.status)) +
-                " return=" + std::to_string(result.return_value) +
-                " remove=" + std::to_string(result.attack_order_remove_calls)
+                " return=" + std::to_string(result.return_value) + " remove=" +
+                std::to_string(result.attack_order_remove.has_value())
         );
     }
 
@@ -4962,7 +4962,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                     1U &&
                 fixture.startup.enemies[0U].progress.progress == 0U &&
                 result.actor_action_mode_calls == 0U &&
-                result.attack_order_remove_calls == 0U &&
+                !result.attack_order_remove.has_value() &&
                 port.count(0x00479850U) == 0U,
             "action-seven child missing reset port stops at physical CALL after retaining each committed actor write and suppressing the parent tail"
         );
@@ -4994,7 +4994,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.actor_action_mode.return_eip == 0x0047873EU &&
                 fixture.attack_order_records[0].value_00 == 0U &&
                 (state.packed_actor_counter & 0xFFU) == 0U &&
-                result.attack_order_remove_calls == 0U,
+                !result.attack_order_remove.has_value(),
             "action seven RET stop suppresses the physical caller suffix"
         );
     }
@@ -5012,7 +5012,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         LegacyBattleActorFrameEntryRequest snapshot{};
         LegacyBattleActorFrameEntryRoutePorts frame_ports{};
         bind_ready_group_b_frame(fixture, context, snapshot, frame_ports);
-        context.attack_order_adjacent_record = nullptr;
+        context.attack_order_adjacent_intensity_records = {};
 
         const auto result = dispatch(state, port, context, 0U, 0U);
 
@@ -5020,7 +5020,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         attack_order_remove_typed_stop &&
-                result.attack_order_remove.status ==
+                result.attack_order_remove->status ==
                     openswd3::battle::LegacyBattleAttackOrderRemoveStatus::
                         adjacent_record_typed_stop &&
                 (state.packed_actor_counter & 0xFFU) == 0U &&

@@ -15,7 +15,9 @@
 - 两处`0x0047E5C0`提交角色对象的待执行动作；
 - 一处已关闭攻击顺序移除从18条动作记录中移除已提交角色；记录区由攻击顺序登记/插入直接写入并与战斗启动/全局重置共享唯一owner，左移尾源直接复用物理相邻强度效果记录0。
 
-角色ready与攻击顺序移除均已直接组合；另外两类callee仍属后续工作包，保留传递对象token、actor code/index/group及完整EAX/ECX/EDX的语义窄端口。
+角色ready与攻击顺序移除均已直接组合；另外两类callee仍使用通用
+请求、对象token及完整EAX/ECX/EDX字段，父函数与转发层尚未迁移。
+攻击顺序移除本身已删除这些字段，不能把叶函数迁移视为父链验收。
 
 ## 2. 入口数量与固定顺序指针
 
@@ -50,9 +52,17 @@ ready精确为1时，先再次读取live顺序，再把唯一动作激活latch�
 提交callee返回不等于1时直接进入下一顺序槽，不发布角色也不移除记录。精确返回1时，再次读取live顺序并按本轮初始分组归一索引：
 
 1. 把唯一18槽actor publication对应项写为该归一索引；
-2. 以本轮实时角色编码直接组合攻击顺序首匹配移除；旧窄端口枚举只保留reserved数值槽，不再调用。
+2. 以同一个实时归一索引直接执行攻击顺序首匹配移除。组A在
+   `0045EC37..0045EC39`重读顺序并减8，组B保持重读的完整值；
+   `0045EC3C`先压入该值，`0045EC3D`发布，`0045EC44`执行移除。
 
-publication越界只在原store停止，保留提交callee副作用。记录移除返回的完整EAX/ECX/EDX成为本轮及函数正常尾返回；相邻效果记录typed-stop也覆盖为其真实停点寄存器，并保留publication。若最后一轮未提交，则尾返回来自最后一个提交callee。
+publication越界只在原store停止，保留提交callee副作用。
+移除失败保留publication并阻断槽完成；无匹配仍继续槽完成。
+原ABI会把移除EAX/ECX/EDX留在函数尾，但`0045EC49..0045EC50`
+只推进ESI并递减EBP，下一轮从`0045EB68`重建三个寄存器。
+现代实现删除移除寄存器传播、调用计数及两层reserved操作槽；
+可选结果保留命中位置与实际移动/填充量，独立区分执行、匹配和完成。
+准备、ready、提交及父函数其他寄存器协议仍待迁移。
 
 ## 5. 单一typed owner与caller回收
 
@@ -64,6 +74,12 @@ ready标记复用唯一战斗启动reset块；actor publication复用效果与�
 
 ## 6. 验证与动态差分
 
-定向测试覆盖signed零/负/回绕总数、两组对象token、首/次callee陈旧寄存器、ready与提交精确1门、ready成功/失败EDX差异、每个callee之间live顺序改写、共享ready/activation/publication owner、攻击顺序移除直连、移除返回寄存器、相邻效果记录stop、ready与publication原store停点、第19次顺序读取，以及逐帧caller直连和typed-stop传播。
+定向测试覆盖signed零/负/回绕总数、两组对象token、首/次callee陈旧寄存器、ready与提交精确1门、ready成功/失败EDX差异、每个callee之间live顺序改写、共享ready/activation/publication owner、攻击顺序移除直连、相邻效果记录stop、ready与publication原store停点、第19次顺序读取，以及逐帧caller直连和typed-stop传播。
+
+移除迁移新增组A实时编码9对应索引1的区别与无匹配继续publication向量。
+core/ASan的setup和actor-frame两个定向目标分别1/1，SDL链接通过；
+验证日志及完整移除语义见
+[battle-attack-order-remove-0045efb0.md](battle-attack-order-remove-0045efb0.md)。
+本节不把父函数整体通用调用迁移、B11或WP316记为完成。
 
 当前缺少原版两组角色对象、两类剩余callee、18槽顺序/ready/publication/攻击顺序、物理相邻强度效果记录、动态callee改写及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

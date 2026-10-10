@@ -218,10 +218,11 @@ struct Fixture {
             .startup_reset = &startup_reset,
             .text_messages = &text_messages,
             .attack_order_records = attack_order_records,
+            .attack_order_adjacent_intensity_records =
+                {&attack_order_adjacent_record, 1U},
             .attack_order_party_sources = attack_order_party_sources,
             .attack_order_primary_gate = &attack_order_primary_gate,
             .attack_order_secondary_gate = &attack_order_secondary_gate,
-            .attack_order_adjacent_record = &attack_order_adjacent_record,
             .status_indicator_action_eax_snapshot = 0U,
             .group_a_skip_primary = {},
             .group_a_skip_secondary = {},

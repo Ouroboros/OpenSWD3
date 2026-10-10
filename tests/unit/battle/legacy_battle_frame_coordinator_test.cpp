@@ -724,10 +724,11 @@ struct Fixture {
             .startup = &startup,
             .startup_reset = &startup.reset,
             .attack_order_records = startup.reset.records_524788,
+            .attack_order_adjacent_intensity_records =
+                {&attack_order_adjacent_record, 1U},
             .attack_order_party_sources = startup.reset.block_520e90,
             .attack_order_primary_gate = &startup.reset.value_53bf80,
             .attack_order_secondary_gate = &startup.reset.value_53bfd0,
-            .attack_order_adjacent_record = &attack_order_adjacent_record,
             .group_a_skip_primary = {},
             .group_a_skip_secondary = {},
         };
@@ -2855,8 +2856,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             0x9000U;
         fixture->action_dispatch.frame_enabled = 0U;
         auto dispatch_context = fixture->action_context();
-        dispatch_context.attack_order_adjacent_record =
-            &port.effect_coordinator_state().intensity_records[0];
+        dispatch_context.attack_order_adjacent_intensity_records =
+            port.effect_coordinator_state().intensity_records;
         openswd3::battle::LegacyBattleActorFrameAdvanceContext actor_frames{
             fixture->actor_frame_state,
             port,

@@ -65,7 +65,7 @@ public:
     attack_order() {
         return {
             .records = attack_order_records,
-            .adjacent_intensity_record = &attack_order_adjacent_record,
+            .adjacent_intensity_records = {&attack_order_adjacent_record, 1U},
         };
     }
 
@@ -311,7 +311,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U &&
                 state.removed_group_a_count == 1U &&
-                result.attack_order_remove.matched &&
+                result.attack_order_remove.has_value() &&
+                result.attack_order_remove->removed_index.has_value() &&
                 port.count(0x00479850U) == 0U,
             "final Group-A caller takes typed reset EAX-one RET before actor cleanup and completed parent suffix"
         );
@@ -373,7 +374,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 port.startup->enemies[0U].progress.presentation_enabled == 0U &&
                 result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U &&
-                result.attack_order_remove.matched &&
+                result.attack_order_remove.has_value() &&
+                result.attack_order_remove->removed_index.has_value() &&
                 port.battle_message_state() == 0x63U &&
                 port.count(0x00479850U) == 0U,
             "final Group-B caller takes typed reset EAX-one RET before coordinates, removal and terminal message"
@@ -727,8 +729,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 result.group_a_iterations == 1U &&
                 result.group_b_iterations == 1U &&
                 port.count(0x0045B0E0U) == 0U &&
-                port.count(0x0045EFB0U) == 0U &&
-                result.attack_order_remove.matched &&
+                result.attack_order_remove.has_value() &&
+                result.attack_order_remove->removed_index.has_value() &&
                 port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
                 port.count(0x004783B0U) == 0U && port.count(0x0047C660U) == 2U,
             "group A completion clears the counted workspace and runs common actor cleanup"
@@ -768,7 +770,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         port.push(0x00479850U, {.eax = 1U});
         port.attack_order_records[17].value_00 = 8U;
         auto attack_order = port.attack_order();
-        attack_order.adjacent_intensity_record = nullptr;
+        attack_order.adjacent_intensity_records = {};
 
         const auto result = advance_legacy_battle_final_actor_step(
             state, action, port, attack_order, 0U, 1U, port.startup.get()
@@ -782,8 +784,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 state.group_a_slot_values[0] == 9U &&
                 result.group_a_actor_cleanup_calls == 1U &&
                 port.count(0x004750C0U) == 0U &&
-                port.count(0x0045EFB0U) == 0U &&
-                result.attack_order_remove.status ==
+                result.attack_order_remove->status ==
                     openswd3::battle::LegacyBattleAttackOrderRemoveStatus::
                         adjacent_record_typed_stop,
             "final actor removal stop preserves validation and actor cleanup prefix then blocks slot clearing"
@@ -900,8 +901,8 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 (action.packed_actor_counter & 0xFFU) == 0U &&
                 state.group_b_reset_word == 0U &&
                 port.count(0x0045B0E0U) == 0U &&
-                port.count(0x0045EFB0U) == 0U &&
-                result.attack_order_remove.matched &&
+                result.attack_order_remove.has_value() &&
+                result.attack_order_remove->removed_index.has_value() &&
                 port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
                 result.fixed_count.path ==
                     openswd3::battle::LegacyBattleFixedCountPath::

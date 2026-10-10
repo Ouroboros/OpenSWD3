@@ -179,16 +179,12 @@ LegacyBattlePendingActionResult commit_legacy_battle_pending_actions(
                 remove_legacy_battle_attack_order_entry(
                     {
                         .records = bindings.attack_order_records,
-                        .adjacent_intensity_record =
-                            bindings.attack_order_adjacent_record,
+                        .adjacent_intensity_records =
+                            bindings.attack_order_adjacent_intensity_records,
                     },
-                    publication_code
+                    publication_index
                 );
-            ++result.remove_calls;
-            result.return_value = result.attack_order_remove.return_eax;
-            result.final_ecx = result.attack_order_remove.return_ecx;
-            result.final_edx = result.attack_order_remove.return_edx;
-            if (result.attack_order_remove.status !=
+            if (result.attack_order_remove->status !=
                 LegacyBattleAttackOrderRemoveStatus::completed) {
                 result.status = LegacyBattlePendingActionStatus::
                     attack_order_remove_typed_stop;

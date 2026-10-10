@@ -1,52 +1,45 @@
 #include "openswd3/battle/legacy_battle_attack_order_remove.hpp"
 
-#include "openswd3/battle/legacy_battle_attack_order_entry.hpp"
-
+#include <algorithm>
+#include <array>
 #include <cstddef>
+#include <cstring>
 
 namespace openswd3::battle {
 namespace {
 
-using compat::u16;
 using compat::u32;
 
-constexpr u32 kRecordCount = 0x12U;
-constexpr u32 kRecordSize = 0x1CU;
+constexpr u32 kRecordCount = 18U;
+constexpr u32 kRecordSize = 28U;
+constexpr u32 kDwordSize = 4U;
 
+static_assert(sizeof(LegacyBattleStartupResetRecord) == kRecordSize);
 static_assert(
     offsetof(LegacyBattleIntensityEffectRecord, render_flags) == 0x18U
 );
 static_assert(sizeof(LegacyBattleIntensityEffectRecord) == 0x98U);
 
-[[nodiscard]] constexpr u32 record_address(const u32 index) noexcept {
-    return kLegacyBattleAttackOrderRecordBase + index * kRecordSize;
+void copy_record_dwords(
+    const std::span<const std::byte> source,
+    const std::span<std::byte> destination
+) noexcept {
+    for (u32 offset = 0U; offset < kRecordSize; offset += kDwordSize) {
+        std::array<std::byte, kDwordSize> dword;
+        std::memcpy(dword.data(), source.data() + offset, dword.size());
+        std::memcpy(destination.data() + offset, dword.data(), dword.size());
+    }
 }
 
-[[nodiscard]] LegacyBattleStartupResetRecord
-adjacent_snapshot(const LegacyBattleIntensityEffectRecord& record) noexcept {
-    return {
-        .value_00 = record.source_value,
-        .value_04 = record.value_04,
-        .value_08 = static_cast<u16>(record.secondary_value),
-        .value_0a = static_cast<u16>(record.secondary_value >> 16U),
-        .value_0c = record.value_0c,
-        .value_10 = record.x_offset,
-        .value_14 = record.y_offset,
-        .value_18 = record.render_flags,
-    };
-}
-
-[[nodiscard]] LegacyBattleStartupResetRecord all_one_record() noexcept {
-    return {
-        .value_00 = 0xFFFFFFFFU,
-        .value_04 = 0xFFFFFFFFU,
-        .value_08 = 0xFFFFU,
-        .value_0a = 0xFFFFU,
-        .value_0c = 0xFFFFFFFFU,
-        .value_10 = 0xFFFFFFFFU,
-        .value_14 = 0xFFFFFFFFU,
-        .value_18 = 0xFFFFFFFFU,
-    };
+void fill_tail_dwords(
+    const std::span<std::byte> tail,
+    const std::byte value,
+    LegacyBattleAttackOrderRemoveResult& result
+) noexcept {
+    for (u32 offset = 0U; offset < kRecordSize; offset += kDwordSize) {
+        std::fill_n(tail.data() + offset, kDwordSize, value);
+        ++result.tail_dwords_written;
+    }
 }
 
 }  // namespace
@@ -55,66 +48,57 @@ LegacyBattleAttackOrderRemoveResult remove_legacy_battle_attack_order_entry(
     const LegacyBattleAttackOrderRemoveBindings bindings, const u32 value
 ) {
     LegacyBattleAttackOrderRemoveResult result;
-    result.return_edx = value;
-    result.return_ecx = 0U;
-    result.return_eax = kLegacyBattleAttackOrderRecordBase;
-
-    u32 match = 0U;
-    for (; match < kRecordCount; ++match) {
-        if (match >= bindings.records.size()) {
+    for (u32 index = 0U; index < kRecordCount; ++index) {
+        if (index >= bindings.records.size()) {
             result.status =
                 LegacyBattleAttackOrderRemoveStatus::record_scan_typed_stop;
             return result;
         }
-        ++result.scanned_records;
-        if (bindings.records[match].value_00 == value) {
-            result.matched = true;
-            result.matched_index = match;
+
+        if (bindings.records[index].value_00 == value) {
+            result.removed_index = index;
             break;
         }
-        result.return_eax += kRecordSize;
-        result.return_ecx += 1U;
     }
-    if (!result.matched) {
+
+    if (!result.removed_index.has_value()) {
         return result;
     }
 
-    u32 destination = match;
-    while (destination < kRecordCount) {
-        const u32 source = destination + 1U;
-        result.return_eax = record_address(source);
-        result.return_ecx = 7U;
-
-        LegacyBattleStartupResetRecord snapshot;
-        if (source < kRecordCount) {
-            if (source >= bindings.records.size()) {
+    for (u32 destination = *result.removed_index; destination < kRecordCount;
+         ++destination) {
+        const u32 source_index = destination + 1U;
+        std::span<const std::byte> source;
+        if (source_index < kRecordCount) {
+            if (source_index >= bindings.records.size()) {
                 result.status = LegacyBattleAttackOrderRemoveStatus::
                     record_shift_source_typed_stop;
                 return result;
             }
-            snapshot = bindings.records[source];
+
+            source = std::as_bytes(bindings.records.subspan(source_index, 1U));
         } else {
-            if (bindings.adjacent_intensity_record == nullptr) {
+            if (bindings.adjacent_intensity_records.empty()) {
                 result.status = LegacyBattleAttackOrderRemoveStatus::
                     adjacent_record_typed_stop;
                 return result;
             }
-            snapshot = adjacent_snapshot(*bindings.adjacent_intensity_record);
+
+            source = std::as_bytes(bindings.adjacent_intensity_records)
+                         .first(kRecordSize);
         }
-        bindings.records[destination] = snapshot;
+
+        copy_record_dwords(
+            source,
+            std::as_writable_bytes(bindings.records.subspan(destination, 1U))
+        );
         ++result.shifted_records;
-        result.return_ecx = 0U;
-        ++destination;
     }
 
-    result.return_ecx = 7U;
-    result.return_eax = 0U;
-    bindings.records[kRecordCount - 1U] = {};
-    result.return_ecx = 7U;
-    result.return_eax = 0xFFFFFFFFU;
-    bindings.records[kRecordCount - 1U] = all_one_record();
-    result.return_ecx = 0U;
-    result.tail_cleared = true;
+    const auto tail =
+        std::as_writable_bytes(bindings.records.subspan(kRecordCount - 1U, 1U));
+    fill_tail_dwords(tail, std::byte{0U}, result);
+    fill_tail_dwords(tail, std::byte{0xFFU}, result);
     return result;
 }
 

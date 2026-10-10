@@ -6,6 +6,7 @@
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <optional>
 #include <span>
 
 namespace openswd3::battle {
@@ -20,7 +21,6 @@ inline constexpr compat::u32 kLegacyBattlePendingActionGroupBStride = 0x2B28U;
 enum class LegacyBattlePendingActionCall : compat::u8 {
     prepare_actor,
     commit_actor,
-    reserved_remove_actor_record,
 };
 
 struct LegacyBattlePendingActionCallRequest {
@@ -59,7 +59,8 @@ public:
 struct LegacyBattlePendingActionBindings {
     std::span<compat::u32> ready_actor_slots;
     std::span<LegacyBattleStartupResetRecord> attack_order_records;
-    LegacyBattleIntensityEffectRecord* attack_order_adjacent_record{};
+    std::span<const LegacyBattleIntensityEffectRecord>
+        attack_order_adjacent_intensity_records{};
     compat::u32 global_mode{};
 };
 
@@ -86,9 +87,8 @@ struct LegacyBattlePendingActionResult {
     compat::u32 ready_slot_writes{};
     compat::u32 commit_calls{};
     compat::u32 publication_writes{};
-    compat::u32 remove_calls{};
     LegacyBattleActorReadyResult last_ready{};
-    LegacyBattleAttackOrderRemoveResult attack_order_remove{};
+    std::optional<LegacyBattleAttackOrderRemoveResult> attack_order_remove;
 };
 
 [[nodiscard]] LegacyBattlePendingActionResult

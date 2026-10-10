@@ -222,8 +222,7 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
 ) {
     result.attack_order_remove =
         remove_legacy_battle_attack_order_entry(attack_order, value);
-    ++result.attack_order_remove_calls;
-    if (result.attack_order_remove.status !=
+    if (result.attack_order_remove->status !=
         LegacyBattleAttackOrderRemoveStatus::completed) {
         result.status =
             LegacyBattleActionDispatchStatus::attack_order_remove_typed_stop;
