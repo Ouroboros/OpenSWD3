@@ -2,6 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
+  "last_reviewed_source_revision": "5402ee36fc8b2de88a4b5d5f5aba39fb2b795d27",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -34,10 +35,47 @@
       ],
       "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
     },
+    "battle/legacy_battle_actor_base_initialization": {
+      "status": "verified",
+      "verification_commit": "5402ee36",
+      "files": [
+        "include/openswd3/battle/legacy_battle_actor_base_initialization.hpp",
+        "src/battle/legacy_battle_actor_base_initialization.cpp",
+        "include/openswd3/battle/legacy_battle_actor_lifecycle.hpp",
+        "src/battle/legacy_battle_actor_lifecycle.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
+      "validation_logs": [
+        "build/tmp/runtime/ledger-base-init-core.log",
+        "build/tmp/runtime/ledger-base-init-asan.log",
+        "build/tmp/runtime/actor-exit-cleanup-core.log",
+        "build/tmp/runtime/actor-exit-cleanup-asan.log"
+      ],
+      "reason": "共享字段接口及全部直接调用方已迁移；64次写入、短视图失败前缀及实际数组构造经专用测试和生命周期测试验证"
+    },
     "battle/legacy_battle_actor_base_release": {
+      "status": "verified",
+      "verification_commit": "5402ee36",
+      "files": [
+        "include/openswd3/battle/legacy_battle_actor_base_release.hpp",
+        "src/battle/legacy_battle_actor_base_release.cpp",
+        "include/openswd3/battle/legacy_battle_actor_lifecycle.hpp",
+        "src/battle/legacy_battle_actor_lifecycle.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
+      "validation_logs": [
+        "build/tmp/runtime/ledger-base-release-core.log",
+        "build/tmp/runtime/ledger-base-release-asan.log",
+        "build/tmp/runtime/actor-exit-cleanup-core.log",
+        "build/tmp/runtime/actor-exit-cleanup-asan.log"
+      ],
+      "reason": "实际说明分配释放与全部直接调用方已迁移；两组数组析构和SDL退出接线已补齐，失败不清指针及异常传播经专用测试验证"
+    },
+    "battle/legacy_battle_actor_lifecycle": {
       "status": "pending",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-description-owned-release.md",
-      "reason": "叶函数已迁移；向量析构协议及完整静态元素析构生产接线尚未闭合"
+      "last_reviewed_commit": "5402ee36",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-owned-exit-cleanup.md",
+      "reason": "已迁移元素构造、数组析构和真实退出登记；构造期异常展开及单例SDL业务对象接线仍未核验，不能把整个生命周期计为完成"
     },
     "battle/legacy_battle_actor_message_percent_refresh": {
       "status": "verified",
@@ -81,6 +119,18 @@
       "status": "pending",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-group-a-resource-cleanup-00475180.md",
       "reason": "释放已迁移；非零次级资源的生产创建及所有权来源尚未证明"
+    },
+    "battle/legacy_battle_group_a_storage": {
+      "status": "pending",
+      "last_reviewed_commit": "5402ee36",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-group-a-vector-destruction-004517e0.md",
+      "reason": "已接通共享构造、逆序析构及退出清理；仍继承StartupResetHeapPort，构造期异常展开、次级资源生产来源和保留地址区间寿命仍待核验"
+    },
+    "battle/legacy_battle_group_b_storage": {
+      "status": "pending",
+      "last_reviewed_commit": "5402ee36",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-group-b-vector-destruction-00451840.md",
+      "reason": "已接通真实八元素构造、逆序析构及退出清理；仍继承StartupResetHeapPort，构造期异常展开和保留地址区间寿命仍待核验"
     },
     "battle/legacy_battle_group_b_resource_cleanup": {
       "status": "verified",

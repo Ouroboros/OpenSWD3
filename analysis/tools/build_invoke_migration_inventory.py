@@ -154,6 +154,21 @@ with (output / 'invoke-migration-progress.tsv').open('w', newline='') as stream:
     writer.writerows(rows)
 counts = Counter(row['status'] for row in rows)
 total = len(rows) - counts['excluded']
+reviewed_revision = subprocess.check_output([
+    'git', 'rev-parse', reviews['last_reviewed_source_revision'],
+], text=True).strip()
+subprocess.run([
+    'git', 'merge-base', '--is-ancestor', reviewed_revision,
+    metadata['current']['revision'],
+], check=True)
+unreviewed_commits = subprocess.check_output([
+    'git', 'log', '--format=%H',
+    reviewed_revision + '..' + metadata['current']['revision'],
+    '--', 'include/', 'src/',
+], text=True).splitlines()
+pending_without_signals = sum(
+    row['status'] == 'pending' and not row['current_signals'] for row in rows
+)
 summary = {
     'source_revision': metadata['current']['revision'],
     'baseline_revision': metadata['baseline']['revision'],
@@ -163,6 +178,10 @@ summary = {
     'scope_units': total,
     'verified_units': counts['verified'],
     'pending_units': total - counts['verified'],
+    'pending_without_scan_signals': pending_without_signals,
+    'pending_with_scan_signals': total - counts['verified'] - pending_without_signals,
+    'last_reviewed_source_revision': reviewed_revision,
+    'source_commits_since_last_review': len(unreviewed_commits),
     'ledger_percent': round(100 * counts['verified'] / total, 1) if total else 0,
     'scope_exhaustiveness_verified': False,
 }
