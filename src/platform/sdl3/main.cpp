@@ -2931,8 +2931,7 @@ public:
         openswd3::battle::LegacyBattleStartupResult definition_load;
 
         if (battle_assets_ready_) {
-            openswd3::battle::LegacyBattleDefinitionArchiveFileRuntime
-                archive_files;
+            openswd3::battle::LegacyBattleDefinitionArchiveFiles archive_files;
             if (!openswd3::battle::load_legacy_battle_startup_definition(
                     battle_runtime_,
                     archive_files,
@@ -3236,16 +3235,20 @@ public:
                     )
                 )
             );
-            message.append(", ffd_header_eax=");
+            message.append(", ffd_header_status=");
             message.append(
                 std::to_string(
-                    definition_load.definition_archive_header.return_eax
+                    static_cast<unsigned>(
+                        definition_load.definition_archive_header.status
+                    )
                 )
             );
-            message.append(", ffd_record_eax=");
+            message.append(", ffd_record_status=");
             message.append(
                 std::to_string(
-                    definition_load.definition_archive_record.return_eax
+                    static_cast<unsigned>(
+                        definition_load.definition_archive_record.status
+                    )
                 )
             );
             message.append(", enemy_count=");

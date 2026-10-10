@@ -7339,7 +7339,7 @@ void test_real_battle_98_enemy(openswd3::test::Context& test) {
         "real battle 98 resolves its initial player and enemy placement"
     );
     openswd3::battle::LegacyBattleStartupState startup;
-    openswd3::battle::LegacyBattleDefinitionArchiveFileRuntime files;
+    openswd3::battle::LegacyBattleDefinitionArchiveFiles files;
     openswd3::battle::LegacyBattleStartupResult live;
     const bool live_loaded =
         openswd3::battle::load_legacy_battle_startup_definition(

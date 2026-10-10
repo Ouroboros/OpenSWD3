@@ -1143,7 +1143,7 @@ LegacyBattleStartupItemOrderResult order_legacy_battle_startup_items(
 
 bool load_legacy_battle_startup_definition(
     LegacyBattleStartupState& state,
-    LegacyBattleDefinitionArchiveFilePort& archive_file_port,
+    LegacyBattleDefinitionArchiveFiles& archive_files,
     const LegacyBattleStartupRequest& request,
     LegacyBattleStartupResult& result
 ) {
@@ -1152,32 +1152,18 @@ bool load_legacy_battle_startup_definition(
     result.definition_archive_header =
         load_legacy_battle_definition_archive_header(
             state.render_binding_object,
-            state.archive_header_index_token,
-            archive_file_port,
-            {
-                .path = result.definition_archive_path,
-                .binding_object_token = kLegacyBattleStartupArchiveObjectToken,
-                .output_token = kLegacyBattleStartupArchiveScratchToken,
-                .number_of_bytes_read_token =
-                    request.archive_number_of_bytes_read_token,
-                .entry_edx = request.archive_entry_edx_snapshot,
-            }
+            state.archive_header_index_offset,
+            archive_files,
+            result.definition_archive_path
         );
     result.definition_archive_record =
         load_legacy_battle_definition_archive_record(
             state.render_binding_object,
             state.definition_record,
-            archive_file_port,
-            {
-                .path = result.definition_archive_path,
-                .binding_object_token = kLegacyBattleStartupArchiveObjectToken,
-                .output_token = kLegacyBattleStartupDefinitionToken,
-                .battle_id = request.battle_id,
-                .variant = 0U,
-                .number_of_bytes_read_token =
-                    request.definition_record_number_of_bytes_read_token,
-                .entry_edx = request.definition_record_entry_edx_snapshot,
-            }
+            archive_files,
+            result.definition_archive_path,
+            request.battle_id,
+            0U
         );
     if (result.definition_archive_record.status ==
             LegacyBattleDefinitionArchiveRecordLoadStatus::
@@ -1202,7 +1188,7 @@ bool load_legacy_battle_startup_definition(
 LegacyBattleStartupResult initialize_legacy_battle_startup(
     LegacyBattleStartupState& state,
     LegacyBattleStartupPort& port,
-    LegacyBattleDefinitionArchiveFilePort& archive_file_port,
+    LegacyBattleDefinitionArchiveFiles& archive_files,
     LegacyBattleBackgroundImageLoadPort& background_image_load_port,
     LegacyBattleActionRotationReleasePort& rotation_release_port,
     LegacyBattleActionRotationUpdatePort& action_update_port,
@@ -1313,7 +1299,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         {static_cast<u16>(request.battle_id), 0U, 0U, 0U}
     ));
     if (!load_legacy_battle_startup_definition(
-            state, archive_file_port, request, result
+            state, archive_files, request, result
         )) {
         return result;
     }

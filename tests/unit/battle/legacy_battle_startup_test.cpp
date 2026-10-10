@@ -171,9 +171,11 @@ private:
 };
 
 class StartupPorts final
-    : public openswd3::battle::LegacyBattleStartupPort,
-      public virtual openswd3::battle::LegacyBattleTargetSelectionRuntimeStatePort,
-      public openswd3::battle::LegacyBattleDefinitionArchiveFilePort,
+    : public DefinitionTestTree,
+      public openswd3::battle::LegacyBattleDefinitionArchiveFiles,
+      public openswd3::battle::LegacyBattleStartupPort,
+      public virtual openswd3::battle::
+          LegacyBattleTargetSelectionRuntimeStatePort,
       public openswd3::battle::LegacyBattleBackgroundImageLoadPort,
       public openswd3::battle::LegacyBattleActionRotationReleasePort,
       public openswd3::battle::LegacyBattleActionRotationUpdatePort,
@@ -379,111 +381,66 @@ public:
         return bytes;
     }
 
-    [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveApiReply
-    open_archive_file(
-        const openswd3::battle::LegacyBattleDefinitionArchiveOpenRequest&
-            request
-    ) override {
-        archive_open_requests.push_back(request);
-        archive_events.push_back('O');
-        ++archive_open_calls;
-        if (!archive_open_replies.empty()) {
-            const auto reply = archive_open_replies.front();
-            archive_open_replies.pop_front();
-            return reply;
-        }
-        return archive_open_reply;
-    }
+    [[nodiscard]] std::vector<openswd3::compat::u8> definition_bytes() const {
+        std::vector<openswd3::compat::u8> destination(0x10CU);
+        const auto write_u16 = [&](const u32 offset, const u16 value) {
+            destination[offset] = static_cast<openswd3::compat::u8>(value);
+            destination[offset + 1U] =
+                static_cast<openswd3::compat::u8>(value >> 8U);
+        };
 
-    [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveReadReply
-    read_archive_file(
-        const openswd3::battle::LegacyBattleDefinitionArchiveReadRequest&
-            request,
-        const std::span<openswd3::compat::u8> destination
-    ) override {
-        archive_read_requests.push_back(request);
-        archive_events.push_back('R');
-        if (!archive_read_prefixes.empty()) {
-            const auto prefix = std::move(archive_read_prefixes.front());
-            archive_read_prefixes.pop_front();
-            std::ranges::copy(prefix, destination.begin());
-            ++archive_read_calls;
-            auto reply = archive_read_reply;
-            reply.bytes_read = static_cast<u32>(prefix.size());
-            return reply;
+        const auto write_u32 = [&](const u32 offset, const u32 value) {
+            destination[offset] = static_cast<openswd3::compat::u8>(value);
+            destination[offset + 1U] =
+                static_cast<openswd3::compat::u8>(value >> 8U);
+            destination[offset + 2U] =
+                static_cast<openswd3::compat::u8>(value >> 16U);
+            destination[offset + 3U] =
+                static_cast<openswd3::compat::u8>(value >> 24U);
+        };
+
+        write_u32(0x04U, definition.background_resource);
+        write_u16(0x24U, definition.secondary_count);
+        write_u16(0x28U, definition.background_action_id);
+        write_u32(0x58U, definition.background_field_b4);
+        write_u32(0x78U, definition.background_field_b8);
+        write_u16(0x98U, definition.enemy_count);
+        for (u32 index = 0U; index < definition.enemies.size(); ++index) {
+            write_u16(0x9CU + index * 4U, definition.enemies[index].role_id);
+            write_u16(0xBCU + index * 2U, definition.enemies[index].mode_flag);
+            write_u16(0xCCU + index * 4U, definition.enemies[index].position_x);
+            write_u16(0xECU + index * 4U, definition.enemies[index].position_y);
         }
 
-        std::ranges::fill(destination, 0U);
-        if (request.requested_bytes ==
-            openswd3::battle::kLegacyBattleDefinitionArchiveHeaderBytes) {
-            for (u32 index = 0U; index < 0x40U; ++index) {
-                destination[0x1F44U + index] = 1U;
-            }
-            if (force_definition_offset_stop) {
-                destination[0x1F45U] = 0x80U;
-            }
-        } else {
-            const auto write_u16 = [&](const u32 offset, const u16 value) {
-                destination[offset] = static_cast<openswd3::compat::u8>(value);
-                destination[offset + 1U] =
-                    static_cast<openswd3::compat::u8>(value >> 8U);
-            };
-            const auto write_u32 = [&](const u32 offset, const u32 value) {
-                destination[offset] = static_cast<openswd3::compat::u8>(value);
-                destination[offset + 1U] =
-                    static_cast<openswd3::compat::u8>(value >> 8U);
-                destination[offset + 2U] =
-                    static_cast<openswd3::compat::u8>(value >> 16U);
-                destination[offset + 3U] =
-                    static_cast<openswd3::compat::u8>(value >> 24U);
-            };
-            write_u32(0x04U, definition.background_resource);
-            write_u16(0x24U, definition.secondary_count);
-            write_u16(0x28U, definition.background_action_id);
-            write_u32(0x58U, definition.background_field_b4);
-            write_u32(0x78U, definition.background_field_b8);
-            write_u16(0x98U, definition.enemy_count);
-            for (u32 index = 0U; index < definition.enemies.size(); ++index) {
-                write_u16(
-                    0x9CU + index * 4U, definition.enemies[index].role_id
-                );
-                write_u16(
-                    0xBCU + index * 2U, definition.enemies[index].mode_flag
-                );
-                write_u16(
-                    0xCCU + index * 4U, definition.enemies[index].position_x
-                );
-                write_u16(
-                    0xECU + index * 4U, definition.enemies[index].position_y
-                );
-            }
+        return destination;
+    }
+
+    [[nodiscard]] LegacyBattleStartupRequest
+    prepare_request(LegacyBattleStartupRequest value) {
+        value.data_root = DefinitionTestTree::root;
+        if (archive_missing) {
+            std::filesystem::remove(DefinitionTestTree::root / "BaTtLe.FfD");
+            return value;
         }
-        ++archive_read_calls;
-        auto reply = archive_read_reply;
-        reply.bytes_read = static_cast<u32>(destination.size());
-        return reply;
-    }
 
-    [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveApiReply
-    seek_archive_file(
-        const openswd3::battle::LegacyBattleDefinitionArchiveSeekRequest&
-            request
-    ) override {
-        archive_seek_requests.push_back(request);
-        archive_events.push_back('S');
-        ++archive_seek_calls;
-        return archive_seek_reply;
-    }
+        std::vector<openswd3::compat::u8> bytes(0x2714U);
+        for (u32 index = 0U; index < 0x40U; ++index) {
+            bytes[0x1F44U + index] = 1U;
+        }
 
-    [[nodiscard]] openswd3::battle::LegacyBattleDefinitionArchiveApiReply
-    close_archive_file(
-        const openswd3::battle::LegacyBattleDefinitionArchiveCloseRequest&
-            request
-    ) override {
-        archive_close_requests.push_back(request);
-        archive_events.push_back('C');
-        ++archive_close_calls;
-        return archive_close_reply;
+        if (force_definition_offset_stop) {
+            bytes[0x1F45U] = 0x80U;
+        }
+
+        const auto record = definition_bytes();
+        bytes.insert(bytes.end(), record.begin(), record.end());
+        if (!DefinitionTestTree::write(bytes)) {
+            throw std::runtime_error(
+                "cannot write owned battle definition fixture"
+            );
+        }
+
+        return value;
     }
 
     [[nodiscard]] LegacyBattleBackgroundImageLoadResult load_image(
@@ -537,48 +494,13 @@ public:
     }
 
     LegacyBattleDefinition definition{};
-    std::vector<char> archive_events;
-    std::deque<std::vector<openswd3::compat::u8>> archive_read_prefixes;
     std::unordered_map<u32, u32> query_values;
     std::deque<u32> random_values;
     std::vector<LegacyBattleStartupCallRequest> requests;
     openswd3::battle::LegacyBattleGroupASummonProfileRecord
         supplemental_profile{};
-    std::vector<openswd3::battle::LegacyBattleDefinitionArchiveOpenRequest>
-        archive_open_requests;
-    std::vector<openswd3::battle::LegacyBattleDefinitionArchiveReadRequest>
-        archive_read_requests;
-    std::vector<openswd3::battle::LegacyBattleDefinitionArchiveSeekRequest>
-        archive_seek_requests;
-    std::vector<openswd3::battle::LegacyBattleDefinitionArchiveCloseRequest>
-        archive_close_requests;
-    std::deque<openswd3::battle::LegacyBattleDefinitionArchiveApiReply>
-        archive_open_replies;
-    openswd3::battle::LegacyBattleDefinitionArchiveApiReply archive_open_reply{
-        .eax = 0x70000001U,
-        .ecx = 0x11111111U,
-        .edx = 0x22222222U,
-    };
-    openswd3::battle::LegacyBattleDefinitionArchiveReadReply archive_read_reply{
-        .eax = 1U,
-        .ecx = 0x33333333U,
-        .edx = 0x44444444U,
-    };
-    openswd3::battle::LegacyBattleDefinitionArchiveApiReply archive_seek_reply{
-        .eax = 0x2714U,
-        .ecx = 0x77777777U,
-        .edx = 0x88888888U,
-    };
-    openswd3::battle::LegacyBattleDefinitionArchiveApiReply archive_close_reply{
-        .eax = 1U,
-        .ecx = 0x55555555U,
-        .edx = 0x66666666U,
-    };
+    bool archive_missing{};
     std::filesystem::path background_path;
-    u32 archive_open_calls{};
-    u32 archive_read_calls{};
-    u32 archive_seek_calls{};
-    u32 archive_close_calls{};
     u32 background_resource{};
     u32 background_variant{};
     u32 background_load_calls{};
@@ -723,7 +645,7 @@ void test_battle_startup(openswd3::test::Context& test) {
         test.expect_true(
             tree.write(file_bytes), "write mixed-case FFD test file"
         );
-        openswd3::battle::LegacyBattleDefinitionArchiveFileRuntime files;
+        openswd3::battle::LegacyBattleDefinitionArchiveFiles files;
         const LegacyBattleStartupRequest request{
             .battle_id = 1U, .data_root = tree.root
         };
@@ -765,77 +687,76 @@ void test_battle_startup(openswd3::test::Context& test) {
         test.expect_true(
             openswd3::battle::load_legacy_battle_startup_definition(
                 *state, files, request, missing
-            ) && missing.definition_archive_header.return_eax == 0U &&
-                missing.definition_archive_record.return_eax == 0U &&
+            ) &&
+                missing.definition_archive_header.status ==
+                    openswd3::battle::
+                        LegacyBattleDefinitionArchiveHeaderLoadStatus::
+                            open_failed &&
+                missing.definition_archive_record.status ==
+                    openswd3::battle::
+                        LegacyBattleDefinitionArchiveRecordLoadStatus::
+                            open_failed &&
                 state->definition_record.bytes == retained &&
                 missing.definition.enemy_count == 2U,
             "missing FFD on a later entry returns the preceding actual record"
         );
     }
 
-    for (const bool record_opens : {false, true}) {
+    {
+        DefinitionTestTree tree;
         auto state = std::make_unique<LegacyBattleStartupState>();
-        auto ports = std::make_unique<StartupPorts>();
-        state->archive_header_index_token = 0xFACEU;
+        openswd3::battle::LegacyBattleDefinitionArchiveFiles files;
+        state->archive_header_index_offset = 0xFACEU;
         state->definition_record.bytes[0x98U] = 2U;
-        ports->definition.enemy_count = 3U;
-        ports->archive_open_replies.push_back({.eax = 0xFFFFFFFFU});
-        if (!record_opens) {
-            ports->archive_open_replies.push_back({.eax = 0xFFFFFFFFU});
-        }
-
         openswd3::battle::LegacyBattleStartupResult result;
-        const bool loaded =
+        test.expect_true(
             openswd3::battle::load_legacy_battle_startup_definition(
-                *state, *ports, {.battle_id = 1U, .data_root = {}}, result
-            );
-        test.expect_true(
-            loaded && result.definition_load_calls == 1U &&
-                result.definition.enemy_count == (record_opens ? 3U : 2U) &&
-                state->archive_header_index_token == 0xFACEU &&
-                ports->archive_open_calls == 2U &&
-                ports->archive_close_calls == 2U &&
-                result.definition_archive_header.return_eax == 0U,
-            "failed header open does not suppress the record call or erase the old definition"
-        );
-        test.expect_true(
-            ports->archive_events ==
-                (record_opens
-                     ? std::vector<char>{'O', 'C', 'O', 'R', 'S', 'R', 'C'}
-                     : std::vector<char>{'O', 'C', 'O', 'C'}),
-            "startup preserves both archive calls and closes even invalid handles"
+                *state, files, {.battle_id = 1U, .data_root = tree.root}, result
+            ) && result.definition_load_calls == 1U &&
+                result.definition.enemy_count == 2U &&
+                state->archive_header_index_offset == 0xFACEU &&
+                result.definition_archive_header.status ==
+                    openswd3::battle::
+                        LegacyBattleDefinitionArchiveHeaderLoadStatus::
+                            open_failed &&
+                result.definition_archive_record.status ==
+                    openswd3::battle::
+                        LegacyBattleDefinitionArchiveRecordLoadStatus::
+                            open_failed &&
+                files.size() == 0U,
+            "missing header still attempts record loading and decodes the retained definition"
         );
     }
 
     {
+        DefinitionTestTree tree;
         auto state = std::make_unique<LegacyBattleStartupState>();
-        auto ports = std::make_unique<StartupPorts>();
+        openswd3::battle::LegacyBattleDefinitionArchiveFiles files;
         state->definition_record.bytes.fill(0xA5U);
         state->definition_record.bytes[0x98U] = 2U;
         state->definition_record.bytes[0x99U] = 0U;
-        std::vector<openswd3::compat::u8> header(0x1F46U);
-        header[0x1F45U] = 1U;
-        ports->archive_read_prefixes.push_back(std::move(header));
-        ports->archive_read_prefixes.push_back({0x33U});
-        ports->archive_read_prefixes.push_back({1U, 2U, 3U, 4U, 0x34U, 0x12U});
-        ports->archive_read_reply.eax = 0U;
+        std::vector<openswd3::compat::u8> bytes(0x2714U + 6U);
+        bytes[0x1F45U] = 1U;
+        bytes[0x2714U + 4U] = 0x34U;
+        bytes[0x2714U + 5U] = 0x12U;
+        test.expect_true(
+            tree.write(bytes), "write actual short record for formation setup"
+        );
         openswd3::battle::LegacyBattleStartupResult result;
         const bool loaded =
             openswd3::battle::load_legacy_battle_startup_definition(
-                *state, *ports, {.battle_id = 0x10001U, .data_root = {}}, result
+                *state,
+                files,
+                {.battle_id = 0x10001U, .data_root = tree.root},
+                result
             );
         test.expect_true(
             loaded && result.definition.background_resource == 0xA5A51234U &&
                 result.definition.enemy_count == 2U &&
-                state->render_binding_object.battle_header_bytes[0U] == 0x33U &&
-                state->render_binding_object.battle_header_bytes[0x1F45U] ==
-                    1U &&
                 state->definition_record.bytes[6U] == 0xA5U &&
                 result.definition_archive_record.record_bytes_read == 6U &&
-                result.definition_archive_record.return_eax == 1U &&
-                ports->archive_events ==
-                    std::vector<char>{'O', 'R', 'C', 'O', 'R', 'S', 'R', 'C'},
-            "failed short reads overwrite only supplied prefixes and decode the persistent startup record"
+                files.size() == 0U,
+            "actual short record overwrites only its prefix before startup decodes it"
         );
         const std::array<openswd3::compat::u8, 4> party{1U, 0U, 0U, 0U};
         openswd3::battle::LegacyBattleSetupState setup;
@@ -850,36 +771,27 @@ void test_battle_startup(openswd3::test::Context& test) {
                 setup.background_resource_id == 0xA5A51234U,
             "formation setup consumes the live partially replaced definition"
         );
-        const auto retained = state->definition_record.bytes;
-        ports->archive_open_reply.eax = 0xFFFFFFFFU;
-        openswd3::battle::LegacyBattleStartupResult repeated;
-        test.expect_true(
-            openswd3::battle::load_legacy_battle_startup_definition(
-                *state, *ports, {.battle_id = 2U, .data_root = {}}, repeated
-            ) && state->definition_record.bytes == retained &&
-                repeated.definition.enemy_count == 2U,
-            "a later failed entry keeps the preceding battle record byte for byte"
-        );
     }
 
     {
+        DefinitionTestTree tree;
         auto state = std::make_unique<LegacyBattleStartupState>();
-        auto ports = std::make_unique<StartupPorts>();
+        openswd3::battle::LegacyBattleDefinitionArchiveFiles files;
         state->definition_record.bytes[0x98U] = 5U;
-        ports->archive_read_prefixes.emplace_back();
-        ports->archive_read_prefixes.emplace_back();
+        test.expect_true(tree.write({}), "write empty battle definition file");
         openswd3::battle::LegacyBattleStartupResult result;
         test.expect_true(
             openswd3::battle::load_legacy_battle_startup_definition(
-                *state, *ports, {.battle_id = 1U, .data_root = {}}, result
+                *state, files, {.battle_id = 1U, .data_root = tree.root}, result
             ) && result.definition.enemy_count == 5U &&
                 result.definition_archive_record.status ==
                     openswd3::battle::
                         LegacyBattleDefinitionArchiveRecordLoadStatus::
                             rejected_count &&
-                ports->archive_read_calls == 2U &&
-                ports->archive_seek_calls == 0U,
-            "a rejected variant count returns to startup with the old enemy record"
+                result.definition_archive_header.bytes_read == 0U &&
+                result.definition_archive_record.prefix_bytes_read == 0U &&
+                files.size() == 0U,
+            "actual empty file rejects its retained zero count without replacing the old record"
         );
     }
 
@@ -891,15 +803,15 @@ void test_battle_startup(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleStartupResult result;
         test.expect_true(
             !openswd3::battle::load_legacy_battle_startup_definition(
-                *state, *ports, {.battle_id = 2U, .data_root = {}}, result
+                *state, *ports, ports->prepare_request(request(2U)), result
             ) &&
                 result.status ==
                     openswd3::battle::LegacyBattleStartupStatus::
                         definition_archive_typed_stop &&
                 result.definition_load_calls == 0U &&
                 state->definition_record.bytes[0U] == 0x79U &&
-                ports->archive_seek_calls == 0U,
-            "an invalid offset-table address stops before decoding or replacing the record"
+                ports->size() == 1U,
+            "actual invalid offset retains the file and stops before decoding the record"
         );
     }
 
@@ -959,7 +871,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.no_enemy_return = 0U;
         ports.definition.secondary_count = 0xFFFFU;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            *state, ports, ports, ports, ports, ports, ports, request(1U)
+            *state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(1U))
         );
         test.expect_true(
             result.status ==
@@ -1673,7 +1592,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         }
 
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            *state, ports, ports, ports, ports, ports, ports, request(1U)
+            *state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(1U))
         );
         test.expect_true(
             result.status ==
@@ -1790,7 +1716,14 @@ void test_battle_startup(openswd3::test::Context& test) {
             ++diagnostics;
         };
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            *state, ports, ports, ports, ports, ports, ports, request(1U)
+            *state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(1U))
         );
         if (unmapped_after_diagnostic) {
             test.expect_true(
@@ -1860,7 +1793,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.enemy_scratch.fill(0xA5U);
         state.party[0].final_processing.completion_latch = 0x12345678U;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(1U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(1U))
         );
         test.expect_equal(
             result.status,
@@ -2131,7 +2071,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.background.completion_words = {1U, 2U, 3U};
         ports.unresolved_display_token = state.display_surfaces[stopped_slot];
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(1U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(1U))
         );
         const std::array<u32, 2> expected{
             stopped_slot == 0U ? 11U : 0U,
@@ -2208,7 +2155,14 @@ void test_battle_startup(openswd3::test::Context& test) {
 
             const auto result =
                 openswd3::battle::initialize_legacy_battle_startup(
-                    state, ports, ports, ports, ports, ports, ports, request(1U)
+                    state,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports.prepare_request(request(1U))
                 );
             std::vector<LegacyBattleStartupCall> actual_calls;
             for (const auto& call : ports.requests) {
@@ -2260,9 +2214,17 @@ void test_battle_startup(openswd3::test::Context& test) {
             published[1] = 0x23U;
             std::fill_n(published.begin() + 8U, 4U, 0U);
             published[8] = 0x0CU;
-            const auto result = openswd3::battle::initialize_legacy_battle_startup(
-                state, ports, ports, ports, ports, ports, ports, request(1U)
-            );
+            const auto result =
+                openswd3::battle::initialize_legacy_battle_startup(
+                    state,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports.prepare_request(request(1U))
+                );
             test.expect_true(
                 result.status == openswd3::battle::LegacyBattleStartupStatus::
                     no_enemies &&
@@ -2322,8 +2284,14 @@ void test_battle_startup(openswd3::test::Context& test) {
 
                 const auto result =
                     openswd3::battle::initialize_legacy_battle_startup(
-                        state, ports, ports, ports, ports, ports, ports,
-                        request(1U)
+                        state,
+                        ports,
+                        ports,
+                        ports,
+                        ports,
+                        ports,
+                        ports,
+                        ports.prepare_request(request(1U))
                     );
                 test.expect_true(
                     result.status == openswd3::battle::LegacyBattleStartupStatus::
@@ -2345,9 +2313,17 @@ void test_battle_startup(openswd3::test::Context& test) {
             selection.special_action_count = 0xABCD1234U;
             selection.transition_stage = 0x76543210U;
             state.reset.block_5242b0.fill(0xA5A5A5A5U);
-            const auto result = openswd3::battle::initialize_legacy_battle_startup(
-                state, ports, ports, ports, ports, ports, ports, request(1U)
-            );
+            const auto result =
+                openswd3::battle::initialize_legacy_battle_startup(
+                    state,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports.prepare_request(request(1U))
+                );
             test.expect_true(
                 ports.reset_observations.back() == std::array<u32, 2>{count, 0U} &&
                     selection.special_action_count == 0U &&
@@ -2365,7 +2341,7 @@ void test_battle_startup(openswd3::test::Context& test) {
     {
         LegacyBattleStartupState state;
         StartupPorts ports;
-        openswd3::battle::LegacyBattleDefinitionArchiveFileRuntime archive;
+        openswd3::battle::LegacyBattleDefinitionArchiveFiles archive;
         openswd3::battle::LegacyBattleArchiveBackgroundImageLoadPort images;
         openswd3::asset_runtime::LegacyActRuntime act_runtime{
             OPENSWD3_GAME_DATA_ROOT
@@ -2400,7 +2376,6 @@ void test_battle_startup(openswd3::test::Context& test) {
                 result.definition_archive_record.record_bytes_read == 0x10CU &&
                 result.definition.enemy_count == 1U &&
                 result.definition.enemies[0U].role_id == 109U &&
-                ports.archive_open_calls == 0U &&
                 ports.background_load_calls == 0U,
             "startup reads the real battle definition and background before " "the controlled actor-resource stop"
         );
@@ -2510,14 +2485,16 @@ void test_battle_startup(openswd3::test::Context& test) {
         );
         auto startup_request = request(0xABCD0001U);
         startup_request.window_token = 0x12340000U;
-        startup_request.archive_number_of_bytes_read_token = 0x11112222U;
-        startup_request.archive_entry_edx_snapshot = 0x33334444U;
-        startup_request.definition_record_number_of_bytes_read_token =
-            0x55556666U;
-        startup_request.definition_record_entry_edx_snapshot = 0x77778888U;
 
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, startup_request
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(startup_request)
         );
 
         test.expect_true(
@@ -2565,9 +2542,6 @@ void test_battle_startup(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleDefinitionArchiveHeaderLoadStatus::
                             completed &&
-                result.definition_archive_header.open_calls == 1U &&
-                result.definition_archive_header.read_calls == 1U &&
-                result.definition_archive_header.close_calls == 1U &&
                 result.definition_archive_record.status ==
                     openswd3::battle::
                         LegacyBattleDefinitionArchiveRecordLoadStatus::
@@ -2575,40 +2549,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                 result.definition_archive_record.battle_index == 1U &&
                 result.definition_archive_record.combined_record_index == 0U &&
                 result.definition_archive_record.file_offset == 0x2714U &&
-                ports.archive_open_calls == 2U &&
-                ports.archive_read_calls == 3U &&
-                ports.archive_seek_calls == 1U &&
-                ports.archive_close_calls == 2U &&
-                ports.archive_open_requests.size() == 2U &&
-                ports.archive_open_requests[0].path ==
-                    std::filesystem::path("game-data/battle.ffd") &&
-                ports.archive_open_requests[0].desired_access == 0x80000000U &&
-                ports.archive_open_requests[0].share_mode == 0U &&
-                ports.archive_open_requests[0].creation_disposition == 3U &&
-                ports.archive_open_requests[0].flags_and_attributes == 0x80U &&
-                ports.archive_open_requests[0].entry_eax == 0x004AAED0U &&
-                ports.archive_open_requests[0].entry_ecx == 0x004FF5B8U &&
-                ports.archive_open_requests[0].entry_edx == 0x33334444U &&
-                ports.archive_open_requests[1].entry_edx == 0x77778888U &&
-                ports.archive_read_requests.size() == 3U &&
-                ports.archive_read_requests[0].destination_token ==
-                    0x004FF5BCU &&
-                ports.archive_read_requests[0].entry_ecx == 0x11112222U &&
-                ports.archive_read_requests[1].destination_token ==
-                    0x004FF5BCU &&
-                ports.archive_read_requests[1].entry_ecx == 0x55556666U &&
-                ports.archive_read_requests[2].destination_token ==
-                    0x004FF1E0U &&
-                ports.archive_read_requests[2].requested_bytes == 0x010CU &&
-                ports.archive_seek_requests.size() == 1U &&
-                ports.archive_seek_requests[0].distance == 0x2714U &&
-                ports.archive_seek_requests[0].move_method == 0U &&
-                ports.archive_close_requests.size() == 2U &&
-                ports.archive_close_requests[0].entry_eax == 0x005241FCU &&
-                ports.archive_close_requests[1].entry_eax == 1U &&
-                ports.archive_close_requests[1].entry_ecx == 0x33333333U &&
-                ports.archive_close_requests[1].entry_edx == 0x44444444U &&
-                state.archive_header_index_token == 0x00501500U &&
+                ports.size() == 0U &&
+                state.archive_header_index_offset == 0x1F48U &&
                 state.render_binding_object.battle_header_bytes.front() == 0U &&
                 state.render_binding_object.battle_header_bytes.back() == 0U &&
                 state.render_binding_object.index_records.back().ordinal ==
@@ -2627,6 +2569,20 @@ void test_battle_startup(openswd3::test::Context& test) {
                     1U &&
                 ports.background_load_calls == 0U,
             "battle startup preserves reset prefix low-word identity display lifecycle and no-enemy eax"
+        );
+        test.expect_equal(
+            result.definition_archive_header.bytes_read, 0x2714U,
+            "startup reads the entire physical archive header"
+        );
+        test.expect_equal(
+            result.definition_archive_record.record_bytes_read, 0x10CU,
+            "startup reads the entire selected physical archive record"
+        );
+        test.expect_true(
+            std::filesystem::equivalent(
+                result.definition_archive_path, ports.root / "BaTtLe.FfD"
+            ),
+            "startup resolves the actual archive file"
         );
     }
 
@@ -2670,11 +2626,7 @@ void test_battle_startup(openswd3::test::Context& test) {
         state.group_a_auxiliary_sources[0U].dwords[0U] = 0x13579BDFU;
         ports.primary_party_sources[0U].dwords[4U] = 0x56781234U;
         ports.primary_party_sources[1U].dwords[1U] = 9000U;
-        ports.archive_open_replies.push_back({
-            .eax = 0xFFFFFFFFU,
-            .ecx = 0x77777777U,
-            .edx = 0x88888888U,
-        });
+        ports.archive_missing = true;
         ports.party_actor_mode_return = 1U;
         ports.query_values = {
             {30U, 1U},
@@ -2736,8 +2688,19 @@ void test_battle_startup(openswd3::test::Context& test) {
         low_party_item.legacy_token = 0x006100B0U;
         low_party_item.item_id = 2U;
 
+        const auto retained_definition = ports.definition_bytes();
+        std::ranges::copy(
+            retained_definition, state.definition_record.bytes.begin()
+        );
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(7U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(7U))
         );
         const auto attribute_diagnostic = std::ranges::find_if(
             ports.requests, [](const LegacyBattleStartupCallRequest& call) {
@@ -2753,19 +2716,16 @@ void test_battle_startup(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleDefinitionArchiveHeaderLoadStatus::
                             open_failed &&
-                result.definition_archive_header.read_calls == 0U &&
-                result.definition_archive_header.close_calls == 1U &&
                 result.definition_archive_record.status ==
                     openswd3::battle::
                         LegacyBattleDefinitionArchiveRecordLoadStatus::
-                            completed &&
+                            open_failed &&
                 result.definition_load_calls == 1U &&
                 result.background.status ==
                     openswd3::battle::
                         LegacyBattleBackgroundInitializationStatus::
                             image_load_failed &&
-                ports.background_path ==
-                    std::filesystem::path("game-data/all_map2.tsw") &&
+                ports.background_path == (ports.root / "all_map2.tsw") &&
                 ports.background_resource == 4U &&
                 ports.background_variant == 0U &&
                 result.enemy_actor_count == 2U &&
@@ -3067,7 +3027,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.definition.enemy_count = 1U;
 
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(8U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(8U))
         );
 
         test.expect_true(
@@ -3158,7 +3125,7 @@ void test_battle_startup(openswd3::test::Context& test) {
             ports,
             ports,
             ports,
-            selector_stop_request
+            ports.prepare_request(selector_stop_request)
         );
 
         test.expect_true(
@@ -3263,7 +3230,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                     ports,
                     ports,
                     ports,
-                    request(9U + count)
+                    ports.prepare_request(request(9U + count))
                 );
             positions_match = positions_match &&
                 result.status ==
@@ -3303,7 +3270,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                     ports,
                     ports,
                     ports,
-                    request(14U)
+                    ports.prepare_request(request(14U))
                 );
             const auto expected_status = cycle == 3U
                 ? openswd3::battle::LegacyBattleStartupStatus::no_enemies
@@ -3336,7 +3303,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.random_values = {0U, 0U, 8U};
         ports.definition.enemy_count = 1U;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(14U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(14U))
         );
         test.expect_true(
             result.status ==
@@ -3371,7 +3345,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         startup_request.party_role_ids[0U] = 0U;
         startup_request.window_token = 0x76543210U;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, startup_request
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(startup_request)
         );
         const auto diagnostic = std::ranges::find_if(
             ports.requests, [](const LegacyBattleStartupCallRequest& call) {
@@ -3405,7 +3386,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.random_values = {0U};
         ports.world_item_list_state().player_inventory_head_token = 0x00700000U;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(20U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(20U))
         );
         test.expect_true(
             result.status ==
@@ -3429,7 +3417,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.random_values = {0U};
         ports.world_item_list_state().party_item_lists[0U].reset();
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(21U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(21U))
         );
         test.expect_true(
             result.status ==
@@ -3456,7 +3451,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.random_values = {0U};
         ports.world_item_list_state().role_item_lists[0U].reset();
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(22U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(22U))
         );
         test.expect_true(
             result.status ==
@@ -3496,7 +3498,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.definition.enemy_count = 1U;
         ports.random_values = {0U, 1U};
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(20U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(20U))
         );
         test.expect_true(
             result.status ==
@@ -3523,7 +3532,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         ports.definition.enemy_count = 9U;
         ports.random_values = {0U};
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(20U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(20U))
         );
         test.expect_true(
             result.status ==
@@ -3550,7 +3566,14 @@ void test_battle_startup(openswd3::test::Context& test) {
         StartupPorts ports;
         ports.force_definition_offset_stop = true;
         const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            state, ports, ports, ports, ports, ports, ports, request(20U)
+            state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(20U))
         );
         test.expect_true(
             result.status ==

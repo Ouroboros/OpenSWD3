@@ -46,10 +46,6 @@ inline constexpr compat::u32 kLegacyBattleStartupControlBlockToken =
     0x004C9708U;
 inline constexpr compat::u32 kLegacyBattleStartupSurfaceOwnerToken =
     0x004AB870U;
-inline constexpr compat::u32 kLegacyBattleStartupArchiveObjectToken =
-    0x004FF5B8U;
-inline constexpr compat::u32 kLegacyBattleStartupArchiveScratchToken =
-    0x005241FCU;
 inline constexpr compat::u32 kLegacyBattleStartupDefinitionToken = 0x004FF1E0U;
 inline constexpr compat::u32 kLegacyBattleStartupFailureTextToken = 0x004A76F0U;
 inline constexpr const char* kLegacyBattleDefinitionArchiveName = "battle.ffd";
@@ -308,7 +304,7 @@ struct LegacyBattleStartupState {
     LegacyBattleTimingState timing{};
     LegacyBattleRenderGeometry render_geometry{};
     LegacyBattleRenderGeometryBindingObject render_binding_object{};
-    compat::u32 archive_header_index_token{};
+    compat::u32 archive_header_index_offset{};
     LegacyBattleDefinitionArchiveRecord definition_record{};
     LegacyBattleBackgroundState background{};
     LegacyBattleActionRotationCacheState background_rotation_cache{};
@@ -431,10 +427,6 @@ struct LegacyBattleStartupRequest {
     rendering::LegacyPixelConversionState pixel_conversion{};
     std::array<compat::u16, 4> party_role_ids{};
     LegacyBattlePartyNameSources party_name_sources{};
-    compat::u32 archive_number_of_bytes_read_token{};
-    compat::u32 archive_entry_edx_snapshot{};
-    compat::u32 definition_record_number_of_bytes_read_token{};
-    compat::u32 definition_record_entry_edx_snapshot{};
     LegacyBattleActorRecordSelectionRequest supplemental_record_selection{};
 };
 
@@ -622,7 +614,7 @@ struct LegacyBattleStartupResult {
 // False denotes a typed memory boundary, not a callee returning zero.
 [[nodiscard]] bool load_legacy_battle_startup_definition(
     LegacyBattleStartupState& state,
-    LegacyBattleDefinitionArchiveFilePort& archive_file_port,
+    LegacyBattleDefinitionArchiveFiles& archive_files,
     const LegacyBattleStartupRequest& request,
     LegacyBattleStartupResult& result
 );
@@ -640,7 +632,7 @@ void reset_legacy_battle_startup_blocks(
 [[nodiscard]] LegacyBattleStartupResult initialize_legacy_battle_startup(
     LegacyBattleStartupState& state,
     LegacyBattleStartupPort& port,
-    LegacyBattleDefinitionArchiveFilePort& archive_file_port,
+    LegacyBattleDefinitionArchiveFiles& archive_files,
     LegacyBattleBackgroundImageLoadPort& background_image_load_port,
     LegacyBattleActionRotationReleasePort& rotation_release_port,
     LegacyBattleActionRotationUpdatePort& action_update_port,

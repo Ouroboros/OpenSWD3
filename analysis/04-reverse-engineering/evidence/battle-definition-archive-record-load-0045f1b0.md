@@ -1,80 +1,71 @@
-# 战斗定义归档记录读取 `0x0045F1B0`
+# 战斗定义归档记录读取 `0045F1B0`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+## LST范围与顺序
 
-## 1. 完整范围与ABI
+权威主体为`0045F1B0..0045F29D`。原参数为文件名、记录缓冲、
+完整战斗ID和variant；绑定对象由ECX借用。现代调用直接借用同一
+绑定对象和记录，接收真实路径、ID、variant及实际文件集合。
 
-权威LST完整主体为`0x0045F1B0..0x0045F29D`，从proc到endp共128行、108条实际指令、7个call、5个跳转、4个局部标签，没有外部`FUNCTION CHUNK`。
+`0045F1D5`只读、独占打开现有文件；失败仍关闭无效句柄并返回零。
+现代集合没有取得资源时关闭返回false，加载状态为open_failed。
+打开成功后，`0045F209`固定重读`0x2714`字节到对象`+4`；读取
+失败、短读和EOF均不新增分支。此后使用被实际覆盖的共享对象。
 
-函数是四参数thiscall：ECX为第106项绑定对象token，参数依次为ANSI文件名、`0x10C`字节目标记录、完整battle ID和variant低byte；以`retn 0x10`回收参数。EBP保存`ReadFile`入口，ESI保存handle，EDI保存this，必要时EBX在signed累计循环内单独保存。入口`push ecx`所分配栈槽在`0045F1CD`清零并用作`NumberOfBytesRead`。正常及拒绝出口的`pop ecx`恢复此局部计数，不恢复this token。
+## 符号门与记录选择
 
-静态call包括`CreateFileA`、失败关闭、第一`ReadFile`、`SetFilePointer`、第二`ReadFile`、成功关闭和两类拒绝共用的关闭站点。
+`0045F20F`只保留ID低16位。`0045F214`读取对象
+`0x1F48 + low16(ID)`处的byte；按i8小于等于零则关闭并拒绝。
+`0045F21F..223`比较i8 variant与i8 count；只拒绝variant大于
+count，等于及负值继续。
 
-## 2. 打开与固定头部重读
-
-打开参数与第107项完全相同：只读、独占、OPEN_EXISTING、普通属性。全1handle仍调用关闭并返回EAX0、ECX0和关闭EDX。
-
-打开成功后再次把固定`0x2714`字节读入同一绑定对象`+4`。第一读取返回和值域完全忽略，短读只覆盖实际前缀。后续所有索引均从读取后的live对象取值。
-
-## 3. signed计数与variant门
-
-battle ID先只保留低16位，随后读取：
-
-```text
-count = i8(*(this + 0x1F48 + battle_id_low16))
-```
-
-count按signed小于等于0时关闭并返回0。variant同样按i8解释；仅当`variant > count`的signed严格比较成立时关闭并返回0，等于count仍继续，负variant也允许继续。两个拒绝出口均在`0045F29C`把第一遍ReadFile写入的局部计数弹入ECX。
-
-battle ID超出精确`0x31F4`对象时，只在上述首个count byte真实读取typed-stop；该故障路径不执行关闭，保留打开和头部读取副作用。
-
-## 4. signed前缀累计与偏移表
-
-若battle ID signed大于1，ECX从1开始，依次读取`this+0x1F48+ECX`到`battle_id-1`。每个byte先按i8符号扩展，再以u32低32位累加到EDX；负byte必须产生二补数回绕。battle ID为0或1时累计和为0。
-
-随后把variant按i8符号扩展，与累计和作u32加法，形成record index。偏移dword读取地址为：
+ID为0或1时累计为零。其余ID在`0045F231..23E`从1累计至ID−1，
+每个byte按i8符号扩展，以u32相加并回绕。随后加符号扩展的variant。
+`0045F24C`从同一绑定对象读取记录偏移dword：
 
 ```text
-this + 8 + record_index * 4
+combined_index = signed_prefix_sum + i8(variant)  (u32 wrapping)
+object_byte_offset = 8 + combined_index * 4       (u32 wrapping)
+file_offset = 0x2714 + value * 0x10C              (u32 wrapping)
 ```
 
-负variant或负累计可以回绕到对象前后任意地址，不做现代夹值。只在该dword首次真实读取超出精确对象时typed-stop，不关闭已打开handle。
+不夹值、不预先拒绝负variant或负累计。只有实际byte/dword访问超出
+既有`0x31F4`视图时保留原typed-stop；该路径不关闭文件，也不覆盖
+记录、不解码或执行启动后缀。未新增停点。前缀访问的原状态保留，
+未把它声明为本批新增可达路径。
 
-## 5. 文件偏移与固定记录读取
+## 实际寻址与读取
 
-偏移表dword记为V，原乘法链严格等价于：
+`0045F263`从文件开头寻址，忽略返回值。既有LegacyFile方法执行
+实际寻址；负距离失败后游标不动，之后仍从该游标读取。
+`0045F27B`固定请求`0x10C`字节到调用方记录，忽略API返回。
+短读只替换实际前缀，超EOF保留整条旧记录。`0045F27E`关闭同一个
+文件，正常路径逻辑完成不取决于读或关闭成功。
 
-```text
-file_offset = 0x2714 + V * 0x10C   (all u32 wrapping)
-```
+删除FilePort、文件Runtime、编号handle、API请求回复、入口/返回
+寄存器和调用计数。语义结果保留实际已读量与选择计算值，分别报告
+头部和记录读量，不模拟ECX覆盖。资源及失败寿命见
+[实际文件所有权迁移](battle-definition-archive-owned-files.md)。
 
-调用`SetFilePointer(handle,file_offset,0,FILE_BEGIN)`，完全忽略返回。随后固定请求`ReadFile`把`0x10C`字节写入调用方记录owner；读返回和实际长度再次完全忽略，短读保留记录未覆盖尾部。最后关闭同一handle，强制返回EAX1；`0045F28C`把第二遍ReadFile写入的局部计数弹入ECX，并保留关闭EDX。第二遍读取覆盖第一遍的计数，即使实际读取为0也不返回旧头部计数。
+## 启动共享记录
 
-Windows open/read/seek/close统一复用第107项文件API窄端口，不建立第二套handle状态。
+生产调用链为SDL→战斗启动→头部读取→记录读取→直接解码持有的
+raw记录。头部打开失败仍尝试记录读取；记录打开失败或拒绝也继续
+解码原记录；对象访问typed-stop才阻止后缀。
 
-## 6. caller直连与定义投影
+物理字段保持：`+04`背景资源、`+24`次级数量WORD、`+28`背景动作
+WORD、`+58/+78`背景DWORD、`+98`敌方数量WORD；八项角色、模式、
+X、Y分别从`+9C+i*4`、`+BC+i*2`、`+CC+i*4`、`+EC+i*4`读取。
+背景资源仍保留完整DWORD，未降为低WORD。
 
-唯一caller是战斗启动协调器。旧高层`load_definition`端口已删除；启动状态持有唯一`0x10C` raw记录owner，caller直接组合本函数，然后无条件从live raw记录按原物理offset读取：
+## 验证与限制
 
-- `+0x04` rotation divisor；
-- `+0x24` secondary count低word；
-- `+0x28` background action低word；
-- `+0x58/+0x78`两项背景dword；
-- `+0x98` enemy count低word；
-- 八项role在`+0x9C+i*4`，mode在`+0xBC+i*2`，X在`+0xCC+i*4`，Y在`+0xEC+i*4`。
+真实文件覆盖有符号count正/零/负、variant大于/等于/负、ID低16位、
+负前缀累计、偏移回绕、0/1/3/0x10C记录短读、0xF2短记录解码、
+负寻址失败、超EOF和count/偏移表越界时的实际文件保留。
+Linux描述符检查验证集合销毁实际关闭保留资源，以及系统关闭失败
+仍保留文件对象。启动测试覆盖短记录形成队列、普通失败解码陈旧
+记录及访问越界阻断后缀。真实battle.ffd作独立物理逐字节比较。
 
-本函数打开失败、拒绝或typed-stop时，caller对普通0返回仍按原行为读取入口陈旧raw记录；只有typed-stop在modern故障域阻断后续启动流程。正常、打开失败与拒绝返回本身不作为caller成功门。
-
-## 7. SDL接线时的返回合同复核
-
-2026-10-06完整重读LST后，修正旧C++及本证据中的ECX恢复来源。正常返回取第二遍读取计数，两种拒绝取第一遍读取计数，打开失败取已清零的局部值；typed-stop未执行函数尾部，仍保留故障点寄存器。新增两种拒绝的0/3字节短读，以及正常路径第二遍0/1/0x10C字节向量；原有0xF2字节短读及两处typed-stop断言继续保留。`battle-archive-return-register-{core,asan,sdl}.log`确认本次战斗聚合目标core/ASan各1/1通过、SDL链接通过，三个日志无warning/error，`git diff --check`通过。该结果不证明尚未接通的SDL完整初始化或实机战斗。
-
-## 8. 实际文件端口
-
-当前记录读取可使用新增`LegacyBattleDefinitionArchiveFileRuntime`执行真实open/read/seek/close；资源持有、直接打开方式、宿主寄存器诊断约定及平台限制见`battle-definition-archive-header-load-0045f130.md`第7节。新测试保留实际记录短读尾部，并从原始`battle.ffd`物理偏移独立提取第一条记录作逐字节比较。首批战斗与文件core/ASan目标分别1/1、SDL链接通过。随后加入偏移`0x86002714`寻址失败后仍从头部末端读取，以及偏移`0x2820`超EOF后返回1且保留整条旧记录的真实文件用例；core/ASan复验各1/1通过。最后隔离Windows API失败计数行为后的`battle-archive-api-count-*`复验也确认战斗与文件目标core/ASan分别1/1及SDL链接通过，只有既有警告；Windows专属分支未运行。SDL完整初始化尚未调用此端口。
-
-## 9. 验证与动态差分
-
-定向测试覆盖固定打开参数、全1handle关闭、signed count正/零/负、variant大于/等于/负值、signed前缀正负累计、battle ID低16位、偏移dword、`V*0x10C+0x2714`、seek完整寄存器、两次读取顺序、读取返回忽略、固定`0x10C`记录、关闭寄存器、count和偏移表真实typed-stop、全部定义字段offset，以及启动caller从raw记录直接投影。
-
-当前缺少原版Windows handle、真实归档头与记录、signed索引轨迹、SetFilePointer结果、短读/失败记录、输出全局及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+最终构建与测试记录见所有权迁移文档。原版联合动态捕获仍缺失，
+`original_diff_verified`保持`blocked_runtime_oracle`。不把此接口
+迁移提升为B11、WP316或实机战斗验收。
