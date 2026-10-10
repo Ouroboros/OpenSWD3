@@ -1149,9 +1149,7 @@ private:
     bool& running_;
 };
 
-class SmokeShutdownPorts final
-    : public openswd3::app::ShutdownPorts,
-      public openswd3::battle::LegacyBattleRenderAuxiliaryBufferReleaser {
+class SmokeShutdownPorts final : public openswd3::app::ShutdownPorts {
 public:
     SmokeShutdownPorts(
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
@@ -1303,11 +1301,9 @@ public:
 
     void release_battle_runtime() override {
         static_cast<void>(openswd3::battle::shutdown_legacy_battle_runtime(
-            battle_runtime_, *this, battle_party_storage_, battle_enemy_storage_
+            battle_runtime_, battle_party_storage_, battle_enemy_storage_
         ));
     }
-
-    void release(openswd3::compat::u32) noexcept override {}
 
     bool
     perform_shutdown_close(openswd3::app::ShutdownCloseOperation) override {

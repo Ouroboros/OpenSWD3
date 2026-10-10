@@ -57,8 +57,7 @@ class LegacyBattleGlobalResetRuntimePort
       public virtual LegacyBattleMessagePhaseStatePort,
       public virtual LegacyBattleVictoryRewardStatePort,
       public virtual LegacyBattleLevelAdvancementStatePort,
-      public LegacyBattleActionRotationReleasePort,
-      public LegacyBattleRenderAuxiliaryBufferReleaser {
+      public LegacyBattleActionRotationReleasePort {
 public:
     ~LegacyBattleGlobalResetRuntimePort() override = default;
 

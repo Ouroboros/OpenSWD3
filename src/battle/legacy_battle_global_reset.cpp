@@ -606,7 +606,7 @@ LegacyBattleGlobalResetResult reset_legacy_battle_globals(
 
     record_call(result, LegacyBattleGlobalResetCallStage::render_resources);
     result.render_resources =
-        release_legacy_battle_render_resources(startup.render_geometry, port);
+        release_legacy_battle_render_resources(startup.render_geometry);
 
     result.conditional_allocation_token = startup.background.image_record[0U];
     if (result.conditional_allocation_token != 0U) {

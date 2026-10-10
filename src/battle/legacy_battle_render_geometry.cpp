@@ -162,16 +162,15 @@ public:
 }  // namespace
 
 bool release_legacy_battle_render_auxiliary_buffer(
-    LegacyBattleRenderGeometry& geometry,
-    LegacyBattleRenderAuxiliaryBufferReleaser& releaser
+    LegacyBattleRenderGeometry& geometry
 ) noexcept {
-    const compat::u32 token = geometry.auxiliary_buffer_token;
-    if (token == 0U) {
+    auto* const buffer = geometry.auxiliary_buffer.get();
+    if (buffer == nullptr) {
         return false;
     }
 
-    releaser.release(token);
-    geometry.auxiliary_buffer_token = 0U;
+    geometry.auxiliary_buffer.get_deleter()(buffer);
+    static_cast<void>(geometry.auxiliary_buffer.release());
     return true;
 }
 
@@ -219,12 +218,11 @@ LegacyBattleRenderSurfaceRebuildResult rebuild_legacy_battle_render_surface(
 }
 
 LegacyBattleRenderCleanupResult release_legacy_battle_render_resources(
-    LegacyBattleRenderGeometry& geometry,
-    LegacyBattleRenderAuxiliaryBufferReleaser& releaser
+    LegacyBattleRenderGeometry& geometry
 ) noexcept {
     LegacyBattleRenderCleanupResult result;
     result.auxiliary_buffer_released =
-        release_legacy_battle_render_auxiliary_buffer(geometry, releaser);
+        release_legacy_battle_render_auxiliary_buffer(geometry);
 
     if (geometry.surface_row_offsets != nullptr) {
         result.surface_row_offsets_released = true;
@@ -481,13 +479,12 @@ initialize_legacy_battle_render_geometry_static_lifecycle(
 
 LegacyBattleRenderGeometryStaticCleanupResult
 release_legacy_battle_render_geometry_static_lifecycle(
-    LegacyBattleRenderGeometry& geometry,
-    LegacyBattleRenderAuxiliaryBufferReleaser& releaser
+    LegacyBattleRenderGeometry& geometry
 ) noexcept {
     LegacyBattleRenderGeometryStaticCleanupResult result{
         .owner_token = kLegacyBattleRenderGeometryOwnerToken,
     };
-    result.cleanup = release_legacy_battle_render_resources(geometry, releaser);
+    result.cleanup = release_legacy_battle_render_resources(geometry);
     result.cleanup_calls = 1U;
     return result;
 }

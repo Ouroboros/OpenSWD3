@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <limits>
+#include <functional>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -281,7 +282,6 @@ using openswd3::battle::LegacyBattleImageParticleSurface;
 using openswd3::battle::LegacyBattleDirectionStepStatus;
 using openswd3::battle::LegacyBattleDirectionVectors;
 using openswd3::battle::LegacyBattleLineRaster;
-using openswd3::battle::LegacyBattleRenderAuxiliaryBufferReleaser;
 using openswd3::battle::LegacyBattleRenderGeometry;
 using openswd3::battle::LegacyBattleRenderInitializationStatus;
 using openswd3::battle::LegacyBattleRenderSurfaceRebuildStatus;
@@ -530,24 +530,22 @@ void test_enemy_record_layout(openswd3::test::Context& test) {
     );
 }
 
-class TrackingAuxiliaryBufferReleaser final
-    : public LegacyBattleRenderAuxiliaryBufferReleaser {
-public:
+struct AuxiliaryBufferReleaseObservation {
     const LegacyBattleRenderGeometry* geometry{};
     u32 release_count{};
-    u32 released_token{};
-    u32 owner_token_during_release{};
+    bool owner_present_during_release{};
     bool primary_rows_present_during_release{};
     bool surface_rows_present_during_release{};
 
-    void release(const u32 token) noexcept override {
+    void operator()(u8* buffer) noexcept {
         ++release_count;
-        released_token = token;
-        owner_token_during_release = geometry->auxiliary_buffer_token;
+        owner_present_during_release =
+            geometry->auxiliary_buffer.get() == buffer;
         primary_rows_present_during_release =
             geometry->primary_row_offsets != nullptr;
         surface_rows_present_during_release =
             geometry->surface_row_offsets != nullptr;
+        delete[] buffer;
     }
 };
 
@@ -6457,76 +6455,78 @@ void test_literal_image_rotation(openswd3::test::Context& test) {
 }
 
 void test_render_auxiliary_buffer_release(openswd3::test::Context& test) {
+    AuxiliaryBufferReleaseObservation observation;
     LegacyBattleRenderGeometry geometry;
     geometry.primary_row_stride = 123;
-    TrackingAuxiliaryBufferReleaser releaser;
-    releaser.geometry = &geometry;
+    observation.geometry = &geometry;
+    geometry.auxiliary_buffer.get_deleter() = std::ref(observation);
 
     const bool empty =
         openswd3::battle::release_legacy_battle_render_auxiliary_buffer(
-            geometry, releaser
+            geometry
         );
     test.expect_true(
-        !empty && releaser.release_count == 0U &&
-            geometry.auxiliary_buffer_token == 0U &&
+        !empty && observation.release_count == 0U &&
+            geometry.auxiliary_buffer == nullptr &&
             geometry.primary_row_stride == 123,
-        "empty auxiliary buffer release returns without calling the releaser"
+        "empty auxiliary buffer release leaves the unrelated row stride unchanged"
     );
 
-    geometry.auxiliary_buffer_token = 0x12345678U;
+    geometry.auxiliary_buffer.reset(new u8[16U]);
     const bool released =
         openswd3::battle::release_legacy_battle_render_auxiliary_buffer(
-            geometry, releaser
+            geometry
         );
     test.expect_true(
-        released && releaser.release_count == 1U &&
-            releaser.released_token == 0x12345678U &&
-            releaser.owner_token_during_release == 0x12345678U &&
-            geometry.auxiliary_buffer_token == 0U &&
+        released && observation.release_count == 1U &&
+            observation.owner_present_during_release &&
+            geometry.auxiliary_buffer == nullptr &&
             geometry.primary_row_stride == 123,
         "nonempty auxiliary buffer clears the owner only after release returns"
+    );
+    const bool repeated =
+        openswd3::battle::release_legacy_battle_render_auxiliary_buffer(geometry);
+    test.expect_true(
+        !repeated && observation.release_count == 1U,
+        "repeated cleanup does not delete the retired allocation again"
     );
 }
 
 void test_render_resource_cleanup(openswd3::test::Context& test) {
     LegacyBattleRenderGeometry empty_geometry;
-    TrackingAuxiliaryBufferReleaser empty_releaser;
-    empty_releaser.geometry = &empty_geometry;
     const auto empty = openswd3::battle::release_legacy_battle_render_resources(
-        empty_geometry, empty_releaser
+        empty_geometry
     );
     test.expect_true(
         !empty.auxiliary_buffer_released &&
             !empty.surface_row_offsets_released &&
-            !empty.primary_row_offsets_released &&
-            empty_releaser.release_count == 0U,
+            !empty.primary_row_offsets_released,
         "empty render resource cleanup skips all three release branches"
     );
 
+    AuxiliaryBufferReleaseObservation observation;
     LegacyBattleRenderGeometry geometry;
     geometry.primary_row_offsets = std::make_unique<u32[]>(2U);
     geometry.surface_row_offsets = std::make_unique<u32[]>(2U);
     geometry.primary_row_offsets[0] = 11U;
     geometry.surface_row_offsets[0] = 22U;
-    geometry.auxiliary_buffer_token = 0x89ABCDEFU;
+    geometry.auxiliary_buffer.reset(new u8[16U]);
+    geometry.auxiliary_buffer.get_deleter() = std::ref(observation);
     geometry.surface_width = 640;
     geometry.direction_vectors.horizontal[17U] = -1000;
 
-    TrackingAuxiliaryBufferReleaser releaser;
-    releaser.geometry = &geometry;
+    observation.geometry = &geometry;
     const auto released =
-        openswd3::battle::release_legacy_battle_render_resources(
-            geometry, releaser
-        );
+        openswd3::battle::release_legacy_battle_render_resources(geometry);
     test.expect_true(
         released.auxiliary_buffer_released &&
             released.surface_row_offsets_released &&
             released.primary_row_offsets_released &&
-            releaser.release_count == 1U &&
-            releaser.released_token == 0x89ABCDEFU &&
-            releaser.primary_rows_present_during_release &&
-            releaser.surface_rows_present_during_release &&
-            geometry.auxiliary_buffer_token == 0U &&
+            observation.release_count == 1U &&
+            observation.owner_present_during_release &&
+            observation.primary_rows_present_during_release &&
+            observation.surface_rows_present_during_release &&
+            geometry.auxiliary_buffer == nullptr &&
             geometry.surface_row_offsets == nullptr &&
             geometry.primary_row_offsets == nullptr &&
             geometry.surface_width == 640 &&

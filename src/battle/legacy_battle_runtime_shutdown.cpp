@@ -4,13 +4,12 @@ namespace openswd3::battle {
 
 LegacyBattleRuntimeShutdownResult shutdown_legacy_battle_runtime(
     LegacyBattleStartupState& startup,
-    LegacyBattleRenderAuxiliaryBufferReleaser& render_resources,
     LegacyBattleGroupAStorage* party_resources,
     LegacyBattleGroupBStorage* enemy_resources
 ) noexcept {
     LegacyBattleRuntimeShutdownResult result;
     result.render_cleanup = release_legacy_battle_render_resources(
-        startup.render_geometry, render_resources
+        startup.render_geometry
     );
 
     compat::u32 object_token = kLegacyBattleGroupAObjectBaseToken;

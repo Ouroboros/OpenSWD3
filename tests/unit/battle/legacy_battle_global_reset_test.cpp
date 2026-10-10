@@ -117,9 +117,6 @@ public:
     void release_owner(const u32 token) noexcept override {
         released_owners.push_back(token);
     }
-    void release(const u32 token) noexcept override {
-        released_render_tokens.push_back(token);
-    }
 
     [[nodiscard]] LegacyBattleGlobalResetCallReply invoke_reset(
         const LegacyBattleGlobalResetCall call, const u32 argument
@@ -165,7 +162,7 @@ public:
     std::vector<LegacyBattleDatabaseHandleCloseReply> database_close_replies;
     std::vector<u32> released_images;
     std::vector<u32> released_owners;
-    std::vector<u32> released_render_tokens;
+    std::shared_ptr<bool> render_buffer_released = std::make_shared<bool>(false);
     SilentSampleBackend sample_backend;
     LegacySndArchive archive;
     LegacySampleManager samples;
@@ -227,7 +224,13 @@ void seed_state(
     startup.background_rotation_cache.cached_image_tokens[0] = 202U;
     startup.render_geometry.primary_row_offsets = std::make_unique<u32[]>(2U);
     startup.render_geometry.surface_row_offsets = std::make_unique<u32[]>(2U);
-    startup.render_geometry.auxiliary_buffer_token = 303U;
+    startup.render_geometry.auxiliary_buffer.reset(new u8[16U]);
+    startup.render_geometry.auxiliary_buffer.get_deleter() =
+        [released = port.render_buffer_released](u8* buffer) {
+            delete[] buffer;
+            *released = true;
+        };
+
     startup.background.image_record.fill(9U);
     startup.background.image_record[0U] = 404U;
     startup.reset.block_525470.fill(9U);
@@ -623,10 +626,10 @@ void test_battle_global_reset(openswd3::test::Context& test) {
             "closed rotation cache release runs before global stores"
         );
         test.expect_true(
-            port.released_render_tokens == std::vector<u32>{303U} &&
+            *port.render_buffer_released &&
                 startup.render_geometry.primary_row_offsets == nullptr &&
                 startup.render_geometry.surface_row_offsets == nullptr &&
-                startup.render_geometry.auxiliary_buffer_token == 0U,
+                startup.render_geometry.auxiliary_buffer == nullptr,
             "closed render cleanup runs before the fixed render owner zero range"
         );
         test.expect_true(

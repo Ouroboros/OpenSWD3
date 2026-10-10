@@ -222,16 +222,6 @@ public:
     u32 calls{};
 };
 
-class TrackingBattleRenderAuxiliaryReleaser final
-    : public openswd3::battle::LegacyBattleRenderAuxiliaryBufferReleaser {
-public:
-    void release(const u32 token) noexcept override {
-        released.push_back(token);
-    }
-
-    std::vector<u32> released;
-};
-
 openswd3::battle::LegacyBattleActorGroupAElementDestructionView
 destruction_view(openswd3::battle::LegacyBattleActorGroupAElementState& state) {
     return {
@@ -1666,12 +1656,15 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
             initialize_legacy_battle_render_geometry_static_lifecycle(
                 geometry, registration_port
             );
-        geometry.auxiliary_buffer_token = 0x12345678U;
-        TrackingBattleRenderAuxiliaryReleaser releaser;
+        auto released = std::make_shared<bool>(false);
+        geometry.auxiliary_buffer.reset(new u8[16U]);
+        geometry.auxiliary_buffer.get_deleter() = [released](u8* buffer) {
+            delete[] buffer;
+            *released = true;
+        };
+
         const auto cleanup = openswd3::battle::
-            release_legacy_battle_render_geometry_static_lifecycle(
-                geometry, releaser
-            );
+            release_legacy_battle_render_geometry_static_lifecycle(geometry);
         test.expect_true(
             initialization.owner_token ==
                     openswd3::battle::kLegacyBattleRenderGeometryOwnerToken &&
@@ -1691,10 +1684,10 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
                 cleanup.cleanup.auxiliary_buffer_released &&
                 cleanup.cleanup.surface_row_offsets_released &&
                 cleanup.cleanup.primary_row_offsets_released &&
-                releaser.released == std::vector<u32>{0x12345678U} &&
+                *released &&
                 geometry.primary_row_offsets == nullptr &&
                 geometry.surface_row_offsets == nullptr &&
-                geometry.auxiliary_buffer_token == 0U,
+                geometry.auxiliary_buffer == nullptr,
             "render geometry static lifecycle initializes registers and releases one owner"
         );
     }

@@ -4,6 +4,7 @@
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 
 #include <array>
+#include <functional>
 #include <memory>
 
 namespace openswd3::battle {
@@ -59,18 +60,13 @@ struct LegacyBattleRenderGeometry {
     compat::i32 top{};
     compat::i32 right{};
     compat::i32 bottom{};
-    compat::u32 auxiliary_buffer_token{};
+    std::unique_ptr<compat::u8[], std::function<void(compat::u8*)>>
+        auxiliary_buffer{nullptr, std::default_delete<compat::u8[]>{}};
 };
 
 struct LegacyBattleRowOffsetAllocation {
     std::unique_ptr<compat::u32[]> words{};
     compat::u32 word_capacity{};
-};
-
-class LegacyBattleRenderAuxiliaryBufferReleaser {
-public:
-    virtual ~LegacyBattleRenderAuxiliaryBufferReleaser() = default;
-    virtual void release(compat::u32 token) noexcept = 0;
 };
 
 struct LegacyBattleRenderGeometryBindingIndexRecord {
@@ -203,15 +199,13 @@ advance_legacy_battle_direction_raster(
 
 // sub_433F00.
 [[nodiscard]] bool release_legacy_battle_render_auxiliary_buffer(
-    LegacyBattleRenderGeometry& geometry,
-    LegacyBattleRenderAuxiliaryBufferReleaser& releaser
+    LegacyBattleRenderGeometry& geometry
 ) noexcept;
 
 // sub_433D70.
 [[nodiscard]] LegacyBattleRenderCleanupResult
 release_legacy_battle_render_resources(
-    LegacyBattleRenderGeometry& geometry,
-    LegacyBattleRenderAuxiliaryBufferReleaser& releaser
+    LegacyBattleRenderGeometry& geometry
 ) noexcept;
 
 // sub_433DC0.
@@ -270,8 +264,7 @@ initialize_legacy_battle_render_geometry_static_lifecycle(
 // attached exit wrapper sub_4518D0.
 [[nodiscard]] LegacyBattleRenderGeometryStaticCleanupResult
 release_legacy_battle_render_geometry_static_lifecycle(
-    LegacyBattleRenderGeometry& geometry,
-    LegacyBattleRenderAuxiliaryBufferReleaser& releaser
+    LegacyBattleRenderGeometry& geometry
 ) noexcept;
 
 // sub_433E20.

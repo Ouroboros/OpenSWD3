@@ -6,25 +6,25 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <memory>
-#include <vector>
 
 namespace {
 
 using namespace openswd3::battle;
 using openswd3::compat::u32;
 
-class ShutdownPort final : public LegacyBattleRenderAuxiliaryBufferReleaser {
+class RenderReleaseObservation final {
 public:
-    ShutdownPort(
+    RenderReleaseObservation(
         LegacyBattleStartupState& startup,
         LegacyBattleGroupAStorage& party,
         LegacyBattleGroupBStorage& enemies
     )
         : startup_(startup), party_(party), enemies_(enemies) {}
 
-    void release(const u32 token) noexcept override {
-        release_order.push_back(token);
+    void operator()(openswd3::compat::u8* buffer) noexcept {
+        released = true;
         actors_live_during_render_release =
             std::ranges::all_of(
                 startup_.party,
@@ -42,12 +42,13 @@ public:
             std::ranges::all_of(*enemies_.actors(), [&](const auto& actor) {
                 return !enemies_.resource_bytes(actor.resource_token).empty();
             });
+        delete[] buffer;
     }
 
     LegacyBattleStartupState& startup_;
     LegacyBattleGroupAStorage& party_;
     LegacyBattleGroupBStorage& enemies_;
-    std::vector<u32> release_order;
+    bool released{};
     bool actors_live_during_render_release{};
 };
 
@@ -64,7 +65,8 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
             "construct actual party and enemy allocations for shutdown"
         );
         startup.group_b_lifecycle = enemies.actors();
-        startup.render_geometry.auxiliary_buffer_token = 0x12345678U;
+        startup.render_geometry.auxiliary_buffer =
+            std::make_unique<openswd3::compat::u8[]>(16U);
         startup.render_geometry.primary_row_offsets =
             std::make_unique<u32[]>(2U);
         startup.render_geometry.surface_row_offsets =
@@ -86,9 +88,13 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
             actor.resource_bytes.fill(0xA5U);
         }
 
-        ShutdownPort port{startup, party_resources, enemies};
+        RenderReleaseObservation observation{
+            startup, party_resources, enemies
+        };
+        startup.render_geometry.auxiliary_buffer.get_deleter() =
+            std::ref(observation);
         const auto result = shutdown_legacy_battle_runtime(
-            startup, port, &party_resources, &enemies
+            startup, &party_resources, &enemies
         );
         bool party_cleared = true;
         for (u32 index = 0U; index < kLegacyBattleGroupAObjectCount; ++index) {
@@ -120,12 +126,12 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
                 result.render_cleanup.auxiliary_buffer_released &&
                 result.render_cleanup.surface_row_offsets_released &&
                 result.render_cleanup.primary_row_offsets_released &&
-                startup.render_geometry.auxiliary_buffer_token == 0U &&
+                startup.render_geometry.auxiliary_buffer == nullptr &&
                 startup.render_geometry.surface_row_offsets == nullptr &&
                 startup.render_geometry.primary_row_offsets == nullptr &&
-                port.release_order == std::vector<u32>{0x12345678U} &&
-                port.actors_live_during_render_release && party_cleared &&
-                enemies_cleared,
+                observation.released &&
+                observation.actors_live_during_render_release &&
+                party_cleared && enemies_cleared,
             "shutdown releases rendering before retiring actual party and enemy records"
         );
     }
@@ -135,15 +141,13 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
         LegacyBattleGroupBStorage enemies;
         auto action = std::make_unique<LegacyBattleActionDispatchState>();
         LegacyBattleGroupAStorage party_resources{startup, *action};
-        ShutdownPort port{startup, party_resources, enemies};
         const auto result =
-            shutdown_legacy_battle_runtime(startup, port, nullptr, nullptr);
+            shutdown_legacy_battle_runtime(startup, nullptr, nullptr);
         test.expect_true(
             result.status ==
                     LegacyBattleRuntimeShutdownStatus::
                         group_b_resource_typed_stop &&
                 result.stopped_group_b_index == 0U &&
-                port.release_order.empty() &&
                 !result.render_cleanup.auxiliary_buffer_released &&
                 !result.group_b_resource_cleanups[0U].resource_released,
             "shutdown before enemy initialization stops at the first missing actor without borrowing storage"
@@ -160,12 +164,11 @@ void test_battle_runtime_shutdown(openswd3::test::Context& test) {
 
         auto action = std::make_unique<LegacyBattleActionDispatchState>();
         LegacyBattleGroupAStorage party_resources{startup, *action};
-        ShutdownPort port{startup, party_resources, enemies};
         const auto result =
-            shutdown_legacy_battle_runtime(startup, port, nullptr, nullptr);
+            shutdown_legacy_battle_runtime(startup, nullptr, nullptr);
         test.expect_true(
             result.status == LegacyBattleRuntimeShutdownStatus::completed &&
-                port.release_order.empty() &&
+                !result.render_cleanup.auxiliary_buffer_released &&
                 std::ranges::all_of(
                     result.group_a_resource_cleanups,
                     [](const auto& cleanup) {

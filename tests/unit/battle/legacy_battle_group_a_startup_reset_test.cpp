@@ -71,16 +71,6 @@ struct Fixture {
     }
 };
 
-class RegistryShutdown final
-    : public LegacyBattleRenderAuxiliaryBufferReleaser {
-public:
-    void release(u32 token) noexcept override {
-        released.push_back(token);
-    }
-
-    std::vector<u32> released;
-};
-
 class Diagnostic final : public LegacyBattleGroupAConfigurationDiagnosticPort {
 public:
     LegacyBattleGroupAConfigurationDiagnosticReply report_missing_placement(
@@ -314,13 +304,12 @@ void test_battle_group_a_startup_reset(openswd3::test::Context& test) {
             );
         }
 
-        RegistryShutdown port;
         const auto result = shutdown_legacy_battle_runtime(
-            *fixture.startup, port, &storage, &enemies
+            *fixture.startup, &storage, &enemies
         );
         test.expect_true(
             result.status == LegacyBattleRuntimeShutdownStatus::completed &&
-                port.released.empty() &&
+                !result.render_cleanup.auxiliary_buffer_released &&
                 std::ranges::all_of(
                     tokens,
                     [&](const auto token) {
@@ -352,11 +341,11 @@ void test_battle_group_a_startup_reset(openswd3::test::Context& test) {
             "enemy records become unreadable and cannot be freed twice after shutdown"
         );
         const auto repeated = shutdown_legacy_battle_runtime(
-            *fixture.startup, port, &storage, &enemies
+            *fixture.startup, &storage, &enemies
         );
         test.expect_true(
             repeated.status == LegacyBattleRuntimeShutdownStatus::completed &&
-                port.released.empty(),
+                !repeated.render_cleanup.auxiliary_buffer_released,
             "repeated shutdown does not release retired allocations again"
         );
     }
