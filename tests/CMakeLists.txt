@@ -761,6 +761,12 @@ add_test(
     NAME battle.legacy_battle_setup
     COMMAND openswd3_battle_legacy_battle_setup_tests
 )
+add_test(
+    NAME battle.legacy_battle_actor_array_unwind
+    COMMAND ${CMAKE_COMMAND}
+        "-DTEST_PROGRAM=$<TARGET_FILE:openswd3_battle_legacy_battle_setup_tests>"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/support/actor_array_unwind_termination.cmake"
+)
 
 # Workpack 316 and its four callers are one independently buildable test unit.
 # These sources are not also compiled into the legacy battle setup target.
@@ -4096,6 +4102,11 @@ function(openswd3_lock_shared_test_executable lock_name)
     endif()
 endfunction()
 
+openswd3_lock_shared_test_executable(
+    battle_setup
+    battle.legacy_battle_setup
+    battle.legacy_battle_actor_array_unwind
+)
 openswd3_lock_shared_test_executable(
     act_archive
     asset_runtime.legacy_act_archive

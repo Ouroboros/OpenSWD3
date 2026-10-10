@@ -4,6 +4,8 @@
 #include "openswd3/battle/legacy_battle_group_a_storage.hpp"
 #include "openswd3/battle/legacy_battle_group_b_storage.hpp"
 
+#include <exception>
+
 namespace openswd3::battle {
 
 LegacyBattleActorGroupAElementConstructionResult
@@ -260,19 +262,40 @@ LegacyBattleActorGroupADestructionResult release_legacy_battle_actor_group_a(
     return result;
 }
 
-LegacyBattleActorGroupBDestructionResult release_legacy_battle_actor_group_b(
-    LegacyBattleActorVectorDestructionPort& destruction_port
-) {
-    LegacyBattleActorGroupBDestructionResult result{
-        .request = {
-            .base_token = kLegacyBattleActorGroupBBaseToken,
-            .element_size = kLegacyBattleActorGroupBElementSize,
-            .element_count = kLegacyBattleActorGroupBElementCount,
-            .destructor_token = kLegacyBattleActorGroupBDestructorToken,
-        },
+LegacyBattleActorGroupBDestructionResult
+release_legacy_battle_actor_group_b(LegacyBattleGroupBStorage& actors) {
+    LegacyBattleActorGroupBDestructionResult result;
+    auto remaining = kLegacyBattleActorGroupBElementCount;
+    const auto release_remaining = [&] {
+        while (remaining != 0U) {
+            --remaining;
+            result.element = release_legacy_battle_actor_group_b_element(
+                (*actors.actors())[remaining], actors
+            );
+            if (result.element.status !=
+                LegacyBattleActorGroupBElementDestructionStatus::completed) {
+                result.stopped_actor_index = remaining;
+                return;
+            }
+        }
     };
-    result.return_value = destruction_port.destroy_vector(result.request);
-    result.vector_destructor_calls = 1U;
+
+    try {
+        release_remaining();
+    } catch (...) {
+        try {
+            release_remaining();
+        } catch (...) {
+            std::terminate();
+        }
+
+        if (result.stopped_actor_index) {
+            return result;
+        }
+
+        throw;
+    }
+
     return result;
 }
 

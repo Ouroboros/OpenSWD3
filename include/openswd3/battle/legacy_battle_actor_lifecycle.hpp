@@ -27,8 +27,6 @@ inline constexpr compat::u32 kLegacyBattleActorGroupBElementSize = 0x2B28U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBElementCount = 8U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBResourceStateBaseToken =
     0x73000000U;
-inline constexpr compat::u32 kLegacyBattleActorGroupBDestructorToken =
-    0x00475590U;
 inline constexpr compat::u32 kLegacyBattleActorGroupBExitCleanupToken =
     0x00451840U;
 inline constexpr compat::u32 kLegacyBattleActorSingletonToken = 0x00521598U;
@@ -239,9 +237,8 @@ struct LegacyBattleActorGroupADestructionResult {
 };
 
 struct LegacyBattleActorGroupBDestructionResult {
-    LegacyBattleActorVectorDestructionRequest request{};
-    compat::u32 vector_destructor_calls{};
-    compat::u32 return_value{};
+    std::optional<compat::u32> stopped_actor_index;
+    LegacyBattleActorGroupBElementDestructionResult element{};
 };
 
 struct LegacyBattleActorGroupAStaticInitializationResult {
@@ -314,11 +311,8 @@ release_legacy_battle_actor_group_a(
     LegacyBattleActorVectorDestructionPort& destruction_port
 );
 
-// sub_451840: wrap the compiler vector-destruction iterator for group B.
 [[nodiscard]] LegacyBattleActorGroupBDestructionResult
-release_legacy_battle_actor_group_b(
-    LegacyBattleActorVectorDestructionPort& destruction_port
-);
+release_legacy_battle_actor_group_b(LegacyBattleGroupBStorage& actors);
 
 // sub_4517A0 plus its external function chunk at loc_4517D0.
 [[nodiscard]] LegacyBattleActorGroupAStaticInitializationResult

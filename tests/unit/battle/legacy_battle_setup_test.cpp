@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <limits>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 void test_battle_action_mode_refresh(openswd3::test::Context& test);
@@ -45,6 +46,7 @@ void test_battle_attack_order_remove(openswd3::test::Context& test);
 void test_battle_retreat_commit(openswd3::test::Context& test);
 void test_battle_actor_frame_sequence(openswd3::test::Context& test);
 void test_battle_actor_lifecycle(openswd3::test::Context& test);
+void test_battle_actor_array_unwind_termination();
 void test_battle_actor_startup_reset(openswd3::test::Context& test);
 void test_battle_group_a_startup_reset(openswd3::test::Context& test);
 void test_battle_group_b_startup_reset(openswd3::test::Context& test);
@@ -7377,7 +7379,13 @@ void test_real_battle_98_enemy(openswd3::test::Context& test) {
 
 }  // namespace
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc == 2 &&
+        std::string_view{argv[1]} == "--actor-array-unwind-termination") {
+        test_battle_actor_array_unwind_termination();
+        return 0;
+    }
+
     openswd3::test::Context test;
     test_party_selection_and_three_member_formation(test);
     test_all_formation_sizes_and_mirroring(test);

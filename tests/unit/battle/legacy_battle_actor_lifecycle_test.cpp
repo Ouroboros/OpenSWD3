@@ -9,8 +9,11 @@
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
+#include <cstdlib>
+#include <exception>
 #include <memory>
 #include <stdexcept>
+#include <string_view>
 #include <vector>
 
 #include "test.hpp"
@@ -87,6 +90,57 @@ void bind_description_release(
     );
 }
 
+enum class DescriptionReleaseFailure { none, reject, exception };
+
+struct EnemyArrayReleaseFixture {
+    std::vector<u32> events;
+    std::array<DescriptionReleaseFailure, 8U> failures{};
+    std::array<u32, 8U> resource_tokens{};
+    bool resources_released_first{true};
+    openswd3::battle::LegacyBattleGroupBStorage storage;
+
+    EnemyArrayReleaseFixture() {
+        if (!storage.construct()) {
+            throw std::runtime_error{"enemy release fixture allocation failed"};
+        }
+
+        using Text = openswd3::battle::LegacyBattleMonText;
+        for (u32 index = 0U; index < 8U; ++index) {
+            auto& actor = (*storage.actors())[index];
+            resource_tokens[index] = actor.resource_token;
+            auto bytes = std::make_shared<Text::Storage>(
+                Text::Storage{static_cast<u8>(index + 1U), 0U}
+            );
+            actor.action_composition.resource_definition_description.bind(
+                bytes,
+                std::make_shared<const Text::Release>([this, index, bytes] {
+                    events.push_back(index);
+                    resources_released_first = resources_released_first &&
+                        (*storage.actors())[index].resource_token == 0U &&
+                        storage.resource_bytes(resource_tokens[index]).empty();
+                    if (failures[index] ==
+                        DescriptionReleaseFailure::exception) {
+                        throw std::runtime_error{
+                            "enemy description release failed"
+                        };
+                    }
+
+                    if (failures[index] == DescriptionReleaseFailure::reject) {
+                        return false;
+                    }
+
+                    Text::Storage{}.swap(*bytes);
+                    return true;
+                })
+            );
+            write_actor_base_description_token(
+                actor.action_composition.resource_definition,
+                0x61000000U + index * 16U
+            );
+        }
+    }
+};
+
 struct GroupAReleaseStorage {
     std::unique_ptr<openswd3::battle::LegacyBattleStartupState> startup{
         std::make_unique<openswd3::battle::LegacyBattleStartupState>()
@@ -145,18 +199,8 @@ public:
 };
 
 class TrackingGroupBStaticLifecyclePort final
-    : public openswd3::battle::LegacyBattleActorVectorDestructionPort,
-      public openswd3::battle::LegacyBattleActorExitRegistrationPort {
+    : public openswd3::battle::LegacyBattleActorExitRegistrationPort {
 public:
-    [[nodiscard]] u32 destroy_vector(
-        const openswd3::battle::LegacyBattleActorVectorDestructionRequest&
-            request
-    ) override {
-        events.push_back(6U);
-        last_destruction_request = request;
-        return destruction_result;
-    }
-
     [[nodiscard]] u32 register_exit_cleanup(const u32 cleanup_token) override {
         events.push_back(5U);
         registered_cleanup_token = cleanup_token;
@@ -180,11 +224,8 @@ public:
 
     openswd3::battle::LegacyBattleGroupBStorage* observed_storage{};
     bool construction_observed_at_registration{};
-    u32 destruction_result{};
     u32 registration_result{};
     u32 registered_cleanup_token{};
-    openswd3::battle::LegacyBattleActorVectorDestructionRequest
-        last_destruction_request{};
     std::vector<u32> events;
 };
 
@@ -251,19 +292,6 @@ public:
     std::vector<u32> events;
 };
 
-[[nodiscard]] bool is_group_b_request(
-    const openswd3::battle::LegacyBattleActorVectorDestructionRequest& request
-) noexcept {
-    return request.base_token ==
-        openswd3::battle::kLegacyBattleActorGroupBBaseToken &&
-        request.element_size ==
-        openswd3::battle::kLegacyBattleActorGroupBElementSize &&
-        request.element_count ==
-        openswd3::battle::kLegacyBattleActorGroupBElementCount &&
-        request.destructor_token ==
-        openswd3::battle::kLegacyBattleActorGroupBDestructorToken;
-}
-
 [[nodiscard]] bool is_group_a_request(
     const openswd3::battle::LegacyBattleActorVectorDestructionRequest& request
 ) noexcept {
@@ -278,6 +306,25 @@ public:
 }
 
 }  // namespace
+
+void test_battle_actor_array_unwind_termination() {
+    EnemyArrayReleaseFixture actors;
+    actors.failures[5U] = DescriptionReleaseFailure::exception;
+    actors.failures[4U] = DescriptionReleaseFailure::exception;
+    static const EnemyArrayReleaseFixture* termination_fixture;
+    termination_fixture = &actors;
+    std::set_terminate([] {
+        const auto& fixture = *termination_fixture;
+        const auto& events = fixture.events;
+        const bool expected = fixture.resources_released_first &&
+            events.size() == 4U && events[0U] == 7U && events[1U] == 6U &&
+            events[2U] == 5U && events[3U] == 4U;
+        std::_Exit(expected ? 86 : 87);
+    });
+    static_cast<void>(
+        openswd3::battle::release_legacy_battle_actor_group_b(actors.storage)
+    );
+}
 
 void test_battle_actor_lifecycle(openswd3::test::Context& test) {
     for (const std::size_t writable : {0U, 3U, 4U, 55U, 56U}) {
@@ -1242,19 +1289,94 @@ void test_battle_actor_lifecycle(openswd3::test::Context& test) {
     }
 
     {
-        TrackingGroupBStaticLifecyclePort destruction_port;
-        destruction_port.destruction_result = 0x13572468U;
+        EnemyArrayReleaseFixture actors;
         const auto result =
             openswd3::battle::release_legacy_battle_actor_group_b(
-                destruction_port
+                actors.storage
             );
         test.expect_true(
-            destruction_port.events == std::vector<u32>{6U} &&
-                result.vector_destructor_calls == 1U &&
-                result.return_value == 0x13572468U &&
-                is_group_b_request(result.request) &&
-                is_group_b_request(destruction_port.last_destruction_request),
-            "actor group B wrapper forwards exact vector destruction constants"
+            !result.stopped_actor_index && actors.resources_released_first &&
+                actors.events ==
+                    std::vector<u32>{7U, 6U, 5U, 4U, 3U, 2U, 1U, 0U},
+            "enemy array releases each real resource before its base in reverse order"
+        );
+        for (const auto& actor : *actors.storage.actors()) {
+            test.expect_true(
+                actor.resource_token == 0U &&
+                    read_actor_base_description_token(
+                        actor.action_composition.resource_definition
+                    ) == 0U &&
+                    actor.action_composition.resource_definition_description
+                        .empty(),
+                "enemy array release clears real registrations and owned descriptions"
+            );
+        }
+    }
+
+    for (const auto failure :
+         {DescriptionReleaseFailure::reject,
+          DescriptionReleaseFailure::exception}) {
+        for (u32 failed_index = 0U; failed_index < 8U; ++failed_index) {
+            EnemyArrayReleaseFixture actors;
+            actors.failures[failed_index] = failure;
+            openswd3::battle::LegacyBattleActorGroupBDestructionResult result;
+            bool propagated = false;
+            try {
+                result = openswd3::battle::release_legacy_battle_actor_group_b(
+                    actors.storage
+                );
+            } catch (const std::runtime_error& error) {
+                propagated = std::string_view{error.what()} ==
+                    "enemy description release failed";
+            }
+
+            const bool unwinding =
+                failure == DescriptionReleaseFailure::exception;
+            test.expect_true(
+                propagated == unwinding && actors.resources_released_first &&
+                    (unwinding || result.stopped_actor_index == failed_index),
+                "enemy array distinguishes exception propagation from a fault snapshot"
+            );
+            std::vector<u32> expected;
+            for (u32 remaining = 8U; remaining != 0U;) {
+                const auto index = --remaining;
+                const bool visited = unwinding || index >= failed_index;
+                if (visited) {
+                    expected.push_back(index);
+                }
+
+                const auto& actor = (*actors.storage.actors())[index];
+                test.expect_true(
+                    actors.storage.resource_bytes(actors.resource_tokens[index])
+                                .empty() == visited &&
+                        (read_actor_base_description_token(
+                             actor.action_composition.resource_definition
+                         ) == 0U) == (visited && index != failed_index),
+                    "enemy destruction preserves the failed base and releases only visited actors"
+                );
+            }
+
+            test.expect_true(
+                actors.events == expected,
+                "unwinding continues with earlier actors without retrying the thrower"
+            );
+        }
+    }
+
+    {
+        EnemyArrayReleaseFixture actors;
+        actors.failures[5U] = DescriptionReleaseFailure::exception;
+        actors.failures[3U] = DescriptionReleaseFailure::reject;
+        const auto result =
+            openswd3::battle::release_legacy_battle_actor_group_b(
+                actors.storage
+            );
+        test.expect_true(
+            result.stopped_actor_index == 3U &&
+                actors.events == std::vector<u32>{7U, 6U, 5U, 4U, 3U} &&
+                !actors.storage.resource_bytes(actors.resource_tokens[2U])
+                     .empty(),
+            "a fault snapshot during unwind preserves the remaining earlier resources"
         );
     }
 
