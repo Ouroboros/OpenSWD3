@@ -197,10 +197,12 @@ overlay、action kind 2、decimal child、sample pan 双侧、第二记录、附
 RET 栈页，以及两个 caller 与 callee 的联合寄存器、flags 和 SEH 捕获后端。原版动态差分登记为
 `blocked_runtime_oracle`，不得写成 `original_diff_verified`。未启动原版或 OpenSWD3 游戏程序。
 
-## 10. 最终闭环状态
+## 10. 历史工作包验证
 
-生产 typed leaf、两个真实 caller、closed-child trace merge 与全部汇编独立测试已经完成。
-最终验证结果：
+以下是此前Workpack 315的验证记录，不是本次数字结果迁移重新执行的门禁。
+当前迁移结果与剩余通用协议见第11节。
+
+生产 typed leaf、两个真实 caller、closed-child trace merge 与汇编独立测试的历史结果：
 
 - battle aggregate 定向测试通过；
 - Linux core `199/199`；
@@ -228,3 +230,24 @@ LST 摘录 SHA-256：
 6afcf694a7280fce989df8fb73739b48ee468aa20aacb7741a34d762d740d532  function.lst
 374788fd2a4ffe12d611d3d1ade9fcf4a9721015a2df0b4355482437b690e883  callers.lst
 ```
+
+## 11. 数字绘制结果与共享数据迁移
+
+`004795EF`直接借用`group_a_action_shared.decimal_drawing`，保留颜色槽
+低WORD、余数、X、Y、leading、帧record和实际source。原先每次创建并
+丢弃的局部数字状态已删除。数字子操作使用可选实际结果，删除调用计数、
+完整寄存器返回和重复宽度数组。
+
+子操作失败后先阻断sample与公共尾部，不发布正常末位宽度；物理调用
+记录仍是尚未迁移父层的既有协议。正常后只把实际末位宽度转换为该父层
+需要的值：`004795F4`清理栈后，`004795F7`只覆盖AX；前一子操作
+正常返回已经清空高WORD。
+
+core/ASan的setup与actor_frame_316各1/1通过，SDL编译链接通过。
+最终五个日志均无告警或错误；写序修正前的日志不用于当前验收。
+日志为`build/tmp/runtime/decimal-semantic-{core,callers-core,asan,callers-asan,sdl}.log`。
+实际帧、source借用与共享低WORD由角色显示测试直接检查，未启动游戏。
+
+本父层仍有callee编号、参数数组、寄存器请求/回复、物理调用计数及Port。
+帧资源接口也未迁移；`0047C1F0`的八个数字调用及数字记录更新仍未实现。
+本切片不升级完整父链、B11、Workpack 316、318或原版动态差分验收。

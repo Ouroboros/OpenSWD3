@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_tiled_frame.hpp"
@@ -92,18 +93,14 @@ struct LegacyBattleDecimalPlaceResult {
     LegacyBattleDecimalPlaceStatus status{
         LegacyBattleDecimalPlaceStatus::completed
     };
-    rendering::LegacyBlitExecutionStatus blit_status{
-        rendering::LegacyBlitExecutionStatus::completed
-    };
+    std::optional<rendering::LegacyBlitExecutionStatus> blit_status{};
     compat::u32 divisor{};
     compat::u32 quotient{};
     compat::u32 resource_id{};
     compat::u32 frame_index{};
     compat::u32 request_flags{};
-    compat::u32 frame_load_calls{};
-    compat::u32 frame_draw_calls{};
     compat::i32 remaining_after{};
-    compat::u32 return_value{};
+    std::optional<compat::u16> advance_pixels{};
 };
 
 enum class LegacyBattleTenPlaceDecimalStatus : compat::u8 {
@@ -115,14 +112,10 @@ struct LegacyBattleTenPlaceDecimalResult {
     LegacyBattleTenPlaceDecimalStatus status{
         LegacyBattleTenPlaceDecimalStatus::completed
     };
-    std::array<compat::u32, 10> divisors{};
-    std::array<LegacyBattleDecimalPlaceResult, 10> places{};
-    std::array<compat::u32, 10> place_returns{};
-    std::array<compat::u16, 10> x_advances{};
-    compat::u32 call_count{};
-    compat::u32 stopped_place_index{};
+    std::array<std::optional<LegacyBattleDecimalPlaceResult>, 10> places{};
+    std::optional<std::size_t> stopped_place_index{};
     compat::i32 final_x{};
-    compat::u32 legacy_return_value{};
+    std::optional<compat::u16> last_digit_width{};
 };
 
 enum class LegacyBattleDecimalFrameDrawStatus : compat::u8 {
@@ -218,10 +211,10 @@ coordinate_legacy_battle_ten_place_decimal(
     rendering::LegacyBlitEffectState& shared_effects,
     rendering::LegacyRleRowJitterState& jitter,
     rendering::LegacyFramePieceProvider& frame_provider,
-    compat::u32 color_stack_slot,
+    compat::u16 color,
     compat::i32 value,
-    compat::i32 x,
-    compat::i32 y
+    compat::i32 origin_x,
+    compat::i32 origin_y
 ) noexcept;
 
 // sub_4506B0: decompose a signed four-digit value and draw digit frames right-to-left.

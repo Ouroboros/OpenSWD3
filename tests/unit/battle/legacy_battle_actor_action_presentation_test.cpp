@@ -1153,11 +1153,11 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActorActionPresentationStatus::
                         decimal_draw_typed_stop &&
-                !result.returned && result.decimal_draw_calls == 1U &&
-                result.decimal_draw.status ==
+                !result.returned && result.decimal_draw &&
+                result.decimal_draw->status ==
                     openswd3::battle::LegacyBattleTenPlaceDecimalStatus::
                         place_typed_stop &&
-                recorded_decimal_call,
+                !result.decimal_draw->last_digit_width && recorded_decimal_call,
             "ten-place decimal child typed stop preserves the physical 004795EF CALL and suppresses the suffix"
         );
     }
@@ -1167,6 +1167,8 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
         fixture.startup->party[0U].progress.special_ready = 1U;
         fixture.startup->party[0U].workspace.special_item_latch = 1U;
         fixture.frame_provider.prepare();
+        auto& drawing = fixture.action->group_a_action_shared.decimal_drawing;
+        drawing.packed_color_state = 0xABCD0055U;
         const auto result =
             openswd3::battle::advance_legacy_battle_actor_action_presentation(
                 openswd3::battle::
@@ -1177,12 +1179,17 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
                 request(group_a_token)
             );
         test.expect_true(
-            result.returned && result.decimal_draw_calls == 1U &&
-                result.decimal_draw.status ==
+            result.returned && result.decimal_draw &&
+                result.decimal_draw->status ==
                     openswd3::battle::LegacyBattleTenPlaceDecimalStatus::
                         completed &&
-                result.decimal_draw.call_count != 0U &&
-                fixture.frame_provider.calls != 0U,
+                result.decimal_draw->last_digit_width == 32U &&
+                result.decimal_draw->places.back()->advance_pixels == 32U &&
+                drawing.packed_color_state == 0x23540055U &&
+                drawing.frame.frame_record_available &&
+                drawing.frame.source_published &&
+                drawing.frame.current_source.bytes.data() ==
+                    fixture.frame_provider.bytes.data(),
             "ten-place decimal child completes normally with an available frame provider"
         );
     }

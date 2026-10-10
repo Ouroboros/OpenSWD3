@@ -4,6 +4,7 @@
 #include "openswd3/battle/legacy_battle_actor_action_target.hpp"
 #include "openswd3/battle/legacy_battle_actor_field_26c0.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
+#include "openswd3/battle/legacy_battle_frame_draw.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
@@ -227,6 +228,7 @@ struct LegacyBattleGroupAActionExecutionSharedState {
     compat::u32 sample_handle{};            // 0x004AB784
     compat::i32 decimal_value{};            // 0x004ACBD0
     compat::i32 last_effect_value{};        // 0x0053AE8C
+    LegacyBattleTenPlaceDecimalState decimal_drawing{};
 };
 
 }  // namespace openswd3::battle

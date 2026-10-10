@@ -612,6 +612,7 @@ public:
     i32 failed_index{-1};
     i32 empty_source_index{-1};
     i32 indexed_source_index{-1};
+    std::function<void()> on_load;
     std::array<u16, 4> indexed_palette{0U, 0x1111U, 0x2222U, 0x3333U};
 
     BattleBorderFrameProvider() {
@@ -634,6 +635,10 @@ public:
     ) noexcept override {
         resource_ids.push_back(resource_id);
         load_indices.push_back(piece_index);
+        if (on_load) {
+            on_load();
+        }
+
         if (static_cast<i32>(piece_index) == failed_index ||
             piece_index >= source_storage.size()) {
             return false;
@@ -4674,7 +4679,9 @@ void test_battle_ten_place_decimal_coordinator(openswd3::test::Context& test) {
                 skipped.status ==
                     openswd3::battle::LegacyBattleDecimalPlaceStatus::
                         skipped_leading_zero &&
-                skipped.quotient == 0U && skipped.return_value == 0U &&
+                skipped.quotient == 0U && skipped.advance_pixels == 0U &&
+                !divide_stop.advance_pixels && !divide_stop.blit_status &&
+                !skipped.blit_status &&
                 low_word_zero_skip.status ==
                     openswd3::battle::LegacyBattleDecimalPlaceStatus::
                         skipped_leading_zero &&
@@ -4756,7 +4763,7 @@ void test_battle_ten_place_decimal_coordinator(openswd3::test::Context& test) {
                         unassigned_routine &&
                 result.quotient == 0U && result.resource_id == 0x1234ABCDU &&
                 result.frame_index == 0U && result.request_flags == 0x20U &&
-                result.remaining_after == 5 && result.return_value == 0U &&
+                result.remaining_after == 5 && !result.advance_pixels &&
                 provider.resource_ids == std::vector<u32>{0x1234ABCDU} &&
                 provider.load_indices == std::vector<u32>{0U} &&
                 state.remaining_value == 5 &&
@@ -4794,7 +4801,7 @@ void test_battle_ten_place_decimal_coordinator(openswd3::test::Context& test) {
                         completed &&
                 result.quotient == 0U && result.resource_id == 0x1234ABCDU &&
                 result.frame_index == 0U && result.request_flags == 0U &&
-                result.remaining_after == 5 && result.return_value == 2U &&
+                result.remaining_after == 5 && result.advance_pixels == 2U &&
                 state.remaining_value == 5 && state.leading_digit_seen == 1,
             "forced zero digit inherits leading high word and completes suffix"
         );
@@ -4831,9 +4838,47 @@ void test_battle_ten_place_decimal_coordinator(openswd3::test::Context& test) {
                 result.blit_status ==
                     openswd3::rendering::LegacyBlitExecutionStatus::
                         palette_out_of_bounds &&
-                result.frame_draw_calls == 1U && state.remaining_value == 1 &&
+                !result.advance_pixels && state.remaining_value == 1 &&
                 state.leading_digit_seen == 0,
             "fixed empty tail keeps indexed digit palette unavailable"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleTenPlaceDecimalState state{
+            .packed_color_state = 0xABCD0022U,
+            .remaining_value = 5,
+            .x = 20,
+            .y = 5,
+        };
+        provider.on_load = [&state]() {
+            state.remaining_value = 100;
+            state.x = 120;
+        };
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result = openswd3::battle::draw_legacy_battle_decimal_place(
+            state,
+            framebuffer,
+            clip,
+            shared_request,
+            shared_effects,
+            jitter,
+            provider,
+            1U
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleDecimalPlaceStatus::
+                        completed &&
+                result.quotient == 5U && result.advance_pixels == 9U &&
+                result.remaining_after == 95 && state.remaining_value == 95 &&
+                state.x == 120 && state.leading_digit_seen == 1 &&
+                framebuffer.row_pixels(5U)[104U] == 0x1005U,
+            "digit drawing subtracts from the live shared value after frame loading"
         );
     }
 
@@ -4867,30 +4912,42 @@ void test_battle_ten_place_decimal_coordinator(openswd3::test::Context& test) {
                 shared_effects,
                 jitter,
                 provider,
-                0x9999ABCDU,
+                0xABCDU,
                 12'345'678,
                 20,
                 5
             );
+        std::array<u16, 10> advances{};
+        bool all_places_present = true;
+        for (std::size_t index = 0U; index < kDivisors.size(); ++index) {
+            all_places_present = all_places_present && result.places[index] &&
+                result.places[index]->divisor == kDivisors[index] &&
+                result.places[index]->advance_pixels.has_value();
+            if (result.places[index] && result.places[index]->advance_pixels) {
+                advances[index] = *result.places[index]->advance_pixels;
+            }
+        }
+
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleTenPlaceDecimalStatus::
                         completed &&
-                result.divisors == kDivisors && result.call_count == 10U &&
-                result.legacy_return_value == 15U && result.final_x == 85 &&
+                all_places_present && !result.stopped_place_index &&
+                result.last_digit_width == 15U && result.final_x == 85 &&
                 state.x == 85 && state.y == 5 && state.remaining_value == 0 &&
                 state.leading_digit_seen == 1 &&
                 state.packed_color_state == 0xABCD5678U &&
                 provider.load_indices ==
                     std::vector<u32>{1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U} &&
-                result.places[0].status ==
+                result.places[0]->status ==
                     openswd3::battle::LegacyBattleDecimalPlaceStatus::
                         skipped_leading_zero &&
-                result.places[1].status ==
+                result.places[1]->status ==
                     openswd3::battle::LegacyBattleDecimalPlaceStatus::
                         skipped_leading_zero &&
-                result.places[2].return_value == 0x00230004U &&
-                result.x_advances ==
+                result.places[2]->remaining_after == 2'345'678 &&
+                result.places[2]->advance_pixels == 4U &&
+                advances ==
                     std::array<openswd3::compat::u16, 10>{
                         0, 0, 4, 5, 7, 1, 9, 11, 13, 15
                     } &&
@@ -4927,14 +4984,92 @@ void test_battle_ten_place_decimal_coordinator(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleTenPlaceDecimalStatus::
                         place_typed_stop &&
-                result.call_count == 9U && result.stopped_place_index == 8U &&
-                result.final_x == 36 && state.x == 36 &&
+                result.stopped_place_index == 8U && !result.last_digit_width &&
+                !result.places[9] && result.final_x == 36 && state.x == 36 &&
                 state.remaining_value == 45 && state.leading_digit_seen == 1 &&
                 state.packed_color_state == 0x13570022U &&
                 provider.load_indices == std::vector<u32>{1U, 2U, 3U, 4U} &&
-                result.x_advances[5] == 4U && result.x_advances[6] == 5U &&
-                result.x_advances[7] == 7U && result.x_advances[8] == 0U,
+                result.places[5]->advance_pixels == 4U &&
+                result.places[6]->advance_pixels == 5U &&
+                result.places[7]->advance_pixels == 7U &&
+                result.places[8]->status ==
+                    openswd3::battle::LegacyBattleDecimalPlaceStatus::
+                        frame_unavailable &&
+                !result.places[8]->advance_pixels &&
+                !result.places[8]->blit_status,
             "frame lookup typed stop preserves prior place updates and blocks suffix"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleTenPlaceDecimalState state;
+        provider.on_load = [&state]() { state.x += 100; };
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_ten_place_decimal(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                0xABCDU,
+                1111,
+                20,
+                5
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTenPlaceDecimalStatus::
+                        completed &&
+                result.last_digit_width == 4U && result.final_x == 436 &&
+                state.x == 436 && state.remaining_value == 0 &&
+                provider.load_indices == std::vector<u32>{1U, 1U, 1U, 1U},
+            "each decimal place advances the X reloaded after its frame query"
+        );
+    }
+
+    {
+        openswd3::rendering::LegacyFramebuffer framebuffer{surface};
+        BattleBorderFrameProvider provider;
+        openswd3::battle::LegacyBattleTenPlaceDecimalState state;
+        openswd3::rendering::LegacyBlitRequest shared_request;
+        openswd3::rendering::LegacyBlitEffectState shared_effects;
+        openswd3::rendering::LegacyRleRowJitterState jitter;
+        const auto result =
+            openswd3::battle::coordinate_legacy_battle_ten_place_decimal(
+                state,
+                framebuffer,
+                clip,
+                shared_request,
+                shared_effects,
+                jitter,
+                provider,
+                0xABCDU,
+                0,
+                std::numeric_limits<i32>::max() - 1,
+                5
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleTenPlaceDecimalStatus::
+                        completed &&
+                result.last_digit_width == 2U &&
+                result.final_x == std::numeric_limits<i32>::min() &&
+                state.x == std::numeric_limits<i32>::min() &&
+                result.places[8]->status ==
+                    openswd3::battle::LegacyBattleDecimalPlaceStatus::
+                        skipped_leading_zero &&
+                result.places[9]->status ==
+                    openswd3::battle::LegacyBattleDecimalPlaceStatus::
+                        completed &&
+                provider.load_indices == std::vector<u32>{0U},
+            "the forced zero units glyph advances X with low-32-bit wrapping"
         );
     }
 }

@@ -47,14 +47,14 @@ cdecl唯一参数为32位除数。唯一caller `0x004507A0`固定调用十次，
 
 当前已关闭blitter对测试direct16源的flags `0x20`选择`unassigned_routine`并在该真实callee点typed-stop；余数与leading后缀不得提前执行。普通flags0路径正常完成。indexed8源即使帧record带palette，也因固定空tail在首次palette读取点得到`palette_out_of_bounds`，保留record/source发布而不更新余数。
 
-## 5. 正常后缀与完整EAX
+## 5. 正常后缀与实际字宽
 
 blitter正常公共后缀返回后：
 
 1. `ESI &= 0xFFFF`，只保留商低16位；
 2. 低32位计算`product = quotient_low16 * divisor`；
-3. 以32位回绕执行`remaining -= product`并发布；
-4. leading无条件置1；
+3. 重新读取共享余数，以32位回绕计算`remaining - product`；
+4. leading无条件置1，然后发布新余数；
 5. 从当前帧record读取u16宽到AX。
 
 第5步只覆盖EAX低16位；EAX高16位保留新余数高16位。完整返回值为：
@@ -63,7 +63,14 @@ blitter正常公共后缀返回后：
 (new_remaining & 0xFFFF0000) | frame_width
 ```
 
-caller `0x004507A0`只使用低16位推进X，但typed单位置位结果保留完整EAX。测试值`12,345,678`的千万位完成后余数`2,345,678`，完整返回锁定为`0x00230004`。
+该公式只描述原ABI。caller `0x004507A0`立即清掉高16位，业务结果是
+实际帧宽。现代接口只发布可选`advance_pixels`，不再拼装EAX、不统计
+加载或绘制调用。正常跳过发布宽度0；帧查询或绘制失败不发布成功宽度。
+`blit_status`只在实际进入blitter时存在。
+
+测试值`12,345,678`的千万位完成后共享余数为`2,345,678`、实际字宽4。
+帧查询期间把共享值从5改为100，完成后必须按原商5相减得到95；不能
+使用入口缓存值。对应像素位置也读取查询后的共享X。
 
 ## 6. 双向追溯
 
@@ -89,8 +96,14 @@ C++ typed实现逐项保留上述bit pattern、共享顺序和失败前缀；十
 - 模式`0x8000`选择flags `0x20`并保留blitter typed-stop前缀；
 - 普通零商强制绘制帧0并完成余数/leading/帧宽返回；
 - indexed帧固定空tail触发palette typed-stop；
-- 十位协调器直连后绘制帧1..8，锁定完整EAX高字、逐帧宽推进与帧查询失败阻断。
+- 十位协调器直连后绘制帧1..8，检查实际余数、逐帧字宽与失败阻断；
+- 帧查询修改共享值与X后，后缀重读它们并验证实际像素；
+- 故障没有成功宽度，未执行blitter没有默认成功结果。
 
-battle聚合目标零warning构建及定向测试通过。
+本批core和ASan的`battle.legacy_battle_setup`、`battle.actor_frame_316`
+各1/1通过，SDL应用编译链接通过。最终五个日志均无告警或错误。
+写序修正前的日志仅作为历史记录，不支持最终源码验收。日志为
+`build/tmp/runtime/decimal-semantic-{core,callers-core,asan,callers-asan,sdl}.log`。
+未启动游戏。角色上层其他通用协议、帧资源提供接口及`0047C1F0`仍待迁移。
 
 当前没有原版单位置位共享状态、帧record和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整99行LST、关闭callee直连和固定状态验证已经闭环。

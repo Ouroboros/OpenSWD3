@@ -1764,9 +1764,8 @@ advance_legacy_battle_actor_action_presentation(
                 .width = platform.raster->clip_width,
                 .height = platform.raster->clip_height,
             };
-            LegacyBattleTenPlaceDecimalState decimal_state{};
             result.decimal_draw = coordinate_legacy_battle_ten_place_decimal(
-                decimal_state,
+                actor.shared->decimal_drawing,
                 *platform.framebuffer,
                 clip,
                 *platform.shared_request,
@@ -1778,17 +1777,17 @@ advance_legacy_battle_actor_action_presentation(
                 x,
                 y
             );
-            ++result.decimal_draw_calls;
-            auto& trace = result.physical_calls[index];
-            trace.return_eax = result.decimal_draw.legacy_return_value;
-            eax = result.decimal_draw.legacy_return_value;
-            if (result.decimal_draw.status !=
+            if (result.decimal_draw->status !=
                 LegacyBattleTenPlaceDecimalStatus::completed) {
                 result.status = LegacyBattleActorActionPresentationStatus::
                     decimal_draw_typed_stop;
                 eip = 0x004507A0U;
                 return finish();
             }
+
+            auto& trace = result.physical_calls[index];
+            eax = result.decimal_draw->last_digit_width.value();
+            trace.return_eax = eax;
         }
 
         u16 sample_word{};

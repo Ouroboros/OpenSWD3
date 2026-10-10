@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <limits>
 #include <memory>
+#include <optional>
 
 namespace openswd3::rendering {
 class LegacyFramebuffer;
@@ -173,8 +174,7 @@ struct LegacyBattleActorActionPresentationResult {
     std::size_t physical_call_count{};
     LegacyBattleActorField26b8HighBitSetResult high_bit_set{};
     LegacyBattleActorField26b8HighBitClearResult high_bit_clear{};
-    LegacyBattleTenPlaceDecimalResult decimal_draw{};
-    compat::u32 decimal_draw_calls{};
+    std::optional<LegacyBattleTenPlaceDecimalResult> decimal_draw{};
 };
 
 class LegacyBattleActorActionPresentationRequestArray {

@@ -186,6 +186,7 @@ LegacyBattleDecimalPlaceResult draw_legacy_battle_decimal_place(
         static_cast<compat::u16>(quotient) != 0U;
     if (!quotient_low_word_nonzero && state.leading_digit_seen == 0) {
         result.status = LegacyBattleDecimalPlaceStatus::skipped_leading_zero;
+        result.advance_pixels = 0U;
         return result;
     }
 
@@ -199,13 +200,13 @@ LegacyBattleDecimalPlaceResult draw_legacy_battle_decimal_place(
     rendering::LegacyFramePiece piece{};
     const bool available =
         frame_provider.load_frame_piece(result.resource_id, quotient, piece);
-    result.frame_load_calls = 1U;
     state.frame.frame_record_published = true;
     state.frame.frame_record_available = available;
     state.frame.current_frame_index = quotient;
     if (!available) {
         state.frame.current_frame = {};
         result.status = LegacyBattleDecimalPlaceStatus::frame_unavailable;
+        result.remaining_after = state.remaining_value;
         return result;
     }
 
@@ -227,22 +228,22 @@ LegacyBattleDecimalPlaceResult draw_legacy_battle_decimal_place(
     const rendering::LegacyBlitResult blit = rendering::blit_legacy_copy_paths(
         framebuffer, clip, call_source, request, shared_effects, jitter
     );
-    result.frame_draw_calls = 1U;
     result.blit_status = blit.status;
     if (!accepted_blit_status(blit.status)) {
         result.status = LegacyBattleDecimalPlaceStatus::blit_typed_stop;
+        result.remaining_after = state.remaining_value;
         return result;
     }
 
     publish_blitter_normal_epilogue(shared_request, shared_effects);
     const compat::u32 product =
         static_cast<compat::u32>(static_cast<compat::u16>(quotient)) * divisor;
-    const compat::u32 remaining_after_bits = remaining_bits - product;
-    state.remaining_value = std::bit_cast<compat::i32>(remaining_after_bits);
+    const compat::u32 remaining_after_bits =
+        static_cast<compat::u32>(state.remaining_value) - product;
     state.leading_digit_seen = 1;
+    state.remaining_value = std::bit_cast<compat::i32>(remaining_after_bits);
     result.remaining_after = state.remaining_value;
-    result.return_value = (remaining_after_bits & 0xFFFF0000U) |
-        static_cast<compat::u32>(piece.width);
+    result.advance_pixels = state.frame.current_frame.width;
     return result;
 }
 
@@ -254,10 +255,10 @@ LegacyBattleTenPlaceDecimalResult coordinate_legacy_battle_ten_place_decimal(
     rendering::LegacyBlitEffectState& shared_effects,
     rendering::LegacyRleRowJitterState& jitter,
     rendering::LegacyFramePieceProvider& frame_provider,
-    const compat::u32 color_stack_slot,
+    const compat::u16 color,
     const compat::i32 value,
-    const compat::i32 x,
-    const compat::i32 y
+    const compat::i32 origin_x,
+    const compat::i32 origin_y
 ) noexcept {
     constexpr std::array<compat::u32, 10> kDivisors{
         1'000'000'000U,
@@ -273,15 +274,14 @@ LegacyBattleTenPlaceDecimalResult coordinate_legacy_battle_ten_place_decimal(
     };
 
     state.packed_color_state = (state.packed_color_state & 0x0000FFFFU) |
-        ((color_stack_slot & 0xFFFFU) << 16U);
+        (static_cast<compat::u32>(color) << 16U);
     state.remaining_value = value;
-    state.x = x;
-    state.y = y;
+    state.x = origin_x;
+    state.y = origin_y;
     state.leading_digit_seen = 0;
 
     LegacyBattleTenPlaceDecimalResult result{
-        .divisors = kDivisors,
-        .final_x = x,
+        .final_x = origin_x,
     };
     for (std::size_t index = 0U; index < kDivisors.size(); ++index) {
         if (index + 1U == kDivisors.size()) {
@@ -299,24 +299,22 @@ LegacyBattleTenPlaceDecimalResult coordinate_legacy_battle_ten_place_decimal(
                 kDivisors[index]
             );
         result.places[index] = place;
-        result.place_returns[index] = place.return_value;
-        ++result.call_count;
         if (place.status != LegacyBattleDecimalPlaceStatus::completed &&
             place.status !=
                 LegacyBattleDecimalPlaceStatus::skipped_leading_zero) {
             result.status = LegacyBattleTenPlaceDecimalStatus::place_typed_stop;
-            result.stopped_place_index = static_cast<compat::u32>(index);
+            result.stopped_place_index = index;
             result.final_x = state.x;
             return result;
         }
 
-        const compat::u16 advance =
-            static_cast<compat::u16>(place.return_value);
-        result.x_advances[index] = advance;
-        result.legacy_return_value = static_cast<compat::u32>(advance);
+        const compat::u16 advance = place.advance_pixels.value();
         const compat::u32 next_x_bits = static_cast<compat::u32>(state.x) +
             static_cast<compat::u32>(advance);
         state.x = std::bit_cast<compat::i32>(next_x_bits);
+        if (index + 1U == kDivisors.size()) {
+            result.last_digit_width = advance;
+        }
     }
     result.final_x = state.x;
     return result;
