@@ -251,40 +251,6 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     return false;
 }
 
-[[nodiscard]] bool query_turn_completion(
-    LegacyBattleActionDispatchResult& result,
-    LegacyBattleActionDispatchContext& context,
-    const LegacyBattleActorTurnCompletionOwners& owners,
-    const u32 actor_token,
-    const u32 entry_eax,
-    const u32 entry_edx,
-    const LegacyBattleActorCoordinateFlags& entry_flags,
-    const u32 return_address,
-    u32& value
-) {
-    auto request = context.actor_turn_completion_request;
-    request.actor_token = actor_token;
-    request.entry_eax = entry_eax;
-    request.entry_edx = entry_edx;
-    request.entry_return_address = return_address;
-    request.entry_flags = entry_flags;
-    request.entry_flags_known = true;
-    result.actor_turn_completion = query_legacy_battle_actor_turn_completion(
-        resolve_legacy_battle_actor_turn_completion(owners, actor_token),
-        request
-    );
-    ++result.actor_turn_completion_calls;
-    if (result.actor_turn_completion.status !=
-        LegacyBattleActorTurnCompletionStatus::completed) {
-        result.status =
-            LegacyBattleActionDispatchStatus::actor_turn_completion_typed_stop;
-        result.return_value = result.actor_turn_completion.return_eax;
-        return false;
-    }
-    value = result.actor_turn_completion.return_eax;
-    return true;
-}
-
 [[nodiscard]] bool query_action_target(
     LegacyBattleActionDispatchResult& result,
     const LegacyBattleActorActionTargetOwners& owners,
@@ -702,25 +668,34 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         const u32 start_gate_latch =
                                             *start_gate.value;
                                         if (start_gate_latch != 1U) {
-                                            u32 target_turn_completion{};
-                                            if (!query_turn_completion(
-                                                    result,
-                                                    context,
-                                                    {.action = &action,
-                                                     .startup =
-                                                         context.startup},
-                                                    target,
-                                                    start_gate_latch,
-                                                    blocked.edx,
-                                                    subtract_flags(
-                                                        start_gate_latch,
-                                                        stale_ebx
-                                                    ),
-                                                    0x00457852U,
-                                                    target_turn_completion
-                                                )) {
+                                            result.actor_turn_completion =
+                                                query_legacy_battle_actor_turn_completion(
+                                                    &action
+                                                         .group_a_action_execution
+                                                             [uindex]
+                                                         .turn_completion_latch,
+                                                    context
+                                                        .actor_turn_completion_access
+                                                );
+                                            if (result.actor_turn_completion
+                                                    ->status !=
+                                                LegacyBattleActorTurnCompletionStatus::
+                                                    completed) {
+                                                result.status =
+                                                    LegacyBattleActionDispatchStatus::
+                                                        actor_turn_completion_typed_stop;
+                                                result.return_value =
+                                                    result
+                                                        .actor_turn_completion
+                                                        ->value.value_or(
+                                                            start_gate_latch
+                                                        );
                                                 return result;
                                             }
+
+                                            const u32 target_turn_completion =
+                                                *result.actor_turn_completion
+                                                     ->value;
                                             if (target_turn_completion == 0U) {
                                                 result.actor_idle_state =
                                                     query_legacy_battle_actor_idle_state(

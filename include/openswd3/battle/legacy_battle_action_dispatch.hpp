@@ -1463,7 +1463,7 @@ struct LegacyBattleActionDispatchContext {
     compat::u32 target_phase_time_seed{};
     LegacyBattleTargetPhaseStartRequest target_phase_start_request{};
     LegacyBattleTargetPhaseStartRequest opponent_target_phase_start_request{};
-    LegacyBattleActorTurnCompletionRequest actor_turn_completion_request{};
+    LegacyBattleActorTurnCompletionAccess actor_turn_completion_access{};
     LegacyBattleActorIdleStateAccess actor_idle_state_access{};
     compat::u32 group_b_frame_entry_eax{};
     compat::u32 group_b_frame_entry_edx{};
@@ -1637,8 +1637,7 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 action_record_clear_calls{};
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
-    LegacyBattleActorTurnCompletionResult actor_turn_completion{};
-    compat::u32 actor_turn_completion_calls{};
+    std::optional<LegacyBattleActorTurnCompletionResult> actor_turn_completion;
     std::optional<LegacyBattleActorIdleStateResult> actor_idle_state;
     std::optional<LegacyBattleActorActionKindResult> actor_action_kind;
     LegacyBattleActorActionModeResult actor_action_mode{};

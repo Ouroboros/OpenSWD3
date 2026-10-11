@@ -720,6 +720,89 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
     }
 }
 
+void test_turn_completion_failures(openswd3::test::Context& test) {
+    for (const bool enemy_target : {false, true}) {
+        for (const u32 value : std::array<u32, 8>{
+                 0U,
+                 1U,
+                 2U,
+                 0xFFFFU,
+                 0x10000U,
+                 0x10001U,
+                 0x80000000U,
+                 0xFFFFFFFFU
+             }) {
+            for (const bool return_failure : {false, true}) {
+                auto state_storage = std::make_unique<PausedFrameState>();
+                auto& state = *state_storage;
+                Fixture fixture;
+                DispatchPort port;
+                if (enemy_target) {
+                    state.action.group_a_action_execution[0U].action_target =
+                        2U;
+                    fixture.startup
+                        .group_b_lifecycle = std::make_shared<std::array<
+                        openswd3::battle::LegacyBattleActorGroupBElementState,
+                        openswd3::battle::
+                            kLegacyBattleActorGroupBElementCount>>();
+                    (*fixture.startup.group_b_lifecycle)[2U]
+                        .action_execution.turn_completion_latch = value;
+                    (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_execution.turn_completion_latch = ~value;
+                    port.actor_metric_state().priority_actor_index = 8U;
+                } else {
+                    state.actor_enabled[0U] = 1U;
+                    state.actors[0U].mode_gate = 1U;
+                    state.selected_actor_one_based = 2U;
+                    state.action.group_a_action_execution[1U]
+                        .turn_completion_latch = value;
+                    state.action.group_a_action_execution[0U]
+                        .turn_completion_latch = ~value;
+                }
+
+                auto context = fixture.context();
+                context.actor_turn_completion_access = {
+                    .latch_readable = return_failure,
+                    .return_address_readable = !return_failure,
+                };
+                const auto result =
+                    openswd3::battle::advance_legacy_battle_group_a_frame(
+                        state, port, context, 0U
+                    );
+                const auto expected_status = return_failure
+                    ? openswd3::battle::LegacyBattleActorTurnCompletionStatus::
+                          return_address_read_typed_stop
+                    : openswd3::battle::LegacyBattleActorTurnCompletionStatus::
+                          latch_read_typed_stop;
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActionDispatchStatus::
+                                actor_turn_completion_typed_stop &&
+                        result.actor_turn_completion.has_value() &&
+                        result.actor_turn_completion->status ==
+                            expected_status &&
+                        result.actor_turn_completion->value.has_value() ==
+                            return_failure &&
+                        (!return_failure ||
+                         result.actor_turn_completion->value == value) &&
+                        result.return_value ==
+                            (return_failure
+                                 ? value
+                                 : (enemy_target ? 0xACAU : 0x7DEU)) &&
+                        !result.actor_idle_state.has_value() &&
+                        !result.actor_target_selection_latch_query
+                             .has_value() &&
+                        state.final_actor_step.action_execution_active == 0U &&
+                        result.actor_action_target_calls ==
+                            (enemy_target ? 1U : 0U) &&
+                        port.count(0x0047C660U) == 0U,
+                    "both party frame completion reads preserve the selected target, arithmetic predecessor and exact failure prefix"
+                );
+            }
+        }
+    }
+}
+
 void test_idle_query_failures(openswd3::test::Context& test) {
     for (const u32 branch : std::array<u32, 4>{0U, 1U, 2U, 3U}) {
         for (const u32 value : std::array<u32, 8>{
@@ -818,6 +901,7 @@ void test_idle_query_failures(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_group_a_frame(openswd3::test::Context& test) {
+    test_turn_completion_failures(test);
     test_idle_query_failures(test);
     for (const u16 count :
          std::array<u16, 5>{0U, 1U, 0x100U, 0x8000U, 0xFFFFU}) {
@@ -1111,7 +1195,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_idle_state_typed_stop &&
-                    result.actor_turn_completion_calls == 1U &&
+                    result.actor_turn_completion.has_value() &&
                     result.actor_idle_state.has_value() &&
                     result.return_value == 9U &&
                     !result.actor_idle_state->value.has_value() &&
@@ -1224,43 +1308,24 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             Fixture fixture;
             DispatchPort port;
             auto context = fixture.context();
-            context.actor_turn_completion_request.access.latch_readable = false;
+            context.actor_turn_completion_access.latch_readable = false;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
                 );
-            const u32 selected =
-                openswd3::battle::kLegacyBattleActionGroupABaseToken +
-                openswd3::battle::kLegacyBattleActionGroupAStride;
             test.expect_true(
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_turn_completion_typed_stop &&
-                    result.actor_turn_completion_calls == 1U &&
-                    result.actor_turn_completion.status ==
+                    result.actor_turn_completion.has_value() &&
+                    result.actor_turn_completion->status ==
                         openswd3::battle::
                             LegacyBattleActorTurnCompletionStatus::
                                 latch_read_typed_stop &&
-                    result.actor_turn_completion.return_eax == 0x7DEU &&
-                    result.actor_turn_completion.return_ecx == selected &&
-                    result.actor_turn_completion.return_edx == 0x179AU &&
-                    result.actor_turn_completion.return_eip == 0x00478690U &&
-                    result.actor_turn_completion.field_token ==
-                        selected + 0x2AACU &&
-                    result.actor_turn_completion.flags_known &&
-                    !result.actor_turn_completion.flags.carry &&
-                    result.actor_turn_completion.flags.parity &&
-                    result.actor_turn_completion.flags
-                        .auxiliary_carry_defined &&
-                    result.actor_turn_completion.flags.auxiliary_carry &&
-                    !result.actor_turn_completion.flags.zero &&
-                    !result.actor_turn_completion.flags.sign &&
-                    !result.actor_turn_completion.flags.overflow &&
-                    result.actor_turn_completion.return_esp ==
-                        context.actor_turn_completion_request.entry_esp &&
                     result.return_value == 0x7DEU &&
                     port.count(0x00478690U) == 0U &&
-                    port.count(0x004786A0U) == 0U,
+                    port.count(0x004786A0U) == 0U &&
+                    !result.actor_turn_completion->value.has_value(),
                 "one-based Group-A target query propagates its typed field stop before the post-call branch"
             );
         }
@@ -1280,14 +1345,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto context = fixture.context();
             context.group_a_frame_action_target_requests[0U].entry_edx =
                 0xA5A55A5AU;
-            context.actor_turn_completion_request.access.latch_readable = false;
+            context.actor_turn_completion_access.latch_readable = false;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
                 );
-            const u32 target =
-                openswd3::battle::kLegacyBattleActionGroupBBaseToken +
-                2U * openswd3::battle::kLegacyBattleActionGroupBStride;
             test.expect_true(
                 result.status ==
                         LegacyBattleActionDispatchStatus::
@@ -1299,31 +1361,15 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     result.actor_action_target.return_eip == 0x00456ECEU &&
                     result.actor_action_target.flags_known &&
                     result.actor_action_target.flags.zero &&
-                    result.actor_turn_completion_calls == 1U &&
-                    result.actor_turn_completion.status ==
+                    result.actor_turn_completion.has_value() &&
+                    result.actor_turn_completion->status ==
                         openswd3::battle::
                             LegacyBattleActorTurnCompletionStatus::
                                 latch_read_typed_stop &&
-                    result.actor_turn_completion.return_eax == 0xACAU &&
-                    result.actor_turn_completion.return_ecx == target &&
-                    result.actor_turn_completion.return_edx == 0xA5A55A5AU &&
-                    result.actor_turn_completion.return_eip == 0x00478690U &&
-                    result.actor_turn_completion.field_token ==
-                        target + 0x2AACU &&
-                    result.actor_turn_completion.flags_known &&
-                    !result.actor_turn_completion.flags.carry &&
-                    result.actor_turn_completion.flags.parity &&
-                    result.actor_turn_completion.flags
-                        .auxiliary_carry_defined &&
-                    result.actor_turn_completion.flags.auxiliary_carry &&
-                    !result.actor_turn_completion.flags.zero &&
-                    !result.actor_turn_completion.flags.sign &&
-                    !result.actor_turn_completion.flags.overflow &&
-                    result.actor_turn_completion.return_esp ==
-                        context.actor_turn_completion_request.entry_esp &&
                     result.return_value == 0xACAU &&
                     port.count(0x00478690U) == 0U &&
-                    port.count(0x00478B40U) == 0U,
+                    port.count(0x00478B40U) == 0U &&
+                    !result.actor_turn_completion->value.has_value(),
                 "inactive execution preserves the first physical action-target caller before the Group-B latch stop"
             );
         }
@@ -1358,20 +1404,22 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 );
 
             test.expect_true(
-                zero.actor_turn_completion_calls == 1U &&
-                    zero.actor_turn_completion.returned &&
-                    zero.actor_turn_completion.return_eax == 0U &&
-                    zero.actor_turn_completion.return_eip == 0x00456DDBU &&
+                zero.actor_turn_completion.has_value() &&
+                    zero.actor_turn_completion->status ==
+                        openswd3::battle::
+                            LegacyBattleActorTurnCompletionStatus::completed &&
+                    zero.actor_turn_completion->value == 0U &&
                     zero.actor_idle_state.has_value() &&
                     zero.actor_idle_state->status ==
                         openswd3::battle::LegacyBattleActorIdleStateStatus::
                             completed &&
                     zero.actor_idle_state->value == 0U &&
                     zero_port.count(0x004786A0U) == 0U &&
-                    nonzero.actor_turn_completion_calls == 1U &&
-                    nonzero.actor_turn_completion.returned &&
-                    nonzero.actor_turn_completion.return_eax == 7U &&
-                    nonzero.actor_turn_completion.return_eip == 0x00456DDBU &&
+                    nonzero.actor_turn_completion.has_value() &&
+                    nonzero.actor_turn_completion->status ==
+                        openswd3::battle::
+                            LegacyBattleActorTurnCompletionStatus::completed &&
+                    nonzero.actor_turn_completion->value == 7U &&
                     !nonzero.actor_idle_state.has_value() &&
                     nonzero_port.count(0x004786A0U) == 0U &&
                     zero_port.count(0x00478690U) == 0U &&
@@ -1423,10 +1471,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 );
 
             test.expect_true(
-                zero.actor_turn_completion_calls == 1U &&
-                    zero.actor_turn_completion.returned &&
-                    zero.actor_turn_completion.return_eax == 0U &&
-                    zero.actor_turn_completion.return_eip == 0x00456EF0U,
+                zero.actor_turn_completion.has_value() &&
+                    zero.actor_turn_completion->status ==
+                        openswd3::battle::
+                            LegacyBattleActorTurnCompletionStatus::completed &&
+                    zero.actor_turn_completion->value == 0U,
                 "Group-B target caller returns the zero lifecycle latch"
             );
             test.expect_true(
@@ -1440,10 +1489,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 "zero lifecycle latch begins the typed current-actor list action"
             );
             test.expect_true(
-                nonzero.actor_turn_completion_calls == 1U &&
-                    nonzero.actor_turn_completion.returned &&
-                    nonzero.actor_turn_completion.return_eax == 0U &&
-                    nonzero.actor_turn_completion.return_eip == 0x00456EF0U,
+                nonzero.actor_turn_completion.has_value() &&
+                    nonzero.actor_turn_completion->status ==
+                        openswd3::battle::
+                            LegacyBattleActorTurnCompletionStatus::completed &&
+                    nonzero.actor_turn_completion->value == 0U,
                 "Group-B target caller returns the zero lifecycle latch before the selection query"
             );
             test.expect_true(
@@ -1531,8 +1581,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 stopped.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_target_selection_latch_query_typed_stop &&
-                    stopped.actor_turn_completion_calls == 1U &&
-                    stopped.actor_turn_completion.returned &&
+                    stopped.actor_turn_completion.has_value() &&
+                    stopped.actor_turn_completion->status ==
+                        openswd3::battle::
+                            LegacyBattleActorTurnCompletionStatus::completed &&
                     stopped_state.final_actor_step.action_execution_active ==
                         1U &&
                     stopped.actor_target_selection_latch_query.has_value() &&

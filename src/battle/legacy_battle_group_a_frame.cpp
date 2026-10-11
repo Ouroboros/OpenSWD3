@@ -321,12 +321,6 @@ replace_high_byte_of_low_word(u32& target, const u8 value) noexcept {
 }
 
 [[nodiscard]] constexpr u32
-one_based_group_a_token(const u32 one_based) noexcept {
-    return kLegacyBattleActionGroupABaseToken +
-        (one_based - 1U) * kLegacyBattleActionGroupAStride;
-}
-
-[[nodiscard]] constexpr u32
 one_based_group_b_token(const u32 one_based) noexcept {
     return kLegacyBattleActionGroupBBaseToken +
         (one_based - 1U) * kLegacyBattleActionGroupBStride;
@@ -481,40 +475,6 @@ one_based_group_b_token(const u32 one_based) noexcept {
         LegacyBattleActionDispatchStatus::actor_action_target_clear_typed_stop;
     result.return_value = result.actor_action_target_clear.last.return_eax;
     return false;
-}
-
-[[nodiscard]] bool query_turn_completion(
-    LegacyBattleActionDispatchResult& result,
-    LegacyBattleActionDispatchContext& context,
-    const LegacyBattleActorTurnCompletionOwners& owners,
-    const u32 actor_token,
-    const u32 entry_eax,
-    const u32 entry_edx,
-    const LegacyBattleActorCoordinateFlags& entry_flags,
-    const u32 return_address,
-    u32& value
-) {
-    auto request = context.actor_turn_completion_request;
-    request.actor_token = actor_token;
-    request.entry_eax = entry_eax;
-    request.entry_edx = entry_edx;
-    request.entry_return_address = return_address;
-    request.entry_flags = entry_flags;
-    request.entry_flags_known = true;
-    result.actor_turn_completion = query_legacy_battle_actor_turn_completion(
-        resolve_legacy_battle_actor_turn_completion(owners, actor_token),
-        request
-    );
-    ++result.actor_turn_completion_calls;
-    if (result.actor_turn_completion.status !=
-        LegacyBattleActorTurnCompletionStatus::completed) {
-        result.status =
-            LegacyBattleActionDispatchStatus::actor_turn_completion_typed_stop;
-        result.return_value = result.actor_turn_completion.return_eax;
-        return false;
-    }
-    value = result.actor_turn_completion.return_eax;
-    return true;
 }
 
 [[nodiscard]] bool query_action_target(
@@ -1679,23 +1639,26 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     return result;
                 }
                 const u32 selected_ordinal = state.selected_actor_one_based;
-                const u32 selected = one_based_group_a_token(selected_ordinal);
-                u32 selected_turn_completion{};
-                if (!query_turn_completion(
-                        result,
-                        context,
-                        {.action = &state.action, .startup = context.startup},
-                        selected,
-                        selected_ordinal * 0x3EFU,
-                        selected_ordinal * 0xBCDU,
-                        subtract_flags(
-                            selected_ordinal * 0x3F0U, selected_ordinal
-                        ),
-                        0x00456DDBU,
-                        selected_turn_completion
-                    )) {
+                result.actor_turn_completion =
+                    query_legacy_battle_actor_turn_completion(
+                        &state.action
+                             .group_a_action_execution[selected_ordinal - 1U]
+                             .turn_completion_latch,
+                        context.actor_turn_completion_access
+                    );
+                if (result.actor_turn_completion->status !=
+                    LegacyBattleActorTurnCompletionStatus::completed) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        actor_turn_completion_typed_stop;
+                    result.return_value =
+                        result.actor_turn_completion->value.value_or(
+                            selected_ordinal * 0x3EFU
+                        );
                     return result;
                 }
+
+                const u32 selected_turn_completion =
+                    *result.actor_turn_completion->value;
                 bool current_actor_idle{};
                 if (selected_turn_completion == 0U &&
                     port.actor_metric_state().priority_actor_index !=
@@ -2687,29 +2650,34 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 )) {
                 return result;
             }
-            const auto& queried_target_reply = result.actor_action_target;
             const u16 queried_target = low_word(queried_target_value);
             if (!validate_group_b(result, queried_target)) {
                 return result;
             }
             u32 target_token = group_b_token(queried_target);
-            u32 target_turn_completion{};
-            if (!query_turn_completion(
-                    result,
-                    context,
-                    {.action = &state.action, .startup = context.startup},
-                    target_token,
-                    static_cast<u32>(queried_target) *
-                        (kLegacyBattleActionGroupBStride / 8U),
-                    queried_target_reply.return_edx,
-                    subtract_flags(
-                        static_cast<u32>(queried_target) * 0x18U, queried_target
-                    ),
-                    0x00456EF0U,
-                    target_turn_completion
-                )) {
+            result.actor_turn_completion =
+                query_legacy_battle_actor_turn_completion(
+                    context.startup != nullptr &&
+                            context.startup->group_b_lifecycle != nullptr
+                        ? &(*context.startup->group_b_lifecycle)[queried_target]
+                               .action_execution.turn_completion_latch
+                        : nullptr,
+                    context.actor_turn_completion_access
+                );
+            if (result.actor_turn_completion->status !=
+                LegacyBattleActorTurnCompletionStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_turn_completion_typed_stop;
+                result.return_value =
+                    result.actor_turn_completion->value.value_or(
+                        static_cast<u32>(queried_target) *
+                        (kLegacyBattleActionGroupBStride / 8U)
+                    );
                 return result;
             }
+
+            const u32 target_turn_completion =
+                *result.actor_turn_completion->value;
             if (target_turn_completion == 0U) {
                 state.final_actor_step.action_execution_active = 1U;
                 state.action.current_actor_index = static_cast<u16>(
@@ -2735,7 +2703,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     result.status = LegacyBattleActionDispatchStatus::
                         actor_target_selection_latch_query_typed_stop;
                     result.return_value = selection_complete.value.value_or(
-                        result.actor_turn_completion.return_eax
+                        target_turn_completion
                     );
                     return result;
                 }

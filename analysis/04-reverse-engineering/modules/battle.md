@@ -4035,17 +4035,14 @@ inventory SHA-256为`6e832b90dd4b17830f2b63f7c1ca2ce7b98b7e534ad12f1b92e895f761b
 完整权威LST主体`0x00478690..0x00478696`共7字节、2条实际指令、0个call、0个分支和1个普通`retn`，
 没有外部chunk或中段入口；函数只把actor `+0x2AAC`完整dword读入EAX后执行普通RET，ECX、
 EDX与全部flags保持，正常ESP增加4。
-typed实现直接借用Group-A action-execution十槽与startup Group-B lifecycle八槽中的同一
-`turn_completion_latch` owner，保留字段与RET两个真实停点、完整寄存器、ESP/EIP、flags和访问计数，
-不增加平行actor或latch数组。Group-A frame的one-based Group-A目标、
-Group-B动作目标及Group-B frame的Group-A候选三处物理caller全部直接组合typed leaf，
-保留各自地址算术或excluded查询的EAX/EDX、SUB/CMP flags、真实返回地址和post-call TEST；
-字段停止抑制当前分支、剩余循环与frame后缀，生产`0x00478690`零raw调用。验证：定向测试、
-AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core、
-全量/changed-range clang-format、零源码warning/测试失败/sanitizer finding、inventory双生成、
-TMP分类及完整release审计均通过；未启动原版或OpenSWD3游戏程序。
-工作包为`291/422 = 281 platform_adapted + 10 assembly_exact + 131 pending_audit`；
-inventory SHA-256为`6f3b2d2ac6ed80eeae52310b85a946e408c4ce5846452bd2c0a82175d5283119`。
+当前三处查询直接借队员或敌方实际目标的`turn_completion_latch`DWORD，
+接口只有访问条件、状态及可选观察值；删除查询编号、token解析、寄存器
+请求回复、flags、模拟栈、计数和转发。不新增或缓存字段。
+保留完整零/非零判断、索引验证和字段/RET失败前缀。队员父级字段失败
+保留地址算术返回；敌方扫描保留实际启动标记前驱。其它父级协议与资源
+仍待迁移，B10保持315/422，316/317/318及B11不因本批提升。
+本批验证见`battle-actor-turn-completion-00478690.md`；旧199/199、205/205、
+固定复核轮数及历史inventory散列只属历史，不能代替当前证据。
 动态差分因原版完整Group-A/Group-B actor完成latch、
 异常字段/栈内存页及三处caller联合寄存器/flags/SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 

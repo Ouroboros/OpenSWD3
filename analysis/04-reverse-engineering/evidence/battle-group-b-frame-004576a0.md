@@ -79,13 +79,13 @@ phase progress = u32(group_b_count) - processed low byte
 - 固定actor AI dword不等于1；
 - blocked查询不等于1；
 - 直接读取当前队员共享启动标记，完整DWORD不等于1；
-- `0x0045784D`直接组合typed回合完成查询，从共享action state的`group_a_action_execution[]` canonical owner读取完整latch，且latch为0；
+- `0x0045784D`直接借当前目标队员的`group_a_action_execution[]`完成DWORD，且完整值为0；
 - 当前组B对象idle为0。
 
 `00457842`直接借队员既有`start_gate_latch`，前驱blocked修改后才读取。
 只有完整值1跳过候选；高位非一值继续。叶查询删除寄存器request/reply、
 CALL轨迹、参数数组及计数；父层可选实际结果保留读取/返回故障的不同前缀。
-下一个回合查询直接沿用blocked EDX，并以实际完整标记重建CMP结果。
+下一个回合查询不再运输EDX/flags；字段失败时父级保留实际完整启动标记。
 两种原查询故障均阻断回合、idle、control清理、启动门递增和候选后缀。
 见[实际启动标记](battle-actor-start-gate-latch-query-00478b50.md)。
 
@@ -229,7 +229,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - frame disabled仍执行公共尾及完整EAX；
 - live update、组B进度与攻击顺序共享记录直连、两个旧callback清零、资源typed-stop前缀、记录typed-stop前缀与陈旧stride EBX写block；
 - queue完成直接返回reset完整EAX；
-- phase Group-A扫描的回合完成caller保留excluded EAX/EDX与CMP flags，在字段停止时抑制source idle、目标准备和剩余循环，且旧callee token零调用；
+- 队员扫描直接借实际目标完成DWORD，删除查询解析、寄存器/栈、计数与转发；字段失败保留完整启动标记前驱，RET失败保留完成观察值，抑制来源idle、目标准备及剩余扫描，见[回合完成查询](battle-actor-turn-completion-00478690.md)；
 - 三处空闲状态查询直接借敌方实际DWORD，移除查询协议、token解析、计数与转发；保留完整值、每次重读、字段/RET失败及已执行前缀。父级保留仍被消费的入口值，其余协议与资源继续待迁移；当前证据见[空闲状态查询](battle-actor-idle-state-004786a0.md)；
 - 公共尾在前驱执行后直接读取Group-B实际启动计数，完整WORD零/非零与门值精确1组合、读取/返回失败保留前缀并抑制显示及最终尾；查询不再携带寄存器或调用计数，当前证据见[启动计数查询](battle-actor-start-gate-004786d0.md)；
 - phase side跳过随机/status；

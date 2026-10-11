@@ -116,7 +116,7 @@ AI协调只在全局enable等于1、两个pending门都为0时进入：
 
 ### 6.1 action complete尚未置1
 
-mode gate非0时，selected one-based值解释为组A对象。`0x00456DD6`现直接组合`0x00478690` typed回合完成查询，以one-based地址算术定位`group_a_action_execution` canonical owner；完整latch为0、active effect target不等于`selected+7`且当前角色idle为0时清控制/呈现。delay callee返回1后发布`selected-1`、finalize actor并清一组selection门。getter停止发生在caller后续TEST前，阻断当前目标分支与全部后缀。
+mode gate非0时，selected one-based值解释为组A对象。`0x00456DD6`直接借`group_a_action_execution[selected-1]`实际完成DWORD；查询不再携带编号、寄存器、栈或计数，原索引验证及字段失败时父级算术返回保持；完整latch为0、active effect target不等于`selected+7`且当前角色idle为0时清控制/呈现。delay callee返回1后发布`selected-1`、finalize actor并清一组selection门。getter停止发生在caller后续TEST前，阻断当前目标分支与全部后缀。
 
 mode gate为0且当前角色idle为0时：
 
@@ -167,7 +167,7 @@ selection mode为0时遍历组B：terminal对象及已映射对象计入terminal
 active effect target匹配但action execution尚未激活、action block为0时：
 
 - 查询目标低word并形成组B对象；
-- `0x00456EEB`直接组合typed回合完成查询，从startup `group_b_lifecycle[].action_execution` canonical owner读取完整latch；动作目标getter EDX、索引地址算术EAX/flags和真实返回地址均传入leaf；
+- `0x00456EEB`直接借startup `group_b_lifecycle[].action_execution`实际完成DWORD；字段/RET失败抑制后缀，父级保留原算术返回或观察值，删除本查询运输的EDX/flags与栈协议；
 - latch为0时置execution、current actor；getter停止保留动作目标查询残值并阻断current actor、selection及全部动作准备后缀；
 - selection complete非0且action side为0时遍历全部组B：对非terminal对象做第二次terminal查询，第二次等于0才prepare target；一个非terminal都没有则撤销execution；
 - selection complete为0、action side为0且独立target guard highword为0时，若原目标terminal且runtime word为0，则找首个非terminal组B对象。找到前按原顺序clear actor action、reset固定“组B前一槽”token，再发布索引；
@@ -228,7 +228,7 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 - `0x0045EE70`已直接回收为typed攻击顺序插入；
 - `0x004698E0`的三处调用已直接回收为typed文字消息入链；
 - `0x00478330`的六处调用已直接回收为typed角色可用性写入；
-- `0x00478690`的one-based Group-A目标与Group-B动作目标两处调用已直接回收为typed回合完成查询；
+- `0x00478690`两处调用直接借实际目标的完成DWORD，删除查询解析、机器请求回复、计数和转发；
 - `0x004786A0`四处调用直接借当前队员实际空闲DWORD，查询不再携带编号、token解析、寄存器、栈或计数，亦不经过转发函数；
 - `0x004786D0`的公共效果模式启动门调用已直接回收为typed word查询；
 - 其余待审角色、AI、选择、文本、sample和数值callee继续使用单一typed token端口。
@@ -259,7 +259,7 @@ Typed-stop只位于：
 - 十槽queue首个未完成项与左移；
 - idle actor启动后的攻击顺序记录、队员暂存源和双尾门真实访问点；
 - completed actor组B扫描与首个live选择；
-- one-based Group-A目标及Group-B动作目标两处回合完成caller的canonical owner、调用前寄存器/flags、typed-stop后缀抑制和旧callee token零调用；
+- 两处回合完成查询使用实际目标DWORD及可选结果，保留完整值、字段/RET失败顺序、前驱返回和后缀抑制；父项其它协议仍待迁移，见[回合完成查询](battle-actor-turn-completion-00478690.md)；
 - 四处空闲查询使用共享实际字段和状态/可选值，保留完整DWORD、即时读取及字段/RET失败前缀；失败时父级保留已有返回，完整父项其它协议与资源仍待迁移。当前证据见[空闲状态查询](battle-actor-idle-state-004786a0.md)；
 - 公共显示调用直接读取Group-A实际启动计数，完整WORD零/非零与门值精确1组合、失败保留前驱高EAX和观察值、显示及后缀抑制；查询协议已删除，当前证据见[启动计数查询](battle-actor-start-gate-004786d0.md)；
 - active action直接调用已关闭主分派，确认端口不再出现旧callee token并完成全cleanup；
