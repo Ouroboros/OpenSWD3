@@ -703,6 +703,11 @@ bit`0x4000→0x8000`同调用穿透和固定最终尾。已关闭`0x004539B0`动
 其余45个唯一callee保留共享typed token端口；相邻actor-start guard、
 target guard highword和turn word保持独立。
 
+组A帧的五处叠加绘制标记清零直接写所选或遍历角色的实际DWORD，
+保持先清标记后计数/动作的顺序，移除本批操作编号及伪造返回。
+其他父协议仍待迁移；当前验证与边界见
+`evidence/battle-group-a-overlay-clear.md`。
+
 `audit_order=64`的`0x004576A0`已关闭为`platform_adapted`。
 完整权威LST主体`0x004576A0..0x004582AB`共1356行、86个静态call站点、66个局部标签且无外部chunk。
 实现恢复组B live update与直接EAX早退、phase mode、三类无上限随机选择、packed signed/bit状态、

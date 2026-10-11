@@ -279,6 +279,92 @@ struct Fixture {
     }
 };
 
+void test_group_a_overlay_clearing(openswd3::test::Context& test) {
+    for (const u32 before : {1U, 0x80000000U, 0xFFFFFFFFU}) {
+        for (const u32 path : {0U, 1U, 2U, 3U, 4U}) {
+            auto state_storage = std::make_unique<PausedFrameState>();
+            auto& state = *state_storage;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                8>>();
+            for (auto& execution : state.action.group_a_action_execution) {
+                execution.overlay_render_enabled = before;
+            }
+
+            for (auto& enemy : *fixture.startup.group_b_lifecycle) {
+                enemy.action_execution.overlay_render_enabled = before;
+            }
+
+            state.actor_enabled[0U] = 1U;
+            state.selected_actor_one_based = 3U;
+            state.selected_opponent_one_based = 3U;
+            DispatchPort port;
+            auto context = fixture.context();
+            if (path == 0U) {
+                state.actors[0U].mode_gate = 1U;
+                context.actor_action_mode_access.argument_readable = false;
+            } else if (path == 1U || path == 2U) {
+                state.actor_ai_primary[0U] = path == 1U ? 1U : 0U;
+                context.actor_target_selection_count_increment_access
+                    .count_readable = false;
+            } else if (path == 3U) {
+                state.actors[0U].action_complete = 1U;
+                state.selection_mode = 1U;
+                state.action.group_a_count = 3;
+                state.actor_ai_primary[0U] = 1U;
+                state.actor_ai_secondary[1U] = 1U;
+                port.push(0x0047CEA0U, {.eax = 0U});
+            } else {
+                state.actors[0U].action_complete = 1U;
+                state.action.group_b_count = 1;
+                state.action.group_a_to_actor[0U] = 0xFFFFFFFFU;
+                port.push(0x0047CE80U, {.eax = 0U});
+                context.actor_target_selection_count_increment_access
+                    .count_readable = false;
+            }
+
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            const auto expected_status = path == 0U
+                ? LegacyBattleActionDispatchStatus::actor_action_mode_typed_stop
+                : path == 3U
+                ? LegacyBattleActionDispatchStatus::completed
+                : LegacyBattleActionDispatchStatus::
+                      actor_target_selection_count_increment_typed_stop;
+            bool fields_match = true;
+            for (std::size_t index = 0U;
+                 index < state.action.group_a_action_execution.size();
+                 ++index) {
+                const bool cleared = (path == 0U || path == 3U) && index == 2U;
+                fields_match = fields_match &&
+                    state.action.group_a_action_execution[index]
+                            .overlay_render_enabled == (cleared ? 0U : before);
+            }
+
+            for (std::size_t index = 0U;
+                 index < fixture.startup.group_b_lifecycle->size();
+                 ++index) {
+                const bool cleared =
+                    ((path == 1U || path == 2U) && index == 2U) ||
+                    (path == 4U && index == 0U);
+                fields_match = fields_match &&
+                    (*fixture.startup.group_b_lifecycle)[index]
+                            .action_execution.overlay_render_enabled ==
+                        (cleared ? 0U : before);
+            }
+
+            test.expect_true(
+                result.status == expected_status && fields_match &&
+                    state.actors[0U].progress == (path == 3U ? 1U : 0U),
+                "all five overlay writes clear the actual selected actor DWORD, retain neighbors and precede later mode or count failures"
+            );
+        }
+    }
+}
+
 void test_group_a_target_count_increment(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchStatus;
     using openswd3::battle::LegacyBattleActorGroupBElementState;
@@ -338,7 +424,8 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
                             .action_execution.target_selection_count ==
                         0x5678U &&
                     result.return_value == 4143U &&
-                    port.count(0x0047C660U) == 1U &&
+                    (*fixture.startup.group_b_lifecycle)[2U]
+                            .action_execution.overlay_render_enabled == 0U &&
                     result.actor_target_selection.calls == 0U &&
                     state.action.group_a_action_execution[0U].action_target ==
                         0xABCDU &&
@@ -425,17 +512,9 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
             test.expect_true(
                 result.status ==
                         LegacyBattleActionDispatchStatus::
-                            actor_target_selection_count_increment_typed_stop &&
-                    result.actor_target_selection_count_increment.has_value() &&
-                    result.actor_target_selection_count_increment->status ==
-                        LegacyBattleActorTargetSelectionCountIncrementStatus::
-                            count_read_typed_stop &&
+                            actor_overlay_state_missing &&
                     !result.actor_target_selection_count_increment
-                         ->previous_value.has_value() &&
-                    !result.actor_target_selection_count_increment
-                         ->incremented_value.has_value() &&
-                    port.count(0x0047C660U) == 1U &&
-                    result.return_value == unavailable * 1381U &&
+                         .has_value() &&
                     result.actor_target_selection.calls == 0U &&
                     state.action.group_a_action_execution[0U].action_target ==
                         0xABCDU &&
@@ -466,7 +545,7 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
             .action_execution.target_selection_count = 7U;
         DispatchPort port;
         port.before_invoke = [&](const LegacyBattleActionCallRequest& request) {
-            if (request.callee_token == 0x0047C660U &&
+            if (request.callee_token == 0x0047F920U &&
                 port.count(request.callee_token) == 1U) {
                 state.selected_actor_one_based = 3U;
                 state.selected_opponent_one_based = 3U;
@@ -497,7 +576,7 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
                 result.actor_target_selection.last.return_edx == 1035U &&
                 !result.actor_target_selection.last.flags.zero &&
                 !result.actor_target_selection.last.flags.carry,
-            "indexed count callers run phase before resolving the live selector, read its later WORD, and continue with DEC flags"
+            "indexed count callers use the selector published by the preceding queue query, clear its overlay and continue with DEC flags"
         );
     }
 
@@ -577,7 +656,8 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
                 (*fixture.startup.group_b_lifecycle)[0U]
                         .action_execution.target_selection_count == 0x5678U &&
                 result.return_value == 0x5FFFCBCBU &&
-                port.count(0x0047C660U) == 1U &&
+                state.action.group_a_action_execution[2U]
+                        .overlay_render_enabled == 0U &&
                 result.actor_target_selection.calls == 0U,
             "wrapped selectors can borrow the actual party WORD and retain its write at the original return fault"
         );
@@ -597,7 +677,6 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
             .action_execution.target_selection_count = 0xFFFFU;
         DispatchPort port;
         port.push(0x0047CE80U, {.eax = 0U});
-        port.push(0x0047C660U, {.eax = 0x92345678U, .edx = 0x89ABCDEFU});
         auto context = fixture.context();
         context.actor_target_selection_count_increment_access = {
             .count_readable = fault != 0U,
@@ -620,12 +699,13 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
                 (*fixture.startup.group_b_lifecycle)[0U]
                         .action_execution.target_selection_count ==
                     (fault == 2U ? 0U : 0xFFFFU) &&
-                result.return_value == 0x92345678U &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_execution.overlay_render_enabled == 0U &&
                 state.actors[0U].progress == 0U &&
                 result.group_b_iterations == 0U &&
                 !result.actor_target_selection_latch_set.has_value() &&
                 result.actor_target_selection.calls == 0U,
-            "scan count faults preserve the phase result and actual write while suppressing progress, later actors and target selection"
+            "scan count faults preserve the overlay clear and actual count write without fabricating a return value or advancing progress"
         );
     }
 
@@ -647,11 +727,10 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
         DispatchPort port;
         port.push(0x0047CE80U, {.eax = 0U});
         port.push(0x0047CE80U, {.eax = 0U});
-        port.push(0x0047C660U, {.eax = 0x12345678U});
-        port.push(0x0047C660U, {.eax = 0x87654321U});
+
         auto context = fixture.context();
         port.before_invoke = [&](const LegacyBattleActionCallRequest& request) {
-            if (request.callee_token == 0x0047C660U &&
+            if (request.callee_token == 0x0047CE80U &&
                 port.count(request.callee_token) == 2U) {
                 context.actor_target_selection_count_increment_access
                     .count_writable = false;
@@ -679,7 +758,8 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
                         .action_execution.target_selection_count == 7U &&
                 state.actors[0U].progress == 1U &&
                 result.group_b_iterations == 1U &&
-                result.return_value == 0x87654321U &&
+                (*fixture.startup.group_b_lifecycle)[1U]
+                        .action_execution.overlay_render_enabled == 0U &&
                 result.actor_target_selection.calls == 0U,
             "second scan count fault retains the first actual increment and progress while reading the second actor independently"
         );
@@ -901,6 +981,7 @@ void test_idle_query_failures(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_group_a_frame(openswd3::test::Context& test) {
+    test_group_a_overlay_clearing(test);
     for (u32 branch = 0U; branch < 3U; ++branch) {
         auto state_storage = std::make_unique<PausedFrameState>();
         auto& state = *state_storage;
@@ -934,8 +1015,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             );
         constexpr std::array expected_statuses{
             LegacyBattleActionDispatchStatus::actor_action_mode_typed_stop,
-            LegacyBattleActionDispatchStatus::
-                actor_target_selection_count_increment_typed_stop,
+            LegacyBattleActionDispatchStatus::actor_overlay_state_missing,
             LegacyBattleActionDispatchStatus::
                 actor_availability_block_typed_stop,
         };

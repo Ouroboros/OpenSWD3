@@ -99,7 +99,6 @@ constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallQueryQueueMode = 0x00483820U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorAvailable = 0x0047C670U;
-constexpr u32 kCallClearControl = 0x0047C660U;
 constexpr u32 kCallLookupProfileItem = 0x00482F70U;
 constexpr u32 kCallRefreshProgressMultiplier = 0x00482F10U;
 constexpr u32 kCallApplyProfileItemDelta = 0x004830A0U;
@@ -342,6 +341,42 @@ one_based_group_b_token(const u32 one_based) noexcept {
         return true;
     }
     result.status = LegacyBattleActionDispatchStatus::group_b_index_typed_stop;
+    return false;
+}
+
+[[nodiscard]] bool clear_actor_overlay(
+    LegacyBattleGroupAFrameState& state,
+    LegacyBattleActionDispatchContext& context,
+    LegacyBattleActionDispatchResult& result,
+    const u32 actor_address
+) noexcept {
+    const u32 party_offset = actor_address - kLegacyBattleActionGroupABaseToken;
+    if (actor_address >= kLegacyBattleActionGroupABaseToken &&
+        party_offset % kLegacyBattleActionGroupAStride == 0U &&
+        party_offset / kLegacyBattleActionGroupAStride <
+            state.action.group_a_action_execution.size()) {
+        state.action
+            .group_a_action_execution
+                [party_offset / kLegacyBattleActionGroupAStride]
+            .overlay_render_enabled = 0U;
+        return true;
+    }
+
+    const u32 enemy_offset = actor_address - kLegacyBattleActionGroupBBaseToken;
+    if (context.startup != nullptr &&
+        context.startup->group_b_lifecycle != nullptr &&
+        actor_address >= kLegacyBattleActionGroupBBaseToken &&
+        enemy_offset % kLegacyBattleActionGroupBStride == 0U &&
+        enemy_offset / kLegacyBattleActionGroupBStride <
+            context.startup->group_b_lifecycle->size()) {
+        (*context.startup->group_b_lifecycle)
+            [enemy_offset / kLegacyBattleActionGroupBStride]
+                .action_execution.overlay_render_enabled = 0U;
+        return true;
+    }
+
+    result.status =
+        LegacyBattleActionDispatchStatus::actor_overlay_state_missing;
     return false;
 }
 
@@ -1682,7 +1717,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     current_actor_idle = *result.actor_idle_state->value == 0U;
                 }
                 if (current_actor_idle) {
-                    static_cast<void>(invoke(port, kCallClearControl, {0U}));
+                    state.action.group_a_action_execution[selected_ordinal - 1U]
+                        .overlay_render_enabled = 0U;
                     (*context.startup->group_a_runtime_reset)[group_a_index]
                         .field_2ad4 = 0U;
                     {
@@ -1787,9 +1823,17 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         .field_2ad4 = 0U;
                     if (state.actor_ai_primary[group_a_index] != 0U ||
                         state.actor_ai_secondary[group_a_index] != 0U) {
-                        static_cast<void>(
-                            invoke(port, kCallClearControl, {0U})
-                        );
+                        if (!clear_actor_overlay(
+                                state,
+                                context,
+                                result,
+                                one_based_group_b_token(
+                                    state.selected_opponent_one_based
+                                )
+                            )) {
+                            return result;
+                        }
+
                         const u32 selected = state.selected_opponent_one_based;
                         const u32 address_eax = selected * 1381U;
                         const u32 address_edx = selected * 345U;
@@ -1919,9 +1963,17 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             }
                         }
 
-                        static_cast<void>(
-                            invoke(port, kCallClearControl, {0U})
-                        );
+                        if (!clear_actor_overlay(
+                                state,
+                                context,
+                                result,
+                                one_based_group_b_token(
+                                    state.selected_actor_one_based
+                                )
+                            )) {
+                            return result;
+                        }
+
                         const u32 selected = state.selected_actor_one_based;
                         const u32 address_eax = selected * 1381U;
                         const u32 address_edx = selected * 345U;
@@ -2058,9 +2110,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             }
 
                             if (*result.actor_idle_state->value == 0U) {
-                                static_cast<void>(
-                                    invoke(port, kCallClearControl, {0U})
-                                );
+                                state.action.group_a_action_execution[uindex]
+                                    .overlay_render_enabled = 0U;
                                 ++actor.progress;
                             }
                         }
@@ -2108,8 +2159,15 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     } else if (
                         state.action.group_a_to_actor[uindex] == 0xFFFFFFFFU
                     ) {
-                        const auto cleared =
-                            invoke(port, kCallClearControl, {0U});
+                        if (context.startup == nullptr ||
+                            context.startup->group_b_lifecycle == nullptr) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                actor_overlay_state_missing;
+                            return result;
+                        }
+
+                        (*context.startup->group_b_lifecycle)[uindex]
+                            .action_execution.overlay_render_enabled = 0U;
                         result.actor_target_selection_count_increment =
                             increment_legacy_battle_actor_target_selection_count(
                                 context.startup != nullptr &&
@@ -2130,7 +2188,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                 completed) {
                             result.status = LegacyBattleActionDispatchStatus::
                                 actor_target_selection_count_increment_typed_stop;
-                            result.return_value = cleared.eax;
                             return result;
                         }
 

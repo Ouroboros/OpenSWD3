@@ -1527,6 +1527,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_coordinate_typed_stop,
     actor_turn_completion_typed_stop,
     actor_idle_state_typed_stop,
+    actor_overlay_state_missing,
     actor_action_kind_typed_stop,
     actor_action_mode_typed_stop,
     actor_field_26b8_high_bit_clear_typed_stop,
