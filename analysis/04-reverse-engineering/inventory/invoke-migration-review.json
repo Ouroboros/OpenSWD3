@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "f504a0d94ef8de6b20b72ffc42d3fdcd8c0e472d",
+  "last_reviewed_source_revision": "b0cef2f8deb8ad8a2302dcbd8bee7244b6dc0f63",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -647,9 +647,9 @@
     },
     "battle/legacy_battle_script_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "f504a0d9",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-script-overlay-initialization.md",
-      "reason": "脚本2/44/59文字初始化的三处通用调用改为实际10队员或8敌人叠加标记写入，保留先置所选敌人再清组及坐标/文字顺序，删除寄存器准备函数，撤回纯写叶改写选择的虚构测试。结束段10敌人扫描额外存储待核实；其他父操作枚举、参数包、机器回复、轨迹、Port及加载协议仍在"
+      "last_reviewed_commit": "b0cef2f8",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-script-party-overlay-completion.md",
+      "reason": "脚本2/44/59初始化10队员或8敌人及结束时10队员均改为实际叠加标记写入，结束时2/59逐队员选择操作保持交错顺序与失败前缀。敌方结束扫描额外写入已静态定位到CRT缓冲区和PE资源载荷，运行期保护与异常仍未验证；敌方通用调用、其他操作枚举、参数包、机器回复、轨迹、Port及加载协议仍在"
     },
     "battle/legacy_battle_startup": {
       "status": "pending",
