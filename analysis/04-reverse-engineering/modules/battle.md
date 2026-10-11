@@ -721,9 +721,12 @@ core/ASan角色帧各1/1及SDL链接通过，父协议仍待迁移。
 敌方行动11/12/17和敌方帧的四处步长调用也已写入同一实际角色字段；
 保持同帧先2后8、前继失败和激活失败前缀，移除对应操作编号及步长回复包。
 core/ASan角色帧各1/1及SDL链接通过；见`evidence/battle-enemy-presentation-step-0047d860.md`。
-队员行动11/12也直接写真实步长8，原可空上下文仅在实际写入点报告缺失存储，
-保留前继操作并阻断完成发布；24组组合、core/ASan角色帧及SDL链接通过。
-全11处步长调用映射见`evidence/battle-party-presentation-step-0047d860.md`；父协议仍待迁移。
+队员行动11/12也直接写真实步长8，全11处步长调用映射见
+`evidence/battle-party-presentation-step-0047d860.md`。
+其前继绘制抑制0/1和召唤队员抑制1已直接写已有残余状态数组；
+缺失存储在首次字段访问报告，前继失败不写、后继分配失败保留实际写入。
+48组完成组合、召唤顺序/失败测试、core/ASan角色帧及SDL链接通过。
+见`evidence/battle-party-drawing-suppression-0047d870.md`；父协议仍待迁移。
 结束段10敌人扫描的额外写入已静态定位到CRT缓冲区和PE资源载荷；
 运行期页保护、异常与其他父协议继续待核实或迁移。
 当前验证范围见`evidence/battle-script-overlay-initialization.md`及

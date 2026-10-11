@@ -830,8 +830,9 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
         }
         result.return_value = 1U;
         return result;
+
     case 11U:
-    case 12U:
+    case 12U: {
         reply = invoke(
             state,
             port,
@@ -841,22 +842,26 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
         if (reply.eax != 1U) {
             return result;
         }
-        static_cast<void>(
-            invoke(state, port, kCallClearMode, {action == 11U ? 0U : 1U})
-        );
-        if (context.startup == nullptr) {
+
+        const u32 suppress_draw = action == 11U ? 0U : 1U;
+        if (context.startup == nullptr ||
+            context.startup->group_a_runtime_reset == nullptr) {
             result.status =
                 LegacyBattleActionDispatchStatus::actor_base_state_missing;
-            result.return_value = 8U;
+            result.return_value = suppress_draw;
             return result;
         }
 
+        (*context.startup->group_a_runtime_reset)[group_a_index].field_2af0 =
+            suppress_draw;
         context.startup->party[group_a_index]
             .base_initialization.presentation_step = 8U;
         state.overlay_gate = 1U;
         state.current_actor_index = 0xFFFFU;
         result.return_value = 1U;
         return result;
+    }
+
     case 13U:
         if (!require_group_b()) {
             return result;

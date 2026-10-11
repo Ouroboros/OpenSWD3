@@ -134,11 +134,13 @@ runtime低word bit0未置位时返回0。
 - 4：目标准备成功后走动作400公共commit与清理尾；
 - 5：清current actor并返回1；
 - 7：目标完成后延迟0、更新目标，目标索引小于4时packed actor低byte加1，返回1；
-- 11/12：使用两个不同查询callee，精确返回1后分别发布mode 0/1，再直接写实际队员步长8、overlay gate 1、current actor全1并返回1；
+- 11/12：使用两个不同查询callee，完整EAX精确返回1后分别直接写实际队员绘制抑制0/1，再写步长8、overlay gate 1、current actor全1并返回1；
 - 17：独立result mode非零时清current actor并返回1，否则返回0。
 
 11/12已删除步长操作编号及通用调用，借用startup实际队员基础字段。
-实际存储缺失只在字段写入点报告，保留前继操作并阻断完成发布。
+绘制抑制也已直接写startup.group_a_runtime_reset的同索引元素。
+实际存储缺失在第一次抑制DWORD写入点报告，阻断步长和完成发布。
+当前字段、所有者和失败前缀见[队员绘制抑制](battle-party-drawing-suppression-0047d870.md)。
 全11处步长调用映射与验证见[队员绘制步长](battle-party-presentation-step-0047d860.md)。
 
 ## 9. case 6：多帧目标阶段
@@ -162,6 +164,10 @@ phase零时建立factor=-12、primary suppression和动画。目标动作完成�
 ### 10.3 case 15
 
 phase零时按battle flags bit2与packed high word<2决定是否增加召唤计数和组A数量；从每角色summon word取索引，依序执行选中、模式、首条动作记录清零、构造、动画与召唤记录建立。`0x0045529A`以`ECX=0x005029D0+index*0x2F34`直接组合已关闭`0x004786F0` typed leaf，真实返回地址为`0x0045529F`；只清零Group-A canonical第0动作记录的38个dword，生产路径不再调用原raw地址。每帧保持factor=-12和suppression；坐标完成后更新目标`index+8`、清battle bit2、summon runtime、packed lowword和角色summon word，发布终态并调用两个后续stage，返回1。
+
+004552C2已改为直接写实际召唤队员的绘制抑制1，位于帧源清除之后、镜像及分配之前。
+缺startup或残余状态数组时保留帧源清除，不执行分配；后继分配失败保留抑制写入。
+实际所有者、首末队员和前后失败测试见[队员绘制抑制](battle-party-drawing-suppression-0047d870.md)。
 
 ## 11. case 22：状态指示器与对手选择
 
@@ -239,7 +245,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 
 - 组A/B对象索引：首次对应对象callee调用；
 - actor map/effect score：首次表读写；
-- case 11/12基础字段存储缺失：前继操作之后、步长实际写入点报告，阻断完成门和当前角色发布；
+- case 11/12与15残余状态缺失：首次抑制字段实际写入点报告，分别阻断步长/完成发布和镜像/分配；
 - target identity/status/event/summon表：首次元素访问；
 - resolved target零token：首次flags读取；
 - framebuffer尺寸过大：先发布frame refresh并写满owned前缀，再在首个越界像素停止；

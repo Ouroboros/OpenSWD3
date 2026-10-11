@@ -1007,17 +1007,25 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchStatus;
 
     for (const u16 action : std::array<u16, 2>{11U, 12U}) {
-        for (const u32 completion : {0U, 1U, 2U}) {
+        for (const u32 completion : {0U, 1U, 2U, 0x10001U}) {
             for (const u32 source_index : {0U, 9U}) {
-                for (const bool storage_available : {true, false}) {
+                for (const u32 storage_state : {0U, 1U, 2U}) {
+                    const bool storage_available = storage_state == 0U;
                     auto state =
                         std::make_unique<LegacyBattleActionDispatchState>();
                     state->overlay_gate = 0xCAFEU;
                     state->current_actor_index = 0x1234U;
                     auto fixture = std::make_unique<Fixture>();
+                    const auto residual_states =
+                        fixture->startup.group_a_runtime_reset;
                     for (auto& party : fixture->startup.party) {
                         party.base_initialization.presentation_step = 0xFFFFU;
                         party.base_initialization.field_2a94 = 0x5AU;
+                    }
+
+                    for (auto& residual : *residual_states) {
+                        residual.field_2af0 = 0xFFFFFFFFU;
+                        residual.field_2af4 = 0x89ABCDEFU;
                     }
 
                     DispatchPort port;
@@ -1027,8 +1035,10 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                         {.eax = completion}
                     );
                     auto context = fixture->context();
-                    if (!storage_available) {
+                    if (storage_state == 1U) {
                         context.startup = nullptr;
+                    } else if (storage_state == 2U) {
+                        fixture->startup.group_a_runtime_reset.reset();
                     }
 
                     const auto result =
@@ -1044,9 +1054,16 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                             fixture->startup.party[index].base_initialization;
                         const u16 expected =
                             finished && index == source_index ? 8U : 0xFFFFU;
+                        const auto& residual = (*residual_states)[index];
+                        const u32 expected_suppression =
+                            finished && index == source_index
+                            ? (action == 11U ? 0U : 1U)
+                            : 0xFFFFFFFFU;
                         fields_match = fields_match &&
                             fields.presentation_step == expected &&
-                            fields.field_2a94 == 0x5AU;
+                            fields.field_2a94 == 0x5AU &&
+                            residual.field_2af0 == expected_suppression &&
+                            residual.field_2af4 == 0x89ABCDEFU;
                     }
 
                     test.expect_true(
@@ -1057,16 +1074,14 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                                      : LegacyBattleActionDispatchStatus::
                                            completed) &&
                             result.return_value ==
-                                (missing_storage ? 8U
+                                (missing_storage ? (action == 11U ? 0U : 1U)
                                      : finished  ? 1U
                                                  : 0U) &&
                             state->overlay_gate == (finished ? 1U : 0xCAFEU) &&
                             state->current_actor_index ==
                                 (finished ? 0xFFFFU : 0x1234U) &&
-                            port.count(0x0047D870U) ==
-                                (completion == 1U ? 1U : 0U) &&
-                            fields_match,
-                        "party actions eleven and twelve write only the completing actor step, preserve neighbors, and report absent storage only after the preceding operation"
+                            port.count(0x0047D870U) == 0U && fields_match,
+                        "party actions eleven and twelve write the actual draw suppression before the step and completion, preserve neighbors, and stop at the first missing owner access"
                     );
                 }
             }
@@ -5393,6 +5408,11 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.startup.window_token = 0x12340000U;
         auto& summon = fixture.startup.party[2U];
+        auto& suppression = (*fixture.startup.group_a_runtime_reset)[2U];
+        auto& source_suppression = (*fixture.startup.group_a_runtime_reset)[0U];
+        suppression.field_2af0 = 0xFFFFFFFFU;
+        suppression.field_2af4 = 0x89ABCDEFU;
+        source_suppression.field_2af0 = 0x12345678U;
         summon.placement_prefix = {1U, 2U, 3U, 4U, 5U};
         summon.role_id = 7U;
         summon.position_x = 0x2345U;
@@ -5407,6 +5427,19 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 15U;
         port.push(0x00487C10U, {.eax = 0x71000000U});
+        u32 suppression_observations = 0U;
+        bool suppression_precedes_suffix = true;
+        port.on_call = [&](const LegacyBattleActionCallRequest& request) {
+            if (request.callee_token == 0x0047F900U ||
+                request.callee_token == 0x00487C10U) {
+                ++suppression_observations;
+                suppression_precedes_suffix = suppression_precedes_suffix &&
+                    suppression.field_2af0 == 1U &&
+                    suppression.field_2af4 == 0x89ABCDEFU &&
+                    source_suppression.field_2af0 == 0x12345678U;
+            }
+        };
+
         set_summon_profile_word(port.summon_profile, 0x56U, 0x1111U);
         set_summon_profile_word(port.summon_profile, 0x60U, 0x2222U);
         set_summon_profile_word(port.summon_profile, 0x64U, 0x3333U);
@@ -5439,6 +5472,8 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleGroupASummonMaterializationStatus::
                             completed &&
+                suppression_observations == 2U && suppression_precedes_suffix &&
+                suppression.field_2af0 == 1U &&
                 result.summon_materialization.return_eax == 0x71000000U &&
                 result.summon_materialization.return_edx ==
                     summon.configuration.actor_record_token &&
@@ -5479,6 +5514,8 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.action = 15U;
+        auto& suppression = (*fixture.startup.group_a_runtime_reset)[2U];
+        suppression.field_2af0 = 0xFFFFFFFFU;
         port.push(0x0047DAB0U, {.edx = 0x12345678U});
         auto context = fixture.context();
         context.actor_frame_snapshot_clear_request.entry_esp = 0x81002000U;
@@ -5519,6 +5556,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                      .auxiliary_carry_defined &&
                 result.actor_frame_snapshot_clear.flags.zero &&
                 partial_clear_matches &&
+                suppression.field_2af0 == 0xFFFFFFFFU &&
                 result.summon_materialization_calls == 0U &&
                 port.count(0x0047D870U) == 0U &&
                 port.count(0x004786F0U) == 0U &&
@@ -5540,6 +5578,8 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 15U;
         auto context = fixture.context();
+        auto& suppression = (*fixture.startup.group_a_runtime_reset)[2U];
+        suppression.field_2af0 = 0xFFFFFFFFU;
         context.actor_frame_snapshot_clear_request.entry_esp = 0x82003000U;
         context.actor_frame_snapshot_clear_request.stack_access
             .push_edi_writable = false;
@@ -5570,6 +5610,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 !result.actor_frame_snapshot_clear.flags.sign &&
                 !result.actor_frame_snapshot_clear.flags.overflow &&
                 frame_snapshot_words(snapshot) == initial &&
+                suppression.field_2af0 == 0xFFFFFFFFU &&
                 result.summon_materialization_calls == 0U &&
                 port.count(0x0047D870U) == 0U && port.count(0x004786F0U) == 0U,
             "action fifteen supplies the physical actor arithmetic, switch EDI, SUB flags, stack token, and return address before the leaf PUSH"
@@ -5606,7 +5647,71 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const u16 summon_index : std::array<u16, 2>{0U, 9U}) {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        const u32 source_index = 9U - summon_index;
+        state->group_a_count = 1U;
+        state->group_b_count = 1U;
+        state->group_a_status_words[source_index] = summon_index;
+        auto& snapshot = state->group_a_action_execution[summon_index]
+                             .frame_source_action_record;
+        set_frame_snapshot_words(snapshot, nonzero_frame_snapshot_words());
+        auto fixture = std::make_unique<Fixture>();
+        for (auto& residual : *fixture->startup.group_a_runtime_reset) {
+            residual.field_2af0 = 0xFEDCBA98U;
+            residual.field_2af4 = 0x76543210U;
+        }
+
+        for (auto& party : fixture->startup.party) {
+            party.base_initialization.presentation_step = 0xFFFFU;
+        }
+
+        DispatchPort port;
+        port.action = 15U;
+        port.push(0x00487C10U, {.eax = 0U});
+        bool allocation_observed_write = false;
+        port.on_call = [&](const LegacyBattleActionCallRequest& request) {
+            if (request.callee_token == 0x00487C10U) {
+                allocation_observed_write =
+                    (*fixture->startup.group_a_runtime_reset)[summon_index]
+                        .field_2af0 == 1U;
+            }
+        };
+
+        auto context = fixture->context();
+        const auto result = dispatch(*state, port, context, source_index, 0U);
+        bool fields_match = true;
+        for (std::size_t index = 0U; index < fixture->startup.party.size();
+             ++index) {
+            const auto& party = fixture->startup.party[index];
+            const auto& residual =
+                (*fixture->startup.group_a_runtime_reset)[index];
+            fields_match = fields_match &&
+                residual.field_2af0 ==
+                    (index == summon_index ? 1U : 0xFEDCBA98U) &&
+                residual.field_2af4 == 0x76543210U &&
+                party.base_initialization.presentation_step == 0xFFFFU;
+        }
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        summon_materialization_typed_stop &&
+                result.summon_materialization.status ==
+                    openswd3::battle::
+                        LegacyBattleGroupASummonMaterializationStatus::
+                            allocation_typed_stop &&
+                allocation_observed_write && fields_match &&
+                frame_snapshot_words(snapshot) == FrameSnapshotWords{} &&
+                result.summon_materialization.load_calls == 0U &&
+                port.count(0x00487C10U) == 1U &&
+                port.count(0x0047D870U) == 0U &&
+                static_cast<u16>(state->phase_counter) == 0U,
+            "summon allocation failure preserves the selected endpoint actor draw suppression after snapshot clear without changing other actors or adjacent fields"
+        );
+    }
+
+    for (const bool missing_startup : {true, false}) {
         LegacyBattleActionDispatchState state;
         state.group_a_count = 1;
         state.group_b_count = 1;
@@ -5616,24 +5721,29 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         port.action = 15U;
         port.push(0x00487C10U, {.eax = 0x73000000U});
         auto context = fixture.context();
-        context.startup = nullptr;
+        if (missing_startup) {
+            context.startup = nullptr;
+        } else {
+            fixture.startup.group_a_runtime_reset.reset();
+        }
 
         const auto result = dispatch(state, port, context, 0U, 0U);
 
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
-                        summon_materialization_typed_stop &&
-                result.summon_materialization.status ==
+                        actor_base_state_missing &&
+                result.return_value == 1U &&
+                result.actor_frame_snapshot_clear_calls == 1U &&
+                result.actor_frame_snapshot_clear.status ==
                     openswd3::battle::
-                        LegacyBattleGroupASummonMaterializationStatus::
-                            actor_state_typed_stop &&
-                result.summon_materialization.allocation_calls == 1U &&
-                result.summon_materialization.load_calls == 0U &&
-                port.count(0x00487C10U) == 1U &&
+                        LegacyBattleActorFrameSnapshotClearStatus::completed &&
+                result.summon_materialization_calls == 0U &&
+                port.count(0x00487C10U) == 0U &&
+                port.count(0x0047F900U) == 0U &&
                 port.count(0x0046E890U) == 0U &&
                 static_cast<u16>(state.phase_counter) == 0U,
-            "missing shared summon owner stops after allocation and clear before the first actor write"
+            "missing shared summon owner preserves snapshot clear and stops at draw suppression before mirror or allocation"
         );
     }
 

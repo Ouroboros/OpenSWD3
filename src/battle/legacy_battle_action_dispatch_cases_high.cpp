@@ -61,38 +61,40 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     result.actor_frame_snapshot_clear.return_eax;
                 return result;
             }
-            static_cast<void>(invoke(state, port, kCallClearMode, {1U}));
+
+            if (context.startup == nullptr ||
+                context.startup->group_a_runtime_reset == nullptr) {
+                result.status =
+                    LegacyBattleActionDispatchStatus::actor_base_state_missing;
+                result.return_value = 1U;
+                return result;
+            }
+
+            (*context.startup->group_a_runtime_reset)[summon_index].field_2af0 =
+                1U;
             if (state.summon_gate == 0U) {
                 static_cast<void>(
                     invoke(state, port, kCallSetGlobalMode, {1U})
                 );
             }
-            LegacyBattleGroupAConfigurationState* summon_state = nullptr;
-            LegacyBattleGroupAPlacementRecord summon_source{};
-            const LegacyBattleGroupAPlacementRecord* summon_source_view =
-                nullptr;
-            u32 summon_window_token = 0U;
-            if (context.startup != nullptr) {
-                auto& party = context.startup->party[summon_index];
-                summon_state = &party.configuration;
-                summon_source = {
-                    .prefix = party.placement_prefix,
-                    .role_id = party.role_id,
-                    .position_x = party.position_x,
-                    .position_y = party.position_y,
-                    .field_1a = party.placement_field_1a,
-                    .active = party.active,
-                };
-                summon_source_view = &summon_source;
-                summon_window_token = context.startup->window_token;
-            }
+
+            auto& party = context.startup->party[summon_index];
+            const LegacyBattleGroupAPlacementRecord summon_source{
+                .prefix = party.placement_prefix,
+                .role_id = party.role_id,
+                .position_x = party.position_x,
+                .position_y = party.position_y,
+                .field_1a = party.placement_field_1a,
+                .active = party.active,
+            };
+
             result.summon_materialization =
                 materialize_legacy_battle_group_a_summon(
-                    summon_state,
-                    summon_source_view,
+                    &party.configuration,
+                    &summon_source,
                     group_a_token(summon_index),
                     0x0053AF70U + summon_index * 0x20U,
-                    summon_window_token,
+                    context.startup->window_token,
                     port
                 );
             ++result.summon_materialization_calls;
