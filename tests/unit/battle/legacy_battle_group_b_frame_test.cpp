@@ -1361,8 +1361,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto& presentation_request =
             context.actor_action_presentation_requests.requests[0U];
         presentation_request.entry_esp = 0x8A10A014U;
-        presentation_request.high_bit_clear_request.access.field_writable =
-            false;
+        presentation_request.high_bit_clear_access.field_writable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
                 state, port, context, 0U
@@ -1376,33 +1375,31 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                         LegacyBattleActorActionPresentationStatus::
                             high_bit_clear_typed_stop &&
                 result.actor_action_presentation.last.physical_call_count ==
-                    2U &&
+                    1U &&
                 result.actor_action_presentation.last.physical_calls[0U]
                         .call_address == 0x00478CB3U &&
-                result.actor_action_presentation.last.physical_calls[1U]
-                        .call_address == 0x00478CC8U &&
-                result.actor_field_26b8_high_bit_clear_calls == 1U &&
-                result.actor_field_26b8_high_bit_clear.status ==
+                result.actor_field_26b8_high_bit_clear.has_value() &&
+                result.actor_field_26b8_high_bit_clear->status ==
                     openswd3::battle::
                         LegacyBattleActorField26b8HighBitClearStatus::
                             field_write_typed_stop &&
-                result.actor_field_26b8_high_bit_clear.return_eax == 1U &&
-                result.actor_field_26b8_high_bit_clear.return_ecx ==
+                result.actor_action_presentation.last.return_eax == 1U &&
+                result.actor_action_presentation.last.return_ecx ==
                     openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
-                result.actor_field_26b8_high_bit_clear.return_edx ==
+                result.actor_action_presentation.last.return_edx ==
                     0x99AABBCCU &&
-                result.actor_field_26b8_high_bit_clear.return_esp ==
+                result.actor_action_presentation.last.return_esp ==
                     0x8A10A000U &&
-                result.actor_field_26b8_high_bit_clear.return_eip ==
+                result.actor_action_presentation.last.return_eip ==
                     0x00478770U &&
-                !result.actor_field_26b8_high_bit_clear.flags.carry &&
-                result.actor_field_26b8_high_bit_clear.flags.parity &&
-                !result.actor_field_26b8_high_bit_clear.flags.auxiliary_carry &&
-                result.actor_field_26b8_high_bit_clear.flags
+                !result.actor_action_presentation.last.flags.carry &&
+                result.actor_action_presentation.last.flags.parity &&
+                !result.actor_action_presentation.last.flags.auxiliary_carry &&
+                result.actor_action_presentation.last.flags
                     .auxiliary_carry_defined &&
-                result.actor_field_26b8_high_bit_clear.flags.zero &&
-                !result.actor_field_26b8_high_bit_clear.flags.sign &&
-                !result.actor_field_26b8_high_bit_clear.flags.overflow &&
+                result.actor_action_presentation.last.flags.zero &&
+                !result.actor_action_presentation.last.flags.sign &&
+                !result.actor_action_presentation.last.flags.overflow &&
                 actor.field_26b8 == 0x80000009U &&
                 state.shared.action.group_a_to_actor[0] == 3U &&
                 state.shared.action.overlay_gate == 0U &&

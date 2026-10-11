@@ -71,11 +71,6 @@ void test_battle_actor_field_26b8_high_bit_query(
                 .action = action.get(),
                 .startup = startup.get(),
             };
-        const auto clear_owners =
-            openswd3::battle::LegacyBattleActorField26b8HighBitClearOwners{
-                .action = action.get(),
-                .startup = startup.get(),
-            };
         const auto set_owners =
             openswd3::battle::LegacyBattleActorField26b8HighBitSetOwners{
                 .action = action.get(),
@@ -89,13 +84,16 @@ void test_battle_actor_field_26b8_high_bit_query(
             resolve_legacy_battle_actor_field_26b8_high_bit_query(
                 query_owners, group_b_token
             );
-        const auto group_a_clear = openswd3::battle::
-            resolve_legacy_battle_actor_field_26b8_high_bit_clear(
-                clear_owners, group_a_token
+        action->group_a_action_execution[1U].field_26b8 = 0x80000005U;
+        (*startup->group_b_lifecycle)[2U].action_execution.field_26b8 =
+            0xFFFFFFFFU;
+        const auto group_a_clear =
+            openswd3::battle::clear_legacy_battle_actor_field_26b8_high_bit(
+                &action->group_a_action_execution[1U].field_26b8
             );
-        const auto group_b_clear = openswd3::battle::
-            resolve_legacy_battle_actor_field_26b8_high_bit_clear(
-                clear_owners, group_b_token
+        const auto group_b_clear =
+            openswd3::battle::clear_legacy_battle_actor_field_26b8_high_bit(
+                &(*startup->group_b_lifecycle)[2U].action_execution.field_26b8
             );
         const auto group_a_set = openswd3::battle::
             resolve_legacy_battle_actor_field_26b8_high_bit_set(
@@ -110,12 +108,20 @@ void test_battle_actor_field_26b8_high_bit_query(
                 query_owners, group_a_token + 1U
             );
         test.expect_true(
-            group_a.field_26b8 == group_a_clear.field_26b8 &&
+            group_a_clear.status ==
+                    openswd3::battle::
+                        LegacyBattleActorField26b8HighBitClearStatus::
+                            completed &&
+                group_b_clear.status ==
+                    openswd3::battle::
+                        LegacyBattleActorField26b8HighBitClearStatus::
+                            completed &&
                 group_a.field_26b8 == group_a_set.field_26b8 &&
-                group_b.field_26b8 == group_b_clear.field_26b8 &&
                 group_b.field_26b8 == group_b_set.field_26b8 &&
+                *group_a.field_26b8 == 5U &&
+                *group_b.field_26b8 == 0x7FFFFFFFU &&
                 invalid.field_26b8 == nullptr,
-            "field-26b8 query aliases the clear and set canonical owners for both actor groups"
+            "field queries and setters observe direct clearing of the same canonical fields"
         );
     }
 

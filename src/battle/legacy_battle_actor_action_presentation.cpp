@@ -742,47 +742,44 @@ advance_legacy_battle_actor_action_presentation(
             return finish();
         }
         ecx = request.actor_token;
-        if (!write_u32(0x00478CC2U, 0x2AC4U, 0U)) {
-            return finish();
-        }
-        std::size_t index{};
-        if (!begin_call(
-                0x00478CC8U,
-                0x00478CCDU,
-                kLegacyBattleActorField26b8HighBitClearAddress,
-                {},
-                index
+        if (!touch(
+                LegacyBattleActorActionPresentationAccessKind::actor_write,
+                0x00478CC2U,
+                request.actor_token + 0x2AC4U
             )) {
             return finish();
         }
-        auto child_request = request.high_bit_clear_request;
-        child_request.actor_token = request.actor_token;
-        child_request.entry_eax = eax;
-        child_request.entry_edx = edx;
-        child_request.entry_esp = esp - 4U;
-        child_request.entry_return_address = 0x00478CCDU;
-        child_request.entry_flags = flags;
-        child_request.entry_flags_known = flags_known;
+
+        actor.actor.action_execution->special_four_hundred_phase = 0U;
         result.high_bit_clear = clear_legacy_battle_actor_field_26b8_high_bit(
-            {.field_26b8 = &actor.actor.action_execution->field_26b8},
-            child_request
+            &actor.actor.action_execution->field_26b8,
+            request.high_bit_clear_access
         );
-        auto& trace = result.physical_calls[index];
-        trace.return_eax = result.high_bit_clear.return_eax;
-        trace.return_ecx = result.high_bit_clear.return_ecx;
-        trace.return_edx = result.high_bit_clear.return_edx;
-        eax = result.high_bit_clear.return_eax;
-        ecx = result.high_bit_clear.return_ecx;
-        edx = result.high_bit_clear.return_edx;
-        flags = result.high_bit_clear.flags;
-        flags_known = result.high_bit_clear.flags_known;
-        if (!result.high_bit_clear.returned) {
+        const auto clear_status = result.high_bit_clear->status;
+        if (clear_status ==
+                LegacyBattleActorField26b8HighBitClearStatus::completed ||
+            clear_status ==
+                LegacyBattleActorField26b8HighBitClearStatus::
+                    return_address_read_typed_stop) {
+            flags =
+                subtract_flags(actor.actor.action_execution->field_26b8, 0U);
+            flags.auxiliary_carry_defined = false;
+            flags_known = true;
+        }
+
+        if (clear_status !=
+            LegacyBattleActorField26b8HighBitClearStatus::completed) {
             result.status = LegacyBattleActorActionPresentationStatus::
                 high_bit_clear_typed_stop;
-            esp = result.high_bit_clear.return_esp;
-            eip = result.high_bit_clear.return_eip;
+            esp -= 4U;
+            eip = clear_status ==
+                    LegacyBattleActorField26b8HighBitClearStatus::
+                        return_address_read_typed_stop
+                ? 0x0047877AU
+                : 0x00478770U;
             return finish();
         }
+
         static_cast<void>(return_from(0x00478CD1U));
         return finish();
     }

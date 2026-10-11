@@ -299,7 +299,8 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
         fixture.port.push(
             0x0047BA80U, {.eax = 1U, .ecx = group_a_token, .edx = 0xA5A55A5AU}
         );
-        const auto entry = request(group_a_token);
+        auto entry = request(group_a_token);
+        entry.stop_before_call = 1U;
         const auto result =
             openswd3::battle::advance_legacy_battle_actor_action_presentation(
                 openswd3::battle::
@@ -313,15 +314,14 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActorActionPresentationStatus::completed &&
                 result.returned && result.exit_instruction == 0x00478CD1U &&
-                actor.field_26b8 == 5U && result.physical_call_count == 2U &&
+                actor.field_26b8 == 5U && result.physical_call_count == 1U &&
                 result.physical_calls[0U].call_address == 0x00478CB3U &&
                 result.physical_calls[0U].callee_token == 0x0047BA80U &&
-                result.physical_calls[1U].call_address == 0x00478CC8U &&
-                result.physical_calls[1U].callee_token ==
+                result.high_bit_clear.has_value() &&
+                result.high_bit_clear->status ==
                     openswd3::battle::
-                        kLegacyBattleActorField26b8HighBitClearAddress &&
-                result.physical_calls[1U].return_address == 0x00478CCDU,
-            "high-bit path records the query and typed clear CALL before returning at 00478CD1"
+                        LegacyBattleActorField26b8HighBitClearStatus::completed,
+            "high-bit path queries readiness then directly clears shared state before returning at 00478CD1"
         );
     }
 
@@ -332,7 +332,7 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
         actor.field_26b8 = 0x80000005U;
         fixture.port.push(0x0047BA80U, {.eax = 1U});
         auto entry = request(group_a_token);
-        entry.high_bit_clear_request.access.return_address_readable = false;
+        entry.high_bit_clear_access.return_address_readable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_actor_action_presentation(
                 openswd3::battle::
@@ -347,12 +347,99 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
                     LegacyBattleActorActionPresentationStatus::
                         high_bit_clear_typed_stop &&
                 !result.returned && actor.field_26b8 == 5U &&
-                result.physical_call_count == 2U &&
-                result.high_bit_clear.status ==
+                result.physical_call_count == 1U &&
+                result.high_bit_clear.has_value() &&
+                result.high_bit_clear->status ==
                     openswd3::battle::
                         LegacyBattleActorField26b8HighBitClearStatus::
                             return_address_read_typed_stop,
-            "nested clear RET fault keeps the committed dword and both physical CALL identities"
+            "clear RET fault keeps the committed shared dword after the readiness query"
+        );
+    }
+
+    for (const bool group_b : {false, true}) {
+        for (u32 failure = 0U; failure < 3U; ++failure) {
+            Fixture fixture;
+            auto& actor = group_b
+                ? (*fixture.startup->group_b_lifecycle)[0U].action_execution
+                : fixture.action->group_a_action_execution[0U];
+            auto& progress = group_b ? fixture.startup->enemies[0U].progress
+                                     : fixture.startup->party[0U].progress;
+            progress.special_ready = 1U;
+            actor.field_26b8 = 0x80000005U;
+            actor.special_four_hundred_phase = 0x12345678U;
+            const u32 actor_token = group_b ? group_b_token : group_a_token;
+            fixture.port.push(0x0047BA80U, {.eax = 1U, .edx = 0xA5A55A5AU});
+            auto entry = request(actor_token);
+            entry.high_bit_clear_access = {
+                .field_readable = failure != 0U,
+                .field_writable = failure != 1U,
+                .return_address_readable = failure != 2U,
+            };
+
+            const auto result = openswd3::battle::
+                advance_legacy_battle_actor_action_presentation(
+                    openswd3::battle::
+                        resolve_legacy_battle_actor_action_presentation(
+                            fixture.owners(), actor_token
+                        ),
+                    fixture.platform(),
+                    entry
+                );
+            using ClearStatus =
+                openswd3::battle::LegacyBattleActorField26b8HighBitClearStatus;
+            constexpr std::array statuses{
+                ClearStatus::field_read_typed_stop,
+                ClearStatus::field_write_typed_stop,
+                ClearStatus::return_address_read_typed_stop,
+            };
+
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActorActionPresentationStatus::
+                            high_bit_clear_typed_stop &&
+                    !result.returned && result.high_bit_clear.has_value() &&
+                    result.high_bit_clear->status == statuses[failure] &&
+                    actor.field_26b8 == (failure == 2U ? 5U : 0x80000005U) &&
+                    actor.special_four_hundred_phase == 0U &&
+                    result.return_eax == 1U &&
+                    result.return_ecx == actor_token &&
+                    result.return_edx == 0xA5A55A5AU &&
+                    result.return_esp == entry.entry_esp - 20U &&
+                    result.return_eip ==
+                        (failure == 2U ? 0x0047877AU : 0x00478770U) &&
+                    result.flags.zero == (failure != 2U) &&
+                    result.flags.auxiliary_carry_defined == (failure != 2U) &&
+                    fixture.port.calls.size() == 1U,
+                "both actor groups preserve the prior phase clear and exact failed-access prefix"
+            );
+        }
+    }
+
+    for (const u32 readiness : {0U, 2U, 0xFFFFFFFFU}) {
+        Fixture fixture;
+        fixture.startup->party[0U].progress.special_ready = 1U;
+        auto& actor = fixture.action->group_a_action_execution[0U];
+        actor.field_26b8 = 0x80000005U;
+        actor.special_four_hundred_phase = 0x12345678U;
+        fixture.port.push(0x0047BA80U, {.eax = readiness});
+        auto entry = request(group_a_token);
+        entry.high_bit_clear_access = {false, false, false};
+        const auto result =
+            openswd3::battle::advance_legacy_battle_actor_action_presentation(
+                openswd3::battle::
+                    resolve_legacy_battle_actor_action_presentation(
+                        fixture.owners(), group_a_token
+                    ),
+                fixture.platform(),
+                entry
+            );
+        test.expect_true(
+            result.returned && !result.high_bit_clear.has_value() &&
+                actor.field_26b8 == 0x80000005U &&
+                actor.special_four_hundred_phase == 0x12345678U &&
+                fixture.port.calls.size() == 1U,
+            "only readiness equal to one permits phase and high-bit clearing"
         );
     }
 
@@ -997,7 +1084,8 @@ void test_battle_actor_action_presentation(openswd3::test::Context& test) {
                 !result.returned && result.exit_instruction == 0x00478CD1U &&
                 result.return_eip == 0x00478CD1U &&
                 result.return_esp == entry.entry_esp &&
-                actor.field_26b8 == 5U && result.physical_call_count == 2U,
+                actor.field_26b8 == 5U && result.physical_call_count == 1U &&
+                result.high_bit_clear.has_value(),
             "high-bit-clear RETN 4 fault preserves the nested clear and stops at the dedicated exit"
         );
     }

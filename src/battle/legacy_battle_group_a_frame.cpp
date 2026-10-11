@@ -1275,13 +1275,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 result.actor_field_26b8_high_bit_set, nested
             );
         }
-        if (call.callee_token ==
-            kLegacyBattleActorField26b8HighBitClearAddress) {
-            result.actor_field_26b8_high_bit_clear =
-                result.actor_action_presentation.last.high_bit_clear;
-            ++result.actor_field_26b8_high_bit_clear_calls;
-        }
     }
+
+    if (result.actor_action_presentation.last.high_bit_clear.has_value()) {
+        result.actor_field_26b8_high_bit_clear =
+            result.actor_action_presentation.last.high_bit_clear;
+    }
+
     if (!action_presentation_returned) {
         result.status = LegacyBattleActionDispatchStatus::
             actor_action_presentation_typed_stop;

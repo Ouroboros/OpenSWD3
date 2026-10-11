@@ -96,7 +96,7 @@ struct LegacyBattleActorActionPresentationRequest {
     bool return_address_readable{true};
     std::array<bool, 3> resource_record_readable{true, true, true};
     LegacyBattleActorField26b8HighBitSetRequest high_bit_set_request{};
-    LegacyBattleActorField26b8HighBitClearRequest high_bit_clear_request{};
+    LegacyBattleActorField26b8HighBitClearMemoryAccess high_bit_clear_access{};
 };
 
 struct LegacyBattleActorActionPresentationPhysicalCall {
@@ -173,7 +173,8 @@ struct LegacyBattleActorActionPresentationResult {
     LegacyBattleActorActionPresentationPhysicalCallArray physical_calls{};
     std::size_t physical_call_count{};
     LegacyBattleActorField26b8HighBitSetResult high_bit_set{};
-    LegacyBattleActorField26b8HighBitClearResult high_bit_clear{};
+    std::optional<LegacyBattleActorField26b8HighBitClearResult>
+        high_bit_clear{};
     std::optional<LegacyBattleTenPlaceDecimalResult> decimal_draw{};
 };
 

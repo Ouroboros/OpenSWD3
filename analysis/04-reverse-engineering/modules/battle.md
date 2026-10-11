@@ -4163,25 +4163,18 @@ core与ASan分别通过setup、actor_frame_316两项目标，SDL实际链接通�
 动态差分仍为`blocked_runtime_oracle`，缺少原版完整actor、异常内存页与联合SEH捕获。
 详见`evidence/battle-actor-action-mode-00478710.md`。
 
-本轮再完成`audit_order=299`的`0x00478770`战斗角色`+0x26B8`高位清除函数。
-完整权威LST主体`0x00478770..0x0047877A`共11字节、2条实际指令、0个callee、0个分支和1个普通`retn`，
-没有外部chunk或中段入口；函数对`actor+0x26B8`执行不可省略的完整dword读改写，只清bit31并保留低31位，
-即使bit31原清除也仍写回，随后普通RET。typed实现保留字段读、字段写与RET三处真实停止点，
-写fault不提交AND flags，RET fault保留字段及逻辑flags，EAX/ECX/EDX保持且ESP仅在正常RET增加4。
-字段以中性`field_26b8`归入既有Group-A action与Group-B lifecycle action-execution canonical owner，
-没有新增平行actor状态。唯一机器码caller为待审`sub_478B60`中的`0x00478CC8 -> 0x00478CCD`；
-完整LST确认EBX固定为1，只有`sub_47BA80`返回1且`cmp eax,ebx`相等时进入CALL，
-故入口EAX=1且flags来自`CMP 1,1`。Workpack 299不复制该1403行待审父函数；
-Group-A/Group-B frame通过窄reply只投影真实执行信息并组合typed leaf，现代frame typed-stop后缀已阻断，
-父函数`actor+0x2AC4`前缀和四POP/`retn 4`阻断合同延期到Workpack 315。
-生产`0x00478770` generic调用归零。验证：定向测试、AddressSanitizer、Linux core 199/199、
-Linux app 205/205 全部通过。连续10轮完整core、全量/changed-range clang-format、
-零OpenSWD3源码warning、测试失败、sanitizer finding、inventory双生成、
-TMP分类及完整release审计均通过；未启动原版或OpenSWD3游戏程序。
-工作包为`299/422 = 289 platform_adapted + 10 assembly_exact + 123 pending_audit`；
-inventory SHA-256为`3e37262d7ed737667d380c92eece59d05b4bd4d68b4fa941099029f7d2543de0`。
-动态差分因原版完整Group-A/Group-B actor、`actor+0x26B8`异常内存页、
-RET异常栈页及唯一caller联合寄存器、flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
+`audit_order=299`对应`0x00478770..0x0047877A`，共11字节、2条指令。
+高位清除操作直接借用共享DWORD，清bit31并保留低31位；已清输入仍经过写访问。
+字段读取、字段写入及RET失败保持各自未提交或已提交的前缀。
+叶接口已移除token解析、寄存器请求回复、访问轨迹和调用次数。
+唯一实际调用位于`sub_478B60`的`00478CC8`；高位置位且readiness等于1后，
+先直接清共享`+2AC4`，再清高位。修正原父实现只写临时镜像、未提交`+2AC4`的问题。
+双侧frame直接传播可选执行结果，删除原pending clear转发及callee编号匹配。
+父函数和frame的其他通用协议仍未移除，整条调用链尚未验收，不能宣称迁移完成。
+core与ASan的setup、actor_frame_316均各1/1通过，SDL实际链接通过。
+拆分恢复后36份源码测试与该轮验证输入SHA256一致，日志和边界见
+`evidence/battle-actor-field-26b8-high-bit-clear-00478770.md`。
+本批不增加B10或父工作包完成数。原版异常页与SEH动态差分仍为`blocked_runtime_oracle`。
 
 本轮再完成`audit_order=300`的`0x00478780`战斗角色`+0x26B8`
 高位设置函数及21个caller函数中的35处物理CALL。完整权威LST主体`0x00478780..0x004787B4`共53字节、

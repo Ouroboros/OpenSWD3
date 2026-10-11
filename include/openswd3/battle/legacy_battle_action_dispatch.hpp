@@ -117,11 +117,6 @@ struct LegacyBattlePendingActorReadyActionModeCall {
     compat::u32 entry_eax{};
 };
 
-struct LegacyBattlePendingActorField26b8HighBitClearCall {
-    bool executed{};
-    compat::u32 entry_edx{};
-};
-
 struct LegacyBattlePendingActorField26b8HighBitSetCall {
     bool executed{};
     compat::u32 actor_token{};
@@ -156,8 +151,6 @@ struct LegacyBattleActionCallReply {
     std::span<compat::u16> resource_words{};
     std::array<LegacyBattlePendingActorReadyActionModeCall, 8>
         pending_actor_ready_action_modes{};
-    LegacyBattlePendingActorField26b8HighBitClearCall
-        pending_actor_field_26b8_high_bit_clear{};
     LegacyBattlePendingActorField26b8HighBitSetCall
         pending_actor_field_26b8_high_bit_set{};
     LegacyBattlePendingActorField26b8HighBitSetCall
@@ -1473,8 +1466,6 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorFrameSnapshotClearRequest
         actor_frame_snapshot_clear_request{};
     LegacyBattleActorActionModeMemoryAccess actor_action_mode_access{};
-    LegacyBattleActorField26b8HighBitClearRequest
-        actor_field_26b8_high_bit_clear_request{};
     LegacyBattleActorField26b8HighBitSetCallRequests
         actor_field_26b8_high_bit_set_requests{};
     LegacyBattleActorEffectResourceSlotWriteCallRequests
@@ -1639,9 +1630,8 @@ struct LegacyBattleActionDispatchResult {
     std::optional<LegacyBattleActorIdleStateResult> actor_idle_state;
     std::optional<LegacyBattleActorActionKindResult> actor_action_kind;
     std::optional<LegacyBattleActorActionModeResult> actor_action_mode;
-    LegacyBattleActorField26b8HighBitClearResult
-        actor_field_26b8_high_bit_clear{};
-    compat::u32 actor_field_26b8_high_bit_clear_calls{};
+    std::optional<LegacyBattleActorField26b8HighBitClearResult>
+        actor_field_26b8_high_bit_clear;
     LegacyBattleActorField26b8HighBitSetCallTrace
         actor_field_26b8_high_bit_set{};
     LegacyBattleActorEffectResourceSlotWriteCallTrace
@@ -2004,14 +1994,6 @@ advance_legacy_battle_target_phase_spawn_frame(
     LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result,
     LegacyBattleActorActionModeView actor,
-    const LegacyBattleActionCallReply& reply
-) noexcept;
-
-[[nodiscard]] bool apply_legacy_battle_pending_actor_field_26b8_high_bit_clear(
-    LegacyBattleActionDispatchState& state,
-    LegacyBattleActionDispatchContext& context,
-    LegacyBattleActionDispatchResult& result,
-    compat::u32 actor_token,
     const LegacyBattleActionCallReply& reply
 ) noexcept;
 

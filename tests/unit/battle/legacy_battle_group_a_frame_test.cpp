@@ -1697,24 +1697,22 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     result.actor_action_presentation.effect_arguments[0U] ==
                         1U &&
                     result.actor_action_presentation.last.physical_call_count ==
-                        2U &&
+                        1U &&
                     result.actor_action_presentation.last.physical_calls[0U]
                             .call_address == 0x00478CB3U &&
-                    result.actor_action_presentation.last.physical_calls[1U]
-                            .call_address == 0x00478CC8U &&
-                    result.actor_field_26b8_high_bit_clear_calls == 1U &&
-                    result.actor_field_26b8_high_bit_clear.return_eax == 1U &&
-                    result.actor_field_26b8_high_bit_clear.return_ecx ==
+                    result.actor_field_26b8_high_bit_clear.has_value() &&
+                    result.actor_field_26b8_high_bit_clear->status ==
+                        openswd3::battle::
+                            LegacyBattleActorField26b8HighBitClearStatus::
+                                completed &&
+                    result.actor_action_presentation.last.return_eax == 1U &&
+                    result.actor_action_presentation.last.return_ecx ==
                         openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                    result.actor_field_26b8_high_bit_clear.return_edx ==
+                    result.actor_action_presentation.last.return_edx ==
                         0x55667788U &&
-                    result.actor_field_26b8_high_bit_clear.return_esp ==
-                        0x88108004U &&
-                    result.actor_field_26b8_high_bit_clear.return_eip ==
-                        0x00478CCDU &&
-                    result.actor_field_26b8_high_bit_clear.flags_known &&
-                    !result.actor_field_26b8_high_bit_clear.flags.sign &&
-                    !result.actor_field_26b8_high_bit_clear.flags.zero &&
+                    result.actor_action_presentation.last.flags_known &&
+                    !result.actor_action_presentation.last.flags.sign &&
+                    !result.actor_action_presentation.last.flags.zero &&
                     state.action.group_a_action_execution[0U].field_26b8 ==
                         5U &&
                     port.count(0x004786D0U) == 0U &&
@@ -1917,7 +1915,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         openswd3::battle::
                             LegacyBattleActorField26b8HighBitSetStatus::
                                 field_26b8_write_typed_stop &&
-                    result.actor_field_26b8_high_bit_clear_calls == 0U,
+                    !result.actor_field_26b8_high_bit_clear.has_value(),
                 "Group-A high-bit-set typed stop remains visible in the merged child trace"
             );
             test.expect_true(
