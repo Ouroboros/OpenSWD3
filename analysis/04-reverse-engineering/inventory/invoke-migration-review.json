@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "1f4e6749626cb9ee35f45753d0f631c9b7cf3590",
+  "last_reviewed_source_revision": "c9585d9919d09249482641e60e36a90c4e8936e4",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -344,9 +344,9 @@
     },
     "battle/legacy_battle_final_actor_step": {
       "status": "pending",
-      "last_reviewed_commit": "1023334c",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-group-b-final-overlay-clear.md",
-      "reason": "收尾命中排队角色后先清实际队员叠加标记再清敌人标记，signed非正数量跳过，缺失存储保留已执行前缀并阻断门发布；删除两处通用调用及纯扫描调用计数。既有availability和攻击顺序仍用真实来源，其他通用请求、寄存器回复、计数及Port继续待迁移"
+      "last_reviewed_commit": "c9585d99",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-final-actor-profile-0047f910.md",
+      "reason": "敌方收尾在坐标、描述符和延迟累加后读取实际WORD参数，再累计实际键计数并移除攻击顺序；已有访问失败、真实PMR分配失败及移除失败保留原前缀。查询编号、模拟回复和测试中已不消费的分配回复与令牌计数器删除；原叠加清理、availability和攻击顺序继续用真实来源。帧、描述符、继续、重置及其余通用请求、寄存器回复、计数和Port仍待迁移，整项继续pending"
     },
     "battle/legacy_battle_pending_action_commit": {
       "status": "pending",

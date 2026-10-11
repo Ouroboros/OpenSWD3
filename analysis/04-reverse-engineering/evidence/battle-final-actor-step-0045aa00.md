@@ -2,6 +2,12 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
+## 敌方收尾读取实际角色参数
+
+源码`c9585d99`回收0045AD2E字段查询，保留坐标、描述符、延迟、键计数与移除顺序。
+实际WORD、已有访问失败及真实分配失败验证见
+[收尾参数读取](battle-final-actor-profile-0047f910.md)。父协议继续pending。
+
 ## B11：最终清理使用实际优先角色
 
 45AB83/45AB90的匹配清写、45AC07的终止清写和45AC3E的继续发布
@@ -77,12 +83,12 @@ removed byte以zero-extended dword与remaining做unsigned比较。达到或超�
 1. 直连已关闭`0x00475870`，从共享组B资源`+0x62/+0x8A`读取两个u16，callee完整返回后才分别以u16回绕累加；actor或资源缺失在原读取点typed-stop并阻断caller累加；
 2. 描述符callee返回物理token，随后首次读取其偏移32的flag；零token在该实际访问点typed-stop，坐标副作用已保留；
 3. flag bit5置位时延迟加20，否则加3，均在u16域；
-4. 查询动作、以固定根直接组合键计数链累加，再以actor index直接组合攻击顺序首匹配移除；
+4. 读取实际角色WORD参数、以固定根直接组合键计数链累加，再以actor index直接组合攻击顺序首匹配移除；
 5. signed index位于`0..group_b_count`闭区间时，打包计数低byte加1；
 6. `low_byte - third_byte`按低32位后做signed比较，达到group B数量时发布共享message `0x63`、清terminal latch并置双frame gate；
 7. reset word非零时查询固定组B首对象；返回0且`group_b_count - low_byte == 1`时，把数量置1、低byte和reset word清零，再调用三个刷新callee。
 
-组B键计数链复用固定对象owner中的根和动态节点；缺键时只保留`0x00487C10`窄allocator，旧`0x00477710`整函数边界删除。两组攻击顺序移除都复用启动期18条记录与物理相邻强度效果记录唯一owner。子typed-stop保留角色清理、动作查询或计数链链接/清零前缀，并阻断组A槽清零或组B攻击顺序、计数与终止门。旧opaque发布token完全删除。
+组B键计数链复用固定对象owner中的根和动态节点；缺键时分配实际PMR节点，按原20字节逻辑记录初始化并保留分配失败前缀，旧`0x00477710`整函数边界删除。两组攻击顺序移除都复用启动期18条记录与物理相邻强度效果记录唯一owner。子typed-stop保留角色清理、参数读取前的坐标/延迟或计数链链接/清零前缀，并阻断组A槽清零或组B攻击顺序、计数与终止门。旧opaque发布token完全删除。
 
 有效组B对象所有非typed-stop路径返回1。
 
@@ -124,10 +130,10 @@ single-instance 测试失败，创建目录重跑
 
 ## 9. 测试与动态差分
 
-定向测试覆盖：初始有效性失败、组A完成阈值和32字节逆向清零、三刷新、双组重置、攻击顺序移除与旧token清零、相邻效果记录stop前缀、角色顺序左移、removed unsigned终止、工作区typed-stop、配置后记录typed-stop、组B全1早退、共享资源坐标读取、坐标回绕、坐标owner typed-stop、描述符bit5、动作查询后的固定键计数链直连、缺键唯一分配、闭区间低byte递增、signed完成比较、共享message 1/0x63/0x67、组B重置、零描述符停点，以及组A/组B caller直连和组B父级typed-stop传播。
+定向测试覆盖：初始有效性失败、组A完成阈值和32字节逆向清零、三刷新、双组重置、攻击顺序移除与旧token清零、相邻效果记录stop前缀、角色顺序左移、removed unsigned终止、工作区typed-stop、配置后记录typed-stop、组B全1早退、共享资源坐标读取、坐标回绕、坐标owner typed-stop、描述符bit5、实际角色参数读取后的固定键计数链直连、缺键唯一分配、闭区间低byte递增、signed完成比较、共享message 1/0x63/0x67、组B重置、零描述符停点，以及组A/组B caller直连和组B父级typed-stop传播。
 
 ## 10. `0x00478330`继续路径直连
 
 工作包278关闭本函数`0x0045AC54`唯一物理call。组A continuation查询精确返回1后，caller先发布`active+1`与secondary角色，再把完整dword `1`写入当前组A角色`+0x2AE4`；typed实现直接复用`LegacyBattleFinalActorStepState::group_a_availability_blocks`。leaf入口EDX是刚发布的actor code，ECX是组A角色token；写停止时EAX已为1，action-execution、workspace及五dword运行记录均不写。正常完成才继续原零写与门发布。旧`0x00478330`端口调用已删除。
 
-当前缺少原版两组角色对象、组B动态坐标资源、12类剩余callee共享副作用、攻击顺序与相邻强度效果记录、角色工作区、描述符对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、组B动态坐标资源、其余父协议的共享副作用、攻击顺序与相邻强度效果记录、角色工作区、描述符对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
