@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "307d605d214d145d6bbb723ebdc4edadf523bfcf",
+  "last_reviewed_source_revision": "8df8d9f5af87dabafd5d0f20635d399eb25fdab4",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -306,13 +306,13 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "307d605d",
+      "last_reviewed_commit": "8df8d9f5",
       "files": [
         "include/openswd3/battle/legacy_battle_deformation.hpp",
         "src/battle/legacy_battle_deformation.cpp"
       ],
       "evidence": "analysis/04-reverse-engineering/evidence/battle-action-deformation-owned-storage.md",
-      "reason": "动作2直接分配并独占实际变形对象，完成后由原资源释放，删除分配释放编号及伪指针；保留空分配、模式保留、等待及失败前缀。既有动作字段、队列和查询继续直接访问共享数据；其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，效果帧借用仍待迁移，整项继续pending"
+      "reason": "动作2直接分配并独占实际变形对象，完成后由原资源释放，删除分配释放编号及伪指针；保留空分配、模式保留、等待及失败前缀。既有动作字段、队列和查询继续直接访问共享数据；效果帧已借用同一实际对象并直接操作画面；其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，整项继续pending"
     },
     "battle/legacy_battle_debug_overlay": {
       "status": "pending",
@@ -322,9 +322,25 @@
     },
     "battle/legacy_battle_opponent_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "307d605d",
+      "last_reviewed_commit": "8df8d9f5",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-action-deformation-owned-storage.md",
-      "reason": "动作2直接分配、构造并释放共享变形对象，保留空分配、未完成重入和完成后的淡出顺序；删除分配释放编号及伪指针。既有动作字段、查询与队列沿用实际数据；其余通用操作、参数数组、寄存器请求回复、计数、Port及效果帧借用缺口仍在，父链继续pending"
+      "reason": "动作2直接分配、构造并释放共享变形对象，保留空分配、未完成重入和完成后的淡出顺序；删除分配释放编号及伪指针。既有动作字段、查询与队列沿用实际数据；效果帧已借用同一实际对象；其余通用操作、参数数组、寄存器请求回复、计数及Port仍在，父链继续pending"
+    },
+    "battle/legacy_battle_effect_frame": {
+      "status": "pending",
+      "last_reviewed_commit": "8df8d9f5",
+      "files": [
+        "include/openswd3/asset_runtime/legacy_frame_deformation.hpp",
+        "src/asset_runtime/legacy_frame_deformation.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-effect-deformation-borrowing.md",
+      "reason": "直接读取动作活动标记并借用实际变形对象与画面，删除独立状态、对象编号及五类通用调用，保持粒子节拍、随机顺序、完成阈值、回绕和失败前缀；core/ASan、SDL及七文件身份通过。查询、声音、随机、其他记录和奖励协议仍在，整项继续pending"
+    },
+    "battle/legacy_battle_effect_coordinator": {
+      "status": "pending",
+      "last_reviewed_commit": "8df8d9f5",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-effect-deformation-borrowing.md",
+      "reason": "效果帧调用方传入已有动作所有者和真实画面，回归验证共用对象及场推进；其余父编号、参数数组、寄存器请求回复、计数和Port仍在，整项继续pending"
     },
     "battle/legacy_battle_final_actor_step": {
       "status": "pending",
