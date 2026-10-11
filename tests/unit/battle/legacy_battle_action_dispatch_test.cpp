@@ -5892,7 +5892,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                         LegacyBattleActorFrameSnapshotClearStatus::completed &&
                 result.summon_materialization_calls == 0U &&
                 port.count(0x00487C10U) == 0U &&
-                port.count(0x0047F900U) == 0U &&
+                state.group_a_target_phases[0U].render_toggle_gate == 0U &&
                 port.count(0x0046E890U) == 0U &&
                 static_cast<u16>(state.phase_counter) == 0U,
             "missing shared summon owner preserves snapshot clear and stops at draw suppression before mirror or allocation"

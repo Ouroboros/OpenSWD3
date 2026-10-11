@@ -791,11 +791,13 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_forty_five() {
             return finish(eax_);
         }
         const u32 count = bindings_.startup.actor_metrics.group_b_count;
-        eax_ = count;
+        eax_ = 1U;
         ecx_ = *token;
         flags_ = index == 0 ? test_flags(count)
                             : subtract_flags(static_cast<u32>(index), count);
-        invoke(LegacyBattleScriptDispatchCall::pending_47f900, *token, {1U});
+        (*bindings_.action
+              .group_b_fixed_particle_phases)[static_cast<std::size_t>(index)]
+            .render_toggle_gate = 1U;
         if (!query_actor_current_coordinate_words(
                 0x0046BA42U,
                 *token,
@@ -839,13 +841,12 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_forty_five() {
         const u32 actor_skip =
             bindings_.victory
                 .group_a_skip_secondary[static_cast<std::size_t>(index)];
-        const u32 argument = actor_skip == 1U ? 0U : 1U;
-        eax_ = bindings_.startup.actor_metrics.group_a_count;
+        const u32 mirror_value = actor_skip == 1U ? 0U : 1U;
+        eax_ = mirror_value;
         ecx_ = *token;
         flags_ = subtract_flags(actor_skip, 1U);
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_47f900, *token, {argument}
-        );
+        bindings_.action.group_a_target_phases[static_cast<std::size_t>(index)]
+            .render_toggle_gate = mirror_value;
         if (!query_actor_current_coordinate_words(
                 0x0046BAB5U,
                 *token,

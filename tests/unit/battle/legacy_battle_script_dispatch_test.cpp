@@ -220,14 +220,6 @@ public:
             workspace.pair_x = 100U;
             workspace.pair_y = 40U;
             break;
-        case LegacyBattleScriptDispatchCall::pending_47f900:
-            if (override_pending_coordinate_callee_reply) {
-                reply.eax = pending_coordinate_callee_eax;
-                reply.ecx = pending_coordinate_callee_ecx;
-                reply.edx = pending_coordinate_callee_edx;
-                reply.flags = pending_coordinate_callee_flags;
-            }
-            break;
         case LegacyBattleScriptDispatchCall::pending_47f910:
             if (override_pending_coordinate_callee_reply) {
                 reply.eax = pending_coordinate_callee_eax;
@@ -2174,6 +2166,182 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         );
     }
 
+    for (u32 scenario = 0U; scenario < 22U; ++scenario) {
+        const u16 actor = scenario < 18U ? static_cast<u16>(scenario)
+                                         : std::array<u16, 4>{
+                                               18U, 0x7FFFU, 0x8000U, 0xFFFFU
+                                           }[scenario - 18U];
+        auto fixture = std::make_unique<Fixture>();
+        fixture->opcode(20);
+        fixture->write_u16(2U, actor);
+        fixture->workspace.position_x = 0xABCDU;
+        fixture->workspace.position_y = 0xCAFEU;
+        fixture->workspace.packed_actor_state = 0x87651234U;
+        for (auto& phase : fixture->action.group_a_target_phases) {
+            phase.render_toggle_gate = 0xFFFFFFFFU;
+        }
+
+        for (auto& phase : *fixture->action.group_b_fixed_particle_phases) {
+            phase.render_toggle_gate = 0xFFFFFFFFU;
+        }
+
+        Port port;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace,
+            fixture->bindings(),
+            port,
+            {.entry_edx = 0x24681357U}
+        );
+        bool mirrors_match = true;
+        for (u32 index = 0U; index < 8U; ++index) {
+            mirrors_match = mirrors_match &&
+                (*fixture->action.group_b_fixed_particle_phases)[index]
+                        .render_toggle_gate ==
+                    (actor == index ? 1U : 0xFFFFFFFFU);
+        }
+
+        for (u32 index = 0U; index < 10U; ++index) {
+            mirrors_match = mirrors_match &&
+                fixture->action.group_a_target_phases[index]
+                        .render_toggle_gate ==
+                    (actor == index + 8U ? 1U : 0xFFFFFFFFU);
+        }
+
+        test.expect_true(
+            result.status ==
+                    (actor < 18U ? LegacyBattleScriptDispatchStatus::completed
+                                 : LegacyBattleScriptDispatchStatus::
+                                       group_a_actor_typed_stop) &&
+                fixture->workspace.position_x == 0xABCDU &&
+                fixture->workspace.position_y == 0xCAFEU &&
+                fixture->workspace.packed_actor_state ==
+                    ((static_cast<u32>(actor) << 16U) | 0x1234U) &&
+                fixture->workspace.cursor == (actor < 18U ? 4U : 0U) &&
+                mirrors_match &&
+                (actor >= 18U ||
+                 (result.return_eax == 1U &&
+                  result.return_edx ==
+                      (actor < 8U ? static_cast<u32>(actor) * 345U
+                                  : 0x24681357U))),
+            "case twenty publishes the unsigned selector and writes only the selected actual mirror before advancing"
+        );
+    }
+
+    for (const u32 capacity : {2U, 3U}) {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->opcode(20);
+        fixture->write_u16(2U, 8U);
+        fixture->assets.script_capacity = capacity;
+        fixture->workspace.position_y = 0xCAFEU;
+        fixture->workspace.packed_actor_state = 0x87651234U;
+        fixture->action.group_a_target_phases[0U].render_toggle_gate =
+            0xFFFFFFFFU;
+        Port port;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::script_typed_stop &&
+                result.stopped_offset == capacity &&
+                fixture->workspace.cursor == 0U &&
+                fixture->workspace.position_y == 0xCAFEU &&
+                fixture->workspace.packed_actor_state == 0x87651234U &&
+                fixture->action.group_a_target_phases[0U].render_toggle_gate ==
+                    0xFFFFFFFFU,
+            "case twenty operand short read precedes selector publication and mirror writes"
+        );
+    }
+
+    for (u32 scenario = 0U; scenario < 32U; ++scenario) {
+        const std::array<u32, 4> gates{0U, 1U, 2U, 0xFFFFFFFFU};
+        const u32 mirror = gates[scenario % 4U];
+        const u32 skip = gates[(scenario / 4U) % 4U];
+        const u32 party_count = scenario < 16U ? 1U : 10U;
+        const u32 enemy_count = scenario < 16U ? 1U : 8U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->opcode(45);
+        fixture->startup.mirror_mode = mirror;
+        fixture->startup.actor_metrics.group_a_count = party_count;
+        fixture->startup.actor_metrics.group_b_count = enemy_count;
+        fixture->victory.group_a_skip_secondary.fill(skip);
+        fixture->shared.group_a_mirror_x.fill(77U);
+        prepare_group_b(*fixture);
+        seed_current_coordinates(*fixture);
+        for (auto& phase : fixture->action.group_a_target_phases) {
+            phase.render_toggle_gate = 0xFFFFFFFFU;
+        }
+
+        for (auto& phase : *fixture->action.group_b_fixed_particle_phases) {
+            phase.render_toggle_gate = 0xFFFFFFFFU;
+        }
+
+        Port port;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        bool fields_match = true;
+        for (u32 index = 0U; index < 8U; ++index) {
+            const bool changed = mirror != 1U && index < enemy_count;
+            const auto& actor =
+                (*fixture->startup.group_b_lifecycle)[index].action_execution;
+            fields_match = fields_match &&
+                (*fixture->action.group_b_fixed_particle_phases)[index]
+                        .render_toggle_gate == (changed ? 1U : 0xFFFFFFFFU) &&
+                actor.position_x == (changed ? 540U : 100U) &&
+                actor.position_y == 40U;
+        }
+
+        for (u32 index = 0U; index < 10U; ++index) {
+            const bool changed = mirror != 1U && index < party_count;
+            fields_match = fields_match &&
+                fixture->action.group_a_target_phases[index]
+                        .render_toggle_gate ==
+                    (changed ? (skip == 1U ? 0U : 1U) : 0xFFFFFFFFU) &&
+                fixture->startup.party[index].position_x ==
+                    (changed ? 540U : 100U) &&
+                fixture->startup.party[index].position_y == 40U &&
+                fixture->shared.group_a_mirror_x[index] ==
+                    (changed ? 547U : 77U);
+        }
+
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                fields_match && result.return_eax == 1U &&
+                fixture->workspace.cursor == 2U &&
+                fixture->startup.mirror_mode == (mirror == 1U ? 0U : 1U) &&
+                result.current_coordinate_query_calls ==
+                    (mirror == 1U ? 0U : party_count + enemy_count),
+            "case forty five uses exact DWORD gates and preserves inactive actors while mirroring coordinates and offsets"
+        );
+    }
+
+    for (const u32 count : {0U, 0x80000000U, 0xFFFFFFFFU}) {
+        auto fixture = std::make_unique<Fixture>();
+        fixture->opcode(45);
+        fixture->startup.actor_metrics.group_a_count = count;
+        fixture->startup.actor_metrics.group_b_count = count;
+        fixture->action.group_a_target_phases[0U].render_toggle_gate =
+            0x12345678U;
+        (*fixture->action.group_b_fixed_particle_phases)[0U]
+            .render_toggle_gate = 0x87654321U;
+        Port port;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture->startup.mirror_mode == 1U &&
+                fixture->workspace.cursor == 2U &&
+                result.current_coordinate_query_calls == 0U &&
+                fixture->action.group_a_target_phases[0U].render_toggle_gate ==
+                    0x12345678U &&
+                (*fixture->action.group_b_fixed_particle_phases)[0U]
+                        .render_toggle_gate == 0x87654321U,
+            "case forty five skips both signed nonpositive actor counts without touching mirror fields"
+        );
+    }
+
     {
         auto fixture_owner = std::make_unique<Fixture>();
         Fixture& fixture = *fixture_owner;
@@ -2183,21 +2351,13 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
         fixture.startup.actor_metrics.group_b_count = 1U;
         prepare_group_b(fixture);
         seed_current_coordinates(fixture);
-        port.override_pending_coordinate_callee_reply = true;
-        port.pending_coordinate_callee_eax = 0xABCD1234U;
-        port.pending_coordinate_callee_ecx = 0x24681357U;
-        port.pending_coordinate_callee_edx = 0x56789ABCU;
-        port.pending_coordinate_callee_flags = {
-            .carry = true,
-            .parity = false,
-            .auxiliary_carry = true,
-            .auxiliary_carry_defined = false,
-            .zero = false,
-            .sign = true,
-            .overflow = true,
-        };
         const auto result = run_legacy_battle_script_dispatch(
-            fixture.workspace, fixture.bindings(), port
+            fixture.workspace,
+            fixture.bindings(),
+            port,
+            {.entry_eax = 0xABCD1234U,
+             .entry_ecx = 0x24681357U,
+             .entry_edx = 0x56789ABCU}
         );
         constexpr u32 packed = 100U | (40U << 16U);
         constexpr u32 mirrored = 640U - packed;
@@ -2217,19 +2377,18 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
             "case forty five completes both current-coordinate sites and publications"
         );
         test.expect_true(
-            result.current_coordinate_trace[0U].request.entry_eax ==
-                    0xABCD1234U &&
-                result.current_coordinate_trace[1U].request.entry_eax ==
-                    0xABCD1234U &&
+            result.current_coordinate_trace[0U].request.entry_eax == 1U &&
+                result.current_coordinate_trace[1U].request.entry_eax == 1U &&
                 result.current_coordinate_trace[0U].request.entry_edx ==
                     0x56789ABCU &&
                 result.current_coordinate_trace[1U].request.entry_edx ==
-                    0x56789ABCU &&
-                result.current_coordinate_trace[0U].result.flags.carry &&
+                    0x00530028U &&
+                !result.current_coordinate_trace[0U].result.flags.carry &&
                 !result.current_coordinate_trace[0U]
                      .result.flags.auxiliary_carry_defined &&
-                result.current_coordinate_trace[1U].result.flags.overflow,
-            "case forty five forwards both callee register and flag residues into the typed getter"
+                result.current_coordinate_trace[1U].result.flags.carry &&
+                !result.current_coordinate_trace[1U].result.flags.overflow,
+            "case forty five preserves actual mirror values, coordinate publication residue and comparison flags into the typed getter"
         );
         test.expect_true(
             group_a.position_x == 540U && group_a.position_y == 40U &&
@@ -2628,6 +2787,10 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 fixture.startup.party[0U].position_x == 100U &&
                 fixture.shared.group_a_mirror_x[0U] == 0U &&
                 fixture.startup.mirror_mode == 1U &&
+                (*fixture.action.group_b_fixed_particle_phases)[0U]
+                        .render_toggle_gate == 1U &&
+                fixture.action.group_a_target_phases[0U].render_toggle_gate ==
+                    0U &&
                 fixture.workspace.cursor == 0U,
             "case forty five group B source fault blocks group A publication mirror commit and cursor suffix"
         );
@@ -2990,8 +3153,11 @@ void test_battle_script_current_coordinate_stops(
             const bool predecessor_preserved =
                 (site.address != 0x0046BA42U && site.address != 0x0046BAB5U &&
                  site.address != 0x0046CD72U) ||
-                ((site.address == 0x0046BA42U || site.address == 0x0046BAB5U) &&
-                 port.count(LegacyBattleScriptDispatchCall::pending_47f900) ==
+                (site.address == 0x0046BA42U &&
+                 (*fixture.action.group_b_fixed_particle_phases)[0U]
+                         .render_toggle_gate == 1U) ||
+                (site.address == 0x0046BAB5U &&
+                 fixture.action.group_a_target_phases[0U].render_toggle_gate ==
                      1U) ||
                 (site.address == 0x0046CD72U &&
                  port.count(LegacyBattleScriptDispatchCall::pending_47f910) ==

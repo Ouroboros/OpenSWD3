@@ -1026,11 +1026,23 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty() {
     if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor)) {
         return finish();
     }
-    const auto token = actor_token(signed_word(actor));
+
+    set_high_word(workspace_.packed_actor_state, actor);
+    const auto token = actor_token(static_cast<i32>(actor));
     if (!token.has_value()) {
         return finish(eax_);
     }
-    invoke(LegacyBattleScriptDispatchCall::pending_47f900, *token, {1U});
+
+    if (actor <= 7U) {
+        (*bindings_.action.group_b_fixed_particle_phases)[actor]
+            .render_toggle_gate = 1U;
+        edx_ = static_cast<u32>(actor) * 345U;
+    } else {
+        bindings_.action.group_a_target_phases[actor - 8U].render_toggle_gate =
+            1U;
+    }
+
+    ecx_ = *token;
     workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
     return finish(1U);
 }
