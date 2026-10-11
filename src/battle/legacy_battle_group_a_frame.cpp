@@ -418,38 +418,6 @@ one_based_group_b_token(const u32 one_based) noexcept {
     return false;
 }
 
-[[nodiscard]] bool increment_actor_start_gate(
-    LegacyBattleActionDispatchState& action,
-    LegacyBattleActionDispatchContext& context,
-    LegacyBattleActionDispatchResult& result,
-    const u32 actor_token,
-    const u32 call_address,
-    const u32 return_address,
-    const u32 entry_eax,
-    const u32 entry_edx,
-    const LegacyBattleActorCoordinateFlags& entry_flags
-) {
-    if (execute_legacy_battle_actor_start_gate_increment_call(
-            result.actor_start_gate_increment,
-            context.actor_start_gate_increment_requests,
-            {.action = &action, .startup = context.startup},
-            call_address,
-            return_address,
-            actor_token,
-            entry_eax,
-            entry_edx,
-            entry_flags,
-            true
-        )) {
-        return true;
-    }
-
-    result.status =
-        LegacyBattleActionDispatchStatus::actor_start_gate_increment_typed_stop;
-    result.return_value = result.actor_start_gate_increment.last.return_eax;
-    return false;
-}
-
 [[nodiscard]] bool decay_actor_gates(
     LegacyBattleGroupAFrameState& state,
     LegacyBattleActionDispatchContext& context,
@@ -2822,20 +2790,39 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                 const auto second = invoke(
                                     port, kCallQueryTerminal, {candidate}
                                 );
-                                if (second.eax == 0U &&
-                                    !increment_actor_start_gate(
-                                        state.action,
-                                        context,
-                                        result,
-                                        candidate,
-                                        0x0045707AU,
-                                        0x0045707FU,
-                                        second.eax,
-                                        second.edx,
-                                        logical_flags(second.eax)
-                                    )) {
-                                    return result;
+                                if (second.eax == 0U) {
+                                    auto* const target =
+                                        context.startup != nullptr &&
+                                            context.startup
+                                                    ->group_b_lifecycle !=
+                                                nullptr
+                                        ? &(*context.startup
+                                                 ->group_b_lifecycle)[uindex]
+                                               .action_execution
+                                        : nullptr;
+                                    result.actor_start_gate_increment =
+                                        increment_legacy_battle_actor_start_gate(
+                                            target != nullptr
+                                                ? &target->start_gate
+                                                : nullptr,
+                                            target != nullptr
+                                                ? &target->start_gate_latch
+                                                : nullptr,
+                                            context
+                                                .actor_start_gate_increment_access
+                                        );
+                                    if (result.actor_start_gate_increment
+                                            ->status !=
+                                        LegacyBattleActorStartGateIncrementStatus::
+                                            completed) {
+                                        result.status =
+                                            LegacyBattleActionDispatchStatus::
+                                                actor_start_gate_increment_typed_stop;
+                                        result.return_value = second.eax;
+                                        return result;
+                                    }
                                 }
+
                                 any = true;
                             }
                             ++result.group_b_iterations;
@@ -2848,8 +2835,12 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     state.action_side == 0U &&
                     state.action_target_guard_high_word == 0U
                 ) {
-                    if (invoke(port, kCallQueryTerminal, {target_token}).eax ==
-                            1U &&
+                    const auto target_terminal =
+                        invoke(port, kCallQueryTerminal, {target_token});
+                    u32 increment_predecessor = target_terminal.eax != 1U
+                        ? target_terminal.eax
+                        : state.action_runtime_word;
+                    if (target_terminal.eax == 1U &&
                         state.action_runtime_word == 0U) {
                         i32 selected = 0;
                         LegacyBattleActionCallReply first_nonterminal{};
@@ -2920,6 +2911,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                     return result;
                                 }
                                 target_token = group_b_token(to_bits(selected));
+                                increment_predecessor =
+                                    to_bits(selected) * 1381U;
                             }
                         }
                     }
@@ -2928,28 +2921,27 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             (target_token -
                              kLegacyBattleActionGroupBBaseToken) /
                             kLegacyBattleActionGroupBStride;
-                        const u32 times_three =
-                            target_index + target_index * 2U;
-                        const u32 times_twenty_four = times_three << 3U;
-                        const u32 times_twenty_three =
-                            times_twenty_four - target_index;
-                        const u32 times_sixty_nine =
-                            times_twenty_three + times_twenty_three * 2U;
-                        const u32 times_three_hundred_forty_five =
-                            times_sixty_nine + times_sixty_nine * 4U;
-                        const u32 times_one_thousand_three_hundred_eighty_one =
-                            target_index + times_three_hundred_forty_five * 4U;
-                        if (!increment_actor_start_gate(
-                                state.action,
-                                context,
-                                result,
-                                target_token,
-                                0x00456FE1U,
-                                0x00456FE6U,
-                                times_one_thousand_three_hundred_eighty_one,
-                                times_three_hundred_forty_five,
-                                subtract_flags(times_twenty_four, target_index)
-                            )) {
+                        auto* const target = context.startup != nullptr &&
+                                context.startup->group_b_lifecycle != nullptr
+                            ? &(
+                                   *context.startup->group_b_lifecycle
+                              )[target_index]
+                                   .action_execution
+                            : nullptr;
+                        result.actor_start_gate_increment =
+                            increment_legacy_battle_actor_start_gate(
+                                target != nullptr ? &target->start_gate
+                                                  : nullptr,
+                                target != nullptr ? &target->start_gate_latch
+                                                  : nullptr,
+                                context.actor_start_gate_increment_access
+                            );
+                        if (result.actor_start_gate_increment->status !=
+                            LegacyBattleActorStartGateIncrementStatus::
+                                completed) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                actor_start_gate_increment_typed_stop;
+                            result.return_value = increment_predecessor;
                             return result;
                         }
                     }

@@ -390,8 +390,8 @@ struct LegacyBattleScriptDispatchRequest {
         actor_target_selection_requests{};
     LegacyBattleActorTargetSelectionCountQueryAccess
         actor_target_selection_count_query_access{};
-    LegacyBattleActorStartGateIncrementCallRequests
-        actor_start_gate_increment_requests{};
+    LegacyBattleActorStartGateIncrementAccess
+        actor_start_gate_increment_access{};
 };
 
 struct LegacyBattleScriptCurrentCoordinateCallRecord {
@@ -452,7 +452,8 @@ struct LegacyBattleScriptDispatchResult {
     LegacyBattleActorTargetSelectionTrace actor_target_selection{};
     std::optional<LegacyBattleActorTargetSelectionCountQueryResult>
         actor_target_selection_count_query;
-    LegacyBattleActorStartGateIncrementTrace actor_start_gate_increment{};
+    std::optional<LegacyBattleActorStartGateIncrementResult>
+        actor_start_gate_increment;
     std::vector<LegacyBattleScriptDispatchCall> call_trace;
 };
 

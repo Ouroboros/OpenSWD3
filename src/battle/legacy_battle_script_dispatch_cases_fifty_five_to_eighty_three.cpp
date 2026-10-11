@@ -1014,27 +1014,63 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_eight() {
         bindings_.shared.script_aux_gate = 0U;
         const u32 start_gate_actor_code =
             bindings_.final_actor.published_actor_code;
-        const u32 times_three =
-            start_gate_actor_code + start_gate_actor_code * 2U;
-        const u32 times_twenty_four = times_three << 3U;
-        const u32 times_twenty_three =
-            times_twenty_four - start_gate_actor_code;
-        const u32 times_sixty_nine =
-            times_twenty_three + times_twenty_three * 2U;
-        const u32 times_three_hundred_forty_five =
-            times_sixty_nine + times_sixty_nine * 4U;
-        const u32 times_one_thousand_three_hundred_eighty_one =
-            start_gate_actor_code + times_three_hundred_forty_five * 4U;
-        const u32 start_gate_actor_token =
-            0x005229E0U + times_one_thousand_three_hundred_eighty_one * 8U;
-        if (!increment_actor_start_gate(
-                start_gate_actor_token,
-                times_one_thousand_three_hundred_eighty_one,
-                times_three_hundred_forty_five,
-                subtract_flags(times_twenty_four, start_gate_actor_code)
-            )) {
-            return finish();
+        eax_ = start_gate_actor_code * 345U;
+        ecx_ = 0x005229E0U + start_gate_actor_code * 0x2B28U;
+        edx_ = priority_actor_index;
+        flags_ =
+            subtract_flags(start_gate_actor_code * 24U, start_gate_actor_code);
+        const u32 group_a_offset = ecx_ - kLegacyBattleScriptGroupABaseToken;
+        const u32 group_b_offset = ecx_ - kLegacyBattleScriptGroupBBaseToken;
+        u16* start_gate{};
+        u32* start_gate_latch{};
+        if (ecx_ >= kLegacyBattleScriptGroupABaseToken &&
+            group_a_offset % kLegacyBattleActionGroupAStride == 0U &&
+            group_a_offset / kLegacyBattleActionGroupAStride <
+                bindings_.action.group_a_action_execution.size()) {
+            auto& target_actor =
+                bindings_.action.group_a_action_execution
+                    [group_a_offset / kLegacyBattleActionGroupAStride];
+            start_gate = &target_actor.start_gate;
+            start_gate_latch = &target_actor.start_gate_latch;
+        } else if (
+            bindings_.startup.group_b_lifecycle != nullptr &&
+            ecx_ >= kLegacyBattleScriptGroupBBaseToken &&
+            group_b_offset % kLegacyBattleActionGroupBStride == 0U &&
+            group_b_offset / kLegacyBattleActionGroupBStride <
+                bindings_.startup.group_b_lifecycle->size()
+        ) {
+            auto& target_actor =
+                (*bindings_.startup.group_b_lifecycle)
+                    [group_b_offset / kLegacyBattleActionGroupBStride]
+                        .action_execution;
+            start_gate = &target_actor.start_gate;
+            start_gate_latch = &target_actor.start_gate_latch;
         }
+
+        result_.actor_start_gate_increment =
+            increment_legacy_battle_actor_start_gate(
+                start_gate,
+                start_gate_latch,
+                request_.actor_start_gate_increment_access
+            );
+        const auto& incremented = *result_.actor_start_gate_increment;
+        if (incremented.incremented_start_gate.has_value()) {
+            const bool carry = flags_.carry;
+            flags_ = add_word_flags(
+                *incremented.previous_start_gate,
+                1U,
+                *incremented.incremented_start_gate
+            );
+            flags_.carry = carry;
+        }
+
+        if (incremented.status !=
+            LegacyBattleActorStartGateIncrementStatus::completed) {
+            result_.status = LegacyBattleScriptDispatchStatus::
+                actor_start_gate_increment_typed_stop;
+            return finish(eax_);
+        }
+
         bindings_.input_dispatch.selected_actor_reset_gate = 1U;
         workspace_.word_a = 0U;
     }

@@ -183,38 +183,6 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     return false;
 }
 
-[[nodiscard]] bool increment_actor_start_gate(
-    LegacyBattleActionDispatchState& action,
-    LegacyBattleActionDispatchContext& context,
-    LegacyBattleActionDispatchResult& result,
-    const u32 actor_token,
-    const u32 call_address,
-    const u32 return_address,
-    const u32 entry_eax,
-    const u32 entry_edx,
-    const LegacyBattleActorCoordinateFlags& entry_flags
-) {
-    if (execute_legacy_battle_actor_start_gate_increment_call(
-            result.actor_start_gate_increment,
-            context.actor_start_gate_increment_requests,
-            {.action = &action, .startup = context.startup},
-            call_address,
-            return_address,
-            actor_token,
-            entry_eax,
-            entry_edx,
-            entry_flags,
-            true
-        )) {
-        return true;
-    }
-
-    result.status =
-        LegacyBattleActionDispatchStatus::actor_start_gate_increment_typed_stop;
-    result.return_value = result.actor_start_gate_increment.last.return_eax;
-    return false;
-}
-
 [[nodiscard]] bool decay_actor_gates(
     LegacyBattleActionDispatchState& action,
     LegacyBattleActionDispatchContext& context,
@@ -281,31 +249,6 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
         LegacyBattleActionDispatchStatus::actor_action_target_clear_typed_stop;
     result.return_value = result.actor_action_target_clear.last.return_eax;
     return false;
-}
-
-[[nodiscard]] bool increment_selected_group_a_start_gate(
-    LegacyBattleActionDispatchState& action,
-    LegacyBattleActionDispatchContext& context,
-    LegacyBattleActionDispatchResult& result,
-    const u32 actor_index,
-    const u32 actor_token
-) {
-    const u32 times_sixty_three = (actor_index << 6U) - actor_index;
-    const u32 times_one_thousand_eight = times_sixty_three << 4U;
-    const u32 times_one_thousand_seven = times_one_thousand_eight - actor_index;
-    const u32 times_three_thousand_twenty_one =
-        times_one_thousand_seven + times_one_thousand_seven * 2U;
-    return increment_actor_start_gate(
-        action,
-        context,
-        result,
-        actor_token,
-        0x00457E1CU,
-        0x00457E21U,
-        times_one_thousand_seven,
-        times_three_thousand_twenty_one,
-        subtract_flags(times_one_thousand_eight, actor_index)
-    );
 }
 
 [[nodiscard]] bool query_turn_completion(
@@ -868,19 +811,27 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                     const auto cleared = invoke(
                                         port, kCallClearControl, {target, 0U}
                                     );
-                                    if (!increment_actor_start_gate(
-                                            action,
-                                            context,
-                                            result,
-                                            target,
-                                            0x0045786BU,
-                                            0x00457870U,
-                                            cleared.eax,
-                                            cleared.edx,
-                                            cleared.flags
-                                        )) {
+                                    auto& target_actor =
+                                        action
+                                            .group_a_action_execution[scanned];
+                                    result.actor_start_gate_increment =
+                                        increment_legacy_battle_actor_start_gate(
+                                            &target_actor.start_gate,
+                                            &target_actor.start_gate_latch,
+                                            context
+                                                .actor_start_gate_increment_access
+                                        );
+                                    if (result.actor_start_gate_increment
+                                            ->status !=
+                                        LegacyBattleActorStartGateIncrementStatus::
+                                            completed) {
+                                        result.status =
+                                            LegacyBattleActionDispatchStatus::
+                                                actor_start_gate_increment_typed_stop;
+                                        result.return_value = cleared.eax;
                                         return result;
                                     }
+
                                     ++state.phase_progress;
                                 }
                                 ++scanned;
@@ -1406,15 +1357,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                     )) {
                                     return result;
                                 }
-                                if (!increment_selected_group_a_start_gate(
-                                        action,
-                                        context,
-                                        result,
-                                        state.random_target_index,
-                                        selected_token
-                                    )) {
-                                    return result;
-                                }
+                                goto increment_selected_start_gate;
                             }
                         }
                     } else {
@@ -1565,15 +1508,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         )) {
                                         return result;
                                     }
-                                    if (!increment_selected_group_a_start_gate(
-                                            action,
-                                            context,
-                                            result,
-                                            state.random_target_index,
-                                            selected_token
-                                        )) {
-                                        return result;
-                                    }
+                                    goto increment_selected_start_gate;
                                 }
                             }
                         }
@@ -1582,6 +1517,53 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
             }
         }
     }
+
+    goto action_decision_done;
+
+increment_selected_start_gate: {
+    const u32 selected = state.random_target_index;
+    const u32 address = group_a_token(selected);
+    const u32 group_a_offset = address - kLegacyBattleActionGroupABaseToken;
+    const u32 group_b_offset = address - kLegacyBattleActionGroupBBaseToken;
+    u16* start_gate{};
+    u32* start_gate_latch{};
+    if (address >= kLegacyBattleActionGroupABaseToken &&
+        group_a_offset % kLegacyBattleActionGroupAStride == 0U &&
+        group_a_offset / kLegacyBattleActionGroupAStride <
+            action.group_a_action_execution.size()) {
+        auto& target = action.group_a_action_execution
+                           [group_a_offset / kLegacyBattleActionGroupAStride];
+        start_gate = &target.start_gate;
+        start_gate_latch = &target.start_gate_latch;
+    } else if (
+        context.startup != nullptr &&
+        context.startup->group_b_lifecycle != nullptr &&
+        address >= kLegacyBattleActionGroupBBaseToken &&
+        group_b_offset % kLegacyBattleActionGroupBStride == 0U &&
+        group_b_offset / kLegacyBattleActionGroupBStride <
+            context.startup->group_b_lifecycle->size()
+    ) {
+        auto& target = (*context.startup->group_b_lifecycle)
+                           [group_b_offset / kLegacyBattleActionGroupBStride]
+                               .action_execution;
+        start_gate = &target.start_gate;
+        start_gate_latch = &target.start_gate_latch;
+    }
+
+    result.actor_start_gate_increment =
+        increment_legacy_battle_actor_start_gate(
+            start_gate,
+            start_gate_latch,
+            context.actor_start_gate_increment_access
+        );
+    if (result.actor_start_gate_increment->status !=
+        LegacyBattleActorStartGateIncrementStatus::completed) {
+        result.status = LegacyBattleActionDispatchStatus::
+            actor_start_gate_increment_typed_stop;
+        result.return_value = selected * 1007U;
+        return result;
+    }
+}
 
 action_decision_done:
     if (shared.action.frame_enabled == 1U && shared.action_aux_gate == 0U &&

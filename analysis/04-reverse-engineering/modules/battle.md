@@ -4376,25 +4376,18 @@ owner/view/resolver、寄存器与模拟栈、flags回声、请求数组、地�
 `platform_adapted`，动态差分保持`blocked_runtime_oracle`；脚本父级、
 计数递增/衰减、B11及Workpack316/318仍待各自验收。
 
-本轮再完成`audit_order=309`的`0x00478AC0`
-战斗角色启动门递增与latch发布函数及三个已关闭父函数中的五处物理CALL。
-完整权威LST主体`0x00478AC0..0x00478AD1`共18字节、3条实际指令、0个callee、0个分支和1个普通`ret`，
-没有外部chunk或中段入口；函数按启动门word读取、16位INC写回、
-`+0x2AE0`完整dword写1和RET的固定顺序执行，保留EAX/ECX/EDX与入口CF并按16位结果更新其余INC flags。
-typed实现复用Group-A action与Group-B startup lifecycle canonical owner，
-把`+0x2AE0`收敛为同一action-execution状态的`start_gate_latch`，
-runtime reset继续负责actor image映射且删除平行residual字段；字段读、字段写、
-latch写和RET四个真实停止点、部分提交、ESP/EIP与物理CALL身份均保留。Group-A frame两处、
-Group-B frame两处和script dispatch case 78一处CALL全部在原位置直接组合typed leaf，
-保留五组call/return、actor、地址算术、入口寄存器、flags和停止后的父级后缀抑制；
-生产generic `0x00478AC0`调用归零，没有延期CALL。验证：定向测试、AddressSanitizer、
-Linux core 199/199、Linux app 205/205 全部通过。格式化后完整门禁、连续10轮core、
-新文件全量与旧文件changed-range clang-format、零OpenSWD3源码warning、测试失败、sanitizer finding、
-inventory双生成、TMP分类及完整release审计均通过；未启动原版或OpenSWD3游戏程序。
-工作包为`309/422 = 299 platform_adapted + 10 assembly_exact + 113 pending_audit`；
-inventory SHA-256为`68a4b609093e1fcc352040de93133a266e3eb780b43e98aa34997e73ef9d5257`。
-动态差分因原版完整Group-A/Group-B actor、两个异常字段页、RET异常栈页及五处caller联合寄存器、
-flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
+`audit_order=309 / 00478AC0`当前直接借用共享WORD/DWORD，
+按读计数、回绕写计数、写完整标记1、读取返回地址的顺序执行。
+删除本操作请求数组、owner/view/resolver、寄存器结果、模拟栈、
+轨迹、计数及纯转发。五处原调用已同步到实际数据接口。
+组A原目标失败返回区分实际终态与runtime前驱；组B目标发布后重读
+完整选择值；脚本EAX保留345倍目标代码、EDX保留队员代码，
+提交WORD后才计算INC flags，CF仍来自地址SUB。
+四种失败前缀、扫描部分提交及地址回绕仍保留。
+当前批次验证状态见[启动计数递增](../evidence/battle-actor-start-gate-increment-00478ac0.md)。
+旧199/199、205/205、十轮core、309/422及旧哈希属于历史版本。
+分类仍为`platform_adapted`，原版差分仍为`blocked_runtime_oracle`；
+父链协议、完整内存别名、资源路径、B11及Workpack316/318未升级。
 
 本轮再完成`audit_order=310`的`0x00478AE0`
 战斗角色启动门与目标计数衰减函数及五个已关闭父函数中的十二处物理CALL。

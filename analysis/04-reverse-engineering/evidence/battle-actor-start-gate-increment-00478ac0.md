@@ -1,179 +1,105 @@
-# 战斗角色启动门递增与 latch 发布（0x00478AC0）
+# 战斗角色启动计数递增与标记发布（00478AC0）
 
-## 1. 范围、边界与 ABI
+## 权威范围与访问顺序
 
-权威 LST 把 `sub_478AC0` 锁定为 `0x00478AC0..0x00478AD1`，半开区间为
-`0x00478AC0..0x00478AD2`。主体共 18 字节、3 条实际指令、0 个 callee、0 个分支、
-0 个局部标签和 1 个普通 `ret`，没有外部 chunk 或中段入口。
-
-```text
-0x00478AC0  inc word ptr [ecx+0x2A74]
-0x00478AC7  mov dword ptr [ecx+0x2AE0], 1
-0x00478AD1  ret
-```
-
-入口 ECX 是 actor token。函数没有显式参数。EAX、ECX 和 EDX 的数值不被三条指令
-修改。普通返回时 RET 读取返回地址，ESP 相对入口增加 4，EIP 为物理返回地址。
-
-## 2. 原访问顺序、flags 与 typed-stop
-
-严格物理访问顺序为：
-
-1. 读取 `actor+0x2A74` 的 16 位旧值；
-2. 把 16 位递增结果写回 `actor+0x2A74`；
-3. 把 dword `1` 写到 `actor+0x2AE0`；
-4. RET 从 `[ESP]` 读取返回地址。
-
-`INC word` 按 16 位自然回绕，`0xFFFF` 递增为 `0x0000`。它保留入口 CF，按 16 位
-结果更新 OF、SF、ZF、AF 和 PF。后续 MOV 与 RET 不修改这些算术 flags。
-
-现代实现保留四个独立物理访问阶段：
-
-1. `start_gate_read_typed_stop`：没有字段或 flags 提交，入口寄存器、ESP 和 EIP 保持；
-2. `start_gate_write_typed_stop`：旧 word 已读取，但新 word 与 INC flags 尚未提交；
-3. `start_gate_latch_write_typed_stop`：启动门递增与 INC flags 已提交，latch 尚未写入，
-   EIP 停在 `0x00478AC7`；
-4. `return_address_read_typed_stop`：两个字段写均已提交，ESP 尚未推进，EIP 停在
-   `0x00478AD1`。
-
-正常路径记录两个字段 token、旧值与新值、字段访问次数、返回地址读取、返回寄存器、
-ESP/EIP、flags 和物理 CALL 身份。
-
-## 3. 字段交叉引用与 canonical owner
-
-完整 LST 中 `actor+0x2A74` 的全部 9 处直接访问为：
+LST范围`00478AC0..00478AD1`，半开终点`00478AD2`。
+18字节、3条指令、0个callee、0个分支、1个普通RET，无外部chunk。
 
 ```text
-0x0046F8C8  cmp word ptr [esi+0x2A74], bp
-0x00473C1B  cmp word ptr [esi+0x2A74], bp
-0x004745B8  cmp word ptr [esi+0x2A74], bp
-0x004758AD  cmp word ptr [esi+0x2A74], di
-0x004786D0  mov ax, [ecx+0x2A74]
-0x00478AC0  inc word ptr [ecx+0x2A74]
-0x00478AE0  mov ax, [ecx+0x2A74]
-0x00478AEF  mov [ecx+0x2A74], ax
-0x0047D4ED  mov [esi+0x2A74], bx
+00478AC0  66 FF 81 74 2A 00 00           inc word ptr [ecx+2A74h]
+00478AC7  C7 81 E0 2A 00 00 01 00 00 00 mov dword ptr [ecx+2AE0h],1
+00478AD1  C3                             retn
 ```
 
-该字段继续使用现有中性名称 `start_gate`。
+先读WORD，按16位回绕写回，再写完整DWORD1，最后读取返回地址。
+标记写不读取旧值。INC保留CF，更新其余算术flags；MOV/RET不改算术flags。
+EAX/ECX/EDX不被叶函数修改。
 
-完整 LST 中 `actor+0x2AE0` 的全部 5 处直接访问为：
+## 当前接口与共享字段
+
+`increment_legacy_battle_actor_start_gate`接收实际WORD/DWORD指针和访问描述。
+两个字段由调用方借自现有角色，不创建影子存储：
+
+- 组A：`action.group_a_action_execution[index]`。
+- 组B：`startup.group_b_lifecycle[index].action_execution`。
+- 字段分别是`start_gate`、`start_gate_latch`；runtime reset仍映射原字段。
+
+删除本操作的owner/view/resolver、请求数组、寄存器请求回复、地址常量、
+模拟栈、调用轨迹、访问/调用计数和纯转发执行函数。
+结果只含状态、可选的已观察旧WORD、可选的已提交新WORD和标记提交事实。
+父结果外层optional表示该操作确已执行，未执行不生成默认成功。
+
+四种既有停止顺序保持：读失败不观察值；WORD写失败只观察旧值；
+标记写失败保留计数提交；RET失败保留两个字段提交。
+空指针只表示调用方没有对应真实字段，并在原读或写边界报告失败。
+不把未映射宿主字段解释成原版任意地址必然故障。
+
+## 五处原调用与后继
 
 ```text
-0x0047887B  mov [ebx+0x2AE0], eax
-0x00478AC7  mov dword ptr [ecx+0x2AE0], 1
-0x00478B0A  mov [ecx+0x2AE0], edx
-0x00478B50  mov eax, [ecx+0x2AE0]
-0x0047D5CE  mov [esi+0x2AE0], ebx
+00456FE1 → 00456FE6  组A选定敌方目标
+0045707A → 0045707F  组A扫描敌方候选
+0045786B → 00457870  组B扫描队员候选
+00457E1C → 00457E21  组B选定队员
+0046DD4A → 0046DD4F  脚本case78
 ```
 
-本轮把它以中性名称 `start_gate_latch` 放入同一 action-execution canonical owner：
+组A扫描保留两次终态查询；第一次!=1且第二次=0才递增。
+故障保留早先角色写入，并抑制当前扫描进度及后缀。
+选定路径的失败EAX取实际前驱：终态!=1保留终态返回；终态=1且
+`53C02C!=0`保留该DWORD；重新选择路径才是signed SI地址算术的结果。
+旧实现统一制造`1381*目标索引`，现按`456F3C/456F4A/456FD7`区分。
+成功后的`CMP53C010,1`覆盖INC flags，无需叶函数回传CPU状态。
 
-```text
-Group-A  action.group_a_action_execution[index]
-Group-B  startup.group_b_lifecycle[index].action_execution
-```
+组B扫描先执行控制清理，再借原ESI所指队员字段。
+故障保留控制清理的EAX，阻断`53BD7C`递增；先前扫描提交保留。
+选定路径的两个C++分支合流到同一实际递增块，对应原`457E00`。
+目标发布后重读完整`53BCFC`，不能沿用终态查询前缓存的对象地址。
+地址`5029D0+index*2F34`按32位回绕解析双方现有存储。
+失败EAX为`1007*index`；后续公共路径不再依赖叶函数寄存器回复。
 
-runtime reset actor image 继续负责偏移 `0x2AE0` 的导入导出，但原 residual
-`field_2ae0` 已删除。没有第二套 actor、启动门或 latch 镜像。
+脚本先完成清表和共享前缀，再读当前目标代码、解析
+`5229E0+code*2B28`的完整回绕地址并修改实际字段。
+尚存的父帧协议需要局部前驱，所以调用方保留`EAX=345*code`和ECX地址，
+仅在实际WORD提交后按旧值/新值计算INC flags，CF沿用地址SUB。
+**EDX是`46DCD0`零扩展读取的队员代码，而非`345*code`**：
+`46DD3D`将EAX写成345倍目标代码，不写EDX；`46DD40`将ECX写成
+1381倍目标代码，`46DD43`再形成对象地址。旧证据与测试的
+EAX=1381倍、EDX=345倍结论均已撤回。
+故障抑制后继gate发布、frame调用和游标推进，保留清表等前缀。
 
-## 4. 五个已关闭父 CALL
+## 字段交叉引用
 
-完整 LST 只有五个物理 CALL，均位于已关闭父函数：
+`+2A74`直接访问：`46F8C8/473C1B/4745B8/4758AD/4786D0/478AC0/
+478AE0/478AEF/47D4ED`。
+`+2AE0`直接访问：`47887B/478AC7/478B0A/478B50/47D5CE`。
+其他读取、重置及衰减仍引用同一共享状态，属于各自后续迁移范围。
 
-```text
-0x00456FE1 -> 0x00456FE6  sub_456680
-0x0045707A -> 0x0045707F  sub_456680
-0x0045786B -> 0x00457870  sub_4576A0
-0x00457E1C -> 0x00457E21  sub_4576A0
-0x0046DD4A -> 0x0046DD4F  sub_469D20
-```
+## 验证与限制
 
-五处 CALL 全部在原控制流位置直接组合 typed leaf，本轮没有延期 caller。trace 保留
-CALL 地址、返回地址和 actor token；父函数把 CALL 前的 EAX、ECX、EDX 和 flags 传入
-leaf，任一 typed-stop 均立即抑制尚未执行的父级后缀。
+独立推导及当前测试覆盖WORD边界、邻接数据、完整DWORD写入、双方真实
+存储、重复实时写入、四个访问阶段、缺失字段、原目标失败前驱、
+扫描部分提交及完整选择回绕。最终定向门禁已实际执行：
 
-### 4.1 Group-A frame：0x00456FE1 与 0x0045707A
+- Linux core：`battle.legacy_battle_setup`，1/1通过，11.70秒。
+- Linux core：`battle.actor_frame_316`，1/1通过，27.52秒。
+- AddressSanitizer：`battle.legacy_battle_setup`，1/1通过，16.33秒。
+- AddressSanitizer：`battle.actor_frame_316`，1/1通过，28.41秒。
+- Linux SDL：`openswd3`目标实际编译、链接成功；未启动游戏程序。
 
-`0x00456FE1` 位于已选 Group-B 目标路径。正常前缀先对当前 Group-A actor 调用
-`0x00478A70`，再从 signed SI 形成 Group-B token。地址算术同时留下
-`EAX = 1381*n`、`EDX = 345*n` 和 `SUB32(24*n,n)` flags；成功返回后才比较
-`dword_53C010` 并继续 frame 后缀。
+五份最终日志均无编译警告、测试失败或sanitizer错误。十二份源码及测试
+的SHA256与执行前后清单一致。日志位于`build/tmp/runtime/`下的
+`start-gate-increment-direct-{core,callers-core,asan,callers-asan,sdl}.log`，
+身份清单为`start-gate-increment-direct-validated-source.sha256`。
 
-`0x0045707A` 位于 Group-B 候选循环。父级对同一候选执行两次 `0x0047CE80`；第一次
-结果不等于 1 且第二次结果为 0 时才调用本 leaf。入口 EAX/EDX 来自第二次查询，flags
-来自 `TEST EAX,EAX`；成功后才把 EBP 置 1 并推进循环。
+中断和失败日志均保留为历史证据，不用于本轮验收。先前敌方扫描测试
+采用终止查询默认返回1，会按原分支跳过递增；最终夹具明确提供四次
+返回0，覆盖两名角色各两次前置查询和第二名角色的四个访问失败阶段。
 
-### 4.2 Group-B frame：0x0045786B 与 0x00457E1C
+历史Workpack309的199/199、205/205、十轮core及旧inventory哈希属于
+原寄存器协议版本，不代表本轮验证。B10游标继续315/422；父链协议、
+phase资源、完整内存别名、B11、Workpack316/318和完整游戏未升级。
 
-`0x0045786B` 位于 Group-A 候选扫描。父级先完成排除、状态、完成和空闲检查，再调用
-`0x0047C660`；本 leaf 接收该 callee 的 EAX/EDX/flags。成功后才递增
-`dword_53BD7C` 并推进扫描。
-
-`0x00457E1C` 位于已选 Group-A actor 路径。父级先把 `word ptr dword_53BCFC` 传给当前
-Group-B actor 的 `0x00478A70`，再从完整 dword index 形成 Group-A token。地址算术留下
-`EAX = 1007*n`、`EDX = 3021*n` 和 `SUB32(1008*n,n)` flags；成功后才跳到共同 frame
-后缀。
-
-### 4.3 Script dispatch：0x0046DD4A
-
-脚本 case 78 以已发布 actor code 形成 Group-B token：
-
-```text
-EAX = 1381 * actor_code
-EDX = 345 * actor_code
-ECX = 0x005229E0 + 0x2B28 * actor_code
-flags = SUB32(24 * actor_code, actor_code)
-```
-
-乘法和地址运算按 32 位自然回绕。成功后才清 `dword_53C02C` 与 `word_53CE98` 并进入
-共同脚本后缀。typed-stop 保留 CALL 前已经提交的列表清零、共享 gate 和其他前缀写入，
-但阻断这两个后缀写、selected actor reset、cursor 推进与 case 返回后缀。
-
-## 5. 双向追溯与测试范围
-
-LST 到 C++ 已覆盖唯一 16 位读改写、dword latch 写、普通 RET、16 位回绕、
-EAX/ECX/EDX、ESP/EIP、INC flags 和四个访问阶段。C++ 到 LST 反向追溯覆盖 canonical
-resolver、请求、trace、五个物理 caller、三类父函数中的地址算术和 typed-stop；没有无来源
-字段写或延期 caller。
-
-汇编独立测试向量覆盖：
-
-- Group-A 与 Group-B canonical owner；
-- `start_gate` 旧值 `0/1/0x7FFF/0x8000/0xFFFF`；
-- `0x7FFF -> 0x8000` 和 `0xFFFF -> 0` 的 INC16 flags；
-- CF、EAX、ECX、EDX 保持；
-- 四个 typed-stop 阶段及其 partial commit；
-- RET 成功时 ESP 增加 4、EIP 等于物理返回地址；
-- 五个 CALL 的地址、返回地址、actor token 和真实执行顺序；
-- Group-A 选定目标与候选扫描、Group-B 候选扫描与选定 actor、脚本 case 78；
-- leaf typed-stop 后各父函数完整后缀抑制；
-- production generic/raw `0x00478AC0` 调用归零。
-
-## 6. 分类与动态差分状态
-
-任意 32 位 actor token、两个字段页和 RET 栈页无法由现代 C++ 直接合法解引用。canonical
-token resolver 和原访问点 typed-stop 是最小平台边界，因此本目标登记为
-`platform_adapted`，不能以 owner、span 或测试通过标记为 `assembly_exact`。
-
-当前缺少原版完整 Group-A/Group-B actor backing、`+0x2A74` 读写异常字段页、
-`+0x2AE0` 写异常字段页、RET 异常栈页，以及五个 caller/callee 的联合寄存器、flags 与
-SEH 捕获后端。原版动态差分登记为 `blocked_runtime_oracle`，不得写成
-`original_diff_verified`。
-
-## 7. 验证与关闭
-
-最终定向战斗测试静默通过；格式化后的 AddressSanitizer/UBSan 与 Linux core 均为
-`199/199`，Linux app 为 `205/205`，连续十轮 Linux core 均为 `199/199`。最终日志扫描
-没有 OpenSWD3 源码 warning、编译 error、测试失败、sanitizer finding 或 runtime error。
-
-新文件全量 clang-format、旧文件 changed-range clang-format、`git diff --check`、生产
-raw/generic 调用、TMP 分类和完整 release diff 审计均通过。未启动原版或 OpenSWD3
-游戏程序。
-
-LST 地址摘录 SHA-256 为
-`d3bae325e81346b380595357d05bc3e13e436593549c1501389f62b4ac9af4a1`。inventory 生成器
-连续双跑逐字节一致，关闭结果为
-`309/422 = 299 platform_adapted + 10 assembly_exact + 113 pending_audit`，inventory
-SHA-256 为 `68a4b609093e1fcc352040de93133a266e3eb780b43e98aa34997e73ef9d5257`。
-下一条 `pending_audit` 为 `audit_order=310 / 0x00478AE0 / sub_478AE0`。
+分类仍为`platform_adapted`。缺少原版异常字段页、RET异常栈页、联合
+调用与SEH捕获证据，原版动态差分仍是`blocked_runtime_oracle`。
+未启动原版或OpenSWD3游戏程序。

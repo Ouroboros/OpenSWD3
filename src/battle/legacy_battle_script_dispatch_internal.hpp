@@ -1176,45 +1176,6 @@ private:
         return true;
     }
 
-    [[nodiscard]] bool increment_actor_start_gate(
-        const u32 actor_token,
-        const u32 entry_eax,
-        const u32 entry_edx,
-        const LegacyBattleActorCoordinateFlags& entry_flags
-    ) {
-        if (!execute_legacy_battle_actor_start_gate_increment_call(
-                result_.actor_start_gate_increment,
-                request_.actor_start_gate_increment_requests,
-                {
-                    .action = &bindings_.action,
-                    .startup = &bindings_.startup,
-                },
-                0x0046DD4AU,
-                0x0046DD4FU,
-                actor_token,
-                entry_eax,
-                entry_edx,
-                entry_flags,
-                true
-            )) {
-            eax_ = result_.actor_start_gate_increment.last.return_eax;
-            ecx_ = result_.actor_start_gate_increment.last.return_ecx;
-            edx_ = result_.actor_start_gate_increment.last.return_edx;
-            if (result_.actor_start_gate_increment.last.flags_known) {
-                flags_ = result_.actor_start_gate_increment.last.flags;
-            }
-            result_.status = LegacyBattleScriptDispatchStatus::
-                actor_start_gate_increment_typed_stop;
-            return false;
-        }
-
-        eax_ = result_.actor_start_gate_increment.last.return_eax;
-        ecx_ = result_.actor_start_gate_increment.last.return_ecx;
-        edx_ = result_.actor_start_gate_increment.last.return_edx;
-        flags_ = result_.actor_start_gate_increment.last.flags;
-        return true;
-    }
-
     [[nodiscard]] bool rebuild_actor_order_direct() {
         const auto order = rebuild_legacy_battle_actor_order(
             bindings_.metrics,

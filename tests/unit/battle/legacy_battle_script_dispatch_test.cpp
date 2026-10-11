@@ -5377,6 +5377,146 @@ void test_battle_script_dispatch_cases_sixty_one_to_eighty_three(
         );
     }
 
+    for (std::size_t phase = 0U; phase < 4U; ++phase) {
+        auto fixture_owner = std::make_unique<Fixture>();
+        auto& fixture = *fixture_owner;
+        Port port;
+        fixture.opcode(78);
+        fixture.write_u16(2U, 8U);
+        fixture.write_u16(4U, 2U);
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        auto& target =
+            (*fixture.startup.group_b_lifecycle)[2U].action_execution;
+        target.start_gate = 0x7FFFU;
+        target.start_gate_latch = 0xCAFEBABEU;
+        fixture.shared.actor_order_workspace.fill(0xAAAAAAAAU);
+        fixture.shared.attack_order_workspace.fill(0xBBBBBBBBU);
+        openswd3::battle::LegacyBattleScriptDispatchRequest request;
+        request.actor_start_gate_increment_access = {
+            .start_gate_readable = phase != 0U,
+            .start_gate_writable = phase != 1U,
+            .start_gate_latch_writable = phase != 2U,
+            .return_address_readable = phase != 3U,
+        };
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture.workspace, fixture.bindings(), port, request
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        actor_start_gate_increment_typed_stop &&
+                result.return_eax == 1035U &&
+                result.return_ecx == 0x0052AB58U && result.return_edx == 8U &&
+                result.actor_start_gate_increment.has_value() &&
+                result.actor_start_gate_increment->previous_start_gate
+                        .has_value() == (phase > 0U) &&
+                result.actor_start_gate_increment->incremented_start_gate
+                        .has_value() == (phase > 1U) &&
+                target.start_gate == (phase > 1U ? 0x8000U : 0x7FFFU) &&
+                target.start_gate_latch == (phase == 3U ? 1U : 0xCAFEBABEU) &&
+                fixture.metrics.priority_actor_index == 8U &&
+                fixture.target_selection.selected_action_kind == 6U &&
+                fixture.action.action_pending_aux == 1U &&
+                fixture.shared.script_phase_gate == 1U &&
+                fixture.shared.script_aux_gate == 0U &&
+                fixture.input_dispatch.selected_actor_reset_gate == 0U &&
+                fixture.workspace.cursor == 0U &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 0U &&
+                std::ranges::all_of(
+                    fixture.shared.actor_order_workspace,
+                    [](const u32 value) { return value == 0U; }
+                ) &&
+                std::ranges::all_of(
+                    fixture.shared.attack_order_workspace,
+                    [](const u32 value) { return value == 0U; }
+                ),
+            "script count failures preserve clear and publication prefixes, actual predecessors and only committed fields"
+        );
+    }
+
+    {
+        constexpr std::array<u32, 4> codes{3U, 0x20000003U, 0U, 0x16DED16FU};
+        constexpr std::array<u32, 4> predecessors{
+            1035U, 0x2000040BU, 0U, 0xD2483E97U
+        };
+        constexpr std::array<u32, 4> addresses{
+            0x0052AB58U, 0x0052AB58U, 0x005229E0U, 0x00508838U
+        };
+        for (std::size_t vector = 0U; vector < codes.size(); ++vector) {
+            auto fixture_owner = std::make_unique<Fixture>();
+            auto& fixture = *fixture_owner;
+            Port port;
+            fixture.opcode(78);
+            fixture.write_u16(2U, 8U);
+            fixture.write_u16(4U, 0U);
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                8>>();
+            auto& party = fixture.action.group_a_action_execution[2U];
+            auto& enemy =
+                (*fixture.startup.group_b_lifecycle)[2U].action_execution;
+            party.start_gate = 0x7FFFU;
+            enemy.start_gate = 0x7FFFU;
+            port.after_call = [&](auto&, auto& bindings, const auto& call) {
+                if (call.call ==
+                    LegacyBattleScriptDispatchCall::pending_47ce80) {
+                    bindings.final_actor.published_actor_code = codes[vector];
+                }
+            };
+            const auto result = run_legacy_battle_script_dispatch(
+                fixture.workspace, fixture.bindings(), port
+            );
+            const bool available = vector != 2U;
+            const bool party_selected = vector == 3U;
+            test.expect_true(
+                result.actor_start_gate_increment.has_value() &&
+                    result.actor_start_gate_increment->incremented_start_gate
+                            .has_value() == available &&
+                    party.start_gate == (party_selected ? 0x8000U : 0x7FFFU) &&
+                    enemy.start_gate ==
+                        (available && !party_selected ? 0x8000U : 0x7FFFU) &&
+                    party.start_gate_latch == (party_selected ? 1U : 0U) &&
+                    enemy.start_gate_latch ==
+                        (available && !party_selected ? 1U : 0U) &&
+                    port.count(LegacyBattleScriptDispatchCall::frame) ==
+                        (available ? 1U : 0U),
+                "script count borrows the actual party or enemy field from the live wrapped address"
+            );
+            if (available) {
+                const auto frame =
+                    std::ranges::find_if(port.calls, [](const auto& call) {
+                        return call.call ==
+                            LegacyBattleScriptDispatchCall::frame;
+                    });
+                test.expect_true(
+                    frame != port.calls.end() &&
+                        frame->eax == predecessors[vector] &&
+                        frame->ecx == addresses[vector] && frame->edx == 8U &&
+                        frame->flags.carry == (vector == 1U) &&
+                        frame->flags.parity && frame->flags.auxiliary_carry &&
+                        frame->flags.sign && frame->flags.overflow &&
+                        !frame->flags.zero,
+                    "frame receives the original EAX and EDX and INC flags with address-SUB carry"
+                );
+            } else {
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleScriptDispatchStatus::
+                                actor_start_gate_increment_typed_stop &&
+                        result.return_eax == predecessors[vector] &&
+                        result.return_ecx == addresses[vector] &&
+                        result.return_edx == 8U &&
+                        fixture.input_dispatch.selected_actor_reset_gate ==
+                            0U &&
+                        fixture.workspace.cursor == 0U,
+                    "unavailable script field stops at the count read after the original prefix"
+                );
+            }
+        }
+    }
+
     {
         Fixture fixture;
         Port port;
@@ -5401,19 +5541,23 @@ void test_battle_script_dispatch_cases_sixty_one_to_eighty_three(
                 first.actor_target_selection.argument_values[0U] == 0U &&
                 first.actor_action_mode_calls == 1U &&
                 first.actor_action_modes[0U].return_eip == 0x0046DCC9U &&
-                first.actor_start_gate_increment.calls == 1U &&
-                first.actor_start_gate_increment.call_addresses[0U] ==
-                    0x0046DD4AU &&
-                first.actor_start_gate_increment.return_addresses[0U] ==
-                    0x0046DD4FU &&
-                first.actor_start_gate_increment.actor_tokens[0U] ==
-                    openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
-                first.actor_start_gate_increment.last.return_eax == 1381U &&
-                first.actor_start_gate_increment.last.return_edx == 345U &&
-                first.actor_start_gate_increment.last.returned &&
-                first.actor_start_gate_increment.last.flags_known &&
-                !first.actor_start_gate_increment.last.flags.carry &&
-                !first.actor_start_gate_increment.last.flags.parity &&
+                first.actor_start_gate_increment.has_value() &&
+                first.actor_start_gate_increment->previous_start_gate == 0U &&
+                first.actor_start_gate_increment->incremented_start_gate ==
+                    1U &&
+                first.actor_start_gate_increment->start_gate_latch_committed &&
+                std::ranges::any_of(
+                    port.calls,
+                    [](const auto& call) {
+                        return call.call ==
+                            LegacyBattleScriptDispatchCall::frame &&
+                            call.eax == 345U && call.edx == 8U &&
+                            call.ecx ==
+                            openswd3::battle::
+                                kLegacyBattleActionGroupBBaseToken &&
+                            !call.flags.carry && !call.flags.parity;
+                    }
+                ) &&
                 (*fixture.startup.group_b_lifecycle)[0U]
                         .action_execution.start_gate == 1U &&
                 (*fixture.startup.group_b_lifecycle)[0U]
@@ -5452,9 +5596,8 @@ void test_battle_script_dispatch_cases_sixty_one_to_eighty_three(
         fixture.shared.actor_order_workspace.fill(0xAAAAAAAAU);
         fixture.shared.attack_order_workspace.fill(0xBBBBBBBBU);
         openswd3::battle::LegacyBattleScriptDispatchRequest request;
-        request.actor_start_gate_increment_requests.count = 1U;
-        request.actor_start_gate_increment_requests.calls[0U]
-            .access.start_gate_latch_writable = false;
+        request.actor_start_gate_increment_access.start_gate_latch_writable =
+            false;
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port, request
         );
@@ -5462,17 +5605,17 @@ void test_battle_script_dispatch_cases_sixty_one_to_eighty_three(
             result.status ==
                     LegacyBattleScriptDispatchStatus::
                         actor_start_gate_increment_typed_stop &&
-                result.actor_start_gate_increment.calls == 1U &&
-                result.actor_start_gate_increment.call_addresses[0U] ==
-                    0x0046DD4AU &&
-                result.actor_start_gate_increment.last.status ==
+                result.actor_start_gate_increment.has_value() &&
+                result.actor_start_gate_increment->status ==
                     openswd3::battle::
                         LegacyBattleActorStartGateIncrementStatus::
                             start_gate_latch_write_typed_stop &&
-                result.actor_start_gate_increment.last.start_gate_writes ==
+                result.actor_start_gate_increment->incremented_start_gate ==
                     1U &&
-                result.actor_start_gate_increment.last
-                        .start_gate_latch_writes == 0U &&
+                !result.actor_start_gate_increment
+                     ->start_gate_latch_committed &&
+                result.return_eax == 345U && result.return_edx == 8U &&
+                port.count(LegacyBattleScriptDispatchCall::frame) == 0U &&
                 (*fixture.startup.group_b_lifecycle)[0U]
                         .action_execution.start_gate == 1U &&
                 (*fixture.startup.group_b_lifecycle)[0U]

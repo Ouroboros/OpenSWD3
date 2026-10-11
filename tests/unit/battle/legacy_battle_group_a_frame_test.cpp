@@ -3039,18 +3039,17 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         openswd3::battle::
                             kLegacyBattleActorGateDecayFixedPreGroupBToken &&
                     result.actor_gate_decay.last.returned &&
-                    result.actor_start_gate_increment.calls == 1U &&
-                    result.actor_start_gate_increment.call_addresses[0U] ==
-                        0x00456FE1U &&
-                    result.actor_start_gate_increment.return_addresses[0U] ==
-                        0x00456FE6U &&
-                    result.actor_start_gate_increment.actor_tokens[0U] ==
-                        openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
-                    result.actor_start_gate_increment.last
-                            .previous_start_gate == 0U &&
-                    result.actor_start_gate_increment.last
-                            .incremented_start_gate == 1U &&
-                    result.actor_start_gate_increment.last.returned &&
+                    result.actor_start_gate_increment.has_value() &&
+                    result.actor_start_gate_increment->previous_start_gate ==
+                        0U &&
+                    result.actor_start_gate_increment->incremented_start_gate ==
+                        1U &&
+                    result.actor_start_gate_increment
+                        ->start_gate_latch_committed &&
+                    (*fixture.startup.group_b_lifecycle)[0U]
+                            .action_execution.start_gate == 1U &&
+                    (*fixture.startup.group_b_lifecycle)[0U]
+                            .action_execution.start_gate_latch == 1U &&
                     port.count(0x00478AC0U) == 0U,
                 "Group-A selected-opponent path increments its target through physical caller 00456FE1"
             );
@@ -3096,7 +3095,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state.action.group_a_action_execution[0U].action_target ==
                         0U &&
                     result.actor_gate_decay.calls == 0U &&
-                    result.actor_start_gate_increment.calls == 0U,
+                    !result.actor_start_gate_increment.has_value(),
                 "Group-A selected-opponent target-clear stop suppresses decay and target startup"
             );
         }
@@ -3122,11 +3121,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             port.push(0x0047CE80U, {.eax = 1U});
             port.push(0x0047CE80U, {.eax = 0U});
             auto context = fixture.context();
-            context.actor_start_gate_increment_requests.count = 1U;
-            context.actor_start_gate_increment_requests.calls[0U]
-                .access.return_address_readable = false;
-            context.actor_start_gate_increment_requests.calls[0U].entry_esp =
-                0x81234000U;
+            context.actor_start_gate_increment_access.return_address_readable =
+                false;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
@@ -3135,21 +3131,19 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_start_gate_increment_typed_stop &&
-                    result.actor_start_gate_increment.calls == 1U &&
-                    result.actor_start_gate_increment.call_addresses[0U] ==
-                        0x00456FE1U &&
-                    result.actor_start_gate_increment.last.status ==
+                    result.actor_start_gate_increment.has_value() &&
+                    result.actor_start_gate_increment->status ==
                         openswd3::battle::
                             LegacyBattleActorStartGateIncrementStatus::
                                 return_address_read_typed_stop &&
-                    result.actor_start_gate_increment.last.return_eip ==
-                        0x00478AD1U &&
-                    result.actor_start_gate_increment.last.return_esp ==
-                        0x81234000U &&
-                    result.actor_start_gate_increment.last.start_gate_writes ==
+                    result.actor_start_gate_increment->incremented_start_gate ==
                         1U &&
-                    result.actor_start_gate_increment.last
-                            .start_gate_latch_writes == 1U &&
+                    result.actor_start_gate_increment
+                        ->start_gate_latch_committed &&
+                    (*fixture.startup.group_b_lifecycle)[0U]
+                            .action_execution.start_gate == 1U &&
+                    (*fixture.startup.group_b_lifecycle)[0U]
+                            .action_execution.start_gate_latch == 1U &&
                     result.group_a_actor_list_action_calls == 0U,
                 "Group-A selected-opponent RET stop commits both fields and suppresses the actor-list suffix"
             );
@@ -3181,19 +3175,15 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state, port, context, 0U
                 );
             test.expect_true(
-                result.actor_start_gate_increment.calls == 1U &&
-                    result.actor_start_gate_increment.call_addresses[0U] ==
-                        0x0045707AU &&
-                    result.actor_start_gate_increment.return_addresses[0U] ==
-                        0x0045707FU &&
-                    result.actor_start_gate_increment.actor_tokens[0U] ==
-                        openswd3::battle::kLegacyBattleActionGroupBBaseToken &&
-                    result.actor_start_gate_increment.last.return_edx ==
-                        0x55667788U &&
-                    result.actor_start_gate_increment.last.returned &&
-                    result.actor_start_gate_increment.last.flags_known &&
-                    !result.actor_start_gate_increment.last.flags.carry &&
-                    !result.actor_start_gate_increment.last.flags.parity &&
+                result.actor_start_gate_increment.has_value() &&
+                    result.actor_start_gate_increment->incremented_start_gate ==
+                        1U &&
+                    result.actor_start_gate_increment
+                        ->start_gate_latch_committed &&
+                    (*fixture.startup.group_b_lifecycle)[0U]
+                            .action_execution.start_gate == 1U &&
+                    (*fixture.startup.group_b_lifecycle)[0U]
+                            .action_execution.start_gate_latch == 1U &&
                     port.count(0x00478AC0U) == 0U,
                 "Group-A live-opponent scan increments the candidate through physical caller 0045707A"
             );
@@ -3219,9 +3209,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             port.push(0x0047CE80U, {.eax = 0U});
             port.push(0x0047CE80U, {.eax = 0U});
             auto context = fixture.context();
-            context.actor_start_gate_increment_requests.count = 1U;
-            context.actor_start_gate_increment_requests.calls[0U]
-                .access.start_gate_writable = false;
+            context.actor_start_gate_increment_access.start_gate_writable =
+                false;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
@@ -3230,20 +3219,137 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_start_gate_increment_typed_stop &&
-                    result.actor_start_gate_increment.calls == 1U &&
-                    result.actor_start_gate_increment.call_addresses[0U] ==
-                        0x0045707AU &&
-                    result.actor_start_gate_increment.last.status ==
+                    result.actor_start_gate_increment.has_value() &&
+                    result.actor_start_gate_increment->status ==
                         openswd3::battle::
                             LegacyBattleActorStartGateIncrementStatus::
                                 start_gate_write_typed_stop &&
-                    result.actor_start_gate_increment.last.start_gate_reads ==
-                        1U &&
-                    result.actor_start_gate_increment.last.start_gate_writes ==
+                    result.actor_start_gate_increment->previous_start_gate ==
                         0U &&
+                    !result.actor_start_gate_increment->incremented_start_gate
+                         .has_value() &&
+                    !result.actor_start_gate_increment
+                         ->start_gate_latch_committed &&
                     result.group_b_iterations == 0U,
                 "Group-A live-opponent write stop preserves the read and suppresses loop progress"
             );
+        }
+
+        for (std::size_t phase = 0U; phase < 4U; ++phase) {
+            auto state_storage =
+                std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *state_storage;
+            state.final_actor_step.action_execution_active = 0U;
+            state.action.group_a_count = 0;
+            state.action.group_b_count = 2;
+            state.action.group_a_action_execution[0U].action_kind = 5U;
+            state.action.group_a_action_execution[0U].action_target = 0U;
+            Fixture fixture;
+            fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                8>>();
+            (*fixture.startup.group_a_runtime_reset)[0U]
+                .target_selection_latch = 1U;
+            auto& first =
+                (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+            auto& second =
+                (*fixture.startup.group_b_lifecycle)[1U].action_execution;
+            first.start_gate = 0xFFFFU;
+            second.start_gate = 0x7FFFU;
+            DispatchPort port;
+            port.actor_metric_state().priority_actor_index = 8U;
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            auto context = fixture.context();
+            port.before_invoke = [&](const auto& request) {
+                if (request.callee_token == 0x0047CE80U &&
+                    request.arguments[0U] ==
+                        openswd3::battle::kLegacyBattleActionGroupBBaseToken +
+                            openswd3::battle::kLegacyBattleActionGroupBStride) {
+                    context.actor_start_gate_increment_access = {
+                        .start_gate_readable = phase != 0U,
+                        .start_gate_writable = phase != 1U,
+                        .start_gate_latch_writable = phase != 2U,
+                        .return_address_readable = phase != 3U,
+                    };
+                }
+            };
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_start_gate_increment_typed_stop &&
+                    result.return_value == 0U &&
+                    result.group_b_iterations == 1U && first.start_gate == 0U &&
+                    first.start_gate_latch == 1U &&
+                    second.start_gate == (phase > 1U ? 0x8000U : 0x7FFFU) &&
+                    second.start_gate_latch == (phase == 3U ? 1U : 0U) &&
+                    result.group_a_actor_list_action_calls == 0U,
+                "enemy scan access failures preserve earlier writes and suppress the current iteration and suffix"
+            );
+        }
+
+        for (const bool runtime_predecessor : {false, true}) {
+            for (std::size_t phase = 0U; phase < 4U; ++phase) {
+                auto state_storage =
+                    std::make_unique<LegacyBattleGroupAFrameState>();
+                auto& state = *state_storage;
+                state.final_actor_step.action_execution_active = 0U;
+                state.action.group_a_count = 0;
+                state.action.group_b_count = 1;
+                state.action.group_a_action_execution[0U].action_kind = 5U;
+                state.action.group_a_action_execution[0U].action_target = 0U;
+                state.action_runtime_word = runtime_predecessor ? 7U : 0U;
+                Fixture fixture;
+                fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+                    openswd3::battle::LegacyBattleActorGroupBElementState,
+                    8>>();
+                auto& target =
+                    (*fixture.startup.group_b_lifecycle)[0U].action_execution;
+                target.start_gate = 0xFFFFU;
+                target.start_gate_latch = 0xCAFEBABEU;
+                (*fixture.startup.group_a_runtime_reset)[0U]
+                    .target_selection_latch = 0U;
+                DispatchPort port;
+                port.actor_metric_state().priority_actor_index = 8U;
+                port.push(
+                    0x0047CE80U, {.eax = runtime_predecessor ? 1U : 0x12345678U}
+                );
+                auto context = fixture.context();
+                context.actor_start_gate_increment_access = {
+                    .start_gate_readable = phase != 0U,
+                    .start_gate_writable = phase != 1U,
+                    .start_gate_latch_writable = phase != 2U,
+                    .return_address_readable = phase != 3U,
+                };
+                const auto result =
+                    openswd3::battle::advance_legacy_battle_group_a_frame(
+                        state, port, context, 0U
+                    );
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActionDispatchStatus::
+                                actor_start_gate_increment_typed_stop &&
+                        result.return_value ==
+                            (runtime_predecessor ? 7U : 0x12345678U) &&
+                        result.actor_start_gate_increment.has_value() &&
+                        result.actor_start_gate_increment->previous_start_gate
+                                .has_value() == (phase > 0U) &&
+                        result.actor_start_gate_increment
+                                ->incremented_start_gate.has_value() ==
+                            (phase > 1U) &&
+                        target.start_gate == (phase > 1U ? 0U : 0xFFFFU) &&
+                        target.start_gate_latch ==
+                            (phase == 3U ? 1U : 0xCAFEBABEU) &&
+                        result.group_a_actor_list_action_calls == 0U,
+                    "selected existing opponent failures retain the terminal or runtime predecessor and suppress the suffix"
+                );
+            }
         }
 
         {
