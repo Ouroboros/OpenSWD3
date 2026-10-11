@@ -50,14 +50,6 @@ add_flags(const u32 left, const u32 right, const u32 sum) noexcept {
 }
 
 [[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
-shift_left_two_flags(const u32 value) noexcept {
-    const u32 shifted = value << 2U;
-    auto flags = logical_flags(shifted);
-    flags.carry = (value & 0x40000000U) != 0U;
-    return flags;
-}
-
-[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
 subtract_flags(const u32 left, const u32 right) noexcept {
     const u32 difference = left - right;
     return {
@@ -544,28 +536,6 @@ one_based_group_b_token(const u32 one_based) noexcept {
         return false;
     }
     value = result.actor_idle_state.return_eax;
-    return true;
-}
-
-[[nodiscard]] bool query_start_gate(
-    LegacyBattleActionDispatchResult& result,
-    const LegacyBattleActorStartGateOwners& owners,
-    const LegacyBattleActorStartGateRequest& request,
-    u32& value
-) {
-    result.actor_start_gate = query_legacy_battle_actor_start_gate(
-        resolve_legacy_battle_actor_start_gate(owners, request.actor_token),
-        request
-    );
-    ++result.actor_start_gate_calls;
-    if (result.actor_start_gate.status !=
-        LegacyBattleActorStartGateStatus::completed) {
-        result.status =
-            LegacyBattleActionDispatchStatus::actor_start_gate_typed_stop;
-        result.return_value = result.actor_start_gate.return_eax;
-        return false;
-    }
-    value = result.actor_start_gate.return_eax;
     return true;
 }
 
@@ -1243,10 +1213,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         .action = &state.action,
         .startup = context.startup,
     };
-    const LegacyBattleActorStartGateOwners start_gate_owners{
-        .action = &state.action,
-        .startup = context.startup,
-    };
     const LegacyBattleActorTargetSelectionOwners target_selection_owners{
         .action = &state.action,
         .startup = context.startup,
@@ -1314,26 +1280,43 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         result.return_value = result.actor_target_selection.last.return_eax;
         return false;
     };
-    auto start_gate_request = context.actor_start_gate_request;
-    start_gate_request.actor_token = actor_token;
-    start_gate_request.entry_eax =
-        group_a_index * kLegacyBattleActionGroupAStride;
-    start_gate_request.entry_return_address = 0x004566B2U;
-    start_gate_request.entry_flags = shift_left_two_flags(
-        group_a_index * (kLegacyBattleActionGroupAStride >> 2U)
+    result.actor_start_gate = query_legacy_battle_actor_start_gate(
+        &state.action.group_a_action_execution[group_a_index].start_gate,
+        context.actor_start_gate_access
     );
-    start_gate_request.entry_flags_known = true;
-    u32 start_gate{};
-    if (!query_start_gate(
-            result, start_gate_owners, start_gate_request, start_gate
-        )) {
+    const auto& start_gate = *result.actor_start_gate;
+    const u32 actor_offset = group_a_index * kLegacyBattleActionGroupAStride;
+    const u32 presentation_eax = start_gate.value.has_value()
+        ? (actor_offset & 0xFFFF0000U) | *start_gate.value
+        : actor_offset;
+    if (start_gate.status != LegacyBattleActorStartGateStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_start_gate_typed_stop;
+        result.return_value = presentation_eax;
         return result;
     }
-    const bool effect_mode =
-        (low_word(start_gate) != 0U &&
-         (port.frame_effect_control_state().primary_suppression == 1U ||
-          port.frame_effect_control_state().secondary_suppression == 1U)) ||
-        state.global_effect_override == 1U;
+
+    bool effect_mode = false;
+    LegacyBattleActorCoordinateFlags presentation_flags;
+    if (*start_gate.value != 0U) {
+        const u32 primary =
+            port.frame_effect_control_state().primary_suppression;
+        presentation_flags = subtract_flags(primary, 1U);
+        effect_mode = primary == 1U;
+        if (!effect_mode) {
+            const u32 secondary =
+                port.frame_effect_control_state().secondary_suppression;
+            presentation_flags = subtract_flags(secondary, 1U);
+            effect_mode = secondary == 1U;
+        }
+    }
+
+    if (!effect_mode) {
+        const u32 override_value = state.global_effect_override;
+        presentation_flags = subtract_flags(override_value, 1U);
+        effect_mode = override_value == 1U;
+    }
+
     const bool action_presentation_returned =
         execute_legacy_battle_actor_action_presentation_call(
             {.action = &state.action, .startup = context.startup},
@@ -1352,9 +1335,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             0x004566E0U,
             actor_token,
             effect_mode ? 1U : 0U,
-            result.actor_start_gate.return_eax,
-            result.actor_start_gate.return_edx,
-            result.actor_start_gate.flags,
+            presentation_eax,
+            context.actor_action_presentation_requests.requests[0U].entry_edx,
+            presentation_flags,
             true
         );
     for (std::size_t call_index = 0U;

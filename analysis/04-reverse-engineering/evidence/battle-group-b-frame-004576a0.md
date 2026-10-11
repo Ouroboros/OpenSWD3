@@ -231,7 +231,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - queue完成直接返回reset完整EAX；
 - phase Group-A扫描的回合完成caller保留excluded EAX/EDX与CMP flags，在字段停止时抑制source idle、目标准备和剩余循环，且旧callee token零调用；
 - target scan、selection与action-decision三处空闲状态caller复用Group-B lifecycle owner，覆盖完整零/1/其他非零值、继承EAX/EDX/flags、三个真实返回地址、字段typed-stop及clear/prepare、status/profile和opponent-dispatch后缀抑制，旧callee token生产零调用；
-- 公共效果模式启动门caller复用同一Group-B lifecycle action-execution owner，保留对象算术中间EAX、caller EDX、SUB flags、真实返回地址与post-call TEST；RET stop阻断效果模式发布及最终公共尾，旧callee token生产零调用；
+- 公共尾在前驱执行后直接读取Group-B实际启动计数，完整WORD零/非零与门值精确1组合、读取/返回失败保留前缀并抑制显示及最终尾；查询不再携带寄存器或调用计数，当前证据见[启动计数查询](battle-actor-start-gate-004786d0.md)；
 - phase side跳过随机/status；
 - 随机组B同伴；
 - profile覆盖EDX低byte；

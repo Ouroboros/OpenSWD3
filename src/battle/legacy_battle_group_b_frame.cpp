@@ -307,28 +307,6 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     return true;
 }
 
-[[nodiscard]] bool query_start_gate(
-    LegacyBattleActionDispatchResult& result,
-    const LegacyBattleActorStartGateOwners& owners,
-    const LegacyBattleActorStartGateRequest& request,
-    u32& value
-) {
-    result.actor_start_gate = query_legacy_battle_actor_start_gate(
-        resolve_legacy_battle_actor_start_gate(owners, request.actor_token),
-        request
-    );
-    ++result.actor_start_gate_calls;
-    if (result.actor_start_gate.status !=
-        LegacyBattleActorStartGateStatus::completed) {
-        result.status =
-            LegacyBattleActionDispatchStatus::actor_start_gate_typed_stop;
-        result.return_value = result.actor_start_gate.return_eax;
-        return false;
-    }
-    value = result.actor_start_gate.return_eax;
-    return true;
-}
-
 [[nodiscard]] bool query_action_target(
     LegacyBattleActionDispatchResult& result,
     const LegacyBattleActorActionTargetOwners& owners,
@@ -580,10 +558,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
         return false;
     };
     const LegacyBattleActorIdleStateOwners idle_state_owners{
-        .action = &action,
-        .startup = context.startup,
-    };
-    const LegacyBattleActorStartGateOwners start_gate_owners{
         .action = &action,
         .startup = context.startup,
     };
@@ -2082,25 +2056,48 @@ action_decision_done:
         }
     }
 
-    auto start_gate_request = context.actor_start_gate_request;
-    start_gate_request.actor_token = source_token;
-    start_gate_request.entry_eax =
+    const u16* start_gate_field = context.startup != nullptr &&
+            context.startup->group_b_lifecycle != nullptr
+        ? &(*context.startup->group_b_lifecycle)[group_b_index]
+               .action_execution.start_gate
+        : nullptr;
+    result.actor_start_gate = query_legacy_battle_actor_start_gate(
+        start_gate_field, context.actor_start_gate_access
+    );
+    const auto& start_gate = *result.actor_start_gate;
+    const u32 actor_multiplier =
         group_b_index * (kLegacyBattleActionGroupBStride >> 3U);
-    start_gate_request.entry_return_address = 0x00458203U;
-    start_gate_request.entry_flags =
-        subtract_flags(group_b_index * 24U, group_b_index);
-    start_gate_request.entry_flags_known = true;
-    u32 start_gate{};
-    if (!query_start_gate(
-            result, start_gate_owners, start_gate_request, start_gate
-        )) {
+    const u32 presentation_eax = start_gate.value.has_value()
+        ? (actor_multiplier & 0xFFFF0000U) | *start_gate.value
+        : actor_multiplier;
+    if (start_gate.status != LegacyBattleActorStartGateStatus::completed) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_start_gate_typed_stop;
+        result.return_value = presentation_eax;
         return result;
     }
-    const bool effect_mode =
-        (low_word(start_gate) != 0U &&
-         (port.frame_effect_control_state().primary_suppression == 1U ||
-          port.frame_effect_control_state().secondary_suppression == 1U)) ||
-        shared.global_effect_override == 1U;
+
+    bool effect_mode = false;
+    LegacyBattleActorCoordinateFlags presentation_flags;
+    if (*start_gate.value != 0U) {
+        const u32 primary =
+            port.frame_effect_control_state().primary_suppression;
+        presentation_flags = subtract_flags(primary, 1U);
+        effect_mode = primary == 1U;
+        if (!effect_mode) {
+            const u32 secondary =
+                port.frame_effect_control_state().secondary_suppression;
+            presentation_flags = subtract_flags(secondary, 1U);
+            effect_mode = secondary == 1U;
+        }
+    }
+
+    if (!effect_mode) {
+        const u32 override_value = shared.global_effect_override;
+        presentation_flags = subtract_flags(override_value, 1U);
+        effect_mode = override_value == 1U;
+    }
+
     const bool action_presentation_returned =
         execute_legacy_battle_actor_action_presentation_call(
             {.action = &action, .startup = context.startup},
@@ -2119,9 +2116,9 @@ action_decision_done:
             0x00458231U,
             source_token,
             effect_mode ? 1U : 0U,
-            result.actor_start_gate.return_eax,
-            result.actor_start_gate.return_edx,
-            result.actor_start_gate.flags,
+            presentation_eax,
+            context.actor_action_presentation_requests.requests[0U].entry_edx,
+            presentation_flags,
             true
         );
     for (std::size_t call_index = 0U;

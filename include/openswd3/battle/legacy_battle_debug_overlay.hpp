@@ -25,8 +25,7 @@ enum class LegacyBattleDebugOverlayCall : compat::u8 {
     resolve_group_b_actor,
     query_group_b_vitality,
     reserved_query_actor_command,
-    reserved_query_actor_start_gate,
-    reserved_query_marker_position,
+    reserved_query_marker_position = 6,
     reserved_query_marker_width,
 };
 
@@ -111,8 +110,8 @@ struct LegacyBattleDebugOverlayRequest {
     compat::u32 vitality_stack_snapshot{};
     LegacyBattleActorActionKindRequest group_b_action_kind_request{};
     LegacyBattleActorActionKindRequest group_a_action_kind_request{};
-    LegacyBattleActorStartGateRequest group_b_start_gate_request{};
-    LegacyBattleActorStartGateRequest group_a_start_gate_request{};
+    LegacyBattleActorStartGateAccess group_b_start_gate_access{};
+    LegacyBattleActorStartGateAccess group_a_start_gate_access{};
     LegacyBattleActorCurrentCoordinateQueryRequest current_coordinate_query{};
 };
 
@@ -148,8 +147,7 @@ struct LegacyBattleDebugOverlayResult {
     compat::u32 marker_pixels{};
     LegacyBattleActorActionKindResult actor_action_kind{};
     compat::u32 actor_action_kind_calls{};
-    LegacyBattleActorStartGateResult actor_start_gate{};
-    compat::u32 actor_start_gate_calls{};
+    std::optional<LegacyBattleActorStartGateResult> actor_start_gate;
     LegacyBattleActorCurrentCoordinateQueryResult current_coordinate_query{};
     compat::u32 current_coordinate_query_calls{};
     LegacyBattleActorProgressWidthResult actor_progress_width{};

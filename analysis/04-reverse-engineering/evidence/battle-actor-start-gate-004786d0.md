@@ -1,74 +1,112 @@
-# 战斗角色启动门word查询（0x004786D0）
+# 战斗角色启动计数查询（0x004786D0）
 
-## 1. 范围与边界
+## 1. 权威范围
 
-权威LST把`sub_4786D0`锁定为`0x004786D0..0x004786D7`共8字节：
+完整LST范围为`004786D0..004786D7`，半开终点`004786D8`，8字节。
+两条指令、无分支、无callee、无外部chunk或中段入口：
 
 ```text
-004786D0  66 8B 81 74 2A 00 00  mov ax,[ecx+0x2A74]
-004786D7  C3                    retn
+004786D0 66 8B 81 74 2A 00 00  mov ax,[ecx+2A74h]
+004786D7 C3                    retn
 ```
 
-函数只有2条实际指令、0个call、0个分支、0个局部标签和1个普通RET；没有外部chunk、中段入口或隐藏异常尾。
+读取完整WORD，仅覆盖EAX低16位；EAX高16位、ECX、EDX与flags不变。
+RET读取返回地址并推进原栈。四处物理CALL为`004566AD`、`004581FE`、
+`0045DF67`、`0045DFE2`。
 
-## 2. 精确机器语义
+## 2. 实际共享字段与语义接口
 
-入口ECX是角色对象token，EAX、EDX、ESP与flags由caller提供。唯一字段指令读取`actor+0x2A74`的完整16位word，只替换EAX低16位；EAX高16位、ECX、EDX与全部flags保持不变。随后普通RET读取`[ESP]`，把ESP增加4并跳到返回地址。
+`query_legacy_battle_actor_start_gate(const compat::u16*, Access)`直接借用：
 
-不得把结果零扩展、符号扩展、布尔化，也不得提前执行frame caller自己的`test ax,ax`或调试caller自己的`and eax,0xFFFF`。例如入口EAX为`0xA5A51234`、字段为`0xCDEF`时，leaf返回EAX必须为`0xA5A5CDEF`。
+- 队员：`action.group_a_action_execution[index].start_gate`。
+- 敌人：`startup.group_b_lifecycle[index].action_execution.start_gate`。
 
-## 3. 字段访问与唯一owner
+查询只返回状态与`optional<u16> value`。删除本查询的地址常量、token解析、
+owner/view、寄存器request/reply、栈数组、字段地址、读/调用计数，
+以及两类角色帧和调试叠加层的三处转发函数。
+调试接口删除本查询的reserved编号，保留其余未迁移操作的原编号。
+未增加角色副本、第二套计数、包装执行器或成功占位值。
 
-完整LST对`actor+0x2A74`共有9处直接访问：4处word比较、2处word读取、2处word写和1处word自增。除本getter外，相邻读写位于组A动作执行、特殊动作、组B动作执行、准备/重置目标及状态发布路径；这些函数继续由各自工作包审计，本工作包不提前关闭。
+调用方外层optional表示查询实际发生；内层optional表示WORD实际读到。
+不可用宿主字段或读取不可达在原字段边界返回`start_gate_read_typed_stop`，
+不产生值。返回访问失败在WORD读取之后返回`return_address_read_typed_stop`，
+保留观察值。两个路径都不写字段；宿主字段不可用不证明原静态内存必然异常。
 
-C++ owner按角色种类复用既有完整actor状态：
+## 3. 两类角色帧
 
-- Group-A：`LegacyBattleActionDispatchState::group_a_action_execution[index].start_gate`；
-- Group-B：`LegacyBattleStartupState::group_b_lifecycle[index].action_execution.start_gate`。
+`004566AD→004566B2`直接借当前队员计数，调用前EAX是
+`index*2F34h`。`004581FE→00458203`位于敌人帧公共尾，
+在此前逻辑执行后借当前敌人计数，EAX是`1381*index`。
+尚未迁移的父级失败返回与显示调用所需EAX，在各调用点局部组合高WORD与观察值；
+字段失败保留完整前驱，RET失败保留已替换低WORD。查询自身不再携带寄存器。
 
-Group-A frame、Group-B frame和调试叠加层均解析上述owner，没有新增平行actor数组、第二套word缓存或token槽。
+两处成功后都先TEST完整AX。计数非零且primary或secondary门精确等于1，
+或全局override精确等于1，才给显示逻辑传1。门值2及高位带1不等于1。
+保持原短路顺序：计数零不读取两个抑制门，primary等于1不读取secondary，
+任一抑制门命中不读取override。传给尚存显示协议的flags来自最后一次CMP；
+旧实现误用查询前SHL/SUB flags的说明撤销。
 
-## 4. typed实现与停止点
+父级显示协议仍未迁移。其既有请求保存尚未恢复来源的EDX输入；本查询不再提供
+EDX注入槽。测试在显示请求上提供这项原有输入，不能据此声称完整角色帧已恢复
+真实寄存器来源、生产资源或全部失败行为。该父链继续pending。
 
-`query_legacy_battle_actor_start_gate()`逐条实现word读和普通RET，并记录字段token、字段读取、返回地址读取、栈读取、EAX/ECX/EDX、ESP/EIP及flags。
+查询失败抑制显示及之后的公共尾，敌人帧此前已完成的副作用仍保留。
+两类帧原入口索引检查保持原位置，本切片不扩张其调用域或增加停止点。
 
-两个真实停止点为：
+## 4. 调试显示两处调用
 
-1. `start_gate_read_typed_stop`：字段不可读或actor owner无法解析时停在`0x004786D0`，完整保留入口EAX、ECX、EDX、ESP和flags；
-2. `return_address_read_typed_stop`：字段读取成功后停在`0x004786D7`，保留已替换AX的EAX，不读取返回地址、不推进ESP。
+敌人行`0045DF67→0045DF6C`先解析角色、读生命与level、读动作种类。
+动作种类经过`AND EAX,FFFF`后已作为格式参数保存；查询此时才读取实际计数。
+成功后`0045DF70`再次mask，完整WORD零扩展后用于十进制显示。
 
-正常路径只读取一个字段word和一个返回地址，ESP精确增加4。
+队员行`0045DFE2→0045DFE7`同样在动作种类mask之后读取实际计数，
+成功后零扩展用于格式化。不得布尔化或按signed WORD显示。
+每个完成行之后原循环重读角色数量；上一行绘制回调对下一角色字段的修改
+必须被下一次查询看见。
 
-## 5. 四处物理caller
+失败时保留已完成行、当前动作种类及生命/level等前缀，抑制当前格式化、
+绘字、循环推进和公共尾。父级EAX在读失败时保留动作种类，在RET失败时
+保留已读计数；ECX保留角色地址；敌人EDX为level，队员EDX为此前字体/
+绘字结果。没有新增寄存器返回层。
 
-### 5.1 Group-A frame（0x004566AD）
+## 5. 独立向量与双向复核
 
-Group-A索引按原乘移序列形成`index*0x2F34`对象偏移与角色token；leaf入口EAX保持该偏移，EDX保持caller输入，flags来自`0x0045669A`最后一次`shl eax,2`，真实返回地址为`0x004566B2`。返回后caller才执行`test ax,ax`，并与两个抑制门及全局覆盖门共同形成效果模式，再调用效果模式发布。
+独立LST推导记录位于`build/tmp/runtime/start-gate-query-direct-lst-analysis.md`。
 
-C++直接读取Group-A action-execution的`start_gate`，只增加typed调用计数，不增加generic端口计数。typed-stop发生在任何效果模式发布和后续frame副作用之前。
+- WORD：0、1、00FF、0100、7FFF、8000、FFFF，完整读值、邻居不写。
+- 实际队员2与敌人3，实时重读，不修改目标计数或启动标记。
+- 字段缺失、字段不可读、RET不可读、两者不可读时字段失败优先。
+- 两类角色各35组计数/门组合，包含低byte零而WORD非零及高位门值。
+- 敌人帧在前置terminal回调后读取改写值；读/RET失败保留前驱改写，
+  缺少startup或敌人存储仍在原读取边界失败，不伪造计数0。
+- 两类调试行在第一行绘制后改写第二角色，检查完整数值与读取时机；
+  第二角色字段/RET失败保留第一行且抑制全部当前后缀。
+- 既有队员9 RET失败保留高EAX，敌人2 RET失败保留观察值，
+  显示嵌套路径继续验证实际显示参数、字段写入和失败前缀。
 
-### 5.2 Group-B frame（0x004581FE）
+最终门禁均通过：
 
-Group-B索引按原算术形成`index*0x565`中间值，再以八倍比例形成`index*0x2B28`对象步长；leaf入口EAX保持`index*0x565`，EDX保持caller值，flags来自`0x004581EA`的`index*24-index`减法，后续LEA不修改flags，真实返回地址为`0x00458203`。返回后caller才执行`test ax,ax`并形成公共效果模式。
+- Linux core `battle.legacy_battle_setup` 1/1，10.41秒。
+- Linux core `battle.actor_frame_316` 1/1，26.49秒。
+- ASan同两项分别1/1，15.81秒、25.72秒。
+- SDL目标`openswd3`实际编译链接完成，未启动游戏。
 
-C++直接读取Group-B startup lifecycle action-execution的`start_gate`。typed-stop保留此前已完成的完整frame前缀，但阻断效果模式发布和最终公共尾。
+使用仓库`build.sh`/`build-asan.sh`，分别指定setup与actor-frame测试目标
+及精确测试正则；SDL使用`./build.sh app --build-target openswd3`。
+五份最终日志位于`build/tmp/runtime/start-gate-query-direct-`前缀下，
+后缀为`core.log`、`callers-core.log`、`asan.log`、`callers-asan.log`、`sdl.log`。
+最终日志无warning、编译错误、测试失败或sanitizer报告。
+11份源码/测试身份记录于同前缀`validated-source.sha256`，执行后校验一致。
+首轮日志归档为`before-live-prefix-*`，其中setup构建含既存outcome窄化警告，
+不与最终日志混用。发布检查记录于同前缀`publication-check.log`。
 
-### 5.3 调试叠加层Group-B行（0x0045DF67）
+最后双向复核覆盖两条原指令、四个调用、完整WORD消费、原失败边界、
+原短路读取顺序及真实字段借用；机器快照删除后父级所需值在调用点维护。
+静态扫描核对本查询旧协议及转发已消除；它不证明全项目迁移完成。
 
-相邻动作种类getter返回后，caller先执行`and eax,0xFFFF`，再压入已mask的命令参数并调用本getter。leaf入口EAX是零扩展命令word，EDX是当前解析角色的零扩展level word，flags来自该AND，真实返回地址为`0x0045DF6C`。返回后caller才再次mask AX，并把启动门、命令、生命和level组合为当前行文字。
+## 6. 验收边界
 
-### 5.4 调试叠加层Group-A行（0x0045DFE2）
-
-相邻动作种类getter返回后同样先mask命令并压栈。leaf入口EAX是零扩展命令word；首行EDX保留此前最后一次Group-B文字绘制或字体reset的callee残值，后续行EDX保留上一行文字绘制callee残值；flags来自命令AND；真实返回地址为`0x0045DFE7`。返回后caller才mask启动门并格式化当前行。
-
-两类调试typed-stop均保留已完成的resolve、生命、level或动作种类前缀以及已压入命令参数，抑制当前行格式化、绘制、剩余角色循环和公共调试后缀。调试端口中原启动门查询ordinal保留为`reserved_query_actor_start_gate`，但生产路径不再调用。
-
-## 6. 双向追溯与验证范围
-
-LST到C++追溯覆盖唯一word读、EAX部分寄存器写、普通RET及四个caller的真实返回地址；C++到LST反向追溯覆盖owner解析、字段/RET两个停点、frame后续TEST和调试后续mask位置。
-
-测试覆盖Group-A/Group-B owner别名、零/一/其它word、EAX高word保留、ECX/EDX/flags保持、普通RET栈、字段/RET停止、两类frame效果模式、两类调试行、首行/后续行寄存器线程、停止前缀/后缀抑制，以及生产`0x004786D0` raw调用归零。
-
-## 7. 动态差分状态
-
-当前缺少原版完整Group-A/Group-B actor、异常字段/栈内存页，以及四处caller的寄存器、flags与SEH联合捕获后端，原版动态差分登记为`blocked_runtime_oracle`。该阻塞不改变8字节leaf和四处静态caller的LST闭环。
+保持`platform_adapted`。完整内存别名、原异常页/SEH和四调用点联合动态捕获
+仍缺失，原版差分为`blocked_runtime_oracle`。
+父级其余操作编号、参数数组、寄存器协议、计数、资源及完整SDL角色帧仍待迁移。
+本切片不提升B11、WP316/318或实际游戏流程的验收状态。

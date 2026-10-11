@@ -261,7 +261,7 @@ Typed-stop只位于：
 - completed actor组B扫描与首个live选择；
 - one-based Group-A目标及Group-B动作目标两处回合完成caller的canonical owner、调用前寄存器/flags、typed-stop后缀抑制和旧callee token零调用；
 - actor启动、peer扫描、直接空闲门与selected-target四处空闲状态caller的canonical owner、完整零/1/其他非零值、调用前EAX/EDX/flags、真实返回地址、typed-stop后缀抑制和旧callee token零调用；
-- 公共效果模式启动门caller的Group-A action-execution owner、最终SHL后的EAX/EDX/flags、真实返回地址、post-call TEST、typed-stop后缀抑制和旧callee token零调用；
+- 公共显示调用直接读取Group-A实际启动计数，完整WORD零/非零与门值精确1组合、失败保留前驱高EAX和观察值、显示及后缀抑制；查询协议已删除，当前证据见[启动计数查询](battle-actor-start-gate-004786d0.md)；
 - active action直接调用已关闭主分派，确认端口不再出现旧callee token并完成全cleanup；
 - action target `0xFFFF`首次组B对象typed-stop；
 - turn `0x4000→0x8000→0`同调用穿透；

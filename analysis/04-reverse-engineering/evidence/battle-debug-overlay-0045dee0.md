@@ -116,7 +116,7 @@
 
 逐帧协调器在内部bit17检查之后读取叠加门。该门归独立虚共享gate port唯一持有，撤退提交可在成功时清零，全局重置也同步清零。机器码只有门完整等于1时调用本函数；旧实现把条件反向并保留opaque调用，现已纠正为精确等于1时直接组合typed叠加层。
 
-子typed-stop保留音乐、角色预处理、metric、角色顺序、surface绘制、HUD、对话、双倒计时和叠加正文前缀，随后阻断结果判定、上下文提示、颜色累加、临时surface与截图。两处动作种类word caller现直接组合`0x004786B0` typed leaf；Group-B真实返回地址为`0x0045DF5F`，Group-A为`0x0045DFDA`。其后的两处启动门word caller直接组合`0x004786D0` typed leaf，Group-B真实返回地址为`0x0045DF6C`，Group-A为`0x0045DFE7`；入口EAX与flags来自命令低wordAND，EDX分别保留level word或此前字体/绘制callee残值。任一字段或返回地址stop均保留已完成前缀，抑制当前行格式化、绘制与剩余循环；旧动作与启动门查询端口槽重命名为reserved并保持生产零调用。Workpack 288 REVIEW 1把`0x0045E270`标记坐标站点改为直接读取Group-B lifecycle action-execution canonical坐标到固定`0x0053BF4A/0x0053BF4E` scratch；旧位置查询端口槽改为reserved并保持生产零调用。六类current-coordinate stop保留已完成正文及X scratch前缀，阻断进度宽度、row-offset与全部标记像素。组B进度或阈值读取stop发生在位置查询与row-offset计算之后、任何标记像素之前；旧宽度端口槽同样仅保留reserved兼容编号且生产零调用。正常返回寄存器按原caller保持未消费。
+子typed-stop保留音乐、角色预处理、metric、角色顺序、surface绘制、HUD、对话、双倒计时和叠加正文前缀，随后阻断结果判定、上下文提示、颜色累加、临时surface与截图。两处动作种类word caller现直接组合`0x004786B0` typed leaf；Group-B真实返回地址为`0x0045DF5F`，Group-A为`0x0045DFDA`。其后的两处启动计数查询已直接借用双方角色实际WORD，返回状态及可选读值；本查询的寄存器请求/回复、栈轨迹、调用计数、转发函数及reserved编号均删除。原返回地址为`0x0045DF6C`、`0x0045DFE7`，调用前动作种类已经mask并保存，查询成功后完整WORD零扩展用于文字。字段/返回失败保留已完成前缀与父级实际残值，抑制当前行格式化、绘制及剩余循环；上一行回调修改下一角色后必须实时读取。当前向量、门禁与限制见[启动计数查询](battle-actor-start-gate-004786d0.md)。动作种类查询仍待迁移。Workpack 288 REVIEW 1把`0x0045E270`标记坐标站点改为直接读取Group-B lifecycle action-execution canonical坐标到固定`0x0053BF4A/0x0053BF4E` scratch；旧位置查询端口槽改为reserved并保持生产零调用。六类current-coordinate stop保留已完成正文及X scratch前缀，阻断进度宽度、row-offset与全部标记像素。组B进度或阈值读取stop发生在位置查询与row-offset计算之后、任何标记像素之前；旧宽度端口槽同样仅保留reserved兼容编号且生产零调用。正常返回寄存器按原caller保持未消费。
 
 ## 9. 测试与动态差分
 

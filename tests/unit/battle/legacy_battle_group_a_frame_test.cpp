@@ -736,6 +736,50 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_group_a_frame(openswd3::test::Context& test) {
+    for (const u16 count :
+         std::array<u16, 5>{0U, 1U, 0x100U, 0x8000U, 0xFFFFU}) {
+        for (const auto gates : std::array<std::array<u32, 3>, 7>{
+                 {{0U, 0U, 0U},
+                  {1U, 0U, 0U},
+                  {0U, 1U, 0U},
+                  {2U, 2U, 0U},
+                  {0x10001U, 0x80000001U, 2U},
+                  {0U, 0U, 1U},
+                  {1U, 1U, 1U}}
+             }) {
+            auto state = std::make_unique<PausedFrameState>();
+            auto fixture = std::make_unique<Fixture>();
+            DispatchPort port;
+            state->action.group_a_action_execution[2U].start_gate = count;
+            state->action.group_a_action_execution[0U].start_gate = 0x1234U;
+            state->global_effect_override = gates[2U];
+            port.frame_effect_control_state().primary_suppression = gates[0U];
+            port.frame_effect_control_state().secondary_suppression = gates[1U];
+            auto context = fixture->context();
+            context.actor_action_presentation_requests.count = 1U;
+            context.actor_action_presentation_requests.requests[0U]
+                .stop_before_actor_access = 0U;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    *state, port, context, 2U
+                );
+            const bool expected = gates[2U] == 1U ||
+                (count != 0U && (gates[0U] == 1U || gates[1U] == 1U));
+            test.expect_true(
+                result.actor_start_gate.has_value() &&
+                    result.actor_start_gate->value == count &&
+                    result.actor_action_presentation.calls == 1U &&
+                    result.actor_action_presentation.effect_arguments[0U] ==
+                        static_cast<u32>(expected) &&
+                    state->action.group_a_action_execution[2U].start_gate ==
+                        count &&
+                    state->action.group_a_action_execution[0U].start_gate ==
+                        0x1234U,
+                "Group-A presentation uses the actual full WORD and exact-one shared gates"
+            );
+        }
+    }
+
     using openswd3::battle::LegacyBattleActionDispatchStatus;
     using LegacyBattleGroupAFrameState = PausedFrameState;
     using openswd3::battle::LegacyBattleTurnAdvanceStatus;
@@ -823,9 +867,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             Fixture fixture;
             DispatchPort port;
             auto context = fixture.context();
-            context.actor_start_gate_request.entry_edx = 0xA5A55A5AU;
-            context.actor_start_gate_request.entry_esp = 0x87007000U;
-            context.actor_start_gate_request.access.start_gate_readable = false;
+            context.actor_start_gate_access.start_gate_readable = false;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
@@ -834,29 +876,16 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_start_gate_typed_stop &&
-                    result.actor_start_gate_calls == 1U &&
-                    result.actor_start_gate.status ==
+                    result.actor_start_gate.has_value() &&
+                    result.actor_start_gate->status ==
                         openswd3::battle::LegacyBattleActorStartGateStatus::
                             start_gate_read_typed_stop &&
-                    result.actor_start_gate.return_eax == 0U &&
-                    result.actor_start_gate.return_ecx ==
-                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                    result.actor_start_gate.return_edx == 0xA5A55A5AU &&
-                    result.actor_start_gate.return_esp == 0x87007000U &&
-                    result.actor_start_gate.return_eip == 0x004786D0U &&
-                    result.actor_start_gate.field_token ==
-                        openswd3::battle::kLegacyBattleActionGroupABaseToken +
-                            0x2A74U &&
-                    result.actor_start_gate.flags_known &&
-                    !result.actor_start_gate.flags.carry &&
-                    result.actor_start_gate.flags.parity &&
-                    !result.actor_start_gate.flags.auxiliary_carry_defined &&
-                    result.actor_start_gate.flags.zero &&
-                    !result.actor_start_gate.flags.sign &&
-                    !result.actor_start_gate.flags.overflow &&
+                    !result.actor_start_gate->value.has_value() &&
+                    result.return_value == 0U &&
+                    result.actor_action_presentation.calls == 0U &&
                     port.count(0x004786D0U) == 0U &&
                     port.count(0x00478B60U) == 0U,
-                "Group-A start-gate field stop preserves final SHL state and suppresses effect publication and the whole frame suffix"
+                "Group-A start-gate field stop has no observed count and suppresses effect publication and the whole frame suffix"
             );
         }
 
@@ -868,10 +897,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             Fixture fixture;
             DispatchPort port;
             auto context = fixture.context();
-            context.actor_start_gate_request.entry_edx = 0x11223344U;
-            context.actor_start_gate_request.entry_esp = 0x87507000U;
-            context.actor_start_gate_request.access.return_address_readable =
-                false;
+            context.actor_start_gate_access.return_address_readable = false;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 9U
@@ -880,27 +906,13 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_start_gate_typed_stop &&
-                    result.actor_start_gate_calls == 1U &&
-                    result.actor_start_gate.status ==
+                    result.actor_start_gate.has_value() &&
+                    result.actor_start_gate->status ==
                         openswd3::battle::LegacyBattleActorStartGateStatus::
                             return_address_read_typed_stop &&
-                    result.actor_start_gate.return_eax == 0x0001BEEFU &&
-                    result.actor_start_gate.return_ecx ==
-                        openswd3::battle::kLegacyBattleActionGroupABaseToken +
-                            9U *
-                                openswd3::battle::
-                                    kLegacyBattleActionGroupAStride &&
-                    result.actor_start_gate.return_edx == 0x11223344U &&
-                    result.actor_start_gate.return_esp == 0x87507000U &&
-                    result.actor_start_gate.return_eip == 0x004786D7U &&
-                    result.actor_start_gate.start_gate_reads == 1U &&
-                    result.actor_start_gate.return_address_reads == 0U &&
-                    !result.actor_start_gate.flags.carry &&
-                    result.actor_start_gate.flags.parity &&
-                    !result.actor_start_gate.flags.auxiliary_carry_defined &&
-                    !result.actor_start_gate.flags.zero &&
-                    !result.actor_start_gate.flags.sign &&
-                    !result.actor_start_gate.flags.overflow &&
+                    result.actor_start_gate->value == 0xBEEFU &&
+                    result.return_value == 0x0001BEEFU &&
+                    result.actor_action_presentation.calls == 0U &&
                     port.count(0x004786D0U) == 0U &&
                     port.count(0x00478B60U) == 0U,
                 "Group-A start-gate RET stop preserves the nonzero actor-offset EAX high word and blocks every caller suffix"
@@ -1524,8 +1536,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             );
             port.push(0x00479850U, {.eax = 1U});
             auto context = fixture.context();
-            context.actor_start_gate_request.entry_edx = 0x11223344U;
-            context.actor_start_gate_request.entry_esp = 0x88008000U;
+            context.actor_action_presentation_requests.requests[0U].entry_edx =
+                0x11223344U;
             context.actor_action_presentation_requests.count = 1U;
             context.actor_action_presentation_requests.requests[0U].entry_esp =
                 0x88108014U;
@@ -1535,15 +1547,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 );
             test.expect_true(
                 result.return_value == 1U &&
-                    result.actor_start_gate_calls == 1U &&
-                    result.actor_start_gate.return_eax == 1U &&
-                    result.actor_start_gate.return_ecx ==
-                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                    result.actor_start_gate.return_edx == 0x11223344U &&
-                    result.actor_start_gate.return_esp == 0x88008004U &&
-                    result.actor_start_gate.return_eip == 0x004566B2U &&
-                    result.actor_start_gate.flags.parity &&
-                    result.actor_start_gate.flags.zero &&
+                    result.actor_start_gate.has_value() &&
+                    result.actor_start_gate->value == 1U &&
                     result.actor_action_presentation.calls == 1U &&
                     result.actor_action_presentation.call_addresses[0U] ==
                         0x004566DBU &&
@@ -1593,7 +1598,6 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             port.frame_effect_control_state().primary_suppression = 1U;
             port.push(0x0047BA80U, {.eax = 1U});
             auto context = fixture.context();
-            context.actor_start_gate_request.entry_esp = 0x88008000U;
             context.actor_action_presentation_requests.count = 1U;
             context.actor_action_presentation_requests.requests[0U].entry_esp =
                 0x88108014U;
@@ -1646,8 +1650,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state, port, context, 0U
                 );
             test.expect_true(
-                result.actor_start_gate_calls == 1U &&
-                    result.actor_start_gate.return_eax == 0U &&
+                result.actor_start_gate.has_value() &&
+                    result.actor_start_gate->value == 0U &&
                     result.actor_action_presentation.calls == 1U &&
                     result.actor_action_presentation.call_addresses[0U] ==
                         0x004566DBU &&
@@ -1680,7 +1684,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             port.frame_effect_control_state().primary_suppression = 1U;
             port.push(0x00479850U, {.eax = 1U});
             auto context = fixture.context();
-            context.actor_start_gate_request.entry_edx = 0x87654321U;
+            context.actor_action_presentation_requests.requests[0U].entry_edx =
+                0x87654321U;
             context.actor_action_presentation_requests.count = 1U;
             context.actor_action_presentation_requests.requests[0U].entry_esp =
                 0x88208014U;
@@ -1738,7 +1743,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             DispatchPort port;
             port.frame_effect_control_state().primary_suppression = 1U;
             auto context = fixture.context();
-            context.actor_start_gate_request.entry_edx = 0x87654321U;
+            context.actor_action_presentation_requests.requests[0U].entry_edx =
+                0x87654321U;
             context.actor_action_presentation_requests.count = 1U;
             auto& presentation_request =
                 context.actor_action_presentation_requests.requests[0U];

@@ -200,44 +200,6 @@ private:
     return true;
 }
 
-[[nodiscard]] bool read_start_gate(
-    LegacyBattleDebugOverlayBindings bindings,
-    LegacyBattleDebugOverlayResult& result,
-    LegacyBattleActorStartGateRequest request,
-    const u32 actor_token,
-    const u32 entry_eax,
-    const u32 entry_edx,
-    const u32 return_address,
-    const LegacyBattleActorCoordinateFlags& entry_flags,
-    u32& value
-) {
-    request.actor_token = actor_token;
-    request.entry_eax = entry_eax;
-    request.entry_edx = entry_edx;
-    request.entry_return_address = return_address;
-    request.entry_flags = entry_flags;
-    request.entry_flags_known = true;
-    result.actor_start_gate = query_legacy_battle_actor_start_gate(
-        resolve_legacy_battle_actor_start_gate(
-            {.action = &bindings.action, .startup = &bindings.startup},
-            actor_token
-        ),
-        request
-    );
-    ++result.actor_start_gate_calls;
-    if (result.actor_start_gate.status !=
-        LegacyBattleActorStartGateStatus::completed) {
-        result.status =
-            LegacyBattleDebugOverlayStatus::actor_start_gate_typed_stop;
-        result.return_value = result.actor_start_gate.return_eax;
-        result.return_ecx = result.actor_start_gate.return_ecx;
-        result.return_edx = result.actor_start_gate.return_edx;
-        return false;
-    }
-    value = result.actor_start_gate.return_eax & 0xFFFFU;
-    return true;
-}
-
 [[nodiscard]] bool write_marker_pixel(
     LegacyBattleDebugOverlayBindings bindings,
     LegacyBattleDebugOverlayResult& result,
@@ -314,20 +276,28 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
                 )) {
                 return result;
             }
-            u32 lock{};
-            if (!read_start_gate(
-                    bindings,
-                    result,
-                    request.group_b_start_gate_request,
-                    actor,
-                    command,
-                    *actor_level,
-                    0x0045DF6CU,
-                    logical_flags(command),
-                    lock
-                )) {
+            const u16* start_gate =
+                bindings.startup.group_b_lifecycle != nullptr &&
+                    index < bindings.startup.group_b_lifecycle->size()
+                ? &(*bindings.startup.group_b_lifecycle)[index]
+                       .action_execution.start_gate
+                : nullptr;
+            result.actor_start_gate = query_legacy_battle_actor_start_gate(
+                start_gate, request.group_b_start_gate_access
+            );
+            if (result.actor_start_gate->status !=
+                LegacyBattleActorStartGateStatus::completed) {
+                result.status =
+                    LegacyBattleDebugOverlayStatus::actor_start_gate_typed_stop;
+                result.return_value = result.actor_start_gate->value.value_or(
+                    static_cast<u16>(command)
+                );
+                result.return_ecx = actor;
+                result.return_edx = *actor_level;
                 return result;
             }
+
+            const u16 lock = *result.actor_start_gate->value;
             format_text(
                 state,
                 result,
@@ -364,20 +334,26 @@ LegacyBattleDebugOverlayResult draw_legacy_battle_debug_overlay(
                 )) {
                 return result;
             }
-            u32 lock{};
-            if (!read_start_gate(
-                    bindings,
-                    result,
-                    request.group_a_start_gate_request,
-                    actor,
-                    command,
-                    group_a_action_entry_edx,
-                    0x0045DFE7U,
-                    logical_flags(command),
-                    lock
-                )) {
+            const u16* start_gate =
+                index < bindings.action.group_a_action_execution.size()
+                ? &bindings.action.group_a_action_execution[index].start_gate
+                : nullptr;
+            result.actor_start_gate = query_legacy_battle_actor_start_gate(
+                start_gate, request.group_a_start_gate_access
+            );
+            if (result.actor_start_gate->status !=
+                LegacyBattleActorStartGateStatus::completed) {
+                result.status =
+                    LegacyBattleDebugOverlayStatus::actor_start_gate_typed_stop;
+                result.return_value = result.actor_start_gate->value.value_or(
+                    static_cast<u16>(command)
+                );
+                result.return_ecx = actor;
+                result.return_edx = group_a_action_entry_edx;
                 return result;
             }
+
+            const u16 lock = *result.actor_start_gate->value;
             format_text(
                 state,
                 result,

@@ -4110,19 +4110,15 @@ inventory SHA-256为`e00f466dcb78a138449331575c3a407740f3debf9828338fcddcc9c588c
 完整权威LST主体`0x004786D0..0x004786D7`共8字节、2条实际指令、0个call、0个分支和1个普通`retn`，
 没有外部chunk或中段入口；函数只把actor `+0x2A74`完整word读入AX，保留EAX高16位、ECX、
 EDX和全部flags后普通RET。
-typed实现直接复用Group-A action-execution十槽和startup Group-B
-lifecycle八槽中的canonical启动门owner，保留字段与RET两个真实停点、完整寄存器、ESP/EIP、
-flags和访问计数，不增加平行actor数组、第二套word缓存或token槽。Group-A frame、
-Group-B frame及调试叠加层Group-B/Group-A行四处物理caller全部直接组合typed leaf，
-保留两类对象地址算术、命令mask、level或绘制callee残值形成的EAX/EDX/flags、四个真实返回地址，
-以及frame post-call TEST与调试post-call低word mask；typed-stop抑制当前caller后缀，
-调试端口ordinal保留为reserved且生产`0x004786D0`零raw调用。验证：定向测试、AddressSanitizer、
-Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core、全量/changed-range clang-format、
-零源码warning/测试失败/sanitizer finding、inventory双生成、TMP分类及完整release审计亦通过；
-未启动原版或OpenSWD3游戏程序。
-工作包为`295/422 = 285 platform_adapted + 10 assembly_exact + 127 pending_audit`；
-生成器连续双跑逐字节一致，
-inventory SHA-256为`f75543c6335679e3e34b8c7ea7782cce30f8d0e5960c8cb4a2820182bf6f005a`。
+当前迁移直接借Group-A十槽与Group-B八槽的实际启动计数，返回状态及可选WORD。
+查询的owner/view/token解析、寄存器请求/回复、栈轨迹、调用计数和三处转发均删除。
+四处调用同步接入：角色帧测试完整WORD并按门值精确1选择显示参数，
+调试行在前置动作查询和上一行绘制后读取当前计数，零扩展用于文字。
+字段/RET失败保留观察值与父级已执行前缀，并抑制对应后缀。
+调试reserved查询编号删除；父级显示请求、其他通用操作及资源继续待迁移。
+当前定向门禁与范围限制见[启动计数查询](../evidence/battle-actor-start-gate-004786d0.md)。
+历史199/199、205/205及固定复核轮数不作为本批通过证据；
+B10仍为315/422，WP316/317/318保持pending_audit。
 动态差分因原版完整Group-A/Group-B actor、
 异常字段/栈内存页及四处caller联合寄存器/flags/SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 

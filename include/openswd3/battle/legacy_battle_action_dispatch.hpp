@@ -1467,7 +1467,7 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorIdleStateRequest actor_idle_state_request{};
     LegacyBattleActorActionKindRequest actor_action_kind_request{};
     LegacyBattleActorDisplayKindRequest actor_display_kind_request{};
-    LegacyBattleActorStartGateRequest actor_start_gate_request{};
+    LegacyBattleActorStartGateAccess actor_start_gate_access{};
     LegacyBattleActorFrameSnapshotClearRequest
         actor_frame_snapshot_clear_request{};
     std::array<LegacyBattleActorActionModeRequest, 41>
@@ -1668,8 +1668,7 @@ struct LegacyBattleActionDispatchResult {
     LegacyBattleActorGateDecayTrace actor_gate_decay{};
     LegacyBattleActorDisplayKindResult actor_display_kind{};
     compat::u32 actor_display_kind_calls{};
-    LegacyBattleActorStartGateResult actor_start_gate{};
-    compat::u32 actor_start_gate_calls{};
+    std::optional<LegacyBattleActorStartGateResult> actor_start_gate;
     LegacyBattleActorActionTargetResult actor_action_target{};
     std::array<LegacyBattleActorActionTargetResult, 20> actor_action_targets{};
     compat::u32 actor_action_target_calls{};
