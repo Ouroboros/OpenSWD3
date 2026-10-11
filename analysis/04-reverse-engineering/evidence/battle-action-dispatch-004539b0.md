@@ -7,6 +7,12 @@ B11动作里的颜色写入、primary抑制门与刷新调用已借实际画面�
 原写集合、上游零/一来源与验证见
 [双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
 
+## 召唤共享全局镜像设置
+
+召唤读取脚本共用的`startup.mirror_mode`，删除独立summon_gate副本。
+保留完整DWORD零值比较、前继后实时读取与分配失败前缀。
+验证见[共享镜像设置](battle-shared-mirror-setting-0053c000.md)。行动父协议仍待迁移。
+
 ## 1. 完整LST范围
 
 权威主体为`0x004539B0..0x00455CCF`，完整3836行、202个静态call站点、137个`loc_`标签。函数另有不可遗漏的外部FUNCTION CHUNK：

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "4bfa16613be538178f2bb30b05a0c411e4394201",
+  "last_reviewed_source_revision": "6596ec4190a0cd41937f9784be6478374cf00de4",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -306,13 +306,13 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "b938a8f8",
+      "last_reviewed_commit": "6596ec41",
       "files": [
         "include/openswd3/battle/legacy_battle_deformation.hpp",
         "src/battle/legacy_battle_deformation.cpp"
       ],
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-action-mirror-0047f900.md",
-      "reason": "三处行动镜像直接写实际敌人、召唤队员或FFFF保存索引所指重置区，删除47F900编号与模拟回复；保留画面、消息、分配与结束发布顺序及真实前继诊断。此前绘制抑制、步长、动作字段迁移继续有效。其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，整项继续pending"
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-shared-mirror-setting-0053c000.md",
+      "reason": "召唤直接借脚本共用的全局镜像DWORD，删除summon_gate副本，保留精确零值比较、前继后重读与分配失败前缀。此前三处实际镜像写入、绘制抑制、步长、动作字段迁移继续有效。其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，整项继续pending"
     },
     "battle/legacy_battle_debug_overlay": {
       "status": "pending",
@@ -322,9 +322,9 @@
     },
     "battle/legacy_battle_opponent_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "b938a8f8",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-action-mirror-0047f900.md",
-      "reason": "生成敌人时直接写实际镜像字段并删除47F900编号，保留全DWORD比较、坐标翻转及MON失败前缀；此前四处绘制抑制、激活诊断和步长迁移继续有效。其余通用操作、参数数组、机器诊断、计数及Port仍在，父链继续pending"
+      "last_reviewed_commit": "6596ec41",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-shared-mirror-setting-0053c000.md",
+      "reason": "新增敌人每轮直接借脚本共用的全局镜像DWORD，删除mirror_group_b_spawn副本，保留精确1比较、坐标翻转与MON失败前缀；脚本到实际生成及前继改写后的实时重读已验证。此前实际镜像、绘制抑制、激活和步长迁移继续有效；其余通用操作、参数数组、机器诊断、计数及Port仍在，父链继续pending"
     },
     "battle/legacy_battle_effect_frame": {
       "status": "pending",
@@ -653,9 +653,9 @@
     },
     "battle/legacy_battle_script_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "4bfa1661",
+      "last_reviewed_commit": "6596ec41",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-script-mirror-0047f900.md",
-      "reason": "脚本20/45直接写实际角色镜像，删除四处物理调用对应的通用调用与47F900枚举；按无符号WORD选择并先写共享选择高WORD，保留完整DWORD门、坐标偏移和失败前缀。此前步长、叠加标记、动作变体与来源记录迁移保留；全局镜像重复字段待共享，敌方结束跨界写入运行期保护未验证；其他操作枚举、参数包、机器回复、轨迹、计数、Port及资源加载协议仍在"
+      "reason": "脚本20/45直接写实际角色镜像，删除四处物理调用对应的通用调用与47F900枚举；按无符号WORD选择并先写共享选择高WORD，保留完整DWORD门、坐标偏移和失败前缀。脚本全局镜像与召唤、生成敌人已共享实际字段；此前步长、叠加标记、动作变体与来源记录迁移保留；敌方结束跨界写入运行期保护未验证，其他操作枚举、参数包、机器回复、轨迹、计数、Port及资源加载协议仍在"
     },
     "battle/legacy_battle_startup": {
       "status": "pending",

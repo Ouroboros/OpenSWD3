@@ -14,6 +14,13 @@ B11敌方动作的三色与primary抑制门写入已回收到实际画面控制�
 访问映射、固定状态与core/ASan验证见
 [角色共享证据](battle-frame-effect-00453580.md#21-b11画面效果借实际角色word及优先角色dword)。
 
+## 新增敌人共享全局镜像设置
+
+每轮新增敌人直接读取脚本共用的`startup.mirror_mode`，删除独立镜像设置副本。
+保留完整DWORD精确1比较、镜像后坐标翻转及MON失败前缀。
+真实脚本到生成和逐轮重读验证见[共享镜像设置](battle-shared-mirror-setting-0053c000.md)。
+敌方父协议仍待迁移。
+
 ## 1. 完整LST范围
 
 权威主体为`0x00455D60..0x0045662F`，完整993行、51个静态call站点、33个`loc_`标签。函数另有外部FUNCTION CHUNK：
