@@ -152,16 +152,11 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_two() {
     for (std::size_t index = 0U; index < 10U; ++index) {
         bindings_.action.group_a_action_execution[index]
             .overlay_render_enabled = 0U;
-        if (!invoke(
-                LegacyBattleScriptDispatchCall::pending_47d900,
-                kLegacyBattleScriptGroupABaseToken +
-                    static_cast<u32>(index) *
-                        kLegacyBattleScriptGroupAElementSize,
-                {0U}
-            )) {
-            return finish(eax_);
-        }
+        select_actor_profile_variant(
+            bindings_.action.group_a_action_execution[index], 0U
+        );
     }
+
     for (i32 index = 0; index < kLegacyBattleScriptExtendedGroupBCleanupCount;
          ++index) {
         const u32 token = kLegacyBattleScriptGroupBBaseToken +
@@ -1339,15 +1334,41 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_six() {
 LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_seven() {
     u16 actor{};
     u16 argument{};
-    if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor) ||
-        !read_u16(wrapping_add(workspace_.cursor, 4U), argument)) {
+    if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor)) {
         return finish();
     }
-    const auto token = actor_token(signed_word(actor));
-    if (!token.has_value()) {
-        return finish(eax_);
+
+    set_high_word(workspace_.packed_actor_state, actor);
+    if (!read_u16(wrapping_add(workspace_.cursor, 4U), argument)) {
+        return finish();
     }
-    invoke(LegacyBattleScriptDispatchCall::pending_47d900, *token, {argument});
+
+    if (actor > 7U) {
+        const auto index = static_cast<std::size_t>(actor - 8U);
+        if (index >= bindings_.action.group_a_action_execution.size()) {
+            return stop(
+                LegacyBattleScriptDispatchStatus::group_a_actor_typed_stop,
+                workspace_.cursor
+            );
+        }
+
+        select_actor_profile_variant(
+            bindings_.action.group_a_action_execution[index], argument
+        );
+    } else {
+        if (bindings_.startup.group_b_lifecycle == nullptr) {
+            return stop(
+                LegacyBattleScriptDispatchStatus::group_b_actor_typed_stop,
+                workspace_.cursor
+            );
+        }
+
+        select_actor_profile_variant(
+            (*bindings_.startup.group_b_lifecycle)[actor].action_execution,
+            argument
+        );
+    }
+
     workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
     return finish(1U);
 }

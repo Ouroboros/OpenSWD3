@@ -723,6 +723,13 @@ private:
         return false;
     }
 
+    static void select_actor_profile_variant(
+        LegacyBattleGroupAActionExecutionState& actor, const u16 variant
+    ) {
+        actor.profile_variant_override = variant;
+        actor.frame_source_action_record = {};
+    }
+
     [[nodiscard]] bool initialize_dynamic_text_actor_group(
         const u16 actor, const bool group_b_selected_cleanup
     ) {
@@ -731,17 +738,12 @@ private:
                 party.overlay_render_enabled = 0U;
             }
 
-            const auto selected = script_group_a_address(
-                high_word(workspace_.packed_actor_state)
+            select_actor_profile_variant(
+                bindings_.action.group_a_action_execution
+                    [high_word(workspace_.packed_actor_state) - 8U],
+                0x24U
             );
-            eax_ = selected.selected_call_eax;
-            ecx_ = selected.token;
-            flags_ = selected.coordinate_flags;
-            return invoke(
-                LegacyBattleScriptDispatchCall::pending_47d900,
-                selected.token,
-                {0x24U}
-            );
+            return true;
         }
 
         auto& enemies = *bindings_.startup.group_b_lifecycle;
@@ -1635,15 +1637,10 @@ private:
         for (std::size_t index = 0U; index < 10U; ++index) {
             bindings_.action.group_a_action_execution[index]
                 .overlay_render_enabled = 0U;
-            if (clear_group_a_selection &&
-                !invoke(
-                    LegacyBattleScriptDispatchCall::pending_47d900,
-                    kLegacyBattleScriptGroupABaseToken +
-                        static_cast<u32>(index) *
-                            kLegacyBattleScriptGroupAElementSize,
-                    {0U}
-                )) {
-                return finish(eax_);
+            if (clear_group_a_selection) {
+                select_actor_profile_variant(
+                    bindings_.action.group_a_action_execution[index], 0U
+                );
             }
         }
 
