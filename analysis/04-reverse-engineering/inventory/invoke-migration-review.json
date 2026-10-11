@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "b6ba1af9b865adc12eb3acaa1d844939ef1735a3",
+  "last_reviewed_source_revision": "1023334c568acbbb4052ba3d7fb0e942d1e4804c",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -344,9 +344,9 @@
     },
     "battle/legacy_battle_final_actor_step": {
       "status": "pending",
-      "last_reviewed_commit": "e7c6bc19",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
-      "reason": "availability写入直接使用真实角色状态和值，失败保留前序角色发布并阻止后缀；既有攻击顺序移除仍使用真实来源。其他通用请求、寄存器回复、计数及Port仍在"
+      "last_reviewed_commit": "1023334c",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-group-b-final-overlay-clear.md",
+      "reason": "收尾命中排队角色后先清实际队员叠加标记再清敌人标记，signed非正数量跳过，缺失存储保留已执行前缀并阻断门发布；删除两处通用调用及纯扫描调用计数。既有availability和攻击顺序仍用真实来源，其他通用请求、寄存器回复、计数及Port继续待迁移"
     },
     "battle/legacy_battle_pending_action_commit": {
       "status": "pending",
@@ -410,9 +410,9 @@
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",
-      "last_reviewed_commit": "a4e011b9",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-mode-00478710.md",
-      "reason": "模式2/6/17直接写同一敌方角色字段，下游可观察完成重置前的动作17，组合子结果改为optional；既有查询和共享操作保持，高位清除直接传播可选状态并保持失败后缀抑制；actor-ready八槽、其余编号、参数包、寄存器接口、计数、Port、资源及完整SDL帧仍未验收"
+      "last_reviewed_commit": "1023334c",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-group-b-final-overlay-clear.md",
+      "reason": "敌方候选扫描直接清实际队员叠加标记，再递增启动门和阶段进度，后续故障保留此前字段写入，移除通用清零调用和虚构EAX；既有模式及共享操作保持。actor-ready八槽、其余编号、参数包、寄存器接口、计数、Port、资源及完整SDL帧仍未验收"
     },
     "battle/legacy_battle_transition": {
       "status": "pending",
