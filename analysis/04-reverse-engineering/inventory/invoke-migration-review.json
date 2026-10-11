@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "2574b653948bb5b911633f1f361f8c09215ed200",
+  "last_reviewed_source_revision": "da89d76f1d65ce5be385c06dea6455b45bff2699",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -659,9 +659,9 @@
     },
     "battle/legacy_battle_startup": {
       "status": "pending",
-      "last_reviewed_commit": "2574b653",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-startup-enemy-mirror-0047f900.md",
-      "reason": "敌方镜像及绘制抑制直接写实际字段，删除StartupEnemyModePort；队员镜像及其他操作枚举、参数数组、寄存器请求结果和调用计数仍待迁移"
+      "last_reviewed_commit": "da89d76f",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-startup-party-mirror-0047f900.md",
+      "reason": "队员与敌方启动镜像均直接写实际字段，删除最后的apply_actor_mode；其他操作枚举、参数数组、寄存器请求结果和调用计数仍待迁移"
     },
     "battle/legacy_battle_screen_flash": {
       "status": "verified",
