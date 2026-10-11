@@ -1,3 +1,4 @@
+#include "fixed_node_memory_resource.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
@@ -5,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -28,22 +30,25 @@ public:
 
 class FinalStepPort final : public LegacyBattleActionDispatchPort {
 public:
+    FinalStepPort() = default;
+
+    explicit FinalStepPort(std::pmr::memory_resource& memory) {
+        std::destroy_at(&fixed_count_nodes);
+        std::construct_at(&fixed_count_nodes, &memory);
+    }
+
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
+        if (on_call) {
+            on_call(request);
+        }
+
         const auto found = replies.find(request.callee_token);
         if (found == replies.end() || found->second.empty()) {
-            if (request.callee_token == 0x00487C10U) {
-                const u32 token = next_fixed_count_token;
-                next_fixed_count_token += 0x20U;
-                return {
-                    .eax = token,
-                    .ecx = request.ecx,
-                    .edx = request.edx,
-                };
-            }
             return {};
         }
+
         const auto reply = found->second.front();
         found->second.pop_front();
         return reply;
@@ -72,7 +77,8 @@ public:
     std::unique_ptr<openswd3::battle::LegacyBattleStartupState> startup{
         std::make_unique<openswd3::battle::LegacyBattleStartupState>()
     };
-    u32 next_fixed_count_token{0x75000000U};
+
+    std::function<void(const LegacyBattleActionCallRequest&)> on_call;
     std::unordered_map<u32, std::deque<LegacyBattleActionCallReply>> replies;
     std::vector<LegacyBattleActionCallRequest> calls;
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 18>
@@ -216,10 +222,177 @@ void test_final_overlay_clearing(openswd3::test::Context& test) {
     }
 }
 
+void test_final_enemy_profile_reads(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActionDispatchState;
+    using openswd3::battle::LegacyBattleActionDispatchStatus;
+    using openswd3::battle::advance_legacy_battle_final_actor_step;
+
+    constexpr std::array<u16, 6> profiles{
+        0U, 1U, 0x7FFFU, 0x8000U, 0xBEEFU, 0xFFFFU
+    };
+
+    for (u32 selected = 0U; selected < 8U; ++selected) {
+        for (const u16 profile : profiles) {
+            LegacyBattleFinalActorStepState state;
+            auto action_storage =
+                std::make_unique<LegacyBattleActionDispatchState>();
+            auto& action = *action_storage;
+            action.group_b_count = 8;
+            action.packed_actor_counter = 0xAABBCC00U;
+            state.coordinate_x = 0xFFFEU;
+            state.coordinate_y = 0xFFFAU;
+            state.action_delay = 0xFFFAU;
+            FinalStepPort port;
+            for (u32 index = 0U; index < 8U; ++index) {
+                group_b_actor(port, index).action_execution.profile_value =
+                    static_cast<u16>(0x2200U + index);
+            }
+
+            bind_group_b_coordinate_resource(port, selected, 5U, 6U);
+            group_b_actor(port, selected).action_execution.profile_value =
+                profile;
+            port.attack_order_records[0U].value_00 = selected;
+            port.push(0x00479850U, {.eax = 1U});
+            port.push(
+                0x00480AD0U,
+                {.eax = 0x12345678U,
+                 .object_flags = (selected & 1U) != 0U ? 0x20U : 0U}
+            );
+            const auto result = advance_legacy_battle_final_actor_step(
+                state,
+                action,
+                port,
+                port.attack_order(),
+                selected,
+                0U,
+                port.startup.get()
+            );
+            bool profiles_preserved = true;
+            for (u32 index = 0U; index < 8U; ++index) {
+                const u16 expected = index == selected
+                    ? profile
+                    : static_cast<u16>(0x2200U + index);
+                profiles_preserved = profiles_preserved &&
+                    group_b_actor(port, index).action_execution.profile_value ==
+                        expected;
+            }
+
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    result.return_value == 1U && profiles_preserved &&
+                    state.coordinate_x == 3U && state.coordinate_y == 0U &&
+                    state.action_delay ==
+                        ((selected & 1U) != 0U ? 0x000EU : 0xFFFDU) &&
+                    (profile == 0U ? port.fixed_count_nodes.empty() &&
+                             port.object_words[0U][1U] == 0x00010000U
+                                   : port.fixed_count_nodes.size() == 1U &&
+                             port.fixed_count_nodes.front().words[1U] ==
+                                 (0x00010000U | profile)) &&
+                    port.attack_order_records[0U].value_00 == 0xFFFFFFFFU &&
+                    action.packed_actor_counter == 0xAABBCC01U,
+                "enemy finalization reads the selected actual unsigned profile WORD after wrapped coordinates and delay, then counts and removes that actor"
+            );
+        }
+    }
+
+    struct CompletionCase {
+        bool profile_readable;
+        bool allocation_available;
+        bool attack_order_available;
+    };
+
+    constexpr CompletionCase cases[]{
+        {true, true, true},
+        {false, true, true},
+        {true, false, true},
+        {true, true, false}
+    };
+
+    for (const auto& scenario : cases) {
+        LegacyBattleFinalActorStepState state;
+        auto action_storage =
+            std::make_unique<LegacyBattleActionDispatchState>();
+        auto& action = *action_storage;
+        action.group_b_count = 8;
+        action.packed_actor_counter = 0x12340000U;
+        action.selection_cache_gate_b = 33U;
+        action.action_pending_aux = 44U;
+        state.coordinate_x = 0xFFFEU;
+        state.coordinate_y = 0xFFFAU;
+        state.action_delay = 0xFFFAU;
+        openswd3::test::FixedNodeMemoryResource memory;
+        memory.allocation_enabled = scenario.allocation_available;
+        FinalStepPort port(memory);
+        bind_group_b_coordinate_resource(port, 7U, 5U, 6U);
+        auto& enemy = group_b_actor(port, 7U).action_execution;
+        enemy.profile_value = 0x1234U;
+        port.attack_order_records[0U].value_00 = 7U;
+        port.battle_message_state() = 55U;
+        port.battle_terminal_latch() = 66U;
+        port.push(0x00479850U, {.eax = 1U});
+        port.push(0x00480AD0U, {.eax = 0x12345678U, .object_flags = 0x20U});
+        bool descriptor_prefix = false;
+        port.on_call = [&](const LegacyBattleActionCallRequest& request) {
+            if (request.callee_token == 0x00480AD0U) {
+                descriptor_prefix = state.coordinate_x == 3U &&
+                    state.coordinate_y == 0U && state.action_delay == 0xFFFAU &&
+                    port.fixed_count_nodes.empty() &&
+                    memory.outstanding_blocks == 0U;
+                enemy.profile_value = 0x8001U;
+                enemy.profile_value_read_accessible = scenario.profile_readable;
+            }
+        };
+
+        const auto result = advance_legacy_battle_final_actor_step(
+            state,
+            action,
+            port,
+            scenario.attack_order_available
+                ? port.attack_order()
+                : openswd3::battle::LegacyBattleAttackOrderRemoveBindings{},
+            7U,
+            0U,
+            port.startup.get()
+        );
+        const bool counted =
+            scenario.profile_readable && scenario.allocation_available;
+        const bool completed = counted && scenario.attack_order_available;
+        const auto expected_status = !scenario.profile_readable
+            ? LegacyBattleActionDispatchStatus::actor_base_state_missing
+            : !scenario.allocation_available
+            ? LegacyBattleActionDispatchStatus::fixed_count_typed_stop
+            : !scenario.attack_order_available
+            ? LegacyBattleActionDispatchStatus::attack_order_remove_typed_stop
+            : LegacyBattleActionDispatchStatus::completed;
+        test.expect_true(
+            descriptor_prefix && result.status == expected_status &&
+                result.return_value == (completed ? 1U : 0U) &&
+                state.coordinate_x == 3U && state.coordinate_y == 0U &&
+                state.actor_descriptor_token == 0x12345678U &&
+                state.action_delay == 0x000EU &&
+                enemy.profile_value == 0x8001U &&
+                port.fixed_count_nodes.size() == (counted ? 1U : 0U) &&
+                memory.outstanding_blocks == (counted ? 1U : 0U) &&
+                (!counted ||
+                 port.fixed_count_nodes.front().words[1U] == 0x00018001U) &&
+                port.attack_order_records[0U].value_00 ==
+                    (completed ? 0xFFFFFFFFU : 7U) &&
+                action.packed_actor_counter ==
+                    (completed ? 0x12340001U : 0x12340000U) &&
+                action.selection_cache_gate_b == 33U &&
+                action.action_pending_aux == 44U &&
+                port.battle_message_state() == 55U &&
+                port.battle_terminal_latch() == 66U,
+            "finalization consumes the actual profile after its descriptor predecessor, retaining coordinate and delay prefixes on profile, allocation or attack-order access failure"
+        );
+    }
+}
+
 }  // namespace
 
 void test_battle_final_actor_step(openswd3::test::Context& test) {
     test_final_overlay_clearing(test);
+    test_final_enemy_profile_reads(test);
     using openswd3::battle::LegacyBattleActionDispatchState;
     using openswd3::battle::LegacyBattleActionDispatchStatus;
     using openswd3::battle::advance_legacy_battle_final_actor_step;
@@ -431,7 +604,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         actor.action_configuration.source_runtime_value = 1U;
         port.startup->enemies[0U].progress.presentation_enabled = 1U;
         port.push(0x00480AD0U, {.eax = 0x12345678U});
-        port.push(0x0047F910U, {.eax = 0x55U});
+        actor.action_execution.profile_value = 0x55U;
         port.attack_order_records[0U].value_00 = 0U;
         FrameRandom random;
         openswd3::battle::LegacyBattleActorFrameEntryRequest snapshot{};
@@ -991,7 +1164,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         bind_group_b_coordinate_resource(port, 2U, 5U, 6U);
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x00480AD0U, {.eax = 0x12345678U, .object_flags = 0x20U});
-        port.push(0x0047F910U, {.eax = 0x55U});
+        group_b_actor(port, 2U).action_execution.profile_value = 0x55U;
         port.push(0x0047CE80U, {.eax = 0U});
         port.attack_order_records[0].value_00 = 2U;
         const auto result = advance_legacy_battle_final_actor_step(
@@ -1033,7 +1206,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         bind_group_b_coordinate_resource(port, 0U, 0U, 0U);
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x00480AD0U, {.eax = 0x12345678U});
-        port.push(0x0047F910U, {.eax = 0x55U});
+        group_b_actor(port, 0U).action_execution.profile_value = 0x55U;
         port.attack_order_records[0].value_00 = 0U;
         const auto result = advance_legacy_battle_final_actor_step(
             state, action, port, port.attack_order(), 0U, 0U, port.startup.get()
@@ -1064,7 +1237,7 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                     LegacyBattleActionDispatchStatus::
                         final_actor_descriptor_typed_stop &&
                 state.coordinate_x == 9U && port.count(0x00475870U) == 0U &&
-                port.count(0x0047F910U) == 0U,
+                port.fixed_count_nodes.empty(),
             "group B null descriptor stops at the first object-field access after coordinates"
         );
     }

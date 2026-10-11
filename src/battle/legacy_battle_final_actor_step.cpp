@@ -15,7 +15,6 @@ using compat::u8;
 constexpr u32 kCallValidateActor = 0x00479850U;
 constexpr u32 kCallQueryContinuation = 0x0047F340U;
 constexpr u32 kCallQueryDescriptor = 0x00480AD0U;
-constexpr u32 kCallQueryAction = 0x0047F910U;
 constexpr u32 kCallQueryGroupBReset = 0x0047CE80U;
 
 [[nodiscard]] constexpr u32 to_bits(const i32 value) noexcept {
@@ -616,10 +615,15 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         ((descriptor.object_flags & 0x20U) != 0U ? 0x14U : 3U)
     );
 
-    const auto action_reply = invoke(port, kCallQueryAction, {actor_token, 1U});
-    result.fixed_count = accumulate_legacy_battle_fixed_count(
-        port, static_cast<u16>(action_reply.eax), 1U
-    );
+    const auto& enemy = coordinate_actor->action_execution;
+    if (!enemy.profile_value_read_accessible) {
+        result.status =
+            LegacyBattleActionDispatchStatus::actor_base_state_missing;
+        return result;
+    }
+
+    result.fixed_count =
+        accumulate_legacy_battle_fixed_count(port, enemy.profile_value, 1U);
     if (result.fixed_count.status != LegacyBattleFixedCountStatus::completed) {
         result.status =
             LegacyBattleActionDispatchStatus::fixed_count_typed_stop;
