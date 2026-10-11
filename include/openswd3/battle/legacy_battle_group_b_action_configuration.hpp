@@ -37,12 +37,6 @@ struct LegacyBattleGroupBStartupPlacement {
     bool suppress_drawing{};
 };
 
-class LegacyBattleGroupBStartupModePort {
-public:
-    virtual ~LegacyBattleGroupBStartupModePort() = default;
-    [[nodiscard]] virtual compat::u32 apply_mirror(compat::u32 actor_token) = 0;
-};
-
 // 451F7E..452002: publish placement, optionally mirror, configure, then
 // apply the record's extra mode. Both startup callers use this sequence.
 [[nodiscard]] LegacyBattleGroupBActionConfigurationResult
@@ -50,7 +44,7 @@ configure_legacy_battle_group_b_startup_placement(
     LegacyBattleActorGroupBElementState& actor,
     const LegacyBattleGroupBStartupPlacement& placement,
     LegacyBattleMonDatabasePort& mon,
-    LegacyBattleGroupBStartupModePort& modes,
+    compat::u32& drawing_mirror,
     compat::u32 source_token
 );
 

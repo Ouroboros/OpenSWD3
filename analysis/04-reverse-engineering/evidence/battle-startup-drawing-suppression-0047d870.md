@@ -13,9 +13,10 @@ startup与SDL存储路径共用configure_legacy_battle_group_b_startup_placement
 两个生产入口仍通过原定义WORD恰等于1生成该语义参数。
 
 删除set_extra_mode虚方法、两处实现及set_enemy_mode枚举项；不保留空回调或占位事件。
-StoredEnemyModes不再借用actor，只借用实际镜像状态所需的粒子对象。
+本批当时StoredEnemyModes只保留实际镜像状态所需的粒子借用；其后续回收见
+[敌方启动镜像](battle-startup-enemy-mirror-0047f900.md)。
 剩余启动枚举保持原值，未借此更改本批之外的协议。
-镜像、MON配置及其余父接口仍待迁移；本批不声明整个启动接口完成。
+MON配置及其余父接口仍待迁移；本批不声明整个启动接口完成。
 
 ## 独立验证
 

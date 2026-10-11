@@ -8,23 +8,6 @@
 #include "openswd3/battle/legacy_battle_startup.hpp"
 
 namespace openswd3::battle {
-namespace {
-
-class StoredEnemyModes final : public LegacyBattleGroupBStartupModePort {
-public:
-    explicit StoredEnemyModes(LegacyBattleTargetPhaseState& particle)
-        : particle_(particle) {}
-
-    compat::u32 apply_mirror(const compat::u32 actor_token) override {
-        particle_.render_toggle_gate = 1U;
-        return actor_token;
-    }
-
-private:
-    LegacyBattleTargetPhaseState& particle_;
-};
-
-}  // namespace
 
 void reset_legacy_battle_dispatch_preserving_actors(
     LegacyBattleActionDispatchState& action,
@@ -123,7 +106,6 @@ LegacyBattleGroupBStorage::initialize_enemy(
     // 451F68..451FB0: scratch clear and the three placement words precede
     // the optional mirror setter and the MON configuration call.
     startup.enemy_scratch.fill(0U);
-    StoredEnemyModes modes{particle};
     const auto configured = configure_legacy_battle_group_b_startup_placement(
         actor,
         {
@@ -138,7 +120,7 @@ LegacyBattleGroupBStorage::initialize_enemy(
             .suppress_drawing = source.record_flag,
         },
         mon,
-        modes,
+        particle.render_toggle_gate,
         0x005213A0U + static_cast<compat::u32>(index) * 0x20U
     );
     if (configured.status !=

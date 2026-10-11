@@ -20,6 +20,19 @@ using openswd3::compat::u32;
 
 class Port final : public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
+    openswd3::battle::LegacyBattleMonStreamAllocation
+    allocate_mon_stream(const u32 size) override {
+        if (drawing_mirror != nullptr) {
+            observed_placement_prefix = observed_placement_prefix &&
+                *drawing_mirror == expected_mirror &&
+                placement_actor->action_record.position_x ==
+                    expected_position_x &&
+                placement_actor->action_record.runtime_value == 0U;
+        }
+
+        return LegacyBattleMonDatabaseFixture::allocate_mon_stream(size);
+    }
+
     void release_mon_text(const u32 block_token) override {
         if (drawing_suppression != nullptr) {
             observed_original_suppression = observed_original_suppression &&
@@ -31,18 +44,15 @@ public:
         LegacyBattleMonDatabaseFixture::release_mon_text(block_token);
     }
 
+    const u32* drawing_mirror{};
+    const LegacyBattleActorGroupBElementState* placement_actor{};
+    u32 expected_mirror{};
+    u16 expected_position_x{};
+    bool observed_placement_prefix{true};
     const u32* drawing_suppression{};
     bool observed_original_suppression{true};
     u32 released_text_token{};
     u32 definition_release_calls{};
-};
-
-class MirrorPort final
-    : public openswd3::battle::LegacyBattleGroupBStartupModePort {
-public:
-    u32 apply_mirror(const u32 actor_token) override {
-        return actor_token;
-    }
 };
 
 void write_word(
@@ -111,7 +121,11 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
                         port.allocation_results = {true, false};
                     }
 
-                    MirrorPort mirror;
+                    u32 drawing_mirror = 0xFFFFFFFFU;
+                    port.drawing_mirror = &drawing_mirror;
+                    port.placement_actor = &actor;
+                    port.expected_mirror = mirrored ? 1U : 0xFFFFFFFFU;
+                    port.expected_position_x = mirrored ? 0x250U : 0x30U;
                     const auto result = openswd3::battle::
                         configure_legacy_battle_group_b_startup_placement(
                             actor,
@@ -123,7 +137,7 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
                                 .suppress_drawing = suppress_drawing,
                             },
                             port,
-                            mirror,
+                            drawing_mirror,
                             0x005213A0U + index * 0x20U
                         );
                     test.expect_true(
@@ -140,6 +154,8 @@ void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
                                 (failure == 0U && suppress_drawing
                                      ? 1U
                                      : 0xFFFFFFFFU) &&
+                            drawing_mirror == port.expected_mirror &&
+                            port.observed_placement_prefix &&
                             actor.runtime_reset.field_2af4 == 0x89ABCDEFU &&
                             actor.action_record.position_x ==
                                 (mirrored ? 0x250U : 0x30U) &&

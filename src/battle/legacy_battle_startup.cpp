@@ -34,24 +34,6 @@ constexpr u32 kPartySourceCount = 4U;
     );
 }
 
-class StartupEnemyModePort final : public LegacyBattleGroupBStartupModePort {
-public:
-    explicit StartupEnemyModePort(LegacyBattleStartupPort& port)
-        : port_(port) {}
-
-    u32 apply_mirror(const u32 actor_token) override {
-        return invoke(
-                   port_,
-                   LegacyBattleStartupCall::apply_actor_mode,
-                   {actor_token, 1U, 0U, 0U}
-        )
-            .ecx_snapshot;
-    }
-
-private:
-    LegacyBattleStartupPort& port_;
-};
-
 class StartupActorProgressRandomPort final
     : public LegacyBattleBoundedRandomPort {
 public:
@@ -1370,7 +1352,6 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
             element.resource_token =
                 kLegacyBattleActorGroupBResourceStateBaseToken + index * 0xA4U;
         }
-        StartupEnemyModePort modes{port};
         const auto configuration =
             configure_legacy_battle_group_b_startup_placement(
                 element,
@@ -1382,7 +1363,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                     .suppress_drawing = source.mode_flag == 1U,
                 },
                 port,
-                modes,
+                state.enemies[index].progress.post_action_value,
                 enemy_startup_token(index)
             );
         if (configuration.status !=

@@ -329,9 +329,6 @@ public:
                 request.arguments[0] == stopped_actor_reset_token;
             break;
 
-        case LegacyBattleStartupCall::apply_actor_mode:
-            reply.ecx_snapshot = 0xBEEF0000U;
-            break;
         case LegacyBattleStartupCall::query_party_actor_mode:
             reply.return_value = party_actor_mode_return;
             break;
@@ -633,28 +630,35 @@ template <typename Range>
 
 void test_battle_startup(openswd3::test::Context& test) {
     for (const u16 mode_flag : {u16{0U}, u16{1U}, u16{2U}, u16{0xFFFFU}}) {
-        auto state = std::make_unique<LegacyBattleStartupState>();
-        StartupPorts ports;
-        ports.definition.enemy_count = 1U;
-        ports.definition.enemies[0U].mode_flag = mode_flag;
-        const auto result = openswd3::battle::initialize_legacy_battle_startup(
-            *state,
-            ports,
-            ports,
-            ports,
-            ports,
-            ports,
-            ports,
-            ports.prepare_request(request(14U))
-        );
-        test.expect_true(
-            result.status ==
-                    openswd3::battle::LegacyBattleStartupStatus::completed &&
-                state->group_b_lifecycle != nullptr &&
-                (*state->group_b_lifecycle)[0U].runtime_reset.field_2af0 ==
-                    (mode_flag == 1U ? 1U : 0U),
-            "startup writes enemy drawing suppression only when the definition WORD is exactly one"
-        );
+        for (const u32 mirror_mode : {0U, 1U, 2U, 0xFFFFFFFFU}) {
+            auto state = std::make_unique<LegacyBattleStartupState>();
+            state->mirror_mode = mirror_mode;
+            StartupPorts ports;
+            ports.definition.enemy_count = 1U;
+            ports.definition.enemies[0U].mode_flag = mode_flag;
+            const auto result =
+                openswd3::battle::initialize_legacy_battle_startup(
+                    *state,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports,
+                    ports.prepare_request(request(14U))
+                );
+            test.expect_true(
+                result.status ==
+                        openswd3::battle::LegacyBattleStartupStatus::
+                            completed &&
+                    state->group_b_lifecycle != nullptr &&
+                    (*state->group_b_lifecycle)[0U].runtime_reset.field_2af0 ==
+                        (mode_flag == 1U ? 1U : 0U) &&
+                    state->enemies[0U].progress.post_action_value ==
+                        (mirror_mode == 1U ? 1U : 0U),
+                "startup writes actual enemy drawing flags only for exact definition WORD and mirror DWORD comparisons"
+            );
+        }
     }
 
     {
@@ -3026,7 +3030,7 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ports.requested_definition_ids ==
                     std::vector<u32>{0x000BU, 0x000CU, 0x0003U, 0x0004U} &&
                 ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
-                    4U &&
+                    2U &&
                 state.party[2].progress.post_action_value == 0U &&
                 state.party[3].progress.post_action_value == 0U &&
                 state.party[2].progress.scene_identity == 1U &&

@@ -47,7 +47,7 @@ configure_legacy_battle_group_b_startup_placement(
     LegacyBattleActorGroupBElementState& actor,
     const LegacyBattleGroupBStartupPlacement& placement,
     LegacyBattleMonDatabasePort& mon,
-    LegacyBattleGroupBStartupModePort& modes,
+    u32& drawing_mirror,
     const u32 source_token
 ) {
     auto& record = actor.action_record;
@@ -57,9 +57,9 @@ configure_legacy_battle_group_b_startup_placement(
     record.runtime_value = 0U;
     u32 role_argument = placement.role_id;
     if (placement.mirrored) {
-        const auto ecx = modes.apply_mirror(actor.object_token);
+        drawing_mirror = 1U;
         record.position_x = static_cast<u16>(0x0280U - record.position_x);
-        role_argument = (ecx & 0xFFFF0000U) | placement.role_id;
+        role_argument = (actor.object_token & 0xFFFF0000U) | placement.role_id;
     }
 
     const auto result = configure_legacy_battle_group_b_action(
