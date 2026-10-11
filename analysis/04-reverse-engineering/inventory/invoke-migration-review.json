@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "13509965d92ca051185da0ce7ce42e45d78f3b97",
+  "last_reviewed_source_revision": "7ddede47b0415af338862ffe4e69eb482f988033",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -34,6 +34,22 @@
         "build/tmp/runtime/world-music-without-port-asan.log"
       ],
       "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
+    },
+    "battle/legacy_battle_actor_turn_completion": {
+      "status": "verified",
+      "verification_commit": "7ddede47b0415af338862ffe4e69eb482f988033",
+      "files": [
+        "include/openswd3/battle/legacy_battle_actor_turn_completion.hpp",
+        "src/battle/legacy_battle_actor_turn_completion.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-turn-completion-00478690.md",
+      "validation_logs": [
+        "build/tmp/runtime/turn-completion-direct-core.log",
+        "build/tmp/runtime/turn-completion-direct-callers-core.log",
+        "build/tmp/runtime/turn-completion-direct-asan.log",
+        "build/tmp/runtime/turn-completion-direct-callers-asan.log"
+      ],
+      "reason": "双方帧三处查询直接借实际目标完成DWORD，返回状态和可选观察值；删除查询编号、解析、寄存器请求回复、模拟栈、计数、转发及无消费者的专用地址计算；保留完整值、原比较和字段/RET失败前驱，八份源码身份、四项定向测试及SDL实际链接通过；父项其余协议和资源仍待迁移"
     },
     "battle/legacy_battle_actor_idle_state": {
       "status": "verified",
@@ -285,15 +301,15 @@
     },
     "battle/legacy_battle_group_a_frame": {
       "status": "pending",
-      "last_reviewed_commit": "13509965",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-idle-state-004786a0.md",
-      "reason": "启动、扫描、直接空闲及选定目标四处查询直接借当前队员空闲DWORD，删除其协议、计数与转发，保留完整数值、原比较与字段/RET失败前缀；既有启动、递增、队列、数字和目标操作沿用共享字段；其余角色帧操作编号、参数包、寄存器结果、计数、Port、资源与完整内存别名仍待迁移，整项继续pending"
+      "last_reviewed_commit": "7ddede47",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-turn-completion-00478690.md",
+      "reason": "两处完成查询直接借实际队员/敌人目标DWORD，删除其协议、解析、计数、转发及专用地址函数；失败时父级保留原地址算术或观察值，目标锁存失败沿用已观察完成值；既有空闲、启动、递增、队列和目标操作沿用实际字段；其它编号、参数包、寄存器接口、Port、计数、资源和内存别名仍待迁移"
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",
-      "last_reviewed_commit": "13509965",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-idle-state-004786a0.md",
-      "reason": "扫描、选择与动作决定三处查询直接借敌方实际空闲DWORD，删除其协议、解析、计数及转发，保留即时重读、完整值和失败前缀；父级仍保留两处失败入口EAX及后续目标接口消费的EDX，其余操作编号、参数包、寄存器请求回复、计数、Port及资源待迁移，完整SDL帧与实际游戏仍未验收"
+      "last_reviewed_commit": "7ddede47",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-turn-completion-00478690.md",
+      "reason": "队员扫描直接读取实际目标完成DWORD，删除其协议、解析、计数与转发；字段失败保留完整启动标记前驱，RET失败保留观察值，抑制当前提交及剩余扫描；既有空闲查询和共享操作保持，父项其余编号、参数包、寄存器接口、计数、Port、资源及完整SDL帧仍未验收"
     },
     "battle/legacy_battle_transition": {
       "status": "pending",
