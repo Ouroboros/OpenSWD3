@@ -73,9 +73,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
             (*context.startup->group_a_runtime_reset)[summon_index].field_2af0 =
                 1U;
             if (state.summon_gate == 0U) {
-                static_cast<void>(
-                    invoke(state, port, kCallSetGlobalMode, {1U})
-                );
+                state.group_a_target_phases[summon_index].render_toggle_gate =
+                    1U;
             }
 
             auto& party = context.startup->party[summon_index];
@@ -708,8 +707,9 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                     )) {
                     return result;
                 }
-                const auto mode_reply =
-                    invoke(state, port, kCallSetGlobalMode, {1U});
+
+                (*state.group_b_fixed_particle_phases)[group_b_index]
+                    .render_toggle_gate = 1U;
                 state.stored_group_b_index = static_cast<u16>(group_b_index);
                 state.stored_group_a_index = static_cast<u16>(group_a_index);
                 if (!execute_legacy_battle_actor_runtime_reset_call(
@@ -718,8 +718,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                         result.actor_runtime_reset,
                         context.actor_runtime_reset_requests,
                         group_b_token(group_b_index),
-                        mode_reply.eax,
-                        mode_reply.edx,
+                        static_cast<u16>(group_a_index),
+                        result.text_messages.back().return_registers.edx,
                         0x00454FAFU,
                         0x00454FB4U
                     )) {

@@ -32,7 +32,6 @@ constexpr u32 kCallPopMode = 0x0047D810U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
 constexpr u32 kCallResetOpponent = 0x0047D350U;
-constexpr u32 kCallMirrorOpponent = 0x0047F900U;
 constexpr u32 kCallQueryOpponentCondition = 0x0047CE80U;
 constexpr u32 kCallActionTwoHundred = 0x00482310U;
 constexpr u32 kCallActionThreeHundred = 0x00482840U;
@@ -922,9 +921,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 record.position_y = wave == 1U ? 0x15EU : 0xDCU;
                 record.runtime_value = 0U;
                 if (state.mirror_group_b_spawn == 1U) {
-                    static_cast<void>(invoke(
-                        state, port, kCallMirrorOpponent, {opponent_token, 1U}
-                    ));
+                    (*state.group_b_fixed_particle_phases)[record_index]
+                        .render_toggle_gate = 1U;
                     record.position_x =
                         static_cast<u16>(0x280U - record.position_x);
                 }

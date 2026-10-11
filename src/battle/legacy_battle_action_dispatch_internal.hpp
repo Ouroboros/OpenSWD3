@@ -46,7 +46,6 @@ constexpr u32 kCallActionThirteenRender = 0x004170E0U;
 constexpr u32 kCallCommitMessageRecord = 0x0047DBD0U;
 constexpr u32 kCallPublishScene = 0x004707B0U;
 constexpr u32 kCallLegacyStringCopy = 0x00499168U;
-constexpr u32 kCallSetGlobalMode = 0x0047F900U;
 constexpr u32 kCallPushState = 0x0047D810U;
 constexpr u32 kCallPopState = 0x0047D830U;
 constexpr u32 kCallSetScreenMode = 0x0047CC40U;

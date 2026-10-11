@@ -1486,11 +1486,15 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const u32 mirror : {0U, 1U, 2U, 0xFFFFFFFFU}) {
         LegacyBattleActionDispatchState state;
         state.phase_counter = 0xCAFE0000U;
         state.group_b_count = 0;
-        state.mirror_group_b_spawn = 1U;
+        state.mirror_group_b_spawn = mirror;
+        for (auto& phase : *state.group_b_fixed_particle_phases) {
+            phase.render_toggle_gate = 0xABCDEF12U;
+        }
+
         Fixture fixture;
         fixture.startup->group_b_lifecycle = std::make_shared<std::array<
             openswd3::battle::LegacyBattleActorGroupBElementState,
@@ -1527,13 +1531,21 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 (*fixture.startup->group_b_lifecycle)[0U]
                         .action_record.action_id == 0x1234U &&
                 (*fixture.startup->group_b_lifecycle)[0U]
-                        .action_record.position_x == 400U &&
+                        .action_record.position_x ==
+                    (mirror == 1U ? 400U : 240U) &&
+                (*state.group_b_fixed_particle_phases)[0U].render_toggle_gate ==
+                    (mirror == 1U ? 1U : 0xABCDEF12U) &&
+                (*state.group_b_fixed_particle_phases)[1U].render_toggle_gate ==
+                    (mirror == 1U ? 1U : 0xABCDEF12U) &&
+                (*state.group_b_fixed_particle_phases)[2U].render_toggle_gate ==
+                    0xABCDEF12U &&
                 (*fixture.startup->group_b_lifecycle)[0U]
                         .action_record.position_y == 220U &&
                 (*fixture.startup->group_b_lifecycle)[0U]
                         .action_record.prefix[3U] == std::byte{0xA5} &&
                 (*fixture.startup->group_b_lifecycle)[1U]
-                        .action_record.position_x == 400U &&
+                        .action_record.position_x ==
+                    (mirror == 1U ? 400U : 240U) &&
                 (*fixture.startup->group_b_lifecycle)[1U]
                         .action_record.position_y == 350U &&
                 state.opponent_spawn_count == 0U &&
@@ -1549,7 +1561,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x0045B0E0U) == 0U &&
                 port.count(0x004783B0U) == 0U &&
                 port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
-            "opponent action fifteen builds two mirrored records and releases four descriptions"
+            "opponent action fifteen mirrors two actual enemies only for DWORD one and releases four descriptions"
         );
     }
 
@@ -1574,8 +1586,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const u32 mirror : {0U, 1U, 2U, 0xFFFFFFFFU}) {
         LegacyBattleActionDispatchState state;
+        state.mirror_group_b_spawn = mirror;
+        (*state.group_b_fixed_particle_phases)[0U].render_toggle_gate =
+            0xFFFFFFFFU;
         Fixture fixture;
         auto& source_profile = (*fixture.startup->group_b_lifecycle)[0U]
                                    .action_configuration.profile_buffer;
@@ -1595,6 +1610,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 fixture.startup->group_b_lifecycle != nullptr &&
                 (*fixture.startup->group_b_lifecycle)[0U]
                         .action_record.action_id == 0x1234U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_record.position_x ==
+                    (mirror == 1U ? 400U : 240U) &&
+                (*state.group_b_fixed_particle_phases)[0U].render_toggle_gate ==
+                    (mirror == 1U ? 1U : 0xFFFFFFFFU) &&
                 result.group_b_opponent_wave_parameters_calls == 1U &&
                 port.count(0x00476900U) == 0U &&
                 port.count(0x00475720U) == 0U &&

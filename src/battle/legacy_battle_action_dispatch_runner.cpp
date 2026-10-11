@@ -892,7 +892,19 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::run() {
 
     if (action == 0x63U) {
         static_cast<void>(invoke(state, port, kCallSetScreenMode, {0U}));
-        static_cast<void>(invoke(state, port, kCallSetGlobalMode, {0U}));
+        if (state.stored_group_b_index == 0xFFFFU) {
+            if (context.startup_reset == nullptr) {
+                result.status =
+                    LegacyBattleActionDispatchStatus::actor_base_state_missing;
+                return result;
+            }
+
+            context.startup_reset->block_525470[0x1EU] = 0U;
+        } else {
+            (*state.group_b_fixed_particle_phases)[state.stored_group_b_index]
+                .render_toggle_gate = 0U;
+        }
+
         state.stored_group_b_index = 0xFFFFU;
         state.stored_group_a_index = 0xFFFFU;
         state.current_actor_index = 0xFFFFU;

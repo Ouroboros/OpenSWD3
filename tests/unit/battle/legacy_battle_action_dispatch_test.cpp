@@ -1177,23 +1177,79 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const u16 stored_index : std::array<u16, 4>{0U, 2U, 7U, 0xFFFFU}) {
         LegacyBattleActionDispatchState state;
-        state.stored_group_b_index = 2U;
+        state.stored_group_b_index = stored_index;
         state.stored_group_a_index = 3U;
         Fixture fixture;
+        fixture.startup.reset.block_525470.fill(0x12345678U);
+        for (auto& phase : *state.group_b_fixed_particle_phases) {
+            phase.render_toggle_gate = 0xFFFFFFFFU;
+        }
+
         DispatchPort port;
         port.action = 0x63U;
+        bool screen_precedes_mirror = false;
+        port.on_call = [&](const LegacyBattleActionCallRequest& request) {
+            if (request.callee_token == 0x0047CC40U) {
+                screen_precedes_mirror =
+                    state.stored_group_b_index == stored_index &&
+                    fixture.startup.reset.block_525470[0x1EU] == 0x12345678U;
+                for (const auto& phase : *state.group_b_fixed_particle_phases) {
+                    screen_precedes_mirror = screen_precedes_mirror &&
+                        phase.render_toggle_gate == 0xFFFFFFFFU;
+                }
+            }
+        };
+
         auto context = fixture.context();
         const auto result = dispatch(state, port, context, 0U, 0U);
+        bool selected_mirror_cleared = true;
+        for (u32 index = 0U; index < 8U; ++index) {
+            selected_mirror_cleared = selected_mirror_cleared &&
+                (*state.group_b_fixed_particle_phases)[index]
+                        .render_toggle_gate ==
+                    (index == stored_index ? 0U : 0xFFFFFFFFU);
+        }
+
+        for (u32 index = 0U; index < 0x26U; ++index) {
+            selected_mirror_cleared = selected_mirror_cleared &&
+                fixture.startup.reset.block_525470[index] ==
+                    (stored_index == 0xFFFFU && index == 0x1EU ? 0U
+                                                               : 0x12345678U);
+        }
+
         test.expect_true(
-            result.return_value == 1U && result.terminal_resets == 1U &&
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                result.return_value == 1U && result.terminal_resets == 1U &&
                 state.stored_group_b_index == 0xFFFFU &&
                 state.stored_group_a_index == 0xFFFFU &&
                 state.current_actor_index == 0xFFFFU &&
                 state.result_mode == 1U && state.battle_submode == 2U &&
-                port.count(0x0047CC40U) == 1U && port.count(0x0047F900U) == 1U,
-            "action ninety nine performs exact terminal reset and two mode calls"
+                screen_precedes_mirror && selected_mirror_cleared,
+            "action ninety nine clears the saved enemy mirror or signed sentinel alias after screen mode and before terminal publication"
+        );
+    }
+
+    {
+        LegacyBattleActionDispatchState state;
+        state.stored_group_a_index = 3U;
+        Fixture fixture;
+        fixture.startup.reset.block_525470[0x1EU] = 0x12345678U;
+        DispatchPort port;
+        port.action = 0x63U;
+        auto context = fixture.context();
+        context.startup_reset = nullptr;
+        const auto result = dispatch(state, port, context, 0U, 0U);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_base_state_missing &&
+                result.terminal_resets == 0U &&
+                state.stored_group_a_index == 3U && state.result_mode == 0U &&
+                fixture.startup.reset.block_525470[0x1EU] == 0x12345678U &&
+                port.count(0x0047CC40U) == 1U,
+            "a missing sentinel storage binding reports the actual missing state after screen mode without publishing terminal completion"
         );
     }
 
@@ -5505,16 +5561,20 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 15U;
         port.push(0x00487C10U, {.eax = 0x71000000U});
+        state.group_a_target_phases[0U].render_toggle_gate = 0x12345678U;
+        state.group_a_target_phases[2U].render_toggle_gate = 0xFFFFFFFFU;
         u32 suppression_observations = 0U;
         bool suppression_precedes_suffix = true;
         port.on_call = [&](const LegacyBattleActionCallRequest& request) {
-            if (request.callee_token == 0x0047F900U ||
-                request.callee_token == 0x00487C10U) {
+            if (request.callee_token == 0x00487C10U) {
                 ++suppression_observations;
                 suppression_precedes_suffix = suppression_precedes_suffix &&
                     suppression.field_2af0 == 1U &&
                     suppression.field_2af4 == 0x89ABCDEFU &&
-                    source_suppression.field_2af0 == 0x12345678U;
+                    source_suppression.field_2af0 == 0x12345678U &&
+                    state.group_a_target_phases[0U].render_toggle_gate ==
+                        0x12345678U &&
+                    state.group_a_target_phases[2U].render_toggle_gate == 1U;
             }
         };
 
@@ -5550,7 +5610,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                     openswd3::battle::
                         LegacyBattleGroupASummonMaterializationStatus::
                             completed &&
-                suppression_observations == 2U && suppression_precedes_suffix &&
+                suppression_observations == 1U && suppression_precedes_suffix &&
                 suppression.field_2af0 == 1U &&
                 result.summon_materialization.return_eax == 0x71000000U &&
                 result.summon_materialization.return_edx ==
@@ -5725,8 +5785,16 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         );
     }
 
-    for (const u16 summon_index : std::array<u16, 2>{0U, 9U}) {
+    for (u32 scenario = 0U; scenario < 8U; ++scenario) {
+        const u16 summon_index = scenario % 2U == 0U ? 0U : 9U;
+        const u32 summon_gate =
+            std::array<u32, 4>{0U, 1U, 2U, 0xFFFFFFFFU}[scenario / 2U];
         auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        state->summon_gate = summon_gate;
+        for (auto& phase : state->group_a_target_phases) {
+            phase.render_toggle_gate = 0xFFFFFFFFU;
+        }
+
         const u32 source_index = 9U - summon_index;
         state->group_a_count = 1U;
         state->group_b_count = 1U;
@@ -5752,7 +5820,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
             if (request.callee_token == 0x00487C10U) {
                 allocation_observed_write =
                     (*fixture->startup.group_a_runtime_reset)[summon_index]
-                        .field_2af0 == 1U;
+                            .field_2af0 == 1U &&
+                    state->group_a_target_phases[summon_index]
+                            .render_toggle_gate ==
+                        (summon_gate == 0U ? 1U : 0xFFFFFFFFU);
             }
         };
 
@@ -5768,7 +5839,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 residual.field_2af0 ==
                     (index == summon_index ? 1U : 0xFEDCBA98U) &&
                 residual.field_2af4 == 0x76543210U &&
-                party.base_initialization.presentation_step == 0xFFFFU;
+                party.base_initialization.presentation_step == 0xFFFFU &&
+                state->group_a_target_phases[index].render_toggle_gate ==
+                    (index == summon_index && summon_gate == 0U ? 1U
+                                                                : 0xFFFFFFFFU);
         }
 
         test.expect_true(
@@ -7908,11 +7982,14 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (u32 scenario = 0U; scenario < 4U; ++scenario) {
+        const u32 target_index = scenario / 2U == 0U ? 0U : 7U;
+        const u32 source_index = target_index == 0U ? 0U : 9U;
+        const bool missing_message_state = scenario % 2U != 0U;
         LegacyBattleActionDispatchState state;
-        state.group_a_count = 1;
-        state.group_b_count = 1;
-        state.group_a_to_actor[0U] = 0U;
+        state.group_a_count = 10;
+        state.group_b_count = 8;
+        state.group_a_to_actor[source_index] = 0U;
         Fixture fixture;
         DispatchPort port;
         port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x20U;
@@ -7922,19 +7999,49 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         context.actor_runtime_reset_requests.requests[0U].stop_before_access =
             0U;
 
-        const auto result = dispatch(state, port, context, 0U, 0U);
+        if (missing_message_state) {
+            context.text_messages = nullptr;
+        }
+
+        const auto result =
+            dispatch(state, port, context, source_index, target_index);
+        if (missing_message_state) {
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            text_message_typed_stop &&
+                    (*state.group_b_fixed_particle_phases)[target_index]
+                            .render_toggle_gate == 0U &&
+                    state.stored_group_b_index == 0xFFFFU &&
+                    state.stored_group_a_index == 0xFFFFU &&
+                    result.actor_runtime_reset.calls == 0U &&
+                    !result.attack_order.has_value(),
+                "action twenty-five message failure precedes mirror writes, saved indices and actor reset"
+            );
+            continue;
+        }
 
         test.expect_true(
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_runtime_reset_typed_stop &&
+                result.return_value == source_index &&
+                result.text_messages.size() == 1U &&
+                result.actor_runtime_reset.last.return_edx ==
+                    result.text_messages.back().return_registers.edx &&
                 result.actor_runtime_reset.calls == 1U &&
                 result.actor_runtime_reset.call_addresses[0U] == 0x00454FAFU &&
                 result.actor_runtime_reset.last.status ==
                     openswd3::battle::LegacyBattleActorRuntimeResetStatus::
                         stack_write_typed_stop &&
-                state.stored_group_b_index == 0U &&
-                state.stored_group_a_index == 0U &&
+                state.stored_group_b_index == target_index &&
+                state.stored_group_a_index == source_index &&
+                (*state.group_b_fixed_particle_phases)[target_index]
+                        .render_toggle_gate == 1U &&
+                (*state.group_b_fixed_particle_phases)[7U - target_index]
+                        .render_toggle_gate == 0U &&
+                state.group_a_target_phases[source_index].render_toggle_gate ==
+                    0U &&
                 !result.attack_order.has_value() &&
                 fixture.attack_order_records[0U].value_00 == 0xFFFFFFFFU,
             "action twenty-five runtime-reset stop keeps CALL-prefix indices and suppresses attack-order removal"

@@ -43,7 +43,7 @@ ABI为两个参数cdecl/plain `retn`：第一参数选择角色组A槽，第二�
 
 ## 3. 动作99终态
 
-动作`0x63`不走jump table。固定执行两个模式callee，随后：
+动作`0x63`不走jump table。先执行画面模式调用，再直接清保存敌人的镜像DWORD，随后：
 
 - stored group-B index写`0xFFFF`；
 - stored group-A index写`0xFFFF`；
@@ -173,6 +173,9 @@ phase零时按battle flags bit2与packed high word<2决定是否增加召唤计�
 004552C2已改为直接写实际召唤队员的绘制抑制1，位于帧源清除之后、镜像及分配之前。
 缺startup或残余状态数组时保留帧源清除，不执行分配；后继分配失败保留抑制写入。
 实际所有者、首末队员和前后失败测试见[队员绘制抑制](battle-party-drawing-suppression-0047d870.md)。
+004552F5也直接写召唤队员的实际镜像字段，仅全DWORD召唤门为0时写1。
+动作25、99的敌方镜像、保存索引FFFF的物理别名及前后失败验证见
+[行动镜像写入](battle-action-mirror-0047f900.md)。其他父协议继续待迁移。
 
 ## 11. case 22：状态指示器与对手选择
 

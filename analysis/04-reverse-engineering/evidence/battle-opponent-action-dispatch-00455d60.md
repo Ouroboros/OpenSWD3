@@ -142,7 +142,7 @@ phase低wordbit15未置位时：
    - 清零164字节scratch；
    - 在共享32字节记录`+0x14/+0x18/+0x1A/+0x1C`写action、x=240、y与runtime，保留未知20-byte前缀和`+0x16`；
    - 第2项y=350，其余y=220；
-   - mirror门等于1时调用mirror并以u16写`640-x`；
+   - mirror全DWORD等于1时直接写新敌方实际镜像字段1，再以u16写`640-x`；
    - scratch准备参数低word覆盖为special action，高word保留`32*index`陈旧位；
    - scratch更新返回后只覆盖EAX低word为special action，保留callee EAX高word；
    - 直接调用已关闭组B行动配置，完成双记录复制、资源字段、profile与释放；
@@ -153,6 +153,9 @@ phase低wordbit15未置位时：
 固定记录表不再由动作分派保留副本，而与startup、进度、global reset和SDL坐标桥共用八槽组B元素生命周期owner。wave参数也直接读取该owner内既有40-byte profile的尾部字段，不新增平行profile或输出状态；旧`0x00476900`地址生产调用为零。源actor缺失时保留phase `0x8019`前缀和两个旧输出，并阻断wave循环。资源加载、profile或释放typed-stop保留当前wave此前reset、scratch、记录与mirror副作用，但阻断pop、计数和三个stage；旧`0x00475720` opaque地址零调用。循环没有现代上限。第9项仍只在首次新组B对象访问处typed-stop，前8条记录、计数及全部callee副作用保留。
 
 初始化后及后续调用均先对phase低word减1，再测试低word低15位。非零返回0；归零时current actor写`0xFFFF`、phase低word与spawn count清零并返回1。若已初始化位形错误地传入低word0，原行为是回绕到`0xFFFF`，不夹到完成。
+
+00455E95的镜像通用调用及编号已删除，复用固定敌方粒子状态的既有字段。
+全DWORD条件、双wave与MON失败前缀验证见[行动镜像写入](battle-action-mirror-0047f900.md)。
 
 ## 9. case 17：对手阶段完成
 
