@@ -1,96 +1,85 @@
-# 战斗角色可用性阻断值写入（`0x00478330`）
+# 战斗角色可用性阻断值写入（0x00478330）
 
-## 1. 范围与权威输入
+## LST 行为
 
-- 函数：`sub_478330`。
-- 权威输入：`swd3.exe_export_for_ai/swd3.exe.lst`。
-- 完整主体：`0x00478330..0x0047833A`，从`proc near`到`endp`共10个物理行、3条实际指令、0个call、0个跳转、0个外部chunk、1个返回点。
-- 静态交叉引用：24处物理call，分布于8个已关闭caller；无组B对象caller。
-- 相关字段交叉引用：`actor+0x2AE4`除本函数写入外，另有`0x0047C670`查询读取和`0x0047D350`重置写零；本轮不扩大到这两个待审函数。
+权威源为 `swd3.exe_export_for_ai/swd3.exe.lst`。
+完整函数为 `00478330..0047833A`，3条指令，无分支和子调用：
 
-## 2. 完整指令语义
-
-```asm
-mov eax, [esp+4]
-mov [ecx+2AE4h], eax
-retn 4
+```text
+00478330  mov eax,[esp+4]
+00478334  mov [ecx+2AE4h],eax
+0047833A  retn 4
 ```
 
-函数先把栈上传入的完整32位参数装入EAX，再以ECX为角色对象基址，把该完整dword写入`actor+0x2AE4`，最后由callee清理4字节参数并返回。没有局部栈、隐藏分支、附加读取或隐式清零。
+将完整32位参数写入角色的 `+2AE4` 字段。
+原版 EAX 装入参数，ECX/EDX不变；这些寄存器不是新的业务结果。
+对象写入失败时，字段保留原值，调用方不执行后续步骤。
 
-寄存器契约：
+## 当前共享接口
 
-- EAX总是替换为完整参数值；
-- ECX保持入口角色对象token；
-- EDX完全不修改；
-- 成功与写访问异常前缀都已完成EAX装载。
+`set_legacy_battle_actor_availability_block(State*, u32)`
+直接修改 `LegacyBattleActorAvailabilityBlockState::value`，只返回操作状态。
+已删除寄存器式 Request、EAX/ECX/EDX回复、字段写次数和父调用次数。
+调用方使用可选结果区分未执行与实际完成/失败。
+保留原有不可写和缺少字段的失败处理，不增加参数规范化或替代写入。
 
-## 3. 参数与对象域
+唯一存储仍为
+`LegacyBattleFinalActorStepState::group_a_availability_blocks`。
+不同入口借用同一角色元素，不创建镜像字段或第二份对象数组。
+原版 Group-A 对象步长为 `0x2F34`，地址计算中的 `0xBCD` 是其四分之一。
 
-24处caller只传完整dword `0`或`1`：
+## 24处原版调用
 
-- 写1：`0x004567EA`、`0x0045AC54`、`0x0045D51C`、`0x0045D5BB`、`0x0045F765`、`0x0046292B`、`0x004629F3`、`0x00462B02`、`0x00462ED5`、`0x00463108`、`0x00463335`、`0x00463A50`、`0x00463CF0`、`0x00464D04`、`0x0046AA6C`、`0x0046AC80`、`0x0046D221`；
-- 写0：`0x00456BC0`、`0x00456C1C`、`0x00456CF4`、`0x00456D88`、`0x00456E69`、`0x0045AEEF`、`0x0045D647`。
+- Group-A frame `00456680`：`004567EA`写1；
+  `00456BC0`、`00456C1C`、`00456CF4`、`00456D88`、`00456E69`写0。
+- 最终角色步骤 `0045AA00`：`0045AC54`写1。
+- 动作后处理 `0045ADF0`：`0045AEEF`写0。
+- 帧前处理 `0045D490`：`0045D51C`、`0045D5BB`写1，`0045D647`写0。
+- 输入 `0045F2A0`：`0045F765`写1。
+- 目标选择刷新 `00462740`：`0046292B`、`004629F3`、`00462B02`、
+  `00462ED5`、`00463108`、`00463335`、`00463A50`、`00463CF0`均写1。
+- 角色目标准备 `00464CC0`：`00464D04`写1。
+- 脚本 `00469D20`：`0046AA6C`、`0046AC80`、`0046D221`均写1。
 
-所有ECX都由组A固定对象表按0xBCD stride形成。typed实现因此不建立新的角色对象数组，而把十个`+0x2AE4` dword挂在`LegacyBattleFinalActorStepState::group_a_availability_blocks`，由所有caller共享。
+合计 `6+1+1+3+1+8+1+3=24`，分布于8类实现入口。
+选择帧通过目标准备的可选结果间接观察此次写入。
 
-## 4. typed leaf与停止时序
+## 最新提交的修正关联
 
-`LegacyBattleActorAvailabilityBlockState`保存一个完整dword及写访问性；`set_legacy_battle_actor_availability_block()`显式返回EAX/ECX/EDX、写计数与状态。
+`7feb7c40` 在 Group-A frame 中保留了 `0047CC50` 的通用调用。
+其中 `00456BB2` 之后紧接 `00456BC0`，旧 C++ 将前者的虚拟 EDX
+传入当前写入接口，形成不必要的机器回复依赖。
 
-执行顺序严格为：
+当前 `0047CC50` 的三处调用直接清共享 `field_2ad4`；
+当前接口只接收真实状态和值，因此这条 EDX 传递也被删除。
+Group-A 的末次 terminal EDX、选择完成 EDX收集不再为此接口保留。
+动作后处理仍按原顺序保留门衰减、动作设置、阻断值写入和角色重置。
+写入失败不会执行角色重置，也不回滚前面的真实状态变化。
 
-1. EAX替换为参数；
-2. 检查原对象写访问点；
-3. 可写时写完整dword一次；
-4. 不可写或owner缺失时在该访问点停止。
+八类父函数仍有其他尚未移除的通用协议。
+本文件不将它们或完整战斗调用链宣称为迁移完成。
+相邻查询 `0047C670` 和基础重置 `0047D350` 的状态按各自证据记录。
 
-写停止保留入口owner值和EDX，EAX已是参数，写计数仍为0。caller必须在原call点立即返回，不得执行任何suffix；实现不增加nil继续、索引夹限、布尔规范化或替代写入。
+## 测试与验证
 
-## 5. 24处物理caller闭包
+独立写入测试覆盖0、1、7FFFFFFF、80000000、89ABCDEF、FFFFFFFF，
+重复写入、不可写字段和空字段。
+八类调用方及间接选择帧测试检查共享字段、实际执行结果和失败后的状态保留。
+旧调用计数和叶寄存器断言已删除；原有业务结果及失败后缀断言继续保留。
 
-| caller | 物理call | 数量 | 参数 | typed集成 |
-| --- | --- | ---: | --- | --- |
-| `0x00456680`组A逐角色帧 | `0x004567EA`、`0x00456BC0`、`0x00456C1C`、`0x00456CF4`、`0x00456D88`、`0x00456E69` | 6 | `1,0,0,0,0,0` | 六处分支直接写共享owner；第一处保留末次terminal查询EDX，其余保留各前置callee残值 |
-| `0x0045AA00`最终角色步进 | `0x0045AC54` | 1 | `1` | continuation路径在后续动作/workspace写之前直连 |
-| `0x0045ADF0`战后处理 | `0x0045AEEF` | 1 | `0` | 第二个组A角色owner写零，停止阻断全部重置尾 |
-| `0x0045D490`逐帧预处理 | `0x0045D51C`、`0x0045D5BB`、`0x0045D647` | 3 | `1,1,0` | 依次保留source actor、通知callee返回和secondary actor的EDX |
-| `0x0045F2A0`输入分派 | `0x0045F765` | 1 | `1` | 撤退确认路径直连并传播停止 |
-| `0x00462740`目标选择刷新 | `0x0046292B`、`0x004629F3`、`0x00462B02`、`0x00462ED5`、`0x00463108`、`0x00463335`、`0x00463A50`、`0x00463CF0` | 8 | 全部`1` | 八条消息/选择分支共用owner并保留各自EDX |
-| `0x00464CC0`角色目标准备 | `0x00464D04` | 1 | `1` | 组A准备分支保留入口EDX，停止阻断组B完成查询 |
-| `0x00469D20`脚本分派 | `0x0046AA6C`、`0x0046AC80`、`0x0046D221` | 3 | 全部`1` | opcode 9/23/58直连；高目标分支保留`actor*5-40` EDX及减8发布前缀 |
+独立修正批次通过3项core及相同3项ASan测试：
+`battle.legacy_battle_setup`、`battle.actor_frame_316`、
+`battle.legacy_battle_actor_availability_block`，各1/1通过。
+测试入口实际执行上述8类调用方及间接选择帧用例。
+SDL目标`openswd3`实际链接通过；26个源码/测试文件的门前后SHA256一致。
+日志为`build/tmp/runtime/action-mode-published-repair-`前缀的
+`core`、`callers-core`、`availability-core`、`asan`、`callers-asan`、
+`availability-asan`和`sdl.log`；验证文件为同前缀的`validated-source.sha256`。
+core与ASan各报告既有`legacy_battle_outcome_resolution_test.cpp:133`
+的u16到u8转换warning，该文件未修改；没有测试失败或sanitizer错误。
+先前高位清除改动已独立保存，本次验证和发布不依赖该改动。
+旧工作包278的全量测试数字不作为本次验证结果。
 
-合计`6+1+1+3+1+8+1+3=24`。旧`pending_478330`、`configure_group_a_actor`、`prepare_group_a_actor`及同义包装边界均已删除；生产源码对`0x00478330`只保留leaf文档注释，不再通过端口模拟该地址。
-
-## 6. caller寄存器与前缀
-
-caller在构造ECX时会改写EAX，但leaf第一条指令立即把参数完整覆盖到EAX，因此返回EAX只可能是0或1。ECX按组A索引精确映射：索引0为`0x005029D0`，索引1为`0x00505904`，其余按0xBCD stride递增。
-
-EDX不由leaf修改，必须由caller显式传入：
-
-- 组A AI首路径使用最后一次terminal查询返回EDX；
-- pre-frame三处依次保留source actor、组A通知callee返回及secondary actor；input撤退路径使用`(actor_code-8)*0xBCD`，actor-target-preparation保留函数入口EDX；
-- 脚本opcode 9/23/58在目标码大于7时先以`actor_code*5-40`覆盖EDX，否则保留入口EDX；
-- 其余caller保留原调用点前最近一次真实写入或callee返回的EDX。
-
-各层结果结构都携带leaf结果和调用计数，typed-stop逐层向上传播；测试同时断言到达前缀和禁止suffix。
-
-## 7. owner与生命周期
-
-组A十个角色对象由既有battle startup/final-actor组合拥有。`LegacyBattleFinalActorStepState`是跨组A帧、输入、目标选择、角色准备和脚本分派共享的唯一状态；`LegacyBattleActorAvailabilityBlockState`只投影对象内`+0x2AE4`，不复制对象token、角色记录或其他字段。
-
-全局重置及相邻`0x0047D350`仍按其各自LST写集合处理。本工作包只回收24处已证明caller，不把查询或重置函数提前标成已关闭。
-
-## 8. 测试覆盖
-
-独立leaf测试覆盖写0、写1、任意完整dword、ECX/EDX保持以及不可写owner的EAX先装载与零写停止。caller测试覆盖八个caller类的正常共享owner路径，并覆盖组A帧、最终角色、战后处理、pre-frame、输入、目标选择、角色准备和脚本分派的写停止传播；关键分支额外验证actor code 7的对象地址EAX回绕、pre-frame三类EDX来源、script高目标EDX覆盖及所有suffix抑制。
-
-## 9. 验证门禁
-
-最终定向门经`OPENSWD3_CTEST=build/workpack278/directed-ctest.sh ./build.sh core`运行，独立leaf与战斗聚合共`2/2`通过；Linux core`199/199`、AddressSanitizer`199/199`、Linux app`205/205`及随后连续十轮完整core`199/199`全部通过。所有最终stdout日志零源码warning、sanitizer finding与runtime error，四份stderr日志均为空；全部触碰C++文件通过clang-format Werror，`git diff --check`通过。
-
-inventory生成器连续双跑逐字节一致，闭包为`278/422 = 268 platform_adapted + 10 assembly_exact + 144 pending_audit`，下一项为`audit_order=279 / 0x00478340`；SHA256为`aae441118631359298b010f4aa01755551f3851c0942b406f228807cfa0e16d9`。系统TMP快照中的项目相关候选均确认为Pi/context-mode运行时，不存在需迁移的repo-owned条目；未启动原版或OpenSWD3游戏程序。
-
-## 10. 动态差分状态
-
-原版组A完整对象、24处caller联合输入状态、异常写访问及EAX/ECX/EDX动态捕获后端当前不可用，因此`original_diff_verified`登记为`blocked_runtime_oracle`。完整LST静态审计、24处物理xref闭包、typed owner复用和现代侧定向/全量门禁不依赖该oracle。
+原版完整对象、异常内存页和联合 SEH 捕获仍缺失，
+原版动态差分状态为 `blocked_runtime_oracle`。
+宿主测试不等同于原版异常动态验证。

@@ -792,14 +792,12 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
             "active-actor query receives the exact group-A object token"
         );
         test.expect_true(
-            result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 1U &&
-                result.actor_availability_block.return_eax == 1U &&
-                result.actor_availability_block.return_ecx ==
-                    expected_actor_token &&
-                result.actor_availability_block.return_edx == 0xBCDU &&
+            result.actor_availability_block.has_value() &&
+                result.actor_availability_block->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        completed &&
                 fixture.final_actor.group_a_availability_blocks[1U].value == 1U,
-            "retreat configuration writes the typed actor owner with the exact leaf registers"
+            "retreat configuration writes the shared actor availability state"
         );
     }
 
@@ -824,8 +822,10 @@ void test_battle_input_dispatch(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleInputDispatchStatus::
                         actor_availability_block_typed_stop &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 0U &&
+                result.actor_availability_block.has_value() &&
+                result.actor_availability_block->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        actor_write_typed_stop &&
                 result.return_eax == 1U && result.return_ecx == 0x00505904U &&
                 result.return_edx == 0xBCDU &&
                 fixture.action.opponent_workspace[11U] == 0x11U &&

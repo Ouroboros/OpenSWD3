@@ -447,9 +447,10 @@ void test_battle_post_action(openswd3::test::Context& test) {
                 port.count(0x00478330U) == 0U &&
                 result.actor_runtime_reset.calls == 2U &&
                 result.actor_runtime_reset.call_addresses[1U] == 0x0045AEF6U &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 1U &&
-                result.actor_availability_block.return_ecx == 0x00505904U &&
+                result.actor_availability_block.has_value() &&
+                result.actor_availability_block->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        completed &&
                 final_actor.group_a_availability_blocks[1U].value == 0U &&
                 action.group_a_action_execution[1U].action_target == 0xFFFFU &&
                 port.count(0x00478850U) == 0U &&
@@ -497,10 +498,11 @@ void test_battle_post_action(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleActionDispatchStatus::
                         actor_availability_block_typed_stop &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 0U &&
+                result.actor_availability_block.has_value() &&
+                result.actor_availability_block->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        actor_write_typed_stop &&
                 result.return_value == 0U &&
-                result.actor_availability_block.return_ecx == 0x00505904U &&
                 final_actor.group_a_availability_blocks[1U].value ==
                     0xAABBCCDDU &&
                 result.actor_runtime_reset.calls == 1U &&

@@ -459,20 +459,9 @@ private:
             : nullptr;
         ecx_ = actor_token;
         result_.actor_availability_block =
-            set_legacy_battle_actor_availability_block(
-                actor,
-                {
-                    .value = value,
-                    .actor_token = ecx_,
-                    .entry_eax = eax_,
-                    .entry_edx = edx_,
-                }
-            );
-        ++result_.actor_availability_block_calls;
-        eax_ = result_.actor_availability_block.return_eax;
-        ecx_ = result_.actor_availability_block.return_ecx;
-        edx_ = result_.actor_availability_block.return_edx;
-        if (result_.actor_availability_block.status ==
+            set_legacy_battle_actor_availability_block(actor, value);
+        eax_ = value;
+        if (result_.actor_availability_block->status ==
             LegacyBattleActorAvailabilityBlockStatus::completed) {
             return true;
         }

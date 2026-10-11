@@ -130,8 +130,10 @@ void test_battle_actor_target_preparation(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActorTargetPreparationStatus::
                         actor_availability_block_typed_stop &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 0U &&
+                result.actor_availability_block.has_value() &&
+                result.actor_availability_block->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        actor_write_typed_stop &&
                 result.return_eax == 1U && result.return_ecx == 0x005029D0U &&
                 result.return_edx == 0x11223344U &&
                 fixture.debug.committed_actor_code == 8U &&
@@ -157,8 +159,10 @@ void test_battle_actor_target_preparation(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActorTargetPreparationStatus::completed &&
                 result.random_calls == 0U &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 1U &&
+                result.actor_availability_block.has_value() &&
+                result.actor_availability_block->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        completed &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
                     1U &&
                 result.return_eax == 3U && result.return_ecx == 5U &&

@@ -403,30 +403,21 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                         set_legacy_battle_actor_availability_block(
                             &final_actor
                                  .group_a_availability_blocks[group_a_index],
-                            {
-                                .value = 0U,
-                                .actor_token = actor_token,
-                                .entry_eax = 1U,
-                                .entry_edx =
-                                    result.actor_gate_decay.last.return_edx,
-                            }
-
+                            0U
                         );
-                    ++result.actor_availability_block_calls;
-                    if (result.actor_availability_block.status !=
+                    if (result.actor_availability_block->status !=
                         LegacyBattleActorAvailabilityBlockStatus::completed) {
                         result.status = LegacyBattleActionDispatchStatus::
                             actor_availability_block_typed_stop;
-                        result.return_value =
-                            result.actor_availability_block.return_eax;
+                        result.return_value = 0U;
                         return result;
                     }
                     if (!reset_actor(
                             actor_token,
                             0x0045AEF6U,
                             0x0045AEFBU,
-                            result.actor_availability_block.return_eax,
-                            result.actor_availability_block.return_edx
+                            0U,
+                            result.actor_gate_decay.last.return_edx
                         )) {
                         return result;
                     }

@@ -963,19 +963,10 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
                 : nullptr;
             result.actor_availability_block =
                 set_legacy_battle_actor_availability_block(
-                    availability_block,
-                    {
-                        .value = 1U,
-                        .actor_token = ecx,
-                        .entry_eax = eax,
-                        .entry_edx = edx,
-                    }
+                    availability_block, 1U
                 );
-            ++result.actor_availability_block_calls;
-            eax = result.actor_availability_block.return_eax;
-            ecx = result.actor_availability_block.return_ecx;
-            edx = result.actor_availability_block.return_edx;
-            if (result.actor_availability_block.status !=
+            eax = 1U;
+            if (result.actor_availability_block->status !=
                 LegacyBattleActorAvailabilityBlockStatus::completed) {
                 result.status = LegacyBattleInputDispatchStatus::
                     actor_availability_block_typed_stop;

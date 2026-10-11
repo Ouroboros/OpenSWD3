@@ -3772,23 +3772,19 @@ SHA256为`1c69ea1c505789e9aca8f17d3312c303745d05abaf767ba4189b04a372e043c9`。
 动态差分因原版组A/组B/单例完整对象、说明堆、CRT释放边界、
 异常访问及五caller联合寄存器/SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-本轮再完成`audit_order=278`的`0x00478330`战斗角色availability完整dword写入函数。
-完整权威LST主体`0x00478330..0x0047833A`从proc到endp共10个物理行、3条实际指令、0个call、0个跳转、
-0个局部标签和1个返回点，没有外部chunk；函数先以栈参数完整替换EAX，再写`actor+0x2AE4`并`retn 4`，
-ECX/EDX保持。typed实现直接复用最终角色状态中的十个组A availability owner，保留参数先装EAX、
-唯一写访问、写失败零提交及caller suffix抑制。八个已关闭caller类的24处物理call全部在原位置直接组合，
-覆盖组A逐角色帧6处、最终角色1处、战后处理1处、pre-frame 3处、输入1处、目标选择刷新8处、
-角色目标准备1处和脚本opcode 9/23/58三处；相邻`0x0047C670`查询与`0x0047D350`重置保持独立待审。
-caller严格线程各自EDX残值，其中pre-frame依次为source actor、通知callee reply与secondary actor，
-角色目标准备保留函数入口EDX，脚本高目标分支保留`actor*5-40`。验证：最终定向`2/2`、
-Linux core`199/199`、AddressSanitizer`199/199`、Linux app`205/205`、连续10轮完整core、
-clang-format和release审计全部通过，日志零OpenSWD3源码warning、测试失败、
-sanitizer finding或runtime error；未启动原版或OpenSWD3游戏程序。
-工作包为`278/422 = 268 platform_adapted + 10 assembly_exact + 144 pending_audit`；
-生成器连续双跑逐字节一致，
-SHA256为`aae441118631359298b010f4aa01755551f3851c0942b406f228807cfa0e16d9`。
-动态差分因原版组A完整对象、24处caller联合输入、
-异常写访问及EAX/ECX/EDX捕获后端缺失而登记为`blocked_runtime_oracle`。
+`audit_order=278`对应`00478330..0047833A`的完整DWORD写入。
+当前接口直接借用既有角色availability状态和值，只返回完成或写入失败状态。
+寄存器式请求回复、写次数及父调用次数已删除；8类调用方同步改为可选执行结果。
+原24处物理调用覆盖Group-A frame 6处、最终角色1处、动作后1处、帧前3处、
+输入1处、目标选择刷新8处、目标准备1处和脚本3处。共享字段和失败后缀保持原顺序。
+Group-A frame的三处`0047CC50`也已改为直接清共享`field_2ad4`，
+不再把其虚拟EDX传入availability接口。
+父函数的其他通用协议仍待清理，整条调用链尚未验收。
+独立批次的setup、actor_frame_316和availability测试在core、ASan下均各1/1通过，
+SDL实际链接及26个源码/测试文件的门前后SHA256一致性检查通过。
+旧工作包全量统计不作为本次结果。
+详见`evidence/battle-actor-availability-block-00478330.md`。
+原版异常页与SEH动态差分仍为`blocked_runtime_oracle`。
 
 本轮再完成`audit_order=279`的`0x00478340`战斗角色进度宽度函数。
 完整权威LST主体`0x00478340..0x00478364`从proc到endp共25个物理行、10条实际指令、1个call、0个跳转、

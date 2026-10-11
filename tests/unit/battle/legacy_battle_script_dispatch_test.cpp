@@ -3882,11 +3882,10 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 1U &&
-                result.actor_availability_block.return_eax == 1U &&
-                result.actor_availability_block.return_ecx == 0x005029D0U &&
-                result.actor_availability_block.return_edx == 0x778899AAU &&
+                result.actor_availability_block.has_value() &&
+                result.actor_availability_block->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        completed &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
                     1U &&
                 fixture.final_actor.queued_actor_code == 8U &&
@@ -4147,11 +4146,10 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 1U &&
-                result.actor_availability_block.return_eax == 1U &&
-                result.actor_availability_block.return_ecx == 0x005029D0U &&
-                result.actor_availability_block.return_edx == 0x55556666U &&
+                result.actor_availability_block.has_value() &&
+                result.actor_availability_block->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        completed &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
                     1U &&
                 fixture.final_actor.queued_actor_code == 8U &&
@@ -4182,8 +4180,10 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleScriptDispatchStatus::
                         actor_availability_block_typed_stop &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 0U &&
+                result.actor_availability_block.has_value() &&
+                result.actor_availability_block->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        actor_write_typed_stop &&
                 result.return_eax == 1U && result.return_ecx == 0x005029D0U &&
                 result.return_edx == 0U &&
                 fixture.final_actor.queued_actor_code == 8U &&
@@ -4914,11 +4914,10 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 1U &&
-                result.actor_availability_block.return_eax == 1U &&
-                result.actor_availability_block.return_ecx == 0x005029D0U &&
-                result.actor_availability_block.return_edx == 0U &&
+                result.actor_availability_block.has_value() &&
+                result.actor_availability_block->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        completed &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
                     1U &&
                 fixture.final_actor.queued_actor_code == 8U &&

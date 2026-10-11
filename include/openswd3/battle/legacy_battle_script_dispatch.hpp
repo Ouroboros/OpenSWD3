@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinate_publication.hpp"
 #include "openswd3/battle/legacy_battle_actor_binary_state_toggle.hpp"
@@ -409,8 +411,8 @@ struct LegacyBattleScriptDispatchResult {
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
     compat::u32 stopped_offset{};
-    LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
-    compat::u32 actor_availability_block_calls{};
+    std::optional<LegacyBattleActorAvailabilityBlockResult>
+        actor_availability_block;
     std::optional<LegacyBattleActorActionModeResult> actor_action_mode;
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};

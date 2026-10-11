@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/audio_video/legacy_sample_manager.hpp"
@@ -1675,8 +1677,8 @@ struct LegacyBattleActionDispatchResult {
     std::vector<LegacyBattleTextMessageResult> text_messages;
     compat::u32 text_message_calls{};
     compat::u32 actor_target_preparation_calls{};
-    LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
-    compat::u32 actor_availability_block_calls{};
+    std::optional<LegacyBattleActorAvailabilityBlockResult>
+        actor_availability_block;
     LegacyBattleActorProgressThresholdSyncResult
         actor_progress_threshold_sync{};
     LegacyBattlePairTransitionResult pair_transition{};

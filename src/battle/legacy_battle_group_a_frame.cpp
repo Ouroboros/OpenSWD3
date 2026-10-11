@@ -100,7 +100,6 @@ constexpr u32 kCallQueryQueueMode = 0x00483820U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorAvailable = 0x0047C670U;
 constexpr u32 kCallClearControl = 0x0047C660U;
-constexpr u32 kCallClearPresentation = 0x0047CC50U;
 constexpr u32 kCallLookupProfileItem = 0x00482F70U;
 constexpr u32 kCallRefreshProgressMultiplier = 0x00482F10U;
 constexpr u32 kCallApplyProfileItemDelta = 0x004830A0U;
@@ -736,8 +735,7 @@ void merge_nested_result(
     LegacyBattleGroupAFrameState& state,
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchResult& result,
-    i32& terminal_count,
-    u32& return_edx
+    i32& terminal_count
 ) {
     terminal_count = 0;
     for (i32 index = 0; index < state.action.group_b_count; ++index) {
@@ -747,7 +745,6 @@ void merge_nested_result(
         }
         const auto terminal =
             invoke(port, kCallQueryTerminal, {group_b_token(uindex)});
-        return_edx = terminal.edx;
         if (terminal.eax == 1U) {
             ++terminal_count;
         }
@@ -1154,26 +1151,20 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         : view_legacy_battle_actor_coordinates(
               context.startup->party[group_a_index]
           );
-    const auto set_availability_block = [&](const u32 value,
-                                            const u32 entry_edx) {
+    const auto set_availability_block = [&](const u32 value) {
         result.actor_availability_block =
             set_legacy_battle_actor_availability_block(
                 &state.final_actor_step
                      .group_a_availability_blocks[group_a_index],
-                {
-                    .value = value,
-                    .actor_token = actor_token,
-                    .entry_edx = entry_edx,
-                }
+                value
             );
-        ++result.actor_availability_block_calls;
-        if (result.actor_availability_block.status ==
+        if (result.actor_availability_block->status ==
             LegacyBattleActorAvailabilityBlockStatus::completed) {
             return true;
         }
         result.status = LegacyBattleActionDispatchStatus::
             actor_availability_block_typed_stop;
-        result.return_value = result.actor_availability_block.return_eax;
+        result.return_value = value;
         return false;
     };
     const auto select_actor_target = [&context,
@@ -1386,14 +1377,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
             if (state.actor_ai_primary[group_a_index] == 1U ||
                 state.actor_ai_secondary[group_a_index] == 1U) {
                 i32 terminal_count = 0;
-                u32 terminal_query_edx = 0U;
                 if (!count_group_b_terminal(
-                        state, port, result, terminal_count, terminal_query_edx
+                        state, port, result, terminal_count
                     )) {
                     return result;
                 }
                 if (terminal_count < state.action.group_b_count) {
-                    if (!set_availability_block(1U, terminal_query_edx)) {
+                    if (!set_availability_block(1U)) {
                         return result;
                     }
                     while (true) {
@@ -1510,8 +1500,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         ++result.actor_target_preparation_calls;
                         result.actor_availability_block =
                             prepared.actor_availability_block;
-                        result.actor_availability_block_calls +=
-                            prepared.actor_availability_block_calls;
                         if (prepared.status !=
                             LegacyBattleActorTargetPreparationStatus::
                                 completed) {
@@ -1695,9 +1683,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 }
                 if (current_actor_idle) {
                     static_cast<void>(invoke(port, kCallClearControl, {0U}));
-                    static_cast<void>(
-                        invoke(port, kCallClearPresentation, {0U})
-                    );
+                    (*context.startup->group_a_runtime_reset)[group_a_index]
+                        .field_2ad4 = 0U;
                     {
                         LegacyBattleActorActionModeView mode_fields;
                         if (context.startup != nullptr &&
@@ -1768,9 +1755,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             result.group_a_final_processing.return_eax;
                         return result;
                     }
-                    if (!set_availability_block(
-                            0U, result.group_a_final_processing.return_edx
-                        )) {
+
+                    if (!set_availability_block(0U)) {
                         return result;
                     }
                     state.final_actor_step.selection_gate = 0U;
@@ -1797,9 +1783,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 }
 
                 if (*result.actor_idle_state->value == 0U) {
-                    static_cast<void>(
-                        invoke(port, kCallClearPresentation, {0U})
-                    );
+                    (*context.startup->group_a_runtime_reset)[group_a_index]
+                        .field_2ad4 = 0U;
                     if (state.actor_ai_primary[group_a_index] != 0U ||
                         state.actor_ai_secondary[group_a_index] != 0U) {
                         static_cast<void>(
@@ -1878,10 +1863,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             )) {
                             return result;
                         }
-                        if (!set_availability_block(
-                                0U,
-                                result.actor_target_selection.last.return_edx
-                            )) {
+
+                        if (!set_availability_block(0U)) {
                             return result;
                         }
                         state.final_actor_step.selection_gate = 0U;
@@ -2012,10 +1995,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             )) {
                             return result;
                         }
-                        if (!set_availability_block(
-                                0U,
-                                result.actor_target_selection.last.return_edx
-                            )) {
+
+                        if (!set_availability_block(0U)) {
                             return result;
                         }
                         if (!process_group_a_final(
@@ -2185,7 +2166,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 }
             }
             u32 selection_complete_entry_eax = selection_terminal.eax;
-            u32 selection_complete_entry_edx = selection_terminal.edx;
             if (selected_index >= 0) {
                 state.target_ready_gate = 1U;
                 result.actor_target_selection_latch_set =
@@ -2220,7 +2200,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 }
                 const auto& selected = result.actor_target_selection.last;
                 selection_complete_entry_eax = selected.return_eax;
-                selection_complete_entry_edx = selected.return_edx;
             }
 
             result.actor_target_selection_latch_query =
@@ -2250,9 +2229,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                 if (state.actor_ai_primary[group_a_index] != 0U ||
                     state.actor_ai_secondary[group_a_index] != 0U) {
                     state.final_actor_step.selection_gate = 0U;
-                    if (!set_availability_block(
-                            0U, selection_complete_entry_edx
-                        )) {
+                    if (!set_availability_block(0U)) {
                         return result;
                     }
                     state.action.resolution_latch = 0U;
@@ -2301,10 +2278,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         }
                     }
 
-                    const auto presentation =
-                        invoke(port, kCallClearPresentation, {0U});
+                    (*context.startup->group_a_runtime_reset)[group_a_index]
+                        .field_2ad4 = 0U;
                     state.final_actor_step.selection_gate = 0U;
-                    if (!set_availability_block(0U, presentation.edx)) {
+                    if (!set_availability_block(0U)) {
                         return result;
                     }
                     if (static_cast<u32>(actor.field_26c0) == 4U) {

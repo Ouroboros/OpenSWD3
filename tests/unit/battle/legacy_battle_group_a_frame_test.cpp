@@ -901,6 +901,56 @@ void test_idle_query_failures(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_group_a_frame(openswd3::test::Context& test) {
+    for (u32 branch = 0U; branch < 3U; ++branch) {
+        auto state_storage = std::make_unique<PausedFrameState>();
+        auto& state = *state_storage;
+        Fixture fixture;
+        DispatchPort port;
+        auto context = fixture.context();
+        port.frame_effect_control_state().primary_suppression = 1U;
+        port.push(0x0047BA80U, {.eax = 0U});
+        state.action.group_a_action_execution[0U].start_gate = 1U;
+        state.action.group_a_action_execution[0U].field_26b8 = 0x80000000U;
+        state.action.group_a_action_execution[0U].field_26c0 = 5U;
+        fixture.startup.party[0U].progress.special_ready = 1U;
+        auto& presentation = (*fixture.startup.group_a_runtime_reset)[0U];
+        presentation.field_2ad4 = 0x12345678U;
+        (*fixture.startup.group_a_runtime_reset)[1U].field_2ad4 = 0x87654321U;
+        state.actor_enabled[0U] = 1U;
+        state.selected_actor_one_based = 1U;
+        state.actors[0U].mode_gate = branch == 0U ? 1U : 0U;
+        state.actor_ai_primary[0U] = branch == 1U ? 1U : 0U;
+        state.selected_opponent_one_based = 0U;
+        state.actors[0U].action_complete = branch == 2U ? 1U : 0U;
+        presentation.target_selection_latch = branch == 2U ? 1U : 0U;
+        context.actor_action_mode_access.argument_readable = branch != 0U;
+        auto& availability =
+            state.final_actor_step.group_a_availability_blocks[0U];
+        availability.value = 0xAABBCCDDU;
+        availability.write_accessible = false;
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 0U
+            );
+        constexpr std::array expected_statuses{
+            LegacyBattleActionDispatchStatus::actor_action_mode_typed_stop,
+            LegacyBattleActionDispatchStatus::
+                actor_target_selection_count_increment_typed_stop,
+            LegacyBattleActionDispatchStatus::
+                actor_availability_block_typed_stop,
+        };
+
+        test.expect_true(
+            result.status == expected_statuses[branch] &&
+                presentation.field_2ad4 == 0U &&
+                (*fixture.startup.group_a_runtime_reset)[1U].field_2ad4 ==
+                    0x87654321U &&
+                availability.value == 0xAABBCCDDU &&
+                port.count(0x0047CC50U) == 0U,
+            "each original presentation-clear branch commits only its actor before the next failing operation"
+        );
+    }
+
     test_turn_completion_failures(test);
     test_idle_query_failures(test);
     for (const u16 count :
@@ -1923,9 +1973,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     frame_source.field_24 == 0U &&
                     frame_source.field_28 == 0U &&
                     port.count(0x0046E520U) == 0U &&
-                    result.actor_availability_block_calls == 1U &&
-                    result.actor_availability_block.actor_writes == 1U &&
-                    result.actor_availability_block.return_edx == 0x33334444U &&
+                    result.actor_availability_block.has_value() &&
+                    result.actor_availability_block->status ==
+                        openswd3::battle::
+                            LegacyBattleActorAvailabilityBlockStatus::
+                                completed &&
                     state.final_actor_step.group_a_availability_blocks[0U]
                             .value == 1U &&
                     port.count(0x00439070U) == 1U &&
@@ -1955,11 +2007,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_availability_block_typed_stop &&
-                    result.actor_availability_block_calls == 1U &&
-                    result.actor_availability_block.actor_writes == 0U &&
-                    result.actor_availability_block.return_eax == 1U &&
-                    result.actor_availability_block.return_ecx == 0x005029D0U &&
-                    result.actor_availability_block.return_edx == 0x55667788U &&
+                    result.actor_availability_block.has_value() &&
+                    result.actor_availability_block->status ==
+                        openswd3::battle::
+                            LegacyBattleActorAvailabilityBlockStatus::
+                                actor_write_typed_stop &&
                     result.return_value == 1U &&
                     port.count(0x0047CE80U) == 1U &&
                     port.count(0x00439070U) == 0U &&
@@ -2144,8 +2196,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     fixture.target_runtime.actor_commit_gate == 1U &&
                     port.battle_debug_hotkey_state().committed_actor_code ==
                         10U &&
-                    result.actor_availability_block_calls == 1U &&
-                    result.actor_availability_block.actor_writes == 1U &&
+                    result.actor_availability_block.has_value() &&
+                    result.actor_availability_block->status ==
+                        openswd3::battle::
+                            LegacyBattleActorAvailabilityBlockStatus::
+                                completed &&
                     fixture.shared_final_actor.group_a_availability_blocks[2U]
                             .value == 1U &&
                     port.count(0x00478330U) == 0U &&
@@ -2174,11 +2229,12 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         openswd3::battle::LegacyBattleActionDispatchStatus::
                             actor_availability_block_typed_stop &&
                     result.actor_target_preparation_calls == 1U &&
-                    result.actor_availability_block_calls == 1U &&
-                    result.actor_availability_block.actor_writes == 0U &&
+                    result.actor_availability_block.has_value() &&
+                    result.actor_availability_block->status ==
+                        openswd3::battle::
+                            LegacyBattleActorAvailabilityBlockStatus::
+                                actor_write_typed_stop &&
                     result.return_value == 1U &&
-                    result.actor_availability_block.return_ecx == 0x00508838U &&
-                    result.actor_availability_block.return_edx == 10U &&
                     fixture.shared_action.opponent_workspace[12U] == 1U &&
                     port.battle_debug_hotkey_state().committed_actor_code ==
                         10U &&

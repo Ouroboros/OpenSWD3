@@ -231,8 +231,9 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
         const auto result =
             advance_legacy_battle_pre_frame(final_actor, action, port);
         test.expect_true(
-            result.status == LegacyBattlePreFrameStatus::actor_call_typed_stop &&
-                result.actor_availability_block_calls == 1U &&
+            result.status ==
+                    LegacyBattlePreFrameStatus::actor_call_typed_stop &&
+                result.actor_availability_block.has_value() &&
                 result.actor_call.typed_stop &&
                 final_actor.actor_runtime_records[1U][0U] == 77U &&
                 final_actor.published_actor_code == 2U &&
@@ -396,7 +397,7 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
             result.status == LegacyBattlePreFrameStatus::completed &&
                 result.return_value == 9U && result.return_ecx == 0x00505904U &&
                 result.return_edx == 5U &&
-                result.actor_availability_block_calls == 2U &&
+                result.actor_availability_block.has_value() &&
                 final_actor.group_a_availability_blocks[1U].value == 1U &&
                 final_actor.active_actor_code == 0U &&
                 final_actor.secondary_actor_code == 9U &&
@@ -433,7 +434,7 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattlePreFrameStatus::
                         actor_availability_block_typed_stop &&
-                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.has_value() &&
                 result.return_value == 1U && result.return_ecx == 0x004FFA9CU &&
                 result.return_edx == 1U &&
                 action.opponent_workspace[9U] == 1U &&
@@ -457,8 +458,10 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattlePreFrameStatus::
                         actor_availability_block_typed_stop &&
-                result.actor_availability_block_calls == 1U &&
-                result.actor_availability_block.actor_writes == 0U &&
+                result.actor_availability_block.has_value() &&
+                result.actor_availability_block->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        actor_write_typed_stop &&
                 result.return_value == 1U && result.return_ecx == 0x00505904U &&
                 result.return_edx == 2U &&
                 action.opponent_workspace[11U] == 1U &&
@@ -489,7 +492,7 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattlePreFrameStatus::opponent_workspace_typed_stop &&
-                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.has_value() &&
                 result.return_value == 5U && result.return_ecx == 116U &&
                 final_actor.action_execution_active == 5U &&
                 final_actor.secondary_actor_code == 124U &&
@@ -524,7 +527,7 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattlePreFrameStatus::completed &&
                 result.return_value == 0U &&
-                result.actor_availability_block_calls == 1U &&
+                result.actor_availability_block.has_value() &&
                 result.group_b_iterations == 2U &&
                 final_actor.published_actor_code == 2U &&
                 action.opponent_workspace[10U] == 1U &&
@@ -565,7 +568,7 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
             result.status == LegacyBattlePreFrameStatus::completed &&
                 result.return_value == 0U && result.return_ecx == 8U &&
                 result.return_edx == 8U &&
-                result.actor_availability_block_calls == 2U &&
+                result.actor_availability_block.has_value() &&
                 result.group_b_iterations == 1U &&
                 port.actor_metric_state().group_b_count == 1U &&
                 port.battle_terminal_latch() == 0U &&
@@ -592,7 +595,7 @@ void test_battle_pre_frame(openswd3::test::Context& test) {
             advance_legacy_battle_pre_frame(final_actor, action, port);
         test.expect_true(
             result.status == LegacyBattlePreFrameStatus::completed &&
-                result.actor_availability_block_calls == 2U &&
+                result.actor_availability_block.has_value() &&
                 final_actor.action_execution_active == 0U &&
                 final_actor.published_actor_code == 1U &&
                 final_actor.source_actor_code == 0xFFFFFFFFU &&

@@ -98,19 +98,10 @@ LegacyBattleActorTargetPreparationResult prepare_legacy_battle_actor_target(
     ecx = group_a_token;
     result.actor_availability_block =
         set_legacy_battle_actor_availability_block(
-            &bindings.final_actor.group_a_availability_blocks[group_a_index],
-            {
-                .value = 1U,
-                .actor_token = ecx,
-                .entry_eax = eax,
-                .entry_edx = edx,
-            }
+            &bindings.final_actor.group_a_availability_blocks[group_a_index], 1U
         );
-    ++result.actor_availability_block_calls;
-    eax = result.actor_availability_block.return_eax;
-    ecx = result.actor_availability_block.return_ecx;
-    edx = result.actor_availability_block.return_edx;
-    if (result.actor_availability_block.status !=
+    eax = 1U;
+    if (result.actor_availability_block->status !=
         LegacyBattleActorAvailabilityBlockStatus::completed) {
         result.status = LegacyBattleActorTargetPreparationStatus::
             actor_availability_block_typed_stop;

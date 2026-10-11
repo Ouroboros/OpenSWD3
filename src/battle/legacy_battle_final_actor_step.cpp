@@ -398,19 +398,13 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
         state.secondary_actor_code = actor_code;
         result.actor_availability_block =
             set_legacy_battle_actor_availability_block(
-                &state.group_a_availability_blocks[actor_index],
-                {
-                    .value = 1U,
-                    .actor_token = actor_token,
-                    .entry_edx = state.published_actor_code,
-                }
+                &state.group_a_availability_blocks[actor_index], 1U
             );
-        ++result.actor_availability_block_calls;
-        if (result.actor_availability_block.status !=
+        if (result.actor_availability_block->status !=
             LegacyBattleActorAvailabilityBlockStatus::completed) {
             result.status = LegacyBattleActionDispatchStatus::
                 actor_availability_block_typed_stop;
-            result.return_value = result.actor_availability_block.return_eax;
+            result.return_value = 1U;
             return result;
         }
         state.action_execution_active = 1U;

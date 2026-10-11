@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
@@ -75,8 +77,8 @@ struct LegacyBattleActorTargetPreparationResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
-    compat::u32 actor_availability_block_calls{};
+    std::optional<LegacyBattleActorAvailabilityBlockResult>
+        actor_availability_block;
     compat::u32 random_calls{};
     compat::u32 group_b_queries{};
     compat::u32 scanned_completed_targets{};

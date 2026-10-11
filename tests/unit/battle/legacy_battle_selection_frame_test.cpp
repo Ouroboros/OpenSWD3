@@ -492,10 +492,12 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                         completed &&
                 result.group_a_actor_cleanup_calls == 1U &&
                 fixture.port.target_calls.size() == 1U &&
-                result.actor_target_preparation
-                        .actor_availability_block_calls == 1U &&
                 result.actor_target_preparation.actor_availability_block
-                        .actor_writes == 1U &&
+                    .has_value() &&
+                result.actor_target_preparation.actor_availability_block
+                        ->status ==
+                    openswd3::battle::LegacyBattleActorAvailabilityBlockStatus::
+                        completed &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
                     1U &&
                 fixture.debug.committed_actor_code == 8U &&

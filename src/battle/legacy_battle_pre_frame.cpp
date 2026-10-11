@@ -169,20 +169,10 @@ LegacyBattlePreFrameResult advance_legacy_battle_pre_frame(
             ? &final_actor.group_a_availability_blocks[actor_index]
             : nullptr;
         result.actor_availability_block =
-            set_legacy_battle_actor_availability_block(
-                actor,
-                {
-                    .value = value,
-                    .actor_token = group_a_token(actor_code),
-                    .entry_eax = eax,
-                    .entry_edx = edx,
-                }
-            );
-        ++result.actor_availability_block_calls;
-        eax = result.actor_availability_block.return_eax;
-        ecx = result.actor_availability_block.return_ecx;
-        edx = result.actor_availability_block.return_edx;
-        if (result.actor_availability_block.status ==
+            set_legacy_battle_actor_availability_block(actor, value);
+        eax = value;
+        ecx = group_a_token(actor_code);
+        if (result.actor_availability_block->status ==
             LegacyBattleActorAvailabilityBlockStatus::completed) {
             return true;
         }

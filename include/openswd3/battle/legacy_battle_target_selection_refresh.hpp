@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "openswd3/battle/legacy_battle_actor_frame_snapshot.hpp"
 #include "openswd3/battle/legacy_battle_debug_hotkeys.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
@@ -113,8 +115,8 @@ struct LegacyBattleTargetSelectionRefreshResult {
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
     compat::u32 sample_calls{};
-    LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
-    compat::u32 actor_availability_block_calls{};
+    std::optional<LegacyBattleActorAvailabilityBlockResult>
+        actor_availability_block;
     compat::u32 actor_runtime_reads{};
     compat::u32 actor_runtime_writes{};
     compat::u32 workspace_reads{};

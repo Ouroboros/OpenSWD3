@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_actor_retreat_ready.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_snapshot.hpp"
@@ -257,8 +259,8 @@ struct LegacyBattleInputDispatchResult {
     compat::u32 input_record_reads{};
     compat::u32 input_record_writes{};
     compat::u32 delay_calls{};
-    LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
-    compat::u32 actor_availability_block_calls{};
+    std::optional<LegacyBattleActorAvailabilityBlockResult>
+        actor_availability_block;
     std::vector<LegacyBattleTextMessageResult> text_messages;
     compat::u32 text_message_calls{};
     LegacyBattleActorRetreatReadyResult actor_retreat_ready{};
