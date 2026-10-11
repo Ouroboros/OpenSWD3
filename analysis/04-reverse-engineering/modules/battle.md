@@ -744,7 +744,10 @@ core/ASan角色帧各1/1及SDL链接通过；见`evidence/battle-enemy-presentat
 完整DWORD门及镜像先于坐标读写的失败前缀。最终core/ASan角色帧各1/1、SDL链接通过；
 见`evidence/battle-script-mirror-0047f900.md`。
 召唤与新增敌人也借脚本共用的全局镜像设置，删除两个副本，保留零与精确1比较和实时读取。
-跨链与失败验证见`evidence/battle-shared-mirror-setting-0053c000.md`。其他父协议仍待迁移。
+跨链与失败验证见`evidence/battle-shared-mirror-setting-0053c000.md`。
+脚本50复制敌人坐标时直接读取所选敌人的实际WORD参数，删除查询编号及模拟回复。
+参数发布、固定坐标来源和失败验证见`evidence/battle-script-enemy-profile-0047f910.md`。
+脚本、行动与最终角色父协议仍待迁移。
 结束段10敌人扫描的额外写入已静态定位到CRT缓冲区和PE资源载荷；
 运行期页保护、异常与其他父协议继续待核实或迁移。
 当前验证范围见`evidence/battle-script-overlay-initialization.md`及

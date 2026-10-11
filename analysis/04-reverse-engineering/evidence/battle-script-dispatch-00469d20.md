@@ -2,6 +2,12 @@
 
 状态：`platform_adapted`（历史登记）。B11已接三个动态文字入口与共用消息链；完整SDL帧仍未验收，既有机械矩阵和测试不能证明完整路径已收敛。
 
+## 复制敌人坐标时读取实际参数
+
+脚本50直接读取实际敌人记录的WORD参数，删除47F910枚举和模拟回复。
+保留共享高WORD发布、敌人0坐标来源、后继失败及清除顺序。
+验证见[实际敌人参数读取](battle-script-enemy-profile-0047f910.md)，父协议仍pending。
+
 ## 角色镜像
 
 脚本20/45直接写实际角色镜像DWORD，删除四处物理调用对应的通用调用和47F900枚举。
@@ -625,10 +631,10 @@ Group-A在当前坐标查询后形成`EAX=1007*(actor-8)`与actor ECX，保留�
 
 工作包288 REVIEW 2关闭case 5 `0x0046A694`、case 13 `0x0046A7C6`、case 45 `0x0046BA42/0x0046BAB5`、case 22 `0x0046BB44/0x0046BB9D`、case 39 `0x0046C610`、case 40 `0x0046C8AA/0x0046C929/0x0046C97D`、case 73 `0x0046CA77/0x0046CACB`与case 50 `0x0046CD72`。十三处均从startup party或Group-B lifecycle action-execution解析canonical view并直接组合`query_legacy_battle_actor_current_coordinates()`；`reserved_actor_current_coordinate_query`保留`0x00478600`枚举值，但脚本生产分派和SDL adapter都不再转发该调用，reserved槽为空reply。
 
-case 5、13与40入口按脚本token的`<=7/>7`分支分别保留`0x00525508 + t*0x2B28`或`0x005029D0 + (t-8)*0x2F34`的物理地址公式；case 39先提交`actor|0x8000`再以`actor&0x7FFF`选址；case 50先完成脚本actor的`0x0047F910`调用与返回AX提交，但current-coordinate actor固定为`0x00525508`。两套输出scratch严格保持`0x0053CCE8/0x0053CCEC`的dword低字写入与`0x0053CE78/0x0053CE7A`的word pair写入，dword高字不被leaf修改。
+case 5、13与40入口按脚本token的`<=7/>7`分支分别保留`0x00525508 + t*0x2B28`或`0x005029D0 + (t-8)*0x2F34`的物理地址公式；case 39先提交`actor|0x8000`再以`actor&0x7FFF`选址；case 50在`1f4e6749`后直接读取实际所选actor的`+2A0C` WORD并提交共享高WORD，current-coordinate actor仍固定为`0x00525508`。两套输出scratch严格保持`0x0053CCE8/0x0053CCEC`的dword低字写入与`0x0053CE78/0x0053CE7A`的word pair写入，dword高字不被leaf修改。
 
-每个站点保存caller地址、typed leaf request/result与累计调用数。正常返回保留caller-specific EAX高word并令`AX=Y`、`EDX=out_x token`、`ECX=out_y token`，MOV/RET使入口flags原样返回；case 45与50把前置`0x0047F900/0x0047F910`可注入的真实EAX/EDX/flags直接送入leaf，不以常量替代。成功后才执行各自首后缀：case 45按完整packed dword做`640-X`并为第二站保留Y低字覆盖后的EDX，case 22做32-bit X ADD，case 40/73做16-bit X ADD，case 39构造序列表，case 50继续向脚本选定actor发布。
+每个站点保存caller地址、typed leaf request/result与累计调用数。正常返回保留caller-specific EAX高word并令`AX=Y`、`EDX=out_x token`、`ECX=out_y token`，MOV/RET使入口flags原样返回；case 45/50的前置纯写与查询现已直接访问共享字段，EAX/EDX/flags按实际字段和地址算术推导；旧可注入回复已撤回，见镜像和实际敌人参数读取证据。成功后才执行各自首后缀：case 45按完整packed dword做`640-X`并为第二站保留Y低字覆盖后的EDX，case 22做32-bit X ADD，case 40/73做16-bit X ADD，case 39构造序列表，case 50继续向脚本选定actor发布。
 
-六类停止分别覆盖第一输出指针读取、X读取、X写入、Y读取、第二输出指针读取与Y写入。任一停止都映射为`actor_current_coordinate_typed_stop`并阻断当前站点第一条后缀、publication、index/count推进、剩余轮次、cursor、mirror、frame与共享清理；Y读取及其后的停止保留X低字提交，dword高字和未写Y保持。第一参数读取前EDX保留caller入口值、读取后变为out-X；第二参数读取前ECX保留actor token、读取后变为out-Y，dispatcher最终返回与leaf停止点一致。case 45/50的前置callee副作用、case 39的高位actor标记、case 40/73的前置步长状态以及循环中此前完成的查询和publication均不回滚。
+六类停止分别覆盖第一输出指针读取、X读取、X写入、Y读取、第二输出指针读取与Y写入。任一停止都映射为`actor_current_coordinate_typed_stop`并阻断当前站点第一条后缀、publication、index/count推进、剩余轮次、cursor、mirror、frame与共享清理；Y读取及其后的停止保留X低字提交，dword高字和未写Y保持。第一参数读取前EDX保留caller入口值、读取后变为out-X；第二参数读取前ECX保留actor token、读取后变为out-Y，dispatcher最终返回与leaf停止点一致。case 45/50的前置共享字段写入、case 39的高位actor标记、case 40/73的前置步长状态以及循环中此前完成的查询和publication均不回滚。
 
 定向`battle.legacy_battle_setup`覆盖十三个地址的正常trace、token 7/8边界、case 40的0/16可达边界、case 39高位掩码、两套scratch、callee残值、EAX高word、ECX/EDX、flags、zero/first/multi-round、八个物理循环站点回边、首轮后live count缩短与扩展、十三乘六typed-stop、X部分提交、前轮保留、正常后缀和reserved零调用。current-coordinate leaf自身的输出互相alias、输出覆盖actor字段及第二访问观察首写语义继续由actor-coordinate定向测试覆盖。工作包288的caller回收达到`19/21`，inventory row 288继续保持`pending_audit`，等待REVIEW 3回收turn gate与Group-B action17。原版联合动态差分继续登记为`blocked_runtime_oracle`。
