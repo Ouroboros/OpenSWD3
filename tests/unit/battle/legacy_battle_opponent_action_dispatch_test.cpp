@@ -1,3 +1,4 @@
+#include "fixed_node_memory_resource.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
 #include "test.hpp"
@@ -36,9 +37,6 @@ public:
             const auto reply = found->second.front();
             found->second.pop_front();
             return reply;
-        }
-        if (request.callee_token == 0x00489E90U) {
-            return {.eax = 0x90000000U};
         }
         return default_reply;
     }
@@ -688,23 +686,58 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const bool allocation_enabled : {false, true}) {
+        openswd3::test::FixedNodeMemoryResource memory;
+        openswd3::test::FixedNodeMemoryResource later_memory;
+        memory.allocation_enabled = allocation_enabled;
         LegacyBattleActionDispatchState state;
         Fixture fixture;
         DispatchPort port;
         port.action = 2U;
         auto context = fixture.context();
+        context.deformation_memory = &memory;
         const auto initialized = dispatch(state, port, context, 0U, 99U);
+        test.expect_true(
+            initialized.status == LegacyBattleActionDispatchStatus::completed &&
+                initialized.return_value == 0U && state.deformation_active &&
+                bool(state.deformation) == allocation_enabled &&
+                memory.outstanding_blocks == (allocation_enabled ? 1U : 0U),
+            "opponent action two publishes real storage or null while retaining the allocation prefix"
+        );
+        if (state.deformation) {
+            const auto& geometry = state.deformation->state();
+            test.expect_true(
+                geometry.framebuffer_width == 640U &&
+                    geometry.framebuffer_height == 480U &&
+                    geometry.field_width == 200U &&
+                    geometry.field_height == 200U && geometry.origin_x == 0 &&
+                    geometry.origin_y == 0,
+                "opponent action two uses the original deformation geometry"
+            );
+            state.deformation->field(1U)[0U] = 23;
+        }
+
+        context.deformation_memory = &later_memory;
+        const auto waiting = dispatch(state, port, context, 0U, 99U);
+        test.expect_true(
+            waiting.status == LegacyBattleActionDispatchStatus::completed &&
+                waiting.return_value == 0U && state.deformation_active &&
+                memory.outstanding_blocks == (allocation_enabled ? 1U : 0U) &&
+                later_memory.outstanding_blocks == 0U &&
+                (!state.deformation || state.deformation->field(1U)[0U] == 23),
+            "unfinished opponent actions retain their original resource and field contents"
+        );
         state.action_runtime_flags |= 1U;
         const auto completed = dispatch(state, port, context, 0U, 99U);
         test.expect_true(
-            initialized.return_value == 0U && completed.return_value == 1U &&
-                port.count(0x00489E90U) == 1U &&
-                port.count(0x00489D00U) == 1U && !state.deformation &&
-                !state.deformation_active &&
-                state.deformation_owner_token == 0U &&
+            completed.status == LegacyBattleActionDispatchStatus::completed &&
+                completed.return_value == 1U && !state.deformation &&
+                !state.deformation_active && memory.outstanding_blocks == 0U &&
+                later_memory.outstanding_blocks == 0U &&
+                port.count(0x00489E90U) == 0U &&
+                port.count(0x00489D00U) == 0U &&
                 state.frame_effect.fade_active == 1U,
-            "opponent action two releases deformation owner on completed runtime bit"
+            "opponent completion releases through the original allocator without generic calls"
         );
     }
 

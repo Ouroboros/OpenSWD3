@@ -687,6 +687,12 @@ signed值和清屏前缀。8类已关闭callee直接组合，其余87个唯一ca
 两个已关闭deformation callee和framebuffer清屏直接组合，
 其余35个唯一callee边界复用共享typed token端口。
 
+双方动作2的变形对象改由实际内存资源分配并独占持有，删除原分配释放
+端口与对象编号。空分配保持先前活动标记；完成后由原分配器释放，
+构造异常回收本体后传播。效果帧的借用及其余父协议仍待迁移，
+本批不升级整链验收。行为与当前验证状态见
+`evidence/battle-action-deformation-owned-storage.md`。
+
 `audit_order=63`的`0x00456680`已关闭为`platform_adapted`。
 完整权威LST主体`0x00456680..0x0045769B`共1795行、101个静态call站点、84个局部标签且无外部chunk。
 实现恢复组A效果门、AI terminal统计与无上限随机组B选择、十槽actor queue、idle角色frame启动、

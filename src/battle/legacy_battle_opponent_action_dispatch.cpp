@@ -23,8 +23,6 @@ using compat::u32;
 constexpr u32 kCallCommitVisual = 0x0047F150U;
 constexpr u32 kCallQuerySelection = 0x0047C680U;
 constexpr u32 kCallQuerySpecial = 0x0047D8E0U;
-constexpr u32 kCallAllocate = 0x00489E90U;
-constexpr u32 kCallDelete = 0x00489D00U;
 constexpr u32 kCallFinishTargetPhase = 0x004841B0U;
 constexpr u32 kCallClearMode = 0x0047D870U;
 constexpr u32 kCallActionTen = 0x0047F3C0U;
@@ -588,30 +586,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             if (invoke(state, port, kCallQuerySpecial, {source_token}).eax ==
                 1U) {
                 state.deformation_active = true;
-                const u32 owner =
-                    invoke(state, port, kCallAllocate, {0x2CU}).eax;
-                state.deformation_owner_token = owner;
-                if (owner != 0U) {
-                    try {
-                        state.deformation = std::make_unique<
-                            asset_runtime::LegacyDeformationNode>(
-                            asset_runtime::LegacyDeformationConfiguration{
-                                .framebuffer_width = 640U,
-                                .framebuffer_height = 480U,
-                                .origin_x = 0,
-                                .origin_y = 0,
-                                .field_width = 200U,
-                                .field_height = 200U,
-                            }
-                        );
-                    } catch (...) {
-                        static_cast<void>(
-                            invoke(state, port, kCallDelete, {owner})
-                        );
-                        state.deformation_owner_token = 0U;
-                        throw;
-                    }
-                }
+                state.deformation =
+                    make_legacy_battle_deformation(*context.deformation_memory);
             }
         }
         if ((state.action_runtime_flags & 1U) == 0U) {
@@ -620,10 +596,6 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         clear_selection_state(state, port);
         if (state.deformation_active && state.deformation) {
             state.deformation.reset();
-            static_cast<void>(invoke(
-                state, port, kCallDelete, {state.deformation_owner_token}
-            ));
-            state.deformation_owner_token = 0U;
         }
         state.deformation_active = false;
         state.frame_effect.fade_active = 1U;

@@ -26,7 +26,10 @@ size = 0x15 bytes
 loc_498370 + SEH_455D60
 ```
 
-完整函数包含52个call站点。chunk在deformation构造抛异常时释放刚分配的owner，并跳MSVC异常展开。modern先取得legacy owner token，再用`std::make_unique`构造typed对象；catch释放该token并继续抛出。
+完整函数包含52个call站点。chunk在deformation构造抛异常时释放新分配
+的本体，并跳MSVC异常展开。当前直接取得实际内存并构造对象，异常时
+通过原内存资源释放本体后继续抛出；已删除分配释放端口及伪指针。
+详见[变形对象所有权](battle-action-deformation-owned-storage.md)。
 
 唯一caller为尚未关闭的`0x004576A0`，当前不提前计数。
 

@@ -19,7 +19,11 @@ size = 0x15 bytes
 loc_498350 + SEH_4539B0
 ```
 
-完整函数因此包含203个call站点。外部chunk负责构造deformation对象异常时释放刚分配的owner，再跳MSVC异常展开。modern以`std::make_unique`承担主机对象异常安全，并在catch路径调用legacy owner释放端口后继续抛出，不吞异常。
+完整函数因此包含203个call站点。外部chunk在构造deformation对象异常时
+释放新分配的本体，再跳MSVC异常展开。当前实现直接拥有实际对象；
+构造异常回收本体后继续抛出，不清除已经写入的活动标记。
+分配/释放端口及伪指针已删除，详见
+[变形对象所有权](battle-action-deformation-owned-storage.md)。
 
 ABI为两个参数cdecl/plain `retn`：第一参数选择角色组A槽，第二参数按动作语义选择角色组B或另一角色槽。唯一caller位于尚未关闭的`0x00456680`；当前caller不提前计数。
 
@@ -119,7 +123,9 @@ case 8–10、16、18–21、30以及大于36的值走default并返回0；只保
 - 18项selection workspace清零；
 - available count只在大于当前side角色数时下调。
 
-case 2还可直接构造`640×480, origin 0,0, field 200×200` deformation对象；allocator返回0时owner保持空。runtime低word bit0未置位时返回0。
+case 2还可直接构造`640×480, origin 0,0, field 200×200`变形对象。
+实际对象本体分配失败时发布空所有者，保持之前的活动标记写入。
+runtime低word bit0未置位时返回0。
 
 完成阶段先清accumulator和两个selection word。case 2若battle flags bit`0x20`置位则保留deformation并返回；否则直接析构对象并释放owner。case 3调用选择计算callee。两者随后置fade active、延迟300；case 3再直接组合已关闭撤退提交，按角色就绪、首对象状态和mode门决定提示音或九项共享状态发布。旧撤退callee token已删除，返回仍按原caller忽略。
 

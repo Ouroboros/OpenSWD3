@@ -256,34 +256,10 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
                 invoke(state, port, kCallQuerySpecial, {actor_token}).eax ==
                     1U) {
                 state.deformation_active = true;
-                reply = invoke(state, port, 0x00489E90U, {0x2CU});
-                state.deformation_owner_token = reply.eax;
-                if (reply.eax != 0U) {
-                    try {
-                        state.deformation = std::make_unique<
-                            asset_runtime::LegacyDeformationNode>(
-                            asset_runtime::LegacyDeformationConfiguration{
-                                .framebuffer_width = 640U,
-                                .framebuffer_height = 480U,
-                                .origin_x = 0,
-                                .origin_y = 0,
-                                .field_width = 200U,
-                                .field_height = 200U,
-                            }
-                        );
-                    } catch (...) {
-                        static_cast<void>(invoke(
-                            state,
-                            port,
-                            0x00489D00U,
-                            {state.deformation_owner_token}
-                        ));
-                        state.deformation_owner_token = 0U;
-                        state.deformation_active = false;
-                        throw;
-                    }
-                }
+                state.deformation =
+                    make_legacy_battle_deformation(*context.deformation_memory);
             }
+
             const i32 side_count = state.side_mode != 0U ? state.group_a_count
                                                          : state.group_b_count;
             if (state.available_actor_count > side_count) {
@@ -297,27 +273,16 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
         port.battle_pair_primary_value() = 0U;
         state.selection_word = 0U;
         state.selection_high_word = 0U;
-        u32 mode_predecessor = 0U;
         if (action == 2U) {
-            mode_predecessor = static_cast<u8>(
-                port.battle_debug_hotkey_state().battle_mode_flags_53bc24
-            );
-            if ((mode_predecessor & 0x20U) != 0U) {
+            if ((port.battle_debug_hotkey_state().battle_mode_flags_53bc24 &
+                 0x20U) != 0U) {
                 return result;
             }
+
             if (state.deformation_active) {
                 state.deformation.reset();
-                if (state.deformation_owner_token != 0U) {
-                    const auto released = invoke(
-                        state,
-                        port,
-                        0x00489D00U,
-                        {state.deformation_owner_token}
-                    );
-                    mode_predecessor = released.eax;
-                }
             }
-            state.deformation_owner_token = 0U;
+
             state.deformation_active = false;
         } else if (context.scripted_resource_release_test_compat) {
             reply = invoke(
@@ -356,15 +321,6 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             if (mode_status != LegacyBattleActorActionModeStatus::completed) {
                 result.status = LegacyBattleActionDispatchStatus::
                     actor_action_mode_typed_stop;
-                result.return_value = mode_status ==
-                        LegacyBattleActorActionModeStatus::
-                            argument_read_typed_stop
-                    ? mode_predecessor
-                    : mode_status ==
-                        LegacyBattleActorActionModeStatus::
-                            return_address_read_typed_stop
-                    ? 1U
-                    : (0x12CU);
                 return result;
             }
         }

@@ -1,3 +1,4 @@
+#include "fixed_node_memory_resource.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "test.hpp"
@@ -55,9 +56,6 @@ public:
         }
         if (request.callee_token == 0x0047CE80U) {
             return {.eax = terminal_return};
-        }
-        if (request.callee_token == 0x00489E90U) {
-            return {.eax = 0x90000000U};
         }
         if (request.callee_token == 0x00480AD0U) {
             return {.eax = 0xA0000000U};
@@ -1240,35 +1238,86 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const bool allocation_enabled : {false, true}) {
+        openswd3::test::FixedNodeMemoryResource memory;
+        openswd3::test::FixedNodeMemoryResource later_memory;
+        memory.allocation_enabled = allocation_enabled;
         LegacyBattleActionDispatchState state;
         Fixture fixture;
         DispatchPort port;
         port.action = 2U;
         auto context = fixture.context();
+        context.deformation_memory = &memory;
         const auto initialized = dispatch(state, port, context, 0U, 0U);
-        state.action_runtime_flags |= 1U;
-        const auto completed = dispatch(state, port, context, 0U, 0U);
         test.expect_true(
             initialized.status == LegacyBattleActionDispatchStatus::completed &&
-                completed.status ==
-                    LegacyBattleActionDispatchStatus::completed &&
-                port.count(0x00489E90U) == 1U &&
-                port.count(0x00489D00U) == 1U && !state.deformation &&
-                !state.deformation_active &&
-                state.deformation_owner_token == 0U &&
+                state.deformation_active &&
+                bool(state.deformation) == allocation_enabled &&
+                memory.outstanding_blocks == (allocation_enabled ? 1U : 0U),
+            "action two owns actual storage or publishes the original null-allocation result"
+        );
+        if (state.deformation) {
+            const auto& geometry = state.deformation->state();
+            test.expect_true(
+                geometry.framebuffer_width == 640U &&
+                    geometry.framebuffer_height == 480U &&
+                    geometry.field_width == 200U &&
+                    geometry.field_height == 200U && geometry.origin_x == 0 &&
+                    geometry.origin_y == 0,
+                "action two constructs the original framebuffer and field dimensions"
+            );
+            state.deformation->field(0U)[0U] = 19;
+        }
+
+        context.deformation_memory = &later_memory;
+        const auto waiting = dispatch(state, port, context, 0U, 0U);
+        test.expect_true(
+            waiting.status == LegacyBattleActionDispatchStatus::completed &&
+                state.deformation_active &&
+                memory.outstanding_blocks == (allocation_enabled ? 1U : 0U) &&
+                later_memory.outstanding_blocks == 0U &&
+                (!state.deformation || state.deformation->field(0U)[0U] == 19),
+            "an unfinished action retains its existing object without reallocating"
+        );
+        state.action_runtime_flags |= 1U;
+        state.selection_word = 7U;
+        state.selection_high_word = 8U;
+        port.battle_pair_primary_value() = 9U;
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0x20U;
+        const auto retained = dispatch(state, port, context, 0U, 0U);
+        test.expect_true(
+            retained.status == LegacyBattleActionDispatchStatus::completed &&
+                state.deformation_active &&
+                bool(state.deformation) == allocation_enabled &&
+                memory.outstanding_blocks == (allocation_enabled ? 1U : 0U) &&
+                state.selection_word == 0U && state.selection_high_word == 0U &&
+                port.battle_pair_primary_value() == 0U &&
+                state.frame_effect.fade_active == 0U,
+            "mode bit twenty preserves the object after committing selection clears"
+        );
+        port.battle_debug_hotkey_state().battle_mode_flags_53bc24 = 0U;
+        const auto completed = dispatch(state, port, context, 0U, 0U);
+        test.expect_true(
+            completed.status == LegacyBattleActionDispatchStatus::completed &&
+                !state.deformation && !state.deformation_active &&
+                memory.outstanding_blocks == 0U &&
+                later_memory.outstanding_blocks == 0U &&
+                port.count(0x00489E90U) == 0U &&
+                port.count(0x00489D00U) == 0U &&
                 state.frame_effect.fade_active == 1U,
-            "action two constructs deformation after allocation and releases owner only on completed low bit"
+            "completion releases through the original allocator without generic allocation or deletion"
         );
     }
 
     for (const bool release_owner : {false, true}) {
         for (u32 fault = 0U; fault < 3U; ++fault) {
+            openswd3::test::FixedNodeMemoryResource memory;
             auto state = std::make_unique<LegacyBattleActionDispatchState>();
             auto fixture = std::make_unique<Fixture>();
             DispatchPort port;
             port.action = 2U;
             auto context = fixture->context();
+            context.deformation_memory = &memory;
             if (release_owner) {
                 const auto initialized =
                     dispatch(*state, port, context, 0U, 0U);
@@ -1278,7 +1327,6 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                         state->deformation != nullptr,
                     "action-two fault vector constructs the actual deformation owner"
                 );
-                port.push(0x00489D00U, {.eax = 0xAABBCCDDU});
             }
 
             state->action_runtime_flags = 0x8001U;
@@ -1289,22 +1337,26 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
             context.actor_action_mode_access.return_address_readable =
                 fault != 2U;
             const auto stopped = dispatch(*state, port, context, 0U, 0U);
-            const u32 predecessor = release_owner ? 0xAABBCCDDU : 5U;
+            using ModeStatus =
+                openswd3::battle::LegacyBattleActorActionModeStatus;
+            constexpr std::array statuses{
+                ModeStatus::argument_read_typed_stop,
+                ModeStatus::action_kind_write_typed_stop,
+                ModeStatus::return_address_read_typed_stop,
+            };
+
             test.expect_true(
                 stopped.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_action_mode_typed_stop &&
-                    stopped.return_value ==
-                        (fault == 0U       ? predecessor
-                             : fault == 1U ? 300U
-                                           : 1U) &&
                     stopped.actor_action_mode.has_value() &&
+                    stopped.actor_action_mode->status == statuses[fault] &&
                     state->group_a_action_execution[0U].action_kind ==
                         (fault == 2U ? 300U : 2U) &&
                     !state->deformation && !state->deformation_active &&
-                    state->deformation_owner_token == 0U &&
-                    port.count(0x00489D00U) == (release_owner ? 1U : 0U),
-                "action-two mode failures preserve the actual flag-byte or completed owner-release predecessor and committed writes"
+                    memory.outstanding_blocks == 0U &&
+                    port.count(0x00489D00U) == 0U,
+                "action-two mode failures preserve actual resource release and committed field writes"
             );
         }
     }

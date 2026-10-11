@@ -7,6 +7,7 @@ add_library(
         legacy_battle_action_dispatch_runner.cpp
         legacy_battle_action_dispatch_cases_low.cpp
         legacy_battle_action_dispatch_cases_high.cpp
+        legacy_battle_deformation.cpp
         legacy_battle_action_frame_draw.cpp
         legacy_battle_action_mode_refresh.cpp
         legacy_battle_action_summary.cpp

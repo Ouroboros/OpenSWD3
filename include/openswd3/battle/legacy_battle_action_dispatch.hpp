@@ -5,7 +5,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/audio_video/legacy_sample_manager.hpp"
-#include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
+#include "openswd3/battle/legacy_battle_deformation.hpp"
 #include "openswd3/battle/legacy_battle_retreat_commit.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution_state.hpp"
 #include "openswd3/battle/legacy_battle_actor_availability_block.hpp"
@@ -1409,8 +1409,7 @@ struct LegacyBattleActionDispatchState {
     std::array<compat::u16, 8> group_b_status_words{};
     std::array<compat::u16, 10> group_a_status_words{};
 
-    std::unique_ptr<asset_runtime::LegacyDeformationNode> deformation;
-    compat::u32 deformation_owner_token{};
+    LegacyBattleDeformation deformation;
     bool deformation_active{};
 
     LegacyBattleFrameEffectState frame_effect{};
@@ -1506,6 +1505,9 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorActionTargetRequest post_action_target_request{};
     LegacyBattleImageParticleStackSnapshot target_phase_spawn_stack_snapshot{};
     bool scripted_resource_release_test_compat{};
+    std::pmr::memory_resource* deformation_memory{
+        std::pmr::get_default_resource()
+    };
 };
 
 enum class LegacyBattleActionDispatchStatus : compat::u8 {
