@@ -1,5 +1,5 @@
 {
-  "source_revision": "52b3c84e599d8de0ad4a00fbee904e9b1e266828",
+  "source_revision": "78c241739c3bb896d5c06fca3552b6bf0f211f0e",
   "baseline_revision": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scanned_production_files": 874,
   "candidate_units": 324,
@@ -9,7 +9,7 @@
   "pending_units": 293,
   "pending_without_scan_signals": 12,
   "pending_with_scan_signals": 281,
-  "last_reviewed_source_revision": "52b3c84e599d8de0ad4a00fbee904e9b1e266828",
+  "last_reviewed_source_revision": "78c241739c3bb896d5c06fca3552b6bf0f211f0e",
   "source_commits_since_last_review": 0,
   "candidate_review_coverage_percent": 8.4,
   "scope_exhaustiveness_verified": false

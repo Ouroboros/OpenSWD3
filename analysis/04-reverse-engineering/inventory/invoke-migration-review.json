@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "52b3c84e599d8de0ad4a00fbee904e9b1e266828",
+  "last_reviewed_source_revision": "78c241739c3bb896d5c06fca3552b6bf0f211f0e",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -571,11 +571,17 @@
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-group-a-vector-destruction-004517e0.md",
       "reason": "已接通共享构造、逆序析构及退出清理；仍继承StartupResetHeapPort，构造期异常展开、次级资源生产来源和保留地址区间寿命仍待核验"
     },
+    "battle/legacy_battle_group_b_action_configuration": {
+      "status": "pending",
+      "last_reviewed_commit": "78c24173",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-startup-drawing-suppression-0047d870.md",
+      "reason": "启动绘制抑制直接写实际敌方字段，删除set_extra_mode转发；镜像转发和配置的寄存器式结果仍待迁移"
+    },
     "battle/legacy_battle_group_b_storage": {
       "status": "pending",
-      "last_reviewed_commit": "5402ee36",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-group-b-vector-destruction-00451840.md",
-      "reason": "已接通真实八元素构造、逆序析构及退出清理；仍继承StartupResetHeapPort，构造期异常展开和保留地址区间寿命仍待核验"
+      "last_reviewed_commit": "78c24173",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-startup-drawing-suppression-0047d870.md",
+      "reason": "两条启动配置共用实际绘制抑制写入，删除该转发及多余对象引用；镜像转发和整体堆、异常展开与地址寿命仍待逐项复核"
     },
     "battle/legacy_battle_group_b_resource_cleanup": {
       "status": "verified",
@@ -653,9 +659,9 @@
     },
     "battle/legacy_battle_startup": {
       "status": "pending",
-      "last_reviewed_commit": "9f1ee804",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-definition-archive-owned-files.md",
-      "reason": "FFD文件协议及调用方已迁移，共享头部与记录保持真实短读和失败寿命；startup仍有通用操作枚举、参数数组、寄存器请求结果和调用计数，不能把整个启动接口族计为完成"
+      "last_reviewed_commit": "78c24173",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-startup-drawing-suppression-0047d870.md",
+      "reason": "定义WORD恰为1时直接写实际敌方绘制抑制，删除set_enemy_mode及转发；仍有通用操作枚举、参数数组、寄存器请求结果和调用计数，整个启动接口族仍待迁移"
     },
     "battle/legacy_battle_screen_flash": {
       "status": "verified",
