@@ -24,7 +24,6 @@ constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallUpdateOpponent = 0x0047DAD0U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
-constexpr u32 kCallClearControl = 0x0047C660U;
 constexpr u32 kCallQuerySelectionMode = 0x00483820U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
 constexpr u32 kCallPublishStatusMode = 0x0047D860U;
@@ -738,12 +737,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                     }
                                 }
                                 if (target_available) {
-                                    const auto cleared = invoke(
-                                        port, kCallClearControl, {target, 0U}
-                                    );
                                     auto& target_actor =
                                         action
                                             .group_a_action_execution[scanned];
+                                    target_actor.overlay_render_enabled = 0U;
                                     result.actor_start_gate_increment =
                                         increment_legacy_battle_actor_start_gate(
                                             &target_actor.start_gate,
@@ -758,7 +755,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         result.status =
                                             LegacyBattleActionDispatchStatus::
                                                 actor_start_gate_increment_typed_stop;
-                                        result.return_value = cleared.eax;
                                         return result;
                                     }
 

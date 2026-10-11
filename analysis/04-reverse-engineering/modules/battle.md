@@ -707,6 +707,10 @@ target guard highword和turn word保持独立。
 保持先清标记后计数/动作的顺序，移除本批操作编号及伪造返回。
 其他父协议仍待迁移；当前验证与边界见
 `evidence/battle-group-a-overlay-clear.md`。
+敌方选人及队员收尾的另外三处清零也已写入实际角色标记，
+保留先队员后敌人、先清零后门发布和失败前缀；移除旧调用及收尾扫描计数。
+core/ASan角色帧各1/1及SDL链接通过，父协议仍待迁移。
+见`evidence/battle-group-b-final-overlay-clear.md`。
 
 `audit_order=64`的`0x004576A0`已关闭为`platform_adapted`。
 完整权威LST主体`0x004576A0..0x004582AB`共1356行、86个静态call站点、66个局部标签且无外部chunk。

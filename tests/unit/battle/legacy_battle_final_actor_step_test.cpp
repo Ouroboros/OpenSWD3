@@ -114,9 +114,112 @@ void bind_group_b_coordinate_resource(
     actor.resource_bytes[0x8BU] = static_cast<openswd3::compat::u8>(y >> 8U);
 }
 
+void test_final_overlay_clearing(openswd3::test::Context& test) {
+    struct OverlayCase {
+        openswd3::compat::i32 party_count;
+        openswd3::compat::i32 enemy_count;
+        bool allocated;
+        bool queued;
+        u32 cleared_party;
+        u32 cleared_enemy;
+        bool failed;
+    };
+
+    constexpr OverlayCase cases[]{
+        {3, 2, true, true, 3U, 2U, false},
+        {10, 8, true, true, 10U, 8U, false},
+        {0, 0, true, true, 0U, 0U, false},
+        {-1, -1, true, true, 0U, 0U, false},
+        {3, 2, true, false, 0U, 0U, false},
+        {3, 2, false, true, 3U, 0U, true},
+        {11, 2, true, true, 10U, 0U, true},
+        {3, 9, true, true, 3U, 8U, true},
+    };
+
+    for (const u32 before : {1U, 0x80000000U, 0xFFFFFFFFU}) {
+        for (const auto& scenario : cases) {
+            LegacyBattleFinalActorStepState state;
+            auto action_storage = std::make_unique<
+                openswd3::battle::LegacyBattleActionDispatchState>();
+            auto& action = *action_storage;
+            action.group_a_count = scenario.party_count;
+            action.group_b_count = scenario.enemy_count;
+            state.queued_actor_code = scenario.queued ? 8U : 7U;
+            state.action_execution_active = 77U;
+            state.group_a_slot_values[0U] = 0x12345678U;
+            for (auto& actor : action.group_a_action_execution) {
+                actor.overlay_render_enabled = before;
+            }
+
+            FinalStepPort port;
+            if (scenario.allocated) {
+                static_cast<void>(group_b_actor(port, 0U));
+                for (auto& enemy : *port.startup->group_b_lifecycle) {
+                    enemy.action_execution.overlay_render_enabled = before;
+                }
+            }
+
+            port.attack_order_records[0U].value_00 = 8U;
+            port.push(0x00479850U, {.eax = 1U});
+            const auto result =
+                openswd3::battle::advance_legacy_battle_final_actor_step(
+                    state,
+                    action,
+                    port,
+                    port.attack_order(),
+                    0U,
+                    1U,
+                    port.startup.get()
+                );
+            bool fields_match = true;
+            for (std::size_t index = 0U;
+                 index < action.group_a_action_execution.size();
+                 ++index) {
+                fields_match = fields_match &&
+                    action.group_a_action_execution[index]
+                            .overlay_render_enabled ==
+                        (index < scenario.cleared_party ? 0U : before);
+            }
+
+            if (scenario.allocated) {
+                for (std::size_t index = 0U;
+                     index < port.startup->group_b_lifecycle->size();
+                     ++index) {
+                    fields_match = fields_match &&
+                        (*port.startup->group_b_lifecycle)[index]
+                                .action_execution.overlay_render_enabled ==
+                            (index < scenario.cleared_enemy ? 0U : before);
+                }
+            }
+
+            const bool gates_published = scenario.queued && !scenario.failed;
+            test.expect_true(
+                result.status ==
+                        (scenario.failed
+                             ? openswd3::battle::
+                                   LegacyBattleActionDispatchStatus::
+                                       actor_overlay_state_missing
+                             : openswd3::battle::
+                                   LegacyBattleActionDispatchStatus::
+                                       completed) &&
+                    fields_match && state.group_a_slot_values[0U] == 0U &&
+                    port.attack_order_records[0U].value_00 == 0xFFFFFFFFU &&
+                    state.queued_actor_code ==
+                        (gates_published       ? 0U
+                             : scenario.queued ? 8U
+                                               : 7U) &&
+                    state.action_execution_active ==
+                        (gates_published ? 0U : 77U),
+                "final actor clears party then enemy overlays with signed bounds, preserving earlier writes and suppressing gate publication on missing storage"
+            );
+        }
+    }
+}
+
 }  // namespace
 
 void test_battle_final_actor_step(openswd3::test::Context& test) {
+    test_final_overlay_clearing(test);
     using openswd3::battle::LegacyBattleActionDispatchState;
     using openswd3::battle::LegacyBattleActionDispatchStatus;
     using openswd3::battle::advance_legacy_battle_final_actor_step;
@@ -705,6 +808,9 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
         action.group_a_action_execution[0U].position_x = 1U;
         action.group_a_action_execution[0U].position_y = 1U;
         bind_group_b_actor_coordinates(port, 0U, 2U, 2U);
+        action.group_a_action_execution[0U].overlay_render_enabled = 1U;
+        group_b_actor(port, 0U).action_execution.overlay_render_enabled =
+            0xFFFFFFFFU;
         port.push(0x00479850U, {.eax = 1U});
         port.push(0x0047F340U, {.eax = 1U});
         port.attack_order_records[0].value_00 = 9U;
@@ -728,13 +834,15 @@ void test_battle_final_actor_step(openswd3::test::Context& test) {
                 state.actor_order[0] == 77U && state.actor_order[9] == 0U &&
                 action.opponent_workspace[3] == 1U &&
                 state.actor_runtime_records[1][4] == 0U &&
-                result.group_a_iterations == 1U &&
-                result.group_b_iterations == 1U &&
+                action.group_a_action_execution[0U].overlay_render_enabled ==
+                    0U &&
+                group_b_actor(port, 0U)
+                        .action_execution.overlay_render_enabled == 0U &&
                 port.count(0x0045B0E0U) == 0U &&
                 result.attack_order_remove.has_value() &&
                 result.attack_order_remove->removed_index.has_value() &&
                 port.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
-                port.count(0x004783B0U) == 0U && port.count(0x0047C660U) == 2U,
+                port.count(0x004783B0U) == 0U,
             "group A completion clears the counted workspace and runs common actor cleanup"
         );
     }

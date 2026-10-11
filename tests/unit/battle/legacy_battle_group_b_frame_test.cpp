@@ -442,13 +442,10 @@ void test_idle_query_failures_and_live_reads(openswd3::test::Context& test) {
         idle = 0U;
         DispatchPort port;
         port.actor_metric_state().priority_actor_index = 0U;
-        bool changed_after_first_read{};
-        port.before_invoke = [&](const auto& request) {
-            if (request.callee_token == 0x0047C660U) {
-                idle = next_value;
-                changed_after_first_read = true;
-            }
-        };
+        state.shared.action.group_a_action_execution[0U]
+            .overlay_render_enabled = next_value;
+        state.shared.action.group_a_action_execution[1U]
+            .overlay_render_enabled = next_value;
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
@@ -456,13 +453,15 @@ void test_idle_query_failures_and_live_reads(openswd3::test::Context& test) {
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
-                changed_after_first_read &&
-                result.actor_idle_state.has_value() &&
-                result.actor_idle_state->value == next_value &&
+                idle == 0U && result.actor_idle_state.has_value() &&
+                result.actor_idle_state->value == 0U &&
                 result.actor_start_gate_increment.has_value() &&
                 !result.actor_action_kind.has_value() &&
-                port.count(0x0047C660U) == 1U,
-            "enemy decision rereads the same real DWORD after target preparation changes it and rejects non-one high values"
+                state.shared.action.group_a_action_execution[0U]
+                        .overlay_render_enabled == 0U &&
+                state.shared.action.group_a_action_execution[1U]
+                        .overlay_render_enabled == next_value,
+            "enemy target preparation clears only the selected party overlay and leaves its own idle state unchanged"
         );
     }
 }
@@ -1094,6 +1093,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         zero_state.shared.action.group_a_count = 1;
         zero_state.shared.action.group_a_action_execution[0U]
             .turn_completion_latch = 0U;
+        zero_state.shared.action.group_a_action_execution[0U]
+            .overlay_render_enabled = 0xFFFFFFFFU;
         Fixture zero_fixture;
         DispatchPort zero_port;
         zero_port.actor_metric_state().priority_actor_index = 0U;
@@ -1109,6 +1110,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         nonzero_state.shared.action.group_a_count = 1;
         nonzero_state.shared.action.group_a_action_execution[0U]
             .turn_completion_latch = 11U;
+        nonzero_state.shared.action.group_a_action_execution[0U]
+            .overlay_render_enabled = 0xFFFFFFFFU;
         Fixture nonzero_fixture;
         DispatchPort nonzero_port;
         nonzero_port.actor_metric_state().priority_actor_index = 0U;
@@ -1129,7 +1132,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleActorIdleStateStatus::
                         completed &&
                 zero_port.count(0x004786A0U) == 0U &&
-                zero_port.count(0x0047C660U) == 1U &&
+                zero_state.shared.action.group_a_action_execution[0U]
+                        .overlay_render_enabled == 0U &&
                 zero.actor_start_gate_increment.has_value() &&
                 zero.actor_start_gate_increment->incremented_start_gate == 1U &&
                 zero.actor_start_gate_increment->start_gate_latch_committed &&
@@ -1146,7 +1150,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 nonzero.actor_idle_state.has_value() &&
                 !nonzero.actor_start_gate_increment.has_value() &&
                 nonzero_port.count(0x004786A0U) == 0U &&
-                nonzero_port.count(0x0047C660U) == 0U &&
+                nonzero_state.shared.action.group_a_action_execution[0U]
+                        .overlay_render_enabled == 0xFFFFFFFFU &&
                 nonzero_port.count(0x00478AC0U) == 0U &&
                 zero_port.count(0x00478690U) == 0U &&
                 nonzero_port.count(0x00478690U) == 0U,
@@ -1166,11 +1171,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         Fixture fixture;
         DispatchPort port;
         port.actor_metric_state().priority_actor_index = 0U;
-        port.push(0x0047C660U, {.eax = 0xAABBCCDDU});
-        port.push(0x0047C660U, {.eax = 0x12345678U});
+        state.shared.action.group_a_action_execution[0U]
+            .overlay_render_enabled = 1U;
+        state.shared.action.group_a_action_execution[1U]
+            .overlay_render_enabled = 0xFFFFFFFFU;
         auto context = fixture.context();
         port.before_invoke = [&](const auto& request) {
-            if (request.callee_token == 0x0047C660U &&
+            if (request.callee_token == 0x0047D930U &&
                 request.arguments[0U] ==
                     openswd3::battle::kLegacyBattleActionGroupABaseToken +
                         openswd3::battle::kLegacyBattleActionGroupAStride) {
@@ -1190,7 +1197,10 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_start_gate_increment_typed_stop &&
-                result.return_value == 0x12345678U &&
+                state.shared.action.group_a_action_execution[0U]
+                        .overlay_render_enabled == 0U &&
+                state.shared.action.group_a_action_execution[1U]
+                        .overlay_render_enabled == 0U &&
                 state.phase_progress == 1U && result.group_a_iterations == 1U &&
                 state.shared.action.group_a_action_execution[0U].start_gate ==
                     0U &&

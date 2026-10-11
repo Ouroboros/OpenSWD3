@@ -13,7 +13,6 @@ using compat::u32;
 using compat::u8;
 
 constexpr u32 kCallValidateActor = 0x00479850U;
-constexpr u32 kCallResetActor = 0x0047C660U;
 constexpr u32 kCallQueryContinuation = 0x0047F340U;
 constexpr u32 kCallQueryDescriptor = 0x00480AD0U;
 constexpr u32 kCallQueryAction = 0x0047F910U;
@@ -327,25 +326,30 @@ void replace_high_word(u32& value, const u16 replacement) noexcept {
 
     if (state.queued_actor_code == actor_code) {
         for (i32 index = 0; index < action.group_a_count; ++index) {
-            static_cast<void>(invoke(
-                port,
-                kCallResetActor,
-                {kLegacyBattleActionGroupABaseToken +
-                     to_bits(index) * kLegacyBattleActionGroupAStride,
-                 0U}
-            ));
-            ++result.group_a_iterations;
+            const u32 ordinal = to_bits(index);
+            if (ordinal >= action.group_a_action_execution.size()) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_overlay_state_missing;
+                return result;
+            }
+
+            action.group_a_action_execution[ordinal].overlay_render_enabled =
+                0U;
         }
+
         for (i32 index = 0; index < action.group_b_count; ++index) {
-            static_cast<void>(invoke(
-                port,
-                kCallResetActor,
-                {kLegacyBattleActionGroupBBaseToken +
-                     to_bits(index) * kLegacyBattleActionGroupBStride,
-                 0U}
-            ));
-            ++result.group_b_iterations;
+            const u32 ordinal = to_bits(index);
+            if (startup == nullptr || startup->group_b_lifecycle == nullptr ||
+                ordinal >= startup->group_b_lifecycle->size()) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_overlay_state_missing;
+                return result;
+            }
+
+            (*startup->group_b_lifecycle)[ordinal]
+                .action_execution.overlay_render_enabled = 0U;
         }
+
         state.queued_actor_code = 0U;
         state.action_execution_active = 0U;
         state.published_actor_code = 1U;
