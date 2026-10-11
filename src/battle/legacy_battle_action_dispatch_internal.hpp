@@ -37,7 +37,6 @@ constexpr u32 kCallCommitTemporaryRecord = 0x0047E070U;
 constexpr u32 kCallComputeValue = 0x00481010U;
 constexpr u32 kCallPlayMessage = 0x00485610U;
 constexpr u32 kCallSetSamplePan = 0x00485650U;
-constexpr u32 kCallQueryTargetCode = 0x0047F910U;
 constexpr u32 kCallTargetPhaseValues = 0x00484500U;
 constexpr u32 kCallTargetPhaseDecode = 0x004019A0U;
 constexpr u32 kCallTargetPhaseProperty = 0x0047CE70U;

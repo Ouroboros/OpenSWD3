@@ -41,6 +41,13 @@ class DispatchPort final
       public openswd3::test::LegacyBattleMonDatabaseFixture,
       public openswd3::test::LegacyBattleFrameRefreshFixture {
 public:
+    DispatchPort() = default;
+
+    explicit DispatchPort(std::pmr::memory_resource& memory) {
+        std::destroy_at(&fixed_count_nodes);
+        std::construct_at(&fixed_count_nodes, &memory);
+    }
+
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
@@ -1636,6 +1643,8 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         state.group_a_target_phases[0U].emitter.remaining_batches = 0U;
         state.group_a_target_phases[0U].emitter.spawned_count = 0;
         Fixture fixture;
+        (*fixture.startup.group_b_lifecycle)[0U]
+            .action_execution.profile_value = 1U;
         DispatchPort port;
         port.action = 6U;
         port.push(0x00487C10U, {.eax = 0x00630000U});
@@ -1689,6 +1698,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
             target.action_configuration.special_ready = 0xB1U;
             target.action_configuration.presentation_enabled = 0xB2U;
             target.runtime_reset.field_2af0 = 0xFFFFFFFFU;
+            target.action_execution.profile_value = 1U;
             DispatchPort port;
             port.action = 6U;
             port.push(0x00487C10U, {.eax = 0x00630000U});
@@ -7749,9 +7759,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         fixture.prepare_target_phase_frame_resource();
         DispatchPort port;
         port.action = 6U;
-        port.push(
-            0x0047F910U, {.eax = 7U, .ecx = 0xAABBCCDDU, .edx = 0x12340000U}
-        );
+        (*fixture.startup.group_b_lifecycle)[0U]
+            .action_execution.profile_value = 7U;
         port.object_words[0U][1U] = (20U << 16U) | 7U;
         auto context = fixture.context();
         const auto result = dispatch(state, port, context, 0U, 0U);
@@ -7822,7 +7831,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
 
     for (const u32 source_index : {0U, 9U}) {
         for (const u32 target_index : {0U, 7U}) {
-            for (const u32 target_code : {0x1BU, 0x1CU, 0x1DU, 0x1001CU}) {
+            for (const u16 target_profile :
+                 std::array<u16, 4>{0x1BU, 0x1CU, 0x1DU, 0x801CU}) {
                 for (const bool activation_failure : {false, true}) {
                     auto state =
                         std::make_unique<LegacyBattleActionDispatchState>();
@@ -7860,8 +7870,13 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
 
                     DispatchPort port;
                     port.action = 6U;
-                    port.push(0x0047F910U, {.eax = 7U});
-                    port.push(0x0047F910U, {.eax = target_code});
+                    (*fixture->startup.group_b_lifecycle)[target_index]
+                        .action_execution.profile_value = 7U;
+                    port.on_refresh_audio = [&] {
+                        (*fixture->startup.group_b_lifecycle)[target_index]
+                            .action_execution.profile_value = target_profile;
+                    };
+
                     port.object_words[0U][1U] = (20U << 16U) | 7U;
                     auto context = fixture->context();
                     context.actor_presentation_activation_requests.calls[0U]
@@ -7885,7 +7900,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                         const bool activated =
                             index == target_index && !activation_failure;
                         const bool suppressed =
-                            activated && static_cast<u16>(target_code) == 0x1CU;
+                            activated && target_profile == 0x1CU;
                         fields_match = fields_match &&
                             enemy.action_configuration.special_ready ==
                                 (activated ? 1U : 0xB1U) &&
@@ -7929,8 +7944,12 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                                     .return_addresses[0U] == 0x004546BAU &&
                             result.target_phase_advance_calls ==
                                 (activation_failure ? 0U : 1U) &&
-                            port.count(0x0047F910U) ==
-                                (activation_failure ? 1U : 2U) &&
+                            result.fixed_count_lookup.quantity == 20U &&
+                            (*fixture->startup.group_b_lifecycle)[target_index]
+                                    .action_execution.profile_value ==
+                                (activation_failure ? 7U : target_profile) &&
+                            port.refresh_source_queries ==
+                                (activation_failure ? 0U : 1U) &&
                             port.count(0x0047F380U) == 0U &&
                             port.count(0x0047D870U) == 0U,
                         "target phase start activates only the actual enemy, preserves the real predecessor on failure, and writes suppression only for low WORD 1c"
@@ -7947,9 +7966,8 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
         auto fixture = std::make_unique<Fixture>();
         auto port = std::make_unique<DispatchPort>();
         port->action = 6U;
-        port->push(
-            0x0047F910U, {.eax = 7U, .ecx = 0xAABBCCDDU, .edx = 0x12340000U}
-        );
+        (*fixture->startup.group_b_lifecycle)[0U]
+            .action_execution.profile_value = 7U;
         (*port).object_words[0U][0U] = 0x7A001234U;
         auto context = fixture->context();
         const auto stopped = dispatch(*state, *port, context, 0U, 0U);
@@ -8465,7 +8483,303 @@ void test_battle_action_presentation_typed_stop(openswd3::test::Context& test) {
     );
 }
 
+void test_battle_spirit_contract_profiles(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActionDispatchState;
+    using openswd3::battle::LegacyBattleActionDispatchStatus;
+
+    constexpr std::array<u16, 7> profiles{
+        0U, 1U, 0x1CU, 0x7FFFU, 0x8000U, 0xBEEFU, 0xFFFFU
+    };
+
+    for (u32 target_index = 0U; target_index < 8U; ++target_index) {
+        for (const u16 profile : profiles) {
+            auto state = std::make_unique<LegacyBattleActionDispatchState>();
+            state->group_a_count = 10;
+            state->group_b_count = 8;
+            state->phase_counter = 1U;
+            state->packed_actor_counter = 0xAABBCCFFU;
+            state->group_b_status_words[target_index] = 7U;
+            state->group_a_target_phases[9U].emitter.initialized = 1;
+            auto fixture = std::make_unique<Fixture>();
+            for (u32 index = 0U; index < 8U; ++index) {
+                auto& enemy = (*fixture->startup.group_b_lifecycle)[index];
+                enemy.action_execution.profile_value =
+                    static_cast<u16>(0x3300U + index);
+                enemy.action_execution.profile_value_read_accessible =
+                    index == target_index;
+            }
+
+            auto& target = (*fixture->startup.group_b_lifecycle)[target_index];
+            target.action_execution.profile_value = profile;
+            DispatchPort port;
+            port.action = 6U;
+            auto context = fixture->context();
+            const auto result =
+                dispatch(*state, port, context, 9U, target_index);
+            bool profiles_match = true;
+            for (u32 index = 0U; index < 8U; ++index) {
+                profiles_match = profiles_match &&
+                    (*fixture->startup.group_b_lifecycle)[index]
+                            .action_execution.profile_value ==
+                        (index == target_index
+                             ? profile
+                             : static_cast<u16>(0x3300U + index));
+            }
+
+            const bool count_matches = profile == 0U
+                ? (port.fixed_count_nodes.empty() &&
+                   result.fixed_count.path ==
+                       openswd3::battle::LegacyBattleFixedCountPath::
+                           existing_root &&
+                   port.object_words[0U][1U] == 0x00010000U)
+                : (port.fixed_count_nodes.size() == 1U &&
+                   result.fixed_count.path ==
+                       openswd3::battle::LegacyBattleFixedCountPath::
+                           allocated_node &&
+                   port.fixed_count_nodes.front().words[1U] ==
+                       (0x00010000U | static_cast<u32>(profile)));
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    profiles_match && count_matches &&
+                    state->packed_actor_counter == 0xAABBCC00U &&
+                    static_cast<u16>(state->phase_counter) == 30U &&
+                    state->selected_target_index == target_index &&
+                    result.actor_presentation_activation.calls == 1U &&
+                    result.target_phase_start_calls == 0U &&
+                    result.player_item_calls == 1U &&
+                    port.refresh_source_queries == 0U,
+                "spirit contract completion reads the selected actual unsigned WORD, owns the corresponding count node and preserves low-byte wrapping without touching neighbors"
+            );
+        }
+    }
+
+    for (const u16 quantity : std::array<u16, 5>{0U, 19U, 20U, 21U, 0xFFFFU}) {
+        for (const u32 initial_gate : {0U, 1U, 2U, 0xFFFFFFFFU}) {
+            auto state = std::make_unique<LegacyBattleActionDispatchState>();
+            state->group_a_count = 10;
+            state->group_b_count = 8;
+            state->phase_condition_aux = initial_gate;
+            state->group_b_message_profiles[7U].phase_flags = 0x20U;
+            auto fixture = std::make_unique<Fixture>();
+            fixture->prepare_target_phase_frame_resource(7U);
+            (*fixture->startup.group_b_lifecycle)[7U]
+                .action_execution.profile_value = 0xBEEFU;
+            DispatchPort port;
+            port.action = 6U;
+            port.object_words[0U][1U] =
+                (static_cast<u32>(quantity) << 16U) | 0xBEEFU;
+            auto context = fixture->context();
+            const auto result = dispatch(*state, port, context, 9U, 7U);
+            const bool started = quantity >= 20U || initial_gate == 1U;
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    result.fixed_count_lookup.quantity == quantity &&
+                    result.fixed_count_lookup.path ==
+                        openswd3::battle::LegacyBattleFixedCountPath::
+                            existing_root &&
+                    result.target_phase_check.return_eax == 0U &&
+                    result.target_phase_start_calls == (started ? 1U : 0U) &&
+                    port.refresh_source_queries == (started ? 1U : 0U) &&
+                    static_cast<u16>(state->phase_counter) ==
+                        (started ? 1U : 40U) &&
+                    state->phase_condition_aux ==
+                        (quantity >= 20U ? 1U : initial_gate) &&
+                    port.object_words[0U][1U] ==
+                        ((static_cast<u32>(quantity) << 16U) | 0xBEEFU) &&
+                    port.fixed_count_nodes.empty(),
+                "spirit contract looks up the actual WORD before its source check, keeping the unsigned quantity twenty threshold and exact DWORD one gate"
+            );
+        }
+    }
+
+    for (u32 scenario = 0U; scenario < 3U; ++scenario) {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        state->phase_condition_aux = 0x12345678U;
+        state->selected_target_index = 0x3344U;
+        auto fixture = std::make_unique<Fixture>();
+        auto context = fixture->context();
+        if (scenario == 0U) {
+            context.startup = nullptr;
+        } else if (scenario == 1U) {
+            fixture->startup.group_b_lifecycle.reset();
+        } else {
+            (*fixture->startup.group_b_lifecycle)[7U]
+                .action_execution.profile_value_read_accessible = false;
+        }
+
+        DispatchPort port;
+        port.action = 6U;
+        const auto result = dispatch(*state, port, context, 9U, 7U);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_base_state_missing &&
+                result.target_phase_check_calls == 0U &&
+                result.target_phase_start_calls == 0U &&
+                result.target_phase_advance_calls == 0U &&
+                state->phase_condition_aux == 0x12345678U &&
+                state->selected_target_index == 0x3344U &&
+                port.object_words[0U][1U] == 0U &&
+                port.fixed_count_nodes.empty() &&
+                port.refresh_source_queries == 0U,
+            "spirit contract stops at its first actual profile read when binding or existing read access is unavailable, before count lookup and all successors"
+        );
+    }
+
+    for (u32 scenario = 0U; scenario < 3U; ++scenario) {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        state->group_a_count = 10;
+        state->group_b_count = 8;
+        state->group_a_action_execution[9U].profile_level = 20U;
+        state->group_b_message_profiles[7U] = {
+            .phase_flags = 0x800U,
+            .phase_limit = 0x15U,
+            .level = 10U,
+        };
+
+        auto fixture = std::make_unique<Fixture>();
+        fixture->prepare_target_phase_frame_resource(7U);
+        auto& target = (*fixture->startup.group_b_lifecycle)[7U];
+        target.action_execution.profile_value = 7U;
+        target.runtime_reset.field_2af0 = 0xFFFFFFFFU;
+        DispatchPort port;
+        port.action = 6U;
+        port.object_words[0U][1U] = (20U << 16U) | 7U;
+        bool refreshed = false;
+        port.on_refresh_audio = [&] {
+            if (!refreshed) {
+                test.expect_true(
+                    target.action_execution.profile_value == 7U &&
+                        static_cast<u16>(state->phase_counter) == 1U &&
+                        state->selected_target_index == 7U &&
+                        port.frame_effect_control_state().red_factor == -12 &&
+                        target.runtime_reset.field_2af0 == 0xFFFFFFFFU,
+                    "the actual refresh predecessor sees the first profile and committed activation, coordinate phase and color prefix"
+                );
+            }
+
+            refreshed = true;
+            target.action_execution.profile_value = 0x1CU;
+            target.action_execution.profile_value_read_accessible =
+                scenario == 0U;
+        };
+
+        if (scenario == 2U) {
+            port.refresh_stop_ordinal = 1U;
+        }
+
+        auto context = fixture->context();
+        const auto result = dispatch(*state, port, context, 9U, 7U);
+        const auto expected_status = scenario == 0U
+            ? LegacyBattleActionDispatchStatus::completed
+            : scenario == 1U
+            ? LegacyBattleActionDispatchStatus::actor_base_state_missing
+            : LegacyBattleActionDispatchStatus::frame_refresh_typed_stop;
+        test.expect_true(
+            result.status == expected_status && refreshed &&
+                result.fixed_count_lookup.quantity == 20U &&
+                result.actor_presentation_activation.calls == 1U &&
+                result.target_phase_advance_calls ==
+                    (scenario == 0U ? 1U : 0U) &&
+                target.action_execution.profile_value == 0x1CU &&
+                target.runtime_reset.field_2af0 ==
+                    (scenario == 0U ? 1U : 0xFFFFFFFFU) &&
+                target.action_configuration.presentation_enabled == 1U &&
+                static_cast<u16>(state->phase_counter) == 1U &&
+                state->selected_target_index == 7U &&
+                port.frame_effect_control_state().primary_suppression == 1U &&
+                port.fixed_count_nodes.empty(),
+            "spirit contract rereads the actual profile after refresh and preserves its committed prefix on profile or predecessor failure"
+        );
+    }
+
+    for (u32 scenario = 0U; scenario < 4U; ++scenario) {
+        openswd3::test::FixedNodeMemoryResource memory;
+        memory.allocation_enabled = scenario != 2U;
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        state->phase_counter = 1U;
+        state->packed_actor_counter = 0xAABBCCFFU;
+        state->selected_target_index = 0x3344U;
+        state->group_b_status_words[7U] = 7U;
+        auto& phase = state->group_a_target_phases[9U];
+        phase.emitter.initialized = 1;
+        phase.decoded_resource_token = 0x74000000U;
+        auto fixture = std::make_unique<Fixture>();
+        auto& target = (*fixture->startup.group_b_lifecycle)[7U];
+        target.action_execution.profile_value = 0x1234U;
+        DispatchPort port(memory);
+        port.action = 6U;
+        bool released = false;
+        port.on_call = [&](const LegacyBattleActionCallRequest& request) {
+            if (request.callee_token == 0x004885A0U) {
+                released = true;
+                target.action_execution.profile_value = 0x8001U;
+                target.action_execution.profile_value_read_accessible =
+                    scenario != 1U;
+            }
+        };
+
+        auto context = fixture->context();
+        if (scenario == 3U) {
+            context.attack_order_records = {};
+        }
+
+        const auto result = dispatch(*state, port, context, 9U, 7U);
+        constexpr std::array<LegacyBattleActionDispatchStatus, 4> statuses{
+            LegacyBattleActionDispatchStatus::completed,
+            LegacyBattleActionDispatchStatus::actor_base_state_missing,
+            LegacyBattleActionDispatchStatus::fixed_count_typed_stop,
+            LegacyBattleActionDispatchStatus::attack_order_remove_typed_stop,
+        };
+
+        const bool counted = scenario == 0U || scenario == 3U;
+        test.expect_true(
+            result.status == statuses[scenario] && released &&
+                phase.decoded_resource_token == 0U && phase.tick == 0U &&
+                phase.active_gate == 0U &&
+                target.action_execution.profile_value == 0x8001U &&
+                target.action_configuration.presentation_enabled == 1U &&
+                result.actor_presentation_activation.calls == 1U &&
+                state->packed_actor_counter ==
+                    (counted ? 0xAABBCC00U : 0xAABBCCFFU) &&
+                port.fixed_count_nodes.size() == (counted ? 1U : 0U) &&
+                (!counted ||
+                 port.fixed_count_nodes.front().words[1U] == 0x00018001U) &&
+                state->selected_target_index ==
+                    (scenario == 0U ? 7U : 0x3344U) &&
+                static_cast<u16>(state->phase_counter) ==
+                    (scenario == 0U ? 30U : 1U) &&
+                result.player_item_calls == (scenario == 0U ? 1U : 0U),
+            "spirit contract consumes the profile changed by its completion predecessor and preserves release, activation, allocation and counter prefixes at each real failure"
+        );
+    }
+
+    for (const u16 phase : std::array<u16, 3>{2U, 3U, 0xFFFFU}) {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        state->phase_counter = 0xABCD0000U | phase;
+        state->phase_condition = 1U;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->startup.group_b_lifecycle.reset();
+        DispatchPort port;
+        port.action = 6U;
+        auto context = fixture->context();
+        const auto result = dispatch(*state, port, context, 9U, 7U);
+        const u16 expected_phase =
+            phase == 3U ? 0U : static_cast<u16>(phase - 1U);
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                state->phase_counter == (0xABCD0000U | expected_phase) &&
+                result.return_value == (phase == 3U ? 1U : 0U) &&
+                result.target_phase_check_calls == 0U &&
+                result.target_phase_advance_calls == 0U &&
+                port.fixed_count_nodes.empty(),
+            "spirit contract countdown and message paths preserve WORD wrapping and require no profile storage before a reachable actual read"
+        );
+    }
+}
+
 void test_battle_action_dispatch(openswd3::test::Context& test) {
+    test_battle_spirit_contract_profiles(test);
     test_battle_action_kind_caller(test);
     test_battle_display_kind_dispatch(test);
     test_battle_action_presentation_typed_stop(test);

@@ -540,17 +540,35 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             result.return_value = 1U;
             return result;
         }
+
+        const auto read_target_profile = [&]() -> std::optional<u16> {
+            if (context.startup == nullptr ||
+                context.startup->group_b_lifecycle == nullptr) {
+                result.status =
+                    LegacyBattleActionDispatchStatus::actor_base_state_missing;
+                return std::nullopt;
+            }
+
+            const auto& enemy =
+                (*context.startup->group_b_lifecycle)[group_b_index]
+                    .action_execution;
+            if (!enemy.profile_value_read_accessible) {
+                result.status =
+                    LegacyBattleActionDispatchStatus::actor_base_state_missing;
+                return std::nullopt;
+            }
+
+            return enemy.profile_value;
+        };
+
         if (low_word(state.phase_counter) == 0U) {
-            const auto target_code_reply = invoke(
-                state,
-                port,
-                kCallQueryTargetCode,
-                {group_b_token(group_b_index)}
-            );
-            const i16 target_code = signed_low_word(target_code_reply.eax);
-            result.fixed_count_lookup = lookup_legacy_battle_fixed_count(
-                port, static_cast<u16>(target_code)
-            );
+            const auto target_profile = read_target_profile();
+            if (!target_profile.has_value()) {
+                return result;
+            }
+
+            result.fixed_count_lookup =
+                lookup_legacy_battle_fixed_count(port, *target_profile);
             if (result.fixed_count_lookup.status !=
                 LegacyBattleFixedCountStatus::completed) {
                 result.status =
@@ -647,13 +665,12 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
                 return result;
             }
 
-            if (low_word(invoke(
-                             state,
-                             port,
-                             kCallQueryTargetCode,
-                             {group_b_token(group_b_index)}
-                )
-                             .eax) == 0x1CU) {
+            const auto refreshed_profile = read_target_profile();
+            if (!refreshed_profile.has_value()) {
+                return result;
+            }
+
+            if (*refreshed_profile == 0x1CU) {
                 (*context.startup->group_b_lifecycle)[group_b_index]
                     .runtime_reset.field_2af0 = 1U;
             }
@@ -718,14 +735,14 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
                 )) {
                 return result;
             }
-            const auto target_code = invoke(
-                state,
-                port,
-                kCallQueryTargetCode,
-                {group_b_token(group_b_index)}
-            );
+
+            const auto completed_profile = read_target_profile();
+            if (!completed_profile.has_value()) {
+                return result;
+            }
+
             result.fixed_count = accumulate_legacy_battle_fixed_count(
-                port, static_cast<u16>(target_code.eax), 1U
+                port, *completed_profile, 1U
             );
             if (result.fixed_count.status !=
                 LegacyBattleFixedCountStatus::completed) {
