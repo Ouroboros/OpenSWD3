@@ -717,7 +717,11 @@ core/ASan角色帧各1/1及SDL链接通过，父协议仍待迁移。
 旧纯写叶的失败注入已撤回；验证见`evidence/battle-script-profile-variant-0047d900.md`。
 脚本11/21/26的绘制步长也直接写原有角色字段，保持初始化4、无符号WORD参数、
 动作设置后的读取时机及后继队列表项顺序；仅21敌方发布辅助门。
-验证范围见`evidence/battle-script-presentation-step-0047d860.md`；其他五处步长调用仍待迁移。
+验证范围见`evidence/battle-script-presentation-step-0047d860.md`。
+敌方行动11/12/17和敌方帧的四处步长调用也已写入同一实际角色字段；
+保持同帧先2后8、前继失败和激活失败前缀，移除对应操作编号及步长回复包。
+core/ASan角色帧各1/1及SDL链接通过；队员一步长调用和父协议仍待迁移。
+见`evidence/battle-enemy-presentation-step-0047d860.md`。
 结束段10敌人扫描的额外写入已静态定位到CRT缓冲区和PE资源载荷；
 运行期页保护、异常与其他父协议继续待核实或迁移。
 当前验证范围见`evidence/battle-script-overlay-initialization.md`及

@@ -26,7 +26,6 @@ constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
 constexpr u32 kCallQuerySelectionMode = 0x00483820U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
-constexpr u32 kCallPublishStatusMode = 0x0047D860U;
 constexpr u32 kCallQuerySpecialAction = 0x0047D880U;
 constexpr u32 kCallQueryPhaseMode = 0x0047D8D0U;
 constexpr u32 kCallQueryStatusSequence = 0x00480220U;
@@ -1056,9 +1055,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                         }
                     }
 
-                    static_cast<void>(
-                        invoke(port, kCallPublishStatusMode, {source_token, 2U})
-                    );
+                    (*context.startup->group_b_lifecycle)[group_b_index]
+                        .base_initialization.presentation_step = 2U;
                 } else {
                     const bool status_branch = std::bit_cast<i16>(status) < 0 ||
                         (status & 0x6000U) != 0U;

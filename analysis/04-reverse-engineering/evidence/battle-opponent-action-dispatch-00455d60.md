@@ -125,8 +125,8 @@ phase低word为0时：
 ## 7. case 10–12
 
 - case 10：对组B source调用固定参数0，返回0；
-- case 11：查询成功后依序push `0x1000`、clear mode 0、finalize mode 8，overlay gate写1，返回1；
-- case 12：查询成功后依序clear mode 1、pop `0x1000`、finalize mode 8，overlay gate写1。processed低byte按signed比较不小于group-B count时，scene gate清零、message state写99。返回1。
+- case 11：查询成功后依序push `0x1000`、clear mode 0、写实际绘制步长8，overlay gate写1，返回1；
+- case 12：查询成功后依序clear mode 1、pop `0x1000`、写实际绘制步长8，overlay gate写1。processed低byte按signed比较不小于group-B count时，scene gate清零、message state写99。返回1。
 
 case 11的查询站点同时保留ECX source与栈上的source token；typed端口显式记录两份。
 
@@ -156,7 +156,7 @@ phase低wordbit15未置位时：
 
 ## 9. case 17：对手阶段完成
 
-查询成功后固定执行clear mode 1、finalize mode 8、target mode 1并写overlay gate。processed counter只递增最低byte，保留高24位。
+查询成功后固定执行clear mode 1、写实际绘制步长8、target mode 1并写overlay gate。processed counter只递增最低byte，保留高24位。
 
 processed低byte按signed比较不小于group-B count时：
 
@@ -176,7 +176,11 @@ special action非零时继续查询固定组B base。返回0且`group-B count - 
 
 返回1。
 
-case 17逐帧入口内部原`0x0047656D`坐标publication已由typed action17直接组合。opponent adapter保留`reserved_actor_coordinate_publication`原ordinal但不再转发raw `0x004785C0`；publication typed-stop携带完整leaf结果返回，并在本case第一次mode收尾之前阻断clear/finalize/target、overlay、processed计数与后续公共状态。正常路径继续使用publication后canonical坐标绘制。
+case 17逐帧入口内部原`0x0047656D`坐标publication已由typed action17直接组合。opponent adapter保留`reserved_actor_coordinate_publication`原ordinal但不再转发raw `0x004785C0`；publication typed-stop携带完整leaf结果返回，并在本case第一次mode收尾之前阻断clear、步长写入、target、overlay、processed计数与后续公共状态。正常路径继续使用publication后canonical坐标绘制。
+
+三处步长写入已删除操作编号和通用调用，借用真实敌方字段。
+同帧2→8顺序、失败前缀、剩余机器诊断接口与定向验证见
+[敌方绘制步长](battle-enemy-presentation-step-0047d860.md)。
 
 ## 10. closed callee与窄端口
 

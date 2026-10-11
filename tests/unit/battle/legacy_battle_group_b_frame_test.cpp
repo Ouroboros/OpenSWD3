@@ -2055,7 +2055,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         );
     }
 
-    {
+    for (const bool mode_writable : {true, false}) {
         LegacyBattleGroupBFrameState state;
         state.shared.action.frame_enabled = 1U;
         state.selection_initialized = 1U;
@@ -2069,10 +2069,12 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         fixture.random.push(0xAAAA000BU);
         fixture.random.push(0xBBBB0007U);
         DispatchPort port;
-        std::optional<u16> published_action_kind;
+        actor.base_initialization.presentation_step = 0xFFFFU;
+        std::optional<u16> step_before_action_completion;
         port.before_invoke = [&](const LegacyBattleActionCallRequest& request) {
-            if (request.callee_token == 0x0047D860U) {
-                published_action_kind = actor.action_composition.action_kind;
+            if (request.callee_token == 0x0047D870U) {
+                step_before_action_completion =
+                    actor.base_initialization.presentation_step;
             }
         };
 
@@ -2080,10 +2082,23 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         port.push(0x004786A0U, {.eax = 0U});
         port.push(0x004786A0U, {.eax = 0U});
         auto context = fixture.context();
+        context.actor_action_mode_access.action_kind_writable = mode_writable;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
                 state, port, context, 0U
             );
+        if (!mode_writable) {
+            test.expect_true(
+                result.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_action_mode_typed_stop &&
+                    actor.base_initialization.presentation_step == 0xFFFFU &&
+                    result.actor_runtime_reset.calls == 0U,
+                "the preceding enemy action write failure preserves the original step and prevents the reset suffix"
+            );
+            continue;
+        }
+
         test.expect_true(
             result.return_value == 0U &&
                 result.group_b_status_action_calls == 1U &&
@@ -2107,8 +2122,9 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 result.actor_action_mode->status ==
                     openswd3::battle::LegacyBattleActorActionModeStatus::
                         completed &&
-                published_action_kind == 0x11U,
-            "profile status publication observes action seventeen in canonical storage before the completion reset"
+                step_before_action_completion == 2U &&
+                actor.base_initialization.presentation_step == 8U,
+            "profile status writes step two before the nested action seventeen writes step eight"
         );
         test.expect_true(
             result.actor_runtime_reset.calls == 1U &&
@@ -2120,8 +2136,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         );
         test.expect_true(
             port.count(0x00476330U) == 0U && port.count(0x00478710U) == 0U &&
-                has_call_argument(port, 0x0047D860U, 1U, 2U),
-            "profile status action preserves its true caller suffix"
+                actor.base_initialization.presentation_step == 8U,
+            "profile status completion preserves the nested action step through the runtime reset"
         );
     }
 

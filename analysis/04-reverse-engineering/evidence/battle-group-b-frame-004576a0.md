@@ -136,7 +136,10 @@ mov dl, profile_byte
 
 因此profile参数低byte来自表，高24位来自显式陈旧EDX snapshot。profile索引越界在首个byte访问点typed-stop，并保留此前phase清零和target索引副作用。
 
-status-action返回非0时，对当前组B对象依次发布selection 0、mode 17和status mode 2，然后进入公共动作阶段。
+status-action返回非0时，对当前组B对象依次发布selection 0、mode 17，
+再直接写实际绘制步长2，然后进入公共动作阶段。步长操作的编号和通用调用已删除。
+同帧后继行动17完成时会再写步长8；原前继失败不写步长。
+字段借用、顺序和定向验证见[敌方绘制步长](battle-enemy-presentation-step-0047d860.md)。
 
 ## 6. signed/bit status分派
 

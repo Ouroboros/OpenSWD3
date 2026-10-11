@@ -1664,7 +1664,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
                 state.overlay_gate == 0U && port.count(0x004763D0U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
-                port.count(0x0047D860U) == 0U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .base_initialization.presentation_step == 0U &&
                 port.count(0x004787F0U) == 0U &&
                 port.count(0x00478600U) == 0U && port.count(0x004785C0U) == 0U,
             "opponent action seventeen preserves both stack-local residues through full-width adjustment and publication flags"
@@ -1727,7 +1728,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 state.overlay_gate == 0U && port.count(0x00478600U) == 0U &&
                 port.count(0x004785C0U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
-                port.count(0x0047D860U) == 0U && port.count(0x004787F0U) == 0U,
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .base_initialization.presentation_step == 0U &&
+                port.count(0x004787F0U) == 0U,
             "opponent action seventeen preserves the X stack-local prefix and both high words before its suffix"
         );
     }
@@ -1777,7 +1780,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 state.overlay_gate == 0U && port.count(0x00478600U) == 0U &&
                 port.count(0x004785C0U) == 0U &&
                 port.count(0x0047D870U) == 0U &&
-                port.count(0x0047D860U) == 0U && port.count(0x004787F0U) == 0U,
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .base_initialization.presentation_step == 0U &&
+                port.count(0x004787F0U) == 0U,
             "opponent action seventeen propagates publication faults before its suffix"
         );
     }
@@ -1836,6 +1841,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                         .action_configuration.presentation_enabled == 1U &&
                 (*fixture.startup->group_b_lifecycle)[0U]
                         .base_initialization.field_2a94 == 6U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .base_initialization.presentation_step == 8U &&
                 state.action_pending_aux == 1U &&
                 port.battle_terminal_latch() == 0U &&
                 port.battle_message_state() == 0x63U &&
@@ -1864,6 +1871,89 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x004783B0U) == 0U &&
                 port.count(0x0045B190U) == 0U && port.count(0x0045B5A0U) == 0U,
             "opponent action seventeen collapses final special opponent and reruns three stages"
+        );
+    }
+
+    for (const u16 action : std::array<u16, 2>{11U, 12U}) {
+        for (const u32 completion : {0U, 1U, 2U}) {
+            for (const u16 source_index : std::array<u16, 2>{0U, 7U}) {
+                LegacyBattleActionDispatchState state;
+                state.overlay_gate = 0xCAFEU;
+                Fixture fixture;
+                for (auto& actor : *fixture.startup->group_b_lifecycle) {
+                    actor.base_initialization.presentation_step = 0xFFFFU;
+                }
+
+                DispatchPort port;
+                port.action = action;
+                port.push(
+                    action == 11U ? 0x0047C950U : 0x0047C6B0U,
+                    {.eax = completion}
+                );
+                auto context = fixture.context();
+                const auto result =
+                    dispatch(state, port, context, source_index, 99U);
+                bool steps_match = true;
+                for (std::size_t index = 0U;
+                     index < fixture.startup->group_b_lifecycle->size();
+                     ++index) {
+                    const u16 expected =
+                        completion == 1U && index == source_index ? 8U
+                                                                  : 0xFFFFU;
+                    steps_match = steps_match &&
+                        (*fixture.startup->group_b_lifecycle)[index]
+                                .base_initialization.presentation_step ==
+                            expected;
+                }
+
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActionDispatchStatus::completed &&
+                        result.return_value == (completion == 1U ? 1U : 0U) &&
+                        state.overlay_gate ==
+                            (completion == 1U ? 1U : 0xCAFEU) &&
+                        steps_match,
+                    "enemy actions eleven and twelve change only the completing actor step and require exact completion value one"
+                );
+            }
+        }
+    }
+
+    for (const u16 source_index : std::array<u16, 2>{0U, 7U}) {
+        LegacyBattleActionDispatchState state;
+        state.overlay_gate = 0xCAFEU;
+        Fixture fixture;
+        for (auto& actor : *fixture.startup->group_b_lifecycle) {
+            actor.base_initialization.presentation_step = 0x8000U;
+        }
+
+        DispatchPort port;
+        port.action = 17U;
+        auto context = fixture.context();
+        context.actor_presentation_activation_requests.calls[0U]
+            .access.special_ready_writable = false;
+        const auto result = dispatch(state, port, context, source_index, 99U);
+        bool steps_match = true;
+        for (std::size_t index = 0U;
+             index < fixture.startup->group_b_lifecycle->size();
+             ++index) {
+            const u16 expected = index == source_index ? 8U : 0x8000U;
+            steps_match = steps_match &&
+                (*fixture.startup->group_b_lifecycle)[index]
+                        .base_initialization.presentation_step == expected;
+        }
+
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_presentation_activation_typed_stop &&
+                result.actor_presentation_activation.last.status ==
+                    openswd3::battle::
+                        LegacyBattleActorPresentationActivationStatus::
+                            special_ready_write_typed_stop &&
+                steps_match && state.overlay_gate == 0xCAFEU &&
+                state.opponent_processed_counter == 0U,
+            "enemy action seventeen writes the shared step before activation failure without publishing completion or changing neighbors"
         );
     }
 
