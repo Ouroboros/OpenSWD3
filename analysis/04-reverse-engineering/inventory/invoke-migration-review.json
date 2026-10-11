@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "3fe4518bfa004055752dcf5f39dc01c7b5481b7c",
+  "last_reviewed_source_revision": "60e0c6d17c63c335bf046c2dc168b685b8d15d37",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -306,13 +306,13 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "3fe4518b",
+      "last_reviewed_commit": "60e0c6d1",
       "files": [
         "include/openswd3/battle/legacy_battle_deformation.hpp",
         "src/battle/legacy_battle_deformation.cpp"
       ],
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-party-drawing-suppression-0047d870.md",
-      "reason": "行动11/12与召唤直接写startup实际残余状态数组的绘制抑制字段，删除两处通用调用；前继失败不写、后继分配失败保留，缺失存储在首次实际访问报告。48组完成组合、召唤首末角色与顺序/失败测试、core/ASan角色帧、SDL及三文件身份通过。目标阶段前继角色选择等差异另待修正；其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，整项继续pending"
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-target-drawing-suppression-0047d870.md",
+      "reason": "目标阶段开始与完成均改为激活实际敌方并修正物理调用诊断，删除多余模式7调用；低WORD类型1C时直接写敌方绘制抑制，删除本父链最后的47D870调用及编号。32组开始组合、首末目标完成/失败、core/ASan角色帧、SDL及三文件身份通过；此前队员完成及召唤字段写入继续有效。激活与其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，整项继续pending"
     },
     "battle/legacy_battle_debug_overlay": {
       "status": "pending",
