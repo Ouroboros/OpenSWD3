@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "7feb7c40ece08602b8e28f75aa3688d87a935c70",
+  "last_reviewed_source_revision": "e7c6bc19d3ba2d66b8d4462e6f76f1381c781695",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -36,7 +36,8 @@
       "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
     },
     "battle/legacy_battle_actor_action_mode": {
-      "status": "verified",
+      "status": "pending",
+      "last_reviewed_commit": "e7c6bc19",
       "verification_commit": "7feb7c40ece08602b8e28f75aa3688d87a935c70",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_action_mode.hpp",
@@ -49,7 +50,37 @@
         "build/tmp/runtime/action-mode-direct-asan.log",
         "build/tmp/runtime/action-mode-direct-callers-asan.log"
       ],
-      "reason": "直接借用角色动作、显示与模式共享字段，完整DWORD决定分支且按原顺序部分提交；删除叶协议、解析、轨迹、计数、结果数组与转发，全部41处调用点迁移并保留实际前序失败值；28×256模式、19访问条件及15前序失败向量经core/ASan四项定向测试和SDL实际链接验证，36份源码测试身份一致；父通用接口及actor-ready八槽仍待迁移"
+      "reason": "撤回先前仅依据叶接口与41处调用点改造作出的验收登记；原验证记录保留为历史证据。e7c6bc19修正三处显示字段通用调用及availability依赖，但父通用接口、资源操作和actor-ready八槽仍未迁移，不能据此接受整条调用链"
+    },
+    "battle/legacy_battle_actor_availability_block": {
+      "status": "pending",
+      "last_reviewed_commit": "e7c6bc19",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
+      "reason": "状态和值直接写共享字段，删除叶寄存器请求回复和计数，8类调用方同步；六项定向core/ASan、SDL链接及26文件源码身份通过。关联父调用链仍有通用协议，因此保留候选和pending，不以叶接口无扫描信号计为整链完成"
+    },
+    "battle/legacy_battle_actor_target_preparation": {
+      "status": "pending",
+      "last_reviewed_commit": "e7c6bc19",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
+      "reason": "availability写入改为借用状态和值并传播可选状态；角色准备的父寄存器结果、计数和其他通用操作仍待移除"
+    },
+    "battle/legacy_battle_input_dispatch": {
+      "status": "pending",
+      "last_reviewed_commit": "e7c6bc19",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
+      "reason": "撤退路径直接写角色availability共享状态；输入父操作编号、寄存器结果和Port仍待移除"
+    },
+    "battle/legacy_battle_pre_frame": {
+      "status": "pending",
+      "last_reviewed_commit": "e7c6bc19",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
+      "reason": "三处availability写入只使用状态和值，保留原顺序和失败前缀；帧前父请求回复、通用操作和Port仍待移除"
+    },
+    "battle/legacy_battle_target_selection_refresh": {
+      "status": "pending",
+      "last_reviewed_commit": "e7c6bc19",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
+      "reason": "八处分支的availability写入改为共享状态和值；选择刷新父操作编号、寄存器结果、轨迹、计数和Port仍待移除"
     },
     "battle/legacy_battle_group_b_action_composition": {
       "status": "pending",
@@ -77,9 +108,9 @@
     },
     "battle/legacy_battle_post_action": {
       "status": "pending",
-      "last_reviewed_commit": "7feb7c40",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-mode-00478710.md",
-      "reason": "动作清零直接借当前队员字段，失败保留已完成写入并抑制后续操作；其他callee、通用参数、寄存器结果、计数与Port仍在，整项继续pending"
+      "last_reviewed_commit": "e7c6bc19",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
+      "reason": "动作和availability清零直接借角色字段，availability失败保留前序写入并阻止角色重置；删除此操作的寄存器请求回复和计数，其余通用参数、寄存器结果、计数与Port仍在"
     },
     "battle/legacy_battle_actor_turn_completion": {
       "status": "verified",
@@ -287,9 +318,9 @@
     },
     "battle/legacy_battle_final_actor_step": {
       "status": "pending",
-      "last_reviewed_commit": "2b89c8ea",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-remove-0045efb0.md",
-      "reason": "两个移除调用点直接借用实际来源，删除对应寄存器结果和调用计数，失败保留角色清理前缀；其他最终角色操作仍有通用请求、寄存器回复、计数及Port，完整父链未迁移"
+      "last_reviewed_commit": "e7c6bc19",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
+      "reason": "availability写入直接使用真实角色状态和值，失败保留前序角色发布并阻止后缀；既有攻击顺序移除仍使用真实来源。其他通用请求、寄存器回复、计数及Port仍在"
     },
     "battle/legacy_battle_pending_action_commit": {
       "status": "pending",
@@ -347,9 +378,9 @@
     },
     "battle/legacy_battle_group_a_frame": {
       "status": "pending",
-      "last_reviewed_commit": "7feb7c40",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-mode-00478710.md",
-      "reason": "三处动作设置直接写同一队员共享字段并保留原失败前序值，嵌套结果改为optional；既有完成、空闲、启动、队列和目标操作沿用实际字段；actor-ready八槽与其他编号、参数包、寄存器接口、Port、计数、资源和内存别名仍待迁移"
+      "last_reviewed_commit": "e7c6bc19",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-presentation-field-write-0047cc50.md",
+      "reason": "三处0047CC50通用调用改为实际清零角色共享显示字段；六处availability写入及嵌套准备状态同步删除寄存器请求回复和计数；三个真实失败分支证明先前写入及角色隔离。actor-ready八槽与其他编号、参数包、寄存器接口、Port、计数、资源仍待迁移"
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",
@@ -590,9 +621,9 @@
     },
     "battle/legacy_battle_script_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "7feb7c40",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-mode-00478710.md",
-      "reason": "七处动作设置及嵌套组合直接借角色字段，删除设置编号、寄存器请求回复、数组、计数及转发；保留失败前序结果、游标及清表后缀；原启动与目标操作沿用共享字段；其余操作枚举、参数包、机器回复、轨迹、Port与加载协议仍在，整项继续pending"
+      "last_reviewed_commit": "e7c6bc19",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
+      "reason": "opcode9/23/58的availability写入改为共享状态和值，删除叶寄存器回复与计数；既有动作设置和失败前序值保持。脚本父操作枚举、参数包、机器回复、轨迹、Port与加载协议仍在"
     },
     "battle/legacy_battle_startup": {
       "status": "pending",
