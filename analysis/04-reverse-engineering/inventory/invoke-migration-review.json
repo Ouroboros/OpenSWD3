@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "cc5b90bddd8a714fa0b2e77b5e26fd2d391d73af",
+  "last_reviewed_source_revision": "39ca432f23bd84ee18818b1452a8da644f696929",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -34,6 +34,22 @@
         "build/tmp/runtime/world-music-without-port-asan.log"
       ],
       "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
+    },
+    "battle/legacy_battle_actor_action_kind": {
+      "status": "verified",
+      "verification_commit": "39ca432f23bd84ee18818b1452a8da644f696929",
+      "files": [
+        "include/openswd3/battle/legacy_battle_actor_action_kind.hpp",
+        "src/battle/legacy_battle_actor_action_kind.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-kind-004786b0.md",
+      "validation_logs": [
+        "build/tmp/runtime/action-kind-direct-core.log",
+        "build/tmp/runtime/action-kind-direct-callers-core.log",
+        "build/tmp/runtime/action-kind-direct-asan.log",
+        "build/tmp/runtime/action-kind-direct-callers-asan.log"
+      ],
+      "reason": "双方动作判断及调试显示四处调用直接借实际动作WORD，返回状态与可选值；删除查询编号、token解析、寄存器请求回复、模拟栈、计数及调试转发；完整值、即时读取、失败前缀和仍被父级消费的入口EDX保存已复核，十一份源码测试身份、core/ASan两类测试各1/1及SDL实际链接通过；父级其余协议与资源继续pending"
     },
     "battle/legacy_battle_actor_display_kind": {
       "status": "verified",
@@ -175,21 +191,21 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "cc5b90bd",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-display-kind-004786c0.md",
-      "reason": "队列、目标与启动字段沿用实际共享数据；显示种类查询直接读取队员WORD并返回可选值，删除其寄存器请求回复与计数，按LST纠正动作零时显示非零返回0且不触发其它动作；其余动作、终态仍有callee编号、参数数组、寄存器请求回复、轨迹、计数与Port及资源缺口，整项继续pending"
+      "last_reviewed_commit": "39ca432f",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-kind-004786b0.md",
+      "reason": "队列、目标、启动及显示字段沿用实际共享数据；动作种类查询直接借队员WORD并返回可选值，删除其寄存器协议、解析和计数，保留终态前失败及完整动作值；其余动作、终态仍有callee编号、参数数组、寄存器请求回复、轨迹、计数与Port及资源缺口，整项继续pending"
     },
     "battle/legacy_battle_debug_overlay": {
       "status": "pending",
-      "last_reviewed_commit": "b68207c4",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-004786d0.md",
-      "reason": "两类角色行直接读取共享启动计数，保留完整无符号文字、实时读取和早先行前缀；删除该查询寄存器协议、计数、转发及reserved编号；其余调试操作编号、寄存器回复、参数包和Port仍在，整项继续pending"
+      "last_reviewed_commit": "39ca432f",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-kind-004786b0.md",
+      "reason": "两类角色行的动作与启动查询均直接借实际WORD，删除两类查询协议、解析、计数、转发与reserved编号，保留无符号完整文字、实时读取及已完成行；其余调试操作编号、寄存器回复、参数包、Port及资源仍在，整项继续pending"
     },
     "battle/legacy_battle_opponent_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "2b89c8ea",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-remove-0045efb0.md",
-      "reason": "两个移除调用点共享实际队列和强度存储并使用可选结果；其他对手动作仍有通用操作、参数数组、寄存器请求回复、计数及Port，父链继续pending"
+      "last_reviewed_commit": "39ca432f",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-kind-004786b0.md",
+      "reason": "队列移除沿用实际存储，动作种类查询直接借敌方WORD并返回可选值，删除其协议、解析及计数；父级仍保存后续五处旧接口消费的入口EDX，其余动作仍有通用操作、参数数组、寄存器请求回复、计数、Port及资源缺口，父链继续pending"
     },
     "battle/legacy_battle_final_actor_step": {
       "status": "pending",
