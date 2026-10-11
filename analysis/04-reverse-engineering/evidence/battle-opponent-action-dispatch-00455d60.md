@@ -38,7 +38,7 @@ loc_498370 + SEH_455D60
 0x00525508 + group_b_index * 0x2B28
 ```
 
-首次对象访问直接组合已关闭的typed动作种类word查询，结果只取AX；旧`0x004786B0` opaque地址生产调用为零。与`0x004539B0`不同，本函数没有terminal查询，也没有主0后的fallback动作号。动作word或返回地址typed-stop保留入口部分寄存器与flags，并阻断动作switch和全部case后缀。
+首次对象访问直接借敌方实际动作WORD，查询仅返回状态及可选值，编号、token解析、寄存器协议、栈轨迹和计数已删除。本函数没有terminal或显示种类查询。字段或RET失败保留父级原索引算术值或已替换低WORD，并阻断全部case后缀。后续五处旧接口使用的入口EDX由父级单独保存一次，不经过查询转发；父级其余寄存器协议与资源继续pending。完整值、失败与门禁见[动作种类查询](battle-actor-action-kind-004786b0.md)。
 
 动作域：
 

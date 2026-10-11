@@ -332,33 +332,27 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         return result;
     }
     const u32 source_token = group_b_token(group_b_index);
-    auto action_kind_request = context.actor_action_kind_request;
-    action_kind_request.actor_token = source_token;
-    action_kind_request.entry_eax = group_b_index * 0x565U;
-    action_kind_request.entry_return_address = 0x00455D9CU;
-    action_kind_request.entry_flags =
-        subtract_flags(group_b_index * 24U, group_b_index);
-    action_kind_request.entry_flags_known = true;
+    const u16* action_kind = context.startup != nullptr &&
+            context.startup->group_b_lifecycle != nullptr
+        ? &(*context.startup->group_b_lifecycle)[group_b_index]
+               .action_composition.action_kind
+        : nullptr;
     result.actor_action_kind = query_legacy_battle_actor_action_kind(
-        resolve_legacy_battle_actor_action_kind(
-            {.action = &state, .startup = context.startup}, source_token
-        ),
-        action_kind_request
+        action_kind, context.actor_action_kind_access
     );
-    ++result.actor_action_kind_calls;
-    if (result.actor_action_kind.status !=
-        LegacyBattleActorActionKindStatus::completed) {
+    const auto& queried = *result.actor_action_kind;
+    if (queried.status != LegacyBattleActorActionKindStatus::completed) {
         result.status =
             LegacyBattleActionDispatchStatus::actor_action_kind_typed_stop;
-        result.return_value = result.actor_action_kind.return_eax;
+        const u32 entry_value = group_b_index * 0x565U;
+        result.return_value = queried.value.has_value()
+            ? (entry_value & 0xFFFF0000U) | *queried.value
+            : entry_value;
         return result;
     }
-    const LegacyBattleActionCallReply action_reply{
-        .eax = result.actor_action_kind.return_eax,
-        .ecx = result.actor_action_kind.return_ecx,
-        .edx = result.actor_action_kind.return_edx,
-    };
-    const u16 action = low_word(action_reply.eax);
+
+    const u16 action = *queried.value;
+    const u32 entry_edx = context.opponent_action_entry_edx;
     result.action_code = action;
 
     if (action > 100U) {
@@ -417,7 +411,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                         .actor_token = source_token,
                         .target_token = target_token,
                         .entry_eax = target_index * 0x0BCDU,
-                        .entry_edx = action_reply.edx,
+                        .entry_edx = entry_edx,
                         .actor_field_26b8_high_bit_set_requests =
                             context.actor_field_26b8_high_bit_set_requests,
                         .effect_resource_slot_write_requests =
@@ -521,7 +515,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 .actor_token = source_token,
                 .target_token = target_token,
                 .entry_eax = target_index * 0x0565U,
-                .entry_edx = action_reply.edx,
+                .entry_edx = entry_edx,
                 .actor_field_26b8_high_bit_set_requests =
                     context.actor_field_26b8_high_bit_set_requests,
                 .effect_resource_slot_write_requests =
@@ -673,7 +667,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             target_request.target_index = target_index;
             target_request.entry_eax = target_index * 0x0BCDU;
             target_request.entry_ecx = source_token;
-            target_request.entry_edx = action_reply.edx;
+            target_request.entry_edx = entry_edx;
             target_request.entry_ebx = 1U;
             target_request.entry_ebp = target_token;
             target_request.entry_esi = source_token;
@@ -901,7 +895,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                         .first_output_token = 0x0053BF28U,
                         .second_output_token = 0x0053BF2AU,
                         .entry_eax = initialization_entry_eax,
-                        .entry_edx = action_reply.edx,
+                        .entry_edx = entry_edx,
                     }
                 );
             ++result.group_b_opponent_wave_parameters_calls;
@@ -1057,9 +1051,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                     .coordinate_y_initial =
                         state
                             .group_b_action_seventeen_coordinate_y_stack_initial,
-                    .entry_eax = action_reply.eax,
+                    .entry_eax = action,
                     .entry_ecx = source_token,
-                    .entry_edx = action_reply.edx,
+                    .entry_edx = entry_edx,
                 }
             );
         ++result.group_b_action_seventeen_frame_calls;

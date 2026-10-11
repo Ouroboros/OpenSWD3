@@ -400,29 +400,70 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
     test_opponent_action_presentation_typed_stop(test);
 
     {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        auto fixture = std::make_unique<Fixture>();
+        DispatchPort port;
+        auto context = fixture->context();
+        for (const u16 value :
+             std::array<u16, 6>{0U, 100U, 0x100U, 0x7FFFU, 0x8000U, 0xFFFFU}) {
+            (*fixture->startup->group_b_lifecycle)[2U]
+                .action_composition.action_kind = value;
+            const auto result =
+                openswd3::battle::dispatch_legacy_battle_opponent_action(
+                    *state, port, context, 2U, 0xFFFFFFFFU
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    result.actor_action_kind.has_value() &&
+                    result.actor_action_kind->value == value &&
+                    result.action_code == value &&
+                    result.return_value == (value == 100U ? 1U : 0U) &&
+                    port.calls.empty(),
+                "opponent action reads live complete WORDs and returns without touching an unused target"
+            );
+        }
+    }
+
+    for (const bool missing_startup : {false, true}) {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        auto fixture = std::make_unique<Fixture>();
+        DispatchPort port;
+        auto context = fixture->context();
+        if (missing_startup) {
+            context.startup = nullptr;
+        } else {
+            fixture->startup->group_b_lifecycle.reset();
+        }
+
+        const auto result =
+            openswd3::battle::dispatch_legacy_battle_opponent_action(
+                *state, port, context, 3U, 0U
+            );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_action_kind_typed_stop &&
+                result.actor_action_kind.has_value() &&
+                !result.actor_action_kind->value.has_value() &&
+                result.return_value == 3U * 0x565U && port.calls.empty(),
+            "missing opponent storage stops at the original action WORD read without fabricating action zero"
+        );
+    }
+
+    {
         LegacyBattleActionDispatchState state;
         Fixture fixture;
         DispatchPort port;
         port.action = 300U;
         auto context = fixture.context();
-        context.actor_action_kind_request.entry_edx = 0xAABBCCDDU;
-        context.actor_action_kind_request.entry_esp = 0x82003000U;
         const auto result = dispatch(state, port, context, 2U, 0U);
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.action_code == 300U &&
-                result.actor_action_kind_calls == 1U &&
-                result.actor_action_kind.return_eax == 0x0000012CU &&
-                result.actor_action_kind.return_ecx == 0x0052AB58U &&
-                result.actor_action_kind.return_edx == 0xAABBCCDDU &&
-                result.actor_action_kind.return_esp == 0x82003004U &&
-                result.actor_action_kind.return_eip == 0x00455D9CU &&
-                result.actor_action_kind.flags.parity &&
-                result.actor_action_kind.flags.auxiliary_carry &&
-                !result.actor_action_kind.flags.carry &&
-                !result.actor_action_kind.flags.zero &&
+                result.actor_action_kind.has_value() &&
+                result.actor_action_kind->value == 300U &&
                 port.count(0x004786B0U) == 0U && port.count(0x00482840U) == 1U,
-            "opponent dispatcher composes the action-kind getter with stride arithmetic residues and real return address"
+            "opponent dispatcher reads the actual action WORD before selecting action three hundred"
         );
     }
 
@@ -432,30 +473,25 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 0x1234U;
         auto field_context = fixture.context();
-        field_context.actor_action_kind_request.entry_edx = 0x11223344U;
-        field_context.actor_action_kind_request.access.action_kind_readable =
-            false;
+        field_context.actor_action_kind_access.action_kind_readable = false;
         const auto field_stop = dispatch(state, port, field_context, 1U, 0U);
 
         auto return_context = fixture.context();
-        return_context.actor_action_kind_request.entry_edx = 0x55667788U;
-        return_context.actor_action_kind_request.access
-            .return_address_readable = false;
+        return_context.actor_action_kind_access.return_address_readable = false;
         const auto return_stop = dispatch(state, port, return_context, 1U, 0U);
         test.expect_true(
             field_stop.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_action_kind_typed_stop &&
-                field_stop.actor_action_kind.return_eax == 0x00000565U &&
-                field_stop.actor_action_kind.return_eip == 0x004786B0U &&
-                field_stop.actor_action_kind.action_kind_reads == 0U &&
+                field_stop.return_value == 0x00000565U &&
+                field_stop.actor_action_kind.has_value() &&
+                !field_stop.actor_action_kind->value.has_value() &&
                 return_stop.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_action_kind_typed_stop &&
-                return_stop.actor_action_kind.return_eax == 0x00001234U &&
-                return_stop.actor_action_kind.return_eip == 0x004786B7U &&
-                return_stop.actor_action_kind.action_kind_reads == 1U &&
-                return_stop.actor_action_kind.return_address_reads == 0U &&
+                return_stop.return_value == 0x00001234U &&
+                return_stop.actor_action_kind.has_value() &&
+                return_stop.actor_action_kind->value == 0x1234U &&
                 port.calls.empty(),
             "opponent dispatcher propagates action-kind field and RET stops before every switch side effect"
         );
@@ -515,7 +551,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result = dispatch(state, port, context, 0U, 0xFFFFFFFFU);
         test.expect_true(
-            result.return_value == 1U && result.actor_action_kind_calls == 1U,
+            result.return_value == 1U && result.actor_action_kind.has_value(),
             "opponent action one hundred returns one before target access"
         );
     }
@@ -528,7 +564,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result = dispatch(state, port, context, 0U, 0xFFFFFFFFU);
         test.expect_true(
-            result.return_value == 0U && result.actor_action_kind_calls == 1U,
+            result.return_value == 0U && result.actor_action_kind.has_value(),
             "unrecognized large opponent action returns before target access"
         );
     }
@@ -544,7 +580,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         group_a_index_typed_stop &&
-                result.actor_action_kind_calls == 1U,
+                result.actor_action_kind.has_value(),
             "opponent action two hundred stops at first group A target call"
         );
     }
@@ -586,7 +622,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[1U]
             .action_configuration.profile_buffer[0x0CU] = std::byte{9U};
         auto context = fixture.context();
-        context.actor_action_kind_request.entry_edx = 0x13572468U;
+        context.opponent_action_entry_edx = 0x13572468U;
         const auto result = dispatch(state, port, context, 1U, 2U);
         test.expect_true(
             result.return_value == 0U && state.action_pending == 1U &&
@@ -628,7 +664,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         (*fixture.startup->group_b_lifecycle)[1U]
             .action_configuration.profile_buffer[0x0CU] = std::byte{9U};
         auto context = fixture.context();
-        context.actor_action_kind_request.entry_edx = 0x24681357U;
+        context.opponent_action_entry_edx = 0x24681357U;
         const auto result = dispatch(state, port, context, 1U, 3U);
         test.expect_true(
             result.return_value == 1U && state.group_a_to_actor[3] == 3U &&
@@ -1390,11 +1426,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_action_kind_typed_stop &&
-                result.actor_action_kind_calls == 1U &&
-                result.actor_action_kind.status ==
+                result.actor_action_kind.has_value() &&
+                result.actor_action_kind->status ==
                     openswd3::battle::LegacyBattleActorActionKindStatus::
                         action_kind_read_typed_stop &&
-                result.actor_action_kind.return_eip == 0x004786B0U &&
+                !result.actor_action_kind->value.has_value() &&
                 state.phase_counter == 0x12340000U &&
                 state.opponent_special_action == 0x1111U &&
                 state.opponent_spawn_count == 0x2222U &&
@@ -1716,11 +1752,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_action_kind_typed_stop &&
-                result.actor_action_kind_calls == 1U &&
-                result.actor_action_kind.status ==
+                result.actor_action_kind.has_value() &&
+                result.actor_action_kind->status ==
                     openswd3::battle::LegacyBattleActorActionKindStatus::
                         action_kind_read_typed_stop &&
-                result.actor_action_kind.return_eip == 0x004786B0U &&
+                !result.actor_action_kind->value.has_value() &&
                 result.group_b_action_seventeen_frame_calls == 0U &&
                 state.overlay_gate == 0U &&
                 openswd3::compat::u8(state.opponent_processed_counter) == 0U &&
@@ -1849,7 +1885,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             const auto result = dispatch(state, port, context, 0U, 99U);
             sparse_cases_match = sparse_cases_match &&
                 result.return_value == 0U &&
-                result.actor_action_kind_calls == 1U;
+                result.actor_action_kind.has_value();
         }
         test.expect_true(
             sparse_cases_match,

@@ -691,28 +691,22 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::run() {
         return result;
     }
     actor_token = group_a_token(group_a_index);
-    auto action_kind_request = context.actor_action_kind_request;
-    action_kind_request.actor_token = actor_token;
-    action_kind_request.entry_eax = group_a_index * 0xBCDU;
-    action_kind_request.entry_return_address = 0x004539EBU;
-    action_kind_request.entry_flags =
-        subtract_flags(group_a_index * 0x3F0U, group_a_index);
-    action_kind_request.entry_flags_known = true;
     result.actor_action_kind = query_legacy_battle_actor_action_kind(
-        resolve_legacy_battle_actor_action_kind(
-            {.action = &state, .startup = context.startup}, actor_token
-        ),
-        action_kind_request
+        &state.group_a_action_execution[group_a_index].action_kind,
+        context.actor_action_kind_access
     );
-    ++result.actor_action_kind_calls;
-    if (result.actor_action_kind.status !=
-        LegacyBattleActorActionKindStatus::completed) {
+    const auto& action_kind = *result.actor_action_kind;
+    if (action_kind.status != LegacyBattleActorActionKindStatus::completed) {
         result.status =
             LegacyBattleActionDispatchStatus::actor_action_kind_typed_stop;
-        result.return_value = result.actor_action_kind.return_eax;
+        const u32 entry_value = group_a_index * 0xBCDU;
+        result.return_value = action_kind.value.has_value()
+            ? (entry_value & 0xFFFF0000U) | *action_kind.value
+            : entry_value;
         return result;
     }
-    action = low_word(result.actor_action_kind.return_eax);
+
+    action = *action_kind.value;
     result.action_code = action;
     reply = invoke(state, port, kCallActorTerminal, {actor_token});
     if (reply.eax == 1U) {

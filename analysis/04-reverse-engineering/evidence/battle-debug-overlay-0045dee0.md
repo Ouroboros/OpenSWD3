@@ -18,9 +18,9 @@
 
 - 15次导入`wsprintfA`，现以固定255字节typed缓冲和等价十进制格式化直接实现；
 - 18次文字绘制，保留字体、surface、坐标、前景色`0xFFFF`和高度`0x10`的窄端口；
-- 4次字体style/reset；两处动作种类word与紧随其后的两处启动门word查询均改为直接组合typed leaf，其余角色对象查询继续按各自typed实现或窄端口处理。
+- 4次字体style/reset；两处动作种类与两处启动计数查询均直接借实际WORD并返回状态及可选观察值，其余对象查询继续按现有实现处理。
 
-角色对象和surface继续只以`compat::u32` token表达，不转宿主指针。
+尚未迁移的对象解析及surface接口仍使用`compat::u32` token；动作与启动计数查询直接借实际字段。
 
 ## 2. 总门与字体生命周期
 
@@ -50,7 +50,7 @@
 
 组B每次文字绘制后重新读取动态数量。对象token为`0x00525508 + index*0x2B28`的低32位。
 
-组A循环按`0x005029D0 + index*0x2F34`生成token，先从动作分派的十槽`group_a_action_execution[index].action_kind`直接组合typed动作种类查询，再从同槽`start_gate`直接组合typed启动门查询，最后执行CP950格式`鎖定:%d 命令:%-3d`，坐标为`X=520`、`Y=10+index*20`。首行动作种类getter保留前一Group-B count的EAX、最后一次文字绘制或字体reset的EDX及Group-A count TEST flags；后续行动作种类getter保留上轮末尾重载count的EAX、前一文字绘制callee的EDX及循环CMP flags。启动门getter随后接收已mask命令的EAX与flags，并继续保留同一EDX。每次绘制后同样重读动态数量。
+组A循环按`0x005029D0 + index*0x2F34`生成父级token，直接读取十槽`group_a_action_execution[index].action_kind`及同槽`start_gate`，然后以完整unsigned WORD执行CP950格式`鎖定:%d 命令:%-3d`，坐标为`X=520`、`Y=10+index*20`。两个查询均无寄存器请求回复、解析或计数。父级动作查询失败仍保留首行敌方数量或后续行重载队员数量，RET失败替换低WORD；EDX保留字体/上一行绘制结果。启动查询失败沿用已读动作值及EDX。每次绘制后重新读取动态数量和下一角色实际字段。
 
 不增加现代数量夹值或循环上限。
 
@@ -116,10 +116,10 @@
 
 逐帧协调器在内部bit17检查之后读取叠加门。该门归独立虚共享gate port唯一持有，撤退提交可在成功时清零，全局重置也同步清零。机器码只有门完整等于1时调用本函数；旧实现把条件反向并保留opaque调用，现已纠正为精确等于1时直接组合typed叠加层。
 
-子typed-stop保留音乐、角色预处理、metric、角色顺序、surface绘制、HUD、对话、双倒计时和叠加正文前缀，随后阻断结果判定、上下文提示、颜色累加、临时surface与截图。两处动作种类word caller现直接组合`0x004786B0` typed leaf；Group-B真实返回地址为`0x0045DF5F`，Group-A为`0x0045DFDA`。其后的两处启动计数查询已直接借用双方角色实际WORD，返回状态及可选读值；本查询的寄存器请求/回复、栈轨迹、调用计数、转发函数及reserved编号均删除。原返回地址为`0x0045DF6C`、`0x0045DFE7`，调用前动作种类已经mask并保存，查询成功后完整WORD零扩展用于文字。字段/返回失败保留已完成前缀与父级实际残值，抑制当前行格式化、绘制及剩余循环；上一行回调修改下一角色后必须实时读取。当前向量、门禁与限制见[启动计数查询](battle-actor-start-gate-004786d0.md)。动作种类查询仍待迁移。Workpack 288 REVIEW 1把`0x0045E270`标记坐标站点改为直接读取Group-B lifecycle action-execution canonical坐标到固定`0x0053BF4A/0x0053BF4E` scratch；旧位置查询端口槽改为reserved并保持生产零调用。六类current-coordinate stop保留已完成正文及X scratch前缀，阻断进度宽度、row-offset与全部标记像素。组B进度或阈值读取stop发生在位置查询与row-offset计算之后、任何标记像素之前；旧宽度端口槽同样仅保留reserved兼容编号且生产零调用。正常返回寄存器按原caller保持未消费。
+子typed-stop保留音乐、角色预处理、metric、角色顺序、surface绘制、HUD、对话、双倒计时和叠加正文前缀，随后阻断结果判定、上下文提示、颜色累加、临时surface与截图。两处动作种类调用现直接借实际WORD；原Group-B返回地址为`0x0045DF5F`，Group-A为`0x0045DFDA`。查询编号、寄存器协议、token解析、栈轨迹、计数、转发及reserved查询槽已删除；当前证据见[动作种类查询](battle-actor-action-kind-004786b0.md)。其后的两处启动计数查询已直接借用双方角色实际WORD，返回状态及可选读值；本查询的寄存器请求/回复、栈轨迹、调用计数、转发函数及reserved编号均删除。原返回地址为`0x0045DF6C`、`0x0045DFE7`，调用前动作种类已经mask并保存，查询成功后完整WORD零扩展用于文字。字段/返回失败保留已完成前缀与父级实际残值，抑制当前行格式化、绘制及剩余循环；上一行回调修改下一角色后必须实时读取。当前向量、门禁与限制见[启动计数查询](battle-actor-start-gate-004786d0.md)。其余调试操作与资源仍待迁移。Workpack 288 REVIEW 1把`0x0045E270`标记坐标站点改为直接读取Group-B lifecycle action-execution canonical坐标到固定`0x0053BF4A/0x0053BF4E` scratch；旧位置查询端口槽改为reserved并保持生产零调用。六类current-coordinate stop保留已完成正文及X scratch前缀，阻断进度宽度、row-offset与全部标记像素。组B进度或阈值读取stop发生在位置查询与row-offset计算之后、任何标记像素之前；旧宽度端口槽同样仅保留reserved兼容编号且生产零调用。正常返回寄存器按原caller保持未消费。
 
 ## 9. 测试与动态差分
 
-定向测试覆盖总门关闭字体尾、两组完整文字、CP950字节、固定坐标与格式、生命局部跨角色陈旧继承、低byte/word和signed参数、完整EAX/ECX/EDX尾、解析token发布、`+0x54`读取停点、两处动作种类word与两处启动门word typed组合、首行/后续行寄存器线程、字段/RET停止后缀、十槽Group-A边界、三类动态顺序、callee后数量增长、typed current-coordinate与进度宽度、四个旧端口零调用、Y读取停止后的X scratch部分提交、进度读取停点、双行标记、第二行越界前缀、signed缓存除法、frame divisor零点、全局重置别名及逐帧caller阻断。
+定向测试覆盖总门关闭字体尾、两组完整文字、CP950字节、固定坐标与格式、生命局部跨角色陈旧继承、低byte/word和signed参数、完整EAX/ECX/EDX尾、解析token发布、`+0x54`读取停点、双方动作与启动WORD实际共享读取、首行/后续行父级失败值、字段/RET停止后缀、十槽Group-A边界、三类动态顺序、callee后数量增长、typed current-coordinate与进度宽度、两类标记旧端口零调用、Y读取停止后的X scratch部分提交、进度读取停点、双行标记、第二行越界前缀、signed缓存除法、frame divisor零点、全局重置别名及逐帧caller阻断。
 
 当前缺少原版字体/文字callee、两组角色对象及查询副作用、共享255字节缓冲、TSW缓存计数、完整叠加全局、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

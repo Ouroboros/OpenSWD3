@@ -74,8 +74,6 @@ public:
                 .output_0 =
                     12U + (request.object_token - 0x00525508U) / 0x00002B28U,
             };
-        case LegacyBattleDebugOverlayCall::reserved_query_actor_command:
-            return {.eax = 3U};
         case LegacyBattleDebugOverlayCall::reserved_query_marker_position:
             return {.output_mask = 3U, .output_0 = 1U, .output_1 = 0U};
         case LegacyBattleDebugOverlayCall::reserved_query_marker_width:
@@ -162,6 +160,85 @@ struct Fixture {
 }  // namespace
 
 void test_battle_debug_overlay(openswd3::test::Context& test) {
+    for (const bool enemy : {false, true}) {
+        for (const u16 value : std::array<u16, 7>{
+                 0U, 1U, 0xFFU, 0x100U, 0x7FFFU, 0x8000U, 0xFFFFU
+             }) {
+            for (const unsigned phase : {0U, 1U, 2U}) {
+                auto fixture = std::make_unique<Fixture>();
+                fixture->hotkeys.toggle_5244e0 = 1U;
+                fixture->metrics.group_a_count = enemy ? 0U : 2U;
+                fixture->metrics.group_b_count = enemy ? 2U : 0U;
+                openswd3::battle::LegacyBattleDebugOverlayRequest request;
+                auto& access = enemy ? request.group_b_action_kind_access
+                                     : request.group_a_action_kind_access;
+                auto& field = enemy
+                    ? (*fixture->startup.group_b_lifecycle)[1U]
+                          .action_composition.action_kind
+                    : fixture->action.group_a_action_execution[1U].action_kind;
+                field = 0x1234U;
+                OverlayPort port;
+                port.draw_reply.edx = 0xAABBCCDDU;
+                port.on_draw = [&](const auto&) {
+                    if (port.texts.size() == 1U) {
+                        field = value;
+                        access.action_kind_readable = phase != 1U;
+                        access.return_address_readable = phase != 2U;
+                    }
+                };
+                const auto result = draw_legacy_battle_debug_overlay(
+                    fixture->bindings(), port, request
+                );
+                test.expect_true(
+                    result.actor_action_kind.has_value() && field == value &&
+                        (enemy ? result.group_b_rows : result.group_a_rows) ==
+                            (phase == 0U ? 2U : 1U),
+                    "action query observes the preceding draw's shared WORD write and retains completed rows"
+                );
+                if (phase == 0U) {
+                    test.expect_true(
+                        result.status ==
+                                LegacyBattleDebugOverlayStatus::completed &&
+                            result.actor_action_kind->value == value &&
+                            port.texts.size() >= 2U &&
+                            port.texts[1U].text.find(std::to_string(value)) !=
+                                std::string::npos,
+                        "both actor groups print the complete unsigned action WORD"
+                    );
+                } else {
+                    using Status =
+                        openswd3::battle::LegacyBattleActorActionKindStatus;
+                    const u32 entry_value = enemy ? 0x10528030U : 2U;
+                    const u32 expected_value = phase == 1U
+                        ? entry_value
+                        : (entry_value & 0xFFFF0000U) | value;
+                    test.expect_true(
+                        result.status ==
+                                LegacyBattleDebugOverlayStatus::
+                                    actor_action_kind_typed_stop &&
+                            result.actor_action_kind->status ==
+                                (phase == 1U
+                                     ? Status::action_kind_read_typed_stop
+                                     : Status::
+                                           return_address_read_typed_stop) &&
+                            result.actor_action_kind->value ==
+                                (phase == 1U ? std::optional<u16>{}
+                                             : std::optional<u16>{value}) &&
+                            result.return_value == expected_value &&
+                            result.return_ecx ==
+                                (enemy ? 0x00528030U : 0x00505904U) &&
+                            result.return_edx == (enemy ? 51U : 0xAABBCCDDU) &&
+                            result.actor_start_gate.has_value() &&
+                            result.actor_start_gate->value == 4U &&
+                            result.formatted_texts == 1U &&
+                            result.text_draws == 1U && port.texts.size() == 1U,
+                        "second action read and return faults preserve parent values and suppress that row and later work"
+                    );
+                }
+            }
+        }
+    }
+
     for (const bool enemy : {false, true}) {
         for (const u16 count :
              std::array<u16, 4>{0U, 0x100U, 0x8000U, 0xFFFFU}) {
@@ -290,25 +367,17 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             fixture.bindings(),
             port,
             {
-                .group_b_action_kind_request = {.entry_esp = 0x83004000U},
             }
         );
         test.expect_true(
             result.status == LegacyBattleDebugOverlayStatus::completed &&
-                result.actor_action_kind_calls == 1U &&
-                result.actor_action_kind.return_eax == 0x10524567U &&
-                result.actor_action_kind.return_ecx == 0x00525508U &&
-                result.actor_action_kind.return_edx == 50U &&
-                result.actor_action_kind.return_esp == 0x83004004U &&
-                result.actor_action_kind.return_eip == 0x0045DF5FU &&
-                result.actor_action_kind.flags.parity &&
-                result.actor_action_kind.flags.zero &&
+                result.actor_action_kind.has_value() &&
+                result.actor_action_kind->value == 0x4567U &&
+                result.group_b_rows == 1U &&
+                port.texts[0U].text.find("17767") != std::string::npos &&
                 result.actor_start_gate.has_value() &&
-                result.actor_start_gate->value == 4U &&
-                port.count(
-                    LegacyBattleDebugOverlayCall::reserved_query_actor_command
-                ) == 0U,
-            "Group-B overlay row preserves resolved-token EAX high word, level EDX, XOR flags, and real getter return address"
+                result.actor_start_gate->value == 4U,
+            "Group-B overlay row formats the complete shared action WORD after the resolved actor prefix"
         );
     }
 
@@ -323,22 +392,17 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             fixture.bindings(),
             port,
             {
-                .group_a_action_kind_request = {.entry_esp = 0x84005000U},
             }
         );
         test.expect_true(
             result.status == LegacyBattleDebugOverlayStatus::completed &&
-                result.actor_action_kind_calls == 1U &&
-                result.actor_action_kind.return_eax == 0x00006789U &&
-                result.actor_action_kind.return_ecx == 0x005029D0U &&
-                result.actor_action_kind.return_edx == 0xAABBCCDDU &&
-                result.actor_action_kind.return_esp == 0x84005004U &&
-                result.actor_action_kind.return_eip == 0x0045DFDAU &&
-                !result.actor_action_kind.flags.parity &&
-                !result.actor_action_kind.flags.zero &&
+                result.actor_action_kind.has_value() &&
+                result.actor_action_kind->value == 0x6789U &&
+                result.group_a_rows == 1U &&
+                port.texts[0U].text.find("26505") != std::string::npos &&
                 result.actor_start_gate.has_value() &&
                 result.actor_start_gate->value == 4U,
-            "Group-A overlay row preserves both typed word-query call states and distinct real return addresses"
+            "Group-A overlay row formats the complete shared action and startup WORDs"
         );
     }
 
@@ -356,20 +420,13 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
 
         test.expect_true(
             result.status == LegacyBattleDebugOverlayStatus::completed &&
-                result.actor_action_kind_calls == 2U &&
-                result.actor_action_kind.return_eax == 0x00002222U &&
-                result.actor_action_kind.return_ecx == 0x00505904U &&
-                result.actor_action_kind.return_edx == 0xCAFEBABEU &&
-                result.actor_action_kind.flags.carry &&
-                result.actor_action_kind.flags.parity &&
-                result.actor_action_kind.flags.auxiliary_carry &&
-                result.actor_action_kind.flags.sign &&
-                !result.actor_action_kind.flags.zero &&
-                !result.actor_action_kind.flags.overflow &&
+                result.actor_action_kind.has_value() &&
+                result.actor_action_kind->value == 0x2222U &&
+                port.texts[1U].text.find("8738") != std::string::npos &&
                 result.group_a_rows == 2U &&
                 result.actor_start_gate.has_value() &&
                 result.actor_start_gate->value == 4U,
-            "later Group-A overlay rows preserve reloaded count, prior draw EDX, loop CMP state, and masked-command start-gate state"
+            "later Group-A overlay rows read their own action WORD before the startup count and formatting"
         );
     }
 
@@ -382,19 +439,17 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             fixture.bindings(),
             port,
             {
-                .group_b_action_kind_request = {
-                    .entry_eax = 0xAAAAAAAAU,
-                    .access = {.action_kind_readable = false},
-                },
+                .group_b_action_kind_access = {.action_kind_readable = false},
             }
         );
         test.expect_true(
             result.status ==
                     LegacyBattleDebugOverlayStatus::
                         actor_action_kind_typed_stop &&
-                result.actor_action_kind.return_eax == 0x10525508U &&
-                result.actor_action_kind.return_eip == 0x004786B0U &&
-                result.actor_action_kind.action_kind_reads == 0U &&
+                result.return_value == 0x10525508U &&
+                result.return_ecx == 0x00525508U && result.return_edx == 50U &&
+                result.actor_action_kind.has_value() &&
+                !result.actor_action_kind->value.has_value() &&
                 result.group_b_rows == 0U && result.formatted_texts == 0U &&
                 result.text_draws == 0U && !result.actor_start_gate.has_value(),
             "Group-B overlay field stop preserves resolve and vitality prefix while suppressing lock, formatting, and remaining rows"
@@ -412,8 +467,8 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             fixture.bindings(),
             port,
             {
-                .group_a_action_kind_request = {
-                    .access = {.return_address_readable = false},
+                .group_a_action_kind_access = {
+                    .return_address_readable = false
                 },
             }
         );
@@ -421,11 +476,11 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleDebugOverlayStatus::
                         actor_action_kind_typed_stop &&
-                result.actor_action_kind.return_eax == 0x0000789AU &&
-                result.actor_action_kind.return_edx == 0x11223344U &&
-                result.actor_action_kind.return_eip == 0x004786B7U &&
-                result.actor_action_kind.action_kind_reads == 1U &&
-                result.actor_action_kind.return_address_reads == 0U &&
+                result.return_value == 0x789AU &&
+                result.return_ecx == 0x005029D0U &&
+                result.return_edx == 0x11223344U &&
+                result.actor_action_kind.has_value() &&
+                result.actor_action_kind->value == 0x789AU &&
                 result.group_a_rows == 0U && result.formatted_texts == 0U &&
                 result.text_draws == 0U && !result.actor_start_gate.has_value(),
             "Group-A overlay RET stop preserves replaced AX and loop entry residues while suppressing the row suffix"
@@ -448,7 +503,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleDebugOverlayStatus::
                         actor_start_gate_typed_stop &&
-                result.actor_action_kind_calls == 1U &&
+                result.actor_action_kind.has_value() &&
                 result.actor_start_gate.has_value() &&
                 result.actor_start_gate->status ==
                     openswd3::battle::LegacyBattleActorStartGateStatus::
@@ -480,7 +535,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleDebugOverlayStatus::
                         actor_start_gate_typed_stop &&
-                result.actor_action_kind_calls == 1U &&
+                result.actor_action_kind.has_value() &&
                 result.actor_start_gate.has_value() &&
                 result.actor_start_gate->status ==
                     openswd3::battle::LegacyBattleActorStartGateStatus::
@@ -575,15 +630,12 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             "overlay preserves fixed coordinates tokens CP950-backed ordering and signed decimal formatting"
         );
         test.expect_true(
-            result.actor_action_kind_calls == 4U &&
-                result.actor_action_kind.return_eip == 0x0045DFDAU &&
+            result.actor_action_kind.has_value() &&
+                result.actor_action_kind->value.has_value() &&
                 result.actor_start_gate.has_value() &&
                 result.actor_start_gate->status ==
                     openswd3::battle::LegacyBattleActorStartGateStatus::
                         completed &&
-                port.count(
-                    LegacyBattleDebugOverlayCall::reserved_query_actor_command
-                ) == 0U &&
                 port.count(
                     LegacyBattleDebugOverlayCall::reserved_query_marker_position
                 ) == 0U &&
@@ -636,11 +688,11 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleDebugOverlayStatus::
                         actor_action_kind_typed_stop &&
-                result.actor_action_kind_calls == 11U &&
-                result.actor_action_kind.status ==
+                result.actor_action_kind.has_value() &&
+                result.actor_action_kind->status ==
                     openswd3::battle::LegacyBattleActorActionKindStatus::
                         action_kind_read_typed_stop &&
-                result.actor_action_kind.return_eip == 0x004786B0U &&
+                !result.actor_action_kind->value.has_value() &&
                 result.group_a_rows == 10U && result.startup_order_rows == 0U &&
                 result.text_draws == 10U &&
                 port.count(LegacyBattleDebugOverlayCall::font_style) == 1U,
@@ -660,7 +712,7 @@ void test_battle_debug_overlay(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleDebugOverlayStatus::completed &&
                 result.group_a_rows == 10U &&
-                result.actor_action_kind_calls == 10U &&
+                result.actor_action_kind.has_value() &&
                 result.startup_order_rows == 10U &&
                 result.actor_order_rows == 10U &&
                 result.selection_order_rows == 10U,

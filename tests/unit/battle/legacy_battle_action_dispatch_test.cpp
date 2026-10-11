@@ -1070,7 +1070,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U &&
-                result.actor_action_kind_calls == 1U,
+                result.actor_action_kind.has_value(),
             "terminal actor returns one before any target access"
         );
     }
@@ -7544,7 +7544,7 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
             auto context = fixture.context();
             const auto result = dispatch(state, port, context, 0U, 99U);
             defaults_match = defaults_match && result.return_value == 0U &&
-                result.actor_action_kind_calls == 1U;
+                result.actor_action_kind.has_value();
         }
         test.expect_true(
             defaults_match,
@@ -7599,24 +7599,14 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
         port.action = 0xBEEFU;
         port.terminal_return = 1U;
         auto context = fixture.context();
-        context.actor_action_kind_request.entry_edx = 0xAABBCCDDU;
-        context.actor_action_kind_request.entry_esp = 0x81002000U;
         const auto result = dispatch(state, port, context, 2U, 0U);
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U && result.action_code == 0xBEEFU &&
-                result.actor_action_kind_calls == 1U &&
-                result.actor_action_kind.return_eax == 0x0000BEEFU &&
-                result.actor_action_kind.return_ecx == 0x00508838U &&
-                result.actor_action_kind.return_edx == 0xAABBCCDDU &&
-                result.actor_action_kind.return_esp == 0x81002004U &&
-                result.actor_action_kind.return_eip == 0x004539EBU &&
-                result.actor_action_kind.flags.parity &&
-                result.actor_action_kind.flags.auxiliary_carry &&
-                !result.actor_action_kind.flags.carry &&
-                !result.actor_action_kind.flags.zero &&
+                result.actor_action_kind.has_value() &&
+                result.actor_action_kind->value == 0xBEEFU &&
                 port.count(0x004786B0U) == 0U && port.count(0x0047CE80U) == 1U,
-            "main action dispatcher composes the action-kind word getter with exact address arithmetic state and real return address"
+            "main action dispatcher reads the actual complete action WORD before terminal evaluation"
         );
     }
 
@@ -7626,30 +7616,25 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 0x1234U;
         auto field_context = fixture.context();
-        field_context.actor_action_kind_request.entry_edx = 0x11223344U;
-        field_context.actor_action_kind_request.access.action_kind_readable =
-            false;
+        field_context.actor_action_kind_access.action_kind_readable = false;
         const auto field_stop = dispatch(state, port, field_context, 1U, 0U);
 
         auto return_context = fixture.context();
-        return_context.actor_action_kind_request.entry_edx = 0x55667788U;
-        return_context.actor_action_kind_request.access
-            .return_address_readable = false;
+        return_context.actor_action_kind_access.return_address_readable = false;
         const auto return_stop = dispatch(state, port, return_context, 1U, 0U);
         test.expect_true(
             field_stop.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_action_kind_typed_stop &&
-                field_stop.actor_action_kind.return_eax == 0x00000BCDU &&
-                field_stop.actor_action_kind.return_eip == 0x004786B0U &&
-                field_stop.actor_action_kind.action_kind_reads == 0U &&
+                field_stop.return_value == 0x00000BCDU &&
+                field_stop.actor_action_kind.has_value() &&
+                !field_stop.actor_action_kind->value.has_value() &&
                 return_stop.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_action_kind_typed_stop &&
-                return_stop.actor_action_kind.return_eax == 0x00001234U &&
-                return_stop.actor_action_kind.return_eip == 0x004786B7U &&
-                return_stop.actor_action_kind.action_kind_reads == 1U &&
-                return_stop.actor_action_kind.return_address_reads == 0U &&
+                return_stop.return_value == 0x00001234U &&
+                return_stop.actor_action_kind.has_value() &&
+                return_stop.actor_action_kind->value == 0x1234U &&
                 port.count(0x0047CE80U) == 0U,
             "main action dispatcher propagates field and RET typed stops before terminal query and action switch suffixes"
         );
@@ -7667,7 +7652,7 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U && result.action_code == 0U &&
-                result.actor_action_kind_calls == 1U &&
+                result.actor_action_kind.has_value() &&
                 result.actor_display_kind.has_value() &&
                 result.actor_display_kind->value == 0U &&
                 port.count(0x0047CE80U) == 1U && port.count(0x004786C0U) == 0U,
@@ -7696,14 +7681,14 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
                     LegacyBattleActionDispatchStatus::
                         actor_display_kind_typed_stop &&
                 field_stop.return_value == 0xA5A50000U &&
-                field_stop.actor_action_kind_calls == 1U &&
+                field_stop.actor_action_kind.has_value() &&
                 field_stop.actor_display_kind.has_value() &&
                 !field_stop.actor_display_kind->value.has_value() &&
                 return_stop.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_display_kind_typed_stop &&
                 return_stop.return_value == 0x5A5A1234U &&
-                return_stop.actor_action_kind_calls == 1U &&
+                return_stop.actor_action_kind.has_value() &&
                 return_stop.actor_display_kind.has_value() &&
                 return_stop.actor_display_kind->value == 0x1234U &&
                 port.count(0x004786C0U) == 0U && port.count(0x0047CE80U) == 2U,
