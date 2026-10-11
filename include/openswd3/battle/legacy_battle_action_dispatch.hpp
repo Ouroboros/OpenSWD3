@@ -113,9 +113,6 @@ struct LegacyBattlePendingActorReadyActionModeCall {
     bool executed{};
     compat::u32 mode{};
     compat::u32 entry_eax{};
-    compat::u32 entry_edx{};
-    LegacyBattleActorCoordinateFlags entry_flags{};
-    bool entry_flags_known{true};
 };
 
 struct LegacyBattlePendingActorField26b8HighBitClearCall {
@@ -1473,8 +1470,7 @@ struct LegacyBattleActionDispatchContext {
     LegacyBattleActorStartGateAccess actor_start_gate_access{};
     LegacyBattleActorFrameSnapshotClearRequest
         actor_frame_snapshot_clear_request{};
-    std::array<LegacyBattleActorActionModeRequest, 41>
-        actor_action_mode_requests{};
+    LegacyBattleActorActionModeMemoryAccess actor_action_mode_access{};
     LegacyBattleActorField26b8HighBitClearRequest
         actor_field_26b8_high_bit_clear_request{};
     LegacyBattleActorField26b8HighBitSetCallRequests
@@ -1640,9 +1636,7 @@ struct LegacyBattleActionDispatchResult {
     std::optional<LegacyBattleActorTurnCompletionResult> actor_turn_completion;
     std::optional<LegacyBattleActorIdleStateResult> actor_idle_state;
     std::optional<LegacyBattleActorActionKindResult> actor_action_kind;
-    LegacyBattleActorActionModeResult actor_action_mode{};
-    std::array<LegacyBattleActorActionModeResult, 41> actor_action_modes{};
-    compat::u32 actor_action_mode_calls{};
+    std::optional<LegacyBattleActorActionModeResult> actor_action_mode;
     LegacyBattleActorField26b8HighBitClearResult
         actor_field_26b8_high_bit_clear{};
     compat::u32 actor_field_26b8_high_bit_clear_calls{};
@@ -2004,24 +1998,10 @@ advance_legacy_battle_target_phase_spawn_frame(
     const LegacyBattleSummonFrameRequest& request
 );
 
-[[nodiscard]] bool apply_legacy_battle_actor_action_mode_call(
-    LegacyBattleActionDispatchState& state,
-    LegacyBattleActionDispatchContext& context,
-    LegacyBattleActionDispatchResult& result,
-    compat::u32 actor_token,
-    compat::u32 mode,
-    compat::u32 entry_eax,
-    compat::u32 entry_edx,
-    compat::u32 return_address,
-    const LegacyBattleActorCoordinateFlags& entry_flags,
-    bool entry_flags_known = true
-) noexcept;
-
 [[nodiscard]] bool apply_legacy_battle_pending_actor_ready_action_modes(
-    LegacyBattleActionDispatchState& state,
     LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result,
-    compat::u32 actor_token,
+    LegacyBattleActorActionModeView actor,
     const LegacyBattleActionCallReply& reply
 ) noexcept;
 

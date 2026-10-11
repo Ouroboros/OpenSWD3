@@ -644,8 +644,10 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 ) != port.calls.end() &&
                 port.count(0x004758A0U) == 0U &&
                 port.count(0x00478710U) == 0U &&
-                result.actor_action_mode_calls == 1U &&
-                result.actor_action_mode.return_eip == 0x00456080U &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
                 (*fixture.startup->group_b_lifecycle)[1U]
                         .action_composition.action_kind == 300U,
             "opponent action one side zero commits pair then clears all three visual channels"
@@ -1253,6 +1255,8 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         state.packed_actor_counter = 0xAABBCCFFU;
         Fixture fixture;
         fixture.attack_order_records[0].value_00 = 7U;
+        state.group_a_action_execution[3U].action_kind = 0x24U;
+        state.group_a_action_execution[0U].action_kind = 0x25U;
         DispatchPort port;
         port.actor_metric_state().priority_actor_index = 7U;
         port.action = 7U;
@@ -1269,8 +1273,12 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 state.active_effect_gate == 0U &&
                 result.attack_order_remove.has_value() &&
                 result.attack_order_remove->removed_index.has_value() &&
-                fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU,
-            "opponent action seven wraps packed low byte and clears matching active targets"
+                fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
+                state.group_a_action_execution[3U].action_kind == 0U &&
+                state.group_a_action_execution[0U].action_kind == 0x25U &&
+                (*fixture.startup->group_b_lifecycle)[0U]
+                        .action_composition.action_kind == 7U,
+            "opponent action seven clears only the party target action, wraps the packed low byte and removes matching active targets"
         );
     }
 
@@ -1283,17 +1291,19 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         LegacyBattleActorFrameEntryRequest snapshot{};
         LegacyBattleActorFrameEntryRoutePorts frame_ports{};
         bind_ready_group_a_frame(fixture, context, snapshot, frame_ports, 0U);
-        context.actor_action_mode_requests[0].access.argument_readable = false;
+        context.actor_action_mode_access.argument_readable = false;
         const auto stopped = dispatch(state, port, context, 0U, 0U);
         test.expect_true(
             stopped.status ==
-                    LegacyBattleActionDispatchStatus::actor_action_mode_typed_stop &&
-                stopped.actor_action_mode.flags_known &&
-                stopped.actor_action_mode.flags.zero &&
-                !stopped.actor_action_mode.flags.carry &&
-                !stopped.actor_action_mode.flags.auxiliary_carry_defined &&
-                stopped.actor_action_mode.return_eip == 0x00478710U,
-            "opponent-seven XOR EBP overrides CMP flags before the mode argument-read fault"
+                    LegacyBattleActionDispatchStatus::
+                        actor_action_mode_typed_stop &&
+                stopped.actor_action_mode.has_value() &&
+                stopped.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        argument_read_typed_stop &&
+                stopped.return_value == 1U &&
+                !stopped.attack_order_remove.has_value(),
+            "opponent seven preserves the completed frame result and suppresses attack-order removal on an argument read failure"
         );
     }
 

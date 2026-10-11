@@ -5,6 +5,7 @@
 #include "openswd3/battle/legacy_battle_mon_profile.hpp"
 
 #include <array>
+#include <optional>
 
 namespace openswd3::battle {
 
@@ -13,7 +14,7 @@ struct LegacyBattleGroupBActionProfileModeRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
-    std::array<LegacyBattleActorActionModeRequest, 2> action_mode_requests{};
+    LegacyBattleActorActionModeMemoryAccess action_mode_access{};
 };
 
 enum class LegacyBattleGroupBActionProfileModeStatus : compat::u8 {
@@ -30,9 +31,7 @@ struct LegacyBattleGroupBActionProfileModeResult {
     };
     compat::u32 profile_load_calls{};
     compat::u32 profile_dwords_cleared{};
-    compat::u32 mode_update_calls{};
-    LegacyBattleActorActionModeResult actor_action_mode{};
-    std::array<LegacyBattleActorActionModeResult, 2> actor_action_modes{};
+    std::optional<LegacyBattleActorActionModeResult> actor_action_mode{};
     compat::u16 profile_id{};
     compat::u16 resource_word{};
     compat::u32 return_eax{};

@@ -1147,20 +1147,16 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifty_four() {
                 .selector_argument = std::bit_cast<u32>(workspace_.value_a),
                 .output_token = 0x005028ACU + static_cast<u32>(slot) * 2U,
                 .actor_token = *actor_token,
-                .action_mode_requests = {
-                    request_.actor_action_mode_requests
-                        [result_.actor_action_mode_calls],
-                    request_.actor_action_mode_requests
-                        [result_.actor_action_mode_calls],
-                },
+                .action_mode_access = request_.actor_action_mode_access,
             }
+
         );
     ++result_.group_b_action_profile_selection_calls;
-    if (result_.group_b_action_profile_selection.mode_update_calls != 0U) {
-        record_nested_actor_action_mode(
-            result_.group_b_action_profile_selection.actor_action_mode
-        );
+    if (result_.group_b_action_profile_selection.actor_action_mode) {
+        result_.actor_action_mode =
+            result_.group_b_action_profile_selection.actor_action_mode;
     }
+
     eax_ = result_.group_b_action_profile_selection.return_eax;
     ecx_ = result_.group_b_action_profile_selection.return_ecx;
     edx_ = result_.group_b_action_profile_selection.return_edx;

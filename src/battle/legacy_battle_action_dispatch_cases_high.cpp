@@ -536,30 +536,43 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                 return result;
             }
         }
-        const auto& seeded_mode =
-            context.actor_action_mode_requests[result.actor_action_mode_calls];
-        u32 mode_eax = seeded_mode.entry_eax;
-        u32 mode_edx = seeded_mode.entry_edx;
-        if (message_code != 0U && message_code < 0x61A8U) {
-            mode_eax = result.player_item.return_token;
-        } else if (!result.text_messages.empty()) {
-            mode_eax = result.text_messages.back().return_registers.eax;
-            mode_edx = result.text_messages.back().return_registers.edx;
+
+        const u32 mode_eax = message_code != 0U && message_code < 0x61A8U
+            ? result.player_item.return_token
+            : result.text_messages.back().return_registers.eax;
+        {
+            LegacyBattleActorActionModeView mode_fields;
+            if (context.startup != nullptr &&
+                group_a_index < state.group_a_action_execution.size()) {
+                auto& presentation = context.startup->party[group_a_index]
+                                         .item_effect_application;
+                mode_fields = {
+                    &state.group_a_action_execution[group_a_index].action_kind,
+                    &presentation.display_kind,
+                    &presentation.mode_flags
+                };
+            }
+
+            result.actor_action_mode = set_legacy_battle_actor_action_mode(
+                mode_fields, 0x12CU, context.actor_action_mode_access
+            );
+            const auto mode_status = result.actor_action_mode->status;
+            if (mode_status != LegacyBattleActorActionModeStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_action_mode_typed_stop;
+                result.return_value = mode_status ==
+                        LegacyBattleActorActionModeStatus::
+                            argument_read_typed_stop
+                    ? (mode_eax)
+                    : mode_status ==
+                        LegacyBattleActorActionModeStatus::
+                            return_address_read_typed_stop
+                    ? 1U
+                    : (0x12CU);
+                return result;
+            }
         }
-        if (!apply_legacy_battle_actor_action_mode_call(
-                state,
-                context,
-                result,
-                actor_token,
-                0x12CU,
-                mode_eax,
-                mode_edx,
-                0x00455CBBU,
-                seeded_mode.entry_flags,
-                false
-            )) {
-            return result;
-        }
+
         return result;
     }
     case 24U: {
@@ -767,17 +780,16 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                         .entry_eax = object_token,
                         .entry_ecx = object_token,
                         .entry_edx = object_token,
-                        .action_mode_request =
-                            context.actor_action_mode_requests
-                                [result.actor_action_mode_calls],
+                        .action_mode_access = context.actor_action_mode_access,
                     }
+
                 );
             ++result.group_b_action_composition_calls;
-            if (result.group_b_action_composition.mode_update_calls != 0U) {
-                append_nested_actor_action_mode(
-                    result, result.group_b_action_composition.actor_action_mode
-                );
+            if (result.group_b_action_composition.actor_action_mode) {
+                result.actor_action_mode =
+                    result.group_b_action_composition.actor_action_mode;
             }
+
             if (result.group_b_action_composition.status !=
                 LegacyBattleGroupBActionCompositionStatus::completed) {
                 result.status = LegacyBattleActionDispatchStatus::
@@ -809,22 +821,16 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                         .selector_argument = 0U,
                         .output_token = 0x0053BD40U,
                         .actor_token = object_token,
-                        .action_mode_requests = {
-                            context.actor_action_mode_requests
-                                [result.actor_action_mode_calls],
-                            context.actor_action_mode_requests
-                                [result.actor_action_mode_calls],
-                        },
+                        .action_mode_access = context.actor_action_mode_access,
                     }
+
                 );
             ++result.group_b_action_profile_selection_calls;
-            if (result.group_b_action_profile_selection.mode_update_calls !=
-                0U) {
-                append_nested_actor_action_mode(
-                    result,
-                    result.group_b_action_profile_selection.actor_action_mode
-                );
+            if (result.group_b_action_profile_selection.actor_action_mode) {
+                result.actor_action_mode =
+                    result.group_b_action_profile_selection.actor_action_mode;
             }
+
             if (result.group_b_action_profile_selection.status !=
                 LegacyBattleGroupBActionProfileSelectionStatus::completed) {
                 result.status = LegacyBattleActionDispatchStatus::
@@ -872,21 +878,44 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
                 LegacyBattleActionDispatchStatus::scale_scan_typed_stop;
             return result;
         }
-        const auto finish_scan = [&](const u32 return_address) {
+
+        const auto finish_scan = [&]() {
             const auto popped = invoke(state, port, kCallPopState, {0x40U});
-            if (!apply_legacy_battle_actor_action_mode_call(
-                    state,
-                    context,
-                    result,
-                    actor_token,
-                    0x12CU,
-                    popped.eax,
-                    popped.edx,
-                    return_address,
-                    popped.flags
-                )) {
-                return false;
+            {
+                LegacyBattleActorActionModeView mode_fields;
+                if (context.startup != nullptr &&
+                    group_a_index < state.group_a_action_execution.size()) {
+                    auto& presentation = context.startup->party[group_a_index]
+                                             .item_effect_application;
+                    mode_fields = {
+                        &state.group_a_action_execution[group_a_index]
+                             .action_kind,
+                        &presentation.display_kind,
+                        &presentation.mode_flags
+                    };
+                }
+
+                result.actor_action_mode = set_legacy_battle_actor_action_mode(
+                    mode_fields, 0x12CU, context.actor_action_mode_access
+                );
+                const auto mode_status = result.actor_action_mode->status;
+                if (mode_status !=
+                    LegacyBattleActorActionModeStatus::completed) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        actor_action_mode_typed_stop;
+                    result.return_value = mode_status ==
+                            LegacyBattleActorActionModeStatus::
+                                argument_read_typed_stop
+                        ? (popped.eax)
+                        : mode_status ==
+                            LegacyBattleActorActionModeStatus::
+                                return_address_read_typed_stop
+                        ? 1U
+                        : (0x12CU);
+                    return false;
+                }
             }
+
             state.scan_word = 0U;
             state.phase_condition = 0U;
             replace_low_word(state.scan_dialog_state, 0U);
@@ -895,7 +924,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         };
         if (result.scale_scan.return_value == 1U &&
             (state.scan_runtime & 0x8000U) == 0U) {
-            if (!finish_scan(0x00455053U)) {
+            if (!finish_scan()) {
                 return result;
             }
             return result;
@@ -948,8 +977,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         }
         port.battle_pair_primary_value() = 0U;
         static_cast<void>(invoke(state, port, kCallPushState, {0x40U}));
-        if ((state.scan_push_state & 0x8000U) != 0U &&
-            !finish_scan(0x004551C8U)) {
+        if ((state.scan_push_state & 0x8000U) != 0U && !finish_scan()) {
             return result;
         }
         return result;

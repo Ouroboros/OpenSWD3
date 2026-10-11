@@ -988,16 +988,40 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_seventy_eight() {
             )) {
             return finish(eax_);
         }
-        if (!set_actor_action_mode(
-                *token,
-                advance,
-                actor_index * 1007U,
-                actor_index * 3021U,
-                0x0046DCC9U,
-                subtract_flags(actor_index * 1008U, actor_index)
-            )) {
-            return finish(eax_);
+
+        {
+            LegacyBattleActorActionModeView mode_fields;
+            auto& presentation =
+                bindings_.startup.party[actor_index].item_effect_application;
+            mode_fields = {
+                &bindings_.action.group_a_action_execution[actor_index]
+                     .action_kind,
+                &presentation.display_kind,
+                &presentation.mode_flags
+            };
+
+            result_.actor_action_mode = set_legacy_battle_actor_action_mode(
+                mode_fields, advance, request_.actor_action_mode_access
+            );
+            const auto mode_status = result_.actor_action_mode->status;
+            eax_ = mode_status ==
+                    LegacyBattleActorActionModeStatus::argument_read_typed_stop
+                ? (actor_index * 1007U)
+                : mode_status == LegacyBattleActorActionModeStatus::completed ||
+                    mode_status ==
+                        LegacyBattleActorActionModeStatus::
+                            return_address_read_typed_stop
+                ? 1U
+                : (advance);
+            ecx_ = *token;
+            edx_ = actor_index * 3021U;
+            if (mode_status != LegacyBattleActorActionModeStatus::completed) {
+                result_.status = LegacyBattleScriptDispatchStatus::
+                    actor_action_mode_typed_stop;
+                return finish(eax_);
+            }
         }
+
         const u32 priority_actor_index = high_word(workspace_.packed_value_a);
         bindings_.shared.actor_order_workspace.fill(0U);
         bindings_.shared.attack_order_workspace.fill(0U);

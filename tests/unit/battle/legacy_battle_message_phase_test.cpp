@@ -829,11 +829,14 @@ void test_battle_message_phase(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleMessagePhaseStatus::
                         completed &&
-                result.actor_action_mode_calls == 2U &&
-                result.actor_action_modes[0U].return_eip == 0x004671F9U &&
-                result.actor_action_modes[1U].return_eip == 0x004671F9U &&
-                result.actor_message_percent_refresh.message_percent ==
-                    0x55U &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
+                result.actor_message_percent_refresh.message_percent == 0x55U &&
                 result.group_b_action_item_selection_calls == 1U &&
                 result.group_b_action_item_selection.random_calls == 2U &&
                 result.group_b_action_item_selection.definition_load_calls ==

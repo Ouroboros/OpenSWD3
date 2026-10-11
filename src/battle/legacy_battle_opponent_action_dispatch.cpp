@@ -54,28 +54,6 @@ constexpr u32 kOpponentRecordStride = 0x20U;
     return static_cast<u16>(value);
 }
 
-[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
-    value &= 0xFFU;
-    value ^= value >> 4U;
-    value ^= value >> 2U;
-    value ^= value >> 1U;
-    return (value & 1U) == 0U;
-}
-
-[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
-subtract_flags(const u32 left, const u32 right) noexcept {
-    const u32 value = left - right;
-    return {
-        .carry = left < right,
-        .parity = has_even_parity(value),
-        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
-        .auxiliary_carry_defined = true,
-        .zero = value == 0U,
-        .sign = (value & 0x80000000U) != 0U,
-        .overflow = (((left ^ right) & (left ^ value)) & 0x80000000U) != 0U,
-    };
-}
-
 [[nodiscard]] constexpr u8 low_byte(const u32 value) noexcept {
     return static_cast<u8>(value);
 }
@@ -475,25 +453,43 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             }
             clear_selection_state(state, port);
             state.current_actor_index = 0xFFFFU;
-            const auto& seeded_mode =
-                context
-                    .actor_action_mode_requests[result.actor_action_mode_calls];
-            const u32 mode_edx = result.framebuffer_clear_calls != 0U
-                ? legacy_battle_window_fill_byte_count(*context.startup)
-                : seeded_mode.entry_edx;
-            if (!apply_legacy_battle_actor_action_mode_call(
-                    state,
-                    context,
-                    result,
-                    source_token,
-                    300U,
-                    0U,
-                    mode_edx,
-                    0x00456080U,
-                    subtract_flags(0U, 0U)
-                )) {
-                return result;
+            {
+                LegacyBattleActorActionModeView mode_fields;
+                if (context.startup != nullptr &&
+                    context.startup->group_b_lifecycle != nullptr &&
+                    group_b_index <
+                        context.startup->group_b_lifecycle->size()) {
+                    auto& composition =
+                        (*context.startup->group_b_lifecycle)[group_b_index]
+                            .action_composition;
+                    mode_fields = {
+                        &composition.action_kind,
+                        &composition.display_kind,
+                        &composition.mode_flags
+                    };
+                }
+
+                result.actor_action_mode = set_legacy_battle_actor_action_mode(
+                    mode_fields, 300U, context.actor_action_mode_access
+                );
+                const auto mode_status = result.actor_action_mode->status;
+                if (mode_status !=
+                    LegacyBattleActorActionModeStatus::completed) {
+                    result.status = LegacyBattleActionDispatchStatus::
+                        actor_action_mode_typed_stop;
+                    result.return_value = mode_status ==
+                            LegacyBattleActorActionModeStatus::
+                                argument_read_typed_stop
+                        ? (0U)
+                        : mode_status ==
+                            LegacyBattleActorActionModeStatus::
+                                return_address_read_typed_stop
+                        ? 1U
+                        : (300U);
+                    return result;
+                }
             }
+
             return result;
         }
 
@@ -767,7 +763,6 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             !validate_group_a(result, target_index)) {
             return result;
         }
-        const u32 target_token = group_a_token(target_index);
         LegacyBattleActionCallReply target_complete{};
         if (const auto& binding = context.actor_frame_opponent_group_a;
             binding.caller_snapshot != nullptr) {
@@ -799,20 +794,40 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         if (target_complete.eax != 1U) {
             return result;
         }
-        if (!apply_legacy_battle_actor_action_mode_call(
-                state,
-                context,
-                result,
-                target_token,
-                0U,
-                target_complete.eax,
-                target_complete.edx,
-                0x0045652BU,
-                // 0x00456521 XOR EBP,EBP overrides CMP; AF is undefined.
-                {.parity = true, .auxiliary_carry_defined = false, .zero = true}
-            )) {
-            return result;
+
+        {
+            LegacyBattleActorActionModeView mode_fields;
+            if (context.startup != nullptr &&
+                target_index < state.group_a_action_execution.size()) {
+                auto& presentation = context.startup->party[target_index]
+                                         .item_effect_application;
+                mode_fields = {
+                    &state.group_a_action_execution[target_index].action_kind,
+                    &presentation.display_kind,
+                    &presentation.mode_flags
+                };
+            }
+
+            result.actor_action_mode = set_legacy_battle_actor_action_mode(
+                mode_fields, 0U, context.actor_action_mode_access
+            );
+            const auto mode_status = result.actor_action_mode->status;
+            if (mode_status != LegacyBattleActorActionModeStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_action_mode_typed_stop;
+                result.return_value = mode_status ==
+                        LegacyBattleActorActionModeStatus::
+                            argument_read_typed_stop
+                    ? (target_complete.eax)
+                    : mode_status ==
+                        LegacyBattleActorActionModeStatus::
+                            return_address_read_typed_stop
+                    ? 1U
+                    : (0U);
+                return result;
+            }
         }
+
         const u32 stage = target_index + 4U;
         if (!remove_attack_order_entry(context, result, stage)) {
             return result;

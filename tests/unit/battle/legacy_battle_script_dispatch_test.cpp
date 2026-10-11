@@ -302,8 +302,10 @@ void test_battle_group_b_action_composition_script_caller(
         test.expect_true(
             result.status == LegacyBattleScriptDispatchStatus::completed &&
                 result.group_b_action_composition_calls == 1U &&
-                result.actor_action_mode_calls == 1U &&
-                result.actor_action_modes[0U].return_eip == 0x004761BAU &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
                 fixture.workspace.value_a == 0x77 &&
                 fixture.workspace.value_b == 2 &&
                 fixture.workspace.value_c == 0 &&
@@ -422,8 +424,10 @@ void test_battle_group_b_action_profile_selection_script_caller(
                 result.group_b_action_profile_selection.status ==
                     LegacyBattleGroupBActionProfileSelectionStatus::completed &&
                 result.group_b_action_profile_selection.return_eax == 1U &&
-                result.actor_action_mode_calls == 1U &&
-                result.actor_action_modes[0U].return_eip == 0x004762DAU &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
                 fixture.shared.actor_target_words[2U] == 0x8000U &&
                 fixture.shared.actor_target_words[3U] == 0xBEEFU &&
                 fixture.workspace.cursor == 8U &&
@@ -3628,7 +3632,7 @@ void test_battle_script_actor_target_selection_calls(
                     LegacyBattleScriptDispatchStatus::
                         actor_target_selection_typed_stop &&
                 result->actor_target_selection.calls == 1U &&
-                result->actor_action_mode_calls == 0U &&
+                !result->actor_action_mode.has_value() &&
                 actor.idle_state_latch == 1U && actor.action_target == 0U &&
                 fixture->startup.party[0U].progress.progress == 0xCAFEBABEU &&
                 fixture->workspace.cursor == 0U &&
@@ -5539,8 +5543,10 @@ void test_battle_script_dispatch_cases_sixty_one_to_eighty_three(
                 first.actor_target_selection.return_addresses[0U] ==
                     0x0046DCA1U &&
                 first.actor_target_selection.argument_values[0U] == 0U &&
-                first.actor_action_mode_calls == 1U &&
-                first.actor_action_modes[0U].return_eip == 0x0046DCC9U &&
+                first.actor_action_mode.has_value() &&
+                first.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
                 first.actor_start_gate_increment.has_value() &&
                 first.actor_start_gate_increment->previous_start_gate == 0U &&
                 first.actor_start_gate_increment->incremented_start_gate ==
@@ -5644,8 +5650,7 @@ void test_battle_script_dispatch_cases_sixty_one_to_eighty_three(
         fixture.write_u16(4U, 0U);
         fixture.shared.actor_order_workspace.fill(0xAAAAAAAAU);
         openswd3::battle::LegacyBattleScriptDispatchRequest request;
-        request.actor_action_mode_requests[0U].access.return_address_readable =
-            false;
+        request.actor_action_mode_access.return_address_readable = false;
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port, request
         );
@@ -5653,8 +5658,10 @@ void test_battle_script_dispatch_cases_sixty_one_to_eighty_three(
             result.status ==
                     LegacyBattleScriptDispatchStatus::
                         actor_action_mode_typed_stop &&
-                result.actor_action_mode_calls == 1U &&
-                result.actor_action_modes[0U].return_eip == 0x0047876BU &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        return_address_read_typed_stop &&
                 fixture.workspace.cursor == 0U &&
                 fixture.input_dispatch.selected_actor_reset_gate == 0U &&
                 std::ranges::all_of(
@@ -5947,8 +5954,8 @@ void test_script_actor_selector_sharing(openswd3::test::Context& test) {
                 .rotation_cache = fixture->startup.background_rotation_cache,
             };
             LegacyBattleScriptDispatchRequest script_request{};
-            script_request.actor_action_mode_requests[0U]
-                .access.return_address_readable = !stopped;
+            script_request.actor_action_mode_access.return_address_readable =
+                !stopped;
             const auto script_result = run_legacy_battle_script_dispatch(
                 fixture->workspace, fixture->bindings(), port, script_request
             );

@@ -82,7 +82,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
     const compat::u32 source_group_a_index,
     const compat::u32 target_group_b_index,
     const LegacyBattleActorActionTargetRequest& action_target_request,
-    const LegacyBattleActorActionModeRequest& action_mode_request,
+    const LegacyBattleActorActionModeMemoryAccess& action_mode_access,
     const std::size_t runtime_reset_request_offset,
     const LegacyBattleActorTargetSelectionRequestList&
         target_selection_requests,
@@ -366,32 +366,37 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                         )) {
                         return result;
                     }
-                    auto mode_request = action_mode_request;
-                    mode_request.actor_token = actor_token;
-                    mode_request.mode = 0U;
-                    mode_request.entry_eax =
-                        result.actor_gate_decay.last.return_eax;
-                    mode_request.entry_edx =
-                        result.actor_gate_decay.last.return_edx;
-                    mode_request.entry_return_address = 0x0045AEECU;
-                    mode_request.entry_flags =
-                        result.actor_gate_decay.last.flags;
+
+                    LegacyBattleActorActionModeView mode_fields;
+                    if (startup != nullptr) {
+                        auto& presentation = startup->party[group_a_index]
+                                                 .item_effect_application;
+                        mode_fields = {
+                            &action.group_a_action_execution[group_a_index]
+                                 .action_kind,
+                            &presentation.display_kind,
+                            &presentation.mode_flags,
+                        };
+                    }
+
                     result.actor_action_mode =
                         set_legacy_battle_actor_action_mode(
-                            resolve_legacy_battle_actor_action_mode(
-                                {.action = &action, .startup = startup},
-                                actor_token
-                            ),
-                            mode_request
+                            mode_fields, 0U, action_mode_access
                         );
-                    result.actor_action_modes[0U] = result.actor_action_mode;
-                    ++result.actor_action_mode_calls;
-                    if (result.actor_action_mode.status !=
+                    const auto mode_status = result.actor_action_mode->status;
+                    if (mode_status !=
                         LegacyBattleActorActionModeStatus::completed) {
                         result.status = LegacyBattleActionDispatchStatus::
                             actor_action_mode_typed_stop;
-                        result.return_value =
-                            result.actor_action_mode.return_eax;
+                        result.return_value = mode_status ==
+                                LegacyBattleActorActionModeStatus::
+                                    argument_read_typed_stop
+                            ? result.actor_gate_decay.last.return_eax
+                            : mode_status ==
+                                LegacyBattleActorActionModeStatus::
+                                    return_address_read_typed_stop
+                            ? 1U
+                            : 0U;
                         return result;
                     }
                     result.actor_availability_block =
@@ -401,11 +406,11 @@ LegacyBattleActionDispatchResult advance_legacy_battle_post_action(
                             {
                                 .value = 0U,
                                 .actor_token = actor_token,
-                                .entry_eax =
-                                    result.actor_action_mode.return_eax,
+                                .entry_eax = 1U,
                                 .entry_edx =
-                                    result.actor_action_mode.return_edx,
+                                    result.actor_gate_decay.last.return_edx,
                             }
+
                         );
                     ++result.actor_availability_block_calls;
                     if (result.actor_availability_block.status !=

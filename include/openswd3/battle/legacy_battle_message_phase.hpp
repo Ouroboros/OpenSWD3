@@ -25,6 +25,7 @@
 
 #include <array>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -225,8 +226,7 @@ struct LegacyBattleMessagePhaseRequest {
     LegacyBattleVictoryItemListPanelRequest victory_item_list_panel_request{};
     LegacyBattleDefeatPanelRequest defeat_panel_request{};
     LegacyBattleTalismanResultPanelRequest talisman_result_panel_request{};
-    std::array<LegacyBattleActorActionModeRequest, 10>
-        actor_action_mode_requests{};
+    LegacyBattleActorActionModeMemoryAccess actor_action_mode_access{};
     LegacyBattleActorRuntimeResetCallRequests actor_runtime_reset_requests{};
     LegacyBattleActorTargetSelectionRequestList
         actor_target_selection_requests{};
@@ -276,8 +276,7 @@ struct LegacyBattleMessagePhaseResult {
     compat::u32 group_a_prepare_calls{};
     std::vector<LegacyBattleGroupAActorCleanupResult> group_a_actor_cleanups;
     compat::u32 group_a_actor_cleanup_calls{};
-    std::array<LegacyBattleActorActionModeResult, 10> actor_action_modes{};
-    compat::u32 actor_action_mode_calls{};
+    std::optional<LegacyBattleActorActionModeResult> actor_action_mode;
     LegacyBattleActorRuntimeResetCallTrace actor_runtime_reset{};
     LegacyBattleActorTargetSelectionTrace actor_target_selection{};
     compat::u32 sample_calls{};

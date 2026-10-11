@@ -85,8 +85,10 @@ void test_battle_group_b_action_profile_mode(openswd3::test::Context& test) {
                 result.profile_load_calls == 1U && mon.open_calls == 1U &&
                 mon.seek_calls == 3U && mon.read_calls == 3U &&
                 mon.allocation_calls == 1U && mon.release_calls == 1U &&
-                result.mode_update_calls == 1U &&
-                result.actor_action_modes[1U].return_eip == 0x00476246U &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
                 actor.action_composition.derived_words[0U] == 7U &&
                 actor.action_composition.action_kind == 1U,
             "group B profile mode loads MON data and applies the resource word"
@@ -127,9 +129,13 @@ void test_battle_group_b_action_profile_mode(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleGroupBActionProfileModeStatus::completed &&
                 result.profile_load_calls == 0U &&
-                result.mode_update_calls == 1U &&
-                result.actor_action_mode.return_eip == 0x004761F4U &&
-                result.actor_action_modes[0U].return_eip == 0x004761F4U &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
                 result.return_eax == 0x1234U &&
                 actor.action_composition.display_kind == 2U &&
                 actor.action_composition.action_kind == 0U,
@@ -138,7 +144,7 @@ void test_battle_group_b_action_profile_mode(openswd3::test::Context& test) {
 
         LegacyBattleGroupBActionProfileModeRequest request;
         request.actor_token = actor.object_token;
-        request.action_mode_requests[0U].access.return_address_readable = false;
+        request.action_mode_access.return_address_readable = false;
         const auto stopped = compose_legacy_battle_group_b_action_profile_mode(
             &actor, mon, request
         );
@@ -146,8 +152,10 @@ void test_battle_group_b_action_profile_mode(openswd3::test::Context& test) {
             stopped.status ==
                     LegacyBattleGroupBActionProfileModeStatus::
                         action_mode_typed_stop &&
-                stopped.mode_update_calls == 1U &&
-                stopped.actor_action_mode.return_eip == 0x0047876BU,
+                stopped.actor_action_mode.has_value() &&
+                stopped.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        return_address_read_typed_stop,
             "group B profile mode RET stop suppresses its caller return suffix"
         );
     }

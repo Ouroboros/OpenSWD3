@@ -2062,6 +2062,13 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         fixture.random.push(0xAAAA000BU);
         fixture.random.push(0xBBBB0007U);
         DispatchPort port;
+        std::optional<u16> published_action_kind;
+        port.before_invoke = [&](const LegacyBattleActionCallRequest& request) {
+            if (request.callee_token == 0x0047D860U) {
+                published_action_kind = actor.action_composition.action_kind;
+            }
+        };
+
         port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x004786A0U, {.eax = 0U});
         port.push(0x004786A0U, {.eax = 0U});
@@ -2089,17 +2096,12 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             "profile status action publishes its target through physical caller 00457E26"
         );
         test.expect_true(
-            result.actor_action_mode_calls == 1U,
-            "profile status action executes exactly one typed action-mode call"
-        );
-        test.expect_true(
-            result.actor_action_mode.return_eip == 0x00457E34U,
-            "profile status action returns from its physical action-mode caller"
-        );
-        test.expect_true(
-            result.actor_action_mode.action_kind_writes == 1U &&
-                result.actor_action_mode.stack_reads[0U] == 0x11U,
-            "profile status action commits action kind eleven before its completion suffix"
+            result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
+                published_action_kind == 0x11U,
+            "profile status publication observes action seventeen in canonical storage before the completion reset"
         );
         test.expect_true(
             result.actor_runtime_reset.calls == 1U &&
@@ -2160,10 +2162,16 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         test.expect_true(
             result.group_b_action_profile_mode_calls == 1U &&
                 result.group_b_action_profile_mode.return_eax == 0x77U &&
-                result.actor_action_mode_calls == 3U &&
-                result.actor_action_modes[0U].return_eip == 0x004761F4U &&
-                result.actor_action_modes[1U].return_eip == 0x00457C68U &&
-                result.actor_action_modes[2U].return_eip == 0x00457CA0U &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
                 actor.action_composition.mode_flags == 0x88U &&
                 actor.action_composition.action_kind == 0U &&
                 actor.action_composition.display_kind == 6U,

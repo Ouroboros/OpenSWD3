@@ -41,67 +41,12 @@ LegacyBattleActionDispatchPort::invoke_group_a_summon_materialization(
     };
 }
 
-bool apply_legacy_battle_actor_action_mode_call(
-    LegacyBattleActionDispatchState& state,
-    LegacyBattleActionDispatchContext& context,
-    LegacyBattleActionDispatchResult& result,
-    const u32 actor_token,
-    const u32 mode,
-    const u32 entry_eax,
-    const u32 entry_edx,
-    const u32 return_address,
-    const LegacyBattleActorCoordinateFlags& entry_flags,
-    const bool entry_flags_known
-) noexcept {
-    auto request =
-        context.actor_action_mode_requests[result.actor_action_mode_calls];
-    request.actor_token = actor_token;
-    request.mode = mode;
-    request.entry_eax = entry_eax;
-    request.entry_edx = entry_edx;
-    request.entry_return_address = return_address;
-    request.entry_flags = entry_flags;
-    request.entry_flags_known = entry_flags_known;
-    result.actor_action_mode = set_legacy_battle_actor_action_mode(
-        resolve_legacy_battle_actor_action_mode(
-            {
-                .action = &state,
-                .startup = context.startup,
-            },
-            actor_token
-        ),
-        request
-    );
-    result.actor_action_modes[result.actor_action_mode_calls] =
-        result.actor_action_mode;
-    ++result.actor_action_mode_calls;
-    if (result.actor_action_mode.status !=
-        LegacyBattleActorActionModeStatus::completed) {
-        result.status =
-            LegacyBattleActionDispatchStatus::actor_action_mode_typed_stop;
-        result.return_value = result.actor_action_mode.return_eax;
-        return false;
-    }
-    return true;
-}
-
 bool apply_legacy_battle_pending_actor_ready_action_modes(
-    LegacyBattleActionDispatchState& state,
     LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result,
-    const u32 actor_token,
+    const LegacyBattleActorActionModeView actor,
     const LegacyBattleActionCallReply& reply
 ) noexcept {
-    constexpr std::array<u32, 8> return_addresses{
-        0x004803FAU,
-        0x0048055AU,
-        0x0048058CU,
-        0x0048066BU,
-        0x00480691U,
-        0x004809F9U,
-        0x00480A16U,
-        0x00480A53U,
-    };
     for (std::size_t index = 0U;
          index < reply.pending_actor_ready_action_modes.size();
          ++index) {
@@ -109,18 +54,22 @@ bool apply_legacy_battle_pending_actor_ready_action_modes(
         if (!pending.executed) {
             continue;
         }
-        if (!apply_legacy_battle_actor_action_mode_call(
-                state,
-                context,
-                result,
-                actor_token,
-                pending.mode,
-                pending.entry_eax,
-                pending.entry_edx,
-                return_addresses[index],
-                pending.entry_flags,
-                pending.entry_flags_known
-            )) {
+
+        result.actor_action_mode = set_legacy_battle_actor_action_mode(
+            actor, pending.mode, context.actor_action_mode_access
+        );
+        const auto mode_status = result.actor_action_mode->status;
+        if (mode_status != LegacyBattleActorActionModeStatus::completed) {
+            result.status =
+                LegacyBattleActionDispatchStatus::actor_action_mode_typed_stop;
+            result.return_value = mode_status ==
+                    LegacyBattleActorActionModeStatus::argument_read_typed_stop
+                ? pending.entry_eax
+                : mode_status ==
+                    LegacyBattleActorActionModeStatus::
+                        return_address_read_typed_stop
+                ? 1U
+                : pending.mode;
             return false;
         }
     }

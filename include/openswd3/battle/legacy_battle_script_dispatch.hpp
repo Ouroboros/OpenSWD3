@@ -234,7 +234,6 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     reserved_actor_base_coordinates = 0x00478470U,
     reserved_actor_coordinate_publication = 0x004785C0U,
     reserved_actor_current_coordinate_query = 0x00478600U,
-    reserved_actor_action_mode = 0x00478710U,
     reserved_actor_field_26b8_high_bit_set = 0x00478780U,
     reserved_actor_effect_resource_slot_write = 0x004787D0U,
     reserved_actor_presentation_activation = 0x004787F0U,
@@ -376,8 +375,7 @@ struct LegacyBattleScriptDispatchRequest {
     LegacyBattleActorCoordinateFlags entry_flags{};
     LegacyBattleScriptCurrentCoordinateAccess current_coordinate_access{};
     LegacyBattleScriptLiveCountControl live_count_control{};
-    std::array<LegacyBattleActorActionModeRequest, 7>
-        actor_action_mode_requests{};
+    LegacyBattleActorActionModeMemoryAccess actor_action_mode_access{};
     LegacyBattleActorField26b8HighBitSetCallRequests
         actor_field_26b8_high_bit_set_requests{};
     LegacyBattleActorEffectResourceSlotWriteCallRequests
@@ -413,9 +411,7 @@ struct LegacyBattleScriptDispatchResult {
     compat::u32 stopped_offset{};
     LegacyBattleActorAvailabilityBlockResult actor_availability_block{};
     compat::u32 actor_availability_block_calls{};
-    LegacyBattleActorActionModeResult actor_action_mode{};
-    std::array<LegacyBattleActorActionModeResult, 7> actor_action_modes{};
-    compat::u32 actor_action_mode_calls{};
+    std::optional<LegacyBattleActorActionModeResult> actor_action_mode;
     LegacyBattleActorCoordinateQueryResult coordinate_query{};
     compat::u32 coordinate_query_calls{};
     LegacyBattleActorCurrentCoordinateQueryResult current_coordinate_query{};

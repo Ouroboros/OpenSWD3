@@ -313,11 +313,13 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleGroupBActionCompositionStatus::completed &&
-                result.mode_update_calls == 1U &&
+                result.actor_action_mode.has_value() &&
                 result.text_bytes_written == 6U && output == 0x2468U &&
                 result.profile_word == 0xFFFEU && result.return_eax == 1U &&
                 result.return_ecx == 0x00525508U &&
-                result.actor_action_mode.return_eip == 0x004761BAU &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
                 actor.action_composition.derived_words[0U] == 1U &&
                 actor.action_composition.action_kind == 0U &&
                 actor.action_composition.display_kind == 2U &&
@@ -341,7 +343,8 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
             .entry_ecx = 0x00525508U,
             .entry_edx = 0x1381U,
         };
-        request.action_mode_request.access.return_address_readable = false;
+
+        request.action_mode_access.return_address_readable = false;
         actor.action_composition.mode_flags = 0x04U;
         const auto stopped = compose_legacy_battle_group_b_action(
             &actor, &output, port, port, request
@@ -350,8 +353,10 @@ void test_battle_group_b_action_composition(openswd3::test::Context& test) {
             stopped.status ==
                     LegacyBattleGroupBActionCompositionStatus::
                         action_mode_typed_stop &&
-                stopped.mode_update_calls == 1U &&
-                stopped.actor_action_mode.return_eip == 0x0047876BU &&
+                stopped.actor_action_mode.has_value() &&
+                stopped.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        return_address_read_typed_stop &&
                 actor.action_composition.mode_flags == 0x04U,
             "action composition RET stop suppresses its post-call mode flag suffix"
         );

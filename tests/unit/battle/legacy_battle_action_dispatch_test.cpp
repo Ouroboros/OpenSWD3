@@ -684,8 +684,10 @@ void test_battle_group_b_action_composition_action_caller(
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.group_b_action_composition_calls == 1U &&
-                result.actor_action_mode_calls == 1U &&
-                result.actor_action_modes[0U].return_eip == 0x004761BAU &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
                 result.attack_order.has_value() &&
                 result.attack_order->written_index == 0U &&
                 fixture->attack_order_records[0U].value_00 == 0U &&
@@ -802,8 +804,10 @@ void test_battle_group_b_action_profile_selection_action_caller(
                     LegacyBattleGroupBActionProfileSelectionStatus::completed &&
                 result.group_b_action_profile_selection.return_eax == 0U &&
                 result.group_b_action_profile_selection.output_value == 0x56U &&
-                result.actor_action_mode_calls == 1U &&
-                result.actor_action_modes[0U].return_eip == 0x004762C3U &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
                 result.attack_order.has_value() &&
                 result.attack_order->written_index == 0U &&
                 fixture->attack_order_records[0U].value_00 == 0U &&
@@ -1258,6 +1262,53 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         );
     }
 
+    for (const bool release_owner : {false, true}) {
+        for (u32 fault = 0U; fault < 3U; ++fault) {
+            auto state = std::make_unique<LegacyBattleActionDispatchState>();
+            auto fixture = std::make_unique<Fixture>();
+            DispatchPort port;
+            port.action = 2U;
+            auto context = fixture->context();
+            if (release_owner) {
+                const auto initialized =
+                    dispatch(*state, port, context, 0U, 0U);
+                test.expect_true(
+                    initialized.status ==
+                            LegacyBattleActionDispatchStatus::completed &&
+                        state->deformation != nullptr,
+                    "action-two fault vector constructs the actual deformation owner"
+                );
+                port.push(0x00489D00U, {.eax = 0xAABBCCDDU});
+            }
+
+            state->action_runtime_flags = 0x8001U;
+            port.battle_debug_hotkey_state().battle_mode_flags_53bc24 =
+                0xAABB0005U;
+            context.actor_action_mode_access.argument_readable = fault != 0U;
+            context.actor_action_mode_access.action_kind_writable = fault != 1U;
+            context.actor_action_mode_access.return_address_readable =
+                fault != 2U;
+            const auto stopped = dispatch(*state, port, context, 0U, 0U);
+            const u32 predecessor = release_owner ? 0xAABBCCDDU : 5U;
+            test.expect_true(
+                stopped.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_action_mode_typed_stop &&
+                    stopped.return_value ==
+                        (fault == 0U       ? predecessor
+                             : fault == 1U ? 300U
+                                           : 1U) &&
+                    stopped.actor_action_mode.has_value() &&
+                    state->group_a_action_execution[0U].action_kind ==
+                        (fault == 2U ? 300U : 2U) &&
+                    !state->deformation && !state->deformation_active &&
+                    state->deformation_owner_token == 0U &&
+                    port.count(0x00489D00U) == (release_owner ? 1U : 0U),
+                "action-two mode failures preserve the actual flag-byte or completed owner-release predecessor and committed writes"
+            );
+        }
+    }
+
     {
         LegacyBattleActionDispatchState state;
         state.group_a_to_actor[0] = 0U;
@@ -1282,6 +1333,51 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 has_call_argument(port, 0x0047F150U, 0U, 10U),
             "special action four hundred nine preserves unique screen mode and scan push publication"
         );
+    }
+
+    for (u32 visual_path = 0U; visual_path < 3U; ++visual_path) {
+        for (u32 fault = 0U; fault < 3U; ++fault) {
+            auto state = std::make_unique<LegacyBattleActionDispatchState>();
+            state->group_a_to_actor[0U] = 0U;
+            state->blocking_effect = visual_path == 0U ? 0x77U : 0U;
+            auto& actor = state->group_a_action_execution[0U];
+            actor.profile_value = 0x123U;
+            actor.special_profile_variant = 7U;
+            actor.action_runtime_gate = 3U;
+            state->group_a_action_shared.action_completion_flags = 1U;
+            auto fixture = std::make_unique<Fixture>();
+            DispatchPort port;
+            port.battle_pair_primary_value() = 10U;
+            port.action = 409U;
+            if (visual_path == 1U) {
+                port.push(0x0047F150U, {.eax = 0xDEADBEEFU});
+            }
+
+            auto context = fixture->context();
+            context.actor_action_mode_access.argument_readable = fault != 0U;
+            context.actor_action_mode_access.action_kind_writable = fault != 1U;
+            context.actor_action_mode_access.return_address_readable =
+                fault != 2U;
+            const auto stopped = dispatch(*state, port, context, 0U, 1U);
+            constexpr std::array<u32, 3> predecessors{
+                0x77U, 0xDEADBEEFU, 0x004ACF54U
+            };
+
+            test.expect_true(
+                stopped.status ==
+                        LegacyBattleActionDispatchStatus::
+                            actor_action_mode_typed_stop &&
+                    stopped.return_value ==
+                        (fault == 0U       ? predecessors[visual_path]
+                             : fault == 1U ? 300U
+                                           : 1U) &&
+                    actor.action_kind == (fault == 2U ? 300U : 409U) &&
+                    state->current_actor_index == 0xFFFFU &&
+                    port.count(0x0047F150U) == (visual_path == 0U ? 0U : 1U) &&
+                    port.count(0x00482DA0U) == 0U,
+                "action-409 mode failures retain the actual blocking value, visual result, or score address and suppress pending-action cleanup"
+            );
+        }
     }
 
     {
@@ -4857,6 +4953,11 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         state.group_a_to_actor[0] = 0U;
         Fixture fixture;
         fixture.attack_order_records[0].value_00 = 0U;
+        state.group_a_action_execution[1U].action_kind = 0x34U;
+        (*fixture.startup.group_b_lifecycle)[0U]
+            .action_composition.action_kind = 0x32U;
+        (*fixture.startup.group_b_lifecycle)[1U]
+            .action_composition.action_kind = 0x33U;
         DispatchPort port;
         port.action = 7U;
         auto context = fixture.context();
@@ -4872,9 +4973,16 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 result.attack_order_remove->removed_index.has_value() &&
                 fixture.attack_order_records[0].value_00 == 0xFFFFFFFFU &&
                 (state.packed_actor_counter & 0xFFU) == 1U &&
-                result.actor_action_mode_calls == 1U &&
-                result.actor_action_mode.return_eip == 0x0045550CU &&
-                state.group_a_action_execution[0U].action_kind == 0U &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
+                state.group_a_action_execution[0U].action_kind == 7U &&
+                state.group_a_action_execution[1U].action_kind == 0x34U &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_composition.action_kind == 0U &&
+                (*fixture.startup.group_b_lifecycle)[1U]
+                        .action_composition.action_kind == 0x33U &&
                 port.count(0x00478710U) == 0U && result.return_value == 1U,
             "action seven removes the opponent directly from the shared attack order before publishing completion"
         );
@@ -4891,18 +4999,19 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         LegacyBattleActorFrameEntryRequest snapshot{};
         LegacyBattleActorFrameEntryRoutePorts frame_ports{};
         bind_ready_group_b_frame(fixture, context, snapshot, frame_ports);
-        context.actor_action_mode_requests[0].access.argument_readable = false;
+        context.actor_action_mode_access.argument_readable = false;
         const auto stopped = dispatch(state, port, context, 0U, 0U);
         test.expect_true(
             stopped.status ==
-                    LegacyBattleActionDispatchStatus::actor_action_mode_typed_stop &&
-                stopped.actor_action_mode.flags_known &&
-                stopped.actor_action_mode.flags.zero &&
-                !stopped.actor_action_mode.flags.carry &&
-                !stopped.actor_action_mode.flags.auxiliary_carry &&
-                stopped.actor_action_mode.flags.auxiliary_carry_defined &&
-                stopped.actor_action_mode.return_eip == 0x00478710U,
-            "action seven carries CMP EAX,EBX defined AF into the next argument-read fault"
+                    LegacyBattleActionDispatchStatus::
+                        actor_action_mode_typed_stop &&
+                stopped.actor_action_mode.has_value() &&
+                stopped.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        argument_read_typed_stop &&
+                stopped.return_value == 1U &&
+                !stopped.attack_order_remove.has_value(),
+            "action seven preserves the completed frame result and suppresses attack-order removal on an argument read failure"
         );
     }
 
@@ -4978,7 +5087,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 observed.child.stopped_token == 0x0053D904U &&
                 observed.admission.child_request.actor_token == 0x0053AE48U &&
                 !bound.attack_order_remove.has_value() &&
-                bound.actor_action_mode_calls == 0U &&
+                !bound.actor_action_mode.has_value() &&
                 port.count(0x00479850U) == 0U,
             "explicit action-seven B8 call reaches the physical child read; without physical owner it cannot claim a legacy return"
         );
@@ -5065,7 +5174,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                 fixture.startup.enemies[0U].progress.presentation_enabled ==
                     1U &&
                 fixture.startup.enemies[0U].progress.progress == 0U &&
-                result.actor_action_mode_calls == 0U &&
+                !result.actor_action_mode.has_value() &&
                 !result.attack_order_remove.has_value() &&
                 port.count(0x00479850U) == 0U,
             "action-seven child missing reset port stops at physical CALL after retaining each committed actor write and suppressing the parent tail"
@@ -5085,8 +5194,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         LegacyBattleActorFrameEntryRequest snapshot{};
         LegacyBattleActorFrameEntryRoutePorts frame_ports{};
         bind_ready_group_b_frame(fixture, context, snapshot, frame_ports);
-        context.actor_action_mode_requests[0U].access.return_address_readable =
-            false;
+        context.actor_action_mode_access.return_address_readable = false;
 
         const auto result = dispatch(state, port, context, 0U, 0U);
 
@@ -5094,8 +5202,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
             result.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_action_mode_typed_stop &&
-                result.actor_action_mode_calls == 1U &&
-                result.actor_action_mode.return_eip == 0x0047873EU &&
+                result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        return_address_read_typed_stop &&
                 fixture.attack_order_records[0].value_00 == 0U &&
                 (state.packed_actor_counter & 0xFFU) == 0U &&
                 !result.attack_order_remove.has_value(),
@@ -7703,63 +7813,71 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
         openswd3::battle::LegacyBattleActionDispatchResult result;
         LegacyBattleActionCallReply reply;
         constexpr std::array<u32, 8> modes{2U, 15U, 2U, 15U, 1U, 15U, 2U, 1U};
-        constexpr std::array<u32, 8> return_addresses{
-            0x004803FAU,
-            0x0048055AU,
-            0x0048058CU,
-            0x0048066BU,
-            0x00480691U,
-            0x004809F9U,
-            0x00480A16U,
-            0x00480A53U,
+        auto& presentation = fixture.startup.party[0U].item_effect_application;
+        const openswd3::battle::LegacyBattleActorActionModeView fields{
+            &state.group_a_action_execution[0U].action_kind,
+            &presentation.display_kind,
+            &presentation.mode_flags,
         };
+
         for (std::size_t index = 0U; index < modes.size(); ++index) {
             reply.pending_actor_ready_action_modes[index] = {
                 .executed = true,
                 .mode = modes[index],
                 .entry_eax = static_cast<u32>(0x100U + index),
-                .entry_edx = static_cast<u32>(0x200U + index),
-                .entry_flags = {.zero = index == 0U},
             };
         }
         const bool completed = openswd3::battle::
             apply_legacy_battle_pending_actor_ready_action_modes(
-                state, context, result, 0x005029D0U, reply
+                context, result, fields, reply
             );
-        bool identities_match = result.actor_action_mode_calls == modes.size();
-        for (std::size_t index = 0U; index < return_addresses.size(); ++index) {
-            identities_match = identities_match &&
-                result.actor_action_modes[index].return_eip ==
-                    return_addresses[index] &&
-                result.actor_action_modes[index].return_edx == 0x200U + index;
-        }
         test.expect_true(
-            completed && identities_match &&
-                result.actor_action_mode.return_eip == 0x00480A53U &&
+            completed && result.actor_action_mode.has_value() &&
+                result.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        completed &&
                 state.group_a_action_execution[0U].action_kind == 1U &&
                 fixture.startup.party[0U]
                         .item_effect_application.display_kind == 2U &&
                 fixture.startup.party[0U].item_effect_application.mode_flags ==
                     0x40U,
-            "actor-ready projection preserves all eight physical action-mode caller identities"
+            "pending actor-ready mode settings mutate shared fields in the reported order"
         );
 
         openswd3::battle::LegacyBattleActionDispatchResult stopped;
         auto stop_context = fixture.context();
-        stop_context.actor_action_mode_requests[3U]
-            .access.return_address_readable = false;
+        stop_context.actor_action_mode_access.return_address_readable = false;
+        reply = {};
+        reply.pending_actor_ready_action_modes[3U] = {
+            .executed = true,
+            .mode = 15U,
+            .entry_eax = 0x103U,
+        };
+
+        reply.pending_actor_ready_action_modes[4U] = {
+            .executed = true,
+            .mode = 1U,
+            .entry_eax = 0x104U,
+        };
+
+        presentation.mode_flags = 0x11U;
         const bool suffix_allowed = openswd3::battle::
             apply_legacy_battle_pending_actor_ready_action_modes(
-                state, stop_context, stopped, 0x005029D0U, reply
+                stop_context, stopped, fields, reply
             );
         test.expect_true(
-            !suffix_allowed && stopped.actor_action_mode_calls == 4U &&
+            !suffix_allowed && stopped.actor_action_mode.has_value() &&
                 stopped.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_action_mode_typed_stop &&
-                stopped.actor_action_mode.return_eip == 0x0047876BU &&
-                stopped.actor_action_modes[3U].return_address_reads == 0U,
-            "actor-ready projection suppresses the remaining physical callers after a typed RET stop"
+                stopped.actor_action_mode->status ==
+                    openswd3::battle::LegacyBattleActorActionModeStatus::
+                        return_address_read_typed_stop &&
+                stopped.return_value == 1U &&
+                state.group_a_action_execution[0U].action_kind == 0U &&
+                presentation.display_kind == 15U &&
+                presentation.mode_flags == 0x51U,
+            "pending actor-ready RET failure retains prior writes and prevents the later action-one setting"
         );
     }
 }

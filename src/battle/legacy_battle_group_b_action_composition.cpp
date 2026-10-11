@@ -27,29 +27,6 @@ template <std::size_t Size>
         static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
 }
 
-[[nodiscard]] constexpr bool has_even_parity(u32 value) noexcept {
-    value &= 0xFFU;
-    value ^= value >> 4U;
-    value ^= value >> 2U;
-    value ^= value >> 1U;
-    return (value & 1U) == 0U;
-}
-
-[[nodiscard]] constexpr LegacyBattleActorCoordinateFlags
-add_word_flags(const u16 left, const u16 right) noexcept {
-    const u32 sum = static_cast<u32>(left) + static_cast<u32>(right);
-    const u16 value = static_cast<u16>(sum);
-    return {
-        .carry = sum > 0xFFFFU,
-        .parity = has_even_parity(value),
-        .auxiliary_carry = ((left ^ right ^ value) & 0x10U) != 0U,
-        .auxiliary_carry_defined = true,
-        .zero = value == 0U,
-        .sign = (value & 0x8000U) != 0U,
-        .overflow = ((~(left ^ right) & (left ^ value)) & 0x8000U) != 0U,
-    };
-}
-
 }  // namespace
 
 LegacyBattleGroupBActionCompositionResult compose_legacy_battle_group_b_action(
@@ -175,29 +152,29 @@ LegacyBattleGroupBActionCompositionResult compose_legacy_battle_group_b_action(
         previous_derived_word + static_cast<u16>(result.return_eax)
     );
 
-    auto action_mode_request = request.action_mode_request;
-    action_mode_request.actor_token = request.actor_token;
-    action_mode_request.mode = 2U;
-    action_mode_request.entry_eax = result.return_eax;
-    action_mode_request.entry_edx = result.return_edx;
-    action_mode_request.entry_return_address = 0x004761BAU;
-    action_mode_request.entry_flags =
-        add_word_flags(previous_derived_word, result.profile_word);
-    action_mode_request.entry_flags_known = true;
     result.actor_action_mode = set_legacy_battle_actor_action_mode(
         {
             .action_kind = &state.action_kind,
             .display_kind = &state.display_kind,
             .mode_flags = &state.mode_flags,
         },
-        action_mode_request
+        2U,
+        request.action_mode_access
     );
-    ++result.mode_update_calls;
-    result.return_eax = result.actor_action_mode.return_eax;
-    result.return_ecx = result.actor_action_mode.return_ecx;
-    result.return_edx = result.actor_action_mode.return_edx;
-    if (result.actor_action_mode.status !=
-        LegacyBattleActorActionModeStatus::completed) {
+    const auto mode_status = result.actor_action_mode->status;
+    if (mode_status !=
+        LegacyBattleActorActionModeStatus::argument_read_typed_stop) {
+        result.return_eax =
+            mode_status == LegacyBattleActorActionModeStatus::completed ||
+                mode_status ==
+                    LegacyBattleActorActionModeStatus::
+                        return_address_read_typed_stop
+            ? 1U
+            : 2U;
+    }
+
+    result.return_ecx = request.actor_token;
+    if (mode_status != LegacyBattleActorActionModeStatus::completed) {
         result.status =
             LegacyBattleGroupBActionCompositionStatus::action_mode_typed_stop;
         return result;

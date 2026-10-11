@@ -4151,20 +4151,21 @@ inventory SHA-256为`d130ea0b32aa2d9b5fe244f54580c398fd2c8a086da71bb502fe469399d
 完整权威LST主体`0x00478710..0x0047876D`共94字节、0个callee、六次入口CMP、一次额外CMP、两个OR、
 两个word写和两个`retn 4`出口；参数按完整dword依序比较`2/13/3/14/6/15`，默认写动作word，
 `2/13/3`写显示word并清动作word，`14/15/6`还先对模式byte执行保留旧bit的读改写。
-typed实现复用Group-A action/startup与Group-B lifecycle canonical owner，保留参数与RET栈读取、
-word截断、逐字段部分提交、ECX/EDX、ESP/EIP，以及默认/命中CMP、额外CMP和OR的最终flags。动作分派、
-对手动作、Group-A/Group-B frame、动作后处理、消息阶段、脚本分派、
-三个Group-B组合helper及待审actor-ready内部共41处真实返回地址均保留独立物理身份；
-共享helper不折叠CALL，嵌套结果和typed-stop向外层回卷，`0x00480220`reply只投影实际执行的八个固定槽。
-旧脚本枚举保留reserved地址与ordinal，生产generic `0x00478710`调用归零；
-SDL脚本继续绑定同一startup/action owner。验证：定向测试、AddressSanitizer、Linux core 199/199、
-Linux app 205/205 全部通过。连续10轮完整core、全量/changed-range clang-format、
-零OpenSWD3源码warning、测试失败、sanitizer finding、inventory双生成、
-TMP分类及完整release审计均通过；未启动原版或OpenSWD3游戏程序。
-工作包为`298/422 = 288 platform_adapted + 10 assembly_exact + 124 pending_audit`；
-inventory SHA-256为`8bf8a407bbf1781c98d2096019ff31a38a4fe7c17e1de2b00695457b94793b76`。
-动态差分因原版完整Group-A/Group-B actor、异常参数/字段/栈内存页及41处caller联合寄存器、
-flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
+当前实现为直接函数：借用Group-A action/startup与Group-B lifecycle三个既有字段，
+接收完整模式值与既有访问失败条件，只返回状态。删除本叶函数的token resolver、寄存器式请求与回复、
+栈和访问轨迹、调用计数、结果数组及转发helper；保持word截断、部分提交和失败后缀。
+动作、对手、双侧frame、后处理、消息、脚本及三个Group-B组合函数均在原位置直接调用，
+以optional区分未执行与实际结果。动作7正确绑定对侧目标，保留来源与邻居；
+动作2/23/409的失败返回来自真实前序操作，不再输入人工前序寄存器值。
+`0x00480220`仍待迁移：八槽报告仅保留实际执行信息、模式及必要前序值，按序作用于共享字段。
+该父协议和其他父层通用调用没有随本叶函数一并关闭。
+本次28组模式逐一遍历256种旧模式byte、19组访问条件及调用方实际状态/失败后缀验证通过；
+core与ASan分别通过setup、actor_frame_316两项目标，SDL实际链接通过，
+36个源码/测试文件验证前后SHA-256一致；日志见动作设置evidence。
+未运行本次无关的全量测试，未启动游戏。工作包298既有platform_adapted分类不变，
+不提高当前B10或父工作包完成数；旧工作包验收统计不作为本次测试结果。
+动态差分仍为`blocked_runtime_oracle`，缺少原版完整actor、异常内存页与联合SEH捕获。
+详见`evidence/battle-actor-action-mode-00478710.md`。
 
 本轮再完成`audit_order=299`的`0x00478770`战斗角色`+0x26B8`高位清除函数。
 完整权威LST主体`0x00478770..0x0047877A`共11字节、2条实际指令、0个callee、0个分支和1个普通`retn`，

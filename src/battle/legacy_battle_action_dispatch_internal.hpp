@@ -714,15 +714,6 @@ inline void write_group_a_event_slot(
     return true;
 }
 
-inline void append_nested_actor_action_mode(
-    LegacyBattleActionDispatchResult& result,
-    const LegacyBattleActorActionModeResult& nested
-) noexcept {
-    result.actor_action_mode = nested;
-    result.actor_action_modes[result.actor_action_mode_calls] = nested;
-    ++result.actor_action_mode_calls;
-}
-
 inline void append_nested_actor_field_26b8_high_bit_set(
     LegacyBattleActorField26b8HighBitSetCallTrace& destination,
     const LegacyBattleActorField26b8HighBitSetCallTrace& nested

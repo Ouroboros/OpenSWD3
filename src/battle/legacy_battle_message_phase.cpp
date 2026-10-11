@@ -543,32 +543,23 @@ private:
                 );
             }
             ecx_ = group_a_token(index);
-            auto mode_request = request_.actor_action_mode_requests
-                                    [result_.actor_action_mode_calls];
-            mode_request.actor_token = ecx_;
-            mode_request.mode = 1U;
-            mode_request.entry_eax = index * 1007U;
-            mode_request.entry_edx = index * 3021U;
-            mode_request.entry_return_address = 0x004671F9U;
-            mode_request.entry_flags = subtract_flags(index * 1008U, index);
-            result_.actor_action_modes[result_.actor_action_mode_calls] =
-                set_legacy_battle_actor_action_mode(
-                    resolve_legacy_battle_actor_action_mode(
-                        {
-                            .action = &bindings_.action,
-                            .startup = &bindings_.startup,
-                        },
-                        ecx_
-                    ),
-                    mode_request
-                );
-            const auto& mode =
-                result_.actor_action_modes[result_.actor_action_mode_calls];
-            ++result_.actor_action_mode_calls;
-            eax_ = mode.return_eax;
-            ecx_ = mode.return_ecx;
-            edx_ = mode.return_edx;
-            if (mode.status != LegacyBattleActorActionModeStatus::completed) {
+            result_.actor_action_mode = set_legacy_battle_actor_action_mode(
+                {
+                    &bindings_.action.group_a_action_execution[index]
+                         .action_kind,
+                    &party.item_effect_application.display_kind,
+                    &party.item_effect_application.mode_flags,
+                },
+                1U,
+                request_.actor_action_mode_access
+            );
+            const auto mode_status = result_.actor_action_mode->status;
+            eax_ = mode_status ==
+                    LegacyBattleActorActionModeStatus::argument_read_typed_stop
+                ? index * 1007U
+                : 1U;
+            edx_ = index * 3021U;
+            if (mode_status != LegacyBattleActorActionModeStatus::completed) {
                 return stop(
                     LegacyBattleMessagePhaseStatus::actor_action_mode_typed_stop
                 );

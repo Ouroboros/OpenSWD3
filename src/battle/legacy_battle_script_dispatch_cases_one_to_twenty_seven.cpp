@@ -572,15 +572,40 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eleven() {
                 )) {
                 return finish(eax_);
             }
-            if (!set_actor_action_mode(
-                    *token,
-                    17U,
-                    index * 3021U,
-                    edx_,
-                    0x0046B550U,
-                    subtract_flags(index * 1008U, index)
-                )) {
-                return finish(eax_);
+
+            {
+                LegacyBattleActorActionModeView mode_fields;
+                auto& presentation =
+                    bindings_.startup.party[index].item_effect_application;
+                mode_fields = {
+                    &bindings_.action.group_a_action_execution[index]
+                         .action_kind,
+                    &presentation.display_kind,
+                    &presentation.mode_flags
+                };
+
+                result_.actor_action_mode = set_legacy_battle_actor_action_mode(
+                    mode_fields, 17U, request_.actor_action_mode_access
+                );
+                const auto mode_status = result_.actor_action_mode->status;
+                eax_ = mode_status ==
+                        LegacyBattleActorActionModeStatus::
+                            argument_read_typed_stop
+                    ? (index * 3021U)
+                    : mode_status ==
+                            LegacyBattleActorActionModeStatus::completed ||
+                        mode_status ==
+                            LegacyBattleActorActionModeStatus::
+                                return_address_read_typed_stop
+                    ? 1U
+                    : (17U);
+                ecx_ = *token;
+                if (mode_status !=
+                    LegacyBattleActorActionModeStatus::completed) {
+                    result_.status = LegacyBattleScriptDispatchStatus::
+                        actor_action_mode_typed_stop;
+                    return finish(eax_);
+                }
             }
         } else {
             const u32 index = static_cast<u32>(code);
@@ -595,15 +620,43 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eleven() {
                 )) {
                 return finish(eax_);
             }
-            if (!set_actor_action_mode(
-                    *token,
-                    17U,
-                    index,
-                    index * 1381U,
-                    0x0046B5E5U,
-                    subtract_flags(index * 24U, index)
-                )) {
-                return finish(eax_);
+
+            {
+                LegacyBattleActorActionModeView mode_fields;
+                if (bindings_.startup.group_b_lifecycle != nullptr) {
+                    auto& composition =
+                        (*bindings_.startup.group_b_lifecycle)[index]
+                            .action_composition;
+                    mode_fields = {
+                        &composition.action_kind,
+                        &composition.display_kind,
+                        &composition.mode_flags
+                    };
+                }
+
+                result_.actor_action_mode = set_legacy_battle_actor_action_mode(
+                    mode_fields, 17U, request_.actor_action_mode_access
+                );
+                const auto mode_status = result_.actor_action_mode->status;
+                eax_ = mode_status ==
+                        LegacyBattleActorActionModeStatus::
+                            argument_read_typed_stop
+                    ? (index)
+                    : mode_status ==
+                            LegacyBattleActorActionModeStatus::completed ||
+                        mode_status ==
+                            LegacyBattleActorActionModeStatus::
+                                return_address_read_typed_stop
+                    ? 1U
+                    : (17U);
+                ecx_ = *token;
+                edx_ = index * 1381U;
+                if (mode_status !=
+                    LegacyBattleActorActionModeStatus::completed) {
+                    result_.status = LegacyBattleScriptDispatchStatus::
+                        actor_action_mode_typed_stop;
+                    return finish(eax_);
+                }
             }
         }
         invoke(
@@ -1195,29 +1248,30 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_three() {
             element = &(*bindings_.startup.group_b_lifecycle)[actor_index];
         }
         ScriptGroupBActionCompositionPort composition_port(*this);
-        result_
-            .group_b_action_composition = compose_legacy_battle_group_b_action(
-            element,
-            &bindings_.message_state,
-            composition_port,
-            port_,
-            {
-                .definition_argument = std::bit_cast<u32>(workspace_.value_a),
-                .actor_token = *token,
-                .output_token = 0x0053BD40U,
-                .entry_eax = eax_,
-                .entry_ecx = *token,
-                .entry_edx = static_cast<u32>(345 * actor),
-                .action_mode_request = request_.actor_action_mode_requests
-                                           [result_.actor_action_mode_calls],
-            }
-        );
-        ++result_.group_b_action_composition_calls;
-        if (result_.group_b_action_composition.mode_update_calls != 0U) {
-            record_nested_actor_action_mode(
-                result_.group_b_action_composition.actor_action_mode
+        result_.group_b_action_composition =
+            compose_legacy_battle_group_b_action(
+                element,
+                &bindings_.message_state,
+                composition_port,
+                port_,
+                {
+                    .definition_argument =
+                        std::bit_cast<u32>(workspace_.value_a),
+                    .actor_token = *token,
+                    .output_token = 0x0053BD40U,
+                    .entry_eax = eax_,
+                    .entry_ecx = *token,
+                    .entry_edx = static_cast<u32>(345 * actor),
+                    .action_mode_access = request_.actor_action_mode_access,
+                }
+
             );
+        ++result_.group_b_action_composition_calls;
+        if (result_.group_b_action_composition.actor_action_mode) {
+            result_.actor_action_mode =
+                result_.group_b_action_composition.actor_action_mode;
         }
+
         eax_ = result_.group_b_action_composition.return_eax;
         ecx_ = result_.group_b_action_composition.return_ecx;
         edx_ = result_.group_b_action_composition.return_edx;
