@@ -113,8 +113,14 @@ class ActionStreamProvider final
 public:
     [[nodiscard]] openswd3::asset_runtime::LegacyActionStreamLoadResult
     load_action_stream(u32, u32, bool) override {
+        if (on_load) {
+            on_load();
+        }
+
         return {};
     }
+
+    std::function<void()> on_load;
 };
 
 class FrameProvider final
@@ -2070,12 +2076,12 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         fixture.random.push(0xBBBB0007U);
         DispatchPort port;
         actor.base_initialization.presentation_step = 0xFFFFU;
+        actor.action_execution.turn_countdown = 7;
+        actor.action_execution.profile_value = 1U;
         std::optional<u16> step_before_action_completion;
-        port.before_invoke = [&](const LegacyBattleActionCallRequest& request) {
-            if (request.callee_token == 0x0047D870U) {
-                step_before_action_completion =
-                    actor.base_initialization.presentation_step;
-            }
+        fixture.stream_provider.on_load = [&]() {
+            step_before_action_completion =
+                actor.base_initialization.presentation_step;
         };
 
         port.actor_metric_state().priority_actor_index = 0U;

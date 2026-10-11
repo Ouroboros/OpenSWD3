@@ -24,7 +24,6 @@ constexpr u32 kCallCommitVisual = 0x0047F150U;
 constexpr u32 kCallQuerySelection = 0x0047C680U;
 constexpr u32 kCallQuerySpecial = 0x0047D8E0U;
 constexpr u32 kCallFinishTargetPhase = 0x004841B0U;
-constexpr u32 kCallClearMode = 0x0047D870U;
 constexpr u32 kCallActionTen = 0x0047F3C0U;
 constexpr u32 kCallQueryModeB = 0x0047C950U;
 constexpr u32 kCallQueryModeC = 0x0047C6B0U;
@@ -672,8 +671,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                     result.target_phase_start.return_edx,
                     0x00456460U,
                     0x00456465U,
-                    {},
-                    false
+                    result.target_phase_start.flags,
+                    result.target_phase_start.flags_known
                 )) {
                 result.status = LegacyBattleActionDispatchStatus::
                     actor_presentation_activation_typed_stop;
@@ -681,17 +680,16 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                     result.actor_presentation_activation.last.return_eax;
                 return result;
             }
-            const auto& presentation =
-                result.actor_presentation_activation.last;
-            static_cast<void>(invoke(
-                state,
-                port,
-                kCallClearMode,
-                {target_token, 1U},
-                presentation.return_eax,
-                presentation.return_ecx,
-                presentation.return_edx
-            ));
+
+            if (context.startup->group_a_runtime_reset == nullptr) {
+                result.status =
+                    LegacyBattleActionDispatchStatus::actor_base_state_missing;
+                result.return_value = 1U;
+                return result;
+            }
+
+            (*context.startup->group_a_runtime_reset)[target_index].field_2af0 =
+                1U;
             if (!remove_attack_order_entry(
                     context, result, target_index + 8U
                 )) {
@@ -833,9 +831,8 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         static_cast<void>(
             invoke(state, port, kCallPushMode, {source_token, 0x1000U})
         );
-        static_cast<void>(
-            invoke(state, port, kCallClearMode, {source_token, 0U})
-        );
+        (*context.startup->group_b_lifecycle)[group_b_index]
+            .runtime_reset.field_2af0 = 0U;
         (*context.startup->group_b_lifecycle)[group_b_index]
             .base_initialization.presentation_step = 8U;
         state.overlay_gate = 1U;
@@ -845,9 +842,9 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
         if (invoke(state, port, kCallQueryModeC, {source_token}).eax != 1U) {
             return result;
         }
-        static_cast<void>(
-            invoke(state, port, kCallClearMode, {source_token, 1U})
-        );
+
+        (*context.startup->group_b_lifecycle)[group_b_index]
+            .runtime_reset.field_2af0 = 1U;
         static_cast<void>(
             invoke(state, port, kCallPopMode, {source_token, 0x1000U})
         );
@@ -1053,8 +1050,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
             return result;
         }
 
-        const auto cleared =
-            invoke(state, port, kCallClearMode, {source_token, 1U});
+        element->runtime_reset.field_2af0 = 1U;
         (*context.startup->group_b_lifecycle)[group_b_index]
             .base_initialization.presentation_step = 8U;
         if (!execute_legacy_battle_actor_presentation_activation_call(
@@ -1066,11 +1062,11 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 context.actor_presentation_activation_requests,
                 source_token,
                 1U,
-                (cleared.eax & 0xFFFF0000U) | 8U,
-                cleared.edx,
+                8U,
+                result.group_b_action_seventeen_frame.return_edx,
                 0x00456286U,
                 0x0045628BU,
-                cleared.flags
+                {.parity = true, .zero = true}
             )) {
             result.status = LegacyBattleActionDispatchStatus::
                 actor_presentation_activation_typed_stop;

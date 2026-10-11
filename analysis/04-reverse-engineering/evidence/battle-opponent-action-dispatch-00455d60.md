@@ -107,7 +107,7 @@ phase低word为0时：
 - 以组B source、目标索引和组A target直接组合typed目标phase；
 - phase owner按`group_b_source_index × group_a_target_index`选择唯一二维槽，target帧动作与`turn_frame_token`来自startup Group-A owner，source共享`target_phase_resource_token`来自同一Group-B lifecycle action-execution owner；
 - parent保持`sub esp,10h`、EBX/EBP/ESI/EDI保存、leaf参数和隐式返回地址；Group-B按坐标查询、对应`0x58` phase清零、资源对象读取执行，host-surface后不执行Group-A尾清零；
-- 以target ECX和typed phase返回的EAX/EDX残值调用真实`0x004787F0`发布mode 1，再以该callee残值和同一target ECX调用`0x0047D870`清mode 1；
+- 以target及阶段实际结果激活目标队员，再直接写该队员实际绘制抑制1；
 - 发布stage `target+8`；
 - 三个颜色factor写-12；
 - primary suppression写1；
@@ -125,8 +125,8 @@ phase低word为0时：
 ## 7. case 10–12
 
 - case 10：对组B source调用固定参数0，返回0；
-- case 11：查询成功后依序push `0x1000`、clear mode 0、写实际绘制步长8，overlay gate写1，返回1；
-- case 12：查询成功后依序clear mode 1、pop `0x1000`、写实际绘制步长8，overlay gate写1。processed低byte按signed比较不小于group-B count时，scene gate清零、message state写99。返回1。
+- case 11：查询成功后依序push `0x1000`、写实际敌方绘制抑制0、写实际绘制步长8，overlay gate写1，返回1；
+- case 12：查询成功后依序写实际敌方绘制抑制1、pop `0x1000`、写实际绘制步长8，overlay gate写1。processed低byte按signed比较不小于group-B count时，scene gate清零、message state写99。返回1。
 
 case 11的查询站点同时保留ECX source与栈上的source token；typed端口显式记录两份。
 
@@ -156,7 +156,11 @@ phase低wordbit15未置位时：
 
 ## 9. case 17：对手阶段完成
 
-查询成功后固定执行clear mode 1、写实际绘制步长8、target mode 1并写overlay gate。processed counter只递增最低byte，保留高24位。
+查询成功后固定写实际敌方绘制抑制1、实际绘制步长8，随后激活并写overlay gate。processed counter只递增最低byte，保留高24位。
+
+四处绘制抑制的通用调用和编号均已删除；实际对象、顺序、激活诊断及失败验证见
+[敌方动作绘制抑制](battle-opponent-drawing-suppression-0047d870.md)。
+其他操作、参数数组、寄存器报告与端口仍待迁移。
 
 processed低byte按signed比较不小于group-B count时：
 

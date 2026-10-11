@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -32,6 +33,10 @@ public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
+        if (on_call) {
+            on_call(request);
+        }
+
         const auto found = replies.find(request.callee_token);
         if (found != replies.end() && !found->second.empty()) {
             const auto reply = found->second.front();
@@ -90,6 +95,7 @@ public:
         ));
     }
 
+    std::function<void(const LegacyBattleActionCallRequest&)> on_call;
     u16 action{};
     u32 group_b_typed_stop_callee{};
     bool complete_group_b_execution{true};
@@ -787,11 +793,6 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 return call.callee_token == 0x0047CE70U;
             }
         );
-        const auto clear_call = std::ranges::find_if(
-            port.calls, [](const LegacyBattleActionCallRequest& call) {
-                return call.callee_token == 0x0047D870U;
-            }
-        );
         const auto& phase = *state.group_b_target_phases[2U][4U];
         const auto& emitter = phase.emitter;
         test.expect_true(
@@ -849,8 +850,9 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 result.actor_presentation_activation.last.return_ecx ==
                     0x0050E6A0U &&
                 result.actor_presentation_activation.last.return_edx == 0U &&
-                clear_call != port.calls.end() && clear_call->eax == 1U &&
-                clear_call->ecx == 0x0050E6A0U && clear_call->edx == 0U,
+                (*fixture.startup->group_a_runtime_reset)[4U].field_2af0 ==
+                    1U &&
+                source.runtime_reset.field_2af0 == 0U,
             "opponent action six preserves nested and immediate suffix call register residue"
         );
         test.expect_true(
@@ -892,7 +894,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x0047CE70U) == 1U &&
                 port.count(0x00478710U) == 0U &&
                 port.count(0x004787F0U) == 0U &&
-                port.count(0x0047D870U) == 1U && port.count(0x004841B0U) == 1U,
+                port.count(0x0047D870U) == 0U && port.count(0x004841B0U) == 1U,
             "opponent action six normal typed prefix isolation and suffix"
         );
         test.expect_true(
@@ -953,7 +955,7 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 port.count(0x0047CE70U) == 1U &&
                 port.count(0x00478710U) == 0U &&
                 port.count(0x004787F0U) == 0U &&
-                port.count(0x0047D870U) == 1U && port.count(0x004841B0U) == 1U,
+                port.count(0x0047D870U) == 0U && port.count(0x004841B0U) == 1U,
             "opponent action six initializes one Group-B source-by-target phase through the typed 484020 prefix before the unchanged suffix"
         );
     }
@@ -1874,18 +1876,119 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         );
     }
 
+    for (const u32 source_index : {0U, 7U}) {
+        for (const u32 target_index : {0U, 9U}) {
+            for (const u32 failure : {0U, 1U, 2U}) {
+                auto state =
+                    std::make_unique<LegacyBattleActionDispatchState>();
+                auto fixture = std::make_unique<Fixture>();
+                fixture->prepare_opponent_target_phase(
+                    *state, source_index, target_index
+                );
+                const auto residual = fixture->startup->group_a_runtime_reset;
+                for (auto& actor : *residual) {
+                    actor.field_2af0 = 0xFFFFFFFFU;
+                    actor.field_2af4 = 0x89ABCDEFU;
+                }
+
+                for (auto& actor : *fixture->startup->group_b_lifecycle) {
+                    actor.runtime_reset.field_2af0 = 0xCAFEBABEU;
+                }
+
+                if (failure == 2U) {
+                    fixture->startup->group_a_runtime_reset.reset();
+                }
+
+                DispatchPort port;
+                port.action = 6U;
+                auto context = fixture->context();
+                context.opponent_target_phase_start_request =
+                    fixture->opponent_target_phase_request();
+                context.actor_presentation_activation_requests.calls[0U]
+                    .access.argument_readable = failure != 1U;
+                const auto result =
+                    dispatch(*state, port, context, source_index, target_index);
+                bool fields_match = true;
+                for (std::size_t index = 0U; index < residual->size();
+                     ++index) {
+                    fields_match = fields_match &&
+                        (*residual)[index].field_2af0 ==
+                            (failure == 0U && index == target_index
+                                 ? 1U
+                                 : 0xFFFFFFFFU) &&
+                        (*residual)[index].field_2af4 == 0x89ABCDEFU;
+                }
+
+                for (const auto& actor : *fixture->startup->group_b_lifecycle) {
+                    fields_match = fields_match &&
+                        actor.runtime_reset.field_2af0 == 0xCAFEBABEU;
+                }
+
+                const auto& activation =
+                    result.actor_presentation_activation.last;
+                const bool activation_failure_matches = failure != 1U ||
+                    (activation.return_eax ==
+                         result.target_phase_start.return_eax &&
+                     activation.return_edx ==
+                         result.target_phase_start.return_edx &&
+                     activation.flags_known ==
+                         result.target_phase_start.flags_known &&
+                     activation.flags.parity ==
+                         result.target_phase_start.flags.parity &&
+                     activation.flags.zero ==
+                         result.target_phase_start.flags.zero);
+                test.expect_true(
+                    result.status ==
+                            (failure == 0U
+                                 ? LegacyBattleActionDispatchStatus::completed
+                                 : failure == 1U
+                                 ? LegacyBattleActionDispatchStatus::
+                                       actor_presentation_activation_typed_stop
+                                 : LegacyBattleActionDispatchStatus::
+                                       actor_base_state_missing) &&
+                        fields_match && activation_failure_matches &&
+                        fixture->startup->party[target_index]
+                                .progress.special_ready ==
+                            (failure == 1U ? 0U : 1U) &&
+                        result.attack_order_remove.has_value() ==
+                            (failure == 0U) &&
+                        state->input_mode == (failure == 0U ? 1U : 0U) &&
+                        port.count(0x004841B0U) == (failure == 0U ? 1U : 0U) &&
+                        port.count(0x0047D870U) == 0U,
+                    "opponent target phase writes only the selected party suppression after activation and before queue removal, preserving both failure prefixes"
+                );
+            }
+        }
+    }
+
     for (const u16 action : std::array<u16, 2>{11U, 12U}) {
-        for (const u32 completion : {0U, 1U, 2U}) {
+        for (const u32 completion : {0U, 1U, 2U, 0x10001U}) {
             for (const u16 source_index : std::array<u16, 2>{0U, 7U}) {
                 LegacyBattleActionDispatchState state;
                 state.overlay_gate = 0xCAFEU;
                 Fixture fixture;
                 for (auto& actor : *fixture.startup->group_b_lifecycle) {
                     actor.base_initialization.presentation_step = 0xFFFFU;
+                    actor.runtime_reset.field_2af0 = 0xFFFFFFFFU;
+                    actor.runtime_reset.field_2af4 = 0x89ABCDEFU;
                 }
 
                 DispatchPort port;
                 port.action = action;
+                bool mode_order_matches = true;
+                port.on_call = [&](const LegacyBattleActionCallRequest& call) {
+                    if (call.callee_token == 0x0047D830U ||
+                        call.callee_token == 0x0047D810U) {
+                        const auto& actor =
+                            (*fixture.startup->group_b_lifecycle)[source_index];
+                        mode_order_matches = mode_order_matches &&
+                            actor.runtime_reset.field_2af0 ==
+                                (action == 11U ? 0xFFFFFFFFU : 1U) &&
+                            actor.base_initialization.presentation_step ==
+                                0xFFFFU;
+                    }
+                };
+
                 port.push(
                     action == 11U ? 0x0047C950U : 0x0047C6B0U,
                     {.eax = completion}
@@ -1903,7 +2006,14 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                     steps_match = steps_match &&
                         (*fixture.startup->group_b_lifecycle)[index]
                                 .base_initialization.presentation_step ==
-                            expected;
+                            expected &&
+                        (*fixture.startup->group_b_lifecycle)[index]
+                                .runtime_reset.field_2af0 ==
+                            (completion == 1U && index == source_index
+                                 ? (action == 11U ? 0U : 1U)
+                                 : 0xFFFFFFFFU) &&
+                        (*fixture.startup->group_b_lifecycle)[index]
+                                .runtime_reset.field_2af4 == 0x89ABCDEFU;
                 }
 
                 test.expect_true(
@@ -1912,8 +2022,11 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                         result.return_value == (completion == 1U ? 1U : 0U) &&
                         state.overlay_gate ==
                             (completion == 1U ? 1U : 0xCAFEU) &&
-                        steps_match,
-                    "enemy actions eleven and twelve change only the completing actor step and require exact completion value one"
+                        steps_match && mode_order_matches &&
+                        port.count(action == 11U ? 0x0047D830U : 0x0047D810U) ==
+                            (completion == 1U ? 1U : 0U) &&
+                        port.count(0x0047D870U) == 0U,
+                    "enemy actions eleven and twelve write suppression and step only for the exact completed actor"
                 );
             }
         }
@@ -1925,13 +2038,14 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         Fixture fixture;
         for (auto& actor : *fixture.startup->group_b_lifecycle) {
             actor.base_initialization.presentation_step = 0x8000U;
+            actor.runtime_reset.field_2af0 = 0xFFFFFFFFU;
         }
 
         DispatchPort port;
         port.action = 17U;
         auto context = fixture.context();
         context.actor_presentation_activation_requests.calls[0U]
-            .access.special_ready_writable = false;
+            .access.argument_readable = false;
         const auto result = dispatch(state, port, context, source_index, 99U);
         bool steps_match = true;
         for (std::size_t index = 0U;
@@ -1940,7 +2054,10 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
             const u16 expected = index == source_index ? 8U : 0x8000U;
             steps_match = steps_match &&
                 (*fixture.startup->group_b_lifecycle)[index]
-                        .base_initialization.presentation_step == expected;
+                        .base_initialization.presentation_step == expected &&
+                (*fixture.startup->group_b_lifecycle)[index]
+                        .runtime_reset.field_2af0 ==
+                    (index == source_index ? 1U : 0xFFFFFFFFU);
         }
 
         test.expect_true(
@@ -1950,7 +2067,18 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
                 result.actor_presentation_activation.last.status ==
                     openswd3::battle::
                         LegacyBattleActorPresentationActivationStatus::
-                            special_ready_write_typed_stop &&
+                            argument_read_typed_stop &&
+                result.actor_presentation_activation.last.return_eax == 8U &&
+                result.actor_presentation_activation.last.return_edx ==
+                    result.group_b_action_seventeen_frame.return_edx &&
+                result.actor_presentation_activation.last.flags_known &&
+                result.actor_presentation_activation.last.flags.zero &&
+                result.actor_presentation_activation.last.flags.parity &&
+                !result.actor_presentation_activation.last.flags.carry &&
+                !result.actor_presentation_activation.last.flags.sign &&
+                !result.actor_presentation_activation.last.flags.overflow &&
+                !result.actor_presentation_activation.last.flags
+                     .auxiliary_carry &&
                 steps_match && state.overlay_gate == 0xCAFEU &&
                 state.opponent_processed_counter == 0U,
             "enemy action seventeen writes the shared step before activation failure without publishing completion or changing neighbors"
