@@ -18,7 +18,7 @@ using openswd3::compat::u32;
     owner.fields.field_266c = 0x22222222U;
     owner.fields.field_26bc = 0x33333333U;
     owner.action_execution.action_target = 0x4444U;
-    owner.fields.field_2a0a = 0x5555U;
+    owner.fields.presentation_step = 0x5555U;
     owner.fields.field_2a68 = 0x6666U;
     owner.fields.field_2a6a = 0x7777U;
     owner.fields.field_2a94 = 0x88U;
@@ -46,7 +46,7 @@ is_initialized(const LegacyBattleActorBaseInitializationOwner& owner) {
         owner.action_execution.turn_countdown == 15 &&
         owner.fields.field_266c == 1U &&
         owner.action_execution.turn_threshold == 0U &&
-        owner.fields.field_2a0a == 4U && owner.fields.field_2a68 == 2U &&
+        owner.fields.presentation_step == 4U && owner.fields.field_2a68 == 2U &&
         owner.fields.field_2a6a == 0x18U &&
         owner.action_execution.motion_word == 0U &&
         owner.action_execution.motion_aux_word == 0U &&

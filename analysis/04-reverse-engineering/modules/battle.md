@@ -715,6 +715,9 @@ core/ASan角色帧各1/1及SDL链接通过，父协议仍待迁移。
 逐队员选择操作现直接写动作变体WORD并清152字节帧来源记录，保持交错顺序。
 脚本27借同一双方角色状态，无符号选择与参数短读前缀按LST保留。
 旧纯写叶的失败注入已撤回；验证见`evidence/battle-script-profile-variant-0047d900.md`。
+脚本11/21/26的绘制步长也直接写原有角色字段，保持初始化4、无符号WORD参数、
+动作设置后的读取时机及后继队列表项顺序；仅21敌方发布辅助门。
+验证范围见`evidence/battle-script-presentation-step-0047d860.md`；其他五处步长调用仍待迁移。
 结束段10敌人扫描的额外写入已静态定位到CRT缓冲区和PE资源载荷；
 运行期页保护、异常与其他父协议继续待核实或迁移。
 当前验证范围见`evidence/battle-script-overlay-initialization.md`及

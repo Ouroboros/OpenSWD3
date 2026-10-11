@@ -19,7 +19,7 @@ struct LegacyBattleActorBaseInitializationFields {
     compat::u32 linked_action_head_token{};  // actor + 0x2584
     compat::u32 field_266c{};                // actor + 0x266C
     compat::u32 field_26bc{};                // actor + 0x26BC
-    compat::u16 field_2a0a{};                // actor + 0x2A0A
+    compat::u16 presentation_step{};         // actor + 0x2A0A
     compat::u16 field_2a68{};                // actor + 0x2A68
     compat::u16 field_2a6a{};                // actor + 0x2A6A
     compat::u8 field_2a94{};                 // actor + 0x2A94

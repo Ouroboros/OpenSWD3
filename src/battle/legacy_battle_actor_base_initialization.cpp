@@ -98,7 +98,7 @@ LegacyBattleActorBaseInitializationResult initialize_legacy_battle_actor_base(
         !write_signed_dword(action_execution.turn_countdown, 0x2668U, 0x0F) ||
         !write_dword(fields.field_266c, 0x266CU, 1U) ||
         !write_word(action_execution.turn_threshold, 0x2958U, 0U) ||
-        !write_word(fields.field_2a0a, 0x2A0AU, 4U) ||
+        !write_word(fields.presentation_step, 0x2A0AU, 4U) ||
         !write_word(fields.field_2a68, 0x2A68U, 2U) ||
         !write_word(fields.field_2a6a, 0x2A6AU, 0x18U) ||
         !write_word(action_execution.motion_word, 0x2954U, 0U) ||

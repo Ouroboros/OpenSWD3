@@ -723,6 +723,13 @@ private:
         return false;
     }
 
+    void set_actor_presentation_step(const u16 actor, const u16 step) {
+        auto& fields = actor > 7U
+            ? bindings_.startup.party[actor - 8U].base_initialization
+            : (*bindings_.startup.group_b_lifecycle)[actor].base_initialization;
+        fields.presentation_step = step;
+    }
+
     static void select_actor_profile_variant(
         LegacyBattleGroupAActionExecutionState& actor, const u16 variant
     ) {
@@ -1251,20 +1258,19 @@ private:
         u16 state = high_word(workspace_.packed_actor_state);
         if ((state & 0x8000U) == 0U) {
             u16 actor{};
-            u16 argument{};
-            if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor) ||
-                !read_u16(wrapping_add(workspace_.cursor, 4U), argument)) {
+            if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor)) {
                 return finish();
             }
+
             set_high_word(workspace_.packed_actor_state, actor);
-            const i32 code = signed_word(actor);
+            const i32 code = actor;
             const auto token = actor_token(code);
             if (!token.has_value()) {
                 return finish(eax_);
             }
             if (code > 7) {
-                bindings_.final_actor.queued_actor_code =
-                    static_cast<u32>(code);
+                bindings_.final_actor.queued_actor_code = actor;
+                bindings_.final_actor.published_actor_code = actor - 7U;
                 const i32 signed_index = code - 8;
                 if (signed_index < 0 || signed_index >= 10) {
                     return stop(
@@ -1325,12 +1331,6 @@ private:
                         return finish(eax_);
                     }
                 }
-
-                if (action_code == 11U) {
-                    bindings_.startup.reset
-                        .block_520e90[static_cast<std::size_t>(index) * 5U] =
-                        1U;
-                }
             } else {
                 const u32 index = static_cast<u32>(code);
                 if (!select_actor_target(
@@ -1386,19 +1386,30 @@ private:
                     }
                 }
             }
-            invoke(
-                LegacyBattleScriptDispatchCall::pending_47d860,
-                *token,
-                {argument}
-            );
+
+            u16 step{};
+            if (!read_u16(wrapping_add(workspace_.cursor, 4U), step)) {
+                return finish();
+            }
+
+            set_actor_presentation_step(actor, step);
+            if (code > 7 && action_code == 11U) {
+                bindings_.startup.reset
+                    .block_520e90[static_cast<std::size_t>(code - 8) * 5U] = 1U;
+            }
+
             if (code > 7 && insert_group_a_attack &&
                 !insert_attack_order_direct(1U, std::bit_cast<u32>(code), 0U)) {
                 return finish(eax_);
             }
+
+            if (code <= 7 && action_code == 11U) {
+                bindings_.action.action_pending_aux = 1U;
+            }
+
             set_high_word(
                 workspace_.packed_actor_state, static_cast<u16>(actor | 0x8000U)
             );
-            bindings_.action.action_pending_aux = 1U;
             bindings_.shared.action_completion_gate = 0U;
             bindings_.action.frame_enabled = 1U;
             if (!run_frame()) {

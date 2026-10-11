@@ -542,18 +542,20 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eleven() {
     u16 state = high_word(workspace_.packed_actor_state);
     if ((state & 0x8000U) == 0U) {
         u16 actor{};
-        u16 argument{};
-        if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor) ||
-            !read_u16(wrapping_add(workspace_.cursor, 4U), argument)) {
+        if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor)) {
             return finish();
         }
+
         set_high_word(workspace_.packed_actor_state, actor);
-        const i32 code = signed_word(actor);
+        const i32 code = actor;
         const auto token = actor_token(code);
         if (!token.has_value()) {
             return finish(eax_);
         }
+
         if (code > 7) {
+            bindings_.final_actor.queued_actor_code = actor;
+            bindings_.final_actor.published_actor_code = actor - 7U;
             const u32 index = static_cast<u32>(code - 8);
             if (!select_actor_target(
                     *token,
@@ -653,9 +655,13 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_eleven() {
                 }
             }
         }
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_47d860, *token, {argument}
-        );
+
+        u16 step{};
+        if (!read_u16(wrapping_add(workspace_.cursor, 4U), step)) {
+            return finish();
+        }
+
+        set_actor_presentation_step(actor, step);
         if (!insert_attack_order_direct(
                 code > 7 ? 1U : 2U, std::bit_cast<u32>(code), 0U
             )) {

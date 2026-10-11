@@ -3458,6 +3458,179 @@ run_battle_script_dispatch_on_heap(
     );
 }
 
+void test_battle_script_presentation_step(openswd3::test::Context& test) {
+    for (const i32 opcode : {11, 21, 26}) {
+        for (const u16 actor : std::array<u16, 4U>{0U, 7U, 8U, 17U}) {
+            for (const u16 step :
+                 std::array<u16, 5U>{0U, 4U, 8U, 0x8000U, 0xFFFFU}) {
+                auto fixture = std::make_unique<Fixture>();
+                Port port;
+                fixture->opcode(opcode);
+                fixture->write_u16(2U, actor);
+                fixture->write_u16(4U, step);
+                fixture->startup
+                    .group_b_lifecycle = std::make_shared<std::array<
+                    openswd3::battle::LegacyBattleActorGroupBElementState,
+                    openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+                for (auto& party : fixture->startup.party) {
+                    party.base_initialization.presentation_step = 0x1234U;
+                    party.base_initialization.field_2a68 = 0x5678U;
+                }
+
+                for (auto& enemy : *fixture->startup.group_b_lifecycle) {
+                    enemy.base_initialization.presentation_step = 0x1234U;
+                    enemy.base_initialization.field_2a68 = 0x5678U;
+                }
+
+                fixture->workspace.packed_actor_state = 0x55AAU;
+                fixture->action.action_pending_aux = 99U;
+                port.typed_stop_enabled = true;
+                port.typed_stop_call = LegacyBattleScriptDispatchCall::frame;
+                const auto result =
+                    run_battle_script_dispatch_on_heap(*fixture, port);
+                test.expect_true(
+                    result->status ==
+                            LegacyBattleScriptDispatchStatus::
+                                frame_typed_stop &&
+                        fixture->workspace.cursor == 0U &&
+                        fixture->workspace.packed_actor_state ==
+                            ((static_cast<u32>(actor | 0x8000U) << 16U) |
+                             0x55AAU) &&
+                        fixture->action.action_pending_aux ==
+                            (opcode == 21 && actor <= 7U ? 1U : 99U),
+                    "script presentation step commits before frame failure and only case21 enemy publishes the auxiliary gate"
+                );
+                for (std::size_t index = 0U; index < 10U; ++index) {
+                    const auto& fields =
+                        fixture->startup.party[index].base_initialization;
+                    test.expect_true(
+                        fields.presentation_step ==
+                                (actor == index + 8U ? step : 0x1234U) &&
+                            fields.field_2a68 == 0x5678U,
+                        "script step writes exactly the selected party WORD and preserves neighboring fields"
+                    );
+                }
+
+                for (std::size_t index = 0U; index < 8U; ++index) {
+                    const auto& fields =
+                        (*fixture->startup.group_b_lifecycle)[index]
+                            .base_initialization;
+                    test.expect_true(
+                        fields.presentation_step ==
+                                (actor == index ? step : 0x1234U) &&
+                            fields.field_2a68 == 0x5678U,
+                        "script step writes exactly the selected enemy WORD and preserves neighboring fields"
+                    );
+                }
+            }
+        }
+
+        for (const u16 actor : std::array<u16, 2U>{0U, 8U}) {
+            for (const u32 capacity : {3U, 4U, 5U}) {
+                auto fixture = std::make_unique<Fixture>();
+                Port port;
+                fixture->opcode(opcode);
+                fixture->write_u16(2U, actor);
+                fixture->write_u16(4U, 8U);
+                fixture->assets.script_capacity = capacity;
+                fixture->startup
+                    .group_b_lifecycle = std::make_shared<std::array<
+                    openswd3::battle::LegacyBattleActorGroupBElementState,
+                    openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+                auto& fields = actor > 7U
+                    ? fixture->startup.party[0U].base_initialization
+                    : (*fixture->startup.group_b_lifecycle)[0U]
+                          .base_initialization;
+                auto& kind = actor > 7U
+                    ? fixture->action.group_a_action_execution[0U].action_kind
+                    : (*fixture->startup.group_b_lifecycle)[0U]
+                          .action_composition.action_kind;
+                fields.presentation_step = 0x1234U;
+                kind = 0x2222U;
+                fixture->startup.reset.block_520e90[0U] = 77U;
+                fixture->final_actor.queued_actor_code = 98U;
+                fixture->final_actor.published_actor_code = 99U;
+                fixture->workspace.packed_actor_state = 0x123455AAU;
+                fixture->action.action_pending_aux = 99U;
+                const auto result =
+                    run_battle_script_dispatch_on_heap(*fixture, port);
+                test.expect_true(
+                    result->status ==
+                            LegacyBattleScriptDispatchStatus::
+                                script_typed_stop &&
+                        result->stopped_offset == capacity &&
+                        fixture->workspace.cursor == 0U &&
+                        fixture->workspace.packed_actor_state ==
+                            (capacity == 3U ? 0x123455AAU
+                                            : (static_cast<u32>(actor) << 16U) |
+                                     0x55AAU) &&
+                        fields.presentation_step == 0x1234U &&
+                        kind ==
+                            (capacity == 3U     ? 0x2222U
+                                 : opcode == 11 ? 17U
+                                 : opcode == 21 ? 11U
+                                                : 12U) &&
+                        fixture->startup.reset.block_520e90[0U] == 77U &&
+                        fixture->final_actor.queued_actor_code ==
+                            (capacity > 3U && actor > 7U ? 8U : 98U) &&
+                        fixture->final_actor.published_actor_code ==
+                            (capacity > 3U && actor > 7U ? 1U : 99U) &&
+                        fixture->action.action_pending_aux == 99U &&
+                        port.count(LegacyBattleScriptDispatchCall::frame) == 0U,
+                    "short step reads retain the actor and action prefix but not the step or subsequent queue and frame writes"
+                );
+            }
+
+            auto fixture = std::make_unique<Fixture>();
+            Port port;
+            fixture->opcode(opcode);
+            fixture->write_u16(2U, actor);
+            fixture->write_u16(4U, 8U);
+            fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+                openswd3::battle::LegacyBattleActorGroupBElementState,
+                openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+            auto& fields = actor > 7U
+                ? fixture->startup.party[0U].base_initialization
+                : (*fixture->startup.group_b_lifecycle)[0U].base_initialization;
+            fields.presentation_step = 0x1234U;
+            openswd3::battle::LegacyBattleScriptDispatchRequest request;
+            request.actor_action_mode_access.action_kind_writable = false;
+            const auto result =
+                run_battle_script_dispatch_on_heap(*fixture, port, request);
+            test.expect_true(
+                result->status ==
+                        LegacyBattleScriptDispatchStatus::
+                            actor_action_mode_typed_stop &&
+                    fields.presentation_step == 0x1234U &&
+                    fixture->workspace.cursor == 0U &&
+                    fixture->workspace.packed_actor_state ==
+                        static_cast<u32>(actor) << 16U &&
+                    port.count(LegacyBattleScriptDispatchCall::frame) == 0U,
+                "a preceding action write failure prevents presentation step publication and the frame suffix"
+            );
+        }
+
+        for (const u16 actor : std::array<u16, 3U>{18U, 0x8000U, 0xFFFFU}) {
+            auto fixture = std::make_unique<Fixture>();
+            Port port;
+            fixture->opcode(opcode);
+            fixture->write_u16(2U, actor);
+            fixture->write_u16(4U, 8U);
+            const auto result =
+                run_battle_script_dispatch_on_heap(*fixture, port);
+            test.expect_true(
+                result->status ==
+                        LegacyBattleScriptDispatchStatus::
+                            group_a_actor_typed_stop &&
+                    fixture->workspace.packed_actor_state ==
+                        static_cast<u32>(actor) << 16U &&
+                    fixture->workspace.cursor == 0U && port.calls.empty(),
+                "unsigned script actors outside party storage retain the published WORD at the existing storage boundary"
+            );
+        }
+    }
+}
+
 void test_battle_script_actor_target_selection_calls(
     openswd3::test::Context& test
 ) {
@@ -7069,6 +7242,7 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
 
     test_battle_script_frame_stop(test);
     test_battle_script_actor_coordinate_calls(test);
+    test_battle_script_presentation_step(test);
     test_battle_script_actor_target_selection_calls(test);
     test_battle_script_current_coordinate_stops(test);
     test_battle_script_current_coordinate_boundaries(test);
