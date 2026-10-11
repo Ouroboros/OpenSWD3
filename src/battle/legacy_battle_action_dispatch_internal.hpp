@@ -28,7 +28,6 @@ constexpr u32 kCallPublishSignedValue = 0x0047D640U;
 constexpr u32 kCallSetActorAction = 0x004830A0U;
 constexpr u32 kCallQuerySelection = 0x0047C680U;
 constexpr u32 kCallQueryModeC = 0x0047C6B0U;
-constexpr u32 kCallClearMode = 0x0047D870U;
 constexpr u32 kCallQueryModeB = 0x0047C950U;
 constexpr u32 kCallQuerySpecial = 0x0047D8E0U;
 constexpr u32 kCallComputeSelection = 0x00470E20U;

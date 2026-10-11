@@ -149,6 +149,11 @@ phase counter低word大于1时先减一；只有减后等于2才发消息并结�
 
 phase为0时先读目标code与距离，距离至少20或目标phase查询成功都会置condition auxiliary；两者都不满足则condition清零、phase写40并返回。满足时启动目标phase、置condition、设置三个factor=-12、phase=1、selected target、primary suppression=1，并执行动画初始化。
 
+开始和完成时分别于004546B5、0045472E激活实际敌方目标，不再错误激活队员。
+开始段多出的模式7调用已删除；刷新后仅类型低WORD为1C才直接写敌方绘制抑制1。
+队员行动父链的47D870调用及编号均已删除；顺序、所有权与失败诊断见
+[目标绘制抑制](battle-target-drawing-suppression-0047d870.md)。
+
 随后角色phase完成时更新目标记录、packed actor低byte、selected target、phase=30及目标status发布。所有u16/u8操作保留各自回绕宽度。
 
 ## 10. case 13/14/15

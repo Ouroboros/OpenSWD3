@@ -726,7 +726,10 @@ core/ASan角色帧各1/1及SDL链接通过；见`evidence/battle-enemy-presentat
 其前继绘制抑制0/1和召唤队员抑制1已直接写已有残余状态数组；
 缺失存储在首次字段访问报告，前继失败不写、后继分配失败保留实际写入。
 48组完成组合、召唤顺序/失败测试、core/ASan角色帧及SDL链接通过。
-见`evidence/battle-party-drawing-suppression-0047d870.md`；父协议仍待迁移。
+见`evidence/battle-party-drawing-suppression-0047d870.md`。
+目标阶段开始和完成已改为激活实际敌方；删除多出的模式调用，并直接写目标绘制抑制。
+32组开始组合及首末目标完成/失败用例、core/ASan角色帧、SDL链接通过，
+见`evidence/battle-target-drawing-suppression-0047d870.md`；父协议仍待迁移。
 结束段10敌人扫描的额外写入已静态定位到CRT缓冲区和PE资源载荷；
 运行期页保护、异常与其他父协议继续待核实或迁移。
 当前验证范围见`evidence/battle-script-overlay-initialization.md`及

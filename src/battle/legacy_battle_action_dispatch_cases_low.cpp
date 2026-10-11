@@ -623,18 +623,17 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
                 return result;
             }
             state.phase_condition = 1U;
-            const auto presentation_mode =
-                invoke(state, port, kCallSetMode, {7U});
             if (!activate_actor_presentation(
                     state,
                     context,
                     result,
-                    actor_token,
-                    presentation_mode.eax,
-                    presentation_mode.edx,
-                    0x004540E4U,
-                    0x004540E9U,
-                    presentation_mode.flags
+                    group_b_token(group_b_index),
+                    result.target_phase_start.return_eax,
+                    result.target_phase_start.return_edx,
+                    0x004546B5U,
+                    0x004546BAU,
+                    result.target_phase_start.flags,
+                    result.target_phase_start.flags_known
                 )) {
                 return result;
             }
@@ -655,7 +654,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
                              {group_b_token(group_b_index)}
                 )
                              .eax) == 0x1CU) {
-                static_cast<void>(invoke(state, port, kCallClearMode, {1U}));
+                (*context.startup->group_b_lifecycle)[group_b_index]
+                    .runtime_reset.field_2af0 = 1U;
             }
         }
         if (context.startup == nullptr) {
@@ -709,13 +709,12 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
                     state,
                     context,
                     result,
-                    actor_token,
-                    result.target_phase_advance.return_eax,
+                    group_b_token(group_b_index),
+                    group_b_index * 0x565U,
                     result.target_phase_advance.return_edx,
-                    0x004546B5U,
-                    0x004546BAU,
-                    {},
-                    false
+                    0x0045472EU,
+                    0x00454733U,
+                    subtract_flags(group_b_index * 24U, group_b_index)
                 )) {
                 return result;
             }

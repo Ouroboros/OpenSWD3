@@ -1600,16 +1600,94 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 item.item_id == 7U && item.quantity_b == 1U &&
                 result.actor_presentation_activation.calls == 1U &&
                 result.actor_presentation_activation.call_addresses[0U] ==
-                    0x004546B5U &&
+                    0x0045472EU &&
                 result.actor_presentation_activation.return_addresses[0U] ==
-                    0x004546BAU &&
-                fixture.startup.party[0U].progress.special_ready == 1U &&
-                fixture.startup.party[0U].progress.presentation_enabled == 1U &&
-                fixture.startup.party[0U].base_initialization.field_2a94 ==
-                    6U &&
+                    0x00454733U &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_configuration.special_ready == 1U &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_configuration.presentation_enabled == 1U &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .base_initialization.field_2a94 == 6U &&
                 port.count(0x004787F0U) == 0U,
             "phase six completion directly publishes the target status into the shared player inventory"
         );
+    }
+
+    for (const u32 target_index : {0U, 7U}) {
+        for (const bool activation_failure : {false, true}) {
+            auto state = std::make_unique<LegacyBattleActionDispatchState>();
+            state->group_a_count = 1;
+            state->group_b_count = 1;
+            state->phase_counter = 1U;
+            state->group_b_status_words[target_index] = 7U;
+            auto& emitter = state->group_a_target_phases[9U].emitter;
+            emitter.initialized = 1;
+            emitter.remaining_batches = 0U;
+            emitter.spawned_count = 0;
+            auto fixture = std::make_unique<Fixture>();
+            fixture->startup.party[9U].progress.special_ready = 0xA1U;
+            fixture->startup.party[9U].progress.presentation_enabled = 0xA2U;
+            fixture->startup.party[9U].base_initialization.field_2a94 = 0xA3U;
+            auto& target = (*fixture->startup.group_b_lifecycle)[target_index];
+            target.action_configuration.special_ready = 0xB1U;
+            target.action_configuration.presentation_enabled = 0xB2U;
+            target.runtime_reset.field_2af0 = 0xFFFFFFFFU;
+            DispatchPort port;
+            port.action = 6U;
+            port.push(0x00487C10U, {.eax = 0x00630000U});
+            auto context = fixture->context();
+            context.actor_presentation_activation_requests.calls[0U]
+                .access.argument_readable = !activation_failure;
+            const auto result =
+                dispatch(*state, port, context, 9U, target_index);
+            const auto& activation = result.actor_presentation_activation.last;
+            const bool failure_prefix_matches = !activation_failure ||
+                (activation.return_eax == (target_index == 0U ? 0U : 0x25C3U) &&
+                 activation.return_edx ==
+                     result.target_phase_advance.return_edx &&
+                 activation.flags_known && !activation.flags.carry &&
+                 activation.flags.zero == (target_index == 0U) &&
+                 activation.flags.parity == (target_index == 0U) &&
+                 !activation.flags.auxiliary_carry &&
+                 activation.flags.auxiliary_carry_defined &&
+                 !activation.flags.sign && !activation.flags.overflow);
+            test.expect_true(
+                result.status ==
+                        (activation_failure
+                             ? LegacyBattleActionDispatchStatus::
+                                   actor_presentation_activation_typed_stop
+                             : LegacyBattleActionDispatchStatus::completed) &&
+                    result.target_phase_advance.return_eax == 1U &&
+                    result.actor_presentation_activation.calls == 1U &&
+                    result.actor_presentation_activation.call_addresses[0U] ==
+                        0x0045472EU &&
+                    result.actor_presentation_activation.return_addresses[0U] ==
+                        0x00454733U &&
+                    failure_prefix_matches &&
+                    target.action_configuration.special_ready ==
+                        (activation_failure ? 0xB1U : 1U) &&
+                    target.action_configuration.presentation_enabled ==
+                        (activation_failure ? 0xB2U : 1U) &&
+                    target.base_initialization.field_2a94 ==
+                        (activation_failure ? 0U : 6U) &&
+                    target.runtime_reset.field_2af0 == 0xFFFFFFFFU &&
+                    fixture->startup.party[9U].progress.special_ready ==
+                        0xA1U &&
+                    fixture->startup.party[9U].progress.presentation_enabled ==
+                        0xA2U &&
+                    fixture->startup.party[9U].base_initialization.field_2a94 ==
+                        0xA3U &&
+                    result.player_item_calls ==
+                        (activation_failure ? 0U : 1U) &&
+                    static_cast<u16>(state->phase_counter) ==
+                        (activation_failure ? 1U : 0x1EU) &&
+                    (!activation_failure ||
+                     (port.fixed_count_nodes.empty() &&
+                      port.world_item_list_state().player_inventory.empty())),
+                "target phase completion activates the enemy with physical arithmetic and SUB flags, preserves the source party, and blocks item publication on activation failure"
+            );
+        }
     }
 
     {
@@ -7640,13 +7718,15 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                 port.count(0x0047CE70U) == 1U && state.phase_condition == 1U &&
                 result.actor_presentation_activation.calls == 1U &&
                 result.actor_presentation_activation.call_addresses[0U] ==
-                    0x004540E4U &&
+                    0x004546B5U &&
                 result.actor_presentation_activation.return_addresses[0U] ==
-                    0x004540E9U &&
-                fixture.startup.party[0U].progress.special_ready == 1U &&
-                fixture.startup.party[0U].progress.presentation_enabled == 1U &&
-                fixture.startup.party[0U].base_initialization.field_2a94 ==
-                    6U &&
+                    0x004546BAU &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_configuration.special_ready == 1U &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .action_configuration.presentation_enabled == 1U &&
+                (*fixture.startup.group_b_lifecycle)[0U]
+                        .base_initialization.field_2a94 == 6U &&
                 port.count(0x004787F0U) == 0U &&
                 static_cast<u16>(state.phase_counter) == 1U &&
                 result.target_phase_advance_calls == 1U &&
@@ -7660,6 +7740,126 @@ void test_battle_action_dispatch_part_four(openswd3::test::Context& test) {
                         .frame_prepared_action_record.action_id == 0U,
             "action six composes the Group-B target frame-resource leaf before the unchanged target-phase suffix without opaque whole-function calls"
         );
+    }
+
+    for (const u32 source_index : {0U, 9U}) {
+        for (const u32 target_index : {0U, 7U}) {
+            for (const u32 target_code : {0x1BU, 0x1CU, 0x1DU, 0x1001CU}) {
+                for (const bool activation_failure : {false, true}) {
+                    auto state =
+                        std::make_unique<LegacyBattleActionDispatchState>();
+                    state->group_a_count = 1;
+                    state->group_b_count = 1;
+                    state->selected_target_index = 0xFFFFU;
+                    auto& source =
+                        state->group_a_action_execution[source_index];
+                    source.profile_level = 20U;
+                    source.position_x = 240U;
+                    source.position_y = 220U;
+                    source.source_x_offset = 40U;
+                    source.source_y_offset = 10U;
+                    state->group_b_message_profiles[target_index] = {
+                        .phase_flags = 0x800U,
+                        .phase_limit = 0x15U,
+                        .level = 10U,
+                    };
+
+                    auto fixture = std::make_unique<Fixture>();
+                    fixture->prepare_target_phase_frame_resource(target_index);
+                    for (auto& party : fixture->startup.party) {
+                        party.progress.special_ready = 0xA1U;
+                        party.progress.presentation_enabled = 0xA2U;
+                        party.base_initialization.field_2a94 = 0xA3U;
+                    }
+
+                    for (auto& enemy : *fixture->startup.group_b_lifecycle) {
+                        enemy.action_configuration.special_ready = 0xB1U;
+                        enemy.action_configuration.presentation_enabled = 0xB2U;
+                        enemy.base_initialization.field_2a94 = 0U;
+                        enemy.runtime_reset.field_2af0 = 0xFFFFFFFFU;
+                        enemy.runtime_reset.field_2af4 = 0x89ABCDEFU;
+                    }
+
+                    DispatchPort port;
+                    port.action = 6U;
+                    port.push(0x0047F910U, {.eax = 7U});
+                    port.push(0x0047F910U, {.eax = target_code});
+                    port.object_words[0U][1U] = (20U << 16U) | 7U;
+                    auto context = fixture->context();
+                    context.actor_presentation_activation_requests.calls[0U]
+                        .access.argument_readable = !activation_failure;
+                    const auto result = dispatch(
+                        *state, port, context, source_index, target_index
+                    );
+                    bool fields_match = true;
+                    for (const auto& party : fixture->startup.party) {
+                        fields_match = fields_match &&
+                            party.progress.special_ready == 0xA1U &&
+                            party.progress.presentation_enabled == 0xA2U &&
+                            party.base_initialization.field_2a94 == 0xA3U;
+                    }
+
+                    for (std::size_t index = 0U;
+                         index < fixture->startup.group_b_lifecycle->size();
+                         ++index) {
+                        const auto& enemy =
+                            (*fixture->startup.group_b_lifecycle)[index];
+                        const bool activated =
+                            index == target_index && !activation_failure;
+                        const bool suppressed =
+                            activated && static_cast<u16>(target_code) == 0x1CU;
+                        fields_match = fields_match &&
+                            enemy.action_configuration.special_ready ==
+                                (activated ? 1U : 0xB1U) &&
+                            enemy.action_configuration.presentation_enabled ==
+                                (activated ? 1U : 0xB2U) &&
+                            enemy.base_initialization.field_2a94 ==
+                                (activated ? 6U : 0U) &&
+                            enemy.runtime_reset.field_2af0 ==
+                                (suppressed ? 1U : 0xFFFFFFFFU) &&
+                            enemy.runtime_reset.field_2af4 == 0x89ABCDEFU;
+                    }
+
+                    const auto& activation =
+                        result.actor_presentation_activation.last;
+                    const bool failure_prefix_matches = !activation_failure ||
+                        (activation.return_eax ==
+                             result.target_phase_start.return_eax &&
+                         activation.return_edx ==
+                             result.target_phase_start.return_edx &&
+                         activation.flags_known ==
+                             result.target_phase_start.flags_known &&
+                         activation.flags.zero ==
+                             result.target_phase_start.flags.zero &&
+                         activation.flags.carry ==
+                             result.target_phase_start.flags.carry);
+                    test.expect_true(
+                        result.status ==
+                                (activation_failure
+                                     ? LegacyBattleActionDispatchStatus::
+                                           actor_presentation_activation_typed_stop
+                                     : LegacyBattleActionDispatchStatus::
+                                           completed) &&
+                            fields_match && failure_prefix_matches &&
+                            state->phase_condition == 1U &&
+                            static_cast<u16>(state->phase_counter) ==
+                                (activation_failure ? 0U : 1U) &&
+                            result.actor_presentation_activation.calls == 1U &&
+                            result.actor_presentation_activation
+                                    .call_addresses[0U] == 0x004546B5U &&
+                            result.actor_presentation_activation
+                                    .return_addresses[0U] == 0x004546BAU &&
+                            result.target_phase_advance_calls ==
+                                (activation_failure ? 0U : 1U) &&
+                            port.count(0x0047F910U) ==
+                                (activation_failure ? 1U : 2U) &&
+                            port.count(0x0047F380U) == 0U &&
+                            port.count(0x0047D870U) == 0U,
+                        "target phase start activates only the actual enemy, preserves the real predecessor on failure, and writes suppression only for low WORD 1c"
+                    );
+                }
+            }
+        }
     }
 
     {
