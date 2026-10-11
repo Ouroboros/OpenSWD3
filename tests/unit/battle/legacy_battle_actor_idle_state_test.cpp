@@ -1,188 +1,103 @@
 #include "openswd3/battle/legacy_battle_actor_idle_state.hpp"
 
-#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
-#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
 
 #include <array>
-#include <memory>
 
 namespace {
 
-using openswd3::battle::LegacyBattleActorIdleStateRequest;
 using openswd3::battle::LegacyBattleActorIdleStateStatus;
-using openswd3::battle::LegacyBattleActorIdleStateView;
+using openswd3::battle::query_legacy_battle_actor_idle_state;
 using openswd3::compat::u32;
-
-[[nodiscard]] LegacyBattleActorIdleStateRequest request() {
-    return {
-        .actor_token = 0x005029D0U,
-        .entry_eax = 0x11112222U,
-        .entry_edx = 0x33334444U,
-        .entry_esp = 0x80001000U,
-        .entry_return_address = 0x0045691CU,
-        .entry_flags = {
-            .carry = true,
-            .parity = false,
-            .auxiliary_carry = true,
-            .auxiliary_carry_defined = true,
-            .zero = false,
-            .sign = true,
-            .overflow = true,
-        },
-    };
-}
-
-[[nodiscard]] bool flags_equal(
-    const openswd3::battle::LegacyBattleActorCoordinateFlags& left,
-    const openswd3::battle::LegacyBattleActorCoordinateFlags& right
-) noexcept {
-    return left.carry == right.carry && left.parity == right.parity &&
-        left.auxiliary_carry == right.auxiliary_carry &&
-        left.auxiliary_carry_defined == right.auxiliary_carry_defined &&
-        left.zero == right.zero && left.sign == right.sign &&
-        left.overflow == right.overflow;
-}
 
 }  // namespace
 
 void test_battle_actor_idle_state(openswd3::test::Context& test) {
-    {
-        openswd3::battle::LegacyBattleActionDispatchState action;
-        openswd3::battle::LegacyBattleStartupState startup;
-        startup.group_b_lifecycle = std::make_shared<std::array<
-            openswd3::battle::LegacyBattleActorGroupBElementState,
-            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
-        action.group_a_action_execution[2U].idle_state_latch = 0x11223344U;
-        (*startup.group_b_lifecycle)[3U].action_execution.idle_state_latch =
-            0x55667788U;
-        const auto owners = openswd3::battle::LegacyBattleActorIdleStateOwners{
-            .action = &action,
-            .startup = &startup,
-        };
-        const auto group_a =
-            openswd3::battle::resolve_legacy_battle_actor_idle_state(
-                owners,
-                openswd3::battle::kLegacyBattleActorCoordinatesGroupABaseToken +
-                    2U *
-                        openswd3::battle::
-                            kLegacyBattleActorCoordinatesGroupAStride
-            );
-        const auto group_b =
-            openswd3::battle::resolve_legacy_battle_actor_idle_state(
-                owners,
-                openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken +
-                    3U *
-                        openswd3::battle::
-                            kLegacyBattleActorCoordinatesGroupBStride
-            );
-        const auto missing =
-            openswd3::battle::resolve_legacy_battle_actor_idle_state(
-                {.action = &action},
-                openswd3::battle::kLegacyBattleActorCoordinatesGroupBBaseToken
-            );
-        const auto invalid =
-            openswd3::battle::resolve_legacy_battle_actor_idle_state(
-                owners, 0xDEADBEEFU
-            );
-        test.expect_true(
-            group_a.latch ==
-                    &action.group_a_action_execution[2U].idle_state_latch &&
-                *group_a.latch == 0x11223344U &&
-                group_b.latch ==
-                    &(*startup.group_b_lifecycle)[3U]
-                         .action_execution.idle_state_latch &&
-                *group_b.latch == 0x55667788U && missing.latch == nullptr &&
-                invalid.latch == nullptr,
-            "idle-state resolver aliases only canonical Group-A action and Group-B lifecycle owners"
-        );
-    }
-
-    {
-        const u32 latch = 0xA5A55A5AU;
-        const auto entry = request();
-        const auto result =
-            openswd3::battle::query_legacy_battle_actor_idle_state(
-                {.latch = &latch}, entry
-            );
+    for (const u32 value : std::array<u32, 8>{
+             0U, 1U, 2U, 0xFFFFU, 0x10000U, 0x10001U, 0x80000000U, 0xFFFFFFFFU
+         }) {
+        u32 state = value;
+        const auto result = query_legacy_battle_actor_idle_state(&state);
         test.expect_true(
             result.status == LegacyBattleActorIdleStateStatus::completed &&
-                result.returned && result.return_eax == latch &&
-                result.return_ecx == entry.actor_token &&
-                result.return_edx == entry.entry_edx &&
-                result.return_esp == entry.entry_esp + 4U &&
-                result.return_eip == entry.entry_return_address &&
-                result.field_token == entry.actor_token + 0x2AB4U &&
-                result.latch_reads == 1U && result.return_address_reads == 1U &&
-                result.stack_read_count == 1U &&
-                result.stack_reads[0U] == entry.entry_return_address &&
-                result.flags_known &&
-                flags_equal(result.flags, entry.entry_flags),
-            "idle-state getter returns the full dword and plain-RET machine state without changing flags"
+                result.value == value && state == value,
+            "idle query reads the complete DWORD without normalization or writes"
         );
     }
 
-    {
-        const u32 latch = 0U;
-        const auto entry = request();
-        const auto result =
-            openswd3::battle::query_legacy_battle_actor_idle_state(
-                {.latch = &latch}, entry
-            );
+    for (u32 bit = 0U; bit < 32U; ++bit) {
+        const u32 state = 1U << bit;
+        const auto result = query_legacy_battle_actor_idle_state(&state);
         test.expect_true(
             result.status == LegacyBattleActorIdleStateStatus::completed &&
-                result.returned && result.return_eax == 0U &&
-                result.latch_reads == 1U && result.return_address_reads == 1U &&
-                flags_equal(result.flags, entry.entry_flags),
-            "zero idle-state value is loaded without synthesizing TEST or XOR flags"
+                result.value == state,
+            "idle query preserves every individual DWORD bit"
         );
     }
 
     {
-        const u32 latch = 0xCAFEBABEU;
-        auto field_request = request();
-        field_request.access.latch_readable = false;
-        const auto field_stop =
-            openswd3::battle::query_legacy_battle_actor_idle_state(
-                {.latch = &latch}, field_request
-            );
-        const auto missing_stop =
-            openswd3::battle::query_legacy_battle_actor_idle_state(
-                LegacyBattleActorIdleStateView{}, request()
-            );
-
-        auto return_request = request();
-        return_request.access.return_address_readable = false;
-        const auto return_stop =
-            openswd3::battle::query_legacy_battle_actor_idle_state(
-                {.latch = &latch}, return_request
-            );
+        u32 first = 0U;
+        u32 second = 0xFFFFFFFFU;
+        const auto before = query_legacy_battle_actor_idle_state(&first);
+        first = 0x10001U;
+        const auto after = query_legacy_battle_actor_idle_state(&first);
+        const auto separate = query_legacy_battle_actor_idle_state(&second);
         test.expect_true(
-            field_stop.status ==
+            before.value == 0U && after.value == 0x10001U &&
+                separate.value == 0xFFFFFFFFU && first == 0x10001U &&
+                second == 0xFFFFFFFFU,
+            "idle query observes live changes and keeps distinct storage independent"
+        );
+    }
+
+    {
+        const u32 state = 0xCAFEBABEU;
+        const auto missing = query_legacy_battle_actor_idle_state(nullptr);
+        const auto unreadable = query_legacy_battle_actor_idle_state(
+            &state, {.latch_readable = false}
+        );
+        const auto both = query_legacy_battle_actor_idle_state(
+            &state, {.latch_readable = false, .return_address_readable = false}
+        );
+        const auto missing_return = query_legacy_battle_actor_idle_state(
+            nullptr, {.return_address_readable = false}
+        );
+        test.expect_true(
+            missing.status ==
                     LegacyBattleActorIdleStateStatus::latch_read_typed_stop &&
-                field_stop.return_eax == field_request.entry_eax &&
-                field_stop.return_ecx == field_request.actor_token &&
-                field_stop.return_edx == field_request.entry_edx &&
-                field_stop.return_esp == field_request.entry_esp &&
-                field_stop.return_eip == 0x004786A0U &&
-                field_stop.latch_reads == 0U &&
-                field_stop.return_address_reads == 0U && !field_stop.returned &&
-                missing_stop.status ==
+                !missing.value &&
+                unreadable.status ==
                     LegacyBattleActorIdleStateStatus::latch_read_typed_stop &&
-                return_stop.status ==
+                !unreadable.value &&
+                both.status ==
+                    LegacyBattleActorIdleStateStatus::latch_read_typed_stop &&
+                !both.value &&
+                missing_return.status ==
+                    LegacyBattleActorIdleStateStatus::latch_read_typed_stop &&
+                !missing_return.value && state == 0xCAFEBABEU,
+            "missing storage and failed field access stop before RET without an observed value"
+        );
+        const auto return_failure = query_legacy_battle_actor_idle_state(
+            &state, {.return_address_readable = false}
+        );
+        test.expect_true(
+            return_failure.status ==
                     LegacyBattleActorIdleStateStatus::
                         return_address_read_typed_stop &&
-                return_stop.return_eax == latch &&
-                return_stop.return_ecx == return_request.actor_token &&
-                return_stop.return_edx == return_request.entry_edx &&
-                return_stop.return_esp == return_request.entry_esp &&
-                return_stop.return_eip == 0x004786A6U &&
-                return_stop.latch_reads == 1U &&
-                return_stop.return_address_reads == 0U &&
-                return_stop.stack_read_count == 0U && !return_stop.returned &&
-                flags_equal(field_stop.flags, field_request.entry_flags) &&
-                flags_equal(return_stop.flags, return_request.entry_flags),
-            "field and RET typed stops preserve the exact completed read prefix, registers, stack, EIP, and flags"
+                return_failure.value == state,
+            "RET failure retains the observed full DWORD"
+        );
+        const u32 zero = 0U;
+        const auto zero_return_failure = query_legacy_battle_actor_idle_state(
+            &zero, {.return_address_readable = false}
+        );
+        test.expect_true(
+            zero_return_failure.status ==
+                    LegacyBattleActorIdleStateStatus::
+                        return_address_read_typed_stop &&
+                zero_return_failure.value.has_value() &&
+                *zero_return_failure.value == 0U,
+            "an observed zero remains distinct from a failed field read"
         );
     }
 }

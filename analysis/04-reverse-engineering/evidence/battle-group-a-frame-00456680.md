@@ -229,7 +229,7 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 - `0x004698E0`的三处调用已直接回收为typed文字消息入链；
 - `0x00478330`的六处调用已直接回收为typed角色可用性写入；
 - `0x00478690`的one-based Group-A目标与Group-B动作目标两处调用已直接回收为typed回合完成查询；
-- `0x004786A0`的actor启动、peer扫描、直接空闲门与selected-target四处调用已直接回收为typed空闲状态查询；
+- `0x004786A0`四处调用直接借当前队员实际空闲DWORD，查询不再携带编号、token解析、寄存器、栈或计数，亦不经过转发函数；
 - `0x004786D0`的公共效果模式启动门调用已直接回收为typed word查询；
 - 其余待审角色、AI、选择、文本、sample和数值callee继续使用单一typed token端口。
 
@@ -260,7 +260,7 @@ Typed-stop只位于：
 - idle actor启动后的攻击顺序记录、队员暂存源和双尾门真实访问点；
 - completed actor组B扫描与首个live选择；
 - one-based Group-A目标及Group-B动作目标两处回合完成caller的canonical owner、调用前寄存器/flags、typed-stop后缀抑制和旧callee token零调用；
-- actor启动、peer扫描、直接空闲门与selected-target四处空闲状态caller的canonical owner、完整零/1/其他非零值、调用前EAX/EDX/flags、真实返回地址、typed-stop后缀抑制和旧callee token零调用；
+- 四处空闲查询使用共享实际字段和状态/可选值，保留完整DWORD、即时读取及字段/RET失败前缀；失败时父级保留已有返回，完整父项其它协议与资源仍待迁移。当前证据见[空闲状态查询](battle-actor-idle-state-004786a0.md)；
 - 公共显示调用直接读取Group-A实际启动计数，完整WORD零/非零与门值精确1组合、失败保留前驱高EAX和观察值、显示及后缀抑制；查询协议已删除，当前证据见[启动计数查询](battle-actor-start-gate-004786d0.md)；
 - active action直接调用已关闭主分派，确认端口不再出现旧callee token并完成全cleanup；
 - action target `0xFFFF`首次组B对象typed-stop；

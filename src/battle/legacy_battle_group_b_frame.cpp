@@ -285,28 +285,6 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     return true;
 }
 
-[[nodiscard]] bool query_idle_state(
-    LegacyBattleActionDispatchResult& result,
-    const LegacyBattleActorIdleStateOwners& owners,
-    const LegacyBattleActorIdleStateRequest& request,
-    u32& value
-) {
-    result.actor_idle_state = query_legacy_battle_actor_idle_state(
-        resolve_legacy_battle_actor_idle_state(owners, request.actor_token),
-        request
-    );
-    ++result.actor_idle_state_calls;
-    if (result.actor_idle_state.status !=
-        LegacyBattleActorIdleStateStatus::completed) {
-        result.status =
-            LegacyBattleActionDispatchStatus::actor_idle_state_typed_stop;
-        result.return_value = result.actor_idle_state.return_eax;
-        return false;
-    }
-    value = result.actor_idle_state.return_eax;
-    return true;
-}
-
 [[nodiscard]] bool query_action_target(
     LegacyBattleActionDispatchResult& result,
     const LegacyBattleActorActionTargetOwners& owners,
@@ -557,10 +535,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
         result.return_value = result.actor_target_selection.last.return_eax;
         return false;
     };
-    const LegacyBattleActorIdleStateOwners idle_state_owners{
-        .action = &action,
-        .startup = context.startup,
-    };
     u32 stale_ebx = group_b_index * kLegacyBattleActionGroupBStride;
 
     if (shared.action.frame_enabled == 1U) {
@@ -748,35 +722,42 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                                 return result;
                                             }
                                             if (target_turn_completion == 0U) {
-                                                auto request =
-                                                    context
-                                                        .actor_idle_state_request;
-                                                request.actor_token =
-                                                    source_token;
-                                                request.entry_eax =
-                                                    target_turn_completion;
-                                                request.entry_edx =
-                                                    result.actor_turn_completion
-                                                        .return_edx;
-                                                request.entry_return_address =
-                                                    0x0045785DU;
-                                                request.entry_flags =
-                                                    logical_flags(
-                                                        target_turn_completion
+                                                result.actor_idle_state =
+                                                    query_legacy_battle_actor_idle_state(
+                                                        context.startup !=
+                                                                    nullptr &&
+                                                                context.startup
+                                                                        ->group_b_lifecycle !=
+                                                                    nullptr
+                                                            ? &(
+                                                                   *context
+                                                                        .startup
+                                                                        ->group_b_lifecycle
+                                                              )[group_b_index]
+                                                                   .action_execution
+                                                                   .idle_state_latch
+                                                            : nullptr,
+                                                        context
+                                                            .actor_idle_state_access
                                                     );
-                                                request.entry_flags_known =
-                                                    true;
-                                                u32 idle_state{};
-                                                if (!query_idle_state(
-                                                        result,
-                                                        idle_state_owners,
-                                                        request,
-                                                        idle_state
-                                                    )) {
+                                                if (result.actor_idle_state
+                                                        ->status !=
+                                                    LegacyBattleActorIdleStateStatus::
+                                                        completed) {
+                                                    result.status =
+                                                        LegacyBattleActionDispatchStatus::
+                                                            actor_idle_state_typed_stop;
+                                                    result.return_value =
+                                                        result.actor_idle_state
+                                                            ->value.value_or(
+                                                                target_turn_completion
+                                                            );
                                                     return result;
                                                 }
+
                                                 target_available =
-                                                    idle_state == 0U;
+                                                    *result.actor_idle_state
+                                                         ->value == 0U;
                                             }
                                         }
                                     }
@@ -990,19 +971,25 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                 state.selection_initialized = 1U;
             }
 
-            auto selection_idle_request = context.actor_idle_state_request;
-            selection_idle_request.actor_token = source_token;
-            selection_idle_request.entry_return_address = 0x00457AC2U;
-            u32 selection_idle_state{};
-            if (!query_idle_state(
-                    result,
-                    idle_state_owners,
-                    selection_idle_request,
-                    selection_idle_state
-                )) {
+            result.actor_idle_state = query_legacy_battle_actor_idle_state(
+                context.startup != nullptr &&
+                        context.startup->group_b_lifecycle != nullptr
+                    ? &(*context.startup->group_b_lifecycle)[group_b_index]
+                           .action_execution.idle_state_latch
+                    : nullptr,
+                context.actor_idle_state_access
+            );
+            if (result.actor_idle_state->status !=
+                LegacyBattleActorIdleStateStatus::completed) {
+                result.status = LegacyBattleActionDispatchStatus::
+                    actor_idle_state_typed_stop;
+                result.return_value = result.actor_idle_state->value.value_or(
+                    context.group_b_frame_entry_eax
+                );
                 return result;
             }
-            if (selection_idle_state == 0U) {
+
+            if (*result.actor_idle_state->value == 0U) {
                 const u16 status = state.status_words[group_b_index];
                 state.phase_mode = 0U;
                 if (high_byte(status) != 0U) {
@@ -1542,19 +1529,26 @@ increment_selected_start_gate: {
 action_decision_done:
     if (shared.action.frame_enabled == 1U && shared.action_aux_gate == 0U &&
         shared.turn_resolution_bits == 0U) {
-        auto decision_idle_request = context.actor_idle_state_request;
-        decision_idle_request.actor_token = source_token;
-        decision_idle_request.entry_return_address = 0x00457E44U;
-        u32 decision_idle_state{};
-        if (!query_idle_state(
-                result,
-                idle_state_owners,
-                decision_idle_request,
-                decision_idle_state
-            )) {
+        const u32 decision_entry_edx = context.group_b_frame_entry_edx;
+        result.actor_idle_state = query_legacy_battle_actor_idle_state(
+            context.startup != nullptr &&
+                    context.startup->group_b_lifecycle != nullptr
+                ? &(*context.startup->group_b_lifecycle)[group_b_index]
+                       .action_execution.idle_state_latch
+                : nullptr,
+            context.actor_idle_state_access
+        );
+        if (result.actor_idle_state->status !=
+            LegacyBattleActorIdleStateStatus::completed) {
+            result.status =
+                LegacyBattleActionDispatchStatus::actor_idle_state_typed_stop;
+            result.return_value = result.actor_idle_state->value.value_or(
+                context.group_b_frame_entry_eax
+            );
             return result;
         }
-        if (decision_idle_state == 1U) {
+
+        if (*result.actor_idle_state->value == 1U) {
             stale_ebx = 1U;
             const u32 priority_actor =
                 port.actor_metric_state().priority_actor_index;
@@ -1572,9 +1566,8 @@ action_decision_done:
             action_target_request.actor_token = source_token;
             action_target_request.entry_eax =
                 active_actor ? action_start_reply.eax : priority_actor;
-            action_target_request.entry_edx = active_actor
-                ? action_start_reply.edx
-                : result.actor_idle_state.return_edx;
+            action_target_request.entry_edx =
+                active_actor ? action_start_reply.edx : decision_entry_edx;
             action_target_request.entry_return_address = 0x00457E8FU;
             if (!active_actor) {
                 action_target_request.entry_flags =

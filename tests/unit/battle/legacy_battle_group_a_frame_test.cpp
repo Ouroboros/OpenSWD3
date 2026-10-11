@@ -16,6 +16,7 @@ namespace {
 
 using openswd3::battle::LegacyBattleActionCallReply;
 using openswd3::battle::LegacyBattleActionCallRequest;
+using openswd3::battle::LegacyBattleActionDispatchStatus;
 using openswd3::battle::LegacyBattleActorTargetSelectionLatchSetStatus;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
@@ -719,6 +720,87 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
     }
 }
 
+void test_idle_query_failures(openswd3::test::Context& test) {
+    for (const u32 branch : std::array<u32, 4>{0U, 1U, 2U, 3U}) {
+        for (const u32 value : std::array<u32, 8>{
+                 0U,
+                 1U,
+                 2U,
+                 0xFFFFU,
+                 0x10000U,
+                 0x10001U,
+                 0x80000000U,
+                 0xFFFFFFFFU
+             }) {
+            for (const bool fail_return : {false, true}) {
+                auto storage = std::make_unique<PausedFrameState>();
+                auto& state = *storage;
+                Fixture fixture;
+                DispatchPort port;
+                auto context = fixture.context();
+                u32 previous_value{};
+                if (branch == 0U) {
+                    port.push(0x0047F920U, {.eax = 0U});
+                } else {
+                    state.actor_enabled[0U] = 1U;
+                    if (branch == 1U) {
+                        state.actors[0U].action_complete = 1U;
+                        state.actors[0U].frame_started = 1U;
+                        state.selection_mode = 1U;
+                        state.action.group_a_count = 1;
+                        previous_value = 0x102U;
+                        port.push(0x0047CEA0U, {.eax = previous_value});
+                    } else if (branch == 3U) {
+                        state.actors[0U].mode_gate = 1U;
+                        state.selected_actor_one_based = 2U;
+                        state.action.group_a_action_execution[1U]
+                            .turn_completion_latch = 0U;
+                        previous_value = 9U;
+                    }
+                }
+
+                state.action.group_a_action_execution[0U].idle_state_latch =
+                    value;
+                context.actor_idle_state_access = {
+                    .latch_readable = fail_return,
+                    .return_address_readable = !fail_return,
+                };
+                const auto result =
+                    openswd3::battle::advance_legacy_battle_group_a_frame(
+                        state, port, context, 0U
+                    );
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActionDispatchStatus::
+                                actor_idle_state_typed_stop &&
+                        result.actor_idle_state.has_value() &&
+                        result.actor_idle_state->status ==
+                            (fail_return
+                                 ? openswd3::battle::
+                                       LegacyBattleActorIdleStateStatus::
+                                           return_address_read_typed_stop
+                                 : openswd3::battle::
+                                       LegacyBattleActorIdleStateStatus::
+                                           latch_read_typed_stop) &&
+                        result.actor_idle_state->value.has_value() ==
+                            fail_return &&
+                        (!fail_return ||
+                         result.actor_idle_state->value == value) &&
+                        result.return_value ==
+                            (fail_return ? value : previous_value) &&
+                        state.action.group_a_action_execution[0U]
+                                .idle_state_latch == value &&
+                        port.count(0x004786A0U) == 0U &&
+                        port.count(0x0047C660U) == 0U &&
+                        port.count(0x0047CC50U) == 0U &&
+                        port.count(0x0047C670U) == 0U,
+                    "all four party idle queries retain exact read/RET failure prefixes and full DWORD values"
+                );
+            }
+        }
+    }
+}
+
 [[nodiscard]] bool has_call_argument(
     const DispatchPort& port,
     const u32 callee,
@@ -736,6 +818,7 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_group_a_frame(openswd3::test::Context& test) {
+    test_idle_query_failures(test);
     for (const u16 count :
          std::array<u16, 5>{0U, 1U, 0x100U, 0x8000U, 0xFFFFU}) {
         for (const auto gates : std::array<std::array<u32, 3>, 7>{
@@ -927,7 +1010,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             DispatchPort port;
             port.push(0x0047F920U, {.eax = 0U, .edx = 0xA5A55A5AU});
             auto context = fixture.context();
-            context.actor_idle_state_request.access.latch_readable = false;
+            context.actor_idle_state_access.latch_readable = false;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
@@ -936,30 +1019,15 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_idle_state_typed_stop &&
-                    result.actor_idle_state_calls == 1U &&
-                    result.actor_idle_state.status ==
+                    result.actor_idle_state.has_value() &&
+                    result.actor_idle_state->status ==
                         openswd3::battle::LegacyBattleActorIdleStateStatus::
                             latch_read_typed_stop &&
-                    result.actor_idle_state.return_eax == 0U &&
-                    result.actor_idle_state.return_ecx ==
-                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                    result.actor_idle_state.return_edx == 0xA5A55A5AU &&
-                    result.actor_idle_state.return_esp ==
-                        context.actor_idle_state_request.entry_esp &&
-                    result.actor_idle_state.return_eip == 0x004786A0U &&
-                    result.actor_idle_state.field_token ==
-                        openswd3::battle::kLegacyBattleActionGroupABaseToken +
-                            0x2AB4U &&
-                    result.actor_idle_state.flags_known &&
-                    !result.actor_idle_state.flags.carry &&
-                    result.actor_idle_state.flags.parity &&
-                    !result.actor_idle_state.flags.auxiliary_carry_defined &&
-                    result.actor_idle_state.flags.zero &&
-                    !result.actor_idle_state.flags.sign &&
-                    !result.actor_idle_state.flags.overflow &&
+                    result.return_value == 0U &&
+                    !result.actor_idle_state->value.has_value() &&
                     port.count(0x004786A0U) == 0U &&
                     port.count(0x0047C670U) == 0U,
-                "Group-A start caller preserves queue TEST state and stops before availability query"
+                "Group-A failed idle read preserves queue completion return and stops before availability"
             );
         }
 
@@ -976,7 +1044,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             DispatchPort port;
             port.push(0x0047CEA0U, {.eax = 0U, .edx = 0x11223344U});
             auto context = fixture.context();
-            context.actor_idle_state_request.access.latch_readable = false;
+            context.actor_idle_state_access.latch_readable = false;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
@@ -985,24 +1053,13 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_idle_state_typed_stop &&
-                    result.actor_idle_state_calls == 1U &&
-                    result.actor_idle_state.return_eax == 0U &&
-                    result.actor_idle_state.return_ecx ==
-                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                    result.actor_idle_state.return_edx == 0x11223344U &&
-                    result.actor_idle_state.return_eip == 0x004786A0U &&
-                    result.actor_idle_state.flags_known &&
-                    result.actor_idle_state.flags.carry &&
-                    result.actor_idle_state.flags.parity &&
-                    result.actor_idle_state.flags.auxiliary_carry_defined &&
-                    result.actor_idle_state.flags.auxiliary_carry &&
-                    !result.actor_idle_state.flags.zero &&
-                    result.actor_idle_state.flags.sign &&
-                    !result.actor_idle_state.flags.overflow &&
+                    result.actor_idle_state.has_value() &&
+                    result.return_value == 0U &&
+                    !result.actor_idle_state->value.has_value() &&
                     result.group_a_iterations == 0U &&
                     port.count(0x004786A0U) == 0U &&
                     port.count(0x0047C660U) == 0U,
-                "Group-A peer-scan caller preserves comparison state and stops before progress publication"
+                "Group-A failed idle read preserves peer return and stops before progress publication"
             );
         }
 
@@ -1014,8 +1071,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             Fixture fixture;
             DispatchPort port;
             auto context = fixture.context();
-            context.actor_idle_state_request.entry_edx = 0x55667788U;
-            context.actor_idle_state_request.access.latch_readable = false;
+            context.actor_idle_state_access.latch_readable = false;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
@@ -1024,22 +1080,12 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 result.status ==
                         LegacyBattleActionDispatchStatus::
                             actor_idle_state_typed_stop &&
-                    result.actor_idle_state_calls == 1U &&
-                    result.actor_idle_state.return_eax == 0U &&
-                    result.actor_idle_state.return_ecx ==
-                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                    result.actor_idle_state.return_edx == 0x55667788U &&
-                    result.actor_idle_state.return_eip == 0x004786A0U &&
-                    result.actor_idle_state.flags_known &&
-                    !result.actor_idle_state.flags.carry &&
-                    result.actor_idle_state.flags.parity &&
-                    !result.actor_idle_state.flags.auxiliary_carry_defined &&
-                    result.actor_idle_state.flags.zero &&
-                    !result.actor_idle_state.flags.sign &&
-                    !result.actor_idle_state.flags.overflow &&
+                    result.actor_idle_state.has_value() &&
+                    result.return_value == 0U &&
+                    !result.actor_idle_state->value.has_value() &&
                     port.count(0x004786A0U) == 0U &&
                     port.count(0x0047CC50U) == 0U,
-                "Group-A direct idle caller preserves zero TEST state and suppresses its presentation suffix"
+                "Group-A failed idle read preserves the zero parent return and suppresses presentation"
             );
         }
 
@@ -1056,7 +1102,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             DispatchPort port;
             port.actor_metric_state().priority_actor_index = 0U;
             auto context = fixture.context();
-            context.actor_idle_state_request.access.latch_readable = false;
+            context.actor_idle_state_access.latch_readable = false;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
@@ -1066,23 +1112,12 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         LegacyBattleActionDispatchStatus::
                             actor_idle_state_typed_stop &&
                     result.actor_turn_completion_calls == 1U &&
-                    result.actor_idle_state_calls == 1U &&
-                    result.actor_idle_state.return_eax == 9U &&
-                    result.actor_idle_state.return_ecx ==
-                        openswd3::battle::kLegacyBattleActionGroupABaseToken &&
-                    result.actor_idle_state.return_edx == 0x179AU &&
-                    result.actor_idle_state.return_eip == 0x004786A0U &&
-                    result.actor_idle_state.flags_known &&
-                    result.actor_idle_state.flags.carry &&
-                    !result.actor_idle_state.flags.parity &&
-                    result.actor_idle_state.flags.auxiliary_carry_defined &&
-                    result.actor_idle_state.flags.auxiliary_carry &&
-                    !result.actor_idle_state.flags.zero &&
-                    result.actor_idle_state.flags.sign &&
-                    !result.actor_idle_state.flags.overflow &&
+                    result.actor_idle_state.has_value() &&
+                    result.return_value == 9U &&
+                    !result.actor_idle_state->value.has_value() &&
                     port.count(0x004786A0U) == 0U &&
                     port.count(0x0047C660U) == 0U,
-                "Group-A selected-target caller preserves CMP and address residues before its idle suffix"
+                "Group-A failed idle read preserves selected-target parent return and suppresses its suffix"
             );
         }
 
@@ -1145,33 +1180,37 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 );
 
             test.expect_true(
-                start.actor_idle_state_calls == 1U &&
-                    start.actor_idle_state.returned &&
-                    start.actor_idle_state.return_eax == 2U &&
-                    start.actor_idle_state.return_eip == 0x0045691CU &&
+                start.actor_idle_state.has_value() &&
+                    start.actor_idle_state->status ==
+                        openswd3::battle::LegacyBattleActorIdleStateStatus::
+                            completed &&
+                    start.actor_idle_state->value == 2U &&
                     start_state.actors[0U].frame_started == 0U &&
                     start_port.count(0x0047C670U) == 0U &&
-                    peer.actor_idle_state_calls == 1U &&
-                    peer.actor_idle_state.returned &&
-                    peer.actor_idle_state.return_eax == 7U &&
-                    peer.actor_idle_state.return_eip == 0x00456ABEU &&
+                    peer.actor_idle_state.has_value() &&
+                    peer.actor_idle_state->status ==
+                        openswd3::battle::LegacyBattleActorIdleStateStatus::
+                            completed &&
+                    peer.actor_idle_state->value == 7U &&
                     peer_state.actors[0U].progress == 0U &&
                     peer_port.count(0x0047C660U) == 0U &&
-                    direct.actor_idle_state_calls == 1U &&
-                    direct.actor_idle_state.returned &&
-                    direct.actor_idle_state.return_eax == 7U &&
-                    direct.actor_idle_state.return_eip == 0x00456C4DU &&
+                    direct.actor_idle_state.has_value() &&
+                    direct.actor_idle_state->status ==
+                        openswd3::battle::LegacyBattleActorIdleStateStatus::
+                            completed &&
+                    direct.actor_idle_state->value == 7U &&
                     direct_port.count(0x0047CC50U) == 0U &&
-                    target.actor_idle_state_calls == 1U &&
-                    target.actor_idle_state.returned &&
-                    target.actor_idle_state.return_eax == 7U &&
-                    target.actor_idle_state.return_eip == 0x00456E00U &&
+                    target.actor_idle_state.has_value() &&
+                    target.actor_idle_state->status ==
+                        openswd3::battle::LegacyBattleActorIdleStateStatus::
+                            completed &&
+                    target.actor_idle_state->value == 7U &&
                     target_port.count(0x0047C660U) == 0U &&
                     start_port.count(0x004786A0U) == 0U &&
                     peer_port.count(0x004786A0U) == 0U &&
                     direct_port.count(0x004786A0U) == 0U &&
                     target_port.count(0x004786A0U) == 0U,
-                "four Group-A idle-state callers retain full nonmatching values, real returns, and suppressed suffixes"
+                "four Group-A idle queries retain full nonmatching values and suppress their suffixes"
             );
         }
 
@@ -1323,16 +1362,17 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     zero.actor_turn_completion.returned &&
                     zero.actor_turn_completion.return_eax == 0U &&
                     zero.actor_turn_completion.return_eip == 0x00456DDBU &&
-                    zero.actor_idle_state_calls == 1U &&
-                    zero.actor_idle_state.returned &&
-                    zero.actor_idle_state.return_eax == 0U &&
-                    zero.actor_idle_state.return_eip == 0x00456E00U &&
+                    zero.actor_idle_state.has_value() &&
+                    zero.actor_idle_state->status ==
+                        openswd3::battle::LegacyBattleActorIdleStateStatus::
+                            completed &&
+                    zero.actor_idle_state->value == 0U &&
                     zero_port.count(0x004786A0U) == 0U &&
                     nonzero.actor_turn_completion_calls == 1U &&
                     nonzero.actor_turn_completion.returned &&
                     nonzero.actor_turn_completion.return_eax == 7U &&
                     nonzero.actor_turn_completion.return_eip == 0x00456DDBU &&
-                    nonzero.actor_idle_state_calls == 0U &&
+                    !nonzero.actor_idle_state.has_value() &&
                     nonzero_port.count(0x004786A0U) == 0U &&
                     zero_port.count(0x00478690U) == 0U &&
                     nonzero_port.count(0x00478690U) == 0U,

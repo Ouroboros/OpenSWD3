@@ -1,84 +1,129 @@
 # 战斗角色空闲状态查询 `0x004786A0`
 
-状态：`platform_adapted`、`unit_tested`、`caller_reclaimed:7/7`。
+状态保持`platform_adapted`，原版差分为`blocked_runtime_oracle`。
+本批迁移查询及全部七处调用；双方完整帧父项仍待迁移。
 
-## 1. 完整LST边界与ABI
+## 1. 独立汇编依据
 
-权威函数为`0x004786A0..0x004786A6`，共7字节、2条实际指令、0个call、0个条件分支和1个普通`retn`，没有外部`FUNCTION CHUNK`或中段入口：
+权威LST主体`004786A0..004786A6`共7字节、两条指令。
+无分支、写入、下级调用、外部chunk或中段入口。
 
 ```text
-0x004786A0  mov eax, [ecx+0x2AB4]
-0x004786A6  retn
+004786A0  8B 81 B4 2A 00 00  mov eax, [ecx+2AB4h]
+004786A6  C3                 retn
 ```
 
-入口为thiscall：ECX是actor token，`[ESP]`是真实caller返回地址。函数先从`actor+0x2AB4`读取完整32位状态latch到EAX，再由RET读取caller返回地址。正常返回时ESP增加4；ECX、EDX及全部flags保持进入值。
+thiscall入口ECX指向角色，读取完整DWORD；不将非零值归一为1。
+原MOV不改flags，RET消费返回地址；实现不再把这些机器状态包装为
+查询请求、寄存器回复、模拟栈或计数。
+独立LST分析先于本批C++审计，保存在
+`build/tmp/runtime/idle-state-direct-lst-analysis.md`。
 
-该leaf不解释字段值的业务含义，也不把非零值归一化为1。七处caller分别用后续TEST或`cmp eax,1`解释完整返回值。
+## 2. 实际字段与结果
 
-## 2. typed访问顺序与停止点
+接口接收`const u32*`与既有访问条件，结果只有状态和可选DWORD。
+实际存储仍为：
 
-`query_legacy_battle_actor_idle_state()`只模拟上述MOV与RET，不执行caller后续TEST/CMP。结果公开完整EAX、ECX、EDX、ESP、EIP、flags、字段token、字段读取、返回地址读取和栈读取计数。
+- 队员`action.group_a_action_execution[index].idle_state_latch`；
+- 敌人`startup.group_b_lifecycle[index].action_execution.idle_state_latch`。
 
-两个独立typed-stop严格位于：
+全部调用在原时点借对应实际字段；不建立副本、查询缓存或写回。
+敌方startup或lifecycle缺失时传空指针，表示原字段不可访问，
+保持原字段读取失败，不伪造零值或成功。队员索引使用父级既有验证。
+查询本身只读。LST直接访问为4786A0读取、47886F写零、478A75写1、
+478D7A比较及47D592清零。查询不接管这些生产者的状态生命周期。
 
-- `0x004786A0`字段读取：缺少canonical view或字段不可读时保留入口EAX/ECX/EDX、ESP与flags，不读取返回地址；
-- `0x004786A6`返回地址读取：保留已装入EAX的完整latch、ECX/EDX、入口ESP与flags，不把RET视为已完成。
+保留原有两个访问失败阶段：
 
-正常RET只记录真实caller返回地址一次，把ESP增加4并把EIP设为该地址。MOV与RET均不修改flags；即使latch为零，也不得合成TEST或XOR flags。
+- 字段缺失或不可读：字段读取失败，无观察值，不检查RET访问；
+- 字段可读而RET不可读：返回地址读取失败，保留已经观察的完整DWORD；
+- 两者可读：完成并返回完整DWORD，包括零。
 
-## 3. 字段状态机与canonical owner
+父结果的外层optional表示查询是否执行，内层optional表示是否读到值。
+删除查询地址常量、View/Owners、token解析、寄存器请求回复、flags、
+模拟栈、读取/调用计数以及双方仅作查询转发的函数。
 
-`actor+0x2AB4`在权威LST中的已知直接访问为：
+## 3. 全部七处调用
 
-- `0x004786A0`完整dword读取；
-- `0x0047886F`reset路径写0；
-- `0x00478A75`动作选择发布路径写1；
-- `0x00478D7A`直接比较；
-- `0x0047D592`直接清零。
+### 队员启动 `00456917→0045691C`
 
-因此字段属于既有actor action-execution生命周期，而不是独立查询缓存。实现把它命名为`idle_state_latch`并直接加入同一canonical记录：
+队列完成查询返回零才读取当前队员字段。00456873把EBP置1，
+后续CMP只有完整值1才进入availability和启动后缀。
+字段失败保留前驱零返回；RET失败保留已读取的DWORD。
+两种失败都在availability之前停止。
 
-- Group-A token映射`LegacyBattleActionDispatchState::group_a_action_execution[10].idle_state_latch`；
-- Group-B token映射`LegacyBattleStartupState::group_b_lifecycle[8].action_execution.idle_state_latch`。
+### 队员扫描 `00456AB9→00456ABE`
 
-无效token、缺失action owner、缺失startup或缺失Group-B lifecycle只产生空view并在真实MOV处停止。实现不新增平行actor数组、第二套latch或token槽。
+同伴标记与47CEA0结果决定是否读取当前队员字段；读取对象不是
+正在扫描的同伴。只有完整值零才清control并累加progress。
+字段失败保留47CEA0的返回，RET失败使用已读取值，均不递增当前项。
 
-## 4. 七处物理caller回收
+### 队员直接空闲门 `00456C48→00456C4D`
 
-权威LST中恰有七条`call sub_4786A0`，均已由frame caller直接组合typed leaf，生产路径不再通过generic port调用该地址。
+前驱状态零时读取当前队员字段；仅零进入清presentation和后续处理。
+字段失败保持父级零返回，RET失败保留完整观察值。两者抑制整个后缀。
 
-### `0x00456917` / Group-A actor启动门
+### 队员选定目标门 `00456DFB→00456E00`
 
-caller返回地址为`0x0045691C`。前一queue-completion callee提供EAX/EDX，紧随其后的`test eax,eax`决定是否到达本leaf；CALL前ECX为当前Group-A actor，EAX/EDX及TEST flags保持。返回后`cmp eax,1`只允许完整值1进入actor-available查询和启动后缀。typed-stop发生在CMP之前，抑制availability、frame-start、攻击顺序登记及后续frame路径。
+回合完成值零且优先角色不等于`selected+7`才读取当前队员字段。
+仅零进入清control、presentation及后续处理。字段失败保留
+`selected+7`，RET失败返回观察值，前面的回合完成查询仍保留。
 
-### `0x00456AB9` / Group-A peer扫描
+### 敌方目标扫描 `00457858→0045785D`
 
-caller返回地址为`0x00456ABE`。peer状态callee提供EAX/EDX，`cmp eax,1`的非等分支到达本leaf；CALL前ECX恢复当前Group-A actor，EAX/EDX和该CMP flags保持。返回后TEST仅在完整值0时清control并累加progress。typed-stop阻断当前项提交、iteration计数和剩余扫描。
+目标terminal、blocked、启动标记及回合完成查询按原顺序决定是否到达。
+读取的是敌方来源角色。仅零执行目标control清理、启动计数和phase递增。
+字段失败保留前驱完成查询的零返回，RET失败保留观察值。
 
-### `0x00456C48` / Group-A直接空闲门
+### 敌方选择 `00457ABD→00457AC2`
 
-caller返回地址为`0x00456C4D`。CALL前EAX为前一状态TEST的零值，ECX为当前Group-A actor，EDX保持此前残值，flags保持该TEST结果。返回后TEST只在完整值0时进入clear-presentation、AI/目标选择和最终处理。typed-stop抑制整个后缀。
+初始化与随机扫描汇合后读取敌方来源角色。仅零进入packed-status、
+profile和动作处理；非零进入动作决定段。失败保留已执行初始化，
+抑制profile后缀。
 
-### `0x00456DFB` / Group-A selected-target门
+### 敌方动作决定 `00457E3F→00457E44`
 
-caller返回地址为`0x00456E00`。前一已关闭回合完成查询返回0且active-effect目标不等于`selected+7`时到达本leaf；CALL前EAX为`selected+7`，EDX保持one-based Group-A地址算术残值，flags来自active-effect目标与该值的CMP。返回后TEST只在完整值0时进入clear-control、clear-presentation、delay、selection和最终处理。typed-stop保留回合完成前缀并抑制该后缀。
+再次读取敌方来源角色，不能复用前面的观察值；只有完整值1才进入
+动作目标及执行后缀。其余非零值包括10001h都不满足精确1。
+失败抑制执行后缀。
 
-### `0x00457858` / Group-B frame的Group-A目标扫描
+## 4. 父级未迁移边界
 
-caller返回地址为`0x0045785D`。前一已关闭回合完成查询返回0时到达本leaf；CALL前ECX为当前Group-B source actor，EAX为完成latch零值，EDX保持excluded查询残值，flags来自完成latch的TEST。返回后TEST只在完整值0时清目标control、准备目标并累加phase。typed-stop保留terminal/blocked/excluded/完成查询前缀并阻断当前项与剩余循环。
+两处敌方汇合点的字段失败返回仍来自父级原先提供的入口EAX，
+现在由`group_b_frame_entry_eax`保存。动作目标旧接口仍消费入口EDX，
+由`group_b_frame_entry_edx`在决定查询处捕获一次，后续按原分支选择
+该值或动作启动callee的EDX。查询不再携带这些父级机器状态。
+这两项仍属父级未迁移合同，不能据此宣告完整帧函数或机器状态闭合。
 
-### `0x00457ABD` / Group-B selection阶段
+双方父项的操作编号、参数数组、其它寄存器接口、Port、轨迹、计数及
+资源缺口继续待迁移。B10仍为315/422，316/317/318保持pending_audit；
+本批不提升B11或整局战斗验收。
 
-caller返回地址为`0x00457AC2`。选择初始化与随机扫描汇合后，ECX恢复当前Group-B source actor；EAX、EDX与flags继承紧前选择路径。typed request显式携带这组三项caller入口状态。返回后TEST只在完整值0时进入packed-status、profile和动作模式处理。typed-stop抑制全部status/profile后缀。
+## 5. 测试与验证
 
-### `0x00457E3F` / Group-B action-decision阶段
+本体覆盖零、精确1、2、FFFF、10000、10001、80000000、FFFFFFFF及
+32个单独位；验证即时重读、不同存储隔离、只读、缺失字段及访问优先序。
+七处调用均增加八种DWORD值乘两种失败阶段的矩阵，检查观察值、
+父级返回和后缀抑制。敌方连续查询测试在第一次零值查询允许的清理中
+改写实际字段，确认第二次读取看到新高位值并拒绝非精确1。
+原有缺失存储、跳过、前缀和业务断言保留；删除已退役协议的断言。
 
-caller返回地址为`0x00457E44`。各动作决定路径汇合后，ECX为当前Group-B source actor；EAX、EDX与flags继承紧前status/mode路径，typed request不改写这些入口值。返回后`cmp eax,1`只允许完整值1进入已关闭opponent action dispatcher及完成/cleanup路径。typed-stop抑制dispatcher和公共完成后缀。
+新增矩阵最初缺少测试命名空间及暂停/优先角色输入，导致编译失败或
+跳过目标调用；均已修正。连续读取场景原先还触发目标选择写1，现用
+第二个已完成目标使准备数不足阈值，避免该额外写入后验证重读。
+断言没有改为接受错误入口或过期观察值，临时诊断输出已移除。
 
-## 5. 测试与动态差分
+最终core setup/actor-frame各1/1通过，分别10.16/26.72秒；
+ASan同范围各1/1通过，分别17.53/26.37秒。SDL实际完成
+`[124/124] Linking CXX executable src/platform/sdl3/Debug/openswd3`。
+最终日志无warning、测试失败或sanitizer报告。八份源码/测试SHA256
+均与门禁输入一致。日志前缀为`build/tmp/runtime/idle-state-direct-`，
+后缀为`core.log`、`callers-core.log`、`asan.log`、`callers-asan.log`、
+`sdl.log`及`validated-source.sha256`。
+发布检查核对七处直接调用、退役协议缺失、父级实际消费者、两条完整
+指令、七次物理转移、五处字段访问、实际测试注册和inventory隔离，
+全部通过；日志为`idle-state-direct-publication-check.log`。
+旧199/199、205/205及固定复核轮数只属历史记录，不能代替本批证明。
 
-leaf测试覆盖Group-A/Group-B owner别名、无效/缺失owner、完整非零dword、零dword、字段读取停止、RET读取停止、真实返回地址、ESP、EAX/ECX/EDX及入口flags保持。Group-A/Group-B frame测试覆盖七处caller的字段停止、caller-specific寄存器与TEST/CMP flags、真实owner域、四个Group-A及三个Group-B返回地址、完整零/1/其他非零值分支、后缀抑制和generic地址零调用。
-
-验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core均为199/199；新增文件全量及既有文件changed-range clang-format Werror、inventory双生成、零源码warning、TMP分类和完整发布审计均通过。工作包为`292/422 = 282 platform_adapted + 10 assembly_exact + 130 pending_audit`，inventory SHA-256为`9eacf35fec012c1c797eed0020ee0b2f6b46525ceda67c2e84f5a8d5112c0373`。未启动原版或OpenSWD3游戏程序。
-
-原版动态差分登记为`blocked_runtime_oracle`：缺少完整Group-A/Group-B actor `+0x2AB4`字段、字段/返回地址异常内存页及七处caller EAX/ECX/EDX/ESP/flags与SEH联合捕获后端。该缺口不影响完整LST、静态访问顺序、typed停止或固定状态测试结论。
+原版差分仍缺少双方字段、异常页、SEH及七处调用联合动态捕获；
+静态指令与本地测试不能替代原版差分。未启动任何游戏程序。

@@ -4053,19 +4053,15 @@ inventory SHA-256为`6f3b2d2ac6ed80eeae52310b85a946e408c4ce5846452bd2c0a82175d52
 完整权威LST主体`0x004786A0..0x004786A6`共7字节、2条实际指令、0个call、0个分支和1个普通`retn`，
 没有外部chunk或中段入口；函数只把actor `+0x2AB4`完整dword读入EAX后执行普通RET，ECX、
 EDX与全部flags保持，正常ESP增加4。
-typed实现把字段命名为`idle_state_latch`
-并直接复用Group-A action-execution十槽及startup Group-B lifecycle八槽canonical owner，
-保留字段与RET两个真实停点、完整寄存器、ESP/EIP、flags和访问计数，不增加平行actor、
-第二套latch或token槽。Group-A frame的actor启动、peer扫描、
-直接空闲门和selected-target四处及Group-B frame的target scan、
-selection和action-decision三处物理caller全部直接组合typed leaf，保留各自前置callee或比较的EAX/EDX、
-TEST/CMP flags、七个真实返回地址以及post-call完整TEST或`CMP 1`；typed-stop阻断当前项、
-剩余循环与各自后缀，生产`0x004786A0`零raw调用。验证：定向测试、AddressSanitizer、
-Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core、全量/changed-range clang-format、
-零源码warning/测试失败/sanitizer finding、inventory双生成、TMP分类及完整release审计均通过；
-未启动原版或OpenSWD3游戏程序。
-工作包为`292/422 = 282 platform_adapted + 10 assembly_exact + 130 pending_audit`；
-inventory SHA-256为`9eacf35fec012c1c797eed0020ee0b2f6b46525ceda67c2e84f5a8d5112c0373`。
+当前查询直接借`idle_state_latch`实际DWORD：队员action-execution十槽
+与敌方startup生命周期八槽均不复制。接口只保留访问条件、状态及可选值；
+删除查询编号、token解析、请求/寄存器回复、模拟栈、flags、计数与转发。
+七处调用保留零/精确1比较、即时重读和失败前缀；敌方后续旧接口仍消费
+的入口值由父级保存，完整帧父项的其它协议与资源继续待迁移。
+字段失败无观察值，RET失败保留完整DWORD；不新增停点或伪造成功。
+本批实际验证见`battle-actor-idle-state-004786a0.md`，旧199/199、205/205、
+固定复核轮数及历史inventory散列不能代替当前证明。状态保持
+`platform_adapted`，B10仍315/422，316/317/318及B11不因本批提升。
 动态差分因原版完整Group-A/Group-B actor空闲latch、
 异常字段/栈内存页及七处caller联合寄存器/flags/SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 
