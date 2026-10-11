@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "5163df5b30a9d73c12d1f5c908e2710fcf983c6b",
+  "last_reviewed_source_revision": "3fe4518bfa004055752dcf5f39dc01c7b5481b7c",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -306,13 +306,13 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "5163df5b",
+      "last_reviewed_commit": "3fe4518b",
       "files": [
         "include/openswd3/battle/legacy_battle_deformation.hpp",
         "src/battle/legacy_battle_deformation.cpp"
       ],
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-party-presentation-step-0047d860.md",
-      "reason": "队员行动11/12完成时直接写实际步长8再发布完成门与当前角色；删除剩余步长操作编号，可空存储缺失只在实际写入点报告并保留前继操作。24组组合、core/ASan角色帧、SDL及四文件身份通过；既有变形对象、动作字段、队列和查询沿用真实所有权。其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，整项继续pending"
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-party-drawing-suppression-0047d870.md",
+      "reason": "行动11/12与召唤直接写startup实际残余状态数组的绘制抑制字段，删除两处通用调用；前继失败不写、后继分配失败保留，缺失存储在首次实际访问报告。48组完成组合、召唤首末角色与顺序/失败测试、core/ASan角色帧、SDL及三文件身份通过。目标阶段前继角色选择等差异另待修正；其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，整项继续pending"
     },
     "battle/legacy_battle_debug_overlay": {
       "status": "pending",
