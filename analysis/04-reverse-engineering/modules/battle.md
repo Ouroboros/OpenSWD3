@@ -4342,24 +4342,23 @@ inventory SHA-256为`b7a3c5db9f5df536b2800e1dc4c5016587ea8e503376cafd12fddc0afb8
 动态差分因原版完整Group-A/Group-B actor、异常参数栈、三个actor字段页、
 RET栈页及二十处caller联合寄存器、flags与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 
-本轮再完成`audit_order=307`的`0x00478AA0`
-战斗角色目标选择计数递增函数及已关闭Group-A frame中的三处物理CALL。
-完整权威LST主体`0x00478AA0..0x00478AA7`共8字节、2条实际指令、0个callee、0个分支和1个普通`ret`，
-没有外部chunk或中段入口；函数只对actor `+0x2A76`执行16位INC，保留EAX/ECX/EDX与入口CF，
-并按结果更新OF/SF/ZF/AF/PF。
-typed实现复用Group-A action与Group-B startup lifecycle的canonical action-execution owner，
-保留字段读、字段写和RET三个真实停止点、16位回绕、INC flags、ESP/EIP与物理返回地址。
-`0x00456A1F`循环累计、
-`0x00456CDD` AI选择和`0x00456D71`普通选择三处CALL均在原位置直接组合typed leaf，
-保留one-based地址算术、入口寄存器与flags、全局request序号和停止后的父级后缀抑制；
-生产generic `0x00478AA0`调用归零，没有延期CALL。验证：定向测试、AddressSanitizer、
-Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core、
-新文件全量与旧文件changed-range clang-format、零OpenSWD3源码warning/测试失败/sanitizer finding、
-inventory双生成、TMP分类及发布前静态审计均通过；未启动原版或OpenSWD3游戏程序。
-工作包为`307/422 = 297 platform_adapted + 10 assembly_exact + 115 pending_audit`；
-inventory SHA-256为`4d285482fe5a5c218d62e0f07f923a3a1cf6bf8ca2484aafe4d5df05d297b372`。
-动态差分因原版完整Group-A/Group-B actor、异常字段/RET栈页、
-INC flags及三处caller联合寄存器与SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
+`audit_order=307 / 00478AA0` 的目标数量递增现直接修改双方实际WORD，
+返回原访问状态、可选实际旧值与可选已提交值。完整叶仍为8字节、
+2条指令，无callee或分支；保留16位回绕和读、写、返回三阶段前缀。
+owner/view/resolver、寄存器与模拟栈、flags回声、请求数组、地址/轨迹、
+计数和转发执行器删除；没有第二套字段或失败时的默认成功。
+
+组A扫描00456A1F保留phase后计数、计数成功后progress的顺序。
+第一选择00456CDD与AI使用的第二选择00456D71保留phase后重读、
+完整地址回绕及递增后DEC；后续目标调用分别为00456CEC、00456D80。
+失败保留实际前驱与既有提交，阻断目标/门清理及后缀；不提前按索引拒绝。
+索引端点、实时phase变化、双方地址别名和部分扫描均有独立向量。
+
+当前源码门禁、现代边界与未决项见
+[共享目标数量递增](../evidence/battle-actor-target-selection-count-increment-00478aa0.md)。
+历史199/199、205/205、十轮core及旧inventory SHA不支持当前验收。
+分类保持platform_adapted，原版联合动态差分仍blocked_runtime_oracle。
+组A、动作、phase资源及完整内存别名继续待迁移；B10游标不前移。
 
 `audit_order=308 / 00478AB0` 的目标计数查询现直接借用双方实际 WORD，
 返回原访问状态与可选实际值。完整叶仍为8字节、2条指令，无callee或分支。

@@ -1283,11 +1283,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         .action = &state.action,
         .startup = context.startup,
     };
-    const LegacyBattleActorTargetSelectionCountIncrementOwners
-        target_selection_count_increment_owners{
-            .action = &state.action,
-            .startup = context.startup,
-        };
     const auto current_coordinate_actor = context.startup == nullptr
         ? view_legacy_battle_actor_coordinates(
               state.action.group_a_action_execution[group_a_index]
@@ -1351,35 +1346,6 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
         result.return_value = result.actor_target_selection.last.return_eax;
         return false;
     };
-    const auto increment_actor_target_selection_count =
-        [&context, &result, &target_selection_count_increment_owners](
-            const u32 target_actor_token,
-            const u32 entry_eax,
-            const u32 entry_edx,
-            const LegacyBattleActorCoordinateFlags& entry_flags,
-            const u32 call_address,
-            const u32 return_address
-        ) {
-            if (execute_legacy_battle_actor_target_selection_count_increment_call(
-                    result.actor_target_selection_count_increment,
-                    context.actor_target_selection_count_increment_requests,
-                    target_selection_count_increment_owners,
-                    call_address,
-                    return_address,
-                    target_actor_token,
-                    entry_eax,
-                    entry_edx,
-                    entry_flags
-                )) {
-                return true;
-            }
-
-            result.status = LegacyBattleActionDispatchStatus::
-                actor_target_selection_count_increment_typed_stop;
-            result.return_value =
-                result.actor_target_selection_count_increment.last.return_eax;
-            return false;
-        };
     auto start_gate_request = context.actor_start_gate_request;
     start_gate_request.actor_token = actor_token;
     start_gate_request.entry_eax =
@@ -1903,41 +1869,79 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     );
                     if (state.actor_ai_primary[group_a_index] != 0U ||
                         state.actor_ai_secondary[group_a_index] != 0U) {
-                        if (!validate_one_based_group_b(
-                                result, state.selected_opponent_one_based
-                            )) {
-                            return result;
-                        }
                         static_cast<void>(
                             invoke(port, kCallClearControl, {0U})
                         );
                         const u32 selected = state.selected_opponent_one_based;
                         const u32 address_eax = selected * 1381U;
                         const u32 address_edx = selected * 345U;
-                        if (!increment_actor_target_selection_count(
-                                one_based_group_b_token(selected),
-                                address_eax,
-                                address_edx,
-                                subtract_flags(selected * 24U, selected),
-                                0x00456CDDU,
-                                0x00456CE2U
-                            )) {
+                        const auto address_flags =
+                            subtract_flags(selected * 24U, selected);
+                        const u32 target_address =
+                            one_based_group_b_token(selected);
+                        const u32 group_a_offset =
+                            target_address - kLegacyBattleActionGroupABaseToken;
+                        const u32 group_b_offset =
+                            target_address - kLegacyBattleActionGroupBBaseToken;
+                        u16* target_count{};
+                        if (target_address >=
+                                kLegacyBattleActionGroupABaseToken &&
+                            group_a_offset % kLegacyBattleActionGroupAStride ==
+                                0U &&
+                            group_a_offset / kLegacyBattleActionGroupAStride <
+                                state.action.group_a_action_execution.size()) {
+                            target_count =
+                                &state.action
+                                     .group_a_action_execution
+                                         [group_a_offset /
+                                          kLegacyBattleActionGroupAStride]
+                                     .target_selection_count;
+                        } else if (
+                            context.startup != nullptr &&
+                            context.startup->group_b_lifecycle != nullptr &&
+                            target_address >=
+                                kLegacyBattleActionGroupBBaseToken &&
+                            group_b_offset % kLegacyBattleActionGroupBStride ==
+                                0U &&
+                            group_b_offset / kLegacyBattleActionGroupBStride <
+                                context.startup->group_b_lifecycle->size()
+                        ) {
+                            target_count =
+                                &(
+                                     *context.startup->group_b_lifecycle
+                                )[group_b_offset /
+                                  kLegacyBattleActionGroupBStride]
+                                     .action_execution.target_selection_count;
+                        }
+
+                        result.actor_target_selection_count_increment =
+                            increment_legacy_battle_actor_target_selection_count(
+                                target_count,
+                                context
+                                    .actor_target_selection_count_increment_access
+                            );
+                        if (result.actor_target_selection_count_increment
+                                ->status !=
+                            LegacyBattleActorTargetSelectionCountIncrementStatus::
+                                completed) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                actor_target_selection_count_increment_typed_stop;
+                            result.return_value = address_eax;
                             return result;
                         }
+
+                        const u32 selected_after_increment =
+                            state.selected_opponent_one_based;
                         if (!select_actor_target(
-                                static_cast<u16>(selected - 1U),
-                                result.actor_target_selection_count_increment
-                                    .last.return_eax,
-                                result.actor_target_selection_count_increment
-                                    .last.return_edx,
+                                static_cast<u16>(selected_after_increment - 1U),
+                                address_eax,
+                                address_edx,
                                 decrement_flags(
-                                    selected,
-                                    result
-                                        .actor_target_selection_count_increment
-                                        .last.flags.carry
+                                    selected_after_increment,
+                                    address_flags.carry
                                 ),
-                                0x00456CECU,
-                                0x00456CF1U
+                                0x00456D80U,
+                                0x00456D85U
                             )) {
                             return result;
                         }
@@ -1969,41 +1973,79 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                             )) {
                             return result;
                         }
-                        if (!validate_one_based_group_b(
-                                result, state.selected_actor_one_based
-                            )) {
-                            return result;
-                        }
                         static_cast<void>(
                             invoke(port, kCallClearControl, {0U})
                         );
                         const u32 selected = state.selected_actor_one_based;
                         const u32 address_eax = selected * 1381U;
                         const u32 address_edx = selected * 345U;
-                        if (!increment_actor_target_selection_count(
-                                one_based_group_b_token(selected),
-                                address_eax,
-                                address_edx,
-                                subtract_flags(selected * 24U, selected),
-                                0x00456D71U,
-                                0x00456D76U
-                            )) {
+                        const auto address_flags =
+                            subtract_flags(selected * 24U, selected);
+                        const u32 target_address =
+                            one_based_group_b_token(selected);
+                        const u32 group_a_offset =
+                            target_address - kLegacyBattleActionGroupABaseToken;
+                        const u32 group_b_offset =
+                            target_address - kLegacyBattleActionGroupBBaseToken;
+                        u16* target_count{};
+                        if (target_address >=
+                                kLegacyBattleActionGroupABaseToken &&
+                            group_a_offset % kLegacyBattleActionGroupAStride ==
+                                0U &&
+                            group_a_offset / kLegacyBattleActionGroupAStride <
+                                state.action.group_a_action_execution.size()) {
+                            target_count =
+                                &state.action
+                                     .group_a_action_execution
+                                         [group_a_offset /
+                                          kLegacyBattleActionGroupAStride]
+                                     .target_selection_count;
+                        } else if (
+                            context.startup != nullptr &&
+                            context.startup->group_b_lifecycle != nullptr &&
+                            target_address >=
+                                kLegacyBattleActionGroupBBaseToken &&
+                            group_b_offset % kLegacyBattleActionGroupBStride ==
+                                0U &&
+                            group_b_offset / kLegacyBattleActionGroupBStride <
+                                context.startup->group_b_lifecycle->size()
+                        ) {
+                            target_count =
+                                &(
+                                     *context.startup->group_b_lifecycle
+                                )[group_b_offset /
+                                  kLegacyBattleActionGroupBStride]
+                                     .action_execution.target_selection_count;
+                        }
+
+                        result.actor_target_selection_count_increment =
+                            increment_legacy_battle_actor_target_selection_count(
+                                target_count,
+                                context
+                                    .actor_target_selection_count_increment_access
+                            );
+                        if (result.actor_target_selection_count_increment
+                                ->status !=
+                            LegacyBattleActorTargetSelectionCountIncrementStatus::
+                                completed) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                actor_target_selection_count_increment_typed_stop;
+                            result.return_value = address_eax;
                             return result;
                         }
+
+                        const u32 selected_after_increment =
+                            state.selected_actor_one_based;
                         if (!select_actor_target(
-                                static_cast<u16>(selected - 1U),
-                                result.actor_target_selection_count_increment
-                                    .last.return_eax,
-                                result.actor_target_selection_count_increment
-                                    .last.return_edx,
+                                static_cast<u16>(selected_after_increment - 1U),
+                                address_eax,
+                                address_edx,
                                 decrement_flags(
-                                    selected,
-                                    result
-                                        .actor_target_selection_count_increment
-                                        .last.flags.carry
+                                    selected_after_increment,
+                                    address_flags.carry
                                 ),
-                                0x00456D80U,
-                                0x00456D85U
+                                0x00456CECU,
+                                0x00456CF1U
                             )) {
                             return result;
                         }
@@ -2121,16 +2163,30 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                     ) {
                         const auto cleared =
                             invoke(port, kCallClearControl, {0U});
-                        if (!increment_actor_target_selection_count(
-                                target,
-                                cleared.eax,
-                                cleared.edx,
-                                cleared.flags,
-                                0x00456A1FU,
-                                0x00456A24U
-                            )) {
+                        result.actor_target_selection_count_increment =
+                            increment_legacy_battle_actor_target_selection_count(
+                                context.startup != nullptr &&
+                                        context.startup->group_b_lifecycle !=
+                                            nullptr
+                                    ? &(
+                                           *context.startup->group_b_lifecycle
+                                      )[uindex]
+                                           .action_execution
+                                           .target_selection_count
+                                    : nullptr,
+                                context
+                                    .actor_target_selection_count_increment_access
+                            );
+                        if (result.actor_target_selection_count_increment
+                                ->status !=
+                            LegacyBattleActorTargetSelectionCountIncrementStatus::
+                                completed) {
+                            result.status = LegacyBattleActionDispatchStatus::
+                                actor_target_selection_count_increment_typed_stop;
+                            result.return_value = cleared.eax;
                             return result;
                         }
+
                         ++actor.progress;
                     } else {
                         ++terminal_like;

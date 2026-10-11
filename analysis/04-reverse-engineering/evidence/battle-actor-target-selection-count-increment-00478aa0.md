@@ -1,158 +1,157 @@
-# 战斗角色目标选择计数递增（0x00478AA0）
+# 战斗角色目标选择计数递增（00478AA0）
 
-## 1. 范围、边界与 ABI
+## 1. 原版范围与指令
 
-权威 LST 把 `sub_478AA0` 锁定为 `0x00478AA0..0x00478AA7`，半开区间为
-`0x00478AA0..0x00478AA8`。主体共 8 字节、2 条实际指令、0 个 callee、0 个分支、
-0 个局部标签和 1 个普通 `ret`，没有外部 chunk 或中段入口。
-
-```text
-0x00478AA0  inc word ptr [ecx+0x2A76]
-0x00478AA7  ret
-```
-
-入口 ECX 是 actor token。函数没有显式参数。EAX、ECX 和 EDX 完整保持。普通返回时
-RET 读取返回地址，ESP 相对入口增加 4，EIP 为物理返回地址。
-
-唯一主体指令对 `actor+0x2A76` 执行 16 位 read-modify-write INC。值从
-`0xFFFF` 自然回绕到 `0x0000`，不能改成无界、饱和或带符号加法。INC 更新 OF、SF、
-ZF、AF 和 PF，同时保持入口 CF。
-
-## 2. 原访问顺序与 typed-stop
-
-现代实现把同一条物理 INC 拆成读访问和写访问两个 typed 阶段，再建模 RET 栈读取：
-
-1. `count_read_typed_stop`：读取失败时零字段提交，入口寄存器与 flags 保持；
-2. `count_write_typed_stop`：保留已观察的旧 word，但不提交新值，也不提交 INC flags；
-3. `return_address_read_typed_stop`：字段写入和 INC flags 已提交，ESP 尚未推进。
-
-正常路径记录旧值、新值、字段 token、一次读、一次写、一次返回地址读取、返回寄存器、
-ESP/EIP 和完整 flags。写入值始终按 `u16(old+1)` 计算。
-
-现代 C++ 不能合法解引用任意 32-bit actor token，也不能直接制造原 CPU 字段页或栈页
-fault。canonical token resolver 和原访问点 typed-stop 是最小平台边界，因此本目标登记为
-`platform_adapted`，不能以测试通过、字段 owner 或 span 检查标记为 `assembly_exact`。
-
-## 3. 字段交叉引用与 canonical owner
-
-完整 LST 中 `actor+0x2A76` 的全部直接访问为：
+权威为完整 `swd3.exe.lst` 的机器码和指令。叶范围
+`00478AA0..00478AA7`，半开区间结束于 `00478AA8`：8字节、2条指令，
+无callee、分支、外部chunk或中段入口。
 
 ```text
-0x00478AA0  inc word ptr [ecx+0x2A76]
-0x00478AB0  mov ax, [ecx+0x2A76]
-0x00478AF6  mov ax, [ecx+0x2A76]
-0x00478B03  mov [ecx+0x2A76], ax
+00478AA0  66 FF 81 76 2A 00 00  INC WORD PTR [ECX+2A76h]
+00478AA7  C3                    RET
 ```
 
-相邻 `sub_478AB0` 是普通 word getter。相邻 `sub_478AE0` 只在值大于零时递减该
-word，同时独立处理 `+0x2A74` 并清 `+0x2AE0`。两个相邻函数仍属于后续独立工作包，
-不扩入本目标。
+唯一字段操作为16位读、加1、写入；`FFFF -> 0000` 回绕，不饱和。
+原版EAX/ECX/EDX保持，INC保留CF并改写其他算术flags；普通RET读取
+返回地址并推进ESP四字节。这些是原指令事实，现代接口不再回传寄存器。
 
-字段采用中性名称 `target_selection_count`。它加入现有
-`LegacyBattleGroupAActionExecutionState`，由以下 canonical 状态共用：
+完整LST只有三个直接CALL：
+
+```text
+00456A1F -> 00456A24
+00456CDD -> 00456CE2
+00456D71 -> 00456D76
+```
+
+相邻数量读取 `00478AB0` 已单独迁移；`00478AE0` 的数量和启动门衰减
+仍有待迁移协议。本批不扩大为组A、动作父链或整场战斗验收。
+
+## 2. 实际字段与语义结果
+
+`increment_legacy_battle_actor_target_selection_count` 直接接收实际
+`compat::u16*`，返回访问状态、可选的实际旧值及可选的已写入值。
+删除owner/view/resolver、callee地址常量、寄存器请求/结果、模拟栈、
+flags回声、请求数组、轨迹、调用计数与转发执行器。
+
+字段继续借用同一存储：
 
 ```text
 Group-A  action.group_a_action_execution[index].target_selection_count
 Group-B  startup.group_b_lifecycle[index].action_execution.target_selection_count
 ```
 
-命名只表达三个 caller 已证明的行为：Group-B actor 被选中或被累计为 live target 时递增。
-不从旧 raw 名称推导更多业务语义，也不建立第二套 actor 数组。
+没有第二套计数数组或复制后写回。原相邻启动门和其他角色字段不动。
+每次调用读取实时WORD；重复调用及外部后续写入均使用最新字段。
 
-## 4. 三个已关闭父 CALL
+访问描述只有读、写、返回地址是否可访问。已有失败阶段保留：
 
-完整 LST 只有一个父函数、三个物理 CALL，全部位于已关闭的 `sub_456680`。本轮没有延期
-CALL：
+- 读失败：没有旧值或提交值，实际字段不变。
+- 写失败：保留实际旧值，没有提交值，实际字段不变。
+- 返回失败：保留已写入的WORD及实际旧值，父调用不执行后缀。
+- 正常返回：旧值和提交值都存在，写入为 `u16(old + 1)`。
 
-```text
-0x00456A1F -> 0x00456A24
-0x00456CDD -> 0x00456CE2
-0x00456D71 -> 0x00456D76
-```
+空指针只表示当前宿主没有可借字段，在字段读处报告不可用；不会返回
+默认零或成功。父结果的外层optional表示实际执行过；跳过则没有结果。
 
-trace 逐次记录物理 CALL 地址、返回地址和 actor token。请求按真实执行序号消费，因此
-`0x00456A1F` 在 Group-B 循环中重复执行时不会重复使用 request 0。
+## 3. 三条调用链与真实前驱
 
-### 4.1 `0x00456A1F`
+### 3.1 扫描：00456A1F
 
-Group-B 扫描以 `0x00525508` 为首 token，每轮增加 `0x2B28`。对象非 terminal 且映射
-为 `0xFFFFFFFF` 时，父函数先调用 `0x0047C660`，再以 ESI 恢复 ECX 后执行本 CALL。
-MOV 不改 flags，因此 leaf 入口 EAX、EDX 和 flags 继承 `0x0047C660` 回复。
+`004569F9` 的terminal结果精确为1，或 `00456A09` 的映射非全1，均
+跳过计数。其余路径先执行 `00456A18` 的phase清理，再直接递增该轮
+敌方实际WORD。正常返回后才执行 `00456A24` 的队员progress递增。
 
-CALL 成功后父函数才递增当前 Group-A 的独立 progress dword。leaf typed-stop 必须阻断
-该 progress 写、循环尾、余下对象、target preparation 和 frame 尾。该 Group-A progress
-不是 `actor+0x2A76`，不能合并为同一 owner。
+读、写或返回失败保留phase及此前轮次的计数/progress，阻断当前progress、
+循环推进、后续角色及选择。失败返回沿用phase实际EAX，不合成计数寄存器。
+正常后续指令重新加载数量并改写算术flags，故不需要保留INC flags结果。
 
-### 4.2 `0x00456CDD`
+### 3.2 第一选择：00456CDD
 
-父函数从第一套 one-based Group-B 选择值 `n` 建立：
+选择来自 `4A754C`，现代字段为 `selected_actor_one_based`。先执行
+`00456CBA` 的phase，`00456CBF` 重读选择后形成计数字段地址；递增
+完成后 `00456CE2` 再重读选择、DEC，并在 `00456CEC` 发布目标。
+随后 `00456CF4` 写可用性，`00456CFB` 执行最终处理，再清门及写两处UI门。
 
-```text
-EAX = 1381 * n
-EDX = 345 * n
-ECX = 0x005229E0 + 0x2B28 * n
-    = 0x00525508 + 0x2B28 * (n - 1)
-flags = SUB32(24 * n, n)
-```
+### 3.3 第二选择：00456D71
 
-CALL 成功后重新读取 `n`，执行保持 CF 的 DEC，压入 `n-1`，再以当前 Group-A actor 调用
-`0x00478A70`。leaf 的 EAX/EDX 和 INC 后 CF 进入后续 caller。typed-stop 阻断 DEC、目标
-写入、availability 写、门清理和 frame 尾。
+选择来自 `4A7554`，现代字段为 `selected_opponent_one_based`，用于
+当前角色AI标记非零的分支。phase在 `00456D4E`，选择重读在
+`00456D53`，递增后重读在 `00456D76`，目标发布在 `00456D80`。
+随后 `00456D88` 写可用性、清门并把第二选择写1；没有第一分支的最终处理。
+旧实现和测试把两处后续目标CALL地址互换，本批按上述LST对应关系修正。
 
-### 4.3 `0x00456D71`
-
-第二套 one-based Group-B 选择使用相同地址算术和寄存器合同。CALL 成功后调用
-`0x00478A70`，写 availability，执行 Group-A final processing，清选择门并更新 UI。
-leaf typed-stop 阻断完整后缀。
-
-三个 caller 均不再通过 generic port 调用 `0x00478AA0`。
-
-## 5. 双向追溯与测试范围
-
-LST 到 C++ 已覆盖唯一 16 位 RMW INC、普通 RET、u16 回绕、EAX/ECX/EDX、ESP/EIP、
-INC flags 和三个访问阶段。C++ 到 LST 反向追溯覆盖 resolver、请求、trace、三个物理
-caller、重复 CALL 序号及父级 typed-stop；没有无来源的字段写或延期 caller。
-
-汇编独立测试向量覆盖：
-
-- Group-A 与 Group-B canonical owner；
-- 旧值 `0/1/0x7FFF/0x8000/0xFFFF`；
-- `0x7FFF -> 0x8000` 的 OF/SF/AF/PF；
-- `0xFFFF -> 0` 的 16 位回绕与 ZF/AF/PF；
-- CF 保持及 EAX/ECX/EDX 不变；
-- 字段读、字段写和 RET 三处 typed-stop；
-- `0x00456A1F` 循环重复调用和两个 Group-B canonical 字段；
-- `0x00456CDD` 与 `0x00456D71` 的真实地址、返回地址、token 和后续
-  `0x00478A70` 顺序；
-- caller 写停止时目标写入与后缀抑制；
-- 生产 generic/raw `0x00478AA0` 调用归零。
-
-## 6. Inventory 生成证明
-
-`analysis/tools/build_battle_workpack.py` 对本目标的唯一登记为
-`platform_adapted`，evidence 指向本文。生成器连续运行两次后，第二次输出与第一次保存的
-TSV 逐字节一致；结果为 `307/422 = 297 platform_adapted + 10 assembly_exact +
-115 pending_audit`。生成后的
-`analysis/04-reverse-engineering/inventory/battle-function-workpack.tsv` SHA-256 为：
+两条路径均不在phase之前拒绝one-based索引。phase返回后按实时选择和
+完整32位回绕地址借字段；不能用截断索引或缓存的phase前选择替代。
 
 ```text
-4d285482fe5a5c218d62e0f07f923a3a1cf6bf8ca2484aafe4d5df05d297b372
+EAX = n * 1381
+EDX = n * 345
+address = 005229E0 + n * 2B28
+CF = SUB32(n * 24, n).carry
 ```
 
-下一条 `pending_audit` 是 `audit_order=308 / 0x00478AB0 / sub_478AB0`。
+计数失败沿用上述EAX并阻断目标发布/清门。正常后继DEC覆盖INC的非CF
+算术flags，CF来自真实地址SUB；未迁移的目标选择仍取得实际EAX/EDX及
+重读选择的DEC结果。叶本身不再提供CPU式回复。
 
-## 7. 最终验证
+地址回绕后可借任一实际角色字段：`20000001`别名敌方0，
+`16DED16F`别名队员2；不能仅以原one-based数值超过8为由提前停止。
+不能映射的宿主字段在既有读边界报告不可用；这不证明该原版地址必然fault。
+完整原版静态内存、其他字段别名及父链phase资源仍属待闭合范围。
 
-战斗定向测试入口成功返回；Linux core、AddressSanitizer/UBSan 与 Linux app 分别通过
-`199/199`、`199/199` 和 `205/205`。随后连续执行十轮完整 Linux core，每轮均为
-`199/199`。新文件全量与旧文件 changed-range clang-format Werror、
-`git diff --check`、production raw token、inventory 幂等与 SHA、TMP 分类及发布前静态
-审计均通过；十二份完整构建日志为零 OpenSWD3 源码 warning、测试失败、sanitizer
-finding 或 runtime error。未启动原版或 OpenSWD3 游戏程序。
+## 4. 独立向量与双向复核
 
-## 8. 动态差分状态
+LST推导先记录于本批独立分析，再核对C++及测试。正向映射覆盖唯一WORD
+RMW、返回边界及三个调用顺序；反向核对实际字段、实时选择、回绕地址、
+三类失败前缀与后缀抑制。成功计数不再依赖请求序号或端口回复。
 
-当前缺少原版完整 Group-A/Group-B actor backing、`+0x2A76` 异常字段页、RET 异常栈页、
-INC flags 以及三个 caller/callee 联合寄存器与 SEH 捕获后端。原版动态差分登记为
-`blocked_runtime_oracle`，不得写成 `original_diff_verified`。该阻塞不改变静态 LST
-范围、16 位回绕、三阶段访问顺序或三个物理 CALL 身份。
+实际字段向量：
+
+- WORD `0/1/2/1234/7FFF/8000/FFFE/FFFF` 与独立加1结果。
+- 邻接 `ABCD/5678`、重复 `FFFF -> 0 -> 1`、实时后续写入。
+- 队员2/敌方3及其他索引哨兵，两个相邻启动门保持。
+- 读失败、写失败、返回失败和没有字段；optional区分观察与提交。
+
+调用向量：
+
+- 两条选择分支各覆盖三类失败，phase/EAX及旧目标保留、后缀抑制。
+- 索引1及8借首/尾敌方；`7FFF -> 8000` 后DEC覆盖INC的符号/溢出。
+- 索引0/9及缺少敌方存储，在phase之后到达字段读边界，无默认计数。
+- phase把原选择9改3、计数7改FFFF；实际递增敌方2并发布目标2。
+- `20000001`借敌方0，保持高EAX `A0000000`、EDX `20000159` 及CF。
+- `16DED16F`借队员2，返回失败保留0和EAX `5FFFCBCB`，敌方0不动。
+- 扫描三类失败保留phase、阻断progress/后续选择；第二轮写失败保留首轮。
+- terminal精确1与已映射对象跳过，计数不动且没有伪造成功结果。
+
+## 5. 当前验证与限制
+
+补充边界后的最终命令：
+
+```text
+./build.sh core --build-target openswd3_battle_legacy_battle_setup_tests --test --test-regex '^battle\.legacy_battle_setup$'
+./build.sh core --build-target openswd3_battle_actor_frame_316_tests --test --test-regex '^battle\.actor_frame_316$'
+./build-asan.sh --build-target openswd3_battle_legacy_battle_setup_tests --test --test-regex '^battle\.legacy_battle_setup$'
+./build-asan.sh --build-target openswd3_battle_actor_frame_316_tests --test --test-regex '^battle\.actor_frame_316$'
+./build.sh app --build-target openswd3
+```
+
+core setup 12.70秒、角色帧31.79秒；ASan setup 19.03秒、角色帧32.79秒，
+每项均1/1通过。SDL最终增量构建成功；此前本批实际链接所用四份生产
+源码身份与最终相同。没有启动游戏。
+
+六份源码/测试身份与最终门禁匹配。五份最终日志没有warning、错误或
+sanitizer记录；此前两个setup编译仅报告既存的outcome-resolution
+测试133行窄化警告。边界补充前的日志不用于最终测试验收。
+
+日志及身份在仓库 `build/tmp/runtime/` 下的
+`target-count-increment-direct-{core,callers-core,asan,callers-asan,sdl}.log`、
+`target-count-increment-direct-validated-source.sha256` 和本批发布检查日志。
+
+旧Workpack 307的199/199、205/205、十轮core及inventory SHA均为历史，
+不支持当前源码验收。当前B10仍为315/422，316/317/318保持pending。
+
+C++实际字段及访问描述不能制造原CPU字段页、RET栈页、完整flags或SEH。
+分类保持 `platform_adapted`；联合原版动态差分仍为
+`blocked_runtime_oracle`，没有升为 `assembly_exact` 或
+`original_diff_verified`。SDL链接不证明整条角色帧或游戏运行；组A、
+动作、phase与资源父链仍需逐项迁移，整体INVOKE清理尚未完成。

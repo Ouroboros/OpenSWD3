@@ -22,6 +22,18 @@ SDL链接均通过；两个敌方向量区分非零遍历与零值只递增选�
 [目标选择标记](battle-actor-target-selection-latch-query-00478b40.md)。
 整条组A及动作父链的其他通用协议继续待迁移，未升级整体验收。
 
+## 目标数量的直接递增
+
+00456A1F、00456CDD与00456D71均直接修改实际共享WORD。
+请求/寄存器回复、地址表、请求数组、轨迹、计数、resolver及纯转发已删除。
+扫描保留phase后计数、计数成功后progress的顺序；两条选择保留phase后
+重读选择、完整地址回绕及递增后DEC。字段/写入/返回故障保留各自前缀，
+阻断目标发布和后续门清理；跳过路径没有伪造成功结果。
+第一选择对应00456CEC，AI使用的第二选择对应00456D80，旧标注已纠正。
+实际字段、索引端点/别名、独立向量及本批门禁见
+[共享目标数量递增](battle-actor-target-selection-count-increment-00478aa0.md)。
+本父函数的其他操作、资源及完整内存别名继续待迁移。
+
 ## 1. 完整LST范围
 
 权威函数为`0x00456680..0x0045769B`，完整1795行、101个静态call站点、84个`loc_`标签，无外部FUNCTION CHUNK。唯一caller为尚未关闭的`0x0045B5E0`，当前不提前计数。
@@ -99,8 +111,8 @@ mode gate非0时，selected one-based值解释为组A对象。`0x00456DD6`现直
 
 mode gate为0且当前角色idle为0时：
 
-- 当前角色两个AI标记任一非0：selected opponent one-based解释为组B对象，清控制、选择目标、发布`selected-1`并清门；
-- 两个AI标记均为0：delay成功后，另一个one-based选择仍解释为组B对象；随后选择、发布、finalize actor并更新UI门。
+- 当前角色两个AI标记任一非0：selected opponent one-based按实时回绕地址借实际计数，清控制后递增，再在00456D80发布`selected-1`并清门；
+- 两个AI标记均为0：delay成功后，selected actor one-based仍按实时回绕地址借计数；清控制后递增，再在00456CEC发布、finalize actor并更新UI门。
 
 同一个共享one-based值在不同mode下可指向组A或组B；modern不统一成单一对象域。
 
@@ -108,7 +120,7 @@ mode gate为0且当前角色idle为0时：
 
 selection mode非0时遍历组A：两个AI标记都不等于1、other actor查询不等于1且当前角色idle为0时累加progress。达到`group_a_count - defeated byte - packed highword - excluded lowword`后，从最后一个组A对象向前找首个非terminal。
 
-selection mode为0时遍历组B：terminal对象及已映射对象计入terminal-like；非terminal且映射全1时清控制、选择对象并累加progress。达到`group_b_count-terminal_like`后从第一个组B对象向后找首个非terminal。
+selection mode为0时遍历组B：terminal对象及已映射对象计入terminal-like；非terminal且映射全1时清控制、直接递增该轮实际目标计数，正常返回后才累加当前队员progress。失败保留此前轮次，阻断当前progress及余下选择。达到`group_b_count-terminal_like`后从第一个组B对象向后找首个非terminal。
 
 选中后先发布target-ready，00456B51直接把当前队员共享目标标记写为1。
 正常返回才选择索引并读取同一标记。原字段写/返回故障保留ready前缀，
@@ -212,7 +224,7 @@ bit`0x4000`阶段结束后会在同一次调用重读turn word，因此成功写
 - `0x004786D0`的公共效果模式启动门调用已直接回收为typed word查询；
 - 其余待审角色、AI、选择、文本、sample和数值callee继续使用单一typed token端口。
 
-所有对象地址、one-based目标、固定前一槽、scene与文本地址均为`compat::u32` token，不转主机指针。
+其余待迁移的对象、固定前一槽、scene与文本操作仍含`compat::u32`地址协议。已迁移的标记和数量操作借实际共享字段；数量递增只在调用方保留原回绕地址选择及后继需要的计算前驱。未映射宿主存储不证明原地址必然异常。
 
 Typed-stop只位于：
 
@@ -223,6 +235,7 @@ Typed-stop只位于：
 - 两处回合完成getter的canonical字段或RET返回地址读取；
 - 四处空闲状态getter的canonical字段或RET返回地址读取；
 - 公共效果模式启动门getter的canonical字段或RET返回地址读取；
+- 三处目标数量递增的实际字段读、写或RET返回访问；
 - action target首次组B对象callee；
 - resolved target零token后的word54读取；
 - 已关闭动作分派自身真实访问点。
