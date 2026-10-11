@@ -632,6 +632,31 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    for (const u16 mode_flag : {u16{0U}, u16{1U}, u16{2U}, u16{0xFFFFU}}) {
+        auto state = std::make_unique<LegacyBattleStartupState>();
+        StartupPorts ports;
+        ports.definition.enemy_count = 1U;
+        ports.definition.enemies[0U].mode_flag = mode_flag;
+        const auto result = openswd3::battle::initialize_legacy_battle_startup(
+            *state,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports,
+            ports.prepare_request(request(14U))
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::completed &&
+                state->group_b_lifecycle != nullptr &&
+                (*state->group_b_lifecycle)[0U].runtime_reset.field_2af0 ==
+                    (mode_flag == 1U ? 1U : 0U),
+            "startup writes enemy drawing suppression only when the definition WORD is exactly one"
+        );
+    }
+
     {
         DefinitionTestTree tree;
         auto state = std::make_unique<LegacyBattleStartupState>();
@@ -2996,8 +3021,8 @@ void test_battle_startup(openswd3::test::Context& test) {
                 state.party_actor_mode_count == 2U &&
                 result.return_value == 1U && result.message_state_published &&
                 ports.battle_message_state() == 0x67U &&
-                ports.call_count(LegacyBattleStartupCall::set_enemy_mode) ==
-                    1U &&
+                (*state.group_b_lifecycle)[0U].runtime_reset.field_2af0 == 1U &&
+                (*state.group_b_lifecycle)[1U].runtime_reset.field_2af0 == 0U &&
                 ports.requested_definition_ids ==
                     std::vector<u32>{0x000BU, 0x000CU, 0x0003U, 0x0004U} &&
                 ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==

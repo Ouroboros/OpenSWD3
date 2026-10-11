@@ -67,8 +67,8 @@ configure_legacy_battle_group_b_startup_placement(
     );
     if (result.status ==
             LegacyBattleGroupBActionConfigurationStatus::completed &&
-        placement.extra_mode) {
-        modes.set_extra_mode(actor.object_token);
+        placement.suppress_drawing) {
+        actor.runtime_reset.field_2af0 = 1U;
     }
 
     return result;

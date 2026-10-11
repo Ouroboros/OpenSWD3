@@ -732,7 +732,8 @@ core/ASan角色帧各1/1及SDL链接通过；见`evidence/battle-enemy-presentat
 见`evidence/battle-target-drawing-suppression-0047d870.md`。
 敌方动作中的四处绘制抑制也直接写实际敌方或目标队员，保留先后操作及失败前缀。
 对应验证见`evidence/battle-opponent-drawing-suppression-0047d870.md`；
-启动字段转发及其余父协议仍待迁移。
+启动的最后一处绘制标志转发已回收到共用配置函数，两个入口直接写同一敌方存储。
+见`evidence/battle-startup-drawing-suppression-0047d870.md`；其余父协议仍待迁移。
 结束段10敌人扫描的额外写入已静态定位到CRT缓冲区和PE资源载荷；
 运行期页保护、异常与其他父协议继续待核实或迁移。
 当前验证范围见`evidence/battle-script-overlay-initialization.md`及

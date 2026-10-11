@@ -21,13 +21,28 @@ using openswd3::compat::u32;
 class Port final : public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     void release_mon_text(const u32 block_token) override {
+        if (drawing_suppression != nullptr) {
+            observed_original_suppression = observed_original_suppression &&
+                *drawing_suppression == 0xFFFFFFFFU;
+        }
+
         released_text_token = block_token;
         ++definition_release_calls;
         LegacyBattleMonDatabaseFixture::release_mon_text(block_token);
     }
 
+    const u32* drawing_suppression{};
+    bool observed_original_suppression{true};
     u32 released_text_token{};
     u32 definition_release_calls{};
+};
+
+class MirrorPort final
+    : public openswd3::battle::LegacyBattleGroupBStartupModePort {
+public:
+    u32 apply_mirror(const u32 actor_token) override {
+        return actor_token;
+    }
 };
 
 void write_word(
@@ -74,6 +89,71 @@ read_dword(const std::array<u8, 0xA4U>& bytes, const std::size_t offset) {
 
 void test_battle_group_b_action_configuration(openswd3::test::Context& test) {
     using openswd3::battle::configure_legacy_battle_group_b_action;
+
+    for (const u32 index : {0U, 7U}) {
+        for (const bool mirrored : {false, true}) {
+            for (const bool suppress_drawing : {false, true}) {
+                for (const u32 failure : {0U, 1U, 2U}) {
+                    LegacyBattleActorGroupBElementState actor{
+                        .object_token = 0x00525508U + index * 0x2B28U,
+                        .resource_token = 0x73000000U + index * 0xA4U,
+                    };
+
+                    actor.runtime_reset.field_2af0 = 0xFFFFFFFFU;
+                    actor.runtime_reset.field_2af4 = 0x89ABCDEFU;
+                    Port port;
+                    port.definition = *resource_snapshot();
+                    port.definition_description = {0x41U, 0x42U};
+                    port.drawing_suppression = &actor.runtime_reset.field_2af0;
+                    if (failure == 1U) {
+                        port.allocation_succeeds = false;
+                    } else if (failure == 2U) {
+                        port.allocation_results = {true, false};
+                    }
+
+                    MirrorPort mirror;
+                    const auto result = openswd3::battle::
+                        configure_legacy_battle_group_b_startup_placement(
+                            actor,
+                            {
+                                .role_id = 0x11U,
+                                .position_x = 0x30U,
+                                .position_y = 0x50U,
+                                .mirrored = mirrored,
+                                .suppress_drawing = suppress_drawing,
+                            },
+                            port,
+                            mirror,
+                            0x005213A0U + index * 0x20U
+                        );
+                    test.expect_true(
+                        result.status ==
+                                (failure == 0U
+                                     ? LegacyBattleGroupBActionConfigurationStatus::
+                                           completed
+                                     : failure == 1U
+                                     ? LegacyBattleGroupBActionConfigurationStatus::
+                                           resource_load_typed_stop
+                                     : LegacyBattleGroupBActionConfigurationStatus::
+                                           profile_load_typed_stop) &&
+                            actor.runtime_reset.field_2af0 ==
+                                (failure == 0U && suppress_drawing
+                                     ? 1U
+                                     : 0xFFFFFFFFU) &&
+                            actor.runtime_reset.field_2af4 == 0x89ABCDEFU &&
+                            actor.action_record.position_x ==
+                                (mirrored ? 0x250U : 0x30U) &&
+                            actor.action_record.position_y == 0x50U &&
+                            actor.action_record.runtime_value == 0U &&
+                            port.observed_original_suppression &&
+                            (failure != 0U ||
+                             port.definition_release_calls == 1U),
+                        "enemy placement writes full drawing suppression only after successful configuration and preserves the prior value on failure or disabled flag"
+                    );
+                }
+            }
+        }
+    }
 
     {
         LegacyBattleActorGroupBElementState actor{};

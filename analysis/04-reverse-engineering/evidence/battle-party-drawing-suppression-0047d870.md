@@ -47,7 +47,8 @@ ASan同目标为1/1通过，27.64秒。SDL实际重新链接，三个修改文�
 
 ## 剩余责任
 
-全部八个物理调用已定位。00451FFD已有实际写入，但其启动转发接口仍待回收；
+全部八个物理调用已定位。00451FFD最后的转发回收见
+[启动绘制抑制](battle-startup-drawing-suppression-0047d870.md)；
 敌方四处的后续迁移见[敌方动作绘制抑制](battle-opponent-drawing-suppression-0047d870.md)；
 004546FF及两处错误激活的后续修正见
 [目标绘制抑制](battle-target-drawing-suppression-0047d870.md)。

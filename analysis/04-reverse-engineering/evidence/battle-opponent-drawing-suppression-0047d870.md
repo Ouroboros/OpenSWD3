@@ -39,4 +39,5 @@ EDX来自实际帧结果，flags来自相等CMP，不再依赖任意通用回复
 最终core为1/1通过、30.86秒，ASan为1/1通过、32.96秒，SDL实际重新链接。
 三个修改文件身份一致，最终构建日志无警告。
 日志前缀为`build/tmp/runtime/opponent-drawing-suppression-`。
-八处物理调用中七处父链已直接写字段；启动00451FFD已有字段写入，其转发接口仍待回收。
+八处物理调用中七处父链已直接写字段；最后的启动转发回收见
+[启动绘制抑制](battle-startup-drawing-suppression-0047d870.md)。

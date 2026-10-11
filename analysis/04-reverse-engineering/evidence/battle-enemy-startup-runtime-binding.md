@@ -57,7 +57,9 @@ SDL 构造宿主时调用原构造语义，并把同一 shared_ptr 交给 startu
 
 `configure_legacy_battle_group_b_startup_placement` 由核心 startup 和
 SDL 存储适配共同调用。它集中维护记录写入、镜像、角色参数高 word、
-MON 配置和最后的额外模式写入，避免两套业务顺序。
+MON 配置和最后的绘制抑制写入，避免两套业务顺序。
+最后的绘制抑制已直接写实际敌方字段，删除虚方法和启动事件转发；
+独立分支、失败与验证见[启动绘制抑制](battle-startup-drawing-suppression-0047d870.md)。
 
 SDL setup 暴露最终坐标；适配按相同 word 运算还原输入坐标，再交给上述
 共用步骤执行镜像写入。MON 文件、流和说明文字均经过 SDL 已有真实端口。

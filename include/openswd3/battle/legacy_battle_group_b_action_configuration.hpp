@@ -34,14 +34,13 @@ struct LegacyBattleGroupBStartupPlacement {
     compat::u16 position_x{};
     compat::u16 position_y{};
     bool mirrored{};
-    bool extra_mode{};
+    bool suppress_drawing{};
 };
 
 class LegacyBattleGroupBStartupModePort {
 public:
     virtual ~LegacyBattleGroupBStartupModePort() = default;
     [[nodiscard]] virtual compat::u32 apply_mirror(compat::u32 actor_token) = 0;
-    virtual void set_extra_mode(compat::u32 actor_token) = 0;
 };
 
 // 451F7E..452002: publish placement, optionally mirror, configure, then

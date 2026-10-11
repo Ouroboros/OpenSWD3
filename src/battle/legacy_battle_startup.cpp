@@ -48,14 +48,6 @@ public:
             .ecx_snapshot;
     }
 
-    void set_extra_mode(const u32 actor_token) override {
-        static_cast<void>(invoke(
-            port_,
-            LegacyBattleStartupCall::set_enemy_mode,
-            {actor_token, 1U, 0U, 0U}
-        ));
-    }
-
 private:
     LegacyBattleStartupPort& port_;
 };
@@ -1387,7 +1379,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
                     .position_x = source.position_x,
                     .position_y = source.position_y,
                     .mirrored = state.mirror_mode == 1U,
-                    .extra_mode = source.mode_flag == 1U,
+                    .suppress_drawing = source.mode_flag == 1U,
                 },
                 port,
                 modes,

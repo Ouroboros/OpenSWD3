@@ -12,23 +12,15 @@ namespace {
 
 class StoredEnemyModes final : public LegacyBattleGroupBStartupModePort {
 public:
-    StoredEnemyModes(
-        LegacyBattleActorGroupBElementState& actor,
-        LegacyBattleTargetPhaseState& particle
-    )
-        : actor_(actor), particle_(particle) {}
+    explicit StoredEnemyModes(LegacyBattleTargetPhaseState& particle)
+        : particle_(particle) {}
 
     compat::u32 apply_mirror(const compat::u32 actor_token) override {
         particle_.render_toggle_gate = 1U;
         return actor_token;
     }
 
-    void set_extra_mode(compat::u32) override {
-        actor_.runtime_reset.field_2af0 = 1U;
-    }
-
 private:
-    LegacyBattleActorGroupBElementState& actor_;
     LegacyBattleTargetPhaseState& particle_;
 };
 
@@ -131,7 +123,7 @@ LegacyBattleGroupBStorage::initialize_enemy(
     // 451F68..451FB0: scratch clear and the three placement words precede
     // the optional mirror setter and the MON configuration call.
     startup.enemy_scratch.fill(0U);
-    StoredEnemyModes modes{actor, particle};
+    StoredEnemyModes modes{particle};
     const auto configured = configure_legacy_battle_group_b_startup_placement(
         actor,
         {
@@ -143,7 +135,7 @@ LegacyBattleGroupBStorage::initialize_enemy(
                 : source.screen_x,
             .position_y = source.screen_y,
             .mirrored = mirrored,
-            .extra_mode = source.record_flag,
+            .suppress_drawing = source.record_flag,
         },
         mon,
         modes,
