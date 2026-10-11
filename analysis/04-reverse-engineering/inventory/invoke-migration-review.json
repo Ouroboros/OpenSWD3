@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "b423ce9d87c5a77f966585a90ab885f57f970282",
+  "last_reviewed_source_revision": "41a74ad35656f65de450ebdad0867755cfea7669",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -34,6 +34,22 @@
         "build/tmp/runtime/world-music-without-port-asan.log"
       ],
       "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
+    },
+    "battle/legacy_battle_actor_start_gate_increment": {
+      "status": "verified",
+      "verification_commit": "41a74ad35656f65de450ebdad0867755cfea7669",
+      "files": [
+        "include/openswd3/battle/legacy_battle_actor_start_gate_increment.hpp",
+        "src/battle/legacy_battle_actor_start_gate_increment.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-increment-00478ac0.md",
+      "validation_logs": [
+        "build/tmp/runtime/start-gate-increment-direct-core.log",
+        "build/tmp/runtime/start-gate-increment-direct-callers-core.log",
+        "build/tmp/runtime/start-gate-increment-direct-asan.log",
+        "build/tmp/runtime/start-gate-increment-direct-callers-asan.log"
+      ],
+      "reason": "五处调用直接递增双方实际共享WORD并写完整DWORD标记1，删除owner/view/resolver、寄存器请求结果、模拟栈、请求数组、地址轨迹、计数及纯转发；保持实时前驱、完整地址回绕、四种原故障前缀和部分扫描，按LST修正脚本EAX与EDX；十二份源码测试身份、core/ASan setup与角色帧各1/1及SDL实际链接已核验；父链、完整内存别名及实际游戏仍未验收"
     },
     "battle/legacy_battle_actor_target_selection_count_increment": {
       "status": "verified",
@@ -127,9 +143,9 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "b423ce9d",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-count-increment-00478aa0.md",
-      "reason": "队列、启动及目标标记使用实际共享数据；公共计数递增上下文改为访问描述、结果改为可选实际值，删除该操作请求数组、寄存器、轨迹、计数及执行转发，三处组A调用借同一角色字段；其他动作仍有callee编号、参数数组、寄存器请求回复、轨迹、计数与Port，整项继续pending"
+      "last_reviewed_commit": "41a74ad3",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-increment-00478ac0.md",
+      "reason": "队列、目标与启动标记使用实际共享数据；启动计数上下文改为访问描述、结果改为可选实际值，删除该操作请求数组、寄存器、轨迹、计数及执行转发，五处调用直接借双方角色字段；其他动作仍有callee编号、参数数组、寄存器请求回复、轨迹、计数与Port，整项继续pending"
     },
     "battle/legacy_battle_opponent_action_dispatch": {
       "status": "pending",
@@ -199,15 +215,15 @@
     },
     "battle/legacy_battle_group_a_frame": {
       "status": "pending",
-      "last_reviewed_commit": "b423ce9d",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-count-increment-00478aa0.md",
-      "reason": "三处目标计数递增直接借双方实际WORD，保留phase后重读选择、完整地址回绕、读写返回故障、部分扫描及后继DEC前驱，旧两个目标CALL标注已按LST纠正；队列、数字子操作及目标标记沿用实际数据；其他角色帧通用操作、参数包、寄存器结果、计数与Port以及phase资源、完整内存别名仍未闭合，整项继续pending"
+      "last_reviewed_commit": "41a74ad3",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-increment-00478ac0.md",
+      "reason": "两处启动计数直接借敌方共享WORD与DWORD，保留两次终态查询、实时失败前驱、四种故障和早先扫描提交；队列、数字子操作、目标标记及三处目标计数递增沿用实际数据；其他角色帧通用操作、参数包、寄存器结果、计数与Port以及phase资源、完整内存别名仍未闭合，整项继续pending"
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",
-      "last_reviewed_commit": "bf13ed49",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-latch-set-00478b30.md",
-      "reason": "队列、数字绘制及启动/目标标记查询使用实际共享数据；候选命中后直接写当前敌方目标标记，删除置位请求、寄存器、轨迹、计数、offset和转发；保留四次terminal与优先角色相等前置条件，ready和原故障前缀保持，选择沿用实际前驱；其他对手帧通用操作、参数包、寄存器请求回复、计数及Port仍在，完整SDL角色帧与实际游戏仍未验收"
+      "last_reviewed_commit": "41a74ad3",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-increment-00478ac0.md",
+      "reason": "两处启动计数直接借队员共享WORD与DWORD，扫描保留控制清理和早先提交，选定路径发布后重读完整选择值并解析回绕地址；队列、数字绘制及启动/目标标记沿用实际共享数据；其他对手帧通用操作、参数包、寄存器请求回复、计数及Port仍在，完整SDL角色帧与实际游戏仍未验收"
     },
     "battle/legacy_battle_transition": {
       "status": "pending",
@@ -442,9 +458,9 @@
     },
     "battle/legacy_battle_script_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "5a2e0d0e",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-count-query-00478ab0.md",
-      "reason": "case61直接读取实际角色目标WORD，查询请求/寄存器/轨迹/计数/转发已删除，扫描前缀及加载后重读按LST恢复；当前公共头仍有操作枚举、八项参数数组、寄存器请求回复与调用轨迹，runner仍拼装通用请求并调用Port，其他计数和加载协议未迁移，整项继续pending"
+      "last_reviewed_commit": "41a74ad3",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-increment-00478ac0.md",
+      "reason": "case78直接递增实际角色启动WORD并写共享DWORD标记，删除该叶函数请求、寄存器、轨迹、计数与转发，保留清表前缀、实时回绕地址和实际EAX/EDX；case61沿用实际目标计数查询；当前公共头仍有操作枚举、八项参数数组、寄存器请求回复与调用轨迹，runner仍拼装通用请求并调用Port，其他计数和加载协议未迁移，整项继续pending"
     },
     "battle/legacy_battle_startup": {
       "status": "pending",
