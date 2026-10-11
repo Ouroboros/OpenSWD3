@@ -844,7 +844,15 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
         static_cast<void>(
             invoke(state, port, kCallClearMode, {action == 11U ? 0U : 1U})
         );
-        static_cast<void>(invoke(state, port, kCallFinalizeMode, {8U}));
+        if (context.startup == nullptr) {
+            result.status =
+                LegacyBattleActionDispatchStatus::actor_base_state_missing;
+            result.return_value = 8U;
+            return result;
+        }
+
+        context.startup->party[group_a_index]
+            .base_initialization.presentation_step = 8U;
         state.overlay_gate = 1U;
         state.current_actor_index = 0xFFFFU;
         result.return_value = 1U;

@@ -2,7 +2,8 @@
 
 本批移除敌方四处 `0047D860` 通用调用，直接写已有角色的
 `base_initialization.presentation_step`。两个父接口族仍待迁移；
-队员 `00453D5A` 调用也仍保留。本批不增加接口族验收数。
+队员 `00453D5A` 的后续迁移见[队员步长](battle-party-presentation-step-0047d860.md)。
+本批不增加接口族验收数。
 
 ## LST 与共享字段
 

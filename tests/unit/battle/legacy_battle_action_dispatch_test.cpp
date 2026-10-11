@@ -1006,6 +1006,73 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchState;
     using openswd3::battle::LegacyBattleActionDispatchStatus;
 
+    for (const u16 action : std::array<u16, 2>{11U, 12U}) {
+        for (const u32 completion : {0U, 1U, 2U}) {
+            for (const u32 source_index : {0U, 9U}) {
+                for (const bool storage_available : {true, false}) {
+                    auto state =
+                        std::make_unique<LegacyBattleActionDispatchState>();
+                    state->overlay_gate = 0xCAFEU;
+                    state->current_actor_index = 0x1234U;
+                    auto fixture = std::make_unique<Fixture>();
+                    for (auto& party : fixture->startup.party) {
+                        party.base_initialization.presentation_step = 0xFFFFU;
+                        party.base_initialization.field_2a94 = 0x5AU;
+                    }
+
+                    DispatchPort port;
+                    port.action = action;
+                    port.push(
+                        action == 11U ? 0x0047C950U : 0x0047C6B0U,
+                        {.eax = completion}
+                    );
+                    auto context = fixture->context();
+                    if (!storage_available) {
+                        context.startup = nullptr;
+                    }
+
+                    const auto result =
+                        dispatch(*state, port, context, source_index, 0U);
+                    const bool finished = completion == 1U && storage_available;
+                    const bool missing_storage =
+                        completion == 1U && !storage_available;
+                    bool fields_match = true;
+                    for (std::size_t index = 0U;
+                         index < fixture->startup.party.size();
+                         ++index) {
+                        const auto& fields =
+                            fixture->startup.party[index].base_initialization;
+                        const u16 expected =
+                            finished && index == source_index ? 8U : 0xFFFFU;
+                        fields_match = fields_match &&
+                            fields.presentation_step == expected &&
+                            fields.field_2a94 == 0x5AU;
+                    }
+
+                    test.expect_true(
+                        result.status ==
+                                (missing_storage
+                                     ? LegacyBattleActionDispatchStatus::
+                                           actor_base_state_missing
+                                     : LegacyBattleActionDispatchStatus::
+                                           completed) &&
+                            result.return_value ==
+                                (missing_storage ? 8U
+                                     : finished  ? 1U
+                                                 : 0U) &&
+                            state->overlay_gate == (finished ? 1U : 0xCAFEU) &&
+                            state->current_actor_index ==
+                                (finished ? 0xFFFFU : 0x1234U) &&
+                            port.count(0x0047D870U) ==
+                                (completion == 1U ? 1U : 0U) &&
+                            fields_match,
+                        "party actions eleven and twelve write only the completing actor step, preserve neighbors, and report absent storage only after the preceding operation"
+                    );
+                }
+            }
+        }
+    }
+
     {
         const auto state = std::make_unique<LegacyBattleActionDispatchState>();
         const auto fixture = std::make_unique<Fixture>();

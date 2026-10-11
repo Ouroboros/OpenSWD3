@@ -1610,6 +1610,7 @@ enum class LegacyBattleActionDispatchStatus : compat::u8 {
     actor_frame_snapshot_clear_typed_stop,
     actor_frame_caller_typed_stop,
     actor_frame_parent_stack_typed_stop,
+    actor_base_state_missing,
 };
 
 struct LegacyBattleActionDispatchResult {

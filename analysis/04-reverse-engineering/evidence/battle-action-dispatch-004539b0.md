@@ -134,8 +134,12 @@ runtime低word bit0未置位时返回0。
 - 4：目标准备成功后走动作400公共commit与清理尾；
 - 5：清current actor并返回1；
 - 7：目标完成后延迟0、更新目标，目标索引小于4时packed actor低byte加1，返回1；
-- 11/12：使用两个不同查询callee，成功后分别发布mode 0/1，共用finalize mode 8、overlay gate 1、current actor全1与返回1；
+- 11/12：使用两个不同查询callee，精确返回1后分别发布mode 0/1，再直接写实际队员步长8、overlay gate 1、current actor全1并返回1；
 - 17：独立result mode非零时清current actor并返回1，否则返回0。
+
+11/12已删除步长操作编号及通用调用，借用startup实际队员基础字段。
+实际存储缺失只在字段写入点报告，保留前继操作并阻断完成发布。
+全11处步长调用映射与验证见[队员绘制步长](battle-party-presentation-step-0047d860.md)。
 
 ## 9. case 6：多帧目标阶段
 
@@ -235,6 +239,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 
 - 组A/B对象索引：首次对应对象callee调用；
 - actor map/effect score：首次表读写；
+- case 11/12基础字段存储缺失：前继操作之后、步长实际写入点报告，阻断完成门和当前角色发布；
 - target identity/status/event/summon表：首次元素访问；
 - resolved target零token：首次flags读取；
 - framebuffer尺寸过大：先发布frame refresh并写满owned前缀，再在首个越界像素停止；

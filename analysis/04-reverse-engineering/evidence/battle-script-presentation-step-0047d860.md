@@ -53,6 +53,7 @@ core及ASan依赖重编译出现既有`legacy_battle_outcome_resolution_test.cpp
 
 ## 剩余边界
 
-行动、敌方行动及敌方帧还有五处原47D860调用，仍需独立迁移。
+本批之后的五处原47D860调用已由[敌方步长](battle-enemy-presentation-step-0047d860.md)
+和[队员步长](battle-party-presentation-step-0047d860.md)两批回收。
 绘制父函数、脚本父协议、原版动态差分及B11/Workpack 316均保持待处理。
 本批字段写入测试不代表两个完整绘制父函数已完成迁移或验证。
