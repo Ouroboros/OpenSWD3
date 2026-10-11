@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "97ec03ba973eeea236147a78a88e6c3ef92821e1",
+  "last_reviewed_source_revision": "aba8fc22bcde53ad96523f9856af7daddb4039fb",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -322,9 +322,9 @@
     },
     "battle/legacy_battle_opponent_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "8df8d9f5",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-action-deformation-owned-storage.md",
-      "reason": "动作2直接分配、构造并释放共享变形对象，保留空分配、未完成重入和完成后的淡出顺序；删除分配释放编号及伪指针。既有动作字段、查询与队列沿用实际数据；效果帧已借用同一实际对象；其余通用操作、参数数组、寄存器请求回复、计数及Port仍在，父链继续pending"
+      "last_reviewed_commit": "aba8fc22",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-enemy-presentation-step-0047d860.md",
+      "reason": "动作11/12/17完成时直接写真实敌方步长8，删除三处通用调用及步长回复包，保留前继与激活失败前缀。既有变形对象、动作字段、查询与队列沿用实际所有权；其余通用操作、参数数组、机器诊断、计数及Port仍在，父链继续pending"
     },
     "battle/legacy_battle_effect_frame": {
       "status": "pending",
@@ -410,9 +410,9 @@
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",
-      "last_reviewed_commit": "1023334c",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-group-b-final-overlay-clear.md",
-      "reason": "敌方候选扫描直接清实际队员叠加标记，再递增启动门和阶段进度，后续故障保留此前字段写入，移除通用清零调用和虚构EAX；既有模式及共享操作保持。actor-ready八槽、其余编号、参数包、寄存器接口、计数、Port、资源及完整SDL帧仍未验收"
+      "last_reviewed_commit": "aba8fc22",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-enemy-presentation-step-0047d860.md",
+      "reason": "动作17设置成功后直接写真实敌方步长2，保留前继失败与同帧后继行动写8顺序；删除步长操作编号，既有叠加标记和共享字段沿用实际所有权。core/ASan角色帧各1/1、SDL链接及四文件身份通过；actor-ready八槽、其余编号、参数包、寄存器接口、计数、Port、资源及完整SDL帧仍未验收"
     },
     "battle/legacy_battle_transition": {
       "status": "pending",
