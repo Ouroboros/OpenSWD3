@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "a4e011b94e83b796a3718e231c5e0a7b1729bfaf",
+  "last_reviewed_source_revision": "307d605d214d145d6bbb723ebdc4edadf523bfcf",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -306,9 +306,13 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "a4e011b9",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-mode-00478710.md",
-      "reason": "动作设置直接借实际角色字段并传播optional状态；动作7清敌方目标而保留来源，动作2/23/409使用真实前序结果；队列和查询沿用共享数据，高位清除的无调用方转发已删除；其他callee编号、参数数组、寄存器回复、轨迹、计数、Port及actor-ready八槽报告仍在，整项继续pending"
+      "last_reviewed_commit": "307d605d",
+      "files": [
+        "include/openswd3/battle/legacy_battle_deformation.hpp",
+        "src/battle/legacy_battle_deformation.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-action-deformation-owned-storage.md",
+      "reason": "动作2直接分配并独占实际变形对象，完成后由原资源释放，删除分配释放编号及伪指针；保留空分配、模式保留、等待及失败前缀。既有动作字段、队列和查询继续直接访问共享数据；其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，效果帧借用仍待迁移，整项继续pending"
     },
     "battle/legacy_battle_debug_overlay": {
       "status": "pending",
@@ -318,9 +322,9 @@
     },
     "battle/legacy_battle_opponent_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "7feb7c40",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-mode-00478710.md",
-      "reason": "直接设置当前敌方动作及清除我方目标动作，删除设置子协议并保持目标隔离和失败后缀；查询与队列沿用实际数据；其余通用操作、参数数组、寄存器请求回复、计数、Port及资源缺口仍在，父链继续pending"
+      "last_reviewed_commit": "307d605d",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-action-deformation-owned-storage.md",
+      "reason": "动作2直接分配、构造并释放共享变形对象，保留空分配、未完成重入和完成后的淡出顺序；删除分配释放编号及伪指针。既有动作字段、查询与队列沿用实际数据；其余通用操作、参数数组、寄存器请求回复、计数、Port及效果帧借用缺口仍在，父链继续pending"
     },
     "battle/legacy_battle_final_actor_step": {
       "status": "pending",

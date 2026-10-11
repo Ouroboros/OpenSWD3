@@ -1,7 +1,7 @@
 {
-  "source_revision": "a4e011b94e83b796a3718e231c5e0a7b1729bfaf",
+  "source_revision": "307d605d214d145d6bbb723ebdc4edadf523bfcf",
   "baseline_revision": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
-  "scanned_production_files": 872,
+  "scanned_production_files": 874,
   "candidate_units": 324,
   "excluded_units": 4,
   "candidate_units_after_exclusions": 320,
@@ -9,7 +9,7 @@
   "pending_units": 293,
   "pending_without_scan_signals": 12,
   "pending_with_scan_signals": 281,
-  "last_reviewed_source_revision": "a4e011b94e83b796a3718e231c5e0a7b1729bfaf",
+  "last_reviewed_source_revision": "307d605d214d145d6bbb723ebdc4edadf523bfcf",
   "source_commits_since_last_review": 0,
   "candidate_review_coverage_percent": 8.4,
   "scope_exhaustiveness_verified": false
