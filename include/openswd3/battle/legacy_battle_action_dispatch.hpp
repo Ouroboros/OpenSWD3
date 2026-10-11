@@ -1362,7 +1362,6 @@ struct LegacyBattleActionDispatchState {
     compat::u16 opponent_special_action{};
     compat::u16 opponent_spawn_count{};
     compat::u32 opponent_processed_counter{};
-    compat::u32 mirror_group_b_spawn{};
     std::array<LegacyBattleActionMessageProfile, 8> group_b_message_profiles{};
     std::array<LegacyBattleRewardScaleActorState, 8> group_b_reward_scale{};
     std::array<std::array<std::unique_ptr<LegacyBattleTargetPhaseState>, 10>, 8>
@@ -1383,7 +1382,6 @@ struct LegacyBattleActionDispatchState {
     compat::u32 post_battle_counter{};
     compat::u32 current_summon_index{};
     compat::u32 summon_packed{};
-    compat::u32 summon_gate{};
     compat::u32 summon_x{};
     compat::u32 summon_y{};
     compat::u8 summon_status{};

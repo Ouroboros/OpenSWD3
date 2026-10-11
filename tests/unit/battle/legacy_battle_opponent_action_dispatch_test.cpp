@@ -1,6 +1,7 @@
 #include "fixed_node_memory_resource.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_opponent_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_script_dispatch.hpp"
 #include "test.hpp"
 #include "legacy_battle_frame_refresh_fixture.hpp"
 
@@ -27,9 +28,21 @@ using openswd3::compat::u32;
 
 class DispatchPort final
     : public openswd3::battle::LegacyBattleActionDispatchPort,
+      public openswd3::battle::LegacyBattleScriptDispatchPort,
       public openswd3::test::LegacyBattleMonDatabaseFixture,
       public openswd3::test::LegacyBattleFrameRefreshFixture {
 public:
+    [[nodiscard]] openswd3::battle::LegacyBattleScriptDispatchCallReply
+    invoke_battle_script(
+        openswd3::battle::LegacyBattleScriptWorkspace&,
+        openswd3::battle::LegacyBattleScriptDispatchBindings&,
+        const openswd3::battle::LegacyBattleScriptDispatchCallRequest&
+    ) override {
+        throw std::runtime_error(
+            "mirror script unexpectedly required a generic call"
+        );
+    }
+
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         calls.push_back(request);
@@ -321,6 +334,49 @@ struct Fixture {
         state, port, context, group_b_index, caller_group_a_index
     );
 }
+
+struct MirrorScriptFixture {
+    openswd3::battle::LegacyBattleAssets assets;
+    openswd3::battle::LegacyBattleScriptFileRuntime files;
+    openswd3::battle::LegacyBattleFinalActorStepState final_actor;
+    openswd3::battle::LegacyBattleInputDispatchState input;
+    openswd3::battle::LegacyBattleTargetSelectionRuntimeState targets;
+    openswd3::battle::LegacyBattleMessagePhaseState messages;
+    openswd3::battle::LegacyBattleVictoryRewardState rewards;
+    openswd3::battle::LegacyBattleScriptSharedState shared;
+    openswd3::story_scene::LegacyDialogRuntimeState dialogs;
+    openswd3::battle::LegacyBattleScriptWorkspace workspace;
+    u32 message_state{};
+
+    [[nodiscard]] openswd3::battle::LegacyBattleScriptDispatchResult execute(
+        Fixture& fixture,
+        openswd3::battle::LegacyBattleActionDispatchState& action,
+        DispatchPort& port
+    ) {
+        assets.script_capacity = 2U;
+        assets.script[0U] = 45U;
+        assets.script[1U] = 0U;
+        return openswd3::battle::run_legacy_battle_script_dispatch(
+            workspace,
+            {
+                .assets = assets,
+                .script_files = files,
+                .startup = *fixture.startup,
+                .action = action,
+                .metrics = fixture.startup->actor_metrics,
+                .final_actor = final_actor,
+                .input_dispatch = input,
+                .target_selection = targets,
+                .message_phase = messages,
+                .victory = rewards,
+                .shared = shared,
+                .dialogs = dialogs,
+                .message_state = message_state,
+            },
+            port
+        );
+    }
+};
 
 void bind_ready_group_a_frame(
     Fixture& fixture,
@@ -1486,16 +1542,105 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
         );
     }
 
+    for (const u32 initial_mirror : {0U, 1U, 2U, 0xFFFFFFFFU}) {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        (*state->group_b_fixed_particle_phases)[0U].render_toggle_gate =
+            0xFFFFFFFFU;
+        auto fixture = std::make_unique<Fixture>();
+        fixture->startup->mirror_mode = initial_mirror;
+        fixture->startup->actor_metrics.group_a_count = 0U;
+        fixture->startup->actor_metrics.group_b_count = 0U;
+        auto script = std::make_unique<MirrorScriptFixture>();
+        DispatchPort port;
+        const auto switched = script->execute(*fixture, *state, port);
+        auto& profile = (*fixture->startup->group_b_lifecycle)[0U]
+                            .action_configuration.profile_buffer;
+        profile[0x20U] = std::byte{0x34};
+        profile[0x21U] = std::byte{0x12};
+        profile[0x24U] = std::byte{1U};
+        port.action = 15U;
+        auto context = fixture->context();
+        const auto generated = dispatch(*state, port, context, 0U, 99U);
+        const u32 shared_mirror = initial_mirror == 1U ? 0U : 1U;
+        test.expect_true(
+            switched.status ==
+                    openswd3::battle::LegacyBattleScriptDispatchStatus::
+                        completed &&
+                switched.return_eax == 1U && script->workspace.cursor == 2U &&
+                fixture->startup->mirror_mode == shared_mirror &&
+                generated.status ==
+                    LegacyBattleActionDispatchStatus::completed &&
+                generated.group_b_iterations == 1U &&
+                state->group_b_count == 1 &&
+                (*fixture->startup->group_b_lifecycle)[0U]
+                        .action_record.position_x ==
+                    (shared_mirror == 1U ? 400U : 240U) &&
+                (*state->group_b_fixed_particle_phases)[0U]
+                        .render_toggle_gate ==
+                    (shared_mirror == 1U ? 1U : 0xFFFFFFFFU),
+            "script forty five changes the same setting consumed by later opponent generation without copying a shadow value"
+        );
+    }
+
+    for (u32 scenario = 0U; scenario < 4U; ++scenario) {
+        const std::array<u32, 4> mirrors{0U, 1U, 2U, 0xFFFFFFFFU};
+        const u32 first_mirror = mirrors[scenario];
+        const u32 second_mirror = mirrors[(scenario + 1U) % mirrors.size()];
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        auto fixture = std::make_unique<Fixture>();
+        fixture->startup->mirror_mode = first_mirror == 1U ? 0U : 1U;
+        for (auto& phase : *state->group_b_fixed_particle_phases) {
+            phase.render_toggle_gate = 0xFFFFFFFFU;
+        }
+
+        auto& profile = (*fixture->startup->group_b_lifecycle)[0U]
+                            .action_configuration.profile_buffer;
+        profile[0x20U] = std::byte{0x34};
+        profile[0x21U] = std::byte{0x12};
+        profile[0x24U] = std::byte{2U};
+        DispatchPort port;
+        port.action = 15U;
+        u32 reset_calls = 0U;
+        port.on_call = [&](const LegacyBattleActionCallRequest& request) {
+            if (request.callee_token == 0x0047D350U) {
+                fixture->startup->mirror_mode =
+                    reset_calls == 0U ? first_mirror : second_mirror;
+                ++reset_calls;
+            }
+        };
+
+        auto context = fixture->context();
+        const auto generated = dispatch(*state, port, context, 0U, 99U);
+        test.expect_true(
+            generated.status == LegacyBattleActionDispatchStatus::completed &&
+                generated.group_b_iterations == 2U && reset_calls == 2U &&
+                fixture->startup->mirror_mode == second_mirror &&
+                (*fixture->startup->group_b_lifecycle)[0U]
+                        .action_record.position_x ==
+                    (first_mirror == 1U ? 400U : 240U) &&
+                (*fixture->startup->group_b_lifecycle)[1U]
+                        .action_record.position_x ==
+                    (second_mirror == 1U ? 400U : 240U) &&
+                (*state->group_b_fixed_particle_phases)[0U]
+                        .render_toggle_gate ==
+                    (first_mirror == 1U ? 1U : 0xFFFFFFFFU) &&
+                (*state->group_b_fixed_particle_phases)[1U]
+                        .render_toggle_gate ==
+                    (second_mirror == 1U ? 1U : 0xFFFFFFFFU),
+            "opponent generation rereads the shared DWORD after each wave predecessor and mirrors only exact one"
+        );
+    }
+
     for (const u32 mirror : {0U, 1U, 2U, 0xFFFFFFFFU}) {
         LegacyBattleActionDispatchState state;
         state.phase_counter = 0xCAFE0000U;
         state.group_b_count = 0;
-        state.mirror_group_b_spawn = mirror;
         for (auto& phase : *state.group_b_fixed_particle_phases) {
             phase.render_toggle_gate = 0xABCDEF12U;
         }
 
         Fixture fixture;
+        fixture.startup->mirror_mode = mirror;
         fixture.startup->group_b_lifecycle = std::make_shared<std::array<
             openswd3::battle::LegacyBattleActorGroupBElementState,
             openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
@@ -1588,10 +1733,10 @@ void test_battle_opponent_action_dispatch(openswd3::test::Context& test) {
 
     for (const u32 mirror : {0U, 1U, 2U, 0xFFFFFFFFU}) {
         LegacyBattleActionDispatchState state;
-        state.mirror_group_b_spawn = mirror;
         (*state.group_b_fixed_particle_phases)[0U].render_toggle_gate =
             0xFFFFFFFFU;
         Fixture fixture;
+        fixture.startup->mirror_mode = mirror;
         auto& source_profile = (*fixture.startup->group_b_lifecycle)[0U]
                                    .action_configuration.profile_buffer;
         source_profile[0x20U] = std::byte{0x34};

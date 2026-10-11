@@ -920,7 +920,7 @@ LegacyBattleActionDispatchResult dispatch_legacy_battle_opponent_action(
                 record.position_x = 0xF0U;
                 record.position_y = wave == 1U ? 0x15EU : 0xDCU;
                 record.runtime_value = 0U;
-                if (state.mirror_group_b_spawn == 1U) {
+                if (context.startup->mirror_mode == 1U) {
                     (*state.group_b_fixed_particle_phases)[record_index]
                         .render_toggle_gate = 1U;
                     record.position_x =

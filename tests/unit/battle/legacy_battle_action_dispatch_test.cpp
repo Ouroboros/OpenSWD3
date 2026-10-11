@@ -5790,7 +5790,6 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         const u32 summon_gate =
             std::array<u32, 4>{0U, 1U, 2U, 0xFFFFFFFFU}[scenario / 2U];
         auto state = std::make_unique<LegacyBattleActionDispatchState>();
-        state->summon_gate = summon_gate;
         for (auto& phase : state->group_a_target_phases) {
             phase.render_toggle_gate = 0xFFFFFFFFU;
         }
@@ -5803,6 +5802,7 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
                              .frame_source_action_record;
         set_frame_snapshot_words(snapshot, nonzero_frame_snapshot_words());
         auto fixture = std::make_unique<Fixture>();
+        fixture->startup.mirror_mode = summon_gate == 0U ? 1U : 0U;
         for (auto& residual : *fixture->startup.group_a_runtime_reset) {
             residual.field_2af0 = 0xFEDCBA98U;
             residual.field_2af4 = 0x76543210U;
@@ -5817,6 +5817,10 @@ void test_battle_action_dispatch_part_three(openswd3::test::Context& test) {
         port.push(0x00487C10U, {.eax = 0U});
         bool allocation_observed_write = false;
         port.on_call = [&](const LegacyBattleActionCallRequest& request) {
+            if (request.callee_token == 0x0047DAB0U) {
+                fixture->startup.mirror_mode = summon_gate;
+            }
+
             if (request.callee_token == 0x00487C10U) {
                 allocation_observed_write =
                     (*fixture->startup.group_a_runtime_reset)[summon_index]

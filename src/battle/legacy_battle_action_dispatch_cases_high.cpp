@@ -72,7 +72,7 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
 
             (*context.startup->group_a_runtime_reset)[summon_index].field_2af0 =
                 1U;
-            if (state.summon_gate == 0U) {
+            if (context.startup->mirror_mode == 0U) {
                 state.group_a_target_phases[summon_index].render_toggle_gate =
                     1U;
             }
