@@ -1550,8 +1550,17 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 command_word(fixture, 0x1EU) == 40U &&
                 command_word(fixture, 0x20U) == 50U &&
                 fixture.workspace.pair_x == 0U &&
-                fixture.workspace.pair_y == 0U && overlays_match(fixture, true),
-            "case forty four group B cleans the selected actor with one before the eight zero-argument calls"
+                fixture.workspace.pair_y == 0U &&
+                overlays_match(fixture, false) &&
+                std::ranges::all_of(
+                    *fixture.startup.group_b_lifecycle,
+                    [](const auto& enemy) {
+                        return enemy.action_execution.overlay_render_enabled ==
+                            0U;
+                    }
+
+                ),
+            "case forty four initializes enemy overlays and then clears all ten party overlays at text completion"
         );
     }
 
@@ -6697,6 +6706,10 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
             fixture->dialogs
         );
         fixture->message_phase.entry_list_gate = 0xFFFFFFFFU;
+        for (auto& party : fixture->action.group_a_action_execution) {
+            party.overlay_render_enabled = 0xFFFFFFFFU;
+        }
+
         port.calls.clear();
         const auto finished =
             openswd3::battle::run_legacy_battle_script_dispatch(
@@ -6710,12 +6723,127 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                 fixture->workspace.coordinate_y == -456 &&
                 fixture->shared.frame_value == 0x12345678U &&
                 fixture->action.frame_enabled == 1U &&
-                port.calls.size() == 30U &&
+                std::ranges::all_of(
+                    fixture->action.group_a_action_execution,
+                    [](const auto& party) {
+                        return party.overlay_render_enabled == 0U;
+                    }
+
+                ) &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47d900) ==
                     10U &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
-                    20U,
-            "released script dialog performs both actor cleanups and preserves unrelated coordinate DWORDs"
+                    10U,
+            "released script dialog clears actual party overlays before the remaining enemy cleanup and preserves coordinate DWORDs"
+        );
+    }
+
+    for (const i32 opcode : {2, 59}) {
+        for (const std::size_t stopped_index : {0U, 4U, 9U}) {
+            auto fixture = std::make_unique<Fixture>();
+            Port port;
+            fixture->opcode(opcode);
+            fixture->workspace.packed_actor_state = 0x80080000U;
+            fixture->workspace.text_offset = 14U;
+            fixture->workspace.pair_x = 11U;
+            fixture->workspace.pair_y = 22U;
+            fixture->action.frame_enabled = 77U;
+            fixture->action.action_pending_aux = 99U;
+            constexpr std::array<u32, 3U> initial{1U, 0x80000000U, 0xFFFFFFFFU};
+            for (std::size_t index = 0U; index < 10U; ++index) {
+                fixture->action.group_a_action_execution[index]
+                    .overlay_render_enabled = initial[index % initial.size()];
+            }
+
+            port.typed_stop_call =
+                LegacyBattleScriptDispatchCall::pending_47d900;
+            port.after_call = [&](LegacyBattleScriptWorkspace&,
+                                  LegacyBattleScriptDispatchBindings& bindings,
+                                  const LegacyBattleScriptDispatchCallRequest&
+                                      request) {
+                if (request.call !=
+                    LegacyBattleScriptDispatchCall::pending_47d900) {
+                    return;
+                }
+
+                const auto current =
+                    (request.object_token - 0x005029D0U) / 0x2F34U;
+                for (std::size_t index = 0U; index < 10U; ++index) {
+                    test.expect_true(
+                        bindings.action.group_a_action_execution[index]
+                                .overlay_render_enabled ==
+                            (index <= current
+                                 ? 0U
+                                 : initial[index % initial.size()]),
+                        "each selection operation observes only the preceding party overlay clear prefix"
+                    );
+                }
+
+                port.typed_stop_enabled = current == stopped_index;
+            };
+
+            const auto result =
+                openswd3::battle::run_legacy_battle_script_dispatch(
+                    fixture->workspace, fixture->bindings(), port
+                );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleScriptDispatchStatus::
+                            script_page_load_typed_stop &&
+                    fixture->workspace.cursor == 0U &&
+                    fixture->workspace.text_offset == 14U &&
+                    fixture->workspace.packed_actor_state == 0x80080000U &&
+                    fixture->workspace.pair_x == 11U &&
+                    fixture->workspace.pair_y == 22U &&
+                    fixture->action.frame_enabled == 77U &&
+                    fixture->action.action_pending_aux == 99U &&
+                    port.count(
+                        LegacyBattleScriptDispatchCall::pending_47c660
+                    ) == 0U,
+                "selection failure retains the cleared party prefix and prevents enemy cleanup and completion publication"
+            );
+        }
+    }
+
+    for (const i32 opcode : {2, 44, 59}) {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(opcode);
+        fixture->write_u16(2U, 0U);
+        fixture->workspace.packed_actor_state = opcode == 44 ? 0U : 0x80080000U;
+        fixture->workspace.text_offset = 14U;
+        fixture->action.frame_enabled = 77U;
+        fixture->action.action_pending_aux = 99U;
+        fixture->startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        for (auto& party : fixture->action.group_a_action_execution) {
+            party.overlay_render_enabled = 0xFFFFFFFFU;
+        }
+
+        port.typed_stop_enabled = true;
+        port.typed_stop_call = LegacyBattleScriptDispatchCall::pending_47c660;
+        const auto result = openswd3::battle::run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        script_page_load_typed_stop &&
+                std::ranges::all_of(
+                    fixture->action.group_a_action_execution,
+                    [](const auto& party) {
+                        return party.overlay_render_enabled == 0U;
+                    }
+
+                ) &&
+                fixture->workspace.cursor == 0U &&
+                fixture->action.frame_enabled == 77U &&
+                fixture->action.action_pending_aux == 99U &&
+                port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
+                    1U &&
+                port.calls.back().object_token == 0x00525508U,
+            "the first remaining enemy operation observes all ten party overlays cleared before failing without completion publication"
         );
     }
 

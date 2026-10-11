@@ -1632,20 +1632,16 @@ private:
 
     [[nodiscard]] LegacyBattleScriptDispatchResult
     finish_dynamic_text(const bool clear_group_a_selection = false) {
-        for (i32 index = 0; index < 10; ++index) {
-            const auto token = group_a_token(index + 8);
-            if (!token.has_value()) {
-                return finish(eax_);
-            }
-            if (!invoke(
-                    LegacyBattleScriptDispatchCall::pending_47c660, *token, {0U}
-                )) {
-                return finish(eax_);
-            }
-
+        for (std::size_t index = 0U; index < 10U; ++index) {
+            bindings_.action.group_a_action_execution[index]
+                .overlay_render_enabled = 0U;
             if (clear_group_a_selection &&
                 !invoke(
-                    LegacyBattleScriptDispatchCall::pending_47d900, *token, {0U}
+                    LegacyBattleScriptDispatchCall::pending_47d900,
+                    kLegacyBattleScriptGroupABaseToken +
+                        static_cast<u32>(index) *
+                            kLegacyBattleScriptGroupAElementSize,
+                    {0U}
                 )) {
                 return finish(eax_);
             }
