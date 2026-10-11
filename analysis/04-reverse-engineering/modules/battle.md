@@ -749,7 +749,9 @@ core/ASan角色帧各1/1及SDL链接通过；见`evidence/battle-enemy-presentat
 参数发布、固定坐标来源和失败验证见`evidence/battle-script-enemy-profile-0047f910.md`。
 敌方角色收尾也直接读实际WORD参数，保留坐标、延迟、计数及攻击顺序移除的前缀。
 字段访问、真实分配失败和core/ASan/SDL验证见`evidence/battle-final-actor-profile-0047f910.md`。
-脚本、行动与最终角色父协议仍待迁移。
+灵契开始与结束也分别读取实际敌人参数，删除三处查询编号、通用回复及模拟查询。
+实时参数、数量边界、访问与真实分配失败验证见`evidence/battle-spirit-contract-profile-0047f910.md`。
+脚本、行动与最终角色父协议仍待迁移；摘要参数读取继续待回收。
 结束段10敌人扫描的额外写入已静态定位到CRT缓冲区和PE资源载荷；
 运行期页保护、异常与其他父协议继续待核实或迁移。
 当前验证范围见`evidence/battle-script-overlay-initialization.md`及

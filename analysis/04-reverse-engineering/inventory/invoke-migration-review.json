@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "c9585d9919d09249482641e60e36a90c4e8936e4",
+  "last_reviewed_source_revision": "3013f0fab8858773234b78ad0fb6c7d9838c25c2",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -306,13 +306,13 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "6596ec41",
+      "last_reviewed_commit": "3013f0fa",
       "files": [
         "include/openswd3/battle/legacy_battle_deformation.hpp",
         "src/battle/legacy_battle_deformation.cpp"
       ],
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-shared-mirror-setting-0053c000.md",
-      "reason": "召唤直接借脚本共用的全局镜像DWORD，删除summon_gate副本，保留精确零值比较、前继后重读与分配失败前缀。此前三处实际镜像写入、绘制抑制、步长、动作字段迁移继续有效。其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，整项继续pending"
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-spirit-contract-profile-0047f910.md",
+      "reason": "灵契三处参数读取直接借实际敌人的无符号WORD，删除查询编号及模拟回复，分别在数量查询前、刷新后和完成激活后重读；已有访问、真实PMR分配与攻击顺序失败保留原前缀。此前共享镜像、绘制抑制、步长和动作字段迁移继续有效。其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，整项继续pending"
     },
     "battle/legacy_battle_debug_overlay": {
       "status": "pending",
