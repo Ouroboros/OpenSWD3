@@ -4092,17 +4092,14 @@ inventory SHA-256为`9dcf4c568504f28a0b31957e12cef09c3e98759a4d1436f5f02e01093b5
 完整权威LST主体`0x004786C0..0x004786C7`共8字节、2条实际指令、0个call、0个分支和1个普通`retn`，
 没有外部chunk或中段入口；函数只把actor `+0x2A70`完整word读入AX，保留EAX高16位、ECX、
 EDX和全部flags后普通RET。
-typed实现直接复用startup Group-A party item-effect与Group-B lifecycle
-action-composition中的canonical显示种类owner，保留字段与RET两个真实停点、完整寄存器、ESP/EIP、
-flags和访问计数，不增加平行word数组、第二套display缓存或token槽。
-主动作分派唯一物理caller直接组合typed leaf，只在动作种类为零且终止查询不等于1时执行，
-保留前序callee的EAX/EDX、`test edi,edi` flags、真实返回地址和post-call低word mask；
-typed-stop保留动作种类及终止查询前缀并抑制局部写入、switch与动作后缀，生产`0x004786C0`零raw调用。
-验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过。连续10轮完整core、
-全量/changed-range clang-format、零源码warning/测试失败/sanitizer finding、inventory双生成、
-TMP分类及完整release审计亦通过；未启动原版或OpenSWD3游戏程序。
-工作包为`294/422 = 284 platform_adapted + 10 assembly_exact + 128 pending_audit`；
-inventory SHA-256为`e00f466dcb78a138449331575c3a407740f3debf9828338fcddcc9c588c28b24`。
+当前迁移借实际显示WORD并返回状态与可选读值，删除token解析、owner/view、
+寄存器请求回复、栈轨迹和计数；唯一调用直接借队员共享字段。
+动作种类为零且终态不等于1时才执行；显示零返回1，显示非零经原DEC EDI和
+无符号JA走默认尾返回0，不按显示值执行动作。此前“显示值成为动作编号”的
+实现与测试结论已撤销。字段与RET失败保留前驱及已观察WORD。
+当前门禁与限制见[显示种类查询](../evidence/battle-actor-display-kind-004786c0.md)。
+历史199/199、205/205及固定复核轮数不作为本批通过证据。
+动作父链其余协议与资源继续pending；B10仍为315/422，WP316/317/318不升级。
 动态差分因原版完整Group-A/Group-B actor、
 异常字段/栈内存页及唯一caller联合寄存器/flags/SEH捕获后端缺失而登记为`blocked_runtime_oracle`。
 

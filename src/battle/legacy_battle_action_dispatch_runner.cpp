@@ -720,33 +720,25 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::run() {
         return result;
     }
     if (action == 0U) {
-        auto display_kind_request = context.actor_display_kind_request;
-        display_kind_request.actor_token = actor_token;
-        display_kind_request.entry_eax = reply.eax;
-        display_kind_request.entry_edx = reply.edx;
-        display_kind_request.entry_return_address = 0x00453A13U;
-        display_kind_request.entry_flags = logical_flags(action);
-        display_kind_request.entry_flags_known = true;
+        const u16* display_kind = context.startup != nullptr
+            ? &context.startup->party[group_a_index]
+                   .item_effect_application.display_kind
+            : nullptr;
         result.actor_display_kind = query_legacy_battle_actor_display_kind(
-            resolve_legacy_battle_actor_display_kind(
-                {.startup = context.startup}, actor_token
-            ),
-            display_kind_request
+            display_kind, context.actor_display_kind_access
         );
-        ++result.actor_display_kind_calls;
-        if (result.actor_display_kind.status !=
-            LegacyBattleActorDisplayKindStatus::completed) {
+        const auto& queried = *result.actor_display_kind;
+        if (queried.status != LegacyBattleActorDisplayKindStatus::completed) {
             result.status =
                 LegacyBattleActionDispatchStatus::actor_display_kind_typed_stop;
-            result.return_value = result.actor_display_kind.return_eax;
+            result.return_value = queried.value.has_value()
+                ? (reply.eax & 0xFFFF0000U) | static_cast<u32>(*queried.value)
+                : reply.eax;
             return result;
         }
-        action = low_word(result.actor_display_kind.return_eax);
-        result.action_code = action;
-        if (action == 0U) {
-            result.return_value = 1U;
-            return result;
-        }
+
+        result.return_value = *queried.value == 0U ? 1U : 0U;
+        return result;
     }
 
     if (action == 0x63U) {

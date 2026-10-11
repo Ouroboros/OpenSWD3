@@ -893,6 +893,113 @@ void test_battle_action_dispatch_invalid_group_a(
     );
 }
 
+void test_battle_display_kind_dispatch(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActionDispatchState;
+    using openswd3::battle::LegacyBattleActionDispatchStatus;
+
+    for (const u16 display : std::array<u16, 10>{
+             0U, 1U, 5U, 0x63U, 0xFFU, 0x100U, 0x199U, 0x7FFFU, 0x8000U, 0xFFFFU
+         }) {
+        for (const u32 terminal :
+             std::array<u32, 4>{0U, 2U, 0xFFFFFFFFU, 0xABCD1234U}) {
+            auto state = std::make_unique<LegacyBattleActionDispatchState>();
+            auto fixture = std::make_unique<Fixture>();
+            DispatchPort port;
+            port.action = 0U;
+            port.fallback_action = display;
+            port.terminal_return = terminal;
+            auto context = fixture->context();
+            const auto result = dispatch(*state, port, context, 9U, 0U);
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    result.action_code == 0U &&
+                    result.return_value == (display == 0U ? 1U : 0U) &&
+                    result.actor_display_kind.has_value() &&
+                    result.actor_display_kind->value == display &&
+                    port.calls.size() == 1U && port.count(0x0047CE80U) == 1U,
+                "zero action reads the complete display WORD and returns through the zero or default tail without dispatching that WORD"
+            );
+        }
+    }
+
+    for (const unsigned phase : {0U, 1U, 2U}) {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        auto fixture = std::make_unique<Fixture>();
+        DispatchPort port;
+        port.push(0x0047CE80U, {.eax = 0xABCD1234U});
+        auto context = fixture->context();
+        auto& field =
+            fixture->startup.party[2U].item_effect_application.display_kind;
+        port.on_call = [&](const auto& request) {
+            if (request.callee_token == 0x0047CE80U) {
+                field = 0x8000U;
+                context.actor_display_kind_access.display_kind_readable =
+                    phase != 1U;
+                context.actor_display_kind_access.return_address_readable =
+                    phase != 2U;
+            }
+        };
+        const auto result = dispatch(*state, port, context, 2U, 0U);
+        test.expect_true(
+            result.actor_display_kind.has_value() &&
+                result.actor_display_kind->value ==
+                    (phase == 1U ? std::optional<u16>{}
+                                 : std::optional<u16>{0x8000U}) &&
+                result.return_value ==
+                    (phase == 0U       ? 0U
+                         : phase == 1U ? 0xABCD1234U
+                                       : 0xABCD8000U) &&
+                result.status ==
+                    (phase == 0U ? LegacyBattleActionDispatchStatus::completed
+                                 : LegacyBattleActionDispatchStatus::
+                                       actor_display_kind_typed_stop) &&
+                field == 0x8000U && port.calls.size() == 1U,
+            "display query observes terminal changes and preserves their prefix and actual EAX on read or return failure"
+        );
+    }
+
+    for (const u16 action : std::array<u16, 4>{0U, 1U, 0x100U, 0xFFFFU}) {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        auto fixture = std::make_unique<Fixture>();
+        DispatchPort port;
+        port.action = action;
+        port.terminal_return = action == 0U ? 1U : 0U;
+        auto context = fixture->context();
+        context.actor_display_kind_access = {
+            .display_kind_readable = false,
+            .return_address_readable = false,
+        };
+        const auto result = dispatch(*state, port, context, 0U, 0U);
+        test.expect_true(
+            !result.actor_display_kind.has_value() &&
+                result.status !=
+                    LegacyBattleActionDispatchStatus::
+                        actor_display_kind_typed_stop &&
+                port.count(0x0047CE80U) >= 1U,
+            "terminal exactly one or a nonzero action skips the display query and both access failures"
+        );
+    }
+
+    {
+        auto state = std::make_unique<LegacyBattleActionDispatchState>();
+        auto fixture = std::make_unique<Fixture>();
+        DispatchPort port;
+        port.terminal_return = 0xA5A51234U;
+        auto context = fixture->context();
+        context.startup = nullptr;
+        const auto result = dispatch(*state, port, context, 0U, 0U);
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActionDispatchStatus::
+                        actor_display_kind_typed_stop &&
+                result.actor_display_kind.has_value() &&
+                !result.actor_display_kind->value.has_value() &&
+                result.return_value == 0xA5A51234U && port.calls.size() == 1U,
+            "unavailable display storage stops at the original field access without returning a fabricated zero"
+        );
+    }
+}
+
 void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchState;
     using openswd3::battle::LegacyBattleActionDispatchStatus;
@@ -976,21 +1083,13 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         port.fallback_action = 5U;
         port.push(0x0047CE80U, {.eax = 0xA5A50000U, .edx = 0x12345678U});
         auto context = fixture.context();
-        context.actor_display_kind_request.entry_esp = 0x82003000U;
         const auto result = dispatch(state, port, context, 0U, 0U);
         test.expect_true(
-            result.action_code == 5U && result.return_value == 1U &&
-                result.actor_display_kind_calls == 1U &&
-                result.actor_display_kind.return_eax == 0xA5A50005U &&
-                result.actor_display_kind.return_ecx == 0x005029D0U &&
-                result.actor_display_kind.return_edx == 0x12345678U &&
-                result.actor_display_kind.return_esp == 0x82003004U &&
-                result.actor_display_kind.return_eip == 0x00453A13U &&
-                result.actor_display_kind.flags.zero &&
-                !result.actor_display_kind.flags.sign &&
-                !result.actor_display_kind.flags.carry &&
-                port.count(0x004786C0U) == 0U,
-            "zero primary action composes the display-kind word getter then masks its low word for switch dispatch"
+            result.action_code == 0U && result.return_value == 0U &&
+                result.actor_display_kind.has_value() &&
+                result.actor_display_kind->value == 5U &&
+                port.count(0x004786C0U) == 0U && port.calls.size() == 1U,
+            "zero primary action and nonzero display kind follow DEC EDI and the unsigned default branch without executing action five"
         );
     }
 
@@ -7569,8 +7668,8 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.return_value == 1U && result.action_code == 0U &&
                 result.actor_action_kind_calls == 1U &&
-                result.actor_display_kind_calls == 1U &&
-                result.actor_display_kind.return_eax == 0xCAFE0000U &&
+                result.actor_display_kind.has_value() &&
+                result.actor_display_kind->value == 0U &&
                 port.count(0x0047CE80U) == 1U && port.count(0x004786C0U) == 0U,
             "zero display kind returns one after the terminal prefix without entering the action switch or target access"
         );
@@ -7585,15 +7684,12 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
         port.push(0x0047CE80U, {.eax = 0xA5A50000U, .edx = 0x11223344U});
         port.push(0x0047CE80U, {.eax = 0x5A5A0000U, .edx = 0x55667788U});
         auto field_context = fixture.context();
-        field_context.actor_display_kind_request.entry_esp = 0x83004000U;
-        field_context.actor_display_kind_request.access.display_kind_readable =
-            false;
+        field_context.actor_display_kind_access.display_kind_readable = false;
         const auto field_stop = dispatch(state, port, field_context, 1U, 0U);
 
         auto return_context = fixture.context();
-        return_context.actor_display_kind_request.entry_esp = 0x84005000U;
-        return_context.actor_display_kind_request.access
-            .return_address_readable = false;
+        return_context.actor_display_kind_access.return_address_readable =
+            false;
         const auto return_stop = dispatch(state, port, return_context, 1U, 0U);
         test.expect_true(
             field_stop.status ==
@@ -7601,26 +7697,15 @@ void test_battle_action_kind_caller(openswd3::test::Context& test) {
                         actor_display_kind_typed_stop &&
                 field_stop.return_value == 0xA5A50000U &&
                 field_stop.actor_action_kind_calls == 1U &&
-                field_stop.actor_display_kind_calls == 1U &&
-                field_stop.actor_display_kind.return_eax == 0xA5A50000U &&
-                field_stop.actor_display_kind.return_ecx == 0x00505904U &&
-                field_stop.actor_display_kind.return_edx == 0x11223344U &&
-                field_stop.actor_display_kind.return_esp == 0x83004000U &&
-                field_stop.actor_display_kind.return_eip == 0x004786C0U &&
-                field_stop.actor_display_kind.display_kind_reads == 0U &&
+                field_stop.actor_display_kind.has_value() &&
+                !field_stop.actor_display_kind->value.has_value() &&
                 return_stop.status ==
                     LegacyBattleActionDispatchStatus::
                         actor_display_kind_typed_stop &&
                 return_stop.return_value == 0x5A5A1234U &&
                 return_stop.actor_action_kind_calls == 1U &&
-                return_stop.actor_display_kind_calls == 1U &&
-                return_stop.actor_display_kind.return_eax == 0x5A5A1234U &&
-                return_stop.actor_display_kind.return_ecx == 0x00505904U &&
-                return_stop.actor_display_kind.return_edx == 0x55667788U &&
-                return_stop.actor_display_kind.return_esp == 0x84005000U &&
-                return_stop.actor_display_kind.return_eip == 0x004786C7U &&
-                return_stop.actor_display_kind.display_kind_reads == 1U &&
-                return_stop.actor_display_kind.return_address_reads == 0U &&
+                return_stop.actor_display_kind.has_value() &&
+                return_stop.actor_display_kind->value == 0x1234U &&
                 port.count(0x004786C0U) == 0U && port.count(0x0047CE80U) == 2U,
             "main action dispatcher threads terminal registers into display-kind field and RET stops while suppressing local write and switch suffixes"
         );
@@ -7739,6 +7824,7 @@ void test_battle_action_presentation_typed_stop(openswd3::test::Context& test) {
 
 void test_battle_action_dispatch(openswd3::test::Context& test) {
     test_battle_action_kind_caller(test);
+    test_battle_display_kind_dispatch(test);
     test_battle_action_presentation_typed_stop(test);
     test_battle_action_dispatch_part_one(test);
     test_battle_action_dispatch_part_two(test);

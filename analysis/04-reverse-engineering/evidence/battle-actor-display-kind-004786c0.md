@@ -1,58 +1,87 @@
-# 战斗角色显示种类word查询（0x004786C0）
+# 战斗角色显示种类查询（0x004786C0）
 
-## 1. 范围与边界
+## 权威范围
 
-权威LST把`sub_4786C0`锁定为`0x004786C0..0x004786C7`共8字节：
+完整LST范围`004786C0..004786C7`，半开终点`004786C8`，8字节：
 
 ```text
-004786C0  66 8B 81 70 2A 00 00  mov ax,[ecx+0x2A70]
-004786C7  C3                    retn
+004786C0 66 8B 81 70 2A 00 00  mov ax,[ecx+2A70h]
+004786C7 C3                    retn
 ```
 
-函数只有2条实际指令、0个call、0个分支、0个局部标签和1个普通RET；没有外部chunk、中段入口或隐藏异常尾。
+两条指令，无分支、调用、写入或外部chunk。读取完整WORD，仅替换AX；
+高EAX、ECX、EDX和flags保持。唯一物理CALL为`00453A0E→00453A13`。
+独立推导保存在`build/tmp/runtime/display-kind-direct-lst-analysis.md`。
 
-## 2. 精确机器语义
+## 实际字段与接口
 
-入口ECX是角色对象token，EAX、EDX、ESP与flags由caller提供。唯一字段指令读取`actor+0x2A70`的完整16位word，只替换EAX低16位；EAX高16位、ECX、EDX与全部flags保持不变。随后普通RET读取`[ESP]`，把ESP增加4并跳到返回地址。
+查询借用实际`const u16*`，返回状态和`optional<u16> value`。
+唯一调用直接借`startup.party[index].item_effect_application.display_kind`。
+队员范围由父级原入口检查保证，party固定十项；没有额外索引检查或新停点。
+原startup可空合同继续在原字段读取边界报告失败。
+敌方已有字段`group_b_lifecycle[index].action_composition.display_kind`
+也可直接借用，独立测试验证两类实际字段不共用缓存；生产调用域仍为队员。
 
-不得把结果零扩展、符号扩展、布尔化，也不得提前执行caller自己的`and eax,0xFFFF`。例如入口EAX为`0xA5A51234`、字段为`0xCDEF`时，leaf返回EAX必须为`0xA5A5CDEF`。
+删除本查询地址常量、token解析、owner/view、寄存器request/reply、
+模拟栈、字段地址与访问/调用计数，不添加包装层。
+调用方外层optional区分是否执行查询，内层optional区分是否读到WORD。
+字段不可用或不可读时无值；RET不可访问时保留已读值。两者同时失败时
+先报告字段读取失败。查询不写任何角色字段，也不把失败转换为计数零。
 
-## 3. 字段访问与唯一owner
+## 唯一调用的原始分支
 
-完整LST对`actor+0x2A70`共有13处直接访问：8处word写和5处word读。当前leaf是其中唯一独立getter；其余写入或读取位于Group-A效果应用、最终处理、actor初始化及后续角色流程，本工作包不提前关闭相邻函数。
+1. `004539E6`读取动作种类；DI接AX，EDI经过FFFF掩码。
+2. `004539F6`查询终态；完整EAX精确等于1时跳`00454538`并返回1。
+3. `00453A08`测试EDI；非零跳`00453A33`，不执行显示种类查询。
+4. 动作种类零且终态不等于1时，`00453A0E`查询显示WORD。
+5. `00453A13`掩码EAX，`00453A18`保存栈局部；零值路径返回1。
+6. 非零显示WORD跳`00453A42`，此时EDI仍为0；DEC得到FFFFFFFF，
+   与23h比较后无符号JA到`00455CBB`默认尾。`00455CC2`清EAX，返回0。
 
-C++ owner按角色种类直接复用既有startup actor状态：
+**显示WORD非零不会成为新的动作编号。** 旧C++把显示值赋给动作编号后
+执行case，旧测试也误要求“动作0、显示5进入case5”；两者与LST冲突，
+本批改为原默认尾返回0，不执行case5、case99或扩展动作。
+结果`action_code`保留真实动作种类0；显示值由查询结果独立记录。
+局部栈槽没有宿主可观察消费者，不再复制成第二套动作状态。
 
-- Group-A：`LegacyBattleStartupState::party[index].item_effect_application.display_kind`；
-- Group-B：`LegacyBattleStartupState::group_b_lifecycle[index].action_composition.display_kind`。
+字段/RET失败保留前置动作查询、终态调用及其实际副作用，并抑制正常尾。
+父级仍暴露的失败返回EAX在调用点维护：字段失败保留terminal完整EAX，
+RET失败仅用观察WORD替换其低16位。查询本身不再传递寄存器。
+终态回调改写显示字段后，唯一查询必须读到当时实际值。
 
-resolver只返回上述owner中的word地址。动作分派状态、结果和caller局部没有新增平行word数组、第二套display缓存或token槽。
+## 独立测试与验证
 
-## 4. typed实现与停止点
+- WORD 0/1/00FF/0100/7FFF/8000/FFFF，邻居不变、实际字段分离与实时重读。
+- 字段缺失、不可读、返回不可访问与失败先后顺序。
+- 十种显示WORD乘四种非1终态值；显示零返回1，其余返回0，只有原终态调用。
+- 显示1/5/63h/199h不可触发对应动作；0100和8000不能按低byte或符号误判。
+- 终态精确1与动作种类非零跳过查询，查询访问故障此时不生效。
+- terminal回调改写后读取；字段/RET失败分别保留完整前驱和部分AX。
+- 缺少startup在原字段边界失败，不伪造正常返回1。
 
-`query_legacy_battle_actor_display_kind()`逐条实现word读和普通RET，并记录字段token、字段读取、返回地址读取、栈读取、EAX/ECX/EDX、ESP/EIP及flags。
+最终实际门禁均通过：
 
-两个真实停止点为：
+- core setup 1/1，9.74秒；actor-frame 1/1，24.40秒。
+- ASan setup 1/1，15.47秒；actor-frame 1/1，25.31秒。
+- SDL `openswd3`实际编译链接，未启动游戏。
 
-1. `display_kind_read_typed_stop`：字段不可读或startup actor owner无法解析时停在`0x004786C0`，完整保留入口EAX、ECX、EDX、ESP和flags；
-2. `return_address_read_typed_stop`：字段读取成功后停在`0x004786C7`，保留已替换AX的EAX，不读取返回地址、不推进ESP。
+均使用仓库`build.sh`或`build-asan.sh`，分别指定setup和actor-frame
+测试目标及精确正则。setup注册查询本体；主动作及新增向量注册于
+actor-frame程序。最初遗漏调用方门禁由发布检查发现，随后补跑并通过，
+未用setup记录代替调用方验证。
 
-正常路径只读取一个字段word和一个返回地址，ESP精确增加4。
+日志前缀`build/tmp/runtime/display-kind-direct-`，后缀为`core.log`、
+`callers-core.log`、`asan.log`、`callers-asan.log`和`sdl.log`。
+core/ASan setup各保留一条既存outcome测试133行u16→u8窄化warning；
+无新增warning、编译错误、测试失败或sanitizer报告。
+六份源码测试身份记录于同前缀`validated-source.sha256`，前后校验一致。
+发布检查见同前缀`publication-check.log`，覆盖原两指令、唯一调用、
+DEC/无符号JA默认尾、测试实际注册、旧协议消除及inventory边界。
+最后双向复核未留下本切片内的未解释差异；此结论不扩展到父级其他操作。
 
-## 5. 唯一物理caller（0x00453A0E）
+## 验收边界
 
-主动作分派先通过`0x004786B0`取得Group-A actor动作种类并只保留低word，再调用`0x0047CE80`查询角色终止状态。完整返回EAX等于1时立即离开；只有终止查询不等于1且动作种类为零时，才执行`test edi,edi`、把同一Group-A actor token写入ECX并在`0x00453A0E`调用本leaf。真实返回地址为`0x00453A13`。
-
-leaf入口EAX与EDX沿用`0x0047CE80`的真实回复，ECX为actor token，flags来自零值`test edi,edi`。返回后caller才执行`and eax,0xFFFF`并把结果写入局部动作槽；低word为零时返回1，非零时进入后续动作switch。字段或RET typed-stop保留已完成的动作种类查询和终止查询副作用，阻断局部写入、switch与全部动作后缀。
-
-生产路径直接组合typed leaf，不再通过generic端口调用`0x004786C0`。
-
-## 6. 双向追溯与验证范围
-
-LST到C++追溯覆盖唯一word读、EAX部分寄存器写、普通RET、唯一caller的前置条件、寄存器与flags线程、真实返回地址和post-call mask；C++到LST反向追溯覆盖两类owner解析、字段/RET两个停点和caller后缀抑制。
-
-测试覆盖Group-A/Group-B owner别名、零/一/其它word、EAX高word保留、ECX/EDX/flags保持、普通RET栈、字段/RET停止、真实返回地址、前序callee寄存器线程、零值早退、非零switch及生产`0x004786C0` raw调用归零。
-
-## 7. 动态差分状态
-
-当前缺少原版完整Group-A/Group-B actor、异常字段/栈内存页，以及唯一caller的寄存器、flags与SEH联合捕获后端，原版动态差分登记为`blocked_runtime_oracle`。该阻塞不改变8字节leaf和唯一静态caller的LST闭环。
+保持`platform_adapted`。原版完整内存别名、异常页/SEH和联合动态捕获
+仍未取得，差分状态仍为`blocked_runtime_oracle`。
+父级动作种类、终态、其余操作编号、参数包、寄存器协议、计数及资源
+仍待迁移；本查询不提升整个动作链、B11或WP316/318的验收状态。
