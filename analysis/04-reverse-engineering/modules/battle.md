@@ -735,7 +735,9 @@ core/ASan角色帧各1/1及SDL链接通过；见`evidence/battle-enemy-presentat
 启动的最后一处绘制标志转发已回收到共用配置函数，两个入口直接写同一敌方存储。
 见`evidence/battle-startup-drawing-suppression-0047d870.md`。
 敌方启动镜像也直接借用已有字段，删除共用镜像Port和两处转发类；
-见`evidence/battle-startup-enemy-mirror-0047f900.md`。队员启动及配置父协议仍待迁移。
+见`evidence/battle-startup-enemy-mirror-0047f900.md`。
+队员启动的镜像操作也直接写实际字段并删除操作编号，保留坐标、偏移与配置失败前缀；
+见`evidence/battle-startup-party-mirror-0047f900.md`。启动及配置父协议仍待迁移。
 结束段10敌人扫描的额外写入已静态定位到CRT缓冲区和PE资源载荷；
 运行期页保护、异常与其他父协议继续待核实或迁移。
 当前验证范围见`evidence/battle-script-overlay-initialization.md`及

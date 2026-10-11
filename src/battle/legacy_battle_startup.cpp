@@ -1438,11 +1438,7 @@ LegacyBattleStartupResult initialize_legacy_battle_startup(
         state.group_a_description_record_tokens[index] = 0U;
         state.group_a_description_text_indices[index] = 0U;
         if (state.mirror_mode == 1U) {
-            static_cast<void>(invoke(
-                port,
-                LegacyBattleStartupCall::apply_actor_mode,
-                {actor_token, 1U, 0U, 0U}
-            ));
+            party.progress.post_action_value = 1U;
             party.placement_position_x =
                 static_cast<u16>(0x0280U - party.placement_position_x);
             state.party_offsets[index * 2U] =

@@ -21,7 +21,8 @@ post_action_value，该字段对应同一角色偏移2B08。
 
 删除LegacyBattleGroupBStartupModePort、StoredEnemyModes、StartupEnemyModePort，
 以及测试中该敌方镜像操作的模拟回复。
-队员启动仍使用apply_actor_mode，配置函数仍有寄存器结果，相关接口族继续pending。
+当时保留的队员启动apply_actor_mode后续回收见
+[队员启动镜像](battle-startup-party-mirror-0047f900.md)。配置结果及启动父协议继续pending。
 
 ## 验证
 

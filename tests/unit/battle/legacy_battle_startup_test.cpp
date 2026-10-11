@@ -184,9 +184,14 @@ class StartupPorts final
 public:
     std::array<openswd3::battle::LegacyBattleGroupAConfigurationSourceRecord, 4>
         primary_party_sources{};
+    std::optional<u32> unavailable_party_source;
 
     std::span<std::byte>
     party_configuration_source(const u32 index) noexcept override {
+        if (unavailable_party_source == index) {
+            return {};
+        }
+
         return std::as_writable_bytes(
             std::span{primary_party_sources[index].dwords}
         );
@@ -629,6 +634,77 @@ template <typename Range>
 }  // namespace
 
 void test_battle_startup(openswd3::test::Context& test) {
+    for (const u32 party_count : {1U, 4U}) {
+        for (const u32 mirror_mode : {0U, 1U, 2U, 0xFFFFFFFFU}) {
+            for (const bool missing_source : {false, true}) {
+                auto state = std::make_unique<LegacyBattleStartupState>();
+                StartupPorts ports;
+                state->mirror_mode = mirror_mode;
+                ports.definition.enemy_count = 1U;
+                for (u32 index = 0U; index < party_count; ++index) {
+                    ports.query_values[30U + index] = 1U;
+                }
+
+                if (missing_source) {
+                    ports.unavailable_party_source = party_count - 1U;
+                }
+
+                const auto result =
+                    openswd3::battle::initialize_legacy_battle_startup(
+                        *state,
+                        ports,
+                        ports,
+                        ports,
+                        ports,
+                        ports,
+                        ports,
+                        ports.prepare_request(request(14U))
+                    );
+                const auto expected_status = missing_source
+                    ? openswd3::battle::LegacyBattleStartupStatus::
+                          party_configuration_typed_stop
+                    : openswd3::battle::LegacyBattleStartupStatus::completed;
+                bool fields_match = result.status == expected_status &&
+                    result.party_configuration_calls == party_count &&
+                    result.initial_party_actor_count ==
+                        party_count - (missing_source ? 1U : 0U);
+                constexpr std::array<u16, 4> four_party_x{
+                    0x20EU, 0x1F1U, 0x1D0U, 0x24CU
+                };
+
+                constexpr std::array<i32, 4> offset_adjustments{10, 5, 10, -5};
+                for (u32 index = 0U; index < party_count; ++index) {
+                    const u16 initial_x =
+                        party_count == 1U ? 0x20FU : four_party_x[index];
+                    const i32 initial_offset =
+                        static_cast<i32>(initial_x) + offset_adjustments[index];
+                    fields_match = fields_match &&
+                        state->party[index].progress.post_action_value ==
+                            (mirror_mode == 1U ? 1U : 0U) &&
+                        state->party[index].placement_position_x ==
+                            (mirror_mode == 1U
+                                 ? static_cast<u16>(0x280U - initial_x)
+                                 : initial_x) &&
+                        state->party_offsets[index * 2U] ==
+                            (mirror_mode == 1U ? 0x270 - initial_offset
+                                               : initial_offset);
+                }
+
+                test.expect_true(
+                    fields_match &&
+                        (!missing_source ||
+                         (result.party_configurations[party_count - 1U]
+                                  .status ==
+                              openswd3::battle::
+                                  LegacyBattleGroupAConfigurationStatus::
+                                      source_record_typed_stop &&
+                          !result.message_state_published)),
+                    "party startup writes mirror state before coordinate and offset changes and preserves that prefix when configuration lacks its source"
+                );
+            }
+        }
+    }
+
     for (const u16 mode_flag : {u16{0U}, u16{1U}, u16{2U}, u16{0xFFFFU}}) {
         for (const u32 mirror_mode : {0U, 1U, 2U, 0xFFFFFFFFU}) {
             auto state = std::make_unique<LegacyBattleStartupState>();
@@ -3029,8 +3105,6 @@ void test_battle_startup(openswd3::test::Context& test) {
                 (*state.group_b_lifecycle)[1U].runtime_reset.field_2af0 == 0U &&
                 ports.requested_definition_ids ==
                     std::vector<u32>{0x000BU, 0x000CU, 0x0003U, 0x0004U} &&
-                ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
-                    2U &&
                 state.party[2].progress.post_action_value == 0U &&
                 state.party[3].progress.post_action_value == 0U &&
                 state.party[2].progress.scene_identity == 1U &&
@@ -3118,8 +3192,6 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ports.call_count(
                     LegacyBattleStartupCall::reserved_group_a_profile_release
                 ) == 0U &&
-                ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
-                    0U &&
                 state.party[0].progress.post_action_value == 1U &&
                 state.party[1].progress.post_action_value == 1U &&
                 state.party[0].progress.scene_identity == 1U &&
@@ -3200,8 +3272,6 @@ void test_battle_startup(openswd3::test::Context& test) {
                     LegacyBattleStartupCall::
                         reserved_configure_supplemental_actor
                 ) == 0U &&
-                ports.call_count(LegacyBattleStartupCall::apply_actor_mode) ==
-                    0U &&
                 !result.message_state_published,
             "supplemental selector return typed stop suppresses current materialization and remaining startup suffix"
         );
