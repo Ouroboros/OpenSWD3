@@ -967,7 +967,25 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifty() {
     ecx_ = *token;
     edx_ = address.coordinate_edx;
     flags_ = address.coordinate_flags;
-    invoke(LegacyBattleScriptDispatchCall::pending_47f910, *token);
+    if (bindings_.startup.group_b_lifecycle == nullptr) {
+        return stop(
+            LegacyBattleScriptDispatchStatus::group_b_actor_typed_stop,
+            workspace_.cursor
+        );
+    }
+
+    const auto& enemy =
+        (*bindings_.startup
+              .group_b_lifecycle)[static_cast<std::size_t>(signed_word(actor))]
+            .action_execution;
+    if (!enemy.profile_value_read_accessible) {
+        return stop(
+            LegacyBattleScriptDispatchStatus::group_b_actor_typed_stop,
+            workspace_.cursor
+        );
+    }
+
+    eax_ = with_low_word(eax_, enemy.profile_value);
     set_high_word(workspace_.packed_value_a, low_word(eax_));
     const auto first = group_b_token(0);
     if (!first.has_value()) {
