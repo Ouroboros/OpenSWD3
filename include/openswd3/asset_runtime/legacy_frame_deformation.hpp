@@ -78,6 +78,9 @@ public:
     [[nodiscard]] LegacyDeformationStatus
     apply(std::span<compat::u16> framebuffer) const noexcept;
     [[nodiscard]] LegacyDeformationAdvanceResult advance() noexcept;
+    [[nodiscard]] LegacyDeformationInjectionResult inject_at(
+        compat::i32 x, compat::i32 y, compat::i32 radius, compat::i32 strength
+    ) noexcept;
     [[nodiscard]] LegacyDeformationInjectionResult inject(
         compat::i32 x,
         compat::i32 y,

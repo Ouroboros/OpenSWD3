@@ -19,15 +19,20 @@ slot越界只在首次主记录complete读取处typed-stop。参数对象和reso
 
 主记录complete为0时分两类。
 
-### 2.1 animation mode等于1
+### 2.1 共享变形活动标记等于1
 
-先查询argument对象的animation mode并读取一个输出word。
+当前直接读取动作所有者的活动标记，借用同一变形对象和实际画面；
+已删除独立animation_mode副本、对象/画面编号及五类通用变形调用。
+快照、定位、粒子、像素变形和场推进直接执行，失败保留已执行前缀。
+接线与验证状态见[实际对象借用](battle-effect-deformation-borrowing.md)。
+
+随后查询argument对象的animation mode并读取一个输出word。
 
 mode完整EAX等于1时：
 
 1. `0x00458320`与`0x00458333`按原顺序直接组合已关闭的`0x004783B0`：第一处从startup-owned actor读取坐标，第二处从argument对象读取坐标；第二处入口EAX和flags严格继承第一处返回残值，EDX改为第二组X输出token；任一typed-stop只保留已执行前缀并抑制collision与全部效果后缀；
 2. animation counter按signed小于1000时，直接组合已关闭的动画沿线横向命中函数；其返回1时播放固定sample、只OR status低byte的bit0，并把counter写1000；八槽沿线计数与群体效果共用唯一状态，第九槽在子函数首次计数访问处typed-stop并阻断后续sample与surface；
-3. 绑定effect surface；counter原值为0时发布初始位置与固定particle；
+3. 捕获实际画面快照；counter原值为0时发布初始位置并向实际场注入固定粒子；
 4. counter低32位加1；signed达到1000时把共享X写`actor_x-20`、共享Y写actor_y；
 5. 发布后续位置、present与advance；
 6. signed达到1040时complete写1、counter清零。
@@ -45,7 +50,7 @@ mode不等于1时：
 
 B11真实caller回归检查signed配置、两个刷新观察点和最终门发布，core/ASan setup各1/1及SDL链接通过。全部访问与日志见[双门与实时颜色](battle-frame-effect-00453580.md#20-b11双抑制门与当前颜色共用实际存储)。
 
-### 2.2 animation mode不等于1
+### 2.2 共享变形活动标记不等于1
 
 先把source value写主记录、固定字段清零、按global mode发布mode snapshot，再初始化主记录。初始化完整EAX为0时，原程序清的是同槽**备用**152字节记录，不是当前主记录；随后alternate active清零并直接返回1。
 

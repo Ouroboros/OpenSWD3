@@ -399,8 +399,23 @@ LegacyDeformationInjectionResult LegacyDeformationNode::inject(
             wrapping_add(radius, 1)
         );
     }
+
+    return inject_at(x, y, radius, strength);
+}
+
+LegacyDeformationInjectionResult LegacyDeformationNode::inject_at(
+    const i32 x, const i32 y, const i32 radius, const i32 strength
+) noexcept {
+    LegacyDeformationInjectionResult result;
+    if (!geometry_is_usable() || radius < 0) {
+        result.status = LegacyDeformationStatus::invalid_geometry;
+        return result;
+    }
+
     result.resolved_x = x;
     result.resolved_y = y;
+    const i32 width = signed_dimension(state_.field_width);
+    const i32 height = signed_dimension(state_.field_height);
 
     i32 first_x = wrapping_subtract(0, radius);
     i32 first_y = wrapping_subtract(0, radius);

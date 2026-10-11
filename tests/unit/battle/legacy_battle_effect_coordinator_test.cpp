@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 #include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "test.hpp"
+#include "legacy_battle_frame_refresh_fixture.hpp"
 
 #include <algorithm>
 #include <array>
@@ -24,7 +25,7 @@ using openswd3::compat::u32;
 
 constexpr u32 kFeedback = 0x0047F150U;
 
-class EffectCoordinatorPort final
+class EffectCoordinatorPort
     : public openswd3::battle::LegacyBattleEffectCallPort {
 public:
     [[nodiscard]] LegacyBattleEffectCallReply
@@ -277,6 +278,48 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
 
     {
         LegacyBattleEffectCoordinatorState state;
+        class DeformationPort final
+            : public EffectCoordinatorPort,
+              public openswd3::test::LegacyBattleFrameRefreshFixture {};
+
+        DeformationPort port;
+        openswd3::rendering::LegacyFramebuffer framebuffer;
+        auto action = std::make_unique<
+            openswd3::battle::LegacyBattleActionDispatchState>();
+        auto startup =
+            std::make_unique<openswd3::battle::LegacyBattleStartupState>();
+        startup->party[0U].position_x = 200U;
+        startup->party[0U].position_y = 250U;
+        action->deformation_active = true;
+        action->deformation = openswd3::battle::make_legacy_battle_deformation(
+            *std::pmr::get_default_resource()
+        );
+        auto* const original_object = action->deformation.get();
+        port.actor_metric_state().priority_actor_index = 0U;
+        const auto result =
+            run(state,
+                port,
+                framebuffer,
+                0x8000U,
+                0U,
+                startup.get(),
+                nullptr,
+                action.get());
+        test.expect_true(
+            result.status == LegacyBattleEffectCoordinatorStatus::completed &&
+                result.effect_frame_calls == 1U &&
+                action->deformation.get() == original_object &&
+                action->deformation_active &&
+                action->deformation->state().active_field_index == 1U &&
+                action->deformation->field(0U)[50U * 200U + 60U] == 2400 &&
+                state.animation_counter[0U] == 1U &&
+                port.count(0x00430FF0U) == 0U,
+            "production coordinator borrows the action's live deformation and framebuffer without copying ownership"
+        );
+    }
+
+    {
+        LegacyBattleEffectCoordinatorState state;
         const auto* single_primary =
             &static_cast<LegacyBattleEffectFrameState&>(state).primary;
         const auto* group_primary =
@@ -288,10 +331,13 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
             &static_cast<LegacyBattleGroupEffectFrameState&>(state)
                  .animation_collision_counter;
         EffectCoordinatorPort port;
+        openswd3::rendering::LegacyFramebuffer framebuffer;
+        auto action = std::make_unique<
+            openswd3::battle::LegacyBattleActionDispatchState>();
         state.primary[17].complete = 1U;
         const auto single =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 0U, 1U, 0U, 0U, 17U
+                state, port, *action, framebuffer, 0U, 1U, 0U, 0U, 17U
             );
         state.primary[17].complete = 1U;
         const auto group =
@@ -300,7 +346,7 @@ void test_battle_effect_coordinator(openswd3::test::Context& test) {
             );
         const auto stopped =
             openswd3::battle::advance_legacy_battle_effect_frame(
-                state, port, 0U, 1U, 0U, 0U, 18U
+                state, port, *action, framebuffer, 0U, 1U, 0U, 0U, 18U
             );
         test.expect_true(
             single_primary == group_primary &&

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
 #include "openswd3/battle/legacy_battle_actor_base_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_coordinates.hpp"
 #include "openswd3/battle/legacy_battle_actor_effect_resource_slot_write.hpp"
@@ -20,6 +21,7 @@
 #include <array>
 #include <cstddef>
 #include <initializer_list>
+#include <optional>
 
 namespace openswd3::battle {
 
@@ -156,10 +158,6 @@ struct LegacyBattleEffectFrameState
     std::array<compat::u32, kLegacyBattleEffectActorSlotCount>
         animation_counter{};
 
-    compat::u32 animation_mode{};
-    compat::u32 effect_object_token{};
-    compat::u32 target_surface_token{};
-
     compat::u32 resolved_actor_value{};
 
     compat::u32 coordinate_output_x_token{};
@@ -194,6 +192,8 @@ enum class LegacyBattleEffectFrameStatus : compat::u8 {
     effect_shift_group_a_coordinate_publication_typed_stop,
     effect_shift_group_b_coordinate_publication_typed_stop,
     animation_collision_counter_typed_stop,
+    deformation_object_missing,
+    deformation_failed,
     actor_field_26b8_high_bit_set_typed_stop,
     actor_effect_resource_slot_write_typed_stop,
 };
@@ -221,6 +221,7 @@ struct LegacyBattleEffectFrameResult {
         effect_resource_slot_write{};
     LegacyBattleAnimationCollisionResult animation_collision{};
     compat::u32 animation_collision_calls{};
+    std::optional<asset_runtime::LegacyDeformationStatus> deformation_status;
 };
 
 // Typed closure of legacy 0x00459BF0. The source-zero return precedes slot
@@ -243,6 +244,8 @@ advance_legacy_battle_intensity_effect_frame(
 [[nodiscard]] LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
     LegacyBattleEffectFrameState& state,
     LegacyBattleEffectCallPort& port,
+    LegacyBattleActionDispatchState& action,
+    rendering::LegacyFramebuffer& framebuffer,
     compat::u32 actor_index,
     compat::u32 argument_object_token,
     compat::u32 argument_mode_gate,

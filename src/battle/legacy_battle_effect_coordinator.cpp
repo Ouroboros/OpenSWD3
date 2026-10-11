@@ -239,6 +239,8 @@ public:
         const auto child = advance_legacy_battle_effect_frame(
             state_,
             port_,
+            *action_target_owners_.action,
+            framebuffer_,
             actor_token,
             argument_object_token,
             argument_mode_gate,

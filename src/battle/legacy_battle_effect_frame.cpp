@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_effect_frame.hpp"
+#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -14,11 +15,6 @@ using compat::u32;
 
 constexpr u32 kCallQueryAnimationMode = 0x00483840U;
 constexpr u32 kCallPlaySample = 0x00485610U;
-constexpr u32 kCallBindEffectSurface = 0x00430D50U;
-constexpr u32 kCallSetEffectPosition = 0x00430D10U;
-constexpr u32 kCallSetEffectParticle = 0x00430FF0U;
-constexpr u32 kCallPresentEffectSurface = 0x00430D80U;
-constexpr u32 kCallAdvanceEffect = 0x00430EB0U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
 constexpr u32 kCallInitializeRecord = 0x004321E0U;
 constexpr u32 kCallLookupResource = 0x00431760U;
@@ -265,6 +261,8 @@ void clear_alternate(
 LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
     LegacyBattleEffectFrameState& state,
     LegacyBattleEffectCallPort& port,
+    LegacyBattleActionDispatchState& action,
+    rendering::LegacyFramebuffer& framebuffer,
     const u32 actor_index,
     const u32 argument_object_token,
     const u32 argument_mode_gate,
@@ -294,7 +292,7 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
     u32 base_offset = 0U;
 
     if (primary.complete == 0U) {
-        if (state.animation_mode == 1U) {
+        if (action.deformation_active) {
             const auto mode = invoke(
                 port,
                 kCallQueryAnimationMode,
@@ -371,46 +369,65 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                         static_cast<u16>(primary.status_flags | 1U);
                     state.animation_counter[slot_index] = 1000U;
                 }
-                static_cast<void>(invoke(
-                    port,
-                    kCallBindEffectSurface,
-                    {state.effect_object_token, state.target_surface_token}
-                ));
-                if (state.animation_counter[slot_index] == 0U) {
-                    static_cast<void>(invoke(
-                        port,
-                        kCallSetEffectPosition,
-                        {state.effect_object_token,
-                         to_bits(state.shared_x - 80),
-                         to_bits(state.shared_y - 150)}
-                    ));
-                    static_cast<void>(invoke(
-                        port,
-                        kCallSetEffectParticle,
-                        {state.effect_object_token, 100U, 50U, 12U, 200U}
-                    ));
+
+                if (!action.deformation) {
+                    result.status = LegacyBattleEffectFrameStatus::
+                        deformation_object_missing;
+                    return result;
                 }
+
+                result.deformation_status =
+                    action.deformation->capture(framebuffer.physical_pixels());
+                if (*result.deformation_status !=
+                    asset_runtime::LegacyDeformationStatus::ready) {
+                    result.status =
+                        LegacyBattleEffectFrameStatus::deformation_failed;
+                    return result;
+                }
+
+                if (state.animation_counter[slot_index] == 0U) {
+                    static_cast<void>(action.deformation->set_origin(
+                        signed_dword(to_bits(state.shared_x) - 80U),
+                        signed_dword(to_bits(state.shared_y) - 150U)
+                    ));
+                    result.deformation_status =
+                        action.deformation->inject_at(100, 50, 12, 200).status;
+                    if (*result.deformation_status !=
+                        asset_runtime::LegacyDeformationStatus::ready) {
+                        result.status =
+                            LegacyBattleEffectFrameStatus::deformation_failed;
+                        return result;
+                    }
+                }
+
                 state.animation_counter[slot_index] += 1U;
                 if (signed_dword(state.animation_counter[slot_index]) >= 1000) {
                     state.shared_x = signed_word(x) - 20;
                     state.shared_y = signed_word(y);
                 }
-                static_cast<void>(invoke(
-                    port,
-                    kCallSetEffectPosition,
-                    {state.effect_object_token,
-                     to_bits(state.shared_x - 80),
-                     to_bits(state.shared_y - 120)}
+
+                static_cast<void>(action.deformation->set_origin(
+                    signed_dword(to_bits(state.shared_x) - 80U),
+                    signed_dword(to_bits(state.shared_y) - 120U)
                 ));
-                static_cast<void>(invoke(
-                    port,
-                    kCallPresentEffectSurface,
-                    {state.effect_object_token, state.target_surface_token}
-                ));
-                static_cast<void>(invoke(
-                    port, kCallAdvanceEffect, {state.effect_object_token}
-                ));
-                ++result.primary_animation_steps;
+                result.deformation_status =
+                    action.deformation->apply(framebuffer.physical_pixels());
+                if (*result.deformation_status !=
+                    asset_runtime::LegacyDeformationStatus::ready) {
+                    result.status =
+                        LegacyBattleEffectFrameStatus::deformation_failed;
+                    return result;
+                }
+
+                result.deformation_status =
+                    action.deformation->advance().status;
+                if (*result.deformation_status !=
+                    asset_runtime::LegacyDeformationStatus::ready) {
+                    result.status =
+                        LegacyBattleEffectFrameStatus::deformation_failed;
+                    return result;
+                }
+
                 if (signed_dword(state.animation_counter[slot_index]) >= 1040) {
                     primary.complete = 1U;
                     state.animation_counter[slot_index] = 0U;
@@ -430,20 +447,28 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                     )) {
                     return result;
                 }
-                static_cast<void>(invoke(
-                    port,
-                    kCallBindEffectSurface,
-                    {state.effect_object_token, state.target_surface_token}
-                ));
+
+                if (!action.deformation) {
+                    result.status = LegacyBattleEffectFrameStatus::
+                        deformation_object_missing;
+                    return result;
+                }
+
+                result.deformation_status =
+                    action.deformation->capture(framebuffer.physical_pixels());
+                if (*result.deformation_status !=
+                    asset_runtime::LegacyDeformationStatus::ready) {
+                    result.status =
+                        LegacyBattleEffectFrameStatus::deformation_failed;
+                    return result;
+                }
+
                 const i32 counter =
                     signed_dword(state.animation_counter[slot_index]);
                 if (counter % 9 == 0 && counter <= 30) {
-                    static_cast<void>(invoke(
-                        port,
-                        kCallSetEffectPosition,
-                        {state.effect_object_token,
-                         to_bits(static_cast<i32>(signed_word(x)) - 100),
-                         to_bits(static_cast<i32>(signed_word(y)) - 150)}
+                    static_cast<void>(action.deformation->set_origin(
+                        static_cast<i32>(signed_word(x)) - 100,
+                        static_cast<i32>(signed_word(y)) - 150
                     ));
                     if (state.animation_counter[slot_index] == 0U) {
                         static_cast<void>(invoke(
@@ -456,29 +481,45 @@ LegacyBattleEffectFrameResult advance_legacy_battle_effect_frame(
                         invoke(port, kCallRandomBounded, {100U}).eax + 50U;
                     const u32 second =
                         invoke(port, kCallRandomBounded, {80U}).eax + 60U;
-                    static_cast<void>(invoke(
-                        port,
-                        kCallSetEffectParticle,
-                        {state.effect_object_token, second, first, 12U, 200U}
-                    ));
+                    result.deformation_status = action.deformation
+                                                    ->inject_at(
+                                                        signed_dword(second),
+                                                        signed_dword(first),
+                                                        12,
+                                                        200
+                                                    )
+                                                    .status;
+                    if (*result.deformation_status !=
+                        asset_runtime::LegacyDeformationStatus::ready) {
+                        result.status =
+                            LegacyBattleEffectFrameStatus::deformation_failed;
+                        return result;
+                    }
                 }
+
                 state.animation_counter[slot_index] += 1U;
-                static_cast<void>(invoke(
-                    port,
-                    kCallSetEffectPosition,
-                    {state.effect_object_token,
-                     to_bits(static_cast<i32>(signed_word(x)) - 100),
-                     to_bits(static_cast<i32>(signed_word(y)) - 150)}
+                static_cast<void>(action.deformation->set_origin(
+                    static_cast<i32>(signed_word(x)) - 100,
+                    static_cast<i32>(signed_word(y)) - 150
                 ));
-                static_cast<void>(invoke(
-                    port,
-                    kCallPresentEffectSurface,
-                    {state.effect_object_token, state.target_surface_token}
-                ));
-                static_cast<void>(invoke(
-                    port, kCallAdvanceEffect, {state.effect_object_token}
-                ));
-                ++result.primary_animation_steps;
+                result.deformation_status =
+                    action.deformation->apply(framebuffer.physical_pixels());
+                if (*result.deformation_status !=
+                    asset_runtime::LegacyDeformationStatus::ready) {
+                    result.status =
+                        LegacyBattleEffectFrameStatus::deformation_failed;
+                    return result;
+                }
+
+                result.deformation_status =
+                    action.deformation->advance().status;
+                if (*result.deformation_status !=
+                    asset_runtime::LegacyDeformationStatus::ready) {
+                    result.status =
+                        LegacyBattleEffectFrameStatus::deformation_failed;
+                    return result;
+                }
+
                 if (signed_dword(state.animation_counter[slot_index]) >= 100) {
                     state.animation_counter[slot_index] = 0U;
                     primary.status_flags =
