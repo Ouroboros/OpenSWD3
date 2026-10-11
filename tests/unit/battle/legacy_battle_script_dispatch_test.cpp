@@ -1346,12 +1346,40 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
             fixture.write_u16(2U, actor);
             fixture.assets.script[4U] = 0x25U;
             fixture.assets.script[5U] = 0x51U;
+            for (auto& party : fixture.action.group_a_action_execution) {
+                party.overlay_render_enabled = 0x80000000U;
+            }
         };
+
     const auto prepare_group_b = [](Fixture& fixture) {
         fixture.startup.group_b_lifecycle = std::make_shared<std::array<
             openswd3::battle::LegacyBattleActorGroupBElementState,
             openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
+        for (auto& enemy : *fixture.startup.group_b_lifecycle) {
+            enemy.action_execution.overlay_render_enabled = 0xFFFFFFFFU;
+        }
     };
+
+    const auto overlays_match = [](const Fixture& fixture,
+                                   const bool enemy_group) {
+        const bool party_matches = std::ranges::all_of(
+            fixture.action.group_a_action_execution,
+            [enemy_group](const auto& party) {
+                return party.overlay_render_enabled ==
+                    (enemy_group ? 0x80000000U : 0U);
+            }
+
+        );
+        return party_matches &&
+            (!enemy_group ||
+             std::ranges::all_of(
+                 *fixture.startup.group_b_lifecycle, [](const auto& enemy) {
+                     return enemy.action_execution.overlay_render_enabled == 0U;
+                 }
+
+             ));
+    };
+
     const auto seed_current_coordinates =
         [](Fixture& fixture, const u16 x = 100U, const u16 y = 40U) {
             for (auto& actor : fixture.startup.party) {
@@ -1407,26 +1435,21 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 port.count(
                     LegacyBattleScriptDispatchCall::reserved_actor_coordinates
                 ) == 0U &&
-                port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
-                    10U &&
+                overlays_match(fixture, false) &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47d900) ==
                     1U &&
                 port.calls[0U].call ==
                     LegacyBattleScriptDispatchCall::allocate &&
                 port.calls[1U].call ==
-                    LegacyBattleScriptDispatchCall::pending_47c660 &&
-                port.calls[1U].object_token == group_a_base &&
-                port.calls[1U].ecx == group_a_base &&
-                port.calls[11U].call ==
                     LegacyBattleScriptDispatchCall::pending_47d900 &&
-                port.calls[11U].object_token == group_a_base &&
-                port.calls[11U].eax == 0U &&
-                port.calls[11U].ecx == group_a_base &&
-                port.calls[11U].edx == pair_y_token &&
-                port.calls[11U].arguments[0U] == 0x24U &&
-                port.calls[12U].call ==
+                port.calls[1U].object_token == group_a_base &&
+                port.calls[1U].eax == 0U &&
+                port.calls[1U].ecx == group_a_base &&
+                port.calls[1U].edx == pair_y_token &&
+                port.calls[1U].arguments[0U] == 0x24U &&
+                port.calls[2U].call ==
                     LegacyBattleScriptDispatchCall::format_dynamic_text &&
-                port.calls[13U].call ==
+                port.calls[3U].call ==
                     LegacyBattleScriptDispatchCall::finalize_dynamic_text,
             "case two group A directly queries primary coordinates before its ten-actor and selected-actor cleanup"
         );
@@ -1462,19 +1485,12 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 command_word(fixture, 0x20U) == 0x789AU &&
                 fixture.workspace.pair_x == 0x3456U &&
                 fixture.workspace.pair_y == 0x789AU &&
-                port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
-                    8U &&
+                overlays_match(fixture, true) &&
                 port.count(LegacyBattleScriptDispatchCall::pending_47d900) ==
                     0U &&
-                port.calls[1U].object_token == group_b_base &&
-                port.calls[1U].ecx == group_b_base &&
-                port.calls[1U].eax == 0x789AU &&
-                port.calls[1U].edx == pair_x_token &&
-                port.calls[8U].object_token ==
-                    group_b_base + 7U * group_b_stride &&
-                port.calls[9U].call ==
+                port.calls[1U].call ==
                     LegacyBattleScriptDispatchCall::format_dynamic_text &&
-                port.calls[10U].call ==
+                port.calls[2U].call ==
                     LegacyBattleScriptDispatchCall::finalize_dynamic_text,
             "case two group B directly queries alternate coordinates then cleans exactly eight actors"
         );
@@ -1503,14 +1519,13 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                     LegacyBattleScriptDispatchCall::format_dynamic_text &&
                 port.calls[2U].call ==
                     LegacyBattleScriptDispatchCall::finalize_dynamic_text &&
+                overlays_match(fixture, false) &&
                 port.calls[3U].call ==
-                    LegacyBattleScriptDispatchCall::pending_47c660 &&
-                port.calls[13U].call ==
                     LegacyBattleScriptDispatchCall::pending_47d900 &&
-                port.calls[13U].eax == 0U &&
-                port.calls[13U].ecx == group_a_base &&
-                port.calls[13U].edx == pair_y_token &&
-                port.calls[13U].arguments[0U] == 0x24U,
+                port.calls[3U].eax == 0U &&
+                port.calls[3U].ecx == group_a_base &&
+                port.calls[3U].edx == pair_y_token &&
+                port.calls[3U].arguments[0U] == 0x24U,
             "case forty four group A commits text before the coordinate query and group cleanup"
         );
     }
@@ -1535,17 +1550,7 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                 command_word(fixture, 0x1EU) == 40U &&
                 command_word(fixture, 0x20U) == 50U &&
                 fixture.workspace.pair_x == 0U &&
-                fixture.workspace.pair_y == 0U &&
-                port.count(LegacyBattleScriptDispatchCall::pending_47c660) ==
-                    29U &&
-                port.calls[3U].call ==
-                    LegacyBattleScriptDispatchCall::pending_47c660 &&
-                port.calls[3U].object_token ==
-                    group_b_base + 2U * group_b_stride &&
-                port.calls[3U].arguments[0U] == 1U &&
-                port.calls[3U].eax == 2U && port.calls[3U].edx == 2U * 1381U &&
-                port.calls[4U].object_token == group_b_base &&
-                port.calls[4U].arguments[0U] == 0U,
+                fixture.workspace.pair_y == 0U && overlays_match(fixture, true),
             "case forty four group B cleans the selected actor with one before the eight zero-argument calls"
         );
     }
@@ -1589,22 +1594,18 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                     LegacyBattleScriptDispatchCall::
                         reserved_actor_base_coordinates
                 ) == 0U &&
+                overlays_match(fixture, false) &&
                 port.calls[1U].call ==
-                    LegacyBattleScriptDispatchCall::pending_47c660 &&
-                port.calls[1U].object_token == group_a_base &&
-                port.calls[10U].object_token ==
-                    group_a_base + 9U * group_a_stride &&
-                port.calls[11U].call ==
                     LegacyBattleScriptDispatchCall::pending_47d900 &&
-                port.calls[11U].arguments[0U] == 0x24U &&
-                port.calls[12U].call ==
+                port.calls[1U].arguments[0U] == 0x24U &&
+                port.calls[2U].call ==
                     LegacyBattleScriptDispatchCall::format_dynamic_text &&
-                port.calls[12U].argument_count == 5U &&
-                port.calls[12U].arguments[1U] == 0x0053CE3CU &&
-                port.calls[12U].arguments[2U] == 0x00010000U &&
-                port.calls[12U].arguments[3U] == 0xFFFFFFFEU &&
-                port.calls[12U].arguments[4U] == 0x00007FFFU &&
-                port.calls[13U].call ==
+                port.calls[2U].argument_count == 5U &&
+                port.calls[2U].arguments[1U] == 0x0053CE3CU &&
+                port.calls[2U].arguments[2U] == 0x00010000U &&
+                port.calls[2U].arguments[3U] == 0xFFFFFFFEU &&
+                port.calls[2U].arguments[4U] == 0x00007FFFU &&
+                port.calls[3U].call ==
                     LegacyBattleScriptDispatchCall::finalize_dynamic_text,
             "case fifty nine group A directly applies base coordinates before cleanup"
         );
@@ -1651,19 +1652,15 @@ void test_battle_script_actor_coordinate_calls(openswd3::test::Context& test) {
                     LegacyBattleScriptDispatchCall::
                         reserved_actor_base_coordinates
                 ) == 0U &&
+                overlays_match(fixture, true) &&
                 port.calls[1U].call ==
-                    LegacyBattleScriptDispatchCall::pending_47c660 &&
-                port.calls[1U].object_token == group_b_base &&
-                port.calls[8U].object_token ==
-                    group_b_base + 7U * group_b_stride &&
-                port.calls[9U].call ==
                     LegacyBattleScriptDispatchCall::format_dynamic_text &&
-                port.calls[9U].argument_count == 5U &&
-                port.calls[9U].arguments[1U] == 0x0053CE3CU &&
-                port.calls[9U].arguments[2U] == 0x00010000U &&
-                port.calls[9U].arguments[3U] == 80U &&
-                port.calls[9U].arguments[4U] == 85U &&
-                port.calls[10U].call ==
+                port.calls[1U].argument_count == 5U &&
+                port.calls[1U].arguments[1U] == 0x0053CE3CU &&
+                port.calls[1U].arguments[2U] == 0x00010000U &&
+                port.calls[1U].arguments[3U] == 80U &&
+                port.calls[1U].arguments[4U] == 85U &&
+                port.calls[2U].call ==
                     LegacyBattleScriptDispatchCall::finalize_dynamic_text,
             "case fifty nine group B directly applies base coordinates before cleanup"
         );
@@ -6590,15 +6587,10 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
         fixture->write_u16(2U, 8U);
         port.typed_stop_enabled = true;
         port.typed_stop_call = LegacyBattleScriptDispatchCall::pending_47d900;
-        port.after_call =
-            [](LegacyBattleScriptWorkspace& workspace,
-               LegacyBattleScriptDispatchBindings&,
-               const LegacyBattleScriptDispatchCallRequest& request) {
-                if (request.call ==
-                    LegacyBattleScriptDispatchCall::pending_47c660) {
-                    workspace.packed_actor_state = 0x00030000U;
-                }
-            };
+        for (auto& party : fixture->action.group_a_action_execution) {
+            party.overlay_render_enabled = 0xFFFFFFFFU;
+        }
+
         const auto result = openswd3::battle::run_legacy_battle_script_dispatch(
             fixture->workspace, fixture->bindings(), port
         );
@@ -6609,13 +6601,21 @@ void test_battle_script_dispatch(openswd3::test::Context& test) {
                         script_page_load_typed_stop &&
                 selected.call ==
                     LegacyBattleScriptDispatchCall::pending_47d900 &&
-                selected.object_token == 0x004F3DCCU &&
-                selected.eax == 0xFFFFEC55U && selected.ecx == 0x004F3DCCU &&
-                selected.flags.carry && selected.flags.sign &&
-                selected.flags.parity && selected.flags.auxiliary_carry &&
-                !selected.flags.zero && !selected.flags.overflow &&
+                selected.object_token == 0x005029D0U && selected.eax == 0U &&
+                selected.ecx == 0x005029D0U && !selected.flags.carry &&
+                !selected.flags.sign && selected.flags.parity &&
+                !selected.flags.auxiliary_carry && selected.flags.zero &&
+                !selected.flags.overflow &&
+                fixture->workspace.packed_actor_state == 0x00080000U &&
+                std::ranges::all_of(
+                    fixture->action.group_a_action_execution,
+                    [](const auto& party) {
+                        return party.overlay_render_enabled == 0U;
+                    }
+
+                ) &&
                 fixture->workspace.cursor == 0U,
-            "selected cleanup rereads the actor without changing the already chosen group A address formula"
+            "overlay clearing leaves the actor selector unchanged and commits before the following selection operation fails"
         );
     }
 

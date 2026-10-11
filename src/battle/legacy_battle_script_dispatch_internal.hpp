@@ -686,15 +686,6 @@ private:
         return false;
     }
 
-    void prepare_selected_actor_cleanup_call(const u16 actor) noexcept {
-        const auto address = script_actor_address(actor);
-        eax_ = address.selected_call_eax;
-        ecx_ = address.token;
-        if (actor <= 7U) {
-            edx_ = address.coordinate_eax;
-        }
-    }
-
     [[nodiscard]] bool query_actor_base_coordinates(const u16 actor) {
         const auto address = script_actor_address(actor);
         eax_ = address.selected_call_eax;
@@ -735,22 +726,11 @@ private:
     [[nodiscard]] bool initialize_dynamic_text_actor_group(
         const u16 actor, const bool group_b_selected_cleanup
     ) {
-        const auto address = script_actor_address(actor);
         if (actor > 7U) {
-            for (i32 index = 0; index < 10; ++index) {
-                const auto current = group_a_token(index + 8);
-                if (!current.has_value()) {
-                    return false;
-                }
-                ecx_ = *current;
-                if (!invoke(
-                        LegacyBattleScriptDispatchCall::pending_47c660,
-                        *current,
-                        {0U}
-                    )) {
-                    return false;
-                }
+            for (auto& party : bindings_.action.group_a_action_execution) {
+                party.overlay_render_enabled = 0U;
             }
+
             const auto selected = script_group_a_address(
                 high_word(workspace_.packed_actor_state)
             );
@@ -764,30 +744,15 @@ private:
             );
         }
 
+        auto& enemies = *bindings_.startup.group_b_lifecycle;
         if (group_b_selected_cleanup) {
-            prepare_selected_actor_cleanup_call(actor);
-            if (!invoke(
-                    LegacyBattleScriptDispatchCall::pending_47c660,
-                    address.token,
-                    {1U}
-                )) {
-                return false;
-            }
+            enemies[actor].action_execution.overlay_render_enabled = 1U;
         }
-        for (i32 index = 0; index < 8; ++index) {
-            const auto current = group_b_token(index);
-            if (!current.has_value()) {
-                return false;
-            }
-            ecx_ = *current;
-            if (!invoke(
-                    LegacyBattleScriptDispatchCall::pending_47c660,
-                    *current,
-                    {0U}
-                )) {
-                return false;
-            }
+
+        for (auto& enemy : enemies) {
+            enemy.action_execution.overlay_render_enabled = 0U;
         }
+
         return true;
     }
 
