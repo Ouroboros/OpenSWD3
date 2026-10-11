@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "b68207c4a87d5ccdf47fecb56e49d82ea919d94b",
+  "last_reviewed_source_revision": "cc5b90bddd8a714fa0b2e77b5e26fd2d391d73af",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -34,6 +34,22 @@
         "build/tmp/runtime/world-music-without-port-asan.log"
       ],
       "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
+    },
+    "battle/legacy_battle_actor_display_kind": {
+      "status": "verified",
+      "verification_commit": "cc5b90bddd8a714fa0b2e77b5e26fd2d391d73af",
+      "files": [
+        "include/openswd3/battle/legacy_battle_actor_display_kind.hpp",
+        "src/battle/legacy_battle_actor_display_kind.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-display-kind-004786c0.md",
+      "validation_logs": [
+        "build/tmp/runtime/display-kind-direct-core.log",
+        "build/tmp/runtime/display-kind-direct-callers-core.log",
+        "build/tmp/runtime/display-kind-direct-asan.log",
+        "build/tmp/runtime/display-kind-direct-callers-asan.log"
+      ],
+      "reason": "唯一调用直接读取队员实际显示WORD，返回状态及可选读值，删除查询编号、token解析、寄存器请求回复、模拟栈和计数；保留原完整值与读取/返回失败前缀，并按LST纠正动作零时显示非零走默认尾返回0，不按显示值执行动作；六份源码测试身份、core/ASan setup及角色帧各1/1和SDL实际链接已核验；父级协议、资源及实际游戏仍待迁移验收"
     },
     "battle/legacy_battle_actor_start_gate": {
       "status": "verified",
@@ -159,9 +175,9 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "b68207c4",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-004786d0.md",
-      "reason": "队列、目标与启动标记使用实际共享数据；启动计数查询上下文改为访问描述，结果改为可选实际值并删除查询计数；此前递增沿用实际字段；其他动作仍有callee编号、参数数组、寄存器请求回复、轨迹、计数与Port，整项继续pending"
+      "last_reviewed_commit": "cc5b90bd",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-display-kind-004786c0.md",
+      "reason": "队列、目标与启动字段沿用实际共享数据；显示种类查询直接读取队员WORD并返回可选值，删除其寄存器请求回复与计数，按LST纠正动作零时显示非零返回0且不触发其它动作；其余动作、终态仍有callee编号、参数数组、寄存器请求回复、轨迹、计数与Port及资源缺口，整项继续pending"
     },
     "battle/legacy_battle_debug_overlay": {
       "status": "pending",
