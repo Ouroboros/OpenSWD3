@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "39ca432f23bd84ee18818b1452a8da644f696929",
+  "last_reviewed_source_revision": "13509965d92ca051185da0ce7ce42e45d78f3b97",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -34,6 +34,22 @@
         "build/tmp/runtime/world-music-without-port-asan.log"
       ],
       "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
+    },
+    "battle/legacy_battle_actor_idle_state": {
+      "status": "verified",
+      "verification_commit": "13509965d92ca051185da0ce7ce42e45d78f3b97",
+      "files": [
+        "include/openswd3/battle/legacy_battle_actor_idle_state.hpp",
+        "src/battle/legacy_battle_actor_idle_state.cpp"
+      ],
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-idle-state-004786a0.md",
+      "validation_logs": [
+        "build/tmp/runtime/idle-state-direct-core.log",
+        "build/tmp/runtime/idle-state-direct-callers-core.log",
+        "build/tmp/runtime/idle-state-direct-asan.log",
+        "build/tmp/runtime/idle-state-direct-callers-asan.log"
+      ],
+      "reason": "双方帧七处查询直接借实际空闲DWORD并返回状态和可选值；删除查询编号、解析、寄存器请求回复、模拟栈、计数及转发，保留完整数值、零/精确1比较、即时重读及字段/RET失败前缀；八份源码测试身份、core/ASan两类测试各1/1和SDL链接通过，父级其余协议、入口值与资源仍待迁移"
     },
     "battle/legacy_battle_actor_action_kind": {
       "status": "verified",
@@ -269,15 +285,15 @@
     },
     "battle/legacy_battle_group_a_frame": {
       "status": "pending",
-      "last_reviewed_commit": "b68207c4",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-004786d0.md",
-      "reason": "直接借当前队员启动WORD并按原完整非零及门值精确1选择显示参数，失败保留原高EAX与观察值且抑制显示；已迁移递增、队列、数字和目标操作沿用共享字段；其他角色帧通用操作、参数包、寄存器结果、计数与Port以及资源、完整内存别名仍未闭合，整项继续pending"
+      "last_reviewed_commit": "13509965",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-idle-state-004786a0.md",
+      "reason": "启动、扫描、直接空闲及选定目标四处查询直接借当前队员空闲DWORD，删除其协议、计数与转发，保留完整数值、原比较与字段/RET失败前缀；既有启动、递增、队列、数字和目标操作沿用共享字段；其余角色帧操作编号、参数包、寄存器结果、计数、Port、资源与完整内存别名仍待迁移，整项继续pending"
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",
-      "last_reviewed_commit": "b68207c4",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-004786d0.md",
-      "reason": "公共尾在前驱执行后直接读取敌人共享启动WORD，保留门值精确1、实时改写、字段不可用及读/RET失败前缀；已迁移递增、队列、数字和目标操作沿用共享字段；其他对手帧通用操作、参数包、寄存器请求回复、计数及Port仍在，完整SDL角色帧与实际游戏仍未验收"
+      "last_reviewed_commit": "13509965",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-idle-state-004786a0.md",
+      "reason": "扫描、选择与动作决定三处查询直接借敌方实际空闲DWORD，删除其协议、解析、计数及转发，保留即时重读、完整值和失败前缀；父级仍保留两处失败入口EAX及后续目标接口消费的EDX，其余操作编号、参数包、寄存器请求回复、计数、Port及资源待迁移，完整SDL帧与实际游戏仍未验收"
     },
     "battle/legacy_battle_transition": {
       "status": "pending",
