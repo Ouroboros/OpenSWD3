@@ -41,6 +41,10 @@
 两站按实际profile属性置1、假保留，行动完成清同一字段。
 450次新帧中432次各调用本消费者，验证精确1群体/非1单体的实际分流，见
 [敌人帧共享属性](battle-enemy-frame-coordinate-attribute-0047d880.md)。
+后续c6fff61c将敌人帧53BD7C计数副本回收到本协调器completion_target_count。
+父的六处访问、45CDCC/45CF7B/45D0F3读取和实际global reset共用同一字段；
+432次真实群体/单体消费到达精确计数比较，计数1完成、其它值保留成功前缀，见
+[敌人帧效果目标数量](battle-enemy-frame-target-count-0047d8d0.md)。
 其它效果请求、寄存器、计数、Port及完整生产运行仍pending。
 
 - global gate为零、效果mode不为1时，side决定单体效果目标组。目标组B只发布pair高word，成功反馈可全屏填充但不发布组A dirty latch。目标组A发布pair低word，并依次保留对象复制、反馈、配对、最终角色查询、焦点release判定和奖励行调用。

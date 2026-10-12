@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "43c7652e975a046ea573fdfc5d5b3a221f07295c",
+  "last_reviewed_source_revision": "c6fff61c4b1c86b999cf6173c5cb7505adb3332a",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -410,9 +410,9 @@
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",
-      "last_reviewed_commit": "43c7652e",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-enemy-frame-coordinate-attribute-0047d880.md",
-      "reason": "敌人帧两站读保存敌人的实际profile BYTEbit1，真写共享群体效果标记、假保留，真实完成清同一字段；删除叶编号/参数包/回复和帧影子，必要语义引用同步全部现有调用方，两次状态读取按原指令实时重读。450次新帧、432次真实效果消费与缓存唯一变化的四项红测验证保存对象、共享数据、顺序和实际衰减失败前缀；两core/两ASan定向门及SDL链接通过。此前实际物品分配/MON、步长2到8、叠加与共享字段继续有效；其余属性、actor-ready八槽、profile重叠别名、编号/参数包/寄存器/轨迹/计数/Port/资源、完整父出口与SDL生产帧接线仍未验收，整项保持pending"
+      "last_reviewed_commit": "c6fff61c",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-enemy-frame-target-count-0047d8d0.md",
+      "reason": "敌人帧两站直接读保存敌人实际profile BYTEbit0，真置目标扫描门并清实际效果目标数量，假保持前继值；普通真分支跳选择、标记真分支继续选择。删除叶编号/参数包/回复与phase_progress重复状态，六处计数访问和真实效果消费者共用同一协调器字段，必要引用同步全部调用方。450次新帧、432次真实计数比较和450次bit1同步验证保存对象、前继重读、DWORD/signed处理与实际衰减失败保留；两core/两ASan定向门、SDL链接和七源审查通过。此前共享群体marker、实际物品/MON、步长、叠加等迁移继续有效。菜单属性四/四/四、actor-ready八槽、profile重叠及reset字节像别名、父编号/参数包/寄存器/轨迹/计数/Port/资源、全部出口与SDL生产帧仍未验收，整项保持pending"
     },
     "battle/legacy_battle_transition": {
       "status": "pending",
@@ -655,7 +655,7 @@
       "status": "pending",
       "last_reviewed_commit": "be9645e4",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-script-party-target-selection-block-0047d8d0.md",
-      "reason": "脚本23读实际属性bit0并写真实共享目标限制，删除47D8D0操作/回包/纯叶停止和脚本影子，全部bindings借同一输入持有者；270次新执行与406次同步执行验证真实输入判断、原序和失败前缀，core/ASan setup及actor_frame_316、SDL通过。既有实际profile、坐标属性、动作分支、共享库存、参数、镜像、步长、叠加和变体保留。其余六个47D8D0/四个47D880/四个47D8B0父点、源资源、读取前缀、状态影子、共享别名、原地址保护、其他操作枚举、参数包、寄存器报告、轨迹、计数、Port和资源协议仍在，父链继续pending"
+      "reason": "脚本23读实际属性bit0并写真实共享目标限制，删除47D8D0操作/回包/纯叶停止和脚本影子，全部bindings借同一输入持有者；270次新执行与406次同步执行验证真实输入判断、原序和失败前缀，core/ASan setup及actor_frame_316、SDL通过。既有实际profile、坐标属性、动作分支、共享库存、参数、镜像、步长、叠加和变体保留。其余四个47D8D0/四个47D880/四个47D8B0父点、源资源、读取前缀、状态影子、共享别名、原地址保护、其他操作枚举、参数包、寄存器报告、轨迹、计数、Port和资源协议仍在，父链继续pending"
     },
     "battle/legacy_battle_selection_hint_frame": {
       "status": "pending",

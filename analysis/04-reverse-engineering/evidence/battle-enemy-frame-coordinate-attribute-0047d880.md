@@ -86,8 +86,11 @@ build/tmp/runtime/enemy-frame-coordinate-attribute-*。
 
 ## 5. 未完成范围
 
-当前剩余四个47D880、六个47D8D0、四个47D8B0父点。
-独立bit0、actor-ready八槽、父编号/参数包/寄存器/轨迹/计数/Port、
+后续c6fff61c回收两个敌人bit0父点，并将父目标计数与实际效果消费统一，见
+[效果目标数量属性](battle-enemy-frame-target-count-0047d8d0.md)。
+原450次bit1执行同步，纯叶bit0观察站和回复撤回，改观察真实最终数据。
+当前剩余四个47D880、四个47D8D0、四个47D8B0菜单父点。
+actor-ready八槽、父编号/参数包/寄存器/轨迹/计数/Port、
 资源生命周期、共享别名、完整父逐出口和生产帧接线仍pending。
 没有原版差分、Windows、完整SDL运行或全量UT验收。
 不关闭Workpack316/B11或全项目Goal。
