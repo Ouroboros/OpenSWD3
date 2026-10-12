@@ -1167,9 +1167,9 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_three() {
     const i32 actor = workspace_.value_b;
     i32 candidate = workspace_.value_c;
     if (actor > 7) {
-        bindings_.shared.selected_target =
-            bindings_.final_actor.queued_actor_code;
-        bindings_.final_actor.queued_actor_code = static_cast<u32>(actor);
+        workspace_.coordinate_x =
+            std::bit_cast<i32>(bindings_.final_actor.queued_actor_code);
+        bindings_.final_actor.secondary_actor_code = static_cast<u32>(actor);
         i32 published = candidate;
         if (candidate > 7) {
             edx_ = static_cast<u32>(actor * 5 - 40);
@@ -1183,8 +1183,9 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_three() {
                 );
             }
             bindings_.startup.reset
-                .block_520e90[static_cast<std::size_t>(index)] = 1U;
+                .block_520e90[static_cast<std::size_t>(index) * 5U] = 1U;
         }
+
         ++published;
         bindings_.final_actor.published_actor_code =
             static_cast<u32>(published);
@@ -1195,27 +1196,69 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_three() {
         if (!set_actor_availability_block(actor, *token, 1U)) {
             return finish(eax_);
         }
-        invoke(
-            LegacyBattleScriptDispatchCall::pending_4707b0,
-            *token,
-            {static_cast<u32>(candidate)}
-        );
-        invoke(LegacyBattleScriptDispatchCall::pending_47d8b0, *token);
-        const i32 actor_index = actor - 8;
-        if (actor_index < 0 || actor_index >= 10) {
-            return stop(
-                LegacyBattleScriptDispatchStatus::shared_state_typed_stop,
-                static_cast<u32>(actor_index)
-            );
+
+        const u32 source_actor = bindings_.final_actor.secondary_actor_code;
+        const auto source_token =
+            group_a_token(std::bit_cast<i32>(source_actor));
+        if (!source_token.has_value()) {
+            return finish(eax_);
         }
-        bindings_.startup.reset
-            .block_520e90[static_cast<std::size_t>(actor_index) + 3U] =
+
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::pending_4707b0,
+                *source_token,
+                {std::bit_cast<u32>(workspace_.value_a),
+                 0x004FE5D4U + (source_actor - 8U) * 4U}
+            )) {
+            return finish(eax_);
+        }
+
+        const u32 saved_actor = bindings_.final_actor.secondary_actor_code;
+        const auto saved_token = group_a_token(std::bit_cast<i32>(saved_actor));
+        if (!saved_token.has_value()) {
+            return finish(eax_);
+        }
+
+        const auto actor_index = static_cast<std::size_t>(saved_actor - 8U);
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::pending_47d8b0, *saved_token
+            )) {
+            return finish(eax_);
+        }
+
+        bindings_.startup.reset.block_520e90[actor_index * 5U + 3U] =
             low_word(eax_);
-        invoke(LegacyBattleScriptDispatchCall::pending_47d880, *token);
-        if (eax_ != 0U) {
+        const bool suppress_coordinates =
+            (bindings_.action.group_a_action_execution[actor_index]
+                 .special_particle_coordinate_suppression &
+             2U) != 0U;
+        if (suppress_coordinates) {
             bindings_.input_dispatch.selection_target_cache = 1U;
+            const u32 row =
+                (bindings_.final_actor.secondary_actor_code - 8U) * 5U + 2U;
+            if (row >= bindings_.startup.reset.block_520e90.size()) {
+                return stop(
+                    LegacyBattleScriptDispatchStatus::shared_state_typed_stop,
+                    row
+                );
+            }
+
+            bindings_.startup.reset.block_520e90[row] = 1U;
         }
-        invoke(LegacyBattleScriptDispatchCall::pending_47d8d0, *token);
+
+        const auto live_token = group_a_token(
+            std::bit_cast<i32>(bindings_.final_actor.secondary_actor_code)
+        );
+        if (!live_token.has_value()) {
+            return finish(eax_);
+        }
+
+        if (!invoke(
+                LegacyBattleScriptDispatchCall::pending_47d8d0, *live_token
+            )) {
+            return finish(eax_);
+        }
+
         if (eax_ != 0U) {
             bindings_.shared.target_selection_block = 1U;
         }
