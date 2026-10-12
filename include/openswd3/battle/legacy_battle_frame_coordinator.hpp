@@ -143,7 +143,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     selection_hint_query_actor_label,
     selection_hint_configure_font_width,
     selection_hint_draw_text,
-    selection_hint_query_metric_source,
     reserved_selection_hint_fixed_count_lookup_slot,
     selection_hint_query_metric_pair,
     reserved_selection_hint_query_fade_width_slot,
@@ -807,10 +806,7 @@ public:
         case LegacyBattleSelectionHintFrameCall::draw_text:
             call = LegacyBattleFrameCoordinatorCall::selection_hint_draw_text;
             break;
-        case LegacyBattleSelectionHintFrameCall::query_metric_source:
-            call = LegacyBattleFrameCoordinatorCall::
-                selection_hint_query_metric_source;
-            break;
+
         case LegacyBattleSelectionHintFrameCall::query_metric_pair:
             call = LegacyBattleFrameCoordinatorCall::
                 selection_hint_query_metric_pair;

@@ -1411,10 +1411,11 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             .selection_hint_replies
                 [LegacyBattleSelectionHintFrameCall::configure_font_width]
             .push_back({});
-        fixture.port
-            .selection_hint_replies
-                [LegacyBattleSelectionHintFrameCall::query_metric_source]
-            .push_back({.eax = 0x900U});
+        fixture.startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
+        (*fixture.startup.group_b_lifecycle)[7U]
+            .action_execution.profile_value = 0x900U;
         fixture.port.object_words[0U][1U] = (9U << 16U) | 0x900U;
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(

@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <map>
 #include <ranges>
 #include <vector>
@@ -95,6 +96,10 @@ public:
     [[nodiscard]] Reply
     invoke_selection_hint_frame(const Request& request) override {
         calls.push_back(request);
+        if (on_call) {
+            on_call(request);
+        }
+
         auto& index = reply_indices[request.call];
         const auto found = replies.find(request.call);
         if (found == replies.end() || index >= found->second.size()) {
@@ -114,6 +119,7 @@ public:
     }
 
     std::vector<Request> calls;
+    std::function<void(const Request&)> on_call;
     std::map<Call, std::vector<Reply>> replies;
     std::map<Call, std::size_t> reply_indices;
 };
@@ -121,6 +127,9 @@ public:
 struct Fixture {
     Fixture() : raster(framebuffer.geometry()), action_updater(action_streams) {
         party_source.fill(0U);
+        startup.group_b_lifecycle = std::make_shared<std::array<
+            openswd3::battle::LegacyBattleActorGroupBElementState,
+            8>>();
         shared_request.target_height = 3;
         shared_request.opacity_step = 15;
     }
@@ -211,13 +220,317 @@ void prepare_label_and_metric(Fixture& fixture, const u32 metric) {
     fixture.port.reply(Call::configure_font_width, {});
     fixture.port.reply(Call::draw_text, {});
     fixture.port.reply(Call::configure_font_width, {});
-    fixture.port.reply(Call::query_metric_source, {.eax = 0x900U});
+    (*fixture.startup.group_b_lifecycle)[fixture.published_actor_code - 1U]
+        .action_execution.profile_value = 0x900U;
     fixture.port.object_words[0U][1U] = (metric << 16U) | 0x900U;
+}
+
+void test_enemy_profile_reads(openswd3::test::Context& test) {
+    using Status = openswd3::battle::LegacyBattleSelectionHintFrameStatus;
+    using Path = openswd3::battle::LegacyBattleFixedCountPath;
+    constexpr std::array<u16, 7> profiles{
+        0U, 1U, 0x001CU, 0x7FFFU, 0x8000U, 0xBEEFU, 0xFFFFU
+    };
+
+    for (u32 selected = 1U; selected <= 8U; ++selected) {
+        for (const u16 profile : profiles) {
+            Fixture fixture;
+            fixture.published_actor_code = selected;
+            prepare_label_and_metric(fixture, 9U);
+            for (u32 index = 0U; index < 8U; ++index) {
+                auto& actor = (*fixture.startup.group_b_lifecycle)[index]
+                                  .action_execution;
+                actor.profile_value = static_cast<u16>(0x3300U + index);
+                actor.profile_value_read_accessible = index == selected - 1U;
+            }
+
+            (*fixture.startup.group_b_lifecycle)[selected - 1U]
+                .action_execution.profile_value = profile;
+            fixture.port.object_words[0U][1U] = (9U << 16U) | profile;
+            const auto root_before = fixture.port.object_words;
+            const auto result =
+                openswd3::battle::draw_legacy_battle_selection_hint_frame(
+                    fixture.bindings(), fixture.port, request()
+                );
+            bool actors_unchanged = true;
+            for (u32 index = 0U; index < 8U; ++index) {
+                const auto& actor = (*fixture.startup.group_b_lifecycle)[index]
+                                        .action_execution;
+                actors_unchanged = actors_unchanged &&
+                    actor.profile_value ==
+                        (index == selected - 1U
+                             ? profile
+                             : static_cast<u16>(0x3300U + index)) &&
+                    actor.profile_value_read_accessible ==
+                        (index == selected - 1U);
+            }
+
+            test.expect_true(
+                result.status == Status::completed && result.label_drawn &&
+                    result.actor_code == selected &&
+                    result.metric_value == 9U &&
+                    result.fixed_count_lookup.path == Path::existing_root &&
+                    result.return_eax == 9U &&
+                    result.return_ecx ==
+                        openswd3::battle::kLegacyBattleFixedCountOwnerToken &&
+                    result.return_edx == profile && !result.metric_text_drawn &&
+                    !result.fade_drawn &&
+                    fixture.port.object_words == root_before &&
+                    fixture.port.fixed_count_nodes.empty() && actors_unchanged,
+                "enemy hint reads the selected actual unsigned profile WORD after the name prefix without changing actors or count storage"
+            );
+        }
+    }
+
+    constexpr std::array<u16, 6> quantities{0U, 9U, 10U, 14U, 15U, 0xFFFFU};
+    for (const u16 quantity : quantities) {
+        for (u32 storage = 0U; storage < 3U; ++storage) {
+            Fixture fixture;
+            prepare_label_and_metric(fixture, quantity);
+            auto& actor =
+                (*fixture.startup.group_b_lifecycle)[1U].action_execution;
+            actor.profile_value = 0xBEEFU;
+            if (storage == 0U) {
+                fixture.port.object_words[0U][1U] =
+                    (static_cast<u32>(quantity) << 16U) | 0xBEEFU;
+            } else {
+                fixture.port.object_words[0U][1U] = 0U;
+                const auto inserted =
+                    openswd3::battle::accumulate_legacy_battle_fixed_count(
+                        fixture.port, storage == 1U ? 0xBEEFU : 0x1234U, 1U
+                    );
+                test.expect_true(
+                    inserted.path == Path::allocated_node,
+                    "hint threshold fixture owns an actual allocated count node"
+                );
+                fixture.port.fixed_count_nodes.back().words[1U] =
+                    (static_cast<u32>(quantity) << 16U) |
+                    (storage == 1U ? 0xBEEFU : 0x1234U);
+            }
+
+            fixture.port.reply(
+                Call::query_metric_pair,
+                {.metric_current = 12U, .metric_limit = 34U}
+            );
+            fixture.port.reply(Call::draw_text, {});
+            fixture.startup.enemies[1U].progress.progress = 291U;
+            fixture.port.reply(Call::query_fade_color, {.eax = 0xA5A51234U});
+            const auto root_before = fixture.port.object_words;
+            const auto result =
+                openswd3::battle::draw_legacy_battle_selection_hint_frame(
+                    fixture.bindings(), fixture.port, request()
+                );
+            const u16 observed = storage == 2U ? 0U : quantity;
+            test.expect_true(
+                result.status == Status::completed &&
+                    result.metric_value == observed &&
+                    result.fixed_count_lookup.path ==
+                        (storage == 0U       ? Path::existing_root
+                             : storage == 1U ? Path::existing_node
+                                             : Path::none) &&
+                    result.metric_text_drawn == (observed >= 10U) &&
+                    result.fade_drawn == (observed >= 15U) &&
+                    result.fade_width == (observed >= 15U ? 20U : 0U) &&
+                    fixture.port.object_words == root_before &&
+                    fixture.port.fixed_count_nodes.size() ==
+                        (storage == 0U ? 0U : 1U),
+                "hint actual root, owned node and missing key preserve unsigned ten and fifteen thresholds including FFFF"
+            );
+        }
+    }
+
+    for (u32 predecessor = 0U; predecessor < 2U; ++predecessor) {
+        Fixture fixture;
+        prepare_label_and_metric(fixture, 0U);
+        fixture.port.object_words[0U][1U] = (9U << 16U) | 0x8001U;
+        fixture.port.on_call = [&](const Request& call) {
+            if ((predecessor == 0U && call.call == Call::draw_text) ||
+                (predecessor == 1U && call.call == Call::configure_font_width &&
+                 call.arguments[0U] == 16U)) {
+                fixture.published_actor_code = 8U;
+                (*fixture.startup.group_b_lifecycle)[7U]
+                    .action_execution.profile_value = 0x8001U;
+                (*fixture.startup.group_b_lifecycle)[1U]
+                    .action_execution.profile_value_read_accessible = false;
+            }
+        };
+
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_hint_frame(
+                fixture.bindings(), fixture.port, request()
+            );
+        test.expect_true(
+            result.status == Status::completed && result.actor_code == 2U &&
+                result.actor_token == 0x00528030U && result.label_drawn &&
+                result.font_width_calls == 2U && result.metric_value == 9U &&
+                result.return_edx == 0x8001U &&
+                fixture.published_actor_code == 8U,
+            "name drawing and font restoration can change the live selection and profile while the original name panel remains committed"
+        );
+    }
+
+    for (u32 gate = 0U; gate < 6U; ++gate) {
+        Fixture fixture;
+        fixture.startup.group_b_lifecycle.reset();
+        if (gate == 0U) {
+            fixture.party_source[0U] = 1U;
+        } else if (gate == 1U) {
+            fixture.target_selection_block = 1U;
+        } else if (gate == 2U) {
+            fixture.published_actor_code = 0U;
+        } else if (gate == 3U) {
+            fixture.published_actor_code = 0x80000000U;
+        } else if (gate == 4U) {
+            fixture.group_b_count = 1U;
+        } else {
+            fixture.group_b_count = 0x80000000U;
+        }
+
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_hint_frame(
+                fixture.bindings(), fixture.port, request()
+            );
+        test.expect_true(
+            result.status == Status::completed && fixture.port.calls.empty() &&
+                !result.label_drawn &&
+                result.fixed_count_lookup.path == Path::none,
+            "full-value entry gates and signed selection guards return before any profile storage access"
+        );
+    }
+
+    for (const u32 accessible : std::array<u32, 2>{4U, 6U}) {
+        Fixture fixture;
+        prepare_label_and_metric(fixture, 0U);
+        (*fixture.startup.group_b_lifecycle)[1U]
+            .action_execution.profile_value = 0xBEEFU;
+        fixture.port.object_words[0U][1U] = 0U;
+        const auto inserted =
+            openswd3::battle::accumulate_legacy_battle_fixed_count(
+                fixture.port, 0xBEEFU, 1U
+            );
+        fixture.port.fixed_count_nodes.back().accessible_bytes = accessible;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_hint_frame(
+                fixture.bindings(), fixture.port, request()
+            );
+        test.expect_true(
+            result.status == Status::fixed_count_typed_stop &&
+                result.fixed_count_lookup.stopped_token ==
+                    inserted.matched_token &&
+                result.fixed_count_lookup.stopped_offset == accessible &&
+                result.label_drawn && result.font_width_calls == 2U &&
+                result.metric_pair_calls == 0U && !result.fade_drawn &&
+                fixture.port.fixed_count_nodes.size() == 1U,
+            "actual count node key and quantity access failures keep the name prefix and owned node while blocking information suffixes"
+        );
+    }
+
+    for (u32 failure = 0U; failure < 5U; ++failure) {
+        Fixture fixture;
+        prepare_label_and_metric(fixture, 15U);
+        fixture.port.on_call = [&](const Request& call) {
+            if (call.call == Call::configure_font_width &&
+                call.arguments[0U] == 16U) {
+                if (failure == 0U) {
+                    fixture.startup.group_b_lifecycle.reset();
+                } else if (failure == 1U) {
+                    (*fixture.startup.group_b_lifecycle)[1U]
+                        .action_execution.profile_value_read_accessible = false;
+                } else {
+                    fixture.published_actor_code = failure == 2U ? 0U
+                        : failure == 3U                          ? 9U
+                                                                 : 0xFFFFFFFFU;
+                }
+            }
+        };
+
+        const auto root_before = fixture.port.object_words;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_hint_frame(
+                fixture.bindings(), fixture.port, request()
+            );
+        test.expect_true(
+            result.status == Status::group_b_actor_typed_stop &&
+                result.label_drawn && result.font_width_calls == 2U &&
+                result.text_draw_calls == 1U &&
+                result.fixed_count_lookup.path == Path::none &&
+                result.metric_pair_calls == 0U && !result.fade_drawn &&
+                fixture.port.object_words == root_before,
+            "profile storage, access and unmapped selection failures occur after the full name and font prefix and block count and display suffixes"
+        );
+    }
+
+    for (const u32 alias :
+         std::array<u32, 3>{0x20000001U, 0x80000001U, 0xE0000001U}) {
+        Fixture fixture;
+        prepare_label_and_metric(fixture, 0U);
+        (*fixture.startup.group_b_lifecycle)[0U]
+            .action_execution.profile_value = 0xBEEFU;
+        fixture.port.object_words[0U][1U] = (9U << 16U) | 0xBEEFU;
+        fixture.port.on_call = [&](const Request& call) {
+            if (call.call == Call::configure_font_width &&
+                call.arguments[0U] == 16U) {
+                fixture.published_actor_code = alias;
+            }
+        };
+
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_hint_frame(
+                fixture.bindings(), fixture.port, request()
+            );
+        test.expect_true(
+            result.status == Status::completed && result.actor_code == 2U &&
+                result.label_drawn && result.metric_value == 9U &&
+                result.return_edx == ((alias & 0xFFFF0000U) | 0xBEEFU),
+            "the profile access resolves the actual enemy address after DWORD selector multiplication wraps"
+        );
+    }
+
+    {
+        Fixture fixture;
+        prepare_label_and_metric(fixture, 0U);
+        fixture.port.object_words[0U][1U] = (15U << 16U) | 0xBEEFU;
+        (*fixture.startup.group_b_lifecycle)[6U]
+            .action_execution.profile_value = 0xBEEFU;
+        fixture.startup.enemies[2U].progress.progress = 291U;
+        fixture.port.reply(
+            Call::query_metric_pair,
+            {.metric_current = 12U, .metric_limit = 34U}
+        );
+        fixture.port.reply(Call::draw_text, {});
+        fixture.port.reply(Call::query_fade_color, {.eax = 0xA5A51234U});
+        fixture.port.on_call = [&](const Request& call) {
+            if (call.call == Call::configure_font_width &&
+                call.arguments[0U] == 16U) {
+                fixture.published_actor_code = 7U;
+            } else if (call.call == Call::query_metric_pair) {
+                test.expect_true(
+                    call.object_token == 0x005357F8U,
+                    "the metric pair rereads the actual selection after count lookup"
+                );
+                fixture.published_actor_code = 3U;
+            }
+        };
+
+        const auto result =
+            openswd3::battle::draw_legacy_battle_selection_hint_frame(
+                fixture.bindings(), fixture.port, request()
+            );
+        test.expect_true(
+            result.status == Status::completed && result.actor_code == 2U &&
+                result.metric_value == 15U && result.metric_text_drawn &&
+                result.fade_drawn && result.fade_width == 20U &&
+                fixture.published_actor_code == 3U,
+            "the hint retains its count threshold and original name while later pair and progress reads consume the live selected enemy"
+        );
+    }
 }
 
 }  // namespace
 
 void test_battle_selection_hint_frame(openswd3::test::Context& test) {
+    test_enemy_profile_reads(test);
+
     {
         Fixture fixture;
         fixture.party_source[0U] = 1U;
@@ -316,7 +629,6 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
         const auto labels = fixture.port.calls_of(Call::query_actor_label);
         const auto widths = fixture.port.calls_of(Call::configure_font_width);
         const auto draws = fixture.port.calls_of(Call::draw_text);
-        const auto metrics = fixture.port.calls_of(Call::query_metric_source);
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleSelectionHintFrameStatus::
@@ -342,8 +654,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
                 draws[0U].arguments[2U] == 14U &&
                 draws[0U].eax ==
                     openswd3::battle::kLegacyBattleSelectionHintFontToken &&
-                draws[0U].edx == 14U && metrics.size() == 1U &&
-                metrics[0U].eax == 2762U && metrics[0U].edx == 690U,
+                draws[0U].edx == 14U,
             "selection hint preserves actor scaling, width twenty then sixteen and label draw registers"
         );
         test.expect_true(
@@ -364,7 +675,8 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
         fixture.port.reply(Call::configure_font_width, {});
         fixture.port.reply(Call::draw_text, {});
         fixture.port.reply(Call::configure_font_width, {});
-        fixture.port.reply(Call::query_metric_source, {.eax = 0x900U});
+        (*fixture.startup.group_b_lifecycle)[1U]
+            .action_execution.profile_value = 0x900U;
         fixture.port.object_words[0U][1U] = (10U << 16U) | 0x900U;
         fixture.port.reply(
             Call::query_metric_pair,
@@ -540,7 +852,8 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
         fixture.port.reply(Call::configure_font_width, {});
         fixture.port.reply(Call::draw_text, {});
         fixture.port.reply(Call::configure_font_width, {});
-        fixture.port.reply(Call::query_metric_source, {.eax = 0x900U});
+        (*fixture.startup.group_b_lifecycle)[1U]
+            .action_execution.profile_value = 0x900U;
         fixture.port.object_words[0U][0U] = 0x78001234U;
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_hint_frame(
@@ -550,10 +863,9 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleSelectionHintFrameStatus::
                         fixed_count_typed_stop &&
-                result.metric_source_calls == 1U &&
+                result.label_drawn && result.font_width_calls == 2U &&
                 result.fixed_count_lookup.stopped_token == 0x78001234U &&
-                result.metric_pair_calls == 0U &&
-                !result.fade_drawn &&
+                result.metric_pair_calls == 0U && !result.fade_drawn &&
                 result.fixed_count_lookup.stopped_offset == 4U,
             "selection hint blocks metric text and fade when the fixed-count successor is unmapped"
         );
@@ -563,6 +875,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.raster.surface.pitch_bytes = 1;
         prepare_label_and_metric(fixture, 9U);
+        fixture.startup.group_b_lifecycle.reset();
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_hint_frame(
                 fixture.bindings(), fixture.port, request()
@@ -581,6 +894,7 @@ void test_battle_selection_hint_frame(openswd3::test::Context& test) {
         Fixture fixture;
         fixture.frame_provider.fail = true;
         prepare_label_and_metric(fixture, 9U);
+        fixture.startup.group_b_lifecycle.reset();
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_hint_frame(
                 fixture.bindings(), fixture.port, request()

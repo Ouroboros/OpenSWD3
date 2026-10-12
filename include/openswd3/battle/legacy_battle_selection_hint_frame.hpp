@@ -33,7 +33,6 @@ enum class LegacyBattleSelectionHintFrameCall : compat::u8 {
     query_actor_label,
     configure_font_width,
     draw_text,
-    query_metric_source,
     query_metric_pair,
     reserved_query_fade_width,
     query_fade_color,
@@ -80,7 +79,7 @@ struct LegacyBattleSelectionHintFrameBindings {
     compat::u32 queued_actor_code{};
     std::span<const compat::u32> party_source_words;
     compat::u32 target_selection_block{};
-    compat::u32 published_actor_code{};
+    const compat::u32& published_actor_code;
     compat::u32 group_b_count{};
     compat::u32 mirror_mode{};
     asset_runtime::LegacyActionRecord& panel_action_record;
@@ -137,7 +136,6 @@ struct LegacyBattleSelectionHintFrameResult {
     compat::u32 actor_label_query_calls{};
     compat::u32 font_width_calls{};
     compat::u32 text_draw_calls{};
-    compat::u32 metric_source_calls{};
     LegacyBattleFixedCountLookupResult fixed_count_lookup{};
     compat::u32 metric_pair_calls{};
     LegacyBattleActorProgressWidthResult actor_progress_width{};

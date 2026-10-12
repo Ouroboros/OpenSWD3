@@ -286,21 +286,37 @@ private:
     }
 
     void query_metric() {
-        const u32 code = result_.actor_code;
+        const u32 code = bindings_.published_actor_code;
         eax_ = group_b_scaled_3349(code);
         edx_ = group_b_scaled_837(code);
         ecx_ = group_b_actor_token(code);
-        const auto source = invoke({
-            .call = Call::query_metric_source,
-            .object_token = ecx_,
-            .eax = eax_,
-            .ecx = ecx_,
-            .edx = edx_,
-        });
-        ++result_.metric_source_calls;
-        result_.fixed_count_lookup = lookup_legacy_battle_fixed_count(
-            port_, static_cast<u16>(source.eax)
-        );
+        const u32 actor_offset = ecx_ - group_b_actor_token(1U);
+        const u32 actor_stride =
+            group_b_actor_token(2U) - group_b_actor_token(1U);
+        if (actor_offset % actor_stride != 0U ||
+            actor_offset / actor_stride >= kGroupBCount ||
+            !bindings_.startup.group_b_lifecycle) {
+            result_.status = Status::group_b_actor_typed_stop;
+            return;
+        }
+
+        const auto& actor =
+            (*bindings_.startup.group_b_lifecycle)[actor_offset / actor_stride]
+                .action_execution;
+        if (!actor.profile_value_read_accessible) {
+            result_.status = Status::group_b_actor_typed_stop;
+            return;
+        }
+
+        const u16 profile = actor.profile_value;
+        result_.fixed_count_lookup =
+            lookup_legacy_battle_fixed_count(port_, profile);
+        eax_ = result_.fixed_count_lookup.quantity;
+        ecx_ = result_.fixed_count_lookup.status ==
+                LegacyBattleFixedCountStatus::completed
+            ? result_.fixed_count_lookup.matched_token
+            : result_.fixed_count_lookup.stopped_token;
+        edx_ = replace_low_word(edx_, profile);
         if (result_.fixed_count_lookup.status !=
             LegacyBattleFixedCountStatus::completed) {
             result_.status = Status::fixed_count_typed_stop;
@@ -320,7 +336,7 @@ private:
     }
 
     [[nodiscard]] bool draw_metric_text() {
-        const u32 code = result_.actor_code;
+        const u32 code = bindings_.published_actor_code;
         eax_ = group_b_scaled_837(code);
         ecx_ = group_b_actor_token(code);
         edx_ = request_.local_current_token;
@@ -404,7 +420,7 @@ private:
     }
 
     void draw_metric_fade() {
-        const u32 code = result_.actor_code;
+        const u32 code = bindings_.published_actor_code;
         eax_ = group_b_scaled_3349(code);
         edx_ = group_b_scaled_837(code);
         ecx_ = group_b_actor_token(code);
