@@ -1030,22 +1030,42 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifty() {
 }
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_fifty_one() {
-    u16 actor{};
+    const u32 cursor = workspace_.cursor;
     u8 parameter{};
-    if (!read_u16(wrapping_add(workspace_.cursor, 2U), actor) ||
-        !read_u8(wrapping_add(workspace_.cursor, 4U), parameter)) {
+    u16 actor{};
+    if (!read_u8(wrapping_add(cursor, 4U), parameter) ||
+        !read_u16(wrapping_add(cursor, 2U), actor)) {
         return finish();
     }
-    const u32 stale_parameter = (ecx_ & 0xFFFFFF00U) | parameter;
-    const auto token = group_b_token(signed_word(actor));
-    if (!token.has_value()) {
-        return finish(eax_);
+
+    const i32 index = signed_word(actor);
+    if (index == -1) {
+        u32& value = bindings_.startup.reset.block_525470[1U];
+        value = (value & 0xFFFF00FFU) | (static_cast<u32>(parameter) << 8U);
+        value = (value & 0xFFFFFF00U) | parameter;
+    } else {
+        if (index < 0 || index >= 8 ||
+            bindings_.startup.group_b_lifecycle == nullptr) {
+            return stop(
+                LegacyBattleScriptDispatchStatus::group_b_actor_typed_stop,
+                cursor
+            );
+        }
+
+        auto& enemy =
+            (*bindings_.startup
+                  .group_b_lifecycle)[static_cast<std::size_t>(index)];
+        if (enemy.object_writable_bytes < 0x2A96U) {
+            return stop(
+                LegacyBattleScriptDispatchStatus::group_b_actor_typed_stop,
+                cursor
+            );
+        }
+
+        enemy.runtime_reset.field_2a95 = parameter;
+        enemy.base_initialization.field_2a94 = parameter;
     }
-    invoke(
-        LegacyBattleScriptDispatchCall::pending_47f3a0,
-        *token,
-        {stale_parameter}
-    );
+
     workspace_.cursor = wrapping_add(workspace_.cursor, 6U);
     return finish(1U);
 }

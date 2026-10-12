@@ -6802,6 +6802,179 @@ void test_script_rotation_sharing(openswd3::test::Context& test) {
     }
 }
 
+void test_script_actor_action_branch(openswd3::test::Context& test) {
+    using openswd3::compat::u8;
+    using openswd3::battle::LegacyBattleActorGroupBElementState;
+    using openswd3::battle::run_legacy_battle_script_dispatch;
+    const std::array<u8, 7> parameters{0U, 1U, 6U, 0x7FU, 0x80U, 0xFEU, 0xFFU};
+    for (const u16 index : std::array<u16, 8>{0U, 1U, 2U, 3U, 4U, 5U, 6U, 7U}) {
+        for (const u8 parameter : parameters) {
+            auto fixture = std::make_unique<Fixture>();
+            Port port;
+            fixture->opcode(51);
+            fixture->write_u16(2U, index);
+            fixture->assets.script[4U] = parameter;
+            fixture->assets.script[5U] = 0xA5U;
+            fixture->startup.group_b_lifecycle = std::make_shared<
+                std::array<LegacyBattleActorGroupBElementState, 8>>();
+            for (std::size_t slot = 0U; slot < 8U; ++slot) {
+                auto& enemy = (*fixture->startup.group_b_lifecycle)[slot];
+                enemy.base_initialization.field_2a94 =
+                    static_cast<u8>(0xE0U + slot);
+                enemy.runtime_reset.field_2a95 = static_cast<u8>(0xB0U + slot);
+                enemy.runtime_reset.field_2ad4 = 0x12345678U;
+            }
+
+            const auto result = run_legacy_battle_script_dispatch(
+                fixture->workspace,
+                fixture->bindings(),
+                port,
+                {.entry_ecx = 0xAABBCCDDU}
+            );
+            bool fields_match = true;
+            for (std::size_t slot = 0U; slot < 8U; ++slot) {
+                const auto& enemy = (*fixture->startup.group_b_lifecycle)[slot];
+                fields_match = fields_match &&
+                    enemy.base_initialization.field_2a94 ==
+                        (slot == index ? parameter
+                                       : static_cast<u8>(0xE0U + slot)) &&
+                    enemy.runtime_reset.field_2a95 ==
+                        (slot == index ? parameter
+                                       : static_cast<u8>(0xB0U + slot)) &&
+                    enemy.runtime_reset.field_2ad4 == 0x12345678U;
+            }
+
+            test.expect_true(
+                result.status == LegacyBattleScriptDispatchStatus::completed &&
+                    result.return_eax == 1U && fields_match &&
+                    fixture->workspace.cursor == 6U && port.calls.empty(),
+                "script fifty-one writes only the selected enemy's actual current and retained action bytes"
+            );
+        }
+    }
+
+    for (const u8 parameter : parameters) {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(51);
+        fixture->write_u16(2U, 0xFFFFU);
+        fixture->assets.script[4U] = parameter;
+        fixture->startup.reset.block_525470[0U] = 0x10203040U;
+        fixture->startup.reset.block_525470[1U] = 0xA1B2C3D4U;
+        fixture->startup.reset.block_525470[2U] = 0x50607080U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        const u32 expected =
+            0xA1B20000U | (static_cast<u32>(parameter) << 8U) | parameter;
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture->startup.reset.block_525470[1U] == expected &&
+                fixture->startup.reset.block_525470[0U] == 0x10203040U &&
+                fixture->startup.reset.block_525470[2U] == 0x50607080U &&
+                fixture->workspace.cursor == 6U && port.calls.empty(),
+            "the signed negative-one selector writes the actual shared reset bytes without an enemy object"
+        );
+    }
+
+    for (const u32 writable :
+         std::array<u32, 5>{0U, 0x2A94U, 0x2A95U, 0x2A96U, 0x2B28U}) {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(51);
+        fixture->assets.script[4U] = 0x7FU;
+        fixture->startup.group_b_lifecycle = std::make_shared<
+            std::array<LegacyBattleActorGroupBElementState, 8>>();
+        auto& enemy = (*fixture->startup.group_b_lifecycle)[0U];
+        enemy.object_writable_bytes = writable;
+        enemy.base_initialization.field_2a94 = 0x12U;
+        enemy.runtime_reset.field_2a95 = 0x34U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        const bool accessible = writable >= 0x2A96U;
+        test.expect_true(
+            result.status ==
+                    (accessible ? LegacyBattleScriptDispatchStatus::completed
+                                : LegacyBattleScriptDispatchStatus::
+                                      group_b_actor_typed_stop) &&
+                enemy.runtime_reset.field_2a95 ==
+                    (accessible ? 0x7FU : 0x34U) &&
+                enemy.base_initialization.field_2a94 ==
+                    (accessible ? 0x7FU : 0x12U) &&
+                fixture->workspace.cursor == (accessible ? 6U : 0U) &&
+                port.calls.empty(),
+            "the first saved-byte write uses the actual writable extent before the lower current-byte write"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(51);
+        fixture->assets.script[4U] = 6U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        group_b_actor_typed_stop &&
+                fixture->workspace.cursor == 0U && port.calls.empty(),
+            "missing actual enemy storage preserves the existing actor access stop"
+        );
+    }
+
+    for (const u32 capacity : std::array<u32, 4>{2U, 3U, 4U, 5U}) {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(51);
+        fixture->assets.script[4U] = 0x80U;
+        fixture->assets.script_capacity = capacity;
+        fixture->startup.group_b_lifecycle = std::make_shared<
+            std::array<LegacyBattleActorGroupBElementState, 8>>();
+        auto& enemy = (*fixture->startup.group_b_lifecycle)[0U];
+        enemy.base_initialization.field_2a94 = 0x12U;
+        enemy.runtime_reset.field_2a95 = 0x34U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        const bool complete = capacity == 5U;
+        test.expect_true(
+            result.status ==
+                    (complete ? LegacyBattleScriptDispatchStatus::completed
+                              : LegacyBattleScriptDispatchStatus::
+                                    script_typed_stop) &&
+                (complete || result.stopped_offset == 4U) &&
+                enemy.runtime_reset.field_2a95 == (complete ? 0x80U : 0x34U) &&
+                enemy.base_initialization.field_2a94 ==
+                    (complete ? 0x80U : 0x12U) &&
+                fixture->workspace.cursor == (complete ? 6U : 0U) &&
+                port.calls.empty(),
+            "the parameter BYTE is read before the selector WORD and never requires script byte five"
+        );
+    }
+
+    for (const u16 selector :
+         std::array<u16, 5>{8U, 9U, 0x7FFFU, 0x8000U, 0xFFFEU}) {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(51);
+        fixture->write_u16(2U, selector);
+        fixture->assets.script[4U] = 1U;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::
+                        group_b_actor_typed_stop &&
+                fixture->workspace.cursor == 0U && port.calls.empty(),
+            "selectors outside the owned actor and reset storage retain the existing access boundary"
+        );
+    }
+}
+
 void test_script_player_item_quantity(openswd3::test::Context& test) {
     using openswd3::battle::run_legacy_battle_script_dispatch;
     using openswd3::test::FixedNodeMemoryResource;
@@ -7103,6 +7276,7 @@ void test_script_player_item_quantity(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_script_dispatch(openswd3::test::Context& test) {
+    test_script_actor_action_branch(test);
     test_script_player_item_quantity(test);
     test_script_actor_selector_sharing(test);
     test_script_rotation_sharing(test);
