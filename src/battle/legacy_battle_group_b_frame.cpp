@@ -26,7 +26,6 @@ constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
 constexpr u32 kCallQuerySelectionMode = 0x00483820U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
-constexpr u32 kCallQuerySpecialAction = 0x0047D880U;
 constexpr u32 kCallQueryPhaseMode = 0x0047D8D0U;
 constexpr u32 kCallQueryStatusSequence = 0x00480220U;
 constexpr u32 kCallPublishActionStart = 0x0047C690U;
@@ -460,7 +459,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
     LegacyBattleGroupBFrameState& state,
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
-    const u32 group_b_index
+    const u32 group_b_index,
+    u32& group_effect_mode
 ) {
     LegacyBattleActionDispatchResult result{};
     auto& shared = state.shared;
@@ -1118,7 +1118,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             action.current_actor_index =
                                 static_cast<u16>(group_b_index);
                         }
-                        if ((status & 0x4000U) != 0U) {
+
+                        if ((state.status_words[group_b_index] & 0x4000U) !=
+                            0U) {
                             {
                                 LegacyBattleActorActionModeView mode_fields;
                                 if (context.startup != nullptr &&
@@ -1188,7 +1190,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                                       .return_registers.eax;
                             }
                         }
-                        if ((status & 0x2000U) != 0U) {
+
+                        if ((state.status_words[group_b_index] & 0x2000U) !=
+                            0U) {
                             {
                                 LegacyBattleActorActionModeView mode_fields;
                                 if (context.startup != nullptr &&
@@ -1239,12 +1243,15 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             action.current_actor_index =
                                 static_cast<u16>(group_b_index);
                         }
-                        if (invoke(
-                                port, kCallQuerySpecialAction, {source_token}
-                            )
-                                .eax == 1U) {
-                            state.special_action_latch = 1U;
+
+                        const auto& enemy_profile =
+                            (*context.startup->group_b_lifecycle)[group_b_index]
+                                .action_configuration.profile_buffer;
+                        if ((std::to_integer<u32>(enemy_profile[4U]) & 2U) !=
+                            0U) {
+                            group_effect_mode = 1U;
                         }
+
                         if (invoke(port, kCallQueryPhaseMode, {source_token})
                                 .eax == 1U) {
                             state.phase_mode = 1U;
@@ -1394,17 +1401,18 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             action.current_actor_index =
                                 static_cast<u16>(group_b_index);
                             state.status_misc = 0U;
-                            const auto special_action = invoke(
-                                port, kCallQuerySpecialAction, {source_token}
-                            );
-                            if (special_action.eax == 1U) {
-                                state.special_action_latch = 1U;
+                            const auto& enemy_profile =
+                                (*context.startup
+                                      ->group_b_lifecycle)[group_b_index]
+                                    .action_configuration.profile_buffer;
+                            if ((std::to_integer<u32>(enemy_profile[4U]) &
+                                 2U) != 0U) {
+                                group_effect_mode = 1U;
                             }
 
                             profile_flag_entry_eax =
                                 state.opponent_text_token_base +
                                 group_b_index * kLegacyBattleActionGroupBStride;
-                            profile_flag_entry_edx = special_action.edx;
                             if (state.opponent_text_present[group_b_index] !=
                                 0U) {
                                 if (!publish_text_message(
@@ -1993,7 +2001,7 @@ action_decision_done:
                 shared.action_stage_word = 0U;
                 shared.action_stage_word_b = 0U;
                 shared.target_ready_gate = 0U;
-                state.special_action_latch = 0U;
+                group_effect_mode = 0U;
                 state.phase_mode = 0U;
                 state.phase_progress = 0U;
                 replace_low_word(action.action_runtime_flags, 0U);

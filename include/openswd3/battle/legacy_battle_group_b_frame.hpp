@@ -26,7 +26,6 @@ struct LegacyBattleGroupBFrameState {
     compat::u32 status_misc{};
     compat::u32 branch_misc{};
     compat::u32 special_selection_pending{};
-    compat::u32 special_action_latch{};
 
     std::array<compat::u8, 8> opponent_text_present{};
     compat::u32 opponent_text_token_base{0x00527B38U};
@@ -55,7 +54,8 @@ advance_legacy_battle_group_b_frame(
     LegacyBattleGroupBFrameState& state,
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
-    compat::u32 group_b_index
+    compat::u32 group_b_index,
+    compat::u32& group_effect_mode
 );
 
 }  // namespace openswd3::battle

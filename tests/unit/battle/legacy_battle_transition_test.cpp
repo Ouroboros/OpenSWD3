@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_transition.hpp"
+#include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 
 #include <algorithm>
 #include <array>
@@ -454,6 +455,7 @@ struct ActorFrameFixture {
     openswd3::battle::LegacyBattleIntensityEffectRecord
         attack_order_adjacent_record{};
     openswd3::battle::LegacyBattleActionDispatchContext dispatch;
+    openswd3::battle::LegacyBattleEffectCoordinatorState effect_coordinator;
     openswd3::battle::LegacyBattleActorFrameAdvanceContext context;
 
     ActorFrameFixture(
@@ -484,7 +486,9 @@ struct ActorFrameFixture {
               .group_a_skip_primary = {},
               .group_a_skip_secondary = {},
           },
-          context{state, ports, dispatch} {
+          context{
+              state, ports, dispatch, effect_coordinator.group_b_effect_mode
+          } {
         // These transition vectors exercise drawing with actor AI paused.
         state.shared.action.frame_enabled = 0U;
     }

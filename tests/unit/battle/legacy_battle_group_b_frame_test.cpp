@@ -1,5 +1,6 @@
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
+#include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
 #include "legacy_battle_frame_refresh_fixture.hpp"
@@ -35,7 +36,8 @@ struct PausedFrameState final : openswd3::battle::LegacyBattleGroupBFrameState {
 class DispatchPort final
     : public openswd3::battle::LegacyBattleActionDispatchPort,
       public openswd3::test::LegacyBattleMonDatabaseFixture,
-      public openswd3::test::LegacyBattleFrameRefreshFixture {
+      public openswd3::test::LegacyBattleFrameRefreshFixture,
+      public openswd3::battle::LegacyBattleEffectCoordinatorStatePort {
 public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
@@ -73,6 +75,10 @@ public:
         const openswd3::battle::LegacyBattleTextMessageCallRequest& request
     ) override {
         text_message_calls.push_back(request);
+        if (before_text_message) {
+            before_text_message(request);
+        }
+
         if (request.call ==
             openswd3::battle::LegacyBattleTextMessageCall::allocate) {
             const u32 token = next_text_message_token;
@@ -95,6 +101,9 @@ public:
     }
 
     std::function<void(const LegacyBattleActionCallRequest&)> before_invoke;
+    std::function<
+        void(const openswd3::battle::LegacyBattleTextMessageCallRequest&)>
+        before_text_message;
     bool rewrite_rules_on_primary_terminal{};
     std::optional<u32> priority_after_sweep;
     u32 rule_writes{};
@@ -292,6 +301,342 @@ void bind_group_b_coordinate_resource(
     actor.resource_bytes[0x8BU] = static_cast<u8>(y >> 8U);
 }
 
+class EffectConsumerPort final
+    : public openswd3::battle::LegacyBattleEffectCallPort {
+public:
+    [[nodiscard]] openswd3::battle::LegacyBattleEffectCallReply invoke(
+        const openswd3::battle::LegacyBattleEffectCallRequest& request
+    ) override {
+        static_cast<void>(request);
+        return {};
+    }
+};
+
+void seed_coordinate_attribute_frame(
+    LegacyBattleGroupBFrameState& state,
+    Fixture& fixture,
+    DispatchPort& port,
+    const u32 actor_index,
+    const u16 status,
+    const u8 attribute,
+    const u32 old_marker
+) {
+    state.shared.action.frame_enabled = 1U;
+    state.shared.action.group_a_count = 1;
+    state.shared.action.group_b_count = 8;
+    state.post_update_gate[actor_index] = 1U;
+    state.selection_initialized = 1U;
+    state.action_profile_bytes = {0U};
+    state.status_words[actor_index] = status;
+    state.status_misc = 9U;
+    state.shared.action.current_actor_index = 0x1234U;
+    state.shared.action.group_a_action_execution[0U]
+        .special_particle_coordinate_suppression = attribute ^ 2U;
+    bind_group_b_coordinate_resource(fixture, actor_index);
+    for (auto& actor : *fixture.startup->group_b_lifecycle) {
+        actor.action_configuration.profile_buffer.fill(std::byte{0xA5U});
+    }
+
+    auto& actor = (*fixture.startup->group_b_lifecycle)[actor_index];
+    actor.action_configuration.profile_buffer[4U] =
+        static_cast<std::byte>(attribute);
+    actor.action_execution.special_particle_coordinate_suppression =
+        attribute ^ 2U;
+    port.actor_metric_state().priority_actor_index = actor_index;
+    port.effect_coordinator_state().group_b_effect_mode = old_marker;
+}
+
+void test_coordinate_attribute(openswd3::test::Context& test) {
+    for (const u16 status : {u16{0U}, u16{0x2000U}}) {
+        for (u32 actor_index = 0U; actor_index < 8U; ++actor_index) {
+            for (const u8 attribute : std::array<u8, 9>{
+                     0U, 1U, 2U, 3U, 0x7CU, 0x80U, 0xFDU, 0xFEU, 0xFFU
+                 }) {
+                for (const u32 old_marker : {0U, 1U, 0xAABBCCDDU}) {
+                    auto storage =
+                        std::make_unique<LegacyBattleGroupBFrameState>();
+                    auto& state = *storage;
+                    Fixture fixture;
+                    DispatchPort port;
+                    seed_coordinate_attribute_frame(
+                        state,
+                        fixture,
+                        port,
+                        actor_index,
+                        status,
+                        attribute,
+                        old_marker
+                    );
+                    const u32 expected =
+                        (attribute & 2U) != 0U ? 1U : old_marker;
+                    port.push(0x00480220U, {.eax = 1U, .edx = 0xCAFED00DU});
+                    bool saw_predecessor = false;
+                    bool saw_published = false;
+                    port.before_invoke =
+                        [&](const LegacyBattleActionCallRequest& request) {
+                            if (request.callee_token == 0x00480220U) {
+                                saw_predecessor =
+                                    port.effect_coordinator_state()
+                                            .group_b_effect_mode ==
+                                        old_marker &&
+                                    state.status_misc == 9U;
+                            }
+
+                            if (request.callee_token == 0x0047D8D0U) {
+                                saw_published =
+                                    port.effect_coordinator_state()
+                                            .group_b_effect_mode == expected &&
+                                    (status != 0U || state.status_misc == 0U) &&
+                                    state.shared.action.current_actor_index ==
+                                        actor_index;
+                            }
+                        };
+
+                    auto context = fixture.context();
+                    const auto result =
+                        openswd3::battle::advance_legacy_battle_group_b_frame(
+                            state,
+                            port,
+                            context,
+                            actor_index,
+                            port.effect_coordinator_state().group_b_effect_mode
+                        );
+                    bool profiles_preserved = true;
+                    for (u32 index = 0U; index < 8U; ++index) {
+                        for (std::size_t offset = 0U; offset < 0x28U;
+                             ++offset) {
+                            const auto expected_byte =
+                                index == actor_index && offset == 4U
+                                ? static_cast<std::byte>(attribute)
+                                : std::byte{0xA5U};
+                            profiles_preserved = profiles_preserved &&
+                                (*fixture.startup->group_b_lifecycle)[index]
+                                        .action_configuration
+                                        .profile_buffer[offset] ==
+                                    expected_byte;
+                        }
+                    }
+
+                    test.expect_true(
+                        result.status ==
+                                LegacyBattleActionDispatchStatus::completed &&
+                            saw_published &&
+                            (status != 0U || saw_predecessor) &&
+                            port.effect_coordinator_state()
+                                    .group_b_effect_mode == expected &&
+                            profiles_preserved &&
+                            port.count(0x0047D880U) == 0U &&
+                            state.shared.action.group_a_action_execution[0U]
+                                    .special_particle_coordinate_suppression ==
+                                (attribute ^ 2U),
+                        "enemy attributes publish the shared effect marker from the saved enemy and preserve profiles and party attributes"
+                    );
+                    auto& effects = port.effect_coordinator_state();
+                    for (auto& record : effects.primary) {
+                        record.complete = 1U;
+                    }
+
+                    EffectConsumerPort consumer;
+                    consumer.actor_metric_state().priority_actor_index =
+                        actor_index;
+                    const auto consumed = openswd3::battle::
+                        advance_legacy_battle_effect_coordinator(
+                            effects,
+                            state.shared.action.group_b_reward_scale,
+                            *fixture.startup,
+                            consumer,
+                            fixture.framebuffer,
+                            {.action = &state.shared.action,
+                             .startup = fixture.startup.get()},
+                            0x8000U,
+                            0U
+                        );
+                    test.expect_true(
+                        consumed.status ==
+                                openswd3::battle::
+                                    LegacyBattleEffectCoordinatorStatus::
+                                        completed &&
+                            consumed.group_effect_frame_calls ==
+                                (expected == 1U ? 1U : 0U) &&
+                            consumed.effect_frame_calls ==
+                                (expected == 1U ? 0U : 1U) &&
+                            effects.group_b_effect_mode == expected,
+                        "the real effect coordinator consumes the same exact-one enemy marker"
+                    );
+                }
+            }
+        }
+    }
+
+    for (const u32 readiness : {0U, 2U, 0xFFFFFFFFU}) {
+        for (const u8 attribute : {u8{0U}, u8{2U}}) {
+            auto storage = std::make_unique<LegacyBattleGroupBFrameState>();
+            auto& state = *storage;
+            Fixture fixture;
+            DispatchPort port;
+            seed_coordinate_attribute_frame(
+                state, fixture, port, 3U, 0U, attribute, 0xAABBCCDDU
+            );
+            port.push(0x00480220U, {.eax = readiness, .edx = 0x55667788U});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_b_frame(
+                    state,
+                    port,
+                    context,
+                    3U,
+                    port.effect_coordinator_state().group_b_effect_mode
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    port.effect_coordinator_state().group_b_effect_mode ==
+                        0xAABBCCDDU &&
+                    state.status_misc == 9U &&
+                    result.group_b_action_profile_flag_calls == 1U &&
+                    port.count(0x0047D8D0U) == 1U &&
+                    port.count(0x0047D880U) == 0U,
+                "non-one readiness preserves the marker and continues the real profile and bit-zero suffix"
+            );
+        }
+    }
+}
+
+void test_coordinate_attribute_live_reads(openswd3::test::Context& test) {
+    for (const u16 status : {u16{0U}, u16{0x4000U}, u16{0x6000U}}) {
+        for (const u8 attribute : {u8{0U}, u8{2U}}) {
+            auto storage = std::make_unique<LegacyBattleGroupBFrameState>();
+            auto& state = *storage;
+            Fixture fixture;
+            DispatchPort port;
+            seed_coordinate_attribute_frame(
+                state, fixture, port, 5U, status, attribute ^ 2U, 0xAABBCCDDU
+            );
+            auto& actor = (*fixture.startup->group_b_lifecycle)[5U];
+            state.opponent_text_present[5U] = status != 0U ? 1U : 0U;
+            port.push(0x00480220U, {.eax = 1U});
+            bool predecessor_reached = false;
+            const auto rewrite = [&] {
+                predecessor_reached = predecessor_reached &&
+                    port.effect_coordinator_state().group_b_effect_mode ==
+                        0xAABBCCDDU;
+                actor.action_configuration.profile_buffer[4U] =
+                    static_cast<std::byte>(attribute);
+                state.status_words[5U] = status == 0x4000U ? 0x2000U : 0U;
+                state.shared.action.current_actor_index = 7U;
+            };
+
+            port.before_invoke =
+                [&](const LegacyBattleActionCallRequest& request) {
+                    if (status == 0U && request.callee_token == 0x00480220U) {
+                        predecessor_reached = true;
+                        rewrite();
+                    }
+                };
+
+            port.before_text_message =
+                [&](const openswd3::battle::LegacyBattleTextMessageCallRequest&
+                        request) {
+                    if (status != 0U &&
+                        request.call ==
+                            openswd3::battle::LegacyBattleTextMessageCall::
+                                allocate) {
+                        predecessor_reached =
+                            actor.action_composition.display_kind == 2U &&
+                            actor.action_composition.action_kind == 0U;
+                        rewrite();
+                    }
+                };
+
+            bool published = false;
+            port.before_invoke =
+                [&, previous = port.before_invoke](
+                    const LegacyBattleActionCallRequest& request
+                ) {
+                    previous(request);
+                    if (request.callee_token == 0x0047D8D0U) {
+                        published = port.effect_coordinator_state()
+                                        .group_b_effect_mode ==
+                                ((attribute & 2U) != 0U ? 1U : 0xAABBCCDDU) &&
+                            (status == 0U ||
+                             (actor.action_composition.display_kind ==
+                                  (status == 0x4000U ? 6U : 2U) &&
+                              actor.action_composition.action_kind == 0U &&
+                              actor.action_composition.mode_flags ==
+                                  (status == 0x4000U ? 8U : 0U)));
+                    }
+                };
+
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_b_frame(
+                    state,
+                    port,
+                    context,
+                    5U,
+                    port.effect_coordinator_state().group_b_effect_mode
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    predecessor_reached && published &&
+                    actor.action_configuration.profile_buffer[4U] ==
+                        static_cast<std::byte>(attribute) &&
+                    (*fixture.startup->group_b_lifecycle)[7U]
+                            .action_configuration.profile_buffer[4U] ==
+                        std::byte{0xA5U} &&
+                    port.count(0x0047D880U) == 0U,
+                "readiness and text predecessors change the live saved-enemy byte while marked action modes reread the instruction word in order"
+            );
+        }
+    }
+}
+
+void test_coordinate_attribute_completion(openswd3::test::Context& test) {
+    for (const u32 old_marker : {0U, 1U, 0xAABBCCDDU}) {
+        for (const bool fail_decay : {false, true}) {
+            auto storage = std::make_unique<LegacyBattleGroupBFrameState>();
+            auto& state = *storage;
+            state.shared.action.frame_enabled = 1U;
+            state.selection_initialized = 1U;
+            state.action_profile_bytes = {0U};
+            state.post_update_gate[0U] = 1U;
+            Fixture fixture;
+            auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
+            actor.action_execution.idle_state_latch = 1U;
+            actor.action_composition.action_kind = 100U;
+            DispatchPort port;
+            port.actor_metric_state().priority_actor_index = 0U;
+            port.effect_coordinator_state().group_b_effect_mode = old_marker;
+            auto context = fixture.context();
+            if (fail_decay) {
+                context.actor_gate_decay_requests.count = 1U;
+                context.actor_gate_decay_requests.calls[0U]
+                    .access.start_gate_readable = false;
+            }
+
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_b_frame(
+                    state,
+                    port,
+                    context,
+                    0U,
+                    port.effect_coordinator_state().group_b_effect_mode
+                );
+            test.expect_true(
+                result.status ==
+                        (fail_decay
+                             ? LegacyBattleActionDispatchStatus::
+                                   actor_gate_decay_typed_stop
+                             : LegacyBattleActionDispatchStatus::completed) &&
+                    port.effect_coordinator_state().group_b_effect_mode ==
+                        (fail_decay ? old_marker : 0U) &&
+                    result.actor_action_target_clear.calls == 1U &&
+                    state.selection_initialized == (fail_decay ? 1U : 0U),
+                "real completion clears the shared effect marker and a preceding physical decay stop preserves it"
+            );
+        }
+    }
+}
+
 void test_turn_completion_failures(openswd3::test::Context& test) {
     for (const u32 value : std::array<u32, 8>{
              0U, 1U, 2U, 0xFFFFU, 0x10000U, 0x10001U, 0x80000000U, 0xFFFFFFFFU
@@ -322,7 +667,11 @@ void test_turn_completion_failures(openswd3::test::Context& test) {
             };
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_b_frame(
-                    state, port, context, 0U
+                    state,
+                    port,
+                    context,
+                    0U,
+                    port.effect_coordinator_state().group_b_effect_mode
                 );
             const auto expected_status = return_failure
                 ? openswd3::battle::LegacyBattleActorTurnCompletionStatus::
@@ -398,7 +747,11 @@ void test_idle_query_failures_and_live_reads(openswd3::test::Context& test) {
                 };
                 const auto result =
                     openswd3::battle::advance_legacy_battle_group_b_frame(
-                        state, port, context, 0U
+                        state,
+                        port,
+                        context,
+                        0U,
+                        port.effect_coordinator_state().group_b_effect_mode
                     );
                 test.expect_true(
                     result.status ==
@@ -455,7 +808,11 @@ void test_idle_query_failures_and_live_reads(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -489,6 +846,9 @@ void test_idle_query_failures_and_live_reads(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_group_b_frame(openswd3::test::Context& test) {
+    test_coordinate_attribute(test);
+    test_coordinate_attribute_live_reads(test);
+    test_coordinate_attribute_completion(test);
     test_turn_completion_failures(test);
     test_idle_query_failures_and_live_reads(test);
     for (const unsigned phase : {0U, 1U, 2U}) {
@@ -515,7 +875,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         };
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                *state, port, context, 3U
+                *state,
+                port,
+                context,
+                3U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             port.count(0x0047CE80U) == 1U && field == 0x8000U &&
@@ -552,7 +916,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                *state, port, context, 3U
+                *state,
+                port,
+                context,
+                3U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -592,7 +960,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 .stop_before_actor_access = 0U;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_b_frame(
-                    *state, port, context, 3U
+                    *state,
+                    port,
+                    context,
+                    3U,
+                    port.effect_coordinator_state().group_b_effect_mode
                 );
             const bool expected = gates[2U] == 1U ||
                 (count != 0U && (gates[0U] == 1U || gates[1U] == 1U));
@@ -633,7 +1005,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -668,7 +1044,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         const bool cleared = priority < 8U || (priority & 0x80000000U) != 0U;
         test.expect_true(
@@ -703,7 +1083,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             auto context = fixture.context();
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_b_frame(
-                    state, port, context, 2U
+                    state,
+                    port,
+                    context,
+                    2U,
+                    port.effect_coordinator_state().group_b_effect_mode
                 );
             test.expect_true(
                 result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -722,7 +1106,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 8U
+                state,
+                port,
+                context,
+                8U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -741,7 +1129,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         context.actor_start_gate_access.return_address_readable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 2U
+                state,
+                port,
+                context,
+                2U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -773,7 +1165,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         context.actor_turn_completion_access.latch_readable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -811,7 +1207,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         context.actor_idle_state_access.latch_readable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -846,7 +1246,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.actor_start_gate_latch_query &&
@@ -875,7 +1279,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         context.actor_turn_completion_access.latch_readable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -905,7 +1313,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -944,7 +1356,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -992,7 +1408,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         context.actor_turn_completion_access.latch_readable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -1025,7 +1445,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         context.actor_idle_state_access.latch_readable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -1055,7 +1479,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed,
@@ -1106,7 +1534,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         zero_port.actor_metric_state().priority_actor_index = 0U;
         auto zero_context = zero_fixture.context();
         const auto zero = openswd3::battle::advance_legacy_battle_group_b_frame(
-            zero_state, zero_port, zero_context, 0U
+            zero_state,
+            zero_port,
+            zero_context,
+            0U,
+            zero_port.effect_coordinator_state().group_b_effect_mode
         );
 
         LegacyBattleGroupBFrameState nonzero_state;
@@ -1124,7 +1556,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto nonzero_context = nonzero_fixture.context();
         const auto nonzero =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                nonzero_state, nonzero_port, nonzero_context, 0U
+                nonzero_state,
+                nonzero_port,
+                nonzero_context,
+                0U,
+                nonzero_port.effect_coordinator_state().group_b_effect_mode
             );
 
         test.expect_true(
@@ -1197,7 +1633,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         };
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -1236,7 +1676,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             0x55667788U;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.return_value == 1U && result.actor_start_gate.has_value() &&
@@ -1271,7 +1715,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.actor_start_gate.has_value() &&
@@ -1317,7 +1765,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             0x8A10A014U;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.actor_action_presentation.calls == 1U &&
@@ -1380,7 +1832,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         presentation_request.high_bit_clear_access.field_writable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -1436,7 +1892,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 2U
+                state,
+                port,
+                context,
+                2U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -1464,7 +1924,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 2U
+                state,
+                port,
+                context,
+                2U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -1490,7 +1954,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
 
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 2U
+                state,
+                port,
+                context,
+                2U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
 
         test.expect_true(
@@ -1524,7 +1992,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 3U
+                state,
+                port,
+                context,
+                3U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.return_value == 0U &&
@@ -1562,7 +2034,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.return_value == 0U && state.phase_progress == 1U &&
@@ -1613,7 +2089,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             .return_address_readable = !latch_writable;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 3U
+                state,
+                port,
+                context,
+                3U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_equal(
             result.status,
@@ -1673,7 +2153,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.return_value == 0U && state.selection_initialized == 1U &&
@@ -1704,7 +2188,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed,
@@ -1759,7 +2247,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -1794,7 +2286,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -1820,7 +2316,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -1869,7 +2369,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         };
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -1913,7 +2417,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         const bool available = selected != 0xFFFFFFFFU;
         test.expect_true(
@@ -1953,7 +2461,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -1994,7 +2506,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         context.group_b_frame_entry_edx = 0x89ABCDEFU;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -2032,11 +2548,14 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         DispatchPort port;
         port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x00480220U, {.eax = 1U});
-        port.push(0x0047D880U, {.eax = 1U, .edx = 0x55667788U});
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -2051,7 +2570,8 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
                 result.group_b_status_action_calls == 0U &&
                 result.group_b_action_profile_flag_calls == 0U &&
                 state.shared.action.current_actor_index == 0x1234U &&
-                state.status_misc == 9U && state.special_action_latch == 0U &&
+                state.status_misc == 9U &&
+                port.effect_coordinator_state().group_b_effect_mode == 0U &&
                 state.shared.action_side == 0U &&
                 port.count(0x004786A0U) == 0U &&
                 port.count(0x00476330U) == 0U &&
@@ -2091,7 +2611,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         context.actor_action_mode_access.action_kind_writable = mode_writable;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         if (!mode_writable) {
             test.expect_true(
@@ -2159,6 +2683,7 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         bind_group_b_coordinate_resource(fixture, 0U);
         auto& actor = (*fixture.startup->group_b_lifecycle)[0U];
         actor.action_composition.profile_mode_selector = 1U;
+        actor.action_configuration.profile_buffer[4U] = std::byte{2U};
         write_group_b_profile_dword(
             actor.action_configuration.profile_buffer, 0x0CU, 0x02U
         );
@@ -2168,7 +2693,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         DispatchPort port;
         port.actor_metric_state().priority_actor_index = 0U;
         port.push(0x004786A0U, {.eax = 0U});
-        port.push(0x0047D880U, {.eax = 1U});
         port.push(0x0047D8D0U, {.eax = 1U});
         port.push(0x0047CE80U, {.eax = 0U});
         port.push(0x0047CE80U, {.eax = 0U});
@@ -2178,14 +2702,19 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.return_value == 0U && state.status_action_value == 0x77U &&
                 state.random_target_index == 2U &&
                 state.shared.action_side == 1U &&
                 state.special_selection_pending == 0U &&
-                state.special_action_latch == 1U && state.phase_mode == 1U,
+                port.effect_coordinator_state().group_b_effect_mode == 1U &&
+                state.phase_mode == 1U,
             "negative packed status preserves frame control outcomes"
         );
         test.expect_true(
@@ -2236,7 +2765,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -2282,7 +2815,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -2323,7 +2860,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -2372,7 +2913,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -2421,7 +2966,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -2453,7 +3002,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -2485,7 +3038,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             .access.action_target_readable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -2525,7 +3082,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             .access.action_target_writable = false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -2571,7 +3132,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             .return_address_readable = !latch_readable;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -2628,7 +3193,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             false;
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -2690,7 +3259,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -2783,7 +3356,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -2849,7 +3426,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -2897,7 +3478,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -2935,7 +3520,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
@@ -2961,7 +3550,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 1U
+                state,
+                port,
+                context,
+                1U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.return_value == 1U &&
@@ -2997,7 +3590,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         };
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 1U
+                state,
+                port,
+                context,
+                1U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==
@@ -3026,7 +3623,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
-                state, port, context, 0U
+                state,
+                port,
+                context,
+                0U,
+                port.effect_coordinator_state().group_b_effect_mode
             );
         test.expect_true(
             result.status ==

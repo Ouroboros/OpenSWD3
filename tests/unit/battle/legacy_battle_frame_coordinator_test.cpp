@@ -936,8 +936,12 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
         dispatch_context.attack_order_secondary_gate =
             &unrelated_secondary_gate;
         openswd3::battle::LegacyBattleActorFrameAdvanceContext actor_frames{
-            fixture->actor_frame_state, *port, dispatch_context
+            fixture->actor_frame_state,
+            *port,
+            dispatch_context,
+            port->effect_coordinator_state().group_b_effect_mode
         };
+
         auto context = fixture->context();
         context.actor_frames = &actor_frames;
         const auto result = run_legacy_battle_frame_coordinator(
@@ -2854,7 +2858,9 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             fixture->actor_frame_state,
             port,
             dispatch_context,
+            port.effect_coordinator_state().group_b_effect_mode,
         };
+
         auto context = fixture->context();
         context.actor_frames = &actor_frames;
 

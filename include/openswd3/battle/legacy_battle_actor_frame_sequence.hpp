@@ -10,6 +10,7 @@ struct LegacyBattleActorFrameAdvanceContext {
     LegacyBattleGroupBFrameState& state;
     LegacyBattleActionDispatchPort& port;
     LegacyBattleActionDispatchContext& dispatch;
+    compat::u32& group_b_effect_mode;
 };
 
 enum class LegacyBattleActorFrameSequenceStatus : compat::u8 {
