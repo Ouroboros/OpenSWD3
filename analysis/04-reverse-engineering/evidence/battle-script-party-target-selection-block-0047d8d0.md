@@ -9,7 +9,9 @@
 完整47D8D0..47D8DE共9行：MOV EAX[actor+0D94]，AND FF，AND1，plain RET。
 无参数、调用、分支或写入；完整EAX只能0/1，业务条件仅BYTE bit0。
 八物理caller为456859、457BAA、457CBF、462D0C、4634E3、463830、463974、46AD3B。
-其余七父点待迁移。脚本23完整46AC13..46AF0F共315行。
+当批其余七父点待迁移。脚本23完整46AC13..46AF0F共315行。
+后续5b44fdb2回收456859，当前剩余六点，见
+[队员帧属性](battle-party-frame-target-selection-0047d8d0.md)。
 46AD40比较完整EAX与EDI1，真时46AD44写DWORD53BF88=1；假时保留原值。
 独立记录指令、条件、读写顺序及向量后，再核对现有C++和测试。
 
@@ -57,7 +59,7 @@ build/tmp/runtime/script-party-following-attribute-*。
 ## 4. 验证边界与未完成范围
 
 不标`assembly_exact`；完整拥有对象下的BYTE读取不证明原部分地址/page fault等价。
-其余七个47D8D0、七个47D880、四个47D8B0父点仍pending。
+后续队员帧切片后，剩余六个47D8D0、七个47D880、四个47D8B0父点仍pending。
 4707B0资源/输出、入口三WORD/晚+6前缀、状态/角色槽影子、53BD50别名、
 父参数/寄存器报告/轨迹/计数/Port，以及真实资产与完整SDL运行仍pending。
 没有全量UT、Windows、原版差分或游戏执行验收；Workpack316状态不变。

@@ -262,7 +262,7 @@ Typed-stop只位于：
 
 - 入口组A越界；
 - effect mode组合门与固定最终尾；
-- AI terminal统计、one-based随机目标和两个完成标记；
+- AI terminal统计、one-based随机目标及属性辅助标记；旧两个角色完成替代的解释按第15节校准；
 - 十槽queue首个未完成项与左移；
 - idle actor启动后的攻击顺序记录、队员暂存源和双尾门真实访问点；
 - completed actor组B扫描与首个live选择；
@@ -274,7 +274,7 @@ Typed-stop只位于：
 - turn `0x4000→0x8000→0`同调用穿透；
 - resolved word54最大值、stale turn参数与失败尾；
 - queue code小于8的派生对象停点；
-- 46个唯一callee全部存在，其中4个整函数typed直连、42个端口边界；turn gate内部坐标publication另为typed leaf直连并覆盖fault后缀抑制。
+- 原工作包记录46个唯一callee，其中4个整函数typed直连、42个端口边界；该计数是历史范围，不代表当前INVOKE验收。turn gate内部坐标publication另为typed leaf直连并覆盖fault后缀抑制。
 
 ## 13. `0x00478330`六处直接写入
 
@@ -289,3 +289,15 @@ Typed-stop只位于：
 四处直接复用当前Group-A action-execution的canonical动作目标，不增加generic端口调用。嵌套结果按真实调用顺序合并逐次typed结果，保留首轮和后续轮EAX/EDX、ECX角色token、SUB/CMP flags及返回地址。待审`0x00478B20`清动作和`0x00478A70`目标重建均同步唯一canonical字段。typed-stop只保留当前物理caller之前的空闲查询、动作启动、嵌套分派或terminal前缀，并抑制对应符号扩展、清理、剩余循环和公共尾；生产`0x004786E0` raw调用为零。
 
 当前缺少原版完整Group-A/Group-B actor、动作启动与terminal等剩余callee共享副作用，以及四处caller联合寄存器、flags和SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 15. 自动选敌人后的实际属性标记
+
+5b44fdb2删除456859→47D8D0通用查询，直接读实际actor+0D94 BYTE bit0。
+真写startup.reset辅助column1，假保留旧DWORD；4569C4精确1消费者读同一记录。
+它不是actor+2AB0，真实进度前继合法置角色完成1；原最终45AA00→4750C0
+清十个profile DWORD，当前属性随后清零，不能用返回后的保留预期否定前缀。
+夹具借唯一startup.reset，285次新执行与既有路径同步，core/ASan
+actor_frame_316各1/1 26.69/28.03秒及SDL实际链接、两源身份通过，见
+[队员帧目标标记](battle-party-frame-target-selection-0047d8d0.md)。
+当前456844的bit1仍有通用查询和错误辅助替代，留下一独立批次。
+其它父协议、计数、资源、完整出口与运行验证仍pending，不升级整父验收。
