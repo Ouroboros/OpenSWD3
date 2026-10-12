@@ -98,6 +98,10 @@ core/ASan定向门禁及SDL实际链接通过，见
 后续脚本51指定敌人动作时直接写实际当前与保留分支，保存原BYTE读取和写入顺序；
 FFFF借用真实重置块，未拥有额外地址继续待审。78次执行通过core/ASan各1/1及SDL链接，见
 [脚本动作分支](../evidence/battle-script-actor-action-branch-0047f3a0.md)。
+脚本23指定队员动作时，查询实际坐标抑制属性，保留保存对象与实时辅助行的区别；
+零值和失败保留既有前缀。214次执行通过core/ASan各1/1及SDL链接，见
+[脚本实际属性](../evidence/battle-script-party-coordinate-suppression-0047d880.md)。
+共享别名、入口读取前缀、状态影子和其余属性调用仍待迁移。
 其他三个未接通物品物理调用、父诊断、通用端口和完整SDL运行仍待回收。
 这些接线不关闭新的战斗函数。
 
