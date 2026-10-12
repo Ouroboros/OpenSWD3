@@ -21,8 +21,9 @@ using compat::u32;
     const u32 index,
     u32& eax
 ) {
-    result.item_quantity =
-        advance_legacy_battle_player_item_quantity(port, item_id, 0U);
+    result.item_quantity = advance_legacy_battle_player_item_quantity(
+        port.world_item_list_state(), port, item_id, 0U
+    );
     ++result.item_quantity_calls;
     if (stage == LegacyBattleOutcomeFinalizationStage::player_reward) {
         ++result.player_reward_calls;

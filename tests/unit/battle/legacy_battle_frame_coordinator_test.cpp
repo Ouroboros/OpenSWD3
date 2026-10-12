@@ -1,3 +1,4 @@
+#include "fixed_node_memory_resource.hpp"
 #include "legacy_battle_level_database_fixture.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
@@ -149,14 +150,6 @@ public:
     [[nodiscard]] LegacyBattleActionCallReply
     invoke(const LegacyBattleActionCallRequest& request) override {
         action_calls.push_back(request);
-        if (request.callee_token == 0x00487C10U) {
-            if (fail_item_allocation) {
-                return {};
-            }
-            const u32 token = next_item_allocation_token;
-            next_item_allocation_token += 0xB0U;
-            return {.eax = token};
-        }
         return {};
     }
 
@@ -285,8 +278,7 @@ public:
         .edx = 0x22220000U,
         .published_value = 0xFFFFFFFFU,
     };
-    u32 next_item_allocation_token{0x72000000U};
-    bool fail_item_allocation{};
+
     bool publish_outcome_counts{};
     u32 outcome_group_b_count{};
     u32 outcome_group_a_count{};
@@ -3377,6 +3369,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         const auto state_storage = std::make_unique<
             openswd3::battle::LegacyBattleFrameCoordinatorState>();
         auto& state = *state_storage;
+        openswd3::test::FixedNodeMemoryResource memory;
+        memory.allocation_enabled = false;
         auto fixture = std::make_unique<Fixture>();
         fixture->final_actor_step.active_actor_code = 0U;
         fixture->action_dispatch.packed_actor_counter = 1U;
@@ -3388,7 +3382,8 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
         port.publish_outcome_counts = true;
         port.outcome_group_b_count = 1U;
         port.outcome_group_a_count = 1U;
-        port.fail_item_allocation = true;
+        std::destroy_at(&port.world_item_list_state());
+        std::construct_at(&port.world_item_list_state(), memory);
         configure_common_port(port);
         auto context = fixture->context();
 

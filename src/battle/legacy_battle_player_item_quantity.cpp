@@ -1,6 +1,6 @@
 #include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 
-#include "openswd3/battle/legacy_battle_action_dispatch.hpp"
+#include "openswd3/battle/legacy_battle_mon_definition.hpp"
 
 #include <algorithm>
 #include <array>
@@ -20,7 +20,6 @@ using compat::u32;
 using world_map::LegacyWorldItemListState;
 using world_map::LegacyWorldItemNode;
 
-constexpr u32 kAllocateCallToken = 0x00487C10U;
 constexpr std::size_t kFlagByteOffset = 0x21U;
 
 [[nodiscard]] constexpr i16 signed_word(const u16 value) noexcept {
@@ -66,12 +65,12 @@ void advance_existing_quantity(
 }  // namespace
 
 LegacyBattlePlayerItemQuantityResult advance_legacy_battle_player_item_quantity(
-    LegacyBattleActionDispatchPort& port,
+    LegacyWorldItemListState& state,
+    LegacyBattleMonDatabasePort& database,
     const u32 item_id,
     const u32 quantity_selector
 ) {
     LegacyBattlePlayerItemQuantityResult result;
-    auto& state = port.world_item_list_state();
     const u16 item_word = static_cast<u16>(item_id);
 
     if (item_word == 0U) {
@@ -109,28 +108,20 @@ LegacyBattlePlayerItemQuantityResult advance_legacy_battle_player_item_quantity(
     }
 
     const u32 old_head_token = state.player_inventory_head_token;
-    LegacyBattleActionCallRequest allocate_request{};
-    allocate_request.callee_token = kAllocateCallToken;
-    allocate_request.arguments[0] = kLegacyBattlePlayerItemNodeSize;
-    const LegacyBattleActionCallReply allocate_reply =
-        port.invoke(allocate_request);
-    state.player_inventory_head_token = allocate_reply.eax;
-    if (allocate_reply.eax == 0U) {
+    try {
+        state.player_inventory.emplace_front();
+    } catch (const std::bad_alloc&) {
+        state.player_inventory_head_token = 0U;
         result.status =
             LegacyBattlePlayerItemQuantityStatus::allocation_typed_stop;
         return result;
     }
 
-    try {
-        state.player_inventory.emplace_front();
-    } catch (const std::bad_alloc&) {
-        result.status =
-            LegacyBattlePlayerItemQuantityStatus::host_allocation_typed_stop;
-        return result;
-    }
-
     LegacyWorldItemNode& node = state.player_inventory.front();
-    node.legacy_token = allocate_reply.eax;
+    node.legacy_token = state.next_battle_level_item_node_token;
+    state.next_battle_level_item_node_token +=
+        world_map::kLegacyWorldItemNodeBytes;
+    state.player_inventory_head_token = node.legacy_token;
     node.legacy_next_token = old_head_token;
     node.item_id = item_word;
 
@@ -147,7 +138,7 @@ LegacyBattlePlayerItemQuantityResult advance_legacy_battle_player_item_quantity(
     const auto definition_result = load_legacy_battle_mon_definition(
         definition,
         node.description,
-        port,
+        database,
         {
             .path = "mon.dat",
             .definition_id = item_id,

@@ -8,7 +8,7 @@ namespace {
 using compat::u32;
 using world_map::LegacyWorldItemListState;
 using world_map::LegacyWorldItemNode;
-using PlayerItemIterator = std::list<LegacyWorldItemNode>::iterator;
+using PlayerItemIterator = world_map::LegacyWorldItemNodes::iterator;
 
 [[nodiscard]] PlayerItemIterator
 find_node_by_token(LegacyWorldItemListState& state, const u32 token) noexcept {

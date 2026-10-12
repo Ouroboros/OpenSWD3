@@ -1647,7 +1647,6 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
             .action_execution.profile_value = 1U;
         DispatchPort port;
         port.action = 6U;
-        port.push(0x00487C10U, {.eax = 0x00630000U});
         auto context = fixture.context();
         const auto result = dispatch(state, port, context, 0U, 0U);
         const auto& item =
@@ -1658,10 +1657,10 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 result.fixed_count.path ==
                     openswd3::battle::LegacyBattleFixedCountPath::
                         allocated_node &&
-                port.count(0x00487C10U) == 1U &&
                 port.fixed_count_nodes.front().words[1U] == 0x00010001U &&
+                port.world_item_list_state().player_inventory.size() == 1U &&
                 result.player_item_calls == 1U &&
-                result.player_item.return_token == 0x0063000CU &&
+                result.player_item.return_token == item.legacy_token + 0x0CU &&
                 item.item_id == 7U && item.quantity_b == 1U &&
                 result.actor_presentation_activation.calls == 1U &&
                 result.actor_presentation_activation.call_addresses[0U] ==
@@ -1701,7 +1700,6 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
             target.action_execution.profile_value = 1U;
             DispatchPort port;
             port.action = 6U;
-            port.push(0x00487C10U, {.eax = 0x00630000U});
             auto context = fixture->context();
             context.actor_presentation_activation_requests.calls[0U]
                 .access.argument_readable = !activation_failure;
@@ -2069,7 +2067,6 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         DispatchPort port;
         port.action = 23U;
         port.definition_description = {0x61U};
-        port.push(0x00487C10U, {.eax = 0x00640000U});
         auto context = fixture.context();
         const auto result = dispatch(state, port, context, 0U, 0U);
         const auto& item =
@@ -2100,7 +2097,7 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 port.legacy_battle_mon_definition_scratch_description()
                     .empty() &&
                 result.player_item_calls == 1U &&
-                result.player_item.return_token == 0x0064000CU &&
+                result.player_item.return_token == item.legacy_token + 0x0CU &&
                 item.item_id == 0x22U && item.quantity_b == 1U,
             "action twenty-three message path directly publishes selector-one player quantity"
         );

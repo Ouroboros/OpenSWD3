@@ -1128,7 +1128,7 @@ struct Fixture {
     u32& high_priority_submode = storage->high_priority_submode;
     u32& high_priority_auxiliary = storage->high_priority_auxiliary;
     LegacyWorldItemListState& item_lists = storage->item_lists;
-    std::list<LegacyWorldItemNode>& player_inventory =
+    openswd3::world_map::LegacyWorldItemNodes& player_inventory =
         item_lists.player_inventory;
     openswd3::world_map::LegacyWorldStoryVmRuntime& runtime = storage->runtime;
     RecordingPorts& ports = storage->ports;

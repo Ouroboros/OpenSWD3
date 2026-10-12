@@ -2687,7 +2687,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x00478850U, {.eax = 0xABCD1111U, .edx = 0xA5A55A5AU});
-        port.push(0x00487C10U, {.eax = 0x00620000U});
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(
@@ -2727,7 +2726,11 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
             "all-target completion directly copies the shared threshold into startup actor progress"
         );
         test.expect_true(
-            result.player_item.return_token == 0x0062000CU,
+            result.player_item.return_token ==
+                port.world_item_list_state()
+                        .player_inventory.front()
+                        .legacy_token +
+                    0x0CU,
             "all-target completion preserves the player-item result token"
         );
         test.expect_true(
@@ -2777,7 +2780,6 @@ void test_battle_group_b_frame(openswd3::test::Context& test) {
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x004786A0U, {.eax = 1U});
         port.push(0x00478850U, {.eax = 0xDEAD1111U, .edx = 0x55667788U});
-        port.push(0x00487C10U, {.eax = 0x00630000U});
         auto context = fixture.context();
         const auto result =
             openswd3::battle::advance_legacy_battle_group_b_frame(

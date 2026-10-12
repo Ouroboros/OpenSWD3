@@ -118,10 +118,7 @@ public:
         const openswd3::battle::LegacyBattleActionCallRequest& request
     ) override {
         action_calls.push_back(request);
-        if (action_reply_index >= action_replies.size()) {
-            return {};
-        }
-        return action_replies[action_reply_index++];
+        return {};
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleInputDispatchCallReply
@@ -385,8 +382,6 @@ public:
         message_replies;
     std::map<LegacyBattleMessagePhaseCall, std::size_t> message_reply_indices;
     std::vector<openswd3::battle::LegacyBattleActionCallRequest> action_calls;
-    std::vector<openswd3::battle::LegacyBattleActionCallReply> action_replies;
-    std::size_t action_reply_index{};
     std::vector<openswd3::battle::LegacyBattleInputDispatchCallRequest>
         input_calls;
     std::vector<std::array<u32, 2>> sample_calls;
@@ -805,10 +800,6 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 .group_b_action_item_definition = loaded_definition,
             }
         );
-        fixture.port.action_replies = {
-            {.eax = 0x00900000U},
-            {.eax = 0x11111111U},
-        };
         const auto result = run(fixture);
         const auto find_call = [&](const LegacyBattleMessagePhaseCall call) {
             return *std::ranges::find_if(
@@ -844,7 +835,11 @@ void test_battle_message_phase(openswd3::test::Context& test) {
                 result.player_item_quantity_calls == 1U &&
                 result.player_item_quantity.created &&
                 fixture.port.battle_victory_reward_state()
-                        .player_item_tokens[0U] == 0x0090000CU &&
+                        .player_item_tokens[0U] ==
+                    fixture.port.world_item_list_state()
+                            .player_inventory.front()
+                            .legacy_token +
+                        0x0CU &&
                 fixture.target_selection.transition_aux_byte == 1U &&
                 fixture.target_selection.special_action_count == 4U &&
                 result.return_eax == 4U && records_reset &&

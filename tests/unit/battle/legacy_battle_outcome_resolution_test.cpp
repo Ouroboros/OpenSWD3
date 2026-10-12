@@ -1,3 +1,4 @@
+#include "fixed_node_memory_resource.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_outcome_resolution.hpp"
 #include "test.hpp"
@@ -5,6 +6,8 @@
 #include <algorithm>
 #include <array>
 #include <functional>
+#include <memory>
+#include <stdexcept>
 #include <vector>
 
 namespace {
@@ -34,11 +37,7 @@ public:
     std::vector<LegacyBattleOutcomeResolutionCall> calls;
     LegacyBattleOutcomeResolutionCallReply audio_reply{};
     std::function<void(LegacyBattleOutcomeResolutionCall)> on_call;
-    std::function<void(const LegacyBattleActionCallRequest&)> on_action_call;
     std::function<void(u32)> on_definition_load;
-    std::vector<LegacyBattleActionCallRequest> action_calls;
-    u32 next_allocation_token{0x73000000U};
-    bool fail_allocation{};
 
     [[nodiscard]] LegacyBattleOutcomeResolutionState&
     outcome_resolution_state() noexcept override {
@@ -46,20 +45,10 @@ public:
     }
 
     [[nodiscard]] LegacyBattleActionCallReply
-    invoke(const LegacyBattleActionCallRequest& request) override {
-        action_calls.push_back(request);
-        if (on_action_call) {
-            on_action_call(request);
-        }
-        if (request.callee_token == 0x00487C10U) {
-            if (fail_allocation) {
-                return {};
-            }
-            const u32 token = next_allocation_token;
-            next_allocation_token += 0xB0U;
-            return {.eax = token};
-        }
-        return {};
+    invoke(const LegacyBattleActionCallRequest&) override {
+        throw std::logic_error(
+            "outcome item quantities required a generic call"
+        );
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
@@ -362,6 +351,8 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
     }
 
     {
+        openswd3::test::FixedNodeMemoryResource memory;
+        memory.allocation_enabled = false;
         Fixture fixture;
         fixture.group_a_count = 1U;
         fixture.final_actor.removed_group_a_count = 1U;
@@ -369,10 +360,11 @@ void test_battle_outcome_resolution(openswd3::test::Context& test) {
         fixture.state.darkening_gate = 1U;
         fixture.state.darkening.channel_delta = -30;
         OutcomePort port;
+        std::destroy_at(&port.world_item_list_state());
+        std::construct_at(&port.world_item_list_state(), memory);
         port.shared_state = &fixture.state;
         port.outcome_finalization_state().player_reward_item_ids = {7U, 8U};
         port.outcome_finalization_state().completion_words = {9U, 10U};
-        port.fail_allocation = true;
 
         const auto result =
             update_legacy_battle_outcome_resolution(fixture.bindings(), port);

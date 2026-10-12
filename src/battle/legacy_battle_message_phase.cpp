@@ -713,7 +713,7 @@ private:
 
         result_.player_item_quantity =
             advance_legacy_battle_player_item_quantity(
-                port_, static_cast<u16>(eax_), 1U
+                port_.world_item_list_state(), port_, static_cast<u16>(eax_), 1U
             );
         ++result_.player_item_quantity_calls;
         if (result_.player_item_quantity.status !=

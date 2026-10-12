@@ -151,11 +151,6 @@ public:
         const openswd3::battle::LegacyBattleActionCallRequest& request
     ) override {
         action_calls.push_back(request);
-        if (request.callee_token == 0x00487C10U && !allocation_tokens.empty()) {
-            const u32 token = allocation_tokens.front();
-            allocation_tokens.pop_front();
-            return {.eax = token};
-        }
         return {.eax = request.eax, .ecx = request.ecx, .edx = request.edx};
     }
 
@@ -215,7 +210,6 @@ public:
         replies;
     std::map<LegacyBattleVictoryRewardCall, std::size_t> reply_indices;
     std::vector<openswd3::battle::LegacyBattleActionCallRequest> action_calls;
-    std::deque<u32> allocation_tokens;
     std::vector<std::array<u32, 2>> samples;
     std::vector<u32> sample_entry_eax;
     u32 music_fades{};

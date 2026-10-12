@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <list>
+#include <memory_resource>
 #include <optional>
 #include <vector>
 
@@ -42,11 +43,15 @@ struct LegacyWorldItemNode {
     compat::u32 legacy_accessible_bytes{kLegacyWorldItemNodeBytes};
 };
 
+using LegacyWorldItemNodes = std::pmr::list<LegacyWorldItemNode>;
+
 struct LegacyWorldSentinelItemList {
-    LegacyWorldSentinelItemList() noexcept;
+    explicit LegacyWorldSentinelItemList(
+        std::pmr::memory_resource& memory = *std::pmr::get_default_resource()
+    ) noexcept;
 
     LegacyWorldItemNode sentinel;
-    std::list<LegacyWorldItemNode> nodes;
+    LegacyWorldItemNodes nodes;
     // The raw global array stores a movable node pointer. Most callers leave
     // it at the sentinel; level.dat traversal temporarily advances it and
     // restores the saved token only on normal command completion.
@@ -54,12 +59,14 @@ struct LegacyWorldSentinelItemList {
 };
 
 struct LegacyWorldItemListState {
-    LegacyWorldItemListState() noexcept;
+    explicit LegacyWorldItemListState(
+        std::pmr::memory_resource& memory = *std::pmr::get_default_resource()
+    ) noexcept;
 
     compat::u32 next_battle_level_item_node_token{0x70020000U};
     compat::u32 player_inventory_head_token{};
     LegacyWorldItemNode player_inventory_head_alias{};
-    std::list<LegacyWorldItemNode> player_inventory;
+    LegacyWorldItemNodes player_inventory;
     std::array<
         std::optional<LegacyWorldSentinelItemList>,
         kLegacyPartyItemListCount>

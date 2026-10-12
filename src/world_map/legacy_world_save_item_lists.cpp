@@ -30,7 +30,7 @@ void relink_inventory(LegacyWorldItemListState& state) noexcept {
 
 bool apply_existing_inventory_quantity(
     LegacyWorldItemListState& state,
-    const std::list<LegacyWorldItemNode>::iterator existing,
+    const LegacyWorldItemNodes::iterator existing,
     const u16 quantity,
     const bool second_bucket
 ) noexcept {

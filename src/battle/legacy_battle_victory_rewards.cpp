@@ -382,7 +382,9 @@ private:
         }
 
         result_.player_item_quantity =
-            advance_legacy_battle_player_item_quantity(port_, item_id, 1U);
+            advance_legacy_battle_player_item_quantity(
+                port_.world_item_list_state(), port_, item_id, 1U
+            );
         ++result_.player_item_quantity_calls;
         eax_ = result_.player_item_quantity.return_token;
         if (result_.player_item_quantity.status !=

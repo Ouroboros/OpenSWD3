@@ -23,7 +23,7 @@ bool release_description(
 }
 
 bool drain_nodes(
-    std::list<LegacyWorldItemNode>& nodes,
+    LegacyWorldItemNodes& nodes,
     compat::u32& head_token,
     compat::u32& released_count,
     LegacyWorldItemListReleaseResult& result
@@ -65,22 +65,29 @@ bool release_sentinel_list(
 
 }  // namespace
 
-LegacyWorldSentinelItemList::LegacyWorldSentinelItemList() noexcept {
+LegacyWorldSentinelItemList::LegacyWorldSentinelItemList(
+    std::pmr::memory_resource& memory
+) noexcept
+    : nodes(&memory) {
     sentinel.item_id = kLegacyItemSentinelId;
     sentinel.quantity_a = 1U;
     sentinel.definition_snapshot[0U] = kLegacyItemSentinelNameBytes[0U];
     sentinel.definition_snapshot[1U] = kLegacyItemSentinelNameBytes[1U];
 }
 
-LegacyWorldItemListState::LegacyWorldItemListState() noexcept {
+LegacyWorldItemListState::LegacyWorldItemListState(
+    std::pmr::memory_resource& memory
+) noexcept
+    : player_inventory(&memory) {
     for (std::size_t index = 0U; index < party_item_lists.size(); ++index) {
-        auto& list = party_item_lists[index].emplace();
+        auto& list = party_item_lists[index].emplace(memory);
         list.sentinel.legacy_token = kLegacyPartyItemSentinelTokenBase +
             static_cast<compat::u32>(index) * 0xB0U;
         list.legacy_head_token = list.sentinel.legacy_token;
     }
+
     for (std::size_t index = 0U; index < role_item_lists.size(); ++index) {
-        auto& list = role_item_lists[index].emplace();
+        auto& list = role_item_lists[index].emplace(memory);
         list.sentinel.legacy_token = kLegacyRoleItemSentinelTokenBase +
             static_cast<compat::u32>(index) * 0xB0U;
         list.legacy_head_token = list.sentinel.legacy_token;

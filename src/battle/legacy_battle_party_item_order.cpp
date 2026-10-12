@@ -8,7 +8,7 @@ namespace {
 using compat::u32;
 using world_map::LegacyWorldItemNode;
 using world_map::LegacyWorldSentinelItemList;
-using PartyItemIterator = std::list<LegacyWorldItemNode>::iterator;
+using PartyItemIterator = world_map::LegacyWorldItemNodes::iterator;
 
 [[nodiscard]] PartyItemIterator find_node_by_token(
     LegacyWorldSentinelItemList& list, const u32 token

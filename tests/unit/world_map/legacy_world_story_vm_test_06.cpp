@@ -1,3 +1,4 @@
+#include "fixed_node_memory_resource.hpp"
 #include "legacy_world_story_vm_test_cases.hpp"
 #include "legacy_world_story_vm_test_support.hpp"
 
@@ -2314,7 +2315,10 @@ void test_real_adjust_player_item_quantity_record(
 
     openswd3::resource_io::LegacyResourceDatabases databases;
     const auto initialized = databases.initialize(root);
+    openswd3::test::FixedNodeMemoryResource item_memory;
     LegacyWorldStoryVmState state{};
+    std::destroy_at(&state.unlinked_item_nodes);
+    std::construct_at(&state.unlinked_item_nodes, &item_memory);
     openswd3::world_map::initialize_legacy_world_story_vm(state);
     std::ranges::copy(instruction, state.window.begin());
     state.loaded_file_number = 1U;
@@ -2333,7 +2337,7 @@ void test_real_adjust_player_item_quantity_record(
     openswd3::world_map::LegacyWorldDialogRuntimeState dialog_resources;
     std::array<u8, 16U> first_name{};
     std::array<u8, 16U> second_name{};
-    std::list<LegacyWorldItemNode> player_inventory;
+    openswd3::world_map::LegacyWorldItemNodes player_inventory{&item_memory};
     openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
     runtime.player_inventory = &player_inventory;
     RealPorts ports{databases};
@@ -2375,6 +2379,35 @@ void test_real_adjust_player_item_quantity_record(
             player_inventory.front().description ==
                 std::vector<u8>{static_cast<u8>('I'), 0U},
         "real opcode 128 adds one unit of item 971 from TALK1 offset 0x764F"
+    );
+    test.expect_true(
+        player_inventory.get_allocator() ==
+                state.unlinked_item_nodes.get_allocator() &&
+            state.unlinked_item_nodes.empty() &&
+            item_memory.outstanding_blocks == 1U,
+        "the real item addition transfers one actual node between lists sharing the injected allocator"
+    );
+    context.instruction_offset = 0U;
+    write_u16(state.window, 4U, 0xFFFFU);
+    const auto removed = openswd3::world_map::step_legacy_world_story_vm(
+        context,
+        state,
+        roles,
+        0U,
+        active_object_slots,
+        {},
+        dialogs,
+        dialog_resources,
+        first_name,
+        second_name,
+        runtime,
+        ports
+    );
+    test.expect_true(
+        removed.status == LegacyWorldStoryVmStatus::yielded &&
+            player_inventory.empty() && state.unlinked_item_nodes.empty() &&
+            item_memory.outstanding_blocks == 0U,
+        "a fixed-state decrement transfers the actual node back before freeing its text and allocation"
     );
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <memory_resource>
 #include <new>
 
@@ -10,10 +11,15 @@ class FixedNodeMemoryResource final : public std::pmr::memory_resource {
 public:
     bool allocation_enabled{true};
     std::size_t outstanding_blocks{};
+    std::function<void()> on_allocate;
 
 private:
     void*
     do_allocate(const std::size_t bytes, const std::size_t alignment) override {
+        if (on_allocate) {
+            on_allocate();
+        }
+
         if (!allocation_enabled) {
             throw std::bad_alloc{};
         }

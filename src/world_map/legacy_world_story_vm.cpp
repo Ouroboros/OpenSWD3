@@ -1727,8 +1727,8 @@ release_legacy_world_story_role_path(
 }
 
 [[nodiscard]] LegacyWorldStoryVmStatus adjust_player_item_quantity(
-    std::list<LegacyWorldItemNode>& inventory,
-    std::list<LegacyWorldItemNode>& unlinked_nodes,
+    LegacyWorldItemNodes& inventory,
+    LegacyWorldItemNodes& unlinked_nodes,
     const u16 item_id,
     const i16 delta,
     LegacyWorldStoryVmPorts& ports
@@ -1812,8 +1812,8 @@ struct LegacyStoryPartyItemUpsertResult {
 };
 
 [[nodiscard]] LegacyStoryPartyItemUpsertResult upsert_party_item(
-    std::list<LegacyWorldItemNode>& items,
-    std::list<LegacyWorldItemNode>& unlinked_nodes,
+    LegacyWorldItemNodes& items,
+    LegacyWorldItemNodes& unlinked_nodes,
     const u16 item_id,
     LegacyWorldStoryVmPorts& ports
 ) noexcept {
@@ -1881,8 +1881,8 @@ struct LegacyStoryPartyItemUpsertResult {
 }
 
 [[nodiscard]] bool decrement_party_item(
-    std::list<LegacyWorldItemNode>& items,
-    std::list<LegacyWorldItemNode>& unlinked_nodes,
+    LegacyWorldItemNodes& items,
+    LegacyWorldItemNodes& unlinked_nodes,
     const u16 item_id
 ) noexcept {
     const auto decrement = [&items, &unlinked_nodes, item_id](
@@ -1943,7 +1943,7 @@ struct LegacyStoryPartyItemUpsertResult {
 }
 
 [[nodiscard]] bool party_items_have_masked_item(
-    const std::list<LegacyWorldItemNode>& items, const u16 item_id
+    const LegacyWorldItemNodes& items, const u16 item_id
 ) noexcept {
     return std::ranges::any_of(
         items, [item_id](const LegacyWorldItemNode& item) {
@@ -1953,7 +1953,7 @@ struct LegacyStoryPartyItemUpsertResult {
 }
 
 [[nodiscard]] bool player_inventory_has_item(
-    const std::list<LegacyWorldItemNode>& inventory, const u16 item_id
+    const LegacyWorldItemNodes& inventory, const u16 item_id
 ) noexcept {
     return std::ranges::any_of(
         inventory, [item_id](const LegacyWorldItemNode& item) {
@@ -1963,7 +1963,7 @@ struct LegacyStoryPartyItemUpsertResult {
 }
 
 [[nodiscard]] LegacyWorldItemNode* find_player_inventory_item_masked(
-    std::list<LegacyWorldItemNode>& inventory, const u16 item_id
+    LegacyWorldItemNodes& inventory, const u16 item_id
 ) noexcept {
     const auto existing = std::ranges::find_if(
         inventory, [item_id](const LegacyWorldItemNode& item) {
@@ -1998,7 +1998,7 @@ struct LegacyStoryRoleRootItemLookup {
 }
 
 [[nodiscard]] LegacyWorldItemNode* find_player_inventory_node_by_address(
-    std::list<LegacyWorldItemNode>& inventory, const std::uintptr_t address
+    LegacyWorldItemNodes& inventory, const std::uintptr_t address
 ) noexcept {
     const auto existing = std::ranges::find_if(
         inventory, [address](const LegacyWorldItemNode& item) {
@@ -2009,8 +2009,8 @@ struct LegacyStoryRoleRootItemLookup {
 }
 
 [[nodiscard]] LegacyWorldStoryVmStatus swap_player_item_into_role_slot(
-    std::list<LegacyWorldItemNode>& inventory,
-    std::list<LegacyWorldItemNode>& unlinked_nodes,
+    LegacyWorldItemNodes& inventory,
+    LegacyWorldItemNodes& unlinked_nodes,
     LegacyWorldSentinelItemList& role_slot,
     LegacyWorldItemNode& source,
     LegacyWorldItemNode& displaced,

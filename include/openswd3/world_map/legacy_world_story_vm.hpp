@@ -321,7 +321,7 @@ struct LegacyWorldStoryVmState {
     std::vector<compat::u16> shop_item_ids;
     // sub_44D2D0 unlinks before freeing text. Retain an unlinked allocation
     // if that free stops; it must not reappear in the live inventory chain.
-    std::list<LegacyWorldItemNode> unlinked_item_nodes;
+    LegacyWorldItemNodes unlinked_item_nodes;
     // Opcodes 170..173 own the nullable 0x34-byte blocks at
     // dword_4B751C/dword_4B74F4. Special modes 17/18 consume these bytes and
     // persistence serializes the two blocks in this order.
@@ -426,7 +426,7 @@ struct LegacyWorldStoryVmRuntime {
     // dword_4CAEB8 is shared with sub_402F80's player speed toggle and the
     // shared dialog runtime. Opcode 122 clears the same process-level owner.
     compat::u32* speed_mode{};
-    std::list<LegacyWorldItemNode>* player_inventory{};
+    LegacyWorldItemNodes* player_inventory{};
     std::array<
         std::optional<LegacyWorldSentinelItemList>,
         kLegacyPartyItemListCount>* party_item_lists{};

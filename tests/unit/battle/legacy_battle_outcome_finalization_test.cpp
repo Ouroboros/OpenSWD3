@@ -1,3 +1,4 @@
+#include "fixed_node_memory_resource.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_outcome_finalization.hpp"
 #include "openswd3/battle/legacy_battle_reward_item_slot.hpp"
@@ -5,6 +6,8 @@
 
 #include <algorithm>
 #include <functional>
+#include <memory>
+#include <stdexcept>
 #include <vector>
 
 namespace {
@@ -18,30 +21,22 @@ class FinalizationPort final
     : public LegacyBattleOutcomeFinalizationPort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
-    [[nodiscard]] LegacyBattleActionCallReply
-    invoke(const LegacyBattleActionCallRequest& request) override {
-        calls.push_back(request);
-        if (on_call) {
-            on_call(request, calls.size());
-        }
-        if (request.callee_token == 0x00487C10U) {
-            if (fail_allocation) {
-                return {};
-            }
-            const u32 token = next_allocation_token;
-            next_allocation_token += 0xB0U;
-            return {.eax = token};
-        }
-        return {};
+    FinalizationPort() = default;
+
+    explicit FinalizationPort(std::pmr::memory_resource& memory) {
+        std::destroy_at(&world_item_list_state());
+        std::construct_at(&world_item_list_state(), memory);
     }
 
-    std::vector<LegacyBattleActionCallRequest> calls;
-    std::function<void(const LegacyBattleActionCallRequest&, std::size_t)>
-        on_call;
+    [[nodiscard]] LegacyBattleActionCallReply
+    invoke(const LegacyBattleActionCallRequest&) override {
+        throw std::logic_error(
+            "outcome item quantities required a generic call"
+        );
+    }
+
     std::function<void(u32, std::size_t)> on_definition_load;
     std::size_t definition_load_count{};
-    u32 next_allocation_token{0x71000000U};
-    bool fail_allocation{};
 
     [[nodiscard]] openswd3::battle::LegacyBattleMonStreamAllocation
     allocate_mon_stream(const openswd3::compat::u32 size) override {
@@ -95,7 +90,8 @@ void test_battle_outcome_finalization(openswd3::test::Context& test) {
                     std::array<openswd3::compat::u16, 2>{0U, 0U} &&
                 state.completion_words ==
                     std::array<openswd3::compat::u16, 2>{0x1234U, 0U} &&
-                group_b_count == 0U && port.calls.empty(),
+                group_b_count == 0U &&
+                port.world_item_list_state().player_inventory.empty(),
             "zero reward words and zero group count skip all item calls before the three ordered cleanup stores"
         );
     }
@@ -206,11 +202,12 @@ void test_battle_outcome_finalization(openswd3::test::Context& test) {
     }
 
     {
-        FinalizationPort port;
+        openswd3::test::FixedNodeMemoryResource memory;
+        memory.allocation_enabled = false;
+        FinalizationPort port{memory};
         auto& state = port.outcome_finalization_state();
         state.player_reward_item_ids = {0x0123U, 0x0456U};
         state.completion_words = {0x1111U, 0x2222U};
-        port.fail_allocation = true;
         u32 group_b_count = 2U;
 
         const auto result =
@@ -237,10 +234,11 @@ void test_battle_outcome_finalization(openswd3::test::Context& test) {
     }
 
     {
-        FinalizationPort port;
+        openswd3::test::FixedNodeMemoryResource memory;
+        memory.allocation_enabled = false;
+        FinalizationPort port{memory};
         auto& state = port.outcome_finalization_state();
         state.completion_words = {0x3333U, 0x4444U};
-        port.fail_allocation = true;
         u32 group_b_count = 1U;
 
         const auto result =

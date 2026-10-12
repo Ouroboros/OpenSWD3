@@ -313,7 +313,7 @@ void replace_low_word(u32& destination, const u16 value) noexcept {
     const u32 quantity_selector
 ) {
     result.player_item = advance_legacy_battle_player_item_quantity(
-        port, item_id, quantity_selector
+        port.world_item_list_state(), port, item_id, quantity_selector
     );
     ++result.player_item_calls;
     if (result.player_item.status !=
