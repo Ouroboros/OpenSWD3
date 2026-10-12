@@ -638,3 +638,14 @@ case 5、13与40入口按脚本token的`<=7/>7`分支分别保留`0x00525508 + t
 六类停止分别覆盖第一输出指针读取、X读取、X写入、Y读取、第二输出指针读取与Y写入。任一停止都映射为`actor_current_coordinate_typed_stop`并阻断当前站点第一条后缀、publication、index/count推进、剩余轮次、cursor、mirror、frame与共享清理；Y读取及其后的停止保留X低字提交，dword高字和未写Y保持。第一参数读取前EDX保留caller入口值、读取后变为out-X；第二参数读取前ECX保留actor token、读取后变为out-Y，dispatcher最终返回与leaf停止点一致。case 45/50的前置共享字段写入、case 39的高位actor标记、case 40/73的前置步长状态以及循环中此前完成的查询和publication均不回滚。
 
 定向`battle.legacy_battle_setup`覆盖十三个地址的正常trace、token 7/8边界、case 40的0/16可达边界、case 39高位掩码、两套scratch、callee残值、EAX高word、ECX/EDX、flags、zero/first/multi-round、八个物理循环站点回边、首轮后live count缩短与扩展、十三乘六typed-stop、X部分提交、前轮保留、正常后缀和reserved零调用。current-coordinate leaf自身的输出互相alias、输出覆盖actor字段及第二访问观察首写语义继续由actor-coordinate定向测试覆盖。工作包288的caller回收达到`19/21`，inventory row 288继续保持`pending_audit`，等待REVIEW 3回收turn gate与Group-B action17。原版联合动态差分继续登记为`blocked_runtime_oracle`。
+
+## 脚本53增加道具的实际共享库存
+
+实现6aa4ffa3直接借世界共享物品栏和MON数据库增加道具，删除45D180操作枚举及转发。
+完整0046CE0B..46CE5C保持数量先于槽访问、保存槽与live cursor/counter、后继重新读取item，
+以及原WORD/DWORD回绕；实际数量失败和读取失败复用已有状态并保留提交前缀。
+此物理调用此前写成脚本51，归属错误；51及55未随本批迁移。
+新增66次执行及同步既有槽10用例，core/ASan setup各1/1、SDL实际重新链接通过。
+MON使用IO字节夹具，原版动态差分、实际脚本资产及完整游戏未验证。
+父操作编号、参数数组、寄存器请求回复、轨迹、计数及Port继续pending，详见
+[脚本增加道具](battle-script-player-item-quantity-0046ce0b.md)。
