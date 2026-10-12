@@ -21,6 +21,15 @@ B11动作里的颜色写入、primary抑制门与刷新调用已借实际画面�
 89组新增执行及原激活/抑制组合的迁移见
 [灵契参数读取](battle-spirit-contract-profile-0047f910.md)。该行动父协议继续pending。
 
+## 动作直接消耗实际队员资源
+
+5ad2a9aa回收453F5B/45544C资源消费，删除脚本兼容回复、操作编号、子寄存器结果和计数。
+动作27原4728E0完整返回1才消费；初稿误记0已由入口EBX=1纠正，生产比较1保持。
+最终WORD来自同一party链及workspace，正常零继续，真实失败阻断未执行后缀。
+40次新动作向量、相关菜单/列表、两core/两ASan和SDL通过，见
+[实际资源消费](battle-actor-resource-consumption-00470e20.md)。
+两动作的其它callee、数组、寄存器请求回复和父Port仍待迁移。
+
 ## 1. 完整LST范围
 
 权威主体为`0x004539B0..0x00455CCF`，完整3836行、202个静态call站点、137个`loc_`标签。函数另有不可遗漏的外部FUNCTION CHUNK：
@@ -141,7 +150,14 @@ case 2还可直接构造`640×480, origin 0,0, field 200×200`变形对象。
 实际对象本体分配失败时发布空所有者，保持之前的活动标记写入。
 runtime低word bit0未置位时返回0。
 
-完成阶段先清accumulator和两个selection word。case 2若battle flags bit`0x20`置位则保留deformation并返回；否则直接析构对象并释放owner。case 3调用选择计算callee。两者随后置fade active、延迟300；case 3再直接组合已关闭撤退提交，按角色就绪、首对象状态和mode门决定提示音或九项共享状态发布。旧撤退callee token已删除，返回仍按原caller忽略。
+case 2完成阶段先清共享pair值和两个selection word；若battle flags bit`0x20`置位，
+保留deformation并返回，否则直接析构对象并释放owner。
+case 3先消费队员实际资源，最终WORD写computed值，再清三项选择状态。
+失败保留已发布head或erase，不写computed、选择、fade及撤退后缀。
+两者随后置fade active、延迟300；case 3再直连撤退提交，保留原角色就绪与mode门。
+叶协议、两个动作及全部六处消费的当前证据见
+[实际队员资源](battle-actor-resource-consumption-00470e20.md)。
+完整动作父其余协议继续pending，旧撤退返回仍按原caller忽略。
 
 ## 8. case 4/5/7/11/12/17
 

@@ -132,6 +132,10 @@ dd7ae08f回收462F5F/4633D1/463A03，直接借startup.party的资源链和worksp
 SDL实际链接与五源身份通过，见
 [菜单实际角色资源](battle-menu-actor-resource-release-00470e20.md)。
 原纯释放叶任意改写角色的callback撤回，输入夹具改借同一实际队伍；尾节点夹具纠正后重测。
-本批只回收三个菜单站，叶默认寄存器request/reply/计数和另三caller、完整父及SDL链仍pending。
+dd7ae08f这批只回收三个菜单站，当时保留的叶协议和另三caller已在5ad2a9aa回收。
+菜单仅同步两参数实际资源调用；1125既有菜单与新增52次动作/叶/列表执行，
+两core/两ASan、SDL链接及13源身份通过，见
+[六处实际资源消费](battle-actor-resource-consumption-00470e20.md)。
+完整菜单父、其余资源操作、别名与SDL链仍pending。
 
 当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

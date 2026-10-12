@@ -143,8 +143,12 @@ core/ASan actor_frame_316各1/1及SDL实际链接通过，见
 三个菜单通用资源请求、兼容回包和子计数删除。1125次新帧、core/ASan setup各1/1
 为12.18/19.60秒、SDL实际链接与五源身份通过，见
 [菜单实际角色资源](../evidence/battle-menu-actor-resource-release-00470e20.md)。
-正常零继续，真实失败保留提交与释放前缀；叶寄存器接口、计数及另三caller仍待迁移。
-这些接线不关闭新的战斗函数。
+正常零继续，真实失败保留提交与释放前缀；该批当时保留的叶协议与另三caller随后回收。
+5ad2a9aa移除释放叶request/reply、actor寄存器token和八计数，六处消费均借实际资源。
+动作3成功消费后才清选择，缺workspace保持selected已发布，重链按signed正值回放。
+52次新增动作/叶/列表及菜单回归、两core/两ASan、SDL链接和13源身份通过，见
+[六处实际资源消费](../evidence/battle-actor-resource-consumption-00470e20.md)。
+完整动作、列表、菜单和头提交父接口族仍pending；这些接线不关闭新的战斗函数。
 
 ## 1. 唯一真值与模块目标
 

@@ -2,7 +2,7 @@
 
 源码dd7ae08f回收462F5F、4633D1、463A03三处菜单通用资源调用。
 状态为`platform_adapted`、`unit_tested`、`fixed_state_tested`。
-完整菜单父与释放叶接口族继续`pending`，不标`assembly_exact`。
+完整菜单父与资源列表接口族继续`pending`，不标`assembly_exact`。
 
 ## 1. 权威范围和返回消费
 
@@ -10,7 +10,7 @@
 释放叶470E20..470F65共165行、100指令、3call、19跳转、3返回，无外部chunk。
 头提交470900..47090C共8行，无条件复制next head到current。
 六个原物理caller为453F5B、45544C、462F5F、4633D1、463A03、47086C。
-本批仅三个菜单站；另三caller及叶寄存器请求/回复/计数仍待后续迁移。
+dd7ae08f这批仅三个菜单站；当时保留的另三caller及叶协议已由5ad2a9aa回收，见第6节。
 
 三个出口RET8，但两个栈DWORD未被叶读取，没有业务参数语义。
 462F5F返回不消费，后继重读已提交角色，再读取真实override并处理数量和清理。
@@ -75,7 +75,17 @@ proc_877c最终门禁通过，全部使用仓库脚本：
 proc_aa7d来源审计通过；完整差异、冻结源码和双向记录保存在
 build/tmp/runtime/menu-actor-resource-*。实际日志为core-final、asan、sdl和source-review。
 本批未执行全量UT、Windows、实际MON资产、游戏运行、原版差分或完整SDL战斗生命周期。
-叶默认request、寄存器/计数、另三caller和完整菜单其余操作/参数包/Port/别名继续pending。
+该批当时保留叶默认request、寄存器/计数与另三caller，后续回收见第6节。
+完整菜单其余操作/参数包/Port/别名继续pending。
 原叶历史验证见[资源释放](battle-actor-resource-release-00470e20.md)，
 本次菜单数量顺序见[实际物品数量](battle-menu-player-item-quantity-0045d180.md)。
 不改变315/422、Workpack316、B11和全项目范围穷尽性false；整体Goal未完成。
+
+## 6. 叶和其它调用消费同步
+
+5ad2a9aa删除资源叶request、actor token、寄存器回包与八计数。
+三个菜单站只同步两参数调用，继续借同一队伍、消费最终WORD并传播既有失败。
+全部52次新增动作/叶/列表执行与1125资源、283数量、四个入口向量同步通过；
+当前两core/两ASan、SDL链接及13源身份见
+[实际资源消费](battle-actor-resource-consumption-00470e20.md)。
+完整资源列表、动作与菜单父协议未由本次叶迁移关闭。

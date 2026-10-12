@@ -1,8 +1,8 @@
 # 战斗角色资源释放 `0x00470E20`
 
 状态：`platform_adapted`。以下是原typed实现、六处caller与历史门禁记录。
-通用调用体系迁移中的本叶寄存器request/reply、计数和三个非菜单caller仍`pending`。
-当前菜单三站迁移见第5节，不以旧typed验收认定整体迁移完成。
+源码5ad2a9aa删除本叶寄存器request/reply、计数并回收六处调用消费，见第6节。
+完整列表、动作、菜单及头提交接口族仍`pending`，不以旧typed验收认定整体迁移完成。
 
 ## 1. 完整权威范围
 
@@ -26,7 +26,7 @@ secondary与tertiary均为零时，即使primary仍非零也销毁selected节点
 
 链头、selected token、节点字段与资源vector继续由`LegacyBattleActorListQueryState`唯一持有；`+0x2F14`继续复用party workspace owner。节点释放映射为vector erase，且严格保留先取next、释放、重新提交、回放、重链的次序。
 
-原typed工作包的六处静态caller位于动作dispatch两处、目标选择刷新三处、链表动作执行一处。production当时直接使用party typed状态；脚本化port测试曾以显式compat flag保留，默认关闭。后续dd7ae08f删除菜单资源compat，直接借startup.party；其它caller和叶寄存器接口继续待迁移。第199项两处固定category caller同时按权威地址纠正到message 27与message 30，而不是动作枚举槽。
+原typed工作包的六处静态caller位于动作dispatch两处、目标选择刷新三处、链表动作执行一处。production当时直接使用party typed状态；脚本化port测试曾以显式compat flag保留，默认关闭。后续dd7ae08f删除菜单资源compat，直接借startup.party；该时点其它caller和叶寄存器接口继续待迁移，后续回收见第6节。第199项两处固定category caller同时按权威地址纠正到message 27与message 30，而不是动作枚举槽。
 
 测试覆盖selected零的AX半寄存器行为、低byte门控先行递减、secondary优先、primary独立递减、bit13返回抑制、中间节点销毁、循环次数回放重链，以及动作dispatch、目标选择和链表动作caller集成。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`200/422 = 191 platform_adapted + 9 assembly_exact + 222 pending_audit`，SHA256为`981dcf48b591865cb3d92a84f30a9eacc849fbcf677e7758c87e6a2de80ad2ad`。动态差分因原版资源链节点、allocator释放和六处caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
 
@@ -37,5 +37,15 @@ dd7ae08f删除菜单资源通用操作、兼容回复和子调用计数，借sta
 最终core/ASan setup各1/1为12.18/19.60秒，SDL实际链接与五源身份通过，见
 [菜单实际角色资源](battle-menu-actor-resource-release-00470e20.md)。
 叶output_word已在最终位13判断后抑制，菜单只消费该WORD；公开第四request存在默认值。
-默认寄存器request、结果计数/寄存器及另三caller保留为下一独立批次，不宣称整族迁移完成。
-本批没有游戏运行、全量UT、Windows、实际资源或原版动态差分，历史200/422不是当前进度。
+该批当时保留默认寄存器request、结果计数/寄存器及另三caller，后续迁移见第6节。
+该批没有游戏运行、全量UT、Windows、实际资源或原版动态差分，历史200/422不是当前进度。
+
+## 6. 六处实际资源消费与叶协议删除
+
+5ad2a9aa使叶仅借真实list/workspace，返回已有状态和最终资源WORD。
+八计数、actor token、request/reply及两次头提交的寄存器转发删除；必要六处caller同步。
+动作3清选择后置到成功消费之后；缺workspace保留先发布selected，重链按signed正值回放。
+52次新固定执行与既有菜单向量、两core/两ASan定向门、SDL实际链接及13源身份通过。
+完整双向基本块、正常零、实际erase和既有失败前缀见
+[动作与列表实际资源消费](battle-actor-resource-consumption-00470e20.md)。
+完整父协议、其它头提交caller、别名、实际资产及原版动态差分仍未验收。
