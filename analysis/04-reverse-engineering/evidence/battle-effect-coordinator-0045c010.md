@@ -37,6 +37,11 @@
 ## 4. 当前组B四类路径
 
 组B使用另一组global gate和效果mode：
+53BFF4由本协调器group_b_effect_mode拥有；后续43c7652e的敌人帧
+两站按实际profile属性置1、假保留，行动完成清同一字段。
+450次新帧中432次各调用本消费者，验证精确1群体/非1单体的实际分流，见
+[敌人帧共享属性](battle-enemy-frame-coordinate-attribute-0047d880.md)。
+其它效果请求、寄存器、计数、Port及完整生产运行仍pending。
 
 - global gate为零、效果mode不为1时，side决定单体效果目标组。目标组B只发布pair高word，成功反馈可全屏填充但不发布组A dirty latch。目标组A发布pair低word，并依次保留对象复制、反馈、配对、最终角色查询、焦点release判定和奖励行调用。
 - global gate为零、效果mode精确为1时，目标固定为组A，不受单体side影响。失败路径仍执行共享奖励查询；成功路径执行对象复制、pair低word、共享反馈、最终角色查询，但不执行单体配对和成功奖励行。

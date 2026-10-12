@@ -38,9 +38,20 @@ core/ASan setup与角色帧各1/1、SDL链接均通过；范围、独立向量�
 [目标选择标记](battle-actor-target-selection-latch-query-00478b40.md)。
 整条组B及动作父链的其他通用协议继续待迁移，未升级整体验收。
 
+## 实际敌人属性与群体效果共享
+
+43c7652e将457B57/457CA9直接接到保存敌人的实际profile BYTEbit1。
+真写效果协调器同一标记、假保留，4580EA完成清零，删除旧帧影子及叶协议。
+两次状态读取按原指令实时重读；450次新帧、432次真实效果消费、
+两套core/ASan定向门及SDL链接通过，详见
+[敌人帧群体效果属性](battle-enemy-frame-coordinate-attribute-0047d880.md)。
+完整SDL帧和其他协议、共享别名、资源及全部父出口仍pending。
+
 ## 1. 完整LST范围
 
-权威函数为`0x004576A0..0x004582AB`，完整1356行、86个静态call站点、66个`loc_`标签，无外部FUNCTION CHUNK。唯一caller为尚未关闭的`0x0045B5E0`。
+权威函数为`0x004576A0..0x004582AB`，本轮从proc到endp重抽校正为1355行，
+86个静态call站点、66个`loc_`标签，无外部FUNCTION CHUNK。
+唯一caller为尚未关闭的`0x0045B5E0`。
 
 入口接收组B索引。对象token按低32位建立：
 
@@ -147,15 +158,15 @@ status按i16为负或bit`0x6000`任一置位时进入特殊分支：
 
 - special-selection pending等于1时，side写1并清pending；
 - signed负值直接组合已关闭`0x004761D0`，按selector/profile/resource恢复返回值与mode；结果写status action value，并写current actor低word；
-- bit`0x4000`发布mode 2、写current actor；对象text byte非0时显示固定文本；
-- bit`0x2000`发布mode 6并再次写current actor；
-- special-action查询等于1时置latch；
+- 实时bit`0x4000`发布显示mode 2、清动作值并写current actor；对象text byte非0时显示固定文本；
+- 文字后重读实时bit`0x2000`发布显示mode 6、清动作值并再次写current actor；
+- 直接读保存敌人profile BYTEbit1，真置效果协调器共享DWORD1，假保持旧值；
 - phase-mode查询等于1时置phase并清progress；
 - 固定清branch misc。
 
 side为1时把随机索引解释为组B；side为0时解释为组A。两条路径若当前目标terminal，则递增共享索引：组B路径允许推进到8并在首次one-past对象查询typed-stop；组A路径以`>8`退出递增，可在公共查询访问有效索引9。最终非terminal时发布索引，组A路径另prepare target。
 
-普通status路径先查询固定status-sequence token；成功后写current actor、清status misc、查询special action并可显示文本。随后直接组合已关闭`0x00476140`，读取组B profile `+0x08` dword bit28；未置位时再返回profile `+0x04` dword bit12。结果等于1时side写1且随机索引改为当前组B。actor typed-stop保留status-sequence或文字路径后的陈旧EAX/EDX及此前副作用，并阻断side、目标、第二次current actor、phase查询和后缀。最后查询phase mode；未进入phase时按side查询组B或组A目标，非terminal则发布索引，组A另prepare target。
+普通status路径先查询固定status-sequence token；完整返回1后写current actor、清status misc，读保存敌人实际profile BYTEbit1，真写共享效果标记1、假保留，再可显示文本。纯属性叶不产生EDX回复；无文字时保留readiness前继EDX。随后直接组合已关闭`0x00476140`，读取组B profile `+0x08` dword bit28；未置位时再返回profile `+0x04` dword bit12。结果等于1时side写1且随机索引改为当前组B。actor typed-stop保留status-sequence或文字路径后的陈旧EAX/EDX及此前副作用，并阻断side、目标、第二次current actor、phase查询和后缀。最后查询phase mode；未进入phase时按side查询组B或组A目标，非terminal则发布索引，组A另prepare target。
 
 ## 7. 公共动作阶段与陈旧EBX
 
@@ -191,7 +202,7 @@ side为1时把随机索引解释为组B；side为0时解释为组A。两条路�
 
 battle byte低byte bit`0x80`置位时遍历全部组A。固定AI dword为0且terminal为0时，以该组A对象为ECX调用battle-bit边界并传0。循环后只清battle byte最低byte的bit`0x80`，保留高24位。
 
-随后清selection initialized、action block、active-effect gate和pending。active target按unsigned小于8时清连续28字节active-effect块、再写target全1并清active target code；否则不清该块。之后清双stage word、target-ready、special latch、phase mode/progress、action runtime低word、当前组Bstatus word和post counter。primary suppression等于1时置fade；global countdown低15位非0时只递减低word。
+随后清selection initialized、action block、active-effect gate和pending。active target按unsigned小于8时清连续28字节active-effect块、再写target全1并清active target code；否则不清该块。之后清双stage word、target-ready、效果协调器同一群体效果标记、phase mode/progress、action runtime低word、当前组Bstatus word和post counter。primary suppression等于1时置fade；global countdown低15位非0时只递减低word。
 
 ## 10. completion surface
 

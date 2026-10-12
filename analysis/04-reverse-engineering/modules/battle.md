@@ -115,7 +115,11 @@ core/ASan actor_frame_316各1/1及SDL实际链接通过，见
 角色状态独立保留；279次新帧、270次真实插入与285次bit0同步执行，
 core/ASan actor_frame_316各1/1及SDL实际链接通过，见
 [队员帧坐标属性](../evidence/battle-party-frame-coordinate-attribute-0047d880.md)。
-剩余属性父点六/六/四，完整队员帧仍pending。
+敌人开始行动时也直接读保存敌人的实际属性，共用群体效果标记；
+假保持、完成清零，前继修改状态后按原指令重读。
+450次新帧、432次实际效果消费与两core/两ASan定向门、SDL链接通过，见
+[敌人帧群体效果属性](../evidence/battle-enemy-frame-coordinate-attribute-0047d880.md)。
+剩余47D8D0/47D880/47D8B0父点六/四/四，完整双方帧仍pending。
 共享别名、入口读取前缀、状态影子和其余属性调用仍待迁移。
 其他三个未接通物品物理调用、父诊断、通用端口和完整SDL运行仍待回收。
 这些接线不关闭新的战斗函数。
