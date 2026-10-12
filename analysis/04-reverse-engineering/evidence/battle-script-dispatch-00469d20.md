@@ -649,3 +649,13 @@ case 5、13与40入口按脚本token的`<=7/>7`分支分别保留`0x00525508 + t
 MON使用IO字节夹具，原版动态差分、实际脚本资产及完整游戏未验证。
 父操作编号、参数数组、寄存器请求回复、轨迹、计数及Port继续pending，详见
 [脚本增加道具](battle-script-player-item-quantity-0046ce0b.md)。
+
+## 脚本51指定敌人动作的实际共享值
+
+实现31c3a08e回收唯一0046CDEE调用，删除47F3A0枚举与通用请求。
+先读参数BYTE再读signed selector WORD，先写实际保留分支再写当前分支，cursor后缀加6。
+正常八角色借已有lifecycle拥有字段；FFFF的-1实际地址借reset块低两BYTE，保留高WORD。
+实际缺失/不可写停止使用已有actor访问状态；其余未拥有地址保留边界并继续待审。
+78次新执行经实际入口通过core/ASan各1/1与SDL实际链接，三文件身份和注册已核对。
+原版差分、额外地址运行保护、实际脚本资产和完整游戏未验证，父协议仍pending。详见
+[脚本动作分支](battle-script-actor-action-branch-0047f3a0.md)。
