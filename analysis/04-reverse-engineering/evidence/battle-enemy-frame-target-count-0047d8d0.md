@@ -81,7 +81,9 @@ proc_2efb计量成功7秒，proc_3c6a证据审计成功21秒；源身份/远端�
 [菜单标记数值](battle-menu-party-profile-word-0047d8b0.md)。
 后续d8a93827回收四个47D880菜单站，见
 [菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
-当前47D8D0菜单余量四站，完整菜单父仍待迁移。
+后续371fffc0回收四个47D8D0菜单站，见
+[菜单目标限制](battle-menu-party-target-selection-block-0047d8d0.md)。
+原八站均读实际BYTE，完整菜单父仍待迁移。
 actor-ready八槽、父编号/参数包/寄存器/轨迹/计数/Port、共享别名、资源、
 全部父出口和SDL生产帧接线仍pending。无全量UT、Windows、原版差分或游戏运行。
 不关闭Workpack316/B11或全项目Goal。相关范围见

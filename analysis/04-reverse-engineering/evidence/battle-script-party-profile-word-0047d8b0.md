@@ -64,7 +64,9 @@ build/tmp/runtime/script-party-marked-word-*。
 
 五个47D8B0站均使用实际WORD；后续d8a93827回收四个47D880菜单站，见
 [菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
-当前47D8D0菜单余量四站。
+后续371fffc0回收四个47D8D0菜单站，见
+[菜单目标限制](battle-menu-party-target-selection-block-0047d8d0.md)。
+原八站均读实际BYTE。
 完整菜单与脚本父协议仍pending。
 4707B0资源/输出、入口三WORD和额外写入、晚+6短读前缀、
 状态/actor-slot影子、53BD50别名、父寄存器/轨迹/计数/Port仍pending。
@@ -79,4 +81,4 @@ be9645e4读取实际bit0并写真实输入标记，删除脚本47D8D0查询/影�
 200次数值观察移到frame，旧407范围同步为406；再新增270次目标限制执行。
 当前676次、共享接线及两套战斗core/ASan门禁见
 [目标选择限制](battle-script-party-target-selection-block-0047d8d0.md)。
-后续双方帧切片后，47D8D0菜单余量四站；历史源码、向量、门禁和验证边界保留。
+双方帧及菜单切片后，原八个47D8D0站均读实际BYTE；历史源码、向量、门禁和验证边界保留。

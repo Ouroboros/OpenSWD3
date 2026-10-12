@@ -129,8 +129,10 @@ core/ASan actor_frame_316各1/1及SDL实际链接通过，见
 菜单四条配置路径的坐标属性也直接读实际BYTE，真时写共享标记及辅助行；
 假时保留旧辅助值，1080次新帧与真实队列、424次同步帧及core/ASan、SDL通过，见
 [菜单坐标属性](../evidence/battle-menu-party-coordinate-attribute-0047d880.md)。
-剩余47D8D0菜单父点四站，五个47D8B0站已迁移实际WORD。
-完整菜单与双方帧仍pending。
+菜单四条配置路径的目标限制也直接读live队员实际BYTE，按各路径发布目标和辅助行；
+保留两条路径的原动画，2184次新帧含2160次实际输入判断与队列、core/ASan及SDL通过，见
+[菜单目标限制](../evidence/battle-menu-party-target-selection-block-0047d8d0.md)。
+47D8D0/47D880原八站与47D8B0原五站均迁移实际属性；完整菜单与双方帧仍pending。
 共享别名、入口读取前缀、状态影子和其余属性调用仍待迁移。
 其他三个未接通物品物理调用、父诊断、通用端口和完整SDL运行仍待回收。
 这些接线不关闭新的战斗函数。

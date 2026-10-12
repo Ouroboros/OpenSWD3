@@ -97,7 +97,19 @@ d8a93827回收462CCD/4634A5/4637F2/463936四个47D880站。
 删除属性B通用操作及六个测试假回复，不新增字段、同步层或叶停点。
 1080次新帧及真实队列、424次同步帧、core/ASan setup各1/1与SDL链接通过，见
 [菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
-属性C仍四站；完整父编号/参数包/寄存器/轨迹/计数/Port、资源与别名仍pending。
-完整拥有对象验证不证明原DWORD地址故障或回绕等价；父验收等级不变。
+当批属性C仍四站；后续迁移见下一节。完整父编号/参数包/寄存器/轨迹/计数/Port、
+资源与别名仍pending。完整拥有对象不证明原DWORD地址故障或回绕等价；父验收等级不变。
+
+## 11. 菜单目标限制属性实际读取
+
+371fffc0回收462D0C/4634E3/463830/463974四个47D8D0站。
+在位1前缀后读live队员实际BYTE位0，清真实输入阻断后按语义bool处理目标。
+四路径分别保留原目标、辅助行与门的顺序，message4/30保留动画；真实子失败保留前缀。
+删除属性C通用操作及六个纯叶回复，原八个47D8D0站均读实际BYTE。
+2184新菜单帧含2160实际输入判断与队列消费、1080坐标及424既有帧同步，
+core/ASan setup各1/1为11.57/19.70秒、SDL实际链接通过，见
+[菜单目标限制](battle-menu-party-target-selection-block-0047d8d0.md)。
+完整父仍pending：MON源、共享别名、其它操作/参数包/寄存器/轨迹/计数/Port与全部出口。
+没有全量UT、Windows、原版差分、真实MON验收或游戏运行；父验收等级不变。
 
 当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

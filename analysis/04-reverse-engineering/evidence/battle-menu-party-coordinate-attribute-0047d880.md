@@ -80,7 +80,9 @@ build/tmp/runtime/menu-coordinate-attribute-*。
 
 ## 5. 未完成范围
 
-菜单47D8D0仍四站：462D0C/4634E3/463830/463974。
+后续371fffc0回收462D0C/4634E3/463830/463974四个47D8D0菜单站，见
+[菜单目标限制](battle-menu-party-target-selection-block-0047d8d0.md)。
+纯叶观察已改为实际状态和消费者；完整菜单父继续pending。
 MON源处理、父编号/参数包/寄存器报告/轨迹/计数/Port、
 共享别名、全部父出口与完整SDL战斗帧继续pending。
 没有全量UT、Windows、原版动态差分、真实MON验收或游戏运行。

@@ -63,7 +63,9 @@ build/tmp/runtime/script-party-following-attribute-*。
 [菜单标记数值](battle-menu-party-profile-word-0047d8b0.md)。
 后续d8a93827回收四个47D880菜单站，见
 [菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
-当前47D8D0菜单余量四站，完整父链仍pending。
+后续371fffc0回收四个47D8D0菜单站，见
+[菜单目标限制](battle-menu-party-target-selection-block-0047d8d0.md)。
+原八站均读实际BYTE，完整父链仍pending。
 敌人bit0及真实目标计数消费见
 [敌人帧效果目标数量](battle-enemy-frame-target-count-0047d8d0.md)。
 两次敌人属性及真实效果消费见

@@ -83,7 +83,9 @@ build/tmp/runtime/menu-profile-marked-word-*及check-menu-profile-marked-word-so
 五个47D8B0物理父点已全部使用实际WORD；不据此关闭五个完整父调用链。
 后续d8a93827回收四个47D880菜单站，见
 [菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
-47D8D0菜单余量四站；MON源处理、其他操作编号、参数包、父寄存器
+后续371fffc0回收四个47D8D0菜单站，见
+[菜单目标限制](battle-menu-party-target-selection-block-0047d8d0.md)。
+MON源处理、其他操作编号、参数包、父寄存器
 报告、轨迹、计数、Port、共享别名、全部出口与完整SDL生产帧仍待迁移。
 B11、Workpack316及全项目Goal未完成。相关范围见
 [菜单父](battle-target-selection-refresh-00462740.md)、
