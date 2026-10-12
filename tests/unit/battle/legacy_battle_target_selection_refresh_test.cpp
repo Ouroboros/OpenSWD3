@@ -2,6 +2,7 @@
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
+#include "fixed_node_memory_resource.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -121,6 +122,8 @@ public:
 };
 
 struct Fixture {
+    openswd3::test::FixedNodeMemoryResource item_memory;
+    openswd3::world_map::LegacyWorldItemListState items{item_memory};
     openswd3::battle::LegacyBattleStartupState startup_state;
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
     std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 4> party{};
@@ -149,6 +152,7 @@ struct Fixture {
     bindings() {
         return {
             .startup = startup_state,
+            .items = items,
             .startup_reset = startup,
             .text_messages = text_messages,
             .startup_supplemental_count_word = supplemental_count,
@@ -895,12 +899,574 @@ void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
     }
 }
 
+void store_workspace_word(
+    openswd3::battle::LegacyBattleActionDispatchState& action,
+    const u32 offset,
+    const u16 value
+) {
+    const u32 shift = (offset % 4U) * 8U;
+    auto& word = action.opponent_workspace[offset / 4U];
+    word = (word & ~(0xFFFFU << shift)) | (static_cast<u32>(value) << shift);
+}
+
+enum class ItemQuantityMenuPath {
+    action_thirty,
+    first_effect,
+    second_effect,
+};
+
+void configure_item_quantity_menu(
+    Fixture& fixture,
+    const ItemQuantityMenuPath path,
+    const u16 old_item,
+    const u32 actor_code = 8U
+) {
+    fixture.target_ready = 1U;
+    fixture.final_actor.queued_actor_code = actor_code;
+    fixture.final_actor.published_actor_code = 1U;
+    fixture.metrics.group_a_count = 2U;
+    auto& input = fixture.port.battle_input_dispatch_state();
+    auto& runtime = fixture.port.battle_target_selection_runtime_state();
+    runtime.selection_input_gate = 1U;
+    runtime.target_effect_value = 0x00010000U;
+    runtime.target_argument = 7U;
+    fixture.port.replies
+        [LegacyBattleTargetSelectionRuntimeCall::resolve_action_effect_value] =
+        {.eax = 0x456U};
+    if (path == ItemQuantityMenuPath::action_thirty) {
+        fixture.message = 3U;
+        input.action_kind = 30U;
+    } else {
+        fixture.message = 5U;
+        fixture.frame.group_b_row_selection =
+            path == ItemQuantityMenuPath::first_effect ? 1U : 2U;
+        store_workspace_word(
+            fixture.action,
+            0x54U + fixture.frame.group_b_row_selection * 0x20U,
+            old_item
+        );
+    }
+}
+
+void test_menu_player_item_quantity(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattlePlayerItemQuantityStatus;
+    using openswd3::battle::LegacyBattleTargetSelectionRefreshStatus;
+    using openswd3::battle::refresh_legacy_battle_target_selection;
+    constexpr std::array paths{
+        ItemQuantityMenuPath::action_thirty,
+        ItemQuantityMenuPath::first_effect,
+        ItemQuantityMenuPath::second_effect,
+    };
+
+    struct QuantityCase {
+        u16 before_a;
+        u16 before_b;
+        u16 after_a;
+    };
+
+    constexpr std::array quantities{
+        QuantityCase{98U, 0U, 99U},
+        QuantityCase{99U, 0U, 99U},
+        QuantityCase{100U, 0U, 100U},
+        QuantityCase{0xFFFFU, 0U, 0U},
+        QuantityCase{0x7FFFU, 0x8000U, 0x8000U},
+        QuantityCase{0x8000U, 0x7FFFU, 0x8001U},
+        QuantityCase{0U, 0xFFFFU, 1U},
+        QuantityCase{0x7FFFU, 0U, 0x7FFFU},
+        QuantityCase{98U, 1U, 98U},
+        QuantityCase{97U, 1U, 98U},
+    };
+
+    for (const auto path : paths) {
+        const u16 item =
+            path == ItemQuantityMenuPath::action_thirty ? 0x300U : 0x8001U;
+        for (const auto quantity : quantities) {
+            for (const bool head_alias : {false, true}) {
+                for (const u32 mirror : {0U, 1U, 2U, 0x10001U}) {
+                    Fixture fixture;
+                    configure_item_quantity_menu(
+                        fixture, path, item, 8U + (mirror & 3U)
+                    );
+                    fixture.mirror_mode = mirror;
+                    fixture.debug.battle_mode_flags_53bc24 = 0xAABBCC10U;
+                    fixture.items.player_inventory.emplace_front();
+                    auto& neighbor = fixture.items.player_inventory.front();
+                    neighbor.item_id =
+                        path == ItemQuantityMenuPath::action_thirty ? 0x1300U
+                                                                    : 1U;
+                    neighbor.quantity_a = 43U;
+                    neighbor.quantity_b = 54U;
+                    neighbor.legacy_token = 0x72000100U;
+                    fixture.items.player_inventory_head_token =
+                        neighbor.legacy_token;
+                    auto* target = &fixture.items.player_inventory_head_alias;
+                    if (!head_alias) {
+                        fixture.items.player_inventory.emplace_back();
+                        target = &fixture.items.player_inventory.back();
+                        target->legacy_token = 0x72000200U;
+                        neighbor.legacy_next_token = target->legacy_token;
+                    }
+
+                    target->item_id = item;
+                    target->quantity_a = quantity.before_a;
+                    target->quantity_b = quantity.before_b;
+                    target->definition_snapshot.fill(0xA5U);
+                    const auto definition = target->definition_snapshot;
+                    bool suffix_observed = false;
+                    fixture.port.before_call = [&](const auto& request) {
+                        const auto suffix =
+                            path == ItemQuantityMenuPath::action_thirty
+                            ? LegacyBattleTargetSelectionRuntimeCall::
+                                  reset_actor_selection
+                            : LegacyBattleTargetSelectionRuntimeCall::
+                                  start_effect_sample;
+                        if (request.call != suffix || suffix_observed) {
+                            return;
+                        }
+
+                        suffix_observed = true;
+                        test.expect_true(
+                            target->quantity_a == quantity.after_a &&
+                                target->quantity_b == quantity.before_b,
+                            "the menu suffix observes the actual shared inventory quantity"
+                        );
+                        if (path != ItemQuantityMenuPath::action_thirty) {
+                            const u32 index =
+                                path == ItemQuantityMenuPath::first_effect ? 1U
+                                                                           : 2U;
+                            test.expect_true(
+                                fixture.debug.battle_mode_flags_53bc24 ==
+                                        0xAABBCC14U &&
+                                    workspace_word(
+                                        fixture.action, 0x54U + index * 0x20U
+                                    ) == 0x456U &&
+                                    workspace_word(
+                                        fixture.action, 0x56U + index * 0x20U
+                                    ) == (mirror == 1U ? 340U : 300U) &&
+                                    workspace_word(
+                                        fixture.action, 0x58U + index * 0x20U
+                                    ) == (index == 1U ? 270U : 340U) &&
+                                    fixture.action.opponent_workspace
+                                            [(0x5CU + index * 0x20U) / 4U] ==
+                                        1U,
+                                "inventory increment and rule publication precede effect replacement and sample start"
+                            );
+                        }
+                    };
+
+                    const auto result = refresh_legacy_battle_target_selection(
+                        fixture.bindings(), fixture.port, {}
+                    );
+                    test.expect_true(
+                        result.status ==
+                                LegacyBattleTargetSelectionRefreshStatus::
+                                    completed &&
+                            !result.item_quantity_failure.has_value() &&
+                            suffix_observed &&
+                            target->quantity_a == quantity.after_a &&
+                            target->quantity_b == quantity.before_b &&
+                            target->definition_snapshot == definition &&
+                            neighbor.quantity_a == 43U &&
+                            neighbor.quantity_b == 54U &&
+                            fixture.port.open_calls == 0U &&
+                            fixture.item_memory.outstanding_blocks ==
+                                (head_alias ? 1U : 2U),
+                        "all three menu sites preserve signed WORD totals, A-only wrap, exact item identity and shared ownership"
+                    );
+                }
+            }
+        }
+    }
+
+    for (const auto path : paths) {
+        for (const bool open_succeeds : {false, true}) {
+            Fixture fixture;
+            const u16 item =
+                path == ItemQuantityMenuPath::action_thirty ? 0x300U : 0x8001U;
+            configure_item_quantity_menu(fixture, path, item);
+            fixture.port.open_succeeds = open_succeeds;
+            fixture.port.definition[0U] = 'Q';
+            fixture.port.definition[0x20U] = 0x11U;
+            fixture.port.definition[0x21U] = 0x22U;
+            fixture.items.player_inventory.emplace_front();
+            auto& old = fixture.items.player_inventory.front();
+            old.item_id = 2U;
+            old.quantity_a = 17U;
+            old.legacy_token = 0x72000100U;
+            fixture.items.player_inventory_head_token = old.legacy_token;
+            bool allocation_observed = false;
+            fixture.item_memory.on_allocate = [&]() {
+                allocation_observed = true;
+                test.expect_true(
+                    fixture.items.player_inventory_head_token ==
+                            old.legacy_token &&
+                        fixture.final_actor.queued_actor_code == 0U &&
+                        fixture.debug.committed_actor_code == 8U &&
+                        fixture.message == 0U,
+                    "actual item allocation observes the published menu prefix and the old inventory head"
+                );
+            };
+
+            const auto result = refresh_legacy_battle_target_selection(
+                fixture.bindings(), fixture.port, {}
+            );
+            const auto& added = fixture.items.player_inventory.front();
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTargetSelectionRefreshStatus::completed &&
+                    allocation_observed && added.item_id == item &&
+                    added.quantity_a == 1U && added.quantity_b == 0U &&
+                    added.legacy_next_token == old.legacy_token &&
+                    old.quantity_a == 17U &&
+                    fixture.items.player_inventory_head_token ==
+                        added.legacy_token &&
+                    fixture.items.player_inventory.size() == 2U &&
+                    fixture.item_memory.outstanding_blocks == 2U &&
+                    fixture.port.open_calls == 1U &&
+                    (!open_succeeds ||
+                     (fixture.port.requested_definition_ids ==
+                          std::vector<u32>{item} &&
+                      added.definition_snapshot[0U] == 'Q' &&
+                      added.definition_snapshot[0x21U] == 0x22U)),
+                "menu creation owns one real node and preserves both MON success and the original non-stopping open failure"
+            );
+        }
+    }
+
+    for (const auto path : paths) {
+        for (const auto failure : {
+                 LegacyBattlePlayerItemQuantityStatus::item_node_typed_stop,
+                 LegacyBattlePlayerItemQuantityStatus::allocation_typed_stop,
+                 LegacyBattlePlayerItemQuantityStatus::
+                     mon_definition_load_typed_stop,
+             }) {
+            Fixture fixture;
+            const u16 item =
+                path == ItemQuantityMenuPath::action_thirty ? 0x300U : 0x8001U;
+            configure_item_quantity_menu(fixture, path, item);
+            fixture.items.player_inventory.emplace_front();
+            auto& old = fixture.items.player_inventory.front();
+            old.item_id = 2U;
+            old.quantity_a = 17U;
+            old.legacy_token = 0x72000100U;
+            fixture.items.player_inventory_head_token = old.legacy_token;
+            fixture.debug.battle_mode_flags_53bc24 = 0xAABBCC10U;
+            fixture.startup.value_4ff0b0 = 0xA11U;
+            fixture.startup.value_4ff0b4 = 0xB22U;
+            fixture.startup.value_4ff0b8 = 0xC33U;
+            if (failure ==
+                LegacyBattlePlayerItemQuantityStatus::item_node_typed_stop) {
+                fixture.items.player_inventory_head_token = 0xDEADBEEFU;
+            } else if (
+                failure ==
+                LegacyBattlePlayerItemQuantityStatus::allocation_typed_stop
+            ) {
+                fixture.item_memory.allocation_enabled = false;
+            } else {
+                fixture.port.open_succeeds = true;
+                fixture.port.allocation_succeeds = false;
+            }
+
+            const auto result = refresh_legacy_battle_target_selection(
+                fixture.bindings(), fixture.port, {}
+            );
+            const bool suffix_called = std::ranges::any_of(
+                fixture.port.calls, [](const auto& request) {
+                    return request.call ==
+                        LegacyBattleTargetSelectionRuntimeCall::
+                            start_effect_sample ||
+                        request.call ==
+                        LegacyBattleTargetSelectionRuntimeCall::
+                            reset_actor_selection;
+                }
+            );
+            const bool mon_stopped = failure ==
+                LegacyBattlePlayerItemQuantityStatus::
+                    mon_definition_load_typed_stop;
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTargetSelectionRefreshStatus::
+                            item_quantity_typed_stop &&
+                    result.item_quantity_failure == failure && !suffix_called &&
+                    fixture.final_actor.queued_actor_code == 0U &&
+                    fixture.debug.committed_actor_code == 8U &&
+                    fixture.message == 0U && old.quantity_a == 17U &&
+                    fixture.items.player_inventory.size() ==
+                        (mon_stopped ? 2U : 1U) &&
+                    fixture.item_memory.outstanding_blocks ==
+                        (mon_stopped ? 2U : 1U) &&
+                    fixture.startup.value_4ff0b0 == 0xA11U &&
+                    fixture.startup.value_4ff0b4 == 0xB22U &&
+                    fixture.startup.value_4ff0b8 == 0xC33U &&
+                    fixture.debug.battle_mode_flags_53bc24 == 0xAABBCC10U &&
+                    result.mode_four_finalization_calls == 0U &&
+                    result.input_record_prime_calls ==
+                        (path == ItemQuantityMenuPath::action_thirty ? 0U : 1U),
+                "existing inventory, allocation and MON failures preserve the menu prefix and block all quantity suffixes"
+            );
+            if (mon_stopped) {
+                const auto& added = fixture.items.player_inventory.front();
+                test.expect_true(
+                    added.item_id == item && added.quantity_a == 0U &&
+                        added.quantity_b == 0U &&
+                        added.legacy_next_token == old.legacy_token &&
+                        fixture.items.player_inventory_head_token ==
+                            added.legacy_token,
+                    "MON stop preserves the newly published owned node without quantity or effect replacement"
+                );
+            } else {
+                test.expect_true(
+                    fixture.items.player_inventory_head_token ==
+                            (failure ==
+                                     LegacyBattlePlayerItemQuantityStatus::
+                                         allocation_typed_stop
+                                 ? 0U
+                                 : 0xDEADBEEFU) &&
+                        fixture.port.open_calls == 0U,
+                    "allocation stop publishes null head while unknown-node stop preserves its original identity"
+                );
+            }
+
+            if (path != ItemQuantityMenuPath::action_thirty) {
+                const u32 index =
+                    path == ItemQuantityMenuPath::first_effect ? 1U : 2U;
+                test.expect_true(
+                    workspace_word(fixture.action, 0x54U + index * 0x20U) ==
+                            item &&
+                        workspace_word(fixture.action, 0x56U + index * 0x20U) ==
+                            0U &&
+                        workspace_word(fixture.action, 0x58U + index * 0x20U) ==
+                            0U,
+                    "quantity failure keeps the old effect item and its coordinates"
+                );
+            }
+        }
+    }
+
+    for (const u32 mode : {0U, 3U, 0x10001U, 0x10002U, 0xFFFFFFFFU, 1U, 2U}) {
+        Fixture fixture;
+        configure_item_quantity_menu(
+            fixture, ItemQuantityMenuPath::first_effect, 0U
+        );
+        fixture.frame.group_b_row_selection = mode;
+        fixture.item_memory.allocation_enabled = false;
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                fixture.items.player_inventory.empty() &&
+                fixture.port.open_calls == 0U &&
+                fixture.item_memory.outstanding_blocks == 0U,
+            "only complete modes one and two replace effect rows and a zero old item never enters quantity allocation"
+        );
+    }
+
+    struct IndexCase {
+        u32 high;
+        u32 count;
+        u32 first_index;
+    };
+
+    for (const auto index_case : {
+             IndexCase{0U, 2U, 2U},
+             IndexCase{3U, 4U, 1U},
+             IndexCase{0xFFFFU, 0x10000U, 1U},
+             IndexCase{1U, 0x80000002U, 0x80000001U},
+         }) {
+        for (const auto path :
+             {ItemQuantityMenuPath::first_effect,
+              ItemQuantityMenuPath::second_effect}) {
+            Fixture fixture;
+            configure_item_quantity_menu(fixture, path, 0U);
+            fixture.metrics.group_a_count = index_case.count;
+            auto& runtime =
+                fixture.port.battle_target_selection_runtime_state();
+            runtime.target_effect_value = index_case.high << 16U;
+            const u32 index = index_case.first_index +
+                (path == ItemQuantityMenuPath::second_effect ? 1U : 0U);
+            store_workspace_word(
+                fixture.action, 0x54U + index * 0x20U, 0x8001U
+            );
+            fixture.items.player_inventory_head_alias.item_id = 0x8001U;
+            const auto result = refresh_legacy_battle_target_selection(
+                fixture.bindings(), fixture.port, {}
+            );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTargetSelectionRefreshStatus::completed &&
+                    fixture.items.player_inventory_head_alias.quantity_a ==
+                        1U &&
+                    workspace_word(fixture.action, 0x54U + index * 0x20U) ==
+                        0x456U &&
+                    runtime.actor_result_words[8U] == static_cast<u16>(index) &&
+                    fixture.port.open_calls == 0U,
+                "effect high WORD and full count determine the original wrapped physical row and result WORD"
+            );
+        }
+    }
+
+    for (const u32 early : {0U, 1U, 2U, 3U, 4U}) {
+        Fixture fixture;
+        configure_item_quantity_menu(
+            fixture, ItemQuantityMenuPath::action_thirty, 0x300U
+        );
+        fixture.item_memory.allocation_enabled = false;
+        if (early == 0U) {
+            fixture.target_ready = 0U;
+        } else if (early == 1U) {
+            fixture.final_actor.published_actor_code = 0xFFFFFFFFU;
+        } else if (early == 2U) {
+            fixture.final_actor.queued_actor_code = 0U;
+        } else if (early == 3U) {
+            fixture.port.battle_target_selection_runtime_state()
+                .selection_input_gate = 0U;
+        } else {
+            fixture.port.battle_input_dispatch_state().action_kind = 6U;
+        }
+
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                fixture.items.player_inventory.empty() &&
+                fixture.port.open_calls == 0U &&
+                fixture.item_memory.outstanding_blocks == 0U,
+            "readiness, published actor, queued actor, input gate and action-six early exits precede quantity allocation"
+        );
+    }
+
+    for (const u32 flags : {0U, 0xDFFFU, 0x2000U, 0xFFFFU}) {
+        Fixture fixture;
+        configure_item_quantity_menu(
+            fixture, ItemQuantityMenuPath::action_thirty, 0x300U
+        );
+        fixture.items.player_inventory_head_alias.item_id = 0x300U;
+        fixture.action.group_a_action_execution[0U].action_override_flags =
+            flags;
+        fixture.item_memory.allocation_enabled = false;
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        const bool overridden = flags == 0x2000U || flags == 0xFFFFU;
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                fixture.items.player_inventory.empty() &&
+                fixture.port.open_calls == 0U &&
+                fixture.items.player_inventory_head_alias.quantity_a ==
+                    (overridden ? 0U : 1U) &&
+                fixture.port.battle_target_selection_runtime_state()
+                        .selected_action_kind == (overridden ? 13U : 3U),
+            "only the actual bit-thirteen override bypasses the fixed-item increment"
+        );
+    }
+}
+
+void test_menu_item_quantity_live_reads(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleTargetSelectionRefreshStatus;
+    using openswd3::battle::refresh_legacy_battle_target_selection;
+    for (const u32 live_mode : {2U, 0x10002U}) {
+        Fixture fixture;
+        configure_item_quantity_menu(
+            fixture, ItemQuantityMenuPath::first_effect, 0x8001U
+        );
+        fixture.items.player_inventory_head_alias.item_id = 0x8001U;
+        store_workspace_word(fixture.action, 0x94U, 0xCAFEU);
+        bool first_sample_seen = false;
+        bool second_sample_seen = false;
+        fixture.port.before_call = [&](const auto& request) {
+            if (request.call !=
+                LegacyBattleTargetSelectionRuntimeCall::start_effect_sample) {
+                return;
+            }
+
+            if (request.arguments[0U] == 1U) {
+                first_sample_seen = true;
+                test.expect_true(
+                    fixture.items.player_inventory_head_alias.quantity_a ==
+                            1U &&
+                        workspace_word(fixture.action, 0x74U) == 0x456U,
+                    "the first sample predecessor sees the first actual quantity and effect write"
+                );
+                fixture.frame.group_b_row_selection = live_mode;
+            } else {
+                second_sample_seen = true;
+                test.expect_true(
+                    request.arguments[0U] == 2U &&
+                        request.arguments[1U] == 1U &&
+                        fixture.items.player_inventory.front().item_id ==
+                            0x456U &&
+                        fixture.items.player_inventory.front().quantity_a ==
+                            1U &&
+                        workspace_word(fixture.action, 0x74U) == 1U &&
+                        workspace_word(fixture.action, 0x78U) == 340U,
+                    "the second branch reads the first replacement item and live low WORD while keeping the saved row index"
+                );
+            }
+        };
+
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                first_sample_seen && second_sample_seen == (live_mode == 2U) &&
+                fixture.items.player_inventory.size() ==
+                    (live_mode == 2U ? 1U : 0U) &&
+                workspace_word(fixture.action, 0x94U) == 0xCAFEU &&
+                fixture.port.battle_target_selection_runtime_state()
+                        .actor_result_words[8U] == 1U,
+            "the remaining sample predecessor can change live full mode; the second quantity branch is independent and uses the saved physical row"
+        );
+    }
+
+    for (const bool live_override : {false, true}) {
+        Fixture fixture;
+        configure_item_quantity_menu(
+            fixture, ItemQuantityMenuPath::action_thirty, 0x300U
+        );
+        fixture.items.player_inventory_head_alias.item_id = 0x300U;
+        fixture.action.group_a_action_execution[0U].action_override_flags =
+            live_override ? 0U : 0x2000U;
+        fixture.action.group_a_action_execution[1U].action_override_flags =
+            live_override ? 0x2000U : 0U;
+        fixture.port.before_call = [&](const auto& request) {
+            if (request.call ==
+                LegacyBattleTargetSelectionRuntimeCall::
+                    resolve_action_effect_value) {
+                fixture.debug.committed_actor_code = 9U;
+            }
+        };
+
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                fixture.debug.committed_actor_code == 9U &&
+                fixture.items.player_inventory_head_alias.quantity_a ==
+                    (live_override ? 0U : 1U) &&
+                fixture.port.battle_target_selection_runtime_state()
+                        .selected_action_kind == (live_override ? 13U : 3U),
+            "action thirty rereads the committed actor after the resource predecessor before deciding the actual fixed-item increment"
+        );
+    }
+}
+
 }  // namespace
 
 void test_battle_target_selection_refresh(openswd3::test::Context& test) {
     test_menu_marked_profile_word(test);
     test_menu_coordinate_attribute(test);
     test_menu_target_block_attribute(test);
+    test_menu_player_item_quantity(test);
+    test_menu_item_quantity_live_reads(test);
     test_menu_marked_profile_predecessors(test);
     using openswd3::battle::LegacyBattleActorActionFourOverrideStatus;
     using openswd3::battle::LegacyBattleActorActionThirtyOverrideStatus;

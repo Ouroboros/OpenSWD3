@@ -172,6 +172,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
         {
             .render_abort_latch = state.render_abort_latch,
             .startup = context.startup,
+            .items = context.items,
             .startup_reset = context.startup.reset,
             .text_messages = context.startup.text_messages,
             .action_mode_source = context.startup.action_mode_source,

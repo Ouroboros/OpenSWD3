@@ -9,6 +9,7 @@ namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionEntryBindings {
     LegacyBattleStartupState& startup;
+    world_map::LegacyWorldItemListState& items;
     LegacyBattleStartupResetBlocks& startup_reset;
     LegacyBattleTextMessageState& text_messages;
     const LegacyBattleActionModeSourceState& action_mode_source;

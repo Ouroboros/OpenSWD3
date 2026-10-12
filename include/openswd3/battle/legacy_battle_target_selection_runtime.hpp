@@ -81,7 +81,6 @@ enum class LegacyBattleTargetSelectionRuntimeCall : compat::u8 {
     query_actor_cleanup,
     query_group_b_completion,
     apply_actor_action,
-    stop_effect_sample,
     start_effect_sample,
     finalize_actor_effect,
     set_actor_mode,

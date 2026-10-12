@@ -9,11 +9,13 @@
 #include "openswd3/battle/legacy_battle_group_a_target_cycle.hpp"
 #include "openswd3/battle/legacy_battle_group_b_target_cycle.hpp"
 #include "openswd3/battle/legacy_battle_input_record_priming.hpp"
+#include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
 
 namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionRefreshBindings {
     LegacyBattleStartupState& startup;
+    world_map::LegacyWorldItemListState& items;
     LegacyBattleStartupResetBlocks& startup_reset;
     LegacyBattleTextMessageState& text_messages;
     compat::u16& startup_supplemental_count_word;
@@ -59,6 +61,7 @@ enum class LegacyBattleTargetSelectionRefreshStatus : compat::u8 {
     actor_mode_four_finalization_typed_stop,
     actor_resource_release_typed_stop,
     actor_frame_snapshot_typed_stop,
+    item_quantity_typed_stop,
 };
 
 enum class LegacyBattleActorActionThirtyOverrideStatus : compat::u8 {
@@ -115,6 +118,7 @@ struct LegacyBattleTargetSelectionRefreshResult {
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
     compat::u32 sample_calls{};
+    std::optional<LegacyBattlePlayerItemQuantityStatus> item_quantity_failure;
     std::optional<LegacyBattleActorAvailabilityBlockResult>
         actor_availability_block;
     compat::u32 actor_runtime_reads{};

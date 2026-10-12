@@ -1419,7 +1419,7 @@ private:
         }
 
         if (input_.action_kind == 30U) {
-            const u32 committed = bindings_.debug_hotkeys.committed_actor_code;
+            u32 committed = bindings_.debug_hotkeys.committed_actor_code;
             ecx_ = committed - 8U;
             eax_ = frame_.current_equipment_selection;
             edx_ = 3U;
@@ -1440,6 +1440,8 @@ private:
             } else if (!release_actor_resource(committed)) {
                 return;
             }
+
+            committed = bindings_.debug_hotkeys.committed_actor_code;
             edx_ = committed;
             if (committed < 8U) {
                 typed_stop(Status::group_a_actor_typed_stop);
@@ -1479,10 +1481,22 @@ private:
                 eax_ = runtime_.special_action_count + 1U;
                 runtime_.special_action_count = eax_;
             } else {
-                invoke(Call::stop_effect_sample, 0U, {0x300U, 0U});
+                const auto quantity =
+                    advance_legacy_battle_player_item_quantity(
+                        bindings_.items, port_, 0x300U, 0U
+                    );
+                if (quantity.status !=
+                    LegacyBattlePlayerItemQuantityStatus::completed) {
+                    result_.item_quantity_failure = quantity.status;
+                    typed_stop(Status::item_quantity_typed_stop);
+                    return;
+                }
+
                 eax_ = bindings_.debug_hotkeys.committed_actor_code;
             }
-        } else if (runtime_.selected_action_kind == 4U) {
+        }
+
+        if (runtime_.selected_action_kind == 4U) {
             if (bindings_.scripted_resource_selection_test_compat) {
                 if (!invoke_group_a(
                         Call::apply_special_actor_action,
@@ -1805,7 +1819,17 @@ private:
             }
             eax_ = replace_low_word(eax_, *old);
             if (*old != 0U) {
-                invoke(Call::stop_effect_sample, 0U, {*old, 0U});
+                const auto quantity =
+                    advance_legacy_battle_player_item_quantity(
+                        bindings_.items, port_, *old, 0U
+                    );
+                if (quantity.status !=
+                    LegacyBattlePlayerItemQuantityStatus::completed) {
+                    result_.item_quantity_failure = quantity.status;
+                    typed_stop(Status::item_quantity_typed_stop);
+                    return;
+                }
+
                 eax_ = debug_.battle_mode_flags_53bc24;
                 eax_ = replace_low_byte(eax_, eax_ | 4U);
                 debug_.battle_mode_flags_53bc24 = eax_;
@@ -1832,7 +1856,17 @@ private:
             }
             eax_ = replace_low_word(eax_, *old);
             if (*old != 0U) {
-                invoke(Call::stop_effect_sample, 0U, {*old, 0U});
+                const auto quantity =
+                    advance_legacy_battle_player_item_quantity(
+                        bindings_.items, port_, *old, 0U
+                    );
+                if (quantity.status !=
+                    LegacyBattlePlayerItemQuantityStatus::completed) {
+                    result_.item_quantity_failure = quantity.status;
+                    typed_stop(Status::item_quantity_typed_stop);
+                    return;
+                }
+
                 eax_ = debug_.battle_mode_flags_53bc24;
                 ecx_ = replace_low_word(ecx_, runtime_.target_effect_value);
                 eax_ = replace_low_byte(eax_, eax_ | 4U);

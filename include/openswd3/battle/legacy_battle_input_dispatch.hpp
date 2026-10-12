@@ -16,6 +16,7 @@
 #include "openswd3/input_time_rng/legacy_input.hpp"
 #include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_interaction.hpp"
+#include "openswd3/world_map/legacy_world_item_lifecycle.hpp"
 
 #include <array>
 #include <span>
@@ -190,6 +191,7 @@ public:
 struct LegacyBattleInputDispatchBindings {
     compat::u32& render_abort_latch;
     LegacyBattleStartupState& startup;
+    world_map::LegacyWorldItemListState& items;
     LegacyBattleStartupResetBlocks& startup_reset;
     LegacyBattleTextMessageState& text_messages;
     const LegacyBattleActionModeSourceState& action_mode_source;

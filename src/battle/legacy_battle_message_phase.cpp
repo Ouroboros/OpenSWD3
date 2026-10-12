@@ -734,6 +734,7 @@ private:
         result_.target_selection_entry = enter_legacy_battle_target_selection(
             {
                 .startup = bindings_.startup,
+                .items = port_.world_item_list_state(),
                 .startup_reset = bindings_.startup.reset,
                 .text_messages = bindings_.startup.text_messages,
                 .action_mode_source = bindings_.startup.action_mode_source,

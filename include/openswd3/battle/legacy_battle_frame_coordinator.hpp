@@ -1943,6 +1943,7 @@ struct LegacyBattleFrameCoordinatorContext {
     LegacyBattleFinalActorStepState& final_actor_step;
     LegacyBattleActionDispatchState& action_dispatch;
     LegacyBattleStartupState& startup;
+    world_map::LegacyWorldItemListState& items;
     LegacyBattleScriptWorkspace& script_workspace;
     input_time_rng::LegacyInputNormalizationState& input_normalization;
     const input_time_rng::LegacyKeyboardSnapshot& keyboard;

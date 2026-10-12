@@ -171,6 +171,7 @@ struct Fixture {
     }
 
     openswd3::battle::LegacyBattleStartupState startup_state;
+    openswd3::world_map::LegacyWorldItemListState items;
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
     openswd3::battle::LegacyBattleTextMessageState text_messages;
     openswd3::battle::LegacyBattleActionModeSourceState action_mode_source;
@@ -204,6 +205,7 @@ struct Fixture {
     [[nodiscard]] LegacyBattleTargetSelectionEntryBindings bindings() {
         return {
             .startup = startup_state,
+            .items = items,
             .startup_reset = startup,
             .text_messages = text_messages,
             .action_mode_source = action_mode_source,
@@ -236,6 +238,54 @@ struct Fixture {
 void test_battle_target_selection_entry(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleTargetSelectionEntryStatus;
     using openswd3::battle::enter_legacy_battle_target_selection;
+
+    for (const bool failed : {false, true}) {
+        Fixture fixture;
+        fixture.message = 5U;
+        fixture.target_ready_gate = 1U;
+        fixture.final_actor.queued_actor_code = 8U;
+        fixture.frame.target_selection_suppression = 1U;
+        fixture.frame.group_b_row_selection = 1U;
+        fixture.metrics.group_a_count = 2U;
+        fixture.port.battle_input_dispatch_state().selected_option_word =
+            0xFFFFU;
+        fixture.port.battle_target_selection_runtime_state()
+            .target_effect_value = 0x10000U;
+        fixture.action.opponent_workspace[29U] = 0xABCD8001U;
+        auto& list = fixture.startup_state.party[0U].actor_list;
+        list.next_resource_head_token = 0x76000000U;
+        list.selected_resource_token = 0x76000010U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .resource_id = 0x456U,
+             .secondary_quantity = 2,
+             .name = {}},
+        };
+
+        fixture.items.player_inventory_head_alias.item_id =
+            failed ? 0U : 0x8001U;
+        fixture.items.player_inventory_head_alias.quantity_a = 42U;
+        fixture.items.player_inventory_head_token = failed ? 0xDEADBEEFU : 0U;
+        auto bindings = fixture.bindings();
+        bindings.party = fixture.startup_state.party;
+        const auto result =
+            enter_legacy_battle_target_selection(bindings, fixture.port, {});
+        test.expect_true(
+            result.status ==
+                    (failed
+                         ? LegacyBattleTargetSelectionEntryStatus::
+                               target_selection_refresh_typed_stop
+                         : LegacyBattleTargetSelectionEntryStatus::completed) &&
+                result.target_selection_refresh_calls == 1U &&
+                fixture.items.player_inventory_head_alias.quantity_a ==
+                    (failed ? 42U : 43U) &&
+                list.resources[1U].secondary_quantity == 1 &&
+                fixture.action.opponent_workspace[29U] ==
+                    (failed ? 0xABCD8001U : 0x012C0456U),
+            "target entry lends the actual inventory through resource release and propagates its existing quantity failure"
+        );
+    }
 
     {
         Fixture fixture;
