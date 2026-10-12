@@ -3,6 +3,7 @@
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_dialog_text.hpp"
 #include "openswd3/battle/legacy_battle_frame_selection.hpp"
+#include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "openswd3/battle/legacy_battle_mon_text_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_file_runtime.hpp"
 #include "openswd3/battle/legacy_battle_mon_stream_runtime.hpp"
@@ -60,6 +61,7 @@ struct Fixture {
     LegacyBattleActorMetricState& metrics{startup.actor_metrics};
     LegacyBattleFinalActorStepState final_actor;
     LegacyBattleInputDispatchState input_dispatch;
+    openswd3::battle::LegacyBattleFrameInputResolutionState frame_input;
     LegacyBattleTargetSelectionRuntimeState target_selection;
     LegacyBattleMessagePhaseState message_phase;
     LegacyBattleVictoryRewardState victory;
@@ -88,6 +90,7 @@ struct Fixture {
             .metrics = metrics,
             .final_actor = final_actor,
             .input_dispatch = input_dispatch,
+            .frame_input = frame_input,
             .target_selection = target_selection,
             .message_phase = message_phase,
             .victory = victory,
@@ -4426,7 +4429,7 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                 fixture.shared.action_state == 2U &&
                 fixture.shared.actor_state_words[0U] == 2U &&
                 fixture.startup.reset.block_520e90[3U] == 0U &&
-                fixture.workspace.cursor == 8U && port.calls.size() == 3U,
+                fixture.workspace.cursor == 8U && port.calls.size() == 2U,
             "case twenty-three writes the typed group-A owner before its remaining actor and frame calls"
         );
     }
@@ -6804,6 +6807,109 @@ void test_script_rotation_sharing(openswd3::test::Context& test) {
     }
 }
 
+void test_script_party_target_selection_block(openswd3::test::Context& test) {
+    using openswd3::battle::is_legacy_battle_frame_input_case_three_blocked;
+    using openswd3::battle::run_legacy_battle_script_dispatch;
+    using openswd3::compat::u8;
+
+    for (u32 index = 0U; index < 10U; ++index) {
+        for (const u8 attributes : std::array<u8, 9>{
+                 0U, 1U, 2U, 3U, 0x7CU, 0x80U, 0xFDU, 0xFEU, 0xFFU
+             }) {
+            for (const u32 old_block :
+                 std::array<u32, 3>{0U, 1U, 0xAABBCCDDU}) {
+                auto fixture_owner = std::make_unique<Fixture>();
+                auto& fixture = *fixture_owner;
+                Port port;
+                fixture.opcode(23);
+                fixture.write_u16(2U, 7U);
+                fixture.write_u16(4U, static_cast<u16>(index + 8U));
+                fixture.write_u16(6U, 0U);
+                fixture.input_dispatch.selection_target_cache = 0x5A5A5A5AU;
+                fixture.startup.reset.block_520e90.fill(0x12345678U);
+                fixture.frame_input.target_selection_block = old_block;
+                fixture.frame_input.pointer_activity_gate = 0x98765432U;
+                fixture.frame_input.transient_selection_c = 0xFEDCBA98U;
+                for (auto& actor : fixture.action.group_a_action_execution) {
+                    actor.special_particle_coordinate_suppression = 0xA5U;
+                }
+
+                fixture.action.group_a_action_execution[index]
+                    .special_particle_coordinate_suppression = attributes;
+                fixture.startup.party[index]
+                    .final_processing.profile_buffer[7U] = 0xABCD1234U;
+                const bool blocks_target = (attributes & 1U) != 0U;
+                const bool suppresses_coordinates = (attributes & 2U) != 0U;
+                const u32 expected_block = blocks_target ? 1U : old_block;
+                auto expected_rows = fixture.startup.reset.block_520e90;
+                expected_rows[index * 5U + 3U] = 0x2BCDU;
+                if (suppresses_coordinates) {
+                    expected_rows[index * 5U + 2U] = 1U;
+                }
+
+                bool frame_observed{};
+                port.after_call = [&](auto&,
+                                      auto& bindings,
+                                      const auto& request) {
+                    if (request.call == LegacyBattleScriptDispatchCall::frame) {
+                        frame_observed =
+                            bindings.frame_input.target_selection_block ==
+                                expected_block &&
+                            is_legacy_battle_frame_input_case_three_blocked(
+                                bindings.frame_input
+                            ) == (expected_block == 1U) &&
+                            bindings.startup.reset.block_520e90 ==
+                                expected_rows &&
+                            bindings.input_dispatch.selection_target_cache ==
+                                (suppresses_coordinates ? 1U : 0x5A5A5A5AU) &&
+                            bindings.shared.action_state == 2U;
+                    }
+                };
+
+                const auto result = run_legacy_battle_script_dispatch(
+                    fixture.workspace,
+                    fixture.bindings(),
+                    port,
+                    {.entry_eax = 0xDEADBEEFU}
+                );
+                bool attributes_preserved = true;
+                for (u32 slot = 0U; slot < 10U; ++slot) {
+                    attributes_preserved = attributes_preserved &&
+                        fixture.action.group_a_action_execution[slot]
+                                .special_particle_coordinate_suppression ==
+                            (slot == index ? attributes : 0xA5U);
+                }
+
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleScriptDispatchStatus::completed &&
+                        result.return_eax == 1U &&
+                        fixture.workspace.cursor == 8U && frame_observed &&
+                        fixture.frame_input.target_selection_block ==
+                            expected_block &&
+                        is_legacy_battle_frame_input_case_three_blocked(
+                            fixture.frame_input
+                        ) == (expected_block == 1U) &&
+                        fixture.frame_input.pointer_activity_gate ==
+                            0x98765432U &&
+                        fixture.frame_input.transient_selection_c ==
+                            0xFEDCBA98U &&
+                        fixture.frame_input.target_selection_suppression ==
+                            0U &&
+                        fixture.frame_input.selection_block_word == 0U &&
+                        fixture.startup.reset.block_520e90 == expected_rows &&
+                        attributes_preserved && port.calls.size() == 2U &&
+                        port.calls[0U].call ==
+                            LegacyBattleScriptDispatchCall::pending_4707b0 &&
+                        port.calls[1U].call ==
+                            LegacyBattleScriptDispatchCall::frame,
+                    "script party action reads actual attribute bit zero and publishes the shared target-selection block before the real input consumer, preserving zero paths and independent bit-one effects"
+                );
+            }
+        }
+    }
+}
+
 void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
     using openswd3::battle::run_legacy_battle_script_dispatch;
     using openswd3::compat::u8;
@@ -6869,7 +6975,7 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
                             index + 8U &&
                         std::bit_cast<u32>(fixture.workspace.coordinate_x) ==
                             0xFEDCBA98U &&
-                        preserved_attributes && port.calls.size() == 3U &&
+                        preserved_attributes && port.calls.size() == 2U &&
                         port.calls[0U].call ==
                             LegacyBattleScriptDispatchCall::pending_4707b0 &&
                         port.calls[0U].argument_count == 2U &&
@@ -6877,8 +6983,6 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
                         port.calls[0U].arguments[1U] ==
                             0x004FE5D4U + index * 4U &&
                         port.calls[1U].call ==
-                            LegacyBattleScriptDispatchCall::pending_47d8d0 &&
-                        port.calls[2U].call ==
                             LegacyBattleScriptDispatchCall::frame,
                     "script party selection tests the actual attribute bit one and preserves unrelated bits, rows and old zero-path flags"
                 );
@@ -6897,6 +7001,7 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
             fixture.write_u16(4U, static_cast<u16>(initial_index + 8U));
             fixture.write_u16(6U, 0U);
             fixture.input_dispatch.selection_target_cache = 0xA5A5A5A5U;
+            fixture.frame_input.target_selection_block = 0xA5A5A5A5U;
             fixture.startup.reset.block_520e90.fill(0x12345678U);
             bool saved_source_observed{};
             bool publication_observed{};
@@ -6916,10 +7021,8 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
                         .final_processing.profile_buffer[7U] = 0xFEDC1234U;
                 }
 
-                if (request.call ==
-                    LegacyBattleScriptDispatchCall::pending_47d8d0) {
-                    publication_observed = request.object_token ==
-                            0x005029D0U + saved_index * 0x2F34U &&
+                if (request.call == LegacyBattleScriptDispatchCall::frame) {
+                    publication_observed =
                         bindings.startup.reset
                                 .block_520e90[saved_index * 5U + 3U] ==
                             0x7EDCU &&
@@ -6927,10 +7030,9 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
                                 .block_520e90[saved_index * 5U + 2U] ==
                             (suppress ? 1U : 0x12345678U) &&
                         bindings.input_dispatch.selection_target_cache ==
-                            (suppress ? 1U : 0xA5A5A5A5U);
-                }
-
-                if (request.call == LegacyBattleScriptDispatchCall::frame) {
+                            (suppress ? 1U : 0xA5A5A5A5U) &&
+                        bindings.frame_input.target_selection_block ==
+                            (suppress ? 0xA5A5A5A5U : 1U);
                     workspace.cursor = 12U;
                 }
             };
@@ -6942,7 +7044,7 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
                 result.status == LegacyBattleScriptDispatchStatus::completed &&
                     saved_source_observed && publication_observed &&
                     fixture.workspace.cursor == 20U &&
-                    port.calls.size() == 3U &&
+                    port.calls.size() == 2U &&
                     fixture.startup.reset.block_520e90[saved_index * 5U + 2U] ==
                         (suppress ? 1U : 0x12345678U) &&
                     fixture.startup.reset
@@ -6955,7 +7057,6 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
 
     for (const auto failed_call :
          {LegacyBattleScriptDispatchCall::pending_4707b0,
-          LegacyBattleScriptDispatchCall::pending_47d8d0,
           LegacyBattleScriptDispatchCall::frame}) {
         auto fixture_owner = std::make_unique<Fixture>();
         auto& fixture = *fixture_owner;
@@ -6965,15 +7066,15 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
         fixture.write_u16(4U, 10U);
         fixture.write_u16(6U, 0U);
         fixture.input_dispatch.selection_target_cache = 0xA5A5A5A5U;
+        fixture.frame_input.target_selection_block = 0xA5A5A5A5U;
         fixture.startup.reset.block_520e90.fill(0x12345678U);
         fixture.action.group_a_action_execution[2U]
-            .special_particle_coordinate_suppression = 2U;
+            .special_particle_coordinate_suppression = 3U;
         fixture.startup.party[2U].final_processing.profile_buffer[7U] =
             0x80011234U;
         port.typed_stop_enabled = true;
         port.typed_stop_call = failed_call;
         const bool queried =
-            failed_call == LegacyBattleScriptDispatchCall::pending_47d8d0 ||
             failed_call == LegacyBattleScriptDispatchCall::frame;
         const auto result = run_legacy_battle_script_dispatch(
             fixture.workspace, fixture.bindings(), port
@@ -6993,6 +7094,8 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
                     (queried ? 1U : 0x12345678U) &&
                 fixture.startup.reset.block_520e90[13U] ==
                     (queried ? 1U : 0x12345678U) &&
+                fixture.frame_input.target_selection_block ==
+                    (queried ? 1U : 0xA5A5A5A5U) &&
                 port.calls.back().call == failed_call,
             "script predecessor and frame failures retain the committed prefix and block only the failing suffix"
         );
@@ -7062,10 +7165,8 @@ void test_script_party_profile_word(openswd3::test::Context& test) {
                             expected_profiles[index][7U];
                     }
 
-                    if (request.call ==
-                        LegacyBattleScriptDispatchCall::pending_47d8d0) {
-                        publication_observed = request.object_token ==
-                                0x005029D0U + index * 0x2F34U &&
+                    if (request.call == LegacyBattleScriptDispatchCall::frame) {
+                        publication_observed =
                             bindings.startup.reset.block_520e90 ==
                                 expected_rows &&
                             bindings.input_dispatch.selection_target_cache ==
@@ -7094,7 +7195,7 @@ void test_script_party_profile_word(openswd3::test::Context& test) {
                         fixture.workspace.cursor == 8U &&
                         fixture.startup.reset.block_520e90 == expected_rows &&
                         publication_observed && profiles_preserved &&
-                        port.calls.size() == 3U,
+                        port.calls.size() == 2U,
                     "script party selection reads the actual marked WORD after profile preparation, publishes its masked value before attributes and preserves both halves and every profile row"
                 );
             }
@@ -7117,6 +7218,7 @@ void test_script_party_attribute_unowned_actors(openswd3::test::Context& test) {
             .special_particle_coordinate_suppression = 2U;
         fixture.input_dispatch.selection_target_cache = 0xA5A5A5A5U;
         fixture.startup.reset.block_520e90.fill(0x12345678U);
+        fixture.frame_input.target_selection_block = 0xA5A5A5A5U;
         const auto old_rows = fixture.startup.reset.block_520e90;
         port.after_call = [&](auto&, auto& bindings, const auto& request) {
             if (request.call ==
@@ -7134,6 +7236,7 @@ void test_script_party_attribute_unowned_actors(openswd3::test::Context& test) {
                         group_a_actor_typed_stop &&
                 fixture.input_dispatch.selection_target_cache == 0xA5A5A5A5U &&
                 fixture.startup.reset.block_520e90 == old_rows &&
+                fixture.frame_input.target_selection_block == 0xA5A5A5A5U &&
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
                     1U &&
                 fixture.workspace.cursor == 0U && port.calls.size() == 1U,
@@ -7616,6 +7719,7 @@ void test_script_player_item_quantity(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_script_dispatch(openswd3::test::Context& test) {
+    test_script_party_target_selection_block(test);
     test_script_party_coordinate_suppression(test);
     test_script_party_profile_word(test);
     test_script_party_attribute_unowned_actors(test);

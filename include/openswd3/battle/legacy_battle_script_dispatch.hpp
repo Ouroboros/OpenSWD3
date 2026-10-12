@@ -17,6 +17,7 @@
 #include "openswd3/battle/legacy_battle_script_file.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
+#include "openswd3/battle/legacy_battle_frame_input_resolution_state.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_composition.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_profile_selection.hpp"
 #include "openswd3/battle/legacy_battle_group_b_order.hpp"
@@ -141,7 +142,6 @@ struct LegacyBattleScriptSharedState {
     compat::u32 random_seed{};
     compat::u32 selected_target{};
     compat::u32 action_state{};
-    compat::u32 target_selection_block{};
     compat::u32 external_choice{};
     compat::u32 panel_head_token{};
     compat::u32 effect_head_token{};
@@ -169,6 +169,7 @@ struct LegacyBattleScriptDispatchBindings {
     LegacyBattleActorMetricState& metrics;
     LegacyBattleFinalActorStepState& final_actor;
     LegacyBattleInputDispatchState& input_dispatch;
+    LegacyBattleFrameInputResolutionState& frame_input;
     LegacyBattleTargetSelectionRuntimeState& target_selection;
     LegacyBattleMessagePhaseState& message_phase;
     LegacyBattleVictoryRewardState& victory;
@@ -248,7 +249,6 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     pending_47d640 = 0x0047D640U,
     pending_47d810 = 0x0047D810U,
     pending_47d830 = 0x0047D830U,
-    pending_47d8d0 = 0x0047D8D0U,
     pending_47d950 = 0x0047D950U,
     pending_47da10 = 0x0047DA10U,
     pending_47da90 = 0x0047DA90U,

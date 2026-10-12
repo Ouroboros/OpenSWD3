@@ -1254,15 +1254,15 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_three() {
             return finish(eax_);
         }
 
-        if (!invoke(
-                LegacyBattleScriptDispatchCall::pending_47d8d0, *live_token
-            )) {
-            return finish(eax_);
+        const auto live_actor_index = static_cast<std::size_t>(
+            bindings_.final_actor.secondary_actor_code - 8U
+        );
+        if ((bindings_.action.group_a_action_execution[live_actor_index]
+                 .special_particle_coordinate_suppression &
+             1U) != 0U) {
+            bindings_.frame_input.target_selection_block = 1U;
         }
 
-        if (eax_ != 0U) {
-            bindings_.shared.target_selection_block = 1U;
-        }
         bindings_.shared.action_state = 2U;
         bindings_.shared
             .actor_state_words[static_cast<std::size_t>(actor_index)] = 2U;

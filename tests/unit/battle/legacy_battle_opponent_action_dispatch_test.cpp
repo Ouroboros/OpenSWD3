@@ -340,9 +340,11 @@ struct MirrorScriptFixture {
     openswd3::battle::LegacyBattleScriptFileRuntime files;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleInputDispatchState input;
+    openswd3::battle::LegacyBattleFrameInputResolutionState frame_input;
     openswd3::battle::LegacyBattleTargetSelectionRuntimeState targets;
     openswd3::battle::LegacyBattleMessagePhaseState messages;
     openswd3::battle::LegacyBattleVictoryRewardState rewards;
+    openswd3::world_map::LegacyWorldItemListState items;
     openswd3::battle::LegacyBattleScriptSharedState shared;
     openswd3::story_scene::LegacyDialogRuntimeState dialogs;
     openswd3::battle::LegacyBattleScriptWorkspace workspace;
@@ -366,9 +368,11 @@ struct MirrorScriptFixture {
                 .metrics = fixture.startup->actor_metrics,
                 .final_actor = final_actor,
                 .input_dispatch = input,
+                .frame_input = frame_input,
                 .target_selection = targets,
                 .message_phase = messages,
                 .victory = rewards,
+                .items = items,
                 .shared = shared,
                 .dialogs = dialogs,
                 .message_state = message_state,

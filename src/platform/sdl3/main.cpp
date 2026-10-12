@@ -4306,6 +4306,7 @@ public:
                 .metrics = battle_actor_metrics_,
                 .final_actor = battle_final_actor_,
                 .input_dispatch = battle_input_dispatch_,
+                .frame_input = battle_frame_input_resolution_state(),
                 .target_selection = battle_target_selection_,
                 .message_phase = battle_message_phase_,
                 .victory = battle_victory_rewards_,
