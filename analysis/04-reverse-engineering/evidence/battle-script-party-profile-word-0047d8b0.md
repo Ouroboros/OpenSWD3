@@ -47,7 +47,7 @@ GroupAStorage配置借同一party.final_processing，runtime reset序列化及�
 
 47D8B0是纯读取，撤回其制造live/saved分离的8次注入和1次停止。
 20次改写移至仍待迁移的4707B0源前继；只验证现有协议模型的读取时机。
-当前407次不覆盖或替代上一批历史214次记录，也不是原动态差分。
+当批407次不覆盖或替代上一批历史214次记录，也不是原动态差分。
 
 proc_c4eb成功162秒：core setup1/1 10.92秒，ASan setup1/1 17.92秒，
 SDL实际重链接，三源身份及空白检查通过。
@@ -61,9 +61,17 @@ build/tmp/runtime/script-party-marked-word-*。
 ## 4. 剩余范围
 
 四个其它47D8B0父点、七个其它47D880父点继续pending。
-4707B0资源/输出、47D8D0、入口三WORD和额外写入、晚+6短读前缀、
+4707B0资源/输出、入口三WORD和额外写入、晚+6短读前缀、
 状态/actor-slot影子、53BD50别名、父寄存器/轨迹/计数/Port仍pending。
 旧属性证据保留历史范围并同步后续校准，见
 [坐标抑制属性](battle-script-party-coordinate-suppression-0047d880.md)、
 [脚本父证据](battle-script-dispatch-00469d20.md)、
 [项目清单](invoke-migration-progress.md)。
+
+## 5. 后续目标属性校准
+
+be9645e4读取实际bit0并写真实输入标记，删除脚本47D8D0查询/影子及其停止1次。
+200次数值观察移到frame，旧407范围同步为406；再新增270次目标限制执行。
+当前676次、共享接线及两套战斗core/ASan门禁见
+[目标选择限制](battle-script-party-target-selection-block-0047d8d0.md)。
+其它七个47D8D0父点继续pending；历史源码、向量、门禁和验证边界保留。

@@ -70,16 +70,21 @@ build/tmp/runtime/script-actor-metric-*。
 
 后续源码a0bfde98将脚本47D8B0接到实际profile缓冲高WORD。
 纯叶内改写live选择的8次及停止1次夹具撤回；20次改写移到真实源前继。
-当前该属性/前缀执行207次，加新数值200次；历史214次及其门禁记录保留。
+当批该属性/前缀执行207次，加新数值200次；历史214次及其门禁记录保留。
 本文件的前继回包描述对应21b157ea历史版本；当前纯数值读取无回包。
-当前范围见[标记数值](battle-script-party-profile-word-0047d8b0.md)。
+当批范围见[标记数值](battle-script-party-profile-word-0047d8b0.md)。
+后续be9645e4将bit0接到实际输入共享标记，撤回其纯叶停止1次。
+属性/前缀现206次，数值200次观察移至frame，再加新目标限制270次。
+当前676次及两套实际战斗门禁见
+[目标选择限制](battle-script-party-target-selection-block-0047d8d0.md)。
 
 ## 4. 明确待迁移项
 
 脚本入口仍一次读取三个WORD，party仍额外写value_b/value_c，
 晚+6短读前缀尚未校准；本批不宣称完整脚本23收敛。
 脚本47D8B0的0DAE WORD已读取真实profile；其它四个父入口仍未迁移。
-4707B0、47D8D0、状态/角色槽影子、非party retry/RNG及资源处理继续pending。
+脚本47D8D0已读实际属性，其它七个父点仍pending。
+4707B0、状态/角色槽影子、非party retry/RNG及资源处理继续pending。
 操作编号、参数包、寄存器结果、轨迹、计数、Port和实际SDL整链均未完成。
 见[脚本父证据](battle-script-dispatch-00469d20.md)及
 [全项目迁移](invoke-migration-progress.md)。

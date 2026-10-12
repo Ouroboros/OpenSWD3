@@ -670,3 +670,13 @@ MON使用IO字节夹具，原版动态差分、实际脚本资产及完整游戏
 78次新执行经实际入口通过core/ASan各1/1与SDL实际链接，三文件身份和注册已核对。
 原版差分、额外地址运行保护、实际脚本资产和完整游戏未验证，父协议仍pending。详见
 [脚本动作分支](battle-script-actor-action-branch-0047f3a0.md)。
+
+## 脚本23的实际目标选择限制
+
+后续实现be9645e4在46AD3B读实际属性bit0，真时写既有帧输入共享目标限制，
+假时保留旧值；脚本同名影子、47D8D0操作/回包和纯叶停止删除。
+三个真实bindings构造接同一输入持有者，必要MirrorScriptFixture库存引用补齐。
+270次新执行与406次同步执行验证真实输入判断及提交前缀，当前676次已注册。
+core/ASan setup与actor_frame_316各1/1、SDL实际链接和五源身份通过。
+其它七个47D8D0父点、源资源、入口/状态影子、共享别名及父协议继续pending，见
+[目标选择限制](battle-script-party-target-selection-block-0047d8d0.md)。
