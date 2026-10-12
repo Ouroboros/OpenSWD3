@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "3013f0fab8858773234b78ad0fb6c7d9838c25c2",
+  "last_reviewed_source_revision": "634a082a7555bd99e04e2b65c34ebea9978abd2d",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -656,6 +656,12 @@
       "last_reviewed_commit": "1f4e6749",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-script-enemy-profile-0047f910.md",
       "reason": "脚本50直接读实际敌人记录的WORD参数，保留共享发布、敌人0坐标来源和逐访问失败，删除47F910枚举与模拟回复。此前共享镜像、步长、叠加标记、动作变体与来源记录迁移有效；敌方结束额外写入的运行期保护未验证，其他操作枚举、参数包、寄存器报告、轨迹、计数、Port及资源加载协议仍在，父链继续pending"
+    },
+    "battle/legacy_battle_selection_hint_frame": {
+      "status": "pending",
+      "last_reviewed_commit": "634a082a",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-selection-hint-profile-0047f910.md",
+      "reason": "敌人信息框在名称和字体恢复之后读实际参数WORD，共享选择在参数、数值及进度读取处重读，删除源查询枚举、转发、计数与模拟回复；真实根和动态节点、地址回绕及访问失败前缀已验证。其他名称、字体、文字、数值pair、颜色、寄存器请求结果、计数和Port仍在，父链继续pending"
     },
     "battle/legacy_battle_startup": {
       "status": "pending",

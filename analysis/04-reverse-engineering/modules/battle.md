@@ -751,7 +751,9 @@ core/ASan角色帧各1/1及SDL链接通过；见`evidence/battle-enemy-presentat
 字段访问、真实分配失败和core/ASan/SDL验证见`evidence/battle-final-actor-profile-0047f910.md`。
 灵契开始与结束也分别读取实际敌人参数，删除三处查询编号、通用回复及模拟查询。
 实时参数、数量边界、访问与真实分配失败验证见`evidence/battle-spirit-contract-profile-0047f910.md`。
-脚本、行动与最终角色父协议仍待迁移；摘要参数读取继续待回收。
+敌人信息框也在名称与字体恢复之后读取实际WORD，并在后继重新消费共享选择。
+定向core/ASan与SDL验证见`evidence/battle-selection-hint-profile-0047f910.md`。
+六个物理参数站点均已迁移；脚本、行动、最终角色和信息框父协议仍待迁移。
 结束段10敌人扫描的额外写入已静态定位到CRT缓冲区和PE资源载荷；
 运行期页保护、异常与其他父协议继续待核实或迁移。
 当前验证范围见`evidence/battle-script-overlay-initialization.md`及
@@ -1754,7 +1756,7 @@ Linux core 188/188、Linux app 194/194全部通过，源码零warning且app仅�
 动态差分因原版组A对象、名称/字体/文字/画面及寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
 `audit_order=140`的`0x00466950`已关闭为`platform_adapted`。
-完整权威LST主体`0x00466950..0x00466BFE`共317行、217条实际指令、18个静态call、12个跳转、7个标签、
+完整权威LST主体`0x00466950..0x00466BFE`共312行、217条实际指令、18个静态call、12个跳转、7个标签、
 2个返回点且无外部chunk。入口按queued code读取五dword分组首项，值1、选择阻断1、
 published按i32不在`1..group-B count`时返回；第九对象可过count门但在首次真实名称call停止。
 名称byte长度保留`cdq/sub/sar`向零除2；mirror精确等于1才以`630-20*字符数-originX`布局名称，

@@ -4,9 +4,9 @@
 
 ## 1. 完整权威范围
 
-权威LST主体为`0x00466950..0x00466BFE`，从proc到endp共317行、217条带机器码和真实助记符的实际指令、18个静态call、12个跳转、7个局部/返回标签和2个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭选择帧message 3末尾的live selection-input gate路径，cdecl读取固定提示原点X/Y两项参数。
+权威LST主体为`0x00466950..0x00466BFE`，从proc到endp共312行、217条带机器码和真实助记符的实际指令、18个静态call、12个跳转、7个局部/返回标签和2个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭选择帧message 3末尾的live selection-input gate路径，cdecl读取固定提示原点X/Y两项参数。
 
-静态callsite覆盖组B名称、`lstrlenA`、面板动作更新、矩形、九宫格、字体宽20/16、名称文字、目标指标来源、固定键计数查询、指标pair、`wsprintfA`、格式化文字、角色进度宽度、两条分支各自的颜色查询和常量色垂直渐变。动作更新、矩形、九宫格、固定键计数查询、角色进度宽度和垂直渐变已关闭并直连；字符串长度和格式化改为有界typed等价；剩余对象、字体、文字与指标查询经窄typed端口保留。
+静态callsite覆盖组B名称、`lstrlenA`、面板动作更新、矩形、九宫格、字体宽20/16、名称文字、目标指标来源、固定键计数查询、指标pair、`wsprintfA`、格式化文字、角色进度宽度、两条分支各自的颜色查询和常量色垂直渐变。实际参数读取、动作更新、矩形、九宫格、固定键计数查询、角色进度宽度和垂直渐变已直连；字符串长度和格式化改为有界typed等价；剩余对象、字体、文字与指标查询经窄typed端口保留。
 
 ## 2. 入口门与组B对象
 
@@ -26,7 +26,7 @@ mirror mode完整dword精确等于1时，名称框X=`630-20*字符数-arg_x`；�
 
 ## 4. 生命文字、镜像不对称与渐变
 
-函数以组B对象查询指标来源，再把来源返回EAX作为键，在原call位置直接查询共享固定键计数链。固定计数返回低word小于10时直接返回；否则查询当前值和上限，并以CP950固定前缀“生命:”及signed `%d/%d`写20-byte局部缓冲。固定链typed-stop阻断全部指标后缀；若第20字节后的首次写发生，typed实现保留此前字节并stop，不扩大栈缓冲或截断成功。
+字体恢复16后，函数重新读取共享发布选择，借实际敌人的`action_execution.profile_value`无符号WORD作为键，在原call位置查询共享固定键计数链。源查询编号、通用回复、调用计数和协调器转发已删除；后继数值pair及进度也重新消费共享选择。缺失共享存储、参数访问标记失败或地址不可映射时，在该实际读取点复用`group_b_actor_typed_stop`，保留全部名称前缀。固定计数返回低word小于10时直接返回；否则查询当前值和上限，并以CP950固定前缀“生命:”及signed `%d/%d`写20-byte局部缓冲。固定链typed-stop阻断全部指标后缀；若第20字节后的首次写发生，typed实现保留此前字节并stop，不扩大栈缓冲或截断成功。
 
 这里保留两个不同镜像判断：名称框只在mirror完整值`==1`时镜像；生命文字和渐变只判断mirror是否非0。mirror为0时生命文字位于`x+20*字符数+10,y-2`，文字call入口EAX为Y、ECX为文字对象、EDX为字体token；mirror非0时位于`x-140,y-2`，入口EAX为字体token、ECX为文字对象、EDX为X。mirror值2因此保留“名称不镜像、生命文字镜像”的原始不对称。
 
@@ -34,10 +34,20 @@ mirror mode完整dword精确等于1时，名称框X=`630-20*字符数-arg_x`；�
 
 ## 5. owner、caller回收与验证
 
-五dword分组复用startup reset唯一owner；queued/published复用final-actor owner；group-B count复用metrics owner；target-selection block复用frame-input owner；mirror、组B角色进度和行动阈值复用startup唯一owner；固定根和动态节点复用`LegacyBattleFixedObjectStatePort`唯一owner；面板记录、framebuffer、raster、共享blitter请求/effects/jitter均复用选择帧既有绑定。垂直渐变四字节颜色槽由选择帧提示state唯一持有；20-byte文字区及两个输出值仍是每次调用局部，不建立物理全局owner，动态栈地址以request token表达而不转主机指针。
+五dword分组复用startup reset唯一owner；queued/published复用final-actor owner；group-B count复用metrics owner；target-selection block复用frame-input owner；mirror、组B角色进度和行动阈值复用startup唯一owner；固定根和动态节点复用`LegacyBattleFixedObjectState`唯一owner；面板记录、framebuffer、raster、共享blitter请求/effects/jitter均复用选择帧既有绑定。垂直渐变四字节颜色槽由选择帧提示state唯一持有；20-byte文字区及两个输出值仍是每次调用局部，不建立物理全局owner，动态栈地址以request token表达而不转主机指针。
 
 选择帧原`draw_selection_hint` opaque槽、frame coordinator旧fixed-count lookup槽及旧渐变宽度端口槽保持枚举数值并改为reserved，生产代码零调用。message 3仅在live input gate为1时以固定`12/14`直连本函数；子typed-stop直接传播。
 
 定向测试覆盖所有入口门、读后寄存器、五dword越界、signed published范围、第九组B对象、名称长度除2、非镜像/镜像/值2不对称、动作更新失败继续、矩形与九宫格stop、矩形ECX资源高word、字体20/16、名称call寄存器、固定链根/节点命中与typed-stop、指标阈值9/10/15、CP950 signed格式、20-byte首次越界、生命文字两分支寄存器、typed渐变宽0/20、旧宽度端口零调用、进度读取stop、颜色预计算参数、垂直渐变成功/stop、旧fixed-count边界零调用及唯一caller正常/stop传播。第268项定向4/4、AddressSanitizer、Linux core 194/194和Linux app 200/200完整门全部通过；源码构建零warning，app仅有既有ALSA开发库CMake warning。
 
 当前缺少原版组B对象、名称/指标/字体/文字联合状态、动态栈地址、面板/矩形/九宫格/framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+
+## 6. 通用调用迁移补充
+
+源码`634a082a`回收`00466AC8`的实际参数读取及共享选择借用。
+新增93次帧执行覆盖真实WORD、根/拥有节点、实时换槽、地址回绕和失败前缀。
+最终定向core1/1为9.97秒，ASan1/1为16.75秒，SDL重新链接；
+既有未改测试的转换warning保留，五文件身份与staged审查一致。
+详见[敌人信息框参数读取](battle-selection-hint-profile-0047f910.md)。
+其他名称、字体、文字、数值、颜色及父诊断协议仍在，迁移清单整项保持pending；
+历史工作包关闭及全量门结果不代表本轮整体通用调用验收。
