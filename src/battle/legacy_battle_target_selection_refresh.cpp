@@ -807,8 +807,9 @@ private:
         return prime_input_records();
     }
 
-    [[nodiscard]] bool
-    query_actor_properties(const u32 actor_code, const u32 output_value) {
+    [[nodiscard]] bool query_actor_properties(
+        const u32 actor_code, bool& target_selection_blocked
+    ) {
         const u32 actor_index = actor_code - 8U;
         if (actor_index >= bindings_.startup.party.size()) {
             typed_stop(Status::group_a_actor_typed_stop);
@@ -843,54 +844,69 @@ private:
         }
 
         frame_.target_selection_block = 0U;
-        if (!invoke_group_a(
-                Call::query_actor_property_c, final_actor_.queued_actor_code
-            )) {
+        const u32 live_actor_index = final_actor_.queued_actor_code - 8U;
+        if (live_actor_index >=
+            bindings_.action.group_a_action_execution.size()) {
+            typed_stop(Status::group_a_actor_typed_stop);
             return false;
         }
-        static_cast<void>(output_value);
+
+        target_selection_blocked =
+            (bindings_.action.group_a_action_execution[live_actor_index]
+                 .special_particle_coordinate_suppression &
+             1U) != 0U;
         return true;
     }
 
     [[nodiscard]] bool resolve_property_fallback(
+        const bool target_selection_blocked,
         const u32 category,
         const u32 actor_code,
         const u32 output_value,
         const bool clear_before_output
     ) {
-        if (eax_ == 1U) {
-            if (!clear_before_output) {
+        if (target_selection_blocked) {
+            if (clear_before_output) {
+                eax_ = metrics_.group_b_count;
+                ecx_ = category;
+                final_actor_.published_actor_code = metrics_.group_b_count;
+                eax_ = actor_code * 5U - 40U;
+            } else {
                 eax_ = category;
                 ecx_ = metrics_.group_b_count;
             }
+
             frame_.target_selection_block = 1U;
             runtime_.selection_input_gate = 1U;
-            final_actor_.published_actor_code = metrics_.group_b_count;
             if (clear_before_output) {
-                ecx_ = category;
-                eax_ = actor_code * 5U - 40U;
                 if (!write_runtime_record(actor_code, 0U, 0U)) {
                     return false;
                 }
-            } else if (category == 2U || (output_value & 0xFFFFU) == 0U) {
-                eax_ = actor_code;
-                ecx_ = metrics_.group_b_count;
-                edx_ = actor_code * 5U - 40U;
-            }
-            if (category == 2U) {
-                if (!write_runtime_record(actor_code, 0U, 1U)) {
-                    return false;
-                }
-                bindings_.startup_reset.value_53bfd0 = 1U;
-            }
-            if ((output_value & 0xFFFFU) == 0U) {
-                if (!write_runtime_record(actor_code, 0U, 1U)) {
-                    return false;
-                }
-                if (!clear_before_output) {
+
+                if (category == 2U) {
+                    if (!write_runtime_record(actor_code, 0U, 1U)) {
+                        return false;
+                    }
+
                     bindings_.startup_reset.value_53bfd0 = 1U;
                 }
+
+                if ((output_value & 0xFFFFU) == 0U &&
+                    !write_runtime_record(actor_code, 0U, 1U)) {
+                    return false;
+                }
+            } else {
+                final_actor_.published_actor_code = metrics_.group_b_count;
+                if (category == 2U || (output_value & 0xFFFFU) == 0U) {
+                    eax_ = actor_code;
+                    edx_ = actor_code * 5U - 40U;
+                    bindings_.startup_reset.value_53bfd0 = 1U;
+                    if (!write_runtime_record(actor_code, 0U, 1U)) {
+                        return false;
+                    }
+                }
             }
+
             return true;
         }
 
@@ -1336,10 +1352,12 @@ private:
         }
         local_output_ = call_output_;
         const u32 current_actor = final_actor_.queued_actor_code;
-        if (!query_actor_properties(current_actor, local_output_)) {
+        bool target_selection_blocked;
+        if (!query_actor_properties(current_actor, target_selection_blocked)) {
             return;
         }
         if (!resolve_property_fallback(
+                target_selection_blocked,
                 input_.action_category_index,
                 current_actor,
                 local_output_,
@@ -1728,10 +1746,13 @@ private:
         }
 
         const u32 saved_actor = final_actor_.queued_actor_code;
-        if (!query_actor_properties(saved_actor, local_output_)) {
+        bool target_selection_blocked;
+        if (!query_actor_properties(saved_actor, target_selection_blocked)) {
             return;
         }
+
         if (!resolve_property_fallback(
+                target_selection_blocked,
                 frame_.current_equipment_selection,
                 saved_actor,
                 local_output_,
@@ -1739,9 +1760,9 @@ private:
             )) {
             return;
         }
-        if (!final_target_refresh()) {
-            return;
-        }
+
+        bindings_.message_state = 3U;
+        static_cast<void>(prime_input_records());
     }
 
     void case_five() {
@@ -1942,11 +1963,19 @@ private:
         }
 
         const u32 saved_actor = final_actor_.queued_actor_code;
-        if (!query_actor_properties(saved_actor, local_output_)) {
+        bool target_selection_blocked;
+        if (!query_actor_properties(saved_actor, target_selection_blocked)) {
             return;
         }
 
-        if (!resolve_property_fallback(0U, saved_actor, local_output_, false)) {
+        if (target_selection_blocked) {
+            frame_.target_selection_block = 1U;
+            runtime_.selection_input_gate = 1U;
+            eax_ = metrics_.group_b_count;
+            final_actor_.published_actor_code = metrics_.group_b_count;
+        } else if (
+            final_actor_.pre_frame_gate_b == 0U && !prepare_default_target()
+        ) {
             return;
         }
         if (!final_target_refresh()) {
@@ -2039,16 +2068,24 @@ private:
         }
 
         const u32 saved_actor = final_actor_.queued_actor_code;
-        if (!query_actor_properties(saved_actor, local_output_)) {
+        bool target_selection_blocked;
+        if (!query_actor_properties(saved_actor, target_selection_blocked)) {
             return;
         }
 
-        if (!resolve_property_fallback(5U, saved_actor, local_output_, false)) {
+        if (target_selection_blocked) {
+            eax_ = metrics_.group_b_count;
+            frame_.target_selection_block = 1U;
+            runtime_.selection_input_gate = 1U;
+            final_actor_.published_actor_code = metrics_.group_b_count;
+        } else if (
+            final_actor_.pre_frame_gate_b == 0U && !prepare_default_target()
+        ) {
             return;
         }
-        if (!final_target_refresh()) {
-            return;
-        }
+
+        bindings_.message_state = 3U;
+        static_cast<void>(prime_input_records());
     }
 
     void case_ninety_eight() {

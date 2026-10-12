@@ -1,10 +1,12 @@
 #include "openswd3/battle/legacy_battle_target_selection_refresh.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
+#include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 
 #include <algorithm>
 #include <functional>
 #include <map>
+#include <string>
 #include <vector>
 
 #include "test.hpp"
@@ -222,10 +224,6 @@ void seed_marked_profile_menu(
     };
 
 
-    fixture.port.replies
-        [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
-        .eax = 0U
-    };
 }
 
 void test_menu_marked_profile_word(openswd3::test::Context& test) {
@@ -264,20 +262,6 @@ void test_menu_marked_profile_word(openswd3::test::Context& test) {
                 const u32 expected_word =
                     word >= 0x8000U ? static_cast<u32>(word) - 0x8000U : 0U;
                 expected[row + 3U] = expected_word;
-                bool prefix_observed = false;
-                fixture.port.before_call = [&](const auto& request) {
-                    if (request.call ==
-                        LegacyBattleTargetSelectionRuntimeCall::
-                            query_actor_property_c) {
-                        prefix_observed =
-                            fixture.startup.block_520e90 == expected &&
-                            fixture.port.battle_input_dispatch_state()
-                                    .selection_target_cache == 0U &&
-                            request.actor_token ==
-                                0x005029D0U + actor_index * 0x2F34U;
-                    }
-                };
-
                 const auto result =
                     openswd3::battle::refresh_legacy_battle_target_selection(
                         fixture.bindings(),
@@ -297,11 +281,13 @@ void test_menu_marked_profile_word(openswd3::test::Context& test) {
                             openswd3::battle::
                                 LegacyBattleTargetSelectionRefreshStatus::
                                     completed &&
-                        prefix_observed && profiles_match &&
+                        profiles_match &&
+                        fixture.port.battle_input_dispatch_state()
+                                .selection_target_cache == 0U &&
                         fixture.startup.block_520e90 == expected &&
                         fixture.message == 3U &&
                         result.input_record_prime_calls == 1U,
-                    "all four menu paths publish the saved actor's actual marked WORD before the next property and retain all profile bytes and neighboring rows"
+                    "all four menu paths publish the saved actor's actual marked WORD before the real attack queue and retain all profile bytes and neighboring rows"
                 );
                 std::array<openswd3::battle::LegacyBattleStartupResetRecord, 2>
                     records{};
@@ -383,19 +369,6 @@ void test_menu_coordinate_attribute(openswd3::test::Context& test) {
                         expected[row + 2U] = 1U;
                     }
 
-                    bool prefix_observed = false;
-                    fixture.port.before_call = [&](const auto& request) {
-                        if (request.call ==
-                            LegacyBattleTargetSelectionRuntimeCall::
-                                query_actor_property_c) {
-                            prefix_observed =
-                                fixture.startup.block_520e90 == expected &&
-                                fixture.port.battle_input_dispatch_state()
-                                        .selection_target_cache ==
-                                    (suppressed ? 1U : 0U);
-                        }
-                    };
-
                     const auto result = openswd3::battle::
                         refresh_legacy_battle_target_selection(
                             fixture.bindings(), fixture.port, {}
@@ -416,7 +389,10 @@ void test_menu_coordinate_attribute(openswd3::test::Context& test) {
                                 openswd3::battle::
                                     LegacyBattleTargetSelectionRefreshStatus::
                                         completed &&
-                            prefix_observed && actors_match &&
+                            actors_match &&
+                            fixture.port.battle_input_dispatch_state()
+                                    .selection_target_cache ==
+                                (suppressed ? 1U : 0U) &&
                             fixture.startup.block_520e90 == expected &&
                             fixture.message == 3U &&
                             result.input_record_prime_calls == 1U,
@@ -464,6 +440,349 @@ void test_menu_coordinate_attribute(openswd3::test::Context& test) {
     }
 }
 
+void test_menu_target_block_attribute(openswd3::test::Context& test) {
+    using openswd3::compat::u8;
+    struct TargetCase {
+        u32 category;
+        u32 output;
+        u32 old_column;
+    };
+
+    constexpr std::array<TargetCase, 6> targets{{
+        {0U, 1U, 0xAABBCCDDU},
+        {1U, 0U, 0xAABBCCDDU},
+        {2U, 1U, 0xAABBCCDDU},
+        {0x10002U, 0x10001U, 1U},
+        {1U, 0x10000U, 0U},
+        {0U, 0xFFFFU, 1U},
+    }};
+    constexpr std::array<u8, 9> attributes{
+        0U, 1U, 2U, 3U, 0x7CU, 0x80U, 0xFDU, 0xFEU, 0xFFU
+    };
+
+    for (const u32 message : {2U, 4U, 30U, 8U}) {
+        for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {
+            for (const u8 attribute : attributes) {
+                for (const auto& target : targets) {
+                    Fixture fixture;
+                    seed_marked_profile_menu(fixture, message, actor_index);
+                    fixture.metrics.group_a_count = 3U;
+                    fixture.final_actor.published_actor_code = 0x88776655U;
+                    fixture.frame.target_selection_block = 0xA5A5A5A5U;
+                    fixture.frame.current_equipment_selection = target.category;
+                    fixture.startup.value_53bfd0 = 7U;
+                    const u32 row = actor_index * 5U;
+                    fixture.startup.block_520e90[row] = target.old_column;
+                    auto& input = fixture.port.battle_input_dispatch_state();
+                    input.action_category_index = target.category;
+                    input.selection_animation_frame_a = 11U;
+                    input.selection_animation_frame_b = 22U;
+                    input.selection_animation_phase = 33U;
+                    fixture.port
+                        .replies[LegacyBattleTargetSelectionRuntimeCall::
+                                     query_primary_target]
+                        .output_value = target.output;
+                    fixture.port
+                        .replies[LegacyBattleTargetSelectionRuntimeCall::
+                                     resolve_action_target]
+                        .output_value = target.output;
+                    std::array<u8, 10> expected_attributes{};
+                    std::array<std::array<u32, 10>, 10> expected_profiles{};
+                    for (u32 slot = 0U; slot < 10U; ++slot) {
+                        const u8 actor_attribute = slot == actor_index
+                            ? attribute
+                            : static_cast<u8>(attribute ^ 1U);
+                        fixture.action.group_a_action_execution[slot]
+                            .special_particle_coordinate_suppression =
+                            actor_attribute;
+                        auto& profile = fixture.startup_state.party[slot]
+                                            .final_processing.profile_buffer;
+                        profile[1U] = 0x12345600U | actor_attribute;
+                        if (slot == actor_index) {
+                            profile[7U] = 0x81231234U;
+                        }
+
+                        expected_attributes[slot] = actor_attribute;
+                        expected_profiles[slot] = profile;
+                    }
+
+                    const bool blocked = (attribute & 1U) != 0U;
+                    const bool coordinates_suppressed = (attribute & 2U) != 0U;
+                    const bool zero_output = (target.output & 0xFFFFU) == 0U;
+                    auto expected = fixture.startup.block_520e90;
+                    expected[row + 3U] = 0x123U;
+                    if (coordinates_suppressed) {
+                        expected[row + 2U] = 1U;
+                    }
+
+                    u32 expected_secondary = 7U;
+                    u32 expected_actor = 0x88776655U;
+                    if (blocked) {
+                        expected_actor = 1U;
+                        if (message == 2U &&
+                            (target.category == 2U || zero_output)) {
+                            expected[row] = 1U;
+                            expected_secondary = 1U;
+                        } else if (message == 4U) {
+                            expected[row] =
+                                target.category == 2U || zero_output ? 1U : 0U;
+                            if (target.category == 2U) {
+                                expected_secondary = 1U;
+                            }
+                        }
+                    } else if (
+                        (message == 2U || message == 4U) &&
+                        target.category != 0U
+                    ) {
+                        expected[row] = zero_output ? 1U : 0U;
+                        if (zero_output) {
+                            expected_actor = actor_index + 1U;
+                        }
+                    }
+
+                    const auto result = openswd3::battle::
+                        refresh_legacy_battle_target_selection(
+                            fixture.bindings(), fixture.port, {}
+                        );
+                    bool actors_match = true;
+                    for (u32 slot = 0U; slot < 10U; ++slot) {
+                        actors_match = actors_match &&
+                            fixture.action.group_a_action_execution[slot]
+                                    .special_particle_coordinate_suppression ==
+                                expected_attributes[slot] &&
+                            fixture.startup_state.party[slot]
+                                    .final_processing.profile_buffer ==
+                                expected_profiles[slot];
+                    }
+
+                    const bool reset_animation = message == 2U || message == 8U;
+                    test.expect_true(
+                        result.status ==
+                                openswd3::battle::
+                                    LegacyBattleTargetSelectionRefreshStatus::
+                                        completed &&
+                            actors_match &&
+                            fixture.startup.block_520e90 == expected &&
+                            fixture.frame.target_selection_block ==
+                                (blocked ? 1U : 0U) &&
+                            openswd3::battle::
+                                    is_legacy_battle_frame_input_case_three_blocked(
+                                        fixture.frame
+                                    ) == blocked &&
+                            input.selection_target_cache ==
+                                (coordinates_suppressed ? 1U : 0U) &&
+                            fixture.port.battle_target_selection_runtime_state()
+                                    .selection_input_gate ==
+                                (blocked ? 1U : 0U) &&
+                            fixture.startup.value_53bfd0 ==
+                                expected_secondary &&
+                            fixture.final_actor.published_actor_code ==
+                                expected_actor &&
+                            input.selection_animation_frame_a ==
+                                (reset_animation ? 0U : 11U) &&
+                            input.selection_animation_frame_b ==
+                                (reset_animation ? 0U : 22U) &&
+                            input.selection_animation_phase ==
+                                (reset_animation ? 4U : 33U) &&
+                            fixture.message == 3U &&
+                            result.input_record_prime_calls == 1U,
+                        "menu target restriction uses the live party BYTE bit zero, keeps bit one independent, applies each message's exact WORD and row rules, and feeds the real input guard without extra animation resets"
+                    );
+                    std::array<
+                        openswd3::battle::LegacyBattleStartupResetRecord,
+                        2>
+                        records{};
+                    u32 primary_gate = 9U;
+                    u32 secondary_gate = 8U;
+                    const auto insertion = openswd3::battle::
+                        insert_legacy_battle_attack_order_entry(
+                            {.records = records,
+                             .party_source_words = fixture.startup.block_520e90,
+                             .primary_gate = &primary_gate,
+                             .secondary_gate = &secondary_gate},
+                            1U,
+                            actor_index + 8U,
+                            0xFFFFFFFFU
+                        );
+                    auto consumed = expected;
+                    for (u32 column = 0U; column < 5U; ++column) {
+                        consumed[row + column] = 0U;
+                    }
+
+                    test.expect_true(
+                        insertion.status ==
+                                openswd3::battle::
+                                    LegacyBattleAttackOrderInsertStatus::
+                                        completed &&
+                            records[0U].value_0c == expected[row] &&
+                            records[0U].value_14 == expected[row + 1U] &&
+                            records[0U].value_18 == expected[row + 2U] &&
+                            records[0U].value_0a == expected[row + 3U] &&
+                            records[0U].value_04 == expected[row + 4U] &&
+                            fixture.startup.block_520e90 == consumed &&
+                            primary_gate == 0U && secondary_gate == 0U,
+                        "the real attack queue copies the target flag with all five source fields before clearing only the selected row and both gates"
+                    );
+                }
+            }
+        }
+    }
+
+    struct RemainingCase {
+        u32 count;
+        u32 effect_high_word;
+        u16 supplemental_count;
+        bool cycles_target;
+    };
+
+    constexpr std::array<RemainingCase, 4> remaining_cases{{
+        {3U, 0U, 0U, false},
+        {4U, 0U, 0U, true},
+        {0U, 1U, 0U, true},
+        {0U, 0U, 1U, true},
+    }};
+
+    for (const u32 message : {2U, 4U}) {
+        for (const auto& remaining : remaining_cases) {
+            Fixture fixture;
+            seed_marked_profile_menu(fixture, message, 2U);
+            fixture.metrics.group_a_count = remaining.count;
+            fixture.frame.target_cursor = 0U;
+            fixture.supplemental_count = remaining.supplemental_count;
+            fixture.frame.current_equipment_selection = 1U;
+            fixture.port.battle_input_dispatch_state().action_category_index =
+                1U;
+            auto& runtime =
+                fixture.port.battle_target_selection_runtime_state();
+            runtime.target_effect_value = remaining.effect_high_word << 16U;
+            fixture.port
+                .replies[LegacyBattleTargetSelectionRuntimeCall::
+                             query_primary_target]
+                .output_value = 0U;
+            fixture.port
+                .replies[LegacyBattleTargetSelectionRuntimeCall::
+                             resolve_action_target]
+                .output_value = 0U;
+            const auto result =
+                openswd3::battle::refresh_legacy_battle_target_selection(
+                    fixture.bindings(), fixture.port, {}
+                );
+            test.expect_true(
+                result.status ==
+                        openswd3::battle::
+                            LegacyBattleTargetSelectionRefreshStatus::
+                                completed &&
+                    result.group_a_target_cycle_calls ==
+                        (remaining.cycles_target ? 1U : 0U) &&
+                    fixture.startup.block_520e90[10U] == 1U &&
+                    fixture.final_actor.published_actor_code == 3U &&
+                    fixture.frame.target_selection_block == 0U &&
+                    result.input_record_prime_calls == 1U &&
+                    fixture.message == 3U &&
+                    (!remaining.cycles_target ||
+                     (result.group_a_target_cycle.target_order_reads == 1U &&
+                      result.group_a_target_cycle.return_edx ==
+                          remaining.count - remaining.effect_high_word -
+                              remaining.supplemental_count)),
+                "false menu remaining-target vector: message=" +
+                    std::to_string(message) +
+                    " count=" + std::to_string(remaining.count) +
+                    " high=" + std::to_string(remaining.effect_high_word) +
+                    " extra=" + std::to_string(remaining.supplemental_count) +
+                    " status=" +
+                    std::to_string(static_cast<u32>(result.status)) +
+                    " cycles=" +
+                    std::to_string(result.group_a_target_cycle_calls) +
+                    " actor=" +
+                    std::to_string(fixture.final_actor.published_actor_code) +
+                    " reads=" +
+                    std::to_string(
+                        result.group_a_target_cycle.target_order_reads
+                    ) +
+                    " remainder=" +
+                    std::to_string(result.group_a_target_cycle.return_edx)
+            );
+        }
+    }
+
+    for (const u32 message : {2U, 4U, 30U, 8U}) {
+        for (const u8 attribute : {u8{2U}, u8{3U}}) {
+            Fixture fixture;
+            seed_marked_profile_menu(fixture, message, 2U);
+            fixture.final_actor.pre_frame_gate_b = 0U;
+            fixture.frame.target_actor_index = 8U;
+            fixture.metrics.group_b_count = 9U;
+            fixture.action.group_a_action_execution[2U]
+                .special_particle_coordinate_suppression = attribute;
+            fixture.startup_state.party[2U]
+                .final_processing.profile_buffer[7U] = 0x81231234U;
+            const bool blocked = (attribute & 1U) != 0U;
+            const auto result =
+                openswd3::battle::refresh_legacy_battle_target_selection(
+                    fixture.bindings(), fixture.port, {}
+                );
+            test.expect_true(
+                result.status ==
+                        (blocked
+                             ? openswd3::battle::
+                                   LegacyBattleTargetSelectionRefreshStatus::
+                                       completed
+                             : openswd3::battle::
+                                   LegacyBattleTargetSelectionRefreshStatus::
+                                       group_b_actor_typed_stop) &&
+                    fixture.frame.target_selection_block ==
+                        (blocked ? 1U : 0U) &&
+                    fixture.port.battle_input_dispatch_state()
+                            .selection_target_cache == 1U &&
+                    fixture.startup.block_520e90[13U] == 0x123U &&
+                    fixture.startup.block_520e90[12U] == 1U &&
+                    result.group_b_target_cycle_calls == (blocked ? 0U : 1U) &&
+                    result.input_record_prime_calls == (blocked ? 1U : 0U) &&
+                    fixture.message == (blocked ? 3U : message),
+                "a true menu attribute bypasses default targeting while false reaches the real unowned enemy boundary and preserves the property prefix before the input tail"
+            );
+
+            Fixture shortened;
+            seed_marked_profile_menu(shortened, message, 2U);
+            shortened.action.group_a_action_execution[2U]
+                .special_particle_coordinate_suppression = attribute;
+            shortened.startup_state.party[2U]
+                .final_processing.profile_buffer[7U] = 0x81231234U;
+            auto& input = shortened.port.battle_input_dispatch_state();
+            input.selection_animation_frame_a = 11U;
+            input.selection_animation_frame_b = 22U;
+            input.selection_animation_phase = 33U;
+            auto bindings = shortened.bindings();
+            bindings.input_records =
+                std::span{shortened.input_records}.first(2U);
+            const auto stopped =
+                openswd3::battle::refresh_legacy_battle_target_selection(
+                    bindings, shortened.port, {}
+                );
+            const bool reset_animation = message == 2U || message == 8U;
+            test.expect_true(
+                stopped.status ==
+                        openswd3::battle::
+                            LegacyBattleTargetSelectionRefreshStatus::
+                                input_record_typed_stop &&
+                    stopped.input_record_writes == 2U &&
+                    shortened.message == 3U &&
+                    shortened.frame.target_selection_block ==
+                        (blocked ? 1U : 0U) &&
+                    input.selection_target_cache == 1U &&
+                    shortened.startup.block_520e90[13U] == 0x123U &&
+                    input.selection_animation_frame_a ==
+                        (reset_animation ? 0U : 11U) &&
+                    input.selection_animation_frame_b ==
+                        (reset_animation ? 0U : 22U) &&
+                    input.selection_animation_phase ==
+                        (reset_animation ? 4U : 33U),
+                "real input priming failure preserves target restriction, coordinate and WORD publication, the shared message, and each path's animation prefix"
+            );
+        }
+    }
+}
+
 void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
     for (const u32 message : {2U, 4U, 30U, 8U}) {
         for (const u16 word : {u16{0x7FFFU}, u16{0xFEDCU}}) {
@@ -474,7 +793,7 @@ void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
                 0x1000U;
             fixture.action.group_a_action_execution[2U]
                 .special_particle_coordinate_suppression =
-                word >= 0x8000U ? 0U : 2U;
+                word >= 0x8000U ? 1U : 2U;
             const auto predecessor = message == 2U || message == 8U
                 ? LegacyBattleTargetSelectionRuntimeCall::query_primary_target
                 : LegacyBattleTargetSelectionRuntimeCall::resolve_action_target;
@@ -486,7 +805,7 @@ void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
                         (static_cast<u32>(word) << 16U) | 0x1234U;
                     fixture.action.group_a_action_execution[5U]
                         .special_particle_coordinate_suppression =
-                        word >= 0x8000U ? 2U : 0U;
+                        word >= 0x8000U ? 2U : 1U;
                 }
             };
 
@@ -508,6 +827,8 @@ void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
                                 completed &&
                     fixture.startup.block_520e90 == expected &&
                     fixture.final_actor.queued_actor_code == 13U &&
+                    fixture.frame.target_selection_block ==
+                        (word >= 0x8000U ? 0U : 1U) &&
                     fixture.message == 3U,
                 "the menu rereads the actor and actual profile after its real predecessor, including the equipment override query"
             );
@@ -579,6 +900,7 @@ void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
 void test_battle_target_selection_refresh(openswd3::test::Context& test) {
     test_menu_marked_profile_word(test);
     test_menu_coordinate_attribute(test);
+    test_menu_target_block_attribute(test);
     test_menu_marked_profile_predecessors(test);
     using openswd3::battle::LegacyBattleActorActionFourOverrideStatus;
     using openswd3::battle::LegacyBattleActorActionThirtyOverrideStatus;
@@ -849,10 +1171,6 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
             [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
             {.eax = 1U};
 
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
-            .eax = 0U
-        };
         const auto result = refresh_legacy_battle_target_selection(
             fixture.bindings(), fixture.port, {}
         );
@@ -862,7 +1180,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 result.group_a_target_cycle_calls == 1U &&
                 result.group_a_target_cycle.target_order_reads == 3U &&
                 result.input_record_prime_calls == 1U &&
-                fixture.port.calls.size() == 3U &&
+                fixture.port.calls.size() == 2U &&
                 fixture.frame.target_cursor == 3U &&
                 fixture.frame.target_actor_index == 0U &&
                 fixture.final_actor.published_actor_code == 1U &&
@@ -887,10 +1205,6 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
             [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
             {.eax = 1U};
 
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
-            .eax = 0U
-        };
         openswd3::battle::LegacyBattleTargetSelectionRefreshRequest request;
         request.primary_actor_frame_snapshot.output_token = 0x70001000U;
         request.primary_actor_frame_snapshot.initial_output = {
@@ -941,10 +1255,6 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
             [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
             {.eax = 1U};
 
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
-            .eax = 0U
-        };
         openswd3::battle::LegacyBattleTargetSelectionRefreshRequest request;
         request.primary_actor_frame_snapshot.output_token = 0x70001000U;
         request.primary_actor_frame_snapshot.initial_output = {
@@ -994,10 +1304,6 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
             .eax = 1U
         };
 
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
-            .eax = 0U
-        };
         openswd3::battle::LegacyBattleTargetSelectionRefreshRequest request;
         request.equipment_actor_frame_snapshot.output_token = 0x70002000U;
         request.equipment_actor_frame_snapshot.initial_output = {
@@ -1048,10 +1354,6 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
             [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
             {.eax = 1U};
 
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
-            .eax = 0U
-        };
         const auto result = refresh_legacy_battle_target_selection(
             fixture.bindings(), fixture.port, {}
         );
@@ -1061,7 +1363,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                         group_a_target_order_typed_stop &&
                 result.group_a_target_cycle_calls == 1U &&
                 result.input_record_prime_calls == 0U &&
-                fixture.port.calls.size() == 3U &&
+                fixture.port.calls.size() == 2U &&
                 fixture.frame.target_cursor == 4U &&
                 fixture.frame.target_actor_index == 7U &&
                 fixture.final_actor.published_actor_code == 9U &&
