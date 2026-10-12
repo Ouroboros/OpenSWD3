@@ -221,10 +221,6 @@ void seed_marked_profile_menu(
         .eax = 1U, .output_value = 1U
     };
 
-    fixture.port.replies
-        [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_b] = {
-        .eax = 0U
-    };
 
     fixture.port.replies
         [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
@@ -272,7 +268,7 @@ void test_menu_marked_profile_word(openswd3::test::Context& test) {
                 fixture.port.before_call = [&](const auto& request) {
                     if (request.call ==
                         LegacyBattleTargetSelectionRuntimeCall::
-                            query_actor_property_b) {
+                            query_actor_property_c) {
                         prefix_observed =
                             fixture.startup.block_520e90 == expected &&
                             fixture.port.battle_input_dispatch_state()
@@ -346,6 +342,128 @@ void test_menu_marked_profile_word(openswd3::test::Context& test) {
     }
 }
 
+void test_menu_coordinate_attribute(openswd3::test::Context& test) {
+    using openswd3::compat::u8;
+    constexpr std::array<u8, 9> attributes{
+        0U, 1U, 2U, 3U, 0x7CU, 0x80U, 0xFDU, 0xFEU, 0xFFU
+    };
+
+    for (const u32 message : {2U, 4U, 30U, 8U}) {
+        for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {
+            for (const u8 attribute : attributes) {
+                for (const u32 old_column : {0U, 1U, 0xAABBCCDDU}) {
+                    Fixture fixture;
+                    seed_marked_profile_menu(fixture, message, actor_index);
+                    const u32 row = actor_index * 5U;
+                    fixture.startup.block_520e90[row + 2U] = old_column;
+                    std::array<u8, 10> expected_attributes{};
+                    std::array<std::array<u32, 10>, 10> expected_profiles{};
+                    for (u32 slot = 0U; slot < 10U; ++slot) {
+                        const u8 actor_attribute = slot == actor_index
+                            ? attribute
+                            : static_cast<u8>(attribute ^ 2U);
+                        fixture.action.group_a_action_execution[slot]
+                            .special_particle_coordinate_suppression =
+                            actor_attribute;
+                        auto& profile = fixture.startup_state.party[slot]
+                                            .final_processing.profile_buffer;
+                        profile[1U] = 0x12345600U | actor_attribute;
+                        if (slot == actor_index) {
+                            profile[7U] = 0x81231234U;
+                        }
+
+                        expected_attributes[slot] = actor_attribute;
+                        expected_profiles[slot] = profile;
+                    }
+
+                    auto expected = fixture.startup.block_520e90;
+                    expected[row + 3U] = 0x123U;
+                    const bool suppressed = (attribute & 2U) != 0U;
+                    if (suppressed) {
+                        expected[row + 2U] = 1U;
+                    }
+
+                    bool prefix_observed = false;
+                    fixture.port.before_call = [&](const auto& request) {
+                        if (request.call ==
+                            LegacyBattleTargetSelectionRuntimeCall::
+                                query_actor_property_c) {
+                            prefix_observed =
+                                fixture.startup.block_520e90 == expected &&
+                                fixture.port.battle_input_dispatch_state()
+                                        .selection_target_cache ==
+                                    (suppressed ? 1U : 0U);
+                        }
+                    };
+
+                    const auto result = openswd3::battle::
+                        refresh_legacy_battle_target_selection(
+                            fixture.bindings(), fixture.port, {}
+                        );
+                    bool actors_match = true;
+                    for (u32 slot = 0U; slot < 10U; ++slot) {
+                        actors_match = actors_match &&
+                            fixture.action.group_a_action_execution[slot]
+                                    .special_particle_coordinate_suppression ==
+                                expected_attributes[slot] &&
+                            fixture.startup_state.party[slot]
+                                    .final_processing.profile_buffer ==
+                                expected_profiles[slot];
+                    }
+
+                    test.expect_true(
+                        result.status ==
+                                openswd3::battle::
+                                    LegacyBattleTargetSelectionRefreshStatus::
+                                        completed &&
+                            prefix_observed && actors_match &&
+                            fixture.startup.block_520e90 == expected &&
+                            fixture.message == 3U &&
+                            result.input_record_prime_calls == 1U,
+                        "all four menu paths read the saved party BYTE bit one, publish the shared marker and auxiliary coordinate flag only when true, and retain old false values and neighboring actors"
+                    );
+                    std::array<
+                        openswd3::battle::LegacyBattleStartupResetRecord,
+                        2>
+                        records{};
+                    u32 primary_gate = 9U;
+                    u32 secondary_gate = 8U;
+                    const auto insertion = openswd3::battle::
+                        insert_legacy_battle_attack_order_entry(
+                            {.records = records,
+                             .party_source_words = fixture.startup.block_520e90,
+                             .primary_gate = &primary_gate,
+                             .secondary_gate = &secondary_gate},
+                            1U,
+                            actor_index + 8U,
+                            0xFFFFFFFFU
+                        );
+                    auto expected_consumed = expected;
+                    for (u32 column = 0U; column < 5U; ++column) {
+                        expected_consumed[row + column] = 0U;
+                    }
+
+                    test.expect_true(
+                        insertion.status ==
+                                openswd3::battle::
+                                    LegacyBattleAttackOrderInsertStatus::
+                                        completed &&
+                            insertion.written_offset == 0U &&
+                            records[0U].value_18 == expected[row + 2U] &&
+                            records[0U].value_0a == expected[row + 3U] &&
+                            records[0U].value_14 == expected[row + 1U] &&
+                            records[0U].value_0c == expected[row] &&
+                            records[0U].value_04 == expected[row + 4U] &&
+                            fixture.startup.block_520e90 == expected_consumed &&
+                            primary_gate == 0U && secondary_gate == 0U,
+                        "the real attack queue consumes the same coordinate column and marked WORD before clearing the five source DWORDs and preserving neighboring rows"
+                    );
+                }
+            }
+        }
+    }
+}
+
 void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
     for (const u32 message : {2U, 4U, 30U, 8U}) {
         for (const u16 word : {u16{0x7FFFU}, u16{0xFEDCU}}) {
@@ -354,6 +472,9 @@ void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
             fixture.startup.block_520e90[25U] = 0U;
             fixture.action.group_a_action_execution[2U].action_override_flags =
                 0x1000U;
+            fixture.action.group_a_action_execution[2U]
+                .special_particle_coordinate_suppression =
+                word >= 0x8000U ? 0U : 2U;
             const auto predecessor = message == 2U || message == 8U
                 ? LegacyBattleTargetSelectionRuntimeCall::query_primary_target
                 : LegacyBattleTargetSelectionRuntimeCall::resolve_action_target;
@@ -363,12 +484,19 @@ void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
                     fixture.startup_state.party[5U]
                         .final_processing.profile_buffer[7U] =
                         (static_cast<u32>(word) << 16U) | 0x1234U;
+                    fixture.action.group_a_action_execution[5U]
+                        .special_particle_coordinate_suppression =
+                        word >= 0x8000U ? 2U : 0U;
                 }
             };
 
             auto expected = fixture.startup.block_520e90;
             expected[28U] =
                 word >= 0x8000U ? static_cast<u32>(word) - 0x8000U : 0U;
+            if (word >= 0x8000U) {
+                expected[27U] = 1U;
+            }
+
             const auto result =
                 openswd3::battle::refresh_legacy_battle_target_selection(
                     fixture.bindings(), fixture.port, {}
@@ -450,6 +578,7 @@ void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
 
 void test_battle_target_selection_refresh(openswd3::test::Context& test) {
     test_menu_marked_profile_word(test);
+    test_menu_coordinate_attribute(test);
     test_menu_marked_profile_predecessors(test);
     using openswd3::battle::LegacyBattleActorActionFourOverrideStatus;
     using openswd3::battle::LegacyBattleActorActionThirtyOverrideStatus;
@@ -719,10 +848,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         fixture.port.replies
             [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
             {.eax = 1U};
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_b] = {
-            .eax = 0U
-        };
+
         fixture.port.replies
             [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
             .eax = 0U
@@ -736,7 +862,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 result.group_a_target_cycle_calls == 1U &&
                 result.group_a_target_cycle.target_order_reads == 3U &&
                 result.input_record_prime_calls == 1U &&
-                fixture.port.calls.size() == 4U &&
+                fixture.port.calls.size() == 3U &&
                 fixture.frame.target_cursor == 3U &&
                 fixture.frame.target_actor_index == 0U &&
                 fixture.final_actor.published_actor_code == 1U &&
@@ -760,10 +886,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         fixture.port.replies
             [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
             {.eax = 1U};
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_b] = {
-            .eax = 0U
-        };
+
         fixture.port.replies
             [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
             .eax = 0U
@@ -817,10 +940,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         fixture.port.replies
             [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
             {.eax = 1U};
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_b] = {
-            .eax = 0U
-        };
+
         fixture.port.replies
             [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
             .eax = 0U
@@ -875,10 +995,6 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         };
 
         fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_b] = {
-            .eax = 0U
-        };
-        fixture.port.replies
             [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
             .eax = 0U
         };
@@ -931,10 +1047,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         fixture.port.replies
             [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
             {.eax = 1U};
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_b] = {
-            .eax = 0U
-        };
+
         fixture.port.replies
             [LegacyBattleTargetSelectionRuntimeCall::query_actor_property_c] = {
             .eax = 0U
@@ -948,7 +1061,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                         group_a_target_order_typed_stop &&
                 result.group_a_target_cycle_calls == 1U &&
                 result.input_record_prime_calls == 0U &&
-                fixture.port.calls.size() == 4U &&
+                fixture.port.calls.size() == 3U &&
                 fixture.frame.target_cursor == 4U &&
                 fixture.frame.target_actor_index == 7U &&
                 fixture.final_actor.published_actor_code == 9U &&

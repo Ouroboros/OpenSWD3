@@ -829,11 +829,12 @@ private:
             return false;
         }
 
-        if (!invoke_group_a(Call::query_actor_property_b, actor_code)) {
-            return false;
-        }
+        const bool coordinate_suppressed =
+            (bindings_.action.group_a_action_execution[actor_index]
+                 .special_particle_coordinate_suppression &
+             2U) != 0U;
         ecx_ = final_actor_.queued_actor_code;
-        if (eax_ == 1U) {
+        if (coordinate_suppressed) {
             input_.selection_target_cache = 1U;
             edx_ = (ecx_ - 8U) * 5U;
             if (!write_runtime_record(ecx_, 2U, 1U)) {
