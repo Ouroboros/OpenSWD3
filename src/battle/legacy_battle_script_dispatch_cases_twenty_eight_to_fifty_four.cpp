@@ -1,5 +1,7 @@
 #include "legacy_battle_script_dispatch_internal.hpp"
 
+#include "openswd3/battle/legacy_battle_player_item_quantity.hpp"
+
 namespace openswd3::battle::detail {
 
 LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_eight() {
@@ -1083,20 +1085,35 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_fifty_three() {
         return finish();
     }
     const u16 sample = bindings_.target_selection.transition_sample_word;
-    invoke(
-        LegacyBattleScriptDispatchCall::player_item_quantity, 0U, {item_id, 1U}
+    const u32 item_argument = with_low_word(ecx_, item_id);
+    const auto quantity = advance_legacy_battle_player_item_quantity(
+        bindings_.items, port_, item_argument, 1U
     );
+    if (quantity.status != LegacyBattlePlayerItemQuantityStatus::completed) {
+        return stop(
+            LegacyBattleScriptDispatchStatus::player_item_typed_stop,
+            item_argument
+        );
+    }
+
     const std::size_t index = sample;
     if (index >= bindings_.victory.player_item_tokens.size()) {
         return stop(
             LegacyBattleScriptDispatchStatus::shared_state_typed_stop, sample
         );
     }
-    bindings_.victory.player_item_tokens[index] = eax_;
+
+    bindings_.victory.player_item_tokens[index] = quantity.return_token;
+    const u32 cursor = workspace_.cursor;
     ++bindings_.victory.collected_item_quantities[index];
-    bindings_.victory.collected_item_ids[index] = item_id;
+    u16 collected_item_id{};
+    if (!read_u16(wrapping_add(cursor, 2U), collected_item_id)) {
+        return finish();
+    }
+
     ++bindings_.target_selection.transition_sample_word;
-    workspace_.cursor = wrapping_add(workspace_.cursor, 4U);
+    bindings_.victory.collected_item_ids[index] = collected_item_id;
+    workspace_.cursor = wrapping_add(cursor, 4U);
     return finish(1U);
 }
 

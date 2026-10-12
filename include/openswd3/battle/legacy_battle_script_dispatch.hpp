@@ -172,6 +172,7 @@ struct LegacyBattleScriptDispatchBindings {
     LegacyBattleTargetSelectionRuntimeState& target_selection;
     LegacyBattleMessagePhaseState& message_phase;
     LegacyBattleVictoryRewardState& victory;
+    world_map::LegacyWorldItemListState& items;
     LegacyBattleScriptSharedState& shared;
     story_scene::LegacyDialogRuntimeState& dialogs;
     compat::u32& message_state;
@@ -218,7 +219,6 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     actor_order = 0x0045B190U,
     group_b_order = 0x0045B5A0U,
     global_reset = 0x0045B630U,
-    player_item_quantity = 0x0045D180U,
     script_page_load = 0x0046E1E0U,
     reserved_script_shutdown = 0x0046E260U,
     reserved_script_curve_sample = 0x0046E290U,

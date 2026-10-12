@@ -1,4 +1,5 @@
 #include "legacy_battle_mon_database_fixture.hpp"
+#include "fixed_node_memory_resource.hpp"
 #include "openswd3/battle/legacy_battle_color_accumulation.hpp"
 #include "openswd3/battle/legacy_battle_dialog_text.hpp"
 #include "openswd3/battle/legacy_battle_frame_selection.hpp"
@@ -62,6 +63,7 @@ struct Fixture {
     LegacyBattleTargetSelectionRuntimeState target_selection;
     LegacyBattleMessagePhaseState message_phase;
     LegacyBattleVictoryRewardState victory;
+    openswd3::world_map::LegacyWorldItemListState items;
     LegacyBattleScriptSharedState shared;
     openswd3::story_scene::LegacyDialogRuntimeState dialogs;
     LegacyBattleScriptWorkspace workspace;
@@ -69,7 +71,10 @@ struct Fixture {
         adjacent_intensity_records{};
     u32 message_state{};
 
-    Fixture() {
+    explicit Fixture(
+        std::pmr::memory_resource& memory = *std::pmr::get_default_resource()
+    )
+        : items(memory) {
         assets.script_capacity =
             openswd3::battle::kLegacyBattleScriptWindowSize;
     }
@@ -86,6 +91,7 @@ struct Fixture {
             .target_selection = target_selection,
             .message_phase = message_phase,
             .victory = victory,
+            .items = items,
             .shared = shared,
             .dialogs = dialogs,
             .message_state = message_state,
@@ -127,11 +133,21 @@ public:
     u32 allocation_token{0x1000U};
     u32 query_result{};
     u32 item_token{};
+    std::function<void()> on_mon_open;
     bool script_page_stop{};
     bool typed_stop_enabled{};
     LegacyBattleScriptDispatchCall typed_stop_call{
         LegacyBattleScriptDispatchCall::noop_service
     };
+
+    [[nodiscard]] u32
+    open_mon_file(const std::filesystem::path& path) override {
+        if (on_mon_open) {
+            on_mon_open();
+        }
+
+        return LegacyBattleMonDatabaseFixture::open_mon_file(path);
+    }
 
     openswd3::battle::LegacyBattleRetreatCommitCallReply invoke_retreat_commit(
         const openswd3::battle::LegacyBattleRetreatCommitCallRequest& request
@@ -5239,11 +5255,12 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyBattleScriptDispatchStatus::shared_state_typed_stop &&
-                port.count(
-                    LegacyBattleScriptDispatchCall::player_item_quantity
-                ) == 1U &&
+                fixture.items.player_inventory.size() == 1U &&
+                fixture.items.player_inventory.front().item_id == 0x1234U &&
+                fixture.items.player_inventory.front().quantity_b == 1U &&
+                port.calls.empty() &&
                 fixture.target_selection.transition_sample_word == 10U,
-            "case fifty-three preserves the quantity call before its array stop"
+            "case fifty-three preserves the actual quantity change before its array stop"
         );
     }
 
@@ -6785,9 +6802,308 @@ void test_script_rotation_sharing(openswd3::test::Context& test) {
     }
 }
 
+void test_script_player_item_quantity(openswd3::test::Context& test) {
+    using openswd3::battle::run_legacy_battle_script_dispatch;
+    using openswd3::test::FixedNodeMemoryResource;
+
+    for (const u16 sample :
+         std::array<u16, 10>{0U, 1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U, 9U}) {
+        for (const u16 item :
+             std::array<u16, 4>{0U, 0x1234U, 0x8000U, 0xFFFFU}) {
+            FixedNodeMemoryResource memory;
+            auto fixture = std::make_unique<Fixture>(memory);
+            Port port;
+            fixture->opcode(53);
+            fixture->write_u16(2U, item);
+            fixture->target_selection.transition_sample_word = sample;
+            memory.allocation_enabled = item != 0U;
+            const auto result = run_legacy_battle_script_dispatch(
+                fixture->workspace,
+                fixture->bindings(),
+                port,
+                {.entry_ecx = 0x12340000U}
+            );
+            const u32 expected_payload = item == 0U ? 0x004A994CU : 0x7002000CU;
+            test.expect_true(
+                result.status == LegacyBattleScriptDispatchStatus::completed &&
+                    result.return_eax == 1U &&
+                    fixture->workspace.cursor == 4U &&
+                    fixture->victory.player_item_tokens[sample] ==
+                        expected_payload &&
+                    fixture->victory.collected_item_quantities[sample] == 1U &&
+                    fixture->victory.collected_item_ids[sample] == item &&
+                    fixture->target_selection.transition_sample_word ==
+                        sample + 1U &&
+                    port.calls.empty(),
+                "script fifty-three publishes the actual item payload and increments the saved reward slot"
+            );
+            if (item == 0U) {
+                test.expect_true(
+                    fixture->items.player_inventory.empty() &&
+                        memory.outstanding_blocks == 0U &&
+                        port.open_calls == 0U,
+                    "a zero item returns its actual head alias without allocation or definition access"
+                );
+            } else {
+                const auto& node = fixture->items.player_inventory.front();
+                test.expect_true(
+                    fixture->items.player_inventory.size() == 1U &&
+                        node.item_id == item && node.quantity_a == 0U &&
+                        node.quantity_b == 1U &&
+                        fixture->items.player_inventory_head_token ==
+                            node.legacy_token &&
+                        (node.definition_snapshot[0x21U] & 0x80U) != 0U &&
+                        memory.outstanding_blocks == 1U &&
+                        port.requested_definition_ids == std::vector<u32>{item},
+                    "script item initialization selects the original WORD definition and owns one real node"
+                );
+            }
+
+            fixture.reset();
+            test.expect_true(
+                memory.outstanding_blocks == 0U,
+                "the script item owner releases its actual allocated node"
+            );
+        }
+    }
+
+    const std::array<std::array<u16, 3>, 7> quantities{{
+        {97U, 1U, 2U},
+        {98U, 1U, 1U},
+        {0xFFFFU, 0U, 1U},
+        {0xFFFFU, 0xFFFFU, 0U},
+        {0x7FFFU, 0x8000U, 0x8001U},
+        {0x8000U, 0x8000U, 0x8001U},
+        {0x8000U, 0x7FFFU, 0x8000U},
+    }};
+    for (const u16 sample : std::array<u16, 2>{0U, 9U}) {
+        for (const auto& values : quantities) {
+            FixedNodeMemoryResource memory;
+            auto fixture = std::make_unique<Fixture>(memory);
+            Port port;
+            fixture->opcode(53);
+            fixture->write_u16(2U, 0xFFFFU);
+            fixture->target_selection.transition_sample_word = sample;
+            auto& node = fixture->items.player_inventory.emplace_front();
+            node.legacy_token = 0x70012300U;
+            node.item_id = 0xFFFFU;
+            node.quantity_a = values[0U];
+            node.quantity_b = values[1U];
+            node.definition_snapshot[0x21U] = 0x24U;
+            fixture->items.player_inventory_head_token = node.legacy_token;
+            memory.allocation_enabled = false;
+            const auto result = run_legacy_battle_script_dispatch(
+                fixture->workspace, fixture->bindings(), port
+            );
+            test.expect_true(
+                result.status == LegacyBattleScriptDispatchStatus::completed &&
+                    node.quantity_a == values[0U] &&
+                    node.quantity_b == values[2U] &&
+                    node.definition_snapshot[0x21U] == 0x24U &&
+                    fixture->items.player_inventory.size() == 1U &&
+                    memory.outstanding_blocks == 1U && port.open_calls == 0U &&
+                    port.calls.empty() &&
+                    fixture->victory.player_item_tokens[sample] ==
+                        0x7001230CU &&
+                    fixture->victory.collected_item_ids[sample] == 0xFFFFU,
+                "existing script items preserve signed quantity thresholds, word wrapping and definition fields"
+            );
+        }
+    }
+
+    for (const u16 sample : std::array<u16, 2>{10U, 0xFFFFU}) {
+        for (const u16 item : std::array<u16, 2>{0U, 0x1234U}) {
+            auto fixture = std::make_unique<Fixture>();
+            Port port;
+            fixture->opcode(53);
+            fixture->write_u16(2U, item);
+            fixture->target_selection.transition_sample_word = sample;
+            const auto result = run_legacy_battle_script_dispatch(
+                fixture->workspace, fixture->bindings(), port
+            );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleScriptDispatchStatus::
+                            shared_state_typed_stop &&
+                    fixture->workspace.cursor == 0U &&
+                    fixture->target_selection.transition_sample_word ==
+                        sample &&
+                    fixture->items.player_inventory.size() ==
+                        (item == 0U ? 0U : 1U) &&
+                    port.calls.empty(),
+                "an unavailable reward slot stops after the actual item quantity operation"
+            );
+        }
+    }
+
+    for (const u32 failure : std::array<u32, 3>{0U, 1U, 2U}) {
+        FixedNodeMemoryResource memory;
+        auto fixture = std::make_unique<Fixture>(memory);
+        Port port;
+        fixture->opcode(53);
+        fixture->write_u16(2U, 0x1234U);
+        fixture->target_selection.transition_sample_word = 2U;
+        fixture->victory.player_item_tokens[2U] = 0xAABBCCDDU;
+        fixture->victory.collected_item_quantities[2U] = 7U;
+        fixture->victory.collected_item_ids[2U] = 9U;
+        if (failure == 0U) {
+            auto& old = fixture->items.player_inventory.emplace_front();
+            old.legacy_token = 0x70012300U;
+            old.item_id = 0x5678U;
+            fixture->items.player_inventory_head_token = old.legacy_token;
+            memory.allocation_enabled = false;
+        } else if (failure == 1U) {
+            port.allocation_succeeds = false;
+        } else {
+            fixture->items.player_inventory_head_token = 0xDEADBEEFU;
+        }
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::player_item_typed_stop &&
+                fixture->workspace.cursor == 0U &&
+                fixture->target_selection.transition_sample_word == 2U &&
+                fixture->victory.player_item_tokens[2U] == 0xAABBCCDDU &&
+                fixture->victory.collected_item_quantities[2U] == 7U &&
+                fixture->victory.collected_item_ids[2U] == 9U &&
+                port.calls.empty(),
+            "actual allocation, definition and chain access failures block the reward slot suffix"
+        );
+        if (failure == 0U) {
+            test.expect_true(
+                fixture->items.player_inventory_head_token == 0U &&
+                    fixture->items.player_inventory.size() == 1U &&
+                    fixture->items.player_inventory.front().item_id == 0x5678U,
+                "failed real allocation publishes a null head and preserves previous owned nodes"
+            );
+        } else if (failure == 1U) {
+            test.expect_true(
+                fixture->items.player_inventory.size() == 1U &&
+                    fixture->items.player_inventory.front().item_id ==
+                        0x1234U &&
+                    fixture->items.player_inventory.front().quantity_b == 0U,
+                "definition failure preserves the published new item and its zero quantity"
+            );
+        } else {
+            test.expect_true(
+                fixture->items.player_inventory.empty() &&
+                    fixture->items.player_inventory_head_token == 0xDEADBEEFU,
+                "an unknown existing head fails at its actual access"
+            );
+        }
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(53);
+        fixture->write_u16(2U, 0x1234U);
+        fixture->write_u16(14U, 0x9876U);
+        fixture->target_selection.transition_sample_word = 3U;
+        port.on_mon_open = [&]() {
+            test.expect_true(
+                fixture->items.player_inventory.front().item_id == 0x1234U &&
+                    fixture->items.player_inventory.front().quantity_b == 0U &&
+                    fixture->victory.player_item_tokens[3U] == 0U &&
+                    fixture->victory.collected_item_quantities[3U] == 0U,
+                "definition access sees the actual item before publishing reward bookkeeping"
+            );
+            fixture->workspace.cursor = 12U;
+            fixture->target_selection.transition_sample_word = 0xFFFFU;
+            fixture->victory.collected_item_quantities[3U] = 0xFFFFU;
+            fixture->write_u16(2U, 0x5555U);
+        };
+
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture->items.player_inventory.front().item_id == 0x1234U &&
+                fixture->items.player_inventory.front().quantity_b == 1U &&
+                fixture->victory.player_item_tokens[3U] == 0x7002000CU &&
+                fixture->victory.collected_item_quantities[3U] == 0U &&
+                fixture->victory.collected_item_ids[3U] == 0x9876U &&
+                fixture->target_selection.transition_sample_word == 0U &&
+                fixture->workspace.cursor == 16U && port.calls.empty(),
+            "script item creation keeps the saved reward slot and rereads live cursor and counter after definition access"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(53);
+        fixture->write_u16(2U, 0x1234U);
+        fixture->victory.collected_item_ids[0U] = 9U;
+        fixture->assets.script_capacity = 4U;
+        port.on_mon_open = [&]() { fixture->workspace.cursor = 2U; };
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::script_typed_stop &&
+                result.stopped_offset == 4U &&
+                fixture->workspace.cursor == 2U &&
+                fixture->items.player_inventory.front().quantity_b == 1U &&
+                fixture->victory.player_item_tokens[0U] == 0x7002000CU &&
+                fixture->victory.collected_item_quantities[0U] == 1U &&
+                fixture->victory.collected_item_ids[0U] == 9U &&
+                fixture->target_selection.transition_sample_word == 0U &&
+                port.calls.empty(),
+            "a late script read failure preserves the actual item, payload publication and quantity increment"
+        );
+    }
+
+    {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(53);
+        fixture->write_u16(2U, 0x1234U);
+        port.on_mon_open = [&]() { fixture->workspace.cursor = 0xFFFFFFFFU; };
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status == LegacyBattleScriptDispatchStatus::completed &&
+                fixture->victory.collected_item_ids[0U] == 0x3400U &&
+                fixture->workspace.cursor == 3U && port.calls.empty(),
+            "the post-definition script cursor and operand address wrap as DWORDs"
+        );
+    }
+
+    for (const u32 capacity : std::array<u32, 2>{2U, 3U}) {
+        auto fixture = std::make_unique<Fixture>();
+        Port port;
+        fixture->opcode(53);
+        fixture->write_u16(2U, 0x1234U);
+        fixture->assets.script_capacity = capacity;
+        const auto result = run_legacy_battle_script_dispatch(
+            fixture->workspace, fixture->bindings(), port
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleScriptDispatchStatus::script_typed_stop &&
+                result.stopped_offset == capacity &&
+                fixture->items.player_inventory.empty() &&
+                fixture->victory.player_item_tokens[0U] == 0U &&
+                fixture->victory.collected_item_quantities[0U] == 0U &&
+                fixture->target_selection.transition_sample_word == 0U &&
+                fixture->workspace.cursor == 0U && port.open_calls == 0U &&
+                port.calls.empty(),
+            "an initial item operand read failure cannot allocate or publish a reward"
+        );
+    }
+}
+
 }  // namespace
 
 void test_battle_script_dispatch(openswd3::test::Context& test) {
+    test_script_player_item_quantity(test);
     test_script_actor_selector_sharing(test);
     test_script_rotation_sharing(test);
     test_script_flash_sharing(test);

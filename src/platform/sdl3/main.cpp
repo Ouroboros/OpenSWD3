@@ -4309,6 +4309,7 @@ public:
                 .target_selection = battle_target_selection_,
                 .message_phase = battle_message_phase_,
                 .victory = battle_victory_rewards_,
+                .items = world_item_lists_,
                 .shared = battle_script_shared_,
                 .dialogs = world_dialogs_,
                 .message_state = battle_message_state_,
