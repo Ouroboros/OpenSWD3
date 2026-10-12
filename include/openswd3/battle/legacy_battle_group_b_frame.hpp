@@ -9,6 +9,8 @@
 
 namespace openswd3::battle {
 
+struct LegacyBattleEffectCoordinatorState;
+
 struct LegacyBattleGroupBFrameState {
     LegacyBattleGroupAFrameState shared{};
 
@@ -16,7 +18,6 @@ struct LegacyBattleGroupBFrameState {
 
     compat::u32 selection_initialized{};
     compat::u32 phase_mode{};
-    compat::u32 phase_progress{};
     compat::u32 random_target_index{};
     std::array<compat::u16, 8> status_words{};
     std::vector<compat::u8> action_profile_bytes{};
@@ -55,7 +56,7 @@ advance_legacy_battle_group_b_frame(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     compat::u32 group_b_index,
-    compat::u32& group_effect_mode
+    LegacyBattleEffectCoordinatorState& effects
 );
 
 }  // namespace openswd3::battle

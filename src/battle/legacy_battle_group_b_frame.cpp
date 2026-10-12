@@ -1,5 +1,6 @@
 #include "openswd3/battle/legacy_battle_group_b_frame.hpp"
 
+#include "openswd3/battle/legacy_battle_effect_coordinator.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_profile_flag.hpp"
 #include "openswd3/battle/legacy_battle_group_b_action_profile_mode.hpp"
 #include "openswd3/battle/legacy_battle_group_b_opponent_mode.hpp"
@@ -26,7 +27,6 @@ constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
 constexpr u32 kCallQueryActorBlocked = 0x0047D930U;
 constexpr u32 kCallQuerySelectionMode = 0x00483820U;
 constexpr u32 kCallRandomBounded = 0x00439070U;
-constexpr u32 kCallQueryPhaseMode = 0x0047D8D0U;
 constexpr u32 kCallQueryStatusSequence = 0x00480220U;
 constexpr u32 kCallPublishActionStart = 0x0047C690U;
 constexpr u32 kCallPublishBattleBit = 0x00483FF0U;
@@ -460,7 +460,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
     LegacyBattleActionDispatchPort& port,
     LegacyBattleActionDispatchContext& context,
     const u32 group_b_index,
-    u32& group_effect_mode
+    LegacyBattleEffectCoordinatorState& effects
 ) {
     LegacyBattleActionDispatchResult result{};
     auto& shared = state.shared;
@@ -617,7 +617,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             )) {
                             return result;
                         }
-                        state.phase_progress = to_bits(action.group_b_count) -
+
+                        effects.completion_target_count =
+                            to_bits(action.group_b_count) -
                             low_byte(action.opponent_processed_counter);
                     } else {
                         u32 scanned = 0U;
@@ -757,8 +759,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                         return result;
                                     }
 
-                                    ++state.phase_progress;
+                                    ++effects.completion_target_count;
                                 }
+
                                 ++scanned;
                                 ++result.group_a_iterations;
                             }
@@ -767,8 +770,9 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                             high_word(shared.defeated_actor_packed) -
                             shared.excluded_actor_count -
                             low_byte(action.packed_actor_counter);
-                        if (std::bit_cast<i32>(state.phase_progress) >=
-                            std::bit_cast<i32>(threshold)) {
+                        if (std::bit_cast<i32>(
+                                effects.completion_target_count
+                            ) >= std::bit_cast<i32>(threshold)) {
                             u32 selected = 0U;
                             while (selected < scanned) {
                                 if (!validate_group_a(result, selected)) {
@@ -1249,14 +1253,15 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                 .action_configuration.profile_buffer;
                         if ((std::to_integer<u32>(enemy_profile[4U]) & 2U) !=
                             0U) {
-                            group_effect_mode = 1U;
+                            effects.group_b_effect_mode = 1U;
                         }
 
-                        if (invoke(port, kCallQueryPhaseMode, {source_token})
-                                .eax == 1U) {
+                        if ((std::to_integer<u32>(enemy_profile[4U]) & 1U) !=
+                            0U) {
                             state.phase_mode = 1U;
-                            state.phase_progress = 0U;
+                            effects.completion_target_count = 0U;
                         }
+
                         state.branch_misc = 0U;
                         if (shared.action_side == 1U) {
                             u32 selected = state.random_target_index;
@@ -1407,7 +1412,7 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                                     .action_configuration.profile_buffer;
                             if ((std::to_integer<u32>(enemy_profile[4U]) &
                                  2U) != 0U) {
-                                group_effect_mode = 1U;
+                                effects.group_b_effect_mode = 1U;
                             }
 
                             profile_flag_entry_eax =
@@ -1471,10 +1476,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_b_frame(
                         }
                         action.current_actor_index =
                             static_cast<u16>(group_b_index);
-                        if (invoke(port, kCallQueryPhaseMode, {source_token})
-                                .eax == 1U) {
+                        const auto& target_profile =
+                            (*context.startup->group_b_lifecycle)[group_b_index]
+                                .action_configuration.profile_buffer;
+                        if ((std::to_integer<u32>(target_profile[4U]) & 1U) !=
+                            0U) {
                             state.phase_mode = 1U;
-                            state.phase_progress = 0U;
+                            effects.completion_target_count = 0U;
                             goto action_decision_done;
                         }
                         if (state.phase_mode == 0U) {
@@ -2001,9 +2009,9 @@ action_decision_done:
                 shared.action_stage_word = 0U;
                 shared.action_stage_word_b = 0U;
                 shared.target_ready_gate = 0U;
-                group_effect_mode = 0U;
+                effects.group_b_effect_mode = 0U;
                 state.phase_mode = 0U;
-                state.phase_progress = 0U;
+                effects.completion_target_count = 0U;
                 replace_low_word(action.action_runtime_flags, 0U);
                 state.status_words[group_b_index] = 0U;
                 action.post_battle_counter = 0U;

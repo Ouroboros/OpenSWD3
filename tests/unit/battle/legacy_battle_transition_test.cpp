@@ -486,9 +486,7 @@ struct ActorFrameFixture {
               .group_a_skip_primary = {},
               .group_a_skip_secondary = {},
           },
-          context{
-              state, ports, dispatch, effect_coordinator.group_b_effect_mode
-          } {
+          context{state, ports, dispatch, effect_coordinator} {
         // These transition vectors exercise drawing with actor AI paused.
         state.shared.action.frame_enabled = 0U;
     }

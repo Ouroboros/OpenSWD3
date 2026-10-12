@@ -98,7 +98,7 @@ LegacyBattleActorFrameSequenceResult advance_legacy_battle_actor_frame_sequence(
                 frame_context->port,
                 frame_context->dispatch,
                 actor_index,
-                frame_context->group_b_effect_mode
+                frame_context->effects
             );
             ++result.group_b_calls;
         } else {

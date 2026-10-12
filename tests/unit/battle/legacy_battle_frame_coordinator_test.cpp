@@ -939,7 +939,7 @@ void test_battle_frame_original_gates(openswd3::test::Context& test) {
             fixture->actor_frame_state,
             *port,
             dispatch_context,
-            port->effect_coordinator_state().group_b_effect_mode
+            port->effect_coordinator_state()
         };
 
         auto context = fixture->context();
@@ -2858,7 +2858,7 @@ void test_battle_frame_coordinator(openswd3::test::Context& test) {
             fixture->actor_frame_state,
             port,
             dispatch_context,
-            port.effect_coordinator_state().group_b_effect_mode,
+            port.effect_coordinator_state(),
         };
 
         auto context = fixture->context();
