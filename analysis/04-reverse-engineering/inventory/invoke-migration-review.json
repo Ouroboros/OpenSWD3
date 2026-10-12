@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "634a082a7555bd99e04e2b65c34ebea9978abd2d",
+  "last_reviewed_source_revision": "f597100a2d0938fb97070519c99f5114ebe217aa",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -102,9 +102,9 @@
     },
     "battle/legacy_battle_message_phase": {
       "status": "pending",
-      "last_reviewed_commit": "7feb7c40",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-mode-00478710.md",
-      "reason": "角色循环直接写当前队员动作字段，保留失败前序值及发布后缀；其余操作编号、参数数组、寄存器接口、轨迹、计数和Port仍在，整项继续pending"
+      "last_reviewed_commit": "f597100a",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
+      "reason": "消息99新增道具传实际共享物品存储及MON数据库，节点由真实容器分配，删除模拟分配地址和回复；角色循环继续直接写队员动作字段并保留失败前序。其余操作编号、参数数组、寄存器接口、轨迹、计数和Port仍在，整项继续pending"
     },
     "battle/legacy_battle_post_action": {
       "status": "pending",
@@ -306,13 +306,13 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "3013f0fa",
+      "last_reviewed_commit": "f597100a",
       "files": [
         "include/openswd3/battle/legacy_battle_deformation.hpp",
         "src/battle/legacy_battle_deformation.cpp"
       ],
       "evidence": "analysis/04-reverse-engineering/evidence/battle-spirit-contract-profile-0047f910.md",
-      "reason": "灵契三处参数读取直接借实际敌人的无符号WORD，删除查询编号及模拟回复，分别在数量查询前、刷新后和完成激活后重读；已有访问、真实PMR分配与攻击顺序失败保留原前缀。此前共享镜像、绘制抑制、步长和动作字段迁移继续有效。其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，整项继续pending"
+      "reason": "灵契及行动23新增道具现在直接分配实际共享物品节点，删除其分配回复；旧灵契完成回复实际属于后继物品链，并非死回复。三处实际敌人WORD读取、固定次数PMR分配、攻击顺序及此前镜像/抑制/步长迁移继续有效。其他callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽报告仍在，整项继续pending"
     },
     "battle/legacy_battle_debug_overlay": {
       "status": "pending",
@@ -410,9 +410,9 @@
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",
-      "last_reviewed_commit": "aba8fc22",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-enemy-presentation-step-0047d860.md",
-      "reason": "动作17设置成功后直接写真实敌方步长2，保留前继失败与同帧后继行动写8顺序；删除步长操作编号，既有叠加标记和共享字段沿用实际所有权。core/ASan角色帧各1/1、SDL链接及四文件身份通过；actor-ready八槽、其余编号、参数包、寄存器接口、计数、Port、资源及完整SDL帧仍未验收"
+      "last_reviewed_commit": "f597100a",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
+      "reason": "两处完成后的新增物品使用共享容器真实分配及MON数据库，删除该节点分配回复。此前实际步长2到8、叠加标记和共享字段迁移继续有效；actor-ready八槽、其余编号、参数包、寄存器接口、计数、Port、资源及完整SDL帧仍未验收"
     },
     "battle/legacy_battle_transition": {
       "status": "pending",
@@ -526,9 +526,9 @@
     },
     "battle/legacy_battle_frame_coordinator": {
       "status": "pending",
-      "last_reviewed_commit": "2b89c8ea",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-remove-0045efb0.md",
-      "reason": "出队、追加、插入与移除共享启动队列，角色与待执行提交借用同一实际强度存储，移除保留转发槽已删除；其他帧业务仍有通用操作、参数数组、寄存器请求回复、计数及Port，完整SDL角色帧和实际游戏流程未验收"
+      "last_reviewed_commit": "f597100a",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
+      "reason": "结果道具改为实际共享节点分配，核心帧真实分配失败验证保留暗化前缀并阻断后继，删除分配模拟；此前启动队列及角色强度共享继续有效。其他帧业务仍有通用操作、参数数组、寄存器请求回复、计数及Port，完整SDL角色帧和实际游戏流程未验收"
     },
     "battle/legacy_battle_frame_music_prefix": {
       "status": "verified",
@@ -721,6 +721,36 @@
       ],
       "evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
       "reason": "数据目录命令行选项解析，不是通用调用参数数组"
+    },
+    "battle/legacy_battle_player_item_quantity": {
+      "status": "pending",
+      "last_reviewed_commit": "f597100a",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
+      "reason": "数量叶删除通用分配编号、参数包、EAX回复及行动Port依赖；真实共享PMR节点保留旧head、MON前缀、数量顺序及实际分配失败。全部已有直接调用及关联容器类型已同步，返回payload身份与诊断仍在，脚本51及其他未接通物理调用尚未关闭，整项继续pending"
+    },
+    "battle/legacy_battle_outcome_finalization": {
+      "status": "pending",
+      "last_reviewed_commit": "f597100a",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
+      "reason": "结果道具的玩家数量及固定奖励使用真实共享节点；夹具不再产生分配回复，实际分配失败阻断尾部清理。父级寄存器诊断、调用计数和继承通用行动Port仍在，整项继续pending"
+    },
+    "battle/legacy_battle_outcome_resolution": {
+      "status": "pending",
+      "last_reviewed_commit": "f597100a",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
+      "reason": "真实物品分配失败保留音频和暗化前缀，删除按callee造null的测试；其他操作编号、寄存器回复、参数包、计数和Port仍在，整项继续pending"
+    },
+    "battle/legacy_battle_victory_rewards": {
+      "status": "pending",
+      "last_reviewed_commit": "f597100a",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
+      "reason": "胜利道具数量由实际共享物品节点承担，删除节点分配模拟；其他奖励操作编号、寄存器请求回复、参数包、计数和Port仍在，整项继续pending"
+    },
+    "world_map/legacy_world_story_vm": {
+      "status": "pending",
+      "last_reviewed_commit": "f597100a",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
+      "reason": "库存和暂存物品统一真实PMR容器，非默认相同分配器的真实TALK1新增和固定状态移除验证节点转移及释放；其他VM通用操作、参数、结果及端口仍需整链复核，整项继续pending"
     },
     "world_map/legacy_world_role_surface_occupancy": {
       "status": "excluded",
