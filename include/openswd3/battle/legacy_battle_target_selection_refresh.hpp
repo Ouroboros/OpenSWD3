@@ -33,7 +33,6 @@ struct LegacyBattleTargetSelectionRefreshBindings {
     compat::u32& message_state;
     std::span<LegacyBattlePartyStartupRecord> party{};
     bool scripted_resource_selection_test_compat{};
-    bool scripted_resource_release_test_compat{};
 };
 
 struct LegacyBattleTargetSelectionRefreshRequest {
@@ -137,8 +136,7 @@ struct LegacyBattleTargetSelectionRefreshResult {
     compat::u32 mode_four_finalization_calls{};
     LegacyBattleActorResourceSelectionResult resource_selection{};
     compat::u32 resource_selection_calls{};
-    LegacyBattleActorResourceReleaseResult resource_release{};
-    compat::u32 resource_release_calls{};
+    std::optional<LegacyBattleActorListQueryStatus> resource_release_failure;
     LegacyBattleActorActionThirtyOverrideResult action_thirty_override{};
     compat::u32 action_thirty_override_calls{};
     LegacyBattleActorActionFourOverrideResult action_four_override{};

@@ -134,7 +134,10 @@ struct Fixture {
     openswd3::battle::LegacyBattleFrameInputResolutionState frame_input;
     openswd3::battle::LegacyBattleFinalActorStepState final_actor;
     openswd3::battle::LegacyBattleActionDispatchState action;
-    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 10> party;
+    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 10>& party{
+        startup_state.party
+    };
+
     openswd3::battle::LegacyBattleActorMetricState metrics;
     openswd3::battle::LegacyBattleDebugHotkeyState debug;
     std::array<openswd3::battle::LegacyBattleActorGroupBElementState, 8>

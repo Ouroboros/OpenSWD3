@@ -126,7 +126,6 @@ struct Fixture {
     openswd3::world_map::LegacyWorldItemListState items{item_memory};
     openswd3::battle::LegacyBattleStartupState startup_state;
     openswd3::battle::LegacyBattleStartupResetBlocks startup;
-    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 4> party{};
     openswd3::battle::LegacyBattleTextMessageState text_messages;
     u16 supplemental_count{};
     u32 mirror_mode{};
@@ -168,9 +167,8 @@ struct Fixture {
             .input_records = input_records,
             .runtime = port.battle_target_selection_runtime_state(),
             .message_state = message,
-            .party = party,
+            .party = startup_state.party,
             .scripted_resource_selection_test_compat = true,
-            .scripted_resource_release_test_compat = true,
         };
     }
 };
@@ -915,6 +913,23 @@ enum class ItemQuantityMenuPath {
     second_effect,
 };
 
+void seed_menu_resource(
+    Fixture& fixture, const u32 actor_code, const u16 resource_id
+) {
+    auto& list = fixture.startup_state.party[actor_code - 8U].actor_list;
+    const u32 head = 0x76000000U + (actor_code - 8U) * 0x100U;
+    list.next_resource_head_token = head;
+    list.selected_resource_token = head + 0x10U;
+    list.resources = {
+        {.token = head, .next_token = head + 0x10U, .name = {}},
+        {.token = head + 0x10U,
+         .resource_id = resource_id,
+         .primary_quantity = 3U,
+         .secondary_quantity = 2,
+         .name = {}},
+    };
+}
+
 void configure_item_quantity_menu(
     Fixture& fixture,
     const ItemQuantityMenuPath path,
@@ -930,9 +945,7 @@ void configure_item_quantity_menu(
     runtime.selection_input_gate = 1U;
     runtime.target_effect_value = 0x00010000U;
     runtime.target_argument = 7U;
-    fixture.port.replies
-        [LegacyBattleTargetSelectionRuntimeCall::resolve_action_effect_value] =
-        {.eax = 0x456U};
+    seed_menu_resource(fixture, actor_code, 0x456U);
     if (path == ItemQuantityMenuPath::action_thirty) {
         fixture.message = 3U;
         input.action_kind = 30U;
@@ -944,6 +957,411 @@ void configure_item_quantity_menu(
             fixture.action,
             0x54U + fixture.frame.group_b_row_selection * 0x20U,
             old_item
+        );
+    }
+}
+
+enum class MenuResourcePath {
+    action_thirty,
+    equipment_override,
+    effect_replacement,
+};
+
+void configure_menu_resource(
+    Fixture& fixture, const MenuResourcePath path, const u32 actor_code
+) {
+    fixture.target_ready = 1U;
+    fixture.final_actor.queued_actor_code = actor_code;
+    fixture.final_actor.published_actor_code = 1U;
+    fixture.metrics.group_a_count = 2U;
+    fixture.frame.hovered_secondary = 0xFFFFFFFFU;
+    fixture.frame.group_b_row_selection = 1U;
+    auto& input = fixture.port.battle_input_dispatch_state();
+    auto& runtime = fixture.port.battle_target_selection_runtime_state();
+    runtime.selection_input_gate = 1U;
+    fixture.items.player_inventory_head_alias.item_id = 0x300U;
+    if (path == MenuResourcePath::action_thirty) {
+        fixture.message = 3U;
+        input.action_kind = 30U;
+    } else if (path == MenuResourcePath::equipment_override) {
+        fixture.message = 4U;
+        fixture.action.group_a_action_execution[actor_code - 8U]
+            .action_override_flags = 0x1000U;
+        fixture.port.replies
+            [LegacyBattleTargetSelectionRuntimeCall::resolve_action_target] = {
+            .eax = 1U
+        };
+    } else {
+        fixture.message = 5U;
+        runtime.target_effect_value = 0x10000U;
+    }
+
+    seed_menu_resource(fixture, actor_code, 0x8001U);
+}
+
+void test_menu_actor_resource(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActorListQueryStatus;
+    using openswd3::battle::LegacyBattleTargetSelectionRefreshStatus;
+    using openswd3::battle::refresh_legacy_battle_target_selection;
+    constexpr std::array paths{
+        MenuResourcePath::action_thirty,
+        MenuResourcePath::equipment_override,
+        MenuResourcePath::effect_replacement,
+    };
+
+    for (const auto path : paths) {
+        for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {
+            for (const u16 gate : {0U, 0x0401U, 0x0402U}) {
+                for (const u32 category : {0U, 0x80U, 0x08000080U}) {
+                    for (const bool tertiary : {false, true}) {
+                        for (const bool suppressed : {false, true}) {
+                            Fixture fixture;
+                            configure_menu_resource(
+                                fixture, path, actor_index + 8U
+                            );
+                            auto& party =
+                                fixture.startup_state.party[actor_index];
+                            auto& list = party.actor_list;
+                            auto& node = list.resources[1U];
+                            node.primary_quantity = tertiary ? 0xFFFFU : 3U;
+                            node.secondary_quantity = tertiary ? 0 : 2;
+                            node.tertiary_quantity = tertiary ? -1 : 1;
+                            node.gate_word_48 = gate;
+                            node.category_mask = category;
+                            node.capacity_gate_flags =
+                                suppressed ? 0x2000U : 0U;
+                            const u32 selected = node.token;
+                            const bool updates =
+                                gate != 0x0402U && category != 0x80U;
+                            const u16 expected_gate =
+                                gate == 0U ? 0U : static_cast<u16>(gate - 1U);
+                            const u16 expected_primary = tertiary
+                                ? static_cast<u16>(
+                                      0xFFFFU - (updates ? 1U : 0U)
+                                  )
+                                : static_cast<u16>(3U - (updates ? 1U : 0U));
+                            const auto expected_secondary =
+                                static_cast<openswd3::compat::i16>(
+                                    tertiary ? 0 : (updates ? 1 : 2)
+                                );
+                            const auto expected_tertiary =
+                                static_cast<openswd3::compat::i16>(
+                                    tertiary ? (updates ? -2 : -1) : 1
+                                );
+                            const auto result =
+                                refresh_legacy_battle_target_selection(
+                                    fixture.bindings(), fixture.port, {}
+                                );
+                            const u16 expected_resource =
+                                suppressed ? 0U : 0x8001U;
+                            const bool sample_matches =
+                                path == MenuResourcePath::action_thirty ||
+                                std::ranges::any_of(
+                                    fixture.port.calls, [&](const auto& call) {
+                                        return call.call ==
+                                            LegacyBattleTargetSelectionRuntimeCall::
+                                                start_effect_sample &&
+                                            call.arguments[1U] ==
+                                            expected_resource;
+                                    }
+                                );
+                            test.expect_true(
+                                result.status ==
+                                        LegacyBattleTargetSelectionRefreshStatus::
+                                            completed &&
+                                    !result.resource_release_failure &&
+                                    list.resources.size() == 2U &&
+                                    list.resource_head_token == selected &&
+                                    list.selected_resource_token ==
+                                        (updates ? 0U : selected) &&
+                                    list.resources[1U].gate_word_48 ==
+                                        expected_gate &&
+                                    list.resources[1U].primary_quantity ==
+                                        expected_primary &&
+                                    list.resources[1U].secondary_quantity ==
+                                        expected_secondary &&
+                                    list.resources[1U].tertiary_quantity ==
+                                        expected_tertiary &&
+                                    list.resources[1U].category_mask ==
+                                        category &&
+                                    sample_matches &&
+                                    fixture.debug.committed_actor_code ==
+                                        actor_index + 8U,
+                                "all three menu sites consume the actual ten-slot resource owner, retain gate/quantity order and publish only the semantic resource WORD"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for (const auto path : paths) {
+        for (const u32 position : {1U, 2U, 3U}) {
+            for (const bool predecessor_suppressed : {false, true}) {
+                Fixture fixture;
+                configure_menu_resource(fixture, path, 8U);
+                auto& list = fixture.startup_state.party[0U].actor_list;
+                list.resources.clear();
+                list.next_resource_head_token = 0x76000000U;
+                list.selected_resource_token = 0x76000000U + position * 0x10U;
+                const u32 last_position =
+                    position == 3U ? position : position + 1U;
+                for (u32 node_index = 0U; node_index <= last_position;
+                     ++node_index) {
+                    list.resources.push_back({
+                        .token = 0x76000000U + node_index * 0x10U,
+                        .next_token = node_index == last_position
+                            ? 0U
+                            : 0x76000000U + (node_index + 1U) * 0x10U,
+                        .resource_id =
+                            node_index == position ? u16{0x8001U} : u16{0x123U},
+                        .primary_quantity = 0xFFFFU,
+                        .secondary_quantity = node_index == position
+                            ? openswd3::compat::i16{1}
+                            : openswd3::compat::i16{9},
+                        .name = {},
+                        .capacity_gate_flags = node_index == position - 1U
+                            ? static_cast<u16>(
+                                  predecessor_suppressed ? 0x2000U : 0U
+                              )
+                            : static_cast<u16>(
+                                  predecessor_suppressed ? 0U : 0x2000U
+                              ),
+                    });
+                }
+
+                const u32 removed_token = list.selected_resource_token;
+                const u32 predecessor = removed_token - 0x10U;
+                const u32 successor =
+                    position == last_position ? 0U : removed_token + 0x10U;
+                const auto result = refresh_legacy_battle_target_selection(
+                    fixture.bindings(), fixture.port, {}
+                );
+                const auto previous = std::ranges::find(
+                    list.resources,
+                    predecessor,
+                    &openswd3::battle::LegacyBattleActorListResourceNode::token
+                );
+                const bool resource_absent = std::ranges::none_of(
+                    list.resources, [removed_token](const auto& node) {
+                        return node.token == removed_token;
+                    }
+                );
+                const u16 expected_resource =
+                    predecessor_suppressed ? 0U : 0x8001U;
+                const bool sample_matches =
+                    path == MenuResourcePath::action_thirty ||
+                    std::ranges::any_of(
+                        fixture.port.calls, [&](const auto& call) {
+                            return call.call ==
+                                LegacyBattleTargetSelectionRuntimeCall::
+                                    start_effect_sample &&
+                                call.arguments[1U] == expected_resource;
+                        }
+                    );
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleTargetSelectionRefreshStatus::
+                                completed &&
+                        !result.resource_release_failure && resource_absent &&
+                        list.resources.size() == last_position &&
+                        list.resource_head_token == predecessor &&
+                        list.selected_resource_token == 0U &&
+                        previous != list.resources.end() &&
+                        previous->next_token == successor && sample_matches,
+                    "depleted first/middle/last menu resources are really erased while primary remains nonzero; relinking and return suppression use the actual predecessor"
+                );
+            }
+        }
+    }
+
+    for (const auto path : paths) {
+        for (const bool missing_head : {false, true}) {
+            Fixture fixture;
+            configure_menu_resource(fixture, path, 8U);
+            auto& party = fixture.startup_state.party[0U];
+            auto& list = party.actor_list;
+            party.workspace.tail_words[2U] = 0xBEEFU;
+            if (missing_head) {
+                list.next_resource_head_token = 0xDEADBEEFU;
+            } else {
+                list.selected_resource_token = 0xDEADBEEFU;
+            }
+
+            const auto result = refresh_legacy_battle_target_selection(
+                fixture.bindings(), fixture.port, {}
+            );
+            const bool action_committed =
+                path != MenuResourcePath::effect_replacement;
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTargetSelectionRefreshStatus::
+                            actor_resource_release_typed_stop &&
+                    result.resource_release_failure ==
+                        LegacyBattleActorListQueryStatus::
+                            resource_node_typed_stop &&
+                    list.resource_head_token ==
+                        (missing_head ? 0xDEADBEEFU : 0x76000010U) &&
+                    list.resources.size() == 2U &&
+                    list.resources[1U].secondary_quantity == 2 &&
+                    party.workspace.tail_words[2U] == 0xBEEFU &&
+                    fixture.final_actor.queued_actor_code ==
+                        (action_committed ? 0U : 8U) &&
+                    fixture.message == (action_committed ? 0U : 5U) &&
+                    fixture.items.player_inventory_head_alias.quantity_a ==
+                        0U &&
+                    std::ranges::none_of(
+                        fixture.port.calls,
+                        [](const auto& call) {
+                            return call.call ==
+                                LegacyBattleTargetSelectionRuntimeCall::
+                                    start_effect_sample ||
+                                call.call ==
+                                LegacyBattleTargetSelectionRuntimeCall::
+                                    reset_actor_selection;
+                        }
+                    ),
+                "actual unknown resource nodes stop at the original access with traversal/commit prefixes preserved and no quantity, sample or cleanup suffix"
+            );
+        }
+    }
+
+    for (const auto path : paths) {
+        for (const u16 gate : {0x0400U, 0x04FFU}) {
+            Fixture fixture;
+            configure_menu_resource(fixture, path, 8U);
+            auto& list = fixture.startup_state.party[0U].actor_list;
+            list.resources[1U].gate_word_48 = gate;
+            const auto result = refresh_legacy_battle_target_selection(
+                fixture.bindings(), fixture.port, {}
+            );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTargetSelectionRefreshStatus::completed &&
+                    list.resources[1U].gate_word_48 ==
+                        (gate == 0x0400U ? 0x0400U : 0x04FEU) &&
+                    list.resources[1U].secondary_quantity ==
+                        (gate == 0x0400U ? 1 : 2) &&
+                    list.selected_resource_token ==
+                        (gate == 0x0400U ? 0U : 0x76000010U),
+                "bit-ten zero count follows ordinary quantities while byte FF decrements without quantity consumption"
+            );
+        }
+
+        for (const bool depleted : {false, true}) {
+            Fixture fixture;
+            configure_menu_resource(fixture, path, 8U);
+            auto& list = fixture.startup_state.party[0U].actor_list;
+            list.selected_resource_token = 0x76000020U;
+            list.resources[1U].next_token = 0x76000020U;
+            list.resources[1U].secondary_quantity = 9;
+            list.resources.push_back({
+                .token = 0x76000020U,
+                .resource_id = 0x8001U,
+                .primary_quantity = 0xFFFFU,
+                .secondary_quantity =
+                    static_cast<openswd3::compat::i16>(depleted ? 1 : 2),
+                .name = {},
+            });
+            const auto result = refresh_legacy_battle_target_selection(
+                fixture.bindings(), fixture.port, {}
+            );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTargetSelectionRefreshStatus::completed &&
+                    list.resources[1U].secondary_quantity == 9 &&
+                    list.resource_head_token ==
+                        (depleted ? 0x76000000U : 0x76000020U) &&
+                    list.resources.size() == (depleted ? 2U : 3U) &&
+                    (depleted ? list.resources[0U].next_token == 0U
+                              : list.resources[2U].secondary_quantity == 1),
+                "equal resource identifiers select the saved physical object; deletion preserves the original first-match predecessor replay and detached owned node"
+            );
+        }
+
+        {
+            Fixture fixture;
+            configure_menu_resource(fixture, path, 8U);
+            auto& list = fixture.startup_state.party[0U].actor_list;
+            list.selected_resource_token = 0x76000000U;
+            list.resources[0U].resource_id = 0x8001U;
+            list.resources[0U].primary_quantity = 0xFFFFU;
+            list.resources[0U].secondary_quantity = 1;
+            const auto result = refresh_legacy_battle_target_selection(
+                fixture.bindings(), fixture.port, {}
+            );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTargetSelectionRefreshStatus::
+                            actor_resource_release_typed_stop &&
+                    result.resource_release_failure ==
+                        LegacyBattleActorListQueryStatus::
+                            resource_node_typed_stop &&
+                    list.resources.size() == 1U &&
+                    list.resources[0U].token == 0x76000010U &&
+                    list.resource_head_token == 0x76000000U &&
+                    list.selected_resource_token == 0U &&
+                    std::ranges::none_of(
+                        fixture.port.calls,
+                        [](const auto& call) {
+                            return call.call ==
+                                LegacyBattleTargetSelectionRuntimeCall::
+                                    start_effect_sample;
+                        }
+                    ),
+                "relink failure after real head deletion retains the released-node prefix and dangling committed head without restoring ownership or fabricating success"
+            );
+        }
+
+        {
+            Fixture fixture;
+            configure_menu_resource(fixture, path, 8U);
+            auto& party = fixture.startup_state.party[0U];
+            auto& list = party.actor_list;
+            list.selected_resource_token = 0x76000020U;
+            list.resources[1U].resource_id = 0x123U;
+            list.resources.push_back({
+                .token = 0x76000020U,
+                .resource_id = 0x8001U,
+                .secondary_quantity = 9,
+                .name = {},
+            });
+            party.workspace.tail_words[2U] = 0xBEEFU;
+            const auto result = refresh_legacy_battle_target_selection(
+                fixture.bindings(), fixture.port, {}
+            );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleTargetSelectionRefreshStatus::completed &&
+                    !result.resource_release_failure &&
+                    list.resource_head_token == 0U &&
+                    list.selected_resource_token == 0x76000020U &&
+                    list.resources.size() == 3U &&
+                    list.resources[2U].secondary_quantity == 9 &&
+                    party.workspace.tail_words[2U] == 0xBEEFU,
+                "search exhaustion returns a real zero resource WORD and preserves the unmatched owned selection and workspace"
+            );
+        }
+    }
+
+    for (const auto path : paths) {
+        Fixture empty;
+        configure_menu_resource(empty, path, 8U);
+        auto& list = empty.startup_state.party[0U].actor_list;
+        list.selected_resource_token = 0U;
+        list.resource_head_token = 0xDEADBEEFU;
+        const auto result = refresh_legacy_battle_target_selection(
+            empty.bindings(), empty.port, {}
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleTargetSelectionRefreshStatus::completed &&
+                !result.resource_release_failure &&
+                list.resource_head_token == 0x76000000U &&
+                list.resources[1U].secondary_quantity == 2 &&
+                empty.message == 0U && empty.debug.committed_actor_code == 8U,
+            "zero selected resource is a real successful zero WORD after head publication and does not become a new menu stopping condition"
         );
     }
 }
@@ -1188,6 +1606,11 @@ void test_menu_player_item_quantity(openswd3::test::Context& test) {
                         LegacyBattleTargetSelectionRefreshStatus::
                             item_quantity_typed_stop &&
                     result.item_quantity_failure == failure && !suffix_called &&
+                    fixture.startup_state.party[0U]
+                            .actor_list.resources[1U]
+                            .secondary_quantity == 1 &&
+                    fixture.startup_state.party[0U]
+                            .actor_list.selected_resource_token == 0U &&
                     fixture.final_actor.queued_actor_code == 0U &&
                     fixture.debug.committed_actor_code == 8U &&
                     fixture.message == 0U && old.quantity_a == 17U &&
@@ -1428,20 +1851,13 @@ void test_menu_item_quantity_live_reads(openswd3::test::Context& test) {
     for (const bool live_override : {false, true}) {
         Fixture fixture;
         configure_item_quantity_menu(
-            fixture, ItemQuantityMenuPath::action_thirty, 0x300U
+            fixture, ItemQuantityMenuPath::action_thirty, 0x300U, 9U
         );
         fixture.items.player_inventory_head_alias.item_id = 0x300U;
         fixture.action.group_a_action_execution[0U].action_override_flags =
             live_override ? 0U : 0x2000U;
         fixture.action.group_a_action_execution[1U].action_override_flags =
             live_override ? 0x2000U : 0U;
-        fixture.port.before_call = [&](const auto& request) {
-            if (request.call ==
-                LegacyBattleTargetSelectionRuntimeCall::
-                    resolve_action_effect_value) {
-                fixture.debug.committed_actor_code = 9U;
-            }
-        };
 
         const auto result = refresh_legacy_battle_target_selection(
             fixture.bindings(), fixture.port, {}
@@ -1454,7 +1870,7 @@ void test_menu_item_quantity_live_reads(openswd3::test::Context& test) {
                     (live_override ? 0U : 1U) &&
                 fixture.port.battle_target_selection_runtime_state()
                         .selected_action_kind == (live_override ? 13U : 3U),
-            "action thirty rereads the committed actor after the resource predecessor before deciding the actual fixed-item increment"
+            "action thirty consumes the committed actor's real resource and checks that actor's override before the fixed-item increment"
         );
     }
 }
@@ -1465,6 +1881,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
     test_menu_marked_profile_word(test);
     test_menu_coordinate_attribute(test);
     test_menu_target_block_attribute(test);
+    test_menu_actor_resource(test);
     test_menu_player_item_quantity(test);
     test_menu_item_quantity_live_reads(test);
     test_menu_marked_profile_predecessors(test);
@@ -2203,8 +2620,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         auto& runtime = fixture.port.battle_target_selection_runtime_state();
         runtime.target_argument = 7U;
         runtime.target_effect_value = 0x00010000U;
-        fixture.port.replies[LegacyBattleTargetSelectionRuntimeCall::
-                                 resolve_action_effect_value] = {.eax = 0x123U};
+        seed_menu_resource(fixture, 8U, 0x123U);
         const auto result = refresh_legacy_battle_target_selection(
             fixture.bindings(), fixture.port, {}
         );
@@ -2230,8 +2646,10 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 fixture.final_actor.group_a_availability_blocks[0U].value ==
                     1U &&
                 result.mode_four_finalization_calls == 1U &&
-                fixture.party[0U].item_effect_application.mode_flags == 0x02U &&
-                fixture.party[0U].final_processing.completion_latch == 1U,
+                fixture.startup_state.party[0U]
+                        .item_effect_application.mode_flags == 0x02U &&
+                fixture.startup_state.party[0U]
+                        .final_processing.completion_latch == 1U,
             "message five commits action fifteen and publishes the row-one effect record through the shared physical workspace"
         );
     }
@@ -2554,7 +2972,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
             .selection_input_gate = 1U;
         fixture.port.battle_target_selection_runtime_state().target_argument =
             1U;
-        auto& actor_list = fixture.party[0U].actor_list;
+        auto& actor_list = fixture.startup_state.party[0U].actor_list;
         actor_list.next_resource_head_token = 0x76000000U;
         actor_list.resources = {
             {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
@@ -2591,7 +3009,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         fixture.target_ready = 1U;
         fixture.message = 5U;
         fixture.final_actor.queued_actor_code = 8U;
-        auto& actor_list = fixture.party[0U].actor_list;
+        auto& actor_list = fixture.startup_state.party[0U].actor_list;
         actor_list.next_resource_head_token = 0x76000000U;
         actor_list.selected_resource_token = 0x76000010U;
         actor_list.resources = {
@@ -2601,13 +3019,14 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
              .secondary_quantity = 2,
              .name = {}},
         };
-        auto bindings = fixture.bindings();
-        bindings.scripted_resource_release_test_compat = false;
-        const auto result =
-            refresh_legacy_battle_target_selection(bindings, fixture.port, {});
+
+        const auto result = refresh_legacy_battle_target_selection(
+            fixture.bindings(), fixture.port, {}
+        );
         test.expect_true(
-            result.resource_release_calls == 1U &&
-                result.resource_release.output_word == 0x21U &&
+            !result.resource_release_failure &&
+                fixture.startup_state.party[0U].workspace.tail_words[2U] ==
+                    0x21U &&
                 actor_list.selected_resource_token == 0U &&
                 actor_list.resources[1U].secondary_quantity == 1,
             "message five uses the typed resource release before committing the actor action"

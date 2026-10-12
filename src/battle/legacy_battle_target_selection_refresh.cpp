@@ -768,35 +768,32 @@ private:
         return true;
     }
 
-    [[nodiscard]] bool release_actor_resource(const u32 actor_code) {
+    [[nodiscard]] std::optional<u16>
+    release_actor_resource(const u32 actor_code) {
         if (actor_code < 8U) {
             typed_stop(Status::group_a_actor_typed_stop);
-            return false;
-        }
-        const u32 index = actor_code - 8U;
-        if (index >= bindings_.party.size()) {
-            typed_stop(Status::group_a_actor_typed_stop);
-            return false;
+            return std::nullopt;
         }
 
-        auto& party = bindings_.party[index];
-        result_.resource_release = release_legacy_battle_actor_resource(
+        const u32 index = actor_code - 8U;
+        if (index >= bindings_.startup.party.size()) {
+            typed_stop(Status::group_a_actor_typed_stop);
+            return std::nullopt;
+        }
+
+        auto& party = bindings_.startup.party[index];
+        const auto release = release_legacy_battle_actor_resource(
             &party.actor_list,
             &party.workspace,
-            kGroupABaseToken + index * kGroupAStride,
-            {.entry_eax = eax_, .entry_edx = edx_}
+            kGroupABaseToken + index * kGroupAStride
         );
-        ++result_.resource_release_calls;
-        eax_ = result_.resource_release.return_eax;
-        ecx_ = result_.resource_release.return_ecx;
-        edx_ = result_.resource_release.return_edx;
-        if (result_.resource_release.status !=
-            LegacyBattleActorListQueryStatus::completed) {
+        if (release.status != LegacyBattleActorListQueryStatus::completed) {
+            result_.resource_release_failure = release.status;
             typed_stop(Status::actor_resource_release_typed_stop);
-            return false;
+            return std::nullopt;
         }
 
-        return true;
+        return release.output_word;
     }
 
     [[nodiscard]] bool final_target_refresh() {
@@ -1427,17 +1424,8 @@ private:
             if (!write_actor_action(committed, edx_)) {
                 return;
             }
-            edx_ = runtime_.target_argument;
-            if (bindings_.scripted_resource_release_test_compat) {
-                if (!invoke_group_a(
-                        Call::resolve_action_effect_value,
-                        committed,
-                        {eax_, edx_},
-                        GroupARegisterShape::eax_3ef
-                    )) {
-                    return;
-                }
-            } else if (!release_actor_resource(committed)) {
+
+            if (!release_actor_resource(committed)) {
                 return;
             }
 
@@ -1627,23 +1615,16 @@ private:
         edx_ = frame_.current_equipment_selection;
         bindings_.startup_reset.value_4ff0b8 = eax_;
         bindings_.startup_reset.value_53bf22 = 0U;
-        if (bindings_.scripted_resource_release_test_compat) {
-            if (!invoke_group_a(
-                    Call::resolve_action_effect_value,
-                    bindings_.debug_hotkeys.committed_actor_code,
-                    {edx_, ecx_},
-                    GroupARegisterShape::eax_3ef
-                )) {
-                return false;
-            }
-        } else if (!release_actor_resource(
-                       bindings_.debug_hotkeys.committed_actor_code
-                   )) {
+        const auto resource_id = release_actor_resource(
+            bindings_.debug_hotkeys.committed_actor_code
+        );
+        if (!resource_id) {
             return false;
         }
+
         runtime_.target_effect_value =
-            replace_low_word(runtime_.target_effect_value, eax_);
-        edx_ = eax_ & 0xFFFFU;
+            replace_low_word(runtime_.target_effect_value, *resource_id);
+        edx_ = *resource_id;
         invoke(Call::start_effect_sample, 0U, {1U, edx_});
         ecx_ = metrics_.group_a_count;
         edx_ = runtime_.target_effect_value & 0xFFFFU;
@@ -1785,19 +1766,13 @@ private:
             return;
         }
         const u32 actor_code = eax_;
-        ecx_ = runtime_.target_argument;
-        edx_ = frame_.current_equipment_selection;
-        if (bindings_.scripted_resource_release_test_compat) {
-            if (!invoke_group_a(
-                    Call::resolve_action_effect_value, actor_code, {edx_, ecx_}
-                )) {
-                return;
-            }
-        } else if (!release_actor_resource(actor_code)) {
+        const auto resource_id = release_actor_resource(actor_code);
+        if (!resource_id) {
             return;
         }
+
         runtime_.target_effect_value =
-            replace_low_word(runtime_.target_effect_value, eax_);
+            replace_low_word(runtime_.target_effect_value, *resource_id);
         if (!commit_actor_action_common(15U)) {
             return;
         }
