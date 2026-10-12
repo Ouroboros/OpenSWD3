@@ -248,7 +248,6 @@ enum class LegacyBattleScriptDispatchCall : compat::u32 {
     pending_47d640 = 0x0047D640U,
     pending_47d810 = 0x0047D810U,
     pending_47d830 = 0x0047D830U,
-    pending_47d8b0 = 0x0047D8B0U,
     pending_47d8d0 = 0x0047D8D0U,
     pending_47d950 = 0x0047D950U,
     pending_47da10 = 0x0047DA10U,

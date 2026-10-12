@@ -4425,7 +4425,8 @@ void test_battle_script_dispatch_cases(openswd3::test::Context& test) {
                 fixture.final_actor.published_actor_code == 1U &&
                 fixture.shared.action_state == 2U &&
                 fixture.shared.actor_state_words[0U] == 2U &&
-                fixture.workspace.cursor == 8U && port.calls.size() == 4U,
+                fixture.startup.reset.block_520e90[3U] == 0U &&
+                fixture.workspace.cursor == 8U && port.calls.size() == 3U,
             "case twenty-three writes the typed group-A owner before its remaining actor and frame calls"
         );
     }
@@ -6836,7 +6837,7 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
                     expected_rows[index * 5U] = 1U;
                 }
 
-                expected_rows[index * 5U + 3U] = 1U;
+                expected_rows[index * 5U + 3U] = 0U;
                 const bool suppress = (attributes & 2U) != 0U;
                 if (suppress) {
                     expected_rows[index * 5U + 2U] = 1U;
@@ -6868,7 +6869,7 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
                             index + 8U &&
                         std::bit_cast<u32>(fixture.workspace.coordinate_x) ==
                             0xFEDCBA98U &&
-                        preserved_attributes && port.calls.size() == 4U &&
+                        preserved_attributes && port.calls.size() == 3U &&
                         port.calls[0U].call ==
                             LegacyBattleScriptDispatchCall::pending_4707b0 &&
                         port.calls[0U].argument_count == 2U &&
@@ -6876,10 +6877,8 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
                         port.calls[0U].arguments[1U] ==
                             0x004FE5D4U + index * 4U &&
                         port.calls[1U].call ==
-                            LegacyBattleScriptDispatchCall::pending_47d8b0 &&
-                        port.calls[2U].call ==
                             LegacyBattleScriptDispatchCall::pending_47d8d0 &&
-                        port.calls[3U].call ==
+                        port.calls[2U].call ==
                             LegacyBattleScriptDispatchCall::frame,
                     "script party selection tests the actual attribute bit one and preserves unrelated bits, rows and old zero-path flags"
                 );
@@ -6893,7 +6892,6 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
             auto& fixture = *fixture_owner;
             Port port;
             const u32 initial_index = (saved_index + 2U) % 10U;
-            const u32 destination_index = (saved_index + 3U) % 10U;
             fixture.opcode(23);
             fixture.write_u16(2U, 7U);
             fixture.write_u16(4U, static_cast<u16>(initial_index + 8U));
@@ -6907,29 +6905,26 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
                                   const auto& request) {
                 if (request.call ==
                     LegacyBattleScriptDispatchCall::pending_4707b0) {
+                    saved_source_observed = request.object_token ==
+                        0x005029D0U + initial_index * 0x2F34U;
                     bindings.final_actor.secondary_actor_code =
                         saved_index + 8U;
-                }
-
-                if (request.call ==
-                    LegacyBattleScriptDispatchCall::pending_47d8b0) {
-                    saved_source_observed = request.object_token ==
-                        0x005029D0U + saved_index * 0x2F34U;
                     bindings.action.group_a_action_execution[saved_index]
                         .special_particle_coordinate_suppression =
                         suppress ? 0xFEU : 0xFDU;
-                    bindings.final_actor.secondary_actor_code =
-                        destination_index + 8U;
+                    bindings.startup.party[saved_index]
+                        .final_processing.profile_buffer[7U] = 0xFEDC1234U;
                 }
 
                 if (request.call ==
                     LegacyBattleScriptDispatchCall::pending_47d8d0) {
                     publication_observed = request.object_token ==
-                            0x005029D0U + destination_index * 0x2F34U &&
+                            0x005029D0U + saved_index * 0x2F34U &&
                         bindings.startup.reset
-                                .block_520e90[saved_index * 5U + 3U] == 1U &&
+                                .block_520e90[saved_index * 5U + 3U] ==
+                            0x7EDCU &&
                         bindings.startup.reset
-                                .block_520e90[destination_index * 5U + 2U] ==
+                                .block_520e90[saved_index * 5U + 2U] ==
                             (suppress ? 1U : 0x12345678U) &&
                         bindings.input_dispatch.selection_target_cache ==
                             (suppress ? 1U : 0xA5A5A5A5U);
@@ -6947,20 +6942,19 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
                 result.status == LegacyBattleScriptDispatchStatus::completed &&
                     saved_source_observed && publication_observed &&
                     fixture.workspace.cursor == 20U &&
-                    port.calls.size() == 4U &&
+                    port.calls.size() == 3U &&
                     fixture.startup.reset.block_520e90[saved_index * 5U + 2U] ==
-                        0x12345678U &&
+                        (suppress ? 1U : 0x12345678U) &&
                     fixture.startup.reset
                             .block_520e90[initial_index * 5U + 3U] ==
                         0x12345678U,
-                "script selection rereads the actual attribute after its predecessor, keeps the saved query actor and publishes to the live actor row"
+                "script selection reads the saved actor's real profile and attribute after source preparation, publishes their values before the next call and retains the live cursor"
             );
         }
     }
 
     for (const auto failed_call :
          {LegacyBattleScriptDispatchCall::pending_4707b0,
-          LegacyBattleScriptDispatchCall::pending_47d8b0,
           LegacyBattleScriptDispatchCall::pending_47d8d0,
           LegacyBattleScriptDispatchCall::frame}) {
         auto fixture_owner = std::make_unique<Fixture>();
@@ -6974,6 +6968,8 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
         fixture.startup.reset.block_520e90.fill(0x12345678U);
         fixture.action.group_a_action_execution[2U]
             .special_particle_coordinate_suppression = 2U;
+        fixture.startup.party[2U].final_processing.profile_buffer[7U] =
+            0x80011234U;
         port.typed_stop_enabled = true;
         port.typed_stop_call = failed_call;
         const bool queried =
@@ -7003,50 +6999,113 @@ void test_script_party_coordinate_suppression(openswd3::test::Context& test) {
     }
 }
 
-void test_script_party_attribute_unowned_rows(openswd3::test::Context& test) {
+void test_script_party_profile_word(openswd3::test::Context& test) {
     using openswd3::battle::run_legacy_battle_script_dispatch;
 
-    for (const u32 live_actor : std::array<u32, 4>{0U, 7U, 18U, 0xFFFFFFFFU}) {
-        for (const bool suppress : {false, true}) {
-            auto fixture_owner = std::make_unique<Fixture>();
-            auto& fixture = *fixture_owner;
-            Port port;
-            fixture.opcode(23);
-            fixture.write_u16(2U, 7U);
-            fixture.write_u16(4U, 8U);
-            fixture.write_u16(6U, 0U);
-            fixture.input_dispatch.selection_target_cache = 0xA5A5A5A5U;
-            fixture.startup.reset.block_520e90.fill(0x12345678U);
-            fixture.action.group_a_action_execution[0U]
-                .special_particle_coordinate_suppression = suppress ? 2U : 1U;
-            port.after_call = [&](auto&, auto& bindings, const auto& request) {
-                if (request.call ==
-                    LegacyBattleScriptDispatchCall::pending_47d8b0) {
-                    bindings.final_actor.secondary_actor_code = live_actor;
+    for (u32 index = 0U; index < 10U; ++index) {
+        for (const u16 marked_word : std::array<u16, 10>{
+                 0U,
+                 1U,
+                 0x7FFEU,
+                 0x7FFFU,
+                 0x8000U,
+                 0x8001U,
+                 0xABCDU,
+                 0xF00FU,
+                 0xFFFEU,
+                 0xFFFFU
+             }) {
+            for (const bool suppress : {false, true}) {
+                auto fixture_owner = std::make_unique<Fixture>();
+                auto& fixture = *fixture_owner;
+                Port port;
+                fixture.opcode(23);
+                fixture.write_u16(2U, 7U);
+                fixture.write_u16(4U, static_cast<u16>(index + 8U));
+                fixture.write_u16(6U, 0U);
+                fixture.input_dispatch.selection_target_cache = 0xA5A5A5A5U;
+                fixture.startup.reset.block_520e90.fill(0x12345678U);
+                fixture.action.group_a_action_execution[index]
+                    .special_particle_coordinate_suppression =
+                    suppress ? 2U : 1U;
+                std::array<std::array<u32, 10>, 10> expected_profiles{};
+                for (u32 slot = 0U; slot < 10U; ++slot) {
+                    fixture.startup.party[slot]
+                        .final_processing.profile_buffer.fill(
+                            0xAABBCCDDU + slot
+                        );
+                    expected_profiles[slot] =
+                        fixture.startup.party[slot]
+                            .final_processing.profile_buffer;
                 }
-            };
 
-            auto expected_rows = fixture.startup.reset.block_520e90;
-            expected_rows[3U] = 1U;
-            const auto result = run_legacy_battle_script_dispatch(
-                fixture.workspace, fixture.bindings(), port
-            );
-            test.expect_true(
-                result.status ==
-                        (suppress ? LegacyBattleScriptDispatchStatus::
-                                        shared_state_typed_stop
-                                  : LegacyBattleScriptDispatchStatus::
-                                        group_a_actor_typed_stop) &&
-                    fixture.input_dispatch.selection_target_cache ==
-                        (suppress ? 1U : 0xA5A5A5A5U) &&
-                    fixture.startup.reset.block_520e90 == expected_rows &&
-                    fixture.workspace.cursor == 0U && port.calls.size() == 2U,
-                "an unowned live row stops at the existing access boundary after the saved query and preserves its exact publication prefix"
-            );
+                fixture.startup.party[index]
+                    .final_processing.profile_buffer[7U] = 0x76541234U;
+                expected_profiles[index][7U] =
+                    (static_cast<u32>(marked_word) << 16U) | 0x1234U;
+                const u32 value =
+                    (marked_word & 0x8000U) != 0U ? marked_word & 0x7FFFU : 0U;
+                auto expected_rows = fixture.startup.reset.block_520e90;
+                expected_rows[index * 5U + 3U] = value;
+                if (suppress) {
+                    expected_rows[index * 5U + 2U] = 1U;
+                }
+
+                bool publication_observed{};
+                port.after_call = [&](auto&,
+                                      auto& bindings,
+                                      const auto& request) {
+                    if (request.call ==
+                        LegacyBattleScriptDispatchCall::pending_4707b0) {
+                        bindings.startup.party[index]
+                            .final_processing.profile_buffer[7U] =
+                            expected_profiles[index][7U];
+                    }
+
+                    if (request.call ==
+                        LegacyBattleScriptDispatchCall::pending_47d8d0) {
+                        publication_observed = request.object_token ==
+                                0x005029D0U + index * 0x2F34U &&
+                            bindings.startup.reset.block_520e90 ==
+                                expected_rows &&
+                            bindings.input_dispatch.selection_target_cache ==
+                                (suppress ? 1U : 0xA5A5A5A5U);
+                    }
+                };
+
+                const auto result = run_legacy_battle_script_dispatch(
+                    fixture.workspace,
+                    fixture.bindings(),
+                    port,
+                    {.entry_eax = 0xDEADBEEFU}
+                );
+                bool profiles_preserved = true;
+                for (u32 slot = 0U; slot < 10U; ++slot) {
+                    profiles_preserved = profiles_preserved &&
+                        fixture.startup.party[slot]
+                                .final_processing.profile_buffer ==
+                            expected_profiles[slot];
+                }
+
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleScriptDispatchStatus::completed &&
+                        result.return_eax == 1U &&
+                        fixture.workspace.cursor == 8U &&
+                        fixture.startup.reset.block_520e90 == expected_rows &&
+                        publication_observed && profiles_preserved &&
+                        port.calls.size() == 3U,
+                    "script party selection reads the actual marked WORD after profile preparation, publishes its masked value before attributes and preserves both halves and every profile row"
+                );
+            }
         }
     }
+}
 
-    for (const u32 saved_actor : std::array<u32, 2>{7U, 18U}) {
+void test_script_party_attribute_unowned_actors(openswd3::test::Context& test) {
+    using openswd3::battle::run_legacy_battle_script_dispatch;
+
+    for (const u32 saved_actor : std::array<u32, 4>{0U, 7U, 18U, 0xFFFFFFFFU}) {
         auto fixture_owner = std::make_unique<Fixture>();
         auto& fixture = *fixture_owner;
         Port port;
@@ -7558,7 +7617,8 @@ void test_script_player_item_quantity(openswd3::test::Context& test) {
 
 void test_battle_script_dispatch(openswd3::test::Context& test) {
     test_script_party_coordinate_suppression(test);
-    test_script_party_attribute_unowned_rows(test);
+    test_script_party_profile_word(test);
+    test_script_party_attribute_unowned_actors(test);
     test_script_actor_action_branch(test);
     test_script_player_item_quantity(test);
     test_script_actor_selector_sharing(test);

@@ -1220,14 +1220,15 @@ LegacyBattleScriptDispatchResult ScriptRunner::case_twenty_three() {
         }
 
         const auto actor_index = static_cast<std::size_t>(saved_actor - 8U);
-        if (!invoke(
-                LegacyBattleScriptDispatchCall::pending_47d8b0, *saved_token
-            )) {
-            return finish(eax_);
-        }
-
+        const auto marked_profile_word = static_cast<u16>(
+            bindings_.startup.party[actor_index]
+                .final_processing.profile_buffer[7U] >>
+            16U
+        );
         bindings_.startup.reset.block_520e90[actor_index * 5U + 3U] =
-            low_word(eax_);
+            (marked_profile_word & 0x8000U) != 0U
+            ? marked_profile_word & 0x7FFFU
+            : 0U;
         const bool suppress_coordinates =
             (bindings_.action.group_a_action_execution[actor_index]
                  .special_particle_coordinate_suppression &
