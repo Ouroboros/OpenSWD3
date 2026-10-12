@@ -123,4 +123,15 @@ core/ASan setup各1/1为11.57/19.70秒、SDL实际链接通过，见
 十三原物理数量站均已接通；完整父、MON资源前继、别名、寄存器/计数/Port仍pending。
 未提升父验收等级，也未执行实际游戏、Windows或原版动态差分。
 
+## 13. 菜单提交与效果替换的实际角色资源
+
+dd7ae08f回收462F5F/4633D1/463A03，直接借startup.party的资源链和workspace。
+删除菜单资源通用操作、兼容回复、子寄存器结果和调用计数；正常零继续，已有失败保留前缀。
+门控扣减、真实erase、原位置回放重链及最终对象位13抑制保持；返回丢弃或仅消费WORD。
+1125次新菜单帧、既有数量及实际输入调用方同步，core/ASan setup各1/1为12.18/19.60秒，
+SDL实际链接与五源身份通过，见
+[菜单实际角色资源](battle-menu-actor-resource-release-00470e20.md)。
+原纯释放叶任意改写角色的callback撤回，输入夹具改借同一实际队伍；尾节点夹具纠正后重测。
+本批只回收三个菜单站，叶默认寄存器request/reply/计数和另三caller、完整父及SDL链仍pending。
+
 当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

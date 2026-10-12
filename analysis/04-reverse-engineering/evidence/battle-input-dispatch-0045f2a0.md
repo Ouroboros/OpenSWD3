@@ -9,6 +9,9 @@
 record0重复门和record1持续计数按生产读取时点设置；遗漏record1造成的两项失败已修正，
 未删除断言或改变生产输入条件。core/ASan setup各1/1及SDL链接通过，见
 [菜单实际物品数量](battle-menu-player-item-quantity-0045d180.md)。
+dd7ae08f同步菜单实际资源消费：本夹具party改借startup.party，确认输入传同一实际队伍。
+原两个成功/数量失败向量保留全部断言并验证真实资源前缀；core/ASan setup各1/1及SDL通过，见
+[菜单实际角色资源](battle-menu-actor-resource-release-00470e20.md)。
 完整输入编号、参数包、寄存器、计数、Port和SDL链仍pending。
 
 ## 1. 完整范围

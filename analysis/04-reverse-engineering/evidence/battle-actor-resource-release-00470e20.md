@@ -1,6 +1,8 @@
 # 战斗角色资源释放 `0x00470E20`
 
-状态：`platform_adapted`。完整LST、typed实现、六处production caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+状态：`platform_adapted`。以下是原typed实现、六处caller与历史门禁记录。
+通用调用体系迁移中的本叶寄存器request/reply、计数和三个非菜单caller仍`pending`。
+当前菜单三站迁移见第5节，不以旧typed验收认定整体迁移完成。
 
 ## 1. 完整权威范围
 
@@ -24,6 +26,16 @@ secondary与tertiary均为零时，即使primary仍非零也销毁selected节点
 
 链头、selected token、节点字段与资源vector继续由`LegacyBattleActorListQueryState`唯一持有；`+0x2F14`继续复用party workspace owner。节点释放映射为vector erase，且严格保留先取next、释放、重新提交、回放、重链的次序。
 
-六处静态caller全部位于已关闭函数：动作dispatch两处、目标选择刷新三处、链表动作执行一处。production均直接使用startup party typed owner；既有脚本化port测试通过显式compat flag保留，默认关闭。第199项两处固定category caller同时按权威地址纠正到message 27与message 30，而不是动作枚举槽。
+原typed工作包的六处静态caller位于动作dispatch两处、目标选择刷新三处、链表动作执行一处。production当时直接使用party typed状态；脚本化port测试曾以显式compat flag保留，默认关闭。后续dd7ae08f删除菜单资源compat，直接借startup.party；其它caller和叶寄存器接口继续待迁移。第199项两处固定category caller同时按权威地址纠正到message 27与message 30，而不是动作枚举槽。
 
 测试覆盖selected零的AX半寄存器行为、低byte门控先行递减、secondary优先、primary独立递减、bit13返回抑制、中间节点销毁、循环次数回放重链，以及动作dispatch、目标选择和链表动作caller集成。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`200/422 = 191 platform_adapted + 9 assembly_exact + 222 pending_audit`，SHA256为`981dcf48b591865cb3d92a84f30a9eacc849fbcf677e7758c87e6a2de80ad2ad`。动态差分因原版资源链节点、allocator释放和六处caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+
+## 5. 菜单三站的实际资源消费
+
+dd7ae08f删除菜单资源通用操作、兼容回复和子调用计数，借startup.party实际十槽链与workspace。
+1125次新菜单执行覆盖真实扣减、销毁、重链、同ID身份、正常零和已有失败前缀；
+最终core/ASan setup各1/1为12.18/19.60秒，SDL实际链接与五源身份通过，见
+[菜单实际角色资源](battle-menu-actor-resource-release-00470e20.md)。
+叶output_word已在最终位13判断后抑制，菜单只消费该WORD；公开第四request存在默认值。
+默认寄存器request、结果计数/寄存器及另三caller保留为下一独立批次，不宣称整族迁移完成。
+本批没有游戏运行、全量UT、Windows、实际资源或原版动态差分，历史200/422不是当前进度。

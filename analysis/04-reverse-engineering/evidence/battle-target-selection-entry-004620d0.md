@@ -9,6 +9,9 @@
 失败保留已减资源数量和提交前缀，传播既有target_selection_refresh_typed_stop。
 core/ASan setup各1/1及SDL链接通过，见
 [菜单实际物品数量](battle-menu-player-item-quantity-0045d180.md)。
+后续dd7ae08f回收刷新中的三站通用资源调用，原两个进入向量沿同一实际队伍继续验证
+资源释放、数量和已有子失败传播，core/ASan setup各1/1及SDL通过，见
+[菜单实际角色资源](battle-menu-actor-resource-release-00470e20.md)。
 原入口门、其他分支和父诊断不变；完整父接口与SDL游戏链仍pending。
 
 ## 1. 完整权威范围
