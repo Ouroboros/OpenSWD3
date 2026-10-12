@@ -91,7 +91,9 @@ build/tmp/runtime/enemy-frame-coordinate-attribute-*。
 原450次bit1执行同步，纯叶bit0观察站和回复撤回，改观察真实最终数据。
 后续e237b6e7回收四个菜单47D8B0站，见
 [菜单标记数值](battle-menu-party-profile-word-0047d8b0.md)。
-当前剩余四个47D880、四个47D8D0菜单父点。
+后续d8a93827回收四个47D880菜单站，见
+[菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
+当前剩余四个47D8D0菜单父点。
 actor-ready八槽、父编号/参数包/寄存器/轨迹/计数/Port、
 资源生命周期、共享别名、完整父逐出口和生产帧接线仍pending。
 没有原版差分、Windows、完整SDL运行或全量UT验收。

@@ -61,7 +61,9 @@ build/tmp/runtime/script-party-following-attribute-*。
 不标`assembly_exact`；完整拥有对象下的BYTE读取不证明原部分地址/page fault等价。
 后续菜单标记WORD切片回收四个47D8B0站，见
 [菜单标记数值](battle-menu-party-profile-word-0047d8b0.md)。
-当前47D8D0/47D880菜单余量各四站，完整父链仍pending。
+后续d8a93827回收四个47D880菜单站，见
+[菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
+当前47D8D0菜单余量四站，完整父链仍pending。
 敌人bit0及真实目标计数消费见
 [敌人帧效果目标数量](battle-enemy-frame-target-count-0047d8d0.md)。
 两次敌人属性及真实效果消费见

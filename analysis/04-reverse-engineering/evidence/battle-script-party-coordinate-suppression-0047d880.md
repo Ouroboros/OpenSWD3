@@ -86,6 +86,8 @@ build/tmp/runtime/script-actor-metric-*。
 晚+6短读前缀尚未校准；本批不宣称完整脚本23收敛。
 五个47D8B0站已读取真实profile；四菜单站见
 [菜单标记数值](battle-menu-party-profile-word-0047d8b0.md)。
+后续d8a93827回收四个47D880菜单站，见
+[菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
 脚本与双方帧47D8D0已读实际属性，其余四个菜单父点仍pending。
 4707B0、状态/角色槽影子、非party retry/RNG及资源处理继续pending。
 操作编号、参数包、寄存器结果、轨迹、计数、Port和实际SDL整链均未完成。

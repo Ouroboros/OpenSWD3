@@ -63,7 +63,9 @@ ASan同入口1/1 27.78秒，SDL实际重新链接，无warning/error。
 
 ## 5. 未完成范围
 
-后续双方帧与菜单标记WORD切片后，当前47D880/47D8D0菜单余量各四站。
+后续d8a93827回收四个47D880菜单站，见
+[菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
+当前47D8D0菜单余量四站。
 五个47D8B0站已使用实际WORD，完整父链仍pending，见
 [菜单标记数值](battle-menu-party-profile-word-0047d8b0.md)及
 [敌人帧属性](battle-enemy-frame-coordinate-attribute-0047d880.md)。

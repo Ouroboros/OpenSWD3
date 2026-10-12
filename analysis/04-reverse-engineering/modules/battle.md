@@ -126,7 +126,10 @@ core/ASan actor_frame_316各1/1及SDL实际链接通过，见
 菜单四条行动配置路径直接读队员实际标记WORD，写入保存角色辅助行；
 424次菜单执行与400次真实队列消费、core/ASan setup各1/1及SDL链接通过，见
 [菜单标记数值](../evidence/battle-menu-party-profile-word-0047d8b0.md)。
-剩余47D8D0/47D880菜单父点各四站，五个47D8B0站已迁移实际WORD。
+菜单四条配置路径的坐标属性也直接读实际BYTE，真时写共享标记及辅助行；
+假时保留旧辅助值，1080次新帧与真实队列、424次同步帧及core/ASan、SDL通过，见
+[菜单坐标属性](../evidence/battle-menu-party-coordinate-attribute-0047d880.md)。
+剩余47D8D0菜单父点四站，五个47D8B0站已迁移实际WORD。
 完整菜单与双方帧仍pending。
 共享别名、入口读取前缀、状态影子和其余属性调用仍待迁移。
 其他三个未接通物品物理调用、父诊断、通用端口和完整SDL运行仍待回收。

@@ -83,7 +83,9 @@ build/tmp/runtime/party-frame-target-block-*。
 [敌人帧效果目标数量](battle-enemy-frame-target-count-0047d8d0.md)。
 后续菜单标记WORD切片已回收四个47D8B0站，见
 [菜单标记数值](battle-menu-party-profile-word-0047d8b0.md)。
-当前四个47D880菜单父点继续pending。
+后续d8a93827回收四个47D880菜单站，见
+[菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
+当前四个47D8D0菜单父点继续pending。
 当批保留的bit1辅助替代已在该后续独立切片校准，完整父链仍待迁移。
 actor-ready八槽、其它编号/参数数组/寄存器报告/轨迹/计数/Port及资源仍待迁移。
 完整父函数逐出口收敛、共享别名、原地址保护、实际资产、原版动态差分、

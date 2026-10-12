@@ -86,7 +86,18 @@ e237b6e7回收462C9D/463475/4637C2/463906四个47D8B0站。
 删除属性A通用操作、专用寄存器形态及五个测试假回复；没有新增数据副本或转发层。
 424次菜单执行、400次真实队列消费、core/ASan setup各1/1及SDL链接通过，见
 [菜单标记数值](battle-menu-party-profile-word-0047d8b0.md)。
-属性B/C仍各四站；完整父编号/参数包/寄存器/轨迹/计数/Port与资源协议仍pending。
+当批属性B/C仍各四站；属性B的后续迁移见下一节。
 该切片不提升完整父或原版动态差分验收等级。
+
+## 10. 菜单坐标抑制属性实际读取
+
+d8a93827回收462CCD/4634A5/4637F2/463936四个47D880站。
+读取保存队员实际BYTE位1；真时先写共享目标缓存，再写live辅助column2=1，
+假时保留旧column2。既有WORD发布、源前继、bit0后继及早返保持。
+删除属性B通用操作及六个测试假回复，不新增字段、同步层或叶停点。
+1080次新帧及真实队列、424次同步帧、core/ASan setup各1/1与SDL链接通过，见
+[菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
+属性C仍四站；完整父编号/参数包/寄存器/轨迹/计数/Port、资源与别名仍pending。
+完整拥有对象验证不证明原DWORD地址故障或回绕等价；父验收等级不变。
 
 当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

@@ -62,7 +62,9 @@ build/tmp/runtime/script-party-marked-word-*。
 
 ## 4. 剩余范围
 
-五个47D8B0站均使用实际WORD；其余47D880菜单父点仍有四站。
+五个47D8B0站均使用实际WORD；后续d8a93827回收四个47D880菜单站，见
+[菜单坐标属性](battle-menu-party-coordinate-attribute-0047d880.md)。
+当前47D8D0菜单余量四站。
 完整菜单与脚本父协议仍pending。
 4707B0资源/输出、入口三WORD和额外写入、晚+6短读前缀、
 状态/actor-slot影子、53BD50别名、父寄存器/轨迹/计数/Port仍pending。
