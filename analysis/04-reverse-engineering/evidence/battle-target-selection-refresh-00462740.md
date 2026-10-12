@@ -77,4 +77,16 @@ message 5/action 15测试把门预置9并验证清零；现有主跳表、真实
 
 工作包278关闭`0x0046292B`、`0x004629F3`、`0x00462B02`、`0x00462ED5`、`0x00463108`、`0x00463335`、`0x00463A50`、`0x00463CF0`八处物理call。各分支都把完整dword `1`写入当前组A角色`+0x2AE4`，并直接复用最终角色状态中的availability owner。caller按原路径把目标码、角色索引或相邻callee残值线程化为leaf入口EDX；任何写停止都保留已到达的message、选择与缓存前缀，EAX为1、ECX为角色token，且阻断相应动作提交、轮转、动画与输入尾部。
 
+## 9. 菜单标记WORD实际读取
+
+e237b6e7回收462C9D/463475/4637C2/463906四个47D8B0站。
+直接读取共享队员profile_buffer[7]高WORD，按bit15写入低15位或完整零，
+先清目标缓存再写保存角色辅助行column3；后继live角色column2保持独立。
+后三路径与装备override修正为真实源前继之后重读角色。
+删除属性A通用操作、专用寄存器形态及五个测试假回复；没有新增数据副本或转发层。
+424次菜单执行、400次真实队列消费、core/ASan setup各1/1及SDL链接通过，见
+[菜单标记数值](battle-menu-party-profile-word-0047d8b0.md)。
+属性B/C仍各四站；完整父编号/参数包/寄存器/轨迹/计数/Port与资源协议仍pending。
+该切片不提升完整父或原版动态差分验收等级。
+
 当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

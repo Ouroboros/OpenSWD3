@@ -84,8 +84,9 @@ build/tmp/runtime/script-actor-metric-*。
 
 脚本入口仍一次读取三个WORD，party仍额外写value_b/value_c，
 晚+6短读前缀尚未校准；本批不宣称完整脚本23收敛。
-脚本47D8B0的0DAE WORD已读取真实profile；其它四个父入口仍未迁移。
-脚本47D8D0已读实际属性；后续队员帧切片后，其它六个父点仍pending。
+五个47D8B0站已读取真实profile；四菜单站见
+[菜单标记数值](battle-menu-party-profile-word-0047d8b0.md)。
+脚本与双方帧47D8D0已读实际属性，其余四个菜单父点仍pending。
 4707B0、状态/角色槽影子、非party retry/RNG及资源处理继续pending。
 操作编号、参数包、寄存器结果、轨迹、计数、Port和实际SDL整链均未完成。
 见[脚本父证据](battle-script-dispatch-00469d20.md)及

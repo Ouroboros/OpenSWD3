@@ -63,8 +63,10 @@ ASan同入口1/1 27.78秒，SDL实际重新链接，无warning/error。
 
 ## 5. 未完成范围
 
-后续43c7652e回收两个敌人帧47D880，当前剩余四个47D880、六个47D8D0、
-四个47D8B0父点，见[敌人帧属性](battle-enemy-frame-coordinate-attribute-0047d880.md)。
+后续双方帧与菜单标记WORD切片后，当前47D880/47D8D0菜单余量各四站。
+五个47D8B0站已使用实际WORD，完整父链仍pending，见
+[菜单标记数值](battle-menu-party-profile-word-0047d8b0.md)及
+[敌人帧属性](battle-enemy-frame-coordinate-attribute-0047d880.md)。
 其它父入口属性、actor-ready八槽、共享状态影子、地址保护、操作/参数数组、
 寄存器报告/轨迹/计数/Port及资源仍待迁移；完整父逐出口收敛未验收。
 完整拥有对象验证不证明原部分地址/page fault等价；没有原版差分、Windows、
