@@ -2,6 +2,14 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
+## 菜单进入时借用现有库存
+
+52e53a9b补齐本消息处理的菜单进入调用：必需items引用借原Port库存。
+消息分支、此前消息99的实际节点分配及其它参数不改。
+相关core/ASan setup各1/1及SDL链接通过，见
+[菜单实际物品数量](battle-menu-player-item-quantity-0045d180.md)。
+这是必要聚合绑定，不证明完整SDL消息生命周期，也不关闭父通用协议。
+
 ## 1. 完整权威范围
 
 权威LST主体为`0x00466F70..0x004676BC`，从proc到endp共911行、560条带机器码和真实助记符的实际指令、40个静态call、47个跳转、43个局部标签、1个default标签和21个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭主帧协调器：HUD之后依次调用选择帧、本函数和后一战斗阶段；本工作包回收第二个后置槽并传播typed-stop。

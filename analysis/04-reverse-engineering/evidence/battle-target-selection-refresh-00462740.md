@@ -41,11 +41,11 @@ message 8固定以类别0/模式1查询；返回AX全1时直接返回。message 
 
 ## 5. message 3、5与7：提交、效果和目标轮转
 
-message 3在published角色有效且queued/cleanup条件满足时提交当前action，清queued角色并刷新对象。动作30先写动作3、解析效果值，再按override决定动作13或停止旧效果；动作4调用角色特殊处理。随后按live group-B count清对象，再固定清四个group-A对象和四个marker；原循环不加现代上限。
+message 3在published角色有效且queued/cleanup条件满足时提交当前action，清queued角色并刷新对象。动作30先写动作3、解析效果值，再按实际位13决定动作13或增加固定item0300数量；动作4在随后独立检查live动作并调用角色特殊处理。随后按live group-B count清对象，再固定清四个group-A对象和四个marker；原循环不加现代上限。
 
 清理后重置动画、grid和三项cache并刷新显示。cleanup gate为1时重新查询已提交角色；返回1则改写动作5、应用并刷新，再写角色五dword记录。末尾只清既有三个startup dword与共享word。
 
-message 5提交动作15，把目标效果低word、行选择、高word偏移和group-A count按原u32公式组合为效果记录索引。效果记录直接复用`0x0053AF30`动作workspace的word/dword物理视图；按行保留Y坐标270/340、旧样本停止、镜像X和样本启动顺序，并把最终低word写入按actor code索引的结果word。
+message 5提交动作15，把目标效果低word、行选择、高word偏移和group-A count按原u32公式组合为保存索引。效果记录复用`0x0053AF30`动作workspace的物理视图；旧item非零先增加实际数量，再写规则、效果、Y270/340、镜像X和启动样本。第一样本后重读完整mode，第二段独立检查mode2并沿用保存索引；末尾只存结果低word。原“旧样本停止”归因错误，三处45D180实际是物品数量操作。
 
 message 7未到alternate limit时固定动作25，并在pre-frame gate B为0时直连已关闭组B目标轮转；该函数按target cursor和live group-B count跳过完成对象，恢复原选择重置、一基published actor与耗尽message 1行为。随后把共享message写3、动画缓存写`0/0/4`并预置输入记录。count大于物理八对象时在第九次真实对象call或第九项target map读取停止，不添加步进上限。到limit时提交动作99并清选择缓存。
 
@@ -111,5 +111,16 @@ core/ASan setup各1/1为11.57/19.70秒、SDL实际链接通过，见
 [菜单目标限制](battle-menu-party-target-selection-block-0047d8d0.md)。
 完整父仍pending：MON源、共享别名、其它操作/参数包/寄存器/轨迹/计数/Port与全部出口。
 没有全量UT、Windows、原版差分、真实MON验收或游戏运行；父验收等级不变。
+
+## 12. 菜单提交与效果替换的实际物品数量
+
+52e53a9b在462FBC/463ACC/463B60直接调用实际数量函数，selector恒0。
+删除误名旧效果停止的操作，不发布数量叶寄存器回复；必需库存引用贯穿核心帧、输入、
+菜单进入和刷新，消息处理复用原库存。真实叶失败向上传播并阻断未到达的效果和尾部。
+283次新菜单与4次真实调用方执行，42个核心帧库存绑定同步，core/ASan setup各1/1
+为11.35/18.59秒、SDL实际链接与14源身份通过，见
+[菜单实际物品数量](battle-menu-player-item-quantity-0045d180.md)。
+十三原物理数量站均已接通；完整父、MON资源前继、别名、寄存器/计数/Port仍pending。
+未提升父验收等级，也未执行实际游戏、Windows或原版动态差分。
 
 当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

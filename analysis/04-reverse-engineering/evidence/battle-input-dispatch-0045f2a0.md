@@ -2,6 +2,15 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
+## 确认输入与菜单数量的共享库存
+
+52e53a9b使本输入入口向菜单进入传同一必需库存引用。
+两个新确认入口向量执行真实资源释放及数量成功/失败，子失败保留前缀并按既有状态传播。
+record0重复门和record1持续计数按生产读取时点设置；遗漏record1造成的两项失败已修正，
+未删除断言或改变生产输入条件。core/ASan setup各1/1及SDL链接通过，见
+[菜单实际物品数量](battle-menu-player-item-quantity-0045d180.md)。
+完整输入编号、参数包、寄存器、计数、Port和SDL链仍pending。
+
 ## 1. 完整范围
 
 权威LST完整主体为`0x0045F2A0..0x0045FC5F`，从proc到endp共1176行、868条实际指令、54个call、129个跳转、71个局部标签，没有外部`FUNCTION CHUNK`。

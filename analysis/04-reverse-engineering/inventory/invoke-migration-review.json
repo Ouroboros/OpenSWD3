@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "371fffc0c47bc89052c271bfbbdcf7f1012ef241",
+  "last_reviewed_source_revision": "52e53a9b6849b31339976c128d0b5927aad5661e",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -66,9 +66,9 @@
     },
     "battle/legacy_battle_input_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "e7c6bc19",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
-      "reason": "撤退路径直接写角色availability共享状态；输入父操作编号、寄存器结果和Port仍待移除"
+      "last_reviewed_commit": "52e53a9b",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-menu-player-item-quantity-0045d180.md",
+      "reason": "确认输入经菜单进入传同一必需库存，实际资源释放及菜单数量成功/失败均通过真实入口验证，数量失败保留释放和提交前缀；撤退availability共享保持。core/ASan setup各1/1及SDL链接通过。输入父操作编号、参数包、寄存器、计数、Port及完整SDL链仍pending"
     },
     "battle/legacy_battle_pre_frame": {
       "status": "pending",
@@ -76,11 +76,17 @@
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
       "reason": "三处availability写入只使用状态和值，保留原顺序和失败前缀；帧前父请求回复、通用操作和Port仍待移除"
     },
+    "battle/legacy_battle_target_selection_entry": {
+      "status": "pending",
+      "last_reviewed_commit": "52e53a9b",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-menu-player-item-quantity-0045d180.md",
+      "reason": "菜单进入向刷新传同一必需库存，实际角色资源释放先于数量；真实成功与节点失败均验证已减资源数量和父失败传播。core/ASan setup各1/1及SDL链接通过。父寄存器、参数包、轨迹、计数、Port及完整SDL调用链仍pending"
+    },
     "battle/legacy_battle_target_selection_refresh": {
       "status": "pending",
-      "last_reviewed_commit": "371fffc0",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-menu-party-target-selection-block-0047d8d0.md",
-      "reason": "四个菜单47D8D0站直接读live队员实际BYTE位0，语义bool进入真实目标限制；删除属性C操作及六个纯叶回复，无新字段/同步层/叶停点。按四路径原序分别处理目标发布、辅助行和双门，message4/30保留原动画，子失败保留写入前缀。2184次新帧含2160次实际输入判断及队列消费，1080坐标与424既有菜单帧同步，覆盖位独立、完整DWORD分类、低WORD输出、剩余量回绕、真实前继重读、默认目标边界与部分输入预置失败；core/ASan setup各1/1、SDL链接和三源审查通过。47D8D0/47D880原八站及47D8B0原五站均迁移实际属性，既有availability迁移保留。MON源处理、选择刷新父操作编号/参数包/寄存器结果/轨迹/计数/Port、共享别名及全部出口仍待迁移，整项保持pending"
+      "last_reviewed_commit": "52e53a9b",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-menu-player-item-quantity-0045d180.md",
+      "reason": "菜单462FBC/463ACC/463B60直接借实际库存及MON数量函数，删除三站通用数量请求；必需库存贯穿核心帧、输入、菜单进入及刷新，消息处理复用原库存。保持固定道具和旧效果道具数量先于规则/效果写入、完整模式与镜像、保存行索引、signed阈值/WORD回绕、前继后live角色与模式重读，实际节点/分配/MON失败保留提交前缀。283次新菜单、4次真实调用方及42个原核心帧绑定同步，core/ASan setup各1/1为11.35/18.59秒、SDL链接和14源身份通过。此前47D8D0/47D880原八站及47D8B0原五站均迁移实际属性，availability共享保持。MON源处理、父操作编号/参数包/寄存器/轨迹/计数/Port、共享别名和完整SDL链仍待迁移，整项pending"
     },
     "battle/legacy_battle_group_b_action_composition": {
       "status": "pending",
@@ -102,9 +108,9 @@
     },
     "battle/legacy_battle_message_phase": {
       "status": "pending",
-      "last_reviewed_commit": "f597100a",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
-      "reason": "消息99新增道具传实际共享物品存储及MON数据库，节点由真实容器分配，删除模拟分配地址和回复；角色循环继续直接写队员动作字段并保留失败前序。其余操作编号、参数数组、寄存器接口、轨迹、计数和Port仍在，整项继续pending"
+      "last_reviewed_commit": "52e53a9b",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-menu-player-item-quantity-0045d180.md",
+      "reason": "消息处理的菜单进入调用传既有物品共享状态，新增必需库存引用不改变消息分支；此前消息99新增道具的真实节点分配及角色循环字段写入保持。core/ASan setup各1/1和SDL链接通过。其余操作编号、参数数组、寄存器接口、轨迹、计数和Port仍在，完整SDL消息生命周期未验收，整项pending"
     },
     "battle/legacy_battle_post_action": {
       "status": "pending",
@@ -526,9 +532,9 @@
     },
     "battle/legacy_battle_frame_coordinator": {
       "status": "pending",
-      "last_reviewed_commit": "f597100a",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
-      "reason": "结果道具改为实际共享节点分配，核心帧真实分配失败验证保留暗化前缀并阻断后继，删除分配模拟；此前启动队列及角色强度共享继续有效。其他帧业务仍有通用操作、参数数组、寄存器请求回复、计数及Port，完整SDL角色帧和实际游戏流程未验收"
+      "last_reviewed_commit": "52e53a9b",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-menu-player-item-quantity-0045d180.md",
+      "reason": "核心帧上下文提供必需库存引用并沿输入进入菜单，42个既有帧夹具借各自实际库存，相关core/ASan setup各1/1及SDL链接通过；此前结果道具真实分配失败和启动队列/角色强度共享保持。其余通用操作、参数数组、寄存器、计数和Port仍在，完整SDL角色帧及实际游戏流程未验收"
     },
     "battle/legacy_battle_frame_music_prefix": {
       "status": "verified",
@@ -724,9 +730,9 @@
     },
     "battle/legacy_battle_player_item_quantity": {
       "status": "pending",
-      "last_reviewed_commit": "6aa4ffa3",
+      "last_reviewed_commit": "52e53a9b",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
-      "reason": "数量叶由实际共享PMR节点拥有并保留旧head、MON前缀、数量顺序及真实分配失败；脚本53也直接连接，纠正旧51归属。13个物理调用已有10处对应6个直接源码位置，00462FBC、00463ACC、00463B60尚未接通。返回payload身份及父诊断仍在，整项继续pending"
+      "reason": "实际PMR节点数量和MON前缀保持；菜单462FBC/463ACC/463B60也直接接通，13个原物理数量站对应9个直接C++位置。283次菜单及4次真实调用方执行验证数量阈值、回绕、节点/分配/MON失败和前继后重读，core/ASan setup各1/1及SDL链接通过；脚本53与原实际节点分配保持。返回payload身份、父诊断/计数/通用端口及完整调用链仍pending，不以十三站接通关闭整项"
     },
     "battle/legacy_battle_outcome_finalization": {
       "status": "pending",

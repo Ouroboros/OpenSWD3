@@ -2,6 +2,15 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
+## 菜单数量调用的共享库存
+
+52e53a9b使本入口向目标刷新传同一必需库存引用，不增加库存副本或转发接口。
+两个新增实际入口向量先执行真实角色资源释放，再验证数量成功或已有节点失败；
+失败保留已减资源数量和提交前缀，传播既有target_selection_refresh_typed_stop。
+core/ASan setup各1/1及SDL链接通过，见
+[菜单实际物品数量](battle-menu-player-item-quantity-0045d180.md)。
+原入口门、其他分支和父诊断不变；完整父接口与SDL游戏链仍pending。
+
 ## 1. 完整权威范围
 
 权威LST主体为`0x004620D0..0x0046231F`，从proc到endp共269行、157条实际指令、7个静态call、23个跳转、12个局部标签、7个`retn`，没有外部`FUNCTION CHUNK`。callee为既有队列完成查询、sample command、角色选择配置、两类目标扫描及三项角色动作查询边界；动作模式刷新与选择状态刷新callee均已关闭并直连typed实现。
