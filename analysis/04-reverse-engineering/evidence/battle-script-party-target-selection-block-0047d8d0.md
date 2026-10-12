@@ -59,7 +59,9 @@ build/tmp/runtime/script-party-following-attribute-*。
 ## 4. 验证边界与未完成范围
 
 不标`assembly_exact`；完整拥有对象下的BYTE读取不证明原部分地址/page fault等价。
-后续队员帧切片后，剩余六个47D8D0、七个47D880、四个47D8B0父点仍pending。
+后续两队员帧切片后，剩余六个47D8D0、六个47D880、四个47D8B0父点仍pending。
+45f5a77e的实际辅助借用与消费者验证见
+[队员帧坐标属性](battle-party-frame-coordinate-attribute-0047d880.md)。
 4707B0资源/输出、入口三WORD/晚+6前缀、状态/角色槽影子、53BD50别名、
 父参数/寄存器报告/轨迹/计数/Port，以及真实资产与完整SDL运行仍pending。
 没有全量UT、Windows、原版差分或游戏执行验收；Workpack316状态不变。

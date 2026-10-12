@@ -299,5 +299,16 @@ Typed-stop只位于：
 夹具借唯一startup.reset，285次新执行与既有路径同步，core/ASan
 actor_frame_316各1/1 26.69/28.03秒及SDL实际链接、两源身份通过，见
 [队员帧目标标记](battle-party-frame-target-selection-0047d8d0.md)。
-当前456844的bit1仍有通用查询和错误辅助替代，留下一独立批次。
+当批456844的bit1仍有通用查询和错误辅助替代，随后按第16节校准。
 其它父协议、计数、资源、完整出口与运行验证仍pending，不升级整父验收。
+
+## 16. 坐标属性辅助记录与攻击顺序消费
+
+45f5a77e回收456844→47D880，实际BYTE bit1真写startup.reset辅助column2。
+假保留旧DWORD，actor+2AB8真实状态保持；它在46E520的精确1进度门独立有效。
+生产frame_coordinator已让攻击顺序源借同一数组，夹具删除重复源数组。
+新增279次帧及270次实际插入，验证五源值、WORD截断、两属性列、复制后清行；
+285次bit0同步撤回纯叶回复并在readiness观察前缀。
+core/ASan actor_frame_316各1/1 26.41/27.78秒及SDL实际链接、两源身份通过，见
+[队员帧坐标属性](battle-party-frame-coordinate-attribute-0047d880.md)。
+当前其它六/六/四属性父点及完整父协议/资源/出口/运行验收仍pending。

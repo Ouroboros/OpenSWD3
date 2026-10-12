@@ -111,7 +111,11 @@ FFFF借用真实重置块，未拥有额外地址继续待审。78次执行通�
 与真实角色完成状态分离；285次新执行保留前继和原最终profile清零。
 core/ASan actor_frame_316各1/1及SDL实际链接通过，见
 [队员帧目标标记](../evidence/battle-party-frame-target-selection-0047d8d0.md)。
-剩余属性父点六/七/四，完整队员帧及bit1辅助替代仍pending。
+后续队员另一属性也写实际辅助记录，真实攻击顺序复制后清同一行，
+角色状态独立保留；279次新帧、270次真实插入与285次bit0同步执行，
+core/ASan actor_frame_316各1/1及SDL实际链接通过，见
+[队员帧坐标属性](../evidence/battle-party-frame-coordinate-attribute-0047d880.md)。
+剩余属性父点六/六/四，完整队员帧仍pending。
 共享别名、入口读取前缀、状态影子和其余属性调用仍待迁移。
 其他三个未接通物品物理调用、父诊断、通用端口和完整SDL运行仍待回收。
 这些接线不关闭新的战斗函数。

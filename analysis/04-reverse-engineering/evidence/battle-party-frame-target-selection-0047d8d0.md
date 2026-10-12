@@ -64,7 +64,9 @@ GroupAStorage借同一action与battle_runtime；startup.reset继续是辅助块�
 完整50DWORD辅助数组比较保证只有当前column1按bit0修改；
 观察availability/selection/进度前缀、独立bit1调用及最终清零。
 消费者测试区分精确1与非1；沿既有真实idle访问失败保留前缀。
-47D880仍以既有测试前继隔离，不冒充其原版行为验收。
+当批47D880以既有测试前继隔离，不冒充其原版行为验收。
+后续45f5a77e撤回此纯叶回复，285次执行观察移至真实readiness，
+两列由实际属性共同更新，见[队员帧坐标属性](battle-party-frame-coordinate-attribute-0047d880.md)。
 
 proc_a65e成功127秒：core actor_frame_316 1/1 26.69秒，
 ASan同入口1/1 28.03秒；SDL实际重新链接，无warning/error。
@@ -77,8 +79,8 @@ build/tmp/runtime/party-frame-target-block-*。
 ## 5. 保留范围
 
 剩余六个47D8D0父点为457BAA、457CBF、462D0C、4634E3、463830、463974。
-七个47D880、四个47D8B0父点继续pending。
-当前456844的bit1查询仍有通用协议和错误辅助标记替代，留下一独立批次。
+后续45f5a77e回收456844，当前六个47D880、四个47D8B0父点继续pending。
+当批保留的bit1辅助替代已在该后续独立切片校准，完整父链仍待迁移。
 actor-ready八槽、其它编号/参数数组/寄存器报告/轨迹/计数/Port及资源仍待迁移。
 完整父函数逐出口收敛、共享别名、原地址保护、实际资产、原版动态差分、
 完整SDL战斗运行和Workpack316/B11仍未验收；不得据本批升级父项。
