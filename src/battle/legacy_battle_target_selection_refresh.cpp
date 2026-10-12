@@ -783,9 +783,7 @@ private:
 
         auto& party = bindings_.startup.party[index];
         const auto release = release_legacy_battle_actor_resource(
-            &party.actor_list,
-            &party.workspace,
-            kGroupABaseToken + index * kGroupAStride
+            &party.actor_list, &party.workspace
         );
         if (release.status != LegacyBattleActorListQueryStatus::completed) {
             result_.resource_release_failure = release.status;

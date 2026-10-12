@@ -464,9 +464,8 @@ LegacyBattleActorListActionResult execute_legacy_battle_actor_list_action(
         return result;
     }
 
-    u32 eax = request.entry_eax;
-    u32 ecx = actor_token;
-    u32 edx = request.entry_edx;
+    const u32 eax = request.entry_eax;
+    const u32 edx = request.entry_edx;
     if ((item_effect->mode_flags & 0x80U) != 0U) {
         if (list == nullptr) {
             result.status =
@@ -504,21 +503,10 @@ LegacyBattleActorListActionResult execute_legacy_battle_actor_list_action(
                 return result;
             }
         } else {
-            const auto release = release_legacy_battle_actor_resource(
-                list,
-                workspace,
-                actor_token,
-                {.entry_eax = eax, .entry_edx = edx}
-            );
-            ++result.release_calls;
-            eax = release.return_eax;
-            ecx = release.return_ecx;
-            edx = release.return_edx;
+            const auto release =
+                release_legacy_battle_actor_resource(list, workspace);
             if (release.status != LegacyBattleActorListQueryStatus::completed) {
                 result.status = release.status;
-                result.return_eax = eax;
-                result.return_ecx = ecx;
-                result.return_edx = edx;
                 return result;
             }
 
@@ -819,31 +807,17 @@ count_legacy_battle_actor_mode_resources(
 
 LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
     LegacyBattleActorListQueryState* list,
-    LegacyBattleGroupAWorkspaceState* workspace,
-    const u32 actor_token,
-    const LegacyBattleActorResourceReleaseRequest& request
+    LegacyBattleGroupAWorkspaceState* workspace
 ) {
     LegacyBattleActorResourceReleaseResult result;
-    result.return_eax = request.entry_eax;
-    result.return_ecx = actor_token;
-    result.return_edx = request.entry_edx;
-
-    const auto commit = commit_legacy_battle_actor_resource_list(
-        list, actor_token, request.entry_edx
-    );
-    ++result.commit_calls;
-    result.return_eax = commit.return_eax;
-    result.return_ecx = commit.return_ecx;
-    result.return_edx = commit.return_edx;
-    if (commit.status != LegacyBattleActorListQueryStatus::completed) {
-        result.status = commit.status;
+    if (list == nullptr) {
+        result.status = LegacyBattleActorListQueryStatus::list_owner_typed_stop;
         return result;
     }
 
-    u32 selected_token = list->selected_resource_token;
-    result.return_ecx = selected_token;
+    list->resource_head_token = list->next_resource_head_token;
+    const u32 selected_token = list->selected_resource_token;
     if (selected_token == 0U) {
-        result.return_eax &= 0xFFFF0000U;
         return result;
     }
 
@@ -858,22 +832,13 @@ LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
         if (current == list->resources.end()) {
             result.status =
                 LegacyBattleActorListQueryStatus::resource_node_typed_stop;
-            result.return_eax = current_token;
             return result;
         }
 
         ++position;
-        ++result.nodes_visited;
         current_token = current->next_token;
         list->resource_head_token = current_token;
-        result.return_eax = current_token;
         if (current_token == 0U) {
-            result.return_eax &= 0xFFFF0000U;
-            return result;
-        }
-        if (selected_token == 0U) {
-            result.return_eax &= 0xFFFF0000U;
-            result.return_ecx = 0U;
             return result;
         }
 
@@ -885,9 +850,9 @@ LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
         if (candidate == list->resources.end()) {
             result.status =
                 LegacyBattleActorListQueryStatus::resource_node_typed_stop;
-            result.return_eax = current_token;
             return result;
         }
+
         const auto selected = std::ranges::find(
             list->resources,
             selected_token,
@@ -896,26 +861,21 @@ LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
         if (selected == list->resources.end()) {
             result.status =
                 LegacyBattleActorListQueryStatus::resource_node_typed_stop;
-            result.return_eax = current_token;
-            result.return_ecx = selected_token;
             return result;
         }
 
-        result.return_edx =
-            (result.return_edx & 0xFFFF0000U) | candidate->resource_id;
         if (candidate->resource_id == selected->resource_id) {
-            ++result.identifier_matches;
             break;
         }
     }
 
+    list->resource_head_token = selected_token;
     if (workspace == nullptr) {
         result.status =
             LegacyBattleActorListQueryStatus::actor_state_typed_stop;
         return result;
     }
 
-    list->resource_head_token = selected_token;
     auto selected = std::ranges::find(
         list->resources,
         selected_token,
@@ -929,17 +889,12 @@ LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
 
     workspace->tail_words[2U] = selected->resource_id;
     result.output_word = selected->resource_id;
-    u32 eax = selected_token;
-    u32 edx = result.return_edx;
-
     const u16 gate = selected->gate_word_48;
     const u16 gate_count = static_cast<u16>(gate & 0x00FFU);
     bool skip_quantity_updates = false;
     if ((gate & 0x0400U) != 0U && gate_count != 0U) {
         const u16 remaining = static_cast<u16>(gate_count - 1U);
         selected->gate_word_48 = static_cast<u16>((gate & 0xFF00U) | remaining);
-        ++result.gate_writes;
-        edx = remaining;
         skip_quantity_updates = remaining != 0U;
     }
 
@@ -953,26 +908,21 @@ LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
                 secondary = static_cast<u16>(secondary - 1U);
                 selected->secondary_quantity =
                     std::bit_cast<compat::i16>(secondary);
-                ++result.quantity_writes;
             } else {
                 u16 tertiary = std::bit_cast<u16>(selected->tertiary_quantity);
                 if (tertiary != 0U) {
                     tertiary = static_cast<u16>(tertiary - 1U);
                     selected->tertiary_quantity =
                         std::bit_cast<compat::i16>(tertiary);
-                    ++result.quantity_writes;
                 }
             }
 
             if (selected->primary_quantity != 0U) {
                 selected->primary_quantity =
                     static_cast<u16>(selected->primary_quantity - 1U);
-                ++result.quantity_writes;
             }
 
             list->selected_resource_token = 0U;
-            selected_token = 0U;
-            ++result.selected_clears;
         }
     }
 
@@ -984,32 +934,17 @@ LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
     if (live_selected == list->resources.end()) {
         result.status =
             LegacyBattleActorListQueryStatus::resource_node_typed_stop;
-        result.return_eax = eax;
-        result.return_edx = edx;
         return result;
     }
 
     if (live_selected->secondary_quantity == 0 &&
         live_selected->tertiary_quantity == 0) {
         const u32 next_token = live_selected->next_token;
-        const u32 released_token = live_selected->token;
         list->resources.erase(live_selected);
-        ++result.deallocation_calls;
-
-        const auto relink_commit =
-            commit_legacy_battle_actor_resource_list(list, actor_token, edx);
-        ++result.commit_calls;
-        if (relink_commit.status !=
-            LegacyBattleActorListQueryStatus::completed) {
-            result.status = relink_commit.status;
-            result.return_eax = relink_commit.return_eax;
-            result.return_ecx = relink_commit.return_ecx;
-            result.return_edx = relink_commit.return_edx;
-            return result;
-        }
-
+        list->resource_head_token = list->next_resource_head_token;
         current_token = list->resource_head_token;
-        for (u32 step = 1U; step < position; ++step) {
+        u32 remaining = position - 1U;
+        while (std::bit_cast<compat::i32>(remaining) > 0) {
             const auto current = std::ranges::find(
                 list->resources,
                 current_token,
@@ -1018,11 +953,10 @@ LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
             if (current == list->resources.end()) {
                 result.status =
                     LegacyBattleActorListQueryStatus::resource_node_typed_stop;
-                result.return_eax = current_token;
-                result.return_edx = edx;
                 return result;
             }
 
+            --remaining;
             current_token = current->next_token;
             list->resource_head_token = current_token;
         }
@@ -1035,15 +969,10 @@ LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
         if (predecessor == list->resources.end()) {
             result.status =
                 LegacyBattleActorListQueryStatus::resource_node_typed_stop;
-            result.return_eax = current_token;
-            result.return_edx = edx;
             return result;
         }
 
         predecessor->next_token = next_token;
-        ++result.relink_writes;
-        eax = current_token;
-        static_cast<void>(released_token);
     }
 
     current_token = list->resource_head_token;
@@ -1055,18 +984,13 @@ LegacyBattleActorResourceReleaseResult release_legacy_battle_actor_resource(
     if (current == list->resources.end()) {
         result.status =
             LegacyBattleActorListQueryStatus::resource_node_typed_stop;
-        result.return_eax = current_token;
-        result.return_edx = edx;
         return result;
     }
 
-    result.return_eax = eax;
-    result.return_ecx = current_token;
-    result.return_edx = edx;
     if ((current->capacity_gate_flags & 0x2000U) != 0U) {
         result.output_word = 0U;
     }
-    result.return_eax = (result.return_eax & 0xFFFF0000U) | result.output_word;
+
     return result;
 }
 

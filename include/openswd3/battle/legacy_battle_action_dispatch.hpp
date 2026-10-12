@@ -1502,7 +1502,6 @@ struct LegacyBattleActionDispatchContext {
         group_b_frame_action_target_requests{};
     LegacyBattleActorActionTargetRequest post_action_target_request{};
     LegacyBattleImageParticleStackSnapshot target_phase_spawn_stack_snapshot{};
-    bool scripted_resource_release_test_compat{};
     std::pmr::memory_resource* deformation_memory{
         std::pmr::get_default_resource()
     };
@@ -1692,8 +1691,7 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 group_a_final_processing_calls{};
     LegacyBattleActorListActionResult group_a_actor_list_action{};
     compat::u32 group_a_actor_list_action_calls{};
-    LegacyBattleActorResourceReleaseResult actor_resource_release{};
-    compat::u32 actor_resource_release_calls{};
+    std::optional<LegacyBattleActorListQueryStatus> resource_release_failure{};
     LegacyBattleActorModeFourFinalizationResult
         group_a_mode_four_finalization{};
     compat::u32 group_a_mode_four_finalization_calls{};

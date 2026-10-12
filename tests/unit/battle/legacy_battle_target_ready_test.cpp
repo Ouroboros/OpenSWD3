@@ -239,7 +239,6 @@ struct Fixture {
             .group_a_skip_secondary = {},
             .target_phase_time_seed = 0U,
             .target_phase_spawn_stack_snapshot = {},
-            .scripted_resource_release_test_compat = false,
         };
     }
 };

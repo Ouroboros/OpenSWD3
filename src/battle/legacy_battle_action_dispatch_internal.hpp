@@ -30,7 +30,6 @@ constexpr u32 kCallQuerySelection = 0x0047C680U;
 constexpr u32 kCallQueryModeC = 0x0047C6B0U;
 constexpr u32 kCallQueryModeB = 0x0047C950U;
 constexpr u32 kCallQuerySpecial = 0x0047D8E0U;
-constexpr u32 kCallComputeSelection = 0x00470E20U;
 constexpr u32 kCallResolveTarget = 0x00480AD0U;
 constexpr u32 kCallSetMode = 0x0047F380U;
 constexpr u32 kCallCommitTemporaryRecord = 0x0047E070U;
@@ -768,7 +767,7 @@ struct ActionDispatchRunner {
     [[nodiscard]] bool require_group_b();
     [[nodiscard]] u32 side_token(u32 index);
     [[nodiscard]] bool begin_action(u32 target_token);
-    [[nodiscard]] bool release_actor_resource();
+    [[nodiscard]] std::optional<u16> release_actor_resource();
     [[nodiscard]] LegacyBattleActionDispatchResult run();
     [[nodiscard]] LegacyBattleActionDispatchResult dispatch_extended();
     [[nodiscard]] LegacyBattleActionDispatchResult dispatch_low();

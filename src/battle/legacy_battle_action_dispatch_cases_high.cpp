@@ -984,7 +984,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         }
         return result;
     }
-    case 27U:
+
+    case 27U: {
         if (!require_group_b()) {
             return result;
         }
@@ -1017,23 +1018,13 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         if (result.action_twenty_seven.return_eax != 1U) {
             return result;
         }
-        if (context.scripted_resource_release_test_compat) {
-            state.computed_selection_word =
-                low_word(invoke(
-                             state,
-                             port,
-                             kCallComputeSelection,
-                             {4U, state.selection_context}
-                )
-                             .eax);
-        } else {
-            if (!release_actor_resource()) {
-                return result;
-            }
 
-            state.computed_selection_word =
-                result.actor_resource_release.output_word;
+        const auto resource_word = release_actor_resource();
+        if (!resource_word.has_value()) {
+            return result;
         }
+
+        state.computed_selection_word = *resource_word;
         if (state.blocking_effect == 0U &&
             invoke(
                 state,
@@ -1053,6 +1044,8 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_high() {
         state.current_actor_index = 0xFFFFU;
         result.return_value = 1U;
         return result;
+    }
+
     case 28U:
     case 29U:
     case 32U: {

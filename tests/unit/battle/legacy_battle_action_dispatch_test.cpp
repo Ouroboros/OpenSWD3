@@ -565,7 +565,6 @@ struct Fixture {
                             .frame_provider_flags_known = true,
                         },
                 },
-            .scripted_resource_release_test_compat = true,
         };
     }
 };
@@ -1009,6 +1008,184 @@ void test_battle_display_kind_dispatch(openswd3::test::Context& test) {
     }
 }
 
+void test_battle_action_resource_consumption(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleActionDispatchState;
+    using openswd3::battle::LegacyBattleActionDispatchStatus;
+    for (const u32 action : {3U, 27U}) {
+        for (const u16 resource_id :
+             {u16{0U}, u16{0x34U}, u16{0x8001U}, u16{0xFFFFU}}) {
+            for (const bool depleted : {false, true}) {
+                for (const u16 suppression : {u16{0U}, u16{0x2000U}}) {
+                    LegacyBattleActionDispatchState state;
+                    state.action_runtime_flags = 0x8001U;
+                    state.group_b_count = 1;
+                    state.blocking_effect = 1U;
+                    state.selection_word = 0x1234U;
+                    state.selection_high_word = 0x5678U;
+                    state.computed_selection_word = 0xBEEFU;
+                    auto& execution = state.group_a_action_execution[0U];
+                    execution.profile_value = 0x123U;
+                    execution.action_runtime_gate = 0x8000U;
+                    execution.primary_action_record.cached_action_id = 0x123U;
+                    execution.primary_action_record.cached_base_variant = 0x30U;
+                    execution.primary_action_record.field_8c = 1U;
+                    Fixture fixture;
+                    fixture.stream_provider.bytes = {
+                        0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U
+                    };
+
+                    auto& party = fixture.startup.party[0U];
+                    party.actor_list.next_resource_head_token = 0x76000000U;
+                    party.actor_list.selected_resource_token = 0x76000010U;
+                    party.actor_list.resources = {
+                        {.token = 0x76000000U,
+                         .next_token = 0x76000010U,
+                         .name = {},
+                         .capacity_gate_flags = suppression},
+                        {.token = 0x76000010U,
+                         .resource_id = resource_id,
+                         .primary_quantity = 0xFFFFU,
+                         .secondary_quantity =
+                             static_cast<openswd3::compat::i16>(
+                                 depleted ? 1 : 2
+                             ),
+                         .name = {},
+                         .capacity_gate_flags = static_cast<u16>(
+                             depleted ? suppression ^ 0x2000U : suppression
+                         )},
+                    };
+
+                    DispatchPort port;
+                    port.action = static_cast<u16>(action);
+                    port.battle_pair_primary_value() = 57U;
+                    port.retreat_commit_replies = {{.eax = 1U}};
+                    auto context = fixture.context();
+                    const auto result = dispatch(state, port, context, 0U, 0U);
+                    test.expect_true(
+                        result.status ==
+                                LegacyBattleActionDispatchStatus::completed &&
+                            !result.resource_release_failure.has_value() &&
+                            state.computed_selection_word ==
+                                (suppression == 0U ? resource_id : 0U) &&
+                            party.workspace.tail_words[2U] == resource_id &&
+                            party.actor_list.resource_head_token ==
+                                (depleted ? 0x76000000U : 0x76000010U) &&
+                            party.actor_list.selected_resource_token == 0U &&
+                            party.actor_list.resources.size() ==
+                                (depleted ? 1U : 2U) &&
+                            party.actor_list.resources[0U].next_token ==
+                                (depleted ? 0U : 0x76000010U) &&
+                            (depleted ||
+                             (party.actor_list.resources[1U].primary_quantity ==
+                                  0xFFFEU &&
+                              party.actor_list.resources[1U]
+                                      .secondary_quantity == 1)) &&
+                            port.battle_pair_primary_value() == 0U &&
+                            state.selection_word ==
+                                (action == 3U ? 0U : 0x1234U) &&
+                            state.selection_high_word ==
+                                (action == 3U ? 0U : 0x5678U) &&
+                            port.count(0x00470E20U) == 0U &&
+                            (action == 3U
+                                 ? result.retreat_commit.branch ==
+                                     openswd3::battle::
+                                         LegacyBattleRetreatCommitBranch::
+                                             committed
+                                 : result.action_twenty_seven.return_eax ==
+                                         1U &&
+                                     result.return_value == 1U),
+                        "both action callers consume the actual final resource WORD and continue through normal zero or depletion with the original selection-state writes"
+                    );
+                }
+            }
+        }
+    }
+
+    for (const u32 action : {3U, 27U}) {
+        for (const u32 path : {0U, 1U, 2U, 3U}) {
+            LegacyBattleActionDispatchState state;
+            state.action_runtime_flags = 0x8001U;
+            state.group_b_count = 1;
+            state.blocking_effect = 1U;
+            state.selection_word = 0x1234U;
+            state.selection_high_word = 0x5678U;
+            state.computed_selection_word = 0xBEEFU;
+            state.frame_effect.fade_active = 7U;
+            auto& execution = state.group_a_action_execution[0U];
+            execution.profile_value = 0x123U;
+            execution.action_runtime_gate = 0x8000U;
+            execution.primary_action_record.cached_action_id = 0x123U;
+            execution.primary_action_record.cached_base_variant = 0x30U;
+            execution.primary_action_record.field_8c = 1U;
+            Fixture fixture;
+            fixture.stream_provider.bytes = {
+                0x46U, 0x52U, 0x66U, 0x00U, 0x44U, 0x45U
+            };
+
+            auto& party = fixture.startup.party[0U];
+            party.workspace.tail_words[2U] = 0xBEEFU;
+            party.actor_list.next_resource_head_token =
+                path < 2U ? 0xDEADBEEFU : 0x76000000U;
+            party.actor_list.selected_resource_token = path == 0U ? 0U
+                : path == 3U                                      ? 0x76000000U
+                                                                  : 0x76000010U;
+            party.actor_list.resources = {
+                {.token = 0x76000000U,
+                 .next_token = path == 2U ? 0xDEADBEEFU : 0x76000010U,
+                 .resource_id = 0x34U,
+                 .primary_quantity = 4U,
+                 .secondary_quantity = 1,
+                 .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 0x34U,
+                 .secondary_quantity = 2,
+                 .name = {}},
+            };
+
+            DispatchPort port;
+            port.action = static_cast<u16>(action);
+            port.battle_pair_primary_value() = 57U;
+            port.retreat_commit_replies = {{.eax = 1U}};
+            auto context = fixture.context();
+            const auto result = dispatch(state, port, context, 0U, 0U);
+            test.expect_true(
+                result.status ==
+                        (path == 0U
+                             ? LegacyBattleActionDispatchStatus::completed
+                             : LegacyBattleActionDispatchStatus::
+                                   group_a_actor_list_action_typed_stop) &&
+                    (path == 0U ? !result.resource_release_failure.has_value()
+                                : result.resource_release_failure ==
+                             openswd3::battle::
+                                 LegacyBattleActorListQueryStatus::
+                                     resource_node_typed_stop) &&
+                    party.actor_list.resource_head_token ==
+                        (path == 3U ? 0x76000000U : 0xDEADBEEFU) &&
+                    party.actor_list.resources.size() ==
+                        (path == 3U ? 1U : 2U) &&
+                    party.actor_list.resources.back().secondary_quantity == 2 &&
+                    party.actor_list.selected_resource_token ==
+                        (path == 0U || path == 3U ? 0U : 0x76000010U) &&
+                    party.workspace.tail_words[2U] ==
+                        (path == 3U ? 0x34U : 0xBEEFU) &&
+                    state.computed_selection_word ==
+                        (path == 0U ? 0U : 0xBEEFU) &&
+                    port.battle_pair_primary_value() ==
+                        (path == 0U ? 0U : 57U) &&
+                    state.selection_word ==
+                        (path == 0U && action == 3U ? 0U : 0x1234U) &&
+                    state.selection_high_word ==
+                        (path == 0U && action == 3U ? 0U : 0x5678U) &&
+                    state.frame_effect.fade_active ==
+                        (path == 0U && action == 3U ? 1U : 7U) &&
+                    (path == 0U || port.retreat_commit_calls.empty()) &&
+                    port.count(0x00470E20U) == 0U,
+                "action resource failures keep completed head publication or erase and block subsequent WORD, selection, fade and finalization writes"
+            );
+        }
+    }
+}
+
 void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActionDispatchState;
     using openswd3::battle::LegacyBattleActionDispatchStatus;
@@ -1282,16 +1459,18 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
              .secondary_quantity = 2,
              .name = {}},
         };
+
         auto context = fixture.context();
-        context.scripted_resource_release_test_compat = false;
 
         const auto result = dispatch(state, port, context, 0U, 0U);
 
         test.expect_true(
             result.status == LegacyBattleActionDispatchStatus::completed &&
                 result.retreat_commit_calls == 1U &&
-                result.actor_resource_release_calls == 1U &&
-                result.actor_resource_release.output_word == 0x34U &&
+                !result.resource_release_failure.has_value() &&
+                state.computed_selection_word == 0x34U &&
+                actor_list.resources[1U].secondary_quantity == 1 &&
+                fixture.startup.party[0U].workspace.tail_words[2U] == 0x34U &&
                 actor_list.selected_resource_token == 0U &&
                 result.retreat_commit.branch ==
                     openswd3::battle::LegacyBattleRetreatCommitBranch::
@@ -8776,6 +8955,7 @@ void test_battle_spirit_contract_profiles(openswd3::test::Context& test) {
 }
 
 void test_battle_action_dispatch(openswd3::test::Context& test) {
+    test_battle_action_resource_consumption(test);
     test_battle_spirit_contract_profiles(test);
     test_battle_action_kind_caller(test);
     test_battle_display_kind_dispatch(test);

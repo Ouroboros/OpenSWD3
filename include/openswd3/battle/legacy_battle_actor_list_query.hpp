@@ -159,7 +159,7 @@ struct LegacyBattleActorListActionResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
-    compat::u32 release_calls{};
+
     compat::u32 refresh_calls{};
     LegacyBattleActorListRefreshResult refresh{};
     compat::u32 capacity_writes{};
@@ -294,27 +294,12 @@ struct LegacyBattleActorModeResourceCountResult {
     compat::u32 return_edx{};
 };
 
-struct LegacyBattleActorResourceReleaseRequest {
-    compat::u32 entry_eax{};
-    compat::u32 entry_edx{};
-};
-
 struct LegacyBattleActorResourceReleaseResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
-    compat::u32 commit_calls{};
-    compat::u32 nodes_visited{};
-    compat::u32 identifier_matches{};
-    compat::u32 gate_writes{};
-    compat::u32 quantity_writes{};
-    compat::u32 selected_clears{};
-    compat::u32 deallocation_calls{};
-    compat::u32 relink_writes{};
+
     compat::u16 output_word{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
 };
 
 struct LegacyBattleActorResourceListCountRequest {
@@ -496,9 +481,7 @@ count_legacy_battle_actor_mode_resources(
 [[nodiscard]] LegacyBattleActorResourceReleaseResult
 release_legacy_battle_actor_resource(
     LegacyBattleActorListQueryState* list,
-    LegacyBattleGroupAWorkspaceState* workspace,
-    compat::u32 actor_token,
-    const LegacyBattleActorResourceReleaseRequest& request = {}
+    LegacyBattleGroupAWorkspaceState* workspace
 );
 
 // sub_470A10.

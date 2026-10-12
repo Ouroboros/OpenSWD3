@@ -64,30 +64,26 @@ bool ActionDispatchRunner::begin_action(const u32 target_token) {
     return result.group_a_action_execution.return_eax == 1U;
 }
 
-bool ActionDispatchRunner::release_actor_resource() {
+std::optional<u16> ActionDispatchRunner::release_actor_resource() {
     if (context.startup == nullptr ||
         group_a_index >= context.startup->party.size()) {
         result.status = LegacyBattleActionDispatchStatus::
             group_a_actor_list_action_typed_stop;
-        return false;
+        return std::nullopt;
     }
 
     auto& party = context.startup->party[group_a_index];
-    result.actor_resource_release = release_legacy_battle_actor_resource(
-        &party.actor_list,
-        &party.workspace,
-        actor_token,
-        {.entry_edx = state.selection_source}
+    const auto release = release_legacy_battle_actor_resource(
+        &party.actor_list, &party.workspace
     );
-    ++result.actor_resource_release_calls;
-    if (result.actor_resource_release.status !=
-        LegacyBattleActorListQueryStatus::completed) {
+    if (release.status != LegacyBattleActorListQueryStatus::completed) {
+        result.resource_release_failure = release.status;
         result.status = LegacyBattleActionDispatchStatus::
             group_a_actor_list_action_typed_stop;
-        return false;
+        return std::nullopt;
     }
 
-    return true;
+    return release.output_word;
 }
 
 LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_extended() {

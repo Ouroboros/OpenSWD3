@@ -270,10 +270,11 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
         if ((state.action_runtime_flags & 1U) == 0U) {
             return result;
         }
-        port.battle_pair_primary_value() = 0U;
-        state.selection_word = 0U;
-        state.selection_high_word = 0U;
+
         if (action == 2U) {
+            port.battle_pair_primary_value() = 0U;
+            state.selection_word = 0U;
+            state.selection_high_word = 0U;
             if ((port.battle_debug_hotkey_state().battle_mode_flags_53bc24 &
                  0x20U) != 0U) {
                 return result;
@@ -284,22 +285,18 @@ LegacyBattleActionDispatchResult ActionDispatchRunner::dispatch_low() {
             }
 
             state.deformation_active = false;
-        } else if (context.scripted_resource_release_test_compat) {
-            reply = invoke(
-                state,
-                port,
-                kCallComputeSelection,
-                {state.selection_source, state.selection_context}
-            );
-            state.computed_selection_word = low_word(reply.eax);
         } else {
-            if (!release_actor_resource()) {
+            const auto resource_word = release_actor_resource();
+            if (!resource_word.has_value()) {
                 return result;
             }
 
-            state.computed_selection_word =
-                result.actor_resource_release.output_word;
+            state.computed_selection_word = *resource_word;
+            port.battle_pair_primary_value() = 0U;
+            state.selection_word = 0U;
+            state.selection_high_word = 0U;
         }
+
         state.frame_effect.fade_active = 1U;
         {
             LegacyBattleActorActionModeView mode_fields;

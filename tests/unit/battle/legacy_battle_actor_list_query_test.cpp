@@ -84,9 +84,137 @@ public:
     openswd3::compat::u32 index{};
 };
 
+void test_actor_resource_release_prefixes(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    using openswd3::compat::u32;
+    for (const u32 path : {0U, 1U, 2U, 3U, 4U, 5U, 6U, 7U}) {
+        LegacyBattleActorListQueryState list;
+        LegacyBattleGroupAWorkspaceState workspace;
+        workspace.tail_words[2U] = 0xBEEFU;
+        list.resource_head_token = 0x12345678U;
+        list.next_resource_head_token = 0x76000000U;
+        list.selected_resource_token = 0x76000020U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .resource_id = 0x777U,
+             .secondary_quantity = 7,
+             .name = {}},
+            {.token = 0x76000020U,
+             .resource_id = 0x777U,
+             .primary_quantity = 4U,
+             .secondary_quantity = 2,
+             .name = {}},
+        };
+
+        if (path == 0U) {
+            list.selected_resource_token = 0U;
+            list.next_resource_head_token = 0xDEADBEEFU;
+        } else if (path == 1U) {
+            list.resources[0U].next_token = 0U;
+        } else if (path == 2U) {
+            list.next_resource_head_token = 0xDEADBEEFU;
+        } else if (path == 3U) {
+            list.resources[0U].next_token = 0xDEADBEEFU;
+        } else if (path == 4U) {
+            list.selected_resource_token = 0xDEADBEEFU;
+        } else if (path == 6U) {
+            list.selected_resource_token = 0x76000000U;
+            list.resources[0U].resource_id = 0x777U;
+            list.resources[0U].primary_quantity = 4U;
+            list.resources[0U].secondary_quantity = 1;
+        }
+
+        const auto result = release_legacy_battle_actor_resource(
+            path == 7U ? nullptr : &list, path == 5U ? nullptr : &workspace
+        );
+        const auto expected_status = path < 2U
+            ? LegacyBattleActorListQueryStatus::completed
+            : path == 5U
+            ? LegacyBattleActorListQueryStatus::actor_state_typed_stop
+            : path == 7U
+            ? LegacyBattleActorListQueryStatus::list_owner_typed_stop
+            : LegacyBattleActorListQueryStatus::resource_node_typed_stop;
+        const u32 expected_head = path == 1U ? 0U
+            : path == 4U                     ? 0x76000010U
+            : path == 5U                     ? 0x76000020U
+            : path == 6U                     ? 0x76000000U
+            : path == 7U                     ? 0x12345678U
+                                             : 0xDEADBEEFU;
+        test.expect_true(
+            result.status == expected_status &&
+                (path >= 2U || result.output_word == 0U) &&
+                list.resource_head_token == expected_head &&
+                list.selected_resource_token ==
+                    (path == 0U || path == 6U ? 0U
+                         : path == 4U         ? 0xDEADBEEFU
+                                              : 0x76000020U) &&
+                workspace.tail_words[2U] == (path == 6U ? 0x777U : 0xBEEFU) &&
+                list.resources.size() == (path == 6U ? 2U : 3U) &&
+                list.resources.back().primary_quantity == 4U &&
+                list.resources.back().secondary_quantity == 2 &&
+                list.resources[path == 6U ? 0U : 1U].secondary_quantity == 7,
+            "resource release preserves each normal-zero or missing-owner prefix including selected publication before workspace failure and actual erase before relink failure"
+        );
+    }
+
+    for (const u32 path : {0U, 1U, 2U, 3U}) {
+        LegacyBattleActorListQueryState list;
+        LegacyBattleGroupAWorkspaceState workspace;
+        LegacyBattleGroupAConfigurationState configuration;
+        LegacyBattleGroupAItemEffectApplicationState item_effect;
+        configuration.actor_record_token = 0x71000000U;
+        configuration.actor_record[2U] = 0xABCD000AU;
+        workspace.tail_words[2U] = 0xBEEFU;
+        item_effect.mode_flags = path == 0U ? 0U : 0x80U;
+        list.next_resource_head_token = path == 2U ? 0xDEADBEEFU : 0x76000000U;
+        list.selected_resource_token = path == 3U ? 0x76000000U : 0x76000010U;
+        list.primary_required = 9U;
+        list.secondary_required = 3U;
+        list.resources = {
+            {.token = 0x76000000U,
+             .next_token = 0x76000010U,
+             .resource_id = 0x777U,
+             .primary_quantity = 4U,
+             .secondary_quantity = 1,
+             .name = {}},
+            {.token = 0x76000010U,
+             .resource_id = 0x777U,
+             .secondary_quantity = 2,
+             .name = {},
+             .gate_word_48 = 0x0402U,
+             .capacity_gate_flags = 0x2000U},
+        };
+
+        const auto result = execute_legacy_battle_actor_list_action(
+            &list, &item_effect, &configuration, &workspace, 0x005029D0U
+        );
+        test.expect_true(
+            result.status ==
+                    (path < 2U ? LegacyBattleActorListQueryStatus::completed
+                               : LegacyBattleActorListQueryStatus::
+                                     resource_node_typed_stop) &&
+                configuration.actor_record[2U] ==
+                    (path < 2U ? 0xABCD0007U : 0xABCD000AU) &&
+                list.primary_required == (path == 1U ? 0U : 9U) &&
+                list.secondary_required == (path < 2U ? 0U : 3U) &&
+                list.selected_resource_token ==
+                    (path == 1U || path == 3U ? 0U : 0x76000010U) &&
+                list.resources.size() == (path == 3U ? 1U : 2U) &&
+                list.resources.back().secondary_quantity == 2 &&
+                list.resources.back().gate_word_48 ==
+                    (path == 1U ? 0x0401U : 0x0402U) &&
+                workspace.tail_words[2U] ==
+                    (path == 1U || path == 3U ? 0x777U : 0xBEEFU),
+            "list action discards the normal zero WORD, clears required capacity only after successful consumption and preserves unrefreshed capacity after resource failure"
+        );
+    }
+}
+
 }  // namespace
 
 void test_battle_actor_list_query(openswd3::test::Context& test) {
+    test_actor_resource_release_prefixes(test);
     using namespace openswd3::battle;
     const std::array<openswd3::compat::u16, 4> table{10U, 20U, 30U, 40U};
 
@@ -264,7 +392,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             result.status == LegacyBattleActorListQueryStatus::completed &&
                 (configuration.actor_record[1U] >> 16U) == 0U &&
                 list.primary_required == 0U && result.capacity_writes == 2U &&
-                result.refresh_calls == 1U && result.release_calls == 0U,
+                result.refresh_calls == 1U,
             "actor list action wraps subtraction then clamps a negative signed capacity"
         );
     }
@@ -288,12 +416,14 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             &list, &item_effect, &configuration, &workspace, 0x005029D0U
         );
         test.expect_true(
-            result.release_calls == 1U && result.refresh_calls == 1U &&
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.refresh_calls == 1U &&
+                list.resource_head_token == 0x76000010U &&
                 list.selected_resource_token == 0U &&
                 list.primary_required == 0U &&
                 list.resources[1U].secondary_quantity == 1 &&
-                result.return_eax == 0x76000004U && result.return_edx == 0U,
-            "selected resource path uses the typed release then refreshes using its returned registers"
+                workspace.tail_words[2U] == 4U,
+            "selected resource path consumes the owned node then clears selection and required capacity before refreshing"
         );
     }
 
@@ -766,21 +896,19 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .name = {},
              .gate_word_48 = 0x0402U},
         };
-        const auto result = release_legacy_battle_actor_resource(
-            &list,
-            &workspace,
-            0x005029D0U,
-            {.entry_eax = 0xAAAAAAAAU, .entry_edx = 0xBBBB0000U}
-        );
+
+        const auto result =
+            release_legacy_battle_actor_resource(&list, &workspace);
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                result.commit_calls == 1U && result.nodes_visited == 1U &&
-                result.gate_writes == 1U && result.quantity_writes == 0U &&
-                result.deallocation_calls == 0U &&
+                list.resources.size() == 2U &&
                 list.resources[1U].gate_word_48 == 0x0401U &&
                 list.resources[1U].primary_quantity == 4U &&
+                list.resources[1U].secondary_quantity == 2 &&
                 list.selected_resource_token == 0x76000010U &&
-                result.return_eax == 0x76000033U && result.return_edx == 1U,
+                list.resource_head_token == 0x76000010U &&
+                workspace.tail_words[2U] == 0x33U &&
+                result.output_word == 0x33U,
             "resource release decrements the low-byte gate first and preserves quantities while the gate remains nonzero"
         );
     }
@@ -798,16 +926,17 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .name = {},
              .capacity_gate_flags = 0x2000U},
         };
-        const auto result = release_legacy_battle_actor_resource(
-            &list, &workspace, 0x005029D0U
-        );
+
+        const auto result =
+            release_legacy_battle_actor_resource(&list, &workspace);
         test.expect_true(
-            result.quantity_writes == 2U && result.selected_clears == 1U &&
-                result.deallocation_calls == 0U &&
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                list.resources.size() == 2U &&
                 list.resources[1U].primary_quantity == 1U &&
                 list.resources[1U].secondary_quantity == 1 &&
                 list.selected_resource_token == 0U &&
-                result.output_word == 0U && result.return_eax == 0x76000000U,
+                list.resource_head_token == 0x76000010U &&
+                workspace.tail_words[2U] == 0x44U && result.output_word == 0U,
             "resource release decrements secondary before tertiary, also decrements primary, clears selection and applies bit-thirteen return suppression"
         );
     }
@@ -830,17 +959,16 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .name = {}},
             {.token = 0x76000030U, .resource_id = 3U, .name = {}},
         };
-        const auto result = release_legacy_battle_actor_resource(
-            &list, &workspace, 0x005029D0U
-        );
+
+        const auto result =
+            release_legacy_battle_actor_resource(&list, &workspace);
         test.expect_true(
-            result.nodes_visited == 2U && result.commit_calls == 2U &&
-                result.deallocation_calls == 1U && result.relink_writes == 1U &&
+            result.status == LegacyBattleActorListQueryStatus::completed &&
                 list.resources.size() == 3U &&
                 list.resources[1U].next_token == 0x76000030U &&
                 list.selected_resource_token == 0U &&
-                result.return_ecx == 0x76000010U &&
-                result.return_eax == 0x76000002U,
+                list.resource_head_token == 0x76000010U &&
+                workspace.tail_words[2U] == 2U && result.output_word == 2U,
             "resource release removes a depleted middle node and replays the destructive traversal count to patch its predecessor"
         );
     }
@@ -850,13 +978,16 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         list.next_resource_head_token = 0xABCD0000U;
         list.selected_resource_token = 0U;
         list.resources = {{.token = 0xABCD0000U, .name = {}}};
-        const auto result = release_legacy_battle_actor_resource(
-            &list, &workspace, 0x005029D0U
-        );
+        workspace.tail_words[2U] = 0xBEEFU;
+        const auto result =
+            release_legacy_battle_actor_resource(&list, &workspace);
         test.expect_true(
-            result.return_eax == 0xABCD0000U && result.return_ecx == 0U &&
-                result.nodes_visited == 0U,
-            "missing selected resource zeroes only AX and preserves the committed head high word"
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.output_word == 0U &&
+                list.resource_head_token == 0xABCD0000U &&
+                list.resources.size() == 1U &&
+                workspace.tail_words[2U] == 0xBEEFU,
+            "missing selected resource returns a normal zero after publishing the head and preserving the workspace"
         );
     }
 
