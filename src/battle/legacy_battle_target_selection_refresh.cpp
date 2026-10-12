@@ -345,7 +345,6 @@ private:
             shape = GroupARegisterShape::eax_3ef_edx_bcd;
         } else if (
             call == Call::query_group_b_completion ||
-            call == Call::query_actor_property_a ||
             call == Call::query_actor_cleanup
         ) {
             shape = GroupARegisterShape::eax_3ef;
@@ -810,13 +809,23 @@ private:
 
     [[nodiscard]] bool
     query_actor_properties(const u32 actor_code, const u32 output_value) {
-        if (!invoke_group_a(Call::query_actor_property_a, actor_code)) {
+        const u32 actor_index = actor_code - 8U;
+        if (actor_index >= bindings_.startup.party.size()) {
+            typed_stop(Status::group_a_actor_typed_stop);
             return false;
         }
-        eax_ &= 0xFFFFU;
+
+        const auto marked_profile_word = static_cast<u16>(
+            bindings_.startup.party[actor_index]
+                .final_processing.profile_buffer[7U] >>
+            16U
+        );
+        const u32 marked_value = (marked_profile_word & 0x8000U) != 0U
+            ? marked_profile_word & 0x7FFFU
+            : 0U;
         input_.selection_target_cache = 0U;
-        edx_ = (actor_code - 8U) * 5U;
-        if (!write_runtime_record(actor_code, 3U, eax_)) {
+        edx_ = actor_index * 5U;
+        if (!write_runtime_record(actor_code, 3U, marked_value)) {
             return false;
         }
 
@@ -1671,11 +1680,7 @@ private:
             return;
         }
 
-        if (actor_code < 8U) {
-            typed_stop(Status::group_a_actor_typed_stop);
-            return;
-        }
-        const u32 override_index = actor_code - 8U;
+        const u32 override_index = final_actor_.queued_actor_code - 8U;
         if (override_index >=
             bindings_.action.group_a_action_execution.size()) {
             typed_stop(Status::group_a_actor_typed_stop);
@@ -1721,12 +1726,13 @@ private:
             return;
         }
 
-        if (!query_actor_properties(actor_code, local_output_)) {
+        const u32 saved_actor = final_actor_.queued_actor_code;
+        if (!query_actor_properties(saved_actor, local_output_)) {
             return;
         }
         if (!resolve_property_fallback(
                 frame_.current_equipment_selection,
-                actor_code,
+                saved_actor,
                 local_output_,
                 true
             )) {
@@ -1933,10 +1939,13 @@ private:
         if ((eax_ & 0xFFFFU) == 0xFFFFU) {
             return;
         }
-        if (!query_actor_properties(actor_code, local_output_)) {
+
+        const u32 saved_actor = final_actor_.queued_actor_code;
+        if (!query_actor_properties(saved_actor, local_output_)) {
             return;
         }
-        if (!resolve_property_fallback(0U, actor_code, local_output_, false)) {
+
+        if (!resolve_property_fallback(0U, saved_actor, local_output_, false)) {
             return;
         }
         if (!final_target_refresh()) {
@@ -2027,10 +2036,13 @@ private:
             sample(0x8CU);
             return;
         }
-        if (!query_actor_properties(actor_code, local_output_)) {
+
+        const u32 saved_actor = final_actor_.queued_actor_code;
+        if (!query_actor_properties(saved_actor, local_output_)) {
             return;
         }
-        if (!resolve_property_fallback(5U, actor_code, local_output_, false)) {
+
+        if (!resolve_property_fallback(5U, saved_actor, local_output_, false)) {
             return;
         }
         if (!final_target_refresh()) {
