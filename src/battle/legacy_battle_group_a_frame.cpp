@@ -94,7 +94,6 @@ constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallRandom = 0x00439070U;
 constexpr u32 kCallQueryActorReady = 0x00480220U;
 constexpr u32 kCallQueryPrimaryAi = 0x0047D880U;
-constexpr u32 kCallQuerySecondaryAi = 0x0047D8D0U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallQueryQueueMode = 0x00483820U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
@@ -1476,9 +1475,13 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                                 .eax == 1U) {
                             actor.special_ready = 1U;
                         }
-                        if (invoke(port, kCallQuerySecondaryAi, {actor_token})
-                                .eax == 1U) {
-                            actor.action_complete = 1U;
+
+                        if ((state.action
+                                 .group_a_action_execution[group_a_index]
+                                 .special_particle_coordinate_suppression &
+                             1U) != 0U) {
+                            context.startup->reset
+                                .block_520e90[group_a_index * 5U + 1U] = 1U;
                         }
                     }
                 } else if (!reset_actor_runtime(
@@ -1664,7 +1667,8 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
     }
 
     if (state.actor_enabled[group_a_index] == 1U) {
-        if (actor.action_complete != 1U) {
+        if (context.startup->reset.block_520e90[group_a_index * 5U + 1U] !=
+            1U) {
             if (actor.mode_gate != 0U) {
                 if (!validate_one_based_group_a(
                         result, state.selected_actor_one_based

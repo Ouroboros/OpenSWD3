@@ -212,7 +212,6 @@ struct Fixture {
     std::array<u8, 16> flags{};
     std::array<std::array<u32, 14>, 4> primary_party_sources{};
     openswd3::battle::LegacyBattleStartupState startup;
-    openswd3::battle::LegacyBattleStartupResetBlocks startup_reset;
     openswd3::battle::LegacyBattleTextMessageState text_messages;
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
         attack_order_records{};
@@ -260,7 +259,7 @@ struct Fixture {
             .countdown_flags = countdown_flags,
             .internal_flags = flags,
             .startup = &startup,
-            .startup_reset = &startup_reset,
+            .startup_reset = &startup.reset,
             .text_messages = &text_messages,
             .attack_order_records = attack_order_records,
             .attack_order_adjacent_intensity_records =
@@ -309,14 +308,14 @@ void test_group_a_overlay_clearing(openswd3::test::Context& test) {
                 context.actor_target_selection_count_increment_access
                     .count_readable = false;
             } else if (path == 3U) {
-                state.actors[0U].action_complete = 1U;
+                fixture.startup.reset.block_520e90[1U] = 1U;
                 state.selection_mode = 1U;
                 state.action.group_a_count = 3;
                 state.actor_ai_primary[0U] = 1U;
                 state.actor_ai_secondary[1U] = 1U;
                 port.push(0x0047CEA0U, {.eax = 0U});
             } else {
-                state.actors[0U].action_complete = 1U;
+                fixture.startup.reset.block_520e90[1U] = 1U;
                 state.action.group_b_count = 1;
                 state.action.group_a_to_actor[0U] = 0xFFFFFFFFU;
                 port.push(0x0047CE80U, {.eax = 0U});
@@ -667,10 +666,10 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
         auto state_storage = std::make_unique<PausedFrameState>();
         auto& state = *state_storage;
         state.actor_enabled[0U] = 1U;
-        state.actors[0U].action_complete = 1U;
         state.action.group_b_count = 1;
         state.action.group_a_to_actor[0U] = 0xFFFFFFFFU;
         Fixture fixture;
+        fixture.startup.reset.block_520e90[1U] = 1U;
         fixture.startup.group_b_lifecycle = std::make_shared<
             std::array<LegacyBattleActorGroupBElementState, 8>>();
         (*fixture.startup.group_b_lifecycle)[0U]
@@ -713,11 +712,11 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
         auto state_storage = std::make_unique<PausedFrameState>();
         auto& state = *state_storage;
         state.actor_enabled[0U] = 1U;
-        state.actors[0U].action_complete = 1U;
         state.action.group_b_count = 2;
         state.action.group_a_to_actor[0U] = 0xFFFFFFFFU;
         state.action.group_a_to_actor[1U] = 0xFFFFFFFFU;
         Fixture fixture;
+        fixture.startup.reset.block_520e90[1U] = 1U;
         fixture.startup.group_b_lifecycle = std::make_shared<
             std::array<LegacyBattleActorGroupBElementState, 8>>();
         (*fixture.startup.group_b_lifecycle)[0U]
@@ -769,11 +768,11 @@ void test_group_a_target_count_increment(openswd3::test::Context& test) {
         auto state_storage = std::make_unique<PausedFrameState>();
         auto& state = *state_storage;
         state.actor_enabled[0U] = 1U;
-        state.actors[0U].action_complete = 1U;
         state.action.group_b_count = 2;
         state.action.group_a_to_actor[0U] = 0xFFFFFFFFU;
         state.action.group_a_to_actor[1U] = 7U;
         Fixture fixture;
+        fixture.startup.reset.block_520e90[1U] = 1U;
         fixture.startup.group_b_lifecycle = std::make_shared<
             std::array<LegacyBattleActorGroupBElementState, 8>>();
         (*fixture.startup.group_b_lifecycle)[0U]
@@ -907,7 +906,7 @@ void test_idle_query_failures(openswd3::test::Context& test) {
                 } else {
                     state.actor_enabled[0U] = 1U;
                     if (branch == 1U) {
-                        state.actors[0U].action_complete = 1U;
+                        fixture.startup.reset.block_520e90[1U] = 1U;
                         state.actors[0U].frame_started = 1U;
                         state.selection_mode = 1U;
                         state.action.group_a_count = 1;
@@ -978,9 +977,167 @@ void test_idle_query_failures(openswd3::test::Context& test) {
     );
 }
 
+void test_group_a_target_selection_attribute(openswd3::test::Context& test) {
+    constexpr std::array<u8, 9> attributes{
+        0U, 1U, 2U, 3U, 0x7CU, 0x80U, 0xFDU, 0xFEU, 0xFFU
+    };
+
+    for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {
+        for (const u8 attribute : attributes) {
+            for (const u32 previous : {0U, 1U, 0xAABBCCDDU}) {
+                auto storage = std::make_unique<
+                    openswd3::battle::LegacyBattleGroupAFrameState>();
+                auto& state = *storage;
+                Fixture fixture;
+                DispatchPort port;
+                state.action.frame_enabled = 1U;
+                state.actor_ai_primary[actor_index] = 1U;
+                state.action.group_b_count = 1;
+                for (auto& execution : state.action.group_a_action_execution) {
+                    execution.special_particle_coordinate_suppression = 0xA5U;
+                }
+
+                state.action.group_a_action_execution[actor_index]
+                    .special_particle_coordinate_suppression = attribute;
+                auto& auxiliary = fixture.startup.reset.block_520e90;
+                for (std::size_t offset = 0U; offset < auxiliary.size();
+                     ++offset) {
+                    auxiliary[offset] = 0x98760000U + static_cast<u32>(offset);
+                }
+
+                const u32 target_offset = actor_index * 5U + 1U;
+                auxiliary[target_offset] = previous;
+                auto expected = auxiliary;
+                if ((attribute & 1U) != 0U) {
+                    expected[target_offset] = 1U;
+                }
+
+                port.push(0x0047CE80U, {.eax = 0U});
+                port.push(0x0047CE80U, {.eax = 0U});
+                port.push(0x00439070U, {.eax = 0U});
+                port.push(0x0047D880U, {.eax = 0U});
+                bool predecessor_observed = false;
+                port.before_invoke = [&](const LegacyBattleActionCallRequest&
+                                             request) {
+                    if (request.callee_token == 0x0047D880U) {
+                        predecessor_observed =
+                            auxiliary[target_offset] == previous &&
+                            state.action.group_a_action_execution[actor_index]
+                                    .special_particle_coordinate_suppression ==
+                                attribute &&
+                            state.actors[actor_index].action_complete == 1U &&
+                            state.final_actor_step.selection_gate == 1U &&
+                            state.final_actor_step
+                                    .group_a_availability_blocks[actor_index]
+                                    .value == 1U;
+                    }
+                };
+
+                auto context = fixture.context();
+                const auto result =
+                    openswd3::battle::advance_legacy_battle_group_a_frame(
+                        state, port, context, actor_index
+                    );
+                bool attributes_preserved = true;
+                for (std::size_t slot = 0U;
+                     slot < state.action.group_a_action_execution.size();
+                     ++slot) {
+                    attributes_preserved = attributes_preserved &&
+                        state.action.group_a_action_execution[slot]
+                                .special_particle_coordinate_suppression ==
+                            (slot == actor_index ? 0U : 0xA5U);
+                }
+
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActionDispatchStatus::completed &&
+                        result.return_value == 1U && predecessor_observed &&
+                        auxiliary == expected && attributes_preserved &&
+                        result.group_a_actor_cleanup_calls == 1U &&
+                        state.actors[actor_index].action_complete == 1U &&
+                        port.count(0x0047D8D0U) == 0U &&
+                        port.count(0x0047D880U) == 1U,
+                    "party target bit zero writes its actual auxiliary row after readiness and preserves progress completion and the final actor profile clear"
+                );
+            }
+        }
+    }
+
+    for (const u8 attribute : {u8{0U}, u8{1U}}) {
+        for (const u32 ready_result : {0U, 2U, 0xFFFFFFFFU}) {
+            auto storage = std::make_unique<
+                openswd3::battle::LegacyBattleGroupAFrameState>();
+            auto& state = *storage;
+            Fixture fixture;
+            DispatchPort port;
+            state.action.frame_enabled = 1U;
+            state.actor_ai_primary[0U] = 1U;
+            state.action.group_b_count = 1;
+            state.action.group_a_action_execution[0U]
+                .special_particle_coordinate_suppression = attribute;
+            fixture.startup.reset.block_520e90[1U] = 0xAABBCCDDU;
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x00439070U, {.eax = 0U});
+            port.push(0x00480220U, {.eax = ready_result});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    state.final_actor_step.selection_gate == 1U &&
+                    state.final_actor_step.group_a_availability_blocks[0U]
+                            .value == 1U &&
+                    fixture.startup.reset.block_520e90[1U] == 0xAABBCCDDU &&
+                    state.actors[0U].action_complete == 1U &&
+                    port.count(0x0047D880U) == 0U &&
+                    port.count(0x0047D8D0U) == 0U,
+                "non-one readiness retains the published availability and selection prefix without reading either party property"
+            );
+        }
+    }
+
+    for (const u32 target_flag : {0U, 1U, 0xAABBCCDDU}) {
+        for (const u32 actor_completion : {0U, 1U, 0xFFFFFFFFU}) {
+            auto storage = std::make_unique<PausedFrameState>();
+            auto& state = *storage;
+            Fixture fixture;
+            DispatchPort port;
+            state.actor_enabled[2U] = 1U;
+            state.actors[2U].action_complete = actor_completion;
+            fixture.startup.reset.block_520e90[11U] = target_flag;
+            auto context = fixture.context();
+            context.actor_idle_state_access.latch_readable = false;
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 2U
+                );
+            test.expect_true(
+                (target_flag == 1U ? result.status ==
+                             LegacyBattleActionDispatchStatus::completed &&
+                         result.actor_target_selection_latch_query
+                             .has_value() &&
+                         !result.actor_idle_state.has_value()
+                                   : result.status ==
+                             LegacyBattleActionDispatchStatus::
+                                 actor_idle_state_typed_stop &&
+                         result.actor_idle_state.has_value() &&
+                         !result.actor_target_selection_latch_query
+                              .has_value()) &&
+                    fixture.startup.reset.block_520e90[11U] == target_flag &&
+                    state.actors[2U].action_complete == actor_completion,
+                "party frame tests exact one in the shared auxiliary flag independently of the actor completion DWORD"
+            );
+        }
+    }
+}
+
 }  // namespace
 
 void test_battle_group_a_frame(openswd3::test::Context& test) {
+    test_group_a_target_selection_attribute(test);
     test_group_a_overlay_clearing(test);
     for (u32 branch = 0U; branch < 3U; ++branch) {
         auto state_storage = std::make_unique<PausedFrameState>();
@@ -1002,7 +1159,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
         state.actors[0U].mode_gate = branch == 0U ? 1U : 0U;
         state.actor_ai_primary[0U] = branch == 1U ? 1U : 0U;
         state.selected_opponent_one_based = 0U;
-        state.actors[0U].action_complete = branch == 2U ? 1U : 0U;
+        fixture.startup.reset.block_520e90[1U] = branch == 2U ? 1U : 0U;
         presentation.target_selection_latch = branch == 2U ? 1U : 0U;
         context.actor_action_mode_access.argument_readable = branch != 0U;
         auto& availability =
@@ -1250,11 +1407,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
             state.actor_enabled[0U] = 1U;
-            state.actors[0U].action_complete = 1U;
             state.actors[0U].frame_started = 1U;
             state.selection_mode = 1U;
             state.action.group_a_count = 1;
             Fixture fixture;
+            fixture.startup.reset.block_520e90[1U] = 1U;
             DispatchPort port;
             port.push(0x0047CEA0U, {.eax = 0U, .edx = 0x11223344U});
             auto context = fixture.context();
@@ -1350,13 +1507,13 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
 
             LegacyBattleGroupAFrameState peer_state;
             peer_state.actor_enabled[0U] = 1U;
-            peer_state.actors[0U].action_complete = 1U;
             peer_state.actors[0U].frame_started = 1U;
             peer_state.selection_mode = 1U;
             peer_state.action.group_a_count = 1;
             peer_state.action.group_a_action_execution[0U].idle_state_latch =
                 7U;
             Fixture peer_fixture;
+            peer_fixture.startup.reset.block_520e90[1U] = 1U;
             DispatchPort peer_port;
             peer_port.push(0x0047CEA0U, {.eax = 0U});
             auto peer_context = peer_fixture.context();
@@ -2018,6 +2175,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             state.action.group_b_count = 2;
             state.actors[0].cache_x = 7U;
             state.actors[0].cache_y = 6U;
+            state.action.group_a_action_execution[0U]
+                .special_particle_coordinate_suppression = 1U;
             auto& frame_source = state.action.group_a_action_execution[0U]
                                      .frame_source_action_record;
             frame_source.field_24 = 7U;
@@ -2044,7 +2203,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     state.selected_opponent_one_based == 1U &&
                     state.final_actor_step.selection_gate == 1U &&
                     state.actors[0].special_ready == 1U &&
-                    state.actors[0].action_complete == 1U &&
+                    fixture.startup.reset.block_520e90[1U] == 1U &&
                     state.actors[0].update_ready == 1U &&
                     state.actors[0].cache_x == 0U &&
                     state.actors[0].cache_y == 0U &&
@@ -2385,11 +2544,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
             state.actor_enabled[0] = 1U;
-            state.actors[0].action_complete = 1U;
             state.action.group_b_count = 2;
             state.action.group_a_to_actor[0] = 0xFFFFFFFFU;
             state.action.group_a_to_actor[1] = 0xFFFFFFFFU;
             Fixture fixture;
+            fixture.startup.reset.block_520e90[1U] = 1U;
             fixture.startup.group_b_lifecycle = std::make_shared<std::array<
                 openswd3::battle::LegacyBattleActorGroupBElementState,
                 openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
@@ -2447,9 +2606,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
             state.actor_enabled[2U] = 1U;
-            state.actors[2U].action_complete = 1U;
             state.action.group_b_count = 0;
             Fixture fixture;
+            fixture.startup.reset.block_520e90[11U] = 1U;
             (*fixture.startup.group_a_runtime_reset)[0U]
                 .target_selection_latch = 1U;
             (*fixture.startup.group_a_runtime_reset)[2U]
@@ -2477,9 +2636,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
             state.actor_enabled[0U] = 1U;
-            state.actors[0U].action_complete = 1U;
             state.action.group_b_count = 0;
             Fixture fixture;
+            fixture.startup.reset.block_520e90[1U] = 1U;
             (*fixture.startup.group_a_runtime_reset)[0U]
                 .target_selection_latch = 1U;
             DispatchPort port;
@@ -2519,11 +2678,11 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 std::make_unique<LegacyBattleGroupAFrameState>();
             auto& state = *state_storage;
             state.actor_enabled[2U] = 1U;
-            state.actors[2U].action_complete = 1U;
             state.action.group_b_count = 2;
             state.action.group_a_to_actor[0U] = 0xFFFFFFFFU;
             state.action.group_a_to_actor[1U] = 0xFFFFFFFFU;
             Fixture fixture;
+            fixture.startup.reset.block_520e90[11U] = 1U;
             fixture.startup.group_b_lifecycle = std::make_shared<std::array<
                 openswd3::battle::LegacyBattleActorGroupBElementState,
                 openswd3::battle::kLegacyBattleActorGroupBElementCount>>();
@@ -2995,7 +3154,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 frame.grid_selection = 99U;
                 const auto menu_result =
                     openswd3::battle::advance_legacy_battle_menu_context(
-                        {fixture.startup_reset,
+                        {fixture.startup.reset,
                          state.final_actor_step,
                          frame,
                          menu_input,
@@ -4391,7 +4550,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     result.turn_commit_chance.return_eax == 0U &&
                     result.turn_commit_chance.random_calls == 0U &&
                     result.text_message_calls == 1U &&
-                    fixture.startup_reset.block_5214f8[0U] == 0x72000000U &&
+                    fixture.startup.reset.block_5214f8[0U] == 0x72000000U &&
                     fixture.text_messages.allocations[0U].record.value_04 ==
                         0x118U,
                 "zero turn candidate takes the deterministic failure reset without consuming random state"
