@@ -93,7 +93,6 @@ constexpr u32 kCallFinalizeAttributeEffect = 0x0047CEC0U;
 constexpr u32 kCallQueryTerminal = 0x0047CE80U;
 constexpr u32 kCallRandom = 0x00439070U;
 constexpr u32 kCallQueryActorReady = 0x00480220U;
-constexpr u32 kCallQueryPrimaryAi = 0x0047D880U;
 constexpr u32 kCallPlaySample = 0x00485610U;
 constexpr u32 kCallQueryQueueMode = 0x00483820U;
 constexpr u32 kCallQueryQueueCompletion = 0x0047F920U;
@@ -1471,9 +1470,12 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         return result;
                     }
                     if (ready.eax == 1U) {
-                        if (invoke(port, kCallQueryPrimaryAi, {actor_token})
-                                .eax == 1U) {
-                            actor.special_ready = 1U;
+                        if ((state.action
+                                 .group_a_action_execution[group_a_index]
+                                 .special_particle_coordinate_suppression &
+                             2U) != 0U) {
+                            context.startup->reset
+                                .block_520e90[group_a_index * 5U + 2U] = 1U;
                         }
 
                         if ((state.action

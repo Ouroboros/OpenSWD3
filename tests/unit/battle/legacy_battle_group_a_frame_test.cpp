@@ -215,7 +215,6 @@ struct Fixture {
     openswd3::battle::LegacyBattleTextMessageState text_messages;
     std::array<openswd3::battle::LegacyBattleStartupResetRecord, 0x12>
         attack_order_records{};
-    std::array<u32, 0x32> attack_order_party_sources{};
     u32 attack_order_primary_gate{};
     u32 attack_order_secondary_gate{};
     openswd3::battle::LegacyBattleIntensityEffectRecord
@@ -264,7 +263,7 @@ struct Fixture {
             .attack_order_records = attack_order_records,
             .attack_order_adjacent_intensity_records =
                 {&attack_order_adjacent_record, 1U},
-            .attack_order_party_sources = attack_order_party_sources,
+            .attack_order_party_sources = startup.reset.block_520e90,
             .attack_order_primary_gate = &attack_order_primary_gate,
             .attack_order_secondary_gate = &attack_order_secondary_gate,
             .status_indicator_action_eax_snapshot = 0U,
@@ -977,6 +976,209 @@ void test_idle_query_failures(openswd3::test::Context& test) {
     );
 }
 
+void test_group_a_coordinate_attribute(openswd3::test::Context& test) {
+    using openswd3::battle::LegacyBattleGroupAFrameState;
+
+    constexpr std::array<u8, 9> attributes{
+        0U, 1U, 2U, 3U, 0x7CU, 0x80U, 0xFDU, 0xFEU, 0xFFU
+    };
+
+    for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {
+        for (const u8 attribute : attributes) {
+            for (const u32 previous : {0U, 1U, 0xAABBCCDDU}) {
+                auto storage = std::make_unique<LegacyBattleGroupAFrameState>();
+                auto& state = *storage;
+                Fixture fixture;
+                DispatchPort port;
+                state.action.frame_enabled = 1U;
+                state.actor_ai_primary[actor_index] = 1U;
+                state.action.group_b_count = 1;
+                state.actors[actor_index].special_ready = 0xAABBCCDDU;
+                for (auto& execution : state.action.group_a_action_execution) {
+                    execution.special_particle_coordinate_suppression = 0xA5U;
+                }
+
+                state.action.group_a_action_execution[actor_index]
+                    .special_particle_coordinate_suppression = attribute;
+                auto& auxiliary = fixture.startup.reset.block_520e90;
+                for (std::size_t offset = 0U; offset < auxiliary.size();
+                     ++offset) {
+                    auxiliary[offset] = 0x98760000U + static_cast<u32>(offset);
+                }
+
+                const u32 row_offset = actor_index * 5U;
+                auxiliary[row_offset + 2U] = previous;
+                auto expected = auxiliary;
+                if ((attribute & 2U) != 0U) {
+                    expected[row_offset + 2U] = 1U;
+                }
+
+                if ((attribute & 1U) != 0U) {
+                    expected[row_offset + 1U] = 1U;
+                }
+
+                port.push(0x0047CE80U, {.eax = 0U});
+                port.push(0x0047CE80U, {.eax = 0U});
+                port.push(0x00439070U, {.eax = 0U});
+                bool readiness_observed = false;
+                port.before_invoke = [&](const LegacyBattleActionCallRequest&
+                                             request) {
+                    if (request.callee_token == 0x00480220U) {
+                        readiness_observed =
+                            auxiliary[row_offset + 2U] == previous &&
+                            state.action.group_a_action_execution[actor_index]
+                                    .special_particle_coordinate_suppression ==
+                                attribute &&
+                            state.actors[actor_index].special_ready ==
+                                0xAABBCCDDU &&
+                            state.actors[actor_index].action_complete == 1U &&
+                            state.final_actor_step.selection_gate == 1U;
+                    }
+                };
+
+                auto context = fixture.context();
+                const auto result =
+                    openswd3::battle::advance_legacy_battle_group_a_frame(
+                        state, port, context, actor_index
+                    );
+                bool attributes_match = true;
+                for (std::size_t slot = 0U;
+                     slot < state.action.group_a_action_execution.size();
+                     ++slot) {
+                    attributes_match = attributes_match &&
+                        state.action.group_a_action_execution[slot]
+                                .special_particle_coordinate_suppression ==
+                            (slot == actor_index ? 0U : 0xA5U);
+                }
+
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActionDispatchStatus::completed &&
+                        result.return_value == 1U && readiness_observed &&
+                        auxiliary == expected && attributes_match &&
+                        state.actors[actor_index].special_ready ==
+                            0xAABBCCDDU &&
+                        state.actors[actor_index].action_complete == 1U &&
+                        result.group_a_actor_cleanup_calls == 1U &&
+                        port.count(0x0047D880U) == 0U &&
+                        port.count(0x0047D8D0U) == 0U,
+                    "party bit one writes only the actual auxiliary coordinate column and retains the independent actor state and final profile clear"
+                );
+                fixture.attack_order_primary_gate = 9U;
+                fixture.attack_order_secondary_gate = 8U;
+                const auto insertion =
+                    openswd3::battle::insert_legacy_battle_attack_order_entry(
+                        {
+                            .records = context.attack_order_records,
+                            .adjacent_intensity_records =
+                                context.attack_order_adjacent_intensity_records,
+                            .party_source_words =
+                                context.attack_order_party_sources,
+                            .primary_gate = context.attack_order_primary_gate,
+                            .secondary_gate =
+                                context.attack_order_secondary_gate,
+                        },
+                        1U,
+                        actor_index + 8U,
+                        0xFFFFFFFFU
+                    );
+                const auto& record = fixture.attack_order_records[0U];
+                auto expected_consumed = expected;
+                for (u32 column = 0U; column < 5U; ++column) {
+                    expected_consumed[row_offset + column] = 0U;
+                }
+
+                test.expect_true(
+                    insertion.status ==
+                            openswd3::battle::
+                                LegacyBattleAttackOrderInsertStatus::
+                                    completed &&
+                        insertion.written_offset == 0U &&
+                        record.value_00 == actor_index + 8U &&
+                        record.value_08 == 1U &&
+                        record.value_18 == expected[row_offset + 2U] &&
+                        record.value_14 == expected[row_offset + 1U] &&
+                        record.value_0c == expected[row_offset] &&
+                        record.value_0a ==
+                            static_cast<u16>(expected[row_offset + 3U]) &&
+                        record.value_04 == expected[row_offset + 4U] &&
+                        auxiliary == expected_consumed &&
+                        fixture.attack_order_primary_gate == 0U &&
+                        fixture.attack_order_secondary_gate == 0U,
+                    "the real attack order consumer copies both property columns from the same auxiliary owner before clearing only its five DWORD row"
+                );
+            }
+        }
+    }
+
+    for (const u8 attribute : {u8{0U}, u8{2U}}) {
+        for (const u32 ready_result : {0U, 2U, 0xFFFFFFFFU}) {
+            auto storage = std::make_unique<LegacyBattleGroupAFrameState>();
+            auto& state = *storage;
+            Fixture fixture;
+            DispatchPort port;
+            state.action.frame_enabled = 1U;
+            state.actor_ai_primary[0U] = 1U;
+            state.action.group_b_count = 1;
+            state.action.group_a_action_execution[0U]
+                .special_particle_coordinate_suppression = attribute;
+            fixture.startup.reset.block_520e90.fill(0xAABBCCDDU);
+            const auto expected = fixture.startup.reset.block_520e90;
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x0047CE80U, {.eax = 0U});
+            port.push(0x00439070U, {.eax = 0U});
+            port.push(0x00480220U, {.eax = ready_result});
+            auto context = fixture.context();
+            const auto result =
+                openswd3::battle::advance_legacy_battle_group_a_frame(
+                    state, port, context, 0U
+                );
+            test.expect_true(
+                result.status == LegacyBattleActionDispatchStatus::completed &&
+                    fixture.startup.reset.block_520e90 == expected &&
+                    state.final_actor_step.selection_gate == 1U &&
+                    state.actors[0U].special_ready == 0U &&
+                    state.actors[0U].action_complete == 1U &&
+                    port.count(0x0047D880U) == 0U &&
+                    port.count(0x0047D8D0U) == 0U,
+                "non one readiness preserves both actual property columns and the original progress prefix"
+            );
+        }
+    }
+
+    for (const u32 special_ready : {0U, 1U, 0xFFFFFFFFU}) {
+        auto storage = std::make_unique<LegacyBattleGroupAFrameState>();
+        auto& state = *storage;
+        Fixture fixture;
+        DispatchPort port;
+        state.action.frame_enabled = 1U;
+        state.actor_ai_primary[0U] = 1U;
+        state.action.group_b_count = 1;
+        state.actors[0U].special_ready = special_ready;
+        state.action.group_a_action_execution[0U]
+            .special_particle_coordinate_suppression = 2U;
+        fixture.startup.reset.block_520e90[2U] = 0xAABBCCDDU;
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x0047CE80U, {.eax = 0U});
+        port.push(0x00439070U, {.eax = 0U});
+        auto context = fixture.context();
+        const auto result =
+            openswd3::battle::advance_legacy_battle_group_a_frame(
+                state, port, context, 0U
+            );
+        test.expect_true(
+            result.status == LegacyBattleActionDispatchStatus::completed &&
+                state.actors[0U].special_ready == special_ready &&
+                fixture.startup.reset.block_520e90[2U] ==
+                    (special_ready == 1U ? 0xAABBCCDDU : 1U) &&
+                state.actors[0U].action_complete ==
+                    (special_ready == 1U ? 0U : 1U) &&
+                port.count(0x00480220U) == (special_ready == 1U ? 0U : 1U),
+            "the real actor special state blocks progress only at exact one and is never overwritten by the coordinate property"
+        );
+    }
+}
+
 void test_group_a_target_selection_attribute(openswd3::test::Context& test) {
     constexpr std::array<u8, 9> attributes{
         0U, 1U, 2U, 3U, 0x7CU, 0x80U, 0xFDU, 0xFEU, 0xFFU
@@ -1012,14 +1214,17 @@ void test_group_a_target_selection_attribute(openswd3::test::Context& test) {
                     expected[target_offset] = 1U;
                 }
 
+                if ((attribute & 2U) != 0U) {
+                    expected[actor_index * 5U + 2U] = 1U;
+                }
+
                 port.push(0x0047CE80U, {.eax = 0U});
                 port.push(0x0047CE80U, {.eax = 0U});
                 port.push(0x00439070U, {.eax = 0U});
-                port.push(0x0047D880U, {.eax = 0U});
                 bool predecessor_observed = false;
                 port.before_invoke = [&](const LegacyBattleActionCallRequest&
                                              request) {
-                    if (request.callee_token == 0x0047D880U) {
+                    if (request.callee_token == 0x00480220U) {
                         predecessor_observed =
                             auxiliary[target_offset] == previous &&
                             state.action.group_a_action_execution[actor_index]
@@ -1056,7 +1261,7 @@ void test_group_a_target_selection_attribute(openswd3::test::Context& test) {
                         result.group_a_actor_cleanup_calls == 1U &&
                         state.actors[actor_index].action_complete == 1U &&
                         port.count(0x0047D8D0U) == 0U &&
-                        port.count(0x0047D880U) == 1U,
+                        port.count(0x0047D880U) == 0U,
                     "party target bit zero writes its actual auxiliary row after readiness and preserves progress completion and the final actor profile clear"
                 );
             }
@@ -1137,6 +1342,7 @@ void test_group_a_target_selection_attribute(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_group_a_frame(openswd3::test::Context& test) {
+    test_group_a_coordinate_attribute(test);
     test_group_a_target_selection_attribute(test);
     test_group_a_overlay_clearing(test);
     for (u32 branch = 0U; branch < 3U; ++branch) {
@@ -2176,7 +2382,7 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             state.actors[0].cache_x = 7U;
             state.actors[0].cache_y = 6U;
             state.action.group_a_action_execution[0U]
-                .special_particle_coordinate_suppression = 1U;
+                .special_particle_coordinate_suppression = 3U;
             auto& frame_source = state.action.group_a_action_execution[0U]
                                      .frame_source_action_record;
             frame_source.field_24 = 7U;
@@ -2202,7 +2408,8 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     port.count(0x0046EE60U) == 0U &&
                     state.selected_opponent_one_based == 1U &&
                     state.final_actor_step.selection_gate == 1U &&
-                    state.actors[0].special_ready == 1U &&
+                    state.actors[0].special_ready == 0U &&
+                    fixture.startup.reset.block_520e90[2U] == 1U &&
                     fixture.startup.reset.block_520e90[1U] == 1U &&
                     state.actors[0].update_ready == 1U &&
                     state.actors[0].cache_x == 0U &&
@@ -2373,12 +2580,12 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto& state = *state_storage;
             state.action.group_a_action_execution[2U].idle_state_latch = 1U;
             Fixture fixture;
-            fixture.attack_order_party_sources[9U] = 0xDEADBEEFU;
-            fixture.attack_order_party_sources[10U] = 11U;
-            fixture.attack_order_party_sources[11U] = 22U;
-            fixture.attack_order_party_sources[12U] = 33U;
-            fixture.attack_order_party_sources[13U] = 44U;
-            fixture.attack_order_party_sources[14U] = 55U;
+            fixture.startup.reset.block_520e90[9U] = 0xDEADBEEFU;
+            fixture.startup.reset.block_520e90[10U] = 11U;
+            fixture.startup.reset.block_520e90[11U] = 22U;
+            fixture.startup.reset.block_520e90[12U] = 33U;
+            fixture.startup.reset.block_520e90[13U] = 44U;
+            fixture.startup.reset.block_520e90[14U] = 55U;
             fixture.attack_order_primary_gate = 9U;
             fixture.attack_order_secondary_gate = 8U;
             DispatchPort port;
@@ -2395,9 +2602,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         0xFFFFFFFFU &&
                     result.attack_order_insert.has_value() &&
                     result.attack_order_insert->written_offset == 0U &&
-                    fixture.attack_order_party_sources[9U] == 0xDEADBEEFU &&
+                    fixture.startup.reset.block_520e90[9U] == 0xDEADBEEFU &&
                     std::ranges::all_of(
-                        std::span{fixture.attack_order_party_sources}.subspan(
+                        std::span{fixture.startup.reset.block_520e90}.subspan(
                             10U, 5U
                         ),
                         [](const u32 value) { return value == 0U; }
