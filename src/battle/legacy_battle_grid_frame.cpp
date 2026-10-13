@@ -25,7 +25,6 @@ inline constexpr u32 kGroupABaseToken = 0x005029D0U;
 inline constexpr u32 kGroupACount = 10U;
 inline constexpr u32 kFontToken = 0x004C9A28U;
 inline constexpr u32 kTextSurfaceToken = 0x004CD76CU;
-inline constexpr u32 kPanelRowLimitToken = 0x0053BDF4U;
 inline constexpr u32 kSharedTextToken = 0x004FC2A0U;
 
 [[nodiscard]] constexpr i32 wrapping_i32(const u32 value) noexcept {
@@ -132,8 +131,6 @@ public:
 
         bindings_.panel_row_limit = 0U;
         const u32 actor_code = bindings_.queued_actor_code;
-        eax_ = group_a_scaled_1007(actor_code);
-        ecx_ = group_a_actor_token(actor_code);
         if (!valid_group_a_code(actor_code)) {
             result_.status = Status::group_a_actor_typed_stop;
             return finish();
@@ -146,40 +143,15 @@ public:
         }
 
         auto& party = bindings_.party[actor_index];
-        if (bindings_.scripted_port_test_compat) {
-            const auto initialized = invoke({
-                .call = Call::initialize_rows,
-                .object_token = ecx_,
-                .arguments =
-                    {bindings_.action_category_index, kPanelRowLimitToken},
-                .eax = eax_,
-                .ecx = ecx_,
-                .edx = edx_,
-            });
-            ++result_.actor_initialization_calls;
-            if (initialized.publish_panel_row_limit) {
-                bindings_.panel_row_limit = initialized.panel_row_limit;
-            }
-        } else {
-            result_.actor_initialization =
-                count_legacy_battle_actor_resource_list(
-                    &party.actor_list,
-                    ecx_,
-                    {.category_selector = bindings_.action_category_index,
-                     .initial_count = bindings_.panel_row_limit,
-                     .entry_eax = eax_,
-                     .entry_edx = edx_}
-                );
-            ++result_.actor_initialization_calls;
-            bindings_.panel_row_limit = result_.actor_initialization.count;
-            eax_ = result_.actor_initialization.return_eax;
-            ecx_ = result_.actor_initialization.return_ecx;
-            edx_ = result_.actor_initialization.return_edx;
-            if (result_.actor_initialization.status !=
-                LegacyBattleActorListQueryStatus::completed) {
-                result_.status = Status::group_a_actor_typed_stop;
-                return finish();
-            }
+        const auto count_status = count_legacy_battle_actor_resource_list(
+            &party.actor_list,
+            bindings_.action_category_index,
+            bindings_.panel_row_limit
+        );
+        if (count_status != LegacyBattleActorListQueryStatus::completed) {
+            result_.resource_query_failure = count_status;
+            result_.status = Status::group_a_actor_typed_stop;
+            return finish();
         }
 
         static_cast<void>(

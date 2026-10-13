@@ -864,12 +864,25 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.frame.panel_row_limit_c = 8U;
         fixture.input.menu_action = 1U;
         fixture.action_streams.fail = false;
-        fixture.port
-            .grid_frame_replies[LegacyBattleGridFrameCall::initialize_rows]
-            .push_back({
-                .publish_panel_row_limit = true,
-                .panel_row_limit = 8U,
+        fixture.input.action_category_index = 0U;
+        auto& list = fixture.startup.party[0U].actor_list;
+        constexpr u32 root = 0x79000000U;
+        list.next_resource_head_token = root;
+        list.resources = {
+            {.token = root, .next_token = root + 0x10U, .name = {}}
+        };
+
+        for (u32 index = 1U; index <= 8U; ++index) {
+            list.resources.push_back({
+                .token = root + index * 0x10U,
+                .next_token = index == 8U ? 0U : root + (index + 1U) * 0x10U,
+                .tertiary_quantity = 1,
+                .name = {},
+                .category_mask = 0x10U,
+                .mode_flags = 0x01U,
             });
+        }
+
         fixture.port.grid_on_query = [&fixture]() {
             fixture.action_streams.fail = true;
         };
@@ -1911,12 +1924,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         auto& list = fixture.startup.party[0U].actor_list;
         list.next_resource_head_token = 0x76000000U;
         list.resources = {{.token = 0x76000000U, .name = {}}};
-        fixture.port
-            .grid_frame_replies[LegacyBattleGridFrameCall::initialize_rows]
-            .push_back({
-                .publish_panel_row_limit = true,
-                .panel_row_limit = 7U,
-            });
+
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port
@@ -1934,6 +1942,8 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleActorListQueryStatus::
                         completed &&
                 list.resource_head_token == 0x76000000U &&
+                fixture.frame.panel_row_limit_c == 0U &&
+                fixture.frame.lower_panel_aux == 0U &&
                 fixture.action.action_pending_aux == 1U &&
                 fixture.action.selection_cache_gate_b == 1U &&
                 fixture.input.selection_cache_gate_c == 1U &&

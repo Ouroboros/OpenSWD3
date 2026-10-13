@@ -17,30 +17,12 @@ using Call = LegacyBattleGridFrameCall;
 using Status = LegacyBattleAlternateGridFrameStatus;
 
 inline constexpr u32 kPanelActionId = 0x233BU;
-inline constexpr u32 kGroupABaseToken = 0x005029D0U;
 inline constexpr u32 kGroupACount = 10U;
 inline constexpr u32 kFontToken = 0x004C9A28U;
 inline constexpr u32 kTextSurfaceToken = 0x004CD76CU;
-inline constexpr u32 kPanelRowLimitToken = 0x0053BDF4U;
 
 [[nodiscard]] constexpr i32 wrapping_i32(const u32 value) noexcept {
     return std::bit_cast<i32>(value);
-}
-
-[[nodiscard]] constexpr u32 group_a_scaled_1007(const u32 code) noexcept {
-    const u32 index = code - 8U;
-    u32 scaled = (index << 6U) - index;
-    scaled = (scaled << 4U) - index;
-    return scaled;
-}
-
-[[nodiscard]] constexpr u32 group_a_scaled_3021(const u32 code) noexcept {
-    const u32 scaled = group_a_scaled_1007(code);
-    return scaled + scaled * 2U;
-}
-
-[[nodiscard]] constexpr u32 group_a_actor_token(const u32 code) noexcept {
-    return kGroupABaseToken + group_a_scaled_3021(code) * 4U;
 }
 
 [[nodiscard]] constexpr bool valid_group_a_code(const u32 code) noexcept {
@@ -123,55 +105,19 @@ public:
         invoke_font(Call::configure_font_width, 0x10U);
 
         bindings_.panel_row_limit = 0U;
-        const u32 actor_code = bindings_.queued_actor_code;
-        eax_ = group_a_scaled_1007(actor_code);
-        ecx_ = group_a_actor_token(actor_code);
-        edx_ = actor_code;
-        if (!valid_group_a_code(actor_code)) {
+        auto* count_list = active_resource_list();
+        if (count_list == nullptr) {
             result_.status = Status::group_a_actor_typed_stop;
             return finish();
         }
 
-        const u32 actor_index = actor_code - 8U;
-        if (actor_index >= bindings_.party.size()) {
+        const auto count_status = count_legacy_battle_actor_resource_list(
+            count_list, 4U, bindings_.panel_row_limit
+        );
+        if (count_status != LegacyBattleActorListQueryStatus::completed) {
+            result_.resource_query_failure = count_status;
             result_.status = Status::group_a_actor_typed_stop;
             return finish();
-        }
-
-        auto& party = bindings_.party[actor_index];
-        if (bindings_.scripted_port_test_compat) {
-            const auto initialized = invoke({
-                .call = Call::initialize_rows,
-                .object_token = ecx_,
-                .arguments = {4U, kPanelRowLimitToken},
-                .eax = eax_,
-                .ecx = ecx_,
-                .edx = edx_,
-            });
-            ++result_.actor_initialization_calls;
-            if (initialized.publish_panel_row_limit) {
-                bindings_.panel_row_limit = initialized.panel_row_limit;
-            }
-        } else {
-            result_.actor_initialization =
-                count_legacy_battle_actor_resource_list(
-                    &party.actor_list,
-                    ecx_,
-                    {.category_selector = 4U,
-                     .initial_count = bindings_.panel_row_limit,
-                     .entry_eax = eax_,
-                     .entry_edx = edx_}
-                );
-            ++result_.actor_initialization_calls;
-            bindings_.panel_row_limit = result_.actor_initialization.count;
-            eax_ = result_.actor_initialization.return_eax;
-            ecx_ = result_.actor_initialization.return_ecx;
-            edx_ = result_.actor_initialization.return_edx;
-            if (result_.actor_initialization.status !=
-                LegacyBattleActorListQueryStatus::completed) {
-                result_.status = Status::group_a_actor_typed_stop;
-                return finish();
-            }
         }
 
         auto* initial_list = active_resource_list();

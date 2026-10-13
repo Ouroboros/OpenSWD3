@@ -17,7 +17,6 @@ enum class LegacyBattleGridFrameCall : compat::u8 {
     configure_font_mode,
     configure_font_style,
     configure_font_width,
-    initialize_rows,
     refresh_actor,
     query_row,
     draw_text,
@@ -156,8 +155,10 @@ struct LegacyBattleGridFrameResult {
     compat::u32 panel_action_update_calls{};
     compat::u32 panel_rectangle_calls{};
     compat::u32 tiled_frame_calls{};
-    compat::u32 actor_initialization_calls{};
-    LegacyBattleActorResourceListCountResult actor_initialization{};
+    LegacyBattleActorListQueryStatus resource_query_failure{
+        LegacyBattleActorListQueryStatus::completed
+    };
+
     compat::u32 row_query_calls{};
     LegacyBattleActorResourceListQueryResult row_query{};
     compat::u32 scanned_rows{};
