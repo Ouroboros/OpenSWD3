@@ -1571,7 +1571,10 @@
 
 ## PORT-da997d756887
 
-- [ ] `LegacyBattleGridFramePort`：抽象接口；待复核。
+- [ ] `LegacyBattleGridFramePort`：抽象接口；迁移中，未验收。
+- 本批f21aa0b1已删除普通行查询操作与转发；core/ASan及SDL构建通过，远端main已核对。
+- 剩余字体、绘制及其他网格操作仍使用invoke；不能将该Port作为合法边界勾选保留。
+- 证据：[普通资源行查询](battle-actor-resource-list-query-00470910.md)。
 - 定义：[include/openswd3/battle/legacy_battle_grid_frame.hpp:55](../../../include/openswd3/battle/legacy_battle_grid_frame.hpp:55)。
 - 继承：`public virtual LegacyBattleOffsetActionFrameDrawStatePort`。
 - 直接残留：invoke。

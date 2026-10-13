@@ -22,13 +22,13 @@
 - Port/Ports定义：345；含Dispatch/Adapter共358个类型定义。
 - 上述数值分别是族、文件和类型的数量，不能相加或作为同一完成率分母。
 - 全项目语义覆盖尚未验收。所有新清单方框保持未勾选。
-- 当前顺序：行查询批次已验证，发布后沿角色列表条目继续剩余协议。
+- 当前顺序：行查询批次f21aa0b1已推送并核对远端，沿角色列表条目继续剩余协议。
 
 ## 逐项 LIST
 
 - [ ] **CHAIN-e0f6819f24dc** `battle/legacy_battle_actor_list_query`
   - 本批：普通资源行查询直接写实际名称、flags和数量，删除request、寄存器副本及诊断计数；core/ASan定向门及SDL构建通过。
-  - 证据：[行查询及唯一普通网格调用方](battle-actor-resource-list-query-00470910.md)。
+  - 证据：[行查询及唯一普通网格调用方](battle-actor-resource-list-query-00470910.md)。提交f21aa0b1已推送，远端main一致。
   - 剩余：同族状态、选择和资料协议及资源生产；整链未验收，不勾选。
   - 当前残留信号：counter, interface, register。
   - 历史状态：`pending`；本快照：待复核。
@@ -55,7 +55,7 @@
 
 - [ ] **CHAIN-80c81fe30361** `battle/legacy_battle_grid_frame`
   - 本批：删除行查询操作转发和测试脚本回包，名称与数字共享40字节存储；core/ASan定向门及SDL构建通过。
-  - 证据：[普通网格实际行查询](battle-grid-frame-004659c0.md)。
+  - 证据：[普通网格实际行查询](battle-grid-frame-004659c0.md)。提交f21aa0b1已推送，远端main一致。
   - 未决：字体及绘制Port、寄存器request/reply和其他诊断计数尚未迁移，整项不能勾选。
   - 当前残留信号：arguments, counter, interface, invoke, register。
   - 历史状态：`pending`；本快照：待复核。
