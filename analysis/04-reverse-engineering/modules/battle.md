@@ -159,6 +159,12 @@ core/ASan actor_frame_316各1/1及SDL实际链接通过，见
 184次新固定执行、两core/两ASan、SDL136/136重新链接及九源身份通过，见
 [资源名称与数量](../evidence/battle-actor-flagged-resource-query-00470f70.md)。
 首轮固定借用队员纠错材料保留；完整列表、网格、字体和主帧协议继续pending。
+42772057让炼符列表两处名称/数量查询借实际list与文字/WORD输出，删除请求回复、计数和转发。
+固定0300不写selected，普通命中先写selected；输出关闭与正常耗尽保持旧值，真实失败保前缀。
+每个对象访问重读live队员，名称首NUL/尾部、复制后head重读及signed组容量推进保持。
+305次新固定执行、两core/两ASan、SDL136/136和九源身份通过，首轮u8限定错误材料保留，见
+[炼符实际资源](../evidence/battle-actor-mode-resource-query-00470fe0.md)。
+完整列表、471080计数、字体、网格与主帧协议继续pending，不增加整族验收。
 这些局部接线不改变315/422、316、B11或实际续玩验收。
 
 ## 1. 唯一真值与模块目标

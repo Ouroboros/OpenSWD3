@@ -10,6 +10,14 @@
 [资源名称与数量](battle-actor-flagged-resource-query-00470f70.md)。
 这不关闭完整选择帧或其余父协议，不替代以下历史门禁及实际运行缺口。
 
+## 炼符列表实际查询的调用方
+
+42772057使message30两次470FE0查询始终借实际party list，回收脚本叶回包与调用计数。
+选择帧夹具借startup.party[0]同一真实空链，验证两次根发布、selected保持及原输入/辅助后缀。
+core/ASan setup与actor均各1/1、SDL136/136和九源码身份通过，见
+[炼符实际资源](battle-actor-mode-resource-query-00470fe0.md)。
+其余选择帧协议与完整SDL链继续pending；以下门禁是历史，不替代本批或续玩验收。
+
 ## 1. 完整权威范围
 
 权威LST主体为`0x00464270..0x00464C6F`，从proc到endp共1154行、747条实际指令、45个静态call、73个跳转、49个局部/默认标签、12个`retn`，没有外部`FUNCTION CHUNK`。函数后的30项message压缩表也已审计：1–8、27、30映射十条有效路径，9–26、28、29和表内默认槽归并到selector 10。

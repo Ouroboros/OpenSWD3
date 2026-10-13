@@ -1,6 +1,26 @@
 # 战斗模式网格帧 `0x00466190`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+
+## 炼符列表的实际资源显示
+
+源码42772057回收4662E9/4663E9两查询：直接借actual list、20-byte文字与数量WORD，
+删除两子寄存器回复、两调用计数、数量目标token、共用query_mode_row及主帧纯映射。
+mode0固定资源与mode1组资源均按470FE0执行，不分支found，不使用脚本叶返回。
+原标题004A7688按CP950为“煉符”。primary/group数量改为u16，次组计数接口留后续。
+删除固定party缓存；primary、两次根发布、count和每次group查询分别重新借live queued。
+非法live对象及真实查询失败保留原前缀，沿既有group_a_actor状态停止后继。
+首NUL及终止符写入、旧尾部保持、复制后重读head与signed WORD组容量推进均保留。
+正常耗尽或输出门关闭继续原文字/容量；selected矩形、字体、输入门/target与公用文字顺序不变。
+
+新增77次真实网格执行：十槽×七数量70次，另7次覆盖live换队员/非法前缀、
+长固定名称输出关闭、次组输出关闭/耗尽保持旧容量，以及primary/group实际容量失败。
+同步已有十槽二十场景、实际两组容量2、目标修正与选择帧message30；短组名保primary尾部。
+旧夹具同page依次伪造不同名称/数量的回复撤回，改为真实PRI/S1/LASTTAIL资源。
+矩形故障改由真实font-width前继改变raster。叶228次及本批四项定向门、SDL136/136、
+九源身份和完整差异见[炼符资源显示](battle-actor-mode-resource-query-00470fe0.md)。
+首轮u8限定错误材料保留；最终core/ASan setup与actor均各1/1通过，未运行全量或游戏。
+其余471080计数、字体、参数包、寄存器、计数与Port仍pending；不关闭完整父或前移B10/B11。
 
 ## 本批资源链头发布
 
@@ -44,7 +64,7 @@
 - cell大于首组但不大于`primary_count + secondary_count(low16)`时，调用次组行查询`mode=1, page`，接收文字和group-slot-count；查询入口EDX保持行文字缓冲token；
 - cell超过两组总量时，等价执行`lstrcpyA(row_text, byte_49F9FC)`，只覆盖CP950`B5 4C 00`即“無\0”三字节，第三byte后的旧缓冲尾不清零。
 
-每次次组查询后，先把group-slot-count低word按signed i16扩展到EDX，再增加group index；只有完整u32 group index精确等于该signed值时，page加1且group index清0。选中比较发生在这次推进之后。测试锁定两项容量2完成page前进、后续容量3保持组内索引，以及缺省“無”后仍保留前一字符串第3byte起的尾内容。
+每次次组查询后，先把group-slot-count低word按signed i16扩展到EDX，再增加group index；只有完整u32 group index精确等于该signed值时，page加1且group index清0。选中比较发生在这次推进之后。测试锁定实际两组各容量2、signed容量位型、输出关闭/耗尽继续旧容量推进，以及缺省“無”后仍保留前一字符串第3byte起的尾内容。
 
 ## 5. 选中目标与公共重绘
 
@@ -58,7 +78,7 @@ selected cell按完整dword与cell精确比较。匹配时先直连矩形`x-4, y
 
 ## 6. owner、caller回收与验证
 
-面板动作记录复用主帧协调器唯一owner；row-limit、queued、主色、输入门和target argument复用既有owner；标题token复用既有静态文字表。新mode grid state只保存原函数栈上的20-byte缓冲和三个dword计数，不复制物理全局，也不接受相邻两个网格函数的滚动、flags、数值或共享说明状态。
+面板动作记录复用主帧协调器唯一owner；row-limit、queued、主色、输入门和target argument复用既有owner；标题token复用既有静态文字表。mode grid state借原栈局部的业务语义：20-byte缓冲、primary/group数量WORD和次组计数；后者残余DWORD回包协议留后续。不复制物理全局，也不接受相邻网格的滚动、flags、数值或共享说明状态。
 
 选择帧原`draw_grid_mode` opaque槽保持枚举数值并改为reserved，生产代码零调用。message 30仍先读取live滚动值到ECX并压入未读第四参数的原寄存器形状，置cache C后直连本函数；任一子typed-stop保留mode-grid前缀并阻断最终cache A/B，正常返回才发布两项cache。
 

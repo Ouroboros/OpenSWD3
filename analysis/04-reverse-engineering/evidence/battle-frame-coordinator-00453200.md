@@ -26,6 +26,14 @@ SDL仍在45331C效果首读前停止，完整帧与实际续玩未验收。
 [带标记资源查询](battle-actor-flagged-resource-query-00470f70.md)。
 其余主帧操作、参数数组、寄存器、计数与Port仍pending，完整SDL链及续玩未验收。
 
+## 炼符资源显示查询转发回收
+
+42772057删除共用query_mode_row及mode_grid_frame_query_row纯映射；
+炼符网格两处直接借实际角色list、文字缓冲和数量WORD。message30以canonical空链验证原后缀。
+core/ASan setup与actor均各1/1、SDL136/136和九源码身份通过，见
+[炼符实际资源](battle-actor-mode-resource-query-00470fe0.md)。
+其余主帧参数数组、寄存器、计数与Port继续pending，完整SDL帧与续玩仍未验收。
+
 ## 1. 完整LST范围
 
 权威LST函数为`0x00453200..0x00453570`，完整412行、44个静态call站点、18个标签，无外部FUNCTION CHUNK。函数无参数；导航调用图中同一上层战斗状态机存在33个直接call站点。

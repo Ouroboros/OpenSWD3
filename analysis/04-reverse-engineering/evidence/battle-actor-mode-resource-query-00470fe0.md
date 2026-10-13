@@ -1,6 +1,37 @@
 # 战斗角色模式资源显示查询 `0x00470FE0`
 
-状态：`platform_adapted`。完整LST、typed实现、mode grid caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+历史还原状态：`platform_adapted`。以下旧全量门禁属于历史还原；
+完整列表、炼符网格、计数、字体及父协议的INVOKE迁移仍pending。
+
+## 炼符列表直接读取实际资源名称与数量
+
+源码42772057将本叶改为借实际list、完整DWORD mode/occurrence、文字span和数量WORD。
+结果仅status/found；删除request、actor寄存器token、寄存器回复、输出副本和诊断计数。
+4662E9/4663E9两处实际调用均不根据found分支；输出门0与正常耗尽继续旧文字/数量。
+原标题004A7688的首四字节B7 D2 B2 C5按CP950解为“煉符”，后接NUL。
+
+独立LST为214524..214610，共87行/51指令、2call/9jump/2RET，无chunk；
+唯一父466190共381行，两处opcode-backed call为4662E9/4663E9。
+LST SHA为701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b；
+独立推导、完整父后继与双向审查记录在build/tmp/runtime/mode-resource-display-*。
+mode0固定0300直达不写selected；普通序号命中先写selected，每非空节点仍比较陈旧序号。
+任意非零mode只按bit27且非0300递增，完整DWORD、无界扫描和回绕保持。
+BYTE mask05关闭仍成功，不读取名称/数量；首NUL及终止符复制后目标尾不清。
+471053复制后重读actual current，再先取tertiary、后加secondary，只写WORD。
+缺重读节点保文字/selected和旧数量；容量/访问失败复用原stop，不增加成功兜底。
+不修改next、节点或存储所有权；父在primary、根发布、count和各group前借live队员。
+
+新增305次固定执行：叶228、真实网格77。叶175为5mode×5序号×7BYTE门，
+42为两路径×七数量位型×三名称，4真实head别名，4容量前缀，2缺根/候选，1缺list。
+网格70为十槽×七数量，另7覆盖live队员/非法前缀、输出关闭与耗尽保持旧值、真实容量失败。
+同步既有叶、重复组名、十槽、选择帧message30及原后缀；撤回脚本叶回包与计数断言。
+首轮18秒编译停止因span的u8未限定，before-u8日志/SHA保留；改compat::u8后完整重跑。
+最终proc_672d成功418秒：setup core1/1 11.57秒、actor core1/1 27.48秒；
+setup ASan1/1 19.66秒、actor ASan1/1 30.21秒，SDL136/136重新链接。
+九源码身份、完整527行生产/1151行测试差异、staged一致及双向审查通过。
+源检查proc_3a7e成功，日志/manifest及差异保留；定向1/1不代表全量或实际游戏验证。
+没有本批Windows、实际MON、游戏或原版联合差分；不升级assembly_exact或B10/B11状态。
+其它列表/471080计数、字体、完整网格与主帧协议仍pending，不增加整族验收。
 
 ## 本批资源链头发布
 
@@ -25,7 +56,7 @@ mode非零时仅当node `+0x2F` byte bit3置位且resource id不是`0x0300`时�
 
 候选成功后测试node `+0x46` byte mask `0x05`。mask为零时函数仍返回1，但不复制名称、不写数量，caller原有局部值保持陈旧。mask非零时复制node `+0x0C`名称，并以16位加法把secondary word `+0x08`与tertiary word `+0x0A`相加写入输出word，保留负数位型和回绕。扫描期间ECX固定为`0x0300`、EDX持有occurrence；发布数量时仅替换EDX低word。
 
-唯一caller是已关闭mode grid frame `0x00466190`，共有primary mode零与secondary mode一两处调用。caller的`String1`位于`-0x14..-0x01`，容量为20 bytes；typed路径在名称连终止符无法容纳时于原始复制边界停止，不静默截断。资源链、selected token、名称和数量继续由`LegacyBattleActorListQueryState`唯一持有。
+唯一caller是已关闭mode grid frame `0x00466190`，共有primary mode零与secondary mode一两处调用。caller的`String1`位于`-0x14..-0x01`，容量为20 bytes；typed路径在名称连终止符无法容纳时于原始复制边界停止，不静默截断。资源链与selected由实际list持有，源名称/数量来自节点；文字和数量目标借用caller原局部。
 
 ## 4. caller回收与验证
 
