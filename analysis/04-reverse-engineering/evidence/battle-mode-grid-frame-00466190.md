@@ -2,6 +2,14 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
+## 本批资源链头发布
+
+3eda365b将466318/466365改为直接借actual party发布根，删除refresh回复和计数。
+两组查询间、次组累计后各发布一次，后继保留实际selected及原格布局。
+叶不再转发两处EDX；格绘制前重写cell/selected，颜色不依赖该叶寄存器。
+十槽两场景及门禁见[链头发布](battle-actor-resource-list-commit-00470900.md)。
+首段及以下全量门禁为历史记录；完整查询、字体、寄存器与Port仍pending。
+
 ## 1. 完整权威范围
 
 权威LST主体为`0x00466190..0x004664FB`，从proc到endp共381行、260条带机器码和真实助记符的实际指令、20个静态call、10个跳转、7个局部/返回标签和1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭选择帧message 30路径；caller按原代码多推滚动参数，但本函数cdecl签名只读取原点X、原点Y和selected cell，第四参数保持未读。
@@ -18,11 +26,11 @@
 
 双九宫格后，标题直接复用21项静态文字token表索引9的`0x004A7688`，绘制于`origin_x+106, origin_y+8`，颜色`0xFFC0`、宽16；随后配置字体模式0、样式`0xFFFE`和宽度16。
 
-## 3. 首组、次组总量与刷新寄存器
+## 3. 首组、次组总量与链头发布
 
-合法组A actor第一次在首组查询callee访问：固定请求`mode=0, page=1, row_text, primary_count`。十对象外在此typed-stop，保留完整面板、标题和字体前缀，且不改共享row-limit。成功后把primary count低word发布到共享row-limit，并执行第一次actor刷新；刷新EDX使用组A步长中间值。
+合法组A actor第一次在首组查询callee访问：固定请求`mode=0, page=1, row_text, primary_count`。十对象外在此typed-stop，保留完整面板、标题和字体前缀，且不改共享row-limit。成功后把primary count低word发布到共享row-limit，再直接发布实际资源链头。
 
-随后固定查询次组总量`mode=0, secondary_count`，再执行第二次actor刷新。第二次刷新EDX故意保留次组总量callee返回EDX，而不是重新计算步长；测试用独立值锁定这项非对称。两类查询返回EAX都没有原始分支，不作为成功门。
+随后固定查询次组总量`mode=0, secondary_count`，再直接发布同一实际资源链头。原两处入口EDX不同，但本叶不写EDX且后继绘制重新准备业务参数；当前接口不再生成或转发该寄存器回复。两类查询返回EAX都没有原始分支，不作为成功门。
 
 列表开始前清复用的group-slot-count局部，把共享target argument预置1；page从1、group index从0、cell从1开始。
 

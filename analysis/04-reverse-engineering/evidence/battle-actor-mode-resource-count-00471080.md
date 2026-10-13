@@ -2,6 +2,13 @@
 
 状态：`platform_adapted`。完整LST、typed实现、mode grid caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
 
+## 本批资源链头发布
+
+3eda365b删除471084的叶寄存器转发和提交计数，发布后先清caller输出WORD。
+首节点失败保留已发布head与零输出；双重WORD回绕和筛选读取顺序保持。
+门禁见[链头发布](battle-actor-resource-list-commit-00470900.md)。
+首段及以下全量门禁为历史记录；完整累计及模式网格父协议仍pending。
+
 ## 1. 完整权威范围
 
 权威LST主体为`0x00471080..0x004710CD`，proc至endp共42行、25条实际指令、1个call、5个跳转、2个局部标签、1个返回点，没有外部`FUNCTION CHUNK`。唯一callee为已关闭资源链头提交`0x00470900`。

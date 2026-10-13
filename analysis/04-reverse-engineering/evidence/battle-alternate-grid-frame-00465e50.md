@@ -2,6 +2,13 @@
 
 状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
+## 本批资源链头发布
+
+3eda365b将465FE6/466166改为直接发布actual party资源链头，删除纯转发回复与计数。
+仅查询耗尽后复位；满页仍执行第八次查询，非零时保留该节点而不尾发布。
+十槽两场景及门禁见[链头发布](battle-actor-resource-list-commit-00470900.md)。
+首段及以下全量门禁为历史记录；完整查询、字体、寄存器与Port仍pending。
+
 ## 1. 完整权威范围
 
 权威LST主体为`0x00465E50..0x00466181`，从proc到endp共357行、238条带机器码和真实助记符的实际指令、20个静态call、5个跳转、5个局部/返回标签和1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭选择帧message 27路径，固定原点`(224,126)`并传live替代网格选择和live滚动偏移。

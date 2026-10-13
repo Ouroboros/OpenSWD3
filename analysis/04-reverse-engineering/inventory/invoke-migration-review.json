@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "5ad2a9aa9c4134bc62b10b37d43466c5a1f4ff9f",
+  "last_reviewed_source_revision": "3eda365b7100077a3791054fae2ec912d754d80b",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -312,9 +312,27 @@
     },
     "battle/legacy_battle_actor_list_query": {
       "status": "pending",
-      "last_reviewed_commit": "5ad2a9aa",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-consumption-00470e20.md",
-      "reason": "470E20叶仅借实际list/workspace，返回现有状态与最终WORD；删除默认寄存器request/reply、actor token、八计数及两次头提交回包转发。六个物理caller同步，列表成功才清selected/required并刷新，真实失败保持head发布或erase；缺workspace发布和signed重链顺序按LST修正。12次新叶/列表及40次动作、菜单回归、两core/两ASan、SDL链接与13源身份通过。其它列表/刷新/头提交寄存器接口、计数和父调用链仍pending；不是无关键词或整族完成判定"
+      "last_reviewed_commit": "3eda365b",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-list-commit-00470900.md",
+      "reason": "470900仅借actual list发布完整next到current，删除actor/EDX参数、叶寄存器回包、head写计数、六提交计数及状态处理嵌套回复。七处列表消费与三网格六处发布接通，保持清零/初值时点、未知head发布后的原节点失败、满页及耗尽复位。83次新固定执行、两core/两ASan、SDL实际链接及12源身份通过，误删窄网格46FFE0共用标签的首失败保留并已恢复重测。此前实际释放、signed重链与六caller迁移保持；其余查询/刷新/资料寄存器接口、计数与父Port仍pending，不增加整族验收"
+    },
+    "battle/legacy_battle_grid_frame": {
+      "status": "pending",
+      "last_reviewed_commit": "3eda365b",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-list-commit-00470900.md",
+      "reason": "两处资源链头发布始终借actual party，移除叶脚本回复、寄存器转发及计数；十槽满页/耗尽向量通过，尾发布仅在原查询耗尽分支。共用refresh_actor标签仍服务窄网格的46FFE0索引提交；其它查询、字体、寄存器、调用计数与Port仍pending"
+    },
+    "battle/legacy_battle_alternate_grid_frame": {
+      "status": "pending",
+      "last_reviewed_commit": "3eda365b",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-list-commit-00470900.md",
+      "reason": "两处资源链头发布始终借actual party，移除纯叶refresh回复、寄存器转发及计数；十槽向量保持满页第八次查询和非零节点副作用，仅耗尽复位。其余行查询、字体、寄存器、调用计数与Port仍pending"
+    },
+    "battle/legacy_battle_mode_grid_frame": {
+      "status": "pending",
+      "last_reviewed_commit": "3eda365b",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-list-commit-00470900.md",
+      "reason": "两组查询间和次组累计后直接发布actual party根，移除refresh回复、寄存器转发及计数；十槽向量保持后继selected和两列布局，格绘制重新准备cell/selected。其余查询、字体、寄存器、调用计数与Port仍pending"
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",

@@ -2,6 +2,13 @@
 
 状态：`platform_adapted`。完整LST、typed实现、双caller生产链回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
 
+## 本批资源链头发布
+
+3eda365b删除470A60的叶回包转发和提交计数，直接发布实际链头。
+保留count调用者初值；首节点失败不清初值，成功增量仍按WORD回绕。
+三网格接线及门禁见[链头发布](battle-actor-resource-list-commit-00470900.md)。
+首段及以下全量门禁为历史记录；完整计数/列表父协议仍pending。
+
 ## 1. 完整权威范围
 
 权威LST主体为`0x00470A10..0x00470ABB`，proc至endp共105行、60条实际指令、1个call、18个跳转、1个返回点，没有外部`FUNCTION CHUNK`。内部资源链头提交`0x00470900`已关闭。

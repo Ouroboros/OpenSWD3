@@ -2,9 +2,16 @@
 
 状态：`platform_adapted`。完整LST、typed实现、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
 
+## 本批资源链头发布
+
+3eda365b将47045F改为实际资源链头发布，删除rebuild计数和嵌套寄存器回包。
+required写入先于发布；后继缺资源保持该前缀。索引、消息及其余父协议仍pending。
+本批门禁与边界见[链头发布](battle-actor-resource-list-commit-00470900.md)。
+首段及以下全量门禁是历史还原记录，不作为本批验收。
+
 ## 1. 完整权威范围
 
-权威LST主体为`0x00470380..0x004705B7`，proc至endp共284行、164条实际指令、8个call、30个跳转、18个局部标签、4个返回点，没有外部`FUNCTION CHUNK`。callee为已关闭索引提交两次、待审资源链重建一次、已关闭消息发布三次和已关闭sample播放两次。
+权威LST主体为`0x00470380..0x004705B7`，proc至endp共284行、164条实际指令、8个call、30个跳转、18个局部标签、4个返回点，没有外部`FUNCTION CHUNK`。callee为索引提交两次、资源链头发布一次、消息发布三次和sample播放两次。
 
 ## 2. 主链与字段发布
 
@@ -14,7 +21,7 @@ category选择器映射仍为0到`0x10`、1到`0x0C`、2到`0x1001`、其他保�
 
 ## 3. bit11资源分支
 
-bit11命中时以低11位覆盖primary required，调用窄资源链重建，然后从resource head按next扫描resource id。未找到，或找到但两项signed quantity均不大于零时，仅在共享message token为空时发布缺资源消息与sample，最终返回0。任一quantity大于零时发布selected resource token并返回1。此分支不执行第二次索引提交。
+bit11命中时以低11位覆盖primary required，直接发布实际next资源链头到current，然后从resource head按next扫描resource id。未找到，或找到但两项signed quantity均不大于零时，仅在共享message token为空时发布缺资源消息与sample，最终返回0。任一quantity大于零时发布selected resource token并返回1。此分支不执行第二次索引提交。
 
 ## 4. 普通容量分支
 
@@ -22,7 +29,7 @@ bit11未命中时再次调用typed索引提交。primary required非零时，将
 
 ## 5. owner、stop与caller
 
-主链、资源链、阈值与selected token均扩展在第188项唯一owner中，actor索引继续复用第186项。缺失任一owner或节点时在首次访问处typed-stop并保留此前提交、字段写和消息副作用。待审资源重建保留窄port；消息与sample使用语义窄边界。唯一caller位于已关闭目标选择刷新函数，现有边界尚未暴露链表物化owner，本包不复制第二份状态；生产源码无旧地址调用。
+主链、资源链、阈值与selected token均扩展在第188项唯一owner中，actor索引继续复用第186项。缺失任一owner或节点时在首次访问处typed-stop并保留此前提交、字段写和消息副作用。资源链头直接发布到实际共享列表；消息与sample使用语义窄边界。唯一caller位于已关闭目标选择刷新函数，现有边界尚未暴露链表物化owner，本包不复制第二份状态；生产源码无旧地址调用。
 
 ## 6. 验证状态
 

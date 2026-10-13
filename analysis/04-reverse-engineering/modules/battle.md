@@ -148,7 +148,12 @@ core/ASan actor_frame_316各1/1及SDL实际链接通过，见
 动作3成功消费后才清选择，缺workspace保持selected已发布，重链按signed正值回放。
 52次新增动作/叶/列表及菜单回归、两core/两ASan、SDL链接和13源身份通过，见
 [六处实际资源消费](../evidence/battle-actor-resource-consumption-00470e20.md)。
-完整动作、列表、菜单和头提交父接口族仍pending；这些接线不关闭新的战斗函数。
+完整动作、列表和菜单父接口族仍pending；这些接线不关闭新的战斗函数。
+3eda365b将资源链头发布改为只借实际list，删除叶寄存器回复和提交计数。
+七处列表及三网格六处发布同步，保留count初值、失败前缀和原耗尽复位。
+83次新固定执行、两core/两ASan、SDL实际链接与12源身份通过，见
+[资源链头发布](../evidence/battle-actor-resource-list-commit-00470900.md)。
+窄网格46FFE0共用索引标签保留并重测；完整查询、网格和父Port继续pending。
 
 ## 1. 唯一真值与模块目标
 
@@ -2675,9 +2680,10 @@ secondary required与caller寄存器联合捕获后端缺失而为`blocked_runti
 `audit_order=196`的`0x00470900`已关闭为`platform_adapted`。
 完整权威LST主体`0x00470900..0x0047090C`共8行、3条实际指令、0个call、0个跳转、0个标签、
 1个返回点且无外部chunk。实现next资源链头到current资源链头的完整dword提交，相等值与零值也写入；
-current/next扩展于第188项唯一链表owner。第190项bit11 caller已改为typed直连，
-待审caller留到所属工作包，旧地址生产调用为零。验证：定向测试、AddressSanitizer、Linux core 188/188、
-Linux app 194/194全部通过且源码零warning。
+current/next扩展于第188项唯一链表owner。3eda365b删除叶寄存器接口及提交计数，
+15处原call的必要消费均按原时点接通，七列表/六网格发布只借实际链；释放两站已直接共享写。
+本批83次新固定执行、两core/两ASan定向、SDL实际链接与12源身份通过，完整父仍pending。
+下列core188/188、app194/194与双生成属于原196阶段历史门禁，不作为本批验证。
 工作包为`196/422 = 187 platform_adapted + 9 assembly_exact + 226 pending_audit`，
 双跑SHA256为`61edff9d9172acbf3fe675a6ca334657d402de59dffe303618b924e2f702b412`。
 动态差分因原版current/next链头与caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。

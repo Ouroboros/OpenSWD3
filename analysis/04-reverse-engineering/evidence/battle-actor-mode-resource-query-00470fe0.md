@@ -2,6 +2,13 @@
 
 状态：`platform_adapted`。完整LST、typed实现、mode grid caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
 
+## 本批资源链头发布
+
+3eda365b删除470FE7的叶寄存器转发和提交计数，直接发布同一实际list。
+两种筛选、陈旧输出与selected写入保持；网格仍在原两次时点重新发布根。
+门禁见[链头发布](battle-actor-resource-list-commit-00470900.md)。
+首段及以下全量门禁为历史记录；完整查询/模式网格父协议仍pending。
+
 ## 1. 完整权威范围
 
 权威LST主体为`0x00470FE0..0x00471070`，proc至endp共87行、51条实际指令、2个call、9个跳转、7个局部标签、2个返回点，没有外部`FUNCTION CHUNK`。callee为已关闭资源链头提交`0x00470900`一次，以及平台字符串复制`lstrcpyA`一次。
@@ -22,6 +29,6 @@ mode非零时仅当node `+0x2F` byte bit3置位且resource id不是`0x0300`时�
 
 ## 4. caller回收与验证
 
-mode grid production现在从startup party span定位角色owner，primary与secondary两条查询直接调用typed实现；调用前后的两次已关闭资源链头提交也改为typed直连。尚未审计的`0x00471080` secondary count保持窄port，脚本化mode grid兼容仅由单测显式开启，production默认关闭。
+mode grid production现在从startup party span定位角色owner，primary与secondary两条查询直接调用typed实现；调用前后的两次已关闭资源链头提交也改为typed直连。`0x00471080` secondary count已在第203项接入实际累计器，脚本化mode grid兼容仅由单测显式开启，production默认关闭。
 
 测试覆盖mode零固定id直达且不改selected、mode一bit27计数并排除固定id、occurrence零陈旧选择、输出mask零保持陈旧值、16位数量回绕、缺项破坏性扫到空链、20-byte字符串边界typed-stop，以及mode grid production primary/group重复显示与两次typed链头提交。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`202/422 = 193 platform_adapted + 9 assembly_exact + 220 pending_audit`，SHA256为`9c4944438acbe1b483f72b9df3a9383903af867abb8d37f9371d4b94c02604a5`。动态差分因原版mode资源链、selected token、caller字符串/数量局部和寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
