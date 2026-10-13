@@ -171,6 +171,12 @@ core/ASan actor_frame_316各1/1及SDL实际链接通过，见
 新增225次叶及60次实际网格、两core/两ASan各1/1、SDL136/136和九源身份通过，见
 [实际炼符数量累计](../evidence/battle-actor-mode-resource-count-00471080.md)。
 完整列表查询、字体和父协议仍pending，不增加整族验收。
+5a60ef7d使两个战斗列表网格绘制各行前直接从实际list累计共享条目WORD，
+撤计数请求/回包、输出副本、诊断与共用转发，替代网格撤仅计数使用的兼容开关。
+保调用者初值、严格32位正值门、每次WORD回绕、独立额外增量和字体前继后的live队员。
+新增6992次叶、270次普通及70次替代网格执行；四定向门各1/1、SDL136/136与12源身份通过，见
+[实际条目累计](../evidence/battle-actor-resource-list-count-00470a10.md)。
+完整列表、字体与父协议继续pending，正式清单27既有验收/293待处理、scope=false保持。
 这些局部接线不改变315/422、316、B11或实际续玩验收。
 
 ## 1. 唯一真值与模块目标
@@ -2717,12 +2723,15 @@ Linux core 188/188、Linux app 194/194全部通过且源码零warning。
 双跑SHA256为`c58f54c211943da1d68a40531cfd6f1749b5eac340567c397a7cdb2c13ff7191`。
 动态差分因原版资源链、live容量、字符串与寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。
 
-`audit_order=198`的`0x00470A10`已关闭为`platform_adapted`。
+`audit_order=198`的`0x00470A10`历史关闭为`platform_adapted`。
 完整权威LST主体`0x00470A10..0x00470ABB`共105行、60条实际指令、1个call、18个跳转、
-1个返回点且无外部chunk。实现六类category映射、保留输出初值、16位回绕计数、
-普通正值匹配和category 4额外bit独立递增。标准与alternate grid production链的计数、提交、
-查询均改为typed直连并复用party唯一owner；脚本化单测compat开关默认关闭。验证：定向测试、
-AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码零warning。
+1个返回点且无外部chunk。实现六类category映射、保留输出初值、逐次16位回绕、
+普通严格正值匹配及最终mask2000时独立额外bit递增，类别4与raw DWORD2000均触发。
+5a60ef7d回收叶及两个必要网格的通用计数协议，直接借list与真实WORD；
+替代网格兼容开关已删除，普通其余查询协议继续pending。当前7332次新固定执行与四定向门、
+SDL及身份见[实际条目累计](../evidence/battle-actor-resource-list-count-00470a10.md)。
+以下188/188、194/194、工作包数量和SHA仅为历史还原记录，不是当前迁移门禁：
+定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194曾通过且源码零warning。
 工作包为`198/422 = 189 platform_adapted + 9 assembly_exact + 224 pending_audit`，
 双跑SHA256为`6c5586aaab691a5a1576cf43cdd9419129384afe85290c0d53509de99f714828`。
 动态差分因原版资源链、输出word和grid caller寄存器联合捕获后端缺失而为`blocked_runtime_oracle`。

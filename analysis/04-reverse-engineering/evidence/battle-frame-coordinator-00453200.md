@@ -43,6 +43,15 @@ core/ASan setup与actor均各1/1、SDL136/136和九源码身份通过，见
 [实际炼符数量累计](battle-actor-mode-resource-count-00471080.md)。
 其余主帧操作、参数数组、寄存器、计数和Port仍pending；完整SDL链与续玩未验收。
 
+## 两个网格条目统计转发回收
+
+5a60ef7d删除grid_frame_initialize_rows及共用initialize_rows的纯映射。
+普通/替代两个caller直接借实际list和共享WORD，选择帧回收替代网格兼容传递。
+list/narrow初始化及46FFE0索引标签保留，不按同名误删；没有增加主帧或SDL停点。
+7332次新增执行、四定向门各1/1、SDL136/136和12源身份通过，见
+[实际条目累计](battle-actor-resource-list-count-00470a10.md)。
+其余主帧操作编号、参数数组、寄存器、计数与Port仍pending，完整SDL帧与续玩未验收。
+
 ## 1. 完整LST范围
 
 权威LST函数为`0x00453200..0x00453570`，完整412行、44个静态call站点、18个标签，无外部FUNCTION CHUNK。函数无参数；导航调用图中同一上层战斗状态机存在33个直接call站点。

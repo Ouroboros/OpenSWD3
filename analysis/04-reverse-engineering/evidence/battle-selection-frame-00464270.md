@@ -27,6 +27,15 @@ canonical真实空链仍正常累计零，沿原输入门、辅助值和cache尾
 [实际炼符数量累计](battle-actor-mode-resource-count-00471080.md)。
 其余选择帧及完整SDL链继续pending；普通/替代网格各自的兼容边界保持。
 
+## 两个列表网格的实际条目统计
+
+5a60ef7d使普通/替代网格始终借startup.party及共享panel WORD累计实际条目。
+message27撤去已无计数消费者的兼容绑定；普通其余查询的兼容边界仍保留。
+message4纵向面板测试改由八个实际条目触发，message27真实空链发布零辅助值并继续原后缀。
+7332次新增叶/两个网格执行及选择帧回归、四定向门各1/1、SDL136/136与12源身份通过，见
+[实际条目累计](battle-actor-resource-list-count-00470a10.md)。
+其余选择帧操作/寄存器/计数/Port及完整SDL链仍pending；不替代实际续玩验收。
+
 ## 1. 完整权威范围
 
 权威LST主体为`0x00464270..0x00464C6F`，从proc到endp共1154行、747条实际指令、45个静态call、73个跳转、49个局部/默认标签、12个`retn`，没有外部`FUNCTION CHUNK`。函数后的30项message压缩表也已审计：1–8、27、30映射十条有效路径，9–26、28、29和表内默认槽归并到selector 10。

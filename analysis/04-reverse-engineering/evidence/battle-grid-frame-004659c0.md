@@ -1,8 +1,20 @@
 # 战斗网格列表帧 `0x004659C0`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+当前完整INVOKE接口族仍`pending`。
 
-## 本批资源链头发布
+## 绘制前实际条目统计
+
+5a60ef7d使465B72直接借live队员list、完整类别及共享panel WORD累计条目。
+删除计数脚本、actor/output token、子寄存器回包/数量副本与调用计数。
+字体前继后读取live队员；父清WORD，叶保初值和逐次回绕，成功零仍查询行。
+失败保面板/字体与0或2累计，沿原group_a_actor状态阻断后继根复位、绘制及输入修改。
+270次新增网格、6992次叶及70次替代网格执行、四定向门各1/1、SDL136/136通过，见
+[实际条目累计](battle-actor-resource-list-count-00470a10.md)。
+共用initialize_rows映射撤回；其它查询、字体、寄存器、调用计数和Port继续pending。
+以下全量门禁是历史记录，不是本轮验证或完整SDL链验收。
+
+## 资源链头发布
 
 3eda365b将465B95/465E2A改为直接发布actual party资源链头，删除纯转发回复与计数。
 发布借用十个实际槽位；只在原耗尽分支尾复位，满七行不额外发布。
@@ -26,9 +38,10 @@
 
 ## 3. 角色初始化与无上限筛选
 
-九宫格完成后依次配置字体模式0、样式`0xFFFE`和宽度16，再先清共享panel row-limit word。queued按u32 `queued-8`和组A步长构造actor token；十对象外只在首次列表初始化callee访问点typed-stop，保留完整面板前缀。
+九宫格完成后依次配置字体模式0、样式`0xFFFE`和宽度16，再先清共享panel row-limit word。queued按u32 `queued-8`定位实际party list；十对象外在原首次计数对象访问点失败，保留完整面板前缀。
 
-合法对象以live action category和row-limit地址初始化列表，随后刷新actor。iterator从`scroll_offset+1`开始；每轮查询固定接收category、iterator、20-byte行文字缓冲、flags地址和value地址。查询返回0时不推进iterator，立即再次刷新actor并进入最终字体尾。
+合法对象以live action category向共享row-limit WORD直接累计条目，随后发布资源根。
+同步计数叶不写queued；当前行查询/耗尽复位仍缓存party，LST逐站重读的迁移待下一切片。iterator从`scroll_offset+1`开始；每轮查询固定接收category、iterator、20-byte行文字缓冲、flags地址和value地址。查询返回0时不推进iterator，立即再次刷新actor并进入最终字体尾。
 
 非零查询只有flags bit15置位才成为可见行；未置位行只增加iterator，不增加display count、不配置公共行字体，也不消耗七行上限。原循环没有扫描上限，typed实现同样不增加modern cap；定向测试连续跳过9个隐藏项后仍继续到7个可见项。每个可见行完成后才增加display count和iterator，并仅以display count低word做unsigned `<7`判断，因此第七行后不执行第八次查询。
 
