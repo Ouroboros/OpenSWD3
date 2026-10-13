@@ -1,6 +1,14 @@
 # 战斗选择帧 `0x00464270`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+
+## 实际替代资源列表查询的调用方
+
+84d3f985使message27的网格资源查询始终借实际party list，不再使用脚本叶回复。
+选择帧夹具借startup.party同一空链哨兵，正常耗尽发布真实根后继续原输入门/辅助后缀；
+真实查询失败仍由网格既有状态传播。两core/两ASan、SDL重新链接及九源身份通过，见
+[资源名称与数量](battle-actor-flagged-resource-query-00470f70.md)。
+这不关闭完整选择帧或其余父协议，不替代以下历史门禁及实际运行缺口。
 
 ## 1. 完整权威范围
 

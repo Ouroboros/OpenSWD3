@@ -1,19 +1,31 @@
 # 战斗替代网格列表帧 `0x00465E50`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+当前INVOKE整族仍`pending`，不将历史还原分类当作完整迁移。
 
-## 本批资源链头发布
+## 实际资源名称与数量消费
 
-3eda365b将465FE6/466166改为直接发布actual party资源链头，删除纯转发回复与计数。
-仅查询耗尽后复位；满页仍执行第八次查询，非零时保留该节点而不尾发布。
-十槽两场景及门禁见[链头发布](battle-actor-resource-list-commit-00470900.md)。
-首段及以下全量门禁为历史记录；完整查询、字体、寄存器与Port仍pending。
+84d3f985删除替代行查询的脚本回复、参数/寄存器转发、嵌套回包及两诊断计数，
+实际叶直接写原文字缓冲和数量WORD。计数后根发布、每次查询与耗尽复位重读live队员，
+不会固定借用初始party；正常耗尽保留上次输出，真实失败保持已发布/已绘制前缀。
+七行后仍查询第八项，成功时保留该节点及输出而不绘制、不尾发布。
+
+73次新增网格固定执行及原十槽满页/耗尽、真实页行为和选择帧同步；两core各1/1
+为11.79/31.85秒、两ASan为18.56/31.79秒，SDL136/136重新链接及九源身份通过。
+首轮固定借用队员的纠错、字体颜色消费和完整双向差异见
+[带标记资源查询](battle-actor-flagged-resource-query-00470f70.md)。
+3eda365b根发布历史见[链头发布](battle-actor-resource-list-commit-00470900.md)。
+初始化、字体、绘制寄存器与计数、Port继续pending；以下全量数字仅为历史。
+本批未跑全量UT、Windows、实际MON、游戏或原版联合差分。
 
 ## 1. 完整权威范围
 
 权威LST主体为`0x00465E50..0x00466181`，从proc到endp共357行、238条带机器码和真实助记符的实际指令、20个静态call、5个跳转、5个局部/返回标签和1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭选择帧message 27路径，固定原点`(224,126)`并传live替代网格选择和live滚动偏移。
 
-20个callsite覆盖面板动作更新、三处矩形/九宫格绘制中的一处矩形与两处九宫格、字体模式/宽度及四个样式代码点、五个原始字节文字代码点、角色列表初始化、两处角色刷新、替代行查询和Win32 `%2d`格式化。已关闭矩形和九宫格直接组合；原始字节文字、字体、角色对象和三类列表callee继续经窄typed端口表达，`wsprintfA("%2d")`改为等价有界格式化。
+20个callsite覆盖面板动作更新、矩形与两处九宫格、字体模式/宽度及四个样式代码点、
+五个原始字节文字代码点、角色列表初始化、两处资源根发布、替代行查询和Win32格式化。
+矩形、九宫格、资源根发布与本行查询直接组合；其余字体/文字及角色初始化端口待迁移。
+`wsprintfA("%2d")`保留signed WORD和最小宽度的有界等价格式化。
 
 ## 2. 零入口与双九宫格面板
 
@@ -27,23 +39,36 @@
 
 双九宫格后，以固定静态文字token表中的`0x004A76A0`在`origin_x+80, origin_y+8`绘制标题，颜色立即数`0xFFC0`、字体宽16。随后字体依次设置模式0、样式`0xFFFE`和宽度16。
 
-函数再清共享panel row-limit word，以固定selector 4初始化组A角色列表。queued按u32 `queued-8`和组A步长构造actor token；十对象外只在首次列表初始化callee访问点typed-stop，保留面板、标题、三项字体和row-limit清零。合法对象初始化可发布row-limit，随后刷新actor。
+函数再清共享panel row-limit word，以固定selector 4初始化组A角色列表。初始化仍有
+待迁移对象协议；合法初始化可发布row-limit，之后重读queued并借实际party发布资源根。
+十对象外在原对象访问点typed-stop，保持面板、标题、三项字体和row-limit前缀。
 
 ## 4. 查询、七行上限与第八次副作用
 
-iterator从`scroll_offset+1`开始，每轮替代查询固定接收0、iterator、20-byte行文字缓冲和value地址；本函数没有flags缓冲，也不读取bit15/bit14，不跳过隐藏项目。查询返回0时不绘制该行，按原顺序再次刷新actor，再进入最终字体样式。
+iterator按完整DWORD从`scroll_offset+1`开始，每次借live queued所指party的实际list、
+20-byte行文字缓冲和数量WORD；原第一个固定0参数未读，已删除。本父没有flags缓冲，
+不读取bit15/bit14。completed/false才不绘制、重读live队员发布根并进入最终字体样式；
+节点或文字失败保留前缀并阻断收尾，不伪装成正常耗尽。
 
-与相邻网格函数不同，本函数在查询成功后才以display count低word做unsigned `>=7`判断。因此七行已完成时仍执行第八次查询；若第八次非零，保留其callee与缓冲写副作用，但不绘制、不刷新、不增加display count，直接进入最终字体样式。定向测试固定查询iterator `scroll+1..scroll+8`、`scanned_rows=8`、`displayed_rows=7`和第八项不进入trace。原循环由七行上限天然界定，不增加其他modern cap。
+成功后才以display count低WORD做unsigned `>=7`判断。七行之后仍查询第八项，
+保留实际节点、文字和数量，但不绘制、不发布根、不增加显示数。
+测试直接核第八项head、文字H和数量12；查询/访问诊断计数及伪回包已删除。
+保留原循环与WORD判断，不增加扫描上限。
 
 ## 5. 行文字、数值与选中矩形
 
-每个可见行先绘制名称，再格式化并绘制数值，顺序不得与相邻函数互换。主色低word分别覆盖查询返回ECX与格式化返回ECX，高16位各自保留。名称固定在`origin_x+16, origin_y+row*20+44`；value低word按signed i16用旧`%2d`最小宽度格式化，数值固定在`origin_x+144`和同一Y。测试锁定`" 5"`、`"-3"`、两组颜色高word及draw call寄存器形状。
+每个可见行先名称、再格式化并绘制数量。名称主色只读实际WORD；字体flags10路径
+最终435991 AND FFFF，高位不进入颜色像素，不再借查询的模拟ECX高位。
+名称固定在`origin_x+16, origin_y+row*20+44`；实际数量WORD按signed i16
+用`%2d`最小宽度格式化，数值在`origin_x+144`和同一Y。数量格式化和选中重绘
+的其余寄存器协议仍待迁移，保留原颜色读取时点。
+测试锁定0、3、WORD回绕、-32768、-2以及旧5/-3的名称/数量绘制顺序。
 
 完整dword selected row只有精确等于`display_count+1`时选中。选中文字颜色只替换selected row EAX低word；名称在`origin_x+15, origin_y+row*20+43`重绘，随后配置样式`0xFFFE`。选中矩形固定为`origin_x, origin_y+row*20+40, 194x24, RGB 31/20/0, mode 5`。只有矩形成功后才发布target argument=当前iterator和selection input gate=1；typed-stop保留名称与字体前缀但不发布两项输入。本函数没有第二全宽矩形、MAPS共享说明或底部说明文字。
 
 选中或普通行最后都执行公共样式`0xFFFE`，再增加display count并把iterator保存为下一轮滚动基准。查询0、七行上限或自然退出最终再执行一次样式`0xFFFE`，返回该字体callee寄存器。
 
-## 6. owner、caller回收与验证
+## 6. 历史owner、caller回收与验证
 
 面板动作记录复用主帧协调器唯一owner；row-limit、queued、输入门、target argument与主色复用既有owner；固定标题token直接复用21项静态文字token表。新alternate grid state只保存原函数栈上的两组20-byte缓冲、display count、value和格式长度，不复制物理全局，也不复用相邻函数带flags/共享说明的错误栈形状。
 

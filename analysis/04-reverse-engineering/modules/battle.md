@@ -154,6 +154,12 @@ core/ASan actor_frame_316各1/1及SDL实际链接通过，见
 83次新固定执行、两core/两ASan、SDL实际链接与12源身份通过，见
 [资源链头发布](../evidence/battle-actor-resource-list-commit-00470900.md)。
 窄网格46FFE0共用索引标签保留并重测；完整查询、网格和父Port继续pending。
+84d3f985将带标记资源查询改为借实际list、序号和输出，删除寄存器包、计数与网格转发。
+名称按首NUL写入、复制后重读head取WORD数量，耗尽保留旧输出；三处读取live队员。
+184次新固定执行、两core/两ASan、SDL136/136重新链接及九源身份通过，见
+[资源名称与数量](../evidence/battle-actor-flagged-resource-query-00470f70.md)。
+首轮固定借用队员纠错材料保留；完整列表、网格、字体和主帧协议继续pending。
+这些局部接线不改变315/422、316、B11或实际续玩验收。
 
 ## 1. 唯一真值与模块目标
 
@@ -1748,8 +1754,9 @@ Linux app 194/194 全部通过。源码零warning；app仅保留既有ALSA开发
 iterator从scroll加1开始，查询没有flags筛选；查询0时再次刷新并结束。
 七行上限在查询成功后才按display count低wordunsigned `>=7`判断，
 因此第八次查询确实发生并保留callee/缓冲副作用，但不绘制。
-每行先用查询返回ECX高word+主色低word绘制名称，
-再按signed i16 `%2d`用格式化ECX高word+主色低word绘制数值。selected row精确等于row+1时重绘名称、
+每行先用实际主色WORD绘制名称，字体435991掩FFFF，高位不进入颜色像素。
+再按signed i16 `%2d`绘制数值，格式化/绘制的其余寄存器协议继续待迁移。
+selected row精确等于row+1时重绘名称、
 配置样式并直连一处`194x24`矩形，矩形成功后才发布target iterator和输入门；
 本函数没有第二全宽矩形或共享说明。面板记录、row-limit、主色、门和target均复用既有owner，
 alternate state只保留原栈两组20-byte缓冲、display count与value。
@@ -2737,8 +2744,11 @@ AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过且源码�
 完整权威LST主体`0x00470F70..0x00470FD5`共60行、36条实际指令、2个call、4个跳转、
 2个返回点且无外部chunk。实现bit13第N项扫描、occurrence零陈旧成功、破坏性current推进、
 名称复制和secondary/tertiary 16位回绕求和。复用resource list唯一owner。
-alternate grid production caller改为typed直连；20-byte caller缓冲区在原始复制边界typed-stop，
-脚本compat默认关闭。验证：定向测试、AddressSanitizer、Linux core 188/188、
+84d3f985进一步删除叶请求/寄存器回包、诊断计数及替代网格纯转发，借实际输出缓冲。
+复制后重读head取数量；三处live队员读取及原第八项副作用保持，20-byte边界复用原停止。
+184次新固定执行与四定向门、SDL重新链接通过；完整父仍pending，见
+[本批实际资源查询](../evidence/battle-actor-flagged-resource-query-00470f70.md)。
+历史验证：定向测试、AddressSanitizer、Linux core 188/188、
 Linux app 194/194全部通过且源码零warning。
 工作包为`201/422 = 192 platform_adapted + 9 assembly_exact + 221 pending_audit`，
 双跑SHA256为`83d366d03421276e5ce1e0580e59cdce4a115028c0d4493d763a5d12f5afb40a`。
