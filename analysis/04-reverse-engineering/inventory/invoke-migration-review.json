@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "427720579fdd9c2d812edf9d2ed218bf6dc6f2e2",
+  "last_reviewed_source_revision": "1930c4159a8f1a518bc8ef1140264f3bee382062",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -312,15 +312,15 @@
     },
     "battle/legacy_battle_actor_list_query": {
       "status": "pending",
-      "last_reviewed_commit": "42772057",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-mode-resource-query-00470fe0.md",
-      "reason": "470FE0借实际list、完整DWORD模式/序号、文字span和数量WORD，删除request、actor寄存器token、叶回复/输出副本及诊断计数。固定0300直达不写selected，普通命中先写selected；每非空节点比较陈旧序号，输出关闭/正常耗尽保旧值，首NUL/目标尾部、复制后head重读、WORD回绕及真实失败前缀保持。228次新叶和77次真实网格、两core/两ASan、SDL136/136及九源身份通过，首轮u8限定错误材料保留。既有470F70、实际释放与根发布保持；其它列表/471080计数、资料寄存器接口、计数与父Port仍pending，不增加整族验收"
+      "last_reviewed_commit": "1930c415",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-mode-resource-count-00471080.md",
+      "reason": "471080只借实际list和数量WORD，先发布根再清零并逐节点累计；删除request/reply、actor/output寄存器token、输出副本与诊断计数。保bit27→非0300→BYTE mask05短路、tertiary先读、两级WORD回绕、不设扫描上限及真实失败已发布head/累计前缀。225次新叶、60次实际网格、两core/两ASan各1/1、SDL136/136及九源身份通过；五实际WORD别名证明直接增量写入。既有470FE0/470F70、实际释放和根发布保持；其余列表查询/计数、资料寄存器、父参数包/计数/Port及资源生产仍pending，不增加整族验收"
     },
     "battle/legacy_battle_grid_frame": {
       "status": "pending",
-      "last_reviewed_commit": "42772057",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-mode-resource-query-00470fe0.md",
-      "reason": "共用炼符query_mode_row枚举删除，不再转发已迁移470FE0协议；既有470F70查询回收、普通网格实际根发布与独立窄网格46FFE0索引标签保持。两core/两ASan及SDL136/136重新链接通过。普通查询、字体、寄存器、调用计数与Port仍pending，共用标签回收不关闭整个普通网格"
+      "last_reviewed_commit": "1930c415",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-mode-resource-count-00471080.md",
+      "reason": "共用query_mode_secondary_count枚举删除，不再转发已迁移471080计数协议；既有470FE0/470F70显示查询、普通网格根发布及窄网格46FFE0独立标签保持。两core/两ASan各1/1、SDL136/136与九源身份通过。普通查询、字体、寄存器、调用计数和Port仍pending，共用标签回收不关闭整个普通网格"
     },
     "battle/legacy_battle_alternate_grid_frame": {
       "status": "pending",
@@ -330,9 +330,15 @@
     },
     "battle/legacy_battle_mode_grid_frame": {
       "status": "pending",
-      "last_reviewed_commit": "42772057",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-mode-resource-query-00470fe0.md",
-      "reason": "炼符网格4662E9/4663E9直接借实际470FE0文字/数量WORD，删除脚本叶、寄存器/参数转发、两子回包、两查询计数与数量目标token，不分支found。primary、两根发布、count和每group前重读live队员；输出关闭/正常耗尽保旧值，首NUL/尾部及signed组容量推进保持。77次新真实网格、原十槽二十场景与message30调用方、两core/两ASan、SDL136/136通过。471080计数、字体、其它参数包/寄存器/计数与Port仍pending，完整父未关闭"
+      "last_reviewed_commit": "1930c415",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-mode-resource-count-00471080.md",
+      "reason": "466342借live队员实际list直接清零并累计数量WORD，删除脚本计数、目标token、子寄存器回包/副本和计数；数量字段改u16，范围与末panel只消费低WORD。保五处live借用，成功零仍画十格，统计失败沿已有resource_query_failure/group_a_actor状态保primary与0/7累计并阻断根再发布、绘制及target修改。60次新实际网格、225次新叶及旧七数量×十槽、live/输出关闭/容量/页组/message30回归，两core/两ASan各1/1、SDL136/136通过。字体、其余参数包/寄存器/计数/Port与完整SDL链继续pending"
+    },
+    "battle/legacy_battle_selection_frame": {
+      "status": "pending",
+      "last_reviewed_commit": "1930c415",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-mode-resource-count-00471080.md",
+      "reason": "message30不再向炼符网格传scripted兼容字段，统计始终借startup.party实际资源及数量WORD。canonical真实空链累计零继续原输入/辅助/cache后缀，真实子失败传播保持；普通/替代网格各自兼容边界不扩改。285次新叶/网格及既有选择帧回归、两core/两ASan各1/1、SDL136/136与九源身份通过。其余操作、参数包、寄存器、计数、Port和完整SDL选择链仍pending，不增加整族验收"
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
@@ -556,9 +562,9 @@
     },
     "battle/legacy_battle_frame_coordinator": {
       "status": "pending",
-      "last_reviewed_commit": "42772057",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-mode-resource-query-00470fe0.md",
-      "reason": "共用470FE0操作枚举及炼符行查询纯映射删除，两actual调用借角色list、文字和数量WORD；选择帧message30借canonical空链验证原后缀，两core/两ASan及SDL136/136通过。既有470F70/message27、实际库存、结果分配失败与启动队列/角色强度共享保持。其余通用操作、参数数组、寄存器、计数和Port仍在，完整SDL角色帧及实际游戏流程未验收"
+      "last_reviewed_commit": "1930c415",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-mode-resource-count-00471080.md",
+      "reason": "炼符secondary-count操作编号与纯映射删除，唯一caller只借actual list和数量WORD；选择帧message30回收兼容传递并继续canonical资源路径。285次新叶/网格及既有调用方、两core/两ASan各1/1、SDL136/136与九源身份通过。既有显示查询、实际库存、结果失败与启动共享保持，未新增停点。其余主帧操作、参数数组、寄存器、计数和Port仍在，完整SDL角色帧及实际游戏流程未验收"
     },
     "battle/legacy_battle_frame_music_prefix": {
       "status": "verified",

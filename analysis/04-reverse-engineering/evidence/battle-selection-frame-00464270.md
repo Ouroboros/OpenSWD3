@@ -18,6 +18,15 @@ core/ASan setup与actor均各1/1、SDL136/136和九源码身份通过，见
 [炼符实际资源](battle-actor-mode-resource-query-00470fe0.md)。
 其余选择帧协议与完整SDL链继续pending；以下门禁是历史，不替代本批或续玩验收。
 
+## 炼符数量统计的实际调用方
+
+1930c415回收message30对炼符网格的scripted兼容字段传递。
+网格累计器始终借startup.party中的实际list与数量WORD，删除计数请求/回复和查询计数。
+canonical真实空链仍正常累计零，沿原输入门、辅助值和cache尾部继续。
+新增285次叶/网格执行、core/ASan setup与actor各1/1、SDL136/136和九源身份通过，见
+[实际炼符数量累计](battle-actor-mode-resource-count-00471080.md)。
+其余选择帧及完整SDL链继续pending；普通/替代网格各自的兼容边界保持。
+
 ## 1. 完整权威范围
 
 权威LST主体为`0x00464270..0x00464C6F`，从proc到endp共1154行、747条实际指令、45个静态call、73个跳转、49个局部/默认标签、12个`retn`，没有外部`FUNCTION CHUNK`。函数后的30项message压缩表也已审计：1–8、27、30映射十条有效路径，9–26、28、29和表内默认槽归并到selector 10。

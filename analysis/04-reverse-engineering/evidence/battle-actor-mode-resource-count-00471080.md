@@ -1,30 +1,102 @@
 # 战斗角色模式资源数量累计 `0x00471080`
 
-状态：`platform_adapted`。完整LST、typed实现、mode grid caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+历史还原状态：`platform_adapted`。本批完成累计器及必要调用方的通用协议迁移。
+完整列表、字体、网格和主帧接口继续pending；不增加整族验收。
 
-## 本批资源链头发布
+## 实际炼符资源数量累计
 
-3eda365b删除471084的叶寄存器转发和提交计数，发布后先清caller输出WORD。
-首节点失败保留已发布head与零输出；双重WORD回绕和筛选读取顺序保持。
-门禁见[链头发布](battle-actor-resource-list-commit-00470900.md)。
-首段及以下全量门禁为历史记录；完整累计及模式网格父协议仍pending。
+源码`1930c4159a8f1a518bc8ef1140264f3bee382062`直接借list和caller数量WORD。
+删除CountRequest/Result、actor/output寄存器token、输入/返回寄存器、输出副本及
+nodes_visited/matches。先发布根，随后清实际WORD，每个合格节点直接累计。
+保留category bit27→非0300→BYTE mask05的短路，tertiary先取再加secondary；
+节点内和跨节点均按WORD回绕。不读取名称，不改selected/next，不转移资源所有权。
 
-## 1. 完整权威范围
+唯一真实caller00466342直接借live queued队员的实际list，数量局部改为u16。
+删除脚本计数分支、数量目标token、子回包与调用计数；共用grid计数枚举、主帧计数操作
+和纯映射同步删除。选择帧message30回收该网格的兼容开关传递，继续借startup.party。
+数量低WORD决定十格来源与末尾共享row-limit；成功零继续原绘制路径。
+真实失败沿已有resource_query_failure和group_a_actor_typed_stop保留累计前缀，
+阻断根再发布、行绘制、输入门及target修改；不新增停点或成功兜底。
 
-权威LST主体为`0x00471080..0x004710CD`，proc至endp共42行、25条实际指令、1个call、5个跳转、2个局部标签、1个返回点，没有外部`FUNCTION CHUNK`。唯一callee为已关闭资源链头提交`0x00470900`。
+## 1. 完整权威范围与ABI
 
-## 2. 清零、筛选与累计
+LST SHA256：`701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b`。
+目标`00471080..004710CD`，原行214619..214660；42行、25条带机器码指令、1call、
+5jump、2局部标签、1RET，无外部chunk。唯一callee为资源链头发布00470900。
+全LST按机器码和call指令扫描只有00466342一个caller，位于sub_466190。
+完整父`00466190..004664FB`，原行194512..194892，共381行。
+目标和父全文均实际完整阅读，完整生产301行、测试591行及相同staged差异均已阅读。
+差异cmp和源码身份只绑定审查实物，不能代替该语义阅读。
 
-入口提交next资源链头后，先把caller输出word清零。循环每次从current节点读取next并破坏性写回current；next为空时结束，此时EAX为零。
+ECX为list；保存EBX/ESI，RET8。第一栈DWORD完全未读，第二为可写WORD地址。
+正常EAX0、ECX输出地址、EDX0300是机器合同，不是额外业务结果。
+父后继重新准备actor、坐标、cell/primary及文字参数，不消费这些计数寄存器回复。
 
-只有同时满足三项条件的节点才参与累计：node `+0x2C` dword bit27置位、resource id `+0x04`不等于`0x0300`、node `+0x46` byte mask `0x05`非零。实现保留短路顺序，不对不合格节点读取数量。
+## 2. 入口、循环与全部出口
 
-合格节点先以16位加法计算secondary word `+0x08`与tertiary word `+0x0A`的小计，再以16位加法累加到输出word；负值按原位型参与，节点内和跨节点都允许回绕。扫描期间EDX固定为`0x0300`，ECX保留caller输出token。
+471084先发布next→current；471092再清caller实际WORD。
+471097/9D读取current.next；4710A1先发布next→current，4710A7才判断零。
+真实根next0正常输出0、current0；null list沿原list_owner错误且保旧输出。
+未知/零根在原节点访问点失败，保已发布根与零输出；未知候选先发布current再失败。
+已经累计的数量不回滚，不把非法根当成空链成功。
 
-## 3. owner与caller回收
+4710A9读取category DWORD bit27，4710B2排除id WORD0300，4710B8读取BYTE mask05。
+任一关闭直接回循环，不读取数量。4710BE先取tertiary WORD，4710C2加secondary，
+4710C6直接加输出WORD。负位型仍参与，两级WORD回绕保持；4710C9回循环。
+4710CB/CD为正常耗尽唯一出口，不复位根，不增加扫描上限。
 
-资源链、节点字段和current head继续由`LegacyBattleActorListQueryState`唯一持有，旧地址只作为typed token。唯一caller是已关闭mode grid frame `0x00466190`。production secondary-count路径现在直接调用typed累计器并发布到既有state；脚本化port仅由单测显式开启，production默认关闭。随后的已关闭资源链头提交继续使用上一工作包已回收的typed路径。
+原C++先读secondary后读tertiary已按指令纠正。真实signed/unsigned对应WORD别名
+可看到入口清零和每次增量，并影响后续节点数量读取；未用WORD引用访问DWORD链头。
+实际list拥有节点与链头；caller拥有输出WORD，不另建输出影子或叶回调。
 
-## 4. 验证状态
+## 3. 唯一父的实际消费
 
-测试覆盖固定id排除、bit27门、mode mask门、节点内与跨节点16位回绕、输出先清零、破坏性扫描到空链、EAX/ECX/EDX结果，以及mode grid production不再调用secondary-count port并仍生成相同primary/group布局。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`203/422 = 194 platform_adapted + 9 assembly_exact + 219 pending_audit`，SHA256为`060968b2e3ee56d46b89501fbfa0bd0c0d15e1ff5d394634bd35b40b909b2f4d`。动态差分因原版mode资源链、caller输出word和寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+4662EE发布primary WORD；466318发布该次live角色根。
+46631D再次读取queued，466323构造数量地址，46632D压入未读零参数，466342累计。
+466347再次读取queued，466365发布后继根；随后清group容量并置target1。
+var_1C原为入口高WORD清零的DWORD局部，但叶只写低WORD；46639C/A0明确AND FFFF。
+低WORD与primary按非负范围比较，正常零仍画十格；4664E8/EE末尾加共享WORD允许回绕。
+primary、两根发布、count和每group查询仍重新借live队员。
+
+## 4. 独立固定执行与实际门禁
+
+新增285次执行，数量不是CTest项目数或完整性证明：
+
+- 叶196：七category、四id、七mask组合，包含高bit、全1、固定0300和关闭门。
+- 叶14：七数量位型及各自追加FFFF+2尾节点，核两级回绕和输出相邻WORD guard。
+- 叶5：输出别名为root.secondary、first.secondary/tertiary、second.secondary/tertiary，
+  最终10/10/6/21/21证明实际清零、部分累计和数量读取先后。
+- 叶9：缺list、未知根/候选、数量累计后未知next、三种筛除后失败、正常空链与零根。
+- 叶1：512个合格节点的有限真实链，数量3584，容器地址/长度和所有权保持。
+- 网格40：十槽×三筛除与合格结果，核实际范围、行来源、末panel WORD及字体端口边界。
+- 网格20：十槽×统计前/部分统计后失败，保primary文字/数量与0/7累计，阻断后继。
+
+同步三个旧叶调用、真实网格断言与reply数组；既有七数量位型×十槽、live队员变化、
+关闭输出/耗尽保旧值、容量失败、两组页推进和canonical message30回归保持。
+
+实际门禁proc_3440共394秒、exit0：
+
+- core setup 1/1，11.03秒；core actor_frame_316 1/1，25.51秒。
+- ASan setup 1/1，18.47秒；ASan actor_frame_316 1/1，27.85秒。
+- SDL136/136重新链接；九份已验证源码身份一致。
+
+source审查proc_bf45为10秒、exit0；日志与身份：
+`build/tmp/runtime/mode-resource-count-{setup,actor}-{core,asan}.log`、
+`mode-resource-count-sdl.log`、`mode-resource-count-source-review.log`、
+`mode-resource-count-validated-source.sha256`。
+LST摘录、独立推导、双向review、production/tests及staged差异都在同目录的
+`mode-resource-count-*`材料。两个edit重复匹配拒绝均以具体调用上下文修正，
+未伪造编译结果；误猜测试runner路径不影响实际构建/测试，导航错误保留。
+
+## 5. 历史与证据界限
+
+3eda365b已删除471084的叶寄存器转发与提交计数，见
+[资源链头发布](battle-actor-resource-list-commit-00470900.md)。
+旧还原的core188/188、app194/194和203/422是历史门禁与进度，未用本批定向记录替代。
+旧inventory SHA为`060968b2e3ee56d46b89501fbfa0bd0c0d15e1ff5d394634bd35b40b909b2f4d`。
+当时的脚本计数兼容分支、DWORD副本和寄存器断言已由本批实际WORD路径替代。
+
+未运行全量、Windows、真实MON、游戏或原版联合差分；动态原版资源链、输出WORD和
+寄存器联合捕获缺口继续为`blocked_runtime_oracle`。
+完整列表查询、字体、父参数包/寄存器/计数/Port、真实资源生产和SDL生命周期仍pending。
+全项目scope仍未穷尽，不增加验收数，不前移B10 315/422、Workpack316、B11或实际续玩。

@@ -2,6 +2,17 @@
 
 历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
+## 绘制前直接累计实际数量
+
+1930c415让466342只借live队员list和实际数量WORD，先清零再逐节点累计。
+删除计数脚本分支、子寄存器回包/副本、目标token和调用计数；保原筛选及两级回绕。
+统计访问失败保primary文字/数量与0或7的累计，沿既有失败通道阻断根再发布和第一格。
+新增十槽过滤40次及十槽失败20次，叶225次；两core/两ASan各1/1、SDL136/136及九源身份通过。
+完整LST、读取先后、真实WORD别名与门禁见
+[实际炼符数量累计](battle-actor-mode-resource-count-00471080.md)。
+计数入口和后继各重读live队员；正常零仍画十格，范围和末panel只消费数量低WORD。
+字体、其余参数包/寄存器/计数和Port继续pending，不关闭完整父。
+
 ## 炼符列表的实际资源显示
 
 源码42772057回收4662E9/4663E9两查询：直接借actual list、20-byte文字与数量WORD，
@@ -20,7 +31,8 @@ mode0固定资源与mode1组资源均按470FE0执行，不分支found，不使�
 矩形故障改由真实font-width前继改变raster。叶228次及本批四项定向门、SDL136/136、
 九源身份和完整差异见[炼符资源显示](battle-actor-mode-resource-query-00470fe0.md)。
 首轮u8限定错误材料保留；最终core/ASan setup与actor均各1/1通过，未运行全量或游戏。
-其余471080计数、字体、参数包、寄存器、计数与Port仍pending；不关闭完整父或前移B10/B11。
+该批当时保留的471080计数随后由1930c415回收；字体、参数包、寄存器、计数与Port仍pending。
+不关闭完整父或前移B10/B11。
 
 ## 本批资源链头发布
 
@@ -34,7 +46,11 @@ mode0固定资源与mode1组资源均按470FE0执行，不分支found，不使�
 
 权威LST主体为`0x00466190..0x004664FB`，从proc到endp共381行、260条带机器码和真实助记符的实际指令、20个静态call、10个跳转、7个局部/返回标签和1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭选择帧message 30路径；caller按原代码多推滚动参数，但本函数cdecl签名只读取原点X、原点Y和selected cell，第四参数保持未读。
 
-20个callsite覆盖面板动作更新、一处面板矩形、两处九宫格、固定标题、字体模式/宽度及四处样式、首/次组行查询三处代码点、次组总量查询、两处actor刷新、选中矩形和三处单元文字代码点；另有Win32 `lstrcpyA`。已关闭矩形和九宫格直接组合；固定CP950复制在typed缓冲内等价执行；字体、文字和三类组A列表callee继续经窄typed端口表达。
+20个callsite包括动作更新、两处矩形、两处九宫格、三处标题/单元文字、
+字体模式、宽度及四处样式、两处行查询、一次次组累计、两次根发布和lstrcpyA。
+旧“三处行查询”叙述按004662E9/004663E9纠正；20个静态call总数不变。
+矩形和九宫格已直接组合；固定CP950复制在实际缓冲内执行。
+三个组A资源站直接借list与文字/数量输出；字体和文字的其余协议继续经窄端口表达。
 
 ## 2. 零入口与宽面板
 
@@ -50,7 +66,10 @@ mode0固定资源与mode1组资源均按470FE0执行，不分支found，不使�
 
 合法组A actor第一次在首组查询callee访问：固定请求`mode=0, page=1, row_text, primary_count`。十对象外在此typed-stop，保留完整面板、标题和字体前缀，且不改共享row-limit。成功后把primary count低word发布到共享row-limit，再直接发布实际资源链头。
 
-随后固定查询次组总量`mode=0, secondary_count`，再直接发布同一实际资源链头。原两处入口EDX不同，但本叶不写EDX且后继绘制重新准备业务参数；当前接口不再生成或转发该寄存器回复。两类查询返回EAX都没有原始分支，不作为成功门。
+随后直接累计次组总量，仅借实际list和数量WORD；原第一参数未读，不赋予mode语义。
+再次重读live角色并发布其根。数量低WORD参与原范围和尾部加法，正常零继续。
+根发布原两处入口EDX不同且叶不写EDX；累计的寄存器后继被重新准备的业务参数覆盖。
+两类查询返回EAX都没有原始分支，不作为成功门；真实访问失败沿已有错误通道阻断后继。
 
 列表开始前清复用的group-slot-count局部，把共享target argument预置1；page从1、group index从0、cell从1开始。
 
@@ -78,7 +97,8 @@ selected cell按完整dword与cell精确比较。匹配时先直连矩形`x-4, y
 
 ## 6. owner、caller回收与验证
 
-面板动作记录复用主帧协调器唯一owner；row-limit、queued、主色、输入门和target argument复用既有owner；标题token复用既有静态文字表。mode grid state借原栈局部的业务语义：20-byte缓冲、primary/group数量WORD和次组计数；后者残余DWORD回包协议留后续。不复制物理全局，也不接受相邻网格的滚动、flags、数值或共享说明状态。
+面板动作记录复用主帧协调器唯一owner；row-limit、queued、主色、输入门和target argument复用既有owner；标题token复用既有静态文字表。mode grid state借原栈局部的业务语义：20-byte缓冲、primary/group数量WORD与次组数量WORD，
+直接消费累计结果，不保留DWORD回包副本。不复制物理全局，也不接受相邻网格的滚动、flags、数值或共享说明状态。
 
 选择帧原`draw_grid_mode` opaque槽保持枚举数值并改为reserved，生产代码零调用。message 30仍先读取live滚动值到ECX并压入未读第四参数的原寄存器形状，置cache C后直连本函数；任一子typed-stop保留mode-grid前缀并阻断最终cache A/B，正常返回才发布两项cache。
 
