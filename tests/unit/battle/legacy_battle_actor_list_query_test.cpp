@@ -1,9 +1,17 @@
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 
+#include <algorithm>
+#include <array>
+#include <bit>
+
 #include "test.hpp"
 
 namespace {
+
+using openswd3::compat::u8;
+using openswd3::compat::u16;
+using openswd3::compat::u32;
 
 class SelectionPort final
     : public openswd3::battle::LegacyBattleActorResourceSelectionPort,
@@ -290,8 +298,10 @@ void test_resource_head_publication(openswd3::test::Context& test) {
             LegacyBattleActorListQueryStatus status;
             switch (consumer) {
             case 0U: {
+                std::array<u8, 20> name{};
+                u16 quantity = 0U;
                 const auto result = query_legacy_battle_actor_flagged_resource(
-                    &list, 0x005029D0U, {.occurrence = 1U}
+                    &list, 1U, name, quantity
                 );
                 status = result.status;
                 break;
@@ -372,11 +382,207 @@ void test_resource_head_publication(openswd3::test::Context& test) {
     }
 }
 
+void test_flagged_resource_display(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    struct QuantityVector {
+        u16 secondary;
+        u16 tertiary;
+        u16 expected;
+    };
+
+    constexpr std::array<QuantityVector, 7> quantities{{
+        {0U, 0U, 0U},
+        {1U, 2U, 3U},
+        {0xFFFFU, 1U, 0U},
+        {0x7FFFU, 1U, 0x8000U},
+        {0x8000U, 0U, 0x8000U},
+        {0xFFFFU, 0xFFFFU, 0xFFFEU},
+        {0x8000U, 0x8000U, 0U},
+    }};
+    const std::array<std::string, 3> names{
+        "",
+        std::string(19U, 'n'),
+        std::string("a\0", 2U) + std::string(25U, 'z')
+    };
+
+    for (const auto& quantity : quantities) {
+        for (const auto& source_name : names) {
+            for (const u32 occurrence : {0U, 1U, 2U, 3U, 0xFFFFFFFFU}) {
+                LegacyBattleActorListQueryState list;
+                list.resource_head_token = 0xDEAD0000U;
+                list.next_resource_head_token = 0x76000000U;
+                list.selected_resource_token = 0xCAFEBABEU;
+                list.resources = {
+                    {.token = 0x76000000U,
+                     .next_token = 0x76000010U,
+                     .name = {}}
+                };
+
+                for (u32 index = 1U; index <= 4U; ++index) {
+                    list.resources.push_back({
+                        .token = 0x76000000U + index * 0x10U,
+                        .next_token = index == 4U
+                            ? 0U
+                            : 0x76000000U + (index + 1U) * 0x10U,
+                        .secondary_quantity =
+                            std::bit_cast<openswd3::compat::i16>(
+                                quantity.secondary
+                            ),
+                        .tertiary_quantity =
+                            std::bit_cast<openswd3::compat::i16>(
+                                quantity.tertiary
+                            ),
+                        .name = source_name,
+                        .capacity_gate_flags = static_cast<u16>(
+                            index == 2U || index == 4U ? 0x2000U : 0U
+                        ),
+                    });
+                }
+
+                const auto* original_nodes = list.resources.data();
+                std::array<u8, 20> name;
+                name.fill(0xA5U);
+                auto expected_name = name;
+                const bool found = occurrence <= 2U;
+                if (found) {
+                    const auto end = source_name.find('\0');
+                    const auto length =
+                        end == std::string::npos ? source_name.size() : end;
+                    std::copy_n(
+                        source_name.begin(), length, expected_name.begin()
+                    );
+                    expected_name[length] = 0U;
+                }
+
+                u16 output_quantity = 0xBEEFU;
+                const auto result = query_legacy_battle_actor_flagged_resource(
+                    &list, occurrence, name, output_quantity
+                );
+                const u32 expected_head = occurrence == 0U ? 0x76000010U
+                    : occurrence == 1U                     ? 0x76000020U
+                    : occurrence == 2U                     ? 0x76000040U
+                                                           : 0U;
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActorListQueryStatus::completed &&
+                        result.found == found && name == expected_name &&
+                        output_quantity ==
+                            (found ? quantity.expected : 0xBEEFU) &&
+                        list.resource_head_token == expected_head &&
+                        list.next_resource_head_token == 0x76000000U &&
+                        list.selected_resource_token == 0xCAFEBABEU &&
+                        list.resources.data() == original_nodes &&
+                        list.resources.size() == 5U &&
+                        list.resources.back().name == source_name &&
+                        std::bit_cast<u16>(
+                            list.resources.back().secondary_quantity
+                        ) == quantity.secondary &&
+                        std::bit_cast<u16>(
+                            list.resources.back().tertiary_quantity
+                        ) == quantity.tertiary,
+                    "actual flagged query preserves destructive ordinal scans, null-terminated names, untouched tails and word sums"
+                );
+            }
+        }
+    }
+
+    for (u32 failure = 0U; failure < 3U; ++failure) {
+        LegacyBattleActorListQueryState list;
+        list.next_resource_head_token =
+            failure == 0U ? 0xBAD00000U : 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+        };
+
+        if (failure == 2U) {
+            list.resources.push_back({
+                .token = 0x76000010U,
+                .name = "name",
+                .capacity_gate_flags = 0x2000U,
+            });
+        }
+
+        std::array<u8, 20> name;
+        name.fill(0xA5U);
+        const auto original_name = name;
+        u16 quantity = 0xBEEFU;
+        const std::span<u8> destination =
+            failure == 2U ? std::span<u8>{} : std::span<u8>{name};
+        const auto result = query_legacy_battle_actor_flagged_resource(
+            &list, 1U, destination, quantity
+        );
+        test.expect_true(
+            !result.found &&
+                result.status ==
+                    (failure == 2U ? LegacyBattleActorListQueryStatus::
+                                         list_text_typed_stop
+                                   : LegacyBattleActorListQueryStatus::
+                                         resource_node_typed_stop) &&
+                name == original_name && quantity == 0xBEEFU &&
+                list.resource_head_token ==
+                    (failure == 0U ? 0xBAD00000U : 0x76000010U),
+            "missing root, missing next and unavailable text retain the actual publication and unchanged output prefix"
+        );
+    }
+
+    for (const bool missing_reloaded_node : {false, true}) {
+        LegacyBattleActorListQueryState list;
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {
+            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            {.token = 0x76000010U,
+             .secondary_quantity = 99,
+             .name = std::string(1U, missing_reloaded_node ? '\x30' : '\x20'),
+             .capacity_gate_flags = 0x2000U},
+            {.token = 0x76000020U,
+             .secondary_quantity = 3,
+             .tertiary_quantity = 4,
+             .name = "reloaded"},
+        };
+
+        const std::span<u8> aliased_name{
+            reinterpret_cast<u8*>(&list.resource_head_token),
+            sizeof(list.resource_head_token)
+        };
+
+        u16 quantity = 0xBEEFU;
+        const auto result = query_legacy_battle_actor_flagged_resource(
+            &list, 1U, aliased_name, quantity
+        );
+        test.expect_true(
+            result.found == !missing_reloaded_node &&
+                result.status ==
+                    (missing_reloaded_node
+                         ? LegacyBattleActorListQueryStatus::
+                               resource_node_typed_stop
+                         : LegacyBattleActorListQueryStatus::completed) &&
+                list.resource_head_token ==
+                    (missing_reloaded_node ? 0x76000030U : 0x76000020U) &&
+                quantity == (missing_reloaded_node ? 0xBEEFU : 7U),
+            "real text alias writes precede the shared-head reload and quantity access without callbacks or fabricated replies"
+        );
+    }
+
+    std::array<u8, 20> name;
+    name.fill(0xA5U);
+    const auto original_name = name;
+    u16 quantity = 0xBEEFU;
+    const auto result =
+        query_legacy_battle_actor_flagged_resource(nullptr, 1U, name, quantity);
+    test.expect_true(
+        result.status ==
+                LegacyBattleActorListQueryStatus::list_owner_typed_stop &&
+            !result.found && name == original_name && quantity == 0xBEEFU,
+        "missing actual list preserves both output owners on the existing failure"
+    );
+}
+
 }  // namespace
 
 void test_battle_actor_list_query(openswd3::test::Context& test) {
     test_actor_resource_release_prefixes(test);
     test_resource_head_publication(test);
+    test_flagged_resource_display(test);
     using namespace openswd3::battle;
     const std::array<openswd3::compat::u16, 4> table{10U, 20U, 30U, 40U};
 
@@ -756,20 +962,17 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .name = "flagged",
              .capacity_gate_flags = 0x2000U},
         };
+
+        std::array<u8, 20> name{};
+        u16 quantity = 0xBEEFU;
         const auto result = query_legacy_battle_actor_flagged_resource(
-            &list,
-            0x005029D0U,
-            {.occurrence = 1U,
-             .entry_eax = 0xAAAAAAAAU,
-             .entry_edx = 0xBBBBBBBBU}
+            &list, 1U, name, quantity
         );
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                list.resource_head_token == 0x76000020U &&
-                result.nodes_visited == 2U && result.flagged_matches == 1U &&
-                result.copied_name == "flagged" &&
-                result.output_quantity == 1U && result.return_eax == 1U &&
-                result.return_ecx == 1U && result.return_edx == 1U,
+                result.found && list.resource_head_token == 0x76000020U &&
+                std::string(name.begin(), name.begin() + 7U) == "flagged" &&
+                name[7U] == 0U && quantity == 1U,
             "flagged resource query counts bit thirteen and wraps the secondary plus tertiary word sum"
         );
     }
@@ -783,13 +986,17 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .tertiary_quantity = 4,
              .name = "stale-zero"},
         };
+
+        std::array<u8, 20> name{};
+        u16 quantity = 0xBEEFU;
         const auto result = query_legacy_battle_actor_flagged_resource(
-            &list, 0x005029D0U, {.occurrence = 0U}
+            &list, 0U, name, quantity
         );
         test.expect_true(
-            result.return_eax == 1U && result.flagged_matches == 0U &&
-                result.copied_name == "stale-zero" &&
-                result.output_quantity == 7U,
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.found && list.resource_head_token == 0x76000010U &&
+                std::string(name.begin(), name.begin() + 10U) == "stale-zero" &&
+                name[10U] == 0U && quantity == 7U,
             "flagged resource occurrence zero preserves the stale success on the first unflagged node"
         );
     }
@@ -802,13 +1009,19 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .name = "twenty-byte-name-xxxx",
              .capacity_gate_flags = 0x2000U},
         };
+
+        std::array<u8, 20> name{};
+        name.fill(0xA5U);
+        const auto original_name = name;
+        u16 quantity = 0xBEEFU;
         const auto result = query_legacy_battle_actor_flagged_resource(
-            &list, 0x005029D0U, {.occurrence = 1U, .output_capacity = 20U}
+            &list, 1U, name, quantity
         );
         test.expect_true(
             result.status ==
                     LegacyBattleActorListQueryStatus::list_text_typed_stop &&
-                result.nodes_visited == 1U && result.return_eax == 0x76000010U,
+                !result.found && list.resource_head_token == 0x76000010U &&
+                name == original_name && quantity == 0xBEEFU,
             "flagged resource query stops at the original caller buffer boundary instead of truncating lstrcpy"
         );
     }
@@ -821,13 +1034,18 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .name = "only",
              .capacity_gate_flags = 0x2000U},
         };
+
+        std::array<u8, 20> name{};
+        name.fill(0xA5U);
+        const auto original_name = name;
+        u16 quantity = 0xBEEFU;
         const auto result = query_legacy_battle_actor_flagged_resource(
-            &list, 0x005029D0U, {.occurrence = 2U}
+            &list, 2U, name, quantity
         );
         test.expect_true(
-            result.return_eax == 0U && result.nodes_visited == 2U &&
-                result.flagged_matches == 1U &&
-                list.resource_head_token == 0U && result.copied_name.empty(),
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                !result.found && list.resource_head_token == 0U &&
+                name == original_name && quantity == 0xBEEFU,
             "flagged resource query destructively reaches null when the requested occurrence is absent"
         );
     }

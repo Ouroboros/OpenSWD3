@@ -14,7 +14,7 @@ struct LegacyBattleAlternateGridFrameState {
     std::array<compat::u8, 20> row_text{};
     std::array<compat::u8, 20> numeric_text{};
     compat::u32 displayed_rows{};
-    compat::u32 row_value{};
+    compat::u16 row_value{};
     compat::u32 numeric_text_length{};
 };
 
@@ -44,7 +44,6 @@ struct LegacyBattleAlternateGridFrameRequest {
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
     compat::u32 row_text_token{};
-    compat::u32 row_value_token{};
     compat::u32 numeric_text_token{};
     compat::u32 title_text_token{kLegacyBattleStaticActionTextTokens[6U]};
     LegacyBattleGridFrameRegisterSnapshot panel_rectangle_return_registers{};
@@ -88,9 +87,10 @@ struct LegacyBattleAlternateGridFrameResult {
     compat::u32 tiled_frame_calls{};
     compat::u32 actor_initialization_calls{};
     LegacyBattleActorResourceListCountResult actor_initialization{};
-    compat::u32 row_query_calls{};
-    LegacyBattleActorFlaggedResourceQueryResult row_query{};
-    compat::u32 scanned_rows{};
+    LegacyBattleActorListQueryStatus resource_query_failure{
+        LegacyBattleActorListQueryStatus::completed
+    };
+
     compat::u32 displayed_rows{};
     compat::u32 text_draw_calls{};
     compat::u32 selection_rectangle_calls{};

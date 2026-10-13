@@ -544,22 +544,18 @@ LegacyBattleActorListQueryStatus commit_legacy_battle_actor_resource_list(
 LegacyBattleActorFlaggedResourceQueryResult
 query_legacy_battle_actor_flagged_resource(
     LegacyBattleActorListQueryState* list,
-    const u32 actor_token,
-    const LegacyBattleActorFlaggedResourceQueryRequest& request
+    const u32 occurrence,
+    const std::span<compat::u8> output_name,
+    u16& output_quantity
 ) {
     LegacyBattleActorFlaggedResourceQueryResult result;
-    result.return_eax = request.entry_eax;
-    result.return_ecx = actor_token;
-    result.return_edx = request.entry_edx;
-
     const auto status = commit_legacy_battle_actor_resource_list(list);
-    result.return_ecx = request.occurrence;
-    result.return_edx = 0x2000U;
     if (status != LegacyBattleActorListQueryStatus::completed) {
         result.status = status;
         return result;
     }
 
+    u32 flagged_matches = 0U;
     while (true) {
         const auto current = std::ranges::find(
             list->resources,
@@ -569,16 +565,12 @@ query_legacy_battle_actor_flagged_resource(
         if (current == list->resources.end()) {
             result.status =
                 LegacyBattleActorListQueryStatus::resource_node_typed_stop;
-            result.return_eax = list->resource_head_token;
             return result;
         }
 
         const u32 next = current->next_token;
         list->resource_head_token = next;
-        ++result.nodes_visited;
-        result.return_eax = next;
         if (next == 0U) {
-            result.return_eax = 0U;
             return result;
         }
 
@@ -588,28 +580,44 @@ query_legacy_battle_actor_flagged_resource(
         if (node == list->resources.end()) {
             result.status =
                 LegacyBattleActorListQueryStatus::resource_node_typed_stop;
-            result.return_eax = next;
             return result;
         }
+
         if ((node->capacity_gate_flags & 0x2000U) != 0U) {
-            ++result.flagged_matches;
+            ++flagged_matches;
         }
-        if (result.flagged_matches != request.occurrence) {
+
+        if (flagged_matches != occurrence) {
             continue;
         }
 
-        if (node->name.size() >= request.output_capacity) {
+        const auto terminator = node->name.find('\0');
+        const auto name_size =
+            terminator == std::string::npos ? node->name.size() : terminator;
+        if (name_size >= output_name.size()) {
             result.status =
                 LegacyBattleActorListQueryStatus::list_text_typed_stop;
             return result;
         }
 
-        result.copied_name = node->name;
-        const u16 secondary = std::bit_cast<u16>(node->secondary_quantity);
-        const u16 tertiary = std::bit_cast<u16>(node->tertiary_quantity);
-        result.output_quantity = static_cast<u16>(secondary + tertiary);
-        result.return_eax = 1U;
-        result.return_edx = result.output_quantity;
+        std::copy_n(node->name.begin(), name_size, output_name.begin());
+        output_name[name_size] = 0U;
+        const auto output_node = std::ranges::find(
+            list->resources,
+            list->resource_head_token,
+            &LegacyBattleActorListResourceNode::token
+        );
+        if (output_node == list->resources.end()) {
+            result.status =
+                LegacyBattleActorListQueryStatus::resource_node_typed_stop;
+            return result;
+        }
+
+        const u16 tertiary = std::bit_cast<u16>(output_node->tertiary_quantity);
+        const u16 secondary =
+            std::bit_cast<u16>(output_node->secondary_quantity);
+        output_quantity = static_cast<u16>(tertiary + secondary);
+        result.found = true;
         return result;
     }
 }

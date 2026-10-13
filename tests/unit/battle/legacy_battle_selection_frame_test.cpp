@@ -1908,6 +1908,9 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.final_actor.queued_actor_code = 8U;
         fixture.message = 27U;
         fixture.frame.panel_row_limit_c = 7U;
+        auto& list = fixture.startup.party[0U].actor_list;
+        list.next_resource_head_token = 0x76000000U;
+        list.resources = {{.token = 0x76000000U, .name = {}}};
         fixture.port
             .grid_frame_replies[LegacyBattleGridFrameCall::initialize_rows]
             .push_back({
@@ -1927,7 +1930,10 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleAlternateGridFrameStatus::
                         completed &&
                 result.alternate_grid_frame.tiled_frame_calls == 2U &&
-                result.alternate_grid_frame.row_query_calls == 1U &&
+                result.alternate_grid_frame.resource_query_failure ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
+                list.resource_head_token == 0x76000000U &&
                 fixture.action.action_pending_aux == 1U &&
                 fixture.action.selection_cache_gate_b == 1U &&
                 fixture.input.selection_cache_gate_c == 1U &&

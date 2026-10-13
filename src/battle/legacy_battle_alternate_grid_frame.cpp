@@ -174,74 +174,48 @@ public:
             }
         }
 
+        auto* initial_list = active_resource_list();
+        if (initial_list == nullptr) {
+            result_.status = Status::group_a_actor_typed_stop;
+            return finish();
+        }
+
         static_cast<void>(
-            commit_legacy_battle_actor_resource_list(&party.actor_list)
+            commit_legacy_battle_actor_resource_list(initial_list)
         );
 
         u32 iterator = request_.scroll_offset;
         for (;;) {
             ++iterator;
             result_.final_iterator = iterator;
-            eax_ = group_a_scaled_1007(actor_code);
-            ecx_ = group_a_actor_token(actor_code);
-            edx_ = group_a_scaled_3021(actor_code);
-            if (bindings_.scripted_port_test_compat) {
-                const auto queried = invoke({
-                    .call = Call::query_alternate_row,
-                    .object_token = ecx_,
-                    .arguments =
-                        {0U,
-                         iterator,
-                         request_.row_text_token,
-                         request_.row_value_token},
-                    .eax = eax_,
-                    .ecx = ecx_,
-                    .edx = edx_,
-                    .text_token = request_.row_text_token,
-                    .text_bytes = state_.row_text,
-                });
-                ++result_.row_query_calls;
-                if (queried.publish_row_value) {
-                    state_.row_value = queried.row_value;
-                }
-                if (queried.publish_row_text) {
-                    state_.row_text = queried.row_text;
-                }
-            } else {
-                result_.row_query = query_legacy_battle_actor_flagged_resource(
-                    &party.actor_list,
-                    ecx_,
-                    {.occurrence = iterator,
-                     .output_capacity =
-                         static_cast<u32>(state_.row_text.size()),
-                     .entry_eax = eax_,
-                     .entry_edx = edx_}
-                );
-                ++result_.row_query_calls;
-                eax_ = result_.row_query.return_eax;
-                ecx_ = result_.row_query.return_ecx;
-                edx_ = result_.row_query.return_edx;
-                if (result_.row_query.status !=
-                    LegacyBattleActorListQueryStatus::completed) {
+            auto* query_list = active_resource_list();
+            if (query_list == nullptr) {
+                result_.status = Status::group_a_actor_typed_stop;
+                return finish();
+            }
+
+            const auto queried = query_legacy_battle_actor_flagged_resource(
+                query_list, iterator, state_.row_text, state_.row_value
+            );
+            if (queried.status != LegacyBattleActorListQueryStatus::completed) {
+                result_.resource_query_failure = queried.status;
+                result_.status = Status::group_a_actor_typed_stop;
+                return finish();
+            }
+
+            if (!queried.found) {
+                auto* reset_list = active_resource_list();
+                if (reset_list == nullptr) {
                     result_.status = Status::group_a_actor_typed_stop;
                     return finish();
                 }
-                state_.row_value = result_.row_query.output_quantity;
-                state_.row_text.fill(0U);
-                std::copy(
-                    result_.row_query.copied_name.begin(),
-                    result_.row_query.copied_name.end(),
-                    state_.row_text.begin()
-                );
-            }
-            if (eax_ == 0U) {
+
                 static_cast<void>(
-                    commit_legacy_battle_actor_resource_list(&party.actor_list)
+                    commit_legacy_battle_actor_resource_list(reset_list)
                 );
                 break;
             }
 
-            ++result_.scanned_rows;
             if (static_cast<u16>(state_.displayed_rows) >= 7U) {
                 break;
             }
@@ -258,6 +232,17 @@ public:
     }
 
 private:
+    [[nodiscard]] LegacyBattleActorListQueryState*
+    active_resource_list() noexcept {
+        const u32 actor_code = bindings_.queued_actor_code;
+        if (!valid_group_a_code(actor_code) ||
+            actor_code - 8U >= bindings_.party.size()) {
+            return nullptr;
+        }
+
+        return &bindings_.party[actor_code - 8U].actor_list;
+    }
+
     [[nodiscard]] bool draw_panel() {
         static_cast<void>(
             clear_legacy_battle_action_record(bindings_.panel_action_record)
@@ -379,8 +364,7 @@ private:
 
         const u32 row_y =
             request_.origin_y + state_.displayed_rows * 20U + 0x2CU;
-        ecx_ = replace_low_word(ecx_, bindings_.primary_text_color);
-        const u32 name_color = ecx_;
+        const u32 name_color = bindings_.primary_text_color;
         invoke_text(
             request_.origin_x + 0x10U,
             row_y,
