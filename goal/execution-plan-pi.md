@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v1333
+版本：v1335
 
 最后更新：2026-10-13
 
@@ -389,10 +389,10 @@ B10保持Workpack 316 `pending_audit`、`315/422`，不得开始317。
 
 ### 当前 WORKPACK REVIEW 计划：通用调用体系迁移
 
-当前状态：按独立业务切片持续迁移，整体清理未完成。
-当前REVIEW：条目计数与必要网格调用方已验证发布，证据与清单同步。
-下一项继续回收实际列表查询协议。
-完整列表与网格接口继续待迁移。
+当前状态：先建立全仓逐项清单，整体清理未完成。
+当前REVIEW：核对[迁移LIST][plan-ref-15]的定义、残留与调用方覆盖。
+随后收敛已有行查询改动，按清单处理角色资源列表调用链。
+逐项记录剩余协议和验证发布证据；整条验收后才勾选完成。
 每批审查和定向验证通过后立即提交推送，再开始下一个切片。
 同一时间只推进一个批次；全仓扫描和逐项语义复核后判断整体完成。
 执行与证据入口见[通用调用迁移][plan-ref-14]。
@@ -450,3 +450,4 @@ inventory状态。
 [plan-ref-12]: ../analysis/04-reverse-engineering/evidence/battle-actor-frame-v4b-407-audit.md
 [plan-ref-13]: ../analysis/04-reverse-engineering/evidence/battle-action-seven-list-source-00470180.md
 [plan-ref-14]: ../analysis/04-reverse-engineering/evidence/invoke-migration-progress.md
+[plan-ref-15]: ../analysis/04-reverse-engineering/evidence/invoke-removal-list.md
