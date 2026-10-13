@@ -132,7 +132,13 @@ public:
             return finish();
         }
 
-        LegacyBattlePartyStartupRecord* party = nullptr;
+        const u32 actor_index = actor_code - 8U;
+        if (actor_index >= bindings_.party.size()) {
+            result_.status = Status::group_a_actor_typed_stop;
+            return finish();
+        }
+
+        auto& party = bindings_.party[actor_index];
         if (bindings_.scripted_port_test_compat) {
             const auto initialized = invoke({
                 .call = Call::initialize_rows,
@@ -147,15 +153,9 @@ public:
                 bindings_.panel_row_limit = initialized.panel_row_limit;
             }
         } else {
-            const u32 actor_index = actor_code - 8U;
-            if (actor_index >= bindings_.party.size()) {
-                result_.status = Status::group_a_actor_typed_stop;
-                return finish();
-            }
-            party = &bindings_.party[actor_index];
             result_.actor_initialization =
                 count_legacy_battle_actor_resource_list(
-                    &party->actor_list,
+                    &party.actor_list,
                     ecx_,
                     {.category_selector = 4U,
                      .initial_count = bindings_.panel_row_limit,
@@ -173,7 +173,10 @@ public:
                 return finish();
             }
         }
-        refresh_actor(actor_code);
+
+        static_cast<void>(
+            commit_legacy_battle_actor_resource_list(&party.actor_list)
+        );
 
         u32 iterator = request_.scroll_offset;
         for (;;) {
@@ -206,7 +209,7 @@ public:
                 }
             } else {
                 result_.row_query = query_legacy_battle_actor_flagged_resource(
-                    &party->actor_list,
+                    &party.actor_list,
                     ecx_,
                     {.occurrence = iterator,
                      .output_capacity =
@@ -232,7 +235,9 @@ public:
                 );
             }
             if (eax_ == 0U) {
-                refresh_actor(actor_code);
+                static_cast<void>(
+                    commit_legacy_battle_actor_resource_list(&party.actor_list)
+                );
                 break;
             }
 
@@ -467,35 +472,6 @@ private:
         bindings_.selection_input_gate = 1U;
         result_.selected_iterator = iterator;
         return true;
-    }
-
-    void refresh_actor(const u32 actor_code) {
-        eax_ = group_a_scaled_1007(actor_code);
-        ecx_ = group_a_actor_token(actor_code);
-        edx_ = group_a_scaled_3021(actor_code);
-        if (bindings_.scripted_port_test_compat) {
-            invoke({
-                .call = Call::refresh_actor,
-                .object_token = ecx_,
-                .eax = eax_,
-                .ecx = ecx_,
-                .edx = edx_,
-            });
-            ++result_.actor_refresh_calls;
-            return;
-        }
-        const u32 actor_index = actor_code - 8U;
-        if (actor_index >= bindings_.party.size()) {
-            result_.status = Status::group_a_actor_typed_stop;
-            return;
-        }
-        result_.actor_refresh = commit_legacy_battle_actor_resource_list(
-            &bindings_.party[actor_index].actor_list, ecx_, edx_
-        );
-        ++result_.actor_refresh_calls;
-        eax_ = result_.actor_refresh.return_eax;
-        ecx_ = result_.actor_refresh.return_ecx;
-        edx_ = result_.actor_refresh.return_edx;
     }
 
     LegacyBattleGridFrameCallReply

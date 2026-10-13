@@ -8,6 +8,7 @@
 #include <string_view>
 #include <vector>
 
+#include "openswd3/battle/legacy_battle_startup.hpp"
 #include "test.hpp"
 
 namespace {
@@ -157,8 +158,8 @@ struct Fixture {
             'A', 'B', 'C', 'D', 'E', 'F', 'G', '%', 'Q'
         };
         std::ranges::copy(kDescription, maps_payload.begin() + 0x58);
-        actor_description_record_tokens[0U] = 0xDEADC0DEU;
-        actor_description_text_indices[0U] = 1U;
+        actor_description_record_tokens.fill(0xDEADC0DEU);
+        actor_description_text_indices.fill(1U);
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleGridFrameBindings bindings() {
@@ -172,6 +173,7 @@ struct Fixture {
             .secondary_text_color = secondary_text_color,
             .actor_description_record_tokens = actor_description_record_tokens,
             .actor_description_text_indices = actor_description_text_indices,
+            .party = party,
             .scripted_port_test_compat = true,
             .maps_payload = maps_payload,
             .shared_text = shared_text,
@@ -197,6 +199,7 @@ struct Fixture {
     u16 secondary_text_color{0x1111U};
     std::array<u32, 10> actor_description_record_tokens{};
     std::array<u16, 10> actor_description_text_indices{};
+    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 10> party{};
     std::vector<u8> maps_payload;
     std::array<u8, 128> shared_text{};
     openswd3::asset_runtime::LegacyActionRecord panel_action_record;
@@ -319,6 +322,56 @@ void prepare_rows(Fixture& fixture) {
 }  // namespace
 
 void test_battle_grid_frame(openswd3::test::Context& test) {
+    for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {
+        for (const bool exhausted : {false, true}) {
+            Fixture fixture;
+            fixture.queued_actor_code = actor_index + 8U;
+            fixture.action_category_index = 0U;
+            auto& list = fixture.party[actor_index].actor_list;
+            const u32 root = 0x80000000U + actor_index * 0x100U;
+            list.resource_head_token = 0xDEAD0000U;
+            list.next_resource_head_token = root;
+            list.selected_resource_token = 0xCAFEBABEU;
+            list.resources = {
+                {.token = root, .next_token = root + 0x10U, .name = {}},
+            };
+
+            const u32 row_count = exhausted ? 1U : 7U;
+            for (u32 row = 1U; row <= row_count; ++row) {
+                list.resources.push_back({
+                    .token = root + row * 0x10U,
+                    .next_token =
+                        row == row_count ? 0U : root + (row + 1U) * 0x10U,
+                    .tertiary_quantity = 1,
+                    .name = "row",
+                    .category_mask = 0x10U,
+                    .mode_flags = 0x01U,
+                });
+            }
+
+            auto bindings = fixture.bindings();
+            bindings.scripted_port_test_compat = false;
+            auto selected = request();
+            selected.scroll_offset = 0U;
+            selected.selected_row = 0U;
+            const auto result = openswd3::battle::draw_legacy_battle_grid_frame(
+                fixture.state, bindings, fixture.port, selected
+            );
+            test.expect_true(
+                result.status ==
+                        openswd3::battle::LegacyBattleGridFrameStatus::
+                            completed &&
+                    result.displayed_rows == row_count &&
+                    list.resource_head_token ==
+                        (exhausted ? root : root + 0x70U) &&
+                    list.next_resource_head_token == root &&
+                    list.selected_resource_token == 0xCAFEBABEU &&
+                    list.resources.size() == row_count + 1U,
+                "each grid actor reads its actual next-root chain and resets the head only on the exhaustion branch"
+            );
+        }
+    }
+
     {
         Fixture fixture;
         prepare_rows(fixture);
@@ -342,7 +395,8 @@ void test_battle_grid_frame(openswd3::test::Context& test) {
                 result.panel_rectangle_calls == 1U &&
                 result.tiled_frame_calls == 1U &&
                 result.actor_initialization_calls == 1U &&
-                result.actor_refresh_calls == 2U &&
+                fixture.party[0U].actor_list.resource_head_token ==
+                    fixture.party[0U].actor_list.next_resource_head_token &&
                 result.row_query_calls == 4U && result.scanned_rows == 3U &&
                 result.hidden_rows == 1U && result.displayed_rows == 2U &&
                 result.text_draw_calls == 6U &&

@@ -139,7 +139,13 @@ public:
             return finish();
         }
 
-        LegacyBattlePartyStartupRecord* party = nullptr;
+        const u32 actor_index = actor_code - 8U;
+        if (actor_index >= bindings_.party.size()) {
+            result_.status = Status::group_a_actor_typed_stop;
+            return finish();
+        }
+
+        auto& party = bindings_.party[actor_index];
         if (bindings_.scripted_port_test_compat) {
             const auto initialized = invoke({
                 .call = Call::initialize_rows,
@@ -155,15 +161,9 @@ public:
                 bindings_.panel_row_limit = initialized.panel_row_limit;
             }
         } else {
-            const u32 actor_index = actor_code - 8U;
-            if (actor_index >= bindings_.party.size()) {
-                result_.status = Status::group_a_actor_typed_stop;
-                return finish();
-            }
-            party = &bindings_.party[actor_index];
             result_.actor_initialization =
                 count_legacy_battle_actor_resource_list(
-                    &party->actor_list,
+                    &party.actor_list,
                     ecx_,
                     {.category_selector = bindings_.action_category_index,
                      .initial_count = bindings_.panel_row_limit,
@@ -182,26 +182,9 @@ public:
             }
         }
 
-        eax_ = group_a_scaled_1007(actor_code);
-        ecx_ = group_a_actor_token(actor_code);
-        if (bindings_.scripted_port_test_compat) {
-            invoke({
-                .call = Call::refresh_actor,
-                .object_token = ecx_,
-                .eax = eax_,
-                .ecx = ecx_,
-                .edx = edx_,
-            });
-            ++result_.actor_refresh_calls;
-        } else {
-            result_.actor_refresh = commit_legacy_battle_actor_resource_list(
-                &party->actor_list, ecx_, edx_
-            );
-            ++result_.actor_refresh_calls;
-            eax_ = result_.actor_refresh.return_eax;
-            ecx_ = result_.actor_refresh.return_ecx;
-            edx_ = result_.actor_refresh.return_edx;
-        }
+        static_cast<void>(
+            commit_legacy_battle_actor_resource_list(&party.actor_list)
+        );
 
         u32 iterator = request_.scroll_offset + 1U;
         u32 displayed_rows = 0U;
@@ -237,8 +220,8 @@ public:
                 }
             } else {
                 result_.row_query = query_legacy_battle_actor_resource_list(
-                    &party->actor_list,
-                    &party->configuration,
+                    &party.actor_list,
+                    &party.configuration,
                     ecx_,
                     {.category_selector = bindings_.action_category_index,
                      .occurrence = iterator,
@@ -267,27 +250,9 @@ public:
                 );
             }
             if (eax_ == 0U) {
-                eax_ = group_a_scaled_1007(actor_code);
-                ecx_ = group_a_actor_token(actor_code);
-                if (bindings_.scripted_port_test_compat) {
-                    invoke({
-                        .call = Call::refresh_actor,
-                        .object_token = ecx_,
-                        .eax = eax_,
-                        .ecx = ecx_,
-                        .edx = edx_,
-                    });
-                    ++result_.actor_refresh_calls;
-                } else {
-                    result_.actor_refresh =
-                        commit_legacy_battle_actor_resource_list(
-                            &party->actor_list, ecx_, edx_
-                        );
-                    ++result_.actor_refresh_calls;
-                    eax_ = result_.actor_refresh.return_eax;
-                    ecx_ = result_.actor_refresh.return_ecx;
-                    edx_ = result_.actor_refresh.return_edx;
-                }
+                static_cast<void>(
+                    commit_legacy_battle_actor_resource_list(&party.actor_list)
+                );
                 break;
             }
 

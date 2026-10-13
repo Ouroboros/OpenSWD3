@@ -92,7 +92,6 @@ struct LegacyBattleModeGridFrameResult {
     compat::u32 primary_query_calls{};
     compat::u32 secondary_count_query_calls{};
     compat::u32 secondary_row_query_calls{};
-    compat::u32 actor_refresh_calls{};
     compat::u32 text_copy_calls{};
     compat::u32 text_draw_calls{};
     compat::u32 selection_rectangle_calls{};
@@ -101,7 +100,6 @@ struct LegacyBattleModeGridFrameResult {
     LegacyBattleActorModeResourceQueryResult primary_query{};
     LegacyBattleActorModeResourceCountResult secondary_count_query{};
     LegacyBattleActorModeResourceQueryResult secondary_row_query{};
-    std::array<LegacyBattleActorResourceListCommitResult, 2> actor_refreshes{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};
     rendering::LegacyRectangleEffectStatus panel_rectangle_status{
         rendering::LegacyRectangleEffectStatus::completed

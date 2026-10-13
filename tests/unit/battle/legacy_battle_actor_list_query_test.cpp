@@ -211,10 +211,172 @@ void test_actor_resource_release_prefixes(openswd3::test::Context& test) {
     }
 }
 
+void test_resource_head_publication(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    using openswd3::compat::u32;
+    constexpr std::array<u32, 6> heads{
+        0U, 1U, 0x7FFFFFFFU, 0x80000000U, 0xFFFFFFFFU, 0x76000000U
+    };
+
+    for (const u32 head : heads) {
+        for (const bool already_current : {false, true}) {
+            LegacyBattleActorListQueryState list;
+            list.resource_head_token = already_current ? head : ~head;
+            list.next_resource_head_token = head;
+            list.selected_resource_token = 0xCAFEBABEU;
+            list.resources = {
+                {.token = 0x76000000U,
+                 .next_token = 0x76000010U,
+                 .resource_id = 0xFFFFU,
+                 .primary_quantity = 0xABCDU,
+                 .secondary_quantity = -1,
+                 .tertiary_quantity = 2,
+                 .name = "retained",
+                 .category_mask = 0xFFFFFFFFU,
+                 .mode_flags = 0xFFU,
+                 .capacity_gate_flags = 0xFFFFU},
+                {.token = 0x76000010U, .name = "next"},
+            };
+
+            const auto* first = &list.resources.front();
+            const auto status = commit_legacy_battle_actor_resource_list(&list);
+            test.expect_true(
+                status == LegacyBattleActorListQueryStatus::completed &&
+                    list.resource_head_token == head &&
+                    list.next_resource_head_token == head &&
+                    list.selected_resource_token == 0xCAFEBABEU &&
+                    list.resources.size() == 2U &&
+                    &list.resources.front() == first &&
+                    first->next_token == 0x76000010U &&
+                    first->resource_id == 0xFFFFU &&
+                    first->primary_quantity == 0xABCDU &&
+                    first->secondary_quantity == -1 &&
+                    first->tertiary_quantity == 2 &&
+                    first->name == "retained" &&
+                    first->category_mask == 0xFFFFFFFFU &&
+                    first->mode_flags == 0xFFU &&
+                    first->capacity_gate_flags == 0xFFFFU,
+                "resource publication copies the full next head without node access, selection changes or ownership changes"
+            );
+        }
+    }
+
+    test.expect_true(
+        commit_legacy_battle_actor_resource_list(nullptr) ==
+            LegacyBattleActorListQueryStatus::list_owner_typed_stop,
+        "resource publication propagates the existing missing-owner failure"
+    );
+
+    for (u32 consumer = 0U; consumer < 5U; ++consumer) {
+        for (const bool missing_root : {false, true}) {
+            LegacyBattleActorListQueryState list;
+            list.resource_head_token = 0xDEAD0000U;
+            list.next_resource_head_token =
+                missing_root ? 0xFEDCBA98U : 0x76000000U;
+            list.selected_resource_token = 0xCAFEBABEU;
+            list.resources = {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 0x0300U,
+                 .primary_quantity = 1U,
+                 .secondary_quantity = 2,
+                 .tertiary_quantity = 3,
+                 .name = "published",
+                 .category_mask = 0x08000010U,
+                 .mode_flags = 0x01U,
+                 .capacity_gate_flags = 0x2000U},
+            };
+
+            LegacyBattleActorListQueryStatus status;
+            switch (consumer) {
+            case 0U: {
+                const auto result = query_legacy_battle_actor_flagged_resource(
+                    &list, 0x005029D0U, {.occurrence = 1U}
+                );
+                status = result.status;
+                break;
+            }
+
+            case 1U: {
+                const auto result = query_legacy_battle_actor_mode_resource(
+                    &list, 0x005029D0U, {.mode = 0U, .occurrence = 1U}
+                );
+                status = result.status;
+                break;
+            }
+
+            case 2U: {
+                const auto result = count_legacy_battle_actor_mode_resources(
+                    &list, 0x005029D0U, {}
+                );
+                status = result.status;
+                test.expect_true(
+                    result.count == 0U,
+                    "mode count clears its output before a missing first node"
+                );
+                break;
+            }
+
+            case 3U: {
+                const auto result = count_legacy_battle_actor_resource_list(
+                    &list,
+                    0x005029D0U,
+                    {.category_selector = 0U, .initial_count = 0xABCDU}
+                );
+                status = result.status;
+                test.expect_true(
+                    result.count == (missing_root ? 0xABCDU : 0xABCEU),
+                    "resource count retains the caller's initial word before the first-node failure"
+                );
+                break;
+            }
+
+            default: {
+                const auto result = query_legacy_battle_actor_resource_list(
+                    &list,
+                    nullptr,
+                    0x005029D0U,
+                    {.category_selector = 0U, .occurrence = 1U}
+                );
+                status = result.status;
+                test.expect_true(
+                    !missing_root || result.output_flags == 0U,
+                    "resource query clears flags after publication and before a missing first node"
+                );
+                break;
+            }
+            }
+
+            const auto failure = consumer < 3U
+                ? LegacyBattleActorListQueryStatus::resource_node_typed_stop
+                : LegacyBattleActorListQueryStatus::resource_owner_typed_stop;
+            const u32 final_head = missing_root
+                ? 0xFEDCBA98U
+                : (consumer == 2U || consumer == 3U ? 0U : 0x76000010U);
+            test.expect_true(
+                status ==
+                        (missing_root
+                             ? failure
+                             : LegacyBattleActorListQueryStatus::completed) &&
+                    list.resource_head_token == final_head &&
+                    list.next_resource_head_token ==
+                        (missing_root ? 0xFEDCBA98U : 0x76000000U) &&
+                    list.selected_resource_token == 0xCAFEBABEU &&
+                    list.resources.size() == 2U &&
+                    list.resources.back().primary_quantity == 1U &&
+                    list.resources.back().secondary_quantity == 2 &&
+                    list.resources.back().tertiary_quantity == 3,
+                "resource consumers start from the published root and preserve publication on their existing first-node failure"
+            );
+        }
+    }
+}
+
 }  // namespace
 
 void test_battle_actor_list_query(openswd3::test::Context& test) {
     test_actor_resource_release_prefixes(test);
+    test_resource_head_publication(test);
     using namespace openswd3::battle;
     const std::array<openswd3::compat::u16, 4> table{10U, 20U, 30U, 40U};
 
@@ -603,8 +765,8 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                result.commit_calls == 1U && result.nodes_visited == 2U &&
-                result.flagged_matches == 1U &&
+                list.resource_head_token == 0x76000020U &&
+                result.nodes_visited == 2U && result.flagged_matches == 1U &&
                 result.copied_name == "flagged" &&
                 result.output_quantity == 1U && result.return_eax == 1U &&
                 result.return_ecx == 1U && result.return_edx == 1U,
@@ -855,9 +1017,9 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                result.commit_calls == 1U && result.nodes_visited == 6U &&
-                result.matches == 2U && result.count == 1U &&
-                result.return_eax == 0U && result.return_ecx == 0x0012FFD4U &&
+                result.nodes_visited == 6U && result.matches == 2U &&
+                result.count == 1U && result.return_eax == 0U &&
+                result.return_ecx == 0x0012FFD4U &&
                 result.return_edx == 0x0300U && list.resource_head_token == 0U,
             "mode resource count filters bit twenty-seven, fixed identifiers and output mode bits before wrapping all quantity words"
         );
@@ -1014,7 +1176,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             result.status == LegacyBattleActorListQueryStatus::completed &&
                 result.count == 1U && result.nodes_visited == 2U &&
                 result.positive_matches == 1U && result.extra_matches == 2U &&
-                result.commit_calls == 1U && list.resource_head_token == 0U,
+                list.resource_head_token == 0U,
             "resource count preserves the initial word, wraps increments, and category four counts its extra bit independently"
         );
     }
@@ -1043,9 +1205,8 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         );
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                result.return_eax == 1U && result.commit_calls == 1U &&
-                result.nodes_visited == 1U && result.matches == 1U &&
-                result.copied_name == "resource" &&
+                result.return_eax == 1U && result.nodes_visited == 1U &&
+                result.matches == 1U && result.copied_name == "resource" &&
                 result.output_quantity == 6U &&
                 result.output_flags == 0xC000U &&
                 list.resource_head_token == 0x76000010U,
@@ -1183,8 +1344,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             {.category_selector = 0U, .occurrence = 1U}
         );
         test.expect_true(
-            result.return_eax == 1U && result.rebuild_calls == 1U &&
-                result.resource_commit.head_writes == 1U &&
+            result.return_eax == 1U &&
                 list.resource_head_token == 0x76000000U &&
                 result.resource_nodes_visited == 1U &&
                 list.selected_resource_token == 0x76000000U &&

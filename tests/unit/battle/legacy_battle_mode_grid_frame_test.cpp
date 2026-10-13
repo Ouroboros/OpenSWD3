@@ -168,7 +168,7 @@ struct Fixture {
     u32 selection_input_gate{};
     u32 target_argument{};
     u16 primary_text_color{0x2222U};
-    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 4> party{};
+    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 10> party{};
     openswd3::asset_runtime::LegacyActionRecord panel_action_record;
     openswd3::rendering::LegacyFramebuffer framebuffer{{
         .pitch_bytes = 1280,
@@ -234,9 +234,6 @@ void prepare_success(Fixture& fixture) {
         }
     );
     fixture.port.reply(
-        Call::refresh_actor, {.eax = 0x201U, .ecx = 0x202U, .edx = 0x203U}
-    );
-    fixture.port.reply(
         Call::query_mode_secondary_count,
         {
             .eax = 0x301U,
@@ -245,9 +242,6 @@ void prepare_success(Fixture& fixture) {
             .publish_row_value = true,
             .row_value = 4U,
         }
-    );
-    fixture.port.reply(
-        Call::refresh_actor, {.eax = 0x401U, .ecx = 0x402U, .edx = 0x403U}
     );
     fixture.port.reply(
         Call::query_mode_row,
@@ -302,6 +296,59 @@ void prepare_success(Fixture& fixture) {
 }  // namespace
 
 void test_battle_mode_grid_frame(openswd3::test::Context& test) {
+    for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {
+        for (const bool has_secondary_quantity : {false, true}) {
+            Fixture fixture;
+            fixture.queued_actor_code = actor_index + 8U;
+            auto& list = fixture.party[actor_index].actor_list;
+            const u32 root = 0x80000000U + actor_index * 0x100U;
+            list.resource_head_token = 0xDEAD0000U;
+            list.next_resource_head_token = root;
+            list.selected_resource_token = 0xCAFEBABEU;
+            list.resources = {
+                {.token = root, .next_token = root + 0x10U, .name = {}},
+                {.token = root + 0x10U,
+                 .next_token = root + 0x20U,
+                 .resource_id = 0x0300U,
+                 .secondary_quantity = 1,
+                 .name = "primary",
+                 .mode_flags = 0x01U},
+                {.token = root + 0x20U,
+                 .resource_id = 0x0222U,
+                 .secondary_quantity = static_cast<openswd3::compat::i16>(
+                     has_secondary_quantity ? 1 : 0
+                 ),
+                 .name = "secondary",
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 0x01U},
+            };
+
+            auto bindings = fixture.bindings();
+            bindings.scripted_port_test_compat = false;
+            auto selected = request();
+            selected.selected_cell = 0U;
+            const auto result =
+                openswd3::battle::draw_legacy_battle_mode_grid_frame(
+                    fixture.state, bindings, fixture.port, selected
+                );
+            test.expect_true(
+                result.status ==
+                        openswd3::battle::LegacyBattleModeGridFrameStatus::
+                            completed &&
+                    fixture.state.primary_count == 1U &&
+                    fixture.state.secondary_count ==
+                        (has_secondary_quantity ? 1U : 0U) &&
+                    list.resource_head_token ==
+                        (has_secondary_quantity ? root + 0x20U : root) &&
+                    list.next_resource_head_token == root &&
+                    list.selected_resource_token ==
+                        (has_secondary_quantity ? root + 0x20U : 0xCAFEBABEU) &&
+                    list.resources.size() == 3U,
+                "each mode-grid actor republishes its root between real counts and retains the later selected secondary node"
+            );
+        }
+    }
+
     {
         Fixture fixture;
         fixture.queued_actor_code = 0U;
@@ -329,7 +376,6 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
                 fixture.state, fixture.bindings(), fixture.port, request()
             );
         const auto mode_rows = fixture.port.calls_of(Call::query_mode_row);
-        const auto refreshes = fixture.port.calls_of(Call::refresh_actor);
         const auto draws = fixture.port.calls_of(Call::draw_text);
         test.expect_true(
             result.status ==
@@ -341,7 +387,6 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
                 result.primary_query_calls == 1U &&
                 result.secondary_count_query_calls == 1U &&
                 result.secondary_row_query_calls == 4U &&
-                result.actor_refresh_calls == 2U &&
                 result.text_copy_calls == 4U && result.text_draw_calls == 12U &&
                 result.selection_rectangle_calls == 1U &&
                 fixture.panel_row_limit == 6U &&
@@ -358,9 +403,8 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
                 mode_rows[2U].arguments[1U] == 1U &&
                 mode_rows[3U].arguments[1U] == 2U &&
                 mode_rows[4U].arguments[1U] == 2U &&
-                mode_rows[1U].edx == 0x0012FFCCU && refreshes.size() == 2U &&
-                refreshes[0U].edx == 0U && refreshes[1U].edx == 0xDEADBEEFU,
-            "mode grid preserves primary, secondary-page and asymmetric refresh register shapes"
+                mode_rows[1U].edx == 0x0012FFCCU,
+            "mode grid preserves primary and secondary-page query inputs"
         );
         test.expect_true(
             result.cells[0U].x == 240U && result.cells[0U].y == 170U &&
@@ -505,12 +549,10 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
                 .row_text = text("ONE"),
             }
         );
-        fixture.port.reply(Call::refresh_actor, {});
         fixture.port.reply(
             Call::query_mode_secondary_count,
             {.publish_row_value = true, .row_value = 0U}
         );
-        fixture.port.reply(Call::refresh_actor, {});
         fixture.port.on_call = [&fixture](const Request& call) {
             if (call.call == Call::query_mode_secondary_count) {
                 fixture.raster.surface.pitch_bytes = 600;
@@ -547,12 +589,10 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
                 .row_text = text("EMPTY"),
             }
         );
-        fixture.port.reply(Call::refresh_actor, {});
         fixture.port.reply(
             Call::query_mode_secondary_count,
             {.publish_row_value = true, .row_value = 1U}
         );
-        fixture.port.reply(Call::refresh_actor, {});
         fixture.port.reply(
             Call::query_mode_row,
             {
@@ -608,7 +648,6 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
             fixture.port.calls_of(Call::query_mode_row);
         const auto secondary_counts =
             fixture.port.calls_of(Call::query_mode_secondary_count);
-        const auto refreshes = fixture.port.calls_of(Call::refresh_actor);
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleModeGridFrameStatus::
@@ -622,11 +661,9 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
                 result.secondary_row_query_calls == 2U &&
                 result.secondary_row_query.outputs_published &&
                 result.secondary_row_query.copied_name == "GROUP" &&
-                result.actor_refresh_calls == 2U &&
-                result.actor_refreshes[0U].head_writes == 1U &&
-                result.actor_refreshes[1U].head_writes == 1U &&
+                actor_list.resource_head_token == 0x78000020U &&
                 fixture.panel_row_limit == 4U && primary_queries.empty() &&
-                secondary_counts.empty() && refreshes.empty(),
+                secondary_counts.empty(),
             "mode grid production queries and resource-head refreshes use the startup party typed owner"
         );
         const auto primary_text = text("PRIMARY");

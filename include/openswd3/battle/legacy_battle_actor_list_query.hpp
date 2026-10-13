@@ -214,7 +214,7 @@ struct LegacyBattleActorResourceSelectionResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
-    compat::u32 commit_calls{};
+
     compat::u32 nodes_visited{};
     compat::u32 matches{};
     compat::u32 profile_load_calls{};
@@ -241,7 +241,7 @@ struct LegacyBattleActorFlaggedResourceQueryResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
-    compat::u32 commit_calls{};
+
     compat::u32 nodes_visited{};
     compat::u32 flagged_matches{};
     compat::u16 output_quantity{};
@@ -263,7 +263,7 @@ struct LegacyBattleActorModeResourceQueryResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
-    compat::u32 commit_calls{};
+
     compat::u32 nodes_visited{};
     compat::u32 matches{};
     compat::u32 selected_writes{};
@@ -285,7 +285,7 @@ struct LegacyBattleActorModeResourceCountResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
-    compat::u32 commit_calls{};
+
     compat::u32 nodes_visited{};
     compat::u32 matches{};
     compat::u16 count{};
@@ -313,7 +313,7 @@ struct LegacyBattleActorResourceListCountResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
-    compat::u32 commit_calls{};
+
     compat::u32 nodes_visited{};
     compat::u32 positive_matches{};
     compat::u32 extra_matches{};
@@ -334,22 +334,12 @@ struct LegacyBattleActorResourceListQueryResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
-    compat::u32 commit_calls{};
+
     compat::u32 nodes_visited{};
     compat::u32 matches{};
     compat::u16 output_flags{};
     compat::u16 output_quantity{};
     std::string copied_name;
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
-};
-
-struct LegacyBattleActorResourceListCommitResult {
-    LegacyBattleActorListQueryStatus status{
-        LegacyBattleActorListQueryStatus::completed
-    };
-    compat::u32 head_writes{};
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
@@ -364,8 +354,6 @@ struct LegacyBattleActorListStateResult {
     compat::u32 nodes_visited{};
     compat::u32 matches{};
     compat::u32 resource_nodes_visited{};
-    compat::u32 rebuild_calls{};
-    LegacyBattleActorResourceListCommitResult resource_commit{};
     compat::u32 message_calls{};
     compat::u32 sample_calls{};
     compat::u32 message_token{};
@@ -502,11 +490,9 @@ query_legacy_battle_actor_resource_list(
 );
 
 // sub_470900.
-[[nodiscard]] LegacyBattleActorResourceListCommitResult
+[[nodiscard]] LegacyBattleActorListQueryStatus
 commit_legacy_battle_actor_resource_list(
-    LegacyBattleActorListQueryState* list,
-    compat::u32 actor_token,
-    compat::u32 entry_edx
+    LegacyBattleActorListQueryState* list
 ) noexcept;
 
 // sub_470380.

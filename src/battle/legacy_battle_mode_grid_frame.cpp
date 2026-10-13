@@ -106,6 +106,13 @@ public:
             return finish();
         }
 
+        const u32 actor_index = actor_code - 8U;
+        if (actor_index >= bindings_.party.size()) {
+            result_.status = Status::group_a_actor_typed_stop;
+            return finish();
+        }
+
+        party_ = &bindings_.party[actor_index];
         if (bindings_.scripted_port_test_compat) {
             const auto primary = invoke({
                 .call = Call::query_mode_row,
@@ -129,12 +136,6 @@ public:
                 state_.row_text = primary.row_text;
             }
         } else {
-            const u32 actor_index = actor_code - 8U;
-            if (actor_index >= bindings_.party.size()) {
-                result_.status = Status::group_a_actor_typed_stop;
-                return finish();
-            }
-            party_ = &bindings_.party[actor_index];
             result_.primary_query = query_legacy_battle_actor_mode_resource(
                 &party_->actor_list,
                 ecx_,
@@ -164,9 +165,9 @@ public:
             }
         }
         bindings_.panel_row_limit = static_cast<u16>(state_.primary_count);
-        if (!refresh_actor(actor_code, group_a_scaled_3021(actor_code))) {
-            return finish();
-        }
+        static_cast<void>(
+            commit_legacy_battle_actor_resource_list(&party_->actor_list)
+        );
 
         if (bindings_.scripted_port_test_compat) {
             const auto secondary_count = invoke({
@@ -201,9 +202,10 @@ public:
                 return finish();
             }
         }
-        if (!refresh_actor(actor_code, edx_)) {
-            return finish();
-        }
+
+        static_cast<void>(
+            commit_legacy_battle_actor_resource_list(&party_->actor_list)
+        );
 
         state_.group_slot_count = 0U;
         bindings_.target_argument = 1U;
@@ -519,38 +521,6 @@ private:
         }
         result_.selected_page = bindings_.target_argument;
         result_.selected_group_index = group_index;
-        return true;
-    }
-
-    [[nodiscard]] bool
-    refresh_actor(const u32 actor_code, const u32 refresh_edx) {
-        eax_ = group_a_scaled_1007(actor_code);
-        ecx_ = group_a_actor_token(actor_code);
-        edx_ = refresh_edx;
-        if (bindings_.scripted_port_test_compat) {
-            invoke({
-                .call = Call::refresh_actor,
-                .object_token = ecx_,
-                .eax = eax_,
-                .ecx = ecx_,
-                .edx = edx_,
-            });
-        } else {
-            auto& refresh =
-                result_.actor_refreshes[result_.actor_refresh_calls];
-            refresh = commit_legacy_battle_actor_resource_list(
-                &party_->actor_list, ecx_, edx_
-            );
-            eax_ = refresh.return_eax;
-            ecx_ = refresh.return_ecx;
-            edx_ = refresh.return_edx;
-            if (refresh.status != LegacyBattleActorListQueryStatus::completed) {
-                result_.status = Status::group_a_actor_typed_stop;
-                ++result_.actor_refresh_calls;
-                return false;
-            }
-        }
-        ++result_.actor_refresh_calls;
         return true;
     }
 

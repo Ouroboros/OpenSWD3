@@ -161,7 +161,7 @@ struct Fixture {
     u32 selection_input_gate{};
     u32 target_argument{};
     u16 primary_text_color{0x2222U};
-    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 4> party{};
+    std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 10> party{};
     openswd3::asset_runtime::LegacyActionRecord panel_action_record;
     openswd3::rendering::LegacyFramebuffer framebuffer{{
         .pitch_bytes = 1280,
@@ -234,9 +234,6 @@ void prepare_rows(Fixture& fixture, const std::size_t nonzero = 8U) {
             .panel_row_limit = 9U,
         }
     );
-    fixture.port.reply(
-        Call::refresh_actor, {.eax = 0x201U, .ecx = 0x202U, .edx = 0x203U}
-    );
     for (std::size_t index = 0U; index < nonzero; ++index) {
         fixture.port.reply(
             Call::query_alternate_row,
@@ -265,6 +262,55 @@ same_text(const std::array<u8, 20>& value, const std::string_view expected) {
 }  // namespace
 
 void test_battle_alternate_grid_frame(openswd3::test::Context& test) {
+    for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {
+        for (const bool exhausted : {false, true}) {
+            Fixture fixture;
+            fixture.queued_actor_code = actor_index + 8U;
+            auto& list = fixture.party[actor_index].actor_list;
+            const u32 root = 0x80000000U + actor_index * 0x100U;
+            list.resource_head_token = 0xDEAD0000U;
+            list.next_resource_head_token = root;
+            list.selected_resource_token = 0xCAFEBABEU;
+            list.resources = {
+                {.token = root, .next_token = root + 0x10U, .name = {}},
+            };
+
+            const u32 row_count = exhausted ? 1U : 8U;
+            for (u32 row = 1U; row <= row_count; ++row) {
+                list.resources.push_back({
+                    .token = root + row * 0x10U,
+                    .next_token =
+                        row == row_count ? 0U : root + (row + 1U) * 0x10U,
+                    .secondary_quantity = 1,
+                    .name = "row",
+                    .capacity_gate_flags = 0x2000U,
+                });
+            }
+
+            auto bindings = fixture.bindings();
+            bindings.scripted_port_test_compat = false;
+            auto selected = request();
+            selected.scroll_offset = 0U;
+            selected.selected_row = 0U;
+            const auto result =
+                openswd3::battle::draw_legacy_battle_alternate_grid_frame(
+                    fixture.state, bindings, fixture.port, selected
+                );
+            test.expect_true(
+                result.status ==
+                        openswd3::battle::LegacyBattleAlternateGridFrameStatus::
+                            completed &&
+                    result.displayed_rows == (exhausted ? 1U : 7U) &&
+                    list.resource_head_token ==
+                        (exhausted ? root : root + 0x80U) &&
+                    list.next_resource_head_token == root &&
+                    list.selected_resource_token == 0xCAFEBABEU &&
+                    list.resources.size() == row_count + 1U,
+                "each alternate-grid actor retains the eighth queried node on a full page and resets only after exhaustion"
+            );
+        }
+    }
+
     {
         Fixture fixture;
         fixture.queued_actor_code = 0U;
@@ -303,7 +349,6 @@ void test_battle_alternate_grid_frame(openswd3::test::Context& test) {
                 result.panel_rectangle_calls == 1U &&
                 result.tiled_frame_calls == 2U && result.font_calls == 12U &&
                 result.actor_initialization_calls == 1U &&
-                result.actor_refresh_calls == 1U &&
                 result.row_query_calls == 8U && result.scanned_rows == 8U &&
                 result.displayed_rows == 7U && result.text_draw_calls == 16U &&
                 result.selection_rectangle_calls == 1U,
@@ -513,9 +558,6 @@ void test_battle_alternate_grid_frame(openswd3::test::Context& test) {
         fixture.port.reply(
             Call::query_alternate_row, {.eax = 0U, .ecx = 0x301U, .edx = 0x302U}
         );
-        fixture.port.reply(
-            Call::refresh_actor, {.eax = 0x401U, .ecx = 0x402U, .edx = 0x403U}
-        );
         auto zero_request = request();
         zero_request.selected_row = 0U;
         const auto result =
@@ -528,7 +570,8 @@ void test_battle_alternate_grid_frame(openswd3::test::Context& test) {
                         completed &&
                 result.row_query_calls == 3U && result.scanned_rows == 2U &&
                 result.displayed_rows == 2U &&
-                result.actor_refresh_calls == 2U &&
+                fixture.party[0U].actor_list.resource_head_token ==
+                    fixture.party[0U].actor_list.next_resource_head_token &&
                 result.final_iterator == 6U && result.font_calls == 6U,
             "alternate grid zero query refreshes the actor and enters the final font tail"
         );
