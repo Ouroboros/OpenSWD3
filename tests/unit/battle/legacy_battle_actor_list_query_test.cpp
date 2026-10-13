@@ -342,24 +342,24 @@ void test_resource_head_publication(openswd3::test::Context& test) {
             }
 
             default: {
+                std::array<u8, 20> name{};
+                u16 flags = 0xBEEFU;
+                u16 quantity = 0xABCDU;
                 const auto result = query_legacy_battle_actor_resource_list(
-                    &list,
-                    nullptr,
-                    0x005029D0U,
-                    {.category_selector = 0U, .occurrence = 1U}
+                    &list, nullptr, 0U, 1U, name, flags, quantity
                 );
                 status = result.status;
                 test.expect_true(
-                    !missing_root || result.output_flags == 0U,
+                    !missing_root || flags == 0U,
                     "resource query clears flags after publication and before a missing first node"
                 );
                 break;
             }
             }
 
-            const auto failure = consumer < 3U
-                ? LegacyBattleActorListQueryStatus::resource_node_typed_stop
-                : LegacyBattleActorListQueryStatus::resource_owner_typed_stop;
+            const auto failure = consumer == 3U
+                ? LegacyBattleActorListQueryStatus::resource_owner_typed_stop
+                : LegacyBattleActorListQueryStatus::resource_node_typed_stop;
             const u32 final_head = missing_root
                 ? 0xFEDCBA98U
                 : (consumer == 2U || consumer == 3U ? 0U : 0x76000010U);
@@ -884,6 +884,444 @@ void test_mode_resource_display(openswd3::test::Context& test) {
             !result.found && name == original_name && quantity == 0xBEEFU,
         "missing actual mode-list owner preserves both output owners on the existing failure"
     );
+}
+
+void test_resource_list_display(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    using openswd3::compat::i16;
+    constexpr u32 root = 0x93000000U;
+    const auto make_list = [] {
+        LegacyBattleActorListQueryState list;
+        list.resource_head_token = 0xDEAD0000U;
+        list.next_resource_head_token = root;
+        list.selected_resource_token = 0xCAFEBABEU;
+        list.resources = {
+            {.token = root, .next_token = root + 0x10U, .name = {}},
+            {.token = root + 0x10U,
+             .tertiary_quantity = 1,
+             .name = "R",
+             .category_mask = 0x10U,
+             .mode_flags = 1U},
+        };
+
+        return list;
+    };
+
+    struct Category {
+        u32 selector;
+        u32 mask;
+    };
+
+    constexpr std::array<Category, 8> categories{{
+        {0U, 0x10U},
+        {1U, 0x0CU},
+        {2U, 0x1001U},
+        {3U, 0x0800U},
+        {4U, 4U},
+        {5U, 5U},
+        {0x80000000U, 0x80000000U},
+        {0xFFFFFFFFU, 0xFFFFFFFFU},
+    }};
+    constexpr std::array<u32, 10> masks{
+        0U,
+        0x10U,
+        0x0CU,
+        0x1001U,
+        0x0800U,
+        4U,
+        5U,
+        0x2000U,
+        0x80000000U,
+        0xFFFFFFFFU,
+    };
+
+    struct Mode {
+        u8 flags;
+        bool enabled;
+    };
+
+    constexpr std::array<Mode, 7> modes{{
+        {0U, false},
+        {1U, true},
+        {2U, false},
+        {4U, true},
+        {5U, true},
+        {0x80U, false},
+        {0xFFU, true},
+    }};
+    struct Quantity {
+        u16 primary;
+        i16 secondary;
+        i16 tertiary;
+        bool positive;
+        u16 word;
+    };
+
+    constexpr std::array<Quantity, 6> quantities{{
+        {0U, 0, 0, false, 0U},
+        {0U, 0, 1, true, 1U},
+        {0xFFFFU, 32767, 32767, false, 0xFFFFU},
+        {0U, 32767, 32767, true, 0xFFFEU},
+        {0xFFFFU, -32768, -32768, false, 1U},
+        {0U, 0, -1, false, 0xFFFFU},
+    }};
+    for (const auto category : categories) {
+        for (const u32 mask : masks) {
+            for (const auto mode : modes) {
+                for (const auto quantity : quantities) {
+                    for (const u32 occurrence : {0U, 1U}) {
+                        auto list = make_list();
+                        auto& node = list.resources[1U];
+                        node.category_mask = mask;
+                        node.mode_flags = mode.flags;
+                        node.primary_quantity = quantity.primary;
+                        node.secondary_quantity = quantity.secondary;
+                        node.tertiary_quantity = quantity.tertiary;
+                        const auto* storage = list.resources.data();
+                        std::array<u8, 20> name;
+                        name.fill(0xCCU);
+                        u16 flags = 0xBEEFU;
+                        u16 output = 0xABCDU;
+                        const auto result =
+                            query_legacy_battle_actor_resource_list(
+                                &list,
+                                nullptr,
+                                category.selector,
+                                occurrence,
+                                name,
+                                flags,
+                                output
+                            );
+                        const bool qualified =
+                            (mask & category.mask) != 0U && mode.enabled;
+                        const bool counted = qualified && quantity.positive;
+                        const bool found =
+                            occurrence == 0U ? !counted : counted;
+                        const bool copied = found && qualified;
+                        test.expect_true(
+                            result.status ==
+                                    LegacyBattleActorListQueryStatus::
+                                        completed &&
+                                result.found == found &&
+                                flags == (copied ? 0x8000U : 0U) &&
+                                output == (copied ? quantity.word : 0xABCDU) &&
+                                name[0U] == (copied ? 'R' : 0xCCU) &&
+                                name[1U] == (copied ? 0U : 0xCCU) &&
+                                name[2U] == 0xCCU &&
+                                list.resource_head_token ==
+                                    (found ? root + 0x10U : 0U) &&
+                                list.next_resource_head_token == root &&
+                                list.selected_resource_token == 0xCAFEBABEU &&
+                                list.resources.data() == storage,
+                            "resource row preserves raw category masks, short-circuit modes, signed scan values and stale occurrence-zero outputs"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    struct Capacity {
+        u16 threshold;
+        u16 available;
+        bool blocked;
+    };
+
+    constexpr std::array<Capacity, 9> capacities{{
+        {0U, 0U, false},
+        {1U, 0U, true},
+        {1U, 1U, false},
+        {0x3FFFU, 0x3FFFU, false},
+        {0x3FFFU, 0x7FFFU, false},
+        {0U, 0x8000U, true},
+        {1U, 0xFFFFU, true},
+        {0x3FFFU, 0x8000U, true},
+        {0x3FFFU, 0xFFFFU, true},
+    }};
+    for (const auto capacity : capacities) {
+        for (const bool enabled : {false, true}) {
+            auto list = make_list();
+            list.resources[1U].capacity_gate_flags =
+                static_cast<u16>(capacity.threshold | (enabled ? 0x4000U : 0U));
+            LegacyBattleGroupAConfigurationState configuration;
+            configuration.actor_record_token = 0x00600000U;
+            configuration.actor_record[2U] = 0xAABB0000U | capacity.available;
+            std::array<u8, 20> name{};
+            u16 flags = 0xFFFFU;
+            u16 quantity = 0xBEEFU;
+            const auto result = query_legacy_battle_actor_resource_list(
+                &list, &configuration, 0U, 1U, name, flags, quantity
+            );
+            test.expect_true(
+                result.status == LegacyBattleActorListQueryStatus::completed &&
+                    result.found && quantity == 1U &&
+                    flags == (enabled && capacity.blocked ? 0xC000U : 0x8000U),
+                "resource capacity gate compares the masked threshold with the signed low word and preserves equality"
+            );
+        }
+    }
+
+    for (const u32 occurrence : {0U, 1U, 2U, 0x10000U, 0xFFFFFFFFU}) {
+        auto list = make_list();
+        list.resources[1U].next_token = root + 0x20U;
+        list.resources.push_back({
+            .token = root + 0x20U,
+            .tertiary_quantity = 2,
+            .name = "S",
+            .category_mask = 0x10U,
+            .mode_flags = 1U,
+        });
+        std::array<u8, 20> name{};
+        u16 flags = 0xBEEFU;
+        u16 quantity = 0xABCDU;
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list, nullptr, 0U, occurrence, name, flags, quantity
+        );
+        const bool found = occurrence == 1U || occurrence == 2U;
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.found == found && flags == (found ? 0x8000U : 0U) &&
+                quantity == (found ? occurrence : 0xABCDU) &&
+                list.resource_head_token ==
+                    (found ? root + occurrence * 0x10U : 0U),
+            "resource row uses the complete DWORD ordinal and resets only flags on exhaustion"
+        );
+    }
+
+    for (const std::string source : {
+             std::string{},
+             std::string("AB\0ignored", 10U),
+             std::string(19U, 'n'),
+             std::string(20U, 'm'),
+         }) {
+        auto list = make_list();
+        list.resources[1U].name = source;
+        std::array<u8, 20> name;
+        name.fill(0xCCU);
+        u16 flags = 0xBEEFU;
+        u16 quantity = 0xABCDU;
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list, nullptr, 0U, 1U, name, flags, quantity
+        );
+        const auto terminator = source.find('\0');
+        const auto length =
+            terminator == std::string::npos ? source.size() : terminator;
+        const bool complete = length < name.size();
+        test.expect_true(
+            result.status ==
+                    (complete ? LegacyBattleActorListQueryStatus::completed
+                              : LegacyBattleActorListQueryStatus::
+                                    list_text_typed_stop) &&
+                result.found == complete &&
+                flags == (complete ? 0x8000U : 0U) &&
+                quantity == (complete ? 1U : 0xABCDU) &&
+                list.resource_head_token == root + 0x10U &&
+                std::equal(
+                    source.begin(), source.begin() + length, name.begin()
+                ) &&
+                (!complete || name[length] == 0U) &&
+                (length + 1U >= name.size() || name[length + 1U] == 0xCCU),
+            "resource row copies through the first NUL, preserves the old tail and retains the written prefix on a short destination"
+        );
+    }
+
+    for (const bool enabled : {false, true}) {
+        auto list = make_list();
+        list.resources[1U].capacity_gate_flags = enabled ? 0x4001U : 0U;
+        std::array<u8, 20> name{};
+        u16 flags = 0xBEEFU;
+        u16 quantity = 0xABCDU;
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list, nullptr, 0U, 1U, name, flags, quantity
+        );
+        test.expect_true(
+            result.status ==
+                    (enabled ? LegacyBattleActorListQueryStatus::
+                                   list_owner_typed_stop
+                             : LegacyBattleActorListQueryStatus::completed) &&
+                result.found == !enabled && name[0U] == 'R' && quantity == 1U &&
+                flags == 0x8000U,
+            "missing capacity owner is accessed only after the name, quantity and visible flag have been published"
+        );
+    }
+
+    {
+        auto list = make_list();
+        std::array<u8, 20> name{};
+        u16 shared = 0xBEEFU;
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list, nullptr, 0U, 1U, name, shared, shared
+        );
+        test.expect_true(
+            result.found && shared == 0x8001U,
+            "shared quantity and flags keep the quantity write before the high-byte visible bit"
+        );
+    }
+
+    {
+        auto list = make_list();
+        list.resources[1U].primary_quantity = 0xBEEFU;
+        std::array<u8, 20> name{};
+        u16 quantity = 0xABCDU;
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list,
+            nullptr,
+            0U,
+            1U,
+            name,
+            list.resources[1U].primary_quantity,
+            quantity
+        );
+        test.expect_true(
+            result.found && quantity == 1U &&
+                list.resources[1U].primary_quantity == 0x8000U,
+            "actual flags clear the aliased node quantity before qualification and publish visibility after output arithmetic"
+        );
+    }
+
+    {
+        auto list = make_list();
+        list.resources[1U].capacity_gate_flags = 0x4001U;
+        std::array<u8, 20> name{};
+        u16 quantity = 0xABCDU;
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list,
+            nullptr,
+            0U,
+            1U,
+            name,
+            list.resources[1U].capacity_gate_flags,
+            quantity
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.found && quantity == 1U &&
+                list.resources[1U].capacity_gate_flags == 0x8000U,
+            "actual flags clear their aliased capacity gate before the conditional owner access"
+        );
+    }
+
+    {
+        auto list = make_list();
+        list.resources[1U].tertiary_quantity = 0x4001;
+        LegacyBattleGroupAConfigurationState configuration;
+        configuration.actor_record_token = 0x00600000U;
+        std::array<u8, 20> name{};
+        u16 flags = 0xBEEFU;
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list,
+            &configuration,
+            0U,
+            1U,
+            name,
+            flags,
+            list.resources[1U].capacity_gate_flags
+        );
+        test.expect_true(
+            result.found && flags == 0xC000U &&
+                list.resources[1U].capacity_gate_flags == 0x4001U,
+            "quantity publication changes the actual capacity word before the bit-fourteen test"
+        );
+    }
+
+    {
+        auto list = make_list();
+        list.resources[0U].tertiary_quantity = 7;
+        list.resources[1U].name.clear();
+        const std::span<u8> name{
+            reinterpret_cast<u8*>(&list.resource_head_token), sizeof(u32)
+        };
+
+        u16 flags = 0xBEEFU;
+        u16 quantity = 0xABCDU;
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list, nullptr, 0U, 1U, name, flags, quantity
+        );
+        test.expect_true(
+            result.found && quantity == 7U && flags == 0x8000U &&
+                list.resource_head_token == root,
+            "copying the terminator into the actual head changes the subsequent quantity and capacity lookup"
+        );
+    }
+
+    {
+        auto list = make_list();
+        list.resources[1U].name = "X";
+        u16 flags = 0xBEEFU;
+        const std::span<u8> name{reinterpret_cast<u8*>(&flags), sizeof(flags)};
+        u16 quantity = 0xABCDU;
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list, nullptr, 0U, 1U, name, flags, quantity
+        );
+        test.expect_true(
+            result.found && flags == 0x8058U && quantity == 1U,
+            "visible-bit publication preserves the actual low flag byte written by the name copy"
+        );
+    }
+
+    {
+        auto list = make_list();
+        list.resources[1U].name = std::string(2U, '\xFF');
+        list.resources[1U].capacity_gate_flags = 0x4001U;
+        LegacyBattleGroupAConfigurationState configuration;
+        configuration.actor_record_token = 0x00600000U;
+        const std::span<u8> name{
+            reinterpret_cast<u8*>(&configuration.actor_record[2U]), sizeof(u32)
+        };
+
+        u16 flags = 0xBEEFU;
+        u16 quantity = 0xABCDU;
+        const auto result = query_legacy_battle_actor_resource_list(
+            &list, &configuration, 0U, 1U, name, flags, quantity
+        );
+        test.expect_true(
+            result.found && flags == 0xC000U && quantity == 1U &&
+                configuration.actor_record[2U] == 0xFFFFU,
+            "the capacity comparison reads its signed configuration word after a real name alias has changed it"
+        );
+    }
+
+    for (const u32 failure : {0U, 1U, 2U, 3U, 4U}) {
+        auto list = make_list();
+        if (failure == 1U) {
+            list.next_resource_head_token = 0U;
+        } else if (failure == 2U) {
+            list.next_resource_head_token = 0xFEDCBA98U;
+        } else if (failure == 3U) {
+            list.resources[0U].next_token = 0xFEDCBA98U;
+        } else if (failure == 4U) {
+            list.resources[0U].next_token = 0U;
+        }
+
+        std::array<u8, 20> name;
+        name.fill(0xCCU);
+        u16 flags = 0xBEEFU;
+        u16 quantity = 0xABCDU;
+        const auto result = query_legacy_battle_actor_resource_list(
+            failure == 0U ? nullptr : &list,
+            nullptr,
+            0U,
+            1U,
+            name,
+            flags,
+            quantity
+        );
+        const auto expected = failure == 0U
+            ? LegacyBattleActorListQueryStatus::list_owner_typed_stop
+            : (failure == 4U ? LegacyBattleActorListQueryStatus::completed
+                             : LegacyBattleActorListQueryStatus::
+                                   resource_node_typed_stop);
+        test.expect_true(
+            result.status == expected && !result.found &&
+                flags == (failure == 0U ? 0xBEEFU : 0U) &&
+                quantity == 0xABCDU && name[0U] == 0xCCU &&
+                list.resource_head_token ==
+                    (failure == 0U
+                         ? 0xDEAD0000U
+                         : (failure == 1U || failure == 4U ? 0U : 0xFEDCBA98U)),
+            "resource row separates a valid exhausted root from missing list, zero root and unknown resource access"
+        );
+    }
 }
 
 void test_resource_list_item_count(openswd3::test::Context& test) {
@@ -1499,6 +1937,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     test_resource_head_publication(test);
     test_flagged_resource_display(test);
     test_mode_resource_display(test);
+    test_resource_list_display(test);
     test_resource_list_item_count(test);
     test_mode_resource_quantity_count(test);
     using namespace openswd3::battle;
@@ -2345,18 +2784,17 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .mode_flags = 0x01U,
              .capacity_gate_flags = 0x4003U},
         };
+
+        std::array<u8, 20> name{};
+        u16 flags = 0xBEEFU;
+        u16 quantity = 0xABCDU;
         const auto result = query_legacy_battle_actor_resource_list(
-            &list,
-            &configuration,
-            0x005029D0U,
-            {.category_selector = 0U, .occurrence = 1U}
+            &list, &configuration, 0U, 1U, name, flags, quantity
         );
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                result.return_eax == 1U && result.nodes_visited == 1U &&
-                result.matches == 1U && result.copied_name == "resource" &&
-                result.output_quantity == 6U &&
-                result.output_flags == 0xC000U &&
+                result.found && name[0U] == 'r' && name[8U] == 0U &&
+                quantity == 6U && flags == 0xC000U &&
                 list.resource_head_token == 0x76000010U,
             "resource query destructively advances the chain, counts a positive match and publishes quantity plus both flag bits"
         );
@@ -2371,15 +2809,18 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .category_mask = 0U,
              .mode_flags = 0U},
         };
+
+        std::array<u8, 20> name{};
+        name.fill(0xCCU);
+        u16 flags = 0xBEEFU;
+        u16 quantity = 0xABCDU;
         const auto result = query_legacy_battle_actor_resource_list(
-            &list,
-            nullptr,
-            0x005029D0U,
-            {.category_selector = 0U, .occurrence = 0U}
+            &list, nullptr, 0U, 0U, name, flags, quantity
         );
         test.expect_true(
-            result.return_eax == 1U && result.matches == 0U &&
-                result.output_flags == 0U && result.copied_name.empty(),
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.found && flags == 0U && quantity == 0xABCDU &&
+                name[0U] == 0xCCU,
             "occurrence zero takes the stale success branch after the first nonmatch and rechecks filters without copying"
         );
     }

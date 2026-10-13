@@ -21,7 +21,6 @@ using Status = LegacyBattleGridFrameStatus;
 
 inline constexpr u32 kActionId = 0x2394U;
 inline constexpr u32 kPanelActionId = 0x233BU;
-inline constexpr u32 kGroupABaseToken = 0x005029D0U;
 inline constexpr u32 kGroupACount = 10U;
 inline constexpr u32 kFontToken = 0x004C9A28U;
 inline constexpr u32 kTextSurfaceToken = 0x004CD76CU;
@@ -41,10 +40,6 @@ inline constexpr u32 kSharedTextToken = 0x004FC2A0U;
 [[nodiscard]] constexpr u32 group_a_scaled_3021(const u32 code) noexcept {
     const u32 scaled = group_a_scaled_1007(code);
     return scaled + scaled * 2U;
-}
-
-[[nodiscard]] constexpr u32 group_a_actor_token(const u32 code) noexcept {
-    return kGroupABaseToken + group_a_scaled_3021(code) * 4U;
 }
 
 [[nodiscard]] constexpr bool valid_group_a_code(const u32 code) noexcept {
@@ -72,9 +67,8 @@ replace_low_word(const u32 value, const u32 low) noexcept {
 }
 
 [[nodiscard]] u32 format_signed_width_two(
-    std::array<u8, 20>& destination, const i16 value
+    const std::span<u8, 20> destination, const i16 value
 ) noexcept {
-    destination.fill(0U);
     std::array<char, 8> digits{};
     const auto converted = std::to_chars(
         digits.data(), digits.data() + digits.size(), static_cast<i32>(value)
@@ -89,6 +83,7 @@ replace_low_word(const u32 value, const u32 low) noexcept {
         destination.begin() + static_cast<std::ptrdiff_t>(padding),
         [](const char character) { return static_cast<u8>(character); }
     );
+    destination[padding + digit_count] = 0U;
     return static_cast<u32>(padding + digit_count);
 }
 
@@ -105,9 +100,9 @@ public:
           edx_(request.entry_edx) {}
 
     [[nodiscard]] LegacyBattleGridFrameResult run() {
-        state_.row_text.fill(0U);
-        state_.numeric_text.fill(0U);
-        state_.row_text[0U] = 0xFFU;
+        state_.text_storage.fill(0U);
+        state_.text_storage[0U] = 0xFFU;
+        state_.text_storage[20U] = 0xFFU;
         state_.row_flags = 0U;
         state_.row_value = 0U;
         state_.numeric_text_length = 0U;
@@ -129,8 +124,9 @@ public:
         invoke_font(Call::configure_font_style, 0xFFFEU);
         invoke_font(Call::configure_font_width, 0x10U);
 
-        bindings_.panel_row_limit = 0U;
         const u32 actor_code = bindings_.queued_actor_code;
+        const u32 count_category = bindings_.action_category_index;
+        bindings_.panel_row_limit = 0U;
         if (!valid_group_a_code(actor_code)) {
             result_.status = Status::group_a_actor_typed_stop;
             return finish();
@@ -144,9 +140,7 @@ public:
 
         auto& party = bindings_.party[actor_index];
         const auto count_status = count_legacy_battle_actor_resource_list(
-            &party.actor_list,
-            bindings_.action_category_index,
-            bindings_.panel_row_limit
+            &party.actor_list, count_category, bindings_.panel_row_limit
         );
         if (count_status != LegacyBattleActorListQueryStatus::completed) {
             result_.resource_query_failure = count_status;
@@ -154,77 +148,51 @@ public:
             return finish();
         }
 
-        static_cast<void>(
-            commit_legacy_battle_actor_resource_list(&party.actor_list)
-        );
+        auto* published_party = current_party();
+        if (published_party == nullptr) {
+            result_.status = Status::group_a_actor_typed_stop;
+            return finish();
+        }
+
+        static_cast<void>(commit_legacy_battle_actor_resource_list(
+            &published_party->actor_list
+        ));
 
         u32 iterator = request_.scroll_offset + 1U;
         u32 displayed_rows = 0U;
         for (;;) {
-            eax_ = group_a_scaled_1007(actor_code);
-            ecx_ = group_a_actor_token(actor_code);
-            edx_ = actor_code;
-            if (bindings_.scripted_port_test_compat) {
-                const auto queried = invoke({
-                    .call = Call::query_row,
-                    .object_token = ecx_,
-                    .arguments =
-                        {bindings_.action_category_index,
-                         iterator,
-                         request_.row_text_token,
-                         request_.row_flags_token,
-                         request_.row_value_token},
-                    .eax = eax_,
-                    .ecx = ecx_,
-                    .edx = edx_,
-                    .text_token = request_.row_text_token,
-                    .text_bytes = state_.row_text,
-                });
-                ++result_.row_query_calls;
-                if (queried.publish_row_flags) {
-                    state_.row_flags = queried.row_flags;
-                }
-                if (queried.publish_row_value) {
-                    state_.row_value = queried.row_value;
-                }
-                if (queried.publish_row_text) {
-                    state_.row_text = queried.row_text;
-                }
-            } else {
-                result_.row_query = query_legacy_battle_actor_resource_list(
-                    &party.actor_list,
-                    &party.configuration,
-                    ecx_,
-                    {.category_selector = bindings_.action_category_index,
-                     .occurrence = iterator,
-                     .entry_eax = eax_,
-                     .entry_edx = edx_}
-                );
-                ++result_.row_query_calls;
-                eax_ = result_.row_query.return_eax;
-                ecx_ = result_.row_query.return_ecx;
-                edx_ = result_.row_query.return_edx;
-                if (result_.row_query.status !=
-                    LegacyBattleActorListQueryStatus::completed) {
+            const u32 category = bindings_.action_category_index;
+            auto* queried_party = current_party();
+            if (queried_party == nullptr) {
+                result_.status = Status::group_a_actor_typed_stop;
+                return finish();
+            }
+
+            const auto queried = query_legacy_battle_actor_resource_list(
+                &queried_party->actor_list,
+                &queried_party->configuration,
+                category,
+                iterator,
+                state_.text_storage,
+                state_.row_flags,
+                state_.row_value
+            );
+            if (queried.status != LegacyBattleActorListQueryStatus::completed) {
+                result_.resource_query_failure = queried.status;
+                result_.status = Status::group_a_actor_typed_stop;
+                return finish();
+            }
+
+            if (!queried.found) {
+                auto* exhausted_party = current_party();
+                if (exhausted_party == nullptr) {
                     result_.status = Status::group_a_actor_typed_stop;
                     return finish();
                 }
-                state_.row_flags = result_.row_query.output_flags;
-                state_.row_value = result_.row_query.output_quantity;
-                state_.row_text.fill(0U);
-                const auto text_size = std::min(
-                    state_.row_text.size(), result_.row_query.copied_name.size()
-                );
-                std::copy_n(
-                    result_.row_query.copied_name.begin(),
-                    text_size,
-                    state_.row_text.begin()
-                );
-            }
-            if (eax_ == 0U) {
-                static_cast<void>(
-                    commit_legacy_battle_actor_resource_list(&party.actor_list)
-                );
+
+                static_cast<void>(commit_legacy_battle_actor_resource_list(
+                    &exhausted_party->actor_list
+                ));
                 break;
             }
 
@@ -242,13 +210,17 @@ public:
             trace.flags = state_.row_flags;
             trace.value = state_.row_value;
             trace.displayed_row = displayed_rows + 1U;
-            trace.row_text = state_.row_text;
+            std::copy_n(
+                state_.text_storage.begin(), 20U, trace.row_text.begin()
+            );
 
+            const auto numeric_text =
+                std::span{state_.text_storage}.subspan<20U, 20U>();
             state_.numeric_text_length = format_signed_width_two(
-                state_.numeric_text,
+                numeric_text,
                 std::bit_cast<i16>(static_cast<u16>(state_.row_value))
             );
-            trace.numeric_text = state_.numeric_text;
+            std::ranges::copy(numeric_text, trace.numeric_text.begin());
             trace.numeric_text_length = state_.numeric_text_length;
             eax_ = state_.numeric_text_length;
             const auto& format_registers =
@@ -276,7 +248,7 @@ public:
                 row_y + 0x2CU,
                 request_.numeric_text_token,
                 color,
-                state_.numeric_text,
+                numeric_text,
                 state_.numeric_text_length
             );
 
@@ -294,7 +266,7 @@ public:
                 row_y + 0x2CU,
                 request_.row_text_token,
                 color,
-                state_.row_text,
+                state_.text_storage,
                 0U
             );
 
@@ -302,9 +274,7 @@ public:
             ecx_ = request_.selected_row;
             if (ecx_ == eax_) {
                 trace.selected = true;
-                if (!draw_selection(
-                        actor_code, iterator, displayed_rows, row_y, trace
-                    )) {
+                if (!draw_selection(iterator, displayed_rows, row_y, trace)) {
                     return finish();
                 }
             }
@@ -324,6 +294,16 @@ public:
     }
 
 private:
+    [[nodiscard]] LegacyBattlePartyStartupRecord* current_party() const {
+        const u32 actor_code = bindings_.queued_actor_code;
+        if (!valid_group_a_code(actor_code) ||
+            actor_code - 8U >= bindings_.party.size()) {
+            return nullptr;
+        }
+
+        return &bindings_.party[actor_code - 8U];
+    }
+
     [[nodiscard]] bool draw_header() {
         const u32 row_y = request_.origin_y + 0x20U;
         u32 row_x = request_.origin_x + 0x7EU;
@@ -452,7 +432,6 @@ private:
     }
 
     [[nodiscard]] bool draw_selection(
-        const u32 actor_code,
         const u32 iterator,
         const u32 displayed_rows,
         const u32 row_y,
@@ -476,7 +455,7 @@ private:
             row_y + 0x2BU,
             request_.row_text_token,
             color,
-            state_.row_text,
+            state_.text_storage,
             0U
         );
         invoke_font(Call::configure_font_style, 0xFFFEU);
@@ -534,14 +513,20 @@ private:
             return false;
         }
 
+        const u32 description_actor_code = bindings_.queued_actor_code;
+        if (!valid_group_a_code(description_actor_code)) {
+            result_.status = Status::group_a_actor_typed_stop;
+            return false;
+        }
+
         const std::size_t actor_index =
-            static_cast<std::size_t>(actor_code - 8U);
+            static_cast<std::size_t>(description_actor_code - 8U);
         const u32 description_record_token =
             bindings_.actor_description_record_tokens[actor_index];
         const u16 description_text_index =
             bindings_.actor_description_text_indices[actor_index];
-        eax_ = group_a_scaled_1007(actor_code);
-        ecx_ = group_a_scaled_3021(actor_code);
+        eax_ = group_a_scaled_1007(description_actor_code);
+        ecx_ = group_a_scaled_3021(description_actor_code);
         edx_ = description_record_token;
         if (bindings_.shared_text.size() <
             special_modes::kLegacyStandardModeSharedTextCapacity) {
@@ -609,9 +594,11 @@ private:
         const u32 y,
         const u32 text_token,
         const u32 color,
-        const std::array<u8, 20>& text_bytes,
+        const std::span<const u8> text_bytes,
         const u32 text_length
     ) {
+        std::array<u8, 40> text{};
+        std::ranges::copy(text_bytes, text.begin());
         invoke({
             .call = Call::draw_text,
             .arguments = {kTextSurfaceToken, x, y, text_token, color, 0x10U},
@@ -619,7 +606,7 @@ private:
             .ecx = kFontToken,
             .edx = edx_,
             .text_token = text_token,
-            .text_bytes = text_bytes,
+            .text_bytes = text,
             .text_length = text_length,
         });
         ++result_.text_draw_calls;

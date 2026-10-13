@@ -2,7 +2,7 @@
 
 ## 使用规则
 
-- 这是当前工作树的逐项执行清单。固定ID不随排序变化。
+- 这是逐项执行清单。定义及行号基于建表快照；后续进展记录在对应条目。固定ID不随排序变化。
 - 方框只在实际调用链完成迁移、LST复核、相关测试和构建通过、提交推送后勾选。
 - 每次只实现一个可独立验证批次。子切片发布只能更新该条断点，不能勾选整条。
 - 未命中关键词不等于完成。纯转发、继承协议、资源所有权仍须逐项人工复核。
@@ -13,7 +13,7 @@
 - 每次发布更新本条：已删协议、剩余协议、测试日志、提交、远端验证。
 - 自动生成器只用于建立快照；已开始人工更新后不得直接覆盖勾选和验收记录。
 
-## 当前基线
+## 建表基线
 
 - HEAD：`d16d3e675e5f5c996e3357846fb6d2d92974ad88`；包含未提交行查询改动，该批未验证。
 - 生产文件：874；每个文件均列入清单及SHA256快照。
@@ -22,11 +22,14 @@
 - Port/Ports定义：345；含Dispatch/Adapter共358个类型定义。
 - 上述数值分别是族、文件和类型的数量，不能相加或作为同一完成率分母。
 - 全项目语义覆盖尚未验收。所有新清单方框保持未勾选。
-- 当前顺序：先核完清单与遗漏；再收敛已存在的行查询改动，沿角色列表调用链继续。
+- 当前顺序：行查询批次已验证，发布后沿角色列表条目继续剩余协议。
 
 ## 逐项 LIST
 
 - [ ] **CHAIN-e0f6819f24dc** `battle/legacy_battle_actor_list_query`
+  - 本批：普通资源行查询直接写实际名称、flags和数量，删除request、寄存器副本及诊断计数；core/ASan定向门及SDL构建通过。
+  - 证据：[行查询及唯一普通网格调用方](battle-actor-resource-list-query-00470910.md)。
+  - 剩余：同族状态、选择和资料协议及资源生产；整链未验收，不勾选。
   - 当前残留信号：counter, interface, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_actor_list_query.hpp](../../../include/openswd3/battle/legacy_battle_actor_list_query.hpp)；[src/battle/legacy_battle_actor_list_query.cpp](../../../src/battle/legacy_battle_actor_list_query.cpp)。
@@ -51,6 +54,9 @@
   - `register` [src/battle/legacy_battle_frame_coordinator.cpp](../../../src/battle/legacy_battle_frame_coordinator.cpp)：213, 214, 215, 232, 233, 253, 568, 569, 603, 606, 610, 749, 750
 
 - [ ] **CHAIN-80c81fe30361** `battle/legacy_battle_grid_frame`
+  - 本批：删除行查询操作转发和测试脚本回包，名称与数字共享40字节存储；core/ASan定向门及SDL构建通过。
+  - 证据：[普通网格实际行查询](battle-grid-frame-004659c0.md)。
+  - 未决：字体及绘制Port、寄存器request/reply和其他诊断计数尚未迁移，整项不能勾选。
   - 当前残留信号：arguments, counter, interface, invoke, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_grid_frame.hpp](../../../include/openswd3/battle/legacy_battle_grid_frame.hpp)；[src/battle/legacy_battle_grid_frame.cpp](../../../src/battle/legacy_battle_grid_frame.cpp)。

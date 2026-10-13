@@ -18,7 +18,6 @@ enum class LegacyBattleGridFrameCall : compat::u8 {
     configure_font_style,
     configure_font_width,
     refresh_actor,
-    query_row,
     draw_text,
     initialize_narrow_rows,
     query_narrow_row,
@@ -35,7 +34,7 @@ struct LegacyBattleGridFrameCallRequest {
     compat::u32 ecx{};
     compat::u32 edx{};
     compat::u32 text_token{};
-    std::array<compat::u8, 20> text_bytes{};
+    std::array<compat::u8, 40> text_bytes{};
     compat::u32 text_length{};
 };
 
@@ -63,10 +62,9 @@ public:
 };
 
 struct LegacyBattleGridFrameState {
-    std::array<compat::u8, 20> row_text{};
-    std::array<compat::u8, 20> numeric_text{};
-    compat::u32 row_flags{};
-    compat::u32 row_value{};
+    std::array<compat::u8, 40> text_storage{};
+    compat::u16 row_flags{};
+    compat::u16 row_value{};
     compat::u32 numeric_text_length{};
 };
 
@@ -81,7 +79,6 @@ struct LegacyBattleGridFrameBindings {
     const std::array<compat::u32, 10>& actor_description_record_tokens;
     const std::array<compat::u16, 10>& actor_description_text_indices;
     std::span<LegacyBattlePartyStartupRecord> party{};
-    bool scripted_port_test_compat{};
     std::span<const compat::u8> maps_payload;
     std::span<compat::u8> shared_text;
     asset_runtime::LegacyActionRecord& panel_action_record;
@@ -110,8 +107,6 @@ struct LegacyBattleGridFrameRequest {
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
     compat::u32 row_text_token{};
-    compat::u32 row_flags_token{};
-    compat::u32 row_value_token{};
     compat::u32 numeric_text_token{};
     std::array<compat::u32, 5> action_update_edx_snapshots{};
     std::array<LegacyBattleGridFrameRegisterSnapshot, 5>
@@ -159,8 +154,6 @@ struct LegacyBattleGridFrameResult {
         LegacyBattleActorListQueryStatus::completed
     };
 
-    compat::u32 row_query_calls{};
-    LegacyBattleActorResourceListQueryResult row_query{};
     compat::u32 scanned_rows{};
     compat::u32 hidden_rows{};
     compat::u32 displayed_rows{};

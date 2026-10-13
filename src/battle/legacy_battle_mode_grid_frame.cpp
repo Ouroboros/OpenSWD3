@@ -445,6 +445,8 @@ private:
         const u32 call_ecx,
         const u32 call_edx
     ) {
+        std::array<u8, 40> text{};
+        std::ranges::copy(text_bytes, text.begin());
         invoke({
             .call = Call::draw_text,
             .arguments = {kTextSurfaceToken, x, y, text_token, color, 0x10U},
@@ -452,7 +454,7 @@ private:
             .ecx = call_ecx,
             .edx = call_edx,
             .text_token = text_token,
-            .text_bytes = text_bytes,
+            .text_bytes = text,
         });
         ++result_.text_draw_calls;
     }

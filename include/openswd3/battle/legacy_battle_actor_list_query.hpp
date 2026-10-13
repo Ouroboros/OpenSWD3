@@ -254,26 +254,12 @@ struct LegacyBattleActorResourceReleaseResult {
     compat::u16 output_word{};
 };
 
-struct LegacyBattleActorResourceListQueryRequest {
-    compat::u32 category_selector{};
-    compat::u32 occurrence{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_edx{};
-};
-
 struct LegacyBattleActorResourceListQueryResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
 
-    compat::u32 nodes_visited{};
-    compat::u32 matches{};
-    compat::u16 output_flags{};
-    compat::u16 output_quantity{};
-    std::string copied_name;
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
+    bool found{};
 };
 
 struct LegacyBattleActorListStateResult {
@@ -417,8 +403,11 @@ count_legacy_battle_actor_resource_list(
 query_legacy_battle_actor_resource_list(
     LegacyBattleActorListQueryState* list,
     LegacyBattleGroupAConfigurationState* configuration,
-    compat::u32 actor_token,
-    const LegacyBattleActorResourceListQueryRequest& request
+    compat::u32 category_selector,
+    compat::u32 occurrence,
+    std::span<compat::u8> output_name,
+    compat::u16& output_flags,
+    compat::u16& output_quantity
 );
 
 // sub_470900.

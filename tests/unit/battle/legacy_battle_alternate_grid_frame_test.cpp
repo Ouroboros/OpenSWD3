@@ -245,7 +245,7 @@ void prepare_rows(Fixture& fixture, const std::size_t nonzero = 8U) {
 }
 
 [[nodiscard]] bool
-same_text(const std::array<u8, 20>& value, const std::string_view expected) {
+same_text(const std::span<const u8> value, const std::string_view expected) {
     return std::ranges::equal(
         value | std::views::take(expected.size()), expected
     );

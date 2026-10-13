@@ -2,6 +2,15 @@
 
 历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
+## 普通行查询的实际调用方
+
+本批message4移除scripted_grid_port_test_compat，普通网格始终读取startup.party。
+测试使用八个实际资源节点和有效MAPS说明目录，并在文字绘制后触发动作读取失败，
+验证完整网格返回后才进入预期的纵向面板失败路径。
+core/ASan的setup与actor316各1/1、SDL构建和14源身份通过，见
+[行查询证据](battle-actor-resource-list-query-00470910.md)。
+选择帧其余Port、寄存器与计数仍在LIST中待迁移。
+
 ## 实际替代资源列表查询的调用方
 
 84d3f985使message27的网格资源查询始终借实际party list，不再使用脚本叶回复。

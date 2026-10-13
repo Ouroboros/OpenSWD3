@@ -821,8 +821,6 @@ private:
                 .actor_description_text_indices =
                     bindings_.startup.group_a_description_text_indices,
                 .party = bindings_.startup.party,
-                .scripted_port_test_compat =
-                    bindings_.scripted_grid_port_test_compat,
                 .maps_payload = bindings_.maps_payload,
                 .shared_text = bindings_.shared_text,
                 .panel_action_record = bindings_.panel_action_record,

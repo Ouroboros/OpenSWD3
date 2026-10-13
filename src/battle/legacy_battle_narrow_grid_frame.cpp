@@ -130,6 +130,8 @@ public:
             eax_ = group_a_scaled_3021(actor_code);
             ecx_ = group_a_actor_token(actor_code);
             edx_ = actor_code;
+            std::array<u8, 40> query_text{};
+            std::ranges::copy(load_workspace_text(), query_text.begin());
             const auto queried = invoke({
                 .call = Call::query_narrow_row,
                 .object_token = ecx_,
@@ -145,7 +147,7 @@ public:
                 .ecx = ecx_,
                 .edx = edx_,
                 .text_token = request_.row_text_token,
-                .text_bytes = load_workspace_text(),
+                .text_bytes = query_text,
             });
             ++result_.row_query_calls;
             if (queried.publish_row_value) {
@@ -219,6 +221,8 @@ private:
         const u32 call_ecx,
         const u32 call_edx
     ) {
+        std::array<u8, 40> text_bytes{};
+        std::ranges::copy(text, text_bytes.begin());
         static_cast<void>(invoke({
             .call = Call::draw_text,
             .object_token = kTextSurfaceToken,
@@ -227,7 +231,7 @@ private:
             .ecx = call_ecx,
             .edx = call_edx,
             .text_token = text_token,
-            .text_bytes = text,
+            .text_bytes = text_bytes,
         }));
         ++result_.text_draw_calls;
     }

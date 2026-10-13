@@ -88,10 +88,10 @@ public:
         const LegacyBattleGridFrameCallRequest& request
     ) override {
         grid_frame_calls.push_back(request);
-        if (request.call == LegacyBattleGridFrameCall::query_row &&
-            grid_on_query) {
-            grid_on_query();
+        if (grid_on_call) {
+            grid_on_call(request);
         }
+
         auto& index = grid_frame_reply_indices[request.call];
         const auto found = grid_frame_replies.find(request.call);
         if (found == grid_frame_replies.end() ||
@@ -196,7 +196,7 @@ public:
     std::map<LegacyBattleControlPanelFrameCall, std::size_t>
         control_panel_reply_indices;
     LegacyBattleControlPanelFrameCallReply control_panel_default_reply{};
-    std::function<void()> grid_on_query;
+    std::function<void(const LegacyBattleGridFrameCallRequest&)> grid_on_call;
     LegacyBattleListFrameCallReply list_frame_default_reply{};
     LegacyBattleListContentsCallReply list_contents_default_reply{
         .publish_row_value = true,
@@ -321,7 +321,6 @@ struct Fixture {
             .action_updater = action_updater,
             .frame_provider = frame_provider,
             .bounded_random = random,
-            .scripted_grid_port_test_compat = true,
             .maps_payload = maps_payload,
             .shared_text = shared_text,
         };
@@ -865,6 +864,12 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.input.menu_action = 1U;
         fixture.action_streams.fail = false;
         fixture.input.action_category_index = 0U;
+        fixture.maps_payload.assign(0x60U, 0U);
+        fixture.maps_payload[0x4CU] = 0x50U;
+        fixture.maps_payload[0x54U] = 0x58U;
+        fixture.maps_payload[0x58U] = '%';
+        fixture.maps_payload[0x59U] = 'Q';
+        fixture.startup.group_a_description_text_indices[0U] = 1U;
         auto& list = fixture.startup.party[0U].actor_list;
         constexpr u32 root = 0x79000000U;
         list.next_resource_head_token = root;
@@ -883,9 +888,13 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             });
         }
 
-        fixture.port.grid_on_query = [&fixture]() {
-            fixture.action_streams.fail = true;
-        };
+        fixture.port.grid_on_call =
+            [&fixture](const LegacyBattleGridFrameCallRequest& request) {
+                if (request.call == LegacyBattleGridFrameCall::draw_text) {
+                    fixture.action_streams.fail = true;
+                }
+            };
+
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port

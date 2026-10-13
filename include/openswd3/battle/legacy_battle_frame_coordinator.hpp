@@ -34,6 +34,7 @@
 #include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_role_head_actions.hpp"
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <filesystem>
@@ -132,7 +133,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     list_contents_query_row,
     list_contents_resolve_negative_row,
     list_contents_resolve_regular_row,
-    grid_frame_query_row,
     narrow_grid_frame_initialize_rows,
     narrow_grid_frame_query_row,
     guard_panel_query_actor_label,
@@ -252,7 +252,7 @@ struct LegacyBattleFrameCoordinatorCallRequest {
     std::array<compat::u8, 10> list_text_bytes{};
     compat::u32 list_text_length{};
     compat::u32 grid_text_token{};
-    std::array<compat::u8, 20> grid_text_bytes{};
+    std::array<compat::u8, 40> grid_text_bytes{};
     compat::u32 grid_text_length{};
     compat::u32 control_text_token{};
     std::array<compat::u8, 24> control_text_bytes{};
@@ -729,9 +729,7 @@ public:
             call =
                 LegacyBattleFrameCoordinatorCall::list_contents_refresh_actor;
             break;
-        case LegacyBattleGridFrameCall::query_row:
-            call = LegacyBattleFrameCoordinatorCall::grid_frame_query_row;
-            break;
+
         case LegacyBattleGridFrameCall::draw_text:
             call = LegacyBattleFrameCoordinatorCall::selection_frame_draw_text;
             break;
@@ -804,6 +802,9 @@ public:
                 selection_hint_query_fade_color;
             break;
         }
+
+        std::array<compat::u8, 40> text{};
+        std::ranges::copy(request.text_bytes, text.begin());
         const auto reply = invoke({
             .call = call,
             .object_token = request.object_token,
@@ -812,7 +813,7 @@ public:
             .ecx = request.ecx,
             .edx = request.edx,
             .grid_text_token = request.text_token,
-            .grid_text_bytes = request.text_bytes,
+            .grid_text_bytes = text,
             .grid_text_length = request.text_length,
         });
         return {
