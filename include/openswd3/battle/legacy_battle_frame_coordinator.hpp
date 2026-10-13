@@ -134,7 +134,6 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     list_contents_resolve_regular_row,
     grid_frame_initialize_rows,
     grid_frame_query_row,
-    mode_grid_frame_query_secondary_count,
     narrow_grid_frame_initialize_rows,
     narrow_grid_frame_query_row,
     guard_panel_query_actor_label,
@@ -740,10 +739,6 @@ public:
             call = LegacyBattleFrameCoordinatorCall::selection_frame_draw_text;
             break;
 
-        case LegacyBattleGridFrameCall::query_mode_secondary_count:
-            call = LegacyBattleFrameCoordinatorCall::
-                mode_grid_frame_query_secondary_count;
-            break;
         case LegacyBattleGridFrameCall::initialize_narrow_rows:
             call = LegacyBattleFrameCoordinatorCall::
                 narrow_grid_frame_initialize_rows;

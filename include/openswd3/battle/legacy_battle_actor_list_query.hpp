@@ -246,25 +246,6 @@ struct LegacyBattleActorModeResourceQueryResult {
     bool found{};
 };
 
-struct LegacyBattleActorModeResourceCountRequest {
-    compat::u32 output_token{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_edx{};
-};
-
-struct LegacyBattleActorModeResourceCountResult {
-    LegacyBattleActorListQueryStatus status{
-        LegacyBattleActorListQueryStatus::completed
-    };
-
-    compat::u32 nodes_visited{};
-    compat::u32 matches{};
-    compat::u16 count{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
-};
-
 struct LegacyBattleActorResourceReleaseResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
@@ -432,11 +413,9 @@ query_legacy_battle_actor_mode_resource(
 );
 
 // sub_471080.
-[[nodiscard]] LegacyBattleActorModeResourceCountResult
+[[nodiscard]] LegacyBattleActorListQueryStatus
 count_legacy_battle_actor_mode_resources(
-    LegacyBattleActorListQueryState* list,
-    compat::u32 actor_token,
-    const LegacyBattleActorModeResourceCountRequest& request
+    LegacyBattleActorListQueryState* list, compat::u16& output_quantity
 );
 
 // sub_470E20.

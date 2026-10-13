@@ -21,7 +21,6 @@ enum class LegacyBattleGridFrameCall : compat::u8 {
     refresh_actor,
     query_row,
     draw_text,
-    query_mode_secondary_count,
     initialize_narrow_rows,
     query_narrow_row,
     query_guard_actor_label,

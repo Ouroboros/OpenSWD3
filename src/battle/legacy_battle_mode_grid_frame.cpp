@@ -16,29 +16,12 @@ using Call = LegacyBattleGridFrameCall;
 using Status = LegacyBattleModeGridFrameStatus;
 
 inline constexpr u32 kPanelActionId = 0x233BU;
-inline constexpr u32 kGroupABaseToken = 0x005029D0U;
 inline constexpr u32 kGroupACount = 10U;
 inline constexpr u32 kFontToken = 0x004C9A28U;
 inline constexpr u32 kTextSurfaceToken = 0x004CD76CU;
 
 [[nodiscard]] constexpr i32 wrapping_i32(const u32 value) noexcept {
     return std::bit_cast<i32>(value);
-}
-
-[[nodiscard]] constexpr u32 group_a_scaled_1007(const u32 code) noexcept {
-    const u32 index = code - 8U;
-    u32 scaled = (index << 6U) - index;
-    scaled = (scaled << 4U) - index;
-    return scaled;
-}
-
-[[nodiscard]] constexpr u32 group_a_scaled_3021(const u32 code) noexcept {
-    const u32 scaled = group_a_scaled_1007(code);
-    return scaled + scaled * 2U;
-}
-
-[[nodiscard]] constexpr u32 group_a_actor_token(const u32 code) noexcept {
-    return kGroupABaseToken + group_a_scaled_3021(code) * 4U;
 }
 
 [[nodiscard]] constexpr bool valid_group_a_code(const u32 code) noexcept {
@@ -126,39 +109,13 @@ public:
             return finish();
         }
 
-        const u32 count_actor_code = bindings_.queued_actor_code;
-        if (bindings_.scripted_port_test_compat) {
-            const auto secondary_count = invoke({
-                .call = Call::query_mode_secondary_count,
-                .object_token = group_a_actor_token(count_actor_code),
-                .arguments = {0U, request_.secondary_count_token},
-                .eax = group_a_scaled_1007(count_actor_code),
-                .ecx = group_a_actor_token(count_actor_code),
-                .edx = group_a_scaled_3021(count_actor_code),
-            });
-            ++result_.secondary_count_query_calls;
-            if (secondary_count.publish_row_value) {
-                state_.secondary_count = secondary_count.row_value;
-            }
-        } else {
-            result_.secondary_count_query =
-                count_legacy_battle_actor_mode_resources(
-                    count_list,
-                    group_a_actor_token(count_actor_code),
-                    {.output_token = request_.secondary_count_token,
-                     .entry_eax = group_a_scaled_1007(count_actor_code),
-                     .entry_edx = group_a_scaled_3021(count_actor_code)}
-                );
-            ++result_.secondary_count_query_calls;
-            eax_ = result_.secondary_count_query.return_eax;
-            ecx_ = result_.secondary_count_query.return_ecx;
-            edx_ = result_.secondary_count_query.return_edx;
-            state_.secondary_count = result_.secondary_count_query.count;
-            if (result_.secondary_count_query.status !=
-                LegacyBattleActorListQueryStatus::completed) {
-                result_.status = Status::group_a_actor_typed_stop;
-                return finish();
-            }
+        const auto count_status = count_legacy_battle_actor_mode_resources(
+            count_list, state_.secondary_count
+        );
+        if (count_status != LegacyBattleActorListQueryStatus::completed) {
+            result_.resource_query_failure = count_status;
+            result_.status = Status::group_a_actor_typed_stop;
+            return finish();
         }
 
         auto* secondary_reset_list = active_resource_list();

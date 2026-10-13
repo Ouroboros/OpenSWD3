@@ -17,7 +17,7 @@ inline constexpr std::array<compat::u8, 3> kLegacyBattleModeGridMissingText{
 struct LegacyBattleModeGridFrameState {
     std::array<compat::u8, 20> row_text{};
     compat::u16 primary_count{};
-    compat::u32 secondary_count{};
+    compat::u16 secondary_count{};
     compat::u16 group_slot_count{};
 };
 
@@ -28,7 +28,6 @@ struct LegacyBattleModeGridFrameBindings {
     compat::u32& target_argument;
     const compat::u16& primary_text_color;
     std::span<LegacyBattlePartyStartupRecord> party{};
-    bool scripted_port_test_compat{};
     asset_runtime::LegacyActionRecord& panel_action_record;
     rendering::LegacyFramebuffer& framebuffer;
     rendering::LegacyRasterGeometryState& raster;
@@ -46,7 +45,6 @@ struct LegacyBattleModeGridFrameRequest {
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
     compat::u32 row_text_token{};
-    compat::u32 secondary_count_token{};
     compat::u32 title_text_token{kLegacyBattleStaticActionTextTokens[9U]};
     compat::u32 missing_text_token{0x0049F9FCU};
     LegacyBattleGridFrameRegisterSnapshot panel_rectangle_return_registers{};
@@ -88,7 +86,6 @@ struct LegacyBattleModeGridFrameResult {
     compat::u32 panel_action_update_calls{};
     compat::u32 panel_rectangle_calls{};
     compat::u32 tiled_frame_calls{};
-    compat::u32 secondary_count_query_calls{};
     compat::u32 text_copy_calls{};
     compat::u32 text_draw_calls{};
     compat::u32 selection_rectangle_calls{};
@@ -98,7 +95,6 @@ struct LegacyBattleModeGridFrameResult {
         LegacyBattleActorListQueryStatus::completed
     };
 
-    LegacyBattleActorModeResourceCountResult secondary_count_query{};
     asset_runtime::LegacyActionUpdateResult panel_action_update{};
     rendering::LegacyRectangleEffectStatus panel_rectangle_status{
         rendering::LegacyRectangleEffectStatus::completed

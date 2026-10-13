@@ -119,8 +119,8 @@ public:
     }
 
     std::vector<Request> calls;
-    std::array<std::vector<Reply>, 11> replies;
-    std::array<std::size_t, 11> reply_offsets{};
+    std::array<std::vector<Reply>, 10> replies;
+    std::array<std::size_t, 10> reply_offsets{};
     std::function<void(const Request&)> on_call;
 };
 
@@ -161,7 +161,6 @@ struct Fixture {
             .target_argument = target_argument,
             .primary_text_color = primary_text_color,
             .party = party,
-            .scripted_port_test_compat = false,
             .panel_action_record = panel_action_record,
             .framebuffer = framebuffer,
             .raster = raster,
@@ -203,7 +202,6 @@ struct Fixture {
         .entry_ecx = 0x22222222U,
         .entry_edx = 0x33333333U,
         .row_text_token = 0x0012FFCCU,
-        .secondary_count_token = 0x0012FFD4U,
         .panel_rectangle_return_registers =
             {
                 .eax = 0xAAAA1234U,
@@ -546,11 +544,146 @@ void test_mode_grid_resource_display(openswd3::test::Context& test) {
                     (failing_primary ? 0xCAFEBABEU : 0x76000020U) &&
                 result.text_draw_calls == (failing_primary ? 1U : 2U) &&
                 result.font_calls == (failing_primary ? 3U : 4U) &&
-                result.secondary_count_query_calls ==
-                    (failing_primary ? 0U : 1U) &&
+                fixture.state.secondary_count == (failing_primary ? 0U : 1U) &&
                 fixture.selection_input_gate == 0U,
             "real primary and group text capacity failures keep their published resource, count and drawing prefixes"
         );
+    }
+}
+
+void test_mode_grid_resource_count(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {
+        for (u32 gate_case = 0U; gate_case < 4U; ++gate_case) {
+            Fixture fixture;
+            fixture.queued_actor_code = actor_index + 8U;
+            auto& list = fixture.party[actor_index].actor_list;
+            const u32 root = 0x85000000U + actor_index * 0x100U;
+            list.resource_head_token = 0xDEAD0000U;
+            list.next_resource_head_token = root;
+            list.selected_resource_token = 0xCAFEBABEU;
+            list.resources = {
+                {.token = root, .next_token = root + 0x10U, .name = {}},
+                {.token = root + 0x10U,
+                 .next_token = root + 0x20U,
+                 .resource_id = 0x0300U,
+                 .secondary_quantity = 2,
+                 .name = "PRIMARY",
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 1U},
+                {.token = root + 0x20U,
+                 .resource_id =
+                     static_cast<u16>(gate_case == 1U ? 0x0300U : 0x0222U),
+                 .secondary_quantity = 1,
+                 .tertiary_quantity = 2,
+                 .name = "GROUP",
+                 .category_mask = gate_case == 0U ? 0U : 0x88000000U,
+                 .mode_flags = static_cast<u8>(gate_case == 2U ? 2U : 4U)},
+            };
+
+            const auto* original_storage = list.resources.data();
+            auto selected = request();
+            selected.selected_cell = 0U;
+            const auto result = draw_legacy_battle_mode_grid_frame(
+                fixture.state, fixture.bindings(), fixture.port, selected
+            );
+            const bool included = gate_case == 3U;
+            const auto queried_rows =
+                std::ranges::count_if(result.cells, [](const auto& cell) {
+                    return cell.queried_secondary;
+                });
+            test.expect_true(
+                result.status == LegacyBattleModeGridFrameStatus::completed &&
+                    result.resource_query_failure ==
+                        LegacyBattleActorListQueryStatus::completed &&
+                    fixture.state.primary_count == 2U &&
+                    fixture.state.secondary_count == (included ? 3U : 0U) &&
+                    fixture.panel_row_limit == (included ? 5U : 2U) &&
+                    queried_rows == (included ? 3 : 0) &&
+                    fixture.state.group_slot_count == (included ? 3U : 0U) &&
+                    list.resource_head_token ==
+                        (included ? root + 0x20U : root) &&
+                    list.selected_resource_token ==
+                        (included ? root + 0x20U : 0xCAFEBABEU) &&
+                    list.next_resource_head_token == root &&
+                    list.resources.data() == original_storage &&
+                    list.resources.size() == 3U &&
+                    std::ranges::all_of(
+                        fixture.port.calls,
+                        [](const Request& call) {
+                            return call.call == Call::configure_font_mode ||
+                                call.call == Call::configure_font_style ||
+                                call.call == Call::configure_font_width ||
+                                call.call == Call::draw_text;
+                        }
+                    ),
+                "every actual party slot uses real count eligibility for secondary rows and the final panel WORD with no query forwarded to its font port"
+            );
+        }
+
+        for (const bool partial_count : {false, true}) {
+            Fixture fixture;
+            fixture.queued_actor_code = actor_index + 8U;
+            fixture.selection_input_gate = 0xFACE0001U;
+            fixture.target_argument = 0xABCDEF12U;
+            auto& list = fixture.party[actor_index].actor_list;
+            const u32 root = 0x86000000U + actor_index * 0x100U;
+            list.next_resource_head_token = root;
+            list.selected_resource_token = 0xCAFEBABEU;
+            list.resources = {
+                {.token = root, .next_token = root + 0x10U, .name = {}},
+                {.token = root + 0x10U,
+                 .next_token = partial_count ? root + 0x20U : 0xFEDCBA98U,
+                 .resource_id = 0x0300U,
+                 .secondary_quantity = 1,
+                 .name = "PRIMARY",
+                 .category_mask = 0xFFFFFFFFU,
+                 .mode_flags = 1U},
+                {.token = root + 0x20U,
+                 .next_token = 0xFEDCBA98U,
+                 .resource_id = 0x0222U,
+                 .secondary_quantity = 3,
+                 .tertiary_quantity = 4,
+                 .name = std::string(100U, 'n'),
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 4U},
+            };
+
+            const auto* original_storage = list.resources.data();
+            const auto result = draw_legacy_battle_mode_grid_frame(
+                fixture.state, fixture.bindings(), fixture.port, request()
+            );
+            test.expect_true(
+                result.status ==
+                        LegacyBattleModeGridFrameStatus::
+                            group_a_actor_typed_stop &&
+                    result.resource_query_failure ==
+                        LegacyBattleActorListQueryStatus::
+                            resource_node_typed_stop &&
+                    fixture.state.primary_count == 1U &&
+                    fixture.state.secondary_count ==
+                        (partial_count ? 7U : 0U) &&
+                    fixture.state.group_slot_count == 0U &&
+                    fixture.state.row_text == text("PRIMARY") &&
+                    fixture.panel_row_limit == 1U &&
+                    list.resource_head_token == 0xFEDCBA98U &&
+                    list.next_resource_head_token == root &&
+                    list.selected_resource_token == 0xCAFEBABEU &&
+                    list.resources.data() == original_storage &&
+                    list.resources.size() == 3U &&
+                    result.text_draw_calls == 1U && result.font_calls == 3U &&
+                    result.selection_rectangle_calls == 0U &&
+                    fixture.selection_input_gate == 0xFACE0001U &&
+                    fixture.target_argument == 0xABCDEF12U &&
+                    std::ranges::all_of(
+                        result.cells,
+                        [](const auto& cell) {
+                            return cell.cell == 0U && !cell.queried_secondary;
+                        }
+                    ),
+                "each real count failure retains the primary output and partial WORD while blocking root republication, row drawing and target changes"
+            );
+        }
     }
 }
 
@@ -558,6 +691,7 @@ void test_mode_grid_resource_display(openswd3::test::Context& test) {
 
 void test_battle_mode_grid_frame(openswd3::test::Context& test) {
     test_mode_grid_resource_display(test);
+    test_mode_grid_resource_count(test);
     for (u32 actor_index = 0U; actor_index < 10U; ++actor_index) {
         for (const bool has_secondary_quantity : {false, true}) {
             Fixture fixture;
@@ -586,7 +720,6 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
             };
 
             auto bindings = fixture.bindings();
-            bindings.scripted_port_test_compat = false;
             auto selected = request();
             selected.selected_cell = 0U;
             const auto result =
@@ -645,7 +778,7 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
                 result.panel_action_update_calls == 1U &&
                 result.panel_rectangle_calls == 1U &&
                 result.tiled_frame_calls == 2U && result.font_calls == 15U &&
-                result.secondary_count_query_calls == 1U &&
+                fixture.state.secondary_count == 4U &&
                 result.text_copy_calls == 4U && result.text_draw_calls == 12U &&
                 result.selection_rectangle_calls == 1U &&
                 fixture.panel_row_limit == 6U &&
@@ -867,7 +1000,6 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
     {
         Fixture fixture;
         auto bindings = fixture.bindings();
-        bindings.scripted_port_test_compat = false;
         auto& actor_list = fixture.party[0U].actor_list;
         actor_list.next_resource_head_token = 0x78000000U;
         actor_list.resources = {
@@ -889,19 +1021,18 @@ void test_battle_mode_grid_frame(openswd3::test::Context& test) {
             openswd3::battle::draw_legacy_battle_mode_grid_frame(
                 fixture.state, bindings, fixture.port, request()
             );
-        const auto secondary_counts =
-            fixture.port.calls_of(Call::query_mode_secondary_count);
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleModeGridFrameStatus::
                         completed &&
                 fixture.state.primary_count == 2U &&
-                result.secondary_count_query_calls == 1U &&
-                result.secondary_count_query.matches == 1U &&
-                result.secondary_count_query.count == 2U &&
+                result.resource_query_failure ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
+                fixture.state.secondary_count == 2U &&
                 fixture.state.group_slot_count == 2U &&
                 actor_list.resource_head_token == 0x78000020U &&
-                fixture.panel_row_limit == 4U && secondary_counts.empty(),
+                fixture.panel_row_limit == 4U,
             "mode grid production queries and resource-head refreshes use the startup party typed owner"
         );
         const auto primary_text = text("PRIMARY");
