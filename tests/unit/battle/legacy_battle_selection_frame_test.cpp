@@ -1981,16 +1981,14 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.message = 30U;
         fixture.frame.grid_selection = 4U;
         fixture.frame.panel_scroll_b = 5U;
+        auto& list = fixture.startup.party[0U].actor_list;
+        list.next_resource_head_token = 0x76000000U;
+        list.selected_resource_token = 0xCAFEBABEU;
+        list.resources = {{.token = 0x76000000U, .name = {}}};
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port
             );
-        const auto mode_queries = std::ranges::count_if(
-            fixture.port.grid_frame_calls,
-            [](const LegacyBattleGridFrameCallRequest& call) {
-                return call.call == LegacyBattleGridFrameCall::query_mode_row;
-            }
-        );
         test.expect_true(
             result.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
@@ -2001,7 +1999,9 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                         completed &&
                 result.mode_grid_frame.tiled_frame_calls == 2U &&
                 result.mode_grid_frame.text_copy_calls == 10U &&
-                mode_queries == 1 && fixture.target.target_argument == 0U &&
+                list.resource_head_token == 0x76000000U &&
+                list.selected_resource_token == 0xCAFEBABEU &&
+                fixture.target.target_argument == 0U &&
                 fixture.action.action_pending_aux == 1U &&
                 fixture.action.selection_cache_gate_b == 1U &&
                 fixture.input.selection_cache_gate_c == 1U &&

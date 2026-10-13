@@ -97,86 +97,44 @@ public:
         invoke_font(Call::configure_font_style, 0xFFFEU);
         invoke_font(Call::configure_font_width, 0x10U);
 
-        const u32 actor_code = bindings_.queued_actor_code;
-        eax_ = group_a_scaled_1007(actor_code);
-        ecx_ = group_a_actor_token(actor_code);
-        edx_ = group_a_scaled_3021(actor_code);
-        if (!valid_group_a_code(actor_code)) {
+        auto* primary_list = active_resource_list();
+        if (primary_list == nullptr) {
+            return finish();
+        }
+
+        const auto primary = query_legacy_battle_actor_mode_resource(
+            primary_list, 0U, 1U, state_.row_text, state_.primary_count
+        );
+        if (primary.status != LegacyBattleActorListQueryStatus::completed) {
+            result_.resource_query_failure = primary.status;
             result_.status = Status::group_a_actor_typed_stop;
             return finish();
         }
 
-        const u32 actor_index = actor_code - 8U;
-        if (actor_index >= bindings_.party.size()) {
-            result_.status = Status::group_a_actor_typed_stop;
+        bindings_.panel_row_limit = state_.primary_count;
+        auto* primary_reset_list = active_resource_list();
+        if (primary_reset_list == nullptr) {
             return finish();
         }
 
-        party_ = &bindings_.party[actor_index];
-        if (bindings_.scripted_port_test_compat) {
-            const auto primary = invoke({
-                .call = Call::query_mode_row,
-                .object_token = ecx_,
-                .arguments =
-                    {0U,
-                     1U,
-                     request_.row_text_token,
-                     request_.primary_count_token},
-                .eax = eax_,
-                .ecx = ecx_,
-                .edx = edx_,
-                .text_token = request_.row_text_token,
-                .text_bytes = state_.row_text,
-            });
-            ++result_.primary_query_calls;
-            if (primary.publish_row_value) {
-                state_.primary_count = primary.row_value;
-            }
-            if (primary.publish_row_text) {
-                state_.row_text = primary.row_text;
-            }
-        } else {
-            result_.primary_query = query_legacy_battle_actor_mode_resource(
-                &party_->actor_list,
-                ecx_,
-                {.mode = 0U,
-                 .occurrence = 1U,
-                 .output_capacity = static_cast<u32>(state_.row_text.size()),
-                 .entry_eax = eax_,
-                 .entry_edx = edx_}
-            );
-            ++result_.primary_query_calls;
-            eax_ = result_.primary_query.return_eax;
-            ecx_ = result_.primary_query.return_ecx;
-            edx_ = result_.primary_query.return_edx;
-            if (result_.primary_query.status !=
-                LegacyBattleActorListQueryStatus::completed) {
-                result_.status = Status::group_a_actor_typed_stop;
-                return finish();
-            }
-            if (result_.primary_query.outputs_published) {
-                state_.primary_count = result_.primary_query.output_quantity;
-                state_.row_text.fill(0U);
-                std::copy(
-                    result_.primary_query.copied_name.begin(),
-                    result_.primary_query.copied_name.end(),
-                    state_.row_text.begin()
-                );
-            }
-        }
-        bindings_.panel_row_limit = static_cast<u16>(state_.primary_count);
         static_cast<void>(
-            commit_legacy_battle_actor_resource_list(&party_->actor_list)
+            commit_legacy_battle_actor_resource_list(primary_reset_list)
         );
 
+        auto* count_list = active_resource_list();
+        if (count_list == nullptr) {
+            return finish();
+        }
+
+        const u32 count_actor_code = bindings_.queued_actor_code;
         if (bindings_.scripted_port_test_compat) {
             const auto secondary_count = invoke({
                 .call = Call::query_mode_secondary_count,
-                .object_token = group_a_actor_token(actor_code),
+                .object_token = group_a_actor_token(count_actor_code),
                 .arguments = {0U, request_.secondary_count_token},
-                .eax = group_a_scaled_1007(actor_code),
-                .ecx = group_a_actor_token(actor_code),
-                .edx = group_a_scaled_3021(actor_code),
+                .eax = group_a_scaled_1007(count_actor_code),
+                .ecx = group_a_actor_token(count_actor_code),
+                .edx = group_a_scaled_3021(count_actor_code),
             });
             ++result_.secondary_count_query_calls;
             if (secondary_count.publish_row_value) {
@@ -185,11 +143,11 @@ public:
         } else {
             result_.secondary_count_query =
                 count_legacy_battle_actor_mode_resources(
-                    &party_->actor_list,
-                    group_a_actor_token(actor_code),
+                    count_list,
+                    group_a_actor_token(count_actor_code),
                     {.output_token = request_.secondary_count_token,
-                     .entry_eax = group_a_scaled_1007(actor_code),
-                     .entry_edx = group_a_scaled_3021(actor_code)}
+                     .entry_eax = group_a_scaled_1007(count_actor_code),
+                     .entry_edx = group_a_scaled_3021(count_actor_code)}
                 );
             ++result_.secondary_count_query_calls;
             eax_ = result_.secondary_count_query.return_eax;
@@ -203,8 +161,13 @@ public:
             }
         }
 
+        auto* secondary_reset_list = active_resource_list();
+        if (secondary_reset_list == nullptr) {
+            return finish();
+        }
+
         static_cast<void>(
-            commit_legacy_battle_actor_resource_list(&party_->actor_list)
+            commit_legacy_battle_actor_resource_list(secondary_reset_list)
         );
 
         state_.group_slot_count = 0U;
@@ -239,6 +202,17 @@ public:
     }
 
 private:
+    [[nodiscard]] LegacyBattleActorListQueryState* active_resource_list() {
+        const u32 actor_code = bindings_.queued_actor_code;
+        if (!valid_group_a_code(actor_code) ||
+            actor_code - 8U >= bindings_.party.size()) {
+            result_.status = Status::group_a_actor_typed_stop;
+            return nullptr;
+        }
+
+        return &bindings_.party[actor_code - 8U].actor_list;
+    }
+
     [[nodiscard]] bool draw_panel() {
         static_cast<void>(
             clear_legacy_battle_action_record(bindings_.panel_action_record)
@@ -362,65 +336,25 @@ private:
         if (cell > primary_count) {
             if (cell <= primary_count + secondary_count) {
                 trace.queried_secondary = true;
-                if (bindings_.scripted_port_test_compat) {
-                    const auto queried = invoke({
-                        .call = Call::query_mode_row,
-                        .object_token =
-                            group_a_actor_token(bindings_.queued_actor_code),
-                        .arguments =
-                            {
-                                1U,
-                                page,
-                                request_.row_text_token,
-                                request_.primary_count_token,
-                            },
-                        .eax = group_a_scaled_1007(bindings_.queued_actor_code),
-                        .ecx = group_a_actor_token(bindings_.queued_actor_code),
-                        .edx = request_.row_text_token,
-                        .text_token = request_.row_text_token,
-                        .text_bytes = state_.row_text,
-                    });
-                    ++result_.secondary_row_query_calls;
-                    if (queried.publish_row_value) {
-                        state_.group_slot_count = queried.row_value;
-                    }
-                    if (queried.publish_row_text) {
-                        state_.row_text = queried.row_text;
-                    }
-                } else {
-                    result_.secondary_row_query =
-                        query_legacy_battle_actor_mode_resource(
-                            &party_->actor_list,
-                            group_a_actor_token(bindings_.queued_actor_code),
-                            {.mode = 1U,
-                             .occurrence = page,
-                             .output_capacity =
-                                 static_cast<u32>(state_.row_text.size()),
-                             .entry_eax = group_a_scaled_1007(
-                                 bindings_.queued_actor_code
-                             ),
-                             .entry_edx = request_.row_text_token}
-                        );
-                    ++result_.secondary_row_query_calls;
-                    eax_ = result_.secondary_row_query.return_eax;
-                    ecx_ = result_.secondary_row_query.return_ecx;
-                    edx_ = result_.secondary_row_query.return_edx;
-                    if (result_.secondary_row_query.status !=
-                        LegacyBattleActorListQueryStatus::completed) {
-                        result_.status = Status::group_a_actor_typed_stop;
-                        return false;
-                    }
-                    if (result_.secondary_row_query.outputs_published) {
-                        state_.group_slot_count =
-                            result_.secondary_row_query.output_quantity;
-                        state_.row_text.fill(0U);
-                        std::copy(
-                            result_.secondary_row_query.copied_name.begin(),
-                            result_.secondary_row_query.copied_name.end(),
-                            state_.row_text.begin()
-                        );
-                    }
+                auto* resource_list = active_resource_list();
+                if (resource_list == nullptr) {
+                    return false;
                 }
+
+                const auto queried = query_legacy_battle_actor_mode_resource(
+                    resource_list,
+                    1U,
+                    page,
+                    state_.row_text,
+                    state_.group_slot_count
+                );
+                if (queried.status !=
+                    LegacyBattleActorListQueryStatus::completed) {
+                    result_.resource_query_failure = queried.status;
+                    result_.status = Status::group_a_actor_typed_stop;
+                    return false;
+                }
+
                 const i16 group_count = std::bit_cast<i16>(
                     static_cast<u16>(state_.group_slot_count)
                 );
@@ -578,7 +512,6 @@ private:
     LegacyBattleGridFramePort& port_;
     const LegacyBattleModeGridFrameRequest& request_;
     LegacyBattleModeGridFrameResult result_{};
-    LegacyBattlePartyStartupRecord* party_{};
     u32 eax_{};
     u32 ecx_{};
     u32 edx_{};
