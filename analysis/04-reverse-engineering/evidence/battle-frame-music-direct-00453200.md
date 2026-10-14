@@ -44,3 +44,33 @@ SDL原本用于该Port的三个方法已经删除。
 按照用户要求，使用构建脚本现有环境变量将构建和测试并发设置为6。
 日志为`build/tmp/runtime/frame-music-without-port-{core,asan,sdl}.log`。
 未启动游戏，不声称完整SDL战斗流程或原版动态差分已验收。
+
+## 业务清单重建时的当前复验
+
+对应`BEHAVIOR-frame-music`，验收边界为帧入口的音乐行为及两处生产调用，
+不包含后续输入、绘制和消息阶段。`BEHAVIOR-frame-integration`单独承担
+整帧生产接线，不能反过来成为本行为的无限验收前提。
+
+本次重新读取LST `00453200..00453236`，核对活动标记写入、流缺失门、
+抑制BYTE、路径借用、播放后音量重读及两个不参与分支的返回值。
+当前实现与两处调用分别位于`legacy_battle_frame_music_prefix.cpp`、
+`legacy_battle_frame_coordinator.cpp`及SDL `main.cpp`。
+实际生产树检索确认只有这两处调用，旧`LegacyBattleFrameMusicPrefixPort`
+在生产树中无残留；没有新增音乐操作编号、参数包、寄存器结果或调用计数。
+
+`LegacyStreamManager`实际保存流节点、文件名及句柄，打开失败归还节点，
+析构调用shutdown释放句柄；FFmpeg后端创建解码采样和SDL音频输出，关闭时
+销毁实际流状态。该后端是媒体平台边界，不是业务操作转发层。
+允许保留的接口接收真实文件名、句柄和音量，未把已删业务Port改名搬入其中。
+
+重新运行仓库定向门：core setup 1/1通过12.11秒，ASan setup 1/1通过
+21.13秒；SDL app目标增量构建通过，无需重编译。日志为
+`build/tmp/runtime/business-music-{core,asan,app}.log`。
+现有真实流管理器测试覆盖跳过、禁播、打开失败、路径转换、负音量、
+播放回调改值及析构释放；这些夹具验证不替代实际音频设备或游戏运行。
+
+九份相关源码及测试相对HEAD无差异，身份记录为
+`build/tmp/runtime/business-music-validated-source.sha256`。
+源码提交`ad5c3f70b3508c118d2afdb9670c3612a951435a`是当前HEAD的祖先；
+复验时HEAD与远端main均为`ca6a9cae49061e5850c4c0e5df393d3775096a50`。
+本条可以计为已完成的业务迁移；不提升整个协调器、B11或原版差分状态。
