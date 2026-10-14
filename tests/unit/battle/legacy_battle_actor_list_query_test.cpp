@@ -815,6 +815,21 @@ void test_list_state_audio_order(openswd3::test::Context& test) {
 
 class QueryPort final : public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
+    [[nodiscard]] openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+        const u32 handle, const std::span<u8> destination, const u32 size
+    ) override {
+        const auto result = LegacyBattleMonDatabaseFixture::read_mon_file(
+            handle, destination, size
+        );
+        if (read_calls % 3U == 0U && on_profile_read) {
+            on_profile_read();
+        }
+
+        return result;
+    }
+
+    std::function<void()> on_profile_read;
+
     [[nodiscard]] openswd3::compat::u32 seek_mon_file(
         const openswd3::compat::u32 handle,
         const openswd3::compat::i32 distance,
@@ -837,6 +852,245 @@ public:
     openswd3::compat::u16 last_profile{};
     openswd3::compat::u32 index{};
 };
+
+void test_list_query_live_state(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    struct Fixture {
+        Fixture() {
+            actor.next_list_index = 0x10U;
+            list.owner_token = 0x10U;
+            list.head_token = 1U;
+            list.nodes.push_back({
+                .token = 1U,
+                .category_flags = 0x10U,
+                .mode_flags = 1U,
+                .type = 0x1BU,
+                .profile_id = 7U,
+                .value_flags = 0x8007U,
+                .text = "name",
+            });
+            text.fill(0xCCU);
+        }
+
+        [[nodiscard]] LegacyBattleActorListQueryResult query(
+            const u32 category = 0U,
+            const u32 type = 0U,
+            const u32 occurrence = 1U
+        ) {
+            return query_legacy_battle_actor_list(
+                &actor,
+                &list,
+                port,
+                category,
+                type,
+                occurrence,
+                text,
+                value,
+                profile
+            );
+        }
+
+        LegacyBattleGroupAActionExecutionState actor;
+        LegacyBattleActorListQueryState list;
+        QueryPort port;
+        LegacyBattleMonProfile profile{};
+        std::array<u8, 32> text{};
+        u32 value{0xAABB0011U};
+    };
+
+    {
+        Fixture fixture;
+        fixture.list.nodes[0U].value_flags = 0x8002U;
+        fixture.list.nodes.push_back(
+            {.token = 2U, .value_flags = 0x4003U, .text = "second"}
+        );
+        fixture.list.nodes.push_back(
+            {.token = 0x8003U, .value_flags = 0x0800U, .text = "third"}
+        );
+        fixture.port.index = 3U;
+        const auto result = query_legacy_battle_actor_list(
+            &fixture.actor,
+            &fixture.list,
+            fixture.port,
+            0U,
+            0U,
+            1U,
+            fixture.text,
+            fixture.actor.current_list_index,
+            fixture.profile
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.display_frame == 3U &&
+                fixture.actor.current_list_index == 1000U &&
+                fixture.text[0U] == 'n',
+            "query rereads the cursor after each aliased WORD output store"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.list.nodes.push_back({
+            .token = 2U,
+            .value_flags = 0xFFFFU,
+            .text = std::string("new\0tail", 8U),
+        });
+        fixture.port.index = 2U;
+        fixture.port.on_profile_read = [&]() {
+            fixture.list.nodes.reserve(2048U);
+            fixture.actor.current_list_index = 2U;
+            fixture.value = 0xCCDD0011U;
+        };
+        const auto result = fixture.query();
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.display_frame == 2U && fixture.value == 0xCCDD03E8U &&
+                fixture.port.requested_profile_ids == std::vector<u16>{7U} &&
+                fixture.actor.current_list_index == 2U &&
+                fixture.text[0U] == 'n' && fixture.text[1U] == 'e' &&
+                fixture.text[2U] == 'w' && fixture.text[3U] == 0U &&
+                fixture.text[4U] == 0xCCU,
+            "query reloads the node after MON reallocation and copies only through the first NUL"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.port.on_profile_read = [&]() {
+            fixture.list.nodes.clear();
+            fixture.actor.current_list_index = 99U;
+        };
+        const auto result = fixture.query();
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::list_node_typed_stop &&
+                fixture.value == 0xAABB0011U && fixture.text[0U] == 0xCCU &&
+                fixture.actor.current_list_index == 99U,
+            "missing callback-selected node stops before text and value stores"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.list.nodes[0U].type = 0x1FU;
+        fixture.profile[0x10U] = std::byte{3U};
+        const auto result = fixture.query(0U, 7U);
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.display_frame == 3U && fixture.value == 0xAABB0000U &&
+                fixture.port.requested_profile_ids.empty() &&
+                fixture.text[0U] == 0xCCU,
+            "raw type queries retain caller profile bytes and skip MON and text"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.port.open_succeeds = false;
+        fixture.profile[0x10U] = std::byte{2U};
+        const auto result = fixture.query();
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.display_frame == 2U && fixture.value == 0xAABB0007U &&
+                fixture.text[0U] == 'n',
+            "MON open failure retains profile contents and continues the original suffix"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.port.allocation_succeeds = false;
+        const auto result = fixture.query();
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::profile_load_typed_stop &&
+                fixture.actor.current_list_index == 1U &&
+                fixture.value == 0xAABB0011U && fixture.text[0U] == 0xCCU,
+            "MON allocation stop preserves the published cursor and untouched outputs"
+        );
+    }
+
+    {
+        Fixture fixture;
+        const auto result = query_legacy_battle_actor_list(
+            &fixture.actor,
+            &fixture.list,
+            fixture.port,
+            0U,
+            0U,
+            1U,
+            std::span{fixture.text}.first(3U),
+            fixture.value,
+            fixture.profile
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::list_text_typed_stop &&
+                fixture.text[0U] == 'n' && fixture.text[1U] == 'a' &&
+                fixture.text[2U] == 'm' && fixture.text[3U] == 0xCCU &&
+                fixture.value == 0xAABB0011U,
+            "bounded text failure retains its copied prefix before value publication"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.port.index = 24U;
+        const auto result = fixture.query();
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::return_table_typed_stop &&
+                fixture.value == 0xAABB0007U && fixture.text[4U] == 0U,
+            "display table bounds are checked after all text and value effects"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.list.nodes[0U].value_flags = 0U;
+        const auto result = fixture.query();
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                fixture.value == 0xAABB0011U,
+            "unmarked primary values retain the caller output WORD"
+        );
+    }
+
+    {
+        Fixture fixture;
+        const auto result = fixture.query(0U, 0U, 0U);
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.display_frame == 0xFFFFU &&
+                fixture.actor.current_list_index == 0U &&
+                fixture.value == 0xAABBFFFFU &&
+                fixture.port.requested_profile_ids.empty(),
+            "zero occurrence reaches the tail when the first node increments the match count"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.list.head_token = 0U;
+        const auto result = query_legacy_battle_actor_list(
+            &fixture.actor,
+            &fixture.list,
+            fixture.port,
+            0U,
+            0U,
+            1U,
+            fixture.text,
+            fixture.actor.current_list_index,
+            fixture.profile
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.display_frame == 0xFFFFU &&
+                fixture.actor.current_list_index == 0xFFFFU,
+            "tail publication precedes the aliased sentinel WORD store"
+        );
+    }
+}
 
 void test_resource_selection_outputs(openswd3::test::Context& test) {
     using namespace openswd3::battle;
@@ -2997,44 +3251,37 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     {
         QueryPort port;
         port.index = 2U;
+        LegacyBattleMonProfile profile{};
+        std::array<u8, 20> text{};
+        u32 value = 0xAABB7777U;
         const auto result = query_legacy_battle_actor_list(
-            &actor,
-            &list,
-            0x005029D0U,
-            port,
-            {.category_selector = 0U,
-             .type_selector = 0U,
-             .occurrence = 1U,
-             .entry_output_word = 0x7777U,
-             .return_table = table}
+            &actor, &list, port, 0U, 0U, 1U, text, value, profile, table
         );
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                actor.current_list_index == list.owner_token &&
-                result.nodes_visited == 2U && result.matches == 1U &&
-                result.output_text == "first" && result.output_word == 1000U &&
-                result.return_eax == 30U && port.last_profile == 7U,
+                actor.current_list_index == 0x72000100U &&
+                std::string(reinterpret_cast<const char*>(text.data())) ==
+                    "first" &&
+                value == 0xAABB03E8U && result.display_frame == 30U &&
+                port.last_profile == 7U,
             "list query commits the index then applies ordered category, type, and value overrides"
         );
     }
 
     {
         QueryPort port;
+        LegacyBattleMonProfile profile{};
+        std::array<u8, 20> text{};
+        u32 value = 3U;
         const auto result = query_legacy_battle_actor_list(
-            &actor,
-            &list,
-            0x005029D0U,
-            port,
-            {.category_selector = 0U,
-             .type_selector = 0U,
-             .occurrence = 0U,
-             .entry_output_word = 3U,
-             .return_table = table}
+            &actor, &list, port, 0U, 0U, 0U, text, value, profile, table
         );
         test.expect_true(
-            result.return_eax == 0xFFFFU && result.output_word == 0xFFFFU &&
-                result.matches == 2U && port.read_calls == 0U,
-            "zero occurrence never matches because the counter increments before comparison"
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.display_frame == 10U && value == 3U &&
+                actor.current_list_index == list.head_token &&
+                port.read_calls != 0U,
+            "zero occurrence selects the first mismatching node before a match increments the counter"
         );
     }
 
@@ -3059,20 +3306,15 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         };
         QueryPort port;
         port.index = 1U;
+        LegacyBattleMonProfile profile{};
+        std::array<u8, 20> text{};
+        u32 value = 0xBEEFAAAAU;
         const auto result = query_legacy_battle_actor_list(
-            &actor,
-            &type31,
-            0x005029D0U,
-            port,
-            {.category_selector = 1U,
-             .type_selector = 1U,
-             .occurrence = 1U,
-             .entry_output_word = 0xAAAAU,
-             .return_table = table}
+            &actor, &type31, port, 1U, 1U, 1U, text, value, profile, table
         );
         test.expect_true(
-            result.output_word == 1U && result.return_eax == 20U &&
-                result.profile_load_calls == 1U,
+            value == 0xBEEF0001U && result.display_frame == 20U &&
+                port.last_profile == 9U,
             "type thirty-one forces output one after all value flag overrides"
         );
     }
@@ -3906,6 +4148,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         );
     }
 
+    test_list_query_live_state(test);
     test_list_profile_application(test);
     test_list_profile_cursor(test);
     test_list_state_behavior(test);
@@ -3916,17 +4159,16 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         QueryPort port;
         LegacyBattleActorListQueryState bad = list;
         bad.head_token = 0xDEADBEEFU;
+        LegacyBattleMonProfile profile{};
+        std::array<u8, 20> text{};
+        u32 value = 0xABCD1234U;
         const auto result = query_legacy_battle_actor_list(
-            &actor,
-            &bad,
-            0x005029D0U,
-            port,
-            {.occurrence = 1U, .return_table = table}
+            &actor, &bad, port, 0U, 0U, 1U, text, value, profile, table
         );
         test.expect_true(
             result.status ==
                     LegacyBattleActorListQueryStatus::list_node_typed_stop &&
-                result.index_commit_calls == 1U && result.nodes_visited == 0U,
+                actor.current_list_index == 0xDEADBEEFU && value == 0xABCD1234U,
             "missing node stops after the shared list-index commit"
         );
     }

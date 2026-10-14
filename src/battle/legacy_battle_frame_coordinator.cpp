@@ -664,6 +664,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
                 context.startup.action_mode_source.actor_label_indices,
             .action = context.action_dispatch,
             .input_dispatch = port.battle_input_dispatch_state(),
+            .music_path = context.music_path,
             .frame_input = port.battle_frame_input_resolution_state(),
             .target_runtime = port.battle_target_selection_runtime_state(),
             .debug_hotkeys = port.battle_debug_hotkey_state(),

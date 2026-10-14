@@ -1,8 +1,12 @@
 #include "openswd3/battle/legacy_battle_list_contents.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
+#include "legacy_battle_mon_database_fixture.hpp"
 
 #include <algorithm>
 #include <array>
 #include <map>
+#include <memory>
+#include <bit>
 #include <ranges>
 #include <vector>
 
@@ -18,8 +22,26 @@ using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 
-class Port final : public openswd3::battle::LegacyBattleListContentsPort {
+class Port final : public openswd3::battle::LegacyBattleListContentsPort,
+                   public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
+    [[nodiscard]] u32 seek_mon_file(
+        const u32 handle,
+        const i32 distance,
+        const openswd3::battle::LegacyBattleMonSeekOrigin origin
+    ) override {
+        if (seek_calls % 3U == 1U) {
+            set_profile_dword(
+                0x10U,
+                (std::bit_cast<u32>(distance) - auxiliary_root - 0x200U) / 4U
+            );
+        }
+
+        return LegacyBattleMonDatabaseFixture::seek_mon_file(
+            handle, distance, origin
+        );
+    }
+
     [[nodiscard]] LegacyBattleListContentsCallReply invoke_list_contents(
         const LegacyBattleListContentsCallRequest& request
     ) override {
@@ -102,6 +124,31 @@ struct Fixture {
         };
         raster.clip_width = 640;
         raster.clip_height = 480;
+        actors[0U].next_list_index = 0x10U;
+        (*party)[0U].actor_list.owner_token = 0x10U;
+        for (u32 index = 0U; index < 10U; ++index) {
+            add_node(0x8001U, 5U);
+        }
+    }
+
+    void add_node(const u16 flags, const u16 profile_index) {
+        auto& list = (*party)[0U].actor_list;
+        const u32 token = 0x100U + static_cast<u32>(list.nodes.size());
+        if (list.nodes.empty()) {
+            list.head_token = token;
+        } else {
+            list.nodes.back().next_token = token;
+        }
+
+        list.nodes.push_back({
+            .token = token,
+            .category_flags = 3U,
+            .mode_flags = 1U,
+            .type = 0x1BU,
+            .profile_id = profile_index,
+            .value_flags = flags,
+            .text = "row",
+        });
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleListContentsBindings
@@ -125,6 +172,11 @@ struct Fixture {
             .shared_effects = shared_effects,
             .jitter = jitter,
             .frame_provider = frame_provider,
+            .selection_workspace = selection_workspace,
+            .music_path = music_path,
+            .party = *party,
+            .actors = actors,
+            .mon_database = port,
         };
     }
 
@@ -153,14 +205,16 @@ struct Fixture {
     std::array<u8, 128> shared_text{};
     FrameProvider frame_provider;
     Port port;
+    std::array<u32, 5> selection_workspace{};
+    openswd3::battle::LegacyBattleMusicPath music_path{};
+    std::unique_ptr<
+        std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 10>>
+        party{std::make_unique<std::array<
+            openswd3::battle::LegacyBattlePartyStartupRecord,
+            10>>()};
+    std::array<openswd3::battle::LegacyBattleGroupAActionExecutionState, 10>
+        actors{};
 };
-
-[[nodiscard]] std::size_t
-count_call(const Port& port, const LegacyBattleListContentsCall call) {
-    return static_cast<std::size_t>(std::ranges::count_if(
-        port.calls, [call](const auto& request) { return request.call == call; }
-    ));
-}
 
 [[nodiscard]] std::vector<LegacyBattleListContentsCallRequest>
 calls_of(const Port& port, const LegacyBattleListContentsCall call) {
@@ -182,7 +236,6 @@ calls_of(const Port& port, const LegacyBattleListContentsCall call) {
         .entry_eax = 0x01020304U,
         .entry_ecx = 0x11121314U,
         .entry_edx = 0x21222324U,
-        .local_value_token = 0x70001000U,
         .local_limit_word_token = 0x70001004U,
         .local_limit_byte_token = 0x70001006U,
         .numeric_text_token = 0x70001008U,
@@ -231,30 +284,8 @@ void test_battle_list_contents(openswd3::test::Context& test) {
                 .panel_row_limit = 0xFEU,
             }
         );
-        fixture.port.reply(
-            LegacyBattleListContentsCall::query_row,
-            {
-                .eax = 2U,
-                .publish_row_value = true,
-                .row_value = 0x8005U,
-            }
-        );
-        fixture.port.reply(
-            LegacyBattleListContentsCall::query_row,
-            {
-                .eax = 0xFFFFU,
-                .publish_row_value = true,
-                .row_value = 10U,
-            }
-        );
-        fixture.port.reply(
-            LegacyBattleListContentsCall::query_row,
-            {
-                .eax = 0x12345678U,
-                .publish_row_value = true,
-                .row_value = 0xABCDFFFFU,
-            }
-        );
+        fixture.add_node(0x4005U, 2U);
+        fixture.add_node(0x800AU, 5U);
         fixture.port.reply(
             LegacyBattleListContentsCall::resolve_negative_row,
             {
@@ -301,12 +332,12 @@ void test_battle_list_contents(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleListContentsStatus::
                         completed &&
-                result.completed_rows == 2U && result.row_query_calls == 3U &&
+                result.completed_rows == 2U &&
                 result.row_resolver_calls == 2U &&
                 result.resource_frame_calls == 1U &&
                 result.rectangle_calls == 2U && result.text_draw_calls == 6U &&
                 result.actor_initialization_calls == 1U &&
-                result.actor_refresh_calls == 2U &&
+                fixture.actors[0U].current_list_index == 0x10U &&
                 result.shared_text_resolution_calls == 1U &&
                 result.shared_text_length_calls == 1U &&
                 fixture.panel_row_limit == 0xFEU &&
@@ -363,6 +394,50 @@ void test_battle_list_contents(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
+        fixture.add_node(0x8007U, 5U);
+        fixture.add_node(0U, 5U);
+        auto call = request();
+        call.selected_row = 0U;
+        const auto result = openswd3::battle::draw_legacy_battle_list_contents(
+            fixture.state, fixture.bindings(), fixture.port, call
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleListContentsStatus::
+                        completed &&
+                result.completed_rows == 2U &&
+                result.rows[0U].displayed_value == 7U &&
+                result.rows[1U].displayed_value == 0U &&
+                fixture.selection_workspace[0U] == 0x00776F72U &&
+                fixture.actors[0U].current_list_index == 0x10U,
+            "list rows clear the local value between queries and share the actual name buffer"
+        );
+    }
+
+    {
+        Fixture fixture;
+        fixture.add_node(0x8007U, 5U);
+        (*fixture.party)[0U].actor_list.nodes.back().text =
+            "12345678901234567890suffix";
+        fixture.music_path.fill(0xCCU);
+        auto call = request();
+        call.selected_row = 0U;
+        const auto result = openswd3::battle::draw_legacy_battle_list_contents(
+            fixture.state, fixture.bindings(), fixture.port, call
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleListContentsStatus::
+                        completed &&
+                result.completed_rows == 1U && fixture.music_path[0U] == 's' &&
+                fixture.music_path[5U] == 'x' && fixture.music_path[6U] == 0U &&
+                fixture.music_path[7U] == 0xCCU,
+            "list names continue into the adjacent shared music path without an artificial twenty-byte stop"
+        );
+    }
+
+    {
+        Fixture fixture;
         fixture.queued_actor_code = 7U;
         fixture.action_category_index = 0x55667788U;
         const auto result = openswd3::battle::draw_legacy_battle_list_contents(
@@ -390,15 +465,9 @@ void test_battle_list_contents(openswd3::test::Context& test) {
                 .panel_row_limit = 9U,
             }
         );
+        (*fixture.party)[0U].actor_list.nodes.clear();
         for (u32 value = 1U; value <= 7U; ++value) {
-            fixture.port.reply(
-                LegacyBattleListContentsCall::query_row,
-                {
-                    .eax = 0xFFFFU,
-                    .publish_row_value = true,
-                    .row_value = value,
-                }
-            );
+            fixture.add_node(static_cast<u16>(0x8000U | value), 5U);
             fixture.port.reply(
                 LegacyBattleListContentsCall::resolve_regular_row,
                 {
@@ -417,29 +486,19 @@ void test_battle_list_contents(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleListContentsStatus::
                         completed &&
-                result.completed_rows == 7U && result.row_query_calls == 7U &&
+                result.completed_rows == 7U &&
                 result.row_resolver_calls == 7U &&
                 result.resource_frame_calls == 0U &&
-                result.text_draw_calls == 14U &&
-                result.actor_refresh_calls == 1U &&
-                result.final_iterator == 8U && fixture.panel_row_limit == 9U &&
-                count_call(
-                    fixture.port, LegacyBattleListContentsCall::query_row
-                ) == 7U,
+                result.text_draw_calls == 14U && result.final_iterator == 8U &&
+                fixture.panel_row_limit == 9U &&
+                fixture.actors[0U].current_list_index == 0x106U,
             "list contents stops after the original seven low-word row iterations without an eighth query"
         );
     }
 
     {
         Fixture fixture;
-        fixture.port.reply(
-            LegacyBattleListContentsCall::query_row,
-            {
-                .eax = 0U,
-                .publish_row_value = true,
-                .row_value = 1U,
-            }
-        );
+        fixture.add_node(0x8001U, 0U);
         fixture.port.reply(
             LegacyBattleListContentsCall::resolve_regular_row,
             {
@@ -466,14 +525,7 @@ void test_battle_list_contents(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.raster.surface.pitch_bytes = 1;
-        fixture.port.reply(
-            LegacyBattleListContentsCall::query_row,
-            {
-                .eax = 0xFFFFU,
-                .publish_row_value = true,
-                .row_value = 1U,
-            }
-        );
+        fixture.add_node(0x8001U, 5U);
         fixture.port.reply(
             LegacyBattleListContentsCall::resolve_regular_row,
             {
@@ -502,14 +554,7 @@ void test_battle_list_contents(openswd3::test::Context& test) {
 
     {
         Fixture fixture(360);
-        fixture.port.reply(
-            LegacyBattleListContentsCall::query_row,
-            {
-                .eax = 0xFFFFU,
-                .publish_row_value = true,
-                .row_value = 1U,
-            }
-        );
+        fixture.add_node(0x8001U, 5U);
         fixture.port.reply(
             LegacyBattleListContentsCall::resolve_regular_row,
             {
@@ -540,14 +585,7 @@ void test_battle_list_contents(openswd3::test::Context& test) {
         fixture.maps_payload.clear();
         fixture.actor_description_record_tokens[0U] = 0xDEADC0DEU;
         fixture.actor_description_text_indices[0U] = 1U;
-        fixture.port.reply(
-            LegacyBattleListContentsCall::query_row,
-            {
-                .eax = 0xFFFFU,
-                .publish_row_value = true,
-                .row_value = 1U,
-            }
-        );
+        fixture.add_node(0x8001U, 5U);
         fixture.port.reply(
             LegacyBattleListContentsCall::resolve_regular_row,
             {

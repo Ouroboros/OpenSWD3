@@ -129,12 +129,9 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     action_summary_action_mode_query_secondary_actor,
     action_summary_action_mode_query_active_actor,
     list_contents_initialize_rows,
-    list_contents_refresh_actor,
-    list_contents_query_row,
     list_contents_resolve_negative_row,
     list_contents_resolve_regular_row,
     narrow_grid_frame_initialize_rows,
-    narrow_grid_frame_query_row,
     guard_panel_query_actor_label,
     selection_hint_query_actor_label,
     selection_hint_configure_font_width,
@@ -285,8 +282,6 @@ struct LegacyBattleFrameCoordinatorCallReply {
     LegacyBattleActorCoordinateFlags selection_flags{};
     bool publish_list_panel_row_limit{};
     compat::u8 list_panel_row_limit{};
-    bool publish_list_row_value{};
-    compat::u32 list_row_value{};
     bool publish_list_limit_word{};
     compat::u16 list_limit_word{};
     bool publish_list_limit_byte{};
@@ -295,10 +290,6 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u16 grid_panel_row_limit{};
     bool publish_grid_row_flags{};
     compat::u32 grid_row_flags{};
-    bool publish_grid_row_value{};
-    compat::u32 grid_row_value{};
-    bool publish_grid_row_text{};
-    std::array<compat::u8, 20> grid_row_text{};
     compat::u32 selection_hint_text_length{};
     bool publish_selection_hint_metric_pair{};
     compat::u32 selection_hint_metric_current{};
@@ -664,13 +655,6 @@ public:
             call =
                 LegacyBattleFrameCoordinatorCall::list_contents_initialize_rows;
             break;
-        case LegacyBattleListContentsCall::refresh_actor:
-            call =
-                LegacyBattleFrameCoordinatorCall::list_contents_refresh_actor;
-            break;
-        case LegacyBattleListContentsCall::query_row:
-            call = LegacyBattleFrameCoordinatorCall::list_contents_query_row;
-            break;
         case LegacyBattleListContentsCall::resolve_negative_row:
             call = LegacyBattleFrameCoordinatorCall::
                 list_contents_resolve_negative_row;
@@ -700,8 +684,6 @@ public:
             .edx = reply.edx,
             .publish_panel_row_limit = reply.publish_list_panel_row_limit,
             .panel_row_limit = reply.list_panel_row_limit,
-            .publish_row_value = reply.publish_list_row_value,
-            .row_value = reply.list_row_value,
             .publish_limit_word = reply.publish_list_limit_word,
             .limit_word = reply.list_limit_word,
             .publish_limit_byte = reply.publish_list_limit_byte,
@@ -726,11 +708,6 @@ public:
                 selection_frame_configure_text_font;
             break;
 
-        case LegacyBattleGridFrameCall::refresh_actor:
-            call =
-                LegacyBattleFrameCoordinatorCall::list_contents_refresh_actor;
-            break;
-
         case LegacyBattleGridFrameCall::draw_text:
             call = LegacyBattleFrameCoordinatorCall::selection_frame_draw_text;
             break;
@@ -738,10 +715,6 @@ public:
         case LegacyBattleGridFrameCall::initialize_narrow_rows:
             call = LegacyBattleFrameCoordinatorCall::
                 narrow_grid_frame_initialize_rows;
-            break;
-        case LegacyBattleGridFrameCall::query_narrow_row:
-            call =
-                LegacyBattleFrameCoordinatorCall::narrow_grid_frame_query_row;
             break;
         case LegacyBattleGridFrameCall::query_guard_actor_label:
             call =
@@ -767,10 +740,6 @@ public:
             .panel_row_limit = reply.grid_panel_row_limit,
             .publish_row_flags = reply.publish_grid_row_flags,
             .row_flags = reply.grid_row_flags,
-            .publish_row_value = reply.publish_grid_row_value,
-            .row_value = reply.grid_row_value,
-            .publish_row_text = reply.publish_grid_row_text,
-            .row_text = reply.grid_row_text,
         };
     }
     [[nodiscard]] LegacyBattleSelectionHintFrameCallReply
@@ -1904,7 +1873,7 @@ struct LegacyBattleFrameCoordinatorRequest {
 struct LegacyBattleFrameCoordinatorContext {
     LegacyBattleFrameZeroContext& frame_zero;
     rendering::LegacyRasterGeometryState& raster;
-    const LegacyBattleMusicPath& music_path;
+    LegacyBattleMusicPath& music_path;
     const compat::i32& music_mix_level;
     audio_video::LegacyStreamManager& music_streams;
     audio_video::LegacySampleManager& samples;

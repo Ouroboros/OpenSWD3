@@ -1,6 +1,8 @@
 #pragma once
 
 #include "openswd3/battle/legacy_battle_frame_draw.hpp"
+#include "openswd3/battle/legacy_battle_actor_list_query.hpp"
+#include "openswd3/battle/legacy_battle_music_path.hpp"
 #include "openswd3/rendering/legacy_rectangle_effect.hpp"
 
 #include <array>
@@ -8,13 +10,13 @@
 
 namespace openswd3::battle {
 
+struct LegacyBattlePartyStartupRecord;
+
 enum class LegacyBattleListContentsCall : compat::u8 {
     configure_font_mode,
     configure_font_style,
     configure_font_width,
     initialize_rows,
-    refresh_actor,
-    query_row,
     resolve_negative_row,
     resolve_regular_row,
     draw_text,
@@ -40,8 +42,6 @@ struct LegacyBattleListContentsCallReply {
     compat::u32 edx{};
     bool publish_panel_row_limit{};
     compat::u8 panel_row_limit{};
-    bool publish_row_value{};
-    compat::u32 row_value{};
     bool publish_limit_word{};
     compat::u16 limit_word{};
     bool publish_limit_byte{};
@@ -64,6 +64,7 @@ struct LegacyBattleListContentsState {
     compat::u32 numeric_text_length{};
     compat::u16 local_limit_word{};
     compat::u8 local_limit_byte{};
+    LegacyBattleMonProfile query_profile{};
 };
 
 struct LegacyBattleListContentsBindings {
@@ -85,6 +86,11 @@ struct LegacyBattleListContentsBindings {
     rendering::LegacyBlitEffectState& shared_effects;
     rendering::LegacyRleRowJitterState& jitter;
     rendering::LegacyFramePieceProvider& frame_provider;
+    std::array<compat::u32, 5>& selection_workspace;
+    LegacyBattleMusicPath& music_path;
+    std::span<LegacyBattlePartyStartupRecord> party;
+    std::span<LegacyBattleGroupAActionExecutionState> actors;
+    LegacyBattleMonDatabasePort& mon_database;
 };
 
 struct LegacyBattleListContentsRegisterSnapshot {
@@ -101,7 +107,6 @@ struct LegacyBattleListContentsRequest {
     compat::u32 entry_eax{};
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
-    compat::u32 local_value_token{};
     compat::u32 local_limit_word_token{};
     compat::u32 local_limit_byte_token{};
     compat::u32 numeric_text_token{};
@@ -145,8 +150,9 @@ struct LegacyBattleListContentsResult {
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
     compat::u32 actor_initialization_calls{};
-    compat::u32 actor_refresh_calls{};
-    compat::u32 row_query_calls{};
+    LegacyBattleActorListQueryStatus row_query_status{
+        LegacyBattleActorListQueryStatus::completed
+    };
     compat::u32 row_resolver_calls{};
     compat::u32 text_draw_calls{};
     compat::u32 resource_frame_calls{};

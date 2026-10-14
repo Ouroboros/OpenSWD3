@@ -36,15 +36,6 @@ using compat::u32;
         (std::to_integer<u32>(profile[offset + 3U]) << 24U);
 }
 
-void write_profile_dword(
-    LegacyBattleMonProfile& profile, const std::size_t offset, const u32 value
-) noexcept {
-    profile[offset] = static_cast<std::byte>(value);
-    profile[offset + 1U] = static_cast<std::byte>(value >> 8U);
-    profile[offset + 2U] = static_cast<std::byte>(value >> 16U);
-    profile[offset + 3U] = static_cast<std::byte>(value >> 24U);
-}
-
 [[nodiscard]] std::span<std::byte>
 profile_bytes(std::array<u32, 10U>& profile) noexcept {
     return std::as_writable_bytes(std::span{profile});
@@ -55,132 +46,158 @@ profile_bytes(std::array<u32, 10U>& profile) noexcept {
 LegacyBattleActorListQueryResult query_legacy_battle_actor_list(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleActorListQueryState* list,
-    const u32 actor_token,
     LegacyBattleMonDatabasePort& mon_port,
-    const LegacyBattleActorListQueryRequest& request
+    const u32 category_selector,
+    const u32 type_selector,
+    const u32 occurrence,
+    const std::span<compat::u8> text,
+    u32& output_value,
+    LegacyBattleMonProfile& profile,
+    const std::span<const u16> display_frames,
+    const std::span<compat::u8> text_continuation
 ) {
     LegacyBattleActorListQueryResult result;
-    result.output_word = request.entry_output_word;
-    result.return_eax = request.entry_eax;
-    result.return_ecx = actor_token;
-    result.return_edx = request.entry_edx;
-
-    result.index_commit = commit_legacy_battle_actor_list_index(
-        actor,
-        actor_token,
-        {.entry_eax = request.entry_eax, .entry_edx = request.entry_edx}
-    );
-    ++result.index_commit_calls;
-    result.return_eax = result.index_commit.return_eax;
-    result.return_ecx = result.index_commit.return_ecx;
-    result.return_edx = request.occurrence;
-    if (result.index_commit.status !=
-        LegacyBattleActorListIndexCommitStatus::completed) {
+    if (actor == nullptr) {
         result.status =
             LegacyBattleActorListQueryStatus::actor_state_typed_stop;
         return result;
     }
-    if (list == nullptr || list->owner_token == 0U || actor == nullptr ||
+
+    actor->current_list_index = actor->next_list_index;
+    if (list == nullptr || list->owner_token == 0U ||
         actor->current_list_index != list->owner_token) {
         result.status = LegacyBattleActorListQueryStatus::list_owner_typed_stop;
         return result;
     }
 
-    const u32 mask = category_mask(request.category_selector);
-    const u32 type = wanted_type(request.type_selector);
-    u32 token = list->head_token;
-    const LegacyBattleActorListNode* matched = nullptr;
-    while (token != 0U) {
+    const auto write_value = [&](const u16 value) {
+        output_value = (output_value & 0xFFFF0000U) | value;
+    };
+    const auto current_node = [&]() -> const LegacyBattleActorListNode* {
         const auto found = std::ranges::find(
-            list->nodes, token, &LegacyBattleActorListNode::token
+            list->nodes,
+            actor->current_list_index,
+            &LegacyBattleActorListNode::token
         );
         if (found == list->nodes.end()) {
             result.status =
                 LegacyBattleActorListQueryStatus::list_node_typed_stop;
-            result.return_eax = token;
+            return nullptr;
+        }
+
+        return &*found;
+    };
+    const u32 mask = category_mask(category_selector);
+    const u32 type = wanted_type(type_selector);
+    u32 token = list->head_token;
+    u32 matches = 0U;
+    for (;;) {
+        actor->current_list_index = token;
+        if (token == 0U) {
+            write_value(0xFFFFU);
             return result;
         }
-        ++result.nodes_visited;
-        token = found->next_token;
-        if ((found->category_flags & mask) == 0U ||
-            (found->mode_flags & 0x05U) == 0U) {
-            continue;
+
+        const auto* node = current_node();
+        if (node == nullptr) {
+            return result;
         }
+
         const bool type_matches = type == 0x1CU
-            ? found->type >= 0x1BU && found->type <= 0x1EU
-            : found->type == 0x1FU;
-        if (!type_matches) {
-            continue;
+            ? node->type >= 0x1BU && node->type <= 0x1EU
+            : node->type == 0x1FU;
+        if ((node->category_flags & mask) != 0U &&
+            (node->mode_flags & 0x05U) != 0U && type_matches) {
+            ++matches;
         }
-        ++result.matches;
-        if (result.matches == request.occurrence) {
-            matched = &*found;
+
+        if (matches == occurrence) {
             break;
         }
+
+        token = node->next_token;
     }
 
-    if (matched == nullptr) {
-        result.output_word = 0xFFFFU;
-        result.return_eax = 0x0000FFFFU;
-        return result;
-    }
-    result.matched_token = matched->token;
-
-    u32 profile_index = request.stale_profile_index;
-    u32 eax = matched->token;
-    u32 ecx = actor_token;
-    u32 edx = request.occurrence;
     if (type != 0x1CU && type != 0x1FU) {
-        result.output_word = 0U;
+        write_value(0U);
     } else {
-        LegacyBattleMonProfile profile{};
-        write_profile_dword(profile, 0x10U, request.stale_profile_index);
-        const auto profile_result = load_legacy_battle_mon_profile(
+        const auto* node = current_node();
+        const auto loaded = load_legacy_battle_mon_profile(
             profile,
             mon_port,
-            {
-                .path = "mon.dat",
-                .profile_id = matched->profile_id,
-            }
+            {.path = "mon.dat", .profile_id = node->profile_id}
         );
-        ++result.profile_load_calls;
-        profile_index = read_profile_dword(profile, 0x10U) & 0xFFFFU;
-        if (legacy_battle_mon_profile_load_stopped(profile_result.status)) {
+        if (legacy_battle_mon_profile_load_stopped(loaded.status)) {
             result.status =
                 LegacyBattleActorListQueryStatus::profile_load_typed_stop;
-            result.return_eax = eax;
-            result.return_ecx = ecx;
-            result.return_edx = edx;
             return result;
         }
-        result.output_text = matched->text;
 
-        const u16 value = matched->value_flags;
-        if ((value & 0x8000U) != 0U) {
-            result.output_word = static_cast<u16>(value & 0x7FFFU);
+        node = current_node();
+        if (node == nullptr) {
+            return result;
         }
-        if ((value & 0x4000U) != 0U) {
-            result.output_word = static_cast<u16>((value & 0x3FFFU) | 0x8000U);
+
+        const auto terminator = node->text.find('\0');
+        const auto length =
+            terminator == std::string::npos ? node->text.size() : terminator;
+        for (std::size_t index = 0U; index <= length; ++index) {
+            const auto value = index == length
+                ? compat::u8{0U}
+                : static_cast<compat::u8>(node->text[index]);
+            if (index < text.size()) {
+                text[index] = value;
+            } else if (index - text.size() < text_continuation.size()) {
+                text_continuation[index - text.size()] = value;
+            } else {
+                result.status =
+                    LegacyBattleActorListQueryStatus::list_text_typed_stop;
+                return result;
+            }
         }
-        if ((value & 0x0800U) != 0U) {
-            result.output_word = 1000U;
+
+        node = current_node();
+        if (node == nullptr) {
+            return result;
         }
+
+        if ((node->value_flags & 0x8000U) != 0U) {
+            write_value(static_cast<u16>(node->value_flags & 0x7FFFU));
+        }
+
+        node = current_node();
+        if (node == nullptr) {
+            return result;
+        }
+
+        if ((node->value_flags & 0x4000U) != 0U) {
+            write_value(
+                static_cast<u16>((node->value_flags & 0x3FFFU) | 0x8000U)
+            );
+        }
+
+        node = current_node();
+        if (node == nullptr) {
+            return result;
+        }
+
+        if ((node->value_flags & 0x0800U) != 0U) {
+            write_value(1000U);
+        }
+
         if (type == 0x1FU) {
-            result.output_word = 1U;
+            write_value(1U);
         }
     }
 
-    if (profile_index >= request.return_table.size()) {
+    const u32 profile_index = read_profile_dword(profile, 0x10U) & 0xFFFFU;
+    if (profile_index >= display_frames.size()) {
         result.status =
             LegacyBattleActorListQueryStatus::return_table_typed_stop;
-        result.return_eax = eax;
-        result.return_ecx = ecx;
-        result.return_edx = edx;
         return result;
     }
-    result.return_eax = request.return_table[profile_index];
-    result.return_ecx = ecx;
-    result.return_edx = edx;
+
+    result.display_frame = display_frames[profile_index];
     return result;
 }
 

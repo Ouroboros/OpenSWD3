@@ -134,7 +134,8 @@ class LegacyBattleSelectionFramePort
       public virtual LegacyBattleListContentsPort,
       public virtual LegacyBattleGridFramePort,
       public virtual LegacyBattleSelectionHintFramePort,
-      public virtual LegacyBattleControlPanelFramePort {
+      public virtual LegacyBattleControlPanelFramePort,
+      public virtual LegacyBattleMonDatabasePort {
 public:
     virtual ~LegacyBattleSelectionFramePort() = default;
 
@@ -151,6 +152,7 @@ struct LegacyBattleSelectionFrameBindings {
     const std::array<compat::u32, 10>& actor_label_indices;
     LegacyBattleActionDispatchState& action;
     LegacyBattleInputDispatchState& input_dispatch;
+    LegacyBattleMusicPath& music_path;
     LegacyBattleFrameInputResolutionState& frame_input;
     LegacyBattleTargetSelectionRuntimeState& target_runtime;
     LegacyBattleDebugHotkeyState& debug_hotkeys;

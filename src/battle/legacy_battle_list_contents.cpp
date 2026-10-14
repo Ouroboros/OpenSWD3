@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_list_contents.hpp"
 
 #include "openswd3/special_modes/legacy_standard_mode.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -140,8 +141,8 @@ public:
         });
 
         bindings_.panel_row_limit = 0U;
-        const u32 actor_code = bindings_.queued_actor_code;
-        const u32 actor_token = group_a_actor_token(actor_code);
+        u32 actor_code = bindings_.queued_actor_code;
+        u32 actor_token = group_a_actor_token(actor_code);
         eax_ = group_a_scaled_1007(actor_code);
         ecx_ = actor_token;
         edx_ = bindings_.action_category_index;
@@ -164,17 +165,21 @@ public:
             bindings_.panel_row_limit = initialized.panel_row_limit;
         }
 
-        eax_ = group_a_scaled_3021(actor_code);
-        ecx_ = actor_token;
-        edx_ = actor_code;
-        invoke({
-            .call = Call::refresh_actor,
-            .object_token = actor_token,
-            .eax = eax_,
-            .ecx = ecx_,
-            .edx = edx_,
-        });
-        ++result_.actor_refresh_calls;
+        const auto reset_cursor = [&]() {
+            const u32 code = bindings_.queued_actor_code;
+            if (!valid_group_a_code(code) ||
+                code - 8U >= bindings_.actors.size()) {
+                result_.status = Status::group_a_actor_typed_stop;
+                return false;
+            }
+
+            auto& actor = bindings_.actors[code - 8U];
+            actor.current_list_index = actor.next_list_index;
+            return true;
+        };
+        if (!reset_cursor()) {
+            return finish();
+        }
 
         u32 iterator = request_.scroll_offset + 1U;
         u32 row_count = 0U;
@@ -183,30 +188,37 @@ public:
             auto& trace = result_.rows[static_cast<std::size_t>(row_count)];
             trace.iterator = iterator;
             u32 row_value = 0U;
-
-            eax_ = group_a_scaled_3021(actor_code);
-            ecx_ = actor_token;
-            edx_ = actor_code;
-            const auto queried = invoke({
-                .call = Call::query_row,
-                .object_token = actor_token,
-                .arguments =
-                    {
-                        bindings_.action_category_index,
-                        0U,
-                        iterator,
-                        kSelectionWorkspaceToken,
-                        request_.local_value_token,
-                    },
-                .eax = eax_,
-                .ecx = ecx_,
-                .edx = edx_,
-            });
-            ++result_.row_query_calls;
-            if (queried.publish_row_value) {
-                row_value = queried.row_value;
+            actor_code = bindings_.queued_actor_code;
+            if (!valid_group_a_code(actor_code) ||
+                actor_code - 8U >= bindings_.actors.size() ||
+                actor_code - 8U >= bindings_.party.size()) {
+                result_.status = Status::group_a_actor_typed_stop;
+                return finish();
             }
-            const u32 query_return = queried.eax;
+
+            const auto queried = query_legacy_battle_actor_list(
+                &bindings_.actors[actor_code - 8U],
+                &bindings_.party[actor_code - 8U].actor_list,
+                bindings_.mon_database,
+                bindings_.action_category_index,
+                0U,
+                iterator,
+                {reinterpret_cast<u8*>(bindings_.selection_workspace.data()),
+                 sizeof(bindings_.selection_workspace)},
+                row_value,
+                state_.query_profile,
+                kLegacyBattleActorListDisplayFrames,
+                bindings_.music_path
+            );
+            result_.row_query_status = queried.status;
+            if (queried.status != LegacyBattleActorListQueryStatus::completed) {
+                result_.status = Status::group_a_actor_typed_stop;
+                return finish();
+            }
+
+            actor_code = bindings_.queued_actor_code;
+            actor_token = group_a_actor_token(actor_code);
+            const u32 query_return = queried.display_frame;
             trace.query_return = query_return;
             trace.raw_value = row_value;
             eax_ = row_value;
@@ -214,14 +226,10 @@ public:
                 eax_ = group_a_scaled_1007(actor_code);
                 edx_ = group_a_scaled_3021(actor_code);
                 ecx_ = actor_token;
-                invoke({
-                    .call = Call::refresh_actor,
-                    .object_token = actor_token,
-                    .eax = eax_,
-                    .ecx = ecx_,
-                    .edx = edx_,
-                });
-                ++result_.actor_refresh_calls;
+                if (!reset_cursor()) {
+                    return finish();
+                }
+
                 result_.final_iterator = iterator;
                 break;
             }

@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_narrow_grid_frame.hpp"
 
 #include "openswd3/battle/legacy_battle_action_frame_draw.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -122,45 +123,48 @@ public:
             bindings_.panel_row_limit =
                 static_cast<u8>(initialized.panel_row_limit);
         }
-        refresh_actor(actor_code);
+        if (!reset_actor_cursor()) {
+            return finish();
+        }
 
         u32 iterator = 1U;
         for (;;) {
             result_.final_iterator = iterator;
-            eax_ = group_a_scaled_3021(actor_code);
-            ecx_ = group_a_actor_token(actor_code);
-            edx_ = actor_code;
-            std::array<u8, 40> query_text{};
-            std::ranges::copy(load_workspace_text(), query_text.begin());
-            const auto queried = invoke({
-                .call = Call::query_narrow_row,
-                .object_token = ecx_,
-                .arguments =
-                    {
-                        0U,
-                        1U,
-                        iterator,
-                        request_.row_text_token,
-                        request_.row_value_token,
-                    },
-                .eax = eax_,
-                .ecx = ecx_,
-                .edx = edx_,
-                .text_token = request_.row_text_token,
-                .text_bytes = query_text,
-            });
-            ++result_.row_query_calls;
-            if (queried.publish_row_value) {
-                state_.row_value = queried.row_value;
+            const u32 row_actor_code = bindings_.queued_actor_code;
+            if (!valid_group_a_actor_code(row_actor_code) ||
+                row_actor_code - 8U >= bindings_.actors.size() ||
+                row_actor_code - 8U >= bindings_.party.size()) {
+                result_.status = Status::group_a_actor_typed_stop;
+                return finish();
             }
-            if (queried.publish_row_text) {
-                store_workspace_text(queried.row_text);
+
+            const auto queried = query_legacy_battle_actor_list(
+                &bindings_.actors[row_actor_code - 8U],
+                &bindings_.party[row_actor_code - 8U].actor_list,
+                bindings_.mon_database,
+                0U,
+                1U,
+                iterator,
+                {reinterpret_cast<u8*>(bindings_.selection_workspace.data()),
+                 sizeof(bindings_.selection_workspace)},
+                state_.row_value,
+                state_.query_profile,
+                kLegacyBattleActorListDisplayFrames,
+                bindings_.music_path
+            );
+            result_.row_query_status = queried.status;
+            if (queried.status != LegacyBattleActorListQueryStatus::completed) {
+                result_.status = Status::group_a_actor_typed_stop;
+                return finish();
             }
 
             eax_ = state_.row_value;
             const u16 row_value = static_cast<u16>(state_.row_value);
             if (row_value == 0xFFFFU) {
-                refresh_actor(actor_code);
+                if (!reset_actor_cursor()) {
+                    return finish();
+                }
+
                 state_.row_value = 0U;
                 break;
             }
@@ -216,7 +220,7 @@ private:
         const u32 y,
         const u32 color,
         const u32 text_token,
-        const std::array<u8, 20>& text,
+        const std::span<const u8> text,
         const u32 call_eax,
         const u32 call_ecx,
         const u32 call_edx
@@ -344,18 +348,17 @@ private:
         );
     }
 
-    void refresh_actor(const u32 actor_code) {
-        eax_ = group_a_scaled_1007(actor_code);
-        ecx_ = group_a_actor_token(actor_code);
-        edx_ = group_a_scaled_3021(actor_code);
-        static_cast<void>(invoke({
-            .call = Call::refresh_actor,
-            .object_token = ecx_,
-            .eax = eax_,
-            .ecx = ecx_,
-            .edx = edx_,
-        }));
-        ++result_.actor_refresh_calls;
+    [[nodiscard]] bool reset_actor_cursor() {
+        const u32 actor_code = bindings_.queued_actor_code;
+        if (!valid_group_a_actor_code(actor_code) ||
+            actor_code - 8U >= bindings_.actors.size()) {
+            result_.status = Status::group_a_actor_typed_stop;
+            return false;
+        }
+
+        auto& actor = bindings_.actors[actor_code - 8U];
+        actor.current_list_index = actor.next_list_index;
+        return true;
     }
 
     [[nodiscard]] bool draw_row(const u32 iterator) {
@@ -435,8 +438,8 @@ private:
         return true;
     }
 
-    [[nodiscard]] std::array<u8, 20> load_workspace_text() const noexcept {
-        std::array<u8, 20> text{};
+    [[nodiscard]] std::array<u8, 40> load_workspace_text() const noexcept {
+        std::array<u8, 40> text{};
         for (std::size_t word_index = 0U;
              word_index < bindings_.selection_workspace.size();
              ++word_index) {
@@ -446,20 +449,11 @@ private:
                     static_cast<u8>(word >> static_cast<u32>(byte_index * 8U));
             }
         }
-        return text;
-    }
 
-    void store_workspace_text(const std::array<u8, 20>& text) noexcept {
-        for (std::size_t word_index = 0U;
-             word_index < bindings_.selection_workspace.size();
-             ++word_index) {
-            u32 word = 0U;
-            for (std::size_t byte_index = 0U; byte_index < 4U; ++byte_index) {
-                word |= static_cast<u32>(text[word_index * 4U + byte_index])
-                    << static_cast<u32>(byte_index * 8U);
-            }
-            bindings_.selection_workspace[word_index] = word;
-        }
+        std::ranges::copy_n(
+            bindings_.music_path.begin(), 20U, text.begin() + 20U
+        );
+        return text;
     }
 
     LegacyBattleNarrowGridFrameState& state_;

@@ -1,11 +1,14 @@
 #include "openswd3/battle/legacy_battle_narrow_grid_frame.hpp"
+#include "openswd3/battle/legacy_battle_startup.hpp"
+#include "legacy_battle_mon_database_fixture.hpp"
 
 #include <algorithm>
 #include <array>
 #include <functional>
+#include <memory>
 #include <ranges>
 #include <span>
-#include <string_view>
+#include <string>
 #include <vector>
 
 #include "test.hpp"
@@ -88,8 +91,24 @@ public:
     u32 failing_resource{0xFFFFFFFFU};
 };
 
-class GridPort final : public openswd3::battle::LegacyBattleGridFramePort {
+class GridPort final : public openswd3::battle::LegacyBattleGridFramePort,
+                       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
+    [[nodiscard]] openswd3::battle::LegacyBattleMonReadResult read_mon_file(
+        const u32 handle, const std::span<u8> destination, const u32 size
+    ) override {
+        const auto result = LegacyBattleMonDatabaseFixture::read_mon_file(
+            handle, destination, size
+        );
+        if (read_calls % 3U == 0U && on_profile_read) {
+            on_profile_read();
+        }
+
+        return result;
+    }
+
+    std::function<void()> on_profile_read;
+
     void reply(const Call call, const Reply& value) {
         replies[static_cast<std::size_t>(call)].push_back(value);
     }
@@ -121,14 +140,6 @@ public:
     std::function<void(const Request&)> on_call;
 };
 
-[[nodiscard]] std::array<u8, 20> text(const std::string_view source) {
-    std::array<u8, 20> result{};
-    std::ranges::transform(source, result.begin(), [](const char value) {
-        return static_cast<u8>(value);
-    });
-    return result;
-}
-
 [[nodiscard]] std::array<u8, 20>
 workspace_text(const std::array<u32, 5>& workspace) {
     std::array<u8, 20> result{};
@@ -144,8 +155,29 @@ workspace_text(const std::array<u32, 5>& workspace) {
 }
 
 struct Fixture {
-    Fixture()
-        : action_updater(action_streams), raster(framebuffer.geometry()) {}
+    Fixture() : action_updater(action_streams), raster(framebuffer.geometry()) {
+        actors[0U].next_list_index = 0x10U;
+        (*party)[0U].actor_list.owner_token = 0x10U;
+    }
+
+    void add_node(const std::string& name, const bool eligible = true) {
+        auto& list = (*party)[0U].actor_list;
+        const u32 token = 0x100U + static_cast<u32>(list.nodes.size());
+        if (list.nodes.empty()) {
+            list.head_token = token;
+        } else {
+            list.nodes.back().next_token = token;
+        }
+
+        list.nodes.push_back({
+            .token = token,
+            .category_flags = 0x10U,
+            .mode_flags = static_cast<u8>(eligible ? 1U : 0U),
+            .type = 0x1FU,
+            .profile_id = 1U,
+            .text = name,
+        });
+    }
 
     [[nodiscard]] openswd3::battle::LegacyBattleNarrowGridFrameBindings
     bindings() {
@@ -156,6 +188,7 @@ struct Fixture {
             .candidate_argument = candidate_argument,
             .primary_text_color = primary_text_color,
             .selection_workspace = selection_workspace,
+            .music_path = music_path,
             .panel_action_record = panel_action_record,
             .framebuffer = framebuffer,
             .raster = raster,
@@ -163,6 +196,9 @@ struct Fixture {
             .jitter = jitter,
             .action_updater = action_updater,
             .frame_provider = frame_provider,
+            .party = *party,
+            .actors = actors,
+            .mon_database = port,
         };
     }
 
@@ -188,6 +224,14 @@ struct Fixture {
     openswd3::rendering::LegacyRleRowJitterState jitter;
     FrameProvider frame_provider;
     GridPort port;
+    openswd3::battle::LegacyBattleMusicPath music_path{};
+    std::unique_ptr<
+        std::array<openswd3::battle::LegacyBattlePartyStartupRecord, 10>>
+        party{std::make_unique<std::array<
+            openswd3::battle::LegacyBattlePartyStartupRecord,
+            10>>()};
+    std::array<openswd3::battle::LegacyBattleGroupAActionExecutionState, 10>
+        actors{};
 };
 
 [[nodiscard]] openswd3::battle::LegacyBattleNarrowGridFrameRequest request() {
@@ -199,7 +243,6 @@ struct Fixture {
         .entry_ecx = 0x22222222U,
         .entry_edx = 0x33333333U,
         .row_text_token = 0x0053C184U,
-        .row_value_token = 0x0012FFD0U,
         .panel_rectangle_return_registers =
             {
                 .eax = 0x44000001U,
@@ -236,60 +279,9 @@ void prepare_success(Fixture& fixture) {
             .panel_row_limit = 7U,
         }
     );
-    fixture.port.reply(
-        Call::refresh_actor, {.eax = 0x201U, .ecx = 0x202U, .edx = 0x203U}
-    );
-    fixture.port.reply(
-        Call::query_narrow_row,
-        {
-            .eax = 0x301U,
-            .ecx = 0x302U,
-            .edx = 0x303U,
-            .publish_row_value = true,
-            .row_value = 0xDEAD0000U,
-            .publish_row_text = true,
-            .row_text = text("SKIP"),
-        }
-    );
-    fixture.port.reply(
-        Call::query_narrow_row,
-        {
-            .eax = 0x401U,
-            .ecx = 0x402U,
-            .edx = 0x403U,
-            .publish_row_value = true,
-            .row_value = 0xABCD0005U,
-            .publish_row_text = true,
-            .row_text = text("ROW1"),
-        }
-    );
-    fixture.port.reply(
-        Call::query_narrow_row,
-        {
-            .eax = 0x501U,
-            .ecx = 0x502U,
-            .edx = 0x503U,
-            .publish_row_value = true,
-            .row_value = 0xCAFE0006U,
-            .publish_row_text = true,
-            .row_text = text("ROW2"),
-        }
-    );
-    fixture.port.reply(
-        Call::query_narrow_row,
-        {
-            .eax = 0x601U,
-            .ecx = 0x602U,
-            .edx = 0x603U,
-            .publish_row_value = true,
-            .row_value = 0x1234FFFFU,
-            .publish_row_text = true,
-            .row_text = text("END"),
-        }
-    );
-    fixture.port.reply(
-        Call::refresh_actor, {.eax = 0x701U, .ecx = 0x702U, .edx = 0x703U}
-    );
+    fixture.add_node("SKIP", false);
+    fixture.add_node("ROW1");
+    fixture.add_node("ROW2");
     fixture.port.reply(Call::draw_text, {});
     fixture.port.reply(Call::draw_text, {});
     fixture.port.reply(
@@ -300,17 +292,33 @@ void prepare_success(Fixture& fixture) {
 
 void prepare_sentinel(Fixture& fixture) {
     fixture.port.reply(Call::initialize_narrow_rows, {});
-    fixture.port.reply(Call::refresh_actor, {});
-    fixture.port.reply(
-        Call::query_narrow_row,
-        {.publish_row_value = true, .row_value = 0xFFFFU}
-    );
-    fixture.port.reply(Call::refresh_actor, {});
 }
 
 }  // namespace
 
 void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
+    {
+        Fixture fixture;
+        fixture.add_node("12345678901234567890suffix");
+        fixture.music_path.fill(0xCCU);
+        const auto result =
+            openswd3::battle::draw_legacy_battle_narrow_grid_frame(
+                fixture.state, fixture.bindings(), fixture.port, request()
+            );
+        const auto draws = fixture.port.calls_of(Call::draw_text);
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleNarrowGridFrameStatus::
+                        completed &&
+                result.displayed_rows == 1U && fixture.music_path[0U] == 's' &&
+                fixture.music_path[6U] == 0U &&
+                fixture.music_path[7U] == 0xCCU && draws.size() >= 2U &&
+                draws[1U].text_bytes[20U] == 's' &&
+                draws[1U].text_bytes[26U] == 0U,
+            "narrow rows draw the full name after its suffix overwrites the adjacent music path"
+        );
+    }
+
     {
         Fixture fixture;
         fixture.queued_actor_code = 0U;
@@ -340,8 +348,6 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
             );
         const auto initializes =
             fixture.port.calls_of(Call::initialize_narrow_rows);
-        const auto refreshes = fixture.port.calls_of(Call::refresh_actor);
-        const auto queries = fixture.port.calls_of(Call::query_narrow_row);
         const auto draws = fixture.port.calls_of(Call::draw_text);
         test.expect_true(
             result.status ==
@@ -351,46 +357,37 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
                 result.panel_rectangle_calls == 1U &&
                 result.tiled_frame_calls == 2U && result.font_calls == 5U &&
                 result.actor_initialization_calls == 1U &&
-                result.actor_refresh_calls == 2U &&
-                result.row_query_calls == 4U && result.text_draw_calls == 4U &&
+                fixture.actors[0U].current_list_index == 0x10U &&
+                result.text_draw_calls == 4U &&
                 result.selection_rectangle_calls == 1U &&
-                result.displayed_rows == 2U && result.final_iterator == 4U &&
+                result.displayed_rows == 2U && result.final_iterator == 3U &&
                 fixture.panel_row_limit == 7U &&
                 fixture.selection_input_gate == 1U &&
-                fixture.candidate_argument == 3U,
-            "narrow grid skips empty rows, draws two valid rows and publishes the selected source iterator"
+                fixture.candidate_argument == 2U,
+            "narrow grid filters an ineligible node, draws two matches and publishes the selected ordinal"
         );
         test.expect_true(
             initializes.size() == 1U && initializes[0U].arguments[0U] == 0U &&
                 initializes[0U].arguments[1U] == 1U &&
                 initializes[0U].arguments[2U] == 0x0053BDF3U &&
                 initializes[0U].eax == 0U && initializes[0U].edx == 8U &&
-                refreshes.size() == 2U && refreshes[0U].eax == 0U &&
-                refreshes[0U].edx == 0U && queries.size() == 4U &&
-                queries[0U].arguments[0U] == 0U &&
-                queries[0U].arguments[1U] == 1U &&
-                queries[0U].arguments[2U] == 1U &&
-                queries[0U].arguments[3U] == 0x0053C184U &&
-                queries[0U].arguments[4U] == 0x0012FFD0U &&
-                queries[0U].eax == 0U && queries[0U].edx == 8U,
-            "narrow grid preserves distinct initialization, query and refresh actor register shapes"
+                fixture.port.requested_profile_ids == std::vector<u16>{1U, 1U},
+            "narrow grid loads profiles for the two matching nodes after row initialization"
         );
         test.expect_true(
-            result.rows[0U].iterator == 2U &&
-                result.rows[0U].row_value == 0xABCD0005U &&
+            result.rows[0U].iterator == 1U && result.rows[0U].row_value == 1U &&
                 result.rows[0U].x == 240U && result.rows[0U].y == 166U &&
-                result.rows[1U].iterator == 3U &&
-                result.rows[1U].row_value == 0xCAFE0006U &&
-                result.rows[1U].x == 240U && result.rows[1U].y == 188U &&
-                result.rows[1U].selected,
-            "narrow grid bases row geometry on displayed rows while preserving sparse source iterators"
+                result.rows[1U].iterator == 2U &&
+                result.rows[1U].row_value == 1U && result.rows[1U].x == 240U &&
+                result.rows[1U].y == 188U && result.rows[1U].selected,
+            "narrow grid uses matching-node ordinals and the type-one value for both rows"
         );
         test.expect_true(
             draws.size() == 4U && draws[0U].arguments[1U] == 304U &&
                 draws[0U].arguments[2U] == 134U &&
                 draws[0U].text_token ==
                     openswd3::battle::kLegacyBattleNarrowGridTitleToken &&
-                draws[1U].arguments[4U] == 0xABCD2222U &&
+                draws[1U].arguments[4U] == 0x2222U &&
                 draws[1U].eax == 0x004CD76CU && draws[1U].ecx == 0x004C9A28U &&
                 draws[1U].edx == 240U && draws[3U].arguments[1U] == 239U &&
                 draws[3U].arguments[2U] == 187U &&
@@ -399,7 +396,11 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
             "narrow grid preserves row-value and prior-text-call high words plus callsite registers"
         );
         test.expect_true(
-            workspace_text(fixture.selection_workspace) == text("END") &&
+            std::ranges::equal(
+                workspace_text(fixture.selection_workspace) |
+                    std::views::take(5),
+                std::array<u8, 5>{'R', 'O', 'W', '2', 0U}
+            ) && workspace_text(fixture.selection_workspace)[5U] == 6U &&
                 !fixture.frame_provider.resource_ids.empty() &&
                 fixture.frame_provider.resource_ids.front() == 0xAAAA0077U &&
                 fixture.frame_provider.resource_ids.back() == 0xBBBB0077U,
@@ -420,7 +421,8 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleNarrowGridFrameStatus::
                         completed &&
                 result.panel_action_update.return_value == 0U &&
-                result.tiled_frame_calls == 2U && result.row_query_calls == 1U,
+                result.tiled_frame_calls == 2U &&
+                fixture.actors[0U].current_list_index == 0x10U,
             "narrow grid panel action update failure remains non-branching through sentinel refresh"
         );
     }
@@ -499,17 +501,8 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.port.reply(Call::initialize_narrow_rows, {});
-        fixture.port.reply(Call::refresh_actor, {});
         for (u32 iterator = 1U; iterator <= 9U; ++iterator) {
-            fixture.port.reply(
-                Call::query_narrow_row,
-                {
-                    .publish_row_value = true,
-                    .row_value = iterator <= 2U ? 0U : iterator,
-                    .publish_row_text = true,
-                    .row_text = text("ROW"),
-                }
-            );
+            fixture.add_node("ROW", iterator > 2U);
         }
         auto no_selection = request();
         no_selection.selected_row = 9U;
@@ -522,33 +515,21 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleNarrowGridFrameStatus::
                         completed &&
-                result.row_query_calls == 9U && result.displayed_rows == 7U &&
-                result.final_iterator == 10U &&
-                result.actor_refresh_calls == 1U &&
-                result.rows[0U].iterator == 3U &&
-                result.rows[6U].iterator == 9U && styles.size() == 2U &&
+                result.displayed_rows == 7U && result.final_iterator == 8U &&
+                fixture.actors[0U].current_list_index == 0x108U &&
+                result.rows[0U].iterator == 1U &&
+                result.rows[6U].iterator == 7U && styles.size() == 2U &&
                 styles.back().eax == 9U,
-            "narrow grid excludes zero rows from the seven-row limit and keeps the unmatched selection in final EAX"
+            "narrow grid filters nodes before the seven-row limit and keeps the unmatched selection in final EAX"
         );
     }
 
     {
         Fixture fixture;
         fixture.port.reply(Call::initialize_narrow_rows, {});
-        fixture.port.reply(Call::refresh_actor, {});
-        fixture.port.reply(
-            Call::query_narrow_row,
-            {
-                .publish_row_value = true,
-                .row_value = 1U,
-                .publish_row_text = true,
-                .row_text = text("SELECT"),
-            }
-        );
-        fixture.port.on_call = [&fixture](const Request& call) {
-            if (call.call == Call::query_narrow_row) {
-                fixture.raster.surface.pitch_bytes = 600;
-            }
+        fixture.add_node("SELECT");
+        fixture.port.on_profile_read = [&fixture]() {
+            fixture.raster.surface.pitch_bytes = 600;
         };
         auto selected = request();
         selected.selected_row = 1U;

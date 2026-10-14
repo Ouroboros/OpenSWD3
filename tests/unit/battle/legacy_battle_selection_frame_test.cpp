@@ -1,4 +1,5 @@
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
+#include "legacy_battle_mon_database_fixture.hpp"
 
 #include <algorithm>
 #include <array>
@@ -39,7 +40,8 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 class SelectionPort final
-    : public openswd3::battle::LegacyBattleSelectionFramePort {
+    : public openswd3::battle::LegacyBattleSelectionFramePort,
+      public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]]
     openswd3::battle::LegacyBattleActorTargetPreparationCallReply
@@ -198,10 +200,7 @@ public:
     LegacyBattleControlPanelFrameCallReply control_panel_default_reply{};
     std::function<void(const LegacyBattleGridFrameCallRequest&)> grid_on_call;
     LegacyBattleListFrameCallReply list_frame_default_reply{};
-    LegacyBattleListContentsCallReply list_contents_default_reply{
-        .publish_row_value = true,
-        .row_value = 0xFFFFU,
-    };
+    LegacyBattleListContentsCallReply list_contents_default_reply{};
 };
 
 class SelectionRandom final
@@ -291,6 +290,13 @@ struct Fixture {
             party.configuration.auxiliary_record_token = 0x004ACF50U;
         }
 
+        for (std::size_t index = 0U; index < startup.party.size(); ++index) {
+            startup.party[index].actor_list.owner_token =
+                0x10U + static_cast<u32>(index);
+            action.group_a_action_execution[index].next_list_index =
+                startup.party[index].actor_list.owner_token;
+        }
+
         for (auto& source : startup.action_mode_source.option_sources[0U]) {
             source.object_token = 1U;
         }
@@ -305,6 +311,7 @@ struct Fixture {
             .actor_label_indices = actor_label_indices,
             .action = action,
             .input_dispatch = input,
+            .music_path = music_path,
             .frame_input = frame,
             .target_runtime = target,
             .debug_hotkeys = debug,
@@ -335,6 +342,7 @@ struct Fixture {
         actor_frames.shared.action
     };
     openswd3::battle::LegacyBattleInputDispatchState input;
+    openswd3::battle::LegacyBattleMusicPath music_path{};
     openswd3::battle::LegacyBattleFrameInputResolutionState frame;
     openswd3::battle::LegacyBattleTargetSelectionRuntimeState target;
     openswd3::battle::LegacyBattleDebugHotkeyState debug;
@@ -384,15 +392,6 @@ struct Fixture {
 ) {
     return static_cast<std::size_t>(std::ranges::count_if(
         port.list_frame_calls,
-        [call](const auto& request) { return request.call == call; }
-    ));
-}
-
-[[nodiscard]] std::size_t count_list_contents_call(
-    const SelectionPort& port, const LegacyBattleListContentsCall call
-) {
-    return static_cast<std::size_t>(std::ranges::count_if(
-        port.list_contents_calls,
         [call](const auto& request) { return request.call == call; }
     ));
 }
@@ -765,10 +764,9 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 ) == 0U &&
                 result.list_contents_calls == 1U &&
                 result.list_contents.completed_rows == 0U &&
-                result.list_contents.actor_refresh_calls == 2U &&
-                count_list_contents_call(
-                    fixture.port, LegacyBattleListContentsCall::query_row
-                ) == 1U &&
+                fixture.action.group_a_action_execution[0U]
+                        .current_list_index ==
+                    fixture.startup.party[0U].actor_list.owner_token &&
                 count_call(
                     fixture.port,
                     LegacyBattleSelectionFrameCall::
@@ -823,12 +821,17 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.input.selection_animation_frame_a = 10U;
         fixture.input.selection_animation_frame_b = 7U;
         fixture.action_streams.fail = false;
-        fixture.port
-            .list_contents_replies[LegacyBattleListContentsCall::query_row]
-            .push_back({
-                .publish_row_value = true,
-                .row_value = 1U,
-            });
+        fixture.startup.party[0U].actor_list.head_token = 0x100U;
+        fixture.startup.party[0U].actor_list.nodes.push_back({
+            .token = 0x100U,
+            .category_flags = 0x10U,
+            .mode_flags = 1U,
+            .type = 0x1BU,
+            .profile_id = 1U,
+            .value_flags = 0x8001U,
+            .text = "row",
+        });
+        fixture.port.set_profile_dword(0x10U, 12U);
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port
@@ -1780,16 +1783,6 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             .grid_frame_replies
                 [LegacyBattleGridFrameCall::initialize_narrow_rows]
             .push_back({});
-        eight.port.grid_frame_replies[LegacyBattleGridFrameCall::refresh_actor]
-            .push_back({});
-        eight.port
-            .grid_frame_replies[LegacyBattleGridFrameCall::query_narrow_row]
-            .push_back({
-                .publish_row_value = true,
-                .row_value = 0xFFFFU,
-            });
-        eight.port.grid_frame_replies[LegacyBattleGridFrameCall::refresh_actor]
-            .push_back({});
         const auto eight_result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 eight.bindings(), eight.port
@@ -1831,7 +1824,8 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 eight_result.narrow_grid_frame.status ==
                     openswd3::battle::LegacyBattleNarrowGridFrameStatus::
                         completed &&
-                eight_result.narrow_grid_frame.row_query_calls == 1U &&
+                eight.action.group_a_action_execution[0U].current_list_index ==
+                    eight.startup.party[0U].actor_list.owner_token &&
                 eight.action.action_pending_aux == 1U &&
                 eight.action.selection_cache_gate_b == 1U &&
                 eight.input.selection_cache_gate_c == 1U &&

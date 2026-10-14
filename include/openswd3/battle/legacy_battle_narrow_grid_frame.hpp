@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/battle/legacy_battle_action_mode_refresh.hpp"
 #include "openswd3/battle/legacy_battle_grid_frame.hpp"
+#include "openswd3/battle/legacy_battle_music_path.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_rectangle_effect.hpp"
@@ -18,15 +19,17 @@ inline constexpr compat::u32 kLegacyBattleNarrowGridTitleToken =
 struct LegacyBattleNarrowGridFrameState {
     compat::u32 display_count{};
     compat::u32 row_value{};
+    LegacyBattleMonProfile query_profile{};
 };
 
 struct LegacyBattleNarrowGridFrameBindings {
-    compat::u32 queued_actor_code{};
+    const compat::u32& queued_actor_code;
     compat::u8& panel_row_limit;
     compat::u32& selection_input_gate;
     compat::u32& candidate_argument;
     compat::u16 primary_text_color{};
     std::array<compat::u32, 5>& selection_workspace;
+    LegacyBattleMusicPath& music_path;
     asset_runtime::LegacyActionRecord& panel_action_record;
     rendering::LegacyFramebuffer& framebuffer;
     rendering::LegacyRasterGeometryState& raster;
@@ -34,6 +37,9 @@ struct LegacyBattleNarrowGridFrameBindings {
     rendering::LegacyRleRowJitterState& jitter;
     asset_runtime::LegacyActionUpdater& action_updater;
     rendering::LegacyFramePieceProvider& frame_provider;
+    std::span<LegacyBattlePartyStartupRecord> party;
+    std::span<LegacyBattleGroupAActionExecutionState> actors;
+    LegacyBattleMonDatabasePort& mon_database;
 };
 
 struct LegacyBattleNarrowGridFrameRequest {
@@ -44,7 +50,6 @@ struct LegacyBattleNarrowGridFrameRequest {
     compat::u32 entry_ecx{};
     compat::u32 entry_edx{};
     compat::u32 row_text_token{0x0053C184U};
-    compat::u32 row_value_token{};
     LegacyBattleGridFrameRegisterSnapshot panel_rectangle_return_registers{};
     std::array<LegacyBattleGridFrameRegisterSnapshot, 2>
         tiled_frame_return_registers{};
@@ -67,7 +72,7 @@ struct LegacyBattleNarrowGridRowTrace {
     compat::u32 x{};
     compat::u32 y{};
     bool selected{};
-    std::array<compat::u8, 20> row_text{};
+    std::array<compat::u8, 40> row_text{};
 };
 
 struct LegacyBattleNarrowGridFrameResult {
@@ -82,8 +87,9 @@ struct LegacyBattleNarrowGridFrameResult {
     compat::u32 tiled_frame_calls{};
     compat::u32 font_calls{};
     compat::u32 actor_initialization_calls{};
-    compat::u32 actor_refresh_calls{};
-    compat::u32 row_query_calls{};
+    LegacyBattleActorListQueryStatus row_query_status{
+        LegacyBattleActorListQueryStatus::completed
+    };
     compat::u32 text_draw_calls{};
     compat::u32 selection_rectangle_calls{};
     compat::u32 final_iterator{};

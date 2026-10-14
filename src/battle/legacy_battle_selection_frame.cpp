@@ -774,6 +774,12 @@ private:
                 .shared_effects = bindings_.shared_effects,
                 .jitter = bindings_.jitter,
                 .frame_provider = bindings_.frame_provider,
+                .selection_workspace =
+                    bindings_.input_dispatch.selection_workspace,
+                .music_path = bindings_.music_path,
+                .party = bindings_.startup.party,
+                .actors = bindings_.action.group_a_action_execution,
+                .mon_database = port_,
             },
             port_,
             list_request
@@ -1005,6 +1011,7 @@ private:
                 .primary_text_color = bindings_.startup.primary_text_color,
                 .selection_workspace =
                     bindings_.input_dispatch.selection_workspace,
+                .music_path = bindings_.music_path,
                 .panel_action_record = bindings_.panel_action_record,
                 .framebuffer = bindings_.framebuffer,
                 .raster = bindings_.raster,
@@ -1012,6 +1019,9 @@ private:
                 .jitter = bindings_.jitter,
                 .action_updater = bindings_.action_updater,
                 .frame_provider = bindings_.frame_provider,
+                .party = bindings_.startup.party,
+                .actors = bindings_.action.group_a_action_execution,
+                .mon_database = port_,
             },
             port_,
             narrow_request

@@ -1,27 +1,96 @@
-# 战斗角色链表筛选读取 `0x00470180`
+# 战斗角色列表行查询 `0x00470180`
 
-状态：`platform_adapted`。完整LST、typed实现、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+当前LIST：`CHAIN-e0f6819f24dc`，整链仍为pending。
+本批移除行查询及两个菜单caller的通用调用协议，不关闭计数、资源生产或完整SDL交互。
+历史workpack的`platform_adapted`不等于本LIST整链验收。
 
-## 1. 完整权威范围
+## 1. 权威范围与调用者
 
-权威LST主体为`0x00470180..0x004702D4`，proc至endp共191行、111条实际指令、3个call、25个跳转、16个局部标签、2个返回点，没有外部`FUNCTION CHUNK`。callee为已关闭索引提交`0x0046FFE0`一次、待审资料加载`0x00476A80`一次和平台字符串复制一次。
+LST主体为`00470180..004702D4`，proc至endp共191行，无外部chunk。
+两个物理caller为列表内容`004656B0`和窄网格`00466684`。
+函数调用索引复位`0046FFE0`、MON资料加载`00476A80`及`lstrcpyA`。
 
-## 2. 选择器与扫描
+本批删除`LegacyBattleActorListQueryRequest`、actor token参数、索引子回包、
+寄存器回包、输出副本、扫描与调用计数。
+函数直接接收角色、列表、MON数据库、筛选条件、序号、文本span、输出DWORD及资料存储。
+语义结果只保留状态和显示帧号；当前游标、名称和数值写入真实借用对象。
 
-首选择器映射为mask：0到`0x10`、1到`0x0C`、2到`0x1001`，其他保持原值。次选择器映射为type：0到28、1到31，其他保持原值。函数先调用typed索引提交，再从list owner首节点开始按next token顺序扫描。
+## 2. 筛选和游标
 
-节点必须同时满足category flags与mask非零、mode byte与`0x05`非零。type 28分支接受节点type 27至30；其他所有type选择器都只接受节点type 31，这是原跳转结构的非对称行为。匹配计数先递增再和occurrence比较，因此occurrence零永不命中。链尾失败写输出word `0xFFFF`并返回EAX低word `0xFFFF`。
+category 0、1、2分别映射为`10h`、`0Ch`、`1001h`，其他值原样使用。
+type 0、1分别映射为`1Ch`、`1Fh`，其他值原样使用。
+先把next游标复制到current；每次取next节点后，先发布current，再检查链尾及过滤条件。
+节点需满足category与mask非零、mode与5非零。
+type `1Ch`接受节点type `1Bh..1Eh`；其他type只接受节点type `1Fh`。
 
-## 3. 命中处理
+`0047020F`只在匹配时递增计数，但`00470210`在每个非空节点后都比较序号。
+因此零序号可命中首个不匹配节点；若首节点匹配，计数先变1，零序号可能一直走到链尾。
+旧版“零序号永不命中”的结论和对应测试已纠正。
+链尾先发布current=0，再写输出低WORD为`FFFFh`，高WORD保持；显示帧号为`FFFFh`。
+若输出引用别名current，最后可见游标因此为`FFFFh`，不能把游标清零移到输出之后。
 
-type不是28或31时输出word写零，跳过资料加载与字符串复制，但仍以陈旧局部profile index查询返回表。type 28或31时调用窄资料加载并复制节点字符串。节点value word按顺序覆盖输出：bit15清除后发布、bit14转成负标记、bit11强制1000；type 31最后强制1。返回值为静态word表按loader发布或陈旧profile index索引所得。
+## 3. 命中后的顺序
 
-## 4. owner、stop与caller
+非`1Ch/1Fh`类型只写输出低WORD=0，跳过MON和名称，仍读取调用者提供的陈旧资料。
+正常类型先加载命中节点`+4A`的MON资料；随后重新读取current，复制节点`+0C`名称至首NUL。
+MON打开失败按既有loader合同保留资料并继续后缀；真正的loader停止则保留此前游标副作用。
 
-actor current/next index继续复用第184与186项唯一owner。新增链表owner只持有owner token、head token和有序节点；缺失owner、节点或返回表索引时在对应首次访问处typed-stop，并保留此前索引提交和扫描副作用。待审资料加载保留窄profile-id port；字符串复制使用typed字符串owner。
+随后每一步重新读取current节点：bit15写`value & 7FFFh`；bit14写
+`(value & 3FFFh) | 8000h`；bit11写1000；type `1Fh`最后写1。
+每次只改输出低WORD，保留实时高WORD。MON回调可重分配节点或改游标，输出也可别名游标，
+不能跨这些操作保留节点指针或缓存value flags。无标记时保持原输出。
 
-两个静态caller位于已关闭列表内容和窄网格函数。当前两caller在既有typed边界中使用无地址的语义化行查询port，但尚未暴露链表节点物化owner；本包不复制第二份节点状态，也不把整函数地址重新引入生产代码。节点物化接入后应直接复用本typed核心。源码、头文件与测试中不存在旧函数地址生产调用。
+最后以profile `+10h`低WORD索引`word_4A7BD4`。LST可确认的24项为：
 
-## 5. 验证状态
+```text
+8, 1, 2, 3, 4, FFFF, 5, 6, 7, FFFF, 9, 10,
+20, 25, 10, FFF6, FFE7, FFDD, 62, 124, 186, 248, 310, 372
+```
 
-测试覆盖索引提交、顺序过滤、type范围、四级输出覆盖、type31最终强制、occurrence零永不命中和缺失节点stop。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`188/422 = 179 platform_adapted + 9 assembly_exact + 234 pending_audit`，SHA256为`c9defe880e71c231ce22f4b49c04fc9aadd1b35b9585cec25548647291e09f2c`。动态差分因原版链表、资料加载、返回表、字符串目标与两处caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+本批返回语义WORD帧号。列表caller虽递减完整EBX后传给`004504E0`，
+最终缓存查询`00431E2E`及加载`00431CFF/00431D5E`均只使用帧号低WORD。
+窄网格caller不消费此返回帧号。
+
+## 4. 两处生产接线
+
+列表内容从scroll+1开始，category读取共享动作分类，type固定0。
+窄网格从序号1开始，category固定0、type固定1。
+两者直接借用`startup.party[index].actor_list`、
+`action.group_a_action_execution[index]`及MON数据库，名称写入
+`input_dispatch.selection_workspace`，不再通过查询回包发布文本或数值。
+LST数据区确认该五DWORD之后紧接`0053C198..0053C497`的音乐路径。
+超过20字节的名称直接继续写入同一音乐路径owner，至首NUL为止；不复制第二份持久文字。
+协调器把现有音乐路径借给选择帧，再传至两caller。
+窄网格绘制参数同时读取名称前段及音乐路径中的后段，避免只显示前20字节。
+
+两caller查询前和链尾出口直接复位角色游标。
+列表`00465965/0046599D`、窄网格`00466751/0046678F`明确逐行或在失败出口清值，
+实现保留该顺序。删除`query_row`、`query_narrow_row`、相关`refresh_actor`操作、
+参数包、查询/刷新计数及协调器的对应转发与输出字段。
+其余初始化、计数、字体、绘制和父函数寄存器协议仍待后续批次。
+
+## 5. 宿主边界与未验证事项
+
+缺角色、列表owner、节点以及资料/表边界沿用可报告失败，保留首次失败前的副作用。
+文本直接写入调用者提供的连续语义存储段；容量不足时保留已复制前缀并报告失败。
+原版`lstrcpyA`无容量检查，宿主不能越过已借用对象边界。
+两个实际caller提供20字节选择区及相邻768字节音乐路径；没有在20字节处新增业务停点。
+超出这两个已建模对象的任意字节越界访问不宣称原版等价。
+该宿主容量边界不代替计数、资源生产或其他未完成业务。
+
+父state显式持有查询资料，以保留未加载时的内容；初始零值是宿主初始化，
+不是原版未初始化栈的捕获证据。MON打开失败时原版栈的具体陈旧内容未动态验证。
+原版联合动态差分仍为`blocked_runtime_oracle`；完整SDL战斗交互未运行验收。
+
+## 6. 本批验证
+
+包含相邻音乐路径修正的最终`battle.legacy_battle_setup`：
+core 1/1，12.21秒；ASan 1/1，21.38秒；SDL应用构建通过。
+15份生产源码、头文件及测试在格式化后、测试后和提交审查时SHA256一致。
+全仓include/src/tests扫描确认本批删除的查询、复位操作及回包字段没有残留引用。
+未运行全仓测试，不沿用旧文档的完整门数量或零warning结论。
+
+合成夹具覆盖零序号两路径、过滤、链尾、四级数值覆盖、高WORD保留、
+游标别名、MON回调重分配/换节点、缺失节点、打开失败继续、分配失败前缀、
+文本容量前缀、表边界、首NUL、两个实际菜单接线、逐行清值及长名称对音乐路径的共享覆盖。
+这些是固定状态和合成MON夹具证据，不是原版动态捕获。

@@ -66,17 +66,12 @@ struct LegacyBattleActorListQueryState {
     compat::u16 secondary_required{};
 };
 
-struct LegacyBattleActorListQueryRequest {
-    compat::u32 category_selector{};
-    compat::u32 type_selector{};
-    compat::u32 occurrence{};
-    compat::u16 entry_output_word{};
-    compat::u32 stale_profile_index{};
-    compat::u32 profile_buffer_token{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_edx{};
-    std::span<const compat::u16> return_table;
-};
+inline constexpr std::array<compat::u16, 24>
+    kLegacyBattleActorListDisplayFrames{
+        8U,      1U,      2U,  3U,   4U,   0xFFFFU, 5U,   6U,
+        7U,      0xFFFFU, 9U,  10U,  20U,  25U,     10U,  0xFFF6U,
+        0xFFE7U, 0xFFDDU, 62U, 124U, 186U, 248U,    310U, 372U,
+    };
 
 enum class LegacyBattleActorListQueryStatus : compat::u8 {
     completed,
@@ -95,17 +90,7 @@ struct LegacyBattleActorListQueryResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
-    LegacyBattleActorListIndexCommitResult index_commit{};
-    compat::u32 index_commit_calls{};
-    compat::u32 profile_load_calls{};
-    compat::u32 nodes_visited{};
-    compat::u32 matches{};
-    compat::u32 matched_token{};
-    compat::u16 output_word{};
-    std::string output_text;
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
+    compat::u16 display_frame{0xFFFFU};
 };
 
 struct LegacyBattleActorListApplyResult {
@@ -227,9 +212,16 @@ struct LegacyBattleActorListCountResult {
 [[nodiscard]] LegacyBattleActorListQueryResult query_legacy_battle_actor_list(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleActorListQueryState* list,
-    compat::u32 actor_token,
     LegacyBattleMonDatabasePort& mon_port,
-    const LegacyBattleActorListQueryRequest& request
+    compat::u32 category_selector,
+    compat::u32 type_selector,
+    compat::u32 occurrence,
+    std::span<compat::u8> text,
+    compat::u32& output_value,
+    LegacyBattleMonProfile& profile,
+    std::span<const compat::u16> display_frames =
+        kLegacyBattleActorListDisplayFrames,
+    std::span<compat::u8> text_continuation = {}
 );
 
 // sub_4705C0.
