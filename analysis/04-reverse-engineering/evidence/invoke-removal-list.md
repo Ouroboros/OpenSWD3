@@ -30,7 +30,7 @@
   - 本批：普通资源行查询直接写实际名称、flags和数量，删除request、寄存器副本及诊断计数；core/ASan定向门及SDL构建通过。
   - 证据：[行查询及唯一普通网格调用方](battle-actor-resource-list-query-00470910.md)。提交f21aa0b1已推送，远端main一致。
   - 本批选择：删除Request、寄存器/输出回包、调用计数和脚本开关，三个caller直接写实际DWORD/WORD；纠正4708C0错接、profile影子来源、分类位和重复flags_49。
-  - 验证：真实资源/MON夹具、独立边界、四项core/ASan、SDL构建及源码身份检查通过；已审查，提交及远端待登记。见[资源选择](battle-actor-resource-selection-00470ac0.md)。
+  - 验证：真实资源/MON夹具、独立边界、四项core/ASan、SDL构建及源码身份检查通过；源码4b163e92已推送并核对远端main一致。见[资源选择](battle-actor-resource-selection-00470ac0.md)。
   - 剩余：同族状态、资料、选择诊断转发及资源生产；整链未验收，不勾选。
   - 当前残留信号：counter, interface, register。
   - 历史状态：`pending`；本快照：待复核。
@@ -2099,7 +2099,7 @@
   - `register` [src/battle/legacy_battle_target_selection_entry.cpp](../../../src/battle/legacy_battle_target_selection_entry.cpp)：95, 96, 97, 100, 101, 102, 110, 111, 112, 114, 115, 116, 133, 136, 137, 138, 148, 149, 150, 177, 178, 179, 188, 189, 195, 196, 202, 203, 204, 211, 212, 217, 218, 220, 221, 224, 225, 226, 232, 233, 234, 238, 244, 245, 255, 256, 262, 269, 273, 275, 278, 279, 280, 283, 294, 297, 298, 303, 310, 311, 312, 324, 325, 326, 327, 351, 354, 355, 356, 360, 361, 362, 377, 397, 399, 400, 401, 405, 406, 407, 422
 
 - [ ] **CHAIN-720a76165b91** `battle/legacy_battle_target_selection_refresh`
-  - 本批：三个资源选择点及相邻动作4完成点改接实际函数；删除两个通用操作、选择兼容开关及子寄存器/计数，验证见[资源选择](battle-actor-resource-selection-00470ac0.md)。提交与远端待登记。
+  - 本批：三个资源选择点及相邻动作4完成点改接实际函数；删除两个通用操作、选择兼容开关及子寄存器/计数，验证见[资源选择](battle-actor-resource-selection-00470ac0.md)。源码4b163e92已推送并核对远端main一致。
   - 剩余：诊断转发、其他操作/参数包/寄存器/计数/Port及完整父路径；整链不勾选。
   - 当前残留信号：arguments, counter, interface, invoke, register。
   - 历史状态：`pending`；本快照：待复核。

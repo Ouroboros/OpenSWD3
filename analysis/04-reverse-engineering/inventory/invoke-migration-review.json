@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "f21aa0b1c44cbd56b0606497115a51274474039b",
+  "last_reviewed_source_revision": "4b163e9251bbea78de5fbfc0c0b664a990a6afe2",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -84,9 +84,9 @@
     },
     "battle/legacy_battle_target_selection_refresh": {
       "status": "pending",
-      "last_reviewed_commit": "5ad2a9aa",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-consumption-00470e20.md",
-      "reason": "菜单三站保持同一startup.party和既有属性/数量/live读取顺序；资源叶只借list/workspace并返回业务WORD，request/reply、actor寄存器token和八计数删除。1125既有资源、283数量及四个入口向量随52次新动作/叶/列表执行同步通过，两core/两ASan各1/1、SDL实际链接及13源身份通过。原纯叶callback、独立队伍与尾节点纠错记录保留。完整菜单其余操作、参数包、寄存器、计数、Port、MON源、别名与SDL链仍pending，不增加整族验收"
+      "last_reviewed_commit": "4b163e92",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-selection-00470ac0.md",
+      "reason": "4631F6/4636CF/46377C使用实际资源选择及共享输出；删除resolve_action_target、apply_special_actor_action、脚本选择开关及子寄存器/计数，462FEB纠正为真实4708C0。菜单测试改真实MON资料及可达数量，动作4十角色单独验证；四定向core/ASan、SDL和最终caller补测通过。诊断转发、其他操作/参数包/寄存器/计数/Port及完整父路径仍pending"
     },
     "battle/legacy_battle_group_b_action_composition": {
       "status": "pending",
@@ -312,9 +312,9 @@
     },
     "battle/legacy_battle_actor_list_query": {
       "status": "pending",
-      "last_reviewed_commit": "f21aa0b1",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-list-query-00470910.md",
-      "reason": "470910直接借实际list、配置、类别、完整DWORD序号及调用方名称/flags/数量存储；删除request、寄存器token、字符串及诊断副本。保资格块外序号比较、signed容量、输出别名和复制后重读head。core/ASan的setup与actor316各1/1、SDL构建及14源身份通过；宿主无效span/绑定错误不冒充原版动态异常证据。其余状态、选择、资料和资源生产协议仍pending，不增加整族验收"
+      "last_reviewed_commit": "4b163e92",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-selection-00470ac0.md",
+      "reason": "470AC0直接借实际资源、资料和caller DWORD/WORD；删除选择Request、寄存器/输出回包及计数，profile输出改读已加载资料，统一48/49同址字段并纠正分类位。保双计数、signed容量、输出别名、回调后重读及WORD数量回绕；四定向core/ASan、SDL构建、最终caller补测和七源身份通过。状态、资料、资源生产及选择诊断Port/Adapter仍pending，不增加整链验收"
     },
     "battle/legacy_battle_grid_frame": {
       "status": "pending",
