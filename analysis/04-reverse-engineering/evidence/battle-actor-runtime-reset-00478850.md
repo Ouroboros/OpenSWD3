@@ -126,7 +126,7 @@ fault。非法、非对齐或越界 actor token 不在函数入口提前拒绝�
 随后在第一个真实 actor 访问点停止。该差异属于原访问点的最小平台适配，因此本工作包
 登记为 `pending`，不能以 owner、span 或测试通过标记为 `assembly_exact`。
 
-## 6. 17 个已关闭父 CALL
+## 6. 17 个父 CALL（`pending`）
 
 完整 LST 有 9 个父函数、22 个物理 CALL。以下 7 个已关闭父函数中的 17 个 CALL
 全部在原控制流位置直接组合 typed leaf：

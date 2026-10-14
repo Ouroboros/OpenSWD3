@@ -62,7 +62,7 @@ Typed实现按真实指令地址区分六个停止点：
 
 Group-A解析到`LegacyBattleActionDispatchState::group_a_action_execution[index]`；Group-B解析到`LegacyBattleStartupState::group_b_lifecycle[index].action_execution`。解析时只把对应startup progress的`field_26c0`视图绑定到上述canonical backing，不新增平行actor数组、第二套状态、缓存或token槽。
 
-## 5. 二十七个已关闭物理CALL
+## 5. 二十七个物理CALL（`pending`）
 
 机器码扫描得到35处物理CALL。以下27处所属caller已经关闭，并在原控制流位置直接组合typed leaf；括号内为`CALL地址 -> 返回地址`：
 

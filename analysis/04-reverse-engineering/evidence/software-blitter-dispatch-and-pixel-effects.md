@@ -102,7 +102,7 @@ a == 15:  直接复制 src
 
 raw `0x94` 还固定逐像素读取 `u16` 并比较转换后 colorkey 的低字；即使调色板指针非空，它也不会进入 indexed-8 转换。RLE literal 不做该 colorkey 比较。完整地址、phase 和验证见 `legacy-blitter-opacity-00417950-0041d340.md`。
 
-## 已闭环效果族
+## 效果族（`pending`）
 
 以下公式按红、绿、蓝三个实际有效通道独立执行；六位 surface 通道已在 `0x00423400` 的表初始化中收窄为原引擎使用的五位有效 mask。
 

@@ -104,7 +104,7 @@ right_x = low32(left + frame3.width * (horizontal_repeat_count + 1))
 
 帧绘制12次，另有一次渐变。横纵次数均为0时仍查询`4,0,1,2,6,7,8`，只绘制四角和渐变。
 
-## 6. 已关闭blitter直接组合
+## 6. blitter直接组合（`pending`）
 
 普通帧绘制以：
 

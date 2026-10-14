@@ -66,7 +66,7 @@
 
 callee精确返回1后才把消息辅助值清0；返回其他值不清。callee typed-stop发生时也不执行清零尾。
 
-## 5. 已关闭callee直连与返回值
+## 5. callee直连与返回值（`pending`）
 
 六个callsite全部直接组合`draw_legacy_battle_offset_action_frame`，并通过唯一`LegacyBattleOffsetActionFrameDrawStatePort`复用其持久动作记录、帧记录、source和陈旧结果latch，不为本caller建立第二份物理状态。
 

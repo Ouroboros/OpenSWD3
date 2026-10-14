@@ -3,18 +3,18 @@
 状态：`pending`。
 
 本文只以 `/mnt/e/Game/swd3/swd3.exe_export_for_ai/swd3.exe.lst` 的机器码与指令为
-行为真值。当前记录分别独立关闭外层扫描 `sub_413870` 与普通角色绘制 `sub_413910`；
+行为真值。外层扫描 `sub_413870` 与普通角色绘制 `sub_413910` 的当前状态均为 `pending`；
 相邻音频与 bit-29 路径不继承关闭状态。
 
 ## 1. 逐函数状态
 
 | 地址 | 函数 | 当前状态 | 当前工作包结论 |
 | --- | --- | --- | --- |
-| `0x00413870` | `sub_413870` | `pending` | `0x00413870..0x0041390B` 已完成 LST→C++→LST 收敛；映射 `draw_legacy_world_roles` 及 runtime 原 stage seam |
-| `0x00413910` | `sub_413910` | `pending` | `0x00413910..0x00413C96` 已完成逐基本块 LST→C++→LST 收敛；映射 `draw_legacy_world_role` 与 SDL runtime adapter |
-| `0x00413CA0` | `sub_413CA0` | `pending` | `0x00413CA0..0x00413E96` 已完成 LST→C++→LST 收敛；映射距离音频核心与 SDL sample manager adapter |
-| `0x00413EA0` | `sub_413EA0` | `pending` | `0x00413EA0..0x00413EFE` 已完成 LST→C++→LST 收敛；映射 group-0 bit-29 行链扫描 |
-| `0x00413F00` | `sub_413F00` | `pending` | `0x00413F00..0x00413FDD` 已完成 LST→C++→LST 收敛；映射单个 bit-29 角色固定透明绘制 |
+| `0x00413870` | `sub_413870` | `pending` | `0x00413870..0x0041390B` LST→C++→LST 收敛：`pending`；映射 `draw_legacy_world_roles` 及 runtime 原 stage seam |
+| `0x00413910` | `sub_413910` | `pending` | `0x00413910..0x00413C96` 逐基本块 LST→C++→LST 收敛：`pending`；映射 `draw_legacy_world_role` 与 SDL runtime adapter |
+| `0x00413CA0` | `sub_413CA0` | `pending` | `0x00413CA0..0x00413E96` LST→C++→LST 收敛：`pending`；映射距离音频核心与 SDL sample manager adapter |
+| `0x00413EA0` | `sub_413EA0` | `pending` | `0x00413EA0..0x00413EFE` LST→C++→LST 收敛：`pending`；映射 group-0 bit-29 行链扫描 |
+| `0x00413F00` | `sub_413F00` | `pending` | `0x00413F00..0x00413FDD` LST→C++→LST 收敛：`pending`；映射单个 bit-29 角色固定透明绘制 |
 
 ## 2. 范围、ABI 与唯一调用者
 

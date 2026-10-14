@@ -81,7 +81,7 @@ Group-B  startup.group_b_lifecycle[index].action_execution
 `shared_value_5254c0`。低 word 写保留高 word，高 word 写保留低 word；其他越界 token 继续在
 首次原字段读取点 typed-stop，不放宽 Group-B 数组范围。
 
-## 4. 十二个已关闭父 CALL
+## 4. 十二个父 CALL（`pending`）
 
 完整 LST 只有十二个物理 CALL，全部位于已关闭父函数：
 

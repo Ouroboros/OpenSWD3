@@ -66,7 +66,7 @@ leaf 按五个真实访问阶段分别提供：
 差异属于原访问点的最小平台适配，因此本目标登记为 `pending`，不能以 typed
 owner、测试通过或 span 检查标记为 `pending`。
 
-## 4. 二十个已关闭父 CALL
+## 4. 二十个父 CALL（`pending`）
 
 完整 LST 有 6 个父函数、20 个物理 CALL。六个父函数均已关闭，因此本轮没有延期 CALL：
 

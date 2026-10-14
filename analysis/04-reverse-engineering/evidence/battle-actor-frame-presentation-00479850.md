@@ -33,7 +33,7 @@ ECX 为隐藏 actor token，无显式栈参数；四个入口保存的寄存器�
 
 导航材料（不提交）：`build/workpack316/function-and-tables.lst`、`calls.txt`、`basic-block-ledger.txt`、`branch-vectors.md`；摘要文件中有各件 SHA-256。所有语义仍以原 LST 字节和指令为准。
 
-## 2. 已关闭父函数中的四个物理 caller
+## 2. 父函数中的四个物理 caller（`pending`）
 
 ```text
 动作主分派 case 7       0x004554F6 -> 0x004554FB  group B；EBX=1，完整 EAX 等于1才执行后缀

@@ -50,7 +50,7 @@ Group-B  startup.group_b_lifecycle[index].action_execution.action_target
 target 缓存或独立 resolver。本工作包五处 caller 只使用 Group-A 或 Group-B actor，不涉及
 调试特殊 actor。
 
-## 4. 五个已关闭父 CALL
+## 4. 五个父 CALL（`pending`）
 
 完整 LST 中共有五条真实 `call sub_478B20`，全部位于已关闭父函数：
 

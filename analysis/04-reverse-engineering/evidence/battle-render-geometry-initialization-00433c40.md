@@ -151,7 +151,7 @@ index   horizontal   vertical
 
 这些大幅值是方向推进使用的原比例，不归一化到1000。
 
-## 9. 表布局与已关闭consumer
+## 9. 表布局与consumer（`pending`）
 
 原owner布局是两张连续360项signed i32数组：
 

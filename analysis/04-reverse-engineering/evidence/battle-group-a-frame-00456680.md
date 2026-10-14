@@ -156,7 +156,7 @@ selection mode为0时遍历组B：terminal对象及已映射对象计入terminal
 
 随后selection complete等于1时按AI标记或delay成功走两类门清理；delay mode等于4时另调用固定finalize。
 
-## 7. 已关闭动作主分派caller回收
+## 7. 动作主分派caller回收（`pending`）
 
 当active effect target等于`group_a_index+8`且action execution已激活：
 
