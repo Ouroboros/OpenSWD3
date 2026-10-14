@@ -1,14 +1,6 @@
 # B4 `rendering` 有限收口审计
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`module_closed_pending_oracle`；152 项全集已完成逐地址处置并移交
+状态：`pending`。
 
 审计对象是机器目录中 `module_candidate = rendering` 的 152 个地址。B6 归属复核后，
 共享 framebuffer/font/rendering 构造器 `0x004350E0` 从 asset runtime 转入本范围。逐项结果见

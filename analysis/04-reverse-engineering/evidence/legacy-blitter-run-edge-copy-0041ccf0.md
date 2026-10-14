@@ -1,14 +1,6 @@
 # RLE literal run 边缘覆盖复制
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：本行为单元为 `assembly_exact`、`asset_verified`；原程序动态 framebuffer 差分仍为 `blocked_runtime_oracle`。反向例程可能写到 framebuffer 之前的情况以显式边界错误隔离，记为 `platform_adapted`。
+状态：`pending`。
 
 ## 1. 范围与真值
 

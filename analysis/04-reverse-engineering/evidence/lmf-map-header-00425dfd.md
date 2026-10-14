@@ -1,14 +1,6 @@
 # LMF 地图块固定头 `0x00425DFD..0x00425F94`
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：B2.14 已实现；`assembly_exact`、`asset_verified`、`platform_adapted`、`unreachable_current_assets`、`blocked_runtime_oracle`
+状态：`pending`。
 
 完整汇编是唯一行为真值。IDA 伪码和符号名只用于定位。本单元从 B2.13 返回的地图块偏移继续，只恢复固定头、格式分支、运行时五个零扩展字段和名称边界。
 

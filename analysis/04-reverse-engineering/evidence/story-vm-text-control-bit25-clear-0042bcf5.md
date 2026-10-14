@@ -1,14 +1,6 @@
 # 剧情 VM 文字控制 bit25 清除 `0x0042BCF5`
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`assembly_exact`、`unit_tested`、`asset_absence_verified`、`sdl_runtime_integrated`。
+状态：`pending`。
 
 唯一行为依据：`swd3.exe_export_for_ai/swd3.exe.lst`
 

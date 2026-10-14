@@ -1,14 +1,6 @@
 # 战斗角色当前帧边界查询 `0x004784A0`
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`platform_adapted`、`unit_tested`、`caller_reclaimed:9/15`、`pending_remaining_callers`。typed leaf与`0x0045FC60`、`0x00460C40`、`0x00461240`共九个物理callsite已落地；目标刷新和选择标记的六个callsite按REVIEW 3继续保持待回收。
+状态：`pending`。
 
 ## 1. 完整LST范围与ABI
 

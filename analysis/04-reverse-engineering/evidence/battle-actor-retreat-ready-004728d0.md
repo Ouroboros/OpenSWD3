@@ -1,14 +1,6 @@
 # 战斗行动者退却就绪位查询 `0x004728D0`
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`platform_adapted`。完整LST、typed实现、两处caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+状态：`pending`。
 
 权威LST主体为`0x004728D0..0x004728DF`，proc至endp共9行、5条实际指令、0个call、0个跳转、0个局部标签、1个返回点，没有外部`FUNCTION CHUNK`。两个真实caller分别位于退却提交`0x0045EA80`和输入dispatch `0x0045F2A0`。
 

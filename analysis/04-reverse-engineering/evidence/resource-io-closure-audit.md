@@ -1,14 +1,6 @@
 # B2 `resource_io` 有限收口审计
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：完成；模块判定为 `module_closed_pending_oracle`
+状态：`pending`。
 
 审计对象为 B2 历史范围内的 63 个函数。逐项结果见 [`resource-io-closure.tsv`](../inventory/resource-io-closure.tsv)。本审计只核对既定范围、实现映射和移交归属，不重新展开全局资源调研。
 

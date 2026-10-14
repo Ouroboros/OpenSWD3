@@ -1,14 +1,6 @@
 # 战斗角色帧资源准备 `0x00478620`
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`platform_adapted`、`unit_tested`、`caller_reclaimed:5/5`。Workpack 289三个REVIEW已回收frame-input三处、Group-A目标演出一处及Group-B目标演出一处物理callsite；inventory row 289已由权威生成器关闭。
+状态：`pending`。
 
 ## 1. 完整LST边界与ABI
 

@@ -1,15 +1,6 @@
 # ANI 四槽漂移动作效果（`0x004161C0`）
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`assembly_exact`、`asset_verified`；原程序动态 framebuffer 差分仍为
-`blocked_runtime_oracle`。
+状态：`pending`。
 
 唯一行为真值：`swd3.exe.lst`。本文只使用 LST 指令、物理全局地址和已闭环的
 ACT/TSW/动作记录实现；IDA 函数签名与伪码不作为行为依据。

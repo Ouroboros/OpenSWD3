@@ -1,15 +1,6 @@
 # 对话消息链关闭生命周期闭环
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`platform_adapted`、`assembly_exact`（原版有效链域）、`unit_tested`；原程序动态
-差分仍为 `blocked_runtime_oracle`。
+状态：`pending`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x0040F5A0..0x0040F5DF`。该函数逐头销毁
 `dword_4ACF48` 对话消息链，并在链为空后只保留 `dword_4A9920` 的 bit 15。

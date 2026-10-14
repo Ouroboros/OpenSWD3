@@ -1,14 +1,6 @@
 # 战斗组A护援角色资料物化 `0x0046E9C0`
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`platform_adapted`。完整LST、typed资料物化、startup两处caller、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+状态：`pending`。
 
 ## 1. 完整权威范围与ABI
 

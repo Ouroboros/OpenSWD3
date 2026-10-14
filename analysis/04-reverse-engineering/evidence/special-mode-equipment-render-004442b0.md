@@ -1,14 +1,6 @@
 # 装备物品模式主渲染 `0x004442B0`
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`platform_adapted`、`unit_tested`
+状态：`pending`。
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x004442B0..0x00444D9E`，1235行，无FUNCTION CHUNK。code caller `0x00444FC0`仍独立待审；3B480另绑定为渲染callback。B9A0、B9C0与AE40已关闭并直接复用；其余平台绘制、颜色、动作装载与资源解析callee通过typed render request和最窄端口隔离。
 

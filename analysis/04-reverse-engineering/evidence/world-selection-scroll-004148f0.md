@@ -1,15 +1,6 @@
 # 世界选择序列相机滚动（`0x004148F0`）
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`assembly_exact`、`unit_verified`、`platform_adapted`、
-`sdl_runtime_integrated`；尚未 `original_diff_verified`
+状态：`pending`。
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。`sub_4148F0` 的完整物理范围是
 `0x004148F0..0x004149A1`，无栈参数，唯一调用点是 `sub_4120B0:0x00412691`。函数只在

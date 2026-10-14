@@ -1,14 +1,6 @@
 # 战斗角色资料记录选择 `0x00478670`
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`platform_adapted`、`unit_tested`、`caller_reclaimed:2/2 implemented startup sites`。完整四处物理xref均已登记；另外两处caller属于后续待审工作包，当前生产源码不存在对应opaque调用。
+状态：`pending`。
 
 ## 1. 完整LST边界与ABI
 

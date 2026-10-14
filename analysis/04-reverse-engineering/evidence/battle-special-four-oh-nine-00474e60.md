@@ -1,14 +1,6 @@
 # 战斗特殊动作四百零九四阶段协调器 `0x00474E60`
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`platform_adapted`。完整LST、typed实现、唯一caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+状态：`pending`。
 
 权威LST主体为`0x00474E60..0x00474FB4`，proc至endp共158行、97条实际指令、4个call、9个跳转、7个局部标签、2个返回点，没有外部`FUNCTION CHUNK`。隐藏this是group-A行动者，唯一显式参数是目标token；唯一caller位于动作dispatch的动作409分支。
 

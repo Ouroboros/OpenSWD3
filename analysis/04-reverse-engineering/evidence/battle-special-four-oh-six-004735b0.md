@@ -1,14 +1,6 @@
 # 战斗动作四百零六四记录状态机 `0x004735B0`
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`platform_adapted`。完整LST、typed实现、唯一caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+状态：`pending`。
 
 权威LST主体为`0x004735B0..0x00473C0D`，proc至endp共670行、419条实际指令、19个call、29个跳转、22个局部标签、2个返回点，没有外部`FUNCTION CHUNK`。唯一caller位于动作dispatch的动作406分支；this为当前group-A行动者，唯一栈参数为选中group-B目标token，严格只在本函数返回一后继续发布目标、效果分数与后续画面提交。
 

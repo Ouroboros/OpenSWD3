@@ -1,14 +1,6 @@
 # 战斗组A动作执行 `0x0046F8C0`
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：`platform_adapted`。完整LST、actor执行owner、flag状态机、slot与绘制路径、行动调度caller直连、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+状态：`pending`。
 
 ## 1. 完整权威范围与ABI
 

@@ -1,14 +1,6 @@
 # `0x00438B50..0x00438F9F` DBCS/IME 文本编辑驱动
 
-状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
-
-以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
-原版采集事实保留，所有解释和实现结论须重新核实。
-
-## 历史资料（重新核实前不生效）
-
-
-历史状态：B3.8 闭环；`assembly_exact`、`platform_adapted`、`blocked_runtime_oracle`
+状态：`pending`。
 
 来源：`swd3.exe.lst` 的完整指令和调用点。IDA 伪码、FLIRT 名称及 Windows API 名称只用于定位，不作为行为依据。
 
