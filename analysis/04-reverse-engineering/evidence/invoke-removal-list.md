@@ -35,7 +35,7 @@
 
 - HEAD：`d16d3e675e5f5c996e3357846fb6d2d92974ad88`；包含未提交行查询改动，该批未验证。
 - 生产文件：874；每个文件均列入清单及SHA256快照。
-- 旧台账：324族；状态分布：`{'pending': 293, 'verified': 27, 'excluded': 4}`。
+- 旧台账：324族；状态分布：`{'pending': 324, 'verified': 0, 'excluded': 0}`。
 - 旧覆盖索引：537条，其中213条补充覆盖旧台账之外的生产文件；不作为业务执行项分母。
 - Port/Ports定义：345；含Dispatch/Adapter共358个类型定义。
 - 上述数值分别是族、文件和类型的数量，不能相加或作为同一完成率分母。
@@ -220,14 +220,16 @@
   - 本批选择：删除Request、寄存器/输出回包、调用计数和脚本开关，三个caller直接写实际DWORD/WORD；纠正4708C0错接、profile影子来源、分类位和重复flags_49。
   - 验证：真实资源/MON夹具、独立边界、四项core/ASan、SDL构建及源码身份检查通过；源码4b163e92已推送并核对远端main一致。见[资源选择](battle-actor-resource-selection-00470ac0.md)。
   - 本批诊断：删除ResourceSelectionAdapter及通用诊断操作/参数包调用，核心两路入口共享诊断对象；core/ASan、SDL及19源身份通过，源码6cf4451f已推送并核对远端main一致。见[诊断证据](battle-resource-selection-diagnostic-00431150.md)。
-  - 本批状态：删除StatePort、StateRequest/CallReply、寄存器和诊断计数及菜单validate_primary_action操作；直接借用列表、实时配置、文本队列及音频manager。core/ASan、SDL构建和21源身份已通过，源码bc6b14e7已推送并核对远端main一致。见[状态处理证据](battle-actor-list-state-processing-00470380.md)。
+  - 本批状态：`pending`。
+
+    删除StatePort、StateRequest/CallReply、寄存器和诊断计数及菜单validate_primary_action操作；直接借用列表、实时配置、文本队列及音频manager。core/ASan、SDL构建和21源身份已通过，源码bc6b14e7已推送并核对远端main一致。见[状态处理证据](battle-actor-list-state-processing-00470380.md)。
   - 本批资料：删除ApplyRequest、寄存器/索引回包、输出副本及计数；两处菜单删除query_primary_target参数包调用，直接加载共享资料并写角色输出。最终core/ASan、SDL构建及7源身份通过，源码5e487db5已推送并核对远端main一致；见[资料应用证据](battle-actor-list-profile-application-004705c0.md)。
   - 本批行查询：删除QueryRequest、寄存器/索引回包、输出副本及计数；两个菜单直连实际列表和MON，名称共享选择区及相邻音乐路径，删除查询/复位通用操作和协调器转发。最终core/ASan、SDL构建及15源身份通过，源码95a3d125已推送并核对远端main；验证与边界见[角色行查询证据](battle-actor-list-query-00470180.md)。
   - 本批计数：删除CountRequest/Result、寄存器及索引回包、输出副本和调用计数；两个菜单直接累计共享BYTE行上限，删除初始化通用操作与协调器转发。最终core/ASan、SDL构建及12源身份通过，源码2de716db已推送并核对远端main；见[计数证据](battle-actor-list-count-004702e0.md)。
   - 本批行动消耗：删除ActionRequest、Refresh/ActionResult、actor token/寄存器参数与回包、写入/清理/调用计数；组A帧直接借实际party数据并检查处理状态。core/ASan定向、SDL构建及6源身份通过，源码df52c985已推送并核对远端；见[行动消耗证据](battle-actor-list-action-00470820.md#6-行动消耗父协议迁移)。
   - 剩余：资源生产、消息内部协议及完整SDL接线；整链未验收，不勾选。
   - 当前残留信号：interface；下方行号保留建表快照，不作为当前完成依据。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_list_query.hpp](../../../include/openswd3/battle/legacy_battle_actor_list_query.hpp)；[src/battle/legacy_battle_actor_list_query.cpp](../../../src/battle/legacy_battle_actor_list_query.cpp)。
   - 类型：[PORT-e7050ee9a7d7](invoke-removal-ports.md#port-e7050ee9a7d7), [PORT-395776ccb4e9](invoke-removal-ports.md#port-395776ccb4e9)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -240,7 +242,7 @@
   - 状态批次bc6b14e7：向输入及消息两路借出同一sample manager；core/ASan及SDL通过并已发布。其余协议和完整帧接线仍pending；见[状态证据](battle-actor-list-state-processing-00470380.md)。
   - 本批依赖：向输入和消息两路借出同一资源诊断对象，删除默认通用诊断的依赖；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。其余协议及完整SDL帧仍pending。
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_frame_coordinator.hpp](../../../include/openswd3/battle/legacy_battle_frame_coordinator.hpp)；[src/battle/legacy_battle_frame_coordinator.cpp](../../../src/battle/legacy_battle_frame_coordinator.cpp)。
   - 类型：[PORT-e59fcf9dbbd4](invoke-removal-ports.md#port-e59fcf9dbbd4), [PORT-c19e599fde1a](invoke-removal-ports.md#port-c19e599fde1a)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -256,7 +258,7 @@
   - 证据：[普通网格实际行查询](battle-grid-frame-004659c0.md)。提交f21aa0b1已推送，远端main一致。
   - 未决：字体及绘制Port、寄存器request/reply和其他诊断计数尚未迁移，整项不能勾选。
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_grid_frame.hpp](../../../include/openswd3/battle/legacy_battle_grid_frame.hpp)；[src/battle/legacy_battle_grid_frame.cpp](../../../src/battle/legacy_battle_grid_frame.cpp)。
   - 类型：[PORT-da997d756887](invoke-removal-ports.md#port-da997d756887)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -271,7 +273,7 @@
 
 - [ ] **CHAIN-617fcacf39ae** `battle/legacy_battle_selection_frame`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_selection_frame.hpp](../../../include/openswd3/battle/legacy_battle_selection_frame.hpp)；[src/battle/legacy_battle_selection_frame.cpp](../../../src/battle/legacy_battle_selection_frame.cpp)。
   - 类型：[PORT-62023efc7570](invoke-removal-ports.md#port-62023efc7570), [PORT-982d98cdcbdd](invoke-removal-ports.md#port-982d98cdcbdd)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -286,7 +288,7 @@
 
 - [ ] **CHAIN-afc88b98bee9** `app/display_lifecycle`
   - 当前残留信号：interface, operation。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/display_lifecycle.hpp](../../../include/openswd3/app/display_lifecycle.hpp)；[src/app/display_lifecycle.cpp](../../../src/app/display_lifecycle.cpp)。
   - 类型：[PORT-637969f4ac5a](invoke-removal-ports.md#port-637969f4ac5a), [PORT-b7e9d84e2af1](invoke-removal-ports.md#port-b7e9d84e2af1)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -295,7 +297,7 @@
 
 - [ ] **CHAIN-8ec4c462be34** `app/frame_preparation`
   - 当前残留信号：interface, operation。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/frame_preparation.hpp](../../../include/openswd3/app/frame_preparation.hpp)；[src/app/frame_preparation.cpp](../../../src/app/frame_preparation.cpp)。
   - 类型：[PORT-3e47878555c7](invoke-removal-ports.md#port-3e47878555c7)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -304,7 +306,7 @@
 
 - [ ] **CHAIN-42cefff77119** `asset_runtime/legacy_action_record`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_action_record.hpp](../../../include/openswd3/asset_runtime/legacy_action_record.hpp)；[src/asset_runtime/legacy_action_record.cpp](../../../src/asset_runtime/legacy_action_record.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -313,7 +315,7 @@
 
 - [ ] **CHAIN-f7167be89c4d** `asset_runtime/legacy_ani_directional_effect`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_ani_directional_effect.hpp](../../../include/openswd3/asset_runtime/legacy_ani_directional_effect.hpp)；[src/asset_runtime/legacy_ani_directional_effect.cpp](../../../src/asset_runtime/legacy_ani_directional_effect.cpp)。
   - 类型：[PORT-dc01c6327a93](invoke-removal-ports.md#port-dc01c6327a93), [PORT-596e8c6acc5d](invoke-removal-ports.md#port-596e8c6acc5d), [PORT-e923f0c8070f](invoke-removal-ports.md#port-e923f0c8070f)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -322,7 +324,7 @@
 
 - [ ] **CHAIN-d6dcaff802fb** `asset_runtime/legacy_ani_role_particle_effect`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp](../../../include/openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp)；[src/asset_runtime/legacy_ani_role_particle_effect.cpp](../../../src/asset_runtime/legacy_ani_role_particle_effect.cpp)。
   - 类型：[PORT-50014e7449e8](invoke-removal-ports.md#port-50014e7449e8), [PORT-4ef90f0541e5](invoke-removal-ports.md#port-4ef90f0541e5), [PORT-9a093152f449](invoke-removal-ports.md#port-9a093152f449)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -332,7 +334,7 @@
 - [ ] **CHAIN-5792d4774a40** `battle/legacy_battle_action_dispatch`
   - 首项行动消耗依赖：删除父结果的行动寄存器回包与调用计数；其余操作、参数包和父协议仍pending。见[行动消耗证据](battle-actor-list-action-00470820.md#6-行动消耗父协议迁移)。
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_action_dispatch.hpp](../../../include/openswd3/battle/legacy_battle_action_dispatch.hpp)；[include/openswd3/battle/legacy_battle_deformation.hpp](../../../include/openswd3/battle/legacy_battle_deformation.hpp)；[src/battle/legacy_battle_action_dispatch.cpp](../../../src/battle/legacy_battle_action_dispatch.cpp)；[src/battle/legacy_battle_action_dispatch_cases_high.cpp](../../../src/battle/legacy_battle_action_dispatch_cases_high.cpp)；[src/battle/legacy_battle_action_dispatch_cases_low.cpp](../../../src/battle/legacy_battle_action_dispatch_cases_low.cpp)；[src/battle/legacy_battle_action_dispatch_effects.cpp](../../../src/battle/legacy_battle_action_dispatch_effects.cpp)；[src/battle/legacy_battle_action_dispatch_internal.hpp](../../../src/battle/legacy_battle_action_dispatch_internal.hpp)；[src/battle/legacy_battle_action_dispatch_runner.cpp](../../../src/battle/legacy_battle_action_dispatch_runner.cpp)；[src/battle/legacy_battle_action_dispatch_special.cpp](../../../src/battle/legacy_battle_action_dispatch_special.cpp)；[src/battle/legacy_battle_deformation.cpp](../../../src/battle/legacy_battle_deformation.cpp)。
   - 类型：[PORT-77b3544a479a](invoke-removal-ports.md#port-77b3544a479a), [PORT-e3865412f2ac](invoke-removal-ports.md#port-e3865412f2ac), [PORT-3113c5c46779](invoke-removal-ports.md#port-3113c5c46779)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -373,7 +375,7 @@
 
 - [ ] **CHAIN-478ade7bd4a6** `battle/legacy_battle_action_frame_draw`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_action_frame_draw.hpp](../../../include/openswd3/battle/legacy_battle_action_frame_draw.hpp)；[src/battle/legacy_battle_action_frame_draw.cpp](../../../src/battle/legacy_battle_action_frame_draw.cpp)。
   - 类型：[PORT-1cc3568ae19a](invoke-removal-ports.md#port-1cc3568ae19a)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -382,7 +384,7 @@
 
 - [ ] **CHAIN-bf5907716775** `battle/legacy_battle_action_mode_refresh`
   - 当前残留信号：interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_action_mode_refresh.hpp](../../../include/openswd3/battle/legacy_battle_action_mode_refresh.hpp)；[src/battle/legacy_battle_action_mode_refresh.cpp](../../../src/battle/legacy_battle_action_mode_refresh.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -392,7 +394,7 @@
 
 - [ ] **CHAIN-539261d5f092** `battle/legacy_battle_action_rotation_cache`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_action_rotation_cache.hpp](../../../include/openswd3/battle/legacy_battle_action_rotation_cache.hpp)；[src/battle/legacy_battle_action_rotation_cache.cpp](../../../src/battle/legacy_battle_action_rotation_cache.cpp)。
   - 类型：[PORT-4d636c2d3ddb](invoke-removal-ports.md#port-4d636c2d3ddb), [PORT-2b5d57e26962](invoke-removal-ports.md#port-2b5d57e26962), [PORT-646f55206409](invoke-removal-ports.md#port-646f55206409), [PORT-8bbb503d4e27](invoke-removal-ports.md#port-8bbb503d4e27)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -403,7 +405,7 @@
 
 - [ ] **CHAIN-ac312291d668** `battle/legacy_battle_action_summary`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_action_summary.hpp](../../../include/openswd3/battle/legacy_battle_action_summary.hpp)；[src/battle/legacy_battle_action_summary.cpp](../../../src/battle/legacy_battle_action_summary.cpp)。
   - 类型：[PORT-aeaaca3cd801](invoke-removal-ports.md#port-aeaaca3cd801), [PORT-ef20d3a58313](invoke-removal-ports.md#port-ef20d3a58313)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -418,7 +420,7 @@
 
 - [ ] **CHAIN-dea2c7adfe36** `battle/legacy_battle_actor_action_candidate_availability`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_action_candidate_availability.hpp](../../../include/openswd3/battle/legacy_battle_actor_action_candidate_availability.hpp)；[src/battle/legacy_battle_actor_action_candidate_availability.cpp](../../../src/battle/legacy_battle_actor_action_candidate_availability.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -430,7 +432,7 @@
 
 - [ ] **CHAIN-a0757fbf1074** `battle/legacy_battle_actor_action_commit`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_action_commit.hpp](../../../include/openswd3/battle/legacy_battle_actor_action_commit.hpp)；[src/battle/legacy_battle_actor_action_commit.cpp](../../../src/battle/legacy_battle_actor_action_commit.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -442,7 +444,7 @@
 
 - [ ] **CHAIN-2116e0bdf84b** `battle/legacy_battle_actor_action_cycle`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_action_cycle.hpp](../../../include/openswd3/battle/legacy_battle_actor_action_cycle.hpp)；[src/battle/legacy_battle_actor_action_cycle.cpp](../../../src/battle/legacy_battle_actor_action_cycle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -453,7 +455,7 @@
 
 - [ ] **CHAIN-38fc7331ff2a** `battle/legacy_battle_actor_action_presentation`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_action_presentation.hpp](../../../include/openswd3/battle/legacy_battle_actor_action_presentation.hpp)；[src/battle/legacy_battle_actor_action_presentation.cpp](../../../src/battle/legacy_battle_actor_action_presentation.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -469,7 +471,7 @@
 
 - [ ] **CHAIN-d673136b85b5** `battle/legacy_battle_actor_action_reverse_cycle`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_action_reverse_cycle.hpp](../../../include/openswd3/battle/legacy_battle_actor_action_reverse_cycle.hpp)；[src/battle/legacy_battle_actor_action_reverse_cycle.cpp](../../../src/battle/legacy_battle_actor_action_reverse_cycle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -480,7 +482,7 @@
 
 - [ ] **CHAIN-f459ef9b8986** `battle/legacy_battle_actor_action_target`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_action_target.hpp](../../../include/openswd3/battle/legacy_battle_actor_action_target.hpp)；[src/battle/legacy_battle_actor_action_target.cpp](../../../src/battle/legacy_battle_actor_action_target.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -489,7 +491,7 @@
 
 - [ ] **CHAIN-82611cce9bf0** `battle/legacy_battle_actor_action_target_clear`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_action_target_clear.hpp](../../../include/openswd3/battle/legacy_battle_actor_action_target_clear.hpp)；[src/battle/legacy_battle_actor_action_target_clear.cpp](../../../src/battle/legacy_battle_actor_action_target_clear.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -498,7 +500,7 @@
 
 - [ ] **CHAIN-afa8d87b84a3** `battle/legacy_battle_actor_base_coordinates`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_base_coordinates.hpp](../../../include/openswd3/battle/legacy_battle_actor_base_coordinates.hpp)；[src/battle/legacy_battle_actor_base_coordinates.cpp](../../../src/battle/legacy_battle_actor_base_coordinates.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -507,7 +509,7 @@
 
 - [ ] **CHAIN-cf7612c5e6d6** `battle/legacy_battle_actor_binary_state_toggle`
   - 当前残留信号：arguments, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_binary_state_toggle.hpp](../../../include/openswd3/battle/legacy_battle_actor_binary_state_toggle.hpp)；[src/battle/legacy_battle_actor_binary_state_toggle.cpp](../../../src/battle/legacy_battle_actor_binary_state_toggle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -518,7 +520,7 @@
 
 - [ ] **CHAIN-20015b63f11a** `battle/legacy_battle_actor_coordinate_adjustment`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_coordinate_adjustment.hpp](../../../include/openswd3/battle/legacy_battle_actor_coordinate_adjustment.hpp)；[src/battle/legacy_battle_actor_coordinate_adjustment.cpp](../../../src/battle/legacy_battle_actor_coordinate_adjustment.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -527,7 +529,7 @@
 
 - [ ] **CHAIN-753e7eb0bf68** `battle/legacy_battle_actor_coordinate_publication`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_coordinate_publication.hpp](../../../include/openswd3/battle/legacy_battle_actor_coordinate_publication.hpp)；[src/battle/legacy_battle_actor_coordinate_publication.cpp](../../../src/battle/legacy_battle_actor_coordinate_publication.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -536,7 +538,7 @@
 
 - [ ] **CHAIN-33432079663b** `battle/legacy_battle_actor_coordinates`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_coordinates.hpp](../../../include/openswd3/battle/legacy_battle_actor_coordinates.hpp)；[src/battle/legacy_battle_actor_coordinates.cpp](../../../src/battle/legacy_battle_actor_coordinates.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -545,7 +547,7 @@
 
 - [ ] **CHAIN-31fb23ba6f32** `battle/legacy_battle_actor_effect_resource_slot_write`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_effect_resource_slot_write.hpp](../../../include/openswd3/battle/legacy_battle_actor_effect_resource_slot_write.hpp)；[src/battle/legacy_battle_actor_effect_resource_slot_write.cpp](../../../src/battle/legacy_battle_actor_effect_resource_slot_write.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -554,7 +556,7 @@
 
 - [ ] **CHAIN-8beb02a8e3d0** `battle/legacy_battle_actor_field_26b8_high_bit_query`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_field_26b8_high_bit_query.hpp](../../../include/openswd3/battle/legacy_battle_actor_field_26b8_high_bit_query.hpp)；[src/battle/legacy_battle_actor_field_26b8_high_bit_query.cpp](../../../src/battle/legacy_battle_actor_field_26b8_high_bit_query.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -563,7 +565,7 @@
 
 - [ ] **CHAIN-67177b537f21** `battle/legacy_battle_actor_field_26b8_high_bit_set`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp](../../../include/openswd3/battle/legacy_battle_actor_field_26b8_high_bit_set.hpp)；[src/battle/legacy_battle_actor_field_26b8_high_bit_set.cpp](../../../src/battle/legacy_battle_actor_field_26b8_high_bit_set.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -572,7 +574,7 @@
 
 - [ ] **CHAIN-147801fed7a7** `battle/legacy_battle_actor_frame_host_heap`
   - 当前残留信号：interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_frame_host_heap.hpp](../../../include/openswd3/battle/legacy_battle_actor_frame_host_heap.hpp)；[src/battle/legacy_battle_actor_frame_host_heap.cpp](../../../src/battle/legacy_battle_actor_frame_host_heap.cpp)。
   - 类型：[PORT-4020b11af967](invoke-removal-ports.md#port-4020b11af967)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -581,7 +583,7 @@
 
 - [ ] **CHAIN-7625a6dd0bd8** `battle/legacy_battle_actor_frame_presentation`
   - 当前残留信号：arguments, callee, counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_frame_presentation.hpp](../../../include/openswd3/battle/legacy_battle_actor_frame_presentation.hpp)；[src/battle/legacy_battle_actor_frame_decoder_commands.hpp](../../../src/battle/legacy_battle_actor_frame_decoder_commands.hpp)；[src/battle/legacy_battle_actor_frame_decoder_heap_stats.hpp](../../../src/battle/legacy_battle_actor_frame_decoder_heap_stats.hpp)；[src/battle/legacy_battle_actor_frame_io_helpers.hpp](../../../src/battle/legacy_battle_actor_frame_io_helpers.hpp)；[src/battle/legacy_battle_actor_frame_presentation.cpp](../../../src/battle/legacy_battle_actor_frame_presentation.cpp)；[src/battle/legacy_battle_actor_frame_presentation_case_five.cpp](../../../src/battle/legacy_battle_actor_frame_presentation_case_five.cpp)；[src/battle/legacy_battle_actor_frame_presentation_decoder.cpp](../../../src/battle/legacy_battle_actor_frame_presentation_decoder.cpp)；[src/battle/legacy_battle_actor_frame_presentation_decoder_continuations.cpp](../../../src/battle/legacy_battle_actor_frame_presentation_decoder_continuations.cpp)；[src/battle/legacy_battle_actor_frame_presentation_draw_arguments.cpp](../../../src/battle/legacy_battle_actor_frame_presentation_draw_arguments.cpp)；[src/battle/legacy_battle_actor_frame_presentation_draw_rectangles.cpp](../../../src/battle/legacy_battle_actor_frame_presentation_draw_rectangles.cpp)；[src/battle/legacy_battle_actor_frame_presentation_late_cases.cpp](../../../src/battle/legacy_battle_actor_frame_presentation_late_cases.cpp)；[src/battle/legacy_battle_actor_frame_presentation_late_decoder.cpp](../../../src/battle/legacy_battle_actor_frame_presentation_late_decoder.cpp)；[src/battle/legacy_battle_actor_frame_presentation_rectangle_phases.cpp](../../../src/battle/legacy_battle_actor_frame_presentation_rectangle_phases.cpp)；[src/battle/legacy_battle_actor_frame_presentation_resource_pipeline.cpp](../../../src/battle/legacy_battle_actor_frame_presentation_resource_pipeline.cpp)；[src/battle/legacy_battle_actor_frame_presentation_selector_audio.cpp](../../../src/battle/legacy_battle_actor_frame_presentation_selector_audio.cpp)；[src/battle/legacy_battle_actor_frame_route_internal.hpp](../../../src/battle/legacy_battle_actor_frame_route_internal.hpp)；[src/battle/legacy_battle_actor_frame_route_phase_1.cpp](../../../src/battle/legacy_battle_actor_frame_route_phase_1.cpp)；[src/battle/legacy_battle_actor_frame_route_phase_2.cpp](../../../src/battle/legacy_battle_actor_frame_route_phase_2.cpp)；[src/battle/legacy_battle_actor_frame_route_phase_3.cpp](../../../src/battle/legacy_battle_actor_frame_route_phase_3.cpp)；[src/battle/legacy_battle_actor_frame_route_phase_4.cpp](../../../src/battle/legacy_battle_actor_frame_route_phase_4.cpp)；[src/battle/legacy_battle_actor_frame_route_phase_5.cpp](../../../src/battle/legacy_battle_actor_frame_route_phase_5.cpp)；[src/battle/legacy_battle_actor_frame_route_phase_6.cpp](../../../src/battle/legacy_battle_actor_frame_route_phase_6.cpp)。
   - 类型：[PORT-44e623b4acb6](invoke-removal-ports.md#port-44e623b4acb6), [PORT-7a299cc4c0e6](invoke-removal-ports.md#port-7a299cc4c0e6), [PORT-bce4a6a79a59](invoke-removal-ports.md#port-bce4a6a79a59), [PORT-72f3184c4566](invoke-removal-ports.md#port-72f3184c4566), [PORT-0711ed9a27e9](invoke-removal-ports.md#port-0711ed9a27e9), [PORT-116407424685](invoke-removal-ports.md#port-116407424685), [PORT-2580ef150bce](invoke-removal-ports.md#port-2580ef150bce), [PORT-6a1f12d149d4](invoke-removal-ports.md#port-6a1f12d149d4), [PORT-393f36387a26](invoke-removal-ports.md#port-393f36387a26), [PORT-8a3cdbb661bb](invoke-removal-ports.md#port-8a3cdbb661bb), [PORT-0e88be68f775](invoke-removal-ports.md#port-0e88be68f775), [PORT-1fa5cc29946f](invoke-removal-ports.md#port-1fa5cc29946f), [PORT-323464d4f75c](invoke-removal-ports.md#port-323464d4f75c)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -633,7 +635,7 @@
 
 - [ ] **CHAIN-e486ef011045** `battle/legacy_battle_actor_frame_resource`
   - 当前残留信号：counter, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_frame_resource.hpp](../../../include/openswd3/battle/legacy_battle_actor_frame_resource.hpp)；[src/battle/legacy_battle_actor_frame_resource.cpp](../../../src/battle/legacy_battle_actor_frame_resource.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -644,7 +646,7 @@
 
 - [ ] **CHAIN-f4333b3d2b8a** `battle/legacy_battle_actor_frame_sequence`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_frame_sequence.hpp](../../../include/openswd3/battle/legacy_battle_actor_frame_sequence.hpp)；[src/battle/legacy_battle_actor_frame_sequence.cpp](../../../src/battle/legacy_battle_actor_frame_sequence.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -654,7 +656,7 @@
 
 - [ ] **CHAIN-2bba77448872** `battle/legacy_battle_actor_frame_snapshot`
   - 当前残留信号：counter, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_frame_snapshot.hpp](../../../include/openswd3/battle/legacy_battle_actor_frame_snapshot.hpp)；[src/battle/legacy_battle_actor_frame_snapshot.cpp](../../../src/battle/legacy_battle_actor_frame_snapshot.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -665,7 +667,7 @@
 
 - [ ] **CHAIN-0fd4aadf86b5** `battle/legacy_battle_actor_frame_snapshot_clear`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_frame_snapshot_clear.hpp](../../../include/openswd3/battle/legacy_battle_actor_frame_snapshot_clear.hpp)；[src/battle/legacy_battle_actor_frame_snapshot_clear.cpp](../../../src/battle/legacy_battle_actor_frame_snapshot_clear.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -674,7 +676,7 @@
 
 - [ ] **CHAIN-653cf2b14319** `battle/legacy_battle_actor_frame_tsw_lookup`
   - 当前残留信号：interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_frame_tsw_lookup.hpp](../../../include/openswd3/battle/legacy_battle_actor_frame_tsw_lookup.hpp)；[src/battle/legacy_battle_actor_frame_tsw_lookup.cpp](../../../src/battle/legacy_battle_actor_frame_tsw_lookup.cpp)。
   - 类型：[PORT-777564b100e8](invoke-removal-ports.md#port-777564b100e8)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -683,7 +685,7 @@
 
 - [ ] **CHAIN-4c5bc28be50c** `battle/legacy_battle_actor_gate_decay`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_gate_decay.hpp](../../../include/openswd3/battle/legacy_battle_actor_gate_decay.hpp)；[src/battle/legacy_battle_actor_gate_decay.cpp](../../../src/battle/legacy_battle_actor_gate_decay.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -692,7 +694,7 @@
 
 - [ ] **CHAIN-bbb2f304bbe9** `battle/legacy_battle_actor_list_index_commit`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_list_index_commit.hpp](../../../include/openswd3/battle/legacy_battle_actor_list_index_commit.hpp)；[src/battle/legacy_battle_actor_list_index_commit.cpp](../../../src/battle/legacy_battle_actor_list_index_commit.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -701,7 +703,7 @@
 
 - [ ] **CHAIN-c99bebd888c2** `battle/legacy_battle_actor_metrics`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_metrics.hpp](../../../include/openswd3/battle/legacy_battle_actor_metrics.hpp)；[src/battle/legacy_battle_actor_metrics.cpp](../../../src/battle/legacy_battle_actor_metrics.cpp)。
   - 类型：[PORT-a356b5049ace](invoke-removal-ports.md#port-a356b5049ace), [PORT-4b8940cc4813](invoke-removal-ports.md#port-4b8940cc4813)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -712,7 +714,7 @@
 
 - [ ] **CHAIN-4cc6579f220c** `battle/legacy_battle_actor_presentation_activation`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_presentation_activation.hpp](../../../include/openswd3/battle/legacy_battle_actor_presentation_activation.hpp)；[src/battle/legacy_battle_actor_presentation_activation.cpp](../../../src/battle/legacy_battle_actor_presentation_activation.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -721,7 +723,7 @@
 
 - [ ] **CHAIN-49d2c1101b5b** `battle/legacy_battle_actor_priority`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_priority.hpp](../../../include/openswd3/battle/legacy_battle_actor_priority.hpp)；[src/battle/legacy_battle_actor_priority.cpp](../../../src/battle/legacy_battle_actor_priority.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -731,7 +733,7 @@
 
 - [ ] **CHAIN-7af6c6794458** `battle/legacy_battle_actor_profile_preparation`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_profile_preparation.hpp](../../../include/openswd3/battle/legacy_battle_actor_profile_preparation.hpp)；[src/battle/legacy_battle_actor_profile_preparation.cpp](../../../src/battle/legacy_battle_actor_profile_preparation.cpp)。
   - 类型：[PORT-f13d46e6d951](invoke-removal-ports.md#port-f13d46e6d951)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -742,7 +744,7 @@
 
 - [ ] **CHAIN-d1bd77e4111a** `battle/legacy_battle_actor_progress`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_progress.hpp](../../../include/openswd3/battle/legacy_battle_actor_progress.hpp)；[src/battle/legacy_battle_actor_progress.cpp](../../../src/battle/legacy_battle_actor_progress.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -751,7 +753,7 @@
 
 - [ ] **CHAIN-463adb563e64** `battle/legacy_battle_actor_ready`
   - 当前残留信号：interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_ready.hpp](../../../include/openswd3/battle/legacy_battle_actor_ready.hpp)；[src/battle/legacy_battle_actor_ready.cpp](../../../src/battle/legacy_battle_actor_ready.cpp)。
   - 类型：[PORT-f36643bb9d23](invoke-removal-ports.md#port-f36643bb9d23)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -760,7 +762,7 @@
 
 - [ ] **CHAIN-21d2fd219caa** `battle/legacy_battle_actor_record_selection`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_record_selection.hpp](../../../include/openswd3/battle/legacy_battle_actor_record_selection.hpp)；[src/battle/legacy_battle_actor_record_selection.cpp](../../../src/battle/legacy_battle_actor_record_selection.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -769,7 +771,7 @@
 
 - [ ] **CHAIN-66a7ac0efec7** `battle/legacy_battle_actor_render_offsets`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_render_offsets.hpp](../../../include/openswd3/battle/legacy_battle_actor_render_offsets.hpp)；[src/battle/legacy_battle_actor_render_offsets.cpp](../../../src/battle/legacy_battle_actor_render_offsets.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -778,7 +780,7 @@
 
 - [ ] **CHAIN-41fc056f3e2d** `battle/legacy_battle_actor_retreat_ready`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_retreat_ready.hpp](../../../include/openswd3/battle/legacy_battle_actor_retreat_ready.hpp)；[src/battle/legacy_battle_actor_retreat_ready.cpp](../../../src/battle/legacy_battle_actor_retreat_ready.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -787,7 +789,7 @@
 
 - [ ] **CHAIN-53e96bd91692** `battle/legacy_battle_actor_runtime_reset`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_runtime_reset.hpp](../../../include/openswd3/battle/legacy_battle_actor_runtime_reset.hpp)；[src/battle/legacy_battle_actor_runtime_reset.cpp](../../../src/battle/legacy_battle_actor_runtime_reset.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -798,7 +800,7 @@
 
 - [ ] **CHAIN-ae2b124ad29b** `battle/legacy_battle_actor_target_preparation`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_target_preparation.hpp](../../../include/openswd3/battle/legacy_battle_actor_target_preparation.hpp)；[src/battle/legacy_battle_actor_target_preparation.cpp](../../../src/battle/legacy_battle_actor_target_preparation.cpp)。
   - 类型：[PORT-e6008042ae5e](invoke-removal-ports.md#port-e6008042ae5e)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -813,7 +815,7 @@
 
 - [ ] **CHAIN-db4c66ba032d** `battle/legacy_battle_actor_target_selection`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_target_selection.hpp](../../../include/openswd3/battle/legacy_battle_actor_target_selection.hpp)；[src/battle/legacy_battle_actor_target_selection.cpp](../../../src/battle/legacy_battle_actor_target_selection.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -822,7 +824,7 @@
 
 - [ ] **CHAIN-590118663f07** `battle/legacy_battle_alternate_grid_frame`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_alternate_grid_frame.hpp](../../../include/openswd3/battle/legacy_battle_alternate_grid_frame.hpp)；[src/battle/legacy_battle_alternate_grid_frame.cpp](../../../src/battle/legacy_battle_alternate_grid_frame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -835,7 +837,7 @@
 
 - [ ] **CHAIN-011f3ed382c2** `battle/legacy_battle_animation_collision`
   - 当前残留信号：counter, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_animation_collision.hpp](../../../include/openswd3/battle/legacy_battle_animation_collision.hpp)；[src/battle/legacy_battle_animation_collision.cpp](../../../src/battle/legacy_battle_animation_collision.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -846,7 +848,7 @@
 
 - [ ] **CHAIN-3d0483b00497** `battle/legacy_battle_available_actor_cycle`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_available_actor_cycle.hpp](../../../include/openswd3/battle/legacy_battle_available_actor_cycle.hpp)；[src/battle/legacy_battle_available_actor_cycle.cpp](../../../src/battle/legacy_battle_available_actor_cycle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -857,7 +859,7 @@
 
 - [ ] **CHAIN-bd85e7067dd7** `battle/legacy_battle_available_actor_reverse_cycle`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_available_actor_reverse_cycle.hpp](../../../include/openswd3/battle/legacy_battle_available_actor_reverse_cycle.hpp)；[src/battle/legacy_battle_available_actor_reverse_cycle.cpp](../../../src/battle/legacy_battle_available_actor_reverse_cycle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -866,7 +868,7 @@
 
 - [ ] **CHAIN-c5c49164db7f** `battle/legacy_battle_background_initialization`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_background_initialization.hpp](../../../include/openswd3/battle/legacy_battle_background_initialization.hpp)；[src/battle/legacy_battle_background_initialization.cpp](../../../src/battle/legacy_battle_background_initialization.cpp)。
   - 类型：[PORT-57b6e1832ed1](invoke-removal-ports.md#port-57b6e1832ed1), [PORT-a5f5ee600cd5](invoke-removal-ports.md#port-a5f5ee600cd5)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -875,7 +877,7 @@
 
 - [ ] **CHAIN-94ff52774a09** `battle/legacy_battle_border_panel`
   - 当前残留信号：counter。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_border_panel.hpp](../../../include/openswd3/battle/legacy_battle_border_panel.hpp)；[src/battle/legacy_battle_border_panel.cpp](../../../src/battle/legacy_battle_border_panel.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -884,7 +886,7 @@
 
 - [ ] **CHAIN-a95bc6a54a42** `battle/legacy_battle_color_accumulation`
   - 当前残留信号：interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_color_accumulation.hpp](../../../include/openswd3/battle/legacy_battle_color_accumulation.hpp)；[src/battle/legacy_battle_color_accumulation.cpp](../../../src/battle/legacy_battle_color_accumulation.cpp)。
   - 类型：[PORT-16725e22a897](invoke-removal-ports.md#port-16725e22a897)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -893,7 +895,7 @@
 
 - [ ] **CHAIN-f73da72fa6ad** `battle/legacy_battle_context_prompt`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_context_prompt.hpp](../../../include/openswd3/battle/legacy_battle_context_prompt.hpp)；[src/battle/legacy_battle_context_prompt.cpp](../../../src/battle/legacy_battle_context_prompt.cpp)。
   - 类型：[PORT-9c69fd704d9f](invoke-removal-ports.md#port-9c69fd704d9f)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -902,7 +904,7 @@
 
 - [ ] **CHAIN-e557def7f934** `battle/legacy_battle_control_panel_frame`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_control_panel_frame.hpp](../../../include/openswd3/battle/legacy_battle_control_panel_frame.hpp)；[src/battle/legacy_battle_control_panel_frame.cpp](../../../src/battle/legacy_battle_control_panel_frame.cpp)。
   - 类型：[PORT-3af2858d579f](invoke-removal-ports.md#port-3af2858d579f)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -917,7 +919,7 @@
 
 - [ ] **CHAIN-518e36931a12** `battle/legacy_battle_database_shutdown`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_database_shutdown.hpp](../../../include/openswd3/battle/legacy_battle_database_shutdown.hpp)；[src/battle/legacy_battle_database_shutdown.cpp](../../../src/battle/legacy_battle_database_shutdown.cpp)。
   - 类型：[PORT-f52d60a7b4cd](invoke-removal-ports.md#port-f52d60a7b4cd)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -928,7 +930,7 @@
 
 - [ ] **CHAIN-b6d378f1418c** `battle/legacy_battle_debug_actor_value`
   - 当前残留信号：arguments, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_debug_actor_value.cpp](../../../src/battle/legacy_battle_debug_actor_value.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -937,7 +939,7 @@
 
 - [ ] **CHAIN-c4b7cc6bf979** `battle/legacy_battle_debug_hotkeys`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_debug_hotkeys.hpp](../../../include/openswd3/battle/legacy_battle_debug_hotkeys.hpp)；[src/battle/legacy_battle_debug_hotkeys.cpp](../../../src/battle/legacy_battle_debug_hotkeys.cpp)。
   - 类型：[PORT-55bac89def47](invoke-removal-ports.md#port-55bac89def47), [PORT-3d40ca273a58](invoke-removal-ports.md#port-3d40ca273a58), [PORT-7f69a3107b73](invoke-removal-ports.md#port-7f69a3107b73)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -952,7 +954,7 @@
 
 - [ ] **CHAIN-7da922b66066** `battle/legacy_battle_debug_overlay`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_debug_overlay.hpp](../../../include/openswd3/battle/legacy_battle_debug_overlay.hpp)；[src/battle/legacy_battle_debug_overlay.cpp](../../../src/battle/legacy_battle_debug_overlay.cpp)。
   - 类型：[PORT-1054cd126300](invoke-removal-ports.md#port-1054cd126300)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -967,7 +969,7 @@
 
 - [ ] **CHAIN-a099d2f7bc27** `battle/legacy_battle_debug_status_panel`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_debug_status_panel.hpp](../../../include/openswd3/battle/legacy_battle_debug_status_panel.hpp)；[src/battle/legacy_battle_debug_status_panel.cpp](../../../src/battle/legacy_battle_debug_status_panel.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -980,7 +982,7 @@
 
 - [ ] **CHAIN-ef9d752bb9d1** `battle/legacy_battle_defeat_panel`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_defeat_panel.hpp](../../../include/openswd3/battle/legacy_battle_defeat_panel.hpp)；[src/battle/legacy_battle_defeat_panel.cpp](../../../src/battle/legacy_battle_defeat_panel.cpp)。
   - 类型：[PORT-75dcd66e85f6](invoke-removal-ports.md#port-75dcd66e85f6)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -995,7 +997,7 @@
 
 - [ ] **CHAIN-894cb5a26940** `battle/legacy_battle_dialog_text`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_dialog_text.hpp](../../../include/openswd3/battle/legacy_battle_dialog_text.hpp)；[src/battle/legacy_battle_dialog_text.cpp](../../../src/battle/legacy_battle_dialog_text.cpp)。
   - 类型：[PORT-04aa251baab4](invoke-removal-ports.md#port-04aa251baab4)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1004,7 +1006,7 @@
 
 - [ ] **CHAIN-7d2f92a65436** `battle/legacy_battle_display_surfaces`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_display_surfaces.hpp](../../../include/openswd3/battle/legacy_battle_display_surfaces.hpp)。
   - 类型：[PORT-80b3c5932ebf](invoke-removal-ports.md#port-80b3c5932ebf)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1012,7 +1014,7 @@
 
 - [ ] **CHAIN-72de3d964089** `battle/legacy_battle_effect_coordinator`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_effect_coordinator.hpp](../../../include/openswd3/battle/legacy_battle_effect_coordinator.hpp)；[src/battle/legacy_battle_effect_coordinator.cpp](../../../src/battle/legacy_battle_effect_coordinator.cpp)。
   - 类型：[PORT-6d055401c423](invoke-removal-ports.md#port-6d055401c423)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1025,7 +1027,7 @@
 
 - [ ] **CHAIN-423fcabc2295** `battle/legacy_battle_effect_frame`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_frame_deformation.hpp](../../../include/openswd3/asset_runtime/legacy_frame_deformation.hpp)；[include/openswd3/battle/legacy_battle_effect_frame.hpp](../../../include/openswd3/battle/legacy_battle_effect_frame.hpp)；[src/asset_runtime/legacy_frame_deformation.cpp](../../../src/asset_runtime/legacy_frame_deformation.cpp)；[src/battle/legacy_battle_effect_frame.cpp](../../../src/battle/legacy_battle_effect_frame.cpp)。
   - 类型：[PORT-9244ea9fae5b](invoke-removal-ports.md#port-9244ea9fae5b)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1042,7 +1044,7 @@
 
 - [ ] **CHAIN-9b2b71604410** `battle/legacy_battle_effect_shift`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_effect_shift.hpp](../../../include/openswd3/battle/legacy_battle_effect_shift.hpp)；[src/battle/legacy_battle_effect_shift.cpp](../../../src/battle/legacy_battle_effect_shift.cpp)。
   - 类型：[PORT-f22ae89410fc](invoke-removal-ports.md#port-f22ae89410fc)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1053,7 +1055,7 @@
 
 - [ ] **CHAIN-9dc8e9fe9891** `battle/legacy_battle_final_actor_step`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_final_actor_step.hpp](../../../include/openswd3/battle/legacy_battle_final_actor_step.hpp)；[src/battle/legacy_battle_final_actor_step.cpp](../../../src/battle/legacy_battle_final_actor_step.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1065,7 +1067,7 @@
 
 - [ ] **CHAIN-7c582e1f9b46** `battle/legacy_battle_frame_draw`
   - 当前残留信号：counter。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_frame_draw.hpp](../../../include/openswd3/battle/legacy_battle_frame_draw.hpp)；[src/battle/legacy_battle_frame_draw.cpp](../../../src/battle/legacy_battle_frame_draw.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1074,7 +1076,7 @@
 
 - [ ] **CHAIN-55a1598efdbb** `battle/legacy_battle_frame_effect`
   - 当前残留信号：counter, interface, invoke。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_frame_effect.hpp](../../../include/openswd3/battle/legacy_battle_frame_effect.hpp)；[src/battle/legacy_battle_frame_effect.cpp](../../../src/battle/legacy_battle_frame_effect.cpp)。
   - 类型：[PORT-0bc8fbaacbda](invoke-removal-ports.md#port-0bc8fbaacbda), [PORT-0fbfe71d8507](invoke-removal-ports.md#port-0fbfe71d8507), [PORT-6707630e445a](invoke-removal-ports.md#port-6707630e445a)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1084,7 +1086,7 @@
 
 - [ ] **CHAIN-42f7ef802832** `battle/legacy_battle_frame_input_resolution`
   - 当前残留信号：arguments, counter, interface, invoke, operation, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_frame_input_resolution.hpp](../../../include/openswd3/battle/legacy_battle_frame_input_resolution.hpp)；[src/battle/legacy_battle_frame_input_resolution.cpp](../../../src/battle/legacy_battle_frame_input_resolution.cpp)。
   - 类型：[PORT-168328af62c0](invoke-removal-ports.md#port-168328af62c0)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1100,7 +1102,7 @@
 
 - [ ] **CHAIN-0df90b693548** `battle/legacy_battle_frame_surface`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_frame_surface.hpp](../../../include/openswd3/battle/legacy_battle_frame_surface.hpp)；[src/battle/legacy_battle_frame_surface.cpp](../../../src/battle/legacy_battle_frame_surface.cpp)。
   - 类型：[PORT-d4ae5c34c93e](invoke-removal-ports.md#port-d4ae5c34c93e)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1109,7 +1111,7 @@
 
 - [ ] **CHAIN-6c01bb7057b5** `battle/legacy_battle_full_frame_darkening`
   - 当前残留信号：counter。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_full_frame_darkening.hpp](../../../include/openswd3/battle/legacy_battle_full_frame_darkening.hpp)；[src/battle/legacy_battle_full_frame_darkening.cpp](../../../src/battle/legacy_battle_full_frame_darkening.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1118,7 +1120,7 @@
 
 - [ ] **CHAIN-93d4a385839a** `battle/legacy_battle_global_reset`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_global_reset.hpp](../../../include/openswd3/battle/legacy_battle_global_reset.hpp)；[src/battle/legacy_battle_global_reset.cpp](../../../src/battle/legacy_battle_global_reset.cpp)。
   - 类型：[PORT-157307fdc89c](invoke-removal-ports.md#port-157307fdc89c)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1131,7 +1133,7 @@
 
 - [ ] **CHAIN-9979b72f62fe** `battle/legacy_battle_group_a_action_execution`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_action_execution.hpp](../../../include/openswd3/battle/legacy_battle_group_a_action_execution.hpp)；[src/battle/legacy_battle_group_a_action_execution.cpp](../../../src/battle/legacy_battle_group_a_action_execution.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1145,7 +1147,7 @@
 
 - [ ] **CHAIN-aee0fa8ff50e** `battle/legacy_battle_group_a_actor_cleanup`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_actor_cleanup.hpp](../../../include/openswd3/battle/legacy_battle_group_a_actor_cleanup.hpp)；[src/battle/legacy_battle_group_a_actor_cleanup.cpp](../../../src/battle/legacy_battle_group_a_actor_cleanup.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1154,7 +1156,7 @@
 
 - [ ] **CHAIN-b718d4a63280** `battle/legacy_battle_group_a_attribute_aggregation`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_attribute_aggregation.hpp](../../../include/openswd3/battle/legacy_battle_group_a_attribute_aggregation.hpp)；[src/battle/legacy_battle_group_a_attribute_aggregation.cpp](../../../src/battle/legacy_battle_group_a_attribute_aggregation.cpp)。
   - 类型：[PORT-54e9aba5bfc3](invoke-removal-ports.md#port-54e9aba5bfc3)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1167,7 +1169,7 @@
 
 - [ ] **CHAIN-bbfe2d33a516** `battle/legacy_battle_group_a_attribute_effect`
   - 当前残留信号：arguments, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_attribute_effect.hpp](../../../include/openswd3/battle/legacy_battle_group_a_attribute_effect.hpp)；[src/battle/legacy_battle_group_a_attribute_effect.cpp](../../../src/battle/legacy_battle_group_a_attribute_effect.cpp)。
   - 类型：[PORT-554bddc7c40e](invoke-removal-ports.md#port-554bddc7c40e)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1180,7 +1182,7 @@
 
 - [ ] **CHAIN-d24d57834820** `battle/legacy_battle_group_a_configuration`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_configuration.hpp](../../../include/openswd3/battle/legacy_battle_group_a_configuration.hpp)；[src/battle/legacy_battle_group_a_configuration.cpp](../../../src/battle/legacy_battle_group_a_configuration.cpp)。
   - 类型：[PORT-ee048797c4f3](invoke-removal-ports.md#port-ee048797c4f3)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1191,7 +1193,7 @@
 
 - [ ] **CHAIN-27a84b9319a3** `battle/legacy_battle_group_a_effect_reward_application`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_effect_reward_application.hpp](../../../include/openswd3/battle/legacy_battle_group_a_effect_reward_application.hpp)；[src/battle/legacy_battle_group_a_effect_reward_application.cpp](../../../src/battle/legacy_battle_group_a_effect_reward_application.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1205,7 +1207,7 @@
 
 - [ ] **CHAIN-44a8a8e00a2d** `battle/legacy_battle_group_a_embedded_profile_application`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_embedded_profile_application.hpp](../../../include/openswd3/battle/legacy_battle_group_a_embedded_profile_application.hpp)；[src/battle/legacy_battle_group_a_embedded_profile_application.cpp](../../../src/battle/legacy_battle_group_a_embedded_profile_application.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1214,7 +1216,7 @@
 
 - [ ] **CHAIN-acdcfbe45427** `battle/legacy_battle_group_a_final_processing`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_final_processing.hpp](../../../include/openswd3/battle/legacy_battle_group_a_final_processing.hpp)；[src/battle/legacy_battle_group_a_final_processing.cpp](../../../src/battle/legacy_battle_group_a_final_processing.cpp)。
   - 类型：[PORT-e8a07778a7da](invoke-removal-ports.md#port-e8a07778a7da)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1226,7 +1228,7 @@
 - [ ] **CHAIN-de3c4b230f6d** `battle/legacy_battle_group_a_frame`
   - 首项行动消耗依赖：唯一45703D直接借party数据扣除，删除寄存器回包与调用计数；其余帧协议未验收。见[行动消耗证据](battle-actor-list-action-00470820.md#6-行动消耗父协议迁移)。
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_frame.hpp](../../../include/openswd3/battle/legacy_battle_group_a_frame.hpp)；[src/battle/legacy_battle_group_a_frame.cpp](../../../src/battle/legacy_battle_group_a_frame.cpp)。
   - 类型：[PORT-e419a631f126](invoke-removal-ports.md#port-e419a631f126), [PORT-0e5c19ca16d1](invoke-removal-ports.md#port-0e5c19ca16d1), [PORT-a6765d0b70fb](invoke-removal-ports.md#port-a6765d0b70fb)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1238,7 +1240,7 @@
 
 - [ ] **CHAIN-9078735f2819** `battle/legacy_battle_group_a_growth_reward_selection`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_growth_reward_selection.hpp](../../../include/openswd3/battle/legacy_battle_group_a_growth_reward_selection.hpp)；[src/battle/legacy_battle_group_a_growth_reward_selection.cpp](../../../src/battle/legacy_battle_group_a_growth_reward_selection.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1247,7 +1249,7 @@
 
 - [ ] **CHAIN-6d31c0e7f817** `battle/legacy_battle_group_a_item_effect_application`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_item_effect_application.hpp](../../../include/openswd3/battle/legacy_battle_group_a_item_effect_application.hpp)；[src/battle/legacy_battle_group_a_item_effect_application.cpp](../../../src/battle/legacy_battle_group_a_item_effect_application.cpp)。
   - 类型：[PORT-7075003e8754](invoke-removal-ports.md#port-7075003e8754)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1260,7 +1262,7 @@
 
 - [ ] **CHAIN-095fa71b8372** `battle/legacy_battle_group_a_npc_materialization`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_npc_materialization.hpp](../../../include/openswd3/battle/legacy_battle_group_a_npc_materialization.hpp)；[src/battle/legacy_battle_group_a_npc_materialization.cpp](../../../src/battle/legacy_battle_group_a_npc_materialization.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1272,7 +1274,7 @@
 
 - [ ] **CHAIN-355231daf56c** `battle/legacy_battle_group_a_profile_mode_selection`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_profile_mode_selection.hpp](../../../include/openswd3/battle/legacy_battle_group_a_profile_mode_selection.hpp)；[src/battle/legacy_battle_group_a_profile_mode_selection.cpp](../../../src/battle/legacy_battle_group_a_profile_mode_selection.cpp)。
   - 类型：[PORT-73eb1218ea44](invoke-removal-ports.md#port-73eb1218ea44)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1283,7 +1285,7 @@
 
 - [ ] **CHAIN-c01236183e96** `battle/legacy_battle_group_a_resource_pair`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_resource_pair.hpp](../../../include/openswd3/battle/legacy_battle_group_a_resource_pair.hpp)；[src/battle/legacy_battle_group_a_resource_pair.cpp](../../../src/battle/legacy_battle_group_a_resource_pair.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1292,7 +1294,7 @@
 
 - [ ] **CHAIN-fb8b8a6b310f** `battle/legacy_battle_group_a_reward_profile_application`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_reward_profile_application.hpp](../../../include/openswd3/battle/legacy_battle_group_a_reward_profile_application.hpp)；[src/battle/legacy_battle_group_a_reward_profile_application.cpp](../../../src/battle/legacy_battle_group_a_reward_profile_application.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1306,7 +1308,7 @@
 
 - [ ] **CHAIN-8441284c4758** `battle/legacy_battle_group_a_summon_materialization`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_summon_materialization.hpp](../../../include/openswd3/battle/legacy_battle_group_a_summon_materialization.hpp)；[src/battle/legacy_battle_group_a_summon_materialization.cpp](../../../src/battle/legacy_battle_group_a_summon_materialization.cpp)。
   - 类型：[PORT-f12f61c2ae44](invoke-removal-ports.md#port-f12f61c2ae44)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1319,7 +1321,7 @@
 
 - [ ] **CHAIN-335b8167d002** `battle/legacy_battle_group_a_target_cycle`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_target_cycle.hpp](../../../include/openswd3/battle/legacy_battle_group_a_target_cycle.hpp)；[src/battle/legacy_battle_group_a_target_cycle.cpp](../../../src/battle/legacy_battle_group_a_target_cycle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1328,7 +1330,7 @@
 
 - [ ] **CHAIN-53c39dfdbf07** `battle/legacy_battle_group_a_value_pair`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_value_pair.hpp](../../../include/openswd3/battle/legacy_battle_group_a_value_pair.hpp)；[src/battle/legacy_battle_group_a_value_pair.cpp](../../../src/battle/legacy_battle_group_a_value_pair.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1337,7 +1339,7 @@
 
 - [ ] **CHAIN-adaf61fd616e** `battle/legacy_battle_group_a_workspace_reset`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_workspace_reset.hpp](../../../include/openswd3/battle/legacy_battle_group_a_workspace_reset.hpp)；[src/battle/legacy_battle_group_a_workspace_reset.cpp](../../../src/battle/legacy_battle_group_a_workspace_reset.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1346,7 +1348,7 @@
 
 - [ ] **CHAIN-ea702adfb034** `battle/legacy_battle_group_b_action_composition`
   - 当前残留信号：arguments, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_composition.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_composition.hpp)；[src/battle/legacy_battle_group_b_action_composition.cpp](../../../src/battle/legacy_battle_group_b_action_composition.cpp)。
   - 类型：[PORT-8cc7663143f8](invoke-removal-ports.md#port-8cc7663143f8)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1359,7 +1361,7 @@
 
 - [ ] **CHAIN-811265d139a4** `battle/legacy_battle_group_b_action_configuration`
   - 当前残留信号：interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_configuration.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_configuration.hpp)；[src/battle/legacy_battle_group_b_action_configuration.cpp](../../../src/battle/legacy_battle_group_b_action_configuration.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1368,7 +1370,7 @@
 
 - [ ] **CHAIN-2bfb0f9ee21d** `battle/legacy_battle_group_b_action_execution`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_execution.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_execution.hpp)；[src/battle/legacy_battle_group_b_action_execution.cpp](../../../src/battle/legacy_battle_group_b_action_execution.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1382,7 +1384,7 @@
 
 - [ ] **CHAIN-2c0f2f5c5e48** `battle/legacy_battle_group_b_action_item_option`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_item_option.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_item_option.hpp)；[src/battle/legacy_battle_group_b_action_item_option.cpp](../../../src/battle/legacy_battle_group_b_action_item_option.cpp)。
   - 类型：[PORT-911a059381af](invoke-removal-ports.md#port-911a059381af)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1393,7 +1395,7 @@
 
 - [ ] **CHAIN-76bc7cabdf1c** `battle/legacy_battle_group_b_action_item_selection`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_item_selection.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_item_selection.hpp)；[src/battle/legacy_battle_group_b_action_item_selection.cpp](../../../src/battle/legacy_battle_group_b_action_item_selection.cpp)。
   - 类型：[PORT-efe72baa43ee](invoke-removal-ports.md#port-efe72baa43ee)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1404,7 +1406,7 @@
 
 - [ ] **CHAIN-81c2e06fa574** `battle/legacy_battle_group_b_action_item_special_option`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_item_special_option.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_item_special_option.hpp)；[src/battle/legacy_battle_group_b_action_item_special_option.cpp](../../../src/battle/legacy_battle_group_b_action_item_special_option.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1415,7 +1417,7 @@
 
 - [ ] **CHAIN-ef5cdb11d90c** `battle/legacy_battle_group_b_action_profile_flag`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_profile_flag.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_profile_flag.hpp)；[src/battle/legacy_battle_group_b_action_profile_flag.cpp](../../../src/battle/legacy_battle_group_b_action_profile_flag.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1424,7 +1426,7 @@
 
 - [ ] **CHAIN-5952f6556d6b** `battle/legacy_battle_group_b_action_profile_mode`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_profile_mode.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_profile_mode.hpp)；[src/battle/legacy_battle_group_b_action_profile_mode.cpp](../../../src/battle/legacy_battle_group_b_action_profile_mode.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1435,7 +1437,7 @@
 
 - [ ] **CHAIN-da4c2b23a06e** `battle/legacy_battle_group_b_action_profile_selection`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_profile_selection.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_profile_selection.hpp)；[src/battle/legacy_battle_group_b_action_profile_selection.cpp](../../../src/battle/legacy_battle_group_b_action_profile_selection.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1446,7 +1448,7 @@
 
 - [ ] **CHAIN-0371a7125163** `battle/legacy_battle_group_b_action_reconfiguration`
   - 当前残留信号：interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_reconfiguration.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_reconfiguration.hpp)；[src/battle/legacy_battle_group_b_action_reconfiguration.cpp](../../../src/battle/legacy_battle_group_b_action_reconfiguration.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1455,7 +1457,7 @@
 
 - [ ] **CHAIN-43c1243c60ab** `battle/legacy_battle_group_b_action_seventeen_frame`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_seventeen_frame.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_seventeen_frame.hpp)；[src/battle/legacy_battle_group_b_action_seventeen_frame.cpp](../../../src/battle/legacy_battle_group_b_action_seventeen_frame.cpp)。
   - 类型：[PORT-5c656e4a608b](invoke-removal-ports.md#port-5c656e4a608b)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1470,7 +1472,7 @@
 
 - [ ] **CHAIN-5cb6dd3ccb40** `battle/legacy_battle_group_b_action_six_target_availability`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_action_six_target_availability.hpp](../../../include/openswd3/battle/legacy_battle_group_b_action_six_target_availability.hpp)；[src/battle/legacy_battle_group_b_action_six_target_availability.cpp](../../../src/battle/legacy_battle_group_b_action_six_target_availability.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1479,7 +1481,7 @@
 
 - [ ] **CHAIN-3a84a94e6e54** `battle/legacy_battle_group_b_coordinate_offsets`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_coordinate_offsets.hpp](../../../include/openswd3/battle/legacy_battle_group_b_coordinate_offsets.hpp)；[src/battle/legacy_battle_group_b_coordinate_offsets.cpp](../../../src/battle/legacy_battle_group_b_coordinate_offsets.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1488,7 +1490,7 @@
 
 - [ ] **CHAIN-cca5f02f354d** `battle/legacy_battle_group_b_frame`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_frame.hpp](../../../include/openswd3/battle/legacy_battle_group_b_frame.hpp)；[src/battle/legacy_battle_group_b_frame.cpp](../../../src/battle/legacy_battle_group_b_frame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1500,7 +1502,7 @@
 
 - [ ] **CHAIN-d7c76b8b561e** `battle/legacy_battle_group_b_opponent_mode`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_opponent_mode.hpp](../../../include/openswd3/battle/legacy_battle_group_b_opponent_mode.hpp)；[src/battle/legacy_battle_group_b_opponent_mode.cpp](../../../src/battle/legacy_battle_group_b_opponent_mode.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1511,7 +1513,7 @@
 
 - [ ] **CHAIN-153b340e473f** `battle/legacy_battle_group_b_opponent_wave_parameters`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_opponent_wave_parameters.hpp](../../../include/openswd3/battle/legacy_battle_group_b_opponent_wave_parameters.hpp)；[src/battle/legacy_battle_group_b_opponent_wave_parameters.cpp](../../../src/battle/legacy_battle_group_b_opponent_wave_parameters.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1520,7 +1522,7 @@
 
 - [ ] **CHAIN-82529089cbd1** `battle/legacy_battle_group_b_order`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_group_b_order.cpp](../../../src/battle/legacy_battle_group_b_order.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1528,7 +1530,7 @@
 
 - [ ] **CHAIN-33360134ef95** `battle/legacy_battle_group_b_reward_item_selection`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_reward_item_selection.hpp](../../../include/openswd3/battle/legacy_battle_group_b_reward_item_selection.hpp)；[src/battle/legacy_battle_group_b_reward_item_selection.cpp](../../../src/battle/legacy_battle_group_b_reward_item_selection.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1539,7 +1541,7 @@
 
 - [ ] **CHAIN-9d5420ea5211** `battle/legacy_battle_group_b_script_action_item_parameters`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_script_action_item_parameters.hpp](../../../include/openswd3/battle/legacy_battle_group_b_script_action_item_parameters.hpp)；[src/battle/legacy_battle_group_b_script_action_item_parameters.cpp](../../../src/battle/legacy_battle_group_b_script_action_item_parameters.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1548,7 +1550,7 @@
 
 - [ ] **CHAIN-90a55a716cc3** `battle/legacy_battle_group_b_script_resource_parameters`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_script_resource_parameters.hpp](../../../include/openswd3/battle/legacy_battle_group_b_script_resource_parameters.hpp)；[src/battle/legacy_battle_group_b_script_resource_parameters.cpp](../../../src/battle/legacy_battle_group_b_script_resource_parameters.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1557,7 +1559,7 @@
 
 - [ ] **CHAIN-d8a48b6dcb8e** `battle/legacy_battle_group_b_script_special_action_item_parameters`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_script_special_action_item_parameters.hpp](../../../include/openswd3/battle/legacy_battle_group_b_script_special_action_item_parameters.hpp)；[src/battle/legacy_battle_group_b_script_special_action_item_parameters.cpp](../../../src/battle/legacy_battle_group_b_script_special_action_item_parameters.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1566,7 +1568,7 @@
 
 - [ ] **CHAIN-77325cac05c0** `battle/legacy_battle_group_b_status_action`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_status_action.hpp](../../../include/openswd3/battle/legacy_battle_group_b_status_action.hpp)；[src/battle/legacy_battle_group_b_status_action.cpp](../../../src/battle/legacy_battle_group_b_status_action.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1577,7 +1579,7 @@
 
 - [ ] **CHAIN-b24cb45fefd0** `battle/legacy_battle_group_b_target_cycle`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_target_cycle.hpp](../../../include/openswd3/battle/legacy_battle_group_b_target_cycle.hpp)；[src/battle/legacy_battle_group_b_target_cycle.cpp](../../../src/battle/legacy_battle_group_b_target_cycle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1590,7 +1592,7 @@
 
 - [ ] **CHAIN-6c6269e4e288** `battle/legacy_battle_group_effect_frame`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_effect_frame.hpp](../../../include/openswd3/battle/legacy_battle_group_effect_frame.hpp)；[src/battle/legacy_battle_group_effect_frame.cpp](../../../src/battle/legacy_battle_group_effect_frame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1604,7 +1606,7 @@
 
 - [ ] **CHAIN-5772565724bd** `battle/legacy_battle_growth_actor_selection`
   - 当前残留信号：arguments, counter, interface, invoke, operation, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_growth_actor_selection.hpp](../../../include/openswd3/battle/legacy_battle_growth_actor_selection.hpp)；[src/battle/legacy_battle_growth_actor_selection.cpp](../../../src/battle/legacy_battle_growth_actor_selection.cpp)。
   - 类型：[PORT-b407b49d5c4a](invoke-removal-ports.md#port-b407b49d5c4a), [PORT-9eb33b05d668](invoke-removal-ports.md#port-9eb33b05d668)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1620,7 +1622,7 @@
 
 - [ ] **CHAIN-0a21d93eae41** `battle/legacy_battle_growth_caption`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_growth_caption.hpp](../../../include/openswd3/battle/legacy_battle_growth_caption.hpp)；[src/battle/legacy_battle_growth_caption.cpp](../../../src/battle/legacy_battle_growth_caption.cpp)。
   - 类型：[PORT-c72a604940f2](invoke-removal-ports.md#port-c72a604940f2)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1635,7 +1637,7 @@
 
 - [ ] **CHAIN-d41c2d546b04** `battle/legacy_battle_growth_item_completion_panel`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_growth_item_completion_panel.hpp](../../../include/openswd3/battle/legacy_battle_growth_item_completion_panel.hpp)；[src/battle/legacy_battle_growth_item_completion_panel.cpp](../../../src/battle/legacy_battle_growth_item_completion_panel.cpp)。
   - 类型：[PORT-7d32b439f489](invoke-removal-ports.md#port-7d32b439f489)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1650,7 +1652,7 @@
 
 - [ ] **CHAIN-5805079db8f0** `battle/legacy_battle_growth_item_result_selection`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_growth_item_result_selection.hpp](../../../include/openswd3/battle/legacy_battle_growth_item_result_selection.hpp)；[src/battle/legacy_battle_growth_item_result_selection.cpp](../../../src/battle/legacy_battle_growth_item_result_selection.cpp)。
   - 类型：[PORT-fd5db5506d60](invoke-removal-ports.md#port-fd5db5506d60)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1665,7 +1667,7 @@
 
 - [ ] **CHAIN-1cb5d0ed9023** `battle/legacy_battle_guard_panel_frame`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_guard_panel_frame.hpp](../../../include/openswd3/battle/legacy_battle_guard_panel_frame.hpp)；[src/battle/legacy_battle_guard_panel_frame.cpp](../../../src/battle/legacy_battle_guard_panel_frame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1678,7 +1680,7 @@
 
 - [ ] **CHAIN-0c077a92aac6** `battle/legacy_battle_hud_frame`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_hud_frame.hpp](../../../include/openswd3/battle/legacy_battle_hud_frame.hpp)；[src/battle/legacy_battle_hud_frame.cpp](../../../src/battle/legacy_battle_hud_frame.cpp)。
   - 类型：[PORT-37047085d1fd](invoke-removal-ports.md#port-37047085d1fd)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1697,7 +1699,7 @@
   - 状态批次bc6b14e7：向选择入口借出sample manager；core/ASan及SDL通过并已发布，其余协议仍pending。见[状态证据](battle-actor-list-state-processing-00470380.md)。
   - 本批依赖：向目标选择入口传递必填资源诊断引用，不增加通用输入Port方法；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。其余协议仍pending。
   - 当前残留信号：arguments, counter, interface, invoke, operation, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_input_dispatch.hpp](../../../include/openswd3/battle/legacy_battle_input_dispatch.hpp)；[src/battle/legacy_battle_input_dispatch.cpp](../../../src/battle/legacy_battle_input_dispatch.cpp)。
   - 类型：[PORT-61523c9cd1bf](invoke-removal-ports.md#port-61523c9cd1bf), [PORT-390b7e9ca4de](invoke-removal-ports.md#port-390b7e9ca4de), [PORT-e4c82312d72e](invoke-removal-ports.md#port-e4c82312d72e)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1713,7 +1715,7 @@
 
 - [ ] **CHAIN-643d307755d3** `battle/legacy_battle_input_record_priming`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_input_record_priming.hpp](../../../include/openswd3/battle/legacy_battle_input_record_priming.hpp)；[src/battle/legacy_battle_input_record_priming.cpp](../../../src/battle/legacy_battle_input_record_priming.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1722,7 +1724,7 @@
 
 - [ ] **CHAIN-90f0ada85eae** `battle/legacy_battle_intensity_effect_frame`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_intensity_effect_frame.cpp](../../../src/battle/legacy_battle_intensity_effect_frame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1734,7 +1736,7 @@
 
 - [ ] **CHAIN-fa05ef690335** `battle/legacy_battle_level_advancement`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_level_advancement.hpp](../../../include/openswd3/battle/legacy_battle_level_advancement.hpp)；[src/battle/legacy_battle_level_advancement.cpp](../../../src/battle/legacy_battle_level_advancement.cpp)。
   - 类型：[PORT-9bdb1bd31ce7](invoke-removal-ports.md#port-9bdb1bd31ce7), [PORT-587465dbdb06](invoke-removal-ports.md#port-587465dbdb06)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1749,7 +1751,7 @@
 
 - [ ] **CHAIN-2e37951a2779** `battle/legacy_battle_level_growth_panel`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_level_growth_panel.hpp](../../../include/openswd3/battle/legacy_battle_level_growth_panel.hpp)；[src/battle/legacy_battle_level_growth_panel.cpp](../../../src/battle/legacy_battle_level_growth_panel.cpp)。
   - 类型：[PORT-4da57ddbeb5f](invoke-removal-ports.md#port-4da57ddbeb5f)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1764,7 +1766,7 @@
 
 - [ ] **CHAIN-73f0a211d567** `battle/legacy_battle_level_profile`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_level_profile.hpp](../../../include/openswd3/battle/legacy_battle_level_profile.hpp)；[src/battle/legacy_battle_level_profile.cpp](../../../src/battle/legacy_battle_level_profile.cpp)。
   - 类型：[PORT-f7ecb1eddb59](invoke-removal-ports.md#port-f7ecb1eddb59)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1777,7 +1779,7 @@
 
 - [ ] **CHAIN-11ed14ba0a87** `battle/legacy_battle_level_requirement`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_level_requirement.hpp](../../../include/openswd3/battle/legacy_battle_level_requirement.hpp)；[src/battle/legacy_battle_level_requirement.cpp](../../../src/battle/legacy_battle_level_requirement.cpp)。
   - 类型：[PORT-c7528372200b](invoke-removal-ports.md#port-c7528372200b)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1790,7 +1792,7 @@
 
 - [ ] **CHAIN-069c1ce92b5d** `battle/legacy_battle_level_up_panel`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_level_up_panel.hpp](../../../include/openswd3/battle/legacy_battle_level_up_panel.hpp)；[src/battle/legacy_battle_level_up_panel.cpp](../../../src/battle/legacy_battle_level_up_panel.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1804,7 +1806,7 @@
 - [ ] **CHAIN-2ef6f1108945** `battle/legacy_battle_list_contents`
   - 行查询子批次：删除query_row与refresh_actor通用操作、查询输出回包及调用计数；直接借角色、列表、MON和共享文本，逐行清值及链尾复位。初始化、行解析、字体和绘制协议仍pending；[证据](battle-actor-list-query-00470180.md)。
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_list_contents.hpp](../../../include/openswd3/battle/legacy_battle_list_contents.hpp)；[src/battle/legacy_battle_list_contents.cpp](../../../src/battle/legacy_battle_list_contents.cpp)。
   - 类型：[PORT-5273e66ab0e8](invoke-removal-ports.md#port-5273e66ab0e8)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1819,7 +1821,7 @@
 
 - [ ] **CHAIN-d5bd6a91f7f3** `battle/legacy_battle_list_frame`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_list_frame.hpp](../../../include/openswd3/battle/legacy_battle_list_frame.hpp)；[src/battle/legacy_battle_list_frame.cpp](../../../src/battle/legacy_battle_list_frame.cpp)。
   - 类型：[PORT-7fd8a5281cc0](invoke-removal-ports.md#port-7fd8a5281cc0)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1834,7 +1836,7 @@
 
 - [ ] **CHAIN-e0aeaae7830b** `battle/legacy_battle_menu_context_advance`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_menu_context_advance.hpp](../../../include/openswd3/battle/legacy_battle_menu_context_advance.hpp)；[src/battle/legacy_battle_menu_context_advance.cpp](../../../src/battle/legacy_battle_menu_context_advance.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1845,7 +1847,7 @@
 
 - [ ] **CHAIN-fd6faa2ccab3** `battle/legacy_battle_menu_context_retreat`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_menu_context_retreat.hpp](../../../include/openswd3/battle/legacy_battle_menu_context_retreat.hpp)；[src/battle/legacy_battle_menu_context_retreat.cpp](../../../src/battle/legacy_battle_menu_context_retreat.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1856,7 +1858,7 @@
 
 - [ ] **CHAIN-2b6b9ac32978** `battle/legacy_battle_menu_input_finalize`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_menu_input_finalize.hpp](../../../include/openswd3/battle/legacy_battle_menu_input_finalize.hpp)；[src/battle/legacy_battle_menu_input_finalize.cpp](../../../src/battle/legacy_battle_menu_input_finalize.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1869,7 +1871,7 @@
 
 - [ ] **CHAIN-0da52a9f3292** `battle/legacy_battle_menu_page_advance`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_menu_page_advance.hpp](../../../include/openswd3/battle/legacy_battle_menu_page_advance.hpp)；[src/battle/legacy_battle_menu_page_advance.cpp](../../../src/battle/legacy_battle_menu_page_advance.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1880,7 +1882,7 @@
 
 - [ ] **CHAIN-917eea2c08d9** `battle/legacy_battle_menu_page_retreat`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_menu_page_retreat.hpp](../../../include/openswd3/battle/legacy_battle_menu_page_retreat.hpp)；[src/battle/legacy_battle_menu_page_retreat.cpp](../../../src/battle/legacy_battle_menu_page_retreat.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1891,7 +1893,7 @@
 
 - [ ] **CHAIN-74678d5d70b2** `battle/legacy_battle_menu_selection_advance`
   - 当前残留信号：arguments, counter, interface, invoke, operation, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_menu_selection_advance.hpp](../../../include/openswd3/battle/legacy_battle_menu_selection_advance.hpp)；[src/battle/legacy_battle_menu_selection_advance.cpp](../../../src/battle/legacy_battle_menu_selection_advance.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1905,7 +1907,7 @@
 
 - [ ] **CHAIN-064b88a5f449** `battle/legacy_battle_menu_selection_retreat`
   - 当前残留信号：arguments, counter, interface, invoke, operation, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_menu_selection_retreat.hpp](../../../include/openswd3/battle/legacy_battle_menu_selection_retreat.hpp)；[src/battle/legacy_battle_menu_selection_retreat.cpp](../../../src/battle/legacy_battle_menu_selection_retreat.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1921,7 +1923,7 @@
   - 状态批次bc6b14e7：向选择入口借出sample manager；core/ASan及SDL通过并已发布，其余协议仍pending。见[状态证据](battle-actor-list-state-processing-00470380.md)。
   - 本批依赖：向目标选择入口借同一资源诊断对象；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。其余协议仍pending。
   - 当前残留信号：arguments, callee, counter, interface, invoke, operation, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_message_phase.hpp](../../../include/openswd3/battle/legacy_battle_message_phase.hpp)；[src/battle/legacy_battle_message_phase.cpp](../../../src/battle/legacy_battle_message_phase.cpp)。
   - 类型：[PORT-13fadaf7ce03](invoke-removal-ports.md#port-13fadaf7ce03), [PORT-d4160261067a](invoke-removal-ports.md#port-d4160261067a), [PORT-7b41058901bc](invoke-removal-ports.md#port-7b41058901bc)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1938,7 +1940,7 @@
 
 - [ ] **CHAIN-2d45943f1275** `battle/legacy_battle_mode_grid_frame`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_mode_grid_frame.hpp](../../../include/openswd3/battle/legacy_battle_mode_grid_frame.hpp)；[src/battle/legacy_battle_mode_grid_frame.cpp](../../../src/battle/legacy_battle_mode_grid_frame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1951,7 +1953,7 @@
 
 - [ ] **CHAIN-c7dfac7d2431** `battle/legacy_battle_mon_definition`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_mon_definition.hpp](../../../include/openswd3/battle/legacy_battle_mon_definition.hpp)；[src/battle/legacy_battle_mon_definition.cpp](../../../src/battle/legacy_battle_mon_definition.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1960,7 +1962,7 @@
 
 - [ ] **CHAIN-3b951da93626** `battle/legacy_battle_mon_definition_text_release`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_mon_definition_text_release.hpp](../../../include/openswd3/battle/legacy_battle_mon_definition_text_release.hpp)；[src/battle/legacy_battle_mon_definition_text_release.cpp](../../../src/battle/legacy_battle_mon_definition_text_release.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1969,7 +1971,7 @@
 
 - [ ] **CHAIN-34218da1eccf** `battle/legacy_battle_mon_profile`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_mon_profile.hpp](../../../include/openswd3/battle/legacy_battle_mon_profile.hpp)；[src/battle/legacy_battle_mon_profile.cpp](../../../src/battle/legacy_battle_mon_profile.cpp)。
   - 类型：[PORT-4fbbe55430e0](invoke-removal-ports.md#port-4fbbe55430e0)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1979,7 +1981,7 @@
 - [ ] **CHAIN-32f8f1beabaf** `battle/legacy_battle_narrow_grid_frame`
   - 行查询子批次：删除query_narrow_row与refresh_actor操作、值/文本回包和调用计数；直接查询实际列表，长名称后段共享音乐路径。初始化、字体、绘制及父寄存器协议仍pending；[证据](battle-actor-list-query-00470180.md)。
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_narrow_grid_frame.hpp](../../../include/openswd3/battle/legacy_battle_narrow_grid_frame.hpp)；[src/battle/legacy_battle_narrow_grid_frame.cpp](../../../src/battle/legacy_battle_narrow_grid_frame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -1992,7 +1994,7 @@
 
 - [ ] **CHAIN-3f5fcc511853** `battle/legacy_battle_object_reset`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_object_reset.hpp](../../../include/openswd3/battle/legacy_battle_object_reset.hpp)；[src/battle/legacy_battle_object_reset.cpp](../../../src/battle/legacy_battle_object_reset.cpp)。
   - 类型：[PORT-70edce35e328](invoke-removal-ports.md#port-70edce35e328)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2003,7 +2005,7 @@
 
 - [ ] **CHAIN-bbc0964ed5ca** `battle/legacy_battle_opponent_action_dispatch`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_opponent_action_dispatch.hpp](../../../include/openswd3/battle/legacy_battle_opponent_action_dispatch.hpp)；[src/battle/legacy_battle_opponent_action_dispatch.cpp](../../../src/battle/legacy_battle_opponent_action_dispatch.cpp)。
   - 类型：[PORT-055a317c51be](invoke-removal-ports.md#port-055a317c51be)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2016,7 +2018,7 @@
 
 - [ ] **CHAIN-e6a9433cccfd** `battle/legacy_battle_outcome_finalization`
   - 当前残留信号：counter, interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_outcome_finalization.hpp](../../../include/openswd3/battle/legacy_battle_outcome_finalization.hpp)；[src/battle/legacy_battle_outcome_finalization.cpp](../../../src/battle/legacy_battle_outcome_finalization.cpp)。
   - 类型：[PORT-8993a2dfa5cd](invoke-removal-ports.md#port-8993a2dfa5cd), [PORT-b64661945895](invoke-removal-ports.md#port-b64661945895)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2026,7 +2028,7 @@
 
 - [ ] **CHAIN-787c19720c2e** `battle/legacy_battle_outcome_resolution`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_outcome_resolution.hpp](../../../include/openswd3/battle/legacy_battle_outcome_resolution.hpp)；[src/battle/legacy_battle_outcome_resolution.cpp](../../../src/battle/legacy_battle_outcome_resolution.cpp)。
   - 类型：[PORT-d418321a615f](invoke-removal-ports.md#port-d418321a615f)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2039,7 +2041,7 @@
 
 - [ ] **CHAIN-2fd4c6deabf1** `battle/legacy_battle_pair_transition`
   - 当前残留信号：arguments, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_pair_transition.hpp](../../../include/openswd3/battle/legacy_battle_pair_transition.hpp)；[src/battle/legacy_battle_pair_transition.cpp](../../../src/battle/legacy_battle_pair_transition.cpp)。
   - 类型：[PORT-297df14b6866](invoke-removal-ports.md#port-297df14b6866), [PORT-a0ff1255e5e7](invoke-removal-ports.md#port-a0ff1255e5e7)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2052,7 +2054,7 @@
 
 - [ ] **CHAIN-7b0d5dec4e4e** `battle/legacy_battle_party_item_definition`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_party_item_definition.hpp](../../../include/openswd3/battle/legacy_battle_party_item_definition.hpp)；[src/battle/legacy_battle_party_item_definition.cpp](../../../src/battle/legacy_battle_party_item_definition.cpp)。
   - 类型：[PORT-770177f05785](invoke-removal-ports.md#port-770177f05785)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2065,7 +2067,7 @@
 
 - [ ] **CHAIN-e9dcec824822** `battle/legacy_battle_party_item_order`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_party_item_order.hpp](../../../include/openswd3/battle/legacy_battle_party_item_order.hpp)；[src/battle/legacy_battle_party_item_order.cpp](../../../src/battle/legacy_battle_party_item_order.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2074,7 +2076,7 @@
 
 - [ ] **CHAIN-167f4b70ca29** `battle/legacy_battle_pending_action_commit`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_pending_action_commit.hpp](../../../include/openswd3/battle/legacy_battle_pending_action_commit.hpp)；[src/battle/legacy_battle_pending_action_commit.cpp](../../../src/battle/legacy_battle_pending_action_commit.cpp)。
   - 类型：[PORT-4c2f8535575a](invoke-removal-ports.md#port-4c2f8535575a)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2088,7 +2090,7 @@
 
 - [ ] **CHAIN-94683e04fd08** `battle/legacy_battle_player_item_order`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_player_item_order.hpp](../../../include/openswd3/battle/legacy_battle_player_item_order.hpp)；[src/battle/legacy_battle_player_item_order.cpp](../../../src/battle/legacy_battle_player_item_order.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2097,7 +2099,7 @@
 
 - [ ] **CHAIN-7cf951e1f47b** `battle/legacy_battle_post_action`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_post_action.hpp](../../../include/openswd3/battle/legacy_battle_post_action.hpp)；[src/battle/legacy_battle_post_action.cpp](../../../src/battle/legacy_battle_post_action.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2109,7 +2111,7 @@
 
 - [ ] **CHAIN-18e899d89e6a** `battle/legacy_battle_pre_frame`
   - 当前残留信号：interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_pre_frame.hpp](../../../include/openswd3/battle/legacy_battle_pre_frame.hpp)；[src/battle/legacy_battle_pre_frame.cpp](../../../src/battle/legacy_battle_pre_frame.cpp)。
   - 类型：[PORT-d98289cbb7b2](invoke-removal-ports.md#port-d98289cbb7b2)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2120,7 +2122,7 @@
 
 - [ ] **CHAIN-3c37f21ee250** `battle/legacy_battle_retreat_commit`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_retreat_commit.hpp](../../../include/openswd3/battle/legacy_battle_retreat_commit.hpp)；[src/battle/legacy_battle_retreat_commit.cpp](../../../src/battle/legacy_battle_retreat_commit.cpp)。
   - 类型：[PORT-ac77a2188211](invoke-removal-ports.md#port-ac77a2188211), [PORT-01cef6293059](invoke-removal-ports.md#port-01cef6293059)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2135,7 +2137,7 @@
 
 - [ ] **CHAIN-71b68f76445f** `battle/legacy_battle_reward_item_slot`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_reward_item_slot.hpp](../../../include/openswd3/battle/legacy_battle_reward_item_slot.hpp)；[src/battle/legacy_battle_reward_item_slot.cpp](../../../src/battle/legacy_battle_reward_item_slot.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2144,7 +2146,7 @@
 
 - [ ] **CHAIN-8866d59c1416** `battle/legacy_battle_reward_scale`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_reward_scale.hpp](../../../include/openswd3/battle/legacy_battle_reward_scale.hpp)；[src/battle/legacy_battle_reward_scale.cpp](../../../src/battle/legacy_battle_reward_scale.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2158,7 +2160,7 @@
 
 - [ ] **CHAIN-7a6d8766a638** `battle/legacy_battle_scale_fill_panel`
   - 当前残留信号：counter。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_scale_fill_panel.hpp](../../../include/openswd3/battle/legacy_battle_scale_fill_panel.hpp)；[src/battle/legacy_battle_scale_fill_panel.cpp](../../../src/battle/legacy_battle_scale_fill_panel.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2167,7 +2169,7 @@
 
 - [ ] **CHAIN-1f1ccf8500a9** `battle/legacy_battle_scale_scan`
   - 当前残留信号：counter。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_scale_scan.hpp](../../../include/openswd3/battle/legacy_battle_scale_scan.hpp)；[src/battle/legacy_battle_scale_scan.cpp](../../../src/battle/legacy_battle_scale_scan.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2176,7 +2178,7 @@
 
 - [ ] **CHAIN-4041ca368c58** `battle/legacy_battle_script_dispatch`
   - 当前残留信号：arguments, counter, interface, invoke, operation, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_script_dispatch.hpp](../../../include/openswd3/battle/legacy_battle_script_dispatch.hpp)；[src/battle/legacy_battle_script_dispatch.cpp](../../../src/battle/legacy_battle_script_dispatch.cpp)；[src/battle/legacy_battle_script_dispatch_cases_fifty_five_to_eighty_three.cpp](../../../src/battle/legacy_battle_script_dispatch_cases_fifty_five_to_eighty_three.cpp)；[src/battle/legacy_battle_script_dispatch_cases_one_to_twenty_seven.cpp](../../../src/battle/legacy_battle_script_dispatch_cases_one_to_twenty_seven.cpp)；[src/battle/legacy_battle_script_dispatch_cases_twenty_eight_to_fifty_four.cpp](../../../src/battle/legacy_battle_script_dispatch_cases_twenty_eight_to_fifty_four.cpp)；[src/battle/legacy_battle_script_dispatch_internal.hpp](../../../src/battle/legacy_battle_script_dispatch_internal.hpp)。
   - 类型：[PORT-4139fa9e1174](invoke-removal-ports.md#port-4139fa9e1174), [PORT-8b216ea963fc](invoke-removal-ports.md#port-8b216ea963fc), [PORT-243b0f85d63c](invoke-removal-ports.md#port-243b0f85d63c)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2203,7 +2205,7 @@
 
 - [ ] **CHAIN-6e903b612999** `battle/legacy_battle_script_file`
   - 当前残留信号：interface, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_script_file.hpp](../../../include/openswd3/battle/legacy_battle_script_file.hpp)；[src/battle/legacy_battle_script_file.cpp](../../../src/battle/legacy_battle_script_file.cpp)。
   - 类型：[PORT-9607f06747d3](invoke-removal-ports.md#port-9607f06747d3)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2212,7 +2214,7 @@
 
 - [ ] **CHAIN-61c71eda5533** `battle/legacy_battle_selection_hint_frame`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_selection_hint_frame.hpp](../../../include/openswd3/battle/legacy_battle_selection_hint_frame.hpp)；[src/battle/legacy_battle_selection_hint_frame.cpp](../../../src/battle/legacy_battle_selection_hint_frame.cpp)。
   - 类型：[PORT-19075230a180](invoke-removal-ports.md#port-19075230a180)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2227,7 +2229,7 @@
 
 - [ ] **CHAIN-31aa9d773cbd** `battle/legacy_battle_startup`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_startup.hpp](../../../include/openswd3/battle/legacy_battle_startup.hpp)；[src/battle/legacy_battle_startup.cpp](../../../src/battle/legacy_battle_startup.cpp)。
   - 类型：[PORT-a844c6f3c5c1](invoke-removal-ports.md#port-a844c6f3c5c1), [PORT-d9653246e88e](invoke-removal-ports.md#port-d9653246e88e), [PORT-04502dd7fe77](invoke-removal-ports.md#port-04502dd7fe77), [PORT-8a7773b9eefb](invoke-removal-ports.md#port-8a7773b9eefb), [PORT-89ec329a0143](invoke-removal-ports.md#port-89ec329a0143), [PORT-46589e75e09f](invoke-removal-ports.md#port-46589e75e09f)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2242,7 +2244,7 @@
 
 - [ ] **CHAIN-8a5e3e61646d** `battle/legacy_battle_status_indicator`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_status_indicator.hpp](../../../include/openswd3/battle/legacy_battle_status_indicator.hpp)；[src/battle/legacy_battle_status_indicator.cpp](../../../src/battle/legacy_battle_status_indicator.cpp)。
   - 类型：[PORT-3e60c2b3f4f5](invoke-removal-ports.md#port-3e60c2b3f4f5), [PORT-dcddf6f7982f](invoke-removal-ports.md#port-dcddf6f7982f)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2251,7 +2253,7 @@
 
 - [ ] **CHAIN-b68b7ffe5b48** `battle/legacy_battle_surface_blend`
   - 当前残留信号：counter, interface, operation。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_surface_blend.hpp](../../../include/openswd3/battle/legacy_battle_surface_blend.hpp)；[src/battle/legacy_battle_surface_blend.cpp](../../../src/battle/legacy_battle_surface_blend.cpp)。
   - 类型：[PORT-5a1ba6935260](invoke-removal-ports.md#port-5a1ba6935260)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2262,7 +2264,7 @@
 
 - [ ] **CHAIN-1f80e4f825c5** `battle/legacy_battle_talisman_result_panel`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_talisman_result_panel.hpp](../../../include/openswd3/battle/legacy_battle_talisman_result_panel.hpp)；[src/battle/legacy_battle_talisman_result_panel.cpp](../../../src/battle/legacy_battle_talisman_result_panel.cpp)。
   - 类型：[PORT-7932e6ddad59](invoke-removal-ports.md#port-7932e6ddad59)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2277,7 +2279,7 @@
 
 - [ ] **CHAIN-56d856b16838** `battle/legacy_battle_target_ready`
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_target_ready.hpp](../../../include/openswd3/battle/legacy_battle_target_ready.hpp)；[src/battle/legacy_battle_target_ready.cpp](../../../src/battle/legacy_battle_target_ready.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2293,7 +2295,7 @@
   - 状态批次bc6b14e7：向刷新阶段借出实际sample manager；core/ASan及SDL通过并已发布，其余协议仍pending。见[状态证据](battle-actor-list-state-processing-00470380.md)。
   - 本批依赖：输入/消息两个caller提供的诊断对象直接借给刷新阶段；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。其余协议仍pending。
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_target_selection_entry.hpp](../../../include/openswd3/battle/legacy_battle_target_selection_entry.hpp)；[src/battle/legacy_battle_target_selection_entry.cpp](../../../src/battle/legacy_battle_target_selection_entry.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2311,7 +2313,7 @@
   - 本批诊断：删除纯转发Adapter及通用操作，直接借用诊断对象；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。
   - 剩余：完整SDL诊断接线、其他操作/参数包/寄存器/计数/Port及完整父路径；整链不勾选。
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_target_selection_refresh.hpp](../../../include/openswd3/battle/legacy_battle_target_selection_refresh.hpp)；[src/battle/legacy_battle_target_selection_refresh.cpp](../../../src/battle/legacy_battle_target_selection_refresh.cpp)。
   - 类型：[PORT-afd331603c89](invoke-removal-ports.md#port-afd331603c89), [PORT-f9d6f88adc33](invoke-removal-ports.md#port-f9d6f88adc33)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2327,7 +2329,7 @@
   - 状态批次bc6b14e7：删除validate_primary_action操作编号；其余操作和寄存器协议仍pending。core/ASan及SDL通过并已发布；见[状态证据](battle-actor-list-state-processing-00470380.md)。
   - 本批：删除资源缺失诊断操作编号；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。其余操作、参数包与寄存器协议仍pending。
   - 当前残留信号：arguments, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_target_selection_runtime.hpp](../../../include/openswd3/battle/legacy_battle_target_selection_runtime.hpp)。
   - 类型：[PORT-129eeaecd845](invoke-removal-ports.md#port-129eeaecd845), [PORT-886bcc672f06](invoke-removal-ports.md#port-886bcc672f06)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2337,7 +2339,7 @@
 
 - [ ] **CHAIN-300885b47a2f** `battle/legacy_battle_text_message`
   - 当前残留信号：counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_text_message.hpp](../../../include/openswd3/battle/legacy_battle_text_message.hpp)；[src/battle/legacy_battle_text_message.cpp](../../../src/battle/legacy_battle_text_message.cpp)。
   - 类型：[PORT-215eeb64554b](invoke-removal-ports.md#port-215eeb64554b)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2350,7 +2352,7 @@
 
 - [ ] **CHAIN-68eba0a9b15a** `battle/legacy_battle_text_message_frame`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_text_message_frame.hpp](../../../include/openswd3/battle/legacy_battle_text_message_frame.hpp)；[src/battle/legacy_battle_text_message_frame.cpp](../../../src/battle/legacy_battle_text_message_frame.cpp)。
   - 类型：[PORT-99c11857a4d1](invoke-removal-ports.md#port-99c11857a4d1)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2365,7 +2367,7 @@
 
 - [ ] **CHAIN-d15861ec306f** `battle/legacy_battle_text_panel`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_text_panel.hpp](../../../include/openswd3/battle/legacy_battle_text_panel.hpp)；[src/battle/legacy_battle_text_panel.cpp](../../../src/battle/legacy_battle_text_panel.cpp)。
   - 类型：[PORT-2781b9333f3e](invoke-removal-ports.md#port-2781b9333f3e)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2380,7 +2382,7 @@
 
 - [ ] **CHAIN-055f37abbb95** `battle/legacy_battle_transition`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_transition.hpp](../../../include/openswd3/battle/legacy_battle_transition.hpp)；[src/battle/legacy_battle_transition.cpp](../../../src/battle/legacy_battle_transition.cpp)。
   - 类型：[PORT-4240acb37dfc](invoke-removal-ports.md#port-4240acb37dfc), [PORT-9aab8c7b9bdf](invoke-removal-ports.md#port-9aab8c7b9bdf), [PORT-190abae1c145](invoke-removal-ports.md#port-190abae1c145), [PORT-48f4497cc0d5](invoke-removal-ports.md#port-48f4497cc0d5)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2395,7 +2397,7 @@
 
 - [ ] **CHAIN-932a8d3ec57f** `battle/legacy_battle_transition_control_selection`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_transition_control_selection.hpp](../../../include/openswd3/battle/legacy_battle_transition_control_selection.hpp)；[src/battle/legacy_battle_transition_control_selection.cpp](../../../src/battle/legacy_battle_transition_control_selection.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2404,7 +2406,7 @@
 
 - [ ] **CHAIN-7cf7e5bc22e6** `battle/legacy_battle_transition_stage_advance`
   - 当前残留信号：register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_transition_stage_advance.hpp](../../../include/openswd3/battle/legacy_battle_transition_stage_advance.hpp)；[src/battle/legacy_battle_transition_stage_advance.cpp](../../../src/battle/legacy_battle_transition_stage_advance.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2413,7 +2415,7 @@
 
 - [ ] **CHAIN-13b8a50d65ef** `battle/legacy_battle_vertical_panel`
   - 当前残留信号：counter, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_vertical_panel.hpp](../../../include/openswd3/battle/legacy_battle_vertical_panel.hpp)；[src/battle/legacy_battle_vertical_panel.cpp](../../../src/battle/legacy_battle_vertical_panel.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2424,7 +2426,7 @@
 
 - [ ] **CHAIN-ede924de1ab6** `battle/legacy_battle_vertical_shift`
   - 当前残留信号：counter, interface, operation。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_vertical_shift.hpp](../../../include/openswd3/battle/legacy_battle_vertical_shift.hpp)；[src/battle/legacy_battle_vertical_shift.cpp](../../../src/battle/legacy_battle_vertical_shift.cpp)。
   - 类型：[PORT-b990ae590803](invoke-removal-ports.md#port-b990ae590803), [PORT-c85bfdf9142a](invoke-removal-ports.md#port-c85bfdf9142a)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2434,7 +2436,7 @@
 
 - [ ] **CHAIN-487eecd6b011** `battle/legacy_battle_victory_item_list_panel`
   - 当前残留信号：arguments, counter, interface, invoke, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_victory_item_list_panel.hpp](../../../include/openswd3/battle/legacy_battle_victory_item_list_panel.hpp)；[src/battle/legacy_battle_victory_item_list_panel.cpp](../../../src/battle/legacy_battle_victory_item_list_panel.cpp)。
   - 类型：[PORT-e99bc2bc4419](invoke-removal-ports.md#port-e99bc2bc4419)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2449,7 +2451,7 @@
 
 - [ ] **CHAIN-55f77acece7b** `battle/legacy_battle_victory_rewards`
   - 当前残留信号：arguments, counter, interface, invoke, operation, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_victory_rewards.hpp](../../../include/openswd3/battle/legacy_battle_victory_rewards.hpp)；[src/battle/legacy_battle_victory_rewards.cpp](../../../src/battle/legacy_battle_victory_rewards.cpp)。
   - 类型：[PORT-83b19a82edf3](invoke-removal-ports.md#port-83b19a82edf3), [PORT-4172aa8df321](invoke-removal-ports.md#port-4172aa8df321)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2465,7 +2467,7 @@
 
 - [ ] **CHAIN-edf68a3c3d1c** `platform/legacy_command_line`
   - 当前残留信号：arguments。
-  - 历史状态：`excluded`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/legacy_command_line.cpp](../../../src/platform/sdl3/legacy_command_line.cpp)；[src/platform/sdl3/legacy_command_line.hpp](../../../src/platform/sdl3/legacy_command_line.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2474,7 +2476,7 @@
 
 - [ ] **CHAIN-22c4bfa65c1e** `platform/legacy_sample_backend_sdl3`
   - 当前残留信号：operation。
-  - 历史状态：`excluded`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/legacy_sample_backend_sdl3.cpp](../../../src/platform/sdl3/legacy_sample_backend_sdl3.cpp)；[src/platform/sdl3/legacy_sample_backend_sdl3.hpp](../../../src/platform/sdl3/legacy_sample_backend_sdl3.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2484,7 +2486,7 @@
 - [ ] **CHAIN-0fe1c548029f** `platform/main`
   - 本批依赖：SDL窗口owner实现资源缺失诊断并复用维护错误对话框；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。完整核心帧尚未接入主循环，实际诊断到达与其余协议仍pending。
   - 当前残留信号：arguments, counter, interface, invoke, operation, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/main.cpp](../../../src/platform/sdl3/main.cpp)。
   - 类型：[PORT-7a54eff2cc37](invoke-removal-ports.md#port-7a54eff2cc37), [PORT-e9d262541f52](invoke-removal-ports.md#port-e9d262541f52), [PORT-845dde81be82](invoke-removal-ports.md#port-845dde81be82), [PORT-a77d845d4b85](invoke-removal-ports.md#port-a77d845d4b85), [PORT-70256fcd1195](invoke-removal-ports.md#port-70256fcd1195), [PORT-9100b117e286](invoke-removal-ports.md#port-9100b117e286), [PORT-03702411c458](invoke-removal-ports.md#port-03702411c458), [PORT-90a0dc6df60b](invoke-removal-ports.md#port-90a0dc6df60b), [PORT-6dd594fe2948](invoke-removal-ports.md#port-6dd594fe2948), [PORT-d4cc14c65328](invoke-removal-ports.md#port-d4cc14c65328), [PORT-f68cf6e0ed1e](invoke-removal-ports.md#port-f68cf6e0ed1e), [PORT-989ea10cefb9](invoke-removal-ports.md#port-989ea10cefb9), [PORT-c66d1579fe8c](invoke-removal-ports.md#port-c66d1579fe8c), [PORT-37479b034ea1](invoke-removal-ports.md#port-37479b034ea1), [PORT-d1f9bc8a7ebc](invoke-removal-ports.md#port-d1f9bc8a7ebc), [PORT-04a280de8386](invoke-removal-ports.md#port-04a280de8386), [PORT-154fc1309069](invoke-removal-ports.md#port-154fc1309069), [PORT-ede30e3e1fab](invoke-removal-ports.md#port-ede30e3e1fab), [PORT-8aa8e1888b1b](invoke-removal-ports.md#port-8aa8e1888b1b), [PORT-6f083a3b2e59](invoke-removal-ports.md#port-6f083a3b2e59), [PORT-e72684e65fc8](invoke-removal-ports.md#port-e72684e65fc8), [PORT-c25c01f66a08](invoke-removal-ports.md#port-c25c01f66a08), [PORT-f737d3106b78](invoke-removal-ports.md#port-f737d3106b78), [PORT-9cbf879ca236](invoke-removal-ports.md#port-9cbf879ca236), [PORT-c9ee92f626c0](invoke-removal-ports.md#port-c9ee92f626c0), [PORT-62d050835231](invoke-removal-ports.md#port-62d050835231), [PORT-2ed5441b3267](invoke-removal-ports.md#port-2ed5441b3267), [PORT-3f1ccdbb192c](invoke-removal-ports.md#port-3f1ccdbb192c), [PORT-af1a87092cd0](invoke-removal-ports.md#port-af1a87092cd0), [PORT-570f1316ada1](invoke-removal-ports.md#port-570f1316ada1), [PORT-4e1c3ee0b25e](invoke-removal-ports.md#port-4e1c3ee0b25e), [PORT-e54d86864b22](invoke-removal-ports.md#port-e54d86864b22), [PORT-62d8ed0cf5ce](invoke-removal-ports.md#port-62d8ed0cf5ce)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2496,7 +2498,7 @@
 
 - [ ] **CHAIN-2c6602652dfa** `rendering/legacy_action_renderers`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_action_renderers.hpp](../../../include/openswd3/rendering/legacy_action_renderers.hpp)；[src/rendering/legacy_action_renderers.cpp](../../../src/rendering/legacy_action_renderers.cpp)。
   - 类型：[PORT-2a8734c66051](invoke-removal-ports.md#port-2a8734c66051), [PORT-08f8d487dd54](invoke-removal-ports.md#port-08f8d487dd54)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2505,7 +2507,7 @@
 
 - [ ] **CHAIN-ddf4b1615395** `rendering/legacy_blitter`
   - 当前残留信号：arguments, operation。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_blitter.cpp](../../../src/rendering/legacy_blitter.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2514,7 +2516,7 @@
 
 - [ ] **CHAIN-d843511e8764** `rendering/legacy_countdown`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_countdown.hpp](../../../include/openswd3/rendering/legacy_countdown.hpp)；[src/rendering/legacy_countdown.cpp](../../../src/rendering/legacy_countdown.cpp)。
   - 类型：[PORT-89846717adb9](invoke-removal-ports.md#port-89846717adb9), [PORT-ecf120dbfa3e](invoke-removal-ports.md#port-ecf120dbfa3e)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2523,7 +2525,7 @@
 
 - [ ] **CHAIN-5c132f0b4a10** `rendering/legacy_drawing_helpers`
   - 当前残留信号：counter。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_drawing_helpers.hpp](../../../include/openswd3/rendering/legacy_drawing_helpers.hpp)；[src/rendering/legacy_drawing_helpers.cpp](../../../src/rendering/legacy_drawing_helpers.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2532,7 +2534,7 @@
 
 - [ ] **CHAIN-b5e7d3072c55** `rendering/legacy_formatted_text`
   - 当前残留信号：counter。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_formatted_text.hpp](../../../include/openswd3/rendering/legacy_formatted_text.hpp)；[src/rendering/legacy_formatted_text.cpp](../../../src/rendering/legacy_formatted_text.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2541,7 +2543,7 @@
 
 - [ ] **CHAIN-05d2880615fa** `rendering/legacy_tiled_frame`
   - 当前残留信号：counter。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_tiled_frame.hpp](../../../include/openswd3/rendering/legacy_tiled_frame.hpp)；[src/rendering/legacy_tiled_frame.cpp](../../../src/rendering/legacy_tiled_frame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2550,7 +2552,7 @@
 
 - [ ] **CHAIN-691dc3cab651** `resource_io/data_directory`
   - 当前残留信号：arguments。
-  - 历史状态：`excluded`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/data_directory.hpp](../../../include/openswd3/resource_io/data_directory.hpp)；[src/resource_io/data_directory.cpp](../../../src/resource_io/data_directory.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2559,7 +2561,7 @@
 
 - [ ] **CHAIN-a4bd9d63fd44** `special_modes/legacy_standard_mode`
   - 当前残留信号：arguments, counter, interface, invoke, operation, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/special_modes/legacy_standard_mode.hpp](../../../include/openswd3/special_modes/legacy_standard_mode.hpp)；[src/special_modes/legacy_standard_mode.cpp](../../../src/special_modes/legacy_standard_mode.cpp)。
   - 类型：[PORT-6150ecc45d27](invoke-removal-ports.md#port-6150ecc45d27), [PORT-b67baacff7a6](invoke-removal-ports.md#port-b67baacff7a6), [PORT-5a66171a78a0](invoke-removal-ports.md#port-5a66171a78a0), [PORT-0f6cfa14a197](invoke-removal-ports.md#port-0f6cfa14a197), [PORT-9d2976e0ec3e](invoke-removal-ports.md#port-9d2976e0ec3e), [PORT-2883e01a95f2](invoke-removal-ports.md#port-2883e01a95f2), [PORT-226b70af16c1](invoke-removal-ports.md#port-226b70af16c1), [PORT-60173815f0c7](invoke-removal-ports.md#port-60173815f0c7), [PORT-15885508395d](invoke-removal-ports.md#port-15885508395d), [PORT-082801c27f01](invoke-removal-ports.md#port-082801c27f01), [PORT-b2d3ee9c6ec2](invoke-removal-ports.md#port-b2d3ee9c6ec2), [PORT-890017339787](invoke-removal-ports.md#port-890017339787), [PORT-5ac1fc8dbe44](invoke-removal-ports.md#port-5ac1fc8dbe44), [PORT-30a39f55d9df](invoke-removal-ports.md#port-30a39f55d9df), [PORT-4f2130341b89](invoke-removal-ports.md#port-4f2130341b89), [PORT-98f0f9166d53](invoke-removal-ports.md#port-98f0f9166d53), [PORT-bbd2451bdf89](invoke-removal-ports.md#port-bbd2451bdf89), [PORT-4e264659f423](invoke-removal-ports.md#port-4e264659f423), [PORT-1a79a30ffeff](invoke-removal-ports.md#port-1a79a30ffeff), [PORT-11f51aa89fa6](invoke-removal-ports.md#port-11f51aa89fa6), [PORT-401ec68b803d](invoke-removal-ports.md#port-401ec68b803d), [PORT-cb2a6f512755](invoke-removal-ports.md#port-cb2a6f512755), [PORT-b43455f5e226](invoke-removal-ports.md#port-b43455f5e226), [PORT-e8dd396ef2c9](invoke-removal-ports.md#port-e8dd396ef2c9), [PORT-301205ee587e](invoke-removal-ports.md#port-301205ee587e), [PORT-9ef02929206c](invoke-removal-ports.md#port-9ef02929206c), [PORT-c234f0393e38](invoke-removal-ports.md#port-c234f0393e38), [PORT-b83afa9c93eb](invoke-removal-ports.md#port-b83afa9c93eb), [PORT-0a31ecd7834c](invoke-removal-ports.md#port-0a31ecd7834c), [PORT-b32e1b2cdc82](invoke-removal-ports.md#port-b32e1b2cdc82), [PORT-a98dd2e88ca0](invoke-removal-ports.md#port-a98dd2e88ca0), [PORT-08f7de4b73f0](invoke-removal-ports.md#port-08f7de4b73f0), [PORT-190f4c266df9](invoke-removal-ports.md#port-190f4c266df9), [PORT-7b1f377f89e8](invoke-removal-ports.md#port-7b1f377f89e8), [PORT-a0611b019956](invoke-removal-ports.md#port-a0611b019956), [PORT-8df545dcd7c2](invoke-removal-ports.md#port-8df545dcd7c2), [PORT-27aeb06d8cfd](invoke-removal-ports.md#port-27aeb06d8cfd), [PORT-860e4fa62995](invoke-removal-ports.md#port-860e4fa62995), [PORT-27fbf26e4f06](invoke-removal-ports.md#port-27fbf26e4f06), [PORT-77debf8b3c2c](invoke-removal-ports.md#port-77debf8b3c2c), [PORT-69b0e4310f94](invoke-removal-ports.md#port-69b0e4310f94), [PORT-764b39aa7ad7](invoke-removal-ports.md#port-764b39aa7ad7), [PORT-1f08ab418d75](invoke-removal-ports.md#port-1f08ab418d75), [PORT-c8fab518a22f](invoke-removal-ports.md#port-c8fab518a22f), [PORT-d600df7b54bd](invoke-removal-ports.md#port-d600df7b54bd), [PORT-5f33d6080f39](invoke-removal-ports.md#port-5f33d6080f39), [PORT-4c7f47a3eb96](invoke-removal-ports.md#port-4c7f47a3eb96), [PORT-604d25c6e388](invoke-removal-ports.md#port-604d25c6e388), [PORT-f16180caea76](invoke-removal-ports.md#port-f16180caea76), [PORT-9e3fe2840361](invoke-removal-ports.md#port-9e3fe2840361), [PORT-98b07ad2c5e5](invoke-removal-ports.md#port-98b07ad2c5e5), [PORT-4ac389c112f2](invoke-removal-ports.md#port-4ac389c112f2), [PORT-1b5618d52c4d](invoke-removal-ports.md#port-1b5618d52c4d), [PORT-9d47b870c013](invoke-removal-ports.md#port-9d47b870c013), [PORT-ecf7b561c363](invoke-removal-ports.md#port-ecf7b561c363), [PORT-c642760a2098](invoke-removal-ports.md#port-c642760a2098), [PORT-650ab29bc2af](invoke-removal-ports.md#port-650ab29bc2af), [PORT-f448de2d7d21](invoke-removal-ports.md#port-f448de2d7d21), [PORT-a9f046e81eb1](invoke-removal-ports.md#port-a9f046e81eb1), [PORT-4bc9d20f3e26](invoke-removal-ports.md#port-4bc9d20f3e26), [PORT-071862d78d6d](invoke-removal-ports.md#port-071862d78d6d), [PORT-4fae7fa4785d](invoke-removal-ports.md#port-4fae7fa4785d), [PORT-be3fbc993329](invoke-removal-ports.md#port-be3fbc993329), [PORT-3ade156458ce](invoke-removal-ports.md#port-3ade156458ce), [PORT-c81606c60245](invoke-removal-ports.md#port-c81606c60245), [PORT-78ad16d29f4e](invoke-removal-ports.md#port-78ad16d29f4e), [PORT-abf788bb8c88](invoke-removal-ports.md#port-abf788bb8c88), [PORT-74a54ac015d2](invoke-removal-ports.md#port-74a54ac015d2), [PORT-cad6ba627883](invoke-removal-ports.md#port-cad6ba627883), [PORT-0e6fd985c0f9](invoke-removal-ports.md#port-0e6fd985c0f9), [PORT-ec7da6e39a5e](invoke-removal-ports.md#port-ec7da6e39a5e), [PORT-a335a80f59c9](invoke-removal-ports.md#port-a335a80f59c9), [PORT-388be6ad964d](invoke-removal-ports.md#port-388be6ad964d), [PORT-79248d20d342](invoke-removal-ports.md#port-79248d20d342), [PORT-4bc67aa34e87](invoke-removal-ports.md#port-4bc67aa34e87), [PORT-faeb0576fd0f](invoke-removal-ports.md#port-faeb0576fd0f), [PORT-26b9671db8fa](invoke-removal-ports.md#port-26b9671db8fa), [PORT-ad2f39b67ec2](invoke-removal-ports.md#port-ad2f39b67ec2), [PORT-d76783483169](invoke-removal-ports.md#port-d76783483169), [PORT-f7be2b98551a](invoke-removal-ports.md#port-f7be2b98551a), [PORT-84be156866b8](invoke-removal-ports.md#port-84be156866b8), [PORT-358eb3ea4fad](invoke-removal-ports.md#port-358eb3ea4fad), [PORT-a6aad0a268b8](invoke-removal-ports.md#port-a6aad0a268b8), [PORT-657571ee675d](invoke-removal-ports.md#port-657571ee675d), [PORT-3c29ec0d4f6a](invoke-removal-ports.md#port-3c29ec0d4f6a), [PORT-5d8eb418d0ae](invoke-removal-ports.md#port-5d8eb418d0ae), [PORT-e100d690c49a](invoke-removal-ports.md#port-e100d690c49a), [PORT-2e3ec804b45e](invoke-removal-ports.md#port-2e3ec804b45e), [PORT-eca06f1d07b0](invoke-removal-ports.md#port-eca06f1d07b0), [PORT-e91405a267f7](invoke-removal-ports.md#port-e91405a267f7), [PORT-d643a4747dda](invoke-removal-ports.md#port-d643a4747dda)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2575,7 +2577,7 @@
 
 - [ ] **CHAIN-a1dd3f38c83c** `world_map/legacy_random_encounter`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_random_encounter.hpp](../../../include/openswd3/world_map/legacy_random_encounter.hpp)；[src/world_map/legacy_random_encounter.cpp](../../../src/world_map/legacy_random_encounter.cpp)。
   - 类型：[PORT-a955630ca2d7](invoke-removal-ports.md#port-a955630ca2d7)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2584,7 +2586,7 @@
 
 - [ ] **CHAIN-0d8b21a0dd24** `world_map/legacy_world_debug_hotkeys`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_debug_hotkeys.hpp](../../../include/openswd3/world_map/legacy_world_debug_hotkeys.hpp)；[src/world_map/legacy_world_debug_hotkeys.cpp](../../../src/world_map/legacy_world_debug_hotkeys.cpp)。
   - 类型：[PORT-5d0a423dd6fb](invoke-removal-ports.md#port-5d0a423dd6fb)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2593,7 +2595,7 @@
 
 - [ ] **CHAIN-1732ead91ec1** `world_map/legacy_world_debug_overlay`
   - 当前残留信号：arguments, counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_debug_overlay.hpp](../../../include/openswd3/world_map/legacy_world_debug_overlay.hpp)；[src/world_map/legacy_world_debug_overlay.cpp](../../../src/world_map/legacy_world_debug_overlay.cpp)。
   - 类型：[PORT-0004f3a1aedd](invoke-removal-ports.md#port-0004f3a1aedd)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2603,7 +2605,7 @@
 
 - [ ] **CHAIN-daf77d99d354** `world_map/legacy_world_frame_composition`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_frame_composition.hpp](../../../include/openswd3/world_map/legacy_world_frame_composition.hpp)；[src/world_map/legacy_world_frame_composition.cpp](../../../src/world_map/legacy_world_frame_composition.cpp)。
   - 类型：[PORT-911f7d3cb272](invoke-removal-ports.md#port-911f7d3cb272)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2612,7 +2614,7 @@
 
 - [ ] **CHAIN-623b1461f240** `world_map/legacy_world_item_lifecycle`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_item_lifecycle.hpp](../../../include/openswd3/world_map/legacy_world_item_lifecycle.hpp)；[src/world_map/legacy_world_item_lifecycle.cpp](../../../src/world_map/legacy_world_item_lifecycle.cpp)。
   - 类型：[PORT-3e4b216ba4ea](invoke-removal-ports.md#port-3e4b216ba4ea)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2621,7 +2623,7 @@
 
 - [ ] **CHAIN-9bfde3789c71** `world_map/legacy_world_map_role_paths`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_map_role_paths.hpp](../../../include/openswd3/world_map/legacy_world_map_role_paths.hpp)；[src/world_map/legacy_world_map_role_paths.cpp](../../../src/world_map/legacy_world_map_role_paths.cpp)。
   - 类型：[PORT-c08113b1b719](invoke-removal-ports.md#port-c08113b1b719)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2630,7 +2632,7 @@
 
 - [ ] **CHAIN-ca32d6b584f3** `world_map/legacy_world_role_lifecycle`
   - 当前残留信号：counter, interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_role_lifecycle.hpp](../../../include/openswd3/world_map/legacy_world_role_lifecycle.hpp)；[src/world_map/legacy_world_role_lifecycle.cpp](../../../src/world_map/legacy_world_role_lifecycle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2639,7 +2641,7 @@
 
 - [ ] **CHAIN-5c131d235518** `world_map/legacy_world_role_surface_occupancy`
   - 当前残留信号：operation。
-  - 历史状态：`excluded`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_role_surface_occupancy.cpp](../../../src/world_map/legacy_world_role_surface_occupancy.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2647,7 +2649,7 @@
 
 - [ ] **CHAIN-d44414d75dab** `world_map/legacy_world_story_vm`
   - 当前残留信号：interface, operation, register。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_story_vm.hpp](../../../include/openswd3/world_map/legacy_world_story_vm.hpp)；[src/world_map/legacy_world_story_vm.cpp](../../../src/world_map/legacy_world_story_vm.cpp)。
   - 类型：[PORT-80c4115ee102](invoke-removal-ports.md#port-80c4115ee102), [PORT-a00d387a8a8c](invoke-removal-ports.md#port-a00d387a8a8c), [PORT-9193c3470f12](invoke-removal-ports.md#port-9193c3470f12)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
@@ -2657,2317 +2659,2317 @@
 
 - [ ] **CHAIN-c4efce45b978** `app/auxiliary_text_dialog`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/auxiliary_text_dialog.hpp](../../../include/openswd3/app/auxiliary_text_dialog.hpp)；[src/app/auxiliary_text_dialog.cpp](../../../src/app/auxiliary_text_dialog.cpp)。
   - 类型：[PORT-187e0eae1881](invoke-removal-ports.md#port-187e0eae1881)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-1657e95023e0** `app/battle_transition`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/battle_transition.hpp](../../../include/openswd3/app/battle_transition.hpp)；[src/app/battle_transition.cpp](../../../src/app/battle_transition.cpp)。
   - 类型：[PORT-b6ef63f2e8e5](invoke-removal-ports.md#port-b6ef63f2e8e5)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-8db48edc261e** `app/command_line`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/command_line.hpp](../../../include/openswd3/app/command_line.hpp)；[src/app/command_line.cpp](../../../src/app/command_line.cpp)。
   - 类型：[PORT-a211718f6100](invoke-removal-ports.md#port-a211718f6100), [PORT-579677afd1a8](invoke-removal-ports.md#port-579677afd1a8)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-9cf666759578** `app/external_launch`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/external_launch.hpp](../../../include/openswd3/app/external_launch.hpp)；[src/app/external_launch.cpp](../../../src/app/external_launch.cpp)。
   - 类型：[PORT-900aed6aeea4](invoke-removal-ports.md#port-900aed6aeea4)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-ee611b67e5af** `app/frame_runtime`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/frame_runtime.hpp](../../../include/openswd3/app/frame_runtime.hpp)；[src/app/frame_runtime.cpp](../../../src/app/frame_runtime.cpp)。
   - 类型：[PORT-45b0eb6aaab0](invoke-removal-ports.md#port-45b0eb6aaab0)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-17a917c916a3** `app/host_window_event`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/host_window_event.hpp](../../../include/openswd3/app/host_window_event.hpp)；[src/app/host_window_event.cpp](../../../src/app/host_window_event.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-8360f1767e6c** `app/idle_runtime`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/idle_runtime.hpp](../../../include/openswd3/app/idle_runtime.hpp)；[src/app/idle_runtime.cpp](../../../src/app/idle_runtime.cpp)。
   - 类型：[PORT-95e765f3bcaf](invoke-removal-ports.md#port-95e765f3bcaf)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-ab5e20069d62** `app/initialization`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/initialization.hpp](../../../include/openswd3/app/initialization.hpp)；[src/app/initialization.cpp](../../../src/app/initialization.cpp)。
   - 类型：[PORT-34f546f6ea95](invoke-removal-ports.md#port-34f546f6ea95)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-7526fad6a960** `app/legacy_new_game_transition`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/legacy_new_game_transition.hpp](../../../include/openswd3/app/legacy_new_game_transition.hpp)；[src/app/legacy_new_game_transition.cpp](../../../src/app/legacy_new_game_transition.cpp)。
   - 类型：[PORT-db41a19a4f4f](invoke-removal-ports.md#port-db41a19a4f4f)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-807b758eb669** `app/platform_backend_initialization`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/platform_backend_initialization.hpp](../../../include/openswd3/app/platform_backend_initialization.hpp)；[src/app/platform_backend_initialization.cpp](../../../src/app/platform_backend_initialization.cpp)。
   - 类型：[PORT-e6ec14094bc4](invoke-removal-ports.md#port-e6ec14094bc4)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-adad3be76227** `app/process_startup`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/process_startup.hpp](../../../include/openswd3/app/process_startup.hpp)；[src/app/process_startup.cpp](../../../src/app/process_startup.cpp)。
   - 类型：[PORT-94b597ca4098](invoke-removal-ports.md#port-94b597ca4098)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-7d264e7dc94b** `app/screenshot`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/screenshot.hpp](../../../include/openswd3/app/screenshot.hpp)；[src/app/screenshot.cpp](../../../src/app/screenshot.cpp)。
   - 类型：[PORT-331ae1e7a096](invoke-removal-ports.md#port-331ae1e7a096)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-b8af85a1c22a** `app/startup`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/startup.hpp](../../../include/openswd3/app/startup.hpp)；[src/app/startup.cpp](../../../src/app/startup.cpp)。
   - 类型：[PORT-d99e02f3609c](invoke-removal-ports.md#port-d99e02f3609c)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-9cbd6a882843** `app/startup_dialog`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/startup_dialog.hpp](../../../include/openswd3/app/startup_dialog.hpp)；[src/app/startup_dialog.cpp](../../../src/app/startup_dialog.cpp)。
   - 类型：[PORT-0271e5d485cf](invoke-removal-ports.md#port-0271e5d485cf)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-0eb65d1f3004** `app/window_events`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/window_events.hpp](../../../include/openswd3/app/window_events.hpp)；[src/app/window_events.cpp](../../../src/app/window_events.cpp)。
   - 类型：[PORT-e229428027e4](invoke-removal-ports.md#port-e229428027e4), [PORT-7bbd2a19d876](invoke-removal-ports.md#port-7bbd2a19d876), [PORT-98ae3f027e5d](invoke-removal-ports.md#port-98ae3f027e5d)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-5fc7c93ef05b** `asset_runtime/legacy_action_draw_bridge`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_action_draw_bridge.hpp](../../../include/openswd3/asset_runtime/legacy_action_draw_bridge.hpp)；[src/asset_runtime/legacy_action_draw_bridge.cpp](../../../src/asset_runtime/legacy_action_draw_bridge.cpp)。
   - 类型：[PORT-a736bd231a94](invoke-removal-ports.md#port-a736bd231a94), [PORT-7bc64e8c1dc4](invoke-removal-ports.md#port-7bc64e8c1dc4)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-f9deee1b0049** `asset_runtime/legacy_ani_activity`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_ani_activity.hpp](../../../include/openswd3/asset_runtime/legacy_ani_activity.hpp)；[src/asset_runtime/legacy_ani_activity.cpp](../../../src/asset_runtime/legacy_ani_activity.cpp)。
   - 类型：[PORT-f054803d8402](invoke-removal-ports.md#port-f054803d8402)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-f762841cfcba** `asset_runtime/legacy_ani_drift_effect`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_ani_drift_effect.hpp](../../../include/openswd3/asset_runtime/legacy_ani_drift_effect.hpp)；[src/asset_runtime/legacy_ani_drift_effect.cpp](../../../src/asset_runtime/legacy_ani_drift_effect.cpp)。
   - 类型：[PORT-67ef5828086f](invoke-removal-ports.md#port-67ef5828086f), [PORT-09c4355bd91b](invoke-removal-ports.md#port-09c4355bd91b), [PORT-abb3faee5b8d](invoke-removal-ports.md#port-abb3faee5b8d)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-2b12700ff6a4** `asset_runtime/legacy_ani_follower_effect`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_ani_follower_effect.hpp](../../../include/openswd3/asset_runtime/legacy_ani_follower_effect.hpp)；[src/asset_runtime/legacy_ani_follower_effect.cpp](../../../src/asset_runtime/legacy_ani_follower_effect.cpp)。
   - 类型：[PORT-e8fbbb8c7e03](invoke-removal-ports.md#port-e8fbbb8c7e03), [PORT-e8bc0053f21d](invoke-removal-ports.md#port-e8bc0053f21d)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-64c4470c49b7** `asset_runtime/legacy_ani_spark_effect`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_ani_spark_effect.hpp](../../../include/openswd3/asset_runtime/legacy_ani_spark_effect.hpp)；[src/asset_runtime/legacy_ani_spark_effect.cpp](../../../src/asset_runtime/legacy_ani_spark_effect.cpp)。
   - 类型：[PORT-ccd99c810ed4](invoke-removal-ports.md#port-ccd99c810ed4)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-0129f3368c24** `asset_runtime/legacy_ani_streak_effect`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_ani_streak_effect.hpp](../../../include/openswd3/asset_runtime/legacy_ani_streak_effect.hpp)；[src/asset_runtime/legacy_ani_streak_effect.cpp](../../../src/asset_runtime/legacy_ani_streak_effect.cpp)。
   - 类型：[PORT-73b0991c193b](invoke-removal-ports.md#port-73b0991c193b)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-3db8bc53a7b0** `asset_runtime/legacy_asset_cache_limits`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_asset_cache_limits.hpp](../../../include/openswd3/asset_runtime/legacy_asset_cache_limits.hpp)；[src/asset_runtime/legacy_asset_cache_limits.cpp](../../../src/asset_runtime/legacy_asset_cache_limits.cpp)。
   - 类型：[PORT-5ec7908b0939](invoke-removal-ports.md#port-5ec7908b0939)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-24695e768f2e** `audio_video/legacy_audio_coordination`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_audio_coordination.hpp](../../../include/openswd3/audio_video/legacy_audio_coordination.hpp)；[src/audio_video/legacy_audio_coordination.cpp](../../../src/audio_video/legacy_audio_coordination.cpp)。
   - 类型：[PORT-7f9d00e1572c](invoke-removal-ports.md#port-7f9d00e1572c)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-09de7d0e761d** `audio_video/legacy_media_acquisition`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_media_acquisition.hpp](../../../include/openswd3/audio_video/legacy_media_acquisition.hpp)；[src/audio_video/legacy_media_acquisition.cpp](../../../src/audio_video/legacy_media_acquisition.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-3ea8dd1ad454** `audio_video/legacy_video`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_video.hpp](../../../include/openswd3/audio_video/legacy_video.hpp)；[src/audio_video/legacy_video.cpp](../../../src/audio_video/legacy_video.cpp)。
   - 类型：[PORT-cbc1b7b01790](invoke-removal-ports.md#port-cbc1b7b01790)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-a006e2bd831d** `audio_video/legacy_world_music`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_world_music.hpp](../../../include/openswd3/audio_video/legacy_world_music.hpp)；[src/audio_video/legacy_world_music.cpp](../../../src/audio_video/legacy_world_music.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-7443d06cd0fc** `battle/legacy_battle_action_rotation_resources`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_action_rotation_resources.hpp](../../../include/openswd3/battle/legacy_battle_action_rotation_resources.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-3ba8001da183** `battle/legacy_battle_actor_action_kind`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_action_kind.hpp](../../../include/openswd3/battle/legacy_battle_actor_action_kind.hpp)；[src/battle/legacy_battle_actor_action_kind.cpp](../../../src/battle/legacy_battle_actor_action_kind.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-087fd718e640** `battle/legacy_battle_actor_action_mode`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_action_mode.hpp](../../../include/openswd3/battle/legacy_battle_actor_action_mode.hpp)；[src/battle/legacy_battle_actor_action_mode.cpp](../../../src/battle/legacy_battle_actor_action_mode.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-e4f9e427e384** `battle/legacy_battle_actor_availability_block`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_availability_block.hpp](../../../include/openswd3/battle/legacy_battle_actor_availability_block.hpp)；[src/battle/legacy_battle_actor_availability_block.cpp](../../../src/battle/legacy_battle_actor_availability_block.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-2a3b0639c609** `battle/legacy_battle_actor_base_initialization`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_base_initialization.hpp](../../../include/openswd3/battle/legacy_battle_actor_base_initialization.hpp)；[include/openswd3/battle/legacy_battle_actor_lifecycle.hpp](../../../include/openswd3/battle/legacy_battle_actor_lifecycle.hpp)；[src/battle/legacy_battle_actor_base_initialization.cpp](../../../src/battle/legacy_battle_actor_base_initialization.cpp)；[src/battle/legacy_battle_actor_lifecycle.cpp](../../../src/battle/legacy_battle_actor_lifecycle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-8dfba362685e** `battle/legacy_battle_actor_base_release`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_base_release.hpp](../../../include/openswd3/battle/legacy_battle_actor_base_release.hpp)；[include/openswd3/battle/legacy_battle_actor_lifecycle.hpp](../../../include/openswd3/battle/legacy_battle_actor_lifecycle.hpp)；[src/battle/legacy_battle_actor_base_release.cpp](../../../src/battle/legacy_battle_actor_base_release.cpp)；[src/battle/legacy_battle_actor_lifecycle.cpp](../../../src/battle/legacy_battle_actor_lifecycle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-359382e0d7e0** `battle/legacy_battle_actor_display_kind`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_display_kind.hpp](../../../include/openswd3/battle/legacy_battle_actor_display_kind.hpp)；[src/battle/legacy_battle_actor_display_kind.cpp](../../../src/battle/legacy_battle_actor_display_kind.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-44345655d97c** `battle/legacy_battle_actor_field_26b8_high_bit_clear`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_field_26b8_high_bit_clear.hpp](../../../include/openswd3/battle/legacy_battle_actor_field_26b8_high_bit_clear.hpp)；[src/battle/legacy_battle_actor_field_26b8_high_bit_clear.cpp](../../../src/battle/legacy_battle_actor_field_26b8_high_bit_clear.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-f897e988d7ac** `battle/legacy_battle_actor_idle_state`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_idle_state.hpp](../../../include/openswd3/battle/legacy_battle_actor_idle_state.hpp)；[src/battle/legacy_battle_actor_idle_state.cpp](../../../src/battle/legacy_battle_actor_idle_state.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-06caabd40026** `battle/legacy_battle_actor_lifecycle`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_lifecycle.hpp](../../../include/openswd3/battle/legacy_battle_actor_lifecycle.hpp)；[src/battle/legacy_battle_actor_lifecycle.cpp](../../../src/battle/legacy_battle_actor_lifecycle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-5992dcc2aeea** `battle/legacy_battle_actor_message_percent_refresh`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_message_percent_refresh.hpp](../../../include/openswd3/battle/legacy_battle_actor_message_percent_refresh.hpp)；[src/battle/legacy_battle_actor_message_percent_refresh.cpp](../../../src/battle/legacy_battle_actor_message_percent_refresh.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-71328137a7aa** `battle/legacy_battle_actor_start_gate`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_start_gate.hpp](../../../include/openswd3/battle/legacy_battle_actor_start_gate.hpp)；[src/battle/legacy_battle_actor_start_gate.cpp](../../../src/battle/legacy_battle_actor_start_gate.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-c33fdd484a6a** `battle/legacy_battle_actor_start_gate_increment`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_start_gate_increment.hpp](../../../include/openswd3/battle/legacy_battle_actor_start_gate_increment.hpp)；[src/battle/legacy_battle_actor_start_gate_increment.cpp](../../../src/battle/legacy_battle_actor_start_gate_increment.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-f8eaea4fa41a** `battle/legacy_battle_actor_start_gate_latch_query`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_start_gate_latch_query.hpp](../../../include/openswd3/battle/legacy_battle_actor_start_gate_latch_query.hpp)；[src/battle/legacy_battle_actor_start_gate_latch_query.cpp](../../../src/battle/legacy_battle_actor_start_gate_latch_query.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-66a0ae0cf41b** `battle/legacy_battle_actor_startup_reset`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_startup_reset.hpp](../../../include/openswd3/battle/legacy_battle_actor_startup_reset.hpp)；[src/battle/legacy_battle_actor_startup_reset.cpp](../../../src/battle/legacy_battle_actor_startup_reset.cpp)。
   - 类型：[PORT-78f64a54c45e](invoke-removal-ports.md#port-78f64a54c45e), [PORT-97d222967168](invoke-removal-ports.md#port-97d222967168)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-809dd4fc17dd** `battle/legacy_battle_actor_target_selection_count_increment`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_target_selection_count_increment.hpp](../../../include/openswd3/battle/legacy_battle_actor_target_selection_count_increment.hpp)；[src/battle/legacy_battle_actor_target_selection_count_increment.cpp](../../../src/battle/legacy_battle_actor_target_selection_count_increment.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-55a716327eff** `battle/legacy_battle_actor_target_selection_count_query`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_target_selection_count_query.hpp](../../../include/openswd3/battle/legacy_battle_actor_target_selection_count_query.hpp)；[src/battle/legacy_battle_actor_target_selection_count_query.cpp](../../../src/battle/legacy_battle_actor_target_selection_count_query.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-28835bd2bfb5** `battle/legacy_battle_actor_target_selection_latch_query`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_target_selection_latch_query.hpp](../../../include/openswd3/battle/legacy_battle_actor_target_selection_latch_query.hpp)；[src/battle/legacy_battle_actor_target_selection_latch_query.cpp](../../../src/battle/legacy_battle_actor_target_selection_latch_query.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-3147f719b21d** `battle/legacy_battle_actor_target_selection_latch_set`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_target_selection_latch_set.hpp](../../../include/openswd3/battle/legacy_battle_actor_target_selection_latch_set.hpp)；[src/battle/legacy_battle_actor_target_selection_latch_set.cpp](../../../src/battle/legacy_battle_actor_target_selection_latch_set.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-eeab47ee6ec7** `battle/legacy_battle_actor_turn_completion`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_turn_completion.hpp](../../../include/openswd3/battle/legacy_battle_actor_turn_completion.hpp)；[src/battle/legacy_battle_actor_turn_completion.cpp](../../../src/battle/legacy_battle_actor_turn_completion.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-90fe404ab974** `battle/legacy_battle_attack_order_dequeue`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_attack_order_dequeue.hpp](../../../include/openswd3/battle/legacy_battle_attack_order_dequeue.hpp)；[include/openswd3/battle/legacy_battle_frame_selection.hpp](../../../include/openswd3/battle/legacy_battle_frame_selection.hpp)；[src/battle/legacy_battle_attack_order_dequeue.cpp](../../../src/battle/legacy_battle_attack_order_dequeue.cpp)；[src/battle/legacy_battle_frame_selection.cpp](../../../src/battle/legacy_battle_frame_selection.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-1d2829a6c415** `battle/legacy_battle_attack_order_entry`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_attack_order_entry.hpp](../../../include/openswd3/battle/legacy_battle_attack_order_entry.hpp)；[src/battle/legacy_battle_attack_order_entry.cpp](../../../src/battle/legacy_battle_attack_order_entry.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-cf32f5364376** `battle/legacy_battle_attack_order_insert`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_attack_order_insert.hpp](../../../include/openswd3/battle/legacy_battle_attack_order_insert.hpp)；[src/battle/legacy_battle_attack_order_insert.cpp](../../../src/battle/legacy_battle_attack_order_insert.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-bcb81dd1d7f5** `battle/legacy_battle_attack_order_remove`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_attack_order_remove.hpp](../../../include/openswd3/battle/legacy_battle_attack_order_remove.hpp)；[src/battle/legacy_battle_attack_order_remove.cpp](../../../src/battle/legacy_battle_attack_order_remove.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-45a3372aa999** `battle/legacy_battle_debug_state`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_debug_state.hpp](../../../include/openswd3/battle/legacy_battle_debug_state.hpp)。
   - 类型：[PORT-b505b28f9b0d](invoke-removal-ports.md#port-b505b28f9b0d), [PORT-1b5a6c2e0ec3](invoke-removal-ports.md#port-1b5a6c2e0ec3)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-8cdb47b3067e** `battle/legacy_battle_definition_archive`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_definition_archive.hpp](../../../include/openswd3/battle/legacy_battle_definition_archive.hpp)；[src/battle/legacy_battle_definition_archive.cpp](../../../src/battle/legacy_battle_definition_archive.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-04a10e318812** `battle/legacy_battle_display_surface_runtime`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_display_surface_runtime.hpp](../../../include/openswd3/battle/legacy_battle_display_surface_runtime.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-24155353f482** `battle/legacy_battle_file_lifecycle`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_file_lifecycle.hpp](../../../include/openswd3/battle/legacy_battle_file_lifecycle.hpp)；[src/battle/legacy_battle_file_lifecycle.cpp](../../../src/battle/legacy_battle_file_lifecycle.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-b3dea06844c3** `battle/legacy_battle_fixed_count_chain`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_fixed_count_chain.hpp](../../../include/openswd3/battle/legacy_battle_fixed_count_chain.hpp)；[src/battle/legacy_battle_fixed_count_chain.cpp](../../../src/battle/legacy_battle_fixed_count_chain.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-c4b18246fd2b** `battle/legacy_battle_fixed_object_reset`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_fixed_object_reset.hpp](../../../include/openswd3/battle/legacy_battle_fixed_object_reset.hpp)；[src/battle/legacy_battle_fixed_object_reset.cpp](../../../src/battle/legacy_battle_fixed_object_reset.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-9d4adfc75ccd** `battle/legacy_battle_frame_completion`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_frame_completion.hpp](../../../include/openswd3/battle/legacy_battle_frame_completion.hpp)；[src/battle/legacy_battle_frame_completion.cpp](../../../src/battle/legacy_battle_frame_completion.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-36be8d436c29** `battle/legacy_battle_frame_effect_control`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_frame_effect_control.hpp](../../../include/openswd3/battle/legacy_battle_frame_effect_control.hpp)。
   - 类型：[PORT-5e1aa8e7b00a](invoke-removal-ports.md#port-5e1aa8e7b00a)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-d07375a49360** `battle/legacy_battle_frame_input_resolution_state`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_frame_input_resolution_state.hpp](../../../include/openswd3/battle/legacy_battle_frame_input_resolution_state.hpp)。
   - 类型：[PORT-75c4b984e77a](invoke-removal-ports.md#port-75c4b984e77a)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-4a7c890477b1** `battle/legacy_battle_frame_music_prefix`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_frame_music_prefix.hpp](../../../include/openswd3/battle/legacy_battle_frame_music_prefix.hpp)；[src/battle/legacy_battle_frame_music_prefix.cpp](../../../src/battle/legacy_battle_frame_music_prefix.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-11b870391807** `battle/legacy_battle_frame_refresh`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_frame_refresh.hpp](../../../include/openswd3/battle/legacy_battle_frame_refresh.hpp)；[src/battle/legacy_battle_frame_refresh.cpp](../../../src/battle/legacy_battle_frame_refresh.cpp)。
   - 类型：[PORT-6ea02dfb62aa](invoke-removal-ports.md#port-6ea02dfb62aa)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-969cf7aa084b** `battle/legacy_battle_frame_selection`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_frame_selection.hpp](../../../include/openswd3/battle/legacy_battle_frame_selection.hpp)；[src/battle/legacy_battle_frame_selection.cpp](../../../src/battle/legacy_battle_frame_selection.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-4b884467a629** `battle/legacy_battle_group_a_resource_cleanup`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_resource_cleanup.hpp](../../../include/openswd3/battle/legacy_battle_group_a_resource_cleanup.hpp)；[src/battle/legacy_battle_group_a_resource_cleanup.cpp](../../../src/battle/legacy_battle_group_a_resource_cleanup.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-9058bf93f453** `battle/legacy_battle_group_a_reward_profile_state`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_reward_profile_state.hpp](../../../include/openswd3/battle/legacy_battle_group_a_reward_profile_state.hpp)。
   - 类型：[PORT-164486c15a77](invoke-removal-ports.md#port-164486c15a77)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-ac2732988f31** `battle/legacy_battle_group_a_startup_reset`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_startup_reset.hpp](../../../include/openswd3/battle/legacy_battle_group_a_startup_reset.hpp)；[src/battle/legacy_battle_group_a_startup_reset.cpp](../../../src/battle/legacy_battle_group_a_startup_reset.cpp)。
   - 类型：[PORT-ba1fcfb22dfa](invoke-removal-ports.md#port-ba1fcfb22dfa)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-d6e12fed867f** `battle/legacy_battle_group_a_storage`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_storage.hpp](../../../include/openswd3/battle/legacy_battle_group_a_storage.hpp)；[src/battle/legacy_battle_group_a_storage.cpp](../../../src/battle/legacy_battle_group_a_storage.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-a77b7620211f** `battle/legacy_battle_group_b_resource_cleanup`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_resource_cleanup.hpp](../../../include/openswd3/battle/legacy_battle_group_b_resource_cleanup.hpp)；[src/battle/legacy_battle_group_b_resource_cleanup.cpp](../../../src/battle/legacy_battle_group_b_resource_cleanup.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-026ed1750c8c** `battle/legacy_battle_group_b_startup_reset`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_startup_reset.hpp](../../../include/openswd3/battle/legacy_battle_group_b_startup_reset.hpp)；[src/battle/legacy_battle_group_b_startup_reset.cpp](../../../src/battle/legacy_battle_group_b_startup_reset.cpp)。
   - 类型：[PORT-6c8d111752ec](invoke-removal-ports.md#port-6c8d111752ec)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-4f3251e309c9** `battle/legacy_battle_group_b_storage`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_storage.hpp](../../../include/openswd3/battle/legacy_battle_group_b_storage.hpp)；[src/battle/legacy_battle_group_b_storage.cpp](../../../src/battle/legacy_battle_group_b_storage.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-4fa5e6a2383f** `battle/legacy_battle_growth_completion_caption`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_growth_completion_caption.hpp](../../../include/openswd3/battle/legacy_battle_growth_completion_caption.hpp)；[src/battle/legacy_battle_growth_completion_caption.cpp](../../../src/battle/legacy_battle_growth_completion_caption.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-5a07e249d289** `battle/legacy_battle_mon_file_runtime`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_mon_file_runtime.hpp](../../../include/openswd3/battle/legacy_battle_mon_file_runtime.hpp)；[src/battle/legacy_battle_mon_file_runtime.cpp](../../../src/battle/legacy_battle_mon_file_runtime.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-41d9b3022995** `battle/legacy_battle_mon_stream_runtime`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_mon_stream_runtime.hpp](../../../include/openswd3/battle/legacy_battle_mon_stream_runtime.hpp)；[src/battle/legacy_battle_mon_stream_runtime.cpp](../../../src/battle/legacy_battle_mon_stream_runtime.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-0e6ac6f49506** `battle/legacy_battle_mon_text_runtime`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_mon_text_runtime.hpp](../../../include/openswd3/battle/legacy_battle_mon_text_runtime.hpp)；[src/battle/legacy_battle_mon_text_runtime.cpp](../../../src/battle/legacy_battle_mon_text_runtime.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-4b43e6b94ab7** `battle/legacy_battle_outcome_state`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_outcome_state.hpp](../../../include/openswd3/battle/legacy_battle_outcome_state.hpp)。
   - 类型：[PORT-d2d6d7766342](invoke-removal-ports.md#port-d2d6d7766342)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-cc50a503ec21** `battle/legacy_battle_player_item_quantity`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_player_item_quantity.hpp](../../../include/openswd3/battle/legacy_battle_player_item_quantity.hpp)；[src/battle/legacy_battle_player_item_quantity.cpp](../../../src/battle/legacy_battle_player_item_quantity.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-13ef6fa5de7a** `battle/legacy_battle_render_geometry`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_render_geometry.hpp](../../../include/openswd3/battle/legacy_battle_render_geometry.hpp)；[src/battle/legacy_battle_render_geometry.cpp](../../../src/battle/legacy_battle_render_geometry.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-f3d9a96baa55** `battle/legacy_battle_runtime_shutdown`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_runtime_shutdown.hpp](../../../include/openswd3/battle/legacy_battle_runtime_shutdown.hpp)；[src/battle/legacy_battle_runtime_shutdown.cpp](../../../src/battle/legacy_battle_runtime_shutdown.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-e91fed87c6c7** `battle/legacy_battle_screen_flash`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`verified`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_screen_flash.hpp](../../../include/openswd3/battle/legacy_battle_screen_flash.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-a2d76b267fa2** `battle/legacy_battle_shared_phase`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_shared_phase.hpp](../../../include/openswd3/battle/legacy_battle_shared_phase.hpp)。
   - 类型：[PORT-d0741dd9f3ec](invoke-removal-ports.md#port-d0741dd9f3ec)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-7c24287fd730** `battle/legacy_battle_single_effect_frame`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_single_effect_frame.hpp](../../../include/openswd3/battle/legacy_battle_single_effect_frame.hpp)；[src/battle/legacy_battle_single_effect_frame.cpp](../../../src/battle/legacy_battle_single_effect_frame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-f472b6e459a1** `include/openswd3/app/display_refresh.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/display_refresh.hpp](../../../include/openswd3/app/display_refresh.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-786ff07130cf** `include/openswd3/app/frame_dispatch.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/app/frame_dispatch.hpp](../../../include/openswd3/app/frame_dispatch.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-1c08dc5f2980** `include/openswd3/asset_runtime/legacy_act_archive.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_act_archive.hpp](../../../include/openswd3/asset_runtime/legacy_act_archive.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ce8fdd0e25e6** `include/openswd3/asset_runtime/legacy_act_runtime.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_act_runtime.hpp](../../../include/openswd3/asset_runtime/legacy_act_runtime.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-9036882c10d3** `include/openswd3/asset_runtime/legacy_ani_archive.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_ani_archive.hpp](../../../include/openswd3/asset_runtime/legacy_ani_archive.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-91d701eceabd** `include/openswd3/asset_runtime/legacy_ani_row_copy_effect.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_ani_row_copy_effect.hpp](../../../include/openswd3/asset_runtime/legacy_ani_row_copy_effect.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-061bf21cd37f** `include/openswd3/asset_runtime/legacy_guest_address_reservation.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_guest_address_reservation.hpp](../../../include/openswd3/asset_runtime/legacy_guest_address_reservation.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-aeb4a7a66054** `include/openswd3/asset_runtime/legacy_tsw_archive.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_tsw_archive.hpp](../../../include/openswd3/asset_runtime/legacy_tsw_archive.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-abdf7b348626** `include/openswd3/asset_runtime/legacy_tsw_runtime.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/asset_runtime/legacy_tsw_runtime.hpp](../../../include/openswd3/asset_runtime/legacy_tsw_runtime.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-34328959bbf4** `include/openswd3/audio_video/legacy_audio_output.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_audio_output.hpp](../../../include/openswd3/audio_video/legacy_audio_output.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-6ed38f8a02b4** `include/openswd3/audio_video/legacy_audio_parameters.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_audio_parameters.hpp](../../../include/openswd3/audio_video/legacy_audio_parameters.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ffa24337c12a** `include/openswd3/audio_video/legacy_sample_commands.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_sample_commands.hpp](../../../include/openswd3/audio_video/legacy_sample_commands.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-d6566842cdb1** `include/openswd3/audio_video/legacy_sample_manager.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_sample_manager.hpp](../../../include/openswd3/audio_video/legacy_sample_manager.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-eab189588def** `include/openswd3/audio_video/legacy_sequence_manager.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_sequence_manager.hpp](../../../include/openswd3/audio_video/legacy_sequence_manager.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-84f4dfc92253** `include/openswd3/audio_video/legacy_snd_archive.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_snd_archive.hpp](../../../include/openswd3/audio_video/legacy_snd_archive.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ff0ed3330b82** `include/openswd3/audio_video/legacy_stream_commands.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_stream_commands.hpp](../../../include/openswd3/audio_video/legacy_stream_commands.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-7cc97e2a9fac** `include/openswd3/audio_video/legacy_stream_manager.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/audio_video/legacy_stream_manager.hpp](../../../include/openswd3/audio_video/legacy_stream_manager.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-135995198788** `include/openswd3/battle/legacy_battle_actor_field_26c0.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_field_26c0.hpp](../../../include/openswd3/battle/legacy_battle_actor_field_26c0.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-f6ce9e01c04b** `include/openswd3/battle/legacy_battle_actor_frame_raw_block.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_actor_frame_raw_block.hpp](../../../include/openswd3/battle/legacy_battle_actor_frame_raw_block.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-08984e863508** `include/openswd3/battle/legacy_battle_assets.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_assets.hpp](../../../include/openswd3/battle/legacy_battle_assets.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-71c69e358381** `include/openswd3/battle/legacy_battle_auxiliary_record.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_auxiliary_record.hpp](../../../include/openswd3/battle/legacy_battle_auxiliary_record.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-610d84ea0fcd** `include/openswd3/battle/legacy_battle_color_fade.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_color_fade.hpp](../../../include/openswd3/battle/legacy_battle_color_fade.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-0a028220ae20** `include/openswd3/battle/legacy_battle_directional_scan.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_directional_scan.hpp](../../../include/openswd3/battle/legacy_battle_directional_scan.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-b5be6a1613fc** `include/openswd3/battle/legacy_battle_exit_cleanups.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_exit_cleanups.hpp](../../../include/openswd3/battle/legacy_battle_exit_cleanups.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-033fb46a8d93** `include/openswd3/battle/legacy_battle_group_a_action_execution_state.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_action_execution_state.hpp](../../../include/openswd3/battle/legacy_battle_group_a_action_execution_state.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-95249969eec2** `include/openswd3/battle/legacy_battle_group_a_final_processing_state.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_final_processing_state.hpp](../../../include/openswd3/battle/legacy_battle_group_a_final_processing_state.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-b140bce2c5e9** `include/openswd3/battle/legacy_battle_group_b_order.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_group_b_order.hpp](../../../include/openswd3/battle/legacy_battle_group_b_order.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-b9777719352a** `include/openswd3/battle/legacy_battle_image_rotation.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_image_rotation.hpp](../../../include/openswd3/battle/legacy_battle_image_rotation.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-0e7adb97036d** `include/openswd3/battle/legacy_battle_mon_text.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_mon_text.hpp](../../../include/openswd3/battle/legacy_battle_mon_text.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-42b4513a4abd** `include/openswd3/battle/legacy_battle_music_path.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_music_path.hpp](../../../include/openswd3/battle/legacy_battle_music_path.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-360429056701** `include/openswd3/battle/legacy_battle_particle_frame.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_particle_frame.hpp](../../../include/openswd3/battle/legacy_battle_particle_frame.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-3183a0941ff9** `include/openswd3/battle/legacy_battle_particle_spawn.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_particle_spawn.hpp](../../../include/openswd3/battle/legacy_battle_particle_spawn.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-be21f646f049** `include/openswd3/battle/legacy_battle_save_fame.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_save_fame.hpp](../../../include/openswd3/battle/legacy_battle_save_fame.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-23043502b1b0** `include/openswd3/battle/legacy_battle_save_party_extension.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_save_party_extension.hpp](../../../include/openswd3/battle/legacy_battle_save_party_extension.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-48ec300729aa** `include/openswd3/battle/legacy_battle_script_curve.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_script_curve.hpp](../../../include/openswd3/battle/legacy_battle_script_curve.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-8645faa143f1** `include/openswd3/battle/legacy_battle_setup.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_setup.hpp](../../../include/openswd3/battle/legacy_battle_setup.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-7e971a6d0de9** `include/openswd3/battle/legacy_battle_timing.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/battle/legacy_battle_timing.hpp](../../../include/openswd3/battle/legacy_battle_timing.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-c39b7534624c** `include/openswd3/compat/legacy_decimal.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/compat/legacy_decimal.hpp](../../../include/openswd3/compat/legacy_decimal.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-eaf0dc6b61cb** `include/openswd3/compat/legacy_stubs.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/compat/legacy_stubs.hpp](../../../include/openswd3/compat/legacy_stubs.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-42f85108d353** `include/openswd3/compat/types.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/compat/types.hpp](../../../include/openswd3/compat/types.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-c5b1db9e8ac3** `include/openswd3/diagnostics/log.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/diagnostics/log.hpp](../../../include/openswd3/diagnostics/log.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-773250dd4569** `include/openswd3/input_time_rng/legacy_crt_rng.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/input_time_rng/legacy_crt_rng.hpp](../../../include/openswd3/input_time_rng/legacy_crt_rng.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-548b3ea39c0e** `include/openswd3/input_time_rng/legacy_frame_clock.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/input_time_rng/legacy_frame_clock.hpp](../../../include/openswd3/input_time_rng/legacy_frame_clock.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-d8a6ec61bcfa** `include/openswd3/input_time_rng/legacy_input.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/input_time_rng/legacy_input.hpp](../../../include/openswd3/input_time_rng/legacy_input.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ed1a64314e65** `include/openswd3/input_time_rng/legacy_secondary_rng.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/input_time_rng/legacy_secondary_rng.hpp](../../../include/openswd3/input_time_rng/legacy_secondary_rng.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-971cb30349a7** `include/openswd3/media_ffmpeg/legacy_ffmpeg_backends.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/media_ffmpeg/legacy_ffmpeg_backends.hpp](../../../include/openswd3/media_ffmpeg/legacy_ffmpeg_backends.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-95eefeec4942** `include/openswd3/rendering/legacy_blitter.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_blitter.hpp](../../../include/openswd3/rendering/legacy_blitter.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-a3be53f91a02** `include/openswd3/rendering/legacy_fixed_tile_writer.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_fixed_tile_writer.hpp](../../../include/openswd3/rendering/legacy_fixed_tile_writer.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-9960c8c12c31** `include/openswd3/rendering/legacy_frame_color.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_frame_color.hpp](../../../include/openswd3/rendering/legacy_frame_color.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-554cdc267bae** `include/openswd3/rendering/legacy_framebuffer.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_framebuffer.hpp](../../../include/openswd3/rendering/legacy_framebuffer.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-8ac31b50eb92** `include/openswd3/rendering/legacy_glyph_atlas.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_glyph_atlas.hpp](../../../include/openswd3/rendering/legacy_glyph_atlas.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-bb2e9cf6579d** `include/openswd3/rendering/legacy_glyph_cache.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_glyph_cache.hpp](../../../include/openswd3/rendering/legacy_glyph_cache.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-2f567fa74bbe** `include/openswd3/rendering/legacy_glyph_writer.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_glyph_writer.hpp](../../../include/openswd3/rendering/legacy_glyph_writer.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-39173a913eb8** `include/openswd3/rendering/legacy_image_command_stream.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_image_command_stream.hpp](../../../include/openswd3/rendering/legacy_image_command_stream.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-96671df4a1fb** `include/openswd3/rendering/legacy_packed_row.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_packed_row.hpp](../../../include/openswd3/rendering/legacy_packed_row.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-c5902707e147** `include/openswd3/rendering/legacy_pixel_conversion.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_pixel_conversion.hpp](../../../include/openswd3/rendering/legacy_pixel_conversion.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-adbc3617973a** `include/openswd3/rendering/legacy_rectangle_effect.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_rectangle_effect.hpp](../../../include/openswd3/rendering/legacy_rectangle_effect.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-daf7ec509435** `include/openswd3/rendering/legacy_scaled_rle_writer.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_scaled_rle_writer.hpp](../../../include/openswd3/rendering/legacy_scaled_rle_writer.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-3abea59ab033** `include/openswd3/rendering/legacy_text_renderer.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_text_renderer.hpp](../../../include/openswd3/rendering/legacy_text_renderer.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-1af47af72e6f** `include/openswd3/rendering/legacy_text_renderer_runtime.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_text_renderer_runtime.hpp](../../../include/openswd3/rendering/legacy_text_renderer_runtime.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-4db8385aab2e** `include/openswd3/resource_io/legacy_cm_cache.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/legacy_cm_cache.hpp](../../../include/openswd3/resource_io/legacy_cm_cache.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-b307ea1ed6d8** `include/openswd3/resource_io/legacy_dbcs_text_buffer.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/legacy_dbcs_text_buffer.hpp](../../../include/openswd3/resource_io/legacy_dbcs_text_buffer.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-b27814f9ae7b** `include/openswd3/resource_io/legacy_environment.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/legacy_environment.hpp](../../../include/openswd3/resource_io/legacy_environment.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-0c98255e11b6** `include/openswd3/resource_io/legacy_file.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/legacy_file.hpp](../../../include/openswd3/resource_io/legacy_file.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-e4afbffd2ebd** `include/openswd3/resource_io/legacy_lmf_archive.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/legacy_lmf_archive.hpp](../../../include/openswd3/resource_io/legacy_lmf_archive.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-bc85e376c033** `include/openswd3/resource_io/legacy_lzo1x.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/legacy_lzo1x.hpp](../../../include/openswd3/resource_io/legacy_lzo1x.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-e88c8f32946f** `include/openswd3/resource_io/legacy_memory_manager.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/legacy_memory_manager.hpp](../../../include/openswd3/resource_io/legacy_memory_manager.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-077279c3a3aa** `include/openswd3/resource_io/legacy_resource_databases.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/legacy_resource_databases.hpp](../../../include/openswd3/resource_io/legacy_resource_databases.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-13fb685ee960** `include/openswd3/resource_io/legacy_save_container.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/legacy_save_container.hpp](../../../include/openswd3/resource_io/legacy_save_container.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-1eaa128bf147** `include/openswd3/resource_io/legacy_save_slots.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/legacy_save_slots.hpp](../../../include/openswd3/resource_io/legacy_save_slots.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-76fdb291a451** `include/openswd3/resource_io/window_configuration.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/resource_io/window_configuration.hpp](../../../include/openswd3/resource_io/window_configuration.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-219971e56ad1** `include/openswd3/special_modes/legacy_save_preview.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/special_modes/legacy_save_preview.hpp](../../../include/openswd3/special_modes/legacy_save_preview.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ca64ccc0ffb9** `include/openswd3/story_scene/legacy_dialog_geometry.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/story_scene/legacy_dialog_geometry.hpp](../../../include/openswd3/story_scene/legacy_dialog_geometry.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-00887ddc2979** `include/openswd3/world_map/legacy_cm_cache_generator.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_cm_cache_generator.hpp](../../../include/openswd3/world_map/legacy_cm_cache_generator.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ffcb1d906713** `include/openswd3/world_map/legacy_cm_cache_loader.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_cm_cache_loader.hpp](../../../include/openswd3/world_map/legacy_cm_cache_loader.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ba4411a2e4a7** `include/openswd3/world_map/legacy_cm_cache_runtime.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_cm_cache_runtime.hpp](../../../include/openswd3/world_map/legacy_cm_cache_runtime.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-880002d32556** `include/openswd3/world_map/legacy_maps_world_database.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_maps_world_database.hpp](../../../include/openswd3/world_map/legacy_maps_world_database.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-dd92ef70420f** `include/openswd3/world_map/legacy_role_spatial_query.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_role_spatial_query.hpp](../../../include/openswd3/world_map/legacy_role_spatial_query.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-921b9cace168** `include/openswd3/world_map/legacy_world_background.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_background.hpp](../../../include/openswd3/world_map/legacy_world_background.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-69b38f3c7e73** `include/openswd3/world_map/legacy_world_builtin_colors.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_builtin_colors.hpp](../../../include/openswd3/world_map/legacy_world_builtin_colors.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-166b49f1c56d** `include/openswd3/world_map/legacy_world_camera_pan.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_camera_pan.hpp](../../../include/openswd3/world_map/legacy_world_camera_pan.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-acc89b791df0** `include/openswd3/world_map/legacy_world_direction_adjustment.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_direction_adjustment.hpp](../../../include/openswd3/world_map/legacy_world_direction_adjustment.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-0d73365e33f6** `include/openswd3/world_map/legacy_world_direction_input.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_direction_input.hpp](../../../include/openswd3/world_map/legacy_world_direction_input.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-236b57a25247** `include/openswd3/world_map/legacy_world_facing.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_facing.hpp](../../../include/openswd3/world_map/legacy_world_facing.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-d853fe9846d6** `include/openswd3/world_map/legacy_world_facing_role_query.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_facing_role_query.hpp](../../../include/openswd3/world_map/legacy_world_facing_role_query.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-4fb0323080a7** `include/openswd3/world_map/legacy_world_frame_tail.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_frame_tail.hpp](../../../include/openswd3/world_map/legacy_world_frame_tail.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-fb05808ba5de** `include/openswd3/world_map/legacy_world_interpolation.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_interpolation.hpp](../../../include/openswd3/world_map/legacy_world_interpolation.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-5c3654894fc7** `include/openswd3/world_map/legacy_world_map_business.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_map_business.hpp](../../../include/openswd3/world_map/legacy_world_map_business.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-3889981a9989** `include/openswd3/world_map/legacy_world_map_session.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_map_session.hpp](../../../include/openswd3/world_map/legacy_world_map_session.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-f4f6a8dd31f8** `include/openswd3/world_map/legacy_world_pathfinding.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_pathfinding.hpp](../../../include/openswd3/world_map/legacy_world_pathfinding.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-711311aacf5d** `include/openswd3/world_map/legacy_world_player_control.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_player_control.hpp](../../../include/openswd3/world_map/legacy_world_player_control.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-0df00273756c** `include/openswd3/world_map/legacy_world_player_motion.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_player_motion.hpp](../../../include/openswd3/world_map/legacy_world_player_motion.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-a98b92205621** `include/openswd3/world_map/legacy_world_render_session.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_render_session.hpp](../../../include/openswd3/world_map/legacy_world_render_session.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-2e7ee1ba1cb3** `include/openswd3/world_map/legacy_world_role_lookup.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_role_lookup.hpp](../../../include/openswd3/world_map/legacy_world_role_lookup.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-dd48f2d0a655** `include/openswd3/world_map/legacy_world_role_map_update.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_role_map_update.hpp](../../../include/openswd3/world_map/legacy_world_role_map_update.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-3562bd8467ea** `include/openswd3/world_map/legacy_world_role_post_materialization.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_role_post_materialization.hpp](../../../include/openswd3/world_map/legacy_world_role_post_materialization.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-17bf4ccfac37** `include/openswd3/world_map/legacy_world_role_preload.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_role_preload.hpp](../../../include/openswd3/world_map/legacy_world_role_preload.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-961a98f05a73** `include/openswd3/world_map/legacy_world_role_record.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_role_record.hpp](../../../include/openswd3/world_map/legacy_world_role_record.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-f4757fa64c3f** `include/openswd3/world_map/legacy_world_role_surface_occupancy.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_role_surface_occupancy.hpp](../../../include/openswd3/world_map/legacy_world_role_surface_occupancy.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-4142f61e4073** `include/openswd3/world_map/legacy_world_role_transfer.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_role_transfer.hpp](../../../include/openswd3/world_map/legacy_world_role_transfer.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-afdbe85d8879** `include/openswd3/world_map/legacy_world_runtime_session.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_runtime_session.hpp](../../../include/openswd3/world_map/legacy_world_runtime_session.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-78e2e4b757aa** `include/openswd3/world_map/legacy_world_selection_scroll.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_selection_scroll.hpp](../../../include/openswd3/world_map/legacy_world_selection_scroll.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-0ba9cbae2bb8** `include/openswd3/world_map/legacy_world_special_frame_loader.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_special_frame_loader.hpp](../../../include/openswd3/world_map/legacy_world_special_frame_loader.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-cc3ee8870ae8** `include/openswd3/world_map/legacy_world_story_paths.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_story_paths.hpp](../../../include/openswd3/world_map/legacy_world_story_paths.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-f52e3d5ca512** `include/openswd3/world_map/legacy_world_transient_reset.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_transient_reset.hpp](../../../include/openswd3/world_map/legacy_world_transient_reset.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-fc252db8afc4** `input_time_rng/legacy_mouse_frame_state`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/input_time_rng/legacy_mouse_frame_state.hpp](../../../include/openswd3/input_time_rng/legacy_mouse_frame_state.hpp)。
   - 类型：[PORT-7cb2fa0d8bbe](invoke-removal-ports.md#port-7cb2fa0d8bbe)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-1f87b5a55e66** `input_time_rng/legacy_text_input`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/input_time_rng/legacy_text_input.hpp](../../../include/openswd3/input_time_rng/legacy_text_input.hpp)；[src/input_time_rng/legacy_text_input.cpp](../../../src/input_time_rng/legacy_text_input.cpp)。
   - 类型：[PORT-f4bce2b0680e](invoke-removal-ports.md#port-f4bce2b0680e)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-63dc3d4adb95** `platform/external_launch_sdl3`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/external_launch_sdl3.cpp](../../../src/platform/sdl3/external_launch_sdl3.cpp)；[src/platform/sdl3/external_launch_sdl3.hpp](../../../src/platform/sdl3/external_launch_sdl3.hpp)。
   - 类型：[PORT-5f00d9c08b8b](invoke-removal-ports.md#port-5f00d9c08b8b)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-3c4fc927a928** `platform/single_instance`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/single_instance.hpp](../../../src/platform/sdl3/single_instance.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-98162d4c3c9c** `platform/startup_dialog_sdl3`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/startup_dialog_sdl3.cpp](../../../src/platform/sdl3/startup_dialog_sdl3.cpp)；[src/platform/sdl3/startup_dialog_sdl3.hpp](../../../src/platform/sdl3/startup_dialog_sdl3.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-69f879679e50** `platform/world_role_runtime_adapter`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/world_role_runtime_adapter.cpp](../../../src/platform/sdl3/world_role_runtime_adapter.cpp)；[src/platform/sdl3/world_role_runtime_adapter.hpp](../../../src/platform/sdl3/world_role_runtime_adapter.hpp)。
   - 类型：[PORT-20ac79adcfa2](invoke-removal-ports.md#port-20ac79adcfa2)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-80e424de3d9e** `rendering/legacy_bmp_writer`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_bmp_writer.hpp](../../../include/openswd3/rendering/legacy_bmp_writer.hpp)；[src/rendering/legacy_bmp_writer.cpp](../../../src/rendering/legacy_bmp_writer.cpp)。
   - 类型：[PORT-20458ee417fa](invoke-removal-ports.md#port-20458ee417fa)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-e093eb77d2d7** `rendering/legacy_effect_panel`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_effect_panel.hpp](../../../include/openswd3/rendering/legacy_effect_panel.hpp)；[src/rendering/legacy_effect_panel.cpp](../../../src/rendering/legacy_effect_panel.cpp)。
   - 类型：[PORT-6f7b7ea2473d](invoke-removal-ports.md#port-6f7b7ea2473d)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-fef825a327ae** `rendering/legacy_pause_overlay`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_pause_overlay.hpp](../../../include/openswd3/rendering/legacy_pause_overlay.hpp)；[src/rendering/legacy_pause_overlay.cpp](../../../src/rendering/legacy_pause_overlay.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-9d066b9bcff2** `rendering/legacy_presentation`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_presentation.hpp](../../../include/openswd3/rendering/legacy_presentation.hpp)；[src/rendering/legacy_presentation.cpp](../../../src/rendering/legacy_presentation.cpp)。
   - 类型：[PORT-7819f49903f3](invoke-removal-ports.md#port-7819f49903f3)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-17203c61746e** `rendering/legacy_timed_messages`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/rendering/legacy_timed_messages.hpp](../../../include/openswd3/rendering/legacy_timed_messages.hpp)；[src/rendering/legacy_timed_messages.cpp](../../../src/rendering/legacy_timed_messages.cpp)。
   - 类型：[PORT-3f093075afdf](invoke-removal-ports.md#port-3f093075afdf), [PORT-d645d7d74025](invoke-removal-ports.md#port-d645d7d74025), [PORT-8c97736660d8](invoke-removal-ports.md#port-8c97736660d8)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-2fddad5835b6** `special_modes/legacy_initial_menu`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/special_modes/legacy_initial_menu.hpp](../../../include/openswd3/special_modes/legacy_initial_menu.hpp)；[src/special_modes/legacy_initial_menu.cpp](../../../src/special_modes/legacy_initial_menu.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-5c5661d704d0** `src/app/display_refresh.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/app/display_refresh.cpp](../../../src/app/display_refresh.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-d52efcddf065** `src/app/frame_dispatch.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/app/frame_dispatch.cpp](../../../src/app/frame_dispatch.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-9895c0949acc** `src/asset_runtime/legacy_act_archive.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/asset_runtime/legacy_act_archive.cpp](../../../src/asset_runtime/legacy_act_archive.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ba46f5a622b0** `src/asset_runtime/legacy_act_runtime.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/asset_runtime/legacy_act_runtime.cpp](../../../src/asset_runtime/legacy_act_runtime.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-fb37d0afa977** `src/asset_runtime/legacy_ani_archive.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/asset_runtime/legacy_ani_archive.cpp](../../../src/asset_runtime/legacy_ani_archive.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-7820338fd40a** `src/asset_runtime/legacy_ani_row_copy_effect.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/asset_runtime/legacy_ani_row_copy_effect.cpp](../../../src/asset_runtime/legacy_ani_row_copy_effect.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-7a344a07e276** `src/asset_runtime/legacy_guest_address_reservation.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/asset_runtime/legacy_guest_address_reservation.cpp](../../../src/asset_runtime/legacy_guest_address_reservation.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-bdb8c3f30f23** `src/asset_runtime/legacy_tsw_archive.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/asset_runtime/legacy_tsw_archive.cpp](../../../src/asset_runtime/legacy_tsw_archive.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-d44256600c1f** `src/asset_runtime/legacy_tsw_runtime.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/asset_runtime/legacy_tsw_runtime.cpp](../../../src/asset_runtime/legacy_tsw_runtime.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-5b5280952e5c** `src/audio_video/legacy_audio_output.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/audio_video/legacy_audio_output.cpp](../../../src/audio_video/legacy_audio_output.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-f2b94ed65e2b** `src/audio_video/legacy_audio_parameters.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/audio_video/legacy_audio_parameters.cpp](../../../src/audio_video/legacy_audio_parameters.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-3e415150bc35** `src/audio_video/legacy_sample_commands.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/audio_video/legacy_sample_commands.cpp](../../../src/audio_video/legacy_sample_commands.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-72fadcaeae72** `src/audio_video/legacy_sample_manager.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/audio_video/legacy_sample_manager.cpp](../../../src/audio_video/legacy_sample_manager.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-5dac04e03a5e** `src/audio_video/legacy_sequence_manager.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/audio_video/legacy_sequence_manager.cpp](../../../src/audio_video/legacy_sequence_manager.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-f8f4c061cc96** `src/audio_video/legacy_snd_archive.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/audio_video/legacy_snd_archive.cpp](../../../src/audio_video/legacy_snd_archive.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-0448811aebb8** `src/audio_video/legacy_stream_commands.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/audio_video/legacy_stream_commands.cpp](../../../src/audio_video/legacy_stream_commands.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-e29e00487a08** `src/audio_video/legacy_stream_manager.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/audio_video/legacy_stream_manager.cpp](../../../src/audio_video/legacy_stream_manager.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-30f06c75ef13** `src/battle/legacy_battle_action_rotation_resources.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_action_rotation_resources.cpp](../../../src/battle/legacy_battle_action_rotation_resources.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-a1be1e196150** `src/battle/legacy_battle_actor_frame_flag_helpers.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_actor_frame_flag_helpers.hpp](../../../src/battle/legacy_battle_actor_frame_flag_helpers.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-e17f197fb062** `src/battle/legacy_battle_assets.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_assets.cpp](../../../src/battle/legacy_battle_assets.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-63cb37630fe1** `src/battle/legacy_battle_color_fade.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_color_fade.cpp](../../../src/battle/legacy_battle_color_fade.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-75c9b664534b** `src/battle/legacy_battle_directional_scan.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_directional_scan.cpp](../../../src/battle/legacy_battle_directional_scan.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-52ac7821404e** `src/battle/legacy_battle_display_surface_runtime.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_display_surface_runtime.cpp](../../../src/battle/legacy_battle_display_surface_runtime.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-482c7046c4d5** `src/battle/legacy_battle_image_rotation.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_image_rotation.cpp](../../../src/battle/legacy_battle_image_rotation.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-c12148c1cce8** `src/battle/legacy_battle_particle_frame.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_particle_frame.cpp](../../../src/battle/legacy_battle_particle_frame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-4abf02250c10** `src/battle/legacy_battle_particle_spawn.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_particle_spawn.cpp](../../../src/battle/legacy_battle_particle_spawn.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-a523544a06de** `src/battle/legacy_battle_save_fame.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_save_fame.cpp](../../../src/battle/legacy_battle_save_fame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-14146cbd0185** `src/battle/legacy_battle_save_party_extension.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_save_party_extension.cpp](../../../src/battle/legacy_battle_save_party_extension.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-b46709013ac5** `src/battle/legacy_battle_script_curve.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_script_curve.cpp](../../../src/battle/legacy_battle_script_curve.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-94cc9a8b2a4b** `src/battle/legacy_battle_setup.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_setup.cpp](../../../src/battle/legacy_battle_setup.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-cd55edc1f371** `src/battle/legacy_battle_timing.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/battle/legacy_battle_timing.cpp](../../../src/battle/legacy_battle_timing.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-9383da343c44** `src/compat/legacy_decimal.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/compat/legacy_decimal.cpp](../../../src/compat/legacy_decimal.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-a2471ba36ccd** `src/diagnostics/log.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/diagnostics/log.cpp](../../../src/diagnostics/log.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-6de624e384f8** `src/input_time_rng/legacy_crt_rng.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/input_time_rng/legacy_crt_rng.cpp](../../../src/input_time_rng/legacy_crt_rng.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-70ec053a5920** `src/input_time_rng/legacy_frame_clock.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/input_time_rng/legacy_frame_clock.cpp](../../../src/input_time_rng/legacy_frame_clock.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-94e08fcf7b03** `src/input_time_rng/legacy_input.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/input_time_rng/legacy_input.cpp](../../../src/input_time_rng/legacy_input.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-a58d67b43d6e** `src/input_time_rng/legacy_secondary_rng.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/input_time_rng/legacy_secondary_rng.cpp](../../../src/input_time_rng/legacy_secondary_rng.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-d6d81a870207** `src/platform/sdl3/event_translation.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/event_translation.cpp](../../../src/platform/sdl3/event_translation.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-d688c1892d0b** `src/platform/sdl3/event_translation.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/event_translation.hpp](../../../src/platform/sdl3/event_translation.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-95b11930e7ac** `src/platform/sdl3/external_uri.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/external_uri.cpp](../../../src/platform/sdl3/external_uri.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-d3de0a898d79** `src/platform/sdl3/external_uri.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/external_uri.hpp](../../../src/platform/sdl3/external_uri.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-1e7dedcae802** `src/platform/sdl3/keyboard_snapshot_sdl3.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/keyboard_snapshot_sdl3.cpp](../../../src/platform/sdl3/keyboard_snapshot_sdl3.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-d24bb190f3a9** `src/platform/sdl3/keyboard_snapshot_sdl3.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/keyboard_snapshot_sdl3.hpp](../../../src/platform/sdl3/keyboard_snapshot_sdl3.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-5594e13550d5** `src/platform/sdl3/legacy_ffmpeg_backends.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/legacy_ffmpeg_backends.cpp](../../../src/platform/sdl3/legacy_ffmpeg_backends.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-fa1a5d40575f** `src/platform/sdl3/mouse_sdl3.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/mouse_sdl3.cpp](../../../src/platform/sdl3/mouse_sdl3.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-fade2aea428f** `src/platform/sdl3/mouse_sdl3.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/mouse_sdl3.hpp](../../../src/platform/sdl3/mouse_sdl3.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-35ed2bf46339** `src/platform/sdl3/single_instance.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/single_instance.cpp](../../../src/platform/sdl3/single_instance.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ba755a60d08b** `src/platform/sdl3/text_encoding_sdl3.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/text_encoding_sdl3.cpp](../../../src/platform/sdl3/text_encoding_sdl3.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ca867733513d** `src/platform/sdl3/text_encoding_sdl3.hpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/platform/sdl3/text_encoding_sdl3.hpp](../../../src/platform/sdl3/text_encoding_sdl3.hpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-c5ca11dbb7f9** `src/rendering/legacy_fixed_tile_writer.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_fixed_tile_writer.cpp](../../../src/rendering/legacy_fixed_tile_writer.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-b139498c86f4** `src/rendering/legacy_frame_color.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_frame_color.cpp](../../../src/rendering/legacy_frame_color.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-29884e88261a** `src/rendering/legacy_framebuffer.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_framebuffer.cpp](../../../src/rendering/legacy_framebuffer.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-76ef51ade64e** `src/rendering/legacy_glyph_atlas.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_glyph_atlas.cpp](../../../src/rendering/legacy_glyph_atlas.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-b10d84cc43e6** `src/rendering/legacy_glyph_cache.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_glyph_cache.cpp](../../../src/rendering/legacy_glyph_cache.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-e0b3e7a06b5a** `src/rendering/legacy_glyph_writer.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_glyph_writer.cpp](../../../src/rendering/legacy_glyph_writer.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-652ed40b1cb2** `src/rendering/legacy_image_command_stream.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_image_command_stream.cpp](../../../src/rendering/legacy_image_command_stream.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-26fa487a2ee4** `src/rendering/legacy_packed_row.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_packed_row.cpp](../../../src/rendering/legacy_packed_row.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-61e6899583ac** `src/rendering/legacy_pixel_conversion.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_pixel_conversion.cpp](../../../src/rendering/legacy_pixel_conversion.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-34e59c041a10** `src/rendering/legacy_rectangle_effect.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_rectangle_effect.cpp](../../../src/rendering/legacy_rectangle_effect.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-28bd17b88140** `src/rendering/legacy_scaled_rle_writer.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_scaled_rle_writer.cpp](../../../src/rendering/legacy_scaled_rle_writer.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-218a59a666ab** `src/rendering/legacy_text_renderer.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_text_renderer.cpp](../../../src/rendering/legacy_text_renderer.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-26653b01ab65** `src/rendering/legacy_text_renderer_runtime.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/rendering/legacy_text_renderer_runtime.cpp](../../../src/rendering/legacy_text_renderer_runtime.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-189eb9838aaa** `src/resource_io/legacy_cm_cache.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/legacy_cm_cache.cpp](../../../src/resource_io/legacy_cm_cache.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-761c1222a592** `src/resource_io/legacy_dbcs_text_buffer.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/legacy_dbcs_text_buffer.cpp](../../../src/resource_io/legacy_dbcs_text_buffer.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-83704b3568fe** `src/resource_io/legacy_environment.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/legacy_environment.cpp](../../../src/resource_io/legacy_environment.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-68d28da0e03c** `src/resource_io/legacy_file.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/legacy_file.cpp](../../../src/resource_io/legacy_file.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-7b5b12825801** `src/resource_io/legacy_lmf_archive.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/legacy_lmf_archive.cpp](../../../src/resource_io/legacy_lmf_archive.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-12443b10cb29** `src/resource_io/legacy_lzo1x.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/legacy_lzo1x.cpp](../../../src/resource_io/legacy_lzo1x.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-7f49784a8f8c** `src/resource_io/legacy_lzo1x_compressor.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/legacy_lzo1x_compressor.cpp](../../../src/resource_io/legacy_lzo1x_compressor.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-d09b5ad9449d** `src/resource_io/legacy_memory_manager.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/legacy_memory_manager.cpp](../../../src/resource_io/legacy_memory_manager.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-f66ff47e787a** `src/resource_io/legacy_resource_databases.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/legacy_resource_databases.cpp](../../../src/resource_io/legacy_resource_databases.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-01fafa4f5568** `src/resource_io/legacy_save_container.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/legacy_save_container.cpp](../../../src/resource_io/legacy_save_container.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-2f8005c384fa** `src/resource_io/legacy_save_slots.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/legacy_save_slots.cpp](../../../src/resource_io/legacy_save_slots.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-34b4e09defd5** `src/resource_io/window_configuration.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/resource_io/window_configuration.cpp](../../../src/resource_io/window_configuration.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-9c38ba33274e** `src/special_modes/legacy_save_preview.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/special_modes/legacy_save_preview.cpp](../../../src/special_modes/legacy_save_preview.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-543947d018b9** `src/story_scene/legacy_dialog_geometry.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/story_scene/legacy_dialog_geometry.cpp](../../../src/story_scene/legacy_dialog_geometry.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-23bba239d9d3** `src/world_map/legacy_cm_cache_generator.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_cm_cache_generator.cpp](../../../src/world_map/legacy_cm_cache_generator.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ecdfba3b9790** `src/world_map/legacy_cm_cache_loader.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_cm_cache_loader.cpp](../../../src/world_map/legacy_cm_cache_loader.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-892e067c67d6** `src/world_map/legacy_cm_cache_runtime.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_cm_cache_runtime.cpp](../../../src/world_map/legacy_cm_cache_runtime.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-bbee39931e89** `src/world_map/legacy_maps_world_database.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_maps_world_database.cpp](../../../src/world_map/legacy_maps_world_database.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-f70a18623559** `src/world_map/legacy_role_spatial_query.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_role_spatial_query.cpp](../../../src/world_map/legacy_role_spatial_query.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-364a2d9b958e** `src/world_map/legacy_world_background.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_background.cpp](../../../src/world_map/legacy_world_background.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-21c5c99569b8** `src/world_map/legacy_world_builtin_colors.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_builtin_colors.cpp](../../../src/world_map/legacy_world_builtin_colors.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-48a5a56d74ff** `src/world_map/legacy_world_camera_pan.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_camera_pan.cpp](../../../src/world_map/legacy_world_camera_pan.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-d09677725461** `src/world_map/legacy_world_direction_adjustment.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_direction_adjustment.cpp](../../../src/world_map/legacy_world_direction_adjustment.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-58dc4d413777** `src/world_map/legacy_world_direction_input.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_direction_input.cpp](../../../src/world_map/legacy_world_direction_input.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-bce05682be8f** `src/world_map/legacy_world_facing.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_facing.cpp](../../../src/world_map/legacy_world_facing.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-505ebef80ddf** `src/world_map/legacy_world_facing_role_query.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_facing_role_query.cpp](../../../src/world_map/legacy_world_facing_role_query.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-3c133801bcdc** `src/world_map/legacy_world_frame_tail.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_frame_tail.cpp](../../../src/world_map/legacy_world_frame_tail.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-6771f51330ec** `src/world_map/legacy_world_interpolation.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_interpolation.cpp](../../../src/world_map/legacy_world_interpolation.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-0b685c3675ba** `src/world_map/legacy_world_map_business.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_map_business.cpp](../../../src/world_map/legacy_world_map_business.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-ebb756df97ea** `src/world_map/legacy_world_map_session.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_map_session.cpp](../../../src/world_map/legacy_world_map_session.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-c809b74a7b97** `src/world_map/legacy_world_pathfinding.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_pathfinding.cpp](../../../src/world_map/legacy_world_pathfinding.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-bdf69e196033** `src/world_map/legacy_world_player_control.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_player_control.cpp](../../../src/world_map/legacy_world_player_control.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-08d5bd5e73a9** `src/world_map/legacy_world_player_motion.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_player_motion.cpp](../../../src/world_map/legacy_world_player_motion.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-70f992576304** `src/world_map/legacy_world_render_session.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_render_session.cpp](../../../src/world_map/legacy_world_render_session.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-f10f829d0ada** `src/world_map/legacy_world_role_lookup.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_role_lookup.cpp](../../../src/world_map/legacy_world_role_lookup.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-2d91feee8713** `src/world_map/legacy_world_role_map_update.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_role_map_update.cpp](../../../src/world_map/legacy_world_role_map_update.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-b209162eb62f** `src/world_map/legacy_world_role_post_materialization.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_role_post_materialization.cpp](../../../src/world_map/legacy_world_role_post_materialization.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-a81c0cd91e38** `src/world_map/legacy_world_role_preload.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_role_preload.cpp](../../../src/world_map/legacy_world_role_preload.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-a88621a5e7fc** `src/world_map/legacy_world_role_transfer.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_role_transfer.cpp](../../../src/world_map/legacy_world_role_transfer.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-354e671fcdc6** `src/world_map/legacy_world_runtime_session.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_runtime_session.cpp](../../../src/world_map/legacy_world_runtime_session.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-e1d085361eae** `src/world_map/legacy_world_save_map_overrides.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_save_map_overrides.cpp](../../../src/world_map/legacy_world_save_map_overrides.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-5548629e126e** `src/world_map/legacy_world_save_restore.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_save_restore.cpp](../../../src/world_map/legacy_world_save_restore.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-3bbf3f3acabd** `src/world_map/legacy_world_selection_scroll.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_selection_scroll.cpp](../../../src/world_map/legacy_world_selection_scroll.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-62b7dddb379e** `src/world_map/legacy_world_special_frame_loader.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_special_frame_loader.cpp](../../../src/world_map/legacy_world_special_frame_loader.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-7bbd49c329a0** `src/world_map/legacy_world_story_paths.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_story_paths.cpp](../../../src/world_map/legacy_world_story_paths.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **FILE-894539f89f17** `src/world_map/legacy_world_transient_reset.cpp`
   - 当前残留信号：无关键词命中，仍待语义复核。
-  - 历史状态：`not_in_previous_inventory`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_transient_reset.cpp](../../../src/world_map/legacy_world_transient_reset.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-e093caf567da** `story_scene/legacy_dialog_control`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/story_scene/legacy_dialog_control.hpp](../../../include/openswd3/story_scene/legacy_dialog_control.hpp)；[src/story_scene/legacy_dialog_control.cpp](../../../src/story_scene/legacy_dialog_control.cpp)。
   - 类型：[PORT-c406ab9cca7d](invoke-removal-ports.md#port-c406ab9cca7d)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-f08c319a47b6** `story_scene/legacy_dialog_runtime`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/story_scene/legacy_dialog_runtime.hpp](../../../include/openswd3/story_scene/legacy_dialog_runtime.hpp)；[src/story_scene/legacy_dialog_runtime.cpp](../../../src/story_scene/legacy_dialog_runtime.cpp)。
   - 类型：[PORT-a9c84532fd9a](invoke-removal-ports.md#port-a9c84532fd9a)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-206c58b2a009** `story_scene/legacy_dialog_text`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/story_scene/legacy_dialog_text.hpp](../../../include/openswd3/story_scene/legacy_dialog_text.hpp)；[src/story_scene/legacy_dialog_text.cpp](../../../src/story_scene/legacy_dialog_text.cpp)。
   - 类型：[PORT-5560115ba4f6](invoke-removal-ports.md#port-5560115ba4f6)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-2efc12f64f13** `world_map/legacy_movement_collision`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_movement_collision.hpp](../../../include/openswd3/world_map/legacy_movement_collision.hpp)；[src/world_map/legacy_movement_collision.cpp](../../../src/world_map/legacy_movement_collision.cpp)。
   - 类型：[PORT-980920a4709e](invoke-removal-ports.md#port-980920a4709e), [PORT-12d0496618d5](invoke-removal-ports.md#port-12d0496618d5)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-e916d4c1ea31** `world_map/legacy_moving_actions`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_moving_actions.hpp](../../../include/openswd3/world_map/legacy_moving_actions.hpp)；[src/world_map/legacy_moving_actions.cpp](../../../src/world_map/legacy_moving_actions.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-4a5c1e8d4374** `world_map/legacy_picture_actions`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_picture_actions.hpp](../../../include/openswd3/world_map/legacy_picture_actions.hpp)；[src/world_map/legacy_picture_actions.cpp](../../../src/world_map/legacy_picture_actions.cpp)。
   - 类型：[PORT-d5fee01d31a7](invoke-removal-ports.md#port-d5fee01d31a7)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-09792c89ca57** `world_map/legacy_role_head_actions`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_role_head_actions.hpp](../../../include/openswd3/world_map/legacy_role_head_actions.hpp)；[src/world_map/legacy_role_head_actions.cpp](../../../src/world_map/legacy_role_head_actions.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-030818649640** `world_map/legacy_world_collision_talk`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_collision_talk.hpp](../../../include/openswd3/world_map/legacy_world_collision_talk.hpp)；[src/world_map/legacy_world_collision_talk.cpp](../../../src/world_map/legacy_world_collision_talk.cpp)。
   - 类型：[PORT-54a06032340a](invoke-removal-ports.md#port-54a06032340a)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-11fe98cbcf7c** `world_map/legacy_world_cursor`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_cursor.hpp](../../../include/openswd3/world_map/legacy_world_cursor.hpp)；[src/world_map/legacy_world_cursor.cpp](../../../src/world_map/legacy_world_cursor.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-de7f3edae674** `world_map/legacy_world_dialog_runtime`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_dialog_runtime.hpp](../../../include/openswd3/world_map/legacy_world_dialog_runtime.hpp)；[src/world_map/legacy_world_dialog_runtime.cpp](../../../src/world_map/legacy_world_dialog_runtime.cpp)。
   - 类型：[PORT-9a9f9f7e18af](invoke-removal-ports.md#port-9a9f9f7e18af), [PORT-c94c56f211eb](invoke-removal-ports.md#port-c94c56f211eb)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-29c2cc7180e4** `world_map/legacy_world_facing_talk`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_facing_talk.hpp](../../../include/openswd3/world_map/legacy_world_facing_talk.hpp)；[src/world_map/legacy_world_facing_talk.cpp](../../../src/world_map/legacy_world_facing_talk.cpp)。
   - 类型：[PORT-66dcb15417c5](invoke-removal-ports.md#port-66dcb15417c5)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-86de8c4041f6** `world_map/legacy_world_flagged_roles`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_flagged_roles.hpp](../../../include/openswd3/world_map/legacy_world_flagged_roles.hpp)；[src/world_map/legacy_world_flagged_roles.cpp](../../../src/world_map/legacy_world_flagged_roles.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-5e6c5c136354** `world_map/legacy_world_frame_coordinator`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_frame_coordinator.hpp](../../../include/openswd3/world_map/legacy_world_frame_coordinator.hpp)；[src/world_map/legacy_world_frame_coordinator.cpp](../../../src/world_map/legacy_world_frame_coordinator.cpp)。
   - 类型：[PORT-e5caa4d15024](invoke-removal-ports.md#port-e5caa4d15024)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-b9d09741b314** `world_map/legacy_world_frame_runtime`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_frame_runtime.hpp](../../../include/openswd3/world_map/legacy_world_frame_runtime.hpp)；[src/world_map/legacy_world_frame_runtime.cpp](../../../src/world_map/legacy_world_frame_runtime.cpp)。
   - 类型：[PORT-bc68e5f72522](invoke-removal-ports.md#port-bc68e5f72522), [PORT-d5738efc831a](invoke-removal-ports.md#port-d5738efc831a)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-991001d7cac7** `world_map/legacy_world_head_sign_actions`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_head_sign_actions.hpp](../../../include/openswd3/world_map/legacy_world_head_sign_actions.hpp)；[src/world_map/legacy_world_head_sign_actions.cpp](../../../src/world_map/legacy_world_head_sign_actions.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-e692608030d3** `world_map/legacy_world_indexed_objects`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_indexed_objects.hpp](../../../include/openswd3/world_map/legacy_world_indexed_objects.hpp)；[src/world_map/legacy_world_indexed_objects.cpp](../../../src/world_map/legacy_world_indexed_objects.cpp)。
   - 类型：[PORT-45f210907f93](invoke-removal-ports.md#port-45f210907f93), [PORT-21921a6efc43](invoke-removal-ports.md#port-21921a6efc43)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-1be98ce62407** `world_map/legacy_world_interaction`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_interaction.hpp](../../../include/openswd3/world_map/legacy_world_interaction.hpp)；[src/world_map/legacy_world_interaction.cpp](../../../src/world_map/legacy_world_interaction.cpp)。
   - 类型：[PORT-c524857f12ae](invoke-removal-ports.md#port-c524857f12ae)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-d45ec52209c6** `world_map/legacy_world_load_progress`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_load_progress.hpp](../../../include/openswd3/world_map/legacy_world_load_progress.hpp)；[src/world_map/legacy_world_load_progress.cpp](../../../src/world_map/legacy_world_load_progress.cpp)。
   - 类型：[PORT-6aa707fd82e4](invoke-removal-ports.md#port-6aa707fd82e4)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-586f36231047** `world_map/legacy_world_party_role_actions`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_party_role_actions.hpp](../../../include/openswd3/world_map/legacy_world_party_role_actions.hpp)；[src/world_map/legacy_world_party_role_actions.cpp](../../../src/world_map/legacy_world_party_role_actions.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-b8e007e48275** `world_map/legacy_world_path_requests`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_path_requests.hpp](../../../include/openswd3/world_map/legacy_world_path_requests.hpp)；[src/world_map/legacy_world_path_requests.cpp](../../../src/world_map/legacy_world_path_requests.cpp)。
   - 类型：[PORT-f5d91ea8758f](invoke-removal-ports.md#port-f5d91ea8758f)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-fdb7255cad6a** `world_map/legacy_world_path_script`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_path_script.hpp](../../../include/openswd3/world_map/legacy_world_path_script.hpp)；[src/world_map/legacy_world_path_script.cpp](../../../src/world_map/legacy_world_path_script.cpp)。
   - 类型：[PORT-1743d43fcf00](invoke-removal-ports.md#port-1743d43fcf00)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-e3dffa9bac9a** `world_map/legacy_world_player_post_frame`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_player_post_frame.hpp](../../../include/openswd3/world_map/legacy_world_player_post_frame.hpp)；[src/world_map/legacy_world_player_post_frame.cpp](../../../src/world_map/legacy_world_player_post_frame.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-11a8a8a5cfad** `world_map/legacy_world_roles`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_roles.hpp](../../../include/openswd3/world_map/legacy_world_roles.hpp)；[src/world_map/legacy_world_roles.cpp](../../../src/world_map/legacy_world_roles.cpp)。
   - 类型：[PORT-a913b1475959](invoke-removal-ports.md#port-a913b1475959), [PORT-e8a9ed211ce0](invoke-removal-ports.md#port-e8a9ed211ce0), [PORT-7247e75a9812](invoke-removal-ports.md#port-7247e75a9812)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-d6fa06743efc** `world_map/legacy_world_save_item_lists`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[src/world_map/legacy_world_save_item_lists.cpp](../../../src/world_map/legacy_world_save_item_lists.cpp)。
   - 类型：无具名Port/Dispatch/Adapter定义，检查函数与数据协议。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-8cfb6326db77** `world_map/legacy_world_save_restore`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_save_restore.hpp](../../../include/openswd3/world_map/legacy_world_save_restore.hpp)。
   - 类型：[PORT-aa1159223764](invoke-removal-ports.md#port-aa1159223764)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。
 
 - [ ] **CHAIN-6ba33e14da0c** `world_map/legacy_world_spatial_audio`
   - 当前残留信号：interface。
-  - 历史状态：`pending`；本快照：待复核。
+  - 历史状态：`pending`；本快照：`pending`。
   - 文件：[include/openswd3/world_map/legacy_world_spatial_audio.hpp](../../../include/openswd3/world_map/legacy_world_spatial_audio.hpp)；[src/world_map/legacy_world_spatial_audio.cpp](../../../src/world_map/legacy_world_spatial_audio.cpp)。
   - 类型：[PORT-d2da76fbb056](invoke-removal-ports.md#port-d2da76fbb056)。
   - 验收：调用链、LST、失败路径、所有权、测试、提交与远端均待记录。

@@ -162,4 +162,6 @@ real-asset 测试覆盖 TALK1 的 opcode 30 记录，以及上述 `33 -> 32 -> 2
 assembly_exact;unit_tested;real_asset_tested;asset_absence_verified;platform_adapted;sdl_runtime_integrated
 ```
 
-后续状态：二级入口 `0x0042B070` 的 opcode `181..185` 已按其 `u32` value、`+8` target、8/12字节长度独立审计和关闭；其计数与证明不复用本证据。
+后续状态：`pending`。
+
+二级入口 `0x0042B070` 的 opcode `181..185` 已按其 `u32` value、`+8` target、8/12字节长度独立审计和关闭；其计数与证明不复用本证据。

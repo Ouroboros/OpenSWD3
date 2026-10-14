@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+历史还原状态：`pending`。
 
 ## 普通行查询的实际调用方
 

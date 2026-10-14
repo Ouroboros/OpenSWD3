@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+历史还原状态：`pending`。
 当前INVOKE整族仍`pending`，不将历史还原分类当作完整迁移。
 
 ## 绘制前实际条目统计

@@ -11,9 +11,9 @@
     "port_definitions": 345,
     "interface_definitions_with_direct_signals": 103,
     "historical_statuses": {
-      "pending": 293,
-      "verified": 27,
-      "excluded": 4
+      "pending": 324,
+      "verified": 0,
+      "excluded": 0
     },
     "current_snapshot_verified": 0,
     "scope_exhaustiveness_verified": false
@@ -4060,7 +4060,7 @@
         "src/platform/sdl3/legacy_command_line.cpp",
         "src/platform/sdl3/legacy_command_line.hpp"
       ],
-      "historical_status": "excluded",
+      "historical_status": "pending",
       "historical_verification_commit": "24eac681",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
       "historical_reason": "argc/argv及命令行重建，不是业务调用参数包",
@@ -4078,7 +4078,7 @@
         "src/platform/sdl3/legacy_sample_backend_sdl3.cpp",
         "src/platform/sdl3/legacy_sample_backend_sdl3.hpp"
       ],
-      "historical_status": "excluded",
+      "historical_status": "pending",
       "historical_verification_commit": "24eac681",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
       "historical_reason": "operation仅为SDL错误消息前缀字符串，不是调用操作编号",
@@ -4268,7 +4268,7 @@
         "include/openswd3/resource_io/data_directory.hpp",
         "src/resource_io/data_directory.cpp"
       ],
-      "historical_status": "excluded",
+      "historical_status": "pending",
       "historical_verification_commit": "24eac681",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
       "historical_reason": "数据目录命令行选项解析，不是通用调用参数数组",
@@ -4546,7 +4546,7 @@
       "files": [
         "src/world_map/legacy_world_role_surface_occupancy.cpp"
       ],
-      "historical_status": "excluded",
+      "historical_status": "pending",
       "historical_verification_commit": "24eac681",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
       "historical_reason": "私有模板接收实际位运算函数并修改格子，没有callee编号或寄存器协议",
@@ -5089,7 +5089,7 @@
         "include/openswd3/audio_video/legacy_world_music.hpp",
         "src/audio_video/legacy_world_music.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "e3cd52ee",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/legacy-world-music-media-0040cdd0-00411c8b.md",
       "historical_reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移",
@@ -5122,7 +5122,7 @@
         "include/openswd3/battle/legacy_battle_actor_action_kind.hpp",
         "src/battle/legacy_battle_actor_action_kind.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "39ca432f23bd84ee18818b1452a8da644f696929",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-kind-004786b0.md",
       "historical_reason": "双方动作判断及调试显示四处调用直接借实际动作WORD，返回状态与可选值；删除查询编号、token解析、寄存器请求回复、模拟栈、计数及调试转发；完整值、即时读取、失败前缀和仍被父级消费的入口EDX保存已复核，十一份源码测试身份、core/ASan两类测试各1/1及SDL实际链接通过；父级其余协议与资源继续pending",
@@ -5172,7 +5172,7 @@
         "src/battle/legacy_battle_actor_base_initialization.cpp",
         "src/battle/legacy_battle_actor_lifecycle.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "97ec03ba",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
       "historical_reason": "共享字段接口及全部直接调用方既有迁移保留；97ec03ba复核仅重命名原步长字段，布局、64次写入、失败顺序和生命周期调用未变。当前core/ASan专用初始化测试通过，生命周期源码与前批逐字节一致；本次不是新增接口族验收",
@@ -5190,7 +5190,7 @@
         "src/battle/legacy_battle_actor_base_release.cpp",
         "src/battle/legacy_battle_actor_lifecycle.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "5402ee36",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
       "historical_reason": "实际说明分配释放与全部直接调用方已迁移；两组数组析构和SDL退出接线已补齐，失败不清指针及异常传播经专用测试验证",
@@ -5206,7 +5206,7 @@
         "include/openswd3/battle/legacy_battle_actor_display_kind.hpp",
         "src/battle/legacy_battle_actor_display_kind.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "cc5b90bddd8a714fa0b2e77b5e26fd2d391d73af",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-display-kind-004786c0.md",
       "historical_reason": "唯一调用直接读取队员实际显示WORD，返回状态及可选读值，删除查询编号、token解析、寄存器请求回复、模拟栈和计数；保留原完整值与读取/返回失败前缀，并按LST纠正动作零时显示非零走默认尾返回0，不按显示值执行动作；六份源码测试身份、core/ASan setup及角色帧各1/1和SDL实际链接已核验；父级协议、资源及实际游戏仍待迁移验收",
@@ -5238,7 +5238,7 @@
         "include/openswd3/battle/legacy_battle_actor_idle_state.hpp",
         "src/battle/legacy_battle_actor_idle_state.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "13509965d92ca051185da0ce7ce42e45d78f3b97",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-idle-state-004786a0.md",
       "historical_reason": "双方帧七处查询直接借实际空闲DWORD并返回状态和可选值；删除查询编号、解析、寄存器请求回复、模拟栈、计数及转发，保留完整数值、零/精确1比较、即时重读及字段/RET失败前缀；八份源码测试身份、core/ASan两类测试各1/1和SDL链接通过，父级其余协议、入口值与资源仍待迁移",
@@ -5270,7 +5270,7 @@
         "include/openswd3/battle/legacy_battle_actor_message_percent_refresh.hpp",
         "src/battle/legacy_battle_actor_message_percent_refresh.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "24eac681",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-message-percent-refresh-00475160.md",
       "historical_reason": "直接扫描角色资料与共享固定链并写入百分比；当前setup测试覆盖",
@@ -5286,7 +5286,7 @@
         "include/openswd3/battle/legacy_battle_actor_start_gate.hpp",
         "src/battle/legacy_battle_actor_start_gate.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "b68207c4a87d5ccdf47fecb56e49d82ea919d94b",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-004786d0.md",
       "historical_reason": "四处调用直接读取双方实际共享WORD，以状态和可选值区分未读与返回失败；删除查询操作编号、token解析、寄存器请求回复、栈轨迹、计数及三处转发；保留完整WORD、门值精确1、前驱改写后的实时读取及失败前缀；十一份源码测试身份、core/ASan两类定向测试各1/1和SDL实际链接已核验；父级协议、完整内存别名及实际游戏仍待迁移验收",
@@ -5302,7 +5302,7 @@
         "include/openswd3/battle/legacy_battle_actor_start_gate_increment.hpp",
         "src/battle/legacy_battle_actor_start_gate_increment.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "41a74ad35656f65de450ebdad0867755cfea7669",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-increment-00478ac0.md",
       "historical_reason": "五处调用直接递增双方实际共享WORD并写完整DWORD标记1，删除owner/view/resolver、寄存器请求结果、模拟栈、请求数组、地址轨迹、计数及纯转发；保持实时前驱、完整地址回绕、四种原故障前缀和部分扫描，按LST修正脚本EAX与EDX；十二份源码测试身份、core/ASan setup与角色帧各1/1及SDL实际链接已核验；父链、完整内存别名及实际游戏仍未验收",
@@ -5318,7 +5318,7 @@
         "include/openswd3/battle/legacy_battle_actor_start_gate_latch_query.hpp",
         "src/battle/legacy_battle_actor_start_gate_latch_query.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "d4e3496e6bcc278850a8ce56383029b391c89570",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-start-gate-latch-query-00478b50.md",
       "historical_reason": "直接读取既有共享DWORD并返回可选实际值，唯一敌方帧调用已回收请求数组、寄存器结果、调用轨迹、计数及转发；完整值精确1过滤、前驱写后的实时读取、不同队员字段及两种原故障前缀经四项core/ASan定向测试和SDL链接验证；父层其他协议及完整游戏不升级",
@@ -5355,7 +5355,7 @@
         "include/openswd3/battle/legacy_battle_actor_target_selection_count_increment.hpp",
         "src/battle/legacy_battle_actor_target_selection_count_increment.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "b423ce9d87c5a77f966585a90ab885f57f970282",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-count-increment-00478aa0.md",
       "historical_reason": "三处组A调用直接递增双方实际共享WORD，删除owner/view/resolver、寄存器请求结果、模拟栈、请求数组、地址轨迹、计数及纯转发；保持phase后实时读取、16位和地址回绕、三种原故障前缀及后继DEC前驱；独立字段、索引端点、不可用字段、地址别名及部分扫描经core/ASan setup与角色帧各1/1验证，SDL构建通过；父链、完整内存别名及实际游戏仍未验收",
@@ -5371,7 +5371,7 @@
         "include/openswd3/battle/legacy_battle_actor_target_selection_count_query.hpp",
         "src/battle/legacy_battle_actor_target_selection_count_query.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "5a2e0d0edd72f64fca8f15493a9212fc584dc094",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-count-query-00478ab0.md",
       "historical_reason": "唯一脚本caller直接读取双方实际共享WORD，删除查询owner/resolver、寄存器请求结果、模拟栈、请求数组、地址轨迹、计数及纯转发；保留原读/返回故障与真实前驱，按LST恢复逐WORD扫描、共享帧门及角色发布、空列表不加载和加载后数量重读；独立字段/边界/混合列表及故障向量经core/ASan setup各1/1与SDL链接验证；父链及完整游戏仍未验收",
@@ -5387,7 +5387,7 @@
         "include/openswd3/battle/legacy_battle_actor_target_selection_latch_query.hpp",
         "src/battle/legacy_battle_actor_target_selection_latch_query.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "c5dee2ea80e442745cffdcbfad6ef4e188420de8",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-latch-query-00478b40.md",
       "historical_reason": "四处caller直接读取实际队员/敌方共享DWORD并使用可选实际值，删除寄存器请求回复、请求数组、地址表、轨迹、计数、offset及纯转发；精确1与任意非零分支、两种原故障前缀和队员首个衰减的敌方数量reload经四项core/ASan定向测试及SDL链接验证；高位完整值、两敌方实际递增与不同索引/后续写入重读已覆盖；父链及完整游戏仍未验收",
@@ -5403,7 +5403,7 @@
         "include/openswd3/battle/legacy_battle_actor_target_selection_latch_set.hpp",
         "src/battle/legacy_battle_actor_target_selection_latch_set.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "bf13ed498f00c04492dfce444e8fbbaecdd330ea",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-target-selection-latch-set-00478b30.md",
       "historical_reason": "三处caller直接把当前双方角色实际共享DWORD写为1，删除置位resolver、寄存器请求回复、请求数组、地址表、轨迹、计数、offset及纯转发；写故障保留旧值、返回故障保留1，场景/ready前缀及正常选择续接经四项core/ASan定向测试与SDL链接验证；七类完整值、不同索引、重复写及嵌套实际状态已覆盖；父链及完整游戏仍未验收",
@@ -5419,7 +5419,7 @@
         "include/openswd3/battle/legacy_battle_actor_turn_completion.hpp",
         "src/battle/legacy_battle_actor_turn_completion.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "7ddede47b0415af338862ffe4e69eb482f988033",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-actor-turn-completion-00478690.md",
       "historical_reason": "双方帧三处查询直接借实际目标完成DWORD，返回状态和可选观察值；删除查询编号、解析、寄存器请求回复、模拟栈、计数、转发及无消费者的专用地址计算；保留完整值、原比较和字段/RET失败前驱，八份源码身份、四项定向测试及SDL实际链接通过；父项其余协议和资源仍待迁移",
@@ -5437,7 +5437,7 @@
         "src/battle/legacy_battle_attack_order_dequeue.cpp",
         "src/battle/legacy_battle_frame_selection.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "fe380352",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-dequeue-0045f020.md",
       "historical_reason": "出队直接借用物理队列和共享角色字段，全部直接调用方已回收；无界扫描、回绕、七DWORD复制、满表清理及实际访问失败前缀经core与ASan验证，SDL链接通过",
@@ -5453,7 +5453,7 @@
         "include/openswd3/battle/legacy_battle_attack_order_entry.hpp",
         "src/battle/legacy_battle_attack_order_entry.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "dfc16ccd",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-entry-0045edf0.md",
       "historical_reason": "追加直接写共享队列并返回实际可选索引，三个直接调用方及嵌套汇总已移除该寄存器协议和计数；固定18槽、两项字段写、满表无写、短视图停点及核心同帧出队后追加唯一队列经core/ASan验证，SDL构建通过；完整游戏流程不升级",
@@ -5469,7 +5469,7 @@
         "include/openswd3/battle/legacy_battle_attack_order_insert.hpp",
         "src/battle/legacy_battle_attack_order_insert.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "93e461a6",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-insert-0045ee70.md",
       "historical_reason": "位置插入直接移动共享队列并转移实际队员暂存数据，删除寄存器结果、扫描和调用计数及脚本操作槽；全部当前调用方共用来源、双门与实际相邻强度记录，保留满表BUG、逐DWORD次序、signed比较、回绕与失败前缀，经core/ASan四项定向验证及SDL链接；完整战斗和原版差分不升级",
@@ -5485,7 +5485,7 @@
         "include/openswd3/battle/legacy_battle_attack_order_remove.hpp",
         "src/battle/legacy_battle_attack_order_remove.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "2b89c8ea8d381993f315dabe7c143c45f26fb4d7",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-remove-0045efb0.md",
       "historical_reason": "移除直接扫描共享队列并逐DWORD左移，九个调用点及嵌套汇总使用实际可选结果，删除寄存器、扫描和调用计数与保留操作槽；保留完整目标首匹配、实际相邻读取、双重尾填充及失败前缀，组A使用发布时同一实时归一索引，经core/ASan四项定向验证与SDL链接；父链和原版差分不升级",
@@ -5521,7 +5521,7 @@
         "include/openswd3/battle/legacy_battle_definition_archive.hpp",
         "src/battle/legacy_battle_definition_archive.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "9f1ee804",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-definition-archive-owned-files.md",
       "historical_reason": "头部与记录直接读实际文件，删除FilePort、编号句柄、寄存器协议和计数；startup及SDL全部直接调用方已回收，真实短读/符号选择/寻址失败/描述符寿命经core与ASan验证",
@@ -5658,7 +5658,7 @@
         "include/openswd3/battle/legacy_battle_frame_music_prefix.hpp",
         "src/battle/legacy_battle_frame_music_prefix.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "ad5c3f70",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-frame-music-direct-00453200.md",
       "historical_reason": "实际流管理器与共享路径音量直接接入帧调用方",
@@ -5694,7 +5694,7 @@
         "include/openswd3/battle/legacy_battle_frame_selection.hpp",
         "src/battle/legacy_battle_frame_selection.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "fe380352",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-frame-selection-runtime-binding.md",
       "historical_reason": "帧选择直接共享队列、角色、动作与输出字段，SDL及核心调用方已迁移；删除查询Port和EDX协议，可选实际结果表达未出队，精确门、WORD延迟、坐标发布及失败后缀经core与ASan验证",
@@ -5783,7 +5783,7 @@
         "include/openswd3/battle/legacy_battle_group_b_resource_cleanup.hpp",
         "src/battle/legacy_battle_group_b_resource_cleanup.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "24eac681",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-group-b-resource-cleanup-00476a60.md",
       "historical_reason": "关闭及元素析构直接撤销实际敌方资源登记并按顺序清字段",
@@ -5855,7 +5855,7 @@
         "include/openswd3/battle/legacy_battle_mon_file_runtime.hpp",
         "src/battle/legacy_battle_mon_file_runtime.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "2820c6e0",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-mon-file-runtime-binding.md",
       "historical_reason": "实际文件所有权及具名打开定位读取操作已替换通用协议",
@@ -5871,7 +5871,7 @@
         "include/openswd3/battle/legacy_battle_mon_stream_runtime.hpp",
         "src/battle/legacy_battle_mon_stream_runtime.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "2820c6e0",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-mon-stream-runtime-binding.md",
       "historical_reason": "实际流缓冲所有权与具名访问操作已替换通用协议",
@@ -5887,7 +5887,7 @@
         "include/openswd3/battle/legacy_battle_mon_text_runtime.hpp",
         "src/battle/legacy_battle_mon_text_runtime.cpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "2820c6e0",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-mon-file-runtime-binding.md",
       "historical_reason": "实际说明文字分配释放及调用方已替换通用协议",
@@ -5971,7 +5971,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_screen_flash.hpp"
       ],
-      "historical_status": "verified",
+      "historical_status": "pending",
       "historical_verification_commit": "74dec715",
       "historical_evidence": "analysis/04-reverse-engineering/evidence/battle-screen-flash-direct-state.md",
       "historical_reason": "触发衰减与复位直接共享同一startup闪光状态",
@@ -6021,7 +6021,7 @@
       "files": [
         "include/openswd3/app/display_refresh.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6036,7 +6036,7 @@
       "files": [
         "include/openswd3/app/frame_dispatch.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6051,7 +6051,7 @@
       "files": [
         "include/openswd3/asset_runtime/legacy_act_archive.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6066,7 +6066,7 @@
       "files": [
         "include/openswd3/asset_runtime/legacy_act_runtime.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6081,7 +6081,7 @@
       "files": [
         "include/openswd3/asset_runtime/legacy_ani_archive.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6096,7 +6096,7 @@
       "files": [
         "include/openswd3/asset_runtime/legacy_ani_row_copy_effect.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6111,7 +6111,7 @@
       "files": [
         "include/openswd3/asset_runtime/legacy_guest_address_reservation.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6126,7 +6126,7 @@
       "files": [
         "include/openswd3/asset_runtime/legacy_tsw_archive.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6141,7 +6141,7 @@
       "files": [
         "include/openswd3/asset_runtime/legacy_tsw_runtime.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6156,7 +6156,7 @@
       "files": [
         "include/openswd3/audio_video/legacy_audio_output.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6171,7 +6171,7 @@
       "files": [
         "include/openswd3/audio_video/legacy_audio_parameters.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6186,7 +6186,7 @@
       "files": [
         "include/openswd3/audio_video/legacy_sample_commands.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6201,7 +6201,7 @@
       "files": [
         "include/openswd3/audio_video/legacy_sample_manager.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6216,7 +6216,7 @@
       "files": [
         "include/openswd3/audio_video/legacy_sequence_manager.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6231,7 +6231,7 @@
       "files": [
         "include/openswd3/audio_video/legacy_snd_archive.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6246,7 +6246,7 @@
       "files": [
         "include/openswd3/audio_video/legacy_stream_commands.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6261,7 +6261,7 @@
       "files": [
         "include/openswd3/audio_video/legacy_stream_manager.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6276,7 +6276,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_actor_field_26c0.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6291,7 +6291,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_actor_frame_raw_block.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6306,7 +6306,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_assets.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6321,7 +6321,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_auxiliary_record.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6336,7 +6336,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_color_fade.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6351,7 +6351,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_directional_scan.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6366,7 +6366,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_exit_cleanups.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6381,7 +6381,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6396,7 +6396,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6411,7 +6411,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_group_b_order.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6426,7 +6426,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_image_rotation.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6441,7 +6441,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_mon_text.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6456,7 +6456,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_music_path.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6471,7 +6471,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_particle_frame.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6486,7 +6486,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_particle_spawn.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6501,7 +6501,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_save_fame.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6516,7 +6516,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_save_party_extension.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6531,7 +6531,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_script_curve.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6546,7 +6546,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_setup.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6561,7 +6561,7 @@
       "files": [
         "include/openswd3/battle/legacy_battle_timing.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6576,7 +6576,7 @@
       "files": [
         "include/openswd3/compat/legacy_decimal.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6591,7 +6591,7 @@
       "files": [
         "include/openswd3/compat/legacy_stubs.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6606,7 +6606,7 @@
       "files": [
         "include/openswd3/compat/types.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6621,7 +6621,7 @@
       "files": [
         "include/openswd3/diagnostics/log.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6636,7 +6636,7 @@
       "files": [
         "include/openswd3/input_time_rng/legacy_crt_rng.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6651,7 +6651,7 @@
       "files": [
         "include/openswd3/input_time_rng/legacy_frame_clock.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6666,7 +6666,7 @@
       "files": [
         "include/openswd3/input_time_rng/legacy_input.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6681,7 +6681,7 @@
       "files": [
         "include/openswd3/input_time_rng/legacy_secondary_rng.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6696,7 +6696,7 @@
       "files": [
         "include/openswd3/media_ffmpeg/legacy_ffmpeg_backends.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6711,7 +6711,7 @@
       "files": [
         "include/openswd3/rendering/legacy_blitter.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6726,7 +6726,7 @@
       "files": [
         "include/openswd3/rendering/legacy_fixed_tile_writer.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6741,7 +6741,7 @@
       "files": [
         "include/openswd3/rendering/legacy_frame_color.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6756,7 +6756,7 @@
       "files": [
         "include/openswd3/rendering/legacy_framebuffer.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6771,7 +6771,7 @@
       "files": [
         "include/openswd3/rendering/legacy_glyph_atlas.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6786,7 +6786,7 @@
       "files": [
         "include/openswd3/rendering/legacy_glyph_cache.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6801,7 +6801,7 @@
       "files": [
         "include/openswd3/rendering/legacy_glyph_writer.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6816,7 +6816,7 @@
       "files": [
         "include/openswd3/rendering/legacy_image_command_stream.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6831,7 +6831,7 @@
       "files": [
         "include/openswd3/rendering/legacy_packed_row.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6846,7 +6846,7 @@
       "files": [
         "include/openswd3/rendering/legacy_pixel_conversion.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6861,7 +6861,7 @@
       "files": [
         "include/openswd3/rendering/legacy_rectangle_effect.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6876,7 +6876,7 @@
       "files": [
         "include/openswd3/rendering/legacy_scaled_rle_writer.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6891,7 +6891,7 @@
       "files": [
         "include/openswd3/rendering/legacy_text_renderer.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6906,7 +6906,7 @@
       "files": [
         "include/openswd3/rendering/legacy_text_renderer_runtime.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6921,7 +6921,7 @@
       "files": [
         "include/openswd3/resource_io/legacy_cm_cache.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6936,7 +6936,7 @@
       "files": [
         "include/openswd3/resource_io/legacy_dbcs_text_buffer.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6951,7 +6951,7 @@
       "files": [
         "include/openswd3/resource_io/legacy_environment.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6966,7 +6966,7 @@
       "files": [
         "include/openswd3/resource_io/legacy_file.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6981,7 +6981,7 @@
       "files": [
         "include/openswd3/resource_io/legacy_lmf_archive.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -6996,7 +6996,7 @@
       "files": [
         "include/openswd3/resource_io/legacy_lzo1x.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7011,7 +7011,7 @@
       "files": [
         "include/openswd3/resource_io/legacy_memory_manager.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7026,7 +7026,7 @@
       "files": [
         "include/openswd3/resource_io/legacy_resource_databases.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7041,7 +7041,7 @@
       "files": [
         "include/openswd3/resource_io/legacy_save_container.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7056,7 +7056,7 @@
       "files": [
         "include/openswd3/resource_io/legacy_save_slots.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7071,7 +7071,7 @@
       "files": [
         "include/openswd3/resource_io/window_configuration.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7086,7 +7086,7 @@
       "files": [
         "include/openswd3/special_modes/legacy_save_preview.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7101,7 +7101,7 @@
       "files": [
         "include/openswd3/story_scene/legacy_dialog_geometry.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7116,7 +7116,7 @@
       "files": [
         "include/openswd3/world_map/legacy_cm_cache_generator.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7131,7 +7131,7 @@
       "files": [
         "include/openswd3/world_map/legacy_cm_cache_loader.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7146,7 +7146,7 @@
       "files": [
         "include/openswd3/world_map/legacy_cm_cache_runtime.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7161,7 +7161,7 @@
       "files": [
         "include/openswd3/world_map/legacy_maps_world_database.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7176,7 +7176,7 @@
       "files": [
         "include/openswd3/world_map/legacy_role_spatial_query.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7191,7 +7191,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_background.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7206,7 +7206,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_builtin_colors.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7221,7 +7221,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_camera_pan.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7236,7 +7236,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_direction_adjustment.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7251,7 +7251,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_direction_input.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7266,7 +7266,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_facing.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7281,7 +7281,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_facing_role_query.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7296,7 +7296,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_frame_tail.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7311,7 +7311,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_interpolation.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7326,7 +7326,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_map_business.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7341,7 +7341,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_map_session.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7356,7 +7356,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_pathfinding.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7371,7 +7371,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_player_control.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7386,7 +7386,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_player_motion.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7401,7 +7401,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_render_session.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7416,7 +7416,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_role_lookup.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7431,7 +7431,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_role_map_update.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7446,7 +7446,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_role_post_materialization.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7461,7 +7461,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_role_preload.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7476,7 +7476,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_role_record.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7491,7 +7491,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_role_surface_occupancy.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7506,7 +7506,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_role_transfer.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7521,7 +7521,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_runtime_session.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7536,7 +7536,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_selection_scroll.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7551,7 +7551,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_special_frame_loader.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7566,7 +7566,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_story_paths.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7581,7 +7581,7 @@
       "files": [
         "include/openswd3/world_map/legacy_world_transient_reset.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7828,7 +7828,7 @@
       "files": [
         "src/app/display_refresh.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7843,7 +7843,7 @@
       "files": [
         "src/app/frame_dispatch.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7858,7 +7858,7 @@
       "files": [
         "src/asset_runtime/legacy_act_archive.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7873,7 +7873,7 @@
       "files": [
         "src/asset_runtime/legacy_act_runtime.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7888,7 +7888,7 @@
       "files": [
         "src/asset_runtime/legacy_ani_archive.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7903,7 +7903,7 @@
       "files": [
         "src/asset_runtime/legacy_ani_row_copy_effect.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7918,7 +7918,7 @@
       "files": [
         "src/asset_runtime/legacy_guest_address_reservation.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7933,7 +7933,7 @@
       "files": [
         "src/asset_runtime/legacy_tsw_archive.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7948,7 +7948,7 @@
       "files": [
         "src/asset_runtime/legacy_tsw_runtime.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7963,7 +7963,7 @@
       "files": [
         "src/audio_video/legacy_audio_output.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7978,7 +7978,7 @@
       "files": [
         "src/audio_video/legacy_audio_parameters.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -7993,7 +7993,7 @@
       "files": [
         "src/audio_video/legacy_sample_commands.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8008,7 +8008,7 @@
       "files": [
         "src/audio_video/legacy_sample_manager.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8023,7 +8023,7 @@
       "files": [
         "src/audio_video/legacy_sequence_manager.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8038,7 +8038,7 @@
       "files": [
         "src/audio_video/legacy_snd_archive.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8053,7 +8053,7 @@
       "files": [
         "src/audio_video/legacy_stream_commands.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8068,7 +8068,7 @@
       "files": [
         "src/audio_video/legacy_stream_manager.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8083,7 +8083,7 @@
       "files": [
         "src/battle/legacy_battle_action_rotation_resources.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8098,7 +8098,7 @@
       "files": [
         "src/battle/legacy_battle_actor_frame_flag_helpers.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8113,7 +8113,7 @@
       "files": [
         "src/battle/legacy_battle_assets.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8128,7 +8128,7 @@
       "files": [
         "src/battle/legacy_battle_color_fade.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8143,7 +8143,7 @@
       "files": [
         "src/battle/legacy_battle_directional_scan.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8158,7 +8158,7 @@
       "files": [
         "src/battle/legacy_battle_display_surface_runtime.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8173,7 +8173,7 @@
       "files": [
         "src/battle/legacy_battle_image_rotation.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8188,7 +8188,7 @@
       "files": [
         "src/battle/legacy_battle_particle_frame.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8203,7 +8203,7 @@
       "files": [
         "src/battle/legacy_battle_particle_spawn.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8218,7 +8218,7 @@
       "files": [
         "src/battle/legacy_battle_save_fame.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8233,7 +8233,7 @@
       "files": [
         "src/battle/legacy_battle_save_party_extension.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8248,7 +8248,7 @@
       "files": [
         "src/battle/legacy_battle_script_curve.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8263,7 +8263,7 @@
       "files": [
         "src/battle/legacy_battle_setup.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8278,7 +8278,7 @@
       "files": [
         "src/battle/legacy_battle_timing.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8293,7 +8293,7 @@
       "files": [
         "src/compat/legacy_decimal.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8308,7 +8308,7 @@
       "files": [
         "src/diagnostics/log.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8323,7 +8323,7 @@
       "files": [
         "src/input_time_rng/legacy_crt_rng.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8338,7 +8338,7 @@
       "files": [
         "src/input_time_rng/legacy_frame_clock.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8353,7 +8353,7 @@
       "files": [
         "src/input_time_rng/legacy_input.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8368,7 +8368,7 @@
       "files": [
         "src/input_time_rng/legacy_secondary_rng.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8383,7 +8383,7 @@
       "files": [
         "src/platform/sdl3/event_translation.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8398,7 +8398,7 @@
       "files": [
         "src/platform/sdl3/event_translation.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8413,7 +8413,7 @@
       "files": [
         "src/platform/sdl3/external_uri.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8428,7 +8428,7 @@
       "files": [
         "src/platform/sdl3/external_uri.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8443,7 +8443,7 @@
       "files": [
         "src/platform/sdl3/keyboard_snapshot_sdl3.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8458,7 +8458,7 @@
       "files": [
         "src/platform/sdl3/keyboard_snapshot_sdl3.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8473,7 +8473,7 @@
       "files": [
         "src/platform/sdl3/legacy_ffmpeg_backends.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8488,7 +8488,7 @@
       "files": [
         "src/platform/sdl3/mouse_sdl3.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8503,7 +8503,7 @@
       "files": [
         "src/platform/sdl3/mouse_sdl3.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8518,7 +8518,7 @@
       "files": [
         "src/platform/sdl3/single_instance.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8533,7 +8533,7 @@
       "files": [
         "src/platform/sdl3/text_encoding_sdl3.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8548,7 +8548,7 @@
       "files": [
         "src/platform/sdl3/text_encoding_sdl3.hpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8563,7 +8563,7 @@
       "files": [
         "src/rendering/legacy_fixed_tile_writer.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8578,7 +8578,7 @@
       "files": [
         "src/rendering/legacy_frame_color.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8593,7 +8593,7 @@
       "files": [
         "src/rendering/legacy_framebuffer.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8608,7 +8608,7 @@
       "files": [
         "src/rendering/legacy_glyph_atlas.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8623,7 +8623,7 @@
       "files": [
         "src/rendering/legacy_glyph_cache.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8638,7 +8638,7 @@
       "files": [
         "src/rendering/legacy_glyph_writer.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8653,7 +8653,7 @@
       "files": [
         "src/rendering/legacy_image_command_stream.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8668,7 +8668,7 @@
       "files": [
         "src/rendering/legacy_packed_row.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8683,7 +8683,7 @@
       "files": [
         "src/rendering/legacy_pixel_conversion.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8698,7 +8698,7 @@
       "files": [
         "src/rendering/legacy_rectangle_effect.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8713,7 +8713,7 @@
       "files": [
         "src/rendering/legacy_scaled_rle_writer.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8728,7 +8728,7 @@
       "files": [
         "src/rendering/legacy_text_renderer.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8743,7 +8743,7 @@
       "files": [
         "src/rendering/legacy_text_renderer_runtime.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8758,7 +8758,7 @@
       "files": [
         "src/resource_io/legacy_cm_cache.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8773,7 +8773,7 @@
       "files": [
         "src/resource_io/legacy_dbcs_text_buffer.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8788,7 +8788,7 @@
       "files": [
         "src/resource_io/legacy_environment.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8803,7 +8803,7 @@
       "files": [
         "src/resource_io/legacy_file.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8818,7 +8818,7 @@
       "files": [
         "src/resource_io/legacy_lmf_archive.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8833,7 +8833,7 @@
       "files": [
         "src/resource_io/legacy_lzo1x.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8848,7 +8848,7 @@
       "files": [
         "src/resource_io/legacy_lzo1x_compressor.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8863,7 +8863,7 @@
       "files": [
         "src/resource_io/legacy_memory_manager.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8878,7 +8878,7 @@
       "files": [
         "src/resource_io/legacy_resource_databases.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8893,7 +8893,7 @@
       "files": [
         "src/resource_io/legacy_save_container.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8908,7 +8908,7 @@
       "files": [
         "src/resource_io/legacy_save_slots.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8923,7 +8923,7 @@
       "files": [
         "src/resource_io/window_configuration.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8938,7 +8938,7 @@
       "files": [
         "src/special_modes/legacy_save_preview.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8953,7 +8953,7 @@
       "files": [
         "src/story_scene/legacy_dialog_geometry.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8968,7 +8968,7 @@
       "files": [
         "src/world_map/legacy_cm_cache_generator.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8983,7 +8983,7 @@
       "files": [
         "src/world_map/legacy_cm_cache_loader.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -8998,7 +8998,7 @@
       "files": [
         "src/world_map/legacy_cm_cache_runtime.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9013,7 +9013,7 @@
       "files": [
         "src/world_map/legacy_maps_world_database.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9028,7 +9028,7 @@
       "files": [
         "src/world_map/legacy_role_spatial_query.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9043,7 +9043,7 @@
       "files": [
         "src/world_map/legacy_world_background.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9058,7 +9058,7 @@
       "files": [
         "src/world_map/legacy_world_builtin_colors.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9073,7 +9073,7 @@
       "files": [
         "src/world_map/legacy_world_camera_pan.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9088,7 +9088,7 @@
       "files": [
         "src/world_map/legacy_world_direction_adjustment.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9103,7 +9103,7 @@
       "files": [
         "src/world_map/legacy_world_direction_input.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9118,7 +9118,7 @@
       "files": [
         "src/world_map/legacy_world_facing.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9133,7 +9133,7 @@
       "files": [
         "src/world_map/legacy_world_facing_role_query.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9148,7 +9148,7 @@
       "files": [
         "src/world_map/legacy_world_frame_tail.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9163,7 +9163,7 @@
       "files": [
         "src/world_map/legacy_world_interpolation.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9178,7 +9178,7 @@
       "files": [
         "src/world_map/legacy_world_map_business.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9193,7 +9193,7 @@
       "files": [
         "src/world_map/legacy_world_map_session.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9208,7 +9208,7 @@
       "files": [
         "src/world_map/legacy_world_pathfinding.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9223,7 +9223,7 @@
       "files": [
         "src/world_map/legacy_world_player_control.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9238,7 +9238,7 @@
       "files": [
         "src/world_map/legacy_world_player_motion.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9253,7 +9253,7 @@
       "files": [
         "src/world_map/legacy_world_render_session.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9268,7 +9268,7 @@
       "files": [
         "src/world_map/legacy_world_role_lookup.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9283,7 +9283,7 @@
       "files": [
         "src/world_map/legacy_world_role_map_update.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9298,7 +9298,7 @@
       "files": [
         "src/world_map/legacy_world_role_post_materialization.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9313,7 +9313,7 @@
       "files": [
         "src/world_map/legacy_world_role_preload.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9328,7 +9328,7 @@
       "files": [
         "src/world_map/legacy_world_role_transfer.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9343,7 +9343,7 @@
       "files": [
         "src/world_map/legacy_world_runtime_session.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9358,7 +9358,7 @@
       "files": [
         "src/world_map/legacy_world_save_map_overrides.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9373,7 +9373,7 @@
       "files": [
         "src/world_map/legacy_world_save_restore.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9388,7 +9388,7 @@
       "files": [
         "src/world_map/legacy_world_selection_scroll.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9403,7 +9403,7 @@
       "files": [
         "src/world_map/legacy_world_special_frame_loader.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9418,7 +9418,7 @@
       "files": [
         "src/world_map/legacy_world_story_paths.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",
@@ -9433,7 +9433,7 @@
       "files": [
         "src/world_map/legacy_world_transient_reset.cpp"
       ],
-      "historical_status": "not_in_previous_inventory",
+      "historical_status": "pending",
       "historical_verification_commit": "",
       "historical_evidence": "",
       "historical_reason": "",

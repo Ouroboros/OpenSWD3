@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
+历史还原状态：`pending`。
 当前完整INVOKE接口族仍`pending`。
 
 ## 当前行查询迁移
