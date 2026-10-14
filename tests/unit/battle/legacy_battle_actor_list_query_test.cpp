@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <functional>
 #include <string>
 #include <utility>
 
@@ -19,6 +20,15 @@ class SelectionPort final
     : public openswd3::battle::LegacyBattleActorResourceSelectionPort,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
+    [[nodiscard]] u32
+    open_mon_file(const std::filesystem::path& path) override {
+        if (before_open) {
+            before_open();
+        }
+
+        return LegacyBattleMonDatabaseFixture::open_mon_file(path);
+    }
+
     [[nodiscard]] openswd3::compat::u32 seek_mon_file(
         const openswd3::compat::u32 handle,
         const openswd3::compat::i32 distance,
@@ -43,7 +53,13 @@ public:
         const openswd3::compat::u16 resource_id
     ) override {
         diagnostics.push_back(resource_id);
+        if (after_diagnostic) {
+            after_diagnostic();
+        }
     }
+
+    std::function<void()> before_open;
+    std::function<void()> after_diagnostic;
     std::vector<openswd3::compat::u16> profile_ids;
     std::vector<openswd3::compat::u16> diagnostics;
 };
@@ -93,6 +109,274 @@ public:
     openswd3::compat::u16 last_profile{};
     openswd3::compat::u32 index{};
 };
+
+void test_resource_selection_outputs(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    struct SelectionCase {
+        u32 category;
+        u32 mask;
+        u16 capacity;
+        u8 mode;
+        u16 primary;
+        openswd3::compat::i16 secondary;
+        openswd3::compat::i16 tertiary;
+        u32 occurrence;
+        bool selected;
+        bool special;
+        u16 output_mode;
+    };
+
+    constexpr std::array<SelectionCase, 17> cases{{
+        {0U, 0x10U, 0U, 1U, 0U, 0, 1, 0U, false, false, 0xABCDU},
+        {0U, 0x10U, 0U, 1U, 0U, 0, 1, 1U, true, false, 1U},
+        {1U, 4U, 0U, 1U, 0U, 0, 1, 1U, true, false, 0U},
+        {1U, 8U, 0U, 1U, 0U, 0, 1, 1U, true, false, 1U},
+        {2U, 0x1000U, 0U, 4U, 0U, 0, 1, 1U, true, false, 0U},
+        {3U, 0x800U, 0U, 1U, 0U, 0, 1, 1U, true, false, 0U},
+        {4U, 0x2000U, 0x2000U, 1U, 0U, 0, 1, 1U, false, false, 0xABCDU},
+        {4U, 0x2000U, 0x2000U, 1U, 0U, 0, 1, 2U, true, true, 0U},
+        {4U, 0U, 0x2000U, 0U, 0U, 0, 0, 1U, true, true, 0U},
+        {5U, 0x08000000U, 0U, 1U, 0U, 0, 1, 1U, true, false, 3U},
+        {8U, 8U, 0U, 1U, 0U, 0, 1, 1U, true, false, 1U},
+        {0x10001U, 1U, 0U, 1U, 0U, 0, 1, 1U, true, false, 0U},
+        {0U, 0x10U, 0U, 2U, 0U, 0, 1, 1U, false, false, 0xABCDU},
+        {0U, 0x10U, 0U, 1U, 0U, 0, 1, 0x10001U, false, false, 0xABCDU},
+        {0U, 0x10U, 0U, 1U, 0xFFFFU, 32767, 32767, 1U, false, false, 0xABCDU},
+        {0U, 0x10U, 0U, 1U, 0xFFFEU, 32767, 32767, 1U, false, false, 0xABCDU},
+        {0U, 0x10U, 0U, 1U, 0xFFFDU, 32767, 32767, 1U, true, false, 1U},
+    }};
+    for (const auto& item : cases) {
+        LegacyBattleActorListQueryState list;
+        LegacyBattleGroupAConfigurationState configuration;
+        LegacyBattleGroupAFinalProcessingState final_state;
+        LegacyBattleGroupAItemEffectApplicationState effect;
+        LegacyBattleGroupAWorkspaceState workspace;
+        SelectionPort port;
+        port.set_profile_word(0x14U, 0xBEEFU);
+        list.resource_head_token = 0x99U;
+        list.next_resource_head_token = 0x10U;
+        list.selected_resource_token = 0x77U;
+        list.resources = {
+            {.token = 0x10U, .next_token = 0x20U, .name = {}},
+            {.token = 0x20U,
+             .resource_id = 0x301U,
+             .primary_quantity = item.primary,
+             .secondary_quantity = item.secondary,
+             .tertiary_quantity = item.tertiary,
+             .name = {},
+             .category_mask = item.mask,
+             .derived_word_30 = 0x1234U,
+             .profile_id_4a = 7U,
+             .mode_flags = item.mode,
+             .capacity_gate_flags = item.capacity},
+        };
+
+        final_state.profile_buffer.fill(0xFFFFFFFFU);
+        final_state.pre_effect_words.fill(0xFFFFFFFFU);
+        workspace.tail_words[2U] = 0xFFFFU;
+        u32 runtime_word = 0xDEADBEEFU;
+        u16 output_mode = 0xABCDU;
+        const auto result = select_legacy_battle_actor_resource(
+            &list,
+            &configuration,
+            &final_state,
+            &effect,
+            &workspace,
+            port,
+            port,
+            item.category,
+            item.occurrence,
+            runtime_word,
+            output_mode
+        );
+        const u16 expected_primary = static_cast<u16>(
+            item.primary +
+            (item.selected && !item.special && item.category != 3U ? 1U : 0U)
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.selected == item.selected &&
+                output_mode == item.output_mode &&
+                runtime_word ==
+                    (item.selected && !item.special ? 0xBEEFU : 0xDEADBEEFU) &&
+                list.selected_resource_token ==
+                    (item.selected ? 0x20U : 0x77U) &&
+                list.resource_head_token ==
+                    (item.occurrence == 0U ? 0x99U
+                         : item.selected   ? 0x20U
+                                           : 0U) &&
+                list.resources[1U].primary_quantity == expected_primary &&
+                std::ranges::all_of(
+                    final_state.pre_effect_words,
+                    [](const u32 value) { return value == 0U; }
+                ) &&
+                workspace.tail_words[2U] == 0U &&
+                (!item.special || effect.derived_words[0U] == 0x1234U),
+            "resource selection preserves DWORD ordinals, signed eligibility, independent special counts and semantic output widths"
+        );
+    }
+
+    for (const u32 mutation : {0U, 1U, 2U, 3U}) {
+        LegacyBattleActorListQueryState list;
+        LegacyBattleGroupAConfigurationState configuration;
+        LegacyBattleGroupAFinalProcessingState final_state;
+        LegacyBattleGroupAItemEffectApplicationState effect;
+        LegacyBattleGroupAWorkspaceState workspace;
+        SelectionPort port;
+        list.next_resource_head_token = 0x10U;
+        list.resources = {
+            {.token = 0x10U, .next_token = 0x20U, .name = {}},
+            {.token = 0x20U,
+             .resource_id = 0x301U,
+             .tertiary_quantity = 2,
+             .name = {},
+             .category_mask = 0x10U,
+             .profile_id_4a = 7U,
+             .mode_flags = 1U},
+            {.token = 0x30U,
+             .resource_id = 0x302U,
+             .primary_quantity = 0xFFFFU,
+             .name = {},
+             .category_mask = 0x10U},
+        };
+
+        port.set_profile_word(0x14U, mutation == 2U ? 0U : 0x30U);
+        if (mutation == 1U) {
+            port.before_open = [&]() { list.resource_head_token = 0x30U; };
+        } else if (mutation == 2U) {
+            port.after_diagnostic = [&]() { list.resource_head_token = 0x30U; };
+        }
+
+        u32 runtime_word = 0xDEADBEEFU;
+        u16 output_mode = 0xABCDU;
+        auto& runtime_output =
+            mutation == 0U ? list.resource_head_token : runtime_word;
+        auto& mode_output =
+            mutation == 3U ? list.resources[1U].primary_quantity : output_mode;
+        const auto result = select_legacy_battle_actor_resource(
+            &list,
+            &configuration,
+            &final_state,
+            &effect,
+            &workspace,
+            port,
+            port,
+            0U,
+            1U,
+            runtime_output,
+            mode_output
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.selected && list.selected_resource_token == 0x20U &&
+                list.resource_head_token == (mutation == 3U ? 0x20U : 0x30U) &&
+                mode_output == (mutation == 3U ? 2U : 1U) &&
+                list.resources[1U].primary_quantity ==
+                    (mutation == 3U ? 2U : 0U) &&
+                list.resources[2U].primary_quantity ==
+                    (mutation == 3U ? 0xFFFFU : 0U) &&
+                (mutation != 2U ||
+                 port.diagnostics == std::vector<u16>{0x301U}),
+            "selection rereads current resources after profile I/O, diagnostics and aliased output stores, then wraps quantity as a WORD"
+        );
+    }
+}
+
+void test_resource_selection_capacity_prefixes(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    constexpr std::array<std::array<u16, 2>, 9> capacities{{
+        {0U, 0U},
+        {1U, 1U},
+        {0x7FFFU, 0x7FFFU},
+        {0x8000U, 0x7FFFU},
+        {0x7FFFU, 0x8000U},
+        {0xFFFFU, 0U},
+        {0U, 0xFFFFU},
+        {1U, 0U},
+        {0U, 1U},
+    }};
+    for (const u16 gates :
+         {0x8000U, 0x8001U, 0xBFFFU, 0xC001U, 0x4000U, 0x4001U, 0x7FFFU}) {
+        for (const auto& capacity : capacities) {
+            for (const bool alternate : {false, true}) {
+                LegacyBattleActorListQueryState list;
+                LegacyBattleGroupAConfigurationState configuration;
+                LegacyBattleGroupAFinalProcessingState final_state;
+                LegacyBattleGroupAItemEffectApplicationState effect;
+                LegacyBattleGroupAWorkspaceState workspace;
+                SelectionPort port;
+                port.set_profile_word(0x14U, 0xBEEFU);
+                configuration.actor_record_token = 1U;
+                configuration.actor_record[1U] = static_cast<u32>(capacity[0U])
+                    << 16U;
+                configuration.actor_record[2U] = capacity[1U];
+                list.primary_required = 0xABCDU;
+                list.secondary_required = 0xDCBAU;
+                list.next_resource_head_token = 0x10U;
+                list.resources = {
+                    {.token = 0x10U, .next_token = 0x20U, .name = {}},
+                    {.token = 0x20U,
+                     .resource_id = 0x301U,
+                     .tertiary_quantity = 1,
+                     .name = {},
+                     .category_mask = 0x10U,
+                     .profile_id_4a = 7U,
+                     .mode_flags = 1U,
+                     .capacity_gate_flags = gates,
+                     .alternate_profile_id_54 =
+                         static_cast<u16>(alternate ? 9U : 0U)},
+                };
+
+                const bool checks_primary = (gates & 0x8000U) != 0U;
+                const bool primary_passes = !checks_primary ||
+                    (capacity[0U] < 0x8000U &&
+                     (gates & 0x7FFFU) <= capacity[0U]);
+                const bool checks_secondary =
+                    primary_passes && (gates & 0x4000U) != 0U;
+                const bool succeeds = primary_passes &&
+                    (!checks_secondary ||
+                     (capacity[1U] < 0x8000U &&
+                      (gates & 0x3FFFU) <= capacity[1U]));
+                u32 runtime_word = 0xDEADBEEFU;
+                u16 output_mode = 0xABCDU;
+                const auto result = select_legacy_battle_actor_resource(
+                    &list,
+                    &configuration,
+                    &final_state,
+                    &effect,
+                    &workspace,
+                    port,
+                    port,
+                    0U,
+                    1U,
+                    runtime_word,
+                    output_mode
+                );
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActorListQueryStatus::completed &&
+                        result.selected == succeeds &&
+                        list.selected_resource_token == 0x20U &&
+                        (effect.mode_flags & 0x40U) != 0U &&
+                        final_state.profile_buffer[5U] == 0xBEEFU &&
+                        runtime_word == (succeeds ? 0xBEEFU : 0xDEADBEEFU) &&
+                        output_mode == (succeeds ? 1U : 0U) &&
+                        list.resources[1U].primary_quantity ==
+                            (succeeds ? 1U : 0U) &&
+                        list.primary_required ==
+                            (checks_primary ? gates & 0x7FFFU : 0xABCDU) &&
+                        list.secondary_required ==
+                            (checks_secondary ? gates & 0x3FFFU : 0xDCBAU) &&
+                        port.profile_ids ==
+                            std::vector<u16>{
+                                static_cast<u16>(alternate ? 9U : 7U)
+                            },
+                    "capacity gates compare signed configuration WORDs in order and retain selection/profile/output prefixes on rejection"
+                );
+            }
+        }
+    }
+}
 
 void test_actor_resource_release_prefixes(openswd3::test::Context& test) {
     using namespace openswd3::battle;
@@ -1933,6 +2217,8 @@ void test_mode_resource_quantity_count(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_actor_list_query(openswd3::test::Context& test) {
+    test_resource_selection_outputs(test);
+    test_resource_selection_capacity_prefixes(test);
     test_actor_resource_release_prefixes(test);
     test_resource_head_publication(test);
     test_flagged_resource_display(test);
@@ -2199,7 +2485,6 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleGroupAItemEffectApplicationState item;
         LegacyBattleGroupAWorkspaceState workspace;
         workspace.tail_words[2U] = 0xFFFFU;
-        LegacyBattleGroupAActionExecutionState action;
         list.next_resource_head_token = 0x76000000U;
         list.resources = {
             {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
@@ -2210,29 +2495,33 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .name = {},
              .category_mask = 0x10U,
              .derived_words_40 = {11U, 12U, 13U},
-             .flags_49 = 0x02U,
+             .gate_word_48 = 0x0200U,
              .profile_id_4a = 7U,
              .mode_flags = 0x01U,
              .capacity_gate_flags = 0x8003U,
              .alternate_profile_id_54 = 9U},
         };
         SelectionPort port;
+        u32 runtime_word = 0xAABBCCDDU;
+        u16 selection_mode = 0xFFFFU;
         const auto result = select_legacy_battle_actor_resource(
             &list,
             &configuration,
             &final_state,
             &item,
             &workspace,
-            &action,
-            0x005029D0U,
             port,
             port,
-            {.category_selector = 0U, .occurrence = 1U}
+            0U,
+            1U,
+            runtime_word,
+            selection_mode
         );
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                result.return_eax == 1U && result.output_mode == 1U &&
-                port.profile_ids[0U] == 9U && result.diagnostic_calls == 1U &&
+                result.selected && selection_mode == 1U && runtime_word == 0U &&
+                port.profile_ids[0U] == 9U &&
+                port.diagnostics == std::vector<u16>{2U} &&
                 list.selected_resource_token == 0x76000010U &&
                 list.primary_required == 3U && item.mode_flags == 0x40U &&
                 item.derived_words[1U] == 11U &&
@@ -2246,7 +2535,6 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleGroupAFinalProcessingState final_state;
         LegacyBattleGroupAItemEffectApplicationState item;
         LegacyBattleGroupAWorkspaceState workspace;
-        LegacyBattleGroupAActionExecutionState action;
         list.next_resource_head_token = 0x76000000U;
         list.resources = {
             {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
@@ -2259,20 +2547,25 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .capacity_gate_flags = 0x2000U},
         };
         SelectionPort port;
+        u32 runtime_word = 0xAABBCCDDU;
+        u16 selection_mode = 0xFFFFU;
         const auto result = select_legacy_battle_actor_resource(
             &list,
             nullptr,
             &final_state,
             &item,
             &workspace,
-            &action,
-            0x005029D0U,
             port,
             port,
-            {.category_selector = 4U, .occurrence = 1U}
+            4U,
+            1U,
+            runtime_word,
+            selection_mode
         );
         test.expect_true(
-            result.return_eax == 1U && port.profile_ids[0U] == 7U &&
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.selected && runtime_word == 0xAABBCCDDU &&
+                selection_mode == 0U && port.profile_ids[0U] == 7U &&
                 item.derived_words[0U] == 0x1234U &&
                 list.resources[1U].primary_quantity == 0U,
             "category four bit-thirteen selection takes the early profile path without quantity mutation"
@@ -2286,20 +2579,26 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleGroupAWorkspaceState workspace;
         workspace.tail_words[2U] = 0xFFFFU;
         SelectionPort port;
+        u32 runtime_word = 0xAABBCCDDU;
+        u16 selection_mode = 0xFFFFU;
         const auto result = select_legacy_battle_actor_resource(
             nullptr,
             nullptr,
             &final_state,
             nullptr,
             &workspace,
-            nullptr,
-            0x005029D0U,
             port,
             port,
-            {.occurrence = 0U}
+            0U,
+            0U,
+            runtime_word,
+            selection_mode
         );
         test.expect_true(
-            result.return_eax == 0U && final_state.profile_buffer[0U] == 0U &&
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                !result.selected && runtime_word == 0xAABBCCDDU &&
+                selection_mode == 0xFFFFU &&
+                final_state.profile_buffer[0U] == 0U &&
                 final_state.pre_effect_words[0U] == 0U &&
                 workspace.tail_words[2U] == 0U,
             "zero occurrence preserves the mandatory clearing prefix before failure"

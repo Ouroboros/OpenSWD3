@@ -1005,8 +1005,8 @@
 - [ ] `LegacyBattleActorResourceSelectionPort`：抽象接口；待复核。
 - 定义：[include/openswd3/battle/legacy_battle_actor_list_query.hpp:199](../../../include/openswd3/battle/legacy_battle_actor_list_query.hpp:199)。
 - 继承：`无`。
-- 直接残留：未命中；须检查纯转发及继承。
-- 处理与验收记录：待填写。
+- 直接残留：本体仅命名诊断方法；其生产Adapter仍转通用invoke。
+- 处理与验收记录：本批选择请求、输出回包和调用计数已移除；诊断Port尚未删除，未证明原版诊断的生产处理合同。与[ResourceSelectionAdapter](#port-afd331603c89)继续待迁移，不作为合法保留勾选。见[选择证据](battle-actor-resource-selection-00470ac0.md)。
 - 引用位置：
   - [include/openswd3/battle/legacy_battle_actor_list_query.hpp](../../../include/openswd3/battle/legacy_battle_actor_list_query.hpp)：199, 201, 356
   - [src/battle/legacy_battle_actor_list_query.cpp](../../../src/battle/legacy_battle_actor_list_query.cpp)：1109
@@ -4636,7 +4636,7 @@
 - 定义：[src/battle/legacy_battle_target_selection_refresh.cpp:35](../../../src/battle/legacy_battle_target_selection_refresh.cpp:35)。
 - 继承：`public LegacyBattleActorResourceSelectionPort`。
 - 直接残留：invoke, arguments。
-- 处理与验收记录：待填写。
+- 处理与验收记录：仍把零profile输出诊断转为resource_missing_word_diagnostic操作及参数包；本批未找到已接线的生产处理，需核431150真实诊断合同后迁移。选择语义接口不能掩盖这层纯转发，整项不勾选。
 - 引用位置：
   - [src/battle/legacy_battle_target_selection_refresh.cpp](../../../src/battle/legacy_battle_target_selection_refresh.cpp)：35, 38, 739
 

@@ -340,8 +340,7 @@ private:
         const u32 index = actor_code - 8U;
         const u32 prior_edx = edx_;
         ecx_ = kGroupABaseToken + index * kGroupAStride;
-        if (call == Call::apply_special_actor_action ||
-            call == Call::set_actor_mode) {
+        if (call == Call::set_actor_mode) {
             shape = GroupARegisterShape::eax_3ef_edx_bcd;
         } else if (
             call == Call::query_group_b_completion ||
@@ -722,50 +721,44 @@ private:
         return true;
     }
 
-    [[nodiscard]] bool
+    [[nodiscard]] std::optional<bool>
     select_actor_resource(const u32 actor_code, const u32 category) {
         if (actor_code < 8U) {
             typed_stop(Status::group_a_actor_typed_stop);
-            return false;
+            return std::nullopt;
         }
+
         const u32 index = actor_code - 8U;
         if (index >= bindings_.party.size() ||
-            index >= bindings_.action.group_a_action_execution.size() ||
             index >= bindings_.startup_reset.block_4fe5d4.size()) {
             typed_stop(Status::actor_mode_four_finalization_typed_stop);
-            return false;
+            return std::nullopt;
         }
+
         auto& party = bindings_.party[index];
         ResourceSelectionAdapter adapter(port_);
-        result_.resource_selection = select_legacy_battle_actor_resource(
+        u16 selection_mode = static_cast<u16>(local_output_);
+        const auto selected = select_legacy_battle_actor_resource(
             &party.actor_list,
             &party.configuration,
             &party.final_processing,
             &party.item_effect_application,
             &party.workspace,
-            &bindings_.action.group_a_action_execution[index],
-            kGroupABaseToken + index * kGroupAStride,
             adapter,
             port_,
-            {.category_selector = category,
-             .occurrence = runtime_.target_argument,
-             .entry_eax = eax_,
-             .entry_edx = edx_}
+            category,
+            runtime_.target_argument,
+            bindings_.startup_reset.block_4fe5d4[index],
+            selection_mode
         );
-        ++result_.resource_selection_calls;
-        eax_ = result_.resource_selection.return_eax;
-        ecx_ = result_.resource_selection.return_ecx;
-        edx_ = result_.resource_selection.return_edx;
-        bindings_.startup_reset.block_4fe5d4[index] =
-            result_.resource_selection.output_runtime_word;
-        local_output_ = result_.resource_selection.output_mode;
-        call_output_ = result_.resource_selection.output_mode;
-        if (result_.resource_selection.status !=
-            LegacyBattleActorListQueryStatus::completed) {
+        local_output_ = replace_low_word(local_output_, selection_mode);
+        if (selected.status != LegacyBattleActorListQueryStatus::completed) {
+            result_.resource_selection_failure = selected.status;
             typed_stop(Status::actor_mode_four_finalization_typed_stop);
-            return false;
+            return std::nullopt;
         }
-        return true;
+
+        return selected.selected;
     }
 
     [[nodiscard]] std::optional<u16>
@@ -1483,17 +1476,24 @@ private:
         }
 
         if (runtime_.selected_action_kind == 4U) {
-            if (bindings_.scripted_resource_selection_test_compat) {
-                if (!invoke_group_a(
-                        Call::apply_special_actor_action,
-                        bindings_.debug_hotkeys.committed_actor_code
-                    )) {
-                    return;
-                }
-            } else if (!select_actor_resource(
-                           bindings_.debug_hotkeys.committed_actor_code,
-                           frame_.current_equipment_selection
-                       )) {
+            const u32 actor_index =
+                bindings_.debug_hotkeys.committed_actor_code - 8U;
+            if (actor_index >= bindings_.party.size()) {
+                typed_stop(Status::actor_mode_four_finalization_typed_stop);
+                return;
+            }
+
+            auto& party = bindings_.party[actor_index];
+            const auto finalized = finalize_legacy_battle_actor_mode_four(
+                &party.final_processing,
+                &party.item_effect_application,
+                &party.workspace,
+                kGroupABaseToken + actor_index * kGroupAStride,
+                eax_
+            );
+            if (finalized.status !=
+                LegacyBattleActorModeFourFinalizationStatus::completed) {
+                typed_stop(Status::actor_mode_four_finalization_typed_stop);
                 return;
             }
         }
@@ -1662,22 +1662,14 @@ private:
         }
         const u32 actor_code = eax_;
         local_output_ = minus_one;
-        edx_ = runtime_.target_argument;
-        eax_ = frame_.current_equipment_selection;
-        if (!invoke_group_a(
-                Call::resolve_action_target,
-                actor_code,
-                {
-                    eax_,
-                    edx_,
-                    kActorRuntimeRecordToken + (actor_code - 8U) * 4U,
-                },
-                GroupARegisterShape::eax_3ef
-            )) {
+        const auto selected = select_actor_resource(
+            actor_code, frame_.current_equipment_selection
+        );
+        if (!selected.has_value()) {
             return;
         }
-        local_output_ = call_output_;
-        if (eax_ == 0U) {
+
+        if (!*selected) {
             eax_ = frame_.current_equipment_selection;
             if ((eax_ == 3U || eax_ == 0U || eax_ == 2U) &&
                 (local_output_ & 0xFFFFU) == 0xFFFFU) {
@@ -2004,25 +1996,8 @@ private:
             return;
         }
         local_output_ = 0U;
-        edx_ = kActorRuntimeRecordToken + (eax_ - 8U) * 4U;
-        if (bindings_.scripted_resource_selection_test_compat) {
-            if (!invoke_group_a(
-                    Call::resolve_action_target,
-                    eax_,
-                    {
-                        4U,
-                        runtime_.target_argument,
-                        kActorRuntimeRecordToken + (eax_ - 8U) * 4U,
-                    },
-                    GroupARegisterShape::eax_3ef
-                )) {
-                return;
-            }
-        } else if (!select_actor_resource(eax_, 4U)) {
-            return;
-        }
-        local_output_ = call_output_;
-        if (eax_ == 0U) {
+        const auto selected = select_actor_resource(eax_, 4U);
+        if (!selected.has_value() || !*selected) {
             return;
         }
         if (final_actor_.pre_frame_gate_b == 0U && !prepare_default_target()) {
@@ -2051,24 +2026,12 @@ private:
         }
         const u32 actor_code = eax_;
         local_output_ = 0U;
-        edx_ = runtime_.target_argument;
-        if (bindings_.scripted_resource_selection_test_compat) {
-            if (!invoke_group_a(
-                    Call::resolve_action_target,
-                    actor_code,
-                    {
-                        5U,
-                        runtime_.target_argument,
-                        kActorRuntimeRecordToken + (actor_code - 8U) * 4U,
-                    }
-                )) {
-                return;
-            }
-        } else if (!select_actor_resource(actor_code, 5U)) {
+        const auto selected = select_actor_resource(actor_code, 5U);
+        if (!selected.has_value()) {
             return;
         }
-        local_output_ = call_output_;
-        if (eax_ == 0U) {
+
+        if (!*selected) {
             ecx_ = std::bit_cast<u32>(input_.sample_mix_level);
             sample(0x8CU);
             return;

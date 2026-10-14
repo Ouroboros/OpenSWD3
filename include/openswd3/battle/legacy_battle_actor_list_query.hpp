@@ -42,7 +42,6 @@ struct LegacyBattleActorListResourceNode {
     compat::u16 derived_word_30{};     // node + 0x30
     std::array<compat::u16, 3> derived_words_40{};
     compat::u16 gate_word_48{};         // node + 0x48
-    compat::u8 flags_49{};              // node + 0x49
     compat::u16 profile_id_4a{};        // node + 0x4A
     compat::u8 mode_flags{};            // node + 0x46
     compat::u16 capacity_gate_flags{};  // node + 0x4C
@@ -202,32 +201,12 @@ public:
     virtual void report_missing_runtime_word(compat::u16 resource_id) = 0;
 };
 
-struct LegacyBattleActorResourceSelectionRequest {
-    compat::u32 category_selector{};
-    compat::u32 occurrence{};
-    compat::u32 profile_buffer_token{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_edx{};
-};
-
 struct LegacyBattleActorResourceSelectionResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
 
-    compat::u32 nodes_visited{};
-    compat::u32 matches{};
-    compat::u32 profile_load_calls{};
-    compat::u32 diagnostic_calls{};
-    compat::u32 selected_writes{};
-    compat::u32 quantity_writes{};
-    compat::u32 profile_buffer_dwords_zeroed{};
-    compat::u32 pre_effect_dwords_zeroed{};
-    compat::u16 output_runtime_word{};
-    compat::u16 output_mode{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
+    bool selected{};
 };
 
 struct LegacyBattleActorFlaggedResourceQueryResult {
@@ -351,11 +330,12 @@ select_legacy_battle_actor_resource(
     LegacyBattleGroupAFinalProcessingState* final_state,
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
     LegacyBattleGroupAWorkspaceState* workspace,
-    LegacyBattleGroupAActionExecutionState* action,
-    compat::u32 actor_token,
     LegacyBattleActorResourceSelectionPort& port,
     LegacyBattleMonDatabasePort& mon_port,
-    const LegacyBattleActorResourceSelectionRequest& request
+    compat::u32 category_selector,
+    compat::u32 occurrence,
+    compat::u32& output_runtime_word,
+    compat::u16& output_mode
 );
 
 // sub_470F70.

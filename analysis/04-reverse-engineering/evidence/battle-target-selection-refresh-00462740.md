@@ -33,7 +33,7 @@ selection input gate为0或animation frame B小于signed 6时直接返回；越�
 
 message 2先消费hovered category；否则在输入gate、双候选gate、候选参数和queued角色通过后，依次执行主动作验证、目标查询、属性A/B/C。属性A低word进入角色五dword记录，属性B可置目标缓存，属性C决定立即目标、默认回退或alternate回退。alternate剩余量unsigned至少4时直连已关闭组A目标轮转：复用连续八dword候选表的后五项物理视图，按queued角色零基值无上限匹配并发布一基目标。
 
-message 4先消费hovered equipment；普通路径以current equipment校验目标。校验失败时按`0/2/3`与callee输出word决定是否显示提示，随后播放失败样本。校验成功且特殊override为1时，低word非零提示失败；高word1/2进入message 5的两行选择；全零直接提交动作15。其他结果复用属性链。
+message 4先消费hovered equipment；普通路径以current equipment和完整序号选择实际资源。校验失败时按`0/2/3`与callee输出word决定是否显示提示，随后播放失败样本。校验成功且特殊override为1时，低word非零提示失败；高word1/2进入message 5的两行选择；全零直接提交动作15。其他结果复用属性链。
 
 message 8固定以类别0/模式1查询；返回AX全1时直接返回。message 27固定类别4，成功后执行默认目标准备。message 30先以signed grid selection与u16行上限比较，超限或类别5校验失败都播放失败样本；成功后进入属性链。
 
@@ -41,7 +41,7 @@ message 8固定以类别0/模式1查询；返回AX全1时直接返回。message 
 
 ## 5. message 3、5与7：提交、效果和目标轮转
 
-message 3在published角色有效且queued/cleanup条件满足时提交当前action，清queued角色并刷新对象。动作30先写动作3、解析效果值，再按实际位13决定动作13或增加固定item0300数量；动作4在随后独立检查live动作并调用角色特殊处理。随后按live group-B count清对象，再固定清四个group-A对象和四个marker；原循环不加现代上限。
+message 3在published角色有效且queued/cleanup条件满足时提交当前action，清queued角色并刷新对象。动作30先写动作3、解析效果值，再按实际位13决定动作13或增加固定item0300数量；动作4在随后独立检查live动作并调用4708C0完成函数，置完成状态、按非零替代值写动作并清early workspace，不调用资源选择。随后按live group-B count清对象，再固定清四个group-A对象和四个marker；原循环不加现代上限。
 
 清理后重置动画、grid和三项cache并刷新显示。cleanup gate为1时重新查询已提交角色；返回1则改写动作5、应用并刷新，再写角色五dword记录。末尾只清既有三个startup dword与共享word。
 
@@ -137,5 +137,16 @@ dd7ae08f这批只回收三个菜单站，当时保留的叶协议和另三caller
 两core/两ASan、SDL链接及13源身份通过，见
 [六处实际资源消费](battle-actor-resource-consumption-00470e20.md)。
 完整菜单父、其余资源操作、别名与SDL链仍pending。
+
+## 14. 资源选择的真实输出
+
+本批在4631F6/4636CF/46377C直接借实际角色资源、MON资料及startup DWORD槽。
+删除resolve_action_target、误名apply_special_actor_action、脚本选择开关、
+选择子寄存器回复和计数；业务失败保留原输出，局部DWORD仅替换低WORD。
+同时纠正462FEB原call为4708C0而非470AC0，并验证十角色的动作4完成行为。
+菜单夹具以真实MON重载和真实数量变化为前提，不再强制不可达的选择成功。
+四项定向core/ASan、SDL构建及源码身份检查通过；补充caller测试后的菜单core/ASan
+再次通过。完整日志、LST与边界见[资源选择证据](battle-actor-resource-selection-00470ac0.md)。
+诊断仍经ResourceSelectionAdapter转通用调用，完整菜单父协议及SDL续玩仍pending。
 
 当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

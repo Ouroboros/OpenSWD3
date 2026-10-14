@@ -1104,43 +1104,33 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
     LegacyBattleGroupAFinalProcessingState* final_state,
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
     LegacyBattleGroupAWorkspaceState* workspace,
-    LegacyBattleGroupAActionExecutionState* action,
-    const u32 actor_token,
     LegacyBattleActorResourceSelectionPort& port,
     LegacyBattleMonDatabasePort& mon_port,
-    const LegacyBattleActorResourceSelectionRequest& request
+    const u32 category_selector,
+    const u32 occurrence,
+    u32& output_runtime_word,
+    u16& output_mode
 ) {
     LegacyBattleActorResourceSelectionResult result;
-    result.return_eax = request.entry_eax;
-    result.return_ecx = actor_token;
-    result.return_edx = request.entry_edx;
-    if (actor_token == 0U || final_state == nullptr) {
+    if (final_state == nullptr) {
         result.status =
             LegacyBattleActorListQueryStatus::actor_state_typed_stop;
         return result;
     }
+
     final_state->profile_buffer.fill(0U);
-    result.profile_buffer_dwords_zeroed =
-        static_cast<u32>(final_state->profile_buffer.size());
     final_state->pre_effect_words.fill(0U);
-    result.pre_effect_dwords_zeroed =
-        static_cast<u32>(final_state->pre_effect_words.size());
     if (workspace == nullptr) {
         result.status =
             LegacyBattleActorListQueryStatus::actor_state_typed_stop;
         return result;
     }
     workspace->tail_words[2U] = 0U;
-    if (request.occurrence == 0U) {
-        result.return_eax = 0U;
-        return result;
-    }
-    if (list == nullptr || item_effect == nullptr || action == nullptr) {
-        result.status = LegacyBattleActorListQueryStatus::list_owner_typed_stop;
+    if (occurrence == 0U) {
         return result;
     }
 
-    u32 mask = request.category_selector;
+    u32 mask = category_selector;
     if (mask == 0U) {
         mask = 0x10U;
     } else if (mask == 1U) {
@@ -1155,11 +1145,30 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
         mask = 0x08000000U;
     }
 
-    static_cast<void>(commit_legacy_battle_actor_resource_list(list));
+    const auto committed = commit_legacy_battle_actor_resource_list(list);
+    if (committed != LegacyBattleActorListQueryStatus::completed) {
+        result.status = committed;
+        return result;
+    }
+
+    const auto current_resource = [&]() -> LegacyBattleActorListResourceNode* {
+        const auto node = std::ranges::find(
+            list->resources,
+            list->resource_head_token,
+            &LegacyBattleActorListResourceNode::token
+        );
+        if (node == list->resources.end()) {
+            result.status =
+                LegacyBattleActorListQueryStatus::resource_node_typed_stop;
+            return nullptr;
+        }
+
+        return &*node;
+    };
 
     u32 matches = 0U;
     LegacyBattleActorListResourceNode* selected = nullptr;
-    while (list->resource_head_token != 0U) {
+    while (true) {
         const auto cursor = std::ranges::find(
             list->resources,
             list->resource_head_token,
@@ -1183,33 +1192,45 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
                 LegacyBattleActorListQueryStatus::resource_owner_typed_stop;
             return result;
         }
-        ++result.nodes_visited;
-        const i32 derived = static_cast<i32>(node->tertiary_quantity) -
-            static_cast<i32>(node->primary_quantity) +
-            static_cast<i32>(node->secondary_quantity);
+
         if ((node->mode_flags & 0x05U) != 0U &&
-            (node->category_mask & mask) != 0U && derived > 0) {
-            ++matches;
+            (node->category_mask & mask) != 0U) {
+            const i32 derived = static_cast<i32>(node->tertiary_quantity) -
+                static_cast<i32>(node->primary_quantity) +
+                static_cast<i32>(node->secondary_quantity);
+            if (derived > 0) {
+                ++matches;
+            }
         }
+
         if (mask == 0x2000U && (node->capacity_gate_flags & 0x2000U) != 0U) {
             ++matches;
         }
-        result.matches = matches;
-        if (matches == request.occurrence) {
+
+        if (matches == occurrence) {
             selected = &*node;
             break;
         }
     }
     if (selected == nullptr) {
-        result.return_eax = 0U;
+        return result;
+    }
+
+    if (item_effect == nullptr) {
+        result.status =
+            LegacyBattleActorListQueryStatus::actor_state_typed_stop;
         return result;
     }
 
     item_effect->mode_flags =
         static_cast<compat::u8>(item_effect->mode_flags | 0x40U);
     list->selected_resource_token = selected->token;
-    ++result.selected_writes;
-    result.output_mode = 0U;
+    output_mode = 0U;
+    selected = current_resource();
+    if (selected == nullptr) {
+        return result;
+    }
+
     const auto load_profile = [&](const u16 profile_id) {
         const auto profile_result = load_legacy_battle_mon_profile(
             profile_bytes(final_state->profile_buffer),
@@ -1219,7 +1240,6 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
                 .profile_id = profile_id,
             }
         );
-        ++result.profile_load_calls;
         if (legacy_battle_mon_profile_load_stopped(profile_result.status)) {
             result.status =
                 LegacyBattleActorListQueryStatus::profile_load_typed_stop;
@@ -1232,8 +1252,14 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
         if (!load_profile(selected->profile_id_4a)) {
             return result;
         }
+
+        selected = current_resource();
+        if (selected == nullptr) {
+            return result;
+        }
+
         item_effect->derived_words[0U] = selected->derived_word_30;
-        result.return_eax = 1U;
+        result.selected = true;
         return result;
     }
     if (!load_profile(
@@ -1241,6 +1267,11 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
                 ? selected->alternate_profile_id_54
                 : selected->profile_id_4a
         )) {
+        return result;
+    }
+
+    selected = current_resource();
+    if (selected == nullptr) {
         return result;
     }
 
@@ -1258,10 +1289,15 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
             static_cast<u16>(configuration->actor_record[1U] >> 16U)
         );
         if (static_cast<i32>(required) > static_cast<i32>(capacity)) {
-            result.return_eax = 0U;
             return result;
         }
     }
+
+    selected = current_resource();
+    if (selected == nullptr) {
+        return result;
+    }
+
     if ((selected->capacity_gate_flags & 0x4000U) != 0U) {
         const u16 required =
             static_cast<u16>(selected->capacity_gate_flags & 0x3FFFU);
@@ -1276,9 +1312,13 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
             static_cast<u16>(configuration->actor_record[2U])
         );
         if (static_cast<i32>(required) > static_cast<i32>(capacity)) {
-            result.return_eax = 0U;
             return result;
         }
+    }
+
+    selected = current_resource();
+    if (selected == nullptr) {
+        return result;
     }
 
     if (selected->gate_word_48 == 0U) {
@@ -1287,38 +1327,61 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
         item_effect->derived_words[3U] = selected->derived_words_40[2U];
     }
     final_state->profile_copy_latch = 0U;
-    if ((selected->flags_49 & 0x02U) != 0U) {
+    if ((selected->gate_word_48 & 0x0200U) != 0U) {
         final_state->profile_copy_latch = 1U;
         item_effect->derived_words[1U] = selected->derived_words_40[0U];
         item_effect->derived_words[2U] = selected->derived_words_40[1U];
         item_effect->derived_words[3U] = selected->derived_words_40[2U];
     }
 
-    result.output_runtime_word = action->copied_runtime_word;
-    if (result.output_runtime_word == 0U) {
+    output_runtime_word = static_cast<u16>(final_state->profile_buffer[5U]);
+    if (static_cast<u16>(final_state->profile_buffer[5U]) == 0U) {
+        selected = current_resource();
+        if (selected == nullptr) {
+            return result;
+        }
+
         port.report_missing_runtime_word(selected->resource_id);
-        ++result.diagnostic_calls;
     }
+
+    selected = current_resource();
+    if (selected == nullptr) {
+        return result;
+    }
+
     if ((selected->category_mask & 0x00000800U) != 0U) {
         item_effect->mode_flags =
             static_cast<compat::u8>(item_effect->mode_flags | 0x10U);
         workspace->tail_words[2U] = selected->output_word_5c;
     }
-    if ((mask & 0x0800U) != 0U && (selected->category_mask & 0x0800U) != 0U) {
-        result.output_mode = 1U;
+
+    if ((mask & 0x08U) != 0U && (selected->category_mask & 0x08U) != 0U) {
+        output_mode = 1U;
     }
+
     if ((mask & 0x10U) != 0U) {
-        result.output_mode = 1U;
+        output_mode = 1U;
     }
+
     if (mask == 0x08000000U) {
         item_effect->mode_flags =
             static_cast<compat::u8>(item_effect->mode_flags | 0x20U);
-        result.output_mode = 2U;
+        output_mode = 2U;
+        selected = current_resource();
+        if (selected == nullptr) {
+            return result;
+        }
+
         if (selected->resource_id != 0x0300U) {
-            result.output_mode = 3U;
+            output_mode = 3U;
             item_effect->mode_flags =
                 static_cast<compat::u8>(item_effect->mode_flags & ~0x20U);
         }
+    }
+
+    selected = current_resource();
+    if (selected == nullptr) {
+        return result;
     }
 
     const bool suppress_quantity =
@@ -1328,9 +1391,9 @@ LegacyBattleActorResourceSelectionResult select_legacy_battle_actor_resource(
     if (!suppress_quantity) {
         selected->primary_quantity =
             static_cast<u16>(selected->primary_quantity + 1U);
-        ++result.quantity_writes;
     }
-    result.return_eax = 1U;
+
+    result.selected = true;
     return result;
 }
 
