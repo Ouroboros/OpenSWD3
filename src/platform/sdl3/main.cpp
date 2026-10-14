@@ -1705,6 +1705,7 @@ class SdlSmokeIdlePorts final
       public openswd3::battle::LegacyBattleScriptDispatchPort,
       public openswd3::battle::LegacyBattleDialogFormatPort,
       public openswd3::battle::LegacyBattleGroupAConfigurationDiagnosticPort,
+      public openswd3::battle::LegacyBattleActorResourceSelectionPort,
       public openswd3::battle::LegacyBattleGroupAAttributeAggregationPort,
       public openswd3::battle::LegacyBattleStartupSupplementalPort,
       public openswd3::battle::LegacyBattleBoundedRandomPort,
@@ -3305,6 +3306,14 @@ public:
                 "武器" + std::to_string(request.item_id) + "號的強攻擊act沒設!!"
             )
         };
+    }
+
+    void report_missing_runtime_word(
+        const openswd3::compat::u16 resource_id
+    ) override {
+        static_cast<void>(report_battle_maintenance_error(
+            0x0926U, std::to_string(resource_id)
+        ));
     }
 
     openswd3::compat::u32 report_battle_maintenance_error(

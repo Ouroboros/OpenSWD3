@@ -31,7 +31,8 @@
   - 证据：[行查询及唯一普通网格调用方](battle-actor-resource-list-query-00470910.md)。提交f21aa0b1已推送，远端main一致。
   - 本批选择：删除Request、寄存器/输出回包、调用计数和脚本开关，三个caller直接写实际DWORD/WORD；纠正4708C0错接、profile影子来源、分类位和重复flags_49。
   - 验证：真实资源/MON夹具、独立边界、四项core/ASan、SDL构建及源码身份检查通过；源码4b163e92已推送并核对远端main一致。见[资源选择](battle-actor-resource-selection-00470ac0.md)。
-  - 剩余：同族状态、资料、选择诊断转发及资源生产；整链未验收，不勾选。
+  - 本批诊断：删除ResourceSelectionAdapter及通用诊断操作/参数包调用，核心两路入口共享诊断对象；core/ASan、SDL及19源身份通过，提交待登记。见[诊断证据](battle-resource-selection-diagnostic-00431150.md)。
+  - 剩余：同族状态、资料、资源生产及完整SDL诊断接线；整链未验收，不勾选。
   - 当前残留信号：counter, interface, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_actor_list_query.hpp](../../../include/openswd3/battle/legacy_battle_actor_list_query.hpp)；[src/battle/legacy_battle_actor_list_query.cpp](../../../src/battle/legacy_battle_actor_list_query.cpp)。
@@ -43,6 +44,7 @@
   - `register` [src/battle/legacy_battle_actor_list_query.cpp](../../../src/battle/legacy_battle_actor_list_query.cpp)：64, 65, 66, 71, 74, 75, 76, 100, 124, 130, 131, 132, 151, 152, 153, 176, 177, 178, 181, 182, 183, 197, 198, 199, 201, 230, 254, 276, 339, 341, 355, 356, 357, 361, 364, 387, 404, 412, 413, 416, 417, 420, 425, 445, 458, 459, 460, 467, 468, 493, 496, 497, 498, 521, 524, 525, 526, 1114, 1115, 1116, 1135, 1204, 1236, 1261, 1279, 1333, 1428, 1429, 1430, 1432, 1440, 1443, 1484, 1501, 1532, 1543, 1547, 1551, 1561, 1569, 1574
 
 - [ ] **CHAIN-cdfe45119708** `battle/legacy_battle_frame_coordinator`
+  - 本批依赖：向输入和消息两路借出同一资源诊断对象，删除默认通用诊断的依赖；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。其余协议及完整SDL帧仍pending。
   - 当前残留信号：arguments, counter, interface, invoke, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_frame_coordinator.hpp](../../../include/openswd3/battle/legacy_battle_frame_coordinator.hpp)；[src/battle/legacy_battle_frame_coordinator.cpp](../../../src/battle/legacy_battle_frame_coordinator.cpp)。
@@ -1496,6 +1498,7 @@
   - `register` [src/battle/legacy_battle_hud_frame.cpp](../../../src/battle/legacy_battle_hud_frame.cpp)：195, 206, 219, 220, 221, 245, 290, 339, 353, 394, 446, 704, 705, 706, 711
 
 - [ ] **CHAIN-0c8411564b16** `battle/legacy_battle_input_dispatch`
+  - 本批依赖：向目标选择入口传递必填资源诊断引用，不增加通用输入Port方法；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。其余协议仍pending。
   - 当前残留信号：arguments, counter, interface, invoke, operation, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_input_dispatch.hpp](../../../include/openswd3/battle/legacy_battle_input_dispatch.hpp)；[src/battle/legacy_battle_input_dispatch.cpp](../../../src/battle/legacy_battle_input_dispatch.cpp)。
@@ -1717,6 +1720,7 @@
   - `register` [src/battle/legacy_battle_menu_selection_retreat.cpp](../../../src/battle/legacy_battle_menu_selection_retreat.cpp)：63, 64, 65, 68, 69, 70, 80, 84, 85, 86, 88, 89, 90, 94, 96, 99, 100, 101, 112, 113, 114, 115, 118, 119, 123, 126, 127, 128, 129, 132, 133, 134, 139, 140, 141, 144, 160, 161, 162, 173, 181, 185, 186, 191, 192, 194, 199, 200, 202, 204, 205, 206, 210, 216, 222, 226, 227, 228, 232, 233, 236, 237, 238, 247, 248, 261, 262, 263, 264, 265, 267, 273, 284, 286, 292, 295, 297, 298, 308, 311, 319, 324, 325, 329, 330, 331, 332, 333, 335, 336, 337, 338, 339, 340, 343, 349, 373, 375, 380, 381, 382, 383, 384, 387, 390, 391, 392, 397, 400, 402, 403, 406, 407, 408, 409, 410, 411, 413, 414, 415, 417, 423, 430, 435, 437, 445, 476, 484, 485, 486, 488, 489, 490, 495, 496, 497, 499, 505, 506, 512, 517, 518, 519, 527, 528, 529, 530, 531, 535, 539, 540, 541, 542, 545, 550, 551, 552, 556, 557, 558, 566, 567, 568
 
 - [ ] **CHAIN-29fa07afafff** `battle/legacy_battle_message_phase`
+  - 本批依赖：向目标选择入口借同一资源诊断对象；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。其余协议仍pending。
   - 当前残留信号：arguments, callee, counter, interface, invoke, operation, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_message_phase.hpp](../../../include/openswd3/battle/legacy_battle_message_phase.hpp)；[src/battle/legacy_battle_message_phase.cpp](../../../src/battle/legacy_battle_message_phase.cpp)。
@@ -2086,6 +2090,7 @@
   - `register` [src/battle/legacy_battle_target_ready.cpp](../../../src/battle/legacy_battle_target_ready.cpp)：72, 73, 74, 82, 83, 84, 86, 87, 88, 91, 92, 93, 96, 105, 106, 107, 109, 110, 111, 116, 117, 119, 123, 173, 174, 175, 176, 179, 186, 187, 190, 192, 195, 196, 203, 204, 205, 222, 223, 224, 238, 262, 263, 269, 270, 271, 283, 288, 289, 290, 292, 293, 294, 295, 301, 307, 308, 309, 313, 314, 315, 316, 319, 321, 323, 324, 340, 350, 351, 356, 357, 358, 359, 360, 361, 367, 368, 369, 370, 371, 372, 377, 379, 380, 396, 411, 412
 
 - [ ] **CHAIN-a7bb1f3447c3** `battle/legacy_battle_target_selection_entry`
+  - 本批依赖：输入/消息两个caller提供的诊断对象直接借给刷新阶段；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。其余协议仍pending。
   - 当前残留信号：arguments, counter, interface, invoke, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_target_selection_entry.hpp](../../../include/openswd3/battle/legacy_battle_target_selection_entry.hpp)；[src/battle/legacy_battle_target_selection_entry.cpp](../../../src/battle/legacy_battle_target_selection_entry.cpp)。
@@ -2100,7 +2105,8 @@
 
 - [ ] **CHAIN-720a76165b91** `battle/legacy_battle_target_selection_refresh`
   - 本批：三个资源选择点及相邻动作4完成点改接实际函数；删除两个通用操作、选择兼容开关及子寄存器/计数，验证见[资源选择](battle-actor-resource-selection-00470ac0.md)。源码4b163e92已推送并核对远端main一致。
-  - 剩余：诊断转发、其他操作/参数包/寄存器/计数/Port及完整父路径；整链不勾选。
+  - 本批诊断：删除纯转发Adapter及通用操作，直接借用诊断对象；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。
+  - 剩余：完整SDL诊断接线、其他操作/参数包/寄存器/计数/Port及完整父路径；整链不勾选。
   - 当前残留信号：arguments, counter, interface, invoke, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_target_selection_refresh.hpp](../../../include/openswd3/battle/legacy_battle_target_selection_refresh.hpp)；[src/battle/legacy_battle_target_selection_refresh.cpp](../../../src/battle/legacy_battle_target_selection_refresh.cpp)。
@@ -2114,6 +2120,7 @@
   - `register` [src/battle/legacy_battle_target_selection_refresh.cpp](../../../src/battle/legacy_battle_target_selection_refresh.cpp)：66, 67, 68, 70, 103, 104, 190, 191, 192, 303, 304, 305, 307, 308, 309, 318, 319, 320, 425, 443, 444, 445, 660, 661, 662, 680, 684, 685, 686, 710, 714, 715, 716, 752, 753, 756, 757, 758, 984, 989, 990, 991, 1451, 1452, 1453, 1711, 1712, 1713, 1891, 1892, 1893, 2307, 2308, 2309, 2312, 2313, 2314, 2321, 2329, 2330, 2331, 2334, 2335, 2336, 2343
 
 - [ ] **CHAIN-3a258ab4081f** `battle/legacy_battle_target_selection_runtime`
+  - 本批：删除资源缺失诊断操作编号；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。其余操作、参数包与寄存器协议仍pending。
   - 当前残留信号：arguments, interface, invoke, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_target_selection_runtime.hpp](../../../include/openswd3/battle/legacy_battle_target_selection_runtime.hpp)。
@@ -2270,6 +2277,7 @@
   - `operation` [src/platform/sdl3/legacy_sample_backend_sdl3.hpp](../../../src/platform/sdl3/legacy_sample_backend_sdl3.hpp)：116
 
 - [ ] **CHAIN-0fe1c548029f** `platform/main`
+  - 本批依赖：SDL窗口owner实现资源缺失诊断并复用维护错误对话框；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。完整核心帧尚未接入主循环，实际诊断到达与其余协议仍pending。
   - 当前残留信号：arguments, counter, interface, invoke, operation, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[src/platform/sdl3/main.cpp](../../../src/platform/sdl3/main.cpp)。

@@ -6,6 +6,7 @@
 #include "openswd3/battle/legacy_battle_actor_retreat_ready.hpp"
 #include "openswd3/battle/legacy_battle_actor_frame_snapshot.hpp"
 #include "openswd3/battle/legacy_battle_actor_metrics.hpp"
+#include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 #include "openswd3/battle/legacy_battle_context_prompt.hpp"
 #include "openswd3/battle/legacy_battle_debug_state.hpp"
 #include "openswd3/battle/legacy_battle_final_actor_step.hpp"
@@ -189,6 +190,7 @@ public:
 };
 
 struct LegacyBattleInputDispatchBindings {
+    LegacyBattleActorResourceSelectionPort& resource_diagnostics;
     compat::u32& render_abort_latch;
     LegacyBattleStartupState& startup;
     world_map::LegacyWorldItemListState& items;

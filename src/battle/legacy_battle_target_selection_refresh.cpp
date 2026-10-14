@@ -32,24 +32,6 @@ inline constexpr u32 kTargetPanelToken = 0x004B8748U;
 inline constexpr u32 kWarningTextAToken = 0x004A7980U;
 inline constexpr u32 kWarningTextBToken = 0x004A7990U;
 
-class ResourceSelectionAdapter final
-    : public LegacyBattleActorResourceSelectionPort {
-public:
-    ResourceSelectionAdapter(LegacyBattleInputDispatchPort& port) noexcept
-        : port_(port) {}
-
-    void report_missing_runtime_word(const u16 resource_id) override {
-        static_cast<void>(port_.invoke_target_selection_runtime({
-            .call = LegacyBattleTargetSelectionRuntimeCall::
-                resource_missing_word_diagnostic,
-            .arguments = {resource_id},
-        }));
-    }
-
-private:
-    LegacyBattleInputDispatchPort& port_;
-};
-
 class InputTextMessageAdapter final : public LegacyBattleTextMessagePort {
 public:
     explicit InputTextMessageAdapter(LegacyBattleInputDispatchPort& port)
@@ -736,7 +718,6 @@ private:
         }
 
         auto& party = bindings_.party[index];
-        ResourceSelectionAdapter adapter(port_);
         u16 selection_mode = static_cast<u16>(local_output_);
         const auto selected = select_legacy_battle_actor_resource(
             &party.actor_list,
@@ -744,7 +725,7 @@ private:
             &party.final_processing,
             &party.item_effect_application,
             &party.workspace,
-            adapter,
+            bindings_.resource_diagnostics,
             port_,
             category,
             runtime_.target_argument,

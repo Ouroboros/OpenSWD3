@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "test.hpp"
+#include "legacy_battle_resource_selection_diagnostic_fixture.hpp"
 
 namespace {
 
@@ -95,7 +96,8 @@ public:
 };
 
 class MessagePort final
-    : public openswd3::battle::LegacyBattleMessagePhasePort,
+    : public openswd3::test::LegacyBattleResourceSelectionDiagnosticFixture<
+          openswd3::battle::LegacyBattleMessagePhasePort>,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleMessagePhaseCallReply invoke_message_phase(
@@ -481,6 +483,7 @@ struct Fixture {
     [[nodiscard]] openswd3::battle::LegacyBattleMessagePhaseBindings
     bindings() {
         return {
+            .resource_diagnostics = port,
             .state = state,
             .startup = startup,
             .final_actor = final_actor,

@@ -14,6 +14,7 @@
 namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionRefreshBindings {
+    LegacyBattleActorResourceSelectionPort& resource_diagnostics;
     LegacyBattleStartupState& startup;
     world_map::LegacyWorldItemListState& items;
     LegacyBattleStartupResetBlocks& startup_reset;

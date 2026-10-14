@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "test.hpp"
+#include "legacy_battle_resource_selection_diagnostic_fixture.hpp"
 
 namespace {
 
@@ -47,7 +48,8 @@ public:
 };
 
 class TargetRefreshPort final
-    : public openswd3::battle::LegacyBattleInputDispatchPort,
+    : public openswd3::test::LegacyBattleResourceSelectionDiagnosticFixture<
+          openswd3::battle::LegacyBattleInputDispatchPort>,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     TargetRefreshPort() {
@@ -183,6 +185,7 @@ struct Fixture {
         }
 
         return {
+            .resource_diagnostics = port,
             .startup = startup_state,
             .items = items,
             .startup_reset = startup,
@@ -1112,6 +1115,76 @@ void configure_menu_resource(
         resource.tertiary_quantity = 1;
         resource.category_mask = 0x10U;
         resource.mode_flags = 0x01U;
+    }
+}
+
+void test_resource_selection_diagnostics(openswd3::test::Context& test) {
+    for (const u32 message : {4U, 27U, 30U}) {
+        for (const u32 profile_word : {0U, 0x1234U}) {
+            for (const u16 resource_id : {u16{0U}, u16{0xFFFFU}}) {
+                Fixture fixture;
+                fixture.target_ready = 1U;
+                fixture.message = message;
+                fixture.frame.hovered_secondary = 0xFFFFFFFFU;
+                fixture.frame.grid_selection = 1U;
+                fixture.frame.panel_row_limit_c = 1U;
+                fixture.frame.current_equipment_selection = 0U;
+                fixture.final_actor.queued_actor_code = 8U;
+                auto& runtime =
+                    fixture.port.battle_target_selection_runtime_state();
+                runtime.selection_input_gate = 1U;
+                runtime.target_argument = 1U;
+                seed_resource_selection(fixture, 8U);
+                auto& actor = fixture.startup_state.party[0U];
+                actor.final_processing.profile_buffer[5U] = profile_word;
+                actor.actor_list.resources[1U].resource_id = resource_id;
+                fixture.startup.block_4fe5d4[0U] = 0xABCDEF01U;
+                bool observed_prefix = false;
+                fixture.port.on_missing_resource = [&](const u16 observed_id) {
+                    observed_prefix = observed_id == resource_id &&
+                        fixture.startup.block_4fe5d4[0U] == 0U &&
+                        actor.actor_list.selected_resource_token ==
+                            0x95000010U &&
+                        actor.actor_list.resources[1U].primary_quantity == 0U &&
+                        actor.actor_list.resources[2U].primary_quantity == 0U;
+                    actor.actor_list.resource_head_token = 0x95000020U;
+                };
+
+                const auto result =
+                    openswd3::battle::refresh_legacy_battle_target_selection(
+                        fixture.bindings(), fixture.port, {}
+                    );
+                const bool missing = profile_word == 0U;
+                const std::string context = "message " +
+                    std::to_string(message) + " profile " +
+                    std::to_string(profile_word) + " resource " +
+                    std::to_string(resource_id);
+                test.expect_true(
+                    result.status ==
+                        openswd3::battle::
+                            LegacyBattleTargetSelectionRefreshStatus::completed,
+                    context + " completes the resource selection caller"
+                );
+                test.expect_true(
+                    fixture.startup.block_4fe5d4[0U] == profile_word,
+                    context + " publishes the actual profile word"
+                );
+                test.expect_true(
+                    fixture.port.missing_resource_ids ==
+                            (missing ? std::vector<u16>{resource_id}
+                                     : std::vector<u16>{}) &&
+                        observed_prefix == missing,
+                    context + " reports the full ID after output publication"
+                );
+                test.expect_true(
+                    actor.actor_list.resources[1U].primary_quantity ==
+                            (missing ? 0U : 1U) &&
+                        actor.actor_list.resources[2U].primary_quantity ==
+                            (missing ? 1U : 0U),
+                    context + " rereads current after the dialog"
+                );
+            }
+        }
     }
 }
 
@@ -2115,6 +2188,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
     test_menu_marked_profile_word(test);
     test_menu_coordinate_attribute(test);
     test_menu_target_block_attribute(test);
+    test_resource_selection_diagnostics(test);
     test_action_four_finalization(test);
     test_menu_actor_resource(test);
     test_menu_player_item_quantity(test);
@@ -3008,7 +3082,9 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 action_eight.port.calls[0U].edx == 0x004FE5D4U &&
                 runtime.selection_input_gate == 0U &&
                 eight_result.return_eax == 0xFFFFU &&
-                action_twenty_seven.port.calls.size() == 3U &&
+                action_twenty_seven.port.calls.size() == 2U &&
+                action_twenty_seven.port.missing_resource_ids ==
+                    std::vector<u16>{7U} &&
                 action_twenty_seven.startup_state.party[0U]
                         .actor_list.selected_resource_token == 0x95000090U &&
                 action_twenty_seven.startup_state.party[0U]
@@ -3016,14 +3092,11 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                         .primary_quantity == 1U &&
                 action_twenty_seven.port.calls[0U].call ==
                     LegacyBattleTargetSelectionRuntimeCall::
-                        resource_missing_word_diagnostic &&
+                        query_group_b_completion &&
                 action_twenty_seven.port.calls[1U].call ==
                     LegacyBattleTargetSelectionRuntimeCall::
-                        query_group_b_completion &&
-                action_twenty_seven.port.calls[2U].call ==
-                    LegacyBattleTargetSelectionRuntimeCall::
                         reset_actor_selection &&
-                action_twenty_seven.port.calls[2U].arguments[0U] == 1U &&
+                action_twenty_seven.port.calls[1U].arguments[0U] == 1U &&
                 runtime_twenty_seven.selection_input_gate == 1U &&
                 action_twenty_seven.final_actor.published_actor_code == 1U &&
                 action_twenty_seven.message == 3U &&

@@ -187,6 +187,7 @@ public:
 };
 
 struct LegacyBattleMessagePhaseBindings {
+    LegacyBattleActorResourceSelectionPort& resource_diagnostics;
     LegacyBattleMessagePhaseState& state;
     LegacyBattleStartupState& startup;
     LegacyBattleFinalActorStepState& final_actor;

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "test.hpp"
+#include "legacy_battle_resource_selection_diagnostic_fixture.hpp"
 
 namespace {
 
@@ -46,7 +47,8 @@ public:
 };
 
 class TargetSelectionPort final
-    : public openswd3::battle::LegacyBattleInputDispatchPort,
+    : public openswd3::test::LegacyBattleResourceSelectionDiagnosticFixture<
+          openswd3::battle::LegacyBattleInputDispatchPort>,
       public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
     [[nodiscard]] LegacyBattleInputDispatchCallReply invoke_input_dispatch(
@@ -204,6 +206,7 @@ struct Fixture {
 
     [[nodiscard]] LegacyBattleTargetSelectionEntryBindings bindings() {
         return {
+            .resource_diagnostics = port,
             .startup = startup_state,
             .items = items,
             .startup_reset = startup,

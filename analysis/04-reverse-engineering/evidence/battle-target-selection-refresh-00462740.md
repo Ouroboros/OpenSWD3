@@ -147,6 +147,8 @@ dd7ae08f这批只回收三个菜单站，当时保留的叶协议和另三caller
 菜单夹具以真实MON重载和真实数量变化为前提，不再强制不可达的选择成功。
 四项定向core/ASan、SDL构建及源码身份检查通过；补充caller测试后的菜单core/ASan
 再次通过。完整日志、LST与边界见[资源选择证据](battle-actor-resource-selection-00470ac0.md)。
-诊断仍经ResourceSelectionAdapter转通用调用，完整菜单父协议及SDL续玩仍pending。
+后续批次删除诊断Adapter及通用操作，改为共享诊断引用；
+见[诊断证据](battle-resource-selection-diagnostic-00431150.md)。
+完整菜单父协议、SDL帧接线及实际交互仍pending。
 
 当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

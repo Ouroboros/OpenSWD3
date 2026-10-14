@@ -10,6 +10,7 @@
 
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "test.hpp"
+#include "legacy_battle_resource_selection_diagnostic_fixture.hpp"
 
 namespace {
 
@@ -44,7 +45,9 @@ public:
     openswd3::compat::u16 height{30U};
 };
 
-class InputPort final : public openswd3::battle::LegacyBattleInputDispatchPort {
+class InputPort final
+    : public openswd3::test::LegacyBattleResourceSelectionDiagnosticFixture<
+          openswd3::battle::LegacyBattleInputDispatchPort> {
 public:
     [[nodiscard]] LegacyBattleInputDispatchCallReply invoke_input_dispatch(
         const LegacyBattleInputDispatchCallRequest& request
@@ -162,6 +165,7 @@ struct Fixture {
     [[nodiscard]] openswd3::battle::LegacyBattleInputDispatchBindings
     bindings() {
         return {
+            .resource_diagnostics = port,
             .render_abort_latch = render_abort,
             .startup = startup_state,
             .items = items,

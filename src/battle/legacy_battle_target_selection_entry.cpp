@@ -150,6 +150,7 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
         refresh_request.entry_edx = edx;
         const auto nested = refresh_legacy_battle_target_selection(
             {
+                .resource_diagnostics = bindings.resource_diagnostics,
                 .startup = bindings.startup,
                 .items = bindings.items,
                 .startup_reset = bindings.startup_reset,

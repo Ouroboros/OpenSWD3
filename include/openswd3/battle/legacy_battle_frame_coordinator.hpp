@@ -381,7 +381,8 @@ struct LegacyBattleFrameCoordinatorCallReply {
 };
 
 class LegacyBattleFrameCoordinatorPort
-    : public LegacyBattleHudCallPort,
+    : public virtual LegacyBattleActorResourceSelectionPort,
+      public LegacyBattleHudCallPort,
       public LegacyBattleEffectCallPort,
       public LegacyBattlePreFramePort,
       public LegacyBattleDebugHotkeyPort,

@@ -498,6 +498,7 @@ LegacyBattleInputDispatchResult coordinate_legacy_battle_input_dispatch(
     const auto enter_target_selection = [&]() {
         const auto nested = enter_legacy_battle_target_selection(
             {
+                .resource_diagnostics = bindings.resource_diagnostics,
                 .startup = bindings.startup,
                 .items = bindings.items,
                 .startup_reset = bindings.startup_reset,

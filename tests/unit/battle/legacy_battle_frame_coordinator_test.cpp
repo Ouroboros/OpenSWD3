@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "test.hpp"
+#include "legacy_battle_resource_selection_diagnostic_fixture.hpp"
 
 void test_battle_frame_surface(openswd3::test::Context& test);
 void test_battle_frame_selection(openswd3::test::Context& test);
@@ -112,7 +113,8 @@ public:
 };
 
 class CoordinatorPort final
-    : public openswd3::battle::LegacyBattleFrameCoordinatorPort,
+    : public openswd3::test::LegacyBattleResourceSelectionDiagnosticFixture<
+          openswd3::battle::LegacyBattleFrameCoordinatorPort>,
       public openswd3::test::LegacyBattleMonDatabaseFixture,
       public openswd3::test::LegacyBattleLevelDatabaseFixture {
 public:

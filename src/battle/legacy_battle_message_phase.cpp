@@ -733,6 +733,7 @@ private:
     [[nodiscard]] bool enter_target_selection() {
         result_.target_selection_entry = enter_legacy_battle_target_selection(
             {
+                .resource_diagnostics = bindings_.resource_diagnostics,
                 .startup = bindings_.startup,
                 .items = port_.world_item_list_state(),
                 .startup_reset = bindings_.startup.reset,

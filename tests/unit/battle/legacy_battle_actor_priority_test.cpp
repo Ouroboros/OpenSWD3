@@ -1,6 +1,7 @@
 #include "openswd3/battle/legacy_battle_actor_priority.hpp"
 #include "openswd3/battle/legacy_battle_frame_coordinator.hpp"
 #include "test.hpp"
+#include "legacy_battle_resource_selection_diagnostic_fixture.hpp"
 
 #include <deque>
 #include <memory>
@@ -32,7 +33,9 @@ struct PriorityOwners {
     openswd3::battle::LegacyBattleStartupState startup{};
 };
 
-class PriorityPort final : public LegacyBattleFrameCoordinatorPort {
+class PriorityPort final
+    : public openswd3::test::LegacyBattleResourceSelectionDiagnosticFixture<
+          LegacyBattleFrameCoordinatorPort> {
 public:
     [[nodiscard]] LegacyBattleFrameCoordinatorCallReply
     invoke(const LegacyBattleFrameCoordinatorCallRequest& request) override {

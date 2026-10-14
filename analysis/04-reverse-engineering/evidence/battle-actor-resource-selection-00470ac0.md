@@ -95,9 +95,10 @@ WORD数量回绕和同址48/49字段。
 
 ## 7. 未验收边界
 
-诊断仍经LegacyBattleActorResourceSelectionPort及ResourceSelectionAdapter转发
-resource_missing_word_diagnostic，尚无本批证明的生产处理与原版交互合同。
-它不是本次可勾选的合法保留边界；见[invoke Port清单](invoke-removal-ports.md)。
+后续诊断批次已删除ResourceSelectionAdapter及resource_missing_word_diagnostic，
+核心调用方显式借同一窄诊断接口，SDL窗口owner提供维护错误对话框实现。
+完整SDL帧接线与实际交互未验收，Port尚不勾选合法保留；
+见[诊断证据](battle-resource-selection-diagnostic-00431150.md)及[invoke Port清单](invoke-removal-ports.md)。
 
 同族状态、资料、资源生产，以及菜单父操作/参数包/寄存器/计数/Port仍pending。
 无效实际list、节点、配置和资料访问的typed-stop是宿主访问边界，不能证明原版非法
