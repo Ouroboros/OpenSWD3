@@ -1,7 +1,5 @@
 # 战斗共享物品栏绑定与实际节点消耗
 
-状态：`pending`。
-
 ## 范围与清单
 
 本批属于 `BEHAVIOR-inventory-bind` 的共享存储迁移，覆盖

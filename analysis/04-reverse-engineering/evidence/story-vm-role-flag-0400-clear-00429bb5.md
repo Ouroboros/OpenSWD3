@@ -1,7 +1,5 @@
 # 剧情 VM 清除角色状态位 `0x0400` `0x00429BB5`
 
-状态：`pending`。
-
 ## 结论
 
 `sub_427920` 的 opcode68 固定长4字节。它先读取`+2` raw selector；值为`0xFFF0`时替换为Talk context source GUID，再调用共享角色lookup：

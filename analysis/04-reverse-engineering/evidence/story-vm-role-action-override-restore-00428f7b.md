@@ -1,7 +1,5 @@
 # 剧情 VM 角色 action override 恢复组 `0x00428F7B`
 
-状态：`pending`。
-
 ## 结论
 
 `sub_427920` 主分派 opcodes 46–49 共享唯一入口 `0x00428F7B`。四条物理记录均固定为 4 字节：

@@ -1,6 +1,7 @@
 # 世界事件、移动步长与对象槽 helper 闭环
 
 状态：`pending`。
+`platform_adapted`，原程序动态差分仍为 `blocked_runtime_oracle`。
 
 唯一行为依据是 `swd3.exe.lst`。本轮先从 `0x0040DC30..0x0040DD50` 独立恢复三个
 函数，再逐一反查所有汇编调用点和现代 C++ 消费点；实现后重新按基本块和副作用反向

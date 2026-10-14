@@ -1,6 +1,8 @@
 # 世界角色移出队伍与 MAPS 更新
 
 状态：`pending`。
+`platform_adapted`；另有 `implemented`、`unit_tested`、`asset_verified`、
+`blocked_runtime_oracle`。
 
 唯一行为真值：`swd3.exe.lst` 的 `0x0040D790..0x0040D9D2`。IDA 名称和伪码只用于
 导航。本函数由剧情 opcode 66 的 `0x00429B14..0x00429B5D` 调用，但本文只关闭共享的

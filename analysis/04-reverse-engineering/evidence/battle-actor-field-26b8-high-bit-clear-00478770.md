@@ -1,7 +1,5 @@
 # 战斗角色状态高位清除（0x00478770）
 
-状态：`pending`。
-
 ## 原版范围
 
 权威源为 `swd3.exe_export_for_ai/swd3.exe.lst`。

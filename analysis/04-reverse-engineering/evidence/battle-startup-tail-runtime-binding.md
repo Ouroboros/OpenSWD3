@@ -1,7 +1,5 @@
 # 入战尾部消息判定接线
 
-状态：`pending`。
-
 范围：4527A5..4527DB。B11接线，不改变B10的315/422及316 pending_audit。
 独立审计保存在`build/tmp/runtime/battle-startup-tail-audit.md`。
 

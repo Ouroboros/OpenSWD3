@@ -1,6 +1,7 @@
 # 世界瞬态状态重置闭环
 
 状态：`pending`。
+`blocked_runtime_oracle`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x00411D00..0x00411D8D`。该函数在存档状态恢复后
 释放七类跨帧 owner，并恢复选择序列、三通道颜色步长和 ANI 逐行复制效果的初值。

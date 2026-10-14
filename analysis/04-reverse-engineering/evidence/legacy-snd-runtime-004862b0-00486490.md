@@ -1,8 +1,8 @@
 # SND 运行时索引与 sample buffer 实现复核
 
-状态：`pending`。
-
 最后更新：2026-08-09
+
+状态：`pending`。
 
 完整 LST 是唯一行为真值；IDA 伪码只用于定位。
 

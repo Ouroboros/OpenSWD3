@@ -1,7 +1,5 @@
 # `sub_4303D0` 16 位 framebuffer → 24 位 BMP 写入合同
 
-状态：`pending`。
-
 ## 结论
 
 完整 LST `0x004303D0..0x004306B0` 证明该函数是原版共用的 BMP

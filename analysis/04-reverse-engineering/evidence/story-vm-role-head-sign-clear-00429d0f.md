@@ -1,7 +1,5 @@
 # 剧情 VM 角色头顶标记清除 `0x00429D0F`
 
-状态：`pending`。
-
 ## 结论
 
 opcode72固定长4字节，原样读取`+2` selector，不替换`0xFFF0`。它调用`sub_40C0D0`查找角色：命中时把角色`field_3c`写零；缺失时不写任何角色状态。两路都推进4、保持`ESI=0`，经公共出口发布normalized previous72并yield。

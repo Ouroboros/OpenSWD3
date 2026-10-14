@@ -1,7 +1,5 @@
 # 固定数量与比例的直接共享数据
 
-状态：`pending`。
-
 ## 本批边界
 
 删除`LegacyBattleFixedObjectStatePort`及两个虚拟getter。

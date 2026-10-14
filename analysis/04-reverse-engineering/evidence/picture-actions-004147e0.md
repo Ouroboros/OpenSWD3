@@ -1,6 +1,7 @@
 # 图片动作链表（`0x004147E0..0x004148ED`）
 
 状态：`pending`。
+`sdl_runtime_integrated`；尚未 `original_diff_verified`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。IDA 伪码与符号只用于定位。
 `sub_4147E0` 的完整物理范围是 `0x004147E0..0x004148ED`；三个调用点

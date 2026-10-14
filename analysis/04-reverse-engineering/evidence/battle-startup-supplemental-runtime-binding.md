@@ -1,7 +1,5 @@
 # 入战额外队员接线
 
-状态：`pending`。
-
 范围：B11的452449..4526F2，已通过定向验证。B10仍为315/422，316保持pending_audit。
 独立LST分析见`build/tmp/runtime/battle-startup-supplemental-audit.md`。
 

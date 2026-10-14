@@ -1,6 +1,7 @@
 # 世界路径请求汇编证据：0x00406390 / 0x00406960
 
 状态：`pending`。
+差分仍为 `blocked_runtime_oracle`
 
 来源：`swd3.exe.lst` 完整汇编；IDA 伪码仅作导航
 

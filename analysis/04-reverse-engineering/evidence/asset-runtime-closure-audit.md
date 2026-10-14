@@ -1,8 +1,8 @@
 # B6 asset_runtime 有限收口审计
 
-状态：`pending`。
-
 最后更新：2026-08-10
+
+状态：`pending`。
 
 唯一行为真值是 `swd3.exe.lst`。本审计只修正模块所有权并补齐 B6 最后三个公共绘制桥，
 不把后续模块实现提前搬入 asset runtime。

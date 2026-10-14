@@ -1,6 +1,7 @@
 # MON解析流的实际分配与释放
 
 状态：`pending`。
+当前批次的验证范围见[MON接口迁移验证](battle-mon-file-runtime-binding.md#具名接口迁移验证)。
 
 ## 当前接口
 

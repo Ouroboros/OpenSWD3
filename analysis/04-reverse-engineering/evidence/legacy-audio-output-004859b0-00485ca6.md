@@ -1,8 +1,9 @@
 # 旧 waveOut 协商与 SDL3 sample 输出边界
 
-状态：`pending`。
-
 最后更新：2026-08-09
+
+状态：`pending`。
+`platform_adapted`、`asset_verified`
 
 完整 LST 是唯一行为真值；IDA 伪码只用于定位。平台实现没有启动原版 EXE。
 

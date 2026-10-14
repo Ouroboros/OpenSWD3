@@ -1,6 +1,7 @@
 # 世界对话选择热点链 helper 闭环
 
 状态：`pending`。
+仍为 `blocked_runtime_oracle`。
 
 唯一行为依据是 `swd3.exe.lst`。本轮先不看既有 C++，独立恢复
 `0x0040DB40..0x0040DBFF`，再从 LST 到 C++、从 C++ 回到 LST 反复逐分支追溯，直到

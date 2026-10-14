@@ -1,6 +1,7 @@
 # Picture-action 双链关闭生命周期闭环
 
 状态：`pending`。
+差分仍为 `blocked_runtime_oracle`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x0040F5E0..0x0040F62E`。该函数依次逐头销毁
 `dword_4B7C70` 与 `dword_4B8968` 两条 picture-action 链。

@@ -1,6 +1,7 @@
 # 10.10 缩放 RLE writer：`0x00422C70` / `0x00423020`
 
 状态：`pending`。
+`blocked_runtime_oracle`
 
 ## 1. 证据与边界
 

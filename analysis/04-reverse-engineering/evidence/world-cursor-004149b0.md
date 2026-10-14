@@ -1,6 +1,7 @@
 # 世界软件鼠标与右边条（`0x004149B0`）
 
 状态：`pending`。
+`world_runtime_integrated`；尚未 `original_diff_verified`
 
 来源：`swd3.exe.lst` 完整汇编。机器码与指令是唯一行为真值；IDA 名称只用于定位。
 `sub_4149B0` 的完整物理范围是 `0x004149B0..0x00414B58`，无栈参数、不修改需保存寄存器，

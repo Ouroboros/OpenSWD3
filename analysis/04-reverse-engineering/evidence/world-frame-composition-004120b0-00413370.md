@@ -1,6 +1,7 @@
 # 普通世界帧组合与地图底图（`0x004120B0..0x00413370`）
 
 状态：`pending`。
+`sdl_runtime_integrated`；原程序动态差分仍为 `blocked_runtime_oracle`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值，固定普通世界更新、软件画面组合与
 最终提交之间的边界。伪码只用于定位，不参与裁决。

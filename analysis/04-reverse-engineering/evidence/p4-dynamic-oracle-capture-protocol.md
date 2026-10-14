@@ -1,6 +1,8 @@
 # P4 原程序动态 oracle 捕获协议
 
 状态：`pending`。
+Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境完成动态基准捕获。
+framebuffer、DirectDraw RECT 与时间探针仍待捕获。
 
 ## 原则
 

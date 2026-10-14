@@ -1,6 +1,9 @@
 # MAPS 世界装载与初始会话
 
 状态：`pending`。
+汇编—C++ 双向追溯；文件、内存、宿主退出和损坏数据失败策略在现代 owner 边界隔离）、
+`asset_verified`（当前游戏数据的新游戏路径）、`original_diff_verified`（GUID 248/249
+初始角色绘制状态）；其余原程序动态差分仍为 `blocked_runtime_oracle`。
 
 ## 证据边界
 

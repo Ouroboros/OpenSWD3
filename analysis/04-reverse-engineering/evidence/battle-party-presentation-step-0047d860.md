@@ -1,7 +1,5 @@
 # 队员行动完成时写实际绘制步长
 
-状态：`pending`。
-
 本批回收剩余 `00453D5A` 调用，队员行动11/12完成时直接写
 `startup.party[index].base_initialization.presentation_step = 8`。
 删除共享操作编号和通用调用，不创建新的调用接口或角色副本。

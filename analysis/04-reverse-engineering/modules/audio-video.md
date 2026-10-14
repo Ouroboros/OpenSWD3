@@ -142,50 +142,50 @@ FFmpeg、Miles、Bink 或 SDL 类型。
 
 ## 6. 当前执行顺序
 
-1. `[x]` B5.1：73 个 B5 自有地址、3 个 B10 移交、接口、状态 owner、生命周期和验证
+1. `[ ]` B5.1：73 个 B5 自有地址、3 个 B10 移交、接口、状态 owner、生命周期和验证
    入口已固定，达到单模块开始条件。
-2. `[x]` B5.2：`0x00486260/0x00486280` 已按完整 LST 实现 signed clamp 与 32 位
+2. `[ ]` B5.2：`0x00486260/0x00486280` 已按完整 LST 实现 signed clamp 与 32 位
    回绕声像偏移；Linux `core` 65/65、Windows LLVM `app` 67/67 CTest 通过。
-3. `[x]` B5.3：`0x004862B0/0x00486490` 的 3000 项索引、一基查找和四类 sample
+3. `[ ]` B5.3：`0x004862B0/0x00486490` 的 3000 项索引、一基查找和四类 sample
    buffer 已实现；真实 `all.snd` 的 664 个 view 拼接 SHA-256 精确匹配既有证据，Linux
    `core` 67/67、Windows LLVM `app` 69/69 CTest 通过。
-4. `[x]` B5.4：`0x004859B0` 的 pool 部分及 `0x00485C20–0x00486210`、
+4. `[ ]` B5.4：`0x004859B0` 的 pool 部分及 `0x00485C20–0x00486210`、
    `0x004862A0/0x00486430` 的 sample manager 核心已实现；fake backend 锁定两条单链表、
    播放/停止顺序、status 1/2、返回值及原始 buffer 泄漏语义。Linux `core` 68/68、
    Windows LLVM `app` 70/70 CTest 通过。
-5. `[x]` B5.5：`0x004859B0` 的 wave 格式协商/回退已按 LST 恢复；SDL3 backend 已
+5. `[ ]` B5.5：`0x004859B0` 的 wave 格式协商/回退已按 LST 恢复；SDL3 backend 已
    接通逻辑设备、PCM 转换、动态混音、loop/status 与 `0x00485C20` 设备关闭边界。真实
    `all.snd` 的 13 种 PCM 组合及异常 data 标签通过，Linux `core` 69/69、Linux/Windows
    `app` 73/73 CTest 通过。
-6. `[x]` B5.6：`0x00485610/0x00485650/0x00485670/0x00485720/`
+6. `[ ]` B5.6：`0x00485610/0x00485650/0x00485670/0x00485720/`
    `0x00485740/0x00485750` 已按 LST 恢复；锁定 ID 截断差异、固定返回、signed 缩放、
    512 距离门槛和空间 play→volume→pan 顺序。已恢复的两处 stop-all 调用点接入同一
    manager，Linux `core` 70/70、Linux/Windows `app` 74/74 CTest 通过。
-7. `[x]` B5.7：`0x004865B0–0x00486A70` stream manager 核心，以及
+7. `[ ]` B5.7：`0x004865B0–0x00486A70` stream manager 核心，以及
    `0x004856C0/0x00485710/0x00485830/0x00485850/0x00485880/0x004858D0/`
    `0x00485910` 的剩余 stream wrapper 和过渡状态已按 LST 恢复；fake backend 锁定
    两节点 active/free 链表、fixed-point fade、status 2 双写零、4/8/16 保留、默认
    status 级联回收缺陷和过渡 mode 返回。Linux `core` 71/71、Linux/Windows `app`
    75/75 CTest 通过。
-8. `[x]` B5.8：第二次 driver 查询已接入 stream manager；窗口事件、显示停用和普通
+8. `[ ]` B5.8：第二次 driver 查询已接入 stream manager；窗口事件、显示停用和普通
    idle 的公共音频维护均固定为 stream→sample，显示停用与总退出按原顺序执行 stream
    fade、sample stop，最终退出回收两个 manager。压缩 stream 使用明确的未接入后端，
    不引入一次性 MP3 解码器；Linux/Windows `app` 75/75 CTest 通过。
-9. `[x]` B5.video-TODO：`0x00484550–0x00484DA0` 的 11 个视频地址已映射到稳定的
+9. `[ ]` B5.video-TODO：`0x00484550–0x00484DA0` 的 11 个视频地址已映射到稳定的
    open/wait/decode/copy/advance/service/close 端口、活动 player、进度正负语义和固定
    Bink present；fake backend 锁定逐帧顺序、320×200 居中、终止帧先 present 后 close。
    当前立即完成后端不设置活动位、不产生假帧；实际 Bink 解码由最终项目自有
    `libffmpeg` 动态库统一提供。
-10. `[x]` B5.9：`0x00484DD0–0x004855EA` 的 sequence/queue manager 已按 LST 恢复；
+10. `[ ]` B5.9：`0x00484DD0–0x004855EA` 的 sequence/queue manager 已按 LST 恢复；
     单 sequence 节点、两组各两条 20 字节 queue 记录、Miles init `-1/0` 差异、重复
     user-data 查询、status 分支及 queue→stream→sequence→sample 顺序均由 fake backend
     和 UT 锁定。Linux `core` 73/73、Linux/Windows `app` 77/77 CTest 通过。
-11. `[x]` B5.10：`0x0040CDD0/0x0040CF40/0x0040EB60` 的世界音乐请求、8 字节映射
+11. `[ ]` B5.10：`0x0040CDD0/0x0040CF40/0x0040EB60` 的世界音乐请求、8 字节映射
     表、两组七槽状态和首句点 MP3 路径已按 LST 恢复；`0x004118B0` 的 wait/close 位与
     原光盘路径已锁定，正常路径以配置数据目录做确定性替代。Linux `core` 75/75、
     Linux/Windows `app` 79/79 CTest 通过；没有提前实现 `libffmpeg`。
-12. `[x]` B5.close：73 地址收口表与总所有权表集合零差异；审计结果为 43 核心实现、
+12. `[ ]` B5.close：73 地址收口表与总所有权表集合零差异；审计结果为 43 核心实现、
     2 资产验证实现、3 平台替代、1 外部 service 端口、23 核心已实现/后端延期、1 剧情
     边界拆分，没有未映射地址。Linux `core` 76/76、Linux/Windows `app` 80/80 CTest
     通过，核心层先行让出执行位。
-13. `[x]` B5.media：官方签名FFmpeg n9.0源码已由项目脚本构建为最小LGPL双平台静态包，并把五个归档链接进项目自有`openswd3_ffmpeg`共享库。BGM/MP3经既有stream ABI解码为48 kHz stereo float并交SDL3播放；BIK/OP经既有video ABI逐帧解码、定时、RGB555/565拷贝，并同步处理内嵌Bink音频。组件白名单只保留真实资产所需的Bink/MP3解复用与解码、file协议、重采样和缩放；Windows归档使用与应用一致的clang-cl/MSVC ABI，双clean构建的十个归档哈希一致。Windows Debug媒体DLL从94.76 MiB基线降至1.22 MiB，且不依赖拆分FFmpeg或MinGW运行时。自建包下的真实`Map_Ca12`与`Map_Eu08`循环、短Bink和完整opening解码通过，Linux core为188/188、app为194/194，Windows app为194/194。主程序与媒体库共用单一动态SDL3，运行目录只复制项目媒体库、SDL3与LGPL许可；两个平台另行生成并实际验证可重链接的LGPL合规包，FFmpeg API未扩散到兼容核心。
+13. `[ ]` B5.media：官方签名FFmpeg n9.0源码已由项目脚本构建为最小LGPL双平台静态包，并把五个归档链接进项目自有`openswd3_ffmpeg`共享库。BGM/MP3经既有stream ABI解码为48 kHz stereo float并交SDL3播放；BIK/OP经既有video ABI逐帧解码、定时、RGB555/565拷贝，并同步处理内嵌Bink音频。组件白名单只保留真实资产所需的Bink/MP3解复用与解码、file协议、重采样和缩放；Windows归档使用与应用一致的clang-cl/MSVC ABI，双clean构建的十个归档哈希一致。Windows Debug媒体DLL从94.76 MiB基线降至1.22 MiB，且不依赖拆分FFmpeg或MinGW运行时。自建包下的真实`Map_Ca12`与`Map_Eu08`循环、短Bink和完整opening解码通过，Linux core为188/188、app为194/194，Windows app为194/194。主程序与媒体库共用单一动态SDL3，运行目录只复制项目媒体库、SDL3与LGPL许可；两个平台另行生成并实际验证可重链接的LGPL合规包，FFmpeg API未扩散到兼容核心。

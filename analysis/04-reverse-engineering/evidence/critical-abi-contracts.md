@@ -1,8 +1,8 @@
 # P2.5 关键函数 ABI 合同
 
-状态：`pending`。
-
 最后更新：2026-08-02
+
+状态：`pending`。
 
 完整汇编是唯一真实依据。机器初筛只决定复核顺序，本文件和 `../inventory/critical-abi-contracts.tsv` 中标为确认的合同均已回到具体压栈、寄存器、`RETN` 和返回值消费指令。
 

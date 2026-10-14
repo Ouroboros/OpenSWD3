@@ -1,6 +1,7 @@
 # 8 位索引对齐世界底图入口（`sub_413220`）
 
 状态：`pending`。
+`sdl_runtime_integrated`；原程序动态差分仍为 `blocked_runtime_oracle`
 
 本文只以 `swd3.exe.lst` 的 `0x00413220..0x0041336C` 为行为真值。IDA 伪码仅用于
 辅助定位，不参与裁决；未对齐入口 `sub_413370` 不从本结论继承关闭状态。

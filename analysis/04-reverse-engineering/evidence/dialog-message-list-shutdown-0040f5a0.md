@@ -1,6 +1,7 @@
 # 对话消息链关闭生命周期闭环
 
 状态：`pending`。
+差分仍为 `blocked_runtime_oracle`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x0040F5A0..0x0040F5DF`。该函数逐头销毁
 `dword_4ACF48` 对话消息链，并在链为空后只保留 `dword_4A9920` 的 bit 15。

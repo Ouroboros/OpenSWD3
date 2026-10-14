@@ -1,7 +1,5 @@
 # 剧情 VM 画面三通道渐变等待 `0x0042949D`
 
-状态：`pending`。
-
 ## 结论
 
 `sub_427920` 的 opcode53 独占入口 `0x0042949D`，物理长度固定为 2 字节且没有 operand。它把画面三通道渐变状态的 countdown 当作 signed dword：

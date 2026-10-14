@@ -1,11 +1,22 @@
 {
   "summary": {
-    "status": "pending",
-    "pending_units": 537,
-    "pending_interfaces": 358,
+    "revision": "d16d3e675e5f5c996e3357846fb6d2d92974ad88",
+    "snapshot": "current_worktree",
+    "production_files": 874,
+    "test_reference_files": 396,
+    "historical_units": 324,
+    "checklist_units": 537,
+    "supplemental_file_units": 213,
+    "interface_definitions": 358,
+    "port_definitions": 345,
+    "interface_definitions_with_direct_signals": 103,
+    "historical_statuses": {
+      "pending": 293,
+      "verified": 27,
+      "excluded": 4
+    },
     "current_snapshot_verified": 0,
-    "scope_exhaustiveness_verified": false,
-    "note": "Historical source navigation retained; implementation source removed; no current reverse-engineering acceptance."
+    "scope_exhaustiveness_verified": false
   },
   "units": [
     {
@@ -178367,25 +178378,5 @@
       "sha256": "e8506e44665d1ee664eb01f51c5537626a78994604dcde805c28367fb1be5edd",
       "hits": []
     }
-  },
-  "historical_summary": {
-    "revision": "d16d3e675e5f5c996e3357846fb6d2d92974ad88",
-    "snapshot": "current_worktree",
-    "production_files": 874,
-    "test_reference_files": 396,
-    "historical_units": 324,
-    "checklist_units": 537,
-    "supplemental_file_units": 213,
-    "interface_definitions": 358,
-    "port_definitions": 345,
-    "interface_definitions_with_direct_signals": 103,
-    "historical_statuses": {
-      "pending": 293,
-      "verified": 27,
-      "excluded": 4
-    },
-    "current_snapshot_verified": 0,
-    "scope_exhaustiveness_verified": false
-  },
-  "reset_status": "pending"
+  }
 }

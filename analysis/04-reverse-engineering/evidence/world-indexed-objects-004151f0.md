@@ -1,6 +1,7 @@
 # 世界地图索引对象（`0x004151F0`）
 
 状态：`pending`。
+`sdl_runtime_integrated`；尚未 `original_diff_verified`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。伪码只用于定位。`sub_4151F0` 的完整
 物理范围是 `0x004151F0..0x004153CB`，无栈参数，唯一调用点是

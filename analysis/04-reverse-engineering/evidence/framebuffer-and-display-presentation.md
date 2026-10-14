@@ -1,7 +1,5 @@
 # 帧缓冲、DirectDraw surface 与显示提交
 
-状态：`pending`。
-
 ## 证据边界
 
 本结论只以 `swd3.exe_export_for_ai/swd3.exe.lst` 的完整反汇编为逻辑真值。LST 中的机器码字节和指令是唯一真实；IDA 伪码只可用于定位和临时命名，不能覆盖指令、参数、分支或内存访问。

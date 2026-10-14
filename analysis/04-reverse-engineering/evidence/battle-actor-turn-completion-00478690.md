@@ -1,7 +1,5 @@
 # 战斗角色回合完成查询 `0x00478690`
 
-状态：`pending`。
-
 状态保持`platform_adapted`；原版差分为`blocked_runtime_oracle`。
 本批迁移查询及三处实际调用，完整双方帧父项仍待迁移。
 

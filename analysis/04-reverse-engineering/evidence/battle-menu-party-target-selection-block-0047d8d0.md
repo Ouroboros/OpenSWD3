@@ -1,6 +1,9 @@
 # 战斗菜单应用行动配置后按队员属性限制目标选择
 
 状态：`pending`。
+实现源码：`371fffc0c47bc89052c271bfbbdcf7f1012ef241`。
+仅回收四个菜单47D8D0站；完整父链保持pending。
+不标`assembly_exact`，不改变Workpack316/B11验收。
 
 ## 1. 独立原指令与实际对象
 

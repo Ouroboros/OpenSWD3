@@ -1,7 +1,5 @@
 # 剧情 VM 画面颜色过渡取消 `0x00429D43`
 
-状态：`pending`。
-
 ## 结论
 
 opcode74固定长2字节、无操作数。它按顺序把颜色过渡的red/green/blue step和signed countdown四个dword清零，保留三个current与三个target。随后推进2、置`ESI=1`，经公共join发布normalized previous74，并在同一次VM调用继续取下一指令。

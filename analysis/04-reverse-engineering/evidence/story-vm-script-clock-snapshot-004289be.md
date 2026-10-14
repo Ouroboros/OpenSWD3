@@ -1,7 +1,5 @@
 # 剧情 VM 脚本时钟快照 `0x004289BE`
 
-状态：`pending`。
-
 ## 结论
 
 `sub_427920` 主分派 opcode 37 的唯一入口是 `0x004289BE`。物理记录只有两字节raw opcode，没有operand：

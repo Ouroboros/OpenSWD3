@@ -1,6 +1,7 @@
 # 普通世界帧外层协调器（`0x004120B0`）
 
 状态：`pending`。
+`sdl_runtime_integrated`；原程序动态差分仍为 `blocked_runtime_oracle`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。它恢复的是普通世界唯一主帧函数
 `sub_4120B0` 的外层控制顺序；`0x00412930` 内部画面组合的证据和实现仍由

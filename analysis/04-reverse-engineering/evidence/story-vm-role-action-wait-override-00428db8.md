@@ -1,7 +1,5 @@
 # 剧情 VM 角色 action wait override `0x00428DB8`
 
-状态：`pending`。
-
 ## 结论
 
 `sub_427920` 主分派 opcode 44 的唯一入口是 `0x00428DB8`。物理记录固定为 6 字节：

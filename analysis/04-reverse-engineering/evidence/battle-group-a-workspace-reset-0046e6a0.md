@@ -1,6 +1,7 @@
 # 战斗组A角色工作区零化 `0x0046E6A0`
 
 状态：`pending`。
+[队伍入战接线](battle-party-startup-runtime-binding.md)。下述全量数字为历史验证。
 
 ## 1. 完整权威范围与ABI
 

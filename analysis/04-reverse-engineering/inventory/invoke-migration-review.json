@@ -2,6 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
+  "last_reviewed_source_revision": "df52c985534796ca313410ee5f05f39d12082ef8",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -22,6 +23,7 @@
     },
     "audio_video/legacy_world_music": {
       "status": "pending",
+      "verification_commit": "e3cd52ee",
       "files": [
         "include/openswd3/audio_video/legacy_world_music.hpp",
         "src/audio_video/legacy_world_music.cpp"
@@ -31,11 +33,12 @@
         "build/tmp/runtime/world-music-without-port-core.log",
         "build/tmp/runtime/world-music-without-port-asan.log"
       ],
-      "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移",
-      "historical_verification_commit": "e3cd52ee"
+      "reason": "共享剧情状态直接驱动实际音乐流，调用方及资源操作已迁移"
     },
     "battle/legacy_battle_actor_action_mode": {
       "status": "pending",
+      "last_reviewed_commit": "e7c6bc19",
+      "verification_commit": "7feb7c40ece08602b8e28f75aa3688d87a935c70",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_action_mode.hpp",
         "src/battle/legacy_battle_actor_action_mode.cpp"
@@ -47,78 +50,77 @@
         "build/tmp/runtime/action-mode-direct-asan.log",
         "build/tmp/runtime/action-mode-direct-callers-asan.log"
       ],
-      "reason": "撤回先前仅依据叶接口与41处调用点改造作出的验收登记；原验证记录保留为历史证据。e7c6bc19修正三处显示字段通用调用及availability依赖，但父通用接口、资源操作和actor-ready八槽仍未迁移，不能据此接受整条调用链",
-      "historical_last_reviewed_commit": "e7c6bc19",
-      "historical_verification_commit": "7feb7c40ece08602b8e28f75aa3688d87a935c70"
+      "reason": "撤回先前仅依据叶接口与41处调用点改造作出的验收登记；原验证记录保留为历史证据。e7c6bc19修正三处显示字段通用调用及availability依赖，但父通用接口、资源操作和actor-ready八槽仍未迁移，不能据此接受整条调用链"
     },
     "battle/legacy_battle_actor_availability_block": {
       "status": "pending",
+      "last_reviewed_commit": "e7c6bc19",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
-      "reason": "状态和值直接写共享字段，删除叶寄存器请求回复和计数，8类调用方同步；六项定向core/ASan、SDL链接及26文件源码身份通过。关联父调用链仍有通用协议，因此保留候选和pending，不以叶接口无扫描信号计为整链完成",
-      "historical_last_reviewed_commit": "e7c6bc19"
+      "reason": "状态和值直接写共享字段，删除叶寄存器请求回复和计数，8类调用方同步；六项定向core/ASan、SDL链接及26文件源码身份通过。关联父调用链仍有通用协议，因此保留候选和pending，不以叶接口无扫描信号计为整链完成"
     },
     "battle/legacy_battle_actor_target_preparation": {
       "status": "pending",
+      "last_reviewed_commit": "e7c6bc19",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
-      "reason": "availability写入改为借用状态和值并传播可选状态；角色准备的父寄存器结果、计数和其他通用操作仍待移除",
-      "historical_last_reviewed_commit": "e7c6bc19"
+      "reason": "availability写入改为借用状态和值并传播可选状态；角色准备的父寄存器结果、计数和其他通用操作仍待移除"
     },
     "battle/legacy_battle_input_dispatch": {
       "status": "pending",
+      "last_reviewed_commit": "bc6b14e7",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-state-processing-00470380.md",
-      "reason": "作为状态处理迁移依赖向选择入口借出实际sample manager；core/ASan及SDL通过。其余协议仍pending",
-      "historical_last_reviewed_commit": "bc6b14e7"
+      "reason": "作为状态处理迁移依赖向选择入口借出实际sample manager；core/ASan及SDL通过。其余协议仍pending"
     },
     "battle/legacy_battle_pre_frame": {
       "status": "pending",
+      "last_reviewed_commit": "e7c6bc19",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
-      "reason": "三处availability写入只使用状态和值，保留原顺序和失败前缀；帧前父请求回复、通用操作和Port仍待移除",
-      "historical_last_reviewed_commit": "e7c6bc19"
+      "reason": "三处availability写入只使用状态和值，保留原顺序和失败前缀；帧前父请求回复、通用操作和Port仍待移除"
     },
     "battle/legacy_battle_target_selection_entry": {
       "status": "pending",
+      "last_reviewed_commit": "bc6b14e7",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-state-processing-00470380.md",
-      "reason": "作为状态处理迁移依赖向选择刷新借出实际sample manager；core/ASan及SDL通过。其余协议仍pending",
-      "historical_last_reviewed_commit": "bc6b14e7"
+      "reason": "作为状态处理迁移依赖向选择刷新借出实际sample manager；core/ASan及SDL通过。其余协议仍pending"
     },
     "battle/legacy_battle_target_selection_refresh": {
       "status": "pending",
+      "last_reviewed_commit": "5e487db5",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-profile-application-004705c0.md",
-      "reason": "消息2和8两处菜单直接调用列表资料应用函数，删除query_primary_target操作及参数包；使用实际角色资料和共享输出，保留后继重读与失败前缀。core/ASan、SDL及7源身份通过；其余父协议与完整SDL路径仍pending",
-      "historical_last_reviewed_commit": "5e487db5"
+      "reason": "消息2和8两处菜单直接调用列表资料应用函数，删除query_primary_target操作及参数包；使用实际角色资料和共享输出，保留后继重读与失败前缀。core/ASan、SDL及7源身份通过；其余父协议与完整SDL路径仍pending"
     },
     "battle/legacy_battle_group_b_action_composition": {
       "status": "pending",
+      "last_reviewed_commit": "7feb7c40",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-mode-00478710.md",
-      "reason": "动作设置直接借角色字段并返回optional状态，删除子调用计数与机器请求；父函数文字复制Port、通用请求回复和寄存器结果仍在，整项继续pending",
-      "historical_last_reviewed_commit": "7feb7c40"
+      "reason": "动作设置直接借角色字段并返回optional状态，删除子调用计数与机器请求；父函数文字复制Port、通用请求回复和寄存器结果仍在，整项继续pending"
     },
     "battle/legacy_battle_group_b_action_profile_mode": {
       "status": "pending",
+      "last_reviewed_commit": "7feb7c40",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-mode-00478710.md",
-      "reason": "两个动作设置分支直接写同一角色字段并传播实际状态；父函数寄存器请求回复、加载计数与其他协议仍在，整项继续pending",
-      "historical_last_reviewed_commit": "7feb7c40"
+      "reason": "两个动作设置分支直接写同一角色字段并传播实际状态；父函数寄存器请求回复、加载计数与其他协议仍在，整项继续pending"
     },
     "battle/legacy_battle_group_b_action_profile_selection": {
       "status": "pending",
+      "last_reviewed_commit": "7feb7c40",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-mode-00478710.md",
-      "reason": "两个动作设置分支直接借角色字段，删除子请求数组与调用计数；父函数token、寄存器结果及加载和输出计数仍在，整项继续pending",
-      "historical_last_reviewed_commit": "7feb7c40"
+      "reason": "两个动作设置分支直接借角色字段，删除子请求数组与调用计数；父函数token、寄存器结果及加载和输出计数仍在，整项继续pending"
     },
     "battle/legacy_battle_message_phase": {
       "status": "pending",
+      "last_reviewed_commit": "bc6b14e7",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-state-processing-00470380.md",
-      "reason": "作为状态处理迁移依赖向选择入口借出实际sample manager；core/ASan及SDL通过。其余协议仍pending",
-      "historical_last_reviewed_commit": "bc6b14e7"
+      "reason": "作为状态处理迁移依赖向选择入口借出实际sample manager；core/ASan及SDL通过。其余协议仍pending"
     },
     "battle/legacy_battle_post_action": {
       "status": "pending",
+      "last_reviewed_commit": "e7c6bc19",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-availability-block-00478330.md",
-      "reason": "动作和availability清零直接借角色字段，availability失败保留前序写入并阻止角色重置；删除此操作的寄存器请求回复和计数，其余通用参数、寄存器结果、计数与Port仍在",
-      "historical_last_reviewed_commit": "e7c6bc19"
+      "reason": "动作和availability清零直接借角色字段，availability失败保留前序写入并阻止角色重置；删除此操作的寄存器请求回复和计数，其余通用参数、寄存器结果、计数与Port仍在"
     },
     "battle/legacy_battle_actor_turn_completion": {
       "status": "pending",
+      "verification_commit": "7ddede47b0415af338862ffe4e69eb482f988033",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_turn_completion.hpp",
         "src/battle/legacy_battle_actor_turn_completion.cpp"
@@ -130,11 +132,11 @@
         "build/tmp/runtime/turn-completion-direct-asan.log",
         "build/tmp/runtime/turn-completion-direct-callers-asan.log"
       ],
-      "reason": "双方帧三处查询直接借实际目标完成DWORD，返回状态和可选观察值；删除查询编号、解析、寄存器请求回复、模拟栈、计数、转发及无消费者的专用地址计算；保留完整值、原比较和字段/RET失败前驱，八份源码身份、四项定向测试及SDL实际链接通过；父项其余协议和资源仍待迁移",
-      "historical_verification_commit": "7ddede47b0415af338862ffe4e69eb482f988033"
+      "reason": "双方帧三处查询直接借实际目标完成DWORD，返回状态和可选观察值；删除查询编号、解析、寄存器请求回复、模拟栈、计数、转发及无消费者的专用地址计算；保留完整值、原比较和字段/RET失败前驱，八份源码身份、四项定向测试及SDL实际链接通过；父项其余协议和资源仍待迁移"
     },
     "battle/legacy_battle_actor_idle_state": {
       "status": "pending",
+      "verification_commit": "13509965d92ca051185da0ce7ce42e45d78f3b97",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_idle_state.hpp",
         "src/battle/legacy_battle_actor_idle_state.cpp"
@@ -146,11 +148,11 @@
         "build/tmp/runtime/idle-state-direct-asan.log",
         "build/tmp/runtime/idle-state-direct-callers-asan.log"
       ],
-      "reason": "双方帧七处查询直接借实际空闲DWORD并返回状态和可选值；删除查询编号、解析、寄存器请求回复、模拟栈、计数及转发，保留完整数值、零/精确1比较、即时重读及字段/RET失败前缀；八份源码测试身份、core/ASan两类测试各1/1和SDL链接通过，父级其余协议、入口值与资源仍待迁移",
-      "historical_verification_commit": "13509965d92ca051185da0ce7ce42e45d78f3b97"
+      "reason": "双方帧七处查询直接借实际空闲DWORD并返回状态和可选值；删除查询编号、解析、寄存器请求回复、模拟栈、计数及转发，保留完整数值、零/精确1比较、即时重读及字段/RET失败前缀；八份源码测试身份、core/ASan两类测试各1/1和SDL链接通过，父级其余协议、入口值与资源仍待迁移"
     },
     "battle/legacy_battle_actor_action_kind": {
       "status": "pending",
+      "verification_commit": "39ca432f23bd84ee18818b1452a8da644f696929",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_action_kind.hpp",
         "src/battle/legacy_battle_actor_action_kind.cpp"
@@ -162,11 +164,11 @@
         "build/tmp/runtime/action-kind-direct-asan.log",
         "build/tmp/runtime/action-kind-direct-callers-asan.log"
       ],
-      "reason": "双方动作判断及调试显示四处调用直接借实际动作WORD，返回状态与可选值；删除查询编号、token解析、寄存器请求回复、模拟栈、计数及调试转发；完整值、即时读取、失败前缀和仍被父级消费的入口EDX保存已复核，十一份源码测试身份、core/ASan两类测试各1/1及SDL实际链接通过；父级其余协议与资源继续pending",
-      "historical_verification_commit": "39ca432f23bd84ee18818b1452a8da644f696929"
+      "reason": "双方动作判断及调试显示四处调用直接借实际动作WORD，返回状态与可选值；删除查询编号、token解析、寄存器请求回复、模拟栈、计数及调试转发；完整值、即时读取、失败前缀和仍被父级消费的入口EDX保存已复核，十一份源码测试身份、core/ASan两类测试各1/1及SDL实际链接通过；父级其余协议与资源继续pending"
     },
     "battle/legacy_battle_actor_display_kind": {
       "status": "pending",
+      "verification_commit": "cc5b90bddd8a714fa0b2e77b5e26fd2d391d73af",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_display_kind.hpp",
         "src/battle/legacy_battle_actor_display_kind.cpp"
@@ -178,11 +180,11 @@
         "build/tmp/runtime/display-kind-direct-asan.log",
         "build/tmp/runtime/display-kind-direct-callers-asan.log"
       ],
-      "reason": "唯一调用直接读取队员实际显示WORD，返回状态及可选读值，删除查询编号、token解析、寄存器请求回复、模拟栈和计数；保留原完整值与读取/返回失败前缀，并按LST纠正动作零时显示非零走默认尾返回0，不按显示值执行动作；六份源码测试身份、core/ASan setup及角色帧各1/1和SDL实际链接已核验；父级协议、资源及实际游戏仍待迁移验收",
-      "historical_verification_commit": "cc5b90bddd8a714fa0b2e77b5e26fd2d391d73af"
+      "reason": "唯一调用直接读取队员实际显示WORD，返回状态及可选读值，删除查询编号、token解析、寄存器请求回复、模拟栈和计数；保留原完整值与读取/返回失败前缀，并按LST纠正动作零时显示非零走默认尾返回0，不按显示值执行动作；六份源码测试身份、core/ASan setup及角色帧各1/1和SDL实际链接已核验；父级协议、资源及实际游戏仍待迁移验收"
     },
     "battle/legacy_battle_actor_start_gate": {
       "status": "pending",
+      "verification_commit": "b68207c4a87d5ccdf47fecb56e49d82ea919d94b",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_start_gate.hpp",
         "src/battle/legacy_battle_actor_start_gate.cpp"
@@ -194,11 +196,11 @@
         "build/tmp/runtime/start-gate-query-direct-asan.log",
         "build/tmp/runtime/start-gate-query-direct-callers-asan.log"
       ],
-      "reason": "四处调用直接读取双方实际共享WORD，以状态和可选值区分未读与返回失败；删除查询操作编号、token解析、寄存器请求回复、栈轨迹、计数及三处转发；保留完整WORD、门值精确1、前驱改写后的实时读取及失败前缀；十一份源码测试身份、core/ASan两类定向测试各1/1和SDL实际链接已核验；父级协议、完整内存别名及实际游戏仍待迁移验收",
-      "historical_verification_commit": "b68207c4a87d5ccdf47fecb56e49d82ea919d94b"
+      "reason": "四处调用直接读取双方实际共享WORD，以状态和可选值区分未读与返回失败；删除查询操作编号、token解析、寄存器请求回复、栈轨迹、计数及三处转发；保留完整WORD、门值精确1、前驱改写后的实时读取及失败前缀；十一份源码测试身份、core/ASan两类定向测试各1/1和SDL实际链接已核验；父级协议、完整内存别名及实际游戏仍待迁移验收"
     },
     "battle/legacy_battle_actor_start_gate_increment": {
       "status": "pending",
+      "verification_commit": "41a74ad35656f65de450ebdad0867755cfea7669",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_start_gate_increment.hpp",
         "src/battle/legacy_battle_actor_start_gate_increment.cpp"
@@ -210,11 +212,11 @@
         "build/tmp/runtime/start-gate-increment-direct-asan.log",
         "build/tmp/runtime/start-gate-increment-direct-callers-asan.log"
       ],
-      "reason": "五处调用直接递增双方实际共享WORD并写完整DWORD标记1，删除owner/view/resolver、寄存器请求结果、模拟栈、请求数组、地址轨迹、计数及纯转发；保持实时前驱、完整地址回绕、四种原故障前缀和部分扫描，按LST修正脚本EAX与EDX；十二份源码测试身份、core/ASan setup与角色帧各1/1及SDL实际链接已核验；父链、完整内存别名及实际游戏仍未验收",
-      "historical_verification_commit": "41a74ad35656f65de450ebdad0867755cfea7669"
+      "reason": "五处调用直接递增双方实际共享WORD并写完整DWORD标记1，删除owner/view/resolver、寄存器请求结果、模拟栈、请求数组、地址轨迹、计数及纯转发；保持实时前驱、完整地址回绕、四种原故障前缀和部分扫描，按LST修正脚本EAX与EDX；十二份源码测试身份、core/ASan setup与角色帧各1/1及SDL实际链接已核验；父链、完整内存别名及实际游戏仍未验收"
     },
     "battle/legacy_battle_actor_target_selection_count_increment": {
       "status": "pending",
+      "verification_commit": "b423ce9d87c5a77f966585a90ab885f57f970282",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_target_selection_count_increment.hpp",
         "src/battle/legacy_battle_actor_target_selection_count_increment.cpp"
@@ -226,11 +228,11 @@
         "build/tmp/runtime/target-count-increment-direct-asan.log",
         "build/tmp/runtime/target-count-increment-direct-callers-asan.log"
       ],
-      "reason": "三处组A调用直接递增双方实际共享WORD，删除owner/view/resolver、寄存器请求结果、模拟栈、请求数组、地址轨迹、计数及纯转发；保持phase后实时读取、16位和地址回绕、三种原故障前缀及后继DEC前驱；独立字段、索引端点、不可用字段、地址别名及部分扫描经core/ASan setup与角色帧各1/1验证，SDL构建通过；父链、完整内存别名及实际游戏仍未验收",
-      "historical_verification_commit": "b423ce9d87c5a77f966585a90ab885f57f970282"
+      "reason": "三处组A调用直接递增双方实际共享WORD，删除owner/view/resolver、寄存器请求结果、模拟栈、请求数组、地址轨迹、计数及纯转发；保持phase后实时读取、16位和地址回绕、三种原故障前缀及后继DEC前驱；独立字段、索引端点、不可用字段、地址别名及部分扫描经core/ASan setup与角色帧各1/1验证，SDL构建通过；父链、完整内存别名及实际游戏仍未验收"
     },
     "battle/legacy_battle_actor_target_selection_count_query": {
       "status": "pending",
+      "verification_commit": "5a2e0d0edd72f64fca8f15493a9212fc584dc094",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_target_selection_count_query.hpp",
         "src/battle/legacy_battle_actor_target_selection_count_query.cpp"
@@ -240,11 +242,11 @@
         "build/tmp/runtime/target-count-query-direct-core.log",
         "build/tmp/runtime/target-count-query-direct-asan.log"
       ],
-      "reason": "唯一脚本caller直接读取双方实际共享WORD，删除查询owner/resolver、寄存器请求结果、模拟栈、请求数组、地址轨迹、计数及纯转发；保留原读/返回故障与真实前驱，按LST恢复逐WORD扫描、共享帧门及角色发布、空列表不加载和加载后数量重读；独立字段/边界/混合列表及故障向量经core/ASan setup各1/1与SDL链接验证；父链及完整游戏仍未验收",
-      "historical_verification_commit": "5a2e0d0edd72f64fca8f15493a9212fc584dc094"
+      "reason": "唯一脚本caller直接读取双方实际共享WORD，删除查询owner/resolver、寄存器请求结果、模拟栈、请求数组、地址轨迹、计数及纯转发；保留原读/返回故障与真实前驱，按LST恢复逐WORD扫描、共享帧门及角色发布、空列表不加载和加载后数量重读；独立字段/边界/混合列表及故障向量经core/ASan setup各1/1与SDL链接验证；父链及完整游戏仍未验收"
     },
     "battle/legacy_battle_actor_target_selection_latch_set": {
       "status": "pending",
+      "verification_commit": "bf13ed498f00c04492dfce444e8fbbaecdd330ea",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_target_selection_latch_set.hpp",
         "src/battle/legacy_battle_actor_target_selection_latch_set.cpp"
@@ -256,11 +258,11 @@
         "build/tmp/runtime/target-latch-set-direct-asan.log",
         "build/tmp/runtime/target-latch-set-direct-callers-asan.log"
       ],
-      "reason": "三处caller直接把当前双方角色实际共享DWORD写为1，删除置位resolver、寄存器请求回复、请求数组、地址表、轨迹、计数、offset及纯转发；写故障保留旧值、返回故障保留1，场景/ready前缀及正常选择续接经四项core/ASan定向测试与SDL链接验证；七类完整值、不同索引、重复写及嵌套实际状态已覆盖；父链及完整游戏仍未验收",
-      "historical_verification_commit": "bf13ed498f00c04492dfce444e8fbbaecdd330ea"
+      "reason": "三处caller直接把当前双方角色实际共享DWORD写为1，删除置位resolver、寄存器请求回复、请求数组、地址表、轨迹、计数、offset及纯转发；写故障保留旧值、返回故障保留1，场景/ready前缀及正常选择续接经四项core/ASan定向测试与SDL链接验证；七类完整值、不同索引、重复写及嵌套实际状态已覆盖；父链及完整游戏仍未验收"
     },
     "battle/legacy_battle_actor_target_selection_latch_query": {
       "status": "pending",
+      "verification_commit": "c5dee2ea80e442745cffdcbfad6ef4e188420de8",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_target_selection_latch_query.hpp",
         "src/battle/legacy_battle_actor_target_selection_latch_query.cpp"
@@ -272,11 +274,11 @@
         "build/tmp/runtime/target-latch-direct-asan.log",
         "build/tmp/runtime/target-latch-direct-callers-asan.log"
       ],
-      "reason": "四处caller直接读取实际队员/敌方共享DWORD并使用可选实际值，删除寄存器请求回复、请求数组、地址表、轨迹、计数、offset及纯转发；精确1与任意非零分支、两种原故障前缀和队员首个衰减的敌方数量reload经四项core/ASan定向测试及SDL链接验证；高位完整值、两敌方实际递增与不同索引/后续写入重读已覆盖；父链及完整游戏仍未验收",
-      "historical_verification_commit": "c5dee2ea80e442745cffdcbfad6ef4e188420de8"
+      "reason": "四处caller直接读取实际队员/敌方共享DWORD并使用可选实际值，删除寄存器请求回复、请求数组、地址表、轨迹、计数、offset及纯转发；精确1与任意非零分支、两种原故障前缀和队员首个衰减的敌方数量reload经四项core/ASan定向测试及SDL链接验证；高位完整值、两敌方实际递增与不同索引/后续写入重读已覆盖；父链及完整游戏仍未验收"
     },
     "battle/legacy_battle_actor_start_gate_latch_query": {
       "status": "pending",
+      "verification_commit": "d4e3496e6bcc278850a8ce56383029b391c89570",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_start_gate_latch_query.hpp",
         "src/battle/legacy_battle_actor_start_gate_latch_query.cpp"
@@ -288,109 +290,109 @@
         "build/tmp/runtime/start-latch-direct-asan.log",
         "build/tmp/runtime/start-latch-direct-callers-asan.log"
       ],
-      "reason": "直接读取既有共享DWORD并返回可选实际值，唯一敌方帧调用已回收请求数组、寄存器结果、调用轨迹、计数及转发；完整值精确1过滤、前驱写后的实时读取、不同队员字段及两种原故障前缀经四项core/ASan定向测试和SDL链接验证；父层其他协议及完整游戏不升级",
-      "historical_verification_commit": "d4e3496e6bcc278850a8ce56383029b391c89570"
+      "reason": "直接读取既有共享DWORD并返回可选实际值，唯一敌方帧调用已回收请求数组、寄存器结果、调用轨迹、计数及转发；完整值精确1过滤、前驱写后的实时读取、不同队员字段及两种原故障前缀经四项core/ASan定向测试和SDL链接验证；父层其他协议及完整游戏不升级"
     },
     "battle/legacy_battle_frame_draw": {
       "status": "pending",
+      "last_reviewed_commit": "92ceb3d9",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-ten-place-decimal-coordinator-004507a0.md",
-      "reason": "十位及单位数字绘制已删除寄存器结果、重复数组和调用计数，按实际字宽推进并重读共享余数；其他绘制结果仍有计数，帧资源提供接口仍待迁移，0047C1F0八处caller未实现，整项继续pending",
-      "historical_last_reviewed_commit": "92ceb3d9"
+      "reason": "十位及单位数字绘制已删除寄存器结果、重复数组和调用计数，按实际字宽推进并重读共享余数；其他绘制结果仍有计数，帧资源提供接口仍待迁移，0047C1F0八处caller未实现，整项继续pending"
     },
     "battle/legacy_battle_actor_field_26b8_high_bit_clear": {
       "status": "pending",
+      "last_reviewed_commit": "a4e011b9",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-field-26b8-high-bit-clear-00478770.md",
-      "reason": "叶操作直接借共享DWORD并返回访问状态，删除请求回复、token解析、轨迹及计数；实际父位置先清共享阶段再清高位，双侧frame传播可选结果。该切片通过core/ASan和SDL验证，但完整父接口仍有通用协议，清单不增加整链验收",
-      "historical_last_reviewed_commit": "a4e011b9"
+      "reason": "叶操作直接借共享DWORD并返回访问状态，删除请求回复、token解析、轨迹及计数；实际父位置先清共享阶段再清高位，双侧frame传播可选结果。该切片通过core/ASan和SDL验证，但完整父接口仍有通用协议，清单不增加整链验收"
     },
     "battle/legacy_battle_actor_action_presentation": {
       "status": "pending",
+      "last_reviewed_commit": "a4e011b9",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-field-26b8-high-bit-clear-00478770.md",
-      "reason": "数字操作和高位清除直接借共享数据，阶段清零修正为写回实际角色；清高位不再生成编号记录或受人工调用序号停止。其他callee编号、参数数组、寄存器请求回复、物理调用计数及Port仍在，整项继续pending",
-      "historical_last_reviewed_commit": "a4e011b9"
+      "reason": "数字操作和高位清除直接借共享数据，阶段清零修正为写回实际角色；清高位不再生成编号记录或受人工调用序号停止。其他callee编号、参数数组、寄存器请求回复、物理调用计数及Port仍在，整项继续pending"
     },
     "battle/legacy_battle_actor_list_query": {
       "status": "pending",
+      "last_reviewed_commit": "df52c985",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-action-00470820.md",
-      "reason": "行动消耗删除ActionRequest、Refresh/ActionResult、actor token/寄存器参数与回包及写入/清理/调用计数；直接扣除实际记录WORD，保留回绕、signed夹零、资源消耗和失败前缀。core/ASan定向、SDL及6源身份通过；既有行查询、计数和资料迁移保留，资源生产、消息内部协议及完整SDL仍pending",
-      "historical_last_reviewed_commit": "df52c985"
+      "reason": "行动消耗删除ActionRequest、Refresh/ActionResult、actor token/寄存器参数与回包及写入/清理/调用计数；直接扣除实际记录WORD，保留回绕、signed夹零、资源消耗和失败前缀。core/ASan定向、SDL及6源身份通过；既有行查询、计数和资料迁移保留，资源生产、消息内部协议及完整SDL仍pending"
     },
     "battle/legacy_battle_grid_frame": {
       "status": "pending",
+      "last_reviewed_commit": "2de716db",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-count-004702e0.md",
-      "reason": "共享GridFramePort删除窄列表初始化操作和行上限回包；既有普通资源查询与实际计数保留。其余字体、绘制、护驾名称查询及父寄存器协议仍pending",
-      "historical_last_reviewed_commit": "2de716db"
+      "reason": "共享GridFramePort删除窄列表初始化操作和行上限回包；既有普通资源查询与实际计数保留。其余字体、绘制、护驾名称查询及父寄存器协议仍pending"
     },
     "battle/legacy_battle_alternate_grid_frame": {
       "status": "pending",
+      "last_reviewed_commit": "5a60ef7d",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-list-count-00470a10.md",
-      "reason": "465FC2字体前继后借live队员实际list，清共享WORD直接累计类别4；删除仅计数使用的兼容开关、actor/output token、操作、子回包与调用数。成功零继续，失败保标题/字体和0或2累计，根发布/行查询各自重读live；七行后的第八次查询副作用保持。70次新实际网格、叶/普通/选择帧回归、四定向门各1/1、SDL136/136和12源身份通过。字体、绘制寄存器与计数、Port及完整SDL链仍pending",
-      "historical_last_reviewed_commit": "5a60ef7d"
+      "reason": "465FC2字体前继后借live队员实际list，清共享WORD直接累计类别4；删除仅计数使用的兼容开关、actor/output token、操作、子回包与调用数。成功零继续，失败保标题/字体和0或2累计，根发布/行查询各自重读live；七行后的第八次查询副作用保持。70次新实际网格、叶/普通/选择帧回归、四定向门各1/1、SDL136/136和12源身份通过。字体、绘制寄存器与计数、Port及完整SDL链仍pending"
     },
     "battle/legacy_battle_mode_grid_frame": {
       "status": "pending",
+      "last_reviewed_commit": "1930c415",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-mode-resource-count-00471080.md",
-      "reason": "466342借live队员实际list直接清零并累计数量WORD，删除脚本计数、目标token、子寄存器回包/副本和计数；数量字段改u16，范围与末panel只消费低WORD。保五处live借用，成功零仍画十格，统计失败沿已有resource_query_failure/group_a_actor状态保primary与0/7累计并阻断根再发布、绘制及target修改。60次新实际网格、225次新叶及旧七数量×十槽、live/输出关闭/容量/页组/message30回归，两core/两ASan各1/1、SDL136/136通过。字体、其余参数包/寄存器/计数/Port与完整SDL链继续pending",
-      "historical_last_reviewed_commit": "1930c415"
+      "reason": "466342借live队员实际list直接清零并累计数量WORD，删除脚本计数、目标token、子寄存器回包/副本和计数；数量字段改u16，范围与末panel只消费低WORD。保五处live借用，成功零仍画十格，统计失败沿已有resource_query_failure/group_a_actor状态保primary与0/7累计并阻断根再发布、绘制及target修改。60次新实际网格、225次新叶及旧七数量×十槽、live/输出关闭/容量/页组/message30回归，两core/两ASan各1/1、SDL136/136通过。字体、其余参数包/寄存器/计数/Port与完整SDL链继续pending"
     },
     "battle/legacy_battle_selection_frame": {
       "status": "pending",
+      "last_reviewed_commit": "2de716db",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-count-004702e0.md",
-      "reason": "两处菜单沿既有party/角色借用直接统计真实列表；空列表测试不再伪造255行回包，验证真实0行的后续发布。其余父操作、计数和寄存器协议仍pending",
-      "historical_last_reviewed_commit": "2de716db"
+      "reason": "两处菜单沿既有party/角色借用直接统计真实列表；空列表测试不再伪造255行回包，验证真实0行的后续发布。其余父操作、计数和寄存器协议仍pending"
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
+      "last_reviewed_commit": "df52c985",
       "files": [
         "include/openswd3/battle/legacy_battle_deformation.hpp",
         "src/battle/legacy_battle_deformation.cpp"
       ],
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-action-00470820.md",
-      "reason": "首项行动消耗依赖删除父结果内的寄存器回包及调用计数；实际组A调用直接消费party数据，既有资源释放迁移保留。core/ASan定向、SDL及6源身份通过；其他操作、参数包、寄存器、计数、Port及完整父链仍pending",
-      "historical_last_reviewed_commit": "df52c985"
+      "reason": "首项行动消耗依赖删除父结果内的寄存器回包及调用计数；实际组A调用直接消费party数据，既有资源释放迁移保留。core/ASan定向、SDL及6源身份通过；其他操作、参数包、寄存器、计数、Port及完整父链仍pending"
     },
     "battle/legacy_battle_debug_overlay": {
       "status": "pending",
+      "last_reviewed_commit": "39ca432f",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-action-kind-004786b0.md",
-      "reason": "两类角色行的动作与启动查询均直接借实际WORD，删除两类查询协议、解析、计数、转发与reserved编号，保留无符号完整文字、实时读取及已完成行；其余调试操作编号、寄存器回复、参数包、Port及资源仍在，整项继续pending",
-      "historical_last_reviewed_commit": "39ca432f"
+      "reason": "两类角色行的动作与启动查询均直接借实际WORD，删除两类查询协议、解析、计数、转发与reserved编号，保留无符号完整文字、实时读取及已完成行；其余调试操作编号、寄存器回复、参数包、Port及资源仍在，整项继续pending"
     },
     "battle/legacy_battle_opponent_action_dispatch": {
       "status": "pending",
+      "last_reviewed_commit": "6596ec41",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-shared-mirror-setting-0053c000.md",
-      "reason": "新增敌人每轮直接借脚本共用的全局镜像DWORD，删除mirror_group_b_spawn副本，保留精确1比较、坐标翻转与MON失败前缀；脚本到实际生成及前继改写后的实时重读已验证。此前实际镜像、绘制抑制、激活和步长迁移继续有效；其余通用操作、参数数组、机器诊断、计数及Port仍在，父链继续pending",
-      "historical_last_reviewed_commit": "6596ec41"
+      "reason": "新增敌人每轮直接借脚本共用的全局镜像DWORD，删除mirror_group_b_spawn副本，保留精确1比较、坐标翻转与MON失败前缀；脚本到实际生成及前继改写后的实时重读已验证。此前实际镜像、绘制抑制、激活和步长迁移继续有效；其余通用操作、参数数组、机器诊断、计数及Port仍在，父链继续pending"
     },
     "battle/legacy_battle_effect_frame": {
       "status": "pending",
+      "last_reviewed_commit": "8df8d9f5",
       "files": [
         "include/openswd3/asset_runtime/legacy_frame_deformation.hpp",
         "src/asset_runtime/legacy_frame_deformation.cpp"
       ],
       "evidence": "analysis/04-reverse-engineering/evidence/battle-effect-deformation-borrowing.md",
-      "reason": "直接读取动作活动标记并借用实际变形对象与画面，删除独立状态、对象编号及五类通用调用，保持粒子节拍、随机顺序、完成阈值、回绕和失败前缀；core/ASan、SDL及七文件身份通过。查询、声音、随机、其他记录和奖励协议仍在，整项继续pending",
-      "historical_last_reviewed_commit": "8df8d9f5"
+      "reason": "直接读取动作活动标记并借用实际变形对象与画面，删除独立状态、对象编号及五类通用调用，保持粒子节拍、随机顺序、完成阈值、回绕和失败前缀；core/ASan、SDL及七文件身份通过。查询、声音、随机、其他记录和奖励协议仍在，整项继续pending"
     },
     "battle/legacy_battle_effect_coordinator": {
       "status": "pending",
+      "last_reviewed_commit": "8df8d9f5",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-effect-deformation-borrowing.md",
-      "reason": "效果帧调用方传入已有动作所有者和真实画面，回归验证共用对象及场推进；其余父编号、参数数组、寄存器请求回复、计数和Port仍在，整项继续pending",
-      "historical_last_reviewed_commit": "8df8d9f5"
+      "reason": "效果帧调用方传入已有动作所有者和真实画面，回归验证共用对象及场推进；其余父编号、参数数组、寄存器请求回复、计数和Port仍在，整项继续pending"
     },
     "battle/legacy_battle_final_actor_step": {
       "status": "pending",
+      "last_reviewed_commit": "c9585d99",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-final-actor-profile-0047f910.md",
-      "reason": "敌方收尾在坐标、描述符和延迟累加后读取实际WORD参数，再累计实际键计数并移除攻击顺序；已有访问失败、真实PMR分配失败及移除失败保留原前缀。查询编号、模拟回复和测试中已不消费的分配回复与令牌计数器删除；原叠加清理、availability和攻击顺序继续用真实来源。帧、描述符、继续、重置及其余通用请求、寄存器回复、计数和Port仍待迁移，整项继续pending",
-      "historical_last_reviewed_commit": "c9585d99"
+      "reason": "敌方收尾在坐标、描述符和延迟累加后读取实际WORD参数，再累计实际键计数并移除攻击顺序；已有访问失败、真实PMR分配失败及移除失败保留原前缀。查询编号、模拟回复和测试中已不消费的分配回复与令牌计数器删除；原叠加清理、availability和攻击顺序继续用真实来源。帧、描述符、继续、重置及其余通用请求、寄存器回复、计数和Port仍待迁移，整项继续pending"
     },
     "battle/legacy_battle_pending_action_commit": {
       "status": "pending",
+      "last_reviewed_commit": "2b89c8ea",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-pending-action-commit-0045eb40.md",
-      "reason": "发布与移除使用同一实时归一索引和实际强度存储，删除移除寄存器传播、调用计数及两层保留槽；准备、ready、提交与父函数其他通用请求、寄存器结果、计数和Port仍在，整项继续pending",
-      "historical_last_reviewed_commit": "2b89c8ea"
+      "reason": "发布与移除使用同一实时归一索引和实际强度存储，删除移除寄存器传播、调用计数及两层保留槽；准备、ready、提交与父函数其他通用请求、寄存器结果、计数和Port仍在，整项继续pending"
     },
     "battle/legacy_battle_attack_order_entry": {
       "status": "pending",
+      "verification_commit": "dfc16ccd",
       "files": [
         "include/openswd3/battle/legacy_battle_attack_order_entry.hpp",
         "src/battle/legacy_battle_attack_order_entry.cpp"
@@ -402,11 +404,11 @@
         "build/tmp/runtime/attack-order-append-callers-core.log",
         "build/tmp/runtime/attack-order-append-callers-asan.log"
       ],
-      "reason": "追加直接写共享队列并返回实际可选索引，三个直接调用方及嵌套汇总已移除该寄存器协议和计数；固定18槽、两项字段写、满表无写、短视图停点及核心同帧出队后追加唯一队列经core/ASan验证，SDL构建通过；完整游戏流程不升级",
-      "historical_verification_commit": "dfc16ccd"
+      "reason": "追加直接写共享队列并返回实际可选索引，三个直接调用方及嵌套汇总已移除该寄存器协议和计数；固定18槽、两项字段写、满表无写、短视图停点及核心同帧出队后追加唯一队列经core/ASan验证，SDL构建通过；完整游戏流程不升级"
     },
     "battle/legacy_battle_attack_order_insert": {
       "status": "pending",
+      "verification_commit": "93e461a6",
       "files": [
         "include/openswd3/battle/legacy_battle_attack_order_insert.hpp",
         "src/battle/legacy_battle_attack_order_insert.cpp"
@@ -418,11 +420,11 @@
         "build/tmp/runtime/attack-order-insert-callers-core.log",
         "build/tmp/runtime/attack-order-insert-callers-asan.log"
       ],
-      "reason": "位置插入直接移动共享队列并转移实际队员暂存数据，删除寄存器结果、扫描和调用计数及脚本操作槽；全部当前调用方共用来源、双门与实际相邻强度记录，保留满表BUG、逐DWORD次序、signed比较、回绕与失败前缀，经core/ASan四项定向验证及SDL链接；完整战斗和原版差分不升级",
-      "historical_verification_commit": "93e461a6"
+      "reason": "位置插入直接移动共享队列并转移实际队员暂存数据，删除寄存器结果、扫描和调用计数及脚本操作槽；全部当前调用方共用来源、双门与实际相邻强度记录，保留满表BUG、逐DWORD次序、signed比较、回绕与失败前缀，经core/ASan四项定向验证及SDL链接；完整战斗和原版差分不升级"
     },
     "battle/legacy_battle_attack_order_remove": {
       "status": "pending",
+      "verification_commit": "2b89c8ea8d381993f315dabe7c143c45f26fb4d7",
       "files": [
         "include/openswd3/battle/legacy_battle_attack_order_remove.hpp",
         "src/battle/legacy_battle_attack_order_remove.cpp"
@@ -434,29 +436,29 @@
         "build/tmp/runtime/attack-order-remove-callers-core.log",
         "build/tmp/runtime/attack-order-remove-callers-asan.log"
       ],
-      "reason": "移除直接扫描共享队列并逐DWORD左移，九个调用点及嵌套汇总使用实际可选结果，删除寄存器、扫描和调用计数与保留操作槽；保留完整目标首匹配、实际相邻读取、双重尾填充及失败前缀，组A使用发布时同一实时归一索引，经core/ASan四项定向验证与SDL链接；父链和原版差分不升级",
-      "historical_verification_commit": "2b89c8ea8d381993f315dabe7c143c45f26fb4d7"
+      "reason": "移除直接扫描共享队列并逐DWORD左移，九个调用点及嵌套汇总使用实际可选结果，删除寄存器、扫描和调用计数与保留操作槽；保留完整目标首匹配、实际相邻读取、双重尾填充及失败前缀，组A使用发布时同一实时归一索引，经core/ASan四项定向验证与SDL链接；父链和原版差分不升级"
     },
     "battle/legacy_battle_group_a_frame": {
       "status": "pending",
+      "last_reviewed_commit": "df52c985",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-action-00470820.md",
-      "reason": "45703D直接借party列表、配置、物品效果和workspace扣除行动消耗，删除actor token入参、子寄存器回包及调用次数；测试改查实际扣除及前置失败保留。core/ASan定向、SDL及6源身份通过；此前共享属性等迁移保留，其他父协议、资源生产及完整SDL仍pending",
-      "historical_last_reviewed_commit": "df52c985"
+      "reason": "45703D直接借party列表、配置、物品效果和workspace扣除行动消耗，删除actor token入参、子寄存器回包及调用次数；测试改查实际扣除及前置失败保留。core/ASan定向、SDL及6源身份通过；此前共享属性等迁移保留，其他父协议、资源生产及完整SDL仍pending"
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",
+      "last_reviewed_commit": "c6fff61c",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-enemy-frame-target-count-0047d8d0.md",
-      "reason": "敌人帧两站直接读保存敌人实际profile BYTEbit0，真置目标扫描门并清实际效果目标数量，假保持前继值；普通真分支跳选择、标记真分支继续选择。删除叶编号/参数包/回复与phase_progress重复状态，六处计数访问和真实效果消费者共用同一协调器字段，必要引用同步全部调用方。450次新帧、432次真实计数比较和450次bit1同步验证保存对象、前继重读、DWORD/signed处理与实际衰减失败保留；两core/两ASan定向门、SDL链接和七源审查通过。此前共享群体marker、实际物品/MON、步长、叠加等迁移继续有效。菜单bit0四站后续已迁移，bit1及标记WORD亦已迁移；actor-ready八槽、profile重叠及reset字节像别名、父编号/参数包/寄存器/轨迹/计数/Port/资源、全部出口与SDL生产帧仍未验收，整项保持pending",
-      "historical_last_reviewed_commit": "c6fff61c"
+      "reason": "敌人帧两站直接读保存敌人实际profile BYTEbit0，真置目标扫描门并清实际效果目标数量，假保持前继值；普通真分支跳选择、标记真分支继续选择。删除叶编号/参数包/回复与phase_progress重复状态，六处计数访问和真实效果消费者共用同一协调器字段，必要引用同步全部调用方。450次新帧、432次真实计数比较和450次bit1同步验证保存对象、前继重读、DWORD/signed处理与实际衰减失败保留；两core/两ASan定向门、SDL链接和七源审查通过。此前共享群体marker、实际物品/MON、步长、叠加等迁移继续有效。菜单bit0四站后续已迁移，bit1及标记WORD亦已迁移；actor-ready八槽、profile重叠及reset字节像别名、父编号/参数包/寄存器/轨迹/计数/Port/资源、全部出口与SDL生产帧仍未验收，整项保持pending"
     },
     "battle/legacy_battle_transition": {
       "status": "pending",
+      "last_reviewed_commit": "dfc16ccd",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-attack-order-entry-0045edf0.md",
-      "reason": "转场敌方条件直接追加启动队列，删除该寄存器结果、计数、无用操作槽和死EAX赋值；其他转场业务仍有通用操作、参数数组、寄存器回复及转接接口，整项继续pending",
-      "historical_last_reviewed_commit": "dfc16ccd"
+      "reason": "转场敌方条件直接追加启动队列，删除该寄存器结果、计数、无用操作槽和死EAX赋值；其他转场业务仍有通用操作、参数数组、寄存器回复及转接接口，整项继续pending"
     },
     "battle/legacy_battle_attack_order_dequeue": {
       "status": "pending",
+      "verification_commit": "fe380352",
       "files": [
         "include/openswd3/battle/legacy_battle_attack_order_dequeue.hpp",
         "src/battle/legacy_battle_attack_order_dequeue.cpp",
@@ -470,11 +472,11 @@
         "build/tmp/runtime/attack-order-direct-callers-core.log",
         "build/tmp/runtime/attack-order-direct-callers-asan.log"
       ],
-      "reason": "出队直接借用物理队列和共享角色字段，全部直接调用方已回收；无界扫描、回绕、七DWORD复制、满表清理及实际访问失败前缀经core与ASan验证，SDL链接通过",
-      "historical_verification_commit": "fe380352"
+      "reason": "出队直接借用物理队列和共享角色字段，全部直接调用方已回收；无界扫描、回绕、七DWORD复制、满表清理及实际访问失败前缀经core与ASan验证，SDL链接通过"
     },
     "battle/legacy_battle_actor_base_initialization": {
       "status": "pending",
+      "verification_commit": "97ec03ba",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_base_initialization.hpp",
         "src/battle/legacy_battle_actor_base_initialization.cpp",
@@ -488,11 +490,11 @@
         "build/tmp/runtime/actor-exit-cleanup-core.log",
         "build/tmp/runtime/actor-exit-cleanup-asan.log"
       ],
-      "reason": "共享字段接口及全部直接调用方既有迁移保留；97ec03ba复核仅重命名原步长字段，布局、64次写入、失败顺序和生命周期调用未变。当前core/ASan专用初始化测试通过，生命周期源码与前批逐字节一致；本次不是新增接口族验收",
-      "historical_verification_commit": "97ec03ba"
+      "reason": "共享字段接口及全部直接调用方既有迁移保留；97ec03ba复核仅重命名原步长字段，布局、64次写入、失败顺序和生命周期调用未变。当前core/ASan专用初始化测试通过，生命周期源码与前批逐字节一致；本次不是新增接口族验收"
     },
     "battle/legacy_battle_actor_base_release": {
       "status": "pending",
+      "verification_commit": "5402ee36",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_base_release.hpp",
         "src/battle/legacy_battle_actor_base_release.cpp",
@@ -506,17 +508,17 @@
         "build/tmp/runtime/actor-exit-cleanup-core.log",
         "build/tmp/runtime/actor-exit-cleanup-asan.log"
       ],
-      "reason": "实际说明分配释放与全部直接调用方已迁移；两组数组析构和SDL退出接线已补齐，失败不清指针及异常传播经专用测试验证",
-      "historical_verification_commit": "5402ee36"
+      "reason": "实际说明分配释放与全部直接调用方已迁移；两组数组析构和SDL退出接线已补齐，失败不清指针及异常传播经专用测试验证"
     },
     "battle/legacy_battle_actor_lifecycle": {
       "status": "pending",
+      "last_reviewed_commit": "5402ee36",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-owned-exit-cleanup.md",
-      "reason": "已迁移元素构造、数组析构和真实退出登记；构造期异常展开及单例SDL业务对象接线仍未核验，不能把整个生命周期计为完成",
-      "historical_last_reviewed_commit": "5402ee36"
+      "reason": "已迁移元素构造、数组析构和真实退出登记；构造期异常展开及单例SDL业务对象接线仍未核验，不能把整个生命周期计为完成"
     },
     "battle/legacy_battle_actor_message_percent_refresh": {
       "status": "pending",
+      "verification_commit": "24eac681",
       "files": [
         "include/openswd3/battle/legacy_battle_actor_message_percent_refresh.hpp",
         "src/battle/legacy_battle_actor_message_percent_refresh.cpp"
@@ -526,11 +528,11 @@
         "build/tmp/runtime/actor-heap-release-core.log",
         "build/tmp/runtime/actor-heap-release-asan.log"
       ],
-      "reason": "直接扫描角色资料与共享固定链并写入百分比；当前setup测试覆盖",
-      "historical_verification_commit": "24eac681"
+      "reason": "直接扫描角色资料与共享固定链并写入百分比；当前setup测试覆盖"
     },
     "battle/legacy_battle_definition_archive": {
       "status": "pending",
+      "verification_commit": "9f1ee804",
       "files": [
         "include/openswd3/battle/legacy_battle_definition_archive.hpp",
         "src/battle/legacy_battle_definition_archive.cpp"
@@ -540,14 +542,13 @@
         "build/tmp/runtime/definition-owned-core-final.log",
         "build/tmp/runtime/definition-owned-asan.log"
       ],
-      "reason": "头部与记录直接读实际文件，删除FilePort、编号句柄、寄存器协议和计数；startup及SDL全部直接调用方已回收，真实短读/符号选择/寻址失败/描述符寿命经core与ASan验证",
-      "historical_verification_commit": "9f1ee804"
+      "reason": "头部与记录直接读实际文件，删除FilePort、编号句柄、寄存器协议和计数；startup及SDL全部直接调用方已回收，真实短读/符号选择/寻址失败/描述符寿命经core与ASan验证"
     },
     "battle/legacy_battle_file_lifecycle": {
       "status": "pending",
+      "last_reviewed_commit": "c5b16af7",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-file-static-lifecycle-00451900.md",
-      "reason": "已删除退出登记Port、编号、调用计数和寄存器结果，真实文件与映射随清理集合析构；当前调用方仅测试，独立文件对象的SDL业务接线仍未核验",
-      "historical_last_reviewed_commit": "c5b16af7"
+      "reason": "已删除退出登记Port、编号、调用计数和寄存器结果，真实文件与映射随清理集合析构；当前调用方仅测试，独立文件对象的SDL业务接线仍未核验"
     },
     "battle/legacy_battle_fixed_object_reset": {
       "status": "pending",
@@ -561,12 +562,13 @@
     },
     "battle/legacy_battle_frame_coordinator": {
       "status": "pending",
+      "last_reviewed_commit": "2de716db",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-count-004702e0.md",
-      "reason": "删除两处列表初始化操作、行上限回包及纯转发分支；既有实际行查询和共享音乐路径保留。其余协调器协议及完整SDL接线仍pending",
-      "historical_last_reviewed_commit": "2de716db"
+      "reason": "删除两处列表初始化操作、行上限回包及纯转发分支；既有实际行查询和共享音乐路径保留。其余协调器协议及完整SDL接线仍pending"
     },
     "battle/legacy_battle_frame_music_prefix": {
       "status": "pending",
+      "verification_commit": "ad5c3f70",
       "files": [
         "include/openswd3/battle/legacy_battle_frame_music_prefix.hpp",
         "src/battle/legacy_battle_frame_music_prefix.cpp"
@@ -576,11 +578,11 @@
         "build/tmp/runtime/frame-music-without-port-core.log",
         "build/tmp/runtime/frame-music-without-port-asan.log"
       ],
-      "reason": "实际流管理器与共享路径音量直接接入帧调用方",
-      "historical_verification_commit": "ad5c3f70"
+      "reason": "实际流管理器与共享路径音量直接接入帧调用方"
     },
     "battle/legacy_battle_frame_selection": {
       "status": "pending",
+      "verification_commit": "fe380352",
       "files": [
         "include/openswd3/battle/legacy_battle_frame_selection.hpp",
         "src/battle/legacy_battle_frame_selection.cpp"
@@ -592,8 +594,7 @@
         "build/tmp/runtime/attack-order-direct-callers-core.log",
         "build/tmp/runtime/attack-order-direct-callers-asan.log"
       ],
-      "reason": "帧选择直接共享队列、角色、动作与输出字段，SDL及核心调用方已迁移；删除查询Port和EDX协议，可选实际结果表达未出队，精确门、WORD延迟、坐标发布及失败后缀经core与ASan验证",
-      "historical_verification_commit": "fe380352"
+      "reason": "帧选择直接共享队列、角色、动作与输出字段，SDL及核心调用方已迁移；删除查询Port和EDX协议，可选实际结果表达未出队，精确门、WORD延迟、坐标发布及失败后缀经core与ASan验证"
     },
     "battle/legacy_battle_group_a_resource_cleanup": {
       "status": "pending",
@@ -602,24 +603,25 @@
     },
     "battle/legacy_battle_group_a_storage": {
       "status": "pending",
+      "last_reviewed_commit": "5402ee36",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-group-a-vector-destruction-004517e0.md",
-      "reason": "已接通共享构造、逆序析构及退出清理；仍继承StartupResetHeapPort，构造期异常展开、次级资源生产来源和保留地址区间寿命仍待核验",
-      "historical_last_reviewed_commit": "5402ee36"
+      "reason": "已接通共享构造、逆序析构及退出清理；仍继承StartupResetHeapPort，构造期异常展开、次级资源生产来源和保留地址区间寿命仍待核验"
     },
     "battle/legacy_battle_group_b_action_configuration": {
       "status": "pending",
+      "last_reviewed_commit": "2574b653",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-startup-enemy-mirror-0047f900.md",
-      "reason": "启动绘制抑制与镜像直接写实际字段，删除共用镜像Port；配置的寄存器式结果仍待迁移",
-      "historical_last_reviewed_commit": "2574b653"
+      "reason": "启动绘制抑制与镜像直接写实际字段，删除共用镜像Port；配置的寄存器式结果仍待迁移"
     },
     "battle/legacy_battle_group_b_storage": {
       "status": "pending",
+      "last_reviewed_commit": "2574b653",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-startup-enemy-mirror-0047f900.md",
-      "reason": "启动绘制抑制及镜像均直接借用实际字段，删除StoredEnemyModes；整体堆、异常展开与地址寿命仍待逐项复核",
-      "historical_last_reviewed_commit": "2574b653"
+      "reason": "启动绘制抑制及镜像均直接借用实际字段，删除StoredEnemyModes；整体堆、异常展开与地址寿命仍待逐项复核"
     },
     "battle/legacy_battle_group_b_resource_cleanup": {
       "status": "pending",
+      "verification_commit": "24eac681",
       "files": [
         "include/openswd3/battle/legacy_battle_group_b_resource_cleanup.hpp",
         "src/battle/legacy_battle_group_b_resource_cleanup.cpp"
@@ -629,11 +631,11 @@
         "build/tmp/runtime/actor-heap-release-core.log",
         "build/tmp/runtime/actor-heap-release-asan.log"
       ],
-      "reason": "关闭及元素析构直接撤销实际敌方资源登记并按顺序清字段",
-      "historical_verification_commit": "24eac681"
+      "reason": "关闭及元素析构直接撤销实际敌方资源登记并按顺序清字段"
     },
     "battle/legacy_battle_mon_file_runtime": {
       "status": "pending",
+      "verification_commit": "2820c6e0",
       "files": [
         "include/openswd3/battle/legacy_battle_mon_file_runtime.hpp",
         "src/battle/legacy_battle_mon_file_runtime.cpp"
@@ -643,11 +645,11 @@
         "build/tmp/runtime/mon-final-staged-definition.log",
         "build/tmp/runtime/mon-final-definition-asan.log"
       ],
-      "reason": "实际文件所有权及具名打开定位读取操作已替换通用协议",
-      "historical_verification_commit": "2820c6e0"
+      "reason": "实际文件所有权及具名打开定位读取操作已替换通用协议"
     },
     "battle/legacy_battle_mon_stream_runtime": {
       "status": "pending",
+      "verification_commit": "2820c6e0",
       "files": [
         "include/openswd3/battle/legacy_battle_mon_stream_runtime.hpp",
         "src/battle/legacy_battle_mon_stream_runtime.cpp"
@@ -657,11 +659,11 @@
         "build/tmp/runtime/mon-final-staged-definition.log",
         "build/tmp/runtime/mon-final-definition-asan.log"
       ],
-      "reason": "实际流缓冲所有权与具名访问操作已替换通用协议",
-      "historical_verification_commit": "2820c6e0"
+      "reason": "实际流缓冲所有权与具名访问操作已替换通用协议"
     },
     "battle/legacy_battle_mon_text_runtime": {
       "status": "pending",
+      "verification_commit": "2820c6e0",
       "files": [
         "include/openswd3/battle/legacy_battle_mon_text_runtime.hpp",
         "src/battle/legacy_battle_mon_text_runtime.cpp"
@@ -671,41 +673,41 @@
         "build/tmp/runtime/mon-final-staged-release.log",
         "build/tmp/runtime/mon-final-release-asan.log"
       ],
-      "reason": "实际说明文字分配释放及调用方已替换通用协议",
-      "historical_verification_commit": "2820c6e0"
+      "reason": "实际说明文字分配释放及调用方已替换通用协议"
     },
     "battle/legacy_battle_render_geometry": {
       "status": "pending",
+      "last_reviewed_commit": "8732af27",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-render-semantic-results.md",
-      "reason": "辅助缓冲、退出登记及绑定初始化已迁移；建表返回实际写入量并删除对象及底边回显，故障消费者保持原路径；分配接口与非空辅助缓冲生产来源仍待逐项复核，继续pending",
-      "historical_last_reviewed_commit": "8732af27"
+      "reason": "辅助缓冲、退出登记及绑定初始化已迁移；建表返回实际写入量并删除对象及底边回显，故障消费者保持原路径；分配接口与非空辅助缓冲生产来源仍待逐项复核，继续pending"
     },
     "battle/legacy_battle_runtime_shutdown": {
       "status": "pending",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-shutdown-direct-resource-binding.md",
-      "reason": "角色与绘图资源已直接释放，辅助缓冲端口及SDL空实现已删除；非空辅助缓冲生产来源与整链所有权仍待验收",
-      "historical_last_reviewed_commit": "1611749e"
+      "last_reviewed_commit": "1611749e",
+      "reason": "角色与绘图资源已直接释放，辅助缓冲端口及SDL空实现已删除；非空辅助缓冲生产来源与整链所有权仍待验收"
     },
     "battle/legacy_battle_script_dispatch": {
       "status": "pending",
+      "last_reviewed_commit": "be9645e4",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-script-party-target-selection-block-0047d8d0.md",
-      "reason": "脚本23读实际属性bit0并写真实共享目标限制，删除47D8D0操作/回包/纯叶停止和脚本影子，全部bindings借同一输入持有者；270次新执行与406次同步执行验证真实输入判断、原序和失败前缀，core/ASan setup及actor_frame_316、SDL通过。既有实际profile、坐标属性、动作分支、共享库存、参数、镜像、步长、叠加和变体保留。四个47D8D0菜单站后续已迁移实际BYTE；四个47D880菜单站已迁移实际BYTE，五个47D8B0父点已迁移实际WORD；源资源、读取前缀、状态影子、共享别名、原地址保护、其他操作枚举、参数包、寄存器报告、轨迹、计数、Port和资源协议仍在，父链继续pending",
-      "historical_last_reviewed_commit": "be9645e4"
+      "reason": "脚本23读实际属性bit0并写真实共享目标限制，删除47D8D0操作/回包/纯叶停止和脚本影子，全部bindings借同一输入持有者；270次新执行与406次同步执行验证真实输入判断、原序和失败前缀，core/ASan setup及actor_frame_316、SDL通过。既有实际profile、坐标属性、动作分支、共享库存、参数、镜像、步长、叠加和变体保留。四个47D8D0菜单站后续已迁移实际BYTE；四个47D880菜单站已迁移实际BYTE，五个47D8B0父点已迁移实际WORD；源资源、读取前缀、状态影子、共享别名、原地址保护、其他操作枚举、参数包、寄存器报告、轨迹、计数、Port和资源协议仍在，父链继续pending"
     },
     "battle/legacy_battle_selection_hint_frame": {
       "status": "pending",
+      "last_reviewed_commit": "634a082a",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-selection-hint-profile-0047f910.md",
-      "reason": "敌人信息框在名称和字体恢复之后读实际参数WORD，共享选择在参数、数值及进度读取处重读，删除源查询枚举、转发、计数与模拟回复；真实根和动态节点、地址回绕及访问失败前缀已验证。其他名称、字体、文字、数值pair、颜色、寄存器请求结果、计数和Port仍在，父链继续pending",
-      "historical_last_reviewed_commit": "634a082a"
+      "reason": "敌人信息框在名称和字体恢复之后读实际参数WORD，共享选择在参数、数值及进度读取处重读，删除源查询枚举、转发、计数与模拟回复；真实根和动态节点、地址回绕及访问失败前缀已验证。其他名称、字体、文字、数值pair、颜色、寄存器请求结果、计数和Port仍在，父链继续pending"
     },
     "battle/legacy_battle_startup": {
       "status": "pending",
+      "last_reviewed_commit": "da89d76f",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-startup-party-mirror-0047f900.md",
-      "reason": "队员与敌方启动镜像均直接写实际字段，删除最后的apply_actor_mode；其他操作枚举、参数数组、寄存器请求结果和调用计数仍待迁移",
-      "historical_last_reviewed_commit": "da89d76f"
+      "reason": "队员与敌方启动镜像均直接写实际字段，删除最后的apply_actor_mode；其他操作枚举、参数数组、寄存器请求结果和调用计数仍待迁移"
     },
     "battle/legacy_battle_screen_flash": {
       "status": "pending",
+      "verification_commit": "74dec715",
       "files": [
         "include/openswd3/battle/legacy_battle_screen_flash.hpp"
       ],
@@ -714,8 +716,7 @@
         "build/tmp/runtime/screen-flash-shared-final-core.log",
         "build/tmp/runtime/screen-flash-shared-final-asan.log"
       ],
-      "reason": "触发衰减与复位直接共享同一startup闪光状态",
-      "historical_verification_commit": "74dec715"
+      "reason": "触发衰减与复位直接共享同一startup闪光状态"
     },
     "battle/legacy_battle_single_effect_frame": {
       "status": "pending",
@@ -724,23 +725,23 @@
     },
     "platform/legacy_command_line": {
       "status": "pending",
+      "verification_commit": "24eac681",
       "files": [
         "src/platform/sdl3/legacy_command_line.cpp",
         "src/platform/sdl3/legacy_command_line.hpp"
       ],
       "evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
-      "reason": "argc/argv及命令行重建，不是业务调用参数包",
-      "historical_verification_commit": "24eac681"
+      "reason": "argc/argv及命令行重建，不是业务调用参数包"
     },
     "platform/legacy_sample_backend_sdl3": {
       "status": "pending",
+      "verification_commit": "24eac681",
       "files": [
         "src/platform/sdl3/legacy_sample_backend_sdl3.cpp",
         "src/platform/sdl3/legacy_sample_backend_sdl3.hpp"
       ],
       "evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
-      "reason": "operation仅为SDL错误消息前缀字符串，不是调用操作编号",
-      "historical_verification_commit": "24eac681"
+      "reason": "operation仅为SDL错误消息前缀字符串，不是调用操作编号"
     },
     "rendering/legacy_blitter": {
       "status": "pending",
@@ -749,78 +750,76 @@
     },
     "resource_io/data_directory": {
       "status": "pending",
+      "verification_commit": "24eac681",
       "files": [
         "include/openswd3/resource_io/data_directory.hpp",
         "src/resource_io/data_directory.cpp"
       ],
       "evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
-      "reason": "数据目录命令行选项解析，不是通用调用参数数组",
-      "historical_verification_commit": "24eac681"
+      "reason": "数据目录命令行选项解析，不是通用调用参数数组"
     },
     "battle/legacy_battle_player_item_quantity": {
       "status": "pending",
+      "last_reviewed_commit": "52e53a9b",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
-      "reason": "实际PMR节点数量和MON前缀保持；菜单462FBC/463ACC/463B60也直接接通，13个原物理数量站对应9个直接C++位置。283次菜单及4次真实调用方执行验证数量阈值、回绕、节点/分配/MON失败和前继后重读，core/ASan setup各1/1及SDL链接通过；脚本53与原实际节点分配保持。返回payload身份、父诊断/计数/通用端口及完整调用链仍pending，不以十三站接通关闭整项",
-      "historical_last_reviewed_commit": "52e53a9b"
+      "reason": "实际PMR节点数量和MON前缀保持；菜单462FBC/463ACC/463B60也直接接通，13个原物理数量站对应9个直接C++位置。283次菜单及4次真实调用方执行验证数量阈值、回绕、节点/分配/MON失败和前继后重读，core/ASan setup各1/1及SDL链接通过；脚本53与原实际节点分配保持。返回payload身份、父诊断/计数/通用端口及完整调用链仍pending，不以十三站接通关闭整项"
     },
     "battle/legacy_battle_outcome_finalization": {
       "status": "pending",
+      "last_reviewed_commit": "f597100a",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
-      "reason": "结果道具的玩家数量及固定奖励使用真实共享节点；夹具不再产生分配回复，实际分配失败阻断尾部清理。父级寄存器诊断、调用计数和继承通用行动Port仍在，整项继续pending",
-      "historical_last_reviewed_commit": "f597100a"
+      "reason": "结果道具的玩家数量及固定奖励使用真实共享节点；夹具不再产生分配回复，实际分配失败阻断尾部清理。父级寄存器诊断、调用计数和继承通用行动Port仍在，整项继续pending"
     },
     "battle/legacy_battle_outcome_resolution": {
       "status": "pending",
+      "last_reviewed_commit": "f597100a",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
-      "reason": "真实物品分配失败保留音频和暗化前缀，删除按callee造null的测试；其他操作编号、寄存器回复、参数包、计数和Port仍在，整项继续pending",
-      "historical_last_reviewed_commit": "f597100a"
+      "reason": "真实物品分配失败保留音频和暗化前缀，删除按callee造null的测试；其他操作编号、寄存器回复、参数包、计数和Port仍在，整项继续pending"
     },
     "battle/legacy_battle_victory_rewards": {
       "status": "pending",
+      "last_reviewed_commit": "f597100a",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
-      "reason": "胜利道具数量由实际共享物品节点承担，删除节点分配模拟；其他奖励操作编号、寄存器请求回复、参数包、计数和Port仍在，整项继续pending",
-      "historical_last_reviewed_commit": "f597100a"
+      "reason": "胜利道具数量由实际共享物品节点承担，删除节点分配模拟；其他奖励操作编号、寄存器请求回复、参数包、计数和Port仍在，整项继续pending"
     },
     "world_map/legacy_world_story_vm": {
       "status": "pending",
+      "last_reviewed_commit": "f597100a",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-player-item-quantity-0045d180.md",
-      "reason": "库存和暂存物品统一真实PMR容器，非默认相同分配器的真实TALK1新增和固定状态移除验证节点转移及释放；其他VM通用操作、参数、结果及端口仍需整链复核，整项继续pending",
-      "historical_last_reviewed_commit": "f597100a"
+      "reason": "库存和暂存物品统一真实PMR容器，非默认相同分配器的真实TALK1新增和固定状态移除验证节点转移及释放；其他VM通用操作、参数、结果及端口仍需整链复核，整项继续pending"
     },
     "world_map/legacy_world_role_surface_occupancy": {
       "status": "pending",
+      "verification_commit": "24eac681",
       "files": [
         "src/world_map/legacy_world_role_surface_occupancy.cpp"
       ],
       "evidence": "analysis/04-reverse-engineering/evidence/invoke-migration-progress.md",
-      "reason": "私有模板接收实际位运算函数并修改格子，没有callee编号或寄存器协议",
-      "historical_verification_commit": "24eac681"
+      "reason": "私有模板接收实际位运算函数并修改格子，没有callee编号或寄存器协议"
     },
     "battle/legacy_battle_target_selection_runtime": {
       "status": "pending",
+      "last_reviewed_commit": "5e487db5",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-profile-application-004705c0.md",
-      "reason": "删除query_primary_target操作编号及两处菜单通用调用；改为实际列表资料应用函数。其余操作、参数包和寄存器协议仍pending",
-      "historical_last_reviewed_commit": "5e487db5"
+      "reason": "删除query_primary_target操作编号及两处菜单通用调用；改为实际列表资料应用函数。其余操作、参数包和寄存器协议仍pending"
     },
     "platform/main": {
       "status": "pending",
+      "last_reviewed_commit": "6cf4451f",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-resource-selection-diagnostic-00431150.md",
-      "reason": "SDL窗口owner提供资源诊断窄接口实现，复用维护错误对话框与同步关闭/陷阱处理；SDL构建通过。完整核心帧尚未接入主循环，实际交互及其余协议仍pending",
-      "historical_last_reviewed_commit": "6cf4451f"
+      "reason": "SDL窗口owner提供资源诊断窄接口实现，复用维护错误对话框与同步关闭/陷阱处理；SDL构建通过。完整核心帧尚未接入主循环，实际交互及其余协议仍pending"
     },
     "battle/legacy_battle_list_contents": {
       "status": "pending",
+      "last_reviewed_commit": "2de716db",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-count-004702e0.md",
-      "reason": "删除initialize_rows、行上限回包及初始化次数，直接统计实际角色列表并写共享BYTE，保持字体、清值、计数和复位顺序及失败前缀；既有实际行查询保留。解析、字体与文字协议仍pending",
-      "historical_last_reviewed_commit": "2de716db"
+      "reason": "删除initialize_rows、行上限回包及初始化次数，直接统计实际角色列表并写共享BYTE，保持字体、清值、计数和复位顺序及失败前缀；既有实际行查询保留。解析、字体与文字协议仍pending"
     },
     "battle/legacy_battle_narrow_grid_frame": {
       "status": "pending",
+      "last_reviewed_commit": "2de716db",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-count-004702e0.md",
-      "reason": "删除initialize_narrow_rows、行上限回包及初始化次数，直接统计实际列表并写共享BYTE；失败保留面板、标题、字体及已计数前缀。既有行查询与共享名称保留；绘制和父寄存器协议仍pending",
-      "historical_last_reviewed_commit": "2de716db"
+      "reason": "删除initialize_narrow_rows、行上限回包及初始化次数，直接统计实际列表并写共享BYTE；失败保留面板、标题、字体及已计数前缀。既有行查询与共享名称保留；绘制和父寄存器协议仍pending"
     }
-  },
-  "historical_last_reviewed_source_revision": "df52c985534796ca313410ee5f05f39d12082ef8",
-  "reset_status": "pending"
+  }
 }

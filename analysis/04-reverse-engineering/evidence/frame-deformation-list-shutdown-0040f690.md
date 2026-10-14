@@ -1,6 +1,7 @@
 # Framebuffer 变形节点链清空闭环
 
 状态：`pending`。
+`blocked_runtime_oracle`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x0040F690..0x0040F6C2`。该函数逐头摘除并销毁
 全局 framebuffer 变形节点链，不销毁链表哨兵本身。

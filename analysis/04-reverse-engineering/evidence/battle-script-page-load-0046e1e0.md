@@ -1,7 +1,5 @@
 # 战斗脚本页面加载 `0x0046E1E0`
 
-状态：`pending`。
-
 状态沿用`platform_adapted`。生产文件接线及验证见
 [共享文件生命周期](battle-script-file-runtime-binding.md)。
 旧文档所述每次重新打开文件及普通API失败typed-stop已不再用于生产。

@@ -1,7 +1,5 @@
 # ANI framebuffer 逐行复制效果（0x004163C0）
 
-状态：`pending`。
-
 最后更新：2026-08-10
 
 唯一行为真值：`swd3.exe.lst`。字段边界、RNG 调用顺序、循环次数和 framebuffer

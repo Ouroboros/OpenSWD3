@@ -1,6 +1,10 @@
 # 战斗组A角色配置 `0x0046E730`
 
 状态：`pending`。
+[队伍基础记录接线证据](battle-party-source-runtime-binding.md)。
+初始队伍构造、重置、配置、坐标发布与计数已接入SDL，见
+[队伍入战接线证据](battle-party-startup-runtime-binding.md)。
+完整初始化与实际续玩尚未完成。
 
 ## 1. 完整权威范围与ABI
 

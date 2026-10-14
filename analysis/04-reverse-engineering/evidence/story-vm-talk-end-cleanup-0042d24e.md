@@ -1,7 +1,5 @@
 # Story VM talk-end cleanup at `0x0042D24E`
 
-状态：`pending`。
-
 ## Scope
 
 - Authoritative handler: `swd3.exe.lst:0x0042D24E..0x0042D49E`.

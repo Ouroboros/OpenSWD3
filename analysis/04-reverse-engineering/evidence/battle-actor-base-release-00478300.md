@@ -1,7 +1,5 @@
 # 战斗角色公共前部析构 `0x00478300`
 
-状态：`pending`。
-
 历史分类：`platform_adapted`。当前实现直接释放MON文本所有权，已删除基础释放Port、寄存器合同和访问计数。
 本批范围及验证见[说明所有权迁移](battle-actor-description-owned-release.md)。
 

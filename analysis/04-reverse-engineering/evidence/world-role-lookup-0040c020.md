@@ -1,6 +1,8 @@
 # 世界角色 GUID 与 selector 查询：`0x0040C020..0x0040C125`
 
 状态：`pending`。
+`0x0040C100` 为 `assembly_exact`，`0x0040C060` 的无效索引分支为
+`platform_adapted`；原程序动态差分仍为 `blocked_runtime_oracle`
 
 来源：`swd3.exe.lst` 完整汇编。汇编是唯一行为真值。
 

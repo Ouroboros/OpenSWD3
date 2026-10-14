@@ -1,7 +1,5 @@
 # 字体 surface、字形缓存与软件绘制规则
 
-状态：`pending`。
-
 ## 证据边界
 
 本结论只以 `swd3.exe_export_for_ai/swd3.exe.lst` 的完整反汇编为逻辑真值。ASM 与 IDA 伪码不参与范围或行为证明；默认字体名和两个静态对象的初始零值另由锁定哈希的原始 `swd3.exe` 字节验证。

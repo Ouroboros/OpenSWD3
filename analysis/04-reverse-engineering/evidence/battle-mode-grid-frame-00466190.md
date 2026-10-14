@@ -1,7 +1,5 @@
 # 战斗模式网格帧 `0x00466190`
 
-状态：`pending`。
-
 历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
 ## 绘制前直接累计实际数量

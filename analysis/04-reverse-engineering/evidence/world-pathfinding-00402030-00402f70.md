@@ -1,6 +1,8 @@
 # 世界 A* 寻路汇编证据：0x00402030..0x00402F77
 
 状态：`pending`。
+`assembly_exact`，4 个建立/销毁边界为 `platform_adapted`。原程序动态差分仍为
+`blocked_runtime_oracle`。
 
 来源：`swd3.exe.lst` 完整汇编；IDA 伪码仅作导航
 

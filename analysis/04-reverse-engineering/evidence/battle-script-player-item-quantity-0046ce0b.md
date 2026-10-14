@@ -1,7 +1,5 @@
 # 战斗脚本增加道具与登记奖励
 
-状态：`pending`。
-
 实现源码`6aa4ffa3`。脚本53直接借用世界共享物品栏和现有MON数据库，
 删除对应callee枚举和通用调用；节点由实际容器分配并拥有。
 本切片为`platform_adapted`、`unit_tested`、`fixed_state_tested`；

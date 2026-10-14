@@ -1,6 +1,7 @@
 # 世界选择序列相机滚动（`0x004148F0`）
 
 状态：`pending`。
+`sdl_runtime_integrated`；尚未 `original_diff_verified`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。`sub_4148F0` 的完整物理范围是
 `0x004148F0..0x004149A1`，无栈参数，唯一调用点是 `sub_4120B0:0x00412691`。函数只在

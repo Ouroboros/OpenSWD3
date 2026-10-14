@@ -1,6 +1,7 @@
 # 普通世界角色残影绘制（`0x004145F0`）
 
 状态：`pending`。
+`sdl_runtime_integrated`；尚未 `original_diff_verified`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。`sub_4145F0` 的完整物理范围是
 `0x004145F0..0x004146E2`，唯一调用点是 `sub_413910:0x00413A0E`，唯一直接被调函数是

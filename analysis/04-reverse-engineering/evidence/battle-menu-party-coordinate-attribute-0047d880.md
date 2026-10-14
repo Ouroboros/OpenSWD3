@@ -1,6 +1,9 @@
 # 战斗菜单应用行动配置后记录队员的坐标抑制属性
 
 状态：`pending`。
+实现源码：`d8a9382748287b9f602edd46caf15e5e11deafdb`。
+仅回收四个菜单47D880站；完整父链保持pending。
+不标`assembly_exact`，不改变Workpack316/B11验收。
 
 ## 1. 独立原指令与范围
 

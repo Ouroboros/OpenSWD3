@@ -1,7 +1,5 @@
 # 剧情 VM 角色动作下标阈值等待 `0x0042B50F`
 
-状态：`pending`。
-
 ## 1. 机器访问顺序
 
 opcode107是独立二级表入口，物理长度固定为6字节。`0x0042B50F`先读取`+2`的u16角色selector；仅当值为`0xFFF0`时，替换为当前TALK context `+0x24`的source GUID。随后立即调用`sub_40C0D0`完成角色lookup，lookup结束后才读取`+4`的u16 threshold。

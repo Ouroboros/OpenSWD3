@@ -1,7 +1,5 @@
 # 战斗脚本关闭与状态重置 `0x0046E260`
 
-状态：`pending`。
-
 状态沿用`platform_adapted`。文件生命周期接线及验证见
 [共享文件生命周期](battle-script-file-runtime-binding.md)。
 

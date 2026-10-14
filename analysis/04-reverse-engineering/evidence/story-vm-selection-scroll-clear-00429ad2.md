@@ -1,7 +1,5 @@
 # 剧情 VM 选择滚动表清除 `0x00429AD2`
 
-状态：`pending`。
-
 ## 结论
 
 `sub_427920` 的 opcode64 只把 `word_4ACE70` 起 64 个选择滚动 word 全部写成 `0xCFCF`。它不修改 opcode63 建立的滚动 interval、remaining、cursor 或视口 left/top 快照。清表后走共享 `+2` 尾，令 `ESI=1`，经共同出口发布 normalized previous64 并在同一次解释器调用继续取指。

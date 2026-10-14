@@ -1,6 +1,8 @@
 # 随机遇敌数据、选择与战斗切入汇编证据
 
 状态：`pending`。
+`platform_adapted`；另有 `implemented`、`unit_tested`、`real_asset_verified`、
+`blocked_runtime_oracle`
 
 唯一行为真值：`swd3.exe.lst`。
 

@@ -1,7 +1,5 @@
 # 剧情 VM 角色等待覆盖 `0x00429F7B`
 
-状态：`pending`。
-
 ## 结论
 
 opcode77/78共用入口。两者先读取`+2` selector，均把`0xFFF0`替换为当前source GUID并lookup；只有lookup成功后，opcode77才读取`+4` payload。77把`u16(payload)|0x8000`写入角色action的`wait_override`，成功长度6；78写零，成功长度4。两者随后清`wait_remaining`、调用`sub_4321E0`刷新，按对应固定长度推进，置`ESI=1`，经公共join发布normalized previous并same-call继续。
