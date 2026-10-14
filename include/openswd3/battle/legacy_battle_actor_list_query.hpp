@@ -12,32 +12,10 @@
 #include "openswd3/audio_video/legacy_sample_commands.hpp"
 
 #include <span>
-#include <string>
-#include <vector>
 
 namespace openswd3::battle {
 
-struct LegacyBattleActorListNode {
-    compat::u32 token{};
-    compat::u32 next_token{};
-    compat::u32 category_flags{};  // node + 0x2C
-    compat::u8 mode_flags{};       // node + 0x46
-    compat::u16 type{};            // node + 0x5E
-    compat::u16 profile_id{};      // node + 0x4A
-    compat::u16 value_40{};        // node + 0x40
-    compat::u16 value_42{};        // node + 0x42
-    compat::u16 value_44{};        // node + 0x44
-    compat::u16 copy_flags{};      // node + 0x48
-    compat::u16 value_flags{};     // node + 0x4C
-    compat::u16 mode_value{};      // node + 0x54
-    compat::u16 output_value{};    // node + 0x5C
-    std::string text;              // node + 0x0C
-};
-
 struct LegacyBattleActorListQueryState {
-    compat::u32 owner_token{};
-    compat::u32 head_token{};
-    std::vector<LegacyBattleActorListNode> nodes;
     world_map::LegacyWorldItemListState* inventory{};
     compat::u32 resource_head_token{};       // actor + 0x2EC8
     compat::u32 next_resource_head_token{};  // actor + 0x2ECC

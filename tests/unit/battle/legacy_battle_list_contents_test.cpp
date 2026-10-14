@@ -1,3 +1,4 @@
+#include "legacy_battle_party_list_fixture.hpp"
 #include "openswd3/battle/legacy_battle_list_contents.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
@@ -104,6 +105,7 @@ public:
 };
 
 struct Fixture {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     explicit Fixture(const i32 framebuffer_height = 480)
         : framebuffer({
               .pitch_bytes = 1280,
@@ -125,7 +127,9 @@ struct Fixture {
         raster.clip_width = 640;
         raster.clip_height = 480;
         actors[0U].next_list_index = 0x10U;
-        (*party)[0U].actor_list.owner_token = 0x10U;
+        openswd3::test::bind_party_list(
+            inventories, (*party)[0U].actor_list, 0x10U
+        );
         for (u32 index = 0U; index < 10U; ++index) {
             add_node(0x8001U, 5U);
         }
@@ -133,22 +137,26 @@ struct Fixture {
 
     void add_node(const u16 flags, const u16 profile_index) {
         auto& list = (*party)[0U].actor_list;
-        const u32 token = 0x100U + static_cast<u32>(list.nodes.size());
-        if (list.nodes.empty()) {
-            list.head_token = token;
+        const u32 token =
+            0x100U + static_cast<u32>(openswd3::test::party_nodes(list).size());
+        if (openswd3::test::party_nodes(list).empty()) {
+            openswd3::test::party_root(list).legacy_next_token = token;
         } else {
-            list.nodes.back().next_token = token;
+            openswd3::test::party_nodes(list).back().legacy_next_token = token;
         }
 
-        list.nodes.push_back({
-            .token = token,
-            .category_flags = 3U,
-            .mode_flags = 1U,
-            .type = 0x1BU,
-            .profile_id = profile_index,
-            .value_flags = flags,
-            .text = "row",
-        });
+        openswd3::test::append_party_item(
+            list,
+            {
+                .token = token,
+                .category_flags = 3U,
+                .mode_flags = 1U,
+                .type = 0x1BU,
+                .profile_id = profile_index,
+                .value_flags = flags,
+                .text = "row",
+            }
+        );
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleListContentsBindings
@@ -264,7 +272,7 @@ void test_battle_list_contents(openswd3::test::Context& test) {
     {
         Fixture fixture;
         auto& list = (*fixture.party)[0U].actor_list;
-        list.nodes.front().next_token = 0xDEADU;
+        openswd3::test::party_nodes(list).front().legacy_next_token = 0xDEADU;
         const auto result = openswd3::battle::draw_legacy_battle_list_contents(
             fixture.state, fixture.bindings(), fixture.port, request()
         );
@@ -434,8 +442,10 @@ void test_battle_list_contents(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.add_node(0x8007U, 5U);
-        (*fixture.party)[0U].actor_list.nodes.back().text =
-            "12345678901234567890suffix";
+        openswd3::test::set_inventory_name(
+            openswd3::test::party_nodes((*fixture.party)[0U].actor_list).back(),
+            "12345678901234567890suffix"
+        );
         fixture.music_path.fill(0xCCU);
         auto call = request();
         call.selected_row = 0U;
@@ -474,7 +484,7 @@ void test_battle_list_contents(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        (*fixture.party)[0U].actor_list.nodes.clear();
+        openswd3::test::party_nodes((*fixture.party)[0U].actor_list).clear();
         for (u32 value = 1U; value <= 7U; ++value) {
             fixture.add_node(static_cast<u16>(0x8000U | value), 5U);
             fixture.port.reply(

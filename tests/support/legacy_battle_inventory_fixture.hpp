@@ -127,13 +127,20 @@ public:
         battle::LegacyBattleActorListQueryState& list,
         const std::span<const BattleInventoryItemFixture> nodes
     ) {
-        auto& items = inventories_.emplace_back();
+        auto& items = inventory(list);
         items.player_inventory.clear();
         for (const auto& node : nodes) {
             items.player_inventory.push_back(make_inventory_item(node));
         }
+    }
 
-        list.inventory = &items;
+    world_map::LegacyWorldItemListState&
+    inventory(battle::LegacyBattleActorListQueryState& list) {
+        if (list.inventory == nullptr) {
+            list.inventory = &inventories_.emplace_back();
+        }
+
+        return *list.inventory;
     }
 
 private:

@@ -1,3 +1,4 @@
+#include "legacy_battle_party_list_fixture.hpp"
 #include "legacy_battle_inventory_fixture.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "legacy_battle_samples_fixture.hpp"
@@ -118,24 +119,28 @@ public:
 };
 
 struct ListProfileFixture {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     ListProfileFixture() {
         actor.next_list_index = 0x70000000U;
-        list.owner_token = 0x70000000U;
-        list.head_token = 0x70000010U;
-        list.nodes = {{
-            .token = 0x70000010U,
-            .category_flags = 0xFFFFFFFFU,
-            .mode_flags = 1U,
-            .type = 0x1BU,
-            .profile_id = 17U,
-            .value_40 = 11U,
-            .value_42 = 12U,
-            .value_44 = 13U,
-            .value_flags = 31U,
-            .mode_value = 41U,
-            .output_value = 0xFFFFU,
-            .text = "profile",
-        }};
+        openswd3::test::bind_party_list(inventories, list, 0x70000000U);
+        openswd3::test::party_root(list).legacy_next_token = 0x70000010U;
+        openswd3::test::assign_party_nodes(
+            list,
+            {{
+                .token = 0x70000010U,
+                .category_flags = 0xFFFFFFFFU,
+                .mode_flags = 1U,
+                .type = 0x1BU,
+                .profile_id = 17U,
+                .value_40 = 11U,
+                .value_42 = 12U,
+                .value_44 = 13U,
+                .value_flags = 31U,
+                .mode_value = 41U,
+                .output_value = 0xFFFFU,
+                .text = "profile",
+            }}
+        );
         final_state.profile_buffer.fill(0xCCCCCCCCU);
         final_state.pre_effect_words.fill(0xDDDDDDDDU);
     }
@@ -171,8 +176,11 @@ void test_list_profile_application(openswd3::test::Context& test) {
              {0x1AU, 0x1BU, 0x1CU, 0x1DU, 0x1EU, 0x1FU, 0x20U}) {
             for (const u8 mode : {0U, 1U, 2U, 4U, 5U}) {
                 ListProfileFixture fixture;
-                fixture.list.nodes[0U].type = type;
-                fixture.list.nodes[0U].mode_flags = mode;
+                openswd3::test::inventory_word(
+                    openswd3::test::party_node(fixture.list, 0U), 0x5EU
+                ) = type;
+                openswd3::test::party_node(fixture.list, 0U)
+                    .definition_snapshot[0x46U - 0x0CU] = mode;
                 fixture.item_effect.mode_flags = 0x40U;
                 const bool range = selector == 0U || selector == 0x1CU;
                 const bool found = (mode == 1U || mode == 4U || mode == 5U) &&
@@ -213,7 +221,9 @@ void test_list_profile_application(openswd3::test::Context& test) {
     }};
     for (const auto& category : categories) {
         ListProfileFixture fixture;
-        fixture.list.nodes[0U].category_flags = category.node_flags;
+        openswd3::test::inventory_category(
+            openswd3::test::party_node(fixture.list, 0U)
+        ) = category.node_flags;
         const auto result = fixture.apply(category.category);
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
@@ -224,7 +234,9 @@ void test_list_profile_application(openswd3::test::Context& test) {
 
     for (const u16 flags : {0U, 1U, 0x100U, 0x200U, 0x201U, 0xFFFFU}) {
         ListProfileFixture fixture;
-        fixture.list.nodes[0U].copy_flags = flags;
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(fixture.list, 0U), 0x48U
+        ) = flags;
         fixture.final_state.profile_copy_latch = 7U;
         fixture.item_effect.derived_words[1U] = 21U;
         fixture.item_effect.derived_words[2U] = 22U;
@@ -244,7 +256,9 @@ void test_list_profile_application(openswd3::test::Context& test) {
 
     {
         ListProfileFixture fixture;
-        fixture.list.nodes[0U].category_flags = 4U;
+        openswd3::test::inventory_category(
+            openswd3::test::party_node(fixture.list, 0U)
+        ) = 4U;
         bool prefix_seen = false;
         fixture.port.before_open = [&] {
             prefix_seen = fixture.output == 0xFFFFU &&
@@ -254,19 +268,22 @@ void test_list_profile_application(openswd3::test::Context& test) {
                               [](const u32 value) { return value == 0U; }
                 ) &&
                 fixture.final_state.pre_effect_words[0U] == 0xDDDDDDDDU;
-            fixture.list.nodes = {
-                {.token = 0x70000020U, .text = "wrong"},
-                {.token = 0x70000030U,
-                 .category_flags = 8U,
-                 .value_40 = 51U,
-                 .value_42 = 52U,
-                 .value_44 = 53U,
-                 .copy_flags = 0x200U,
-                 .value_flags = 61U,
-                 .mode_value = 62U,
-                 .output_value = 63U,
-                 .text = "changed"},
-            };
+            openswd3::test::assign_party_nodes(
+                fixture.list,
+                {
+                    {.token = 0x70000020U, .text = "wrong"},
+                    {.token = 0x70000030U,
+                     .category_flags = 8U,
+                     .value_40 = 51U,
+                     .value_42 = 52U,
+                     .value_44 = 53U,
+                     .copy_flags = 0x200U,
+                     .value_flags = 61U,
+                     .mode_value = 62U,
+                     .output_value = 63U,
+                     .text = "changed"},
+                }
+            );
 
             fixture.actor.current_list_index = 0x70000030U;
             fixture.item_effect.mode_flags = 2U;
@@ -314,7 +331,9 @@ void test_list_profile_application(openswd3::test::Context& test) {
           std::string(16U, 'b'),
           std::string("short\0ignored suffix", 20U)}) {
         ListProfileFixture fixture;
-        fixture.list.nodes[0U].text = name;
+        openswd3::test::set_inventory_name(
+            openswd3::test::party_node(fixture.list, 0U), name
+        );
         const auto result = fixture.apply();
         const bool too_long = name.size() == 16U;
         test.expect_true(
@@ -353,22 +372,29 @@ void test_list_profile_cursor(openswd3::test::Context& test) {
     for (const bool broken_tail : {false, true}) {
         for (const u32 occurrence : {2U, 3U}) {
             ListProfileFixture fixture;
-            fixture.list.nodes[0U].next_token = 0x70000020U;
-            fixture.list.nodes.push_back({
-                .token = 0x70000020U,
-                .next_token = 0x70000030U,
-                .text = "skipped",
-            });
-            fixture.list.nodes.push_back({
-                .token = 0x70000030U,
-                .next_token = broken_tail ? 0xDEADBEEFU : 0U,
-                .category_flags = 0x10U,
-                .mode_flags = 4U,
-                .type = 0x1EU,
-                .profile_id = 19U,
-                .output_value = 9U,
-                .text = "last",
-            });
+            openswd3::test::party_node(fixture.list, 0U).legacy_next_token =
+                0x70000020U;
+            openswd3::test::append_party_item(
+                fixture.list,
+                {
+                    .token = 0x70000020U,
+                    .next_token = 0x70000030U,
+                    .text = "skipped",
+                }
+            );
+            openswd3::test::append_party_item(
+                fixture.list,
+                {
+                    .token = 0x70000030U,
+                    .next_token = broken_tail ? 0xDEADBEEFU : 0U,
+                    .category_flags = 0x10U,
+                    .mode_flags = 4U,
+                    .type = 0x1EU,
+                    .profile_id = 19U,
+                    .output_value = 9U,
+                    .text = "last",
+                }
+            );
             const auto result = fixture.apply(0U, 0U, occurrence);
             const bool selected = occurrence == 2U;
             test.expect_true(
@@ -392,12 +418,17 @@ void test_list_profile_cursor(openswd3::test::Context& test) {
 
     {
         ListProfileFixture fixture;
-        fixture.list.nodes[0U].output_value = 0x30U;
-        fixture.list.nodes.push_back({
-            .token = 0x30U,
-            .profile_id = 23U,
-            .text = "aliased",
-        });
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(fixture.list, 0U), 0x5CU
+        ) = 0x30U;
+        openswd3::test::append_party_item(
+            fixture.list,
+            {
+                .token = 0x30U,
+                .profile_id = 23U,
+                .text = "aliased",
+            }
+        );
         const auto result = apply_legacy_battle_actor_list(
             &fixture.actor,
             &fixture.list,
@@ -425,18 +456,20 @@ void test_list_profile_cursor(openswd3::test::Context& test) {
 }
 
 struct ListStateFixture {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     ListStateFixture() {
         actor.next_list_index = 0x70000000U;
         actor.current_list_index = 0x12345678U;
-        list.owner_token = 0x70000000U;
-        list.head_token = 0x70000010U;
-        list.nodes = {
-            {.token = 0x70000010U,
-             .category_flags = 0x10U,
-             .mode_flags = 1U,
-             .type = 0x1BU,
-             .value_flags = 0x800AU}
-        };
+        openswd3::test::bind_party_list(inventories, list, 0x70000000U);
+        openswd3::test::party_root(list).legacy_next_token = 0x70000010U;
+        openswd3::test::assign_party_nodes(
+            list,
+            {{.token = 0x70000010U,
+              .category_flags = 0x10U,
+              .mode_flags = 1U,
+              .type = 0x1BU,
+              .value_flags = 0x800AU}}
+        );
 
         list.selected_resource_token = 0xDEADBEEFU;
         configuration.actor_record_token = 0x72000000U;
@@ -478,7 +511,9 @@ void test_list_state_behavior(openswd3::test::Context& test) {
          {i16{-32768}, i16{-1}, i16{0}, i16{9}, i16{10}, i16{32767}}) {
         for (const u16 flags : {u16{0x800AU}, u16{0x400AU}, u16{0xC00AU}}) {
             ListStateFixture fixture;
-            fixture.list.nodes[0U].value_flags = flags;
+            openswd3::test::inventory_word(
+                openswd3::test::party_node(fixture.list, 0U), 0x4CU
+            ) = flags;
             fixture.configuration.actor_record[1U] =
                 static_cast<u32>(std::bit_cast<u16>(capacity)) << 16U;
             fixture.configuration.actor_record[2U] =
@@ -504,7 +539,9 @@ void test_list_state_behavior(openswd3::test::Context& test) {
              {i16{-32768}, i16{-1}, i16{0}, i16{1}, i16{32767}}) {
             for (const u16 primary : {u16{0U}, u16{0xFFFFU}}) {
                 ListStateFixture fixture;
-                fixture.list.nodes[0U].value_flags = 0x0805U;
+                openswd3::test::inventory_word(
+                    openswd3::test::party_node(fixture.list, 0U), 0x4CU
+                ) = 0x0805U;
                 fixture.list.next_resource_head_token = 0x75000000U;
                 inventories.assign(
                     fixture.list,
@@ -602,7 +639,9 @@ void test_list_state_behavior(openswd3::test::Context& test) {
 
     {
         ListStateFixture fixture;
-        fixture.list.nodes[0U].value_flags = 0x0806U;
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(fixture.list, 0U), 0x4CU
+        ) = 0x0806U;
         fixture.list.next_resource_head_token = 0x75000000U;
         inventories.assign(fixture.list, {{.token = 0x75000000U, .name = {}}});
         const auto result = fixture.run();
@@ -652,10 +691,10 @@ void test_list_state_filters(openswd3::test::Context& test) {
             for (const u8 mode :
                  {u8{0U}, u8{1U}, u8{2U}, u8{4U}, u8{5U}, u8{8U}}) {
                 ListStateFixture fixture;
-                auto& node = fixture.list.nodes[0U];
-                node.category_flags = category.mask;
-                node.type = type;
-                node.mode_flags = mode;
+                auto& node = openswd3::test::party_node(fixture.list, 0U);
+                openswd3::test::inventory_category(node) = category.mask;
+                openswd3::test::inventory_word(node, 0x5EU) = type;
+                node.definition_snapshot[0x46U - 0x0CU] = mode;
                 const bool available = category.matches &&
                     (type == 0x1BU || type == 0x1CU || type == 0x1EU) &&
                     (mode == 1U || mode == 4U || mode == 5U);
@@ -665,7 +704,10 @@ void test_list_state_filters(openswd3::test::Context& test) {
                             LegacyBattleActorListQueryStatus::completed &&
                         result.available == available &&
                         fixture.actor.current_list_index ==
-                            (available ? fixture.list.owner_token : 0U) &&
+                            (available
+                                 ? openswd3::test::party_root(fixture.list)
+                                       .legacy_token
+                                 : 0U) &&
                         fixture.messages.allocations.empty(),
                     "state list filtering preserves raw masks, byte modes, inclusive type limits and final cursor"
                 );
@@ -675,10 +717,11 @@ void test_list_state_filters(openswd3::test::Context& test) {
 
     {
         ListStateFixture fixture;
-        auto node = fixture.list.nodes[0U];
-        fixture.list.nodes[0U].next_token = 0x70000020U;
-        node.token = 0x70000020U;
-        fixture.list.nodes.push_back(node);
+        auto node = openswd3::test::party_node(fixture.list, 0U);
+        openswd3::test::party_node(fixture.list, 0U).legacy_next_token =
+            0x70000020U;
+        node.legacy_token = 0x70000020U;
+        openswd3::test::append_party_item(fixture.list, node);
         test.expect_true(
             fixture.run(0U, 2U).available,
             "state list selects the second matching node"
@@ -692,7 +735,8 @@ void test_list_state_filters(openswd3::test::Context& test) {
 
     {
         ListStateFixture fixture;
-        fixture.list.head_token = 0xBAD00000U;
+        openswd3::test::party_root(fixture.list).legacy_next_token =
+            0xBAD00000U;
         const auto result = fixture.run();
         test.expect_true(
             result.status ==
@@ -721,7 +765,9 @@ void test_list_state_filters(openswd3::test::Context& test) {
 
     for (const auto& entry : flags) {
         ListStateFixture fixture;
-        fixture.list.nodes[0U].value_flags = entry.flags;
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(fixture.list, 0U), 0x4CU
+        ) = entry.flags;
         fixture.list.primary_required = 17U;
         fixture.list.secondary_required = 19U;
         fixture.list.next_resource_head_token = 0x75000000U;
@@ -886,19 +932,23 @@ public:
 void test_list_query_live_state(openswd3::test::Context& test) {
     using namespace openswd3::battle;
     struct Fixture {
+        openswd3::test::LegacyBattleInventoryFixture inventories;
         Fixture() {
             actor.next_list_index = 0x10U;
-            list.owner_token = 0x10U;
-            list.head_token = 1U;
-            list.nodes.push_back({
-                .token = 1U,
-                .category_flags = 0x10U,
-                .mode_flags = 1U,
-                .type = 0x1BU,
-                .profile_id = 7U,
-                .value_flags = 0x8007U,
-                .text = "name",
-            });
+            openswd3::test::bind_party_list(inventories, list, 0x10U);
+            openswd3::test::party_root(list).legacy_next_token = 1U;
+            openswd3::test::append_party_item(
+                list,
+                {
+                    .token = 1U,
+                    .category_flags = 0x10U,
+                    .mode_flags = 1U,
+                    .type = 0x1BU,
+                    .profile_id = 7U,
+                    .value_flags = 0x8007U,
+                    .text = "name",
+                }
+            );
             text.fill(0xCCU);
         }
 
@@ -930,11 +980,15 @@ void test_list_query_live_state(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.list.nodes[0U].value_flags = 0x8002U;
-        fixture.list.nodes.push_back(
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(fixture.list, 0U), 0x4CU
+        ) = 0x8002U;
+        openswd3::test::append_party_item(
+            fixture.list,
             {.token = 2U, .value_flags = 0x4003U, .text = "second"}
         );
-        fixture.list.nodes.push_back(
+        openswd3::test::append_party_item(
+            fixture.list,
             {.token = 0x8003U, .value_flags = 0x0800U, .text = "third"}
         );
         fixture.port.index = 3U;
@@ -960,14 +1014,17 @@ void test_list_query_live_state(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.list.nodes.push_back({
-            .token = 2U,
-            .value_flags = 0xFFFFU,
-            .text = std::string("new\0tail", 8U),
-        });
+        openswd3::test::append_party_item(
+            fixture.list,
+            {
+                .token = 2U,
+                .value_flags = 0xFFFFU,
+                .text = std::string("new\0tail", 8U),
+            }
+        );
         fixture.port.index = 2U;
         fixture.port.on_profile_read = [&]() {
-            fixture.list.nodes.reserve(2048U);
+            openswd3::test::party_nodes(fixture.list).pop_front();
             fixture.actor.current_list_index = 2U;
             fixture.value = 0xCCDD0011U;
         };
@@ -980,14 +1037,14 @@ void test_list_query_live_state(openswd3::test::Context& test) {
                 fixture.text[0U] == 'n' && fixture.text[1U] == 'e' &&
                 fixture.text[2U] == 'w' && fixture.text[3U] == 0U &&
                 fixture.text[4U] == 0xCCU,
-            "query reloads the node after MON reallocation and copies only through the first NUL"
+            "query reloads the node after MON releases the original node and copies only through the first NUL"
         );
     }
 
     {
         Fixture fixture;
         fixture.port.on_profile_read = [&]() {
-            fixture.list.nodes.clear();
+            openswd3::test::party_nodes(fixture.list).clear();
             fixture.actor.current_list_index = 99U;
         };
         const auto result = fixture.query();
@@ -1002,7 +1059,9 @@ void test_list_query_live_state(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.list.nodes[0U].type = 0x1FU;
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(fixture.list, 0U), 0x5EU
+        ) = 0x1FU;
         fixture.profile[0x10U] = std::byte{3U};
         const auto result = fixture.query(0U, 7U);
         test.expect_true(
@@ -1077,7 +1136,9 @@ void test_list_query_live_state(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.list.nodes[0U].value_flags = 0U;
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(fixture.list, 0U), 0x4CU
+        ) = 0U;
         const auto result = fixture.query();
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
@@ -1101,7 +1162,7 @@ void test_list_query_live_state(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.list.head_token = 0U;
+        openswd3::test::party_root(fixture.list).legacy_next_token = 0U;
         const auto result = query_legacy_battle_actor_list(
             &fixture.actor,
             &fixture.list,
@@ -3546,38 +3607,35 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     LegacyBattleGroupAActionExecutionState actor;
     actor.next_list_index = 0x71000000U;
-    LegacyBattleActorListQueryState list{
-        .owner_token = 0x71000000U,
-        .head_token = 0x72000000U,
-        .nodes =
-            {
-                {.token = 0x72000000U,
-                 .next_token = 0x72000100U,
-                 .category_flags = 0x10U,
-                 .mode_flags = 0x05U,
-                 .type = 0x1AU,
-                 .text = {}},
-                {.token = 0x72000100U,
-                 .next_token = 0x72000200U,
-                 .category_flags = 0x10U,
-                 .mode_flags = 0x05U,
-                 .type = 0x1BU,
-                 .profile_id = 7U,
-                 .value_flags = 0xC800U,
-                 .text = "first"},
-                {.token = 0x72000200U,
-                 .category_flags = 0x10U,
-                 .mode_flags = 0x01U,
-                 .type = 0x1EU,
-                 .profile_id = 8U,
-                 .value_flags = 0x8005U,
-                 .text = "second"},
-            },
-        .resource_head_token = 0U,
-        .selected_resource_token = 0U,
-        .primary_required = 0U,
-        .secondary_required = 0U,
-    };
+    LegacyBattleActorListQueryState list;
+    openswd3::test::bind_party_list(inventories, list, 0x71000000U);
+    openswd3::test::party_root(list).legacy_next_token = 0x72000000U;
+    openswd3::test::assign_party_nodes(
+        list,
+        {
+            {.token = 0x72000000U,
+             .next_token = 0x72000100U,
+             .category_flags = 0x10U,
+             .mode_flags = 0x05U,
+             .type = 0x1AU,
+             .text = {}},
+            {.token = 0x72000100U,
+             .next_token = 0x72000200U,
+             .category_flags = 0x10U,
+             .mode_flags = 0x05U,
+             .type = 0x1BU,
+             .profile_id = 7U,
+             .value_flags = 0xC800U,
+             .text = "first"},
+            {.token = 0x72000200U,
+             .category_flags = 0x10U,
+             .mode_flags = 0x01U,
+             .type = 0x1EU,
+             .profile_id = 8U,
+             .value_flags = 0x8005U,
+             .text = "second"},
+        }
+    );
 
     {
         QueryPort port;
@@ -3610,29 +3668,29 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
                 result.display_frame == 10U && value == 3U &&
-                actor.current_list_index == list.head_token &&
+                actor.current_list_index ==
+                    openswd3::test::party_root(list).legacy_next_token &&
                 port.read_calls != 0U,
             "zero occurrence selects the first mismatching node before a match increments the counter"
         );
     }
 
     {
-        LegacyBattleActorListQueryState type31{
-            .owner_token = list.owner_token,
-            .head_token = 0x73000000U,
-            .nodes =
-                {{.token = 0x73000000U,
-                  .category_flags = 0x0CU,
-                  .mode_flags = 0x04U,
-                  .type = 0x1FU,
-                  .profile_id = 9U,
-                  .value_flags = 0xFFFFU,
-                  .text = "profile"}},
-            .resource_head_token = 0U,
-            .selected_resource_token = 0U,
-            .primary_required = 0U,
-            .secondary_required = 0U,
-        };
+        LegacyBattleActorListQueryState type31;
+        openswd3::test::bind_party_list(
+            inventories, type31, openswd3::test::party_root(list).legacy_token
+        );
+        openswd3::test::party_root(type31).legacy_next_token = 0x73000000U;
+        openswd3::test::assign_party_nodes(
+            type31,
+            {{.token = 0x73000000U,
+              .category_flags = 0x0CU,
+              .mode_flags = 0x04U,
+              .type = 0x1FU,
+              .profile_id = 9U,
+              .value_flags = 0xFFFFU,
+              .text = "profile"}}
+        );
         QueryPort port;
         port.index = 1U;
         LegacyBattleMonProfile profile{};
@@ -3649,7 +3707,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
-        actor.next_list_index = list.owner_token;
+        actor.next_list_index = openswd3::test::party_root(list).legacy_token;
         u8 count = 0xFFU;
         const auto status =
             count_legacy_battle_actor_list(&actor, &list, 0U, 0U, count);
@@ -3661,7 +3719,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
-        actor.next_list_index = list.owner_token;
+        actor.next_list_index = openswd3::test::party_root(list).legacy_token;
         u8 count = 9U;
         const auto status =
             count_legacy_battle_actor_list(&actor, &list, 0U, 7U, count);
@@ -3674,26 +3732,30 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         LegacyBattleActorListQueryState counted;
-        counted.owner_token = 0x10U;
-        counted.head_token = 1U;
+        openswd3::test::bind_party_list(inventories, counted, 0x10U);
+        openswd3::test::party_root(counted).legacy_next_token = 1U;
         constexpr std::array<u16, 9> types{
             0x1AU, 0x1BU, 0x1EU, 0x1CU, 0x1DU, 0x1FU, 0x20U, 0x1CU, 0x1DU
         };
         constexpr std::array<u8, 9> modes{1U, 4U, 5U, 0U, 2U, 1U, 4U, 1U, 4U};
         for (u32 index = 0U; index < types.size(); ++index) {
-            counted.nodes.push_back({
-                .token = index + 1U,
-                .next_token = index + 1U == types.size() ? 0U : index + 2U,
-                .category_flags = 0x1018U,
-                .mode_flags = modes[index],
-                .type = types[index],
-            });
+            openswd3::test::append_party_item(
+                counted,
+                {
+                    .token = index + 1U,
+                    .next_token = index + 1U == types.size() ? 0U : index + 2U,
+                    .category_flags = 0x1018U,
+                    .mode_flags = modes[index],
+                    .type = types[index],
+                }
+            );
         }
 
         for (const u32 category : {0U, 1U, 2U, 0x10U, 0x20U}) {
             for (const u32 type : {0U, 1U, 0x1CU, 0x99U}) {
                 LegacyBattleGroupAActionExecutionState counted_actor;
-                counted_actor.next_list_index = counted.owner_token;
+                counted_actor.next_list_index =
+                    openswd3::test::party_root(counted).legacy_token;
                 u8 count = 7U;
                 const auto status = count_legacy_battle_actor_list(
                     &counted_actor, &counted, category, type, count
@@ -3713,9 +3775,10 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         LegacyBattleActorListQueryState counted;
-        counted.owner_token = 0x10U;
+        openswd3::test::bind_party_list(inventories, counted, 0x10U);
         LegacyBattleGroupAActionExecutionState counted_actor;
-        counted_actor.next_list_index = counted.owner_token;
+        counted_actor.next_list_index =
+            openswd3::test::party_root(counted).legacy_token;
         u8 count = 7U;
         const auto empty = count_legacy_battle_actor_list(
             &counted_actor, &counted, 0U, 0U, count
@@ -3725,14 +3788,17 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
                 count == 7U && counted_actor.current_list_index == 0U,
             "empty list count preserves the incoming byte and publishes the null tail"
         );
-        counted.head_token = 0x100U;
-        counted.nodes.push_back({
-            .token = 0x100U,
-            .next_token = 0x200U,
-            .category_flags = 0x10U,
-            .mode_flags = 1U,
-            .type = 0x1CU,
-        });
+        openswd3::test::party_root(counted).legacy_next_token = 0x100U;
+        openswd3::test::append_party_item(
+            counted,
+            {
+                .token = 0x100U,
+                .next_token = 0x200U,
+                .category_flags = 0x10U,
+                .mode_flags = 1U,
+                .type = 0x1CU,
+            }
+        );
         const auto missing = count_legacy_battle_actor_list(
             &counted_actor, &counted, 0U, 0U, count
         );
@@ -3741,12 +3807,15 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
                 count == 8U && counted_actor.current_list_index == 0x200U,
             "missing count node preserves prior increments and the published failing cursor"
         );
-        counted.nodes.push_back({
-            .token = 0x200U,
-            .category_flags = 0x10U,
-            .mode_flags = 1U,
-            .type = 0x1CU,
-        });
+        openswd3::test::append_party_item(
+            counted,
+            {
+                .token = 0x200U,
+                .category_flags = 0x10U,
+                .mode_flags = 1U,
+                .type = 0x1CU,
+            }
+        );
         counted_actor.next_list_index = 0x100U;
         count = 7U;
         const auto resumed = count_legacy_battle_actor_list(
@@ -3770,18 +3839,24 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         LegacyBattleActorListQueryState counted;
-        counted.owner_token = 0x10U;
-        counted.head_token = 0x100U;
-        counted.nodes.push_back({
-            .token = 0x100U,
-            .next_token = 0xDEADU,
-            .category_flags = 0x10U,
-            .mode_flags = 1U,
-            .type = 0x1CU,
-        });
-        counted.nodes.push_back({.token = 0x101U, .next_token = 0U});
+        openswd3::test::bind_party_list(inventories, counted, 0x10U);
+        openswd3::test::party_root(counted).legacy_next_token = 0x100U;
+        openswd3::test::append_party_item(
+            counted,
+            {
+                .token = 0x100U,
+                .next_token = 0xDEADU,
+                .category_flags = 0x10U,
+                .mode_flags = 1U,
+                .type = 0x1CU,
+            }
+        );
+        openswd3::test::append_party_item(
+            counted, {.token = 0x101U, .next_token = 0U}
+        );
         LegacyBattleGroupAActionExecutionState counted_actor;
-        counted_actor.next_list_index = counted.owner_token;
+        counted_actor.next_list_index =
+            openswd3::test::party_root(counted).legacy_token;
         auto& count = *reinterpret_cast<u8*>(&counted_actor.current_list_index);
         const auto status = count_legacy_battle_actor_list(
             &counted_actor, &counted, 0U, 0U, count
@@ -4661,12 +4736,22 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
-        actor.next_list_index = list.owner_token;
-        list.nodes[1U].value_40 = 11U;
-        list.nodes[1U].value_42 = 12U;
-        list.nodes[1U].value_44 = 13U;
-        list.nodes[1U].copy_flags = 0U;
-        list.nodes[1U].output_value = 77U;
+        actor.next_list_index = openswd3::test::party_root(list).legacy_token;
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(list, 1U), 0x40U
+        ) = 11U;
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(list, 1U), 0x42U
+        ) = 12U;
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(list, 1U), 0x44U
+        ) = 13U;
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(list, 1U), 0x48U
+        ) = 0U;
+        openswd3::test::inventory_word(
+            openswd3::test::party_node(list, 1U), 0x5CU
+        ) = 77U;
         LegacyBattleGroupAFinalProcessingState final_state;
         final_state.profile_buffer.fill(0xFFFFFFFFU);
         final_state.pre_effect_words.fill(0xFFFFFFFFU);
@@ -4679,7 +4764,8 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
                 result.selection_mode == 1U && output == 77U &&
-                actor.current_list_index == list.nodes[1U].token &&
+                actor.current_list_index ==
+                    openswd3::test::party_node(list, 1U).legacy_token &&
                 final_state.profile_buffer[0U] != 0xFFFFFFFFU &&
                 final_state.pre_effect_words[3U] == 0U &&
                 (item_effect.mode_flags & 0x80U) != 0U &&
@@ -4694,7 +4780,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     }
 
     {
-        actor.next_list_index = list.owner_token;
+        actor.next_list_index = openswd3::test::party_root(list).legacy_token;
         LegacyBattleGroupAFinalProcessingState final_state;
         final_state.profile_buffer[0U] = 0xAABBCCDDU;
         LegacyBattleGroupAItemEffectApplicationState item_effect;
@@ -4724,7 +4810,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     {
         QueryPort port;
         LegacyBattleActorListQueryState bad = list;
-        bad.head_token = 0xDEADBEEFU;
+        openswd3::test::party_root(bad).legacy_next_token = 0xDEADBEEFU;
         LegacyBattleMonProfile profile{};
         std::array<u8, 20> text{};
         u32 value = 0xABCD1234U;

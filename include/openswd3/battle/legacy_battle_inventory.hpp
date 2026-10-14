@@ -62,6 +62,10 @@ public:
         return word(0x5CU);
     }
 
+    [[nodiscard]] compat::u16 type() const noexcept {
+        return word(0x5EU);
+    }
+
 private:
     [[nodiscard]] compat::u16
     word(const std::size_t node_offset) const noexcept {
@@ -94,6 +98,34 @@ find_legacy_battle_inventory_node(
         &world_map::LegacyWorldItemNode::legacy_token
     );
     return found == items->player_inventory.end() ? nullptr : &*found;
+}
+
+[[nodiscard]] inline world_map::LegacyWorldItemNode*
+find_legacy_battle_party_item_node(
+    world_map::LegacyWorldItemListState* const items, const compat::u32 token
+) noexcept {
+    if (items == nullptr || token == 0U) {
+        return nullptr;
+    }
+
+    for (auto& list : items->party_item_lists) {
+        if (!list.has_value()) {
+            continue;
+        }
+
+        if (list->sentinel.legacy_token == token) {
+            return &list->sentinel;
+        }
+
+        const auto found = std::ranges::find(
+            list->nodes, token, &world_map::LegacyWorldItemNode::legacy_token
+        );
+        if (found != list->nodes.end()) {
+            return &*found;
+        }
+    }
+
+    return nullptr;
 }
 
 [[nodiscard]] inline compat::u32& legacy_battle_inventory_next(

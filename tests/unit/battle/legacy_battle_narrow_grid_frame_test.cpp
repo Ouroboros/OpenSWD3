@@ -1,3 +1,4 @@
+#include "legacy_battle_party_list_fixture.hpp"
 #include "openswd3/battle/legacy_battle_narrow_grid_frame.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
@@ -155,28 +156,35 @@ workspace_text(const std::array<u32, 5>& workspace) {
 }
 
 struct Fixture {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     Fixture() : action_updater(action_streams), raster(framebuffer.geometry()) {
         actors[0U].next_list_index = 0x10U;
-        (*party)[0U].actor_list.owner_token = 0x10U;
+        openswd3::test::bind_party_list(
+            inventories, (*party)[0U].actor_list, 0x10U
+        );
     }
 
     void add_node(const std::string& name, const bool eligible = true) {
         auto& list = (*party)[0U].actor_list;
-        const u32 token = 0x100U + static_cast<u32>(list.nodes.size());
-        if (list.nodes.empty()) {
-            list.head_token = token;
+        const u32 token =
+            0x100U + static_cast<u32>(openswd3::test::party_nodes(list).size());
+        if (openswd3::test::party_nodes(list).empty()) {
+            openswd3::test::party_root(list).legacy_next_token = token;
         } else {
-            list.nodes.back().next_token = token;
+            openswd3::test::party_nodes(list).back().legacy_next_token = token;
         }
 
-        list.nodes.push_back({
-            .token = token,
-            .category_flags = 0x10U,
-            .mode_flags = static_cast<u8>(eligible ? 1U : 0U),
-            .type = 0x1FU,
-            .profile_id = 1U,
-            .text = name,
-        });
+        openswd3::test::append_party_item(
+            list,
+            {
+                .token = token,
+                .category_flags = 0x10U,
+                .mode_flags = static_cast<u8>(eligible ? 1U : 0U),
+                .type = 0x1FU,
+                .profile_id = 1U,
+                .text = name,
+            }
+        );
     }
 
     [[nodiscard]] openswd3::battle::LegacyBattleNarrowGridFrameBindings
@@ -286,7 +294,9 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.add_node("ONE");
-        (*fixture.party)[0U].actor_list.nodes.front().next_token = 0xDEADU;
+        openswd3::test::party_nodes((*fixture.party)[0U].actor_list)
+            .front()
+            .legacy_next_token = 0xDEADU;
         const auto result =
             openswd3::battle::draw_legacy_battle_narrow_grid_frame(
                 fixture.state, fixture.bindings(), fixture.port, request()

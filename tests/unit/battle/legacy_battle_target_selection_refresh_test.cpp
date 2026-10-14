@@ -1,3 +1,4 @@
+#include "legacy_battle_party_list_fixture.hpp"
 #include "legacy_battle_inventory_fixture.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_refresh.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
@@ -260,20 +261,24 @@ void seed_list_state(
     auto& party = fixture.startup_state.party[index];
     auto& list = party.actor_list;
     const u32 root = 0x96000000U + index * 0x100U;
-    list.owner_token = root;
-    list.head_token = root + 0x10U;
+    openswd3::test::bind_party_list(fixture.inventories, list, root);
+    openswd3::test::party_root(list).legacy_next_token = root + 0x10U;
     fixture.action.group_a_action_execution[index].next_list_index = root;
     party.configuration.actor_record_token = 0x97000000U + index * 0x100U;
     party.configuration.actor_record[1U] = 10U << 16U;
     for (u32 ordinal = 1U; ordinal <= 9U; ++ordinal) {
-        list.nodes.push_back({
-            .token = root + ordinal * 0x10U,
-            .next_token = ordinal == 9U ? 0U : root + (ordinal + 1U) * 0x10U,
-            .category_flags = 0xFFFFFFF7U,
-            .mode_flags = 1U,
-            .type = type,
-            .value_flags = 0x8001U,
-        });
+        openswd3::test::append_party_item(
+            list,
+            {
+                .token = root + ordinal * 0x10U,
+                .next_token =
+                    ordinal == 9U ? 0U : root + (ordinal + 1U) * 0x10U,
+                .category_flags = 0xFFFFFFF7U,
+                .mode_flags = 1U,
+                .type = type,
+                .value_flags = 0x8001U,
+            }
+        );
     }
 }
 
@@ -614,9 +619,10 @@ void test_menu_target_block_attribute(openswd3::test::Context& test) {
                     if (message == 2U && target.category == 1U &&
                         (target.output & 0xFFFFU) == 0U) {
                         for (auto& node :
-                             fixture.startup_state.party[actor_index]
-                                 .actor_list.nodes) {
-                            node.category_flags = 4U;
+                             openswd3::test::party_nodes(fixture.startup_state
+                                                             .party[actor_index]
+                                                             .actor_list)) {
+                            openswd3::test::inventory_category(node) = 4U;
                         }
                     }
 
@@ -807,9 +813,10 @@ void test_menu_target_block_attribute(openswd3::test::Context& test) {
             auto& runtime =
                 fixture.port.battle_target_selection_runtime_state();
             runtime.target_effect_value = remaining.effect_high_word << 16U;
-            for (auto& node :
-                 fixture.startup_state.party[2U].actor_list.nodes) {
-                node.category_flags = 4U;
+            for (auto& node : openswd3::test::party_nodes(
+                     fixture.startup_state.party[2U].actor_list
+                 )) {
+                openswd3::test::inventory_category(node) = 4U;
             }
 
             if (message == 4U) {
@@ -1013,9 +1020,15 @@ void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
         seed_marked_profile_menu(stopped, message, 2U);
         const auto expected = stopped.startup.block_520e90;
         if (message == 2U) {
-            stopped.startup_state.party[2U].actor_list.head_token = 0U;
+            openswd3::test::party_root(
+                stopped.startup_state.party[2U].actor_list
+            )
+                .legacy_next_token = 0U;
         } else if (message == 8U) {
-            stopped.startup_state.party[2U].actor_list.head_token = 0U;
+            openswd3::test::party_root(
+                stopped.startup_state.party[2U].actor_list
+            )
+                .legacy_next_token = 0U;
         } else {
             openswd3::test::inventory_node(
                 stopped.startup_state.party[2U].actor_list, 0U
@@ -3119,7 +3132,10 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         runtime.selection_input_gate = 1U;
         runtime.candidate_argument = 7U;
         seed_list_state(action_eight, 8U, 0x1FU);
-        action_eight.startup_state.party[0U].actor_list.head_token = 0U;
+        openswd3::test::party_root(
+            action_eight.startup_state.party[0U].actor_list
+        )
+            .legacy_next_token = 0U;
         const auto eight_result = refresh_legacy_battle_target_selection(
             action_eight.bindings(), action_eight.port, {}
         );

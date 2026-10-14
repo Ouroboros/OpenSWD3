@@ -1,4 +1,5 @@
 #include "legacy_battle_mon_database_fixture.hpp"
+#include "legacy_battle_party_list_fixture.hpp"
 #include "openswd3/battle/legacy_battle_action_rotation_resources.hpp"
 #include "openswd3/battle/legacy_battle_display_surface_runtime.hpp"
 #include "openswd3/battle/legacy_battle_startup.hpp"
@@ -1763,9 +1764,11 @@ void test_battle_startup(openswd3::test::Context& test) {
             "startup binds actual action/list fields and borrows name bytes without writing a second pair or dereferencing item roots"
         );
         state->action_mode_source.actor_label_indices[1U] = 3U;
+        auto second_action = std::make_unique<
+            openswd3::battle::LegacyBattleGroupAActionExecutionState>();
         const auto second =
             openswd3::battle::bind_legacy_battle_startup_party_references(
-                *state, 1U, items, names
+                *state, 1U, items, names, second_action.get()
             );
         auto& shared_node = items.player_inventory.emplace_back();
         shared_node.legacy_token = 0x77112233U;
@@ -1828,6 +1831,87 @@ void test_battle_startup(openswd3::test::Context& test) {
                 items.player_inventory_head_token == 0U &&
                 shared_quantity == 0U,
             "consuming the last item reconnects the shared global head for both actors"
+        );
+
+        auto& source_list = *items.party_item_lists[3U];
+        source_list.nodes.push_back(
+            openswd3::test::make_party_item({
+                .token = 0xDEADBEEFU,
+                .next_token = 0x77000010U,
+            })
+        );
+        source_list.nodes.push_back(
+            openswd3::test::make_party_item({
+                .token = 0x77000010U,
+                .category_flags = 0x10U,
+                .mode_flags = 1U,
+                .type = 0x1BU,
+                .profile_id = 7U,
+                .value_flags = 0x8005U,
+                .text = "shared",
+            })
+        );
+        source_list.sentinel.legacy_next_token = 0U;
+        openswd3::compat::u8 party_count{};
+        const auto counted_party =
+            openswd3::battle::count_legacy_battle_actor_list(
+                action.get(), &party.actor_list, 0U, 0U, party_count
+            );
+        openswd3::test::LegacyBattleMonDatabaseFixture mon;
+        openswd3::battle::LegacyBattleMonProfile profile{};
+        std::array<openswd3::compat::u8, 20U> row_text{};
+        const std::array<openswd3::compat::u16, 1U> frames{};
+        openswd3::compat::u32 row_value{};
+        const auto row = openswd3::battle::query_legacy_battle_actor_list(
+            second_action.get(),
+            &state->party[1U].actor_list,
+            mon,
+            0U,
+            0U,
+            1U,
+            row_text,
+            row_value,
+            profile,
+            frames
+        );
+        test.expect_true(
+            counted_party ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
+                party_count == 1U &&
+                row.status ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
+                row_value == 5U &&
+                std::string(reinterpret_cast<const char*>(row_text.data())) ==
+                    "shared",
+            "startup consumers follow the bound physical party head even when it is not the sentinel"
+        );
+        openswd3::test::set_inventory_definition_word(
+            source_list.nodes.back(), 0x4CU, 0x8009U
+        );
+        openswd3::test::set_inventory_name(source_list.nodes.back(), "changed");
+        const auto changed_row =
+            openswd3::battle::query_legacy_battle_actor_list(
+                action.get(),
+                &party.actor_list,
+                mon,
+                0U,
+                0U,
+                1U,
+                row_text,
+                row_value,
+                profile,
+                frames
+            );
+        test.expect_true(
+            changed_row.status ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
+                row_value == 9U &&
+                std::string(reinterpret_cast<const char*>(row_text.data())) ==
+                    "changed",
+            "both actors read changes to the actual party definition without rebuilding battle nodes"
         );
 
         state->action_mode_source.actor_label_indices[0U] = 1U;

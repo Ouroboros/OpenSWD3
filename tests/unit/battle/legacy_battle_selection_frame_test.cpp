@@ -1,3 +1,4 @@
+#include "legacy_battle_party_list_fixture.hpp"
 #include "legacy_battle_inventory_fixture.hpp"
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
@@ -293,10 +294,14 @@ struct Fixture {
         }
 
         for (std::size_t index = 0U; index < startup.party.size(); ++index) {
-            startup.party[index].actor_list.owner_token =
-                0x10U + static_cast<u32>(index);
+            openswd3::test::bind_party_list(
+                inventories,
+                startup.party[index].actor_list,
+                0x10U + static_cast<u32>(index)
+            );
             action.group_a_action_execution[index].next_list_index =
-                startup.party[index].actor_list.owner_token;
+                openswd3::test::party_root(startup.party[index].actor_list)
+                    .legacy_token;
         }
 
         for (auto& source : startup.action_mode_source.option_sources[0U]) {
@@ -761,7 +766,10 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                 result.list_contents.completed_rows == 0U &&
                 fixture.action.group_a_action_execution[0U]
                         .current_list_index ==
-                    fixture.startup.party[0U].actor_list.owner_token &&
+                    openswd3::test::party_root(
+                        fixture.startup.party[0U].actor_list
+                    )
+                        .legacy_token &&
                 count_call(
                     fixture.port,
                     LegacyBattleSelectionFrameCall::
@@ -816,16 +824,20 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.input.selection_animation_frame_a = 10U;
         fixture.input.selection_animation_frame_b = 7U;
         fixture.action_streams.fail = false;
-        fixture.startup.party[0U].actor_list.head_token = 0x100U;
-        fixture.startup.party[0U].actor_list.nodes.push_back({
-            .token = 0x100U,
-            .category_flags = 0x10U,
-            .mode_flags = 1U,
-            .type = 0x1BU,
-            .profile_id = 1U,
-            .value_flags = 0x8001U,
-            .text = "row",
-        });
+        openswd3::test::party_root(fixture.startup.party[0U].actor_list)
+            .legacy_next_token = 0x100U;
+        openswd3::test::append_party_item(
+            fixture.startup.party[0U].actor_list,
+            {
+                .token = 0x100U,
+                .category_flags = 0x10U,
+                .mode_flags = 1U,
+                .type = 0x1BU,
+                .profile_id = 1U,
+                .value_flags = 0x8001U,
+                .text = "row",
+            }
+        );
         fixture.port.set_profile_dword(0x10U, 12U);
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
@@ -1820,7 +1832,10 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleNarrowGridFrameStatus::
                         completed &&
                 eight.action.group_a_action_execution[0U].current_list_index ==
-                    eight.startup.party[0U].actor_list.owner_token &&
+                    openswd3::test::party_root(
+                        eight.startup.party[0U].actor_list
+                    )
+                        .legacy_token &&
                 eight.action.action_pending_aux == 1U &&
                 eight.action.selection_cache_gate_b == 1U &&
                 eight.input.selection_cache_gate_c == 1U &&
