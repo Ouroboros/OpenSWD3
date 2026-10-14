@@ -2567,7 +2567,7 @@
 ## PORT-886bcc672f06
 
 - [ ] `LegacyBattleTargetSelectionRuntimePort`：实现或转发类；待复核。
-- 资料批次已验证、发布待核对：删除query_primary_target操作和两处菜单参数包调用；其余协议仍pending，Port未完成。见[资料应用证据](battle-actor-list-profile-application-004705c0.md)。
+- 资料批次5e487db5已验证推送：删除query_primary_target操作和两处菜单参数包调用；其余协议仍pending，Port未完成。见[资料应用证据](battle-actor-list-profile-application-004705c0.md)。
 - 定义：[include/openswd3/battle/legacy_battle_target_selection_runtime.hpp:109](../../../include/openswd3/battle/legacy_battle_target_selection_runtime.hpp:109)。
 - 继承：`public virtual LegacyBattleTargetSelectionRuntimeStatePort`。
 - 直接残留：invoke, register。

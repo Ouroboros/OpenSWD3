@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "bc6b14e752c916290cb076542eaf0b8b663209f1",
+  "last_reviewed_source_revision": "5e487db5b6d793ed32959997ce7a0c3672c85465",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -84,9 +84,9 @@
     },
     "battle/legacy_battle_target_selection_refresh": {
       "status": "pending",
-      "last_reviewed_commit": "bc6b14e7",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-state-processing-00470380.md",
-      "reason": "唯一菜单caller直接调用列表状态函数，删除validate_primary_action操作及参数包；按共享可用性决定是否继续资料应用。core/ASan、SDL及21源身份通过；其余父协议与完整SDL路径仍pending"
+      "last_reviewed_commit": "5e487db5",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-profile-application-004705c0.md",
+      "reason": "消息2和8两处菜单直接调用列表资料应用函数，删除query_primary_target操作及参数包；使用实际角色资料和共享输出，保留后继重读与失败前缀。core/ASan、SDL及7源身份通过；其余父协议与完整SDL路径仍pending"
     },
     "battle/legacy_battle_group_b_action_composition": {
       "status": "pending",
@@ -312,9 +312,9 @@
     },
     "battle/legacy_battle_actor_list_query": {
       "status": "pending",
-      "last_reviewed_commit": "bc6b14e7",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-state-processing-00470380.md",
-      "reason": "状态处理删除StatePort、Request/Reply、寄存器及诊断计数；直接使用列表、实时配置、消息链和音频manager，保持LST的游标发布及callback后重读。core/ASan、SDL及21源身份通过；资料、资源生产、消息内部协议与完整SDL接线仍pending，整链未验收"
+      "last_reviewed_commit": "5e487db5",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-profile-application-004705c0.md",
+      "reason": "资料应用删除ApplyRequest、寄存器与索引回包、输出副本和诊断计数；直接发布游标、写共享输出并加载实际资料，保持输出别名及callback后重读。core/ASan、SDL及7源身份通过；其余查询、计数、资源生产、消息内部协议及完整SDL接线仍pending，整链未验收"
     },
     "battle/legacy_battle_grid_frame": {
       "status": "pending",
@@ -799,9 +799,9 @@
     },
     "battle/legacy_battle_target_selection_runtime": {
       "status": "pending",
-      "last_reviewed_commit": "bc6b14e7",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-state-processing-00470380.md",
-      "reason": "删除validate_primary_action操作编号，改由真实状态函数决定可用性；其余操作、参数包和寄存器协议仍pending"
+      "last_reviewed_commit": "5e487db5",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-profile-application-004705c0.md",
+      "reason": "删除query_primary_target操作编号及两处菜单通用调用；改为实际列表资料应用函数。其余操作、参数包和寄存器协议仍pending"
     },
     "platform/main": {
       "status": "pending",
