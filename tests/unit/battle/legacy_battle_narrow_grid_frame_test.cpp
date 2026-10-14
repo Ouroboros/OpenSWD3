@@ -269,16 +269,6 @@ struct Fixture {
 }
 
 void prepare_success(Fixture& fixture) {
-    fixture.port.reply(
-        Call::initialize_narrow_rows,
-        {
-            .eax = 0x101U,
-            .ecx = 0x102U,
-            .edx = 0x103U,
-            .publish_panel_row_limit = true,
-            .panel_row_limit = 7U,
-        }
-    );
     fixture.add_node("SKIP", false);
     fixture.add_node("ROW1");
     fixture.add_node("ROW2");
@@ -290,13 +280,32 @@ void prepare_success(Fixture& fixture) {
     fixture.port.reply(Call::draw_text, {});
 }
 
-void prepare_sentinel(Fixture& fixture) {
-    fixture.port.reply(Call::initialize_narrow_rows, {});
-}
-
 }  // namespace
 
 void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
+    {
+        Fixture fixture;
+        fixture.add_node("ONE");
+        (*fixture.party)[0U].actor_list.nodes.front().next_token = 0xDEADU;
+        const auto result =
+            openswd3::battle::draw_legacy_battle_narrow_grid_frame(
+                fixture.state, fixture.bindings(), fixture.port, request()
+            );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleNarrowGridFrameStatus::
+                        group_a_actor_typed_stop &&
+                result.row_count_status ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        list_node_typed_stop &&
+                fixture.panel_row_limit == 1U &&
+                fixture.actors[0U].current_list_index == 0xDEADU &&
+                result.font_calls == 3U && result.text_draw_calls == 1U &&
+                fixture.port.requested_profile_ids.empty(),
+            "narrow menu preserves the count failure prefix after its panel and title without loading rows"
+        );
+    }
+
     {
         Fixture fixture;
         fixture.add_node("12345678901234567890suffix");
@@ -346,8 +355,6 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
             openswd3::battle::draw_legacy_battle_narrow_grid_frame(
                 fixture.state, fixture.bindings(), fixture.port, request()
             );
-        const auto initializes =
-            fixture.port.calls_of(Call::initialize_narrow_rows);
         const auto draws = fixture.port.calls_of(Call::draw_text);
         test.expect_true(
             result.status ==
@@ -356,22 +363,20 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
                 result.panel_action_update_calls == 1U &&
                 result.panel_rectangle_calls == 1U &&
                 result.tiled_frame_calls == 2U && result.font_calls == 5U &&
-                result.actor_initialization_calls == 1U &&
+                result.row_count_status ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
                 fixture.actors[0U].current_list_index == 0x10U &&
                 result.text_draw_calls == 4U &&
                 result.selection_rectangle_calls == 1U &&
                 result.displayed_rows == 2U && result.final_iterator == 3U &&
-                fixture.panel_row_limit == 7U &&
+                fixture.panel_row_limit == 2U &&
                 fixture.selection_input_gate == 1U &&
                 fixture.candidate_argument == 2U,
             "narrow grid filters an ineligible node, draws two matches and publishes the selected ordinal"
         );
         test.expect_true(
-            initializes.size() == 1U && initializes[0U].arguments[0U] == 0U &&
-                initializes[0U].arguments[1U] == 1U &&
-                initializes[0U].arguments[2U] == 0x0053BDF3U &&
-                initializes[0U].eax == 0U && initializes[0U].edx == 8U &&
-                fixture.port.requested_profile_ids == std::vector<u16>{1U, 1U},
+            fixture.port.requested_profile_ids == std::vector<u16>{1U, 1U},
             "narrow grid loads profiles for the two matching nodes after row initialization"
         );
         test.expect_true(
@@ -411,7 +416,6 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
     {
         Fixture fixture;
         fixture.action_streams.failing_action_id = 0x233BU;
-        prepare_sentinel(fixture);
         const auto result =
             openswd3::battle::draw_legacy_battle_narrow_grid_frame(
                 fixture.state, fixture.bindings(), fixture.port, request()
@@ -490,7 +494,6 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleNarrowGridFrameStatus::
                         group_a_actor_typed_stop &&
                 result.text_draw_calls == 1U && result.font_calls == 3U &&
-                result.actor_initialization_calls == 0U &&
                 fixture.panel_row_limit == 0U &&
                 result.return_eax == 0xFFFFF433U &&
                 result.return_ecx == 0x004FFA9CU && result.return_edx == 7U,
@@ -500,7 +503,6 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.port.reply(Call::initialize_narrow_rows, {});
         for (u32 iterator = 1U; iterator <= 9U; ++iterator) {
             fixture.add_node("ROW", iterator > 2U);
         }
@@ -526,7 +528,6 @@ void test_battle_narrow_grid_frame(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.port.reply(Call::initialize_narrow_rows, {});
         fixture.add_node("SELECT");
         fixture.port.on_profile_read = [&fixture]() {
             fixture.raster.surface.pitch_bytes = 600;

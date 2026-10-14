@@ -3321,40 +3321,146 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         actor.next_list_index = list.owner_token;
-        const auto result = count_legacy_battle_actor_list(
-            &actor,
-            &list,
-            0x005029D0U,
-            0x00610000U,
-            {.category_selector = 0U,
-             .type_selector = 0U,
-             .entry_count = 0xFFU,
-             .entry_eax = 0xAAAAAAAAU,
-             .entry_edx = 0xBBBBBBBBU}
-        );
+        u8 count = 0xFFU;
+        const auto status =
+            count_legacy_battle_actor_list(&actor, &list, 0U, 0U, count);
         test.expect_true(
-            result.status == LegacyBattleActorListQueryStatus::completed &&
-                result.nodes_visited == 3U && result.matches == 2U &&
-                result.count == 1U && result.return_eax == 0U &&
-                result.return_ecx == 0x00610000U &&
-                result.return_edx == 0xBBBBBBBBU,
+            status == LegacyBattleActorListQueryStatus::completed &&
+                count == 1U && actor.current_list_index == 0U,
             "list count preserves the caller byte then wraps once per matching node"
         );
     }
 
     {
         actor.next_list_index = list.owner_token;
-        const auto result = count_legacy_battle_actor_list(
-            &actor,
-            &list,
-            0x005029D0U,
-            0x00610000U,
-            {.category_selector = 0U, .type_selector = 7U, .entry_count = 9U}
+        u8 count = 9U;
+        const auto status =
+            count_legacy_battle_actor_list(&actor, &list, 0U, 7U, count);
+        test.expect_true(
+            status == LegacyBattleActorListQueryStatus::completed &&
+                count == 9U && actor.current_list_index == 0U,
+            "every non-twenty-eight type selector still tests only type thirty-one"
+        );
+    }
+
+    {
+        LegacyBattleActorListQueryState counted;
+        counted.owner_token = 0x10U;
+        counted.head_token = 1U;
+        constexpr std::array<u16, 9> types{
+            0x1AU, 0x1BU, 0x1EU, 0x1CU, 0x1DU, 0x1FU, 0x20U, 0x1CU, 0x1DU
+        };
+        constexpr std::array<u8, 9> modes{1U, 4U, 5U, 0U, 2U, 1U, 4U, 1U, 4U};
+        for (u32 index = 0U; index < types.size(); ++index) {
+            counted.nodes.push_back({
+                .token = index + 1U,
+                .next_token = index + 1U == types.size() ? 0U : index + 2U,
+                .category_flags = 0x1018U,
+                .mode_flags = modes[index],
+                .type = types[index],
+            });
+        }
+
+        for (const u32 category : {0U, 1U, 2U, 0x10U, 0x20U}) {
+            for (const u32 type : {0U, 1U, 0x1CU, 0x99U}) {
+                LegacyBattleGroupAActionExecutionState counted_actor;
+                counted_actor.next_list_index = counted.owner_token;
+                u8 count = 7U;
+                const auto status = count_legacy_battle_actor_list(
+                    &counted_actor, &counted, category, type, count
+                );
+                const u8 expected = category == 0x20U ? 7U
+                    : type == 0U || type == 0x1CU     ? 11U
+                                                      : 8U;
+                test.expect_true(
+                    status == LegacyBattleActorListQueryStatus::completed &&
+                        count == expected &&
+                        counted_actor.current_list_index == 0U,
+                    "list count maps selectors and filters mode bits and inclusive type limits"
+                );
+            }
+        }
+    }
+
+    {
+        LegacyBattleActorListQueryState counted;
+        counted.owner_token = 0x10U;
+        LegacyBattleGroupAActionExecutionState counted_actor;
+        counted_actor.next_list_index = counted.owner_token;
+        u8 count = 7U;
+        const auto empty = count_legacy_battle_actor_list(
+            &counted_actor, &counted, 0U, 0U, count
         );
         test.expect_true(
-            result.count == 9U && result.matches == 0U &&
-                result.nodes_visited == 3U,
-            "every non-twenty-eight type selector still tests only type thirty-one"
+            empty == LegacyBattleActorListQueryStatus::completed &&
+                count == 7U && counted_actor.current_list_index == 0U,
+            "empty list count preserves the incoming byte and publishes the null tail"
+        );
+        counted.head_token = 0x100U;
+        counted.nodes.push_back({
+            .token = 0x100U,
+            .next_token = 0x200U,
+            .category_flags = 0x10U,
+            .mode_flags = 1U,
+            .type = 0x1CU,
+        });
+        const auto missing = count_legacy_battle_actor_list(
+            &counted_actor, &counted, 0U, 0U, count
+        );
+        test.expect_true(
+            missing == LegacyBattleActorListQueryStatus::list_node_typed_stop &&
+                count == 8U && counted_actor.current_list_index == 0x200U,
+            "missing count node preserves prior increments and the published failing cursor"
+        );
+        counted.nodes.push_back({
+            .token = 0x200U,
+            .category_flags = 0x10U,
+            .mode_flags = 1U,
+            .type = 0x1CU,
+        });
+        counted_actor.next_list_index = 0x100U;
+        count = 7U;
+        const auto resumed = count_legacy_battle_actor_list(
+            &counted_actor, &counted, 0U, 0U, count
+        );
+        test.expect_true(
+            resumed == LegacyBattleActorListQueryStatus::completed &&
+                count == 8U && counted_actor.current_list_index == 0U,
+            "count starts after a live node cursor instead of requiring the list owner"
+        );
+        counted_actor.next_list_index = 0x99U;
+        const auto owner = count_legacy_battle_actor_list(
+            &counted_actor, nullptr, 0U, 0U, count
+        );
+        test.expect_true(
+            owner == LegacyBattleActorListQueryStatus::list_owner_typed_stop &&
+                count == 8U && counted_actor.current_list_index == 0x99U,
+            "count owner failure follows cursor publication without changing the byte"
+        );
+    }
+
+    {
+        LegacyBattleActorListQueryState counted;
+        counted.owner_token = 0x10U;
+        counted.head_token = 0x100U;
+        counted.nodes.push_back({
+            .token = 0x100U,
+            .next_token = 0xDEADU,
+            .category_flags = 0x10U,
+            .mode_flags = 1U,
+            .type = 0x1CU,
+        });
+        counted.nodes.push_back({.token = 0x101U, .next_token = 0U});
+        LegacyBattleGroupAActionExecutionState counted_actor;
+        counted_actor.next_list_index = counted.owner_token;
+        auto& count = *reinterpret_cast<u8*>(&counted_actor.current_list_index);
+        const auto status = count_legacy_battle_actor_list(
+            &counted_actor, &counted, 0U, 0U, count
+        );
+        test.expect_true(
+            status == LegacyBattleActorListQueryStatus::completed &&
+                counted_actor.current_list_index == 0U,
+            "aliased count increment redirects the live cursor before reading its next link"
         );
     }
 

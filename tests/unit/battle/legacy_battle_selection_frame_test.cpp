@@ -721,14 +721,6 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.frame.panel_row_limit_a = 0xFFU;
         fixture.frame.panel_scroll_a = 4U;
         fixture.port.list_contents_default_reply.eax = 0x12340000U;
-        fixture.port
-            .list_contents_replies
-                [LegacyBattleListContentsCall::initialize_rows]
-            .push_back({
-                .eax = 0x12340000U,
-                .publish_panel_row_limit = true,
-                .panel_row_limit = 0xFFU,
-            });
         fixture.action_streams.fail = false;
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
@@ -738,7 +730,8 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
             result.status ==
                     openswd3::battle::LegacyBattleSelectionFrameStatus::
                         completed &&
-                fixture.frame.lower_panel_aux == 0xFFFFFFFFU &&
+                fixture.frame.lower_panel_aux == 0U &&
+                fixture.frame.panel_row_limit_a == 0U &&
                 fixture.frame.lower_panel_aux_index == 4U &&
                 fixture.action.action_pending_aux == 1U &&
                 fixture.action.selection_cache_gate_b == 1U &&
@@ -772,9 +765,9 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
                     LegacyBattleSelectionFrameCall::
                         reserved_draw_list_contents_slot
                 ) == 0U &&
-                result.return_eax == 0x123400FFU &&
+                result.return_eax == 0x12340000U &&
                 result.vertical_panel.action_update_calls == 0U,
-            "message two directly draws and clamps the list frame before preserving the signed row-limit result"
+            "message two draws and clamps the list frame before publishing the actual empty list count"
         );
     }
 
@@ -1779,10 +1772,6 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         eight.final_actor.queued_actor_code = 8U;
         eight.message = 8U;
         eight.frame.narrow_list_selection = 3U;
-        eight.port
-            .grid_frame_replies
-                [LegacyBattleGridFrameCall::initialize_narrow_rows]
-            .push_back({});
         const auto eight_result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 eight.bindings(), eight.port

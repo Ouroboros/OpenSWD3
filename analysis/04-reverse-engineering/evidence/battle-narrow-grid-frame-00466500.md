@@ -6,7 +6,7 @@
 
 权威LST主体为`0x00466500..0x004667AD`，从proc到endp共293行、197条带机器码和真实助记符的实际指令、17个静态call、6个跳转、7个局部/返回标签和1个`retn`，没有外部`FUNCTION CHUNK`。唯一静态caller位于已关闭选择帧message 8路径，cdecl签名读取固定原点X、原点Y和selected display row三项参数。
 
-17个callsite覆盖面板动作更新、一处面板矩形、两处九宫格、固定标题、字体模式/宽度及两处样式、窄列表初始化、两处actor刷新、一处窄行查询、普通/选中两处文字和选中矩形。矩形和九宫格直接组合；本次游标复位改为直接写共享角色，行查询直连实际列表与MON。字体、文字和列表初始化协议仍待迁移。
+17个callsite覆盖面板动作更新、一处面板矩形、两处九宫格、固定标题、字体模式/宽度及两处样式、窄列表初始化、两处actor刷新、一处窄行查询、普通/选中两处文字和选中矩形。矩形和九宫格直接组合；本次游标复位改为直接写共享角色，行查询直连实际列表与MON。计数现也直接写共享行上限；字体与文字协议仍待迁移。
 
 ## 2. 零入口与窄面板
 
@@ -22,7 +22,7 @@
 
 标题与字体后先清共享单byte row-limit，再访问组A actor。因此十对象外typed-stop保留该byte清零，并以预调用EAX=`(code-8)*3021`、ECX=组A对象token、EDX=原code返回；初始化callee未发生。
 
-合法actor固定初始化请求为`mode=0, selector=1, shared-byte`。初始化入口EAX为3021倍数、EDX为原code；其后直接把next游标写入current。iterator从1开始；查询直接接收category 0、type 1、序号、共享文本、输出值、MON资料，不再传寄存器包。
+合法actor直接以category 0、type 1统计实际列表，逐个命中递增共享row-limit BYTE；删除初始化操作、参数包、行上限回包和调用计数。计数失败保留面板、标题、字体、已累计BYTE和失败游标，不进入后续复位及行查询；完成后重新读取实时queued actor并把next游标写入current。iterator从1开始；查询直接接收category 0、type 1、序号、共享文本、输出值、MON资料，不再传寄存器包。详见[计数证据](battle-actor-list-count-004702e0.md)。
 
 名称前20字节与输入分派五DWORD工作区重叠；LST确认其后紧接768字节音乐路径。本实现直接写两段实际owner，长名称的后段保留原版对音乐路径的覆盖。绘制参数读取这两段，首NUL之后不清零；链尾不改文本。没有第二份持久共享文字owner。
 
@@ -52,6 +52,6 @@
 
 选择帧原`draw_narrow_frame` opaque槽保持枚举数值并改为reserved，生产代码零调用。message 8仍先发布cache C并装载live selected row，再直连本函数；任一子typed-stop保留narrow前缀并阻断cache A/B，正常返回才发布两项cache。
 
-历史workpack的定向测试、AddressSanitizer、Linux core 188/188及Linux app 194/194不覆盖本次修改。本批夹具改为真实列表及MON，覆盖节点过滤、命中序号、七行上限、链尾复位、长名称与音乐路径覆盖、完整名称绘制、两处文字和矩形前缀。最新验证见[行查询证据](battle-actor-list-query-00470180.md)。LIST整链仍pending，初始化和绘制协议未关闭。
+历史workpack的定向测试、AddressSanitizer、Linux core 188/188及Linux app 194/194不覆盖本次修改。本批夹具改为真实列表及MON，覆盖节点过滤、命中序号、七行上限、链尾复位、长名称与音乐路径覆盖、完整名称绘制、两处文字和矩形前缀。最新验证见[行查询证据](battle-actor-list-query-00470180.md)。计数批次另加真实行上限与失败前缀检查，当前验证状态见[计数证据](battle-actor-list-count-004702e0.md)。LIST整链仍pending，绘制与父协议未关闭。
 
 当前缺少原版组A对象、窄列表初始化/刷新/查询callee联合状态、字体/文字surface、面板/矩形/九宫格framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。

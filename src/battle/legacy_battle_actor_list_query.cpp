@@ -379,66 +379,64 @@ LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
     return result;
 }
 
-LegacyBattleActorListCountResult count_legacy_battle_actor_list(
+LegacyBattleActorListQueryStatus count_legacy_battle_actor_list(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleActorListQueryState* list,
-    const u32 actor_token,
-    const u32 count_token,
-    const LegacyBattleActorListCountRequest& request
+    const u32 category_selector,
+    const u32 type_selector,
+    compat::u8& count
 ) {
-    LegacyBattleActorListCountResult result;
-    result.count = request.entry_count;
-    result.return_eax = request.entry_eax;
-    result.return_ecx = count_token;
-    result.return_edx = request.entry_edx;
-    result.index_commit = commit_legacy_battle_actor_list_index(
-        actor,
-        actor_token,
-        {.entry_eax = request.entry_eax, .entry_edx = request.entry_edx}
-    );
-    ++result.index_commit_calls;
-    result.return_eax = result.index_commit.return_eax;
-    if (result.index_commit.status !=
-        LegacyBattleActorListIndexCommitStatus::completed) {
-        result.status =
-            LegacyBattleActorListQueryStatus::actor_state_typed_stop;
-        return result;
-    }
-    if (list == nullptr || list->owner_token == 0U || actor == nullptr ||
-        actor->current_list_index != list->owner_token) {
-        result.status = LegacyBattleActorListQueryStatus::list_owner_typed_stop;
-        return result;
+    using Status = LegacyBattleActorListQueryStatus;
+    if (actor == nullptr) {
+        return Status::actor_state_typed_stop;
     }
 
-    const u32 mask = category_mask(request.category_selector);
-    const u32 type = wanted_type(request.type_selector);
-    u32 token = list->head_token;
-    while (token != 0U) {
-        const auto found = std::ranges::find(
-            list->nodes, token, &LegacyBattleActorListNode::token
-        );
-        if (found == list->nodes.end()) {
-            result.status =
-                LegacyBattleActorListQueryStatus::list_node_typed_stop;
-            result.return_eax = token;
-            return result;
+    actor->current_list_index = actor->next_list_index;
+    if (list == nullptr || list->owner_token == 0U) {
+        return Status::list_owner_typed_stop;
+    }
+
+    const u32 mask = category_mask(category_selector);
+    const u32 type = wanted_type(type_selector);
+    for (;;) {
+        u32 next = list->head_token;
+        if (actor->current_list_index != list->owner_token) {
+            const auto current = std::ranges::find(
+                list->nodes,
+                actor->current_list_index,
+                &LegacyBattleActorListNode::token
+            );
+            if (current == list->nodes.end()) {
+                return Status::list_node_typed_stop;
+            }
+
+            next = current->next_token;
         }
-        ++result.nodes_visited;
-        token = found->next_token;
-        if ((found->mode_flags & 0x05U) == 0U ||
-            (found->category_flags & mask) == 0U) {
+
+        actor->current_list_index = next;
+        if (next == 0U) {
+            return Status::completed;
+        }
+
+        const auto node = std::ranges::find(
+            list->nodes, next, &LegacyBattleActorListNode::token
+        );
+        if (node == list->nodes.end()) {
+            return Status::list_node_typed_stop;
+        }
+
+        if ((node->mode_flags & 0x05U) == 0U ||
+            (node->category_flags & mask) == 0U) {
             continue;
         }
+
         const bool type_matches = type == 0x1CU
-            ? found->type >= 0x1BU && found->type <= 0x1EU
-            : found->type == 0x1FU;
+            ? node->type >= 0x1BU && node->type <= 0x1EU
+            : node->type == 0x1FU;
         if (type_matches) {
-            result.count = static_cast<compat::u8>(result.count + 1U);
-            ++result.matches;
+            count = static_cast<compat::u8>(count + 1U);
         }
     }
-    result.return_eax = 0U;
-    return result;
 }
 
 LegacyBattleActorListRefreshResult refresh_legacy_battle_actor_list_action(

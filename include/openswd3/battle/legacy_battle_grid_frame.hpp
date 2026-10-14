@@ -18,7 +18,6 @@ enum class LegacyBattleGridFrameCall : compat::u8 {
     configure_font_style,
     configure_font_width,
     draw_text,
-    initialize_narrow_rows,
     query_guard_actor_label,
 };
 
@@ -40,8 +39,6 @@ struct LegacyBattleGridFrameCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
-    bool publish_panel_row_limit{};
-    compat::u16 panel_row_limit{};
     bool publish_row_flags{};
     compat::u32 row_flags{};
 };

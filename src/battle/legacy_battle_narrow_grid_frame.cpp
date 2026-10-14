@@ -23,7 +23,6 @@ using Status = LegacyBattleNarrowGridFrameStatus;
 constexpr u32 kPanelActionId = 0x233BU;
 constexpr u32 kGroupABaseToken = 0x005029D0U;
 constexpr u32 kGroupACount = 10U;
-constexpr u32 kPanelRowLimitToken = 0x0053BDF3U;
 constexpr u32 kTextSurfaceToken = 0x004C9A28U;
 constexpr u32 kFontToken = 0x004CD76CU;
 
@@ -105,24 +104,26 @@ public:
         eax_ = group_a_scaled_3021(actor_code);
         ecx_ = group_a_actor_token(actor_code);
         edx_ = actor_code;
-        if (!valid_group_a_actor_code(actor_code)) {
+        if (!valid_group_a_actor_code(actor_code) ||
+            actor_code - 8U >= bindings_.actors.size() ||
+            actor_code - 8U >= bindings_.party.size()) {
             result_.status = Status::group_a_actor_typed_stop;
             return finish();
         }
 
-        const auto initialized = invoke({
-            .call = Call::initialize_narrow_rows,
-            .object_token = ecx_,
-            .arguments = {0U, 1U, kPanelRowLimitToken},
-            .eax = eax_,
-            .ecx = ecx_,
-            .edx = edx_,
-        });
-        ++result_.actor_initialization_calls;
-        if (initialized.publish_panel_row_limit) {
-            bindings_.panel_row_limit =
-                static_cast<u8>(initialized.panel_row_limit);
+        result_.row_count_status = count_legacy_battle_actor_list(
+            &bindings_.actors[actor_code - 8U],
+            &bindings_.party[actor_code - 8U].actor_list,
+            0U,
+            1U,
+            bindings_.panel_row_limit
+        );
+        if (result_.row_count_status !=
+            LegacyBattleActorListQueryStatus::completed) {
+            result_.status = Status::group_a_actor_typed_stop;
+            return finish();
         }
+
         if (!reset_actor_cursor()) {
             return finish();
         }

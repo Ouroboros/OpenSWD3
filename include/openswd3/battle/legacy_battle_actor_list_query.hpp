@@ -2,7 +2,6 @@
 
 #include <optional>
 
-#include "openswd3/battle/legacy_battle_actor_list_index_commit.hpp"
 #include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
@@ -101,14 +100,6 @@ struct LegacyBattleActorListApplyResult {
     std::optional<compat::u16> selection_mode;
 };
 
-struct LegacyBattleActorListCountRequest {
-    compat::u32 category_selector{};
-    compat::u32 type_selector{};
-    compat::u8 entry_count{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_edx{};
-};
-
 struct LegacyBattleActorListRefreshResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
@@ -194,20 +185,6 @@ struct LegacyBattleActorListStateResult {
     bool available{};
 };
 
-struct LegacyBattleActorListCountResult {
-    LegacyBattleActorListQueryStatus status{
-        LegacyBattleActorListQueryStatus::completed
-    };
-    LegacyBattleActorListIndexCommitResult index_commit{};
-    compat::u32 index_commit_calls{};
-    compat::u32 nodes_visited{};
-    compat::u32 matches{};
-    compat::u8 count{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
-};
-
 // sub_470180.
 [[nodiscard]] LegacyBattleActorListQueryResult query_legacy_battle_actor_list(
     LegacyBattleGroupAActionExecutionState* actor,
@@ -238,12 +215,12 @@ struct LegacyBattleActorListCountResult {
 );
 
 // sub_4702E0.
-[[nodiscard]] LegacyBattleActorListCountResult count_legacy_battle_actor_list(
+[[nodiscard]] LegacyBattleActorListQueryStatus count_legacy_battle_actor_list(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleActorListQueryState* list,
-    compat::u32 actor_token,
-    compat::u32 count_token,
-    const LegacyBattleActorListCountRequest& request
+    compat::u32 category_selector,
+    compat::u32 type_selector,
+    compat::u8& count
 );
 
 // sub_470890.

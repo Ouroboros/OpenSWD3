@@ -263,6 +263,28 @@ calls_of(const Port& port, const LegacyBattleListContentsCall call) {
 void test_battle_list_contents(openswd3::test::Context& test) {
     {
         Fixture fixture;
+        auto& list = (*fixture.party)[0U].actor_list;
+        list.nodes.front().next_token = 0xDEADU;
+        const auto result = openswd3::battle::draw_legacy_battle_list_contents(
+            fixture.state, fixture.bindings(), fixture.port, request()
+        );
+        test.expect_true(
+            result.status ==
+                    openswd3::battle::LegacyBattleListContentsStatus::
+                        group_a_actor_typed_stop &&
+                result.row_count_status ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        list_node_typed_stop &&
+                fixture.panel_row_limit == 1U &&
+                fixture.actors[0U].current_list_index == 0xDEADU &&
+                fixture.port.calls.size() == 3U &&
+                fixture.port.seek_calls == 0U,
+            "list menu keeps the count prefix and failing cursor after fonts without querying a row"
+        );
+    }
+
+    {
+        Fixture fixture;
         fixture.actor_description_record_tokens[0U] = 0xDEADC0DEU;
         fixture.actor_description_text_indices[0U] = 1U;
         fixture.port.reply(
@@ -276,13 +298,6 @@ void test_battle_list_contents(openswd3::test::Context& test) {
         fixture.port.reply(
             LegacyBattleListContentsCall::configure_font_style,
             {.eax = 0xAABBCCDDU, .ecx = 0x11223344U, .edx = 0x55667788U}
-        );
-        fixture.port.reply(
-            LegacyBattleListContentsCall::initialize_rows,
-            {
-                .publish_panel_row_limit = true,
-                .panel_row_limit = 0xFEU,
-            }
         );
         fixture.add_node(0x4005U, 2U);
         fixture.add_node(0x800AU, 5U);
@@ -336,11 +351,13 @@ void test_battle_list_contents(openswd3::test::Context& test) {
                 result.row_resolver_calls == 2U &&
                 result.resource_frame_calls == 1U &&
                 result.rectangle_calls == 2U && result.text_draw_calls == 6U &&
-                result.actor_initialization_calls == 1U &&
+                result.row_count_status ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
                 fixture.actors[0U].current_list_index == 0x10U &&
                 result.shared_text_resolution_calls == 1U &&
                 result.shared_text_length_calls == 1U &&
-                fixture.panel_row_limit == 0xFEU &&
+                fixture.panel_row_limit == 12U &&
                 fixture.selection_input_gate == 1U &&
                 fixture.candidate_argument == 11U &&
                 result.selected_iterator == 11U &&
@@ -448,7 +465,6 @@ void test_battle_list_contents(openswd3::test::Context& test) {
                     openswd3::battle::LegacyBattleListContentsStatus::
                         group_a_actor_typed_stop &&
                 fixture.panel_row_limit == 0U &&
-                result.actor_initialization_calls == 0U &&
                 result.return_eax == 0xFFFFFC11U &&
                 result.return_ecx == 0x004FFA9CU &&
                 result.return_edx == 0x55667788U,
@@ -458,13 +474,6 @@ void test_battle_list_contents(openswd3::test::Context& test) {
 
     {
         Fixture fixture;
-        fixture.port.reply(
-            LegacyBattleListContentsCall::initialize_rows,
-            {
-                .publish_panel_row_limit = true,
-                .panel_row_limit = 9U,
-            }
-        );
         (*fixture.party)[0U].actor_list.nodes.clear();
         for (u32 value = 1U; value <= 7U; ++value) {
             fixture.add_node(static_cast<u16>(0x8000U | value), 5U);
@@ -490,7 +499,7 @@ void test_battle_list_contents(openswd3::test::Context& test) {
                 result.row_resolver_calls == 7U &&
                 result.resource_frame_calls == 0U &&
                 result.text_draw_calls == 14U && result.final_iterator == 8U &&
-                fixture.panel_row_limit == 9U &&
+                fixture.panel_row_limit == 7U &&
                 fixture.actors[0U].current_list_index == 0x106U,
             "list contents stops after the original seven low-word row iterations without an eighth query"
         );

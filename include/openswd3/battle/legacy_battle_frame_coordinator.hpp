@@ -128,10 +128,8 @@ enum class LegacyBattleFrameCoordinatorCall : compat::u8 {
     action_summary_action_mode_query_primary_actor,
     action_summary_action_mode_query_secondary_actor,
     action_summary_action_mode_query_active_actor,
-    list_contents_initialize_rows,
     list_contents_resolve_negative_row,
     list_contents_resolve_regular_row,
-    narrow_grid_frame_initialize_rows,
     guard_panel_query_actor_label,
     selection_hint_query_actor_label,
     selection_hint_configure_font_width,
@@ -280,14 +278,10 @@ struct LegacyBattleFrameCoordinatorCallReply {
     compat::u16 reserved_selection_origin_x{};
     compat::u16 reserved_selection_origin_y{};
     LegacyBattleActorCoordinateFlags selection_flags{};
-    bool publish_list_panel_row_limit{};
-    compat::u8 list_panel_row_limit{};
     bool publish_list_limit_word{};
     compat::u16 list_limit_word{};
     bool publish_list_limit_byte{};
     compat::u8 list_limit_byte{};
-    bool publish_grid_panel_row_limit{};
-    compat::u16 grid_panel_row_limit{};
     bool publish_grid_row_flags{};
     compat::u32 grid_row_flags{};
     compat::u32 selection_hint_text_length{};
@@ -651,10 +645,7 @@ public:
             call = LegacyBattleFrameCoordinatorCall::
                 selection_frame_configure_text_font;
             break;
-        case LegacyBattleListContentsCall::initialize_rows:
-            call =
-                LegacyBattleFrameCoordinatorCall::list_contents_initialize_rows;
-            break;
+
         case LegacyBattleListContentsCall::resolve_negative_row:
             call = LegacyBattleFrameCoordinatorCall::
                 list_contents_resolve_negative_row;
@@ -682,8 +673,6 @@ public:
             .eax = reply.eax,
             .ecx = reply.ecx,
             .edx = reply.edx,
-            .publish_panel_row_limit = reply.publish_list_panel_row_limit,
-            .panel_row_limit = reply.list_panel_row_limit,
             .publish_limit_word = reply.publish_list_limit_word,
             .limit_word = reply.list_limit_word,
             .publish_limit_byte = reply.publish_list_limit_byte,
@@ -712,10 +701,6 @@ public:
             call = LegacyBattleFrameCoordinatorCall::selection_frame_draw_text;
             break;
 
-        case LegacyBattleGridFrameCall::initialize_narrow_rows:
-            call = LegacyBattleFrameCoordinatorCall::
-                narrow_grid_frame_initialize_rows;
-            break;
         case LegacyBattleGridFrameCall::query_guard_actor_label:
             call =
                 LegacyBattleFrameCoordinatorCall::guard_panel_query_actor_label;
@@ -736,8 +721,6 @@ public:
             .eax = reply.eax,
             .ecx = reply.ecx,
             .edx = reply.edx,
-            .publish_panel_row_limit = reply.publish_grid_panel_row_limit,
-            .panel_row_limit = reply.grid_panel_row_limit,
             .publish_row_flags = reply.publish_grid_row_flags,
             .row_flags = reply.grid_row_flags,
         };

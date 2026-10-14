@@ -1387,8 +1387,9 @@
 ## PORT-e59fcf9dbbd4
 
 - [ ] `LegacyBattleFrameCoordinatorPort`：抽象接口；迁移中，未验收。
+- 计数批次删除两种列表初始化操作、行上限回包及纯转发；最终core/ASan、SDL及12源身份通过，待发布。见[计数证据](battle-actor-list-count-004702e0.md)。
 - 行查询批次95a3d125已验证推送：删除列表/窄网格查询与复位操作、值/文本回包及纯转发分支；其余通用操作与继承接口仍pending。见[行查询证据](battle-actor-list-query-00470180.md)。
-- 定义：[include/openswd3/battle/legacy_battle_frame_coordinator.hpp:382](../../../include/openswd3/battle/legacy_battle_frame_coordinator.hpp:382)。
+- 定义：[include/openswd3/battle/legacy_battle_frame_coordinator.hpp:368](../../../include/openswd3/battle/legacy_battle_frame_coordinator.hpp:368)。
 - 继承：`public LegacyBattleHudCallPort,
       public LegacyBattleEffectCallPort,
       public LegacyBattlePreFramePort,
@@ -1574,11 +1575,12 @@
 ## PORT-da997d756887
 
 - [ ] `LegacyBattleGridFramePort`：抽象接口；迁移中，未验收。
+- 计数批次删除initialize_narrow_rows及行上限回包，实际窄列表直接累计共享BYTE；最终core/ASan、SDL及12源身份通过，待发布。见[计数证据](battle-actor-list-count-004702e0.md)。
 - 行查询批次95a3d125已验证推送：删除query_narrow_row、refresh_actor和对应输出字段；窄网格直接查询共享列表及MON，字体和绘制协议仍pending。见[行查询证据](battle-actor-list-query-00470180.md)。
 - 本批f21aa0b1已删除普通行查询操作与转发；core/ASan及SDL构建通过，远端main已核对。
 - 剩余字体、绘制及其他网格操作仍使用invoke；不能将该Port作为合法边界勾选保留。
 - 证据：[普通资源行查询](battle-actor-resource-list-query-00470910.md)。
-- 定义：[include/openswd3/battle/legacy_battle_grid_frame.hpp:55](../../../include/openswd3/battle/legacy_battle_grid_frame.hpp:55)。
+- 定义：[include/openswd3/battle/legacy_battle_grid_frame.hpp:46](../../../include/openswd3/battle/legacy_battle_grid_frame.hpp:46)。
 - 继承：`public virtual LegacyBattleOffsetActionFrameDrawStatePort`。
 - 直接残留：invoke。
 - 处理与验收记录：待填写。
@@ -2015,8 +2017,9 @@
 ## PORT-5273e66ab0e8
 
 - [ ] `LegacyBattleListContentsPort`：抽象接口；迁移中，未验收。
+- 计数批次删除initialize_rows、行上限回包和初始化次数，实际列表直接累计共享BYTE；最终core/ASan、SDL及12源身份通过，待发布。见[计数证据](battle-actor-list-count-004702e0.md)。
 - 行查询批次95a3d125已验证推送：删除query_row、refresh_actor及值回包；初始化、行解析、字体和绘制协议仍pending。见[行查询证据](battle-actor-list-query-00470180.md)。
-- 定义：[include/openswd3/battle/legacy_battle_list_contents.hpp:51](../../../include/openswd3/battle/legacy_battle_list_contents.hpp:51)。
+- 定义：[include/openswd3/battle/legacy_battle_list_contents.hpp:48](../../../include/openswd3/battle/legacy_battle_list_contents.hpp:48)。
 - 继承：`无`。
 - 直接残留：invoke。
 - 处理与验收记录：待填写。

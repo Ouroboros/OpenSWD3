@@ -16,7 +16,6 @@ enum class LegacyBattleListContentsCall : compat::u8 {
     configure_font_mode,
     configure_font_style,
     configure_font_width,
-    initialize_rows,
     resolve_negative_row,
     resolve_regular_row,
     draw_text,
@@ -40,8 +39,6 @@ struct LegacyBattleListContentsCallReply {
     compat::u32 eax{};
     compat::u32 ecx{};
     compat::u32 edx{};
-    bool publish_panel_row_limit{};
-    compat::u8 panel_row_limit{};
     bool publish_limit_word{};
     compat::u16 limit_word{};
     bool publish_limit_byte{};
@@ -149,7 +146,9 @@ struct LegacyBattleListContentsResult {
     compat::u32 return_eax{};
     compat::u32 return_ecx{};
     compat::u32 return_edx{};
-    compat::u32 actor_initialization_calls{};
+    LegacyBattleActorListQueryStatus row_count_status{
+        LegacyBattleActorListQueryStatus::completed
+    };
     LegacyBattleActorListQueryStatus row_query_status{
         LegacyBattleActorListQueryStatus::completed
     };

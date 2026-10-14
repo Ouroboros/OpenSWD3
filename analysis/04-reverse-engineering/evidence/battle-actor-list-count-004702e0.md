@@ -1,21 +1,60 @@
-# 战斗角色链表匹配计数 `0x004702E0`
+# 战斗菜单实际列表计数 `0x004702E0`
 
-状态：`platform_adapted`。完整LST、typed实现、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+LIST：`CHAIN-e0f6819f24dc`，本批为计数及两个菜单初始化调用的子切片。
+整链仍pending；资源生产、消息内部协议和完整SDL接线尚未验收。
 
-## 1. 完整权威范围
+## 权威范围与原行为
 
-权威LST主体为`0x004702E0..0x00470372`，proc至endp共94行、53条实际指令、1个call、17个跳转、8个局部标签、1个返回点，没有外部`FUNCTION CHUNK`。唯一callee是已关闭索引提交`0x0046FFE0`。
+LST主体`004702E0..00470372`，proc到endp共94行，无外部chunk。
+两个静态caller为列表内容`0046563D`与窄网格`00466621`。
+`0046FFE0..0046FFEC`把角色next游标写入current，没有其他业务副作用。
 
-## 2. 行为
+- category 0/1/2映射`10/C/1001`，其他输入原样作为掩码。
+- type 0/1映射`1C/1F`；最终type为1C时接受节点type 1B..1E，其他值只接受1F。
+- 首先把next游标发布到current，再从current节点读取后继并发布current。
+- 发布后继后才判断空链；正常尾部current为0。
+- 节点依次检查mode BYTE的bit0/bit2、category DWORD与掩码及type WORD。
+- 每次命中直接递增输出BYTE，保留已有值，255后回绕0。
+- 输出别名current字节时，递增改变下轮读取的节点；必须实时重读游标。
+- 起点可以是链头或已存在节点，不能人为限定next必须等于链头。
+- 两个caller均不消费计数callee的寄存器结果。
 
-category选择器映射与第188项相同：0到`0x10`、1到`0x0C`、2到`0x1001`，其他保持。type选择器0映射28、1映射31，其他保持；但实际分支仍是type等于28时接受节点27至30，否则一律只接受节点31。
+## 真实调用与共享结果
 
-函数先提交next list index，再从owner head按next token扫描至空。节点先测试mode byte与`0x05`，再测试category flags与mask。每个匹配节点直接对调用者已有byte计数器执行一次回绕递增；函数不清零计数器、不提前停止、不加载资料。链尾正常返回EAX零，ECX保持计数器token，EDX保持入口。
+`count_legacy_battle_actor_list`直接借角色游标、实际列表、筛选条件和BYTE引用。
+返回值仅表示完成或宿主数据访问失败；不再返回计数副本、寄存器或执行次数。
+删除CountRequest/CountResult、索引子请求/回包、actor/count token和诊断计数。
 
-## 3. owner、stop与caller
+列表菜单在三次字体操作后清共享`53BDF2`，按实时角色与action category计数，type为0。
+窄网格在面板、标题和字体之后清共享`53BDF3`，以category 0、type 1计数。
+两者完成计数后重新读取queued actor并复位游标，再执行既有逐行查询。
 
-actor索引、list owner与有序节点全部复用第186和188项唯一typed owner。缺失actor、owner或节点时在相应首次访问处停止，并保留此前索引提交、节点访问与byte递增。唯一静态caller位于已关闭列表内容函数；现有边界使用无地址语义计数port但尚未暴露节点物化owner，因此不复制第二份链表状态。源码、头文件与测试中不存在旧地址生产调用。
+两个调用者直接使用selection frame借出的实际party列表及角色数组，
+输出引用仍指向既有面板行上限BYTE，没有新建持久状态或引入新转发层。
+删除initialize_rows/initialize_narrow_rows、参数数组调用、行上限回包、
+actor_initialization_calls以及协调器对应操作和纯转发分支。
+其余行解析、字体、文字及父寄存器协议仍待各自批次处理。
 
-## 4. 验证状态
+## 宿主边界与失败前缀
 
-测试覆盖三类筛选、全链扫描、入口byte保留、`0xFF+2`回绕为1、非28选择器只认31及返回寄存器。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`189/422 = 180 platform_adapted + 9 assembly_exact + 233 pending_audit`，SHA256为`bc99f85812f3e56476185df288b9e44dec03a7c3f3ac75936cd94862c8128449`。动态差分因原版链表、调用者计数byte与caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+保留实际owner与节点不能解析时的宿主typed-stop，不冒充原版正常错误返回。
+角色缺失发生在首次游标访问；列表缺失发生在游标发布之后。
+后继节点缺失时，保留已递增的BYTE以及刚发布的失败游标。
+两个菜单传播该失败，不复位游标，不进入MON读取或逐行绘制。
+
+没有为循环增加节点上限或假成功出口，也不通过计数副本掩盖输出别名。
+节点身份仍由既有实际列表存储解析，不模拟任意宿主对象外的原版非法内存访问。
+
+## 验证状态
+
+独立向量覆盖选择器映射、mode过滤、type上下界、非零初值、BYTE回绕、空链、
+合法节点起点、缺失节点前缀、输出与current别名以及两个菜单失败前缀。
+菜单夹具直接统计真实节点，不再伪造7、9、254或255等行上限回包。
+选择帧空列表测试改为检验实际0行；保留原有列表框、缓存与发布顺序检查。
+
+最终定向core 1/1，13.21秒；ASan 1/1，21.39秒；SDL应用构建通过。
+12份源码/测试与门禁身份一致；include/src/tests中本批删除的协议引用扫描为空。
+完整生产与测试差异已经审查，LST到C++及反向逐块追溯未留新的未决项。
+历史workpack的Linux core 188/188、app 194/194不覆盖本次修改。
+这些是固定状态/合成资产验证，不是原版动态差分；未启动游戏。
+原版链表与调用者计数BYTE的联合动态差分仍为`blocked_runtime_oracle`。

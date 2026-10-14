@@ -86,7 +86,9 @@ struct LegacyBattleNarrowGridFrameResult {
     compat::u32 panel_rectangle_calls{};
     compat::u32 tiled_frame_calls{};
     compat::u32 font_calls{};
-    compat::u32 actor_initialization_calls{};
+    LegacyBattleActorListQueryStatus row_count_status{
+        LegacyBattleActorListQueryStatus::completed
+    };
     LegacyBattleActorListQueryStatus row_query_status{
         LegacyBattleActorListQueryStatus::completed
     };
