@@ -1933,6 +1933,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 .action_execution.turn_completion_latch = 0U;
             (*zero_fixture.startup.group_a_runtime_reset)[0U]
                 .target_selection_latch = 0U;
+            auto& zero_party = zero_fixture.startup.party[0U];
+            zero_party.actor_list.secondary_required = 2U;
+            zero_party.configuration.actor_record_token = 0x6000000U;
+            zero_party.configuration.actor_record[2U] = 0xCAFE0009U;
             DispatchPort zero_port;
             zero_port.actor_metric_state().priority_actor_index = 8U;
             auto zero_context = zero_fixture.context();
@@ -1954,6 +1958,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 .action_execution.turn_completion_latch = 0U;
             (*nonzero_fixture.startup.group_a_runtime_reset)[0U]
                 .target_selection_latch = 0x80000000U;
+            auto& nonzero_party = nonzero_fixture.startup.party[0U];
+            nonzero_party.actor_list.secondary_required = 2U;
+            nonzero_party.configuration.actor_record_token = 0x6000000U;
+            nonzero_party.configuration.actor_record[2U] = 0xCAFE0009U;
             DispatchPort nonzero_port;
             nonzero_port.actor_metric_state().priority_actor_index = 8U;
             auto nonzero_context = nonzero_fixture.context();
@@ -1977,8 +1985,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 "Group-A target scanning reads the actual zero selection latch"
             );
             test.expect_true(
-                zero.group_a_actor_list_action_calls == 1U,
-                "zero lifecycle latch begins the typed current-actor list action"
+                zero_party.actor_list.secondary_required == 0U &&
+                    zero_party.configuration.actor_record[2U] == 0xCAFE0007U,
+                "zero lifecycle latch reaches actual secondary action consumption"
             );
             test.expect_true(
                 nonzero.actor_turn_completion.has_value() &&
@@ -1992,7 +2001,9 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 nonzero.actor_target_selection_latch_query.has_value() &&
                     nonzero.actor_target_selection_latch_query->value ==
                         0x80000000U &&
-                    nonzero.group_a_actor_list_action_calls == 1U &&
+                    nonzero_party.actor_list.secondary_required == 0U &&
+                    nonzero_party.configuration.actor_record[2U] ==
+                        0xCAFE0007U &&
                     nonzero_port.count(0x00478B40U) == 0U,
                 "nonzero full-dword selection latch drives the TEST branch after caller 00456F12 and retains the common actor-list suffix"
             );
@@ -2060,6 +2071,12 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 .action_execution.turn_completion_latch = 0U;
             DispatchPort stopped_port;
             stopped_port.actor_metric_state().priority_actor_index = 8U;
+            stopped_fixture.startup.party[0U].actor_list.secondary_required =
+                2U;
+            stopped_fixture.startup.party[0U].configuration.actor_record_token =
+                0x6000000U;
+            stopped_fixture.startup.party[0U].configuration.actor_record[2U] =
+                9U;
             auto stopped_context = stopped_fixture.context();
             stopped_context.actor_target_selection_latch_query_access
                 .target_selection_latch_readable = latch_readable;
@@ -2091,7 +2108,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                                    LegacyBattleActorTargetSelectionLatchQueryStatus::
                                        target_selection_latch_read_typed_stop) &&
                     stopped.return_value == 0U &&
-                    stopped.group_a_actor_list_action_calls == 0U &&
+                    stopped_fixture.startup.party[0U]
+                            .actor_list.secondary_required == 2U &&
+                    stopped_fixture.startup.party[0U]
+                            .configuration.actor_record[2U] == 9U &&
                     stopped_port.count(0x00478B40U) == 0U,
                 "Group-A caller 00456F12 field or return stop preserves its caller prefix and suppresses TEST and both suffixes"
             );
@@ -3720,6 +3740,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
             auto context = fixture.context();
             context.actor_start_gate_increment_access.return_address_readable =
                 false;
+            fixture.startup.party[0U].actor_list.secondary_required = 2U;
+            fixture.startup.party[0U].configuration.actor_record_token =
+                0x6000000U;
+            fixture.startup.party[0U].configuration.actor_record[2U] = 9U;
             const auto result =
                 openswd3::battle::advance_legacy_battle_group_a_frame(
                     state, port, context, 0U
@@ -3741,7 +3765,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                             .action_execution.start_gate == 1U &&
                     (*fixture.startup.group_b_lifecycle)[0U]
                             .action_execution.start_gate_latch == 1U &&
-                    result.group_a_actor_list_action_calls == 0U,
+                    fixture.startup.party[0U].actor_list.secondary_required ==
+                        2U &&
+                    fixture.startup.party[0U].configuration.actor_record[2U] ==
+                        9U,
                 "Group-A selected-opponent RET stop commits both fields and suppresses the actor-list suffix"
             );
         }
@@ -3853,6 +3880,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 (*fixture.startup.group_b_lifecycle)[1U].action_execution;
             first.start_gate = 0xFFFFU;
             second.start_gate = 0x7FFFU;
+            fixture.startup.party[0U].actor_list.secondary_required = 2U;
+            fixture.startup.party[0U].configuration.actor_record_token =
+                0x6000000U;
+            fixture.startup.party[0U].configuration.actor_record[2U] = 9U;
             DispatchPort port;
             port.actor_metric_state().priority_actor_index = 8U;
             port.push(0x0047CE80U, {.eax = 0U});
@@ -3886,7 +3917,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                     first.start_gate_latch == 1U &&
                     second.start_gate == (phase > 1U ? 0x8000U : 0x7FFFU) &&
                     second.start_gate_latch == (phase == 3U ? 1U : 0U) &&
-                    result.group_a_actor_list_action_calls == 0U,
+                    fixture.startup.party[0U].actor_list.secondary_required ==
+                        2U &&
+                    fixture.startup.party[0U].configuration.actor_record[2U] ==
+                        9U,
                 "enemy scan access failures preserve earlier writes and suppress the current iteration and suffix"
             );
         }
@@ -3903,6 +3937,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                 state.action.group_a_action_execution[0U].action_target = 0U;
                 state.action_runtime_word = runtime_predecessor ? 7U : 0U;
                 Fixture fixture;
+                fixture.startup.party[0U].actor_list.secondary_required = 2U;
+                fixture.startup.party[0U].configuration.actor_record_token =
+                    0x6000000U;
+                fixture.startup.party[0U].configuration.actor_record[2U] = 9U;
                 fixture.startup.group_b_lifecycle = std::make_shared<std::array<
                     openswd3::battle::LegacyBattleActorGroupBElementState,
                     8>>();
@@ -3943,7 +3981,10 @@ void test_battle_group_a_frame(openswd3::test::Context& test) {
                         target.start_gate == (phase > 1U ? 0U : 0xFFFFU) &&
                         target.start_gate_latch ==
                             (phase == 3U ? 1U : 0xCAFEBABEU) &&
-                        result.group_a_actor_list_action_calls == 0U,
+                        fixture.startup.party[0U]
+                                .actor_list.secondary_required == 2U &&
+                        fixture.startup.party[0U]
+                                .configuration.actor_record[2U] == 9U,
                     "selected existing opponent failures retain the terminal or runtime predecessor and suppress the suffix"
                 );
             }

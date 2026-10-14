@@ -619,6 +619,7 @@
 ## PORT-e3865412f2ac
 
 - [ ] `LegacyBattleActionDispatchPort`：抽象接口；待复核。
+- 首项行动消耗直接借party数据，删除该子链寄存器请求/回包和调用计数；未新增或保留行动转发Port。core/ASan定向、SDL及6源身份通过；其余父协议仍pending。见[行动消耗证据](battle-actor-list-action-00470820.md#6-行动消耗父协议迁移)。
 - 定义：[include/openswd3/battle/legacy_battle_action_dispatch.hpp:168](../../../include/openswd3/battle/legacy_battle_action_dispatch.hpp:168)。
 - 继承：`public virtual LegacyBattleMonDatabasePort,
       public virtual LegacyBattleFixedObjectState,

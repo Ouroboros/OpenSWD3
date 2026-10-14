@@ -1462,11 +1462,11 @@ void test_actor_resource_release_prefixes(openswd3::test::Context& test) {
              .capacity_gate_flags = 0x2000U},
         };
 
-        const auto result = execute_legacy_battle_actor_list_action(
-            &list, &item_effect, &configuration, &workspace, 0x005029D0U
+        const auto status = execute_legacy_battle_actor_list_action(
+            &list, &item_effect, &configuration, &workspace
         );
         test.expect_true(
-            result.status ==
+            status ==
                     (path < 2U ? LegacyBattleActorListQueryStatus::completed
                                : LegacyBattleActorListQueryStatus::
                                      resource_node_typed_stop) &&
@@ -3472,14 +3472,13 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         item_effect.mode_flags = 0x80U;
         list.selected_resource_token = 0U;
         list.primary_required = 7U;
-        const auto result = execute_legacy_battle_actor_list_action(
-            &list, &item_effect, &configuration, nullptr, 0x005029D0U
+        const auto status = execute_legacy_battle_actor_list_action(
+            &list, &item_effect, &configuration, nullptr
         );
         test.expect_true(
-            result.status == LegacyBattleActorListQueryStatus::completed &&
+            status == LegacyBattleActorListQueryStatus::completed &&
                 (configuration.actor_record[1U] >> 16U) == 0U &&
-                list.primary_required == 0U && result.capacity_writes == 2U &&
-                result.refresh_calls == 1U,
+                list.primary_required == 0U,
             "actor list action wraps subtraction then clamps a negative signed capacity"
         );
     }
@@ -3499,12 +3498,11 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
              .secondary_quantity = 2,
              .name = {}},
         };
-        const auto result = execute_legacy_battle_actor_list_action(
-            &list, &item_effect, &configuration, &workspace, 0x005029D0U
+        const auto status = execute_legacy_battle_actor_list_action(
+            &list, &item_effect, &configuration, &workspace
         );
         test.expect_true(
-            result.status == LegacyBattleActorListQueryStatus::completed &&
-                result.refresh_calls == 1U &&
+            status == LegacyBattleActorListQueryStatus::completed &&
                 list.resource_head_token == 0x76000010U &&
                 list.selected_resource_token == 0U &&
                 list.primary_required == 0U &&
@@ -3519,36 +3517,96 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         configuration.actor_record_token = 0x00600000U;
         configuration.actor_record[2U] = 0xA5A50003U;
         list.secondary_required = 5U;
-        const auto result = refresh_legacy_battle_actor_list_action(
-            &list, &configuration, 0x005029D0U, 10U, 0xBEEF0000U
-        );
+        const auto status =
+            refresh_legacy_battle_actor_list_action(&list, &configuration);
         test.expect_true(
-            result.status == LegacyBattleActorListQueryStatus::completed &&
+            status == LegacyBattleActorListQueryStatus::completed &&
                 configuration.actor_record[2U] == 0xA5A50000U &&
-                list.secondary_required == 0U && result.capacity_writes == 2U &&
-                result.secondary_required_clears == 1U &&
-                result.return_eax == configuration.actor_record_token &&
-                result.return_edx == 0xBEEF0005U,
-            "secondary refresh preserves high words, wraps subtraction, clamps signed negative and returns stale register halves"
+                list.secondary_required == 0U,
+            "secondary consumption preserves the adjacent word and clamps the wrapped negative result"
         );
     }
 
     {
         LegacyBattleGroupAItemEffectApplicationState item_effect;
+        list.primary_required = 17U;
+        list.selected_resource_token = 0xDEADU;
         list.secondary_required = 0U;
-        const auto result = execute_legacy_battle_actor_list_action(
-            &list,
-            &item_effect,
-            nullptr,
-            nullptr,
-            0x005029D0U,
-            {.entry_eax = 10U, .entry_edx = 12U}
+        const auto status = execute_legacy_battle_actor_list_action(
+            &list, &item_effect, nullptr, nullptr
         );
         test.expect_true(
-            result.status == LegacyBattleActorListQueryStatus::completed &&
-                result.refresh_calls == 1U && result.return_eax == 10U &&
-                result.return_edx == 0U,
-            "mode bit clear skips primary state and still runs typed secondary refresh"
+            status == LegacyBattleActorListQueryStatus::completed &&
+                list.primary_required == 17U &&
+                list.selected_resource_token == 0xDEADU &&
+                list.secondary_required == 0U,
+            "disabled primary consumption and zero secondary requirement leave the record unaccessed"
+        );
+    }
+
+    {
+        constexpr std::array<std::array<u16, 3>, 6> cases{{
+            {5U, 7U, 0U},
+            {10U, 3U, 7U},
+            {0U, 0xFFFFU, 1U},
+            {0x8000U, 1U, 0x7FFFU},
+            {0x7FFFU, 0xFFFFU, 0U},
+            {0xFFFFU, 0x8000U, 0x7FFFU},
+        }};
+        for (const auto& values : cases) {
+            LegacyBattleActorListQueryState spending;
+            spending.primary_required = values[1U];
+            spending.secondary_required = values[1U];
+            LegacyBattleGroupAItemEffectApplicationState effect;
+            effect.mode_flags = 0x80U;
+            LegacyBattleGroupAConfigurationState record;
+            record.actor_record_token = 0x6000000U;
+            record.actor_record[1U] =
+                (static_cast<u32>(values[0U]) << 16U) | 0xBEEFU;
+            record.actor_record[2U] = 0xCAFE0000U | values[0U];
+            const auto status = execute_legacy_battle_actor_list_action(
+                &spending, &effect, &record, nullptr
+            );
+            test.expect_true(
+                status == LegacyBattleActorListQueryStatus::completed &&
+                    record.actor_record[1U] ==
+                        ((static_cast<u32>(values[2U]) << 16U) | 0xBEEFU) &&
+                    record.actor_record[2U] == (0xCAFE0000U | values[2U]) &&
+                    spending.primary_required == 0U &&
+                    spending.secondary_required == 0U &&
+                    effect.mode_flags == 0x80U,
+                "action consumption wraps each word before signed clamping and preserves adjacent data"
+            );
+        }
+    }
+
+    {
+        LegacyBattleActorListQueryState spending;
+        spending.next_resource_head_token = 0x100U;
+        spending.selected_resource_token = 0x200U;
+        spending.primary_required = 9U;
+        spending.secondary_required = 3U;
+        spending.resources = {
+            {.token = 0x100U, .next_token = 0x200U, .name = {}},
+            {.token = 0x200U,
+             .resource_id = 4U,
+             .secondary_quantity = 2,
+             .name = {}},
+        };
+        LegacyBattleGroupAItemEffectApplicationState effect;
+        effect.mode_flags = 0x80U;
+        LegacyBattleGroupAWorkspaceState workspace;
+        const auto status = execute_legacy_battle_actor_list_action(
+            &spending, &effect, nullptr, &workspace
+        );
+        test.expect_true(
+            status == LegacyBattleActorListQueryStatus::list_owner_typed_stop &&
+                spending.resources[1U].secondary_quantity == 1 &&
+                spending.selected_resource_token == 0U &&
+                spending.primary_required == 0U &&
+                spending.secondary_required == 3U &&
+                workspace.tail_words[2U] == 4U,
+            "secondary record failure preserves the completed resource consumption and primary cleanup"
         );
     }
 

@@ -584,8 +584,7 @@ one_based_group_b_token(const u32 one_based) noexcept {
 [[nodiscard]] bool execute_group_a_actor_list_action(
     LegacyBattleActionDispatchContext& context,
     LegacyBattleActionDispatchResult& result,
-    const u32 group_a_index,
-    const u32 actor_token
+    const u32 group_a_index
 ) {
     if (context.startup == nullptr || group_a_index >= 10U ||
         group_a_index >= context.startup->party.size()) {
@@ -593,21 +592,20 @@ one_based_group_b_token(const u32 one_based) noexcept {
             group_a_actor_list_action_typed_stop;
         return false;
     }
+
     auto& party = context.startup->party[group_a_index];
-    result.group_a_actor_list_action = execute_legacy_battle_actor_list_action(
+    const auto status = execute_legacy_battle_actor_list_action(
         &party.actor_list,
         &party.item_effect_application,
         &party.configuration,
-        &party.workspace,
-        actor_token
+        &party.workspace
     );
-    ++result.group_a_actor_list_action_calls;
-    if (result.group_a_actor_list_action.status !=
-        LegacyBattleActorListQueryStatus::completed) {
+    if (status != LegacyBattleActorListQueryStatus::completed) {
         result.status = LegacyBattleActionDispatchStatus::
             group_a_actor_list_action_typed_stop;
         return false;
     }
+
     return true;
 }
 
@@ -3033,11 +3031,10 @@ LegacyBattleActionDispatchResult advance_legacy_battle_group_a_frame(
                         }
                         state.action_text_runtime.fill(0U);
                     }
+
                     if (!execute_group_a_actor_list_action(
-                            context, result, group_a_index, actor_token
+                            context, result, group_a_index
                         )) {
-                        result.return_value =
-                            result.group_a_actor_list_action.return_eax;
                         return result;
                     }
                 }

@@ -1689,8 +1689,6 @@ struct LegacyBattleActionDispatchResult {
     compat::u32 group_a_actor_cleanup_calls{};
     LegacyBattleGroupAFinalProcessingResult group_a_final_processing{};
     compat::u32 group_a_final_processing_calls{};
-    LegacyBattleActorListActionResult group_a_actor_list_action{};
-    compat::u32 group_a_actor_list_action_calls{};
     std::optional<LegacyBattleActorListQueryStatus> resource_release_failure{};
     LegacyBattleActorModeFourFinalizationResult
         group_a_mode_four_finalization{};

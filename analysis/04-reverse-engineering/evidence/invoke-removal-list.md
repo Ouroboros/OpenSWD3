@@ -22,7 +22,7 @@
 - Port/Ports定义：345；含Dispatch/Adapter共358个类型定义。
 - 上述数值分别是族、文件和类型的数量，不能相加或作为同一完成率分母。
 - 全项目语义覆盖尚未验收。所有新清单方框保持未勾选。
-- 当前顺序：角色列表计数批次2de716db已推送并核对远端；继续同条目的资源生产协议。
+- 当前顺序：首项角色行动消耗及唯一组A调用已验证，待发布；随后继续同条目的资源生产协议。
 
 ## 逐项 LIST
 
@@ -36,6 +36,7 @@
   - 本批资料：删除ApplyRequest、寄存器/索引回包、输出副本及计数；两处菜单删除query_primary_target参数包调用，直接加载共享资料并写角色输出。最终core/ASan、SDL构建及7源身份通过，源码5e487db5已推送并核对远端main一致；见[资料应用证据](battle-actor-list-profile-application-004705c0.md)。
   - 本批行查询：删除QueryRequest、寄存器/索引回包、输出副本及计数；两个菜单直连实际列表和MON，名称共享选择区及相邻音乐路径，删除查询/复位通用操作和协调器转发。最终core/ASan、SDL构建及15源身份通过，源码95a3d125已推送并核对远端main；验证与边界见[角色行查询证据](battle-actor-list-query-00470180.md)。
   - 本批计数：删除CountRequest/Result、寄存器及索引回包、输出副本和调用计数；两个菜单直接累计共享BYTE行上限，删除初始化通用操作与协调器转发。最终core/ASan、SDL构建及12源身份通过，源码2de716db已推送并核对远端main；见[计数证据](battle-actor-list-count-004702e0.md)。
+  - 本批行动消耗：删除ActionRequest、Refresh/ActionResult、actor token/寄存器参数与回包、写入/清理/调用计数；组A帧直接借实际party数据并检查处理状态。core/ASan定向、SDL构建及6源身份通过，待提交推送；见[行动消耗证据](battle-actor-list-action-00470820.md#6-行动消耗父协议迁移)。
   - 剩余：资源生产、消息内部协议及完整SDL接线；整链未验收，不勾选。
   - 当前残留信号：counter, interface, register。
   - 历史状态：`pending`；本快照：待复核。
@@ -141,6 +142,7 @@
   - `counter` [src/asset_runtime/legacy_ani_role_particle_effect.cpp](../../../src/asset_runtime/legacy_ani_role_particle_effect.cpp)：83
 
 - [ ] **CHAIN-5792d4774a40** `battle/legacy_battle_action_dispatch`
+  - 首项行动消耗依赖：删除父结果的行动寄存器回包与调用计数；其余操作、参数包和父协议仍pending。见[行动消耗证据](battle-actor-list-action-00470820.md#6-行动消耗父协议迁移)。
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_action_dispatch.hpp](../../../include/openswd3/battle/legacy_battle_action_dispatch.hpp)；[include/openswd3/battle/legacy_battle_deformation.hpp](../../../include/openswd3/battle/legacy_battle_deformation.hpp)；[src/battle/legacy_battle_action_dispatch.cpp](../../../src/battle/legacy_battle_action_dispatch.cpp)；[src/battle/legacy_battle_action_dispatch_cases_high.cpp](../../../src/battle/legacy_battle_action_dispatch_cases_high.cpp)；[src/battle/legacy_battle_action_dispatch_cases_low.cpp](../../../src/battle/legacy_battle_action_dispatch_cases_low.cpp)；[src/battle/legacy_battle_action_dispatch_effects.cpp](../../../src/battle/legacy_battle_action_dispatch_effects.cpp)；[src/battle/legacy_battle_action_dispatch_internal.hpp](../../../src/battle/legacy_battle_action_dispatch_internal.hpp)；[src/battle/legacy_battle_action_dispatch_runner.cpp](../../../src/battle/legacy_battle_action_dispatch_runner.cpp)；[src/battle/legacy_battle_action_dispatch_special.cpp](../../../src/battle/legacy_battle_action_dispatch_special.cpp)；[src/battle/legacy_battle_deformation.cpp](../../../src/battle/legacy_battle_deformation.cpp)。
@@ -1034,6 +1036,7 @@
   - `register` [src/battle/legacy_battle_group_a_final_processing.cpp](../../../src/battle/legacy_battle_group_a_final_processing.cpp)：26, 29, 30, 31, 39, 62, 63, 83, 84, 85, 93, 94, 95, 97, 98, 99, 114, 117, 118, 124, 125, 132, 133, 138, 139, 140, 143, 144, 145, 147, 151, 155, 163, 166, 167, 168, 173, 185, 188, 189, 190, 195, 213, 219, 222, 223, 229, 236, 239, 240, 246, 247, 248, 249, 260, 261, 262, 263
 
 - [ ] **CHAIN-de3c4b230f6d** `battle/legacy_battle_group_a_frame`
+  - 首项行动消耗依赖：唯一45703D直接借party数据扣除，删除寄存器回包与调用计数；其余帧协议未验收。见[行动消耗证据](battle-actor-list-action-00470820.md#6-行动消耗父协议迁移)。
   - 当前残留信号：arguments, callee, counter, interface, invoke, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_group_a_frame.hpp](../../../include/openswd3/battle/legacy_battle_group_a_frame.hpp)；[src/battle/legacy_battle_group_a_frame.cpp](../../../src/battle/legacy_battle_group_a_frame.cpp)。

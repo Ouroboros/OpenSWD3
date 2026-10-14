@@ -439,129 +439,79 @@ LegacyBattleActorListQueryStatus count_legacy_battle_actor_list(
     }
 }
 
-LegacyBattleActorListRefreshResult refresh_legacy_battle_actor_list_action(
+LegacyBattleActorListQueryStatus refresh_legacy_battle_actor_list_action(
     LegacyBattleActorListQueryState* list,
-    LegacyBattleGroupAConfigurationState* configuration,
-    const u32 actor_token,
-    const u32 entry_eax,
-    const u32 entry_edx
+    LegacyBattleGroupAConfigurationState* configuration
 ) {
-    LegacyBattleActorListRefreshResult result;
-    result.return_eax = entry_eax;
-    result.return_ecx = actor_token;
-    if (actor_token == 0U || list == nullptr) {
-        result.status = LegacyBattleActorListQueryStatus::list_owner_typed_stop;
-        result.return_edx = entry_edx;
-        return result;
+    using Status = LegacyBattleActorListQueryStatus;
+    if (list == nullptr) {
+        return Status::list_owner_typed_stop;
     }
 
     const u16 required = list->secondary_required;
-    result.return_edx = (entry_edx & 0xFFFF0000U) | required;
     if (required == 0U) {
-        return result;
+        return Status::completed;
     }
+
     if (configuration == nullptr || configuration->actor_record_token == 0U) {
-        result.status = LegacyBattleActorListQueryStatus::list_owner_typed_stop;
-        return result;
+        return Status::list_owner_typed_stop;
     }
 
     u32& value = configuration->actor_record[2U];
-    u16 capacity = static_cast<u16>(value);
-    capacity = static_cast<u16>(capacity - required);
+    const u16 capacity = static_cast<u16>(static_cast<u16>(value) - required);
     value = (value & 0xFFFF0000U) | capacity;
-    ++result.capacity_writes;
     if (std::bit_cast<compat::i16>(capacity) < 0) {
         value &= 0xFFFF0000U;
-        ++result.capacity_writes;
     }
+
     list->secondary_required = 0U;
-    ++result.secondary_required_clears;
-    result.return_eax = configuration->actor_record_token;
-    return result;
+    return Status::completed;
 }
 
-LegacyBattleActorListActionResult execute_legacy_battle_actor_list_action(
+LegacyBattleActorListQueryStatus execute_legacy_battle_actor_list_action(
     LegacyBattleActorListQueryState* list,
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
     LegacyBattleGroupAConfigurationState* configuration,
-    LegacyBattleGroupAWorkspaceState* workspace,
-    const u32 actor_token,
-    const LegacyBattleActorListActionRequest& request
+    LegacyBattleGroupAWorkspaceState* workspace
 ) {
-    LegacyBattleActorListActionResult result;
-    result.return_eax = request.entry_eax;
-    result.return_ecx = actor_token;
-    result.return_edx = request.entry_edx;
-    if (actor_token == 0U || item_effect == nullptr) {
-        result.status =
-            LegacyBattleActorListQueryStatus::actor_state_typed_stop;
-        return result;
+    using Status = LegacyBattleActorListQueryStatus;
+    if (item_effect == nullptr) {
+        return Status::actor_state_typed_stop;
     }
 
-    const u32 eax = request.entry_eax;
-    const u32 edx = request.entry_edx;
     if ((item_effect->mode_flags & 0x80U) != 0U) {
         if (list == nullptr) {
-            result.status =
-                LegacyBattleActorListQueryStatus::list_owner_typed_stop;
-            return result;
+            return Status::list_owner_typed_stop;
         }
+
         if (list->selected_resource_token == 0U) {
             if (configuration == nullptr ||
                 configuration->actor_record_token == 0U) {
-                result.status =
-                    LegacyBattleActorListQueryStatus::list_owner_typed_stop;
-                return result;
+                return Status::list_owner_typed_stop;
             }
+
             u32& value = configuration->actor_record[1U];
-            u16 capacity = static_cast<u16>(value >> 16U);
-            capacity = static_cast<u16>(capacity - list->primary_required);
+            const u16 capacity = static_cast<u16>(
+                static_cast<u16>(value >> 16U) - list->primary_required
+            );
             value = (value & 0x0000FFFFU) | (static_cast<u32>(capacity) << 16U);
-            ++result.capacity_writes;
             if (std::bit_cast<compat::i16>(capacity) < 0) {
                 value &= 0x0000FFFFU;
-                ++result.capacity_writes;
-                list->primary_required = 0U;
-                ++result.primary_required_clears;
-                result.refresh = refresh_legacy_battle_actor_list_action(
-                    list, configuration, actor_token, eax, edx
-                );
-                ++result.refresh_calls;
-                result.return_eax = result.refresh.return_eax;
-                result.return_ecx = result.refresh.return_ecx;
-                result.return_edx = result.refresh.return_edx;
-                if (result.refresh.status !=
-                    LegacyBattleActorListQueryStatus::completed) {
-                    result.status = result.refresh.status;
-                }
-                return result;
             }
         } else {
             const auto release =
                 release_legacy_battle_actor_resource(list, workspace);
-            if (release.status != LegacyBattleActorListQueryStatus::completed) {
-                result.status = release.status;
-                return result;
+            if (release.status != Status::completed) {
+                return release.status;
             }
 
             list->selected_resource_token = 0U;
-            ++result.selected_resource_clears;
         }
+
         list->primary_required = 0U;
-        ++result.primary_required_clears;
     }
 
-    result.refresh = refresh_legacy_battle_actor_list_action(
-        list, configuration, actor_token, eax, edx
-    );
-    ++result.refresh_calls;
-    result.return_eax = result.refresh.return_eax;
-    result.return_ecx = result.refresh.return_ecx;
-    result.return_edx = result.refresh.return_edx;
-    if (result.refresh.status != LegacyBattleActorListQueryStatus::completed) {
-        result.status = result.refresh.status;
-    }
-    return result;
+    return refresh_legacy_battle_actor_list_action(list, configuration);
 }
 
 LegacyBattleActorListQueryStatus commit_legacy_battle_actor_resource_list(

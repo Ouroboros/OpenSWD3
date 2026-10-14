@@ -100,37 +100,6 @@ struct LegacyBattleActorListApplyResult {
     std::optional<compat::u16> selection_mode;
 };
 
-struct LegacyBattleActorListRefreshResult {
-    LegacyBattleActorListQueryStatus status{
-        LegacyBattleActorListQueryStatus::completed
-    };
-    compat::u32 capacity_writes{};
-    compat::u32 secondary_required_clears{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
-};
-
-struct LegacyBattleActorListActionRequest {
-    compat::u32 entry_eax{};
-    compat::u32 entry_edx{};
-};
-
-struct LegacyBattleActorListActionResult {
-    LegacyBattleActorListQueryStatus status{
-        LegacyBattleActorListQueryStatus::completed
-    };
-
-    compat::u32 refresh_calls{};
-    LegacyBattleActorListRefreshResult refresh{};
-    compat::u32 capacity_writes{};
-    compat::u32 selected_resource_clears{};
-    compat::u32 primary_required_clears{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
-};
-
 class LegacyBattleActorResourceSelectionPort {
 public:
     virtual ~LegacyBattleActorResourceSelectionPort() = default;
@@ -224,24 +193,19 @@ struct LegacyBattleActorListStateResult {
 );
 
 // sub_470890.
-[[nodiscard]] LegacyBattleActorListRefreshResult
+[[nodiscard]] LegacyBattleActorListQueryStatus
 refresh_legacy_battle_actor_list_action(
     LegacyBattleActorListQueryState* list,
-    LegacyBattleGroupAConfigurationState* configuration,
-    compat::u32 actor_token,
-    compat::u32 entry_eax,
-    compat::u32 entry_edx
+    LegacyBattleGroupAConfigurationState* configuration
 );
 
 // sub_470820.
-[[nodiscard]] LegacyBattleActorListActionResult
+[[nodiscard]] LegacyBattleActorListQueryStatus
 execute_legacy_battle_actor_list_action(
     LegacyBattleActorListQueryState* list,
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
     LegacyBattleGroupAConfigurationState* configuration,
-    LegacyBattleGroupAWorkspaceState* workspace,
-    compat::u32 actor_token,
-    const LegacyBattleActorListActionRequest& request = {}
+    LegacyBattleGroupAWorkspaceState* workspace
 );
 
 // sub_470AC0.
