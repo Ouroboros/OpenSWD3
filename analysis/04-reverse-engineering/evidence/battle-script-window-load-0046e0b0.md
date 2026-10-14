@@ -1,5 +1,7 @@
 # 战斗脚本窗口加载 `0x0046E0B0`
 
+状态：`pending`。
+
 状态沿用`platform_adapted`。本次生产文件接线及验证见
 [共享文件生命周期](battle-script-file-runtime-binding.md)。
 旧文档把开关写成数据根token、把OPEN_ALWAYS写成OPEN_EXISTING，均已纠正。

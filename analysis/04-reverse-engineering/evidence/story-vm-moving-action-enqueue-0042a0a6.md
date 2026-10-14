@@ -1,5 +1,7 @@
 # 剧情 VM 移动画面动作创建 `0x0042A0A6`
 
+状态：`pending`。
+
 ## 结论
 
 opcode79固定长16字节。它先分配、清零并初始化一个`0xB4`动作节点，然后分阶段读取7个u16 operand：action ID、base variant、起点X/Y tile、终点X/Y tile、signed movement。四个坐标先在16位内左移4并以i16解释；handler用wrapping i32平方和、x87 `fsqrt`和除法得到速度，把起点转float，最后前插到`dword_4AD3E8`链。成功推进16、发布normalized previous79并same-call继续。

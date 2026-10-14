@@ -1,5 +1,7 @@
 # 剧情 VM 剧情角色挂起 `0x00429D70`
 
+状态：`pending`。
+
 ## 结论
 
 opcode75固定长4字节。它原样读取`+2` selector，不替换`0xFFF0`，调用`sub_40C0D0`取得角色索引，再无条件把输出索引交给`sub_42E5A0`。合法角色完成挂起后推进4、置`ESI=1`，经公共join发布normalized previous75并same-call继续。

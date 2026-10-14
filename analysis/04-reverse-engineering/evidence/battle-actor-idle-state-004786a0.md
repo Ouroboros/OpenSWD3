@@ -1,5 +1,7 @@
 # 战斗角色空闲状态查询 `0x004786A0`
 
+状态：`pending`。
+
 状态保持`platform_adapted`，原版差分为`blocked_runtime_oracle`。
 本批迁移查询及全部七处调用；双方完整帧父项仍待迁移。
 

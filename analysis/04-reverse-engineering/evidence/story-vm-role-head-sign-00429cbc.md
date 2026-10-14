@@ -1,5 +1,7 @@
 # 剧情 VM 角色头顶标记 `0x00429CBC`
 
+状态：`pending`。
+
 ## 结论
 
 `sub_427920` 的 opcode71 固定长6字节。它原样读取`+2` selector，不替换`0xFFF0`；lookup命中时才读取`+4` slot，并把角色`field_3c`写成：

@@ -1,5 +1,7 @@
 # 入战FFD读取与旧记录保留
 
+状态：`pending`。
+
 本批接通SDL与核心startup的FFD读取。FIGTALK、完整角色帧及实际续玩未验收。
 
 ## 原始指令与调用方

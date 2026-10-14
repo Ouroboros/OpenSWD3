@@ -1,5 +1,7 @@
 # 角色共享堆释放结果
 
+状态：`pending`。
+
 ## 范围与语义
 
 删除`LegacyBattleActorStartupResetRegisters`，实际存储的释放方法直接返回bool。

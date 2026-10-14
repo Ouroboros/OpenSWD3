@@ -1,5 +1,7 @@
 # 战斗选择帧 `0x00464270`
 
+状态：`pending`。
+
 历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 
 ## 普通行查询的实际调用方

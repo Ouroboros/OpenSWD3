@@ -1,5 +1,7 @@
 # EXE 与 IDA 导出基线
 
+状态：`pending`。
+
 ## 原 EXE
 
 - 文件：`swd3.exe`

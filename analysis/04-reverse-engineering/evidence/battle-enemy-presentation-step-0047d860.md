@@ -1,5 +1,7 @@
 # 敌方行动与帧的实际绘制步长
 
+状态：`pending`。
+
 本批移除敌方四处 `0047D860` 通用调用，直接写已有角色的
 `base_initialization.presentation_step`。两个父接口族仍待迁移；
 队员 `00453D5A` 的后续迁移见[队员步长](battle-party-presentation-step-0047d860.md)。

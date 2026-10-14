@@ -1,5 +1,7 @@
 # Port、Dispatch、Adapter 定义与引用清单
 
+状态：`pending`。
+
 对应[业务执行清单与覆盖索引](invoke-removal-list.md)。定义和引用行号来自
 建表快照；条目内的迁移记录用于说明后续变化，不宣称旧定义仍存在。
 

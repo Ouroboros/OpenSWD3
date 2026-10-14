@@ -1,5 +1,7 @@
 # 战斗MON.DAT定义读取 `0x00476DB0`
 
+状态：`pending`。
+
 历史解析验证：`platform_adapted`、`unit_tested`、`real_asset_verified`。
 当前具名接口及调用方迁移的定向验证通过，范围见
 [MON接口迁移验证](battle-mon-file-runtime-binding.md#具名接口迁移验证)。

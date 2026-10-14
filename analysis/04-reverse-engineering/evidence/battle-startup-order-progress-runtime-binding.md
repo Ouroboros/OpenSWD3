@@ -1,5 +1,7 @@
 # 入战排序与行动进度接线
 
+状态：`pending`。
+
 范围：B11的4526F2..4527A5。定向验证通过，不关闭B10新工作包。
 独立LST分析：`build/tmp/runtime/battle-startup-order-progress-audit.md`。
 

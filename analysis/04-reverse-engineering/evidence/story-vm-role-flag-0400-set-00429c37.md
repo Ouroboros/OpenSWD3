@@ -1,5 +1,7 @@
 # 剧情 VM 设置角色状态位 `0x0400` `0x00429C37`
 
+状态：`pending`。
+
 ## 结论
 
 `sub_427920` 的 opcode69 固定长4字节。它先读取`+2` raw selector；值为`0xFFF0`时替换为Talk context source GUID，再调用共享角色lookup：

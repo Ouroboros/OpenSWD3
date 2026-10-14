@@ -1,5 +1,7 @@
 # 战斗菜单提交动作和替换效果时增加实际物品数量
 
+状态：`pending`。
+
 实现源码`52e53a9b`。回收462FBC、463ACC、463B60三处45D180调用，
 删除误名为stop_effect_sample的通用操作，直接借用共享库存和既有MON数据库。
 状态为`platform_adapted`、`unit_tested`、`fixed_state_tested`。

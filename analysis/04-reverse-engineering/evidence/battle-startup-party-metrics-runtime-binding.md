@@ -1,5 +1,7 @@
 # 入战角色指标接线
 
+状态：`pending`。
+
 范围：B11读档后入战的三组状态比例与辅助值，已通过定向验证。
 B10保持315/422，不关闭484500、4838A0或483870的独立工作包。
 独立LST审计记录于`build/tmp/runtime/battle-startup-party-metrics-audit.md`。

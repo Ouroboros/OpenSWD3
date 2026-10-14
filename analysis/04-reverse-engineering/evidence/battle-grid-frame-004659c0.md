@@ -1,5 +1,7 @@
 # 战斗网格列表帧 `0x004659C0`
 
+状态：`pending`。
+
 历史还原状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`、`caller_reclaimed`。
 当前完整INVOKE接口族仍`pending`。
 

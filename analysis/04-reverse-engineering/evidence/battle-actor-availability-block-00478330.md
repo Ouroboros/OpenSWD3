@@ -1,5 +1,7 @@
 # 战斗角色可用性阻断值写入（0x00478330）
 
+状态：`pending`。
+
 ## LST 行为
 
 权威源为 `swd3.exe_export_for_ai/swd3.exe.lst`。

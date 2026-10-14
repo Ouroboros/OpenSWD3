@@ -1,5 +1,7 @@
 # 战斗闪光直接共享状态
 
+状态：`pending`。
+
 ## 本批边界
 
 删除`LegacyBattleScreenFlashStatePort`、其私有状态与全部继承关系。

@@ -1,5 +1,7 @@
 # Story VM full validation P3
 
+状态：`pending`。
+
 ## Scope and authoritative inputs
 
 This evidence closes P3 from `goal/story-vm-closure-plan-pi.md` after every handler work package was independently closed.

@@ -1,5 +1,7 @@
 # 战斗执行动作时扣减队员资源并释放耗尽节点
 
+状态：`pending`。
+
 源码5ad2a9aa移除470E20叶的寄存器接口及计数，回收六处原物理调用消费。
 状态为`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 完整动作、资源列表、菜单与头提交接口族仍`pending`，不标`assembly_exact`。

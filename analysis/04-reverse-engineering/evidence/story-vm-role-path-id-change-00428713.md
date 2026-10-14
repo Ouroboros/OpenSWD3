@@ -1,5 +1,7 @@
 # 剧情 VM 角色 Path id 修改边界（0x00428713）
 
+状态：`pending`。
+
 ## 结论
 
 `sub_427920` 的一级分派入口 `0x00428713` 是 effective opcode 28 的独立 handler。记录固定为 6 字节：
