@@ -1,6 +1,14 @@
 # 战斗脚本选择队员时读取坐标抑制属性
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 实现源码：`21b157ea71cefa0eb9d97229548f9a1274f89983`。
 本批仅回收脚本23的46AD03→47D880；父链仍pending，不标`assembly_exact`。
 

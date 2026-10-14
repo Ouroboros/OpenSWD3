@@ -1,6 +1,14 @@
 # 装备物品模式提交状态机 `0x00443BD0`
 
-状态：`platform_adapted`、`unit_tested`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x00443BD0..0x00444169`，678行，无FUNCTION CHUNK。F40有五个code callsite，3B480另绑定为动作callback；F40统一commit分派现已直接回收。B9C0、BE40、BE90、BFC0、442F10与44D6E0均已关闭并直接复用；装备端口只提供目标party的21-word属性记录，源贡献从已选装备176字节记录解析后直接应用。40DC50查询和476A80动作加载仍保持独立窄端口，4885A0释放由typed容器/cleanup端口表达，sample8B/8C保持平台端口。
 

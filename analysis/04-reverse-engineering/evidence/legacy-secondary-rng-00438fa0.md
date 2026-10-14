@@ -1,6 +1,14 @@
 # `0x00438FA0..0x00439119` 第二套随机序列
 
-状态：B3.1 闭环；`assembly_exact`、`platform_adapted`、`blocked_runtime_oracle`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：B3.1 闭环；`assembly_exact`、`platform_adapted`、`blocked_runtime_oracle`
 
 来源：去除 FLIRT 名称后的完整汇编与 IDA 反汇编视图 1:1 LST。完整汇编是唯一行为真值；伪码和名称只用于定位。
 

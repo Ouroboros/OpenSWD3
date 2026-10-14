@@ -1,6 +1,14 @@
 # 资源数据库初始化与独占文件探测
 
-状态：B2 收口闭环；`assembly_exact`、`asset_verified`、`platform_adapted`、`blocked_runtime_oracle`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：B2 收口闭环；`assembly_exact`、`asset_verified`、`platform_adapted`、`blocked_runtime_oracle`
 
 范围：`0x0040F040..0x0040F156` 与 `0x00412050..0x004120A0`。完整汇编是唯一行为真值；IDA 名称和伪码只用于定位。
 

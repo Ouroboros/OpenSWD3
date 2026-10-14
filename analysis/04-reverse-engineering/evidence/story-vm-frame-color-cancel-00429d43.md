@@ -1,5 +1,13 @@
 # 剧情 VM 画面颜色过渡取消 `0x00429D43`
 
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
 ## 结论
 
 opcode74固定长2字节、无操作数。它按顺序把颜色过渡的red/green/blue step和signed countdown四个dword清零，保留三个current与三个target。随后推进2、置`ESI=1`，经公共join发布normalized previous74，并在同一次VM调用继续取下一指令。

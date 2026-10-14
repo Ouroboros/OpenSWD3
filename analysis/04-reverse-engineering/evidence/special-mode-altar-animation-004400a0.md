@@ -1,6 +1,14 @@
 # 炼妖祭坛波面动画 `0x004400A0`
 
-状态：`platform_adapted`、`unit_tested`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`
 
 唯一行为真值为`swd3.exe.lst`。完整函数范围`0x004400A0..0x004404C1`，453行；唯一caller为E800 phase3。callee只有439070有界RNG和485610 sample。E800虽然压入`countdown,0x78,0x18`三项，函数体不读取栈参数，而读取FCAB4及显示全局；typed端保留该事实，直接使用state countdown与framebuffer边界。
 

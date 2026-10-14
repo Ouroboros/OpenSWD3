@@ -1,6 +1,14 @@
 # LMF 地图头 `+0x18` 索引对象目录 `0x0042642D..0x00426659`
 
-状态：B2.19 已实现；`assembly_exact`、`asset_verified`、`platform_adapted`、`blocked_runtime_oracle`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：B2.19 已实现；`assembly_exact`、`asset_verified`、`platform_adapted`、`blocked_runtime_oracle`
 
 完整汇编是唯一行为真值。IDA 伪码和符号名只用于定位。本单元恢复地图头 `+0x18` 指向的相对偏移目录、每个 0x1A 字节对象头、压缩负载读取及公共解压调用；`0x00401B70` 对输出内容的后处理留给对应消费模块。
 

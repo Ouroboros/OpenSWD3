@@ -1,6 +1,14 @@
 # 标准模式数据库窗口刷新 `0x0043F880`
 
-状态：`platform_adapted`、`unit_tested`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`
 
 唯一行为真值为`swd3.exe.lst`。范围`0x0043F880..0x0043F93C`，98行；六个caller为DD20、DDF0、DED0、DFA0、E080、E170。callee B980、B9A0、BB40、BC90、F160、F940均已关闭；44D5D0继续保留分配边界。
 

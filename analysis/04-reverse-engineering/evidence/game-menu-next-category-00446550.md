@@ -1,6 +1,14 @@
 # 切换到游戏内菜单的下一个分类并重建列表 `0x00446550`
 
-状态：`platform_adapted`、`unit_tested`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x00446550..0x00446665`，141行，无FUNCTION CHUNK。3B480保存callback地址，无code caller。
 

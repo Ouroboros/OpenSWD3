@@ -1,6 +1,14 @@
 # LMF 相对引用目录 `0x00426256..0x004262BD`
 
-状态：B2.17 已实现；`assembly_exact`、`asset_verified`、`platform_adapted`、`blocked_runtime_oracle`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：B2.17 已实现；`assembly_exact`、`asset_verified`、`platform_adapted`、`blocked_runtime_oracle`
 
 完整汇编是唯一行为真值。IDA 伪码和符号名只用于定位。本单元从 B2.16 最后一条变长记录的 NUL 后位置继续，只恢复下一相对偏移目录和每个目标记录的单个探测字段，不解释目标记录的业务职责。
 

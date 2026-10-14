@@ -1,6 +1,14 @@
 # LMF 地图头 `+0x14` 记录目录 `0x004262CC..0x0042641E`
 
-状态：B2.18 已实现；`assembly_exact`、`asset_verified`、`platform_adapted`、`blocked_runtime_oracle`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：B2.18 已实现；`assembly_exact`、`asset_verified`、`platform_adapted`、`blocked_runtime_oracle`
 
 完整汇编是唯一行为真值。IDA 伪码和符号名只用于定位。本单元把 `0x004262CC..0x0042641E` 切为两层：B2 只恢复地图头 `+0x14` 指向的物理目录；坐标缩放、位域拆分、运行时对象初始化和视野筛选属于 `world_map`，不在资源层提前实现。
 

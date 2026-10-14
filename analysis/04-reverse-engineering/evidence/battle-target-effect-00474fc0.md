@@ -1,6 +1,14 @@
 # 战斗目标效果计算、累计与发布 `0x00474FC0`
 
-状态：`platform_adapted`、`caller_refreshed`。完整LST、typed实现、七处caller回收及内部固定曲线callee回收均已关闭。
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`caller_refreshed`。完整LST、typed实现、七处caller回收及内部固定曲线callee回收均已关闭。
 
 权威LST主体为`0x00474FC0..0x004750B3`，proc至endp共121行、72条实际指令、6个call、7个跳转、5个局部标签、1个返回点，没有外部`FUNCTION CHUNK`。隐藏this是group-A行动者，两个显式参数依次为目标token与mode；七处caller分布在group-A动作执行器两处、特殊动作400三处和动作4/404两处。
 

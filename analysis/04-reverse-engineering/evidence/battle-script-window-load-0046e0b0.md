@@ -1,5 +1,13 @@
 # 战斗脚本窗口加载 `0x0046E0B0`
 
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
 状态沿用`platform_adapted`。本次生产文件接线及验证见
 [共享文件生命周期](battle-script-file-runtime-binding.md)。
 旧文档把开关写成数据根token、把OPEN_ALWAYS写成OPEN_EXISTING，均已纠正。

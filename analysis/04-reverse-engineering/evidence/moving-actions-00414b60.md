@@ -1,6 +1,14 @@
 # 世界移动动作链（`0x00414B60..0x00414CDF`）
 
-状态：`assembly_exact`、`asset_verified`、`world_runtime_integrated`；尚未
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`assembly_exact`、`asset_verified`、`world_runtime_integrated`；尚未
 `original_diff_verified`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。它替代早期只覆盖消费者字段的

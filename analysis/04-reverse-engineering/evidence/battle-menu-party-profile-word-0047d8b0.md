@@ -1,6 +1,14 @@
 # 战斗菜单应用行动配置后记录队员的标记数值
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 实现源码：`e237b6e7eea9f9a975003c8b99e8babcf89ed22e`。
 本批回收四个菜单47D8B0调用站；完整菜单父链仍pending，不标`assembly_exact`。
 

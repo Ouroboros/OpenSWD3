@@ -1,6 +1,14 @@
 # `0x004762F0` 战斗组B奖励道具随机选择
 
-状态：`platform_adapted`、`blocked_runtime_oracle`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`blocked_runtime_oracle`
 
 来源：`swd3.exe.lst`完整函数体、唯一caller `0x00467710`及已关闭secondary bounded RNG `0x00439070`。完整LST是唯一行为真值；IDA名称、反编译输出、旧证据和测试只用于导航。
 

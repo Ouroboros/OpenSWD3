@@ -1,6 +1,14 @@
 # 战斗队员自动选敌人后记录目标选择标记
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 实现源码：`5b44fdb2deb7a3c56226130743b21a7585d0767e`。
 本批只迁移456859→47D8D0及其实际写入、后续读取、借用和测试。
 完整456680父链继续pending，不标`assembly_exact`。

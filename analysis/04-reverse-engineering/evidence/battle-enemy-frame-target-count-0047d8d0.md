@@ -1,6 +1,14 @@
 # 敌人开始行动时的效果目标数量属性 `0x0047D8D0`
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 源码提交：`c6fff61c`；七文件336行增加、385行删除。
 范围为457BAA/457CBF两个属性站、实际目标计数及必要调用方。
 父链仍pending；不标`assembly_exact`。

@@ -1,6 +1,14 @@
 # 战斗group-A行动者状态与资源计数清理 `0x004750C0`
 
-状态：`platform_adapted`。完整LST主体、typed实现、八处caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`。完整LST主体、typed实现、八处caller回收、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
 
 权威LST主体为`0x004750C0..0x0047515D`，proc至endp共62行、55条实际指令、0个call、2个跳转、2个局部标签和1个返回点，没有外部`FUNCTION CHUNK`。隐藏this为group-A行动者token。八处caller为`0x00457F1C`、`0x0045AAC9`、`0x00461D6B`、`0x00461DE1`、`0x00461FE3`、`0x00462072`、`0x00464334`与`0x00467140`，分别属于group-B frame、final-actor step、menu finalize四个分支、selection frame和message phase。
 

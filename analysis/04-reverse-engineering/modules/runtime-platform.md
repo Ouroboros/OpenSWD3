@@ -1,6 +1,14 @@
 # B1 `compat + platform_sdl3 + app` 工作包
 
-状态：`module_closed_pending_oracle`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`module_closed_pending_oracle`
 
 当前单元：已移交 B2；只保留原程序动态差分阻塞
 

@@ -1,6 +1,14 @@
 # 16 位未对齐世界底图入口（`sub_412D30`）
 
-状态：`platform_adapted`、`assembly_exact`、`unit_tested`、`asset_verified`、
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`assembly_exact`、`unit_tested`、`asset_verified`、
 `sdl_runtime_integrated`；原程序动态差分仍为 `blocked_runtime_oracle`
 
 本文只以 `swd3.exe.lst` 的 `0x00412D30..0x00413219` 为行为真值。IDA 伪码仅用于

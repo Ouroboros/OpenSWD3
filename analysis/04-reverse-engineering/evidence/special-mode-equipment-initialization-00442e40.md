@@ -1,6 +1,14 @@
 # 装备物品模式初始化 `0x00442E40`
 
-状态：`platform_adapted`、`unit_tested`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x00442E40..0x00442F08`，90行，无FUNCTION CHUNK。无direct call caller；444FC0把该地址绑定到模式初始化callback表，待其独立关闭时回收。直接callee B9C0、B9E0、444E80、444F60与444FB0已关闭并由typed helper直接复用；487C10仅以固定`0x28` workspace allocation端口表达。
 

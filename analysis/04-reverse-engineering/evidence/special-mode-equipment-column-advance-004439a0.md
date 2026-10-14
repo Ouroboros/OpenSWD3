@@ -1,6 +1,14 @@
 # 装备物品模式行内列前移 `0x004439A0`
 
-状态：`platform_adapted`、`unit_tested`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x004439A0..0x00443A5C`，98行，无FUNCTION CHUNK。唯一引用来自3B480数据callback槽G03/动作5；无code caller可回收。B9C0、B9E0、BB80已关闭并直接复用，sample46保留平台端口。
 

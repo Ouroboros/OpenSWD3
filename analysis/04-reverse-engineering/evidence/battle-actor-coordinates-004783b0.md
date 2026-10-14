@@ -1,6 +1,14 @@
 # 战斗角色状态选择坐标查询 `0x004783B0`
 
-状态：`platform_adapted`、`unit_tested`。REVIEW 1至4已完成本体与全部28个已有modern caller物理callsite的typed组合；7个尚无modern caller实现的外部workpack站点继续由其各自工作包隔离，不保留本函数opaque生产边界。
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`。REVIEW 1至4已完成本体与全部28个已有modern caller物理callsite的typed组合；7个尚无modern caller实现的外部workpack站点继续由其各自工作包隔离，不保留本函数opaque生产边界。
 
 ## 1. 完整范围与调用关系
 

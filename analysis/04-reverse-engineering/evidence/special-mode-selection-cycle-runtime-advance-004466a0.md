@@ -1,6 +1,14 @@
 # 模式2选择循环与高模式推进 `0x004466A0`
 
-状态：`platform_adapted`、`unit_tested`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`
 
 唯一行为真值为`swd3.exe.lst`。主物理范围`0x004466A0..0x004466F3`，并共享外部FUNCTION CHUNK `0x0043C7E0..0x0043C7F5`；该chunk明确将4466A0列为additional parent。3B480保存本入口，无code caller。
 

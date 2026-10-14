@@ -1,6 +1,14 @@
 # 战斗组A角色配置 `0x0046E730`
 
-状态：`platform_adapted`。函数合同及早期验证见下；B11来源归属修正见
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`。函数合同及早期验证见下；B11来源归属修正见
 [队伍基础记录接线证据](battle-party-source-runtime-binding.md)。
 初始队伍构造、重置、配置、坐标发布与计数已接入SDL，见
 [队伍入战接线证据](battle-party-startup-runtime-binding.md)。

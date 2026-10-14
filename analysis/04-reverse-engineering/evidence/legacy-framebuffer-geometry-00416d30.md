@@ -1,6 +1,14 @@
 # `0x00416D30` framebuffer 几何与行偏移
 
-状态：B4.3 静态闭环；`assembly_exact`、`platform_adapted`、`blocked_runtime_oracle`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：B4.3 静态闭环；`assembly_exact`、`platform_adapted`、`blocked_runtime_oracle`
 
 来源：`swd3.exe.lst` 完整指令。汇编是唯一行为真值；DirectDraw 类型名只用于解释物理边界。
 

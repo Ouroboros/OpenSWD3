@@ -1,6 +1,14 @@
 # 世界角色过渡清理闭环
 
-状态：`platform_adapted`、`assembly_exact`（有效角色与路径域）、`unit_tested`；原程序动态
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`assembly_exact`（有效角色与路径域）、`unit_tested`；原程序动态
 差分仍为 `blocked_runtime_oracle`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x0040F6D0..0x0040F885`，以及唯一调用者

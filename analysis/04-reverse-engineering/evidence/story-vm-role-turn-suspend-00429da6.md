@@ -1,5 +1,13 @@
 # 剧情 VM 角色转向并挂起 `0x00429DA6`
 
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
 ## 结论
 
 opcode76固定长6字节。它分阶段读取两个selector：第一selector在`+2`，仅它支持把`0xFFF0`替换为当前source GUID；第一lookup完成后才读取`+4`第二selector，第二参数保持raw。两个角色都存在时，以各自world坐标加动作范围`field_2c/field_30 * 8`组成中心点，计算距离和量化朝向，更新第一角色action并刷新，最后调用`sub_42E5A0`等价helper挂起第一角色。成功后推进6、发布normalized previous76并same-call继续。

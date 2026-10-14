@@ -1,6 +1,14 @@
 # 普通世界玩家控制与遇敌协调汇编证据：0x00402F80
 
-状态：`platform_adapted`、`assembly_exact`（有效输入/资产域）、`unit_tested`、`asset_verified`、`sdl_runtime_integrated`；`sub_402F80` 已按完整 LST 独立完成双向逐基本块闭环，B7 世界地图全集 114/114 无 `pending_audit`。原程序动态差分仍为 `blocked_runtime_oracle`。
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`assembly_exact`（有效输入/资产域）、`unit_tested`、`asset_verified`、`sdl_runtime_integrated`；`sub_402F80` 已按完整 LST 独立完成双向逐基本块闭环，B7 世界地图全集 114/114 无 `pending_audit`。原程序动态差分仍为 `blocked_runtime_oracle`。
 
 来源：`swd3.exe` 完整汇编
 

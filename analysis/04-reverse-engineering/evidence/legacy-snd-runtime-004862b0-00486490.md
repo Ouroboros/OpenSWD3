@@ -1,8 +1,16 @@
 # SND 运行时索引与 sample buffer 实现复核
 
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
 最后更新：2026-08-09
 
-状态：`assembly_exact`、`asset_verified`、`platform_adapted`
+历史状态：`assembly_exact`、`asset_verified`、`platform_adapted`
 
 完整 LST 是唯一行为真值；IDA 伪码只用于定位。
 

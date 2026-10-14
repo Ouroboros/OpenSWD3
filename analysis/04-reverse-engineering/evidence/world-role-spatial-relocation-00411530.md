@@ -1,6 +1,14 @@
 # 世界角色空间链解链与重插闭环
 
-状态：`platform_adapted`、`assembly_exact`（有效组、行、角色和链域）、`unit_tested`；
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`assembly_exact`（有效组、行、角色和链域）、`unit_tested`；
 原程序动态差分仍为 `blocked_runtime_oracle`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x00411530..0x0041161B`。该函数从指定空间组的

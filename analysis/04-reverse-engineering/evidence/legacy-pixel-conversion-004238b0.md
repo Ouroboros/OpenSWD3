@@ -1,6 +1,14 @@
 # `0x004238B0..0x004239C1` 16 位像素转换
 
-状态：B4.2 静态闭环；`assembly_exact`、`asset_verified`、`blocked_runtime_oracle`
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：B4.2 静态闭环；`assembly_exact`、`asset_verified`、`blocked_runtime_oracle`
 
 来源：`swd3.exe.lst` 的完整指令。汇编是唯一行为真值；旧伪码名称和函数签名只用于定位。
 

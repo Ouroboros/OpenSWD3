@@ -1,6 +1,14 @@
 # 战斗脚本指定队员动作时读取标记数值
 
-状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`、`fixed_state_tested`。
 实现源码：`a0bfde98e155178e891ecec69d48b25954b07047`。
 本批只回收脚本23的46ACD9→47D8B0；父链仍pending，不标`assembly_exact`。
 

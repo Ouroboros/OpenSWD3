@@ -1,6 +1,14 @@
 # 战斗角色绘制偏移查询 `0x00478400`
 
-状态：`platform_adapted`、`unit_tested`。REVIEW 1–3已完成typed本体及6个caller中的8个物理callsite回收；inventory关闭映射由`analysis/tools/build_battle_workpack.py`生成。
+状态：`pending`。已废弃GPT重建实现，本轮逆向尚未开始。
+
+以下保留历史分析与证据；旧结论、完成记录和测试结果不作为本轮验收。
+原版采集事实保留，所有解释和实现结论须重新核实。
+
+## 历史资料（重新核实前不生效）
+
+
+历史状态：`platform_adapted`、`unit_tested`。REVIEW 1–3已完成typed本体及6个caller中的8个物理callsite回收；inventory关闭映射由`analysis/tools/build_battle_workpack.py`生成。
 
 ## 1. 完整范围与调用关系
 
