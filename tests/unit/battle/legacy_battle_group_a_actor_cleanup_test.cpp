@@ -5,7 +5,6 @@
 
 void test_battle_group_a_actor_cleanup(openswd3::test::Context& test) {
     using openswd3::battle::LegacyBattleActorListQueryState;
-    using openswd3::battle::LegacyBattleActorListResourceNode;
     using openswd3::battle::LegacyBattleGroupAActionExecutionState;
     using openswd3::battle::LegacyBattleGroupAActorCleanupStatus;
     using openswd3::battle::LegacyBattleGroupAAttributeEffectState;
@@ -127,9 +126,11 @@ void test_battle_group_a_actor_cleanup(openswd3::test::Context& test) {
         LegacyBattleActorListQueryState actor_list;
         actor_list.selected_resource_token = 0xDEADU;
         actor_list.resource_head_token = 0x1000U;
-        actor_list.resources.emplace_back();
-        actor_list.resources.back().token = 0x1000U;
-        actor_list.resources.back().primary_quantity = 2U;
+        openswd3::world_map::LegacyWorldItemListState inventory;
+        actor_list.inventory = &inventory;
+        auto& resource = inventory.player_inventory.emplace_back();
+        resource.legacy_token = 0x1000U;
+        resource.selected_count = 2U;
         const auto result = cleanup_legacy_battle_group_a_actor(
             {
                 .actor = &actor,
@@ -146,7 +147,7 @@ void test_battle_group_a_actor_cleanup(openswd3::test::Context& test) {
                 result.return_eax == 0x1000U &&
                 result.return_ecx == 0x00500001U &&
                 result.return_edx == 0x005029D0U &&
-                actor_list.resources[0U].primary_quantity == 1U &&
+                inventory.player_inventory.front().selected_count == 1U &&
                 actor_list.selected_resource_token == 0U &&
                 result.resource_quantity_decrements == 1U &&
                 result.resource_gate_clears == 1U,
@@ -163,9 +164,11 @@ void test_battle_group_a_actor_cleanup(openswd3::test::Context& test) {
         LegacyBattleActorListQueryState actor_list;
         actor_list.selected_resource_token = 1U;
         actor_list.resource_head_token = 0x1000U;
-        actor_list.resources.emplace_back();
-        actor_list.resources.back().token = 0x1000U;
-        actor_list.resources.back().primary_quantity = 0U;
+        openswd3::world_map::LegacyWorldItemListState inventory;
+        actor_list.inventory = &inventory;
+        auto& resource = inventory.player_inventory.emplace_back();
+        resource.legacy_token = 0x1000U;
+        resource.selected_count = 0U;
         const auto result = cleanup_legacy_battle_group_a_actor(
             {
                 .actor = &actor,
@@ -181,7 +184,7 @@ void test_battle_group_a_actor_cleanup(openswd3::test::Context& test) {
             result.status == LegacyBattleGroupAActorCleanupStatus::completed &&
                 result.return_eax == 0x1000U &&
                 result.return_ecx == 0x00500000U &&
-                actor_list.resources[0U].primary_quantity == 0U &&
+                inventory.player_inventory.front().selected_count == 0U &&
                 actor_list.selected_resource_token == 0U &&
                 result.resource_quantity_decrements == 0U &&
                 result.resource_gate_clears == 1U,

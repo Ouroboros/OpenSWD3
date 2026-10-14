@@ -1737,7 +1737,6 @@ void test_battle_startup(openswd3::test::Context& test) {
         };
         auto& party = state->party[0U];
         party.value_pair = {0x11111111U, 0x22222222U};
-        party.resource_pair = {0x33333333U, 0x44444444U};
         state->action_mode_source.actor_label_indices[0U] = 3U;
         items.party_item_lists[3U]->legacy_head_token = 0xDEADBEEFU;
         items.player_inventory_head_token = 0x77112233U;
@@ -1760,10 +1759,77 @@ void test_battle_startup(openswd3::test::Context& test) {
                 party.name_bytes.front() == 0x77U &&
                 party.value_pair.primary_value == 0x11111111U &&
                 party.value_pair.secondary_value == 0x22222222U &&
-                party.resource_pair.primary_token == 0x33333333U &&
-                party.resource_pair.secondary_token == 0x44444444U,
+                party.actor_list.inventory == &items,
             "startup binds actual action/list fields and borrows name bytes without writing a second pair or dereferencing item roots"
         );
+        state->action_mode_source.actor_label_indices[1U] = 3U;
+        const auto second =
+            openswd3::battle::bind_legacy_battle_startup_party_references(
+                *state, 1U, items, names
+            );
+        auto& shared_node = items.player_inventory.emplace_back();
+        shared_node.legacy_token = 0x77112233U;
+        shared_node.item_id = 0x0301U;
+        shared_node.quantity_b = 2U;
+        shared_node.definition_snapshot[0x2FU - 0x0CU] = 0x08U;
+        shared_node.definition_snapshot[0x46U - 0x0CU] = 1U;
+        openswd3::compat::u16 shared_quantity = 99U;
+        const auto counted =
+            openswd3::battle::count_legacy_battle_actor_mode_resources(
+                &state->party[1U].actor_list, shared_quantity
+            );
+        test.expect_true(
+            second.status ==
+                    openswd3::battle::LegacyBattleStartupStatus::completed &&
+                state->party[1U].actor_list.inventory == &items &&
+                counted ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
+                shared_quantity == 2U,
+            "startup binds both actors to the same live inventory head"
+        );
+        party.actor_list.selected_resource_token = shared_node.legacy_token;
+        const auto consumed =
+            openswd3::battle::release_legacy_battle_actor_resource(
+                &party.actor_list, &party.workspace
+            );
+        const auto recounted =
+            openswd3::battle::count_legacy_battle_actor_mode_resources(
+                &state->party[1U].actor_list, shared_quantity
+            );
+        test.expect_true(
+            consumed.status ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
+                recounted ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
+                shared_node.quantity_b == 1U && shared_quantity == 1U,
+            "one actor consumes the actual node observed by the other actor"
+        );
+        state->party[1U].actor_list.selected_resource_token =
+            shared_node.legacy_token;
+        const auto removed =
+            openswd3::battle::release_legacy_battle_actor_resource(
+                &state->party[1U].actor_list, &state->party[1U].workspace
+            );
+        const auto empty =
+            openswd3::battle::count_legacy_battle_actor_mode_resources(
+                &party.actor_list, shared_quantity
+            );
+        test.expect_true(
+            removed.status ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
+                empty ==
+                    openswd3::battle::LegacyBattleActorListQueryStatus::
+                        completed &&
+                items.player_inventory.empty() &&
+                items.player_inventory_head_token == 0U &&
+                shared_quantity == 0U,
+            "consuming the last item reconnects the shared global head for both actors"
+        );
+
         state->action_mode_source.actor_label_indices[0U] = 1U;
         items.party_item_lists[1U].reset();
         const auto repeated =
@@ -2990,8 +3056,11 @@ void test_battle_startup(openswd3::test::Context& test) {
                 ports.call_count(LegacyBattleStartupCall::apply_party_name) ==
                     0U &&
                 result.party_resource_pair_calls == 2U &&
-                state.party[0U].resource_pair.primary_token == 0x004A9940U &&
-                state.party[0U].resource_pair.secondary_token == 0x004A9940U &&
+                state.party[0U].actor_list.resource_head_token == 0x004A9940U &&
+                state.party[0U].actor_list.next_resource_head_token ==
+                    0x004A9940U &&
+                state.party[0U].actor_list.inventory ==
+                    &ports.world_item_list_state() &&
                 result.party_resource_pairs[0U].writes == 2U &&
                 result.party_resource_pairs[0U].return_eax == 0x004A9940U &&
                 result.party_resource_pairs[0U].return_ecx == 0x005029D0U &&

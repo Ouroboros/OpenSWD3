@@ -262,7 +262,6 @@ struct LegacyBattlePartyStartupRecord
     LegacyBattleActorListQueryState actor_list;
     LegacyBattleGroupAFinalProcessingState final_processing;
     LegacyBattleGroupAValuePairState value_pair;
-    LegacyBattleGroupAResourcePairState resource_pair;
     compat::u32 name_token{};  // actor + 0x2560
     std::span<const compat::u8>
         name_bytes;  // Borrowed, never copied or decoded.
@@ -539,12 +538,11 @@ struct LegacyBattleStartupPartyReferencesResult {
 };
 
 // 4522C2..4522F7, immediately after each actor's attribute aggregation.
-// SDL supplies action fields; standalone startup uses its existing pair holders.
 [[nodiscard]] LegacyBattleStartupPartyReferencesResult
 bind_legacy_battle_startup_party_references(
     LegacyBattleStartupState& state,
     std::size_t index,
-    const world_map::LegacyWorldItemListState& items,
+    world_map::LegacyWorldItemListState& items,
     const LegacyBattlePartyNameSources& names,
     LegacyBattleGroupAActionExecutionState* action = nullptr
 ) noexcept;

@@ -125,22 +125,19 @@ LegacyBattleGroupAActorCleanupResult cleanup_legacy_battle_group_a_actor(
     }
 
     result.return_eax = actor_list.resource_head_token;
-    const auto resource = std::ranges::find(
-        actor_list.resources,
-        actor_list.resource_head_token,
-        &LegacyBattleActorListResourceNode::token
+    auto* resource = find_legacy_battle_inventory_node(
+        actor_list.inventory, actor_list.resource_head_token
     );
-    if (actor_list.resource_head_token == 0U ||
-        resource == actor_list.resources.end()) {
+    if (actor_list.resource_head_token == 0U || resource == nullptr) {
         result.status =
             LegacyBattleGroupAActorCleanupStatus::resource_node_typed_stop;
         return result;
     }
 
-    u16 quantity = resource->primary_quantity;
+    u16 quantity = resource->selected_count;
     if (quantity > 0U) {
         quantity = static_cast<u16>(quantity - 1U);
-        resource->primary_quantity = quantity;
+        resource->selected_count = quantity;
         ++result.resource_quantity_decrements;
     }
     result.return_ecx =

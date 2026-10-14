@@ -1,3 +1,4 @@
+#include "legacy_battle_inventory_fixture.hpp"
 #include "openswd3/battle/legacy_battle_grid_frame.hpp"
 
 #include <algorithm>
@@ -150,6 +151,7 @@ public:
 }
 
 struct Fixture {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     Fixture()
         : maps_payload(0x70U, 0U), action_updater(action_streams),
           raster(framebuffer.geometry()) {
@@ -168,7 +170,7 @@ struct Fixture {
             auto& list = party[index].actor_list;
             const u32 root_token = 0x79000000U + index * 0x100U;
             list.next_resource_head_token = root_token;
-            list.resources = {{.token = root_token, .name = {}}};
+            inventories.assign(list, {{.token = root_token, .name = {}}});
         }
     }
 
@@ -273,21 +275,27 @@ struct Fixture {
 void prepare_rows(Fixture& fixture) {
     auto& list = fixture.party[0U].actor_list;
     constexpr u32 root_token = 0x79000000U;
-    list.resources[0U].next_token = root_token + 0x10U;
+    openswd3::test::inventory_node(list, 0U).legacy_next_token =
+        root_token + 0x10U;
     for (u32 index = 1U; index <= 5U; ++index) {
-        list.resources.push_back({
-            .token = root_token + index * 0x10U,
-            .next_token = index == 5U ? 0U : root_token + (index + 1U) * 0x10U,
-            .secondary_quantity =
-                static_cast<openswd3::compat::i16>(index == 5U ? 32766 : 0),
-            .tertiary_quantity = static_cast<openswd3::compat::i16>(
-                index == 5U ? 32767 : (index == 4U ? 5 : 1)
-            ),
-            .name = index == 4U ? "Alpha" : "Beta",
-            .category_mask = 0x1001U,
-            .mode_flags = 0x01U,
-            .capacity_gate_flags = static_cast<u16>(index == 4U ? 0x4001U : 0U),
-        });
+        openswd3::test::append_inventory_item(
+            list,
+            {
+                .token = root_token + index * 0x10U,
+                .next_token =
+                    index == 5U ? 0U : root_token + (index + 1U) * 0x10U,
+                .secondary_quantity =
+                    static_cast<openswd3::compat::i16>(index == 5U ? 32766 : 0),
+                .tertiary_quantity = static_cast<openswd3::compat::i16>(
+                    index == 5U ? 32767 : (index == 4U ? 5 : 1)
+                ),
+                .name = index == 4U ? "Alpha" : "Beta",
+                .category_mask = 0x1001U,
+                .mode_flags = 0x01U,
+                .capacity_gate_flags =
+                    static_cast<u16>(index == 4U ? 0x4001U : 0U),
+            }
+        );
     }
 
     fixture.port.reply(Call::draw_text, {.edx = 0xA1000001U});
@@ -317,21 +325,27 @@ void test_grid_resource_item_count(openswd3::test::Context& test) {
                 list.selected_resource_token = 0xCAFEBABEU;
                 const bool ordinary = outcome == 1U || outcome == 3U;
                 const bool extra = outcome >= 2U;
-                list.resources = {
-                    {.token = root_token,
-                     .next_token = root_token + 0x10U,
-                     .name = {}},
-                    {.token = root_token + 0x10U,
-                     .resource_id = 0x0300U,
-                     .tertiary_quantity = 1,
-                     .name = std::string(100U, 'n'),
-                     .category_mask = ordinary ? masks[selector] : 0U,
-                     .mode_flags = static_cast<u8>(ordinary ? 1U : 2U),
-                     .capacity_gate_flags =
-                         static_cast<u16>(extra ? 0x2000U : 0U)},
-                };
+                fixture.inventories.assign(
+                    list,
+                    {
+                        {.token = root_token,
+                         .next_token = root_token + 0x10U,
+                         .name = {}},
+                        {.token = root_token + 0x10U,
+                         .resource_id = 0x0300U,
+                         .tertiary_quantity = 1,
+                         .name = std::string(100U, 'n'),
+                         .category_mask = ordinary ? masks[selector] : 0U,
+                         .mode_flags = static_cast<u8>(ordinary ? 1U : 2U),
+                         .capacity_gate_flags =
+                             static_cast<u16>(extra ? 0x2000U : 0U)},
+                    }
+                );
 
-                const auto* storage = list.resources.data();
+                const auto* storage = openswd3::test::inventory_data(list);
+                const auto original_definition =
+                    openswd3::test::inventory_node(list, 1U)
+                        .definition_snapshot;
                 const auto result = draw_legacy_battle_grid_frame(
                     fixture.state, fixture.bindings(), fixture.port, request()
                 );
@@ -347,9 +361,10 @@ void test_grid_resource_item_count(openswd3::test::Context& test) {
                         list.resource_head_token == root_token &&
                         list.next_resource_head_token == root_token &&
                         list.selected_resource_token == 0xCAFEBABEU &&
-                        list.resources.data() == storage &&
-                        list.resources.size() == 2U &&
-                        list.resources[1U].name.size() == 100U &&
+                        openswd3::test::inventory_data(list) == storage &&
+                        openswd3::test::inventory_nodes(list).size() == 2U &&
+                        openswd3::test::inventory_node(list, 1U)
+                                .definition_snapshot == original_definition &&
                         result.displayed_rows == 0U &&
                         fixture.selection_input_gate == 0U &&
                         fixture.target_argument == 0U &&
@@ -373,20 +388,23 @@ void test_grid_resource_item_count(openswd3::test::Context& test) {
             list.resource_head_token = 0xDEAD0000U;
             list.next_resource_head_token = root_token;
             list.selected_resource_token = 0xCAFEBABEU;
-            list.resources = {
-                {.token = root_token,
-                 .next_token = partial ? root_token + 0x10U : 0xFEDCBA98U,
-                 .name = {}},
-                {.token = root_token + 0x10U,
-                 .next_token = 0xFEDCBA98U,
-                 .tertiary_quantity = 1,
-                 .name = std::string(100U, 'n'),
-                 .category_mask = 0x2000U,
-                 .mode_flags = 0x01U,
-                 .capacity_gate_flags = 0x2000U},
-            };
+            fixture.inventories.assign(
+                list,
+                {
+                    {.token = root_token,
+                     .next_token = partial ? root_token + 0x10U : 0xFEDCBA98U,
+                     .name = {}},
+                    {.token = root_token + 0x10U,
+                     .next_token = 0xFEDCBA98U,
+                     .tertiary_quantity = 1,
+                     .name = std::string(100U, 'n'),
+                     .category_mask = 0x2000U,
+                     .mode_flags = 0x01U,
+                     .capacity_gate_flags = 0x2000U},
+                }
+            );
 
-            const auto* storage = list.resources.data();
+            const auto* storage = openswd3::test::inventory_data(list);
             const auto result = draw_legacy_battle_grid_frame(
                 fixture.state, fixture.bindings(), fixture.port, request()
             );
@@ -400,8 +418,8 @@ void test_grid_resource_item_count(openswd3::test::Context& test) {
                     list.resource_head_token == 0xFEDCBA98U &&
                     list.next_resource_head_token == root_token &&
                     list.selected_resource_token == 0xCAFEBABEU &&
-                    list.resources.data() == storage &&
-                    list.resources.size() == 2U &&
+                    openswd3::test::inventory_data(list) == storage &&
+                    openswd3::test::inventory_nodes(list).size() == 2U &&
                     result.displayed_rows == 0U &&
                     result.text_draw_calls == 0U && result.font_calls == 5U &&
                     fixture.state.text_storage[0U] == 0xFFU &&
@@ -421,15 +439,20 @@ void test_grid_resource_item_count(openswd3::test::Context& test) {
         auto& list = fixture.party[actor_index].actor_list;
         const u32 root_token = 0x8A000000U + actor_index * 0x100U;
         list.next_resource_head_token = root_token;
-        list.resources = {
-            {.token = root_token, .next_token = root_token + 0x10U, .name = {}},
-            {.token = root_token + 0x10U,
-             .tertiary_quantity = 1,
-             .name = {},
-             .category_mask = 0x2000U,
-             .mode_flags = 0x01U,
-             .capacity_gate_flags = 0x2000U},
-        };
+        fixture.inventories.assign(
+            list,
+            {
+                {.token = root_token,
+                 .next_token = root_token + 0x10U,
+                 .name = {}},
+                {.token = root_token + 0x10U,
+                 .tertiary_quantity = 1,
+                 .name = {},
+                 .category_mask = 0x2000U,
+                 .mode_flags = 0x01U,
+                 .capacity_gate_flags = 0x2000U},
+            }
+        );
 
         fixture.port.on_call = [&fixture, actor_index](const Request& call) {
             if (call.call == Call::configure_font_width) {
@@ -446,7 +469,7 @@ void test_grid_resource_item_count(openswd3::test::Context& test) {
                 fixture.panel_row_limit == 2U &&
                 previous.resource_head_token == 0xDEAD0000U &&
                 list.resource_head_token == root_token &&
-                list.resources.size() == 2U &&
+                openswd3::test::inventory_nodes(list).size() == 2U &&
                 fixture.queued_actor_code == actor_index + 8U,
             "resource count borrows the live party after the real font predecessor instead of the actor present at frame entry"
         );
@@ -465,23 +488,26 @@ void test_grid_resource_rows(openswd3::test::Context& test) {
             list.resource_head_token = 0xDEAD0000U;
             list.next_resource_head_token = root;
             list.selected_resource_token = 0xCAFEBABEU;
-            list.resources = {
-                {.token = root, .next_token = root + 0x10U, .name = {}}
-            };
+            fixture.inventories.assign(
+                list, {{.token = root, .next_token = root + 0x10U, .name = {}}}
+            );
 
             for (u32 ordinal = 1U; ordinal <= 8U; ++ordinal) {
-                list.resources.push_back({
-                    .token = root + ordinal * 0x10U,
-                    .next_token =
-                        ordinal == 8U ? 0U : root + (ordinal + 1U) * 0x10U,
-                    .tertiary_quantity = static_cast<openswd3::compat::i16>(
-                        actor * 10U + ordinal
-                    ),
-                    .name = "p" + std::to_string(actor) + "r" +
-                        std::to_string(ordinal),
-                    .category_mask = 0x1011U,
-                    .mode_flags = 1U,
-                });
+                openswd3::test::append_inventory_item(
+                    list,
+                    {
+                        .token = root + ordinal * 0x10U,
+                        .next_token =
+                            ordinal == 8U ? 0U : root + (ordinal + 1U) * 0x10U,
+                        .tertiary_quantity = static_cast<openswd3::compat::i16>(
+                            actor * 10U + ordinal
+                        ),
+                        .name = "p" + std::to_string(actor) + "r" +
+                            std::to_string(ordinal),
+                        .category_mask = 0x1011U,
+                        .mode_flags = 1U,
+                    }
+                );
             }
         }
 
@@ -538,14 +564,17 @@ void test_grid_resource_rows(openswd3::test::Context& test) {
             auto& list = fixture.party[initial].actor_list;
             const u32 root = 0x95000000U + initial * 0x100U;
             list.next_resource_head_token = root;
-            list.resources = {
-                {.token = root, .next_token = root + 0x10U, .name = {}},
-                {.token = root + 0x10U,
-                 .tertiary_quantity = 1,
-                 .name = "R",
-                 .category_mask = 0x10U,
-                 .mode_flags = 1U},
-            };
+            fixture.inventories.assign(
+                list,
+                {
+                    {.token = root, .next_token = root + 0x10U, .name = {}},
+                    {.token = root + 0x10U,
+                     .tertiary_quantity = 1,
+                     .name = "R",
+                     .category_mask = 0x10U,
+                     .mode_flags = 1U},
+                }
+            );
 
             auto& next = fixture.party[next_actor].actor_list;
             const u32 next_root = next.next_resource_head_token;
@@ -601,17 +630,20 @@ void test_grid_resource_rows(openswd3::test::Context& test) {
         auto& list = fixture.party[actor].actor_list;
         const u32 root = 0x96000000U + actor * 0x100U;
         list.next_resource_head_token = root;
-        list.resources = {
-            {.token = root, .next_token = root + 0x10U, .name = {}},
-            {.token = root + 0x10U,
-             .next_token = root + 0x20U,
-             .name = "Hidden"},
-            {.token = root + 0x20U,
-             .tertiary_quantity = 1,
-             .name = "R",
-             .category_mask = 0x10U,
-             .mode_flags = 1U},
-        };
+        fixture.inventories.assign(
+            list,
+            {
+                {.token = root, .next_token = root + 0x10U, .name = {}},
+                {.token = root + 0x10U,
+                 .next_token = root + 0x20U,
+                 .name = "Hidden"},
+                {.token = root + 0x20U,
+                 .tertiary_quantity = 1,
+                 .name = "R",
+                 .category_mask = 0x10U,
+                 .mode_flags = 1U},
+            }
+        );
 
         auto call = request();
         call.scroll_offset = 0xFFFFFFFFU;
@@ -635,14 +667,18 @@ void test_grid_resource_rows(openswd3::test::Context& test) {
         fixture.action_category_index = 0U;
         auto& list = fixture.party[0U].actor_list;
         const u32 root = list.next_resource_head_token;
-        list.resources[0U].next_token = root + 0x10U;
-        list.resources.push_back({
-            .token = root + 0x10U,
-            .tertiary_quantity = 5,
-            .name = std::string(length, 'N'),
-            .category_mask = 0x10U,
-            .mode_flags = 1U,
-        });
+        openswd3::test::inventory_node(list, 0U).legacy_next_token =
+            root + 0x10U;
+        openswd3::test::append_inventory_item(
+            list,
+            {
+                .token = root + 0x10U,
+                .tertiary_quantity = 5,
+                .name = std::string(length, 'N'),
+                .category_mask = 0x10U,
+                .mode_flags = 1U,
+            }
+        );
         auto call = request();
         call.scroll_offset = 0U;
         call.selected_row = 0U;
@@ -680,21 +716,27 @@ void test_battle_grid_frame(openswd3::test::Context& test) {
             list.resource_head_token = 0xDEAD0000U;
             list.next_resource_head_token = root;
             list.selected_resource_token = 0xCAFEBABEU;
-            list.resources = {
-                {.token = root, .next_token = root + 0x10U, .name = {}},
-            };
+            fixture.inventories.assign(
+                list,
+                {
+                    {.token = root, .next_token = root + 0x10U, .name = {}},
+                }
+            );
 
             const u32 row_count = exhausted ? 1U : 7U;
             for (u32 row = 1U; row <= row_count; ++row) {
-                list.resources.push_back({
-                    .token = root + row * 0x10U,
-                    .next_token =
-                        row == row_count ? 0U : root + (row + 1U) * 0x10U,
-                    .tertiary_quantity = 1,
-                    .name = "row",
-                    .category_mask = 0x10U,
-                    .mode_flags = 0x01U,
-                });
+                openswd3::test::append_inventory_item(
+                    list,
+                    {
+                        .token = root + row * 0x10U,
+                        .next_token =
+                            row == row_count ? 0U : root + (row + 1U) * 0x10U,
+                        .tertiary_quantity = 1,
+                        .name = "row",
+                        .category_mask = 0x10U,
+                        .mode_flags = 0x01U,
+                    }
+                );
             }
 
             auto bindings = fixture.bindings();
@@ -713,7 +755,8 @@ void test_battle_grid_frame(openswd3::test::Context& test) {
                         (exhausted ? root : root + 0x70U) &&
                     list.next_resource_head_token == root &&
                     list.selected_resource_token == 0xCAFEBABEU &&
-                    list.resources.size() == row_count + 1U,
+                    openswd3::test::inventory_nodes(list).size() ==
+                        row_count + 1U,
                 "each grid actor reads its actual next-root chain and resets the head only on the exhaustion branch"
             );
         }
@@ -937,16 +980,21 @@ void test_battle_grid_frame(openswd3::test::Context& test) {
         Fixture fixture;
         auto& list = fixture.party[0U].actor_list;
         constexpr u32 root = 0x79000000U;
-        list.resources[0U].next_token = root + 0x10U;
+        openswd3::test::inventory_node(list, 0U).legacy_next_token =
+            root + 0x10U;
         for (u32 index = 1U; index <= 519U; ++index) {
-            list.resources.push_back({
-                .token = root + index * 0x10U,
-                .next_token = index == 519U ? 0U : root + (index + 1U) * 0x10U,
-                .tertiary_quantity = 1,
-                .name = "Visible",
-                .category_mask = index > 512U ? 0x1001U : 0U,
-                .mode_flags = 0x01U,
-            });
+            openswd3::test::append_inventory_item(
+                list,
+                {
+                    .token = root + index * 0x10U,
+                    .next_token =
+                        index == 519U ? 0U : root + (index + 1U) * 0x10U,
+                    .tertiary_quantity = 1,
+                    .name = "Visible",
+                    .category_mask = index > 512U ? 0x1001U : 0U,
+                    .mode_flags = 0x01U,
+                }
+            );
         }
 
         auto call = request();
@@ -961,7 +1009,7 @@ void test_battle_grid_frame(openswd3::test::Context& test) {
                 result.scanned_rows == 7U && result.hidden_rows == 0U &&
                 result.displayed_rows == 7U && result.final_iterator == 8U &&
                 list.resource_head_token == root + 519U * 0x10U &&
-                list.resources.size() == 520U,
+                openswd3::test::inventory_nodes(list).size() == 520U,
             "actual row queries scan past 512 ineligible nodes and stop after the seventh visible row without an extra query"
         );
     }

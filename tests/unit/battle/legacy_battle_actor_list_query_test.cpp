@@ -1,3 +1,4 @@
+#include "legacy_battle_inventory_fixture.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "legacy_battle_samples_fixture.hpp"
 #include "openswd3/battle/legacy_battle_actor_list_query.hpp"
@@ -18,6 +19,32 @@ namespace {
 using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
+
+class InventoryReleaseMemory final : public std::pmr::memory_resource {
+public:
+    std::function<void()> on_release;
+
+private:
+    void* do_allocate(std::size_t bytes, std::size_t alignment) override {
+        return std::pmr::new_delete_resource()->allocate(bytes, alignment);
+    }
+
+    void do_deallocate(
+        void* block, std::size_t bytes, std::size_t alignment
+    ) override {
+        if (on_release) {
+            on_release();
+        }
+
+        std::pmr::new_delete_resource()->deallocate(block, bytes, alignment);
+    }
+
+    bool do_is_equal(
+        const std::pmr::memory_resource& other
+    ) const noexcept override {
+        return this == &other;
+    }
+};
 
 class SelectionPort final
     : public openswd3::battle::LegacyBattleActorResourceSelectionPort,
@@ -444,6 +471,7 @@ struct ListStateFixture {
 };
 
 void test_list_state_behavior(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     using namespace openswd3::battle;
     using openswd3::compat::i16;
     for (const i16 capacity :
@@ -478,17 +506,18 @@ void test_list_state_behavior(openswd3::test::Context& test) {
                 ListStateFixture fixture;
                 fixture.list.nodes[0U].value_flags = 0x0805U;
                 fixture.list.next_resource_head_token = 0x75000000U;
-                fixture.list.resources = {
-                    {.token = 0x75000000U,
-                     .next_token = 0x75000010U,
-                     .name = {}},
-                    {.token = 0x75000010U,
-                     .resource_id = 5U,
-                     .primary_quantity = primary,
-                     .secondary_quantity = secondary,
-                     .tertiary_quantity = tertiary,
-                     .name = {}}
-                };
+                inventories.assign(
+                    fixture.list,
+                    {{.token = 0x75000000U,
+                      .next_token = 0x75000010U,
+                      .name = {}},
+                     {.token = 0x75000010U,
+                      .resource_id = 5U,
+                      .primary_quantity = primary,
+                      .secondary_quantity = secondary,
+                      .tertiary_quantity = tertiary,
+                      .name = {}}}
+                );
 
                 const auto result = fixture.run();
                 const bool available = secondary > 0 || tertiary > 0;
@@ -575,7 +604,7 @@ void test_list_state_behavior(openswd3::test::Context& test) {
         ListStateFixture fixture;
         fixture.list.nodes[0U].value_flags = 0x0806U;
         fixture.list.next_resource_head_token = 0x75000000U;
-        fixture.list.resources = {{.token = 0x75000000U, .name = {}}};
+        inventories.assign(fixture.list, {{.token = 0x75000000U, .name = {}}});
         const auto result = fixture.run();
         test.expect_true(
             !result.available &&
@@ -590,6 +619,7 @@ void test_list_state_behavior(openswd3::test::Context& test) {
 }
 
 void test_list_state_filters(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     using namespace openswd3::battle;
     struct CategoryCase {
         u32 selector;
@@ -695,7 +725,7 @@ void test_list_state_filters(openswd3::test::Context& test) {
         fixture.list.primary_required = 17U;
         fixture.list.secondary_required = 19U;
         fixture.list.next_resource_head_token = 0x75000000U;
-        fixture.list.resources = {{.token = 0x75000000U, .name = {}}};
+        inventories.assign(fixture.list, {{.token = 0x75000000U, .name = {}}});
         const auto result = fixture.run();
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
@@ -1093,6 +1123,7 @@ void test_list_query_live_state(openswd3::test::Context& test) {
 }
 
 void test_resource_selection_outputs(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     using namespace openswd3::battle;
     struct SelectionCase {
         u32 category;
@@ -1138,20 +1169,23 @@ void test_resource_selection_outputs(openswd3::test::Context& test) {
         list.resource_head_token = 0x99U;
         list.next_resource_head_token = 0x10U;
         list.selected_resource_token = 0x77U;
-        list.resources = {
-            {.token = 0x10U, .next_token = 0x20U, .name = {}},
-            {.token = 0x20U,
-             .resource_id = 0x301U,
-             .primary_quantity = item.primary,
-             .secondary_quantity = item.secondary,
-             .tertiary_quantity = item.tertiary,
-             .name = {},
-             .category_mask = item.mask,
-             .derived_word_30 = 0x1234U,
-             .profile_id_4a = 7U,
-             .mode_flags = item.mode,
-             .capacity_gate_flags = item.capacity},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x10U, .next_token = 0x20U, .name = {}},
+                {.token = 0x20U,
+                 .resource_id = 0x301U,
+                 .primary_quantity = item.primary,
+                 .secondary_quantity = item.secondary,
+                 .tertiary_quantity = item.tertiary,
+                 .name = {},
+                 .category_mask = item.mask,
+                 .derived_word_30 = 0x1234U,
+                 .profile_id_4a = 7U,
+                 .mode_flags = item.mode,
+                 .capacity_gate_flags = item.capacity},
+            }
+        );
 
         final_state.profile_buffer.fill(0xFFFFFFFFU);
         final_state.pre_effect_words.fill(0xFFFFFFFFU);
@@ -1187,7 +1221,8 @@ void test_resource_selection_outputs(openswd3::test::Context& test) {
                     (item.occurrence == 0U ? 0x99U
                          : item.selected   ? 0x20U
                                            : 0U) &&
-                list.resources[1U].primary_quantity == expected_primary &&
+                openswd3::test::inventory_node(list, 1U).selected_count ==
+                    expected_primary &&
                 std::ranges::all_of(
                     final_state.pre_effect_words,
                     [](const u32 value) { return value == 0U; }
@@ -1206,21 +1241,24 @@ void test_resource_selection_outputs(openswd3::test::Context& test) {
         LegacyBattleGroupAWorkspaceState workspace;
         SelectionPort port;
         list.next_resource_head_token = 0x10U;
-        list.resources = {
-            {.token = 0x10U, .next_token = 0x20U, .name = {}},
-            {.token = 0x20U,
-             .resource_id = 0x301U,
-             .tertiary_quantity = 2,
-             .name = {},
-             .category_mask = 0x10U,
-             .profile_id_4a = 7U,
-             .mode_flags = 1U},
-            {.token = 0x30U,
-             .resource_id = 0x302U,
-             .primary_quantity = 0xFFFFU,
-             .name = {},
-             .category_mask = 0x10U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x10U, .next_token = 0x20U, .name = {}},
+                {.token = 0x20U,
+                 .resource_id = 0x301U,
+                 .tertiary_quantity = 2,
+                 .name = {},
+                 .category_mask = 0x10U,
+                 .profile_id_4a = 7U,
+                 .mode_flags = 1U},
+                {.token = 0x30U,
+                 .resource_id = 0x302U,
+                 .primary_quantity = 0xFFFFU,
+                 .name = {},
+                 .category_mask = 0x10U},
+            }
+        );
 
         port.set_profile_word(0x14U, mutation == 2U ? 0U : 0x30U);
         if (mutation == 1U) {
@@ -1233,8 +1271,9 @@ void test_resource_selection_outputs(openswd3::test::Context& test) {
         u16 output_mode = 0xABCDU;
         auto& runtime_output =
             mutation == 0U ? list.resource_head_token : runtime_word;
-        auto& mode_output =
-            mutation == 3U ? list.resources[1U].primary_quantity : output_mode;
+        auto& mode_output = mutation == 3U
+            ? openswd3::test::inventory_node(list, 1U).selected_count
+            : output_mode;
         const auto result = select_legacy_battle_actor_resource(
             &list,
             &configuration,
@@ -1253,9 +1292,9 @@ void test_resource_selection_outputs(openswd3::test::Context& test) {
                 result.selected && list.selected_resource_token == 0x20U &&
                 list.resource_head_token == (mutation == 3U ? 0x20U : 0x30U) &&
                 mode_output == (mutation == 3U ? 2U : 1U) &&
-                list.resources[1U].primary_quantity ==
+                openswd3::test::inventory_node(list, 1U).selected_count ==
                     (mutation == 3U ? 2U : 0U) &&
-                list.resources[2U].primary_quantity ==
+                openswd3::test::inventory_node(list, 2U).selected_count ==
                     (mutation == 3U ? 0xFFFFU : 0U) &&
                 (mutation != 2U ||
                  port.diagnostics == std::vector<u16>{0x301U}),
@@ -1265,6 +1304,7 @@ void test_resource_selection_outputs(openswd3::test::Context& test) {
 }
 
 void test_resource_selection_capacity_prefixes(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     using namespace openswd3::battle;
     constexpr std::array<std::array<u16, 2>, 9> capacities{{
         {0U, 0U},
@@ -1295,19 +1335,22 @@ void test_resource_selection_capacity_prefixes(openswd3::test::Context& test) {
                 list.primary_required = 0xABCDU;
                 list.secondary_required = 0xDCBAU;
                 list.next_resource_head_token = 0x10U;
-                list.resources = {
-                    {.token = 0x10U, .next_token = 0x20U, .name = {}},
-                    {.token = 0x20U,
-                     .resource_id = 0x301U,
-                     .tertiary_quantity = 1,
-                     .name = {},
-                     .category_mask = 0x10U,
-                     .profile_id_4a = 7U,
-                     .mode_flags = 1U,
-                     .capacity_gate_flags = gates,
-                     .alternate_profile_id_54 =
-                         static_cast<u16>(alternate ? 9U : 0U)},
-                };
+                inventories.assign(
+                    list,
+                    {
+                        {.token = 0x10U, .next_token = 0x20U, .name = {}},
+                        {.token = 0x20U,
+                         .resource_id = 0x301U,
+                         .tertiary_quantity = 1,
+                         .name = {},
+                         .category_mask = 0x10U,
+                         .profile_id_4a = 7U,
+                         .mode_flags = 1U,
+                         .capacity_gate_flags = gates,
+                         .alternate_profile_id_54 =
+                             static_cast<u16>(alternate ? 9U : 0U)},
+                    }
+                );
 
                 const bool checks_primary = (gates & 0x8000U) != 0U;
                 const bool primary_passes = !checks_primary ||
@@ -1343,8 +1386,8 @@ void test_resource_selection_capacity_prefixes(openswd3::test::Context& test) {
                         final_state.profile_buffer[5U] == 0xBEEFU &&
                         runtime_word == (succeeds ? 0xBEEFU : 0xDEADBEEFU) &&
                         output_mode == (succeeds ? 1U : 0U) &&
-                        list.resources[1U].primary_quantity ==
-                            (succeeds ? 1U : 0U) &&
+                        openswd3::test::inventory_node(list, 1U)
+                                .selected_count == (succeeds ? 1U : 0U) &&
                         list.primary_required ==
                             (checks_primary ? gates & 0x7FFFU : 0xABCDU) &&
                         list.secondary_required ==
@@ -1361,6 +1404,7 @@ void test_resource_selection_capacity_prefixes(openswd3::test::Context& test) {
 }
 
 void test_actor_resource_release_prefixes(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     using namespace openswd3::battle;
     using openswd3::compat::u32;
     for (const u32 path : {0U, 1U, 2U, 3U, 4U, 5U, 6U, 7U}) {
@@ -1370,35 +1414,39 @@ void test_actor_resource_release_prefixes(openswd3::test::Context& test) {
         list.resource_head_token = 0x12345678U;
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0x76000020U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .resource_id = 0x777U,
-             .secondary_quantity = 7,
-             .name = {}},
-            {.token = 0x76000020U,
-             .resource_id = 0x777U,
-             .primary_quantity = 4U,
-             .secondary_quantity = 2,
-             .name = {}},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 0x777U,
+                 .secondary_quantity = 7,
+                 .name = {}},
+                {.token = 0x76000020U,
+                 .resource_id = 0x777U,
+                 .primary_quantity = 4U,
+                 .secondary_quantity = 2,
+                 .name = {}},
+            }
+        );
 
         if (path == 0U) {
             list.selected_resource_token = 0U;
             list.next_resource_head_token = 0xDEADBEEFU;
         } else if (path == 1U) {
-            list.resources[0U].next_token = 0U;
+            openswd3::test::inventory_node(list, 0U).legacy_next_token = 0U;
         } else if (path == 2U) {
             list.next_resource_head_token = 0xDEADBEEFU;
         } else if (path == 3U) {
-            list.resources[0U].next_token = 0xDEADBEEFU;
+            openswd3::test::inventory_node(list, 0U).legacy_next_token =
+                0xDEADBEEFU;
         } else if (path == 4U) {
             list.selected_resource_token = 0xDEADBEEFU;
         } else if (path == 6U) {
             list.selected_resource_token = 0x76000000U;
-            list.resources[0U].resource_id = 0x777U;
-            list.resources[0U].primary_quantity = 4U;
-            list.resources[0U].secondary_quantity = 1;
+            openswd3::test::inventory_node(list, 0U).item_id = 0x777U;
+            openswd3::test::inventory_node(list, 0U).selected_count = 4U;
+            openswd3::test::inventory_node(list, 0U).quantity_a = 1;
         }
 
         const auto result = release_legacy_battle_actor_resource(
@@ -1426,10 +1474,13 @@ void test_actor_resource_release_prefixes(openswd3::test::Context& test) {
                          : path == 4U         ? 0xDEADBEEFU
                                               : 0x76000020U) &&
                 workspace.tail_words[2U] == (path == 6U ? 0x777U : 0xBEEFU) &&
-                list.resources.size() == (path == 6U ? 2U : 3U) &&
-                list.resources.back().primary_quantity == 4U &&
-                list.resources.back().secondary_quantity == 2 &&
-                list.resources[path == 6U ? 0U : 1U].secondary_quantity == 7,
+                openswd3::test::inventory_nodes(list).size() ==
+                    (path == 6U ? 2U : 3U) &&
+                openswd3::test::inventory_nodes(list).back().selected_count ==
+                    4U &&
+                openswd3::test::inventory_nodes(list).back().quantity_a == 2 &&
+                openswd3::test::inventory_node(list, path == 6U ? 0U : 1U)
+                        .quantity_a == 7,
             "resource release preserves each normal-zero or missing-owner prefix including selected publication before workspace failure and actual erase before relink failure"
         );
     }
@@ -1447,20 +1498,23 @@ void test_actor_resource_release_prefixes(openswd3::test::Context& test) {
         list.selected_resource_token = path == 3U ? 0x76000000U : 0x76000010U;
         list.primary_required = 9U;
         list.secondary_required = 3U;
-        list.resources = {
-            {.token = 0x76000000U,
-             .next_token = 0x76000010U,
-             .resource_id = 0x777U,
-             .primary_quantity = 4U,
-             .secondary_quantity = 1,
-             .name = {}},
-            {.token = 0x76000010U,
-             .resource_id = 0x777U,
-             .secondary_quantity = 2,
-             .name = {},
-             .gate_word_48 = 0x0402U,
-             .capacity_gate_flags = 0x2000U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U,
+                 .next_token = 0x76000010U,
+                 .resource_id = 0x777U,
+                 .primary_quantity = 4U,
+                 .secondary_quantity = 1,
+                 .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 0x777U,
+                 .secondary_quantity = 2,
+                 .name = {},
+                 .gate_word_48 = 0x0402U,
+                 .capacity_gate_flags = 0x2000U},
+            }
+        );
 
         const auto status = execute_legacy_battle_actor_list_action(
             &list, &item_effect, &configuration, &workspace
@@ -1476,10 +1530,12 @@ void test_actor_resource_release_prefixes(openswd3::test::Context& test) {
                 list.secondary_required == (path < 2U ? 0U : 3U) &&
                 list.selected_resource_token ==
                     (path == 1U || path == 3U ? 0U : 0x76000010U) &&
-                list.resources.size() == (path == 3U ? 1U : 2U) &&
-                list.resources.back().secondary_quantity == 2 &&
-                list.resources.back().gate_word_48 ==
-                    (path == 1U ? 0x0401U : 0x0402U) &&
+                openswd3::test::inventory_nodes(list).size() ==
+                    (path == 3U ? 1U : 2U) &&
+                openswd3::test::inventory_nodes(list).back().quantity_a == 2 &&
+                openswd3::test::inventory_word(
+                    openswd3::test::inventory_nodes(list).back(), 0x48U
+                ) == (path == 1U ? 0x0401U : 0x0402U) &&
                 workspace.tail_words[2U] ==
                     (path == 1U || path == 3U ? 0x777U : 0xBEEFU),
             "list action discards the normal zero WORD, clears required capacity only after successful consumption and preserves unrefreshed capacity after resource failure"
@@ -1487,7 +1543,97 @@ void test_actor_resource_release_prefixes(openswd3::test::Context& test) {
     }
 }
 
+void test_shared_inventory_release(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    for (const bool invalidate_predecessor : {false, true}) {
+        for (const bool suppress_return : {false, true}) {
+            InventoryReleaseMemory memory;
+            openswd3::world_map::LegacyWorldItemListState items{memory};
+            LegacyBattleActorListQueryState list;
+            LegacyBattleGroupAWorkspaceState workspace;
+            list.inventory = &items;
+            list.next_resource_head_token = kLegacyBattlePlayerItemHeadToken;
+            list.selected_resource_token = 0x71000000U;
+            items.player_inventory_head_token = 0x71000000U;
+            items.player_inventory_head_alias.legacy_next_token = 0xDEADBEEFU;
+            auto& selected = items.player_inventory.emplace_back();
+            selected.legacy_token = 0x71000000U;
+            selected.legacy_next_token = 0x710000B0U;
+            selected.item_id = 0x0111U;
+            selected.selected_count = 1U;
+            selected.quantity_a = 1U;
+            auto& successor = items.player_inventory.emplace_back();
+            successor.legacy_token = 0x710000B0U;
+            successor.item_id = 0x0222U;
+            successor.quantity_b = 3U;
+            auto description = std::make_shared<LegacyBattleMonText::Storage>(
+                LegacyBattleMonText::Storage{0x41U, 0U}
+            );
+            u32 description_releases = 0U;
+            selected.description.bind(
+                description,
+                std::make_shared<const LegacyBattleMonText::Release>([&] {
+                    ++description_releases;
+                    return true;
+                })
+            );
+            bool release_prefix = false;
+            memory.on_release = [&] {
+                release_prefix =
+                    items.player_inventory_head_token == 0x71000000U &&
+                    list.resource_head_token == 0x71000000U &&
+                    list.selected_resource_token == 0U &&
+                    workspace.tail_words[2U] == 0x0111U;
+                workspace.tail_words[2U] = 0xBEEFU;
+                if (invalidate_predecessor) {
+                    list.next_resource_head_token = 0xDEADBEEFU;
+                }
+
+                openswd3::test::set_inventory_definition_word(
+                    items.player_inventory_head_alias,
+                    0x4CU,
+                    suppress_return ? 0x2000U : 0U
+                );
+            };
+            const auto result =
+                release_legacy_battle_actor_resource(&list, &workspace);
+            memory.on_release = {};
+            test.expect_true(
+                release_prefix && description_releases == 0U &&
+                    *description == LegacyBattleMonText::Storage{0x41U, 0U} &&
+                    items.player_inventory.size() == 1U &&
+                    items.player_inventory.front().legacy_token ==
+                        0x710000B0U &&
+                    workspace.tail_words[2U] == 0xBEEFU,
+                "the real allocation is released before relinking and its description receives no extra release"
+            );
+            if (invalidate_predecessor) {
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActorListQueryStatus::
+                                resource_node_typed_stop &&
+                        items.player_inventory_head_token == 0x71000000U &&
+                        list.resource_head_token == 0xDEADBEEFU &&
+                        list.selected_resource_token == 0U,
+                    "a missing predecessor after release retains deletion and quantity-update prefixes"
+                );
+            } else {
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActorListQueryStatus::completed &&
+                        items.player_inventory_head_token == 0x710000B0U &&
+                        list.resource_head_token ==
+                            kLegacyBattlePlayerItemHeadToken &&
+                        result.output_word == (suppress_return ? 0U : 0xBEEFU),
+                    "release rereads the global head flags and actual workspace after the allocator callback"
+                );
+            }
+        }
+    }
+}
+
 void test_resource_head_publication(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     using namespace openswd3::battle;
     using openswd3::compat::u32;
     constexpr std::array<u32, 6> heads{
@@ -1500,38 +1646,44 @@ void test_resource_head_publication(openswd3::test::Context& test) {
             list.resource_head_token = already_current ? head : ~head;
             list.next_resource_head_token = head;
             list.selected_resource_token = 0xCAFEBABEU;
-            list.resources = {
-                {.token = 0x76000000U,
-                 .next_token = 0x76000010U,
-                 .resource_id = 0xFFFFU,
-                 .primary_quantity = 0xABCDU,
-                 .secondary_quantity = -1,
-                 .tertiary_quantity = 2,
-                 .name = "retained",
-                 .category_mask = 0xFFFFFFFFU,
-                 .mode_flags = 0xFFU,
-                 .capacity_gate_flags = 0xFFFFU},
-                {.token = 0x76000010U, .name = "next"},
-            };
+            inventories.assign(
+                list,
+                {
+                    {.token = 0x76000000U,
+                     .next_token = 0x76000010U,
+                     .resource_id = 0xFFFFU,
+                     .primary_quantity = 0xABCDU,
+                     .secondary_quantity = -1,
+                     .tertiary_quantity = 2,
+                     .name = "retained",
+                     .category_mask = 0xFFFFFFFFU,
+                     .mode_flags = 0xFFU,
+                     .capacity_gate_flags = 0xFFFFU},
+                    {.token = 0x76000010U, .name = "next"},
+                }
+            );
 
-            const auto* first = &list.resources.front();
+            const auto* first = &openswd3::test::inventory_nodes(list).front();
             const auto status = commit_legacy_battle_actor_resource_list(&list);
             test.expect_true(
                 status == LegacyBattleActorListQueryStatus::completed &&
                     list.resource_head_token == head &&
                     list.next_resource_head_token == head &&
                     list.selected_resource_token == 0xCAFEBABEU &&
-                    list.resources.size() == 2U &&
-                    &list.resources.front() == first &&
-                    first->next_token == 0x76000010U &&
-                    first->resource_id == 0xFFFFU &&
-                    first->primary_quantity == 0xABCDU &&
-                    first->secondary_quantity == -1 &&
-                    first->tertiary_quantity == 2 &&
-                    first->name == "retained" &&
-                    first->category_mask == 0xFFFFFFFFU &&
-                    first->mode_flags == 0xFFU &&
-                    first->capacity_gate_flags == 0xFFFFU,
+                    openswd3::test::inventory_nodes(list).size() == 2U &&
+                    &openswd3::test::inventory_nodes(list).front() == first &&
+                    first->legacy_next_token == 0x76000010U &&
+                    first->item_id == 0xFFFFU &&
+                    first->selected_count == 0xABCDU &&
+                    first->quantity_a == 0xFFFFU && first->quantity_b == 2 &&
+                    LegacyBattleItemDefinitionView{*first}.name() ==
+                        "retained" &&
+                    LegacyBattleItemDefinitionView{*first}.category_mask() ==
+                        0xFFFFFFFFU &&
+                    LegacyBattleItemDefinitionView{*first}.mode_flags() ==
+                        0xFFU &&
+                    LegacyBattleItemDefinitionView{*first}
+                            .capacity_gate_flags() == 0xFFFFU,
                 "resource publication copies the full next head without node access, selection changes or ownership changes"
             );
         }
@@ -1550,18 +1702,23 @@ void test_resource_head_publication(openswd3::test::Context& test) {
             list.next_resource_head_token =
                 missing_root ? 0xFEDCBA98U : 0x76000000U;
             list.selected_resource_token = 0xCAFEBABEU;
-            list.resources = {
-                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-                {.token = 0x76000010U,
-                 .resource_id = 0x0300U,
-                 .primary_quantity = 1U,
-                 .secondary_quantity = 2,
-                 .tertiary_quantity = 3,
-                 .name = "published",
-                 .category_mask = 0x08000010U,
-                 .mode_flags = 0x01U,
-                 .capacity_gate_flags = 0x2000U},
-            };
+            inventories.assign(
+                list,
+                {
+                    {.token = 0x76000000U,
+                     .next_token = 0x76000010U,
+                     .name = {}},
+                    {.token = 0x76000010U,
+                     .resource_id = 0x0300U,
+                     .primary_quantity = 1U,
+                     .secondary_quantity = 2,
+                     .tertiary_quantity = 3,
+                     .name = "published",
+                     .category_mask = 0x08000010U,
+                     .mode_flags = 0x01U,
+                     .capacity_gate_flags = 0x2000U},
+                }
+            );
 
             LegacyBattleActorListQueryStatus status;
             switch (consumer) {
@@ -1638,10 +1795,14 @@ void test_resource_head_publication(openswd3::test::Context& test) {
                     list.next_resource_head_token ==
                         (missing_root ? 0xFEDCBA98U : 0x76000000U) &&
                     list.selected_resource_token == 0xCAFEBABEU &&
-                    list.resources.size() == 2U &&
-                    list.resources.back().primary_quantity == 1U &&
-                    list.resources.back().secondary_quantity == 2 &&
-                    list.resources.back().tertiary_quantity == 3,
+                    openswd3::test::inventory_nodes(list).size() == 2U &&
+                    openswd3::test::inventory_nodes(list)
+                            .back()
+                            .selected_count == 1U &&
+                    openswd3::test::inventory_nodes(list).back().quantity_a ==
+                        2 &&
+                    openswd3::test::inventory_nodes(list).back().quantity_b ==
+                        3,
                 "resource consumers start from the published root and preserve publication on their existing first-node failure"
             );
         }
@@ -1649,6 +1810,7 @@ void test_resource_head_publication(openswd3::test::Context& test) {
 }
 
 void test_flagged_resource_display(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     using namespace openswd3::battle;
     struct QuantityVector {
         u16 secondary;
@@ -1678,34 +1840,43 @@ void test_flagged_resource_display(openswd3::test::Context& test) {
                 list.resource_head_token = 0xDEAD0000U;
                 list.next_resource_head_token = 0x76000000U;
                 list.selected_resource_token = 0xCAFEBABEU;
-                list.resources = {
-                    {.token = 0x76000000U,
-                     .next_token = 0x76000010U,
-                     .name = {}}
-                };
+                inventories.assign(
+                    list,
+                    {{.token = 0x76000000U,
+                      .next_token = 0x76000010U,
+                      .name = {}}}
+                );
 
                 for (u32 index = 1U; index <= 4U; ++index) {
-                    list.resources.push_back({
-                        .token = 0x76000000U + index * 0x10U,
-                        .next_token = index == 4U
-                            ? 0U
-                            : 0x76000000U + (index + 1U) * 0x10U,
-                        .secondary_quantity =
-                            std::bit_cast<openswd3::compat::i16>(
-                                quantity.secondary
+                    openswd3::test::append_inventory_item(
+                        list,
+                        {
+                            .token = 0x76000000U + index * 0x10U,
+                            .next_token = index == 4U
+                                ? 0U
+                                : 0x76000000U + (index + 1U) * 0x10U,
+                            .secondary_quantity =
+                                std::bit_cast<openswd3::compat::i16>(
+                                    quantity.secondary
+                                ),
+                            .tertiary_quantity =
+                                std::bit_cast<openswd3::compat::i16>(
+                                    quantity.tertiary
+                                ),
+                            .name = source_name,
+                            .capacity_gate_flags = static_cast<u16>(
+                                index == 2U || index == 4U ? 0x2000U : 0U
                             ),
-                        .tertiary_quantity =
-                            std::bit_cast<openswd3::compat::i16>(
-                                quantity.tertiary
-                            ),
-                        .name = source_name,
-                        .capacity_gate_flags = static_cast<u16>(
-                            index == 2U || index == 4U ? 0x2000U : 0U
-                        ),
-                    });
+                        }
+                    );
                 }
 
-                const auto* original_nodes = list.resources.data();
+                const auto* original_nodes =
+                    openswd3::test::inventory_data(list);
+                const auto original_definition =
+                    openswd3::test::inventory_nodes(list)
+                        .back()
+                        .definition_snapshot;
                 std::array<u8, 20> name;
                 name.fill(0xA5U);
                 auto expected_name = name;
@@ -1737,15 +1908,20 @@ void test_flagged_resource_display(openswd3::test::Context& test) {
                         list.resource_head_token == expected_head &&
                         list.next_resource_head_token == 0x76000000U &&
                         list.selected_resource_token == 0xCAFEBABEU &&
-                        list.resources.data() == original_nodes &&
-                        list.resources.size() == 5U &&
-                        list.resources.back().name == source_name &&
-                        std::bit_cast<u16>(
-                            list.resources.back().secondary_quantity
-                        ) == quantity.secondary &&
-                        std::bit_cast<u16>(
-                            list.resources.back().tertiary_quantity
-                        ) == quantity.tertiary,
+                        openswd3::test::inventory_data(list) ==
+                            original_nodes &&
+                        openswd3::test::inventory_nodes(list).size() == 5U &&
+                        openswd3::test::inventory_nodes(list)
+                                .back()
+                                .definition_snapshot == original_definition &&
+                        std::bit_cast<u16>(openswd3::test::inventory_nodes(list)
+                                               .back()
+                                               .quantity_a) ==
+                            quantity.secondary &&
+                        std::bit_cast<u16>(openswd3::test::inventory_nodes(list)
+                                               .back()
+                                               .quantity_b) ==
+                            quantity.tertiary,
                     "actual flagged query preserves destructive ordinal scans, null-terminated names, untouched tails and word sums"
                 );
             }
@@ -1756,16 +1932,22 @@ void test_flagged_resource_display(openswd3::test::Context& test) {
         LegacyBattleActorListQueryState list;
         list.next_resource_head_token =
             failure == 0U ? 0xBAD00000U : 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+            }
+        );
 
         if (failure == 2U) {
-            list.resources.push_back({
-                .token = 0x76000010U,
-                .name = "name",
-                .capacity_gate_flags = 0x2000U,
-            });
+            openswd3::test::append_inventory_item(
+                list,
+                {
+                    .token = 0x76000010U,
+                    .name = "name",
+                    .capacity_gate_flags = 0x2000U,
+                }
+            );
         }
 
         std::array<u8, 20> name;
@@ -1794,17 +1976,21 @@ void test_flagged_resource_display(openswd3::test::Context& test) {
     for (const bool missing_reloaded_node : {false, true}) {
         LegacyBattleActorListQueryState list;
         list.next_resource_head_token = 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .secondary_quantity = 99,
-             .name = std::string(1U, missing_reloaded_node ? '\x30' : '\x20'),
-             .capacity_gate_flags = 0x2000U},
-            {.token = 0x76000020U,
-             .secondary_quantity = 3,
-             .tertiary_quantity = 4,
-             .name = "reloaded"},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .secondary_quantity = 99,
+                 .name =
+                     std::string(1U, missing_reloaded_node ? '\x30' : '\x20'),
+                 .capacity_gate_flags = 0x2000U},
+                {.token = 0x76000020U,
+                 .secondary_quantity = 3,
+                 .tertiary_quantity = 4,
+                 .name = "reloaded"},
+            }
+        );
 
         const std::span<u8> aliased_name{
             reinterpret_cast<u8*>(&list.resource_head_token),
@@ -1844,6 +2030,7 @@ void test_flagged_resource_display(openswd3::test::Context& test) {
 }
 
 void test_mode_resource_display(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     using namespace openswd3::battle;
     const std::array<u32, 5> modes{0U, 1U, 2U, 0x80000000U, 0xFFFFFFFFU};
     const std::array<u32, 5> occurrences{0U, 1U, 2U, 3U, 0xFFFFFFFFU};
@@ -1871,44 +2058,48 @@ void test_mode_resource_display(openswd3::test::Context& test) {
                 list.resource_head_token = 0xDEAD0000U;
                 list.next_resource_head_token = 0x76000000U;
                 list.selected_resource_token = 0xCAFEBABEU;
-                list.resources = {
-                    {.token = 0x76000000U,
-                     .next_token = 0x76000010U,
-                     .name = {}},
-                    {.token = 0x76000010U,
-                     .next_token = 0x76000020U,
-                     .resource_id = 0x0111U,
-                     .secondary_quantity = -1,
-                     .tertiary_quantity = 1,
-                     .name = labels[1U],
-                     .category_mask = 0x80000000U,
-                     .mode_flags = mode_flags},
-                    {.token = 0x76000020U,
-                     .next_token = 0x76000030U,
-                     .resource_id = 0x0300U,
-                     .secondary_quantity = 1,
-                     .tertiary_quantity = 2,
-                     .name = labels[2U],
-                     .category_mask = 0x08000000U,
-                     .mode_flags = mode_flags},
-                    {.token = 0x76000030U,
-                     .next_token = 0x76000040U,
-                     .resource_id = 0x0222U,
-                     .secondary_quantity = 0x7FFF,
-                     .tertiary_quantity = 1,
-                     .name = labels[3U],
-                     .category_mask = 0x08000000U,
-                     .mode_flags = mode_flags},
-                    {.token = 0x76000040U,
-                     .resource_id = 0x0333U,
-                     .secondary_quantity = -1,
-                     .tertiary_quantity = -1,
-                     .name = labels[4U],
-                     .category_mask = 0x88000000U,
-                     .mode_flags = mode_flags},
-                };
+                inventories.assign(
+                    list,
+                    {
+                        {.token = 0x76000000U,
+                         .next_token = 0x76000010U,
+                         .name = {}},
+                        {.token = 0x76000010U,
+                         .next_token = 0x76000020U,
+                         .resource_id = 0x0111U,
+                         .secondary_quantity = -1,
+                         .tertiary_quantity = 1,
+                         .name = labels[1U],
+                         .category_mask = 0x80000000U,
+                         .mode_flags = mode_flags},
+                        {.token = 0x76000020U,
+                         .next_token = 0x76000030U,
+                         .resource_id = 0x0300U,
+                         .secondary_quantity = 1,
+                         .tertiary_quantity = 2,
+                         .name = labels[2U],
+                         .category_mask = 0x08000000U,
+                         .mode_flags = mode_flags},
+                        {.token = 0x76000030U,
+                         .next_token = 0x76000040U,
+                         .resource_id = 0x0222U,
+                         .secondary_quantity = 0x7FFF,
+                         .tertiary_quantity = 1,
+                         .name = labels[3U],
+                         .category_mask = 0x08000000U,
+                         .mode_flags = mode_flags},
+                        {.token = 0x76000040U,
+                         .resource_id = 0x0333U,
+                         .secondary_quantity = -1,
+                         .tertiary_quantity = -1,
+                         .name = labels[4U],
+                         .category_mask = 0x88000000U,
+                         .mode_flags = mode_flags},
+                    }
+                );
 
-                const auto* original_storage = list.resources.data();
+                const auto* original_storage =
+                    openswd3::test::inventory_data(list);
                 std::array<u8, 20> name;
                 name.fill(0xA5U);
                 const auto original_name = name;
@@ -1932,10 +2123,17 @@ void test_mode_resource_display(openswd3::test::Context& test) {
                         list.resource_head_token == expected_head &&
                         list.next_resource_head_token == 0x76000000U &&
                         list.selected_resource_token == expected_selected &&
-                        list.resources.data() == original_storage &&
-                        list.resources.size() == 5U &&
-                        list.resources[1U].name == labels[1U] &&
-                        list.resources[4U].name == labels[4U],
+                        openswd3::test::inventory_data(list) ==
+                            original_storage &&
+                        openswd3::test::inventory_nodes(list).size() == 5U &&
+                        openswd3::battle::LegacyBattleItemDefinitionView{
+                            openswd3::test::inventory_node(list, 1U)
+                        }
+                                .name() == labels[1U] &&
+                        openswd3::battle::LegacyBattleItemDefinitionView{
+                            openswd3::test::inventory_node(list, 4U)
+                        }
+                                .name() == labels[4U],
                     "full DWORD mode and occurrence retain fixed-ID selection asymmetry, stale zero matches and destructive exhaustion"
                 );
                 if (node_index != 0U && writes_output) {
@@ -1981,23 +2179,28 @@ void test_mode_resource_display(openswd3::test::Context& test) {
                 LegacyBattleActorListQueryState list;
                 list.next_resource_head_token = 0x76000000U;
                 list.selected_resource_token = 0xCAFEBABEU;
-                list.resources = {
-                    {.token = 0x76000000U,
-                     .next_token = 0x76000010U,
-                     .name = {}},
-                    {.token = 0x76000010U,
-                     .resource_id =
-                         static_cast<u16>(mode == 0U ? 0x0300U : 0x0222U),
-                     .secondary_quantity = std::bit_cast<openswd3::compat::i16>(
-                         quantity_case[0U]
-                     ),
-                     .tertiary_quantity = std::bit_cast<openswd3::compat::i16>(
-                         quantity_case[1U]
-                     ),
-                     .name = source_names[name_index],
-                     .category_mask = 0x08000000U,
-                     .mode_flags = 5U},
-                };
+                inventories.assign(
+                    list,
+                    {
+                        {.token = 0x76000000U,
+                         .next_token = 0x76000010U,
+                         .name = {}},
+                        {.token = 0x76000010U,
+                         .resource_id =
+                             static_cast<u16>(mode == 0U ? 0x0300U : 0x0222U),
+                         .secondary_quantity =
+                             std::bit_cast<openswd3::compat::i16>(
+                                 quantity_case[0U]
+                             ),
+                         .tertiary_quantity =
+                             std::bit_cast<openswd3::compat::i16>(
+                                 quantity_case[1U]
+                             ),
+                         .name = source_names[name_index],
+                         .category_mask = 0x08000000U,
+                         .mode_flags = 5U},
+                    }
+                );
 
                 std::array<u8, 20> name;
                 name.fill(0xA5U);
@@ -2008,6 +2211,9 @@ void test_mode_resource_display(openswd3::test::Context& test) {
                     expected_name.begin()
                 );
                 expected_name[copied_sizes[name_index]] = 0U;
+                const auto original_definition =
+                    openswd3::test::inventory_node(list, 1U)
+                        .definition_snapshot;
                 u16 quantity = 0xBEEFU;
                 const auto result = query_legacy_battle_actor_mode_resource(
                     &list, mode, 1U, name, quantity
@@ -2017,7 +2223,8 @@ void test_mode_resource_display(openswd3::test::Context& test) {
                             LegacyBattleActorListQueryStatus::completed &&
                         result.found && name == expected_name &&
                         quantity == quantity_case[2U] &&
-                        list.resources[1U].name == source_names[name_index],
+                        openswd3::test::inventory_node(list, 1U)
+                                .definition_snapshot == original_definition,
                     "both mode paths consume WORD quantities and only the source bytes through its first NUL"
                 );
             }
@@ -2029,22 +2236,28 @@ void test_mode_resource_display(openswd3::test::Context& test) {
             LegacyBattleActorListQueryState list;
             list.next_resource_head_token = 0x76000000U;
             list.selected_resource_token = 0xCAFEBABEU;
-            list.resources = {
-                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-                {.token = 0x76000010U,
-                 .resource_id =
-                     static_cast<u16>(mode == 0U ? 0x0300U : 0x0222U),
-                 .secondary_quantity = 10,
-                 .tertiary_quantity = 11,
-                 .name =
-                     std::string(1U, available_quantity_node ? '\x20' : '\x30'),
-                 .category_mask = 0x08000000U,
-                 .mode_flags = 1U},
-                {.token = 0x76000020U,
-                 .secondary_quantity = 3,
-                 .tertiary_quantity = 4,
-                 .name = "quantity"},
-            };
+            inventories.assign(
+                list,
+                {
+                    {.token = 0x76000000U,
+                     .next_token = 0x76000010U,
+                     .name = {}},
+                    {.token = 0x76000010U,
+                     .resource_id =
+                         static_cast<u16>(mode == 0U ? 0x0300U : 0x0222U),
+                     .secondary_quantity = 10,
+                     .tertiary_quantity = 11,
+                     .name = std::string(
+                         1U, available_quantity_node ? '\x20' : '\x30'
+                     ),
+                     .category_mask = 0x08000000U,
+                     .mode_flags = 1U},
+                    {.token = 0x76000020U,
+                     .secondary_quantity = 3,
+                     .tertiary_quantity = 4,
+                     .name = "quantity"},
+                }
+            );
 
             const std::span<u8> name(
                 reinterpret_cast<u8*>(&list.resource_head_token), sizeof(u32)
@@ -2073,15 +2286,20 @@ void test_mode_resource_display(openswd3::test::Context& test) {
             LegacyBattleActorListQueryState list;
             list.next_resource_head_token = 0x76000000U;
             list.selected_resource_token = 0xCAFEBABEU;
-            list.resources = {
-                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-                {.token = 0x76000010U,
-                 .resource_id =
-                     static_cast<u16>(mode == 0U ? 0x0300U : 0x0222U),
-                 .name = empty_output ? "ok" : std::string(20U, 'x'),
-                 .category_mask = 0x08000000U,
-                 .mode_flags = 1U},
-            };
+            inventories.assign(
+                list,
+                {
+                    {.token = 0x76000000U,
+                     .next_token = 0x76000010U,
+                     .name = {}},
+                    {.token = 0x76000010U,
+                     .resource_id =
+                         static_cast<u16>(mode == 0U ? 0x0300U : 0x0222U),
+                     .name = empty_output ? "ok" : std::string(20U, 'x'),
+                     .category_mask = 0x08000000U,
+                     .mode_flags = 1U},
+                }
+            );
 
             std::array<u8, 20> name;
             name.fill(0xA5U);
@@ -2112,11 +2330,16 @@ void test_mode_resource_display(openswd3::test::Context& test) {
         LegacyBattleActorListQueryState list;
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0xCAFEBABEU;
-        list.resources = missing_root
-            ? std::vector<LegacyBattleActorListResourceNode>{}
-            : std::vector<LegacyBattleActorListResourceNode>{
-                  {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}}
-              };
+        inventories.assign(
+            list,
+            missing_root
+                ? std::vector<openswd3::test::BattleInventoryItemFixture>{}
+                : std::vector<openswd3::test::BattleInventoryItemFixture>{
+                      {.token = 0x76000000U,
+                       .next_token = 0x76000010U,
+                       .name = {}}
+                  }
+        );
 
         std::array<u8, 20> name;
         name.fill(0xA5U);
@@ -2153,22 +2376,26 @@ void test_mode_resource_display(openswd3::test::Context& test) {
 }
 
 void test_resource_list_display(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     using namespace openswd3::battle;
     using openswd3::compat::i16;
     constexpr u32 root = 0x93000000U;
-    const auto make_list = [] {
+    const auto make_list = [&inventories] {
         LegacyBattleActorListQueryState list;
         list.resource_head_token = 0xDEAD0000U;
         list.next_resource_head_token = root;
         list.selected_resource_token = 0xCAFEBABEU;
-        list.resources = {
-            {.token = root, .next_token = root + 0x10U, .name = {}},
-            {.token = root + 0x10U,
-             .tertiary_quantity = 1,
-             .name = "R",
-             .category_mask = 0x10U,
-             .mode_flags = 1U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = root, .next_token = root + 0x10U, .name = {}},
+                {.token = root + 0x10U,
+                 .tertiary_quantity = 1,
+                 .name = "R",
+                 .category_mask = 0x10U,
+                 .mode_flags = 1U},
+            }
+        );
 
         return list;
     };
@@ -2237,13 +2464,15 @@ void test_resource_list_display(openswd3::test::Context& test) {
                 for (const auto quantity : quantities) {
                     for (const u32 occurrence : {0U, 1U}) {
                         auto list = make_list();
-                        auto& node = list.resources[1U];
-                        node.category_mask = mask;
-                        node.mode_flags = mode.flags;
-                        node.primary_quantity = quantity.primary;
-                        node.secondary_quantity = quantity.secondary;
-                        node.tertiary_quantity = quantity.tertiary;
-                        const auto* storage = list.resources.data();
+                        auto& node = openswd3::test::inventory_node(list, 1U);
+                        openswd3::test::inventory_category(node) = mask;
+                        node.definition_snapshot[0x46U - 0x0CU] = mode.flags;
+                        node.selected_count = quantity.primary;
+                        node.quantity_a =
+                            std::bit_cast<u16>(quantity.secondary);
+                        node.quantity_b = std::bit_cast<u16>(quantity.tertiary);
+                        const auto* storage =
+                            openswd3::test::inventory_data(list);
                         std::array<u8, 20> name;
                         name.fill(0xCCU);
                         u16 flags = 0xBEEFU;
@@ -2278,7 +2507,7 @@ void test_resource_list_display(openswd3::test::Context& test) {
                                     (found ? root + 0x10U : 0U) &&
                                 list.next_resource_head_token == root &&
                                 list.selected_resource_token == 0xCAFEBABEU &&
-                                list.resources.data() == storage,
+                                openswd3::test::inventory_data(list) == storage,
                             "resource row preserves raw category masks, short-circuit modes, signed scan values and stale occurrence-zero outputs"
                         );
                     }
@@ -2307,8 +2536,9 @@ void test_resource_list_display(openswd3::test::Context& test) {
     for (const auto capacity : capacities) {
         for (const bool enabled : {false, true}) {
             auto list = make_list();
-            list.resources[1U].capacity_gate_flags =
-                static_cast<u16>(capacity.threshold | (enabled ? 0x4000U : 0U));
+            openswd3::test::inventory_word(
+                openswd3::test::inventory_node(list, 1U), 0x4CU
+            ) = static_cast<u16>(capacity.threshold | (enabled ? 0x4000U : 0U));
             LegacyBattleGroupAConfigurationState configuration;
             configuration.actor_record_token = 0x00600000U;
             configuration.actor_record[2U] = 0xAABB0000U | capacity.available;
@@ -2329,14 +2559,18 @@ void test_resource_list_display(openswd3::test::Context& test) {
 
     for (const u32 occurrence : {0U, 1U, 2U, 0x10000U, 0xFFFFFFFFU}) {
         auto list = make_list();
-        list.resources[1U].next_token = root + 0x20U;
-        list.resources.push_back({
-            .token = root + 0x20U,
-            .tertiary_quantity = 2,
-            .name = "S",
-            .category_mask = 0x10U,
-            .mode_flags = 1U,
-        });
+        openswd3::test::inventory_node(list, 1U).legacy_next_token =
+            root + 0x20U;
+        openswd3::test::append_inventory_item(
+            list,
+            {
+                .token = root + 0x20U,
+                .tertiary_quantity = 2,
+                .name = "S",
+                .category_mask = 0x10U,
+                .mode_flags = 1U,
+            }
+        );
         std::array<u8, 20> name{};
         u16 flags = 0xBEEFU;
         u16 quantity = 0xABCDU;
@@ -2361,7 +2595,9 @@ void test_resource_list_display(openswd3::test::Context& test) {
              std::string(20U, 'm'),
          }) {
         auto list = make_list();
-        list.resources[1U].name = source;
+        openswd3::test::set_inventory_name(
+            openswd3::test::inventory_node(list, 1U), source
+        );
         std::array<u8, 20> name;
         name.fill(0xCCU);
         u16 flags = 0xBEEFU;
@@ -2393,7 +2629,9 @@ void test_resource_list_display(openswd3::test::Context& test) {
 
     for (const bool enabled : {false, true}) {
         auto list = make_list();
-        list.resources[1U].capacity_gate_flags = enabled ? 0x4001U : 0U;
+        openswd3::test::inventory_word(
+            openswd3::test::inventory_node(list, 1U), 0x4CU
+        ) = enabled ? 0x4001U : 0U;
         std::array<u8, 20> name{};
         u16 flags = 0xBEEFU;
         u16 quantity = 0xABCDU;
@@ -2426,7 +2664,7 @@ void test_resource_list_display(openswd3::test::Context& test) {
 
     {
         auto list = make_list();
-        list.resources[1U].primary_quantity = 0xBEEFU;
+        openswd3::test::inventory_node(list, 1U).selected_count = 0xBEEFU;
         std::array<u8, 20> name{};
         u16 quantity = 0xABCDU;
         const auto result = query_legacy_battle_actor_resource_list(
@@ -2435,19 +2673,22 @@ void test_resource_list_display(openswd3::test::Context& test) {
             0U,
             1U,
             name,
-            list.resources[1U].primary_quantity,
+            openswd3::test::inventory_node(list, 1U).selected_count,
             quantity
         );
         test.expect_true(
             result.found && quantity == 1U &&
-                list.resources[1U].primary_quantity == 0x8000U,
+                openswd3::test::inventory_node(list, 1U).selected_count ==
+                    0x8000U,
             "actual flags clear the aliased node quantity before qualification and publish visibility after output arithmetic"
         );
     }
 
     {
         auto list = make_list();
-        list.resources[1U].capacity_gate_flags = 0x4001U;
+        openswd3::test::inventory_word(
+            openswd3::test::inventory_node(list, 1U), 0x4CU
+        ) = 0x4001U;
         std::array<u8, 20> name{};
         u16 quantity = 0xABCDU;
         const auto result = query_legacy_battle_actor_resource_list(
@@ -2456,20 +2697,24 @@ void test_resource_list_display(openswd3::test::Context& test) {
             0U,
             1U,
             name,
-            list.resources[1U].capacity_gate_flags,
+            openswd3::test::inventory_word(
+                openswd3::test::inventory_node(list, 1U), 0x4CU
+            ),
             quantity
         );
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
                 result.found && quantity == 1U &&
-                list.resources[1U].capacity_gate_flags == 0x8000U,
+                openswd3::test::inventory_word(
+                    openswd3::test::inventory_node(list, 1U), 0x4CU
+                ) == 0x8000U,
             "actual flags clear their aliased capacity gate before the conditional owner access"
         );
     }
 
     {
         auto list = make_list();
-        list.resources[1U].tertiary_quantity = 0x4001;
+        openswd3::test::inventory_node(list, 1U).quantity_b = 0x4001;
         LegacyBattleGroupAConfigurationState configuration;
         configuration.actor_record_token = 0x00600000U;
         std::array<u8, 20> name{};
@@ -2481,19 +2726,25 @@ void test_resource_list_display(openswd3::test::Context& test) {
             1U,
             name,
             flags,
-            list.resources[1U].capacity_gate_flags
+            openswd3::test::inventory_word(
+                openswd3::test::inventory_node(list, 1U), 0x4CU
+            )
         );
         test.expect_true(
             result.found && flags == 0xC000U &&
-                list.resources[1U].capacity_gate_flags == 0x4001U,
+                openswd3::test::inventory_word(
+                    openswd3::test::inventory_node(list, 1U), 0x4CU
+                ) == 0x4001U,
             "quantity publication changes the actual capacity word before the bit-fourteen test"
         );
     }
 
     {
         auto list = make_list();
-        list.resources[0U].tertiary_quantity = 7;
-        list.resources[1U].name.clear();
+        openswd3::test::inventory_node(list, 0U).quantity_b = 7;
+        openswd3::test::set_inventory_name(
+            openswd3::test::inventory_node(list, 1U), ""
+        );
         const std::span<u8> name{
             reinterpret_cast<u8*>(&list.resource_head_token), sizeof(u32)
         };
@@ -2512,7 +2763,9 @@ void test_resource_list_display(openswd3::test::Context& test) {
 
     {
         auto list = make_list();
-        list.resources[1U].name = "X";
+        openswd3::test::set_inventory_name(
+            openswd3::test::inventory_node(list, 1U), "X"
+        );
         u16 flags = 0xBEEFU;
         const std::span<u8> name{reinterpret_cast<u8*>(&flags), sizeof(flags)};
         u16 quantity = 0xABCDU;
@@ -2527,8 +2780,12 @@ void test_resource_list_display(openswd3::test::Context& test) {
 
     {
         auto list = make_list();
-        list.resources[1U].name = std::string(2U, '\xFF');
-        list.resources[1U].capacity_gate_flags = 0x4001U;
+        openswd3::test::set_inventory_name(
+            openswd3::test::inventory_node(list, 1U), std::string(2U, '\xFF')
+        );
+        openswd3::test::inventory_word(
+            openswd3::test::inventory_node(list, 1U), 0x4CU
+        ) = 0x4001U;
         LegacyBattleGroupAConfigurationState configuration;
         configuration.actor_record_token = 0x00600000U;
         const std::span<u8> name{
@@ -2554,9 +2811,10 @@ void test_resource_list_display(openswd3::test::Context& test) {
         } else if (failure == 2U) {
             list.next_resource_head_token = 0xFEDCBA98U;
         } else if (failure == 3U) {
-            list.resources[0U].next_token = 0xFEDCBA98U;
+            openswd3::test::inventory_node(list, 0U).legacy_next_token =
+                0xFEDCBA98U;
         } else if (failure == 4U) {
-            list.resources[0U].next_token = 0U;
+            openswd3::test::inventory_node(list, 0U).legacy_next_token = 0U;
         }
 
         std::array<u8, 20> name;
@@ -2591,28 +2849,32 @@ void test_resource_list_display(openswd3::test::Context& test) {
 }
 
 void test_resource_list_item_count(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     using namespace openswd3::battle;
     using openswd3::compat::i16;
     constexpr u32 root = 0x87000000U;
-    const auto make_list = [] {
+    const auto make_list = [&inventories] {
         LegacyBattleActorListQueryState list;
         list.resource_head_token = 0xDEAD0000U;
         list.next_resource_head_token = root;
         list.selected_resource_token = 0xCAFEBABEU;
-        list.resources = {
-            {.token = root,
-             .next_token = root + 0x10U,
-             .name = {},
-             .category_mask = 0xFFFFFFFFU,
-             .mode_flags = 0x05U,
-             .capacity_gate_flags = 0x2000U},
-            {.token = root + 0x10U,
-             .resource_id = 0x0300U,
-             .tertiary_quantity = 1,
-             .name = std::string(100U, 'n'),
-             .category_mask = 0x2000U,
-             .mode_flags = 0x01U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = root,
+                 .next_token = root + 0x10U,
+                 .name = {},
+                 .category_mask = 0xFFFFFFFFU,
+                 .mode_flags = 0x05U,
+                 .capacity_gate_flags = 0x2000U},
+                {.token = root + 0x10U,
+                 .resource_id = 0x0300U,
+                 .tertiary_quantity = 1,
+                 .name = std::string(100U, 'n'),
+                 .category_mask = 0x2000U,
+                 .mode_flags = 0x01U},
+            }
+        );
 
         return list;
     };
@@ -2652,13 +2914,16 @@ void test_resource_list_item_count(openswd3::test::Context& test) {
                 for (const bool positive : {false, true}) {
                     for (const u8 extra : extra_bytes) {
                         auto list = make_list();
-                        auto& node = list.resources[1U];
-                        node.category_mask = node_mask;
-                        node.mode_flags = mode;
-                        node.tertiary_quantity = positive ? 1 : 0;
-                        node.capacity_gate_flags =
+                        auto& node = openswd3::test::inventory_node(list, 1U);
+                        openswd3::test::inventory_category(node) = node_mask;
+                        node.definition_snapshot[0x46U - 0x0CU] = mode;
+                        node.quantity_b = positive ? 1 : 0;
+                        openswd3::test::inventory_word(node, 0x4CU) =
                             static_cast<u16>(static_cast<u16>(extra) << 8U);
-                        const auto* storage = list.resources.data();
+                        const auto* storage =
+                            openswd3::test::inventory_data(list);
+                        const auto original_definition =
+                            node.definition_snapshot;
                         std::array<u16, 3> words{0xCAFEU, 0xBEEFU, 0xA55AU};
                         const bool ordinary = (node_mask & mask) != 0U &&
                             (mode & 0x05U) != 0U && positive;
@@ -2683,13 +2948,18 @@ void test_resource_list_item_count(openswd3::test::Context& test) {
                                 list.resource_head_token == 0U &&
                                 list.next_resource_head_token == root &&
                                 list.selected_resource_token == 0xCAFEBABEU &&
-                                list.resources.data() == storage &&
-                                list.resources.size() == 2U &&
-                                node.resource_id == 0x0300U &&
-                                node.name.size() == 100U &&
-                                node.category_mask == node_mask &&
-                                node.mode_flags == mode &&
-                                node.capacity_gate_flags ==
+                                openswd3::test::inventory_data(list) ==
+                                    storage &&
+                                openswd3::test::inventory_nodes(list).size() ==
+                                    2U &&
+                                node.item_id == 0x0300U &&
+                                node.definition_snapshot ==
+                                    original_definition &&
+                                openswd3::test::inventory_category(node) ==
+                                    node_mask &&
+                                node.definition_snapshot[0x46U - 0x0CU] ==
+                                    mode &&
+                                openswd3::test::inventory_word(node, 0x4CU) ==
                                     static_cast<u16>(
                                         static_cast<u16>(extra) << 8U
                                     ),
@@ -2729,14 +2999,13 @@ void test_resource_list_item_count(openswd3::test::Context& test) {
             for (const u32 selector : {0U, 4U}) {
                 for (const bool extra : {false, true}) {
                     auto list = make_list();
-                    auto& node = list.resources[1U];
-                    node.category_mask = 0xFFFFFFFFU;
-                    node.tertiary_quantity =
-                        std::bit_cast<i16>(quantity.tertiary);
-                    node.primary_quantity = quantity.primary;
-                    node.secondary_quantity =
-                        std::bit_cast<i16>(quantity.secondary);
-                    node.capacity_gate_flags = extra ? 0x2000U : 0U;
+                    auto& node = openswd3::test::inventory_node(list, 1U);
+                    openswd3::test::inventory_category(node) = 0xFFFFFFFFU;
+                    node.quantity_b = quantity.tertiary;
+                    node.selected_count = quantity.primary;
+                    node.quantity_a = quantity.secondary;
+                    openswd3::test::inventory_word(node, 0x4CU) =
+                        extra ? 0x2000U : 0U;
                     u16 count = initial;
                     const u16 expected = static_cast<u16>(
                         initial + static_cast<u32>(quantity.positive) +
@@ -2749,10 +3018,10 @@ void test_resource_list_item_count(openswd3::test::Context& test) {
                         status == LegacyBattleActorListQueryStatus::completed &&
                             count == expected &&
                             list.resource_head_token == 0U &&
-                            node.primary_quantity == quantity.primary &&
-                            std::bit_cast<u16>(node.secondary_quantity) ==
+                            node.selected_count == quantity.primary &&
+                            std::bit_cast<u16>(node.quantity_a) ==
                                 quantity.secondary &&
-                            std::bit_cast<u16>(node.tertiary_quantity) ==
+                            std::bit_cast<u16>(node.quantity_b) ==
                                 quantity.tertiary,
                         "resource count uses signed quantity words and an unsigned primary word before each wrapping increment"
                     );
@@ -2767,51 +3036,56 @@ void test_resource_list_item_count(openswd3::test::Context& test) {
 
     for (u32 scenario = 0U; scenario < alias_expected.size(); ++scenario) {
         auto list = make_list();
-        list.resources[1U].next_token = root + 0x20U;
-        list.resources[1U].secondary_quantity = 1;
-        list.resources[1U].tertiary_quantity = 0;
-        list.resources.push_back({
-            .token = root + 0x20U,
-            .secondary_quantity = 1,
-            .name = {},
-            .category_mask = 0x2000U,
-            .mode_flags = 0x01U,
-        });
-        auto& first = list.resources[1U];
-        auto& second = list.resources[2U];
-        u16* count = &list.resources[0U].primary_quantity;
+        openswd3::test::inventory_node(list, 1U).legacy_next_token =
+            root + 0x20U;
+        openswd3::test::inventory_node(list, 1U).quantity_a = 1;
+        openswd3::test::inventory_node(list, 1U).quantity_b = 0;
+        openswd3::test::append_inventory_item(
+            list,
+            {
+                .token = root + 0x20U,
+                .secondary_quantity = 1,
+                .name = {},
+                .category_mask = 0x2000U,
+                .mode_flags = 0x01U,
+            }
+        );
+        auto& first = openswd3::test::inventory_node(list, 1U);
+        auto& second = openswd3::test::inventory_node(list, 2U);
+        u16* count = &openswd3::test::inventory_node(list, 0U).selected_count;
         switch (scenario) {
         case 0U:
             *count = 0xBEEFU;
             break;
 
         case 1U:
-            count = reinterpret_cast<u16*>(&first.secondary_quantity);
-            second.category_mask = 0U;
+            count = reinterpret_cast<u16*>(&first.quantity_a);
+            openswd3::test::inventory_category(second) = 0U;
             break;
 
         case 2U:
-            count = &second.primary_quantity;
+            count = &second.selected_count;
             break;
 
         case 3U:
-            second.secondary_quantity = 0;
-            count = reinterpret_cast<u16*>(&second.secondary_quantity);
+            second.quantity_a = 0;
+            count = reinterpret_cast<u16*>(&second.quantity_a);
             break;
 
         case 4U:
-            second.secondary_quantity = 0;
-            count = reinterpret_cast<u16*>(&second.tertiary_quantity);
+            second.quantity_a = 0;
+            count = reinterpret_cast<u16*>(&second.quantity_b);
             break;
 
         default:
-            first.capacity_gate_flags = scenario == 5U ? 0x1FFFU : 0x3FFFU;
-            count = &first.capacity_gate_flags;
-            second.category_mask = 0U;
+            openswd3::test::inventory_word(first, 0x4CU) =
+                scenario == 5U ? 0x1FFFU : 0x3FFFU;
+            count = &openswd3::test::inventory_word(first, 0x4CU);
+            openswd3::test::inventory_category(second) = 0U;
             break;
         }
 
-        const auto* storage = list.resources.data();
+        const auto* storage = openswd3::test::inventory_data(list);
         const auto status =
             count_legacy_battle_actor_resource_list(&list, 4U, *count);
         test.expect_true(
@@ -2820,7 +3094,8 @@ void test_resource_list_item_count(openswd3::test::Context& test) {
                 list.resource_head_token == 0U &&
                 list.next_resource_head_token == root &&
                 list.selected_resource_token == 0xCAFEBABEU &&
-                list.resources.data() == storage && list.resources.size() == 3U,
+                openswd3::test::inventory_data(list) == storage &&
+                openswd3::test::inventory_nodes(list).size() == 3U,
             "direct count increments change later quantity and bit-thirteen reads through actual word aliases"
         );
     }
@@ -2851,34 +3126,42 @@ void test_resource_list_item_count(openswd3::test::Context& test) {
             break;
 
         case 3U:
-            list.resources[0U].next_token = expected_head;
+            openswd3::test::inventory_node(list, 0U).legacy_next_token =
+                expected_head;
             break;
 
         case 4U:
-            list.resources[1U].next_token = expected_head;
+            openswd3::test::inventory_node(list, 1U).legacy_next_token =
+                expected_head;
             expected_count = 0xBEF0U;
             break;
 
         case 5U:
-            list.resources[1U].next_token = expected_head;
-            list.resources[1U].capacity_gate_flags = 0x2000U;
+            openswd3::test::inventory_node(list, 1U).legacy_next_token =
+                expected_head;
+            openswd3::test::inventory_word(
+                openswd3::test::inventory_node(list, 1U), 0x4CU
+            ) = 0x2000U;
             expected_count = 0xBEF1U;
             break;
 
         case 6U:
-            list.resources[1U].next_token = expected_head;
-            list.resources[1U].category_mask = 0U;
+            openswd3::test::inventory_node(list, 1U).legacy_next_token =
+                expected_head;
+            openswd3::test::inventory_category(
+                openswd3::test::inventory_node(list, 1U)
+            ) = 0U;
             break;
 
         default:
-            list.resources[0U].next_token = 0U;
+            openswd3::test::inventory_node(list, 0U).legacy_next_token = 0U;
             expected_head = 0U;
             expected_status = LegacyBattleActorListQueryStatus::completed;
             break;
         }
 
         const u32 next_root = list.next_resource_head_token;
-        const auto* storage = list.resources.data();
+        const auto* storage = openswd3::test::inventory_data(list);
         const auto status =
             count_legacy_battle_actor_resource_list(owner, 4U, count);
         test.expect_true(
@@ -2886,29 +3169,34 @@ void test_resource_list_item_count(openswd3::test::Context& test) {
                 list.resource_head_token == expected_head &&
                 list.next_resource_head_token == next_root &&
                 list.selected_resource_token == 0xCAFEBABEU &&
-                list.resources.data() == storage && list.resources.size() == 2U,
+                openswd3::test::inventory_data(list) == storage &&
+                openswd3::test::inventory_nodes(list).size() == 2U,
             "resource count separates actual empty chains from invalid roots and preserves every published failure prefix"
         );
     }
 
     {
         auto list = make_list();
-        list.resources.resize(1U);
+        openswd3::test::inventory_nodes(list).resize(1U);
         for (u32 index = 1U; index <= 512U; ++index) {
-            list.resources.push_back({
-                .token = root + index * 0x10U,
-                .next_token = index == 512U ? 0U : root + (index + 1U) * 0x10U,
-                .resource_id =
-                    static_cast<u16>(index % 2U == 0U ? 0x0300U : 0xFFFFU),
-                .tertiary_quantity = 1,
-                .name = std::string(100U, 'n'),
-                .category_mask = 0x2000U,
-                .mode_flags = 0x01U,
-                .capacity_gate_flags = 0x2000U,
-            });
+            openswd3::test::append_inventory_item(
+                list,
+                {
+                    .token = root + index * 0x10U,
+                    .next_token =
+                        index == 512U ? 0U : root + (index + 1U) * 0x10U,
+                    .resource_id =
+                        static_cast<u16>(index % 2U == 0U ? 0x0300U : 0xFFFFU),
+                    .tertiary_quantity = 1,
+                    .name = std::string(100U, 'n'),
+                    .category_mask = 0x2000U,
+                    .mode_flags = 0x01U,
+                    .capacity_gate_flags = 0x2000U,
+                }
+            );
         }
 
-        const auto* storage = list.resources.data();
+        const auto* storage = openswd3::test::inventory_data(list);
         u16 count = 0xFFFEU;
         const auto status =
             count_legacy_battle_actor_resource_list(&list, 4U, count);
@@ -2917,14 +3205,15 @@ void test_resource_list_item_count(openswd3::test::Context& test) {
                 count == 0x03FEU && list.resource_head_token == 0U &&
                 list.next_resource_head_token == root &&
                 list.selected_resource_token == 0xCAFEBABEU &&
-                list.resources.data() == storage &&
-                list.resources.size() == 513U,
+                openswd3::test::inventory_data(list) == storage &&
+                openswd3::test::inventory_nodes(list).size() == 513U,
             "resource count traverses every finite node, allows two increments and wraps across the entire chain"
         );
     }
 }
 
 void test_mode_resource_quantity_count(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     using namespace openswd3::battle;
     using openswd3::compat::i16;
     const std::array<std::pair<u32, bool>, 7> categories{{
@@ -2953,21 +3242,28 @@ void test_mode_resource_quantity_count(openswd3::test::Context& test) {
                 list.resource_head_token = 0xDEAD0000U;
                 list.next_resource_head_token = 0x76000000U;
                 list.selected_resource_token = 0xCAFEBABEU;
-                list.resources = {
-                    {.token = 0x76000000U,
-                     .next_token = 0x76000010U,
-                     .name = "root"},
-                    {.token = 0x76000010U,
-                     .resource_id = identifier,
-                     .primary_quantity = 0x4321U,
-                     .secondary_quantity = -1,
-                     .tertiary_quantity = 2,
-                     .name = std::string(100U, 'n'),
-                     .category_mask = category.first,
-                     .mode_flags = flag.first},
-                };
+                inventories.assign(
+                    list,
+                    {
+                        {.token = 0x76000000U,
+                         .next_token = 0x76000010U,
+                         .name = "root"},
+                        {.token = 0x76000010U,
+                         .resource_id = identifier,
+                         .primary_quantity = 0x4321U,
+                         .secondary_quantity = -1,
+                         .tertiary_quantity = 2,
+                         .name = std::string(100U, 'n'),
+                         .category_mask = category.first,
+                         .mode_flags = flag.first},
+                    }
+                );
 
-                const auto* original_storage = list.resources.data();
+                const auto* original_storage =
+                    openswd3::test::inventory_data(list);
+                const auto definition_before =
+                    openswd3::test::inventory_node(list, 1U)
+                        .definition_snapshot;
                 std::array<u16, 3> output{0xCAFEU, 0xBEEFU, 0xA55AU};
                 const auto status =
                     count_legacy_battle_actor_mode_resources(&list, output[1U]);
@@ -2980,15 +3276,25 @@ void test_mode_resource_quantity_count(openswd3::test::Context& test) {
                         list.resource_head_token == 0U &&
                         list.next_resource_head_token == 0x76000000U &&
                         list.selected_resource_token == 0xCAFEBABEU &&
-                        list.resources.data() == original_storage &&
-                        list.resources.size() == 2U &&
-                        list.resources[0U].next_token == 0x76000010U &&
-                        list.resources[1U].primary_quantity == 0x4321U &&
-                        list.resources[1U].secondary_quantity == -1 &&
-                        list.resources[1U].tertiary_quantity == 2 &&
-                        list.resources[1U].name == std::string(100U, 'n') &&
-                        list.resources[1U].category_mask == category.first &&
-                        list.resources[1U].mode_flags == flag.first,
+                        openswd3::test::inventory_data(list) ==
+                            original_storage &&
+                        openswd3::test::inventory_nodes(list).size() == 2U &&
+                        openswd3::test::inventory_node(list, 0U)
+                                .legacy_next_token == 0x76000010U &&
+                        openswd3::test::inventory_node(list, 1U)
+                                .selected_count == 0x4321U &&
+                        openswd3::test::inventory_node(list, 1U).quantity_a ==
+                            0xFFFFU &&
+                        openswd3::test::inventory_node(list, 1U).quantity_b ==
+                            2 &&
+                        openswd3::test::inventory_node(list, 1U)
+                                .definition_snapshot == definition_before &&
+                        openswd3::test::inventory_category(
+                            openswd3::test::inventory_node(list, 1U)
+                        ) == category.first &&
+                        openswd3::test::inventory_node(list, 1U)
+                                .definition_snapshot[0x46U - 0x0CU] ==
+                            flag.first,
                     "mode count clears only its actual WORD, filters category/id/BYTE gates and leaves source resources unchanged"
                 );
             }
@@ -3008,28 +3314,36 @@ void test_mode_resource_quantity_count(openswd3::test::Context& test) {
         for (const bool append_tail : {false, true}) {
             LegacyBattleActorListQueryState list;
             list.next_resource_head_token = 0x76000000U;
-            list.resources = {
-                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-                {.token = 0x76000010U,
-                 .next_token = append_tail ? 0x76000020U : 0U,
-                 .resource_id = 0x0222U,
-                 .secondary_quantity = std::bit_cast<i16>(quantity[0U]),
-                 .tertiary_quantity = std::bit_cast<i16>(quantity[1U]),
-                 .name = {},
-                 .category_mask = 0x08000000U,
-                 .mode_flags = 4U},
-            };
+            inventories.assign(
+                list,
+                {
+                    {.token = 0x76000000U,
+                     .next_token = 0x76000010U,
+                     .name = {}},
+                    {.token = 0x76000010U,
+                     .next_token = append_tail ? 0x76000020U : 0U,
+                     .resource_id = 0x0222U,
+                     .secondary_quantity = std::bit_cast<i16>(quantity[0U]),
+                     .tertiary_quantity = std::bit_cast<i16>(quantity[1U]),
+                     .name = {},
+                     .category_mask = 0x08000000U,
+                     .mode_flags = 4U},
+                }
+            );
 
             if (append_tail) {
-                list.resources.push_back({
-                    .token = 0x76000020U,
-                    .resource_id = 0x0333U,
-                    .secondary_quantity = -1,
-                    .tertiary_quantity = 2,
-                    .name = {},
-                    .category_mask = 0x88000000U,
-                    .mode_flags = 5U,
-                });
+                openswd3::test::append_inventory_item(
+                    list,
+                    {
+                        .token = 0x76000020U,
+                        .resource_id = 0x0333U,
+                        .secondary_quantity = -1,
+                        .tertiary_quantity = 2,
+                        .name = {},
+                        .category_mask = 0x88000000U,
+                        .mode_flags = 5U,
+                    }
+                );
             }
 
             std::array<u16, 3> output{0xCAFEU, 0xBEEFU, 0xA55AU};
@@ -3040,10 +3354,10 @@ void test_mode_resource_quantity_count(openswd3::test::Context& test) {
                     output[1U] == quantity[append_tail ? 3U : 2U] &&
                     output.front() == 0xCAFEU && output.back() == 0xA55AU &&
                     list.resource_head_token == 0U &&
-                    list.resources[1U].secondary_quantity ==
-                        std::bit_cast<i16>(quantity[0U]) &&
-                    list.resources[1U].tertiary_quantity ==
-                        std::bit_cast<i16>(quantity[1U]),
+                    openswd3::test::inventory_node(list, 1U).quantity_a ==
+                        quantity[0U] &&
+                    openswd3::test::inventory_node(list, 1U).quantity_b ==
+                        quantity[1U],
                 "mode quantities preserve node and cross-node WORD wrap without signed rejection or writes to adjacent output words"
             );
         }
@@ -3054,42 +3368,47 @@ void test_mode_resource_quantity_count(openswd3::test::Context& test) {
         LegacyBattleActorListQueryState list;
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0xCAFEBABEU;
-        list.resources = {
-            {.token = 0x76000000U,
-             .next_token = 0x76000010U,
-             .secondary_quantity = 9,
-             .name = {}},
-            {.token = 0x76000010U,
-             .next_token = 0x76000020U,
-             .resource_id = 0x0222U,
-             .secondary_quantity = static_cast<i16>(alias == 1U ? 5 : 3),
-             .tertiary_quantity =
-                 static_cast<i16>(alias == 1U ? 7 : (alias == 2U ? 8 : 4)),
-             .name = {},
-             .category_mask = 0x08000000U,
-             .mode_flags = 1U},
-            {.token = 0x76000020U,
-             .resource_id = 0x0333U,
-             .secondary_quantity =
-                 static_cast<i16>(alias == 3U ? 5 : (alias == 4U ? 7 : 1)),
-             .tertiary_quantity =
-                 static_cast<i16>(alias == 3U ? 7 : (alias == 4U ? 5 : 2)),
-             .name = {},
-             .category_mask = 0x08000000U,
-             .mode_flags = 4U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U,
+                 .next_token = 0x76000010U,
+                 .secondary_quantity = 9,
+                 .name = {}},
+                {.token = 0x76000010U,
+                 .next_token = 0x76000020U,
+                 .resource_id = 0x0222U,
+                 .secondary_quantity = static_cast<i16>(alias == 1U ? 5 : 3),
+                 .tertiary_quantity =
+                     static_cast<i16>(alias == 1U ? 7 : (alias == 2U ? 8 : 4)),
+                 .name = {},
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 1U},
+                {.token = 0x76000020U,
+                 .resource_id = 0x0333U,
+                 .secondary_quantity =
+                     static_cast<i16>(alias == 3U ? 5 : (alias == 4U ? 7 : 1)),
+                 .tertiary_quantity =
+                     static_cast<i16>(alias == 3U ? 7 : (alias == 4U ? 5 : 2)),
+                 .name = {},
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 4U},
+            }
+        );
 
         auto& output_field = alias == 0U
-            ? list.resources[0U].secondary_quantity
+            ? openswd3::test::inventory_node(list, 0U).quantity_a
             : (alias == 1U
-                   ? list.resources[1U].secondary_quantity
+                   ? openswd3::test::inventory_node(list, 1U).quantity_a
                    : (alias == 2U
-                          ? list.resources[1U].tertiary_quantity
+                          ? openswd3::test::inventory_node(list, 1U).quantity_b
                           : (alias == 3U
-                                 ? list.resources[2U].secondary_quantity
-                                 : list.resources[2U].tertiary_quantity)));
+                                 ? openswd3::test::inventory_node(list, 2U)
+                                       .quantity_a
+                                 : openswd3::test::inventory_node(list, 2U)
+                                       .quantity_b)));
         auto& output_word = reinterpret_cast<u16&>(output_field);
-        const auto* original_storage = list.resources.data();
+        const auto* original_storage = openswd3::test::inventory_data(list);
         const auto status =
             count_legacy_battle_actor_mode_resources(&list, output_word);
         test.expect_true(
@@ -3098,11 +3417,14 @@ void test_mode_resource_quantity_count(openswd3::test::Context& test) {
                 list.resource_head_token == 0U &&
                 list.next_resource_head_token == 0x76000000U &&
                 list.selected_resource_token == 0xCAFEBABEU &&
-                list.resources.data() == original_storage &&
-                list.resources.size() == 3U &&
-                list.resources[0U].next_token == 0x76000010U &&
-                list.resources[1U].next_token == 0x76000020U &&
-                list.resources[2U].next_token == 0U,
+                openswd3::test::inventory_data(list) == original_storage &&
+                openswd3::test::inventory_nodes(list).size() == 3U &&
+                openswd3::test::inventory_node(list, 0U).legacy_next_token ==
+                    0x76000010U &&
+                openswd3::test::inventory_node(list, 1U).legacy_next_token ==
+                    0x76000020U &&
+                openswd3::test::inventory_node(list, 2U).legacy_next_token ==
+                    0U,
             "a real signed/unsigned WORD alias observes clear and each partial addition before subsequent quantity reads"
         );
     }
@@ -3113,23 +3435,26 @@ void test_mode_resource_quantity_count(openswd3::test::Context& test) {
         list.next_resource_head_token =
             scenario == 1U ? 0xFEDCBA98U : 0x76000000U;
         list.selected_resource_token = 0xCAFEBABEU;
-        list.resources = {
-            {.token = 0x76000000U,
-             .next_token = scenario == 2U ? 0xFEDCBA98U : 0x76000010U,
-             .name = {}},
-            {.token = 0x76000010U,
-             .next_token = 0xFEDCBA98U,
-             .resource_id =
-                 static_cast<u16>(scenario == 5U ? 0x0300U : 0x0222U),
-             .secondary_quantity = 3,
-             .tertiary_quantity = 4,
-             .name = {},
-             .category_mask = scenario == 4U ? 0U : 0x08000000U,
-             .mode_flags = static_cast<u8>(scenario == 6U ? 0U : 1U)},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U,
+                 .next_token = scenario == 2U ? 0xFEDCBA98U : 0x76000010U,
+                 .name = {}},
+                {.token = 0x76000010U,
+                 .next_token = 0xFEDCBA98U,
+                 .resource_id =
+                     static_cast<u16>(scenario == 5U ? 0x0300U : 0x0222U),
+                 .secondary_quantity = 3,
+                 .tertiary_quantity = 4,
+                 .name = {},
+                 .category_mask = scenario == 4U ? 0U : 0x08000000U,
+                 .mode_flags = static_cast<u8>(scenario == 6U ? 0U : 1U)},
+            }
+        );
 
         if (scenario == 7U) {
-            list.resources[0U].next_token = 0U;
+            openswd3::test::inventory_node(list, 0U).legacy_next_token = 0U;
         }
 
         if (scenario == 8U) {
@@ -3153,7 +3478,7 @@ void test_mode_resource_quantity_count(openswd3::test::Context& test) {
             status == expected_status && quantity == expected_quantity &&
                 list.resource_head_token == expected_head &&
                 list.selected_resource_token == 0xCAFEBABEU &&
-                list.resources.size() == 2U,
+                openswd3::test::inventory_nodes(list).size() == 2U,
             "mode count distinguishes an empty real root from missing objects and retains the published head and actual accumulated WORD at each failure"
         );
     }
@@ -3161,36 +3486,42 @@ void test_mode_resource_quantity_count(openswd3::test::Context& test) {
     {
         LegacyBattleActorListQueryState list;
         list.next_resource_head_token = 0x76000000U;
-        list.resources.reserve(513U);
-        list.resources.push_back({
-            .token = 0x76000000U,
-            .next_token = 0x76000010U,
-            .name = {},
-        });
-        for (u32 node_index = 1U; node_index <= 512U; ++node_index) {
-            list.resources.push_back({
-                .token = 0x76000000U + node_index * 0x10U,
-                .next_token = node_index == 512U
-                    ? 0U
-                    : 0x76000000U + (node_index + 1U) * 0x10U,
-                .resource_id = 0x0222U,
-                .secondary_quantity = 3,
-                .tertiary_quantity = 4,
+        inventories.assign(list, {});
+        openswd3::test::append_inventory_item(
+            list,
+            {
+                .token = 0x76000000U,
+                .next_token = 0x76000010U,
                 .name = {},
-                .category_mask = 0x08000000U,
-                .mode_flags = 1U,
-            });
+            }
+        );
+        for (u32 node_index = 1U; node_index <= 512U; ++node_index) {
+            openswd3::test::append_inventory_item(
+                list,
+                {
+                    .token = 0x76000000U + node_index * 0x10U,
+                    .next_token = node_index == 512U
+                        ? 0U
+                        : 0x76000000U + (node_index + 1U) * 0x10U,
+                    .resource_id = 0x0222U,
+                    .secondary_quantity = 3,
+                    .tertiary_quantity = 4,
+                    .name = {},
+                    .category_mask = 0x08000000U,
+                    .mode_flags = 1U,
+                }
+            );
         }
 
-        const auto* original_storage = list.resources.data();
+        const auto* original_storage = openswd3::test::inventory_data(list);
         u16 quantity = 0xBEEFU;
         const auto status =
             count_legacy_battle_actor_mode_resources(&list, quantity);
         test.expect_true(
             status == LegacyBattleActorListQueryStatus::completed &&
                 quantity == 3584U && list.resource_head_token == 0U &&
-                list.resources.size() == 513U &&
-                list.resources.data() == original_storage,
+                openswd3::test::inventory_nodes(list).size() == 513U &&
+                openswd3::test::inventory_data(list) == original_storage,
             "mode count traverses a long finite actual resource chain without truncating its sum or transferring ownership"
         );
     }
@@ -3199,6 +3530,8 @@ void test_mode_resource_quantity_count(openswd3::test::Context& test) {
 }  // namespace
 
 void test_battle_actor_list_query(openswd3::test::Context& test) {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
+    test_shared_inventory_release(test);
     test_resource_selection_outputs(test);
     test_resource_selection_capacity_prefixes(test);
     test_actor_resource_release_prefixes(test);
@@ -3240,9 +3573,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
                  .value_flags = 0x8005U,
                  .text = "second"},
             },
-        .resource_owner_token = 0U,
         .resource_head_token = 0U,
-        .resources = {},
         .selected_resource_token = 0U,
         .primary_required = 0U,
         .secondary_required = 0U,
@@ -3297,9 +3628,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
                   .profile_id = 9U,
                   .value_flags = 0xFFFFU,
                   .text = "profile"}},
-            .resource_owner_token = 0U,
             .resource_head_token = 0U,
-            .resources = {},
             .selected_resource_token = 0U,
             .primary_required = 0U,
             .secondary_required = 0U,
@@ -3491,13 +3820,16 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0x76000010U;
         list.primary_required = 9U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .resource_id = 4U,
-             .secondary_quantity = 2,
-             .name = {}},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 4U,
+                 .secondary_quantity = 2,
+                 .name = {}},
+            }
+        );
         const auto status = execute_legacy_battle_actor_list_action(
             &list, &item_effect, &configuration, &workspace
         );
@@ -3506,7 +3838,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
                 list.resource_head_token == 0x76000010U &&
                 list.selected_resource_token == 0U &&
                 list.primary_required == 0U &&
-                list.resources[1U].secondary_quantity == 1 &&
+                openswd3::test::inventory_node(list, 1U).quantity_a == 1 &&
                 workspace.tail_words[2U] == 4U,
             "selected resource path consumes the owned node then clears selection and required capacity before refreshing"
         );
@@ -3586,13 +3918,16 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         spending.selected_resource_token = 0x200U;
         spending.primary_required = 9U;
         spending.secondary_required = 3U;
-        spending.resources = {
-            {.token = 0x100U, .next_token = 0x200U, .name = {}},
-            {.token = 0x200U,
-             .resource_id = 4U,
-             .secondary_quantity = 2,
-             .name = {}},
-        };
+        inventories.assign(
+            spending,
+            {
+                {.token = 0x100U, .next_token = 0x200U, .name = {}},
+                {.token = 0x200U,
+                 .resource_id = 4U,
+                 .secondary_quantity = 2,
+                 .name = {}},
+            }
+        );
         LegacyBattleGroupAItemEffectApplicationState effect;
         effect.mode_flags = 0x80U;
         LegacyBattleGroupAWorkspaceState workspace;
@@ -3601,7 +3936,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         );
         test.expect_true(
             status == LegacyBattleActorListQueryStatus::list_owner_typed_stop &&
-                spending.resources[1U].secondary_quantity == 1 &&
+                openswd3::test::inventory_node(spending, 1U).quantity_a == 1 &&
                 spending.selected_resource_token == 0U &&
                 spending.primary_required == 0U &&
                 spending.secondary_required == 3U &&
@@ -3620,21 +3955,24 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleGroupAWorkspaceState workspace;
         workspace.tail_words[2U] = 0xFFFFU;
         list.next_resource_head_token = 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .resource_id = 2U,
-             .primary_quantity = 1U,
-             .tertiary_quantity = 4,
-             .name = {},
-             .category_mask = 0x10U,
-             .derived_words_40 = {11U, 12U, 13U},
-             .gate_word_48 = 0x0200U,
-             .profile_id_4a = 7U,
-             .mode_flags = 0x01U,
-             .capacity_gate_flags = 0x8003U,
-             .alternate_profile_id_54 = 9U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 2U,
+                 .primary_quantity = 1U,
+                 .tertiary_quantity = 4,
+                 .name = {},
+                 .category_mask = 0x10U,
+                 .derived_words_40 = {11U, 12U, 13U},
+                 .gate_word_48 = 0x0200U,
+                 .profile_id_4a = 7U,
+                 .mode_flags = 0x01U,
+                 .capacity_gate_flags = 0x8003U,
+                 .alternate_profile_id_54 = 9U},
+            }
+        );
         SelectionPort port;
         u32 runtime_word = 0xAABBCCDDU;
         u16 selection_mode = 0xFFFFU;
@@ -3660,7 +3998,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
                 list.primary_required == 3U && item.mode_flags == 0x40U &&
                 item.derived_words[1U] == 11U &&
                 final_state.profile_copy_latch == 1U &&
-                list.resources[1U].primary_quantity == 2U,
+                openswd3::test::inventory_node(list, 1U).selected_count == 2U,
             "resource selection loads the alternate profile, applies gates, diagnoses zero runtime word and increments quantity"
         );
     }
@@ -3670,16 +4008,19 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleGroupAItemEffectApplicationState item;
         LegacyBattleGroupAWorkspaceState workspace;
         list.next_resource_head_token = 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .tertiary_quantity = 1,
-             .name = {},
-             .category_mask = 0x2000U,
-             .derived_word_30 = 0x1234U,
-             .profile_id_4a = 7U,
-             .capacity_gate_flags = 0x2000U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .tertiary_quantity = 1,
+                 .name = {},
+                 .category_mask = 0x2000U,
+                 .derived_word_30 = 0x1234U,
+                 .profile_id_4a = 7U,
+                 .capacity_gate_flags = 0x2000U},
+            }
+        );
         SelectionPort port;
         u32 runtime_word = 0xAABBCCDDU;
         u16 selection_mode = 0xFFFFU;
@@ -3701,7 +4042,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
                 result.selected && runtime_word == 0xAABBCCDDU &&
                 selection_mode == 0U && port.profile_ids[0U] == 7U &&
                 item.derived_words[0U] == 0x1234U &&
-                list.resources[1U].primary_quantity == 0U,
+                openswd3::test::inventory_node(list, 1U).selected_count == 0U,
             "category four bit-thirteen selection takes the early profile path without quantity mutation"
         );
     }
@@ -3741,17 +4082,20 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         list.next_resource_head_token = 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .next_token = 0x76000020U,
-             .name = "ordinary"},
-            {.token = 0x76000020U,
-             .secondary_quantity = -1,
-             .tertiary_quantity = 2,
-             .name = "flagged",
-             .capacity_gate_flags = 0x2000U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .next_token = 0x76000020U,
+                 .name = "ordinary"},
+                {.token = 0x76000020U,
+                 .secondary_quantity = -1,
+                 .tertiary_quantity = 2,
+                 .name = "flagged",
+                 .capacity_gate_flags = 0x2000U},
+            }
+        );
 
         std::array<u8, 20> name{};
         u16 quantity = 0xBEEFU;
@@ -3769,13 +4113,16 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         list.next_resource_head_token = 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .secondary_quantity = 3,
-             .tertiary_quantity = 4,
-             .name = "stale-zero"},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .secondary_quantity = 3,
+                 .tertiary_quantity = 4,
+                 .name = "stale-zero"},
+            }
+        );
 
         std::array<u8, 20> name{};
         u16 quantity = 0xBEEFU;
@@ -3793,12 +4140,15 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         list.next_resource_head_token = 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .name = "twenty-byte-name-xxxx",
-             .capacity_gate_flags = 0x2000U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .name = "twenty-byte-name-xxxx",
+                 .capacity_gate_flags = 0x2000U},
+            }
+        );
 
         std::array<u8, 20> name{};
         name.fill(0xA5U);
@@ -3818,12 +4168,15 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         list.next_resource_head_token = 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .name = "only",
-             .capacity_gate_flags = 0x2000U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .name = "only",
+                 .capacity_gate_flags = 0x2000U},
+            }
+        );
 
         std::array<u8, 20> name{};
         name.fill(0xA5U);
@@ -3843,19 +4196,22 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     {
         list.next_resource_head_token = 0x77000000U;
         list.selected_resource_token = 0xDEADBEEFU;
-        list.resources = {
-            {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
-            {.token = 0x77000010U,
-             .next_token = 0x77000020U,
-             .resource_id = 0x222U,
-             .name = "ordinary"},
-            {.token = 0x77000020U,
-             .resource_id = 0x0300U,
-             .secondary_quantity = -1,
-             .tertiary_quantity = 2,
-             .name = "fixed",
-             .mode_flags = 0x01U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
+                {.token = 0x77000010U,
+                 .next_token = 0x77000020U,
+                 .resource_id = 0x222U,
+                 .name = "ordinary"},
+                {.token = 0x77000020U,
+                 .resource_id = 0x0300U,
+                 .secondary_quantity = -1,
+                 .tertiary_quantity = 2,
+                 .name = "fixed",
+                 .mode_flags = 0x01U},
+            }
+        );
 
         std::array<u8, 20> name;
         name.fill(0xA5U);
@@ -3877,13 +4233,16 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         list.next_resource_head_token = 0x77000000U;
-        list.resources = {
-            {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
-            {.token = 0x77000010U,
-             .resource_id = 0x0300U,
-             .name = "twenty-byte-name-xxx",
-             .mode_flags = 0x01U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
+                {.token = 0x77000010U,
+                 .resource_id = 0x0300U,
+                 .name = "twenty-byte-name-xxx",
+                 .mode_flags = 0x01U},
+            }
+        );
 
         std::array<u8, 20> name;
         name.fill(0xA5U);
@@ -3903,28 +4262,31 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     {
         list.next_resource_head_token = 0x77000000U;
         list.selected_resource_token = 0U;
-        list.resources = {
-            {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
-            {.token = 0x77000010U,
-             .next_token = 0x77000020U,
-             .resource_id = 0x0300U,
-             .name = "excluded",
-             .category_mask = 0x08000000U,
-             .mode_flags = 0x01U},
-            {.token = 0x77000020U,
-             .next_token = 0x77000030U,
-             .resource_id = 0x222U,
-             .name = "first",
-             .category_mask = 0x08000000U,
-             .mode_flags = 0x01U},
-            {.token = 0x77000030U,
-             .resource_id = 0x333U,
-             .secondary_quantity = 3,
-             .tertiary_quantity = 4,
-             .name = "second",
-             .category_mask = 0x08000000U,
-             .mode_flags = 0x04U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
+                {.token = 0x77000010U,
+                 .next_token = 0x77000020U,
+                 .resource_id = 0x0300U,
+                 .name = "excluded",
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 0x01U},
+                {.token = 0x77000020U,
+                 .next_token = 0x77000030U,
+                 .resource_id = 0x222U,
+                 .name = "first",
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 0x01U},
+                {.token = 0x77000030U,
+                 .resource_id = 0x333U,
+                 .secondary_quantity = 3,
+                 .tertiary_quantity = 4,
+                 .name = "second",
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 0x04U},
+            }
+        );
 
         std::array<u8, 20> name;
         name.fill(0xA5U);
@@ -3947,14 +4309,17 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
     {
         list.next_resource_head_token = 0x77000000U;
         list.selected_resource_token = 0U;
-        list.resources = {
-            {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
-            {.token = 0x77000010U,
-             .secondary_quantity = 9,
-             .tertiary_quantity = 8,
-             .name = "stale",
-             .mode_flags = 0U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
+                {.token = 0x77000010U,
+                 .secondary_quantity = 9,
+                 .tertiary_quantity = 8,
+                 .name = "stale",
+                 .mode_flags = 0U},
+            }
+        );
 
         u16 quantity = 0xBEEFU;
         const auto result = query_legacy_battle_actor_mode_resource(
@@ -3971,14 +4336,17 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         list.next_resource_head_token = 0x77000000U;
-        list.resources = {
-            {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
-            {.token = 0x77000010U,
-             .resource_id = 0x222U,
-             .name = "only",
-             .category_mask = 0x08000000U,
-             .mode_flags = 0x01U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x77000000U, .next_token = 0x77000010U, .name = {}},
+                {.token = 0x77000010U,
+                 .resource_id = 0x222U,
+                 .name = "only",
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 0x01U},
+            }
+        );
 
         std::array<u8, 20> name;
         name.fill(0xA5U);
@@ -3996,41 +4364,44 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         list.next_resource_head_token = 0x79000000U;
-        list.resources = {
-            {.token = 0x79000000U, .next_token = 0x79000010U, .name = {}},
-            {.token = 0x79000010U,
-             .next_token = 0x79000020U,
-             .resource_id = 0x0300U,
-             .name = "fixed",
-             .category_mask = 0x08000000U,
-             .mode_flags = 0x01U},
-            {.token = 0x79000020U,
-             .next_token = 0x79000030U,
-             .resource_id = 0x0222U,
-             .name = "unflagged",
-             .mode_flags = 0x01U},
-            {.token = 0x79000030U,
-             .next_token = 0x79000040U,
-             .resource_id = 0x0223U,
-             .name = "closed",
-             .category_mask = 0x08000000U,
-             .mode_flags = 0U},
-            {.token = 0x79000040U,
-             .next_token = 0x79000050U,
-             .resource_id = 0x0224U,
-             .secondary_quantity = 32767,
-             .tertiary_quantity = 32767,
-             .name = "large",
-             .category_mask = 0x08000000U,
-             .mode_flags = 0x01U},
-            {.token = 0x79000050U,
-             .resource_id = 0x0225U,
-             .secondary_quantity = 1,
-             .tertiary_quantity = 2,
-             .name = "small",
-             .category_mask = 0x08000000U,
-             .mode_flags = 0x04U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x79000000U, .next_token = 0x79000010U, .name = {}},
+                {.token = 0x79000010U,
+                 .next_token = 0x79000020U,
+                 .resource_id = 0x0300U,
+                 .name = "fixed",
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 0x01U},
+                {.token = 0x79000020U,
+                 .next_token = 0x79000030U,
+                 .resource_id = 0x0222U,
+                 .name = "unflagged",
+                 .mode_flags = 0x01U},
+                {.token = 0x79000030U,
+                 .next_token = 0x79000040U,
+                 .resource_id = 0x0223U,
+                 .name = "closed",
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 0U},
+                {.token = 0x79000040U,
+                 .next_token = 0x79000050U,
+                 .resource_id = 0x0224U,
+                 .secondary_quantity = 32767,
+                 .tertiary_quantity = 32767,
+                 .name = "large",
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 0x01U},
+                {.token = 0x79000050U,
+                 .resource_id = 0x0225U,
+                 .secondary_quantity = 1,
+                 .tertiary_quantity = 2,
+                 .name = "small",
+                 .category_mask = 0x08000000U,
+                 .mode_flags = 0x04U},
+            }
+        );
 
         u16 quantity = 0xBEEFU;
         const auto status =
@@ -4044,14 +4415,17 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         list.next_resource_head_token = 0x79000000U;
-        list.resources = {
-            {.token = 0x79000000U, .next_token = 0x79000010U, .name = {}},
-            {.token = 0x79000010U,
-             .resource_id = 0x0222U,
-             .secondary_quantity = 7,
-             .tertiary_quantity = 8,
-             .name = "excluded"},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x79000000U, .next_token = 0x79000010U, .name = {}},
+                {.token = 0x79000010U,
+                 .resource_id = 0x0222U,
+                 .secondary_quantity = 7,
+                 .tertiary_quantity = 8,
+                 .name = "excluded"},
+            }
+        );
 
         u16 quantity = 0xBEEFU;
         const auto status =
@@ -4067,24 +4441,29 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleGroupAWorkspaceState workspace;
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0x76000010U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .resource_id = 0x33U,
-             .primary_quantity = 4U,
-             .secondary_quantity = 2,
-             .name = {},
-             .gate_word_48 = 0x0402U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 0x33U,
+                 .primary_quantity = 4U,
+                 .secondary_quantity = 2,
+                 .name = {},
+                 .gate_word_48 = 0x0402U},
+            }
+        );
 
         const auto result =
             release_legacy_battle_actor_resource(&list, &workspace);
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                list.resources.size() == 2U &&
-                list.resources[1U].gate_word_48 == 0x0401U &&
-                list.resources[1U].primary_quantity == 4U &&
-                list.resources[1U].secondary_quantity == 2 &&
+                openswd3::test::inventory_nodes(list).size() == 2U &&
+                openswd3::test::inventory_word(
+                    openswd3::test::inventory_node(list, 1U), 0x48U
+                ) == 0x0401U &&
+                openswd3::test::inventory_node(list, 1U).selected_count == 4U &&
+                openswd3::test::inventory_node(list, 1U).quantity_a == 2 &&
                 list.selected_resource_token == 0x76000010U &&
                 list.resource_head_token == 0x76000010U &&
                 workspace.tail_words[2U] == 0x33U &&
@@ -4097,23 +4476,26 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleGroupAWorkspaceState workspace;
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0x76000010U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .resource_id = 0x44U,
-             .primary_quantity = 2U,
-             .secondary_quantity = 2,
-             .name = {},
-             .capacity_gate_flags = 0x2000U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 0x44U,
+                 .primary_quantity = 2U,
+                 .secondary_quantity = 2,
+                 .name = {},
+                 .capacity_gate_flags = 0x2000U},
+            }
+        );
 
         const auto result =
             release_legacy_battle_actor_resource(&list, &workspace);
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                list.resources.size() == 2U &&
-                list.resources[1U].primary_quantity == 1U &&
-                list.resources[1U].secondary_quantity == 1 &&
+                openswd3::test::inventory_nodes(list).size() == 2U &&
+                openswd3::test::inventory_node(list, 1U).selected_count == 1U &&
+                openswd3::test::inventory_node(list, 1U).quantity_a == 1 &&
                 list.selected_resource_token == 0U &&
                 list.resource_head_token == 0x76000010U &&
                 workspace.tail_words[2U] == 0x44U && result.output_word == 0U,
@@ -4125,27 +4507,31 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleGroupAWorkspaceState workspace;
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0x76000020U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .next_token = 0x76000020U,
-             .resource_id = 1U,
-             .name = {}},
-            {.token = 0x76000020U,
-             .next_token = 0x76000030U,
-             .resource_id = 2U,
-             .primary_quantity = 1U,
-             .secondary_quantity = 1,
-             .name = {}},
-            {.token = 0x76000030U, .resource_id = 3U, .name = {}},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .next_token = 0x76000020U,
+                 .resource_id = 1U,
+                 .name = {}},
+                {.token = 0x76000020U,
+                 .next_token = 0x76000030U,
+                 .resource_id = 2U,
+                 .primary_quantity = 1U,
+                 .secondary_quantity = 1,
+                 .name = {}},
+                {.token = 0x76000030U, .resource_id = 3U, .name = {}},
+            }
+        );
 
         const auto result =
             release_legacy_battle_actor_resource(&list, &workspace);
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                list.resources.size() == 3U &&
-                list.resources[1U].next_token == 0x76000030U &&
+                openswd3::test::inventory_nodes(list).size() == 3U &&
+                openswd3::test::inventory_node(list, 1U).legacy_next_token ==
+                    0x76000030U &&
                 list.selected_resource_token == 0U &&
                 list.resource_head_token == 0x76000010U &&
                 workspace.tail_words[2U] == 2U && result.output_word == 2U,
@@ -4157,7 +4543,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleGroupAWorkspaceState workspace;
         list.next_resource_head_token = 0xABCD0000U;
         list.selected_resource_token = 0U;
-        list.resources = {{.token = 0xABCD0000U, .name = {}}};
+        inventories.assign(list, {{.token = 0xABCD0000U, .name = {}}});
         workspace.tail_words[2U] = 0xBEEFU;
         const auto result =
             release_legacy_battle_actor_resource(&list, &workspace);
@@ -4165,7 +4551,7 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
             result.status == LegacyBattleActorListQueryStatus::completed &&
                 result.output_word == 0U &&
                 list.resource_head_token == 0xABCD0000U &&
-                list.resources.size() == 1U &&
+                openswd3::test::inventory_nodes(list).size() == 1U &&
                 workspace.tail_words[2U] == 0xBEEFU,
             "missing selected resource returns a normal zero after publishing the head and preserving the workspace"
         );
@@ -4173,29 +4559,39 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         list.next_resource_head_token = 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .next_token = 0x76000020U,
-             .primary_quantity = 1U,
-             .tertiary_quantity = 2,
-             .name = {},
-             .category_mask = 0x2000U,
-             .mode_flags = 0x01U,
-             .capacity_gate_flags = 0x2000U},
-            {.token = 0x76000020U, .name = {}, .capacity_gate_flags = 0x2000U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .next_token = 0x76000020U,
+                 .primary_quantity = 1U,
+                 .tertiary_quantity = 2,
+                 .name = {},
+                 .category_mask = 0x2000U,
+                 .mode_flags = 0x01U,
+                 .capacity_gate_flags = 0x2000U},
+                {.token = 0x76000020U,
+                 .name = {},
+                 .capacity_gate_flags = 0x2000U},
+            }
+        );
 
         u16 count = 0xFFFEU;
         const auto status =
             count_legacy_battle_actor_resource_list(&list, 4U, count);
         test.expect_true(
             status == LegacyBattleActorListQueryStatus::completed &&
-                count == 1U && list.resources.size() == 3U &&
-                list.resources[1U].primary_quantity == 1U &&
-                list.resources[1U].tertiary_quantity == 2 &&
-                list.resources[1U].capacity_gate_flags == 0x2000U &&
-                list.resources[2U].capacity_gate_flags == 0x2000U &&
+                count == 1U &&
+                openswd3::test::inventory_nodes(list).size() == 3U &&
+                openswd3::test::inventory_node(list, 1U).selected_count == 1U &&
+                openswd3::test::inventory_node(list, 1U).quantity_b == 2 &&
+                openswd3::test::inventory_word(
+                    openswd3::test::inventory_node(list, 1U), 0x4CU
+                ) == 0x2000U &&
+                openswd3::test::inventory_word(
+                    openswd3::test::inventory_node(list, 2U), 0x4CU
+                ) == 0x2000U &&
                 list.resource_head_token == 0U,
             "resource count preserves the initial word, wraps increments, and category four counts its extra bit independently"
         );
@@ -4206,17 +4602,20 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         configuration.actor_record_token = 0x00600000U;
         configuration.actor_record[2U] = 2U;
         list.next_resource_head_token = 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .primary_quantity = 3U,
-             .secondary_quantity = -1,
-             .tertiary_quantity = 10,
-             .name = "resource",
-             .category_mask = 0x10U,
-             .mode_flags = 0x01U,
-             .capacity_gate_flags = 0x4003U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .primary_quantity = 3U,
+                 .secondary_quantity = -1,
+                 .tertiary_quantity = 10,
+                 .name = "resource",
+                 .category_mask = 0x10U,
+                 .mode_flags = 0x01U,
+                 .capacity_gate_flags = 0x4003U},
+            }
+        );
 
         std::array<u8, 20> name{};
         u16 flags = 0xBEEFU;
@@ -4235,13 +4634,16 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
 
     {
         list.next_resource_head_token = 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .name = {},
-             .category_mask = 0U,
-             .mode_flags = 0U},
-        };
+        inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .name = {},
+                 .category_mask = 0U,
+                 .mode_flags = 0U},
+            }
+        );
 
         std::array<u8, 20> name{};
         name.fill(0xCCU);

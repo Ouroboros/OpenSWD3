@@ -1,3 +1,4 @@
+#include "legacy_battle_inventory_fixture.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_entry.hpp"
 
@@ -156,6 +157,7 @@ definition(const char marker) {
 }
 
 struct Fixture {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     openswd3::test::LegacyBattleSamplesFixture audio;
     Fixture() {
         u32 token = 0x00600000U;
@@ -261,13 +263,16 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
         auto& list = fixture.startup_state.party[0U].actor_list;
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0x76000010U;
-        list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .resource_id = 0x456U,
-             .secondary_quantity = 2,
-             .name = {}},
-        };
+        fixture.inventories.assign(
+            list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 0x456U,
+                 .secondary_quantity = 2,
+                 .name = {}},
+            }
+        );
 
         fixture.items.player_inventory_head_alias.item_id =
             failed ? 0U : 0x8001U;
@@ -286,7 +291,7 @@ void test_battle_target_selection_entry(openswd3::test::Context& test) {
                 result.target_selection_refresh_calls == 1U &&
                 fixture.items.player_inventory_head_alias.quantity_a ==
                     (failed ? 42U : 43U) &&
-                list.resources[1U].secondary_quantity == 1 &&
+                openswd3::test::inventory_node(list, 1U).quantity_a == 1 &&
                 fixture.action.opponent_workspace[29U] ==
                     (failed ? 0xABCD8001U : 0x012C0456U),
             "target entry lends the actual inventory through resource release and propagates its existing quantity failure"

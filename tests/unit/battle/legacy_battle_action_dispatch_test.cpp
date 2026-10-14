@@ -1,3 +1,4 @@
+#include "legacy_battle_inventory_fixture.hpp"
 #include "fixed_node_memory_resource.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 #include "openswd3/battle/legacy_battle_action_dispatch.hpp"
@@ -468,6 +469,7 @@ private:
 };
 
 struct Fixture {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     openswd3::rendering::LegacyFramebuffer framebuffer;
     openswd3::rendering::LegacyRasterGeometryState raster;
     openswd3::rendering::LegacyBlitRequest request;
@@ -1037,23 +1039,26 @@ void test_battle_action_resource_consumption(openswd3::test::Context& test) {
                     auto& party = fixture.startup.party[0U];
                     party.actor_list.next_resource_head_token = 0x76000000U;
                     party.actor_list.selected_resource_token = 0x76000010U;
-                    party.actor_list.resources = {
-                        {.token = 0x76000000U,
-                         .next_token = 0x76000010U,
-                         .name = {},
-                         .capacity_gate_flags = suppression},
-                        {.token = 0x76000010U,
-                         .resource_id = resource_id,
-                         .primary_quantity = 0xFFFFU,
-                         .secondary_quantity =
-                             static_cast<openswd3::compat::i16>(
-                                 depleted ? 1 : 2
-                             ),
-                         .name = {},
-                         .capacity_gate_flags = static_cast<u16>(
-                             depleted ? suppression ^ 0x2000U : suppression
-                         )},
-                    };
+                    fixture.inventories.assign(
+                        party.actor_list,
+                        {
+                            {.token = 0x76000000U,
+                             .next_token = 0x76000010U,
+                             .name = {},
+                             .capacity_gate_flags = suppression},
+                            {.token = 0x76000010U,
+                             .resource_id = resource_id,
+                             .primary_quantity = 0xFFFFU,
+                             .secondary_quantity =
+                                 static_cast<openswd3::compat::i16>(
+                                     depleted ? 1 : 2
+                                 ),
+                             .name = {},
+                             .capacity_gate_flags = static_cast<u16>(
+                                 depleted ? suppression ^ 0x2000U : suppression
+                             )},
+                        }
+                    );
 
                     DispatchPort port;
                     port.action = static_cast<u16>(action);
@@ -1071,15 +1076,20 @@ void test_battle_action_resource_consumption(openswd3::test::Context& test) {
                             party.actor_list.resource_head_token ==
                                 (depleted ? 0x76000000U : 0x76000010U) &&
                             party.actor_list.selected_resource_token == 0U &&
-                            party.actor_list.resources.size() ==
-                                (depleted ? 1U : 2U) &&
-                            party.actor_list.resources[0U].next_token ==
+                            openswd3::test::inventory_nodes(party.actor_list)
+                                    .size() == (depleted ? 1U : 2U) &&
+                            openswd3::test::inventory_node(party.actor_list, 0U)
+                                    .legacy_next_token ==
                                 (depleted ? 0U : 0x76000010U) &&
                             (depleted ||
-                             (party.actor_list.resources[1U].primary_quantity ==
-                                  0xFFFEU &&
-                              party.actor_list.resources[1U]
-                                      .secondary_quantity == 1)) &&
+                             (openswd3::test::inventory_node(
+                                  party.actor_list, 1U
+                              )
+                                      .selected_count == 0xFFFEU &&
+                              openswd3::test::inventory_node(
+                                  party.actor_list, 1U
+                              )
+                                      .quantity_a == 1)) &&
                             port.battle_pair_primary_value() == 0U &&
                             state.selection_word ==
                                 (action == 3U ? 0U : 0x1234U) &&
@@ -1129,18 +1139,21 @@ void test_battle_action_resource_consumption(openswd3::test::Context& test) {
             party.actor_list.selected_resource_token = path == 0U ? 0U
                 : path == 3U                                      ? 0x76000000U
                                                                   : 0x76000010U;
-            party.actor_list.resources = {
-                {.token = 0x76000000U,
-                 .next_token = path == 2U ? 0xDEADBEEFU : 0x76000010U,
-                 .resource_id = 0x34U,
-                 .primary_quantity = 4U,
-                 .secondary_quantity = 1,
-                 .name = {}},
-                {.token = 0x76000010U,
-                 .resource_id = 0x34U,
-                 .secondary_quantity = 2,
-                 .name = {}},
-            };
+            fixture.inventories.assign(
+                party.actor_list,
+                {
+                    {.token = 0x76000000U,
+                     .next_token = path == 2U ? 0xDEADBEEFU : 0x76000010U,
+                     .resource_id = 0x34U,
+                     .primary_quantity = 4U,
+                     .secondary_quantity = 1,
+                     .name = {}},
+                    {.token = 0x76000010U,
+                     .resource_id = 0x34U,
+                     .secondary_quantity = 2,
+                     .name = {}},
+                }
+            );
 
             DispatchPort port;
             port.action = static_cast<u16>(action);
@@ -1161,9 +1174,11 @@ void test_battle_action_resource_consumption(openswd3::test::Context& test) {
                                      resource_node_typed_stop) &&
                     party.actor_list.resource_head_token ==
                         (path == 3U ? 0x76000000U : 0xDEADBEEFU) &&
-                    party.actor_list.resources.size() ==
+                    openswd3::test::inventory_nodes(party.actor_list).size() ==
                         (path == 3U ? 1U : 2U) &&
-                    party.actor_list.resources.back().secondary_quantity == 2 &&
+                    openswd3::test::inventory_nodes(party.actor_list)
+                            .back()
+                            .quantity_a == 2 &&
                     party.actor_list.selected_resource_token ==
                         (path == 0U || path == 3U ? 0U : 0x76000010U) &&
                     party.workspace.tail_words[2U] ==
@@ -1452,13 +1467,16 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
         auto& actor_list = fixture.startup.party[0U].actor_list;
         actor_list.next_resource_head_token = 0x76000000U;
         actor_list.selected_resource_token = 0x76000010U;
-        actor_list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .resource_id = 0x34U,
-             .secondary_quantity = 2,
-             .name = {}},
-        };
+        fixture.inventories.assign(
+            actor_list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 0x34U,
+                 .secondary_quantity = 2,
+                 .name = {}},
+            }
+        );
 
         auto context = fixture.context();
 
@@ -1469,7 +1487,8 @@ void test_battle_action_dispatch_part_one(openswd3::test::Context& test) {
                 result.retreat_commit_calls == 1U &&
                 !result.resource_release_failure.has_value() &&
                 state.computed_selection_word == 0x34U &&
-                actor_list.resources[1U].secondary_quantity == 1 &&
+                openswd3::test::inventory_node(actor_list, 1U).quantity_a ==
+                    1 &&
                 fixture.startup.party[0U].workspace.tail_words[2U] == 0x34U &&
                 actor_list.selected_resource_token == 0U &&
                 result.retreat_commit.branch ==

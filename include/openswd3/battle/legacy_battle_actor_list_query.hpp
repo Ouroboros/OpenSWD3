@@ -8,6 +8,7 @@
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 #include "openswd3/battle/legacy_battle_mon_profile.hpp"
 #include "openswd3/battle/legacy_battle_text_message.hpp"
+#include "openswd3/battle/legacy_battle_inventory.hpp"
 #include "openswd3/audio_video/legacy_sample_commands.hpp"
 
 #include <span>
@@ -33,33 +34,13 @@ struct LegacyBattleActorListNode {
     std::string text;              // node + 0x0C
 };
 
-struct LegacyBattleActorListResourceNode {
-    compat::u32 token{};
-    compat::u32 next_token{};
-    compat::u16 resource_id{};
-    compat::u16 primary_quantity{};    // node + 0x06
-    compat::i16 secondary_quantity{};  // node + 0x08
-    compat::i16 tertiary_quantity{};   // node + 0x0A
-    std::string name;                  // node + 0x0C
-    compat::u32 category_mask{};       // node + 0x2C
-    compat::u16 derived_word_30{};     // node + 0x30
-    std::array<compat::u16, 3> derived_words_40{};
-    compat::u16 gate_word_48{};         // node + 0x48
-    compat::u16 profile_id_4a{};        // node + 0x4A
-    compat::u8 mode_flags{};            // node + 0x46
-    compat::u16 capacity_gate_flags{};  // node + 0x4C
-    compat::u16 alternate_profile_id_54{};
-    compat::u16 output_word_5c{};
-};
-
 struct LegacyBattleActorListQueryState {
     compat::u32 owner_token{};
     compat::u32 head_token{};
     std::vector<LegacyBattleActorListNode> nodes;
-    compat::u32 resource_owner_token{};
+    world_map::LegacyWorldItemListState* inventory{};
     compat::u32 resource_head_token{};       // actor + 0x2EC8
     compat::u32 next_resource_head_token{};  // actor + 0x2ECC
-    std::vector<LegacyBattleActorListResourceNode> resources;
     compat::u32 selected_resource_token{};
     compat::u16 primary_required{};
     compat::u16 secondary_required{};

@@ -1035,7 +1035,7 @@ LegacyBattleStartupPartyReferencesResult
 bind_legacy_battle_startup_party_references(
     LegacyBattleStartupState& state,
     const std::size_t index,
-    const world_map::LegacyWorldItemListState& items,
+    world_map::LegacyWorldItemListState& items,
     const LegacyBattlePartyNameSources& names,
     LegacyBattleGroupAActionExecutionState* const action
 ) noexcept {
@@ -1072,9 +1072,11 @@ bind_legacy_battle_startup_party_references(
         return result;
     }
 
-    const LegacyBattleGroupAResourcePairView resource_fields = action != nullptr
-        ? LegacyBattleGroupAResourcePairView{party.actor_list.resource_head_token, party.actor_list.next_resource_head_token}
-        : LegacyBattleGroupAResourcePairView{party.resource_pair.primary_token, party.resource_pair.secondary_token};
+    party.actor_list.inventory = &items;
+    const LegacyBattleGroupAResourcePairView resource_fields{
+        party.actor_list.resource_head_token,
+        party.actor_list.next_resource_head_token
+    };
     result.resource_pair = publish_legacy_battle_group_a_resource_pair(
         resource_fields, actor_token, 0x004A9940U, result.value_pair.return_edx
     );

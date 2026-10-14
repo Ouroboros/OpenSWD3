@@ -1,3 +1,4 @@
+#include "legacy_battle_inventory_fixture.hpp"
 #include "openswd3/battle/legacy_battle_selection_frame.hpp"
 #include "legacy_battle_mon_database_fixture.hpp"
 
@@ -285,6 +286,7 @@ public:
 };
 
 struct Fixture {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     Fixture() : action_updater(action_streams) {
         for (auto& party : startup.party) {
             party.configuration.auxiliary_record_token = 0x004ACF50U;
@@ -869,19 +871,23 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         auto& list = fixture.startup.party[0U].actor_list;
         constexpr u32 root = 0x79000000U;
         list.next_resource_head_token = root;
-        list.resources = {
-            {.token = root, .next_token = root + 0x10U, .name = {}}
-        };
+        fixture.inventories.assign(
+            list, {{.token = root, .next_token = root + 0x10U, .name = {}}}
+        );
 
         for (u32 index = 1U; index <= 8U; ++index) {
-            list.resources.push_back({
-                .token = root + index * 0x10U,
-                .next_token = index == 8U ? 0U : root + (index + 1U) * 0x10U,
-                .tertiary_quantity = 1,
-                .name = {},
-                .category_mask = 0x10U,
-                .mode_flags = 0x01U,
-            });
+            openswd3::test::append_inventory_item(
+                list,
+                {
+                    .token = root + index * 0x10U,
+                    .next_token =
+                        index == 8U ? 0U : root + (index + 1U) * 0x10U,
+                    .tertiary_quantity = 1,
+                    .name = {},
+                    .category_mask = 0x10U,
+                    .mode_flags = 0x01U,
+                }
+            );
         }
 
         fixture.port.grid_on_call =
@@ -1915,7 +1921,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         fixture.frame.panel_row_limit_c = 7U;
         auto& list = fixture.startup.party[0U].actor_list;
         list.next_resource_head_token = 0x76000000U;
-        list.resources = {{.token = 0x76000000U, .name = {}}};
+        fixture.inventories.assign(list, {{.token = 0x76000000U, .name = {}}});
 
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
@@ -1986,7 +1992,7 @@ void test_battle_selection_frame(openswd3::test::Context& test) {
         auto& list = fixture.startup.party[0U].actor_list;
         list.next_resource_head_token = 0x76000000U;
         list.selected_resource_token = 0xCAFEBABEU;
-        list.resources = {{.token = 0x76000000U, .name = {}}};
+        fixture.inventories.assign(list, {{.token = 0x76000000U, .name = {}}});
         const auto result =
             openswd3::battle::draw_legacy_battle_selection_frame(
                 fixture.bindings(), fixture.port

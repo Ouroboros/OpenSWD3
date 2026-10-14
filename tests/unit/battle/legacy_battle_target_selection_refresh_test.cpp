@@ -1,3 +1,4 @@
+#include "legacy_battle_inventory_fixture.hpp"
 #include "openswd3/battle/legacy_battle_target_selection_refresh.hpp"
 #include "openswd3/battle/legacy_battle_attack_order_insert.hpp"
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
@@ -135,6 +136,7 @@ public:
 };
 
 struct Fixture {
+    openswd3::test::LegacyBattleInventoryFixture inventories;
     openswd3::test::LegacyBattleSamplesFixture audio;
     openswd3::test::FixedNodeMemoryResource item_memory;
     openswd3::world_map::LegacyWorldItemListState items{item_memory};
@@ -167,7 +169,7 @@ struct Fixture {
             auto& list = startup_state.party[index].actor_list;
             const u32 root = 0x95000000U + index * 0x100U;
             list.next_resource_head_token = root;
-            list.resources = {{.token = root, .name = {}}};
+            inventories.assign(list, {{.token = root, .name = {}}});
         }
     }
 
@@ -230,18 +232,24 @@ void seed_resource_selection(Fixture& fixture, const u32 actor_code) {
     auto& list = fixture.startup_state.party[actor_code - 8U].actor_list;
     const u32 root = 0x95000000U + (actor_code - 8U) * 0x100U;
     list.next_resource_head_token = root;
-    list.resources = {{.token = root, .next_token = root + 0x10U, .name = {}}};
+    fixture.inventories.assign(
+        list, {{.token = root, .next_token = root + 0x10U, .name = {}}}
+    );
     for (u32 ordinal = 1U; ordinal <= 9U; ++ordinal) {
-        list.resources.push_back({
-            .token = root + ordinal * 0x10U,
-            .next_token = ordinal == 9U ? 0U : root + (ordinal + 1U) * 0x10U,
-            .resource_id = 7U,
-            .tertiary_quantity = 2,
-            .name = {},
-            .category_mask = 0xFFFFFFFFU,
-            .profile_id_4a = 7U,
-            .mode_flags = 0x01U,
-        });
+        openswd3::test::append_inventory_item(
+            list,
+            {
+                .token = root + ordinal * 0x10U,
+                .next_token =
+                    ordinal == 9U ? 0U : root + (ordinal + 1U) * 0x10U,
+                .resource_id = 7U,
+                .tertiary_quantity = 2,
+                .name = {},
+                .category_mask = 0xFFFFFFFFU,
+                .profile_id_4a = 7U,
+                .mode_flags = 0x01U,
+            }
+        );
     }
 }
 
@@ -613,10 +621,11 @@ void test_menu_target_block_attribute(openswd3::test::Context& test) {
                     }
 
                     if (message == 4U && target.category == 1U) {
-                        for (auto& resource :
-                             fixture.startup_state.party[actor_index]
-                                 .actor_list.resources) {
-                            resource.category_mask = 4U;
+                        for (auto& resource : openswd3::test::inventory_nodes(
+                                 fixture.startup_state.party[actor_index]
+                                     .actor_list
+                             )) {
+                            openswd3::test::inventory_category(resource) = 4U;
                         }
                     }
 
@@ -1008,9 +1017,10 @@ void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
         } else if (message == 8U) {
             stopped.startup_state.party[2U].actor_list.head_token = 0U;
         } else {
-            stopped.startup_state.party[2U]
-                .actor_list.resources[0U]
-                .next_token = 0U;
+            openswd3::test::inventory_node(
+                stopped.startup_state.party[2U].actor_list, 0U
+            )
+                .legacy_next_token = 0U;
         }
 
         const auto result =
@@ -1053,14 +1063,17 @@ void seed_menu_resource(
     const u32 head = 0x76000000U + (actor_code - 8U) * 0x100U;
     list.next_resource_head_token = head;
     list.selected_resource_token = head + 0x10U;
-    list.resources = {
-        {.token = head, .next_token = head + 0x10U, .name = {}},
-        {.token = head + 0x10U,
-         .resource_id = resource_id,
-         .primary_quantity = 3U,
-         .secondary_quantity = 2,
-         .name = {}},
-    };
+    fixture.inventories.assign(
+        list,
+        {
+            {.token = head, .next_token = head + 0x10U, .name = {}},
+            {.token = head + 0x10U,
+             .resource_id = resource_id,
+             .primary_quantity = 3U,
+             .secondary_quantity = 2,
+             .name = {}},
+        }
+    );
 }
 
 void configure_item_quantity_menu(
@@ -1129,12 +1142,13 @@ void configure_menu_resource(
 
     seed_menu_resource(fixture, actor_code, 0x8001U);
     if (path == MenuResourcePath::equipment_override) {
-        auto& resource = fixture.startup_state.party[actor_code - 8U]
-                             .actor_list.resources[1U];
-        resource.primary_quantity = 2U;
-        resource.tertiary_quantity = 1;
-        resource.category_mask = 0x10U;
-        resource.mode_flags = 0x01U;
+        auto& resource = openswd3::test::inventory_node(
+            fixture.startup_state.party[actor_code - 8U].actor_list, 1U
+        );
+        resource.selected_count = 2U;
+        resource.quantity_b = 1;
+        openswd3::test::inventory_category(resource) = 0x10U;
+        resource.definition_snapshot[0x46U - 0x0CU] = 0x01U;
     }
 }
 
@@ -1157,7 +1171,8 @@ void test_resource_selection_diagnostics(openswd3::test::Context& test) {
                 seed_resource_selection(fixture, 8U);
                 auto& actor = fixture.startup_state.party[0U];
                 actor.final_processing.profile_buffer[5U] = profile_word;
-                actor.actor_list.resources[1U].resource_id = resource_id;
+                openswd3::test::inventory_node(actor.actor_list, 1U).item_id =
+                    resource_id;
                 fixture.startup.block_4fe5d4[0U] = 0xABCDEF01U;
                 bool observed_prefix = false;
                 fixture.port.on_missing_resource = [&](const u16 observed_id) {
@@ -1165,8 +1180,10 @@ void test_resource_selection_diagnostics(openswd3::test::Context& test) {
                         fixture.startup.block_4fe5d4[0U] == 0U &&
                         actor.actor_list.selected_resource_token ==
                             0x95000010U &&
-                        actor.actor_list.resources[1U].primary_quantity == 0U &&
-                        actor.actor_list.resources[2U].primary_quantity == 0U;
+                        openswd3::test::inventory_node(actor.actor_list, 1U)
+                                .selected_count == 0U &&
+                        openswd3::test::inventory_node(actor.actor_list, 2U)
+                                .selected_count == 0U;
                     actor.actor_list.resource_head_token = 0x95000020U;
                 };
 
@@ -1197,10 +1214,10 @@ void test_resource_selection_diagnostics(openswd3::test::Context& test) {
                     context + " reports the full ID after output publication"
                 );
                 test.expect_true(
-                    actor.actor_list.resources[1U].primary_quantity ==
-                            (missing ? 0U : 1U) &&
-                        actor.actor_list.resources[2U].primary_quantity ==
-                            (missing ? 1U : 0U),
+                    openswd3::test::inventory_node(actor.actor_list, 1U)
+                                .selected_count == (missing ? 0U : 1U) &&
+                        openswd3::test::inventory_node(actor.actor_list, 2U)
+                                .selected_count == (missing ? 1U : 0U),
                     context + " rereads current after the dialog"
                 );
             }
@@ -1290,11 +1307,12 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
                     );
                     auto& list =
                         fixture.startup_state.party[actor_index].actor_list;
-                    auto& node = list.resources[1U];
-                    node.gate_word_48 = gate;
-                    node.category_mask = category;
-                    node.capacity_gate_flags = suppressed ? 0x2000U : 0U;
-                    const u32 selected = node.token;
+                    auto& node = openswd3::test::inventory_node(list, 1U);
+                    openswd3::test::inventory_word(node, 0x48U) = gate;
+                    openswd3::test::inventory_category(node) = category;
+                    openswd3::test::inventory_word(node, 0x4CU) =
+                        suppressed ? 0x2000U : 0U;
+                    const u32 selected = node.legacy_token;
                     const bool consumes = category != 0x90U;
                     const bool releases = consumes && gate != 0x0402U;
                     const auto result = refresh_legacy_battle_target_selection(
@@ -1306,16 +1324,17 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
                                     completed &&
                             !result.resource_selection_failure &&
                             !result.resource_release_failure &&
-                            list.resources.size() == 2U &&
+                            openswd3::test::inventory_nodes(list).size() ==
+                                2U &&
                             list.resource_head_token == selected &&
                             list.selected_resource_token ==
                                 (releases ? 0U : selected) &&
-                            node.primary_quantity ==
+                            node.selected_count ==
                                 2U + (consumes ? 1U : 0U) -
                                     (releases ? 1U : 0U) &&
-                            node.secondary_quantity == (releases ? 1 : 2) &&
-                            node.tertiary_quantity == 1 &&
-                            node.gate_word_48 ==
+                            node.quantity_a == (releases ? 1 : 2) &&
+                            node.quantity_b == 1 &&
+                            openswd3::test::inventory_word(node, 0x48U) ==
                                 (gate == 0U ? 0U : gate - 1U) &&
                             std::ranges::any_of(
                                 fixture.port.calls,
@@ -1349,15 +1368,16 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
                             auto& party =
                                 fixture.startup_state.party[actor_index];
                             auto& list = party.actor_list;
-                            auto& node = list.resources[1U];
-                            node.primary_quantity = tertiary ? 0xFFFFU : 3U;
-                            node.secondary_quantity = tertiary ? 0 : 2;
-                            node.tertiary_quantity = tertiary ? -1 : 1;
-                            node.gate_word_48 = gate;
-                            node.category_mask = category;
-                            node.capacity_gate_flags =
+                            auto& node =
+                                openswd3::test::inventory_node(list, 1U);
+                            node.selected_count = tertiary ? 0xFFFFU : 3U;
+                            node.quantity_a = tertiary ? 0 : 2;
+                            node.quantity_b = tertiary ? 0xFFFFU : 1U;
+                            openswd3::test::inventory_word(node, 0x48U) = gate;
+                            openswd3::test::inventory_category(node) = category;
+                            openswd3::test::inventory_word(node, 0x4CU) =
                                 suppressed ? 0x2000U : 0U;
-                            const u32 selected = node.token;
+                            const u32 selected = node.legacy_token;
                             const bool updates =
                                 gate != 0x0402U && category != 0x80U;
                             const u16 expected_gate =
@@ -1397,20 +1417,28 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
                                         LegacyBattleTargetSelectionRefreshStatus::
                                             completed &&
                                     !result.resource_release_failure &&
-                                    list.resources.size() == 2U &&
+                                    openswd3::test::inventory_nodes(list)
+                                            .size() == 2U &&
                                     list.resource_head_token == selected &&
                                     list.selected_resource_token ==
                                         (updates ? 0U : selected) &&
-                                    list.resources[1U].gate_word_48 ==
-                                        expected_gate &&
-                                    list.resources[1U].primary_quantity ==
+                                    openswd3::test::inventory_word(
+                                        openswd3::test::inventory_node(
+                                            list, 1U
+                                        ),
+                                        0x48U
+                                    ) == expected_gate &&
+                                    openswd3::test::inventory_node(list, 1U)
+                                            .selected_count ==
                                         expected_primary &&
-                                    list.resources[1U].secondary_quantity ==
-                                        expected_secondary &&
-                                    list.resources[1U].tertiary_quantity ==
-                                        expected_tertiary &&
-                                    list.resources[1U].category_mask ==
-                                        category &&
+                                    openswd3::test::inventory_node(list, 1U)
+                                            .quantity_a == expected_secondary &&
+                                    openswd3::test::inventory_node(list, 1U)
+                                            .quantity_b ==
+                                        std::bit_cast<u16>(expected_tertiary) &&
+                                    openswd3::test::inventory_category(
+                                        openswd3::test::inventory_node(list, 1U)
+                                    ) == category &&
                                     sample_matches &&
                                     fixture.debug.committed_actor_code ==
                                         actor_index + 8U,
@@ -1429,33 +1457,36 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
                 Fixture fixture;
                 configure_menu_resource(fixture, path, 8U);
                 auto& list = fixture.startup_state.party[0U].actor_list;
-                list.resources.clear();
+                openswd3::test::inventory_nodes(list).clear();
                 list.next_resource_head_token = 0x76000000U;
                 list.selected_resource_token = 0x76000000U + position * 0x10U;
                 const u32 last_position =
                     position == 3U ? position : position + 1U;
                 for (u32 node_index = 0U; node_index <= last_position;
                      ++node_index) {
-                    list.resources.push_back({
-                        .token = 0x76000000U + node_index * 0x10U,
-                        .next_token = node_index == last_position
-                            ? 0U
-                            : 0x76000000U + (node_index + 1U) * 0x10U,
-                        .resource_id =
-                            node_index == position ? u16{0x8001U} : u16{0x123U},
-                        .primary_quantity = 0xFFFFU,
-                        .secondary_quantity = node_index == position
-                            ? openswd3::compat::i16{1}
-                            : openswd3::compat::i16{9},
-                        .name = {},
-                        .capacity_gate_flags = node_index == position - 1U
-                            ? static_cast<u16>(
-                                  predecessor_suppressed ? 0x2000U : 0U
-                              )
-                            : static_cast<u16>(
-                                  predecessor_suppressed ? 0U : 0x2000U
-                              ),
-                    });
+                    openswd3::test::append_inventory_item(
+                        list,
+                        {
+                            .token = 0x76000000U + node_index * 0x10U,
+                            .next_token = node_index == last_position
+                                ? 0U
+                                : 0x76000000U + (node_index + 1U) * 0x10U,
+                            .resource_id = node_index == position ? u16{0x8001U}
+                                                                  : u16{0x123U},
+                            .primary_quantity = 0xFFFFU,
+                            .secondary_quantity = node_index == position
+                                ? openswd3::compat::i16{1}
+                                : openswd3::compat::i16{9},
+                            .name = {},
+                            .capacity_gate_flags = node_index == position - 1U
+                                ? static_cast<u16>(
+                                      predecessor_suppressed ? 0x2000U : 0U
+                                  )
+                                : static_cast<u16>(
+                                      predecessor_suppressed ? 0U : 0x2000U
+                                  ),
+                        }
+                    );
                 }
 
                 const u32 removed_token = list.selected_resource_token;
@@ -1466,13 +1497,14 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
                     fixture.bindings(), fixture.port, {}
                 );
                 const auto previous = std::ranges::find(
-                    list.resources,
+                    openswd3::test::inventory_nodes(list),
                     predecessor,
-                    &openswd3::battle::LegacyBattleActorListResourceNode::token
+                    &openswd3::world_map::LegacyWorldItemNode::legacy_token
                 );
                 const bool resource_absent = std::ranges::none_of(
-                    list.resources, [removed_token](const auto& node) {
-                        return node.token == removed_token;
+                    openswd3::test::inventory_nodes(list),
+                    [removed_token](const auto& node) {
+                        return node.legacy_token == removed_token;
                     }
                 );
                 const u16 expected_resource =
@@ -1492,11 +1524,14 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
                             LegacyBattleTargetSelectionRefreshStatus::
                                 completed &&
                         !result.resource_release_failure && resource_absent &&
-                        list.resources.size() == last_position &&
+                        openswd3::test::inventory_nodes(list).size() ==
+                            last_position &&
                         list.resource_head_token == predecessor &&
                         list.selected_resource_token == 0U &&
-                        previous != list.resources.end() &&
-                        previous->next_token == successor && sample_matches,
+                        previous !=
+                            openswd3::test::inventory_nodes(list).end() &&
+                        previous->legacy_next_token == successor &&
+                        sample_matches,
                     "depleted first/middle/last menu resources are really erased while primary remains nonzero; relinking and return suppression use the actual predecessor"
                 );
             }
@@ -1530,8 +1565,8 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
                             resource_node_typed_stop &&
                     list.resource_head_token ==
                         (missing_head ? 0xDEADBEEFU : 0x76000010U) &&
-                    list.resources.size() == 2U &&
-                    list.resources[1U].secondary_quantity == 2 &&
+                    openswd3::test::inventory_nodes(list).size() == 2U &&
+                    openswd3::test::inventory_node(list, 1U).quantity_a == 2 &&
                     party.workspace.tail_words[2U] == 0xBEEFU &&
                     fixture.final_actor.queued_actor_code ==
                         (action_committed ? 0U : 8U) &&
@@ -1559,16 +1594,19 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
             Fixture fixture;
             configure_menu_resource(fixture, path, 8U);
             auto& list = fixture.startup_state.party[0U].actor_list;
-            list.resources[1U].gate_word_48 = gate;
+            openswd3::test::inventory_word(
+                openswd3::test::inventory_node(list, 1U), 0x48U
+            ) = gate;
             const auto result = refresh_legacy_battle_target_selection(
                 fixture.bindings(), fixture.port, {}
             );
             test.expect_true(
                 result.status ==
                         LegacyBattleTargetSelectionRefreshStatus::completed &&
-                    list.resources[1U].gate_word_48 ==
-                        (gate == 0x0400U ? 0x0400U : 0x04FEU) &&
-                    list.resources[1U].secondary_quantity ==
+                    openswd3::test::inventory_word(
+                        openswd3::test::inventory_node(list, 1U), 0x48U
+                    ) == (gate == 0x0400U ? 0x0400U : 0x04FEU) &&
+                    openswd3::test::inventory_node(list, 1U).quantity_a ==
                         (gate == 0x0400U ? 1 : 2) &&
                     list.selected_resource_token ==
                         (gate == 0x0400U ? 0U : 0x76000010U),
@@ -1581,28 +1619,35 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
             configure_menu_resource(fixture, path, 8U);
             auto& list = fixture.startup_state.party[0U].actor_list;
             list.selected_resource_token = 0x76000020U;
-            list.resources[1U].next_token = 0x76000020U;
-            list.resources[1U].secondary_quantity = 9;
-            list.resources.push_back({
-                .token = 0x76000020U,
-                .resource_id = 0x8001U,
-                .primary_quantity = 0xFFFFU,
-                .secondary_quantity =
-                    static_cast<openswd3::compat::i16>(depleted ? 1 : 2),
-                .name = {},
-            });
+            openswd3::test::inventory_node(list, 1U).legacy_next_token =
+                0x76000020U;
+            openswd3::test::inventory_node(list, 1U).quantity_a = 9;
+            openswd3::test::append_inventory_item(
+                list,
+                {
+                    .token = 0x76000020U,
+                    .resource_id = 0x8001U,
+                    .primary_quantity = 0xFFFFU,
+                    .secondary_quantity =
+                        static_cast<openswd3::compat::i16>(depleted ? 1 : 2),
+                    .name = {},
+                }
+            );
             const auto result = refresh_legacy_battle_target_selection(
                 fixture.bindings(), fixture.port, {}
             );
             test.expect_true(
                 result.status ==
                         LegacyBattleTargetSelectionRefreshStatus::completed &&
-                    list.resources[1U].secondary_quantity == 9 &&
+                    openswd3::test::inventory_node(list, 1U).quantity_a == 9 &&
                     list.resource_head_token ==
                         (depleted ? 0x76000000U : 0x76000020U) &&
-                    list.resources.size() == (depleted ? 2U : 3U) &&
-                    (depleted ? list.resources[0U].next_token == 0U
-                              : list.resources[2U].secondary_quantity == 1),
+                    openswd3::test::inventory_nodes(list).size() ==
+                        (depleted ? 2U : 3U) &&
+                    (depleted ? openswd3::test::inventory_node(list, 0U)
+                                    .legacy_next_token == 0U
+                              : openswd3::test::inventory_node(list, 2U)
+                                    .quantity_a == 1),
                 "equal resource identifiers select the saved physical object; deletion preserves the original first-match predecessor replay and detached owned node"
             );
         }
@@ -1612,9 +1657,9 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
             configure_menu_resource(fixture, path, 8U);
             auto& list = fixture.startup_state.party[0U].actor_list;
             list.selected_resource_token = 0x76000000U;
-            list.resources[0U].resource_id = 0x8001U;
-            list.resources[0U].primary_quantity = 0xFFFFU;
-            list.resources[0U].secondary_quantity = 1;
+            openswd3::test::inventory_node(list, 0U).item_id = 0x8001U;
+            openswd3::test::inventory_node(list, 0U).selected_count = 0xFFFFU;
+            openswd3::test::inventory_node(list, 0U).quantity_a = 1;
             const auto result = refresh_legacy_battle_target_selection(
                 fixture.bindings(), fixture.port, {}
             );
@@ -1625,8 +1670,9 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
                     result.resource_release_failure ==
                         LegacyBattleActorListQueryStatus::
                             resource_node_typed_stop &&
-                    list.resources.size() == 1U &&
-                    list.resources[0U].token == 0x76000010U &&
+                    openswd3::test::inventory_nodes(list).size() == 1U &&
+                    openswd3::test::inventory_node(list, 0U).legacy_token ==
+                        0x76000010U &&
                     list.resource_head_token == 0x76000000U &&
                     list.selected_resource_token == 0U &&
                     std::ranges::none_of(
@@ -1647,13 +1693,16 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
             auto& party = fixture.startup_state.party[0U];
             auto& list = party.actor_list;
             list.selected_resource_token = 0x76000020U;
-            list.resources[1U].resource_id = 0x123U;
-            list.resources.push_back({
-                .token = 0x76000020U,
-                .resource_id = 0x8001U,
-                .secondary_quantity = 9,
-                .name = {},
-            });
+            openswd3::test::inventory_node(list, 1U).item_id = 0x123U;
+            openswd3::test::append_inventory_item(
+                list,
+                {
+                    .token = 0x76000020U,
+                    .resource_id = 0x8001U,
+                    .secondary_quantity = 9,
+                    .name = {},
+                }
+            );
             party.workspace.tail_words[2U] = 0xBEEFU;
             const auto result = refresh_legacy_battle_target_selection(
                 fixture.bindings(), fixture.port, {}
@@ -1664,8 +1713,8 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
                     !result.resource_release_failure &&
                     list.resource_head_token == 0U &&
                     list.selected_resource_token == 0x76000020U &&
-                    list.resources.size() == 3U &&
-                    list.resources[2U].secondary_quantity == 9 &&
+                    openswd3::test::inventory_nodes(list).size() == 3U &&
+                    openswd3::test::inventory_node(list, 2U).quantity_a == 9 &&
                     party.workspace.tail_words[2U] == 0xBEEFU,
                 "search exhaustion returns a real zero resource WORD and preserves the unmatched owned selection and workspace"
             );
@@ -1686,7 +1735,7 @@ void test_menu_actor_resource(openswd3::test::Context& test) {
                     LegacyBattleTargetSelectionRefreshStatus::completed &&
                 !result.resource_release_failure &&
                 list.resource_head_token == 0x76000000U &&
-                list.resources[1U].secondary_quantity == 2 &&
+                openswd3::test::inventory_node(list, 1U).quantity_a == 2 &&
                 empty.message == 0U && empty.debug.committed_actor_code == 8U,
             "zero selected resource is a real successful zero WORD after head publication and does not become a new menu stopping condition"
         );
@@ -1933,9 +1982,10 @@ void test_menu_player_item_quantity(openswd3::test::Context& test) {
                         LegacyBattleTargetSelectionRefreshStatus::
                             item_quantity_typed_stop &&
                     result.item_quantity_failure == failure && !suffix_called &&
-                    fixture.startup_state.party[0U]
-                            .actor_list.resources[1U]
-                            .secondary_quantity == 1 &&
+                    openswd3::test::inventory_node(
+                        fixture.startup_state.party[0U].actor_list, 1U
+                    )
+                            .quantity_a == 1 &&
                     fixture.startup_state.party[0U]
                             .actor_list.selected_resource_token == 0U &&
                     fixture.final_actor.queued_actor_code == 0U &&
@@ -2606,9 +2656,10 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         runtime.selection_input_gate = 1U;
         runtime.target_argument = 9U;
         seed_resource_selection(fixture, 8U);
-        for (auto& resource :
-             fixture.startup_state.party[0U].actor_list.resources) {
-            resource.category_mask = 4U;
+        for (auto& resource : openswd3::test::inventory_nodes(
+                 fixture.startup_state.party[0U].actor_list
+             )) {
+            openswd3::test::inventory_category(resource) = 4U;
         }
 
         openswd3::battle::LegacyBattleTargetSelectionRefreshRequest request;
@@ -3095,9 +3146,10 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                     std::vector<u16>{7U} &&
                 action_twenty_seven.startup_state.party[0U]
                         .actor_list.selected_resource_token == 0x95000090U &&
-                action_twenty_seven.startup_state.party[0U]
-                        .actor_list.resources[9U]
-                        .primary_quantity == 1U &&
+                openswd3::test::inventory_node(
+                    action_twenty_seven.startup_state.party[0U].actor_list, 9U
+                )
+                        .selected_count == 1U &&
                 action_twenty_seven.port.calls[0U].call ==
                     LegacyBattleTargetSelectionRuntimeCall::
                         query_group_b_completion &&
@@ -3288,17 +3340,20 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
             1U;
         auto& actor_list = fixture.startup_state.party[0U].actor_list;
         actor_list.next_resource_head_token = 0x76000000U;
-        actor_list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .resource_id = 0x20U,
-             .tertiary_quantity = 1,
-             .name = {},
-             .category_mask = 0x2000U,
-             .derived_word_30 = 0x1234U,
-             .profile_id_4a = 7U,
-             .capacity_gate_flags = 0x2000U},
-        };
+        fixture.inventories.assign(
+            actor_list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 0x20U,
+                 .tertiary_quantity = 1,
+                 .name = {},
+                 .category_mask = 0x2000U,
+                 .derived_word_30 = 0x1234U,
+                 .profile_id_4a = 7U,
+                 .capacity_gate_flags = 0x2000U},
+            }
+        );
 
         auto bindings = fixture.bindings();
         const auto result =
@@ -3324,13 +3379,16 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         auto& actor_list = fixture.startup_state.party[0U].actor_list;
         actor_list.next_resource_head_token = 0x76000000U;
         actor_list.selected_resource_token = 0x76000010U;
-        actor_list.resources = {
-            {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
-            {.token = 0x76000010U,
-             .resource_id = 0x21U,
-             .secondary_quantity = 2,
-             .name = {}},
-        };
+        fixture.inventories.assign(
+            actor_list,
+            {
+                {.token = 0x76000000U, .next_token = 0x76000010U, .name = {}},
+                {.token = 0x76000010U,
+                 .resource_id = 0x21U,
+                 .secondary_quantity = 2,
+                 .name = {}},
+            }
+        );
 
         const auto result = refresh_legacy_battle_target_selection(
             fixture.bindings(), fixture.port, {}
@@ -3340,7 +3398,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 fixture.startup_state.party[0U].workspace.tail_words[2U] ==
                     0x21U &&
                 actor_list.selected_resource_token == 0U &&
-                actor_list.resources[1U].secondary_quantity == 1,
+                openswd3::test::inventory_node(actor_list, 1U).quantity_a == 1,
             "message five uses the typed resource release before committing the actor action"
         );
     }
