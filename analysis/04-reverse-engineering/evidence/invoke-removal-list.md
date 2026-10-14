@@ -31,7 +31,7 @@
   - 证据：[行查询及唯一普通网格调用方](battle-actor-resource-list-query-00470910.md)。提交f21aa0b1已推送，远端main一致。
   - 本批选择：删除Request、寄存器/输出回包、调用计数和脚本开关，三个caller直接写实际DWORD/WORD；纠正4708C0错接、profile影子来源、分类位和重复flags_49。
   - 验证：真实资源/MON夹具、独立边界、四项core/ASan、SDL构建及源码身份检查通过；源码4b163e92已推送并核对远端main一致。见[资源选择](battle-actor-resource-selection-00470ac0.md)。
-  - 本批诊断：删除ResourceSelectionAdapter及通用诊断操作/参数包调用，核心两路入口共享诊断对象；core/ASan、SDL及19源身份通过，提交待登记。见[诊断证据](battle-resource-selection-diagnostic-00431150.md)。
+  - 本批诊断：删除ResourceSelectionAdapter及通用诊断操作/参数包调用，核心两路入口共享诊断对象；core/ASan、SDL及19源身份通过，源码6cf4451f已推送并核对远端main一致。见[诊断证据](battle-resource-selection-diagnostic-00431150.md)。
   - 剩余：同族状态、资料、资源生产及完整SDL诊断接线；整链未验收，不勾选。
   - 当前残留信号：counter, interface, register。
   - 历史状态：`pending`；本快照：待复核。
