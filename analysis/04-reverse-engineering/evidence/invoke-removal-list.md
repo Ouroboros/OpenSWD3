@@ -22,7 +22,7 @@
 - Port/Ports定义：345；含Dispatch/Adapter共358个类型定义。
 - 上述数值分别是族、文件和类型的数量，不能相加或作为同一完成率分母。
 - 全项目语义覆盖尚未验收。所有新清单方框保持未勾选。
-- 当前顺序：角色列表行查询及两处菜单接线正在收尾；随后继续同条目的计数与资源生产协议。
+- 当前顺序：角色列表行查询批次95a3d125已推送并核对远端；继续同条目的计数与资源生产协议。
 
 ## 逐项 LIST
 
@@ -34,7 +34,7 @@
   - 本批诊断：删除ResourceSelectionAdapter及通用诊断操作/参数包调用，核心两路入口共享诊断对象；core/ASan、SDL及19源身份通过，源码6cf4451f已推送并核对远端main一致。见[诊断证据](battle-resource-selection-diagnostic-00431150.md)。
   - 本批状态：删除StatePort、StateRequest/CallReply、寄存器和诊断计数及菜单validate_primary_action操作；直接借用列表、实时配置、文本队列及音频manager。core/ASan、SDL构建和21源身份已通过，源码bc6b14e7已推送并核对远端main一致。见[状态处理证据](battle-actor-list-state-processing-00470380.md)。
   - 本批资料：删除ApplyRequest、寄存器/索引回包、输出副本及计数；两处菜单删除query_primary_target参数包调用，直接加载共享资料并写角色输出。最终core/ASan、SDL构建及7源身份通过，源码5e487db5已推送并核对远端main一致；见[资料应用证据](battle-actor-list-profile-application-004705c0.md)。
-  - 本批行查询：删除QueryRequest、寄存器/索引回包、输出副本及计数；两个菜单直连实际列表和MON，名称共享选择区及相邻音乐路径，删除查询/复位通用操作和协调器转发。最终core/ASan、SDL构建及15源身份通过，待提交推送；验证与边界见[角色行查询证据](battle-actor-list-query-00470180.md)。
+  - 本批行查询：删除QueryRequest、寄存器/索引回包、输出副本及计数；两个菜单直连实际列表和MON，名称共享选择区及相邻音乐路径，删除查询/复位通用操作和协调器转发。最终core/ASan、SDL构建及15源身份通过，源码95a3d125已推送并核对远端main；验证与边界见[角色行查询证据](battle-actor-list-query-00470180.md)。
   - 剩余：计数、资源生产、消息内部协议及完整SDL接线；整链未验收，不勾选。
   - 当前残留信号：counter, interface, register。
   - 历史状态：`pending`；本快照：待复核。

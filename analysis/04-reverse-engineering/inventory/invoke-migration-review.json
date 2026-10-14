@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "5e487db5b6d793ed32959997ce7a0c3672c85465",
+  "last_reviewed_source_revision": "95a3d12524e87eecc4cb1780ab42a635a079f9d1",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -312,9 +312,9 @@
     },
     "battle/legacy_battle_actor_list_query": {
       "status": "pending",
-      "last_reviewed_commit": "5e487db5",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-profile-application-004705c0.md",
-      "reason": "资料应用删除ApplyRequest、寄存器与索引回包、输出副本和诊断计数；直接发布游标、写共享输出并加载实际资料，保持输出别名及callback后重读。core/ASan、SDL及7源身份通过；其余查询、计数、资源生产、消息内部协议及完整SDL接线仍pending，整链未验收"
+      "last_reviewed_commit": "95a3d125",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-query-00470180.md",
+      "reason": "行查询删除QueryRequest、寄存器与索引回包、输出副本及计数；两个菜单直接借实际列表、MON和共享文本，保留游标别名、callback后重读及长名称覆盖相邻音乐路径。core/ASan、SDL及15源身份通过；计数、资源生产、消息协议与完整SDL接线仍pending，整链未验收"
     },
     "battle/legacy_battle_grid_frame": {
       "status": "pending",
@@ -336,9 +336,9 @@
     },
     "battle/legacy_battle_selection_frame": {
       "status": "pending",
-      "last_reviewed_commit": "f21aa0b1",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-list-query-00470910.md",
-      "reason": "message4删除普通网格脚本兼容绑定，实际startup.party链查询名称数量。八资源节点、真实MAPS说明及%Q终止符使失败测试到达网格后的纵向面板；此前目录缺失导致的提前失败已修正。core/ASan的setup与actor316各1/1、SDL构建通过。其余操作、参数数组、寄存器、计数和Port仍pending"
+      "last_reviewed_commit": "95a3d125",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-query-00470180.md",
+      "reason": "两处菜单借现有角色、列表、MON、选择工作区及音乐路径，不通过查询回包取得行数据；其他父操作、计数与寄存器协议仍pending"
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
@@ -562,9 +562,9 @@
     },
     "battle/legacy_battle_frame_coordinator": {
       "status": "pending",
-      "last_reviewed_commit": "bc6b14e7",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-state-processing-00470380.md",
-      "reason": "作为状态处理迁移依赖向输入和消息两路借同一sample manager；core/ASan及SDL通过。其余帧协议及完整SDL接线仍pending"
+      "last_reviewed_commit": "95a3d125",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-query-00470180.md",
+      "reason": "删除列表及窄网格行查询/复位转发、相关操作与回包字段，借同一音乐路径支持原版文本相邻写入；其余协调器协议及完整SDL接线仍pending"
     },
     "battle/legacy_battle_frame_music_prefix": {
       "status": "verified",
@@ -808,6 +808,18 @@
       "last_reviewed_commit": "6cf4451f",
       "evidence": "analysis/04-reverse-engineering/evidence/battle-resource-selection-diagnostic-00431150.md",
       "reason": "SDL窗口owner提供资源诊断窄接口实现，复用维护错误对话框与同步关闭/陷阱处理；SDL构建通过。完整核心帧尚未接入主循环，实际交互及其余协议仍pending"
+    },
+    "battle/legacy_battle_list_contents": {
+      "status": "pending",
+      "last_reviewed_commit": "95a3d125",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-query-00470180.md",
+      "reason": "删除query_row、refresh_actor及行值回包和调用计数，实际列表查询直接写共享名称及音乐路径，保留逐行清值与链尾复位。其余初始化、解析、字体与文字协议仍pending"
+    },
+    "battle/legacy_battle_narrow_grid_frame": {
+      "status": "pending",
+      "last_reviewed_commit": "95a3d125",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-query-00470180.md",
+      "reason": "删除query_narrow_row、refresh_actor、文本与行值回包及计数，直接借实际列表与MON；名称后段写同一音乐路径并被绘制消费。初始化、绘制和父寄存器协议仍pending"
     }
   }
 }

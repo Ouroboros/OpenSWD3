@@ -1387,7 +1387,7 @@
 ## PORT-e59fcf9dbbd4
 
 - [ ] `LegacyBattleFrameCoordinatorPort`：抽象接口；迁移中，未验收。
-- 行查询批次删除列表/窄网格查询与复位操作、值/文本回包及纯转发分支；其余通用操作与继承接口仍pending。见[行查询证据](battle-actor-list-query-00470180.md)。
+- 行查询批次95a3d125已验证推送：删除列表/窄网格查询与复位操作、值/文本回包及纯转发分支；其余通用操作与继承接口仍pending。见[行查询证据](battle-actor-list-query-00470180.md)。
 - 定义：[include/openswd3/battle/legacy_battle_frame_coordinator.hpp:382](../../../include/openswd3/battle/legacy_battle_frame_coordinator.hpp:382)。
 - 继承：`public LegacyBattleHudCallPort,
       public LegacyBattleEffectCallPort,
@@ -1574,7 +1574,7 @@
 ## PORT-da997d756887
 
 - [ ] `LegacyBattleGridFramePort`：抽象接口；迁移中，未验收。
-- 行查询批次删除query_narrow_row、refresh_actor和对应输出字段；窄网格直接查询共享列表及MON，字体和绘制协议仍pending。见[行查询证据](battle-actor-list-query-00470180.md)。
+- 行查询批次95a3d125已验证推送：删除query_narrow_row、refresh_actor和对应输出字段；窄网格直接查询共享列表及MON，字体和绘制协议仍pending。见[行查询证据](battle-actor-list-query-00470180.md)。
 - 本批f21aa0b1已删除普通行查询操作与转发；core/ASan及SDL构建通过，远端main已核对。
 - 剩余字体、绘制及其他网格操作仍使用invoke；不能将该Port作为合法边界勾选保留。
 - 证据：[普通资源行查询](battle-actor-resource-list-query-00470910.md)。
@@ -2015,7 +2015,7 @@
 ## PORT-5273e66ab0e8
 
 - [ ] `LegacyBattleListContentsPort`：抽象接口；迁移中，未验收。
-- 行查询批次删除query_row、refresh_actor及值回包；初始化、行解析、字体和绘制协议仍pending。见[行查询证据](battle-actor-list-query-00470180.md)。
+- 行查询批次95a3d125已验证推送：删除query_row、refresh_actor及值回包；初始化、行解析、字体和绘制协议仍pending。见[行查询证据](battle-actor-list-query-00470180.md)。
 - 定义：[include/openswd3/battle/legacy_battle_list_contents.hpp:51](../../../include/openswd3/battle/legacy_battle_list_contents.hpp:51)。
 - 继承：`无`。
 - 直接残留：invoke。
@@ -2348,7 +2348,7 @@
 ## PORT-982d98cdcbdd
 
 - [ ] `LegacyBattleSelectionFramePort`：抽象接口；迁移中，未验收。
-- 行查询批次向两个实际caller借出MON数据库及同一音乐路径owner；新增MON数据库虚基类用于现有文件边界，未增加行查询转发。其余通用业务接口仍pending。见[行查询证据](battle-actor-list-query-00470180.md)。
+- 行查询批次95a3d125已验证推送：向两个实际caller借出MON数据库及同一音乐路径owner；新增MON数据库虚基类用于现有文件边界，未增加行查询转发。其余通用业务接口仍pending。见[行查询证据](battle-actor-list-query-00470180.md)。
 - 定义：[include/openswd3/battle/legacy_battle_selection_frame.hpp:129](../../../include/openswd3/battle/legacy_battle_selection_frame.hpp:129)。
 - 继承：`public virtual LegacyBattleSelectionFrameStatePort,
       public virtual LegacyBattleActorTargetPreparationPort,
