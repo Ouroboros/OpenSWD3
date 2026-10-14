@@ -33,7 +33,8 @@
   - 验证：真实资源/MON夹具、独立边界、四项core/ASan、SDL构建及源码身份检查通过；源码4b163e92已推送并核对远端main一致。见[资源选择](battle-actor-resource-selection-00470ac0.md)。
   - 本批诊断：删除ResourceSelectionAdapter及通用诊断操作/参数包调用，核心两路入口共享诊断对象；core/ASan、SDL及19源身份通过，源码6cf4451f已推送并核对远端main一致。见[诊断证据](battle-resource-selection-diagnostic-00431150.md)。
   - 本批状态：删除StatePort、StateRequest/CallReply、寄存器和诊断计数及菜单validate_primary_action操作；直接借用列表、实时配置、文本队列及音频manager。core/ASan、SDL构建和21源身份已通过，源码bc6b14e7已推送并核对远端main一致。见[状态处理证据](battle-actor-list-state-processing-00470380.md)。
-  - 剩余：同族资料、资源生产、消息内部协议及完整SDL接线；整链未验收，不勾选。
+  - 本批资料：删除ApplyRequest、寄存器/索引回包、输出副本及计数；两处菜单删除query_primary_target参数包调用，直接加载共享资料并写角色输出。最终core/ASan、SDL构建及7源身份通过，发布待核对；见[资料应用证据](battle-actor-list-profile-application-004705c0.md)。
+  - 剩余：同族其余查询、计数、资源生产、消息内部协议及完整SDL接线；整链未验收，不勾选。
   - 当前残留信号：counter, interface, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_actor_list_query.hpp](../../../include/openswd3/battle/legacy_battle_actor_list_query.hpp)；[src/battle/legacy_battle_actor_list_query.cpp](../../../src/battle/legacy_battle_actor_list_query.cpp)。
@@ -2109,6 +2110,7 @@
   - `register` [src/battle/legacy_battle_target_selection_entry.cpp](../../../src/battle/legacy_battle_target_selection_entry.cpp)：95, 96, 97, 100, 101, 102, 110, 111, 112, 114, 115, 116, 133, 136, 137, 138, 148, 149, 150, 177, 178, 179, 188, 189, 195, 196, 202, 203, 204, 211, 212, 217, 218, 220, 221, 224, 225, 226, 232, 233, 234, 238, 244, 245, 255, 256, 262, 269, 273, 275, 278, 279, 280, 283, 294, 297, 298, 303, 310, 311, 312, 324, 325, 326, 327, 351, 354, 355, 356, 360, 361, 362, 377, 397, 399, 400, 401, 405, 406, 407, 422
 
 - [ ] **CHAIN-720a76165b91** `battle/legacy_battle_target_selection_refresh`
+  - 资料批次已验证、发布待核对：消息2和8直接加载实际角色列表资料并写共享输出，删除query_primary_target调用；其余协议仍pending。见[资料应用证据](battle-actor-list-profile-application-004705c0.md)。
   - 状态批次bc6b14e7：删除validate_primary_action参数包调用，直接用列表可用性决定是否继续资料应用；core/ASan及SDL通过并已发布。其余父协议仍pending；见[状态证据](battle-actor-list-state-processing-00470380.md)。
   - 本批：三个资源选择点及相邻动作4完成点改接实际函数；删除两个通用操作、选择兼容开关及子寄存器/计数，验证见[资源选择](battle-actor-resource-selection-00470ac0.md)。源码4b163e92已推送并核对远端main一致。
   - 本批诊断：删除纯转发Adapter及通用操作，直接借用诊断对象；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。
@@ -2126,6 +2128,7 @@
   - `register` [src/battle/legacy_battle_target_selection_refresh.cpp](../../../src/battle/legacy_battle_target_selection_refresh.cpp)：66, 67, 68, 70, 103, 104, 190, 191, 192, 303, 304, 305, 307, 308, 309, 318, 319, 320, 425, 443, 444, 445, 660, 661, 662, 680, 684, 685, 686, 710, 714, 715, 716, 752, 753, 756, 757, 758, 984, 989, 990, 991, 1451, 1452, 1453, 1711, 1712, 1713, 1891, 1892, 1893, 2307, 2308, 2309, 2312, 2313, 2314, 2321, 2329, 2330, 2331, 2334, 2335, 2336, 2343
 
 - [ ] **CHAIN-3a258ab4081f** `battle/legacy_battle_target_selection_runtime`
+  - 资料批次已验证、发布待核对：删除query_primary_target枚举操作，两处菜单改用真实函数；其余通用操作与Port仍pending。见[资料应用证据](battle-actor-list-profile-application-004705c0.md)。
   - 状态批次bc6b14e7：删除validate_primary_action操作编号；其余操作和寄存器协议仍pending。core/ASan及SDL通过并已发布；见[状态证据](battle-actor-list-state-processing-00470380.md)。
   - 本批：删除资源缺失诊断操作编号；[验证与边界](battle-resource-selection-diagnostic-00431150.md)。其余操作、参数包与寄存器协议仍pending。
   - 当前残留信号：arguments, interface, invoke, register。

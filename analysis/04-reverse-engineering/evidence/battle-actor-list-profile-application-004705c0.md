@@ -1,29 +1,105 @@
 # 战斗角色链表资料应用 `0x004705C0`
 
-状态：`platform_adapted`。完整LST、typed实现、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+本批迁移资料应用及两个菜单调用点。实现、双向源码审查和最终验证已完成，
+定向core、AddressSanitizer、SDL构建及7份源码身份通过，发布待核对。
+所属`CHAIN-e0f6819f24dc`仍未完成，不勾选整条调用链。
 
-## 1. 完整权威范围
+## 1. 权威范围和调用方
 
-权威LST主体为`0x004705C0..0x004707A9`，proc至endp共232行、144条实际指令、3个call、23个跳转、15个局部标签、3个返回点，没有外部`FUNCTION CHUNK`。callee为已关闭索引提交一次、待审资料加载一次和平台字符串复制一次。
+权威范围为LST `004705C0..004707A9`。
+两个物理调用点都位于目标选择刷新函数：
 
-## 2. 前缀与扫描
+- `00462C73`：消息2，实时分类、type0、候选序号、角色共享输出DWORD。
+- `004638D2`：消息8，category0、type1、候选序号、角色共享输出DWORD。
 
-category选择器映射为0到`0x10`、1到`0x0C`、2到`0x1001`、其他保持。occurrence为零时立即返回低word `0xFFFF`，不会发布mode flag、清缓冲或提交索引。
+旧文档“唯一caller”指同一个父函数，不能解释为只有一个调用点。
+两个位置均直接执行`apply_legacy_battle_actor_list`，
+删除`query_primary_target`操作及其参数数组调用。
+消息2保留原后继属性查询；消息8未找到时提前返回。
+资料加载回调后，父函数按LST重新读取角色与后继状态。
 
-type选择器0时对actor mode byte OR `0x80`并选择type 28；选择器1时OR `0x02`并选择type 31；其他保持原type且不改mode。随后清零40字节profile buffer，提交索引，并从主链筛选mode byte与`0x05`、category flags与mask。type 28接受节点27至30，其他type只接受31。匹配计数先增后比，链尾未找到返回`0xFFFF`并保留前缀副作用。
+## 2. 删除的协议与共享数据
 
-## 3. 命中应用
+- 删除`LegacyBattleActorListApplyRequest`和actor token参数。
+- 删除ApplyResult的索引子回包、寄存器、输出副本和诊断计数。
+- 函数直接接收分类、类型、序号和输出DWORD引用。
+- 结果仅保留状态和可选选择模式；空值表示没有匹配项。
+- 扫描直接发布实际执行状态的游标，不调用索引提交协议。
+- 两个菜单位置均借用同一party的列表、final processing和item effect。
+- 节点输出直接写`startup_reset.block_4fe5d4`对应角色元素。
+- 资料加载使用现有共享MON数据库对象；不新增转发Adapter。
 
-命中时先把节点`+0x5C`零扩展写调用者dword，再按节点profile id加载actor profile buffer。随后清零actor `+0x2630`的16字节块，并按原`lstrcpyA`顺序复制节点字符串；typed目标不足时在首次越界字节停止并保留已写前缀。
+同族其余查询、计数、资源生产、消息内部协议和完整SDL接线仍待迁移或验收。
+目标选择父函数其余通用协议仍存在，本批不把父函数或其Port标记完成。
 
-actor mode byte bit1命中时复制节点`+0x54`、`+0x5C`和`+0x4C`到三个actor模式字段。节点`+0x48`等于零时复制`+0x40/+0x42/+0x44`到三项派生word。随后无条件清profile copy latch；`+0x48` bit9命中时设latch 1并再次复制三项派生word。
+## 3. LST到实现
 
-最终返回先检查映射mask低byte bit3与节点category bit3，均命中返回1；否则返回映射mask低byte bit4。该规则保留自定义mask和三种内建selector的非对称结果。
+- `4705C0..4705F3`：分类0/1/2映射为`10/C/1001`，其他保持原mask。
+- `4705F3..470603`：序号零立即无匹配返回，不访问角色和输出。
+- `470606..47062D`：type0设置mode bit7并映射1C；type1设置bit1并映射1F。
+  其他输入保持原type，不改mode。
+- `47062D..470644`：清40字节资料缓冲，再发布主游标为next索引。
+- `470645..47068E`：逐节点先推进并发布游标，再判断链尾和过滤条件。
+  mode必须含bit0或bit2，category必须与mask相交；
+  映射type为1C时接受1B至1E，其余映射type只接受1F。
+  第N个匹配命中；链尾返回无匹配并保留已写前缀。
+- `470690..47069A`：节点`+5C`的WORD零扩展后直接写实际输出DWORD。
+- `47069C..4706AE`：重读主游标，取节点`+4A`资料号并加载共享40字节缓冲。
+  输出别名改变游标时，后续使用改变后的节点。
+- `4706B3..4706D6`：先清16字节名称区，再重读当前节点并复制到首个NUL。
+  不跨资料加载回调缓存节点指针，节点容器可在回调中重新分配。
+- `4706DC..470711`：实时mode bit1命中时，将节点`+54/+5C/+4C`
+  写入actor `+2A8A/+2F16/+2F18`。
+- `470711..47077E`：节点`+48`整WORD为零时复制三个派生WORD；
+  无条件清copy latch，bit9命中时设latch并再次复制。
+- `47077E..4707A9`：mask和节点category的bit3同时命中返回模式1，
+  否则取mask低byte的bit4。不得按分类名推断对称结果。
 
-## 4. owner、stop与caller
+反向复核覆盖每个状态写入、筛选条件、输出引用、资料读取、名称复制、
+模式字段、派生字段与返回出口。临时逐块推导位于
+`build/tmp/runtime/actor-list-profile-lst-analysis.md`。
 
-主链复用第188项唯一owner；profile与16字节块复用第187项final owner；mode byte和派生word复用第180项物品效果owner。新增三个应用字段仍属于同一final owner。缺失owner、节点或字符串目标时在首次访问处typed-stop。唯一caller位于已关闭目标选择刷新函数，现有边界尚未暴露节点物化owner，本包不复制第二份状态；生产源码无旧地址调用。
+## 4. 失败前缀与生命周期
 
-## 5. 验证状态
+缺失owner或节点继续使用已有宿主typed-stop分类，不构造假节点或默认成功。
+链尾与缺失节点均保留已经发布的游标。
+资料加载失败保留mode、已清资料缓冲、游标和共享输出，名称区尚未清除。
+资料加载完成后才清名称区并重读节点。
+名称超过现有16字节目标时保留已复制前缀，沿用已有宿主越界stop；
+该边界不是原版无界`lstrcpyA`异常行为等价证明。
 
-测试覆盖零occurrence无副作用、type0 mode flag、双缓冲清零、profile加载、字符串复制、三项派生word和mask bit4返回。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`191/422 = 182 platform_adapted + 9 assembly_exact + 231 pending_audit`，SHA256为`935fb2f925e84d3ec110a903f76519d1105ea2e46df0a9b71598c3cae630ab1c`。动态差分因原版链表、资料加载、字符串目标、actor模式字段与caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+角色、节点集合、资料缓冲及MON状态均由调用方现有对象持有。
+函数仅在同步调用期间借用；跨资料回调重新查找游标节点。
+
+## 5. 当前验证范围
+
+独立向量覆盖分类mask、原始type、节点type边界、mode两位、
+零序号、跨失配节点计数、链尾和缺失节点、输出零扩展及游标别名、
+资料分配失败前缀、回调重新分配节点和修改游标/mode/输出、
+空名称、15/16字节边界、嵌入NUL、copy flags整WORD与bit9区别。
+
+父函数夹具通过实际列表和MON解析器提供选择结果。
+移除旧通用回包脚本；共享属性、目标队列和消息后继测试继续覆盖两处调用。
+资料缓冲预期按实际MON解析结果归一化，不能继续假设通用回包会保留旧缓冲。
+
+最终验证日志入口：
+
+- `build/tmp/runtime/actor-list-profile-final-core.log`
+- `build/tmp/runtime/actor-list-profile-final-asan.log`
+- `build/tmp/runtime/actor-list-profile-final-sdl.log`
+- `build/tmp/runtime/actor-list-profile-final-identities.log`
+
+最终core定向测试1/1通过，11.98秒；ASan同测试1/1通过，20.64秒。
+Linux SDL应用构建成功，本批未运行app全量测试。
+7份源码、头文件和测试SHA256全部匹配验证前快照。
+首轮失败来自旧假回包与资料缓冲预期，修正后完整重跑上述定向门禁通过。
+本批MON夹具为合成输入；不冒充真实资产或原版动态差分。
+Windows、实际游戏与完整SDL战斗帧未验证。
+原版联合动态差分仍为`blocked_runtime_oracle`。
+
+## 6. 历史验证
+
+此前函数审计曾记录定向测试和ASan各1/1、Linux core 188/188、
+Linux app 194/194及inventory 191/422。
+这些是历史门禁，不代表本批新接口、调用方或当前全仓验收结果。
+当前B10仍为315/422，Workpack316保持`pending_audit`。

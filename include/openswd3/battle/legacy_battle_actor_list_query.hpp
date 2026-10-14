@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "openswd3/battle/legacy_battle_actor_list_index_commit.hpp"
 #include "openswd3/battle/legacy_battle_group_a_action_execution_state.hpp"
 #include "openswd3/battle/legacy_battle_group_a_final_processing_state.hpp"
@@ -106,31 +108,12 @@ struct LegacyBattleActorListQueryResult {
     compat::u32 return_edx{};
 };
 
-struct LegacyBattleActorListApplyRequest {
-    compat::u32 category_selector{};
-    compat::u32 type_selector{};
-    compat::u32 occurrence{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_edx{};
-};
-
 struct LegacyBattleActorListApplyResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
-    LegacyBattleActorListIndexCommitResult index_commit{};
-    compat::u32 index_commit_calls{};
-    compat::u32 profile_load_calls{};
-    compat::u32 nodes_visited{};
-    compat::u32 matches{};
-    compat::u32 profile_buffer_dwords_zeroed{};
-    compat::u32 pre_effect_dwords_zeroed{};
-    compat::u32 derived_word_writes{};
-    compat::u32 mode_field_writes{};
-    compat::u32 output_value{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
+
+    std::optional<compat::u16> selection_mode;
 };
 
 struct LegacyBattleActorListCountRequest {
@@ -255,9 +238,11 @@ struct LegacyBattleActorListCountResult {
     LegacyBattleActorListQueryState* list,
     LegacyBattleGroupAFinalProcessingState* final_state,
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
-    compat::u32 actor_token,
     LegacyBattleMonDatabasePort& mon_port,
-    const LegacyBattleActorListApplyRequest& request
+    compat::u32 category_selector,
+    compat::u32 type_selector,
+    compat::u32 occurrence,
+    compat::u32& output_value
 );
 
 // sub_4702E0.

@@ -27,7 +27,6 @@ inline constexpr u32 kGroupACount = 10U;
 inline constexpr u32 kGroupBBaseToken = 0x00525508U;
 inline constexpr u32 kGroupBStride = 0x2B28U;
 inline constexpr u32 kGroupBCount = 8U;
-inline constexpr u32 kActorRuntimeRecordToken = 0x004FE5D4U;
 inline constexpr u32 kTargetPanelToken = 0x004B8748U;
 inline constexpr u32 kWarningTextAToken = 0x004A7980U;
 inline constexpr u32 kWarningTextBToken = 0x004A7990U;
@@ -703,6 +702,43 @@ private:
         return true;
     }
 
+    [[nodiscard]] bool apply_actor_profile(
+        const u32 actor_code,
+        const u32 category,
+        const u32 type,
+        const u32 occurrence
+    ) {
+        const u32 index = actor_code - 8U;
+        if (actor_code < 8U || index >= bindings_.party.size() ||
+            index >= action_.group_a_action_execution.size() ||
+            index >= bindings_.startup_reset.block_4fe5d4.size()) {
+            typed_stop(Status::group_a_actor_typed_stop);
+            return false;
+        }
+
+        auto& party = bindings_.party[index];
+        const auto applied = apply_legacy_battle_actor_list(
+            &action_.group_a_action_execution[index],
+            &party.actor_list,
+            &party.final_processing,
+            &party.item_effect_application,
+            port_,
+            category,
+            type,
+            occurrence,
+            bindings_.startup_reset.block_4fe5d4[index]
+        );
+        if (applied.status != LegacyBattleActorListQueryStatus::completed) {
+            result_.list_profile_failure = applied.status;
+            typed_stop(Status::group_a_actor_typed_stop);
+            return false;
+        }
+
+        local_output_ = applied.selection_mode.value_or(0xFFFFU);
+        eax_ = local_output_;
+        return true;
+    }
+
     [[nodiscard]] std::optional<bool>
     select_actor_resource(const u32 actor_code, const u32 category) {
         if (actor_code < 8U) {
@@ -1335,22 +1371,12 @@ private:
 
         const u32 category = input_.action_category_index;
         const u32 argument = runtime_.candidate_argument;
-        local_output_ = 0U;
-        edx_ = category;
-        if (!invoke_group_a(
-                Call::query_primary_target,
-                final_actor_.queued_actor_code,
-                {
-                    category,
-                    0U,
-                    argument,
-                    kActorRuntimeRecordToken +
-                        (final_actor_.queued_actor_code - 8U) * 4U,
-                }
+        if (!apply_actor_profile(
+                final_actor_.queued_actor_code, category, 0U, argument
             )) {
             return;
         }
-        local_output_ = call_output_;
+
         const u32 current_actor = final_actor_.queued_actor_code;
         bool target_selection_blocked;
         if (!query_actor_properties(current_actor, target_selection_blocked)) {
@@ -1952,24 +1978,13 @@ private:
         }
         const u32 actor_code = eax_;
         runtime_.selection_input_gate = 0U;
-        eax_ = runtime_.candidate_argument;
-        local_output_ = 0U;
-        edx_ = kActorRuntimeRecordToken + (actor_code - 8U) * 4U;
-        if (!invoke_group_a(
-                Call::query_primary_target,
-                actor_code,
-                {
-                    0U,
-                    1U,
-                    eax_,
-                    kActorRuntimeRecordToken + (actor_code - 8U) * 4U,
-                },
-                GroupARegisterShape::eax_3ef
+        if (!apply_actor_profile(
+                actor_code, 0U, 1U, runtime_.candidate_argument
             )) {
             return;
         }
-        local_output_ = call_output_;
-        if ((eax_ & 0xFFFFU) == 0xFFFFU) {
+
+        if (local_output_ == 0xFFFFU) {
             return;
         }
 

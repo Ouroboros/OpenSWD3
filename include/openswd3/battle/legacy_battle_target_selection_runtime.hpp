@@ -68,7 +68,6 @@ enum class LegacyBattleTargetSelectionRuntimeCall : compat::u8 {
     reserved_input_record_priming_slot,
     reserved_group_b_target_cycle_slot,
     reserved_group_a_target_cycle_slot,
-    query_primary_target,
     reserved_query_action_thirty_override_slot,
     reserved_query_action_four_override_slot,
     reserved_display_warning_text_slot,

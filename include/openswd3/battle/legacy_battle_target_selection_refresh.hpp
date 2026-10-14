@@ -137,6 +137,7 @@ struct LegacyBattleTargetSelectionRefreshResult {
     compat::u32 mode_four_finalization_calls{};
     std::optional<LegacyBattleActorListQueryStatus> resource_selection_failure;
     std::optional<LegacyBattleActorListQueryStatus> list_state_failure;
+    std::optional<LegacyBattleActorListQueryStatus> list_profile_failure;
     std::optional<LegacyBattleActorListQueryStatus> resource_release_failure;
     LegacyBattleActorActionThirtyOverrideResult action_thirty_override{};
     compat::u32 action_thirty_override_calls{};

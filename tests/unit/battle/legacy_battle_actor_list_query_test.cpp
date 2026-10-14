@@ -90,6 +90,313 @@ public:
     bool fail_measure{};
 };
 
+struct ListProfileFixture {
+    ListProfileFixture() {
+        actor.next_list_index = 0x70000000U;
+        list.owner_token = 0x70000000U;
+        list.head_token = 0x70000010U;
+        list.nodes = {{
+            .token = 0x70000010U,
+            .category_flags = 0xFFFFFFFFU,
+            .mode_flags = 1U,
+            .type = 0x1BU,
+            .profile_id = 17U,
+            .value_40 = 11U,
+            .value_42 = 12U,
+            .value_44 = 13U,
+            .value_flags = 31U,
+            .mode_value = 41U,
+            .output_value = 0xFFFFU,
+            .text = "profile",
+        }};
+        final_state.profile_buffer.fill(0xCCCCCCCCU);
+        final_state.pre_effect_words.fill(0xDDDDDDDDU);
+    }
+
+    openswd3::battle::LegacyBattleActorListApplyResult apply(
+        const u32 category = 0U, const u32 type = 0U, const u32 occurrence = 1U
+    ) {
+        return openswd3::battle::apply_legacy_battle_actor_list(
+            &actor,
+            &list,
+            &final_state,
+            &item_effect,
+            port,
+            category,
+            type,
+            occurrence,
+            output
+        );
+    }
+
+    openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+    openswd3::battle::LegacyBattleActorListQueryState list;
+    openswd3::battle::LegacyBattleGroupAFinalProcessingState final_state;
+    openswd3::battle::LegacyBattleGroupAItemEffectApplicationState item_effect;
+    SelectionPort port;
+    u32 output{0xABCD1234U};
+};
+
+void test_list_profile_application(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    for (const u32 selector : {0U, 1U, 0x1CU, 0x1FU, 0xFFFFFFFFU}) {
+        for (const u16 type :
+             {0x1AU, 0x1BU, 0x1CU, 0x1DU, 0x1EU, 0x1FU, 0x20U}) {
+            for (const u8 mode : {0U, 1U, 2U, 4U, 5U}) {
+                ListProfileFixture fixture;
+                fixture.list.nodes[0U].type = type;
+                fixture.list.nodes[0U].mode_flags = mode;
+                fixture.item_effect.mode_flags = 0x40U;
+                const bool range = selector == 0U || selector == 0x1CU;
+                const bool found = (mode == 1U || mode == 4U || mode == 5U) &&
+                    (range ? type >= 0x1BU && type <= 0x1EU : type == 0x1FU);
+                const auto result = fixture.apply(0U, selector);
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActorListQueryStatus::completed &&
+                        result.selection_mode.has_value() == found &&
+                        fixture.actor.current_list_index ==
+                            (found ? 0x70000010U : 0U) &&
+                        fixture.output == (found ? 0xFFFFU : 0xABCD1234U) &&
+                        fixture.item_effect.mode_flags ==
+                            (selector == 0U       ? 0xC0U
+                                 : selector == 1U ? 0x42U
+                                                  : 0x40U),
+                    "profile scan publishes its cursor and filters mapped and raw types with both mode bits"
+                );
+            }
+        }
+    }
+
+    struct CategoryCase {
+        u32 category;
+        u32 node_flags;
+        std::optional<u16> expected;
+    };
+
+    const std::array<CategoryCase, 8> categories{{
+        {0U, 0x10U, 1U},
+        {0U, 8U, std::nullopt},
+        {1U, 4U, 0U},
+        {1U, 8U, 1U},
+        {2U, 1U, 0U},
+        {2U, 0x1000U, 0U},
+        {0x18U, 0x10U, 1U},
+        {0x10002U, 2U, 0U},
+    }};
+    for (const auto& category : categories) {
+        ListProfileFixture fixture;
+        fixture.list.nodes[0U].category_flags = category.node_flags;
+        const auto result = fixture.apply(category.category);
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.selection_mode == category.expected,
+            "profile selection maps the three categories and retains raw masks and asymmetric return bits"
+        );
+    }
+
+    for (const u16 flags : {0U, 1U, 0x100U, 0x200U, 0x201U, 0xFFFFU}) {
+        ListProfileFixture fixture;
+        fixture.list.nodes[0U].copy_flags = flags;
+        fixture.final_state.profile_copy_latch = 7U;
+        fixture.item_effect.derived_words[1U] = 21U;
+        fixture.item_effect.derived_words[2U] = 22U;
+        fixture.item_effect.derived_words[3U] = 23U;
+        const auto result = fixture.apply();
+        const bool copy = flags == 0U || (flags & 0x200U) != 0U;
+        test.expect_true(
+            result.selection_mode == 1U &&
+                fixture.final_state.profile_copy_latch ==
+                    ((flags & 0x200U) != 0U ? 1U : 0U) &&
+                fixture.item_effect.derived_words[1U] == (copy ? 11U : 21U) &&
+                fixture.item_effect.derived_words[2U] == (copy ? 12U : 22U) &&
+                fixture.item_effect.derived_words[3U] == (copy ? 13U : 23U),
+            "profile copy clears the latch and distinguishes the complete zero WORD from bit nine"
+        );
+    }
+
+    {
+        ListProfileFixture fixture;
+        fixture.list.nodes[0U].category_flags = 4U;
+        bool prefix_seen = false;
+        fixture.port.before_open = [&] {
+            prefix_seen = fixture.output == 0xFFFFU &&
+                fixture.actor.current_list_index == 0x70000010U &&
+                std::ranges::all_of(
+                              fixture.final_state.profile_buffer,
+                              [](const u32 value) { return value == 0U; }
+                ) &&
+                fixture.final_state.pre_effect_words[0U] == 0xDDDDDDDDU;
+            fixture.list.nodes = {
+                {.token = 0x70000020U, .text = "wrong"},
+                {.token = 0x70000030U,
+                 .category_flags = 8U,
+                 .value_40 = 51U,
+                 .value_42 = 52U,
+                 .value_44 = 53U,
+                 .copy_flags = 0x200U,
+                 .value_flags = 61U,
+                 .mode_value = 62U,
+                 .output_value = 63U,
+                 .text = "changed"},
+            };
+
+            fixture.actor.current_list_index = 0x70000030U;
+            fixture.item_effect.mode_flags = 2U;
+            fixture.output = 0xAA55AA55U;
+        };
+
+        const auto result = fixture.apply(1U);
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                prefix_seen && result.selection_mode == 1U &&
+                fixture.output == 0xAA55AA55U &&
+                fixture.port.profile_ids == std::vector<u16>{17U} &&
+                std::string(
+                    reinterpret_cast<const char*>(
+                        fixture.final_state.pre_effect_words.data()
+                    )
+                ) == "changed" &&
+                fixture.final_state.applied_mode_value == 62U &&
+                fixture.final_state.applied_output_value == 63U &&
+                fixture.final_state.replacement_action_kind == 61U &&
+                fixture.item_effect.derived_words[1U] == 51U &&
+                fixture.final_state.profile_copy_latch == 1U,
+            "profile loading observes the published output and zeroed buffer before reallocation and live cursor, mode and return-bit rereads"
+        );
+    }
+
+    {
+        ListProfileFixture fixture;
+        fixture.port.allocation_succeeds = false;
+        const auto result = fixture.apply();
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::profile_load_typed_stop &&
+                !result.selection_mode && fixture.output == 0xFFFFU &&
+                fixture.actor.current_list_index == 0x70000010U &&
+                fixture.final_state.pre_effect_words[0U] == 0xDDDDDDDDU &&
+                fixture.item_effect.mode_flags == 0x80U,
+            "profile allocation failure retains published output and mode before name clearing"
+        );
+    }
+
+    for (const std::string name :
+         {std::string{},
+          std::string(15U, 'a'),
+          std::string(16U, 'b'),
+          std::string("short\0ignored suffix", 20U)}) {
+        ListProfileFixture fixture;
+        fixture.list.nodes[0U].text = name;
+        const auto result = fixture.apply();
+        const bool too_long = name.size() == 16U;
+        test.expect_true(
+            result.status ==
+                    (too_long ? LegacyBattleActorListQueryStatus::
+                                    list_text_typed_stop
+                              : LegacyBattleActorListQueryStatus::completed) &&
+                result.selection_mode.has_value() != too_long &&
+                (too_long ||
+                 std::string(
+                     reinterpret_cast<const char*>(
+                         fixture.final_state.pre_effect_words.data()
+                     )
+                 ) == name.c_str()),
+            "profile names stop at the first NUL and retain the existing destination overflow prefix"
+        );
+    }
+
+    {
+        SelectionPort port;
+        u32 output = 0xABCDEF01U;
+        const auto result = apply_legacy_battle_actor_list(
+            nullptr, nullptr, nullptr, nullptr, port, 0U, 0U, 0U, output
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                !result.selection_mode && output == 0xABCDEF01U &&
+                port.open_calls == 0U,
+            "zero profile occurrence accesses neither actor owners nor the output"
+        );
+    }
+}
+
+void test_list_profile_cursor(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    for (const bool broken_tail : {false, true}) {
+        for (const u32 occurrence : {2U, 3U}) {
+            ListProfileFixture fixture;
+            fixture.list.nodes[0U].next_token = 0x70000020U;
+            fixture.list.nodes.push_back({
+                .token = 0x70000020U,
+                .next_token = 0x70000030U,
+                .text = "skipped",
+            });
+            fixture.list.nodes.push_back({
+                .token = 0x70000030U,
+                .next_token = broken_tail ? 0xDEADBEEFU : 0U,
+                .category_flags = 0x10U,
+                .mode_flags = 4U,
+                .type = 0x1EU,
+                .profile_id = 19U,
+                .output_value = 9U,
+                .text = "last",
+            });
+            const auto result = fixture.apply(0U, 0U, occurrence);
+            const bool selected = occurrence == 2U;
+            test.expect_true(
+                result.status ==
+                        (!selected && broken_tail
+                             ? LegacyBattleActorListQueryStatus::
+                                   list_node_typed_stop
+                             : LegacyBattleActorListQueryStatus::completed) &&
+                    result.selection_mode.has_value() == selected &&
+                    fixture.output == (selected ? 9U : 0xABCD1234U) &&
+                    fixture.actor.current_list_index ==
+                        (selected          ? 0x70000030U
+                             : broken_tail ? 0xDEADBEEFU
+                                           : 0U) &&
+                    fixture.port.profile_ids ==
+                        (selected ? std::vector<u16>{19U} : std::vector<u16>{}),
+                "profile occurrence counts matching nodes and publishes exhaustion or a missing node before returning"
+            );
+        }
+    }
+
+    {
+        ListProfileFixture fixture;
+        fixture.list.nodes[0U].output_value = 0x30U;
+        fixture.list.nodes.push_back({
+            .token = 0x30U,
+            .profile_id = 23U,
+            .text = "aliased",
+        });
+        const auto result = apply_legacy_battle_actor_list(
+            &fixture.actor,
+            &fixture.list,
+            &fixture.final_state,
+            &fixture.item_effect,
+            fixture.port,
+            0U,
+            0U,
+            1U,
+            fixture.actor.current_list_index
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                result.selection_mode == 1U &&
+                fixture.actor.current_list_index == 0x30U &&
+                fixture.port.profile_ids == std::vector<u16>{23U} &&
+                std::string(
+                    reinterpret_cast<const char*>(
+                        fixture.final_state.pre_effect_words.data()
+                    )
+                ) == "aliased",
+            "an output alias changes the live cursor before the profile ID and text are read"
+        );
+    }
+}
+
 struct ListStateFixture {
     ListStateFixture() {
         actor.next_list_index = 0x70000000U;
@@ -3557,20 +3864,16 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         final_state.pre_effect_words.fill(0xFFFFFFFFU);
         LegacyBattleGroupAItemEffectApplicationState item_effect;
         QueryPort port;
+        u32 output = 0xAABBCCDDU;
         const auto result = apply_legacy_battle_actor_list(
-            &actor,
-            &list,
-            &final_state,
-            &item_effect,
-            0x005029D0U,
-            port,
-            {.category_selector = 0U, .type_selector = 0U, .occurrence = 1U}
+            &actor, &list, &final_state, &item_effect, port, 0U, 0U, 1U, output
         );
         test.expect_true(
             result.status == LegacyBattleActorListQueryStatus::completed &&
-                result.return_eax == 1U && result.output_value == 77U &&
-                result.profile_buffer_dwords_zeroed == 10U &&
-                result.pre_effect_dwords_zeroed == 4U &&
+                result.selection_mode == 1U && output == 77U &&
+                actor.current_list_index == list.nodes[1U].token &&
+                final_state.profile_buffer[0U] != 0xFFFFFFFFU &&
+                final_state.pre_effect_words[3U] == 0U &&
                 (item_effect.mode_flags & 0x80U) != 0U &&
                 item_effect.derived_words[1U] == 11U &&
                 item_effect.derived_words[2U] == 12U &&
@@ -3589,23 +3892,22 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         LegacyBattleGroupAItemEffectApplicationState item_effect;
         item_effect.mode_flags = 0x40U;
         QueryPort port;
+        u32 output = 0xAABBCCDDU;
+        const auto cursor = actor.current_list_index;
         const auto result = apply_legacy_battle_actor_list(
-            &actor,
-            &list,
-            &final_state,
-            &item_effect,
-            0x005029D0U,
-            port,
-            {.category_selector = 0U, .type_selector = 0U, .occurrence = 0U}
+            &actor, &list, &final_state, &item_effect, port, 0U, 0U, 0U, output
         );
         test.expect_true(
-            result.return_eax == 0xFFFFU && result.index_commit_calls == 0U &&
+            !result.selection_mode && output == 0xAABBCCDDU &&
+                actor.current_list_index == cursor &&
                 final_state.profile_buffer[0U] == 0xAABBCCDDU &&
                 item_effect.mode_flags == 0x40U,
             "zero occurrence returns minus one before mode flags, clear, and index commit"
         );
     }
 
+    test_list_profile_application(test);
+    test_list_profile_cursor(test);
     test_list_state_behavior(test);
     test_list_state_filters(test);
     test_list_state_audio_order(test);

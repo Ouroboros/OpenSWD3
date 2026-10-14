@@ -189,95 +189,110 @@ LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
     LegacyBattleActorListQueryState* list,
     LegacyBattleGroupAFinalProcessingState* final_state,
     LegacyBattleGroupAItemEffectApplicationState* item_effect,
-    const u32 actor_token,
     LegacyBattleMonDatabasePort& mon_port,
-    const LegacyBattleActorListApplyRequest& request
+    const u32 category_selector,
+    const u32 type_selector,
+    const u32 occurrence,
+    u32& output_value
 ) {
     LegacyBattleActorListApplyResult result;
-    result.return_eax = request.entry_eax;
-    result.return_ecx = actor_token;
-    result.return_edx = request.entry_edx;
-    if (request.occurrence == 0U) {
-        result.return_eax = 0xFFFFU;
+    if (occurrence == 0U) {
         return result;
     }
+
     if (final_state == nullptr || item_effect == nullptr) {
         result.status =
             LegacyBattleActorListQueryStatus::actor_state_typed_stop;
         return result;
     }
 
-    const u32 mask = category_mask(request.category_selector);
-    u32 type = request.type_selector;
+    const u32 mask = category_mask(category_selector);
+    u32 type = type_selector;
     if (type == 0U) {
         item_effect->mode_flags =
             static_cast<compat::u8>(item_effect->mode_flags | 0x80U);
-        ++result.mode_field_writes;
         type = 0x1CU;
     } else if (type == 1U) {
         item_effect->mode_flags =
             static_cast<compat::u8>(item_effect->mode_flags | 0x02U);
-        ++result.mode_field_writes;
         type = 0x1FU;
     }
-    final_state->profile_buffer.fill(0U);
-    result.profile_buffer_dwords_zeroed =
-        static_cast<u32>(final_state->profile_buffer.size());
 
-    result.index_commit = commit_legacy_battle_actor_list_index(
-        actor,
-        actor_token,
-        {.entry_eax = request.entry_eax, .entry_edx = request.entry_edx}
-    );
-    ++result.index_commit_calls;
-    if (result.index_commit.status !=
-        LegacyBattleActorListIndexCommitStatus::completed) {
+    final_state->profile_buffer.fill(0U);
+    if (actor == nullptr) {
         result.status =
             LegacyBattleActorListQueryStatus::actor_state_typed_stop;
         return result;
     }
-    if (list == nullptr || list->owner_token == 0U || actor == nullptr ||
-        actor->current_list_index != list->owner_token) {
+
+    actor->current_list_index = actor->next_list_index;
+    if (list == nullptr || list->owner_token == 0U) {
         result.status = LegacyBattleActorListQueryStatus::list_owner_typed_stop;
         return result;
     }
 
-    u32 token = list->head_token;
-    const LegacyBattleActorListNode* matched = nullptr;
-    while (token != 0U) {
+    const auto current_node = [&]() -> const LegacyBattleActorListNode* {
         const auto found = std::ranges::find(
-            list->nodes, token, &LegacyBattleActorListNode::token
+            list->nodes,
+            actor->current_list_index,
+            &LegacyBattleActorListNode::token
         );
         if (found == list->nodes.end()) {
             result.status =
                 LegacyBattleActorListQueryStatus::list_node_typed_stop;
-            result.return_eax = token;
+            return nullptr;
+        }
+
+        return &*found;
+    };
+
+    u32 matches = 0U;
+    const LegacyBattleActorListNode* matched = nullptr;
+    while (true) {
+        u32 next = list->head_token;
+        if (actor->current_list_index != list->owner_token) {
+            const auto* cursor = current_node();
+            if (cursor == nullptr) {
+                return result;
+            }
+
+            next = cursor->next_token;
+        }
+
+        actor->current_list_index = next;
+        if (next == 0U) {
             return result;
         }
-        ++result.nodes_visited;
-        token = found->next_token;
-        if ((found->mode_flags & 0x05U) == 0U ||
-            (found->category_flags & mask) == 0U) {
+
+        matched = current_node();
+        if (matched == nullptr) {
+            return result;
+        }
+
+        if ((matched->mode_flags & 0x05U) == 0U ||
+            (matched->category_flags & mask) == 0U) {
             continue;
         }
+
         const bool type_matches = type == 0x1CU
-            ? found->type >= 0x1BU && found->type <= 0x1EU
-            : found->type == 0x1FU;
+            ? matched->type >= 0x1BU && matched->type <= 0x1EU
+            : matched->type == 0x1FU;
         if (!type_matches) {
             continue;
         }
-        ++result.matches;
-        if (result.matches == request.occurrence) {
-            matched = &*found;
+
+        ++matches;
+        if (matches == occurrence) {
             break;
         }
     }
+
+    output_value = matched->output_value;
+    matched = current_node();
     if (matched == nullptr) {
-        result.return_eax = 0xFFFFU;
         return result;
     }
 
-    result.output_value = matched->output_value;
     const auto profile_result = load_legacy_battle_mon_profile(
         profile_bytes(final_state->profile_buffer),
         mon_port,
@@ -286,7 +301,6 @@ LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
             .profile_id = matched->profile_id,
         }
     );
-    ++result.profile_load_calls;
     if (legacy_battle_mon_profile_load_stopped(profile_result.status)) {
         result.status =
             LegacyBattleActorListQueryStatus::profile_load_typed_stop;
@@ -294,52 +308,57 @@ LegacyBattleActorListApplyResult apply_legacy_battle_actor_list(
     }
 
     final_state->pre_effect_words.fill(0U);
-    result.pre_effect_dwords_zeroed =
-        static_cast<u32>(final_state->pre_effect_words.size());
+    matched = current_node();
+    if (matched == nullptr) {
+        return result;
+    }
+
     auto* destination =
         reinterpret_cast<compat::u8*>(final_state->pre_effect_words.data());
-    for (std::size_t index = 0U; index < matched->text.size(); ++index) {
+    for (std::size_t index = 0U; index <= matched->text.size(); ++index) {
         if (index >= sizeof(final_state->pre_effect_words)) {
             result.status =
                 LegacyBattleActorListQueryStatus::list_text_typed_stop;
             return result;
         }
-        destination[index] = static_cast<compat::u8>(matched->text[index]);
-    }
-    if (matched->text.size() >= sizeof(final_state->pre_effect_words)) {
-        result.status = LegacyBattleActorListQueryStatus::list_text_typed_stop;
-        return result;
+
+        const auto value = index == matched->text.size()
+            ? compat::u8{0U}
+            : static_cast<compat::u8>(matched->text[index]);
+        destination[index] = value;
+        if (value == 0U) {
+            break;
+        }
     }
 
     if ((item_effect->mode_flags & 0x02U) != 0U) {
         final_state->applied_mode_value = matched->mode_value;
         final_state->applied_output_value = matched->output_value;
         final_state->replacement_action_kind = matched->value_flags;
-        result.mode_field_writes += 3U;
     }
+
     const auto copy_derived = [&] {
         item_effect->derived_words[1U] = matched->value_40;
         item_effect->derived_words[2U] = matched->value_42;
         item_effect->derived_words[3U] = matched->value_44;
-        result.derived_word_writes += 3U;
     };
     if (matched->copy_flags == 0U) {
         copy_derived();
     }
+
     final_state->profile_copy_latch = 0U;
-    ++result.mode_field_writes;
     if ((matched->copy_flags & 0x0200U) != 0U) {
         final_state->profile_copy_latch = 1U;
-        ++result.mode_field_writes;
         copy_derived();
     }
 
     if ((static_cast<compat::u8>(mask) & 0x08U) != 0U &&
         (static_cast<compat::u8>(matched->category_flags) & 0x08U) != 0U) {
-        result.return_eax = 1U;
+        result.selection_mode = 1U;
     } else {
-        result.return_eax = (static_cast<compat::u8>(mask) >> 4U) & 1U;
+        result.selection_mode = (static_cast<compat::u8>(mask) >> 4U) & 1U;
     }
+
     return result;
 }
 
