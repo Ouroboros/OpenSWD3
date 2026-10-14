@@ -151,6 +151,7 @@ LegacyBattleTargetSelectionEntryResult enter_legacy_battle_target_selection(
         const auto nested = refresh_legacy_battle_target_selection(
             {
                 .resource_diagnostics = bindings.resource_diagnostics,
+                .samples = bindings.samples,
                 .startup = bindings.startup,
                 .items = bindings.items,
                 .startup_reset = bindings.startup_reset,

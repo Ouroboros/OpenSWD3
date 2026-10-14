@@ -188,6 +188,7 @@ public:
 
 struct LegacyBattleMessagePhaseBindings {
     LegacyBattleActorResourceSelectionPort& resource_diagnostics;
+    audio_video::LegacySampleManager& samples;
     LegacyBattleMessagePhaseState& state;
     LegacyBattleStartupState& startup;
     LegacyBattleFinalActorStepState& final_actor;

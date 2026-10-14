@@ -9,6 +9,7 @@ namespace openswd3::battle {
 
 struct LegacyBattleTargetSelectionEntryBindings {
     LegacyBattleActorResourceSelectionPort& resource_diagnostics;
+    audio_video::LegacySampleManager& samples;
     LegacyBattleStartupState& startup;
     world_map::LegacyWorldItemListState& items;
     LegacyBattleStartupResetBlocks& startup_reset;

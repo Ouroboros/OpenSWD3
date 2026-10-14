@@ -9,6 +9,7 @@
 
 #include "test.hpp"
 #include "legacy_battle_resource_selection_diagnostic_fixture.hpp"
+#include "legacy_battle_samples_fixture.hpp"
 
 namespace {
 
@@ -155,6 +156,7 @@ definition(const char marker) {
 }
 
 struct Fixture {
+    openswd3::test::LegacyBattleSamplesFixture audio;
     Fixture() {
         u32 token = 0x00600000U;
         for (auto& pair : action_mode_source.option_sources) {
@@ -207,6 +209,7 @@ struct Fixture {
     [[nodiscard]] LegacyBattleTargetSelectionEntryBindings bindings() {
         return {
             .resource_diagnostics = port,
+            .samples = audio.samples,
             .startup = startup_state,
             .items = items,
             .startup_reset = startup,

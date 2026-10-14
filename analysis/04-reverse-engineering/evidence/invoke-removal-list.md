@@ -32,7 +32,8 @@
   - 本批选择：删除Request、寄存器/输出回包、调用计数和脚本开关，三个caller直接写实际DWORD/WORD；纠正4708C0错接、profile影子来源、分类位和重复flags_49。
   - 验证：真实资源/MON夹具、独立边界、四项core/ASan、SDL构建及源码身份检查通过；源码4b163e92已推送并核对远端main一致。见[资源选择](battle-actor-resource-selection-00470ac0.md)。
   - 本批诊断：删除ResourceSelectionAdapter及通用诊断操作/参数包调用，核心两路入口共享诊断对象；core/ASan、SDL及19源身份通过，源码6cf4451f已推送并核对远端main一致。见[诊断证据](battle-resource-selection-diagnostic-00431150.md)。
-  - 剩余：同族状态、资料、资源生产及完整SDL诊断接线；整链未验收，不勾选。
+  - 本批状态：删除StatePort、StateRequest/CallReply、寄存器和诊断计数及菜单validate_primary_action操作；直接借用列表、实时配置、文本队列及音频manager。core/ASan、SDL构建和21源身份已通过，发布待核对。见[状态处理证据](battle-actor-list-state-processing-00470380.md)。
+  - 剩余：同族资料、资源生产、消息内部协议及完整SDL接线；整链未验收，不勾选。
   - 当前残留信号：counter, interface, register。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_actor_list_query.hpp](../../../include/openswd3/battle/legacy_battle_actor_list_query.hpp)；[src/battle/legacy_battle_actor_list_query.cpp](../../../src/battle/legacy_battle_actor_list_query.cpp)。

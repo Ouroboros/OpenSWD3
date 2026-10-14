@@ -11,6 +11,7 @@
 #include "openswd3/battle/legacy_battle_frame_input_resolution.hpp"
 #include "test.hpp"
 #include "legacy_battle_resource_selection_diagnostic_fixture.hpp"
+#include "legacy_battle_samples_fixture.hpp"
 
 namespace {
 
@@ -111,6 +112,7 @@ public:
 };
 
 struct Fixture {
+    openswd3::test::LegacyBattleSamplesFixture audio;
     Fixture() {
         u32 token = 0x00600000U;
         for (auto& pair : action_mode_source.option_sources) {
@@ -166,6 +168,7 @@ struct Fixture {
     bindings() {
         return {
             .resource_diagnostics = port,
+            .samples = audio.samples,
             .render_abort_latch = render_abort,
             .startup = startup_state,
             .items = items,

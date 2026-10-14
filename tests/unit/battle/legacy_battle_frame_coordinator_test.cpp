@@ -20,6 +20,7 @@
 
 #include "test.hpp"
 #include "legacy_battle_resource_selection_diagnostic_fixture.hpp"
+#include "legacy_battle_samples_fixture.hpp"
 
 void test_battle_frame_surface(openswd3::test::Context& test);
 void test_battle_frame_selection(openswd3::test::Context& test);
@@ -595,6 +596,7 @@ public:
 };
 
 struct Fixture {
+    openswd3::test::LegacyBattleSamplesFixture audio;
     std::array<u32, 3> frame_effect_surfaces{0xA000U, 0xA100U, 0xA200U};
     FrameEffectPort frame_effect_port;
     ActionStreamProvider action_stream;
@@ -736,6 +738,7 @@ struct Fixture {
             .music_path = music_path,
             .music_mix_level = music_mix_level,
             .music_streams = music_streams,
+            .samples = audio.samples,
             .frame_effect_port = frame_effect_port,
             .frame_effect_surfaces = frame_effect_surfaces,
             .action_updater = action_updater,

@@ -990,7 +990,8 @@
 
 ## PORT-e7050ee9a7d7
 
-- [ ] `LegacyBattleActorListStatePort`：抽象接口；待复核。
+- [ ] `LegacyBattleActorListStatePort`：本批已删除；所属整链未验收。
+- 本批证据：[状态处理及唯一菜单调用方](battle-actor-list-state-processing-00470380.md)。消息、音频改用实际函数与共享对象，旧状态Request/Reply及计数同时删除；core/ASan、SDL与21源身份已通过，发布待核对。以下定义和引用为历史定位。
 - 定义：[include/openswd3/battle/legacy_battle_actor_list_query.hpp:181](../../../include/openswd3/battle/legacy_battle_actor_list_query.hpp:181)。
 - 继承：`无`。
 - 直接残留：未命中；须检查纯转发及继承。

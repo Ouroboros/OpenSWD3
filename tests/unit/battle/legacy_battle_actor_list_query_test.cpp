@@ -1,9 +1,12 @@
 #include "legacy_battle_mon_database_fixture.hpp"
+#include "legacy_battle_samples_fixture.hpp"
 #include "openswd3/battle/legacy_battle_actor_list_query.hpp"
 
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <chrono>
+#include <fstream>
 #include <functional>
 #include <string>
 #include <utility>
@@ -64,26 +67,444 @@ public:
     std::vector<openswd3::compat::u16> diagnostics;
 };
 
-class StatePort final
-    : public openswd3::battle::LegacyBattleActorListStatePort {
+class StateMessagePort final
+    : public openswd3::battle::LegacyBattleTextMessagePort {
 public:
-    [[nodiscard]] openswd3::battle::LegacyBattleActorListStateCallReply
-    publish_message(const openswd3::compat::u32 text_token) override {
-        ++message_calls;
-        last_text = text_token;
-        return {.publish_message_token = true, .message_token = 0x74000000U};
-    }
-    [[nodiscard]] openswd3::battle::LegacyBattleActorListStateCallReply
-    play_sample(
-        const openswd3::compat::u32, const openswd3::compat::u32
+    openswd3::battle::LegacyBattleTextMessageCallReply invoke_text_message(
+        const openswd3::battle::LegacyBattleTextMessageCallRequest& request
     ) override {
-        ++sample_calls;
-        return {};
+        if (request.call ==
+            openswd3::battle::LegacyBattleTextMessageCall::allocate) {
+            return {.eax = fail_allocation ? 0U : 0x74000000U};
+        }
+
+        if (on_measure) {
+            on_measure();
+        }
+
+        return {.eax = 4U, .text_access_failed = fail_measure};
     }
-    openswd3::compat::u32 message_calls{};
-    openswd3::compat::u32 sample_calls{};
-    openswd3::compat::u32 last_text{};
+
+    std::function<void()> on_measure;
+    bool fail_allocation{};
+    bool fail_measure{};
 };
+
+struct ListStateFixture {
+    ListStateFixture() {
+        actor.next_list_index = 0x70000000U;
+        actor.current_list_index = 0x12345678U;
+        list.owner_token = 0x70000000U;
+        list.head_token = 0x70000010U;
+        list.nodes = {
+            {.token = 0x70000010U,
+             .category_flags = 0x10U,
+             .mode_flags = 1U,
+             .type = 0x1BU,
+             .value_flags = 0x800AU}
+        };
+
+        list.selected_resource_token = 0xDEADBEEFU;
+        configuration.actor_record_token = 0x72000000U;
+        configuration.actor_record[1U] = 10U << 16U;
+        configuration.actor_record[2U] = 10U;
+    }
+
+    openswd3::battle::LegacyBattleActorListStateResult
+    run(const u32 category = 0U, const u32 occurrence = 1U) {
+        return openswd3::battle::process_legacy_battle_actor_list_state(
+            &actor,
+            &list,
+            &configuration,
+            messages,
+            message_head,
+            port,
+            audio.samples,
+            mix_level,
+            category,
+            occurrence
+        );
+    }
+
+    openswd3::battle::LegacyBattleGroupAActionExecutionState actor;
+    openswd3::battle::LegacyBattleActorListQueryState list;
+    openswd3::battle::LegacyBattleGroupAConfigurationState configuration;
+    openswd3::battle::LegacyBattleTextMessageState messages;
+    u32 message_head{};
+    openswd3::compat::i32 mix_level{100};
+    StateMessagePort port;
+    openswd3::test::LegacyBattleSamplesFixture audio;
+};
+
+void test_list_state_behavior(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    using openswd3::compat::i16;
+    for (const i16 capacity :
+         {i16{-32768}, i16{-1}, i16{0}, i16{9}, i16{10}, i16{32767}}) {
+        for (const u16 flags : {u16{0x800AU}, u16{0x400AU}, u16{0xC00AU}}) {
+            ListStateFixture fixture;
+            fixture.list.nodes[0U].value_flags = flags;
+            fixture.configuration.actor_record[1U] =
+                static_cast<u32>(std::bit_cast<u16>(capacity)) << 16U;
+            fixture.configuration.actor_record[2U] =
+                std::bit_cast<u16>(capacity);
+            const auto result = fixture.run();
+            test.expect_true(
+                result.status == LegacyBattleActorListQueryStatus::completed &&
+                    result.available == (capacity >= 10) &&
+                    fixture.actor.current_list_index ==
+                        fixture.actor.next_list_index &&
+                    fixture.list.selected_resource_token == 0U &&
+                    fixture.messages.allocations.size() ==
+                        (capacity >= (flags == 0xC00AU ? 0x400A : 10) ? 0U
+                                                                      : 1U),
+                "state capacity compares signed live words, restores current and suppresses repeated warnings"
+            );
+        }
+    }
+
+    for (const i16 secondary :
+         {i16{-32768}, i16{-1}, i16{0}, i16{1}, i16{32767}}) {
+        for (const i16 tertiary :
+             {i16{-32768}, i16{-1}, i16{0}, i16{1}, i16{32767}}) {
+            for (const u16 primary : {u16{0U}, u16{0xFFFFU}}) {
+                ListStateFixture fixture;
+                fixture.list.nodes[0U].value_flags = 0x0805U;
+                fixture.list.next_resource_head_token = 0x75000000U;
+                fixture.list.resources = {
+                    {.token = 0x75000000U,
+                     .next_token = 0x75000010U,
+                     .name = {}},
+                    {.token = 0x75000010U,
+                     .resource_id = 5U,
+                     .primary_quantity = primary,
+                     .secondary_quantity = secondary,
+                     .tertiary_quantity = tertiary,
+                     .name = {}}
+                };
+
+                const auto result = fixture.run();
+                const bool available = secondary > 0 || tertiary > 0;
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActorListQueryStatus::completed &&
+                        result.available == available &&
+                        fixture.actor.current_list_index == 0x70000010U &&
+                        fixture.list.resource_head_token == 0x75000010U &&
+                        fixture.list.primary_required == 5U &&
+                        fixture.list.selected_resource_token ==
+                            (available ? 0x75000010U : 0xDEADBEEFU) &&
+                        fixture.messages.allocations.size() ==
+                            (available ? 0U : 1U),
+                    "state resource availability uses signed words at eight and ten, never the quantity at six"
+                );
+            }
+        }
+    }
+
+    {
+        ListStateFixture fixture;
+        fixture.list.secondary_required = 1U;
+        fixture.configuration.actor_record[1U] = 9U << 16U;
+        fixture.configuration.actor_record[2U] = 0U;
+        fixture.port.on_measure = [&]() {
+            fixture.list.secondary_required = 11U;
+            fixture.configuration.actor_record[2U] = 11U;
+        };
+
+        const auto result = fixture.run();
+        test.expect_true(
+            result.available && fixture.message_head == 0x74000000U &&
+                fixture.messages.allocations.size() == 1U &&
+                fixture.messages.allocations[0U].record.text_token ==
+                    0x004A7CC0U &&
+                fixture.messages.allocations[0U].record.value_04 == 0x118U &&
+                fixture.messages.allocations[0U].record.value_08 == 10U &&
+                fixture.messages.allocations[0U].record.kind == 20U &&
+                fixture.messages.allocations[0U].record.flags == 0x40000002U,
+            "primary warning publishes a real message before secondary capacity and requirement are reread"
+        );
+    }
+
+    for (const bool allocation_failure : {false, true}) {
+        ListStateFixture fixture;
+        fixture.configuration.actor_record[1U] = 0U;
+        fixture.port.fail_allocation = allocation_failure;
+        fixture.port.fail_measure = !allocation_failure;
+        const auto result = fixture.run();
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::message_typed_stop &&
+                !result.available && fixture.message_head == 0U &&
+                fixture.list.primary_required == 10U &&
+                fixture.messages.allocations.size() ==
+                    (allocation_failure ? 0U : 1U),
+            "state message failure preserves the published threshold and allocation prefix"
+        );
+    }
+
+    {
+        ListStateFixture fixture;
+        const auto result = process_legacy_battle_actor_list_state(
+            nullptr,
+            nullptr,
+            nullptr,
+            fixture.messages,
+            fixture.message_head,
+            fixture.port,
+            fixture.audio.samples,
+            fixture.mix_level,
+            0U,
+            0U
+        );
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                !result.available && fixture.messages.allocations.empty(),
+            "zero occurrence returns before accessing any actor or list"
+        );
+    }
+
+    {
+        ListStateFixture fixture;
+        fixture.list.nodes[0U].value_flags = 0x0806U;
+        fixture.list.next_resource_head_token = 0x75000000U;
+        fixture.list.resources = {{.token = 0x75000000U, .name = {}}};
+        const auto result = fixture.run();
+        test.expect_true(
+            !result.available &&
+                result.status == LegacyBattleActorListQueryStatus::completed &&
+                fixture.list.resource_head_token == 0U &&
+                fixture.message_head == 0x74000000U &&
+                fixture.messages.allocations[0U].record.text_token ==
+                    0x004A7CD0U,
+            "empty resource chain publishes its null cursor before the actual missing-resource message"
+        );
+    }
+}
+
+void test_list_state_filters(openswd3::test::Context& test) {
+    using namespace openswd3::battle;
+    struct CategoryCase {
+        u32 selector;
+        u32 mask;
+        bool matches;
+    };
+
+    constexpr std::array categories{
+        CategoryCase{0U, 0x10U, true},
+        CategoryCase{0U, 8U, false},
+        CategoryCase{1U, 4U, true},
+        CategoryCase{1U, 8U, true},
+        CategoryCase{1U, 0x10U, false},
+        CategoryCase{2U, 1U, true},
+        CategoryCase{2U, 0x1000U, true},
+        CategoryCase{2U, 0x10U, false},
+        CategoryCase{3U, 2U, true},
+        CategoryCase{3U, 4U, false},
+        CategoryCase{0xFFFFFFFFU, 0x80000000U, true}
+    };
+
+    for (const auto& category : categories) {
+        for (const u16 type :
+             {u16{0x1AU},
+              u16{0x1BU},
+              u16{0x1CU},
+              u16{0x1EU},
+              u16{0x1FU},
+              u16{0xFFFFU}}) {
+            for (const u8 mode :
+                 {u8{0U}, u8{1U}, u8{2U}, u8{4U}, u8{5U}, u8{8U}}) {
+                ListStateFixture fixture;
+                auto& node = fixture.list.nodes[0U];
+                node.category_flags = category.mask;
+                node.type = type;
+                node.mode_flags = mode;
+                const bool available = category.matches &&
+                    (type == 0x1BU || type == 0x1CU || type == 0x1EU) &&
+                    (mode == 1U || mode == 4U || mode == 5U);
+                const auto result = fixture.run(category.selector);
+                test.expect_true(
+                    result.status ==
+                            LegacyBattleActorListQueryStatus::completed &&
+                        result.available == available &&
+                        fixture.actor.current_list_index ==
+                            (available ? fixture.list.owner_token : 0U) &&
+                        fixture.messages.allocations.empty(),
+                    "state list filtering preserves raw masks, byte modes, inclusive type limits and final cursor"
+                );
+            }
+        }
+    }
+
+    {
+        ListStateFixture fixture;
+        auto node = fixture.list.nodes[0U];
+        fixture.list.nodes[0U].next_token = 0x70000020U;
+        node.token = 0x70000020U;
+        fixture.list.nodes.push_back(node);
+        test.expect_true(
+            fixture.run(0U, 2U).available,
+            "state list selects the second matching node"
+        );
+        test.expect_true(
+            !fixture.run(0U, 3U).available &&
+                fixture.actor.current_list_index == 0U,
+            "missing occurrence publishes the exhausted list cursor"
+        );
+    }
+
+    {
+        ListStateFixture fixture;
+        fixture.list.head_token = 0xBAD00000U;
+        const auto result = fixture.run();
+        test.expect_true(
+            result.status ==
+                    LegacyBattleActorListQueryStatus::list_node_typed_stop &&
+                fixture.actor.current_list_index == 0xBAD00000U,
+            "unmapped next node retains the cursor publication before access fails"
+        );
+    }
+
+    struct FlagCase {
+        u16 flags;
+        u16 primary;
+        u16 secondary;
+        u32 selected;
+    };
+
+    constexpr std::array flags{
+        FlagCase{0U, 17U, 19U, 0xDEADBEEFU},
+        FlagCase{0x8005U, 5U, 19U, 0U},
+        FlagCase{0x4006U, 17U, 6U, 0U},
+        FlagCase{0xC007U, 0x4007U, 7U, 0U},
+        FlagCase{0x8805U, 5U, 19U, 0U},
+        FlagCase{0x4806U, 6U, 0x806U, 0U},
+        FlagCase{0xC807U, 7U, 0x807U, 0U}
+    };
+
+    for (const auto& entry : flags) {
+        ListStateFixture fixture;
+        fixture.list.nodes[0U].value_flags = entry.flags;
+        fixture.list.primary_required = 17U;
+        fixture.list.secondary_required = 19U;
+        fixture.list.next_resource_head_token = 0x75000000U;
+        fixture.list.resources = {{.token = 0x75000000U, .name = {}}};
+        const auto result = fixture.run();
+        test.expect_true(
+            result.status == LegacyBattleActorListQueryStatus::completed &&
+                fixture.list.primary_required == entry.primary &&
+                fixture.list.secondary_required == entry.secondary &&
+                fixture.list.selected_resource_token == entry.selected,
+            "state flag combinations preserve untouched thresholds and apply resource overwrite last"
+        );
+    }
+
+    {
+        ListStateFixture fixture;
+        fixture.message_head = 0xABCDEF00U;
+        fixture.configuration.actor_record[1U] = 0U;
+        fixture.list.secondary_required = 0xFFFFU;
+        const auto result = fixture.run();
+        test.expect_true(
+            !result.available &&
+                result.status == LegacyBattleActorListQueryStatus::completed &&
+                fixture.message_head == 0xABCDEF00U &&
+                fixture.messages.allocations.empty(),
+            "existing message suppresses both warnings without dereferencing its token"
+        );
+    }
+}
+
+void test_list_state_audio_order(openswd3::test::Context& test) {
+    using namespace openswd3::audio_video;
+    ListStateFixture fixture;
+    const auto stamp =
+        std::chrono::steady_clock::now().time_since_epoch().count();
+    const auto root = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT};
+    std::filesystem::create_directories(root);
+    const auto path =
+        root / ("list-state-warning-" + std::to_string(stamp) + ".snd");
+    constexpr u32 payload = 0x1CU + 3000U * 0x2CU;
+    std::vector<u8> bytes(payload + 48U, 0U);
+    const auto write_word = [&](const std::size_t offset, const u32 value) {
+        for (u32 index = 0U; index < 4U; ++index) {
+            bytes[offset + index] = static_cast<u8>(value >> (index * 8U));
+        }
+    };
+
+    constexpr u32 record = 0x1CU + 139U * 0x2CU;
+    write_word(record + 0x14U, 48U);
+    write_word(record + 0x18U, payload);
+    bytes[payload] = 1U;
+    {
+        std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+        stream.write(
+            reinterpret_cast<const char*>(bytes.data()),
+            static_cast<std::streamsize>(bytes.size())
+        );
+    }
+
+    test.expect_true(
+        fixture.audio.archive->open(path) == LegacySndOpenStatus::ready &&
+            fixture.audio.samples.initialize_pool(1) ==
+                LegacySampleManagerInitializeStatus::ready,
+        "state warning fixture opens the real SND index and sample pool"
+    );
+    fixture.configuration.actor_record[1U] = 0U;
+    fixture.configuration.actor_record[2U] = 0U;
+    fixture.list.secondary_required = 1U;
+    bool measured_before_audio = false;
+    bool audio_after_publication = false;
+    fixture.port.on_measure = [&]() {
+        measured_before_audio = fixture.message_head == 0U &&
+            fixture.audio.backend.started_ids.empty();
+        fixture.mix_level = 5;
+    };
+
+    fixture.audio.backend.on_start = [&]() {
+        audio_after_publication = fixture.message_head == 0x74000000U &&
+            fixture.messages.allocations[0U].record.text_token == 0x004A7CC0U;
+        fixture.list.secondary_required = 11U;
+        fixture.configuration.actor_record[2U] = 11U;
+    };
+
+    const auto result = fixture.run();
+    test.expect_true(
+        result.available, "secondary capacity reflects the audio callback"
+    );
+    test.expect_true(
+        measured_before_audio, "message measurement precedes audio"
+    );
+    test.expect_true(
+        audio_after_publication, "message publication precedes audio"
+    );
+    test.expect_true(
+        fixture.audio.backend.started_ids == std::vector<u32>{140U},
+        "state warning plays sound 140 exactly once"
+    );
+    test.expect_equal(
+        fixture.audio.backend.last_volume,
+        58,
+        "warning rereads the mix level after message measurement"
+    );
+    test.expect_equal(
+        fixture.audio.backend.last_pan, 63, "warning keeps centered pan"
+    );
+    test.expect_equal(
+        fixture.audio.backend.last_loop_count,
+        1,
+        "warning plays without repetition"
+    );
+    test.expect_equal(
+        fixture.audio.samples.active_sample_count(),
+        std::size_t{1U},
+        "warning sample remains owned by its manager"
+    );
+    static_cast<void>(fixture.audio.samples.shutdown());
+    fixture.audio.archive->close();
+    std::error_code ignored;
+    std::filesystem::remove(path, ignored);
+}
 
 class QueryPort final : public openswd3::test::LegacyBattleMonDatabaseFixture {
 public:
@@ -3185,102 +3606,9 @@ void test_battle_actor_list_query(openswd3::test::Context& test) {
         );
     }
 
-    {
-        actor.next_list_index = list.owner_token;
-        list.nodes[1U].value_flags = 0x800AU;
-        list.primary_required = 0U;
-        StatePort port;
-        const auto result = process_legacy_battle_actor_list_state(
-            &actor,
-            &list,
-            0x005029D0U,
-            0U,
-            port,
-            {.category_selector = 0U,
-             .occurrence = 1U,
-             .actor_primary_capacity = 10}
-        );
-        test.expect_true(
-            result.return_eax == 1U && result.index_commit_calls == 2U &&
-                list.primary_required == 10U &&
-                list.selected_resource_token == 0U &&
-                result.message_calls == 0U,
-            "state processing publishes the primary threshold then succeeds on equal signed capacity"
-        );
-    }
-
-    {
-        actor.next_list_index = list.owner_token;
-        list.nodes[1U].value_flags = 0x0805U;
-        list.resource_owner_token = 0x75000000U;
-        list.resource_head_token = 0x76000010U;
-        list.next_resource_head_token = 0x76000000U;
-        list.resources = {
-            {.token = 0x76000000U,
-             .resource_id = 5U,
-             .primary_quantity = 1,
-             .secondary_quantity = 0,
-             .name = {}}
-        };
-        StatePort port;
-        const auto result = process_legacy_battle_actor_list_state(
-            &actor,
-            &list,
-            0x005029D0U,
-            0U,
-            port,
-            {.category_selector = 0U, .occurrence = 1U}
-        );
-        test.expect_true(
-            result.return_eax == 1U &&
-                list.resource_head_token == 0x76000000U &&
-                result.resource_nodes_visited == 1U &&
-                list.selected_resource_token == 0x76000000U &&
-                result.index_commit_calls == 1U,
-            "bit eleven rebuilds and selects a resource node with either positive quantity"
-        );
-    }
-
-    {
-        actor.next_list_index = list.owner_token;
-        list.nodes[1U].value_flags = 0x0806U;
-        list.resource_head_token = 0x76000000U;
-        list.next_resource_head_token = 0U;
-        StatePort port;
-        const auto result = process_legacy_battle_actor_list_state(
-            &actor,
-            &list,
-            0x005029D0U,
-            0U,
-            port,
-            {.category_selector = 0U, .occurrence = 1U}
-        );
-        test.expect_true(
-            result.return_eax == 0U && result.message_calls == 1U &&
-                result.sample_calls == 1U &&
-                result.message_token == 0x74000000U &&
-                port.last_text == 0x004A7CD0U,
-            "missing resource publishes one guarded message and sample"
-        );
-    }
-
-    {
-        actor.next_list_index = list.owner_token;
-        StatePort port;
-        const auto result = process_legacy_battle_actor_list_state(
-            &actor,
-            &list,
-            0x005029D0U,
-            0U,
-            port,
-            {.occurrence = 0U, .entry_eax = 0xFFFFFFFFU}
-        );
-        test.expect_true(
-            result.return_eax == 0U && result.index_commit_calls == 0U &&
-                result.nodes_visited == 0U,
-            "zero occurrence returns before list-index commit"
-        );
-    }
+    test_list_state_behavior(test);
+    test_list_state_filters(test);
+    test_list_state_audio_order(test);
 
     {
         QueryPort port;

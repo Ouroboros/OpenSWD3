@@ -12,6 +12,7 @@
 
 #include "test.hpp"
 #include "legacy_battle_resource_selection_diagnostic_fixture.hpp"
+#include "legacy_battle_samples_fixture.hpp"
 
 namespace {
 
@@ -134,6 +135,7 @@ public:
 };
 
 struct Fixture {
+    openswd3::test::LegacyBattleSamplesFixture audio;
     openswd3::test::FixedNodeMemoryResource item_memory;
     openswd3::world_map::LegacyWorldItemListState items{item_memory};
     openswd3::battle::LegacyBattleStartupState startup_state;
@@ -186,6 +188,7 @@ struct Fixture {
 
         return {
             .resource_diagnostics = port,
+            .samples = audio.samples,
             .startup = startup_state,
             .items = items,
             .startup_reset = startup,
@@ -238,6 +241,28 @@ void seed_resource_selection(Fixture& fixture, const u32 actor_code) {
             .category_mask = 0xFFFFFFFFU,
             .profile_id_4a = 7U,
             .mode_flags = 0x01U,
+        });
+    }
+}
+
+void seed_list_state(Fixture& fixture, const u32 actor_code) {
+    const u32 index = actor_code - 8U;
+    auto& party = fixture.startup_state.party[index];
+    auto& list = party.actor_list;
+    const u32 root = 0x96000000U + index * 0x100U;
+    list.owner_token = root;
+    list.head_token = root + 0x10U;
+    fixture.action.group_a_action_execution[index].next_list_index = root;
+    party.configuration.actor_record_token = 0x97000000U + index * 0x100U;
+    party.configuration.actor_record[1U] = 10U << 16U;
+    for (u32 ordinal = 1U; ordinal <= 9U; ++ordinal) {
+        list.nodes.push_back({
+            .token = root + ordinal * 0x10U,
+            .next_token = ordinal == 9U ? 0U : root + (ordinal + 1U) * 0x10U,
+            .category_flags = 0xFFFFFFFFU,
+            .mode_flags = 1U,
+            .type = 0x1BU,
+            .value_flags = 0x8001U,
         });
     }
 }
@@ -312,10 +337,9 @@ void seed_marked_profile_menu(
         actor.final_processing.profile_buffer.fill(0xAABBCCDDU);
     }
 
-    fixture.port.replies
-        [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] = {
-        .eax = 1U
-    };
+    if (message == 2U) {
+        seed_list_state(fixture, actor_index + 8U);
+    }
 
     fixture.port
         .replies[LegacyBattleTargetSelectionRuntimeCall::query_primary_target] =
@@ -978,15 +1002,12 @@ void test_menu_marked_profile_predecessors(openswd3::test::Context& test) {
         Fixture stopped;
         seed_marked_profile_menu(stopped, message, 2U);
         const auto expected = stopped.startup.block_520e90;
-        if (message == 2U || message == 8U) {
-            const auto predecessor = message == 2U
-                ? LegacyBattleTargetSelectionRuntimeCall::
-                      validate_primary_action
-                : LegacyBattleTargetSelectionRuntimeCall::query_primary_target;
-            stopped.port.replies[predecessor] = {
-                .eax = message == 8U ? 0xABCDFFFFU : 0U,
-                .output_value = 0xFFFFFFFFU
-            };
+        if (message == 2U) {
+            stopped.startup_state.party[2U].actor_list.head_token = 0U;
+        } else if (message == 8U) {
+            stopped.port.replies
+                [LegacyBattleTargetSelectionRuntimeCall::query_primary_target] =
+                {.eax = 0xABCDFFFFU, .output_value = 0xFFFFFFFFU};
         } else {
             stopped.startup_state.party[2U]
                 .actor_list.resources[0U]
@@ -2459,9 +2480,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         auto& runtime = fixture.port.battle_target_selection_runtime_state();
         runtime.selection_input_gate = 1U;
         runtime.candidate_argument = 9U;
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
-            {.eax = 1U};
+        seed_list_state(fixture, 8U);
 
         const auto result = refresh_legacy_battle_target_selection(
             fixture.bindings(), fixture.port, {}
@@ -2472,7 +2491,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                 result.group_a_target_cycle_calls == 1U &&
                 result.group_a_target_cycle.target_order_reads == 3U &&
                 result.input_record_prime_calls == 1U &&
-                fixture.port.calls.size() == 2U &&
+                fixture.port.calls.size() == 1U &&
                 fixture.frame.target_cursor == 3U &&
                 fixture.frame.target_actor_index == 0U &&
                 fixture.final_actor.published_actor_code == 1U &&
@@ -2493,9 +2512,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         input.action_category_index = 1U;
         runtime.selection_input_gate = 1U;
         runtime.candidate_argument = 9U;
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
-            {.eax = 1U};
+        seed_list_state(fixture, 8U);
 
         openswd3::battle::LegacyBattleTargetSelectionRefreshRequest request;
         request.primary_actor_frame_snapshot.output_token = 0x70001000U;
@@ -2543,9 +2560,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         runtime.candidate_argument = 9U;
         fixture.action.group_a_action_execution[0U]
             .profile_value_read_accessible = false;
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
-            {.eax = 1U};
+        seed_list_state(fixture, 8U);
 
         openswd3::battle::LegacyBattleTargetSelectionRefreshRequest request;
         request.primary_actor_frame_snapshot.output_token = 0x70001000U;
@@ -2643,9 +2658,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
         auto& runtime = fixture.port.battle_target_selection_runtime_state();
         runtime.selection_input_gate = 1U;
         runtime.candidate_argument = 9U;
-        fixture.port.replies
-            [LegacyBattleTargetSelectionRuntimeCall::validate_primary_action] =
-            {.eax = 1U};
+        seed_list_state(fixture, 8U);
 
         const auto result = refresh_legacy_battle_target_selection(
             fixture.bindings(), fixture.port, {}
@@ -2656,7 +2669,7 @@ void test_battle_target_selection_refresh(openswd3::test::Context& test) {
                         group_a_target_order_typed_stop &&
                 result.group_a_target_cycle_calls == 1U &&
                 result.input_record_prime_calls == 0U &&
-                fixture.port.calls.size() == 2U &&
+                fixture.port.calls.size() == 1U &&
                 fixture.frame.target_cursor == 4U &&
                 fixture.frame.target_actor_index == 7U &&
                 fixture.final_actor.published_actor_code == 9U &&

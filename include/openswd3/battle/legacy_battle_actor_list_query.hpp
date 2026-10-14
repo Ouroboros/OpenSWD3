@@ -6,6 +6,8 @@
 #include "openswd3/battle/legacy_battle_group_a_item_effect_application.hpp"
 #include "openswd3/battle/legacy_battle_group_a_workspace_reset.hpp"
 #include "openswd3/battle/legacy_battle_mon_profile.hpp"
+#include "openswd3/battle/legacy_battle_text_message.hpp"
+#include "openswd3/audio_video/legacy_sample_commands.hpp"
 
 #include <span>
 #include <string>
@@ -84,6 +86,7 @@ enum class LegacyBattleActorListQueryStatus : compat::u8 {
     list_text_typed_stop,
     return_table_typed_stop,
     profile_load_typed_stop,
+    message_typed_stop,
 };
 
 struct LegacyBattleActorListQueryResult {
@@ -169,32 +172,6 @@ struct LegacyBattleActorListActionResult {
     compat::u32 return_edx{};
 };
 
-struct LegacyBattleActorListStateCallReply {
-    compat::u32 eax{};
-    compat::u32 ecx{};
-    compat::u32 edx{};
-    bool publish_message_token{};
-    compat::u32 message_token{};
-};
-
-class LegacyBattleActorListStatePort {
-public:
-    virtual ~LegacyBattleActorListStatePort() = default;
-    [[nodiscard]] virtual LegacyBattleActorListStateCallReply
-    publish_message(compat::u32 text_token) = 0;
-    [[nodiscard]] virtual LegacyBattleActorListStateCallReply
-    play_sample(compat::u32 sample_token, compat::u32 mode) = 0;
-};
-
-struct LegacyBattleActorListStateRequest {
-    compat::u32 category_selector{};
-    compat::u32 occurrence{};
-    compat::i16 actor_primary_capacity{};
-    compat::i16 actor_secondary_capacity{};
-    compat::u32 entry_eax{};
-    compat::u32 entry_edx{};
-};
-
 class LegacyBattleActorResourceSelectionPort {
 public:
     virtual ~LegacyBattleActorResourceSelectionPort() = default;
@@ -245,17 +222,8 @@ struct LegacyBattleActorListStateResult {
     LegacyBattleActorListQueryStatus status{
         LegacyBattleActorListQueryStatus::completed
     };
-    LegacyBattleActorListIndexCommitResult index_commit{};
-    compat::u32 index_commit_calls{};
-    compat::u32 nodes_visited{};
-    compat::u32 matches{};
-    compat::u32 resource_nodes_visited{};
-    compat::u32 message_calls{};
-    compat::u32 sample_calls{};
-    compat::u32 message_token{};
-    compat::u32 return_eax{};
-    compat::u32 return_ecx{};
-    compat::u32 return_edx{};
+
+    bool available{};
 };
 
 struct LegacyBattleActorListCountResult {
@@ -401,10 +369,14 @@ commit_legacy_battle_actor_resource_list(
 process_legacy_battle_actor_list_state(
     LegacyBattleGroupAActionExecutionState* actor,
     LegacyBattleActorListQueryState* list,
-    compat::u32 actor_token,
-    compat::u32 message_token,
-    LegacyBattleActorListStatePort& port,
-    const LegacyBattleActorListStateRequest& request
+    LegacyBattleGroupAConfigurationState* configuration,
+    LegacyBattleTextMessageState& messages,
+    compat::u32& message_head,
+    LegacyBattleTextMessagePort& message_port,
+    audio_video::LegacySampleManager& samples,
+    const compat::i32& sample_mix_level,
+    compat::u32 category_selector,
+    compat::u32 occurrence
 );
 
 }  // namespace openswd3::battle

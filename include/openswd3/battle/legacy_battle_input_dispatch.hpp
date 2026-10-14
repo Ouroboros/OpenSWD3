@@ -191,6 +191,7 @@ public:
 
 struct LegacyBattleInputDispatchBindings {
     LegacyBattleActorResourceSelectionPort& resource_diagnostics;
+    audio_video::LegacySampleManager& samples;
     compat::u32& render_abort_latch;
     LegacyBattleStartupState& startup;
     world_map::LegacyWorldItemListState& items;

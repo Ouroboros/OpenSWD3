@@ -1292,16 +1292,47 @@ private:
         if (eax_ == 0U) {
             return;
         }
-        edx_ = input_.action_category_index;
-        const u32 actor_code = eax_;
-        if (!invoke_group_a(
-                Call::validate_primary_action, actor_code, {edx_, ecx_}
-            )) {
+
+        const u32 actor_code = final_actor_.queued_actor_code;
+        if (actor_code < 8U || actor_code - 8U >= bindings_.party.size() ||
+            actor_code - 8U >=
+                bindings_.action.group_a_action_execution.size()) {
+            typed_stop(Status::group_a_actor_typed_stop);
             return;
         }
-        if (eax_ == 0U) {
+
+        const u32 actor_index = actor_code - 8U;
+        auto& party = bindings_.party[actor_index];
+        InputTextMessageAdapter message_port(port_);
+        const auto availability = process_legacy_battle_actor_list_state(
+            &bindings_.action.group_a_action_execution[actor_index],
+            &party.actor_list,
+            &party.configuration,
+            bindings_.text_messages,
+            bindings_.startup_reset.block_5214f8[0U],
+            message_port,
+            bindings_.samples,
+            input_.sample_mix_level,
+            input_.action_category_index,
+            runtime_.candidate_argument
+        );
+        if (availability.status !=
+            LegacyBattleActorListQueryStatus::completed) {
+            result_.list_state_failure = availability.status;
+            typed_stop(
+                availability.status ==
+                        LegacyBattleActorListQueryStatus::message_typed_stop
+                    ? Status::text_message_typed_stop
+                    : Status::group_a_actor_typed_stop
+            );
             return;
         }
+
+        eax_ = availability.available ? 1U : 0U;
+        if (!availability.available) {
+            return;
+        }
+
         const u32 category = input_.action_category_index;
         const u32 argument = runtime_.candidate_argument;
         local_output_ = 0U;

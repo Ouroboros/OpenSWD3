@@ -171,6 +171,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     result.input_dispatch = coordinate_legacy_battle_input_dispatch(
         {
             .resource_diagnostics = port,
+            .samples = context.samples,
             .render_abort_latch = state.render_abort_latch,
             .startup = context.startup,
             .items = context.items,
@@ -703,6 +704,7 @@ LegacyBattleFrameCoordinatorResult run_legacy_battle_frame_coordinator(
     result.message_phase = advance_legacy_battle_message_phase(
         {
             .resource_diagnostics = port,
+            .samples = context.samples,
             .state = port.battle_message_phase_state(),
             .startup = context.startup,
             .final_actor = context.final_actor_step,

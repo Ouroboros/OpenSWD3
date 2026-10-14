@@ -10,6 +10,7 @@
 
 #include "test.hpp"
 #include "legacy_battle_resource_selection_diagnostic_fixture.hpp"
+#include "legacy_battle_samples_fixture.hpp"
 
 namespace {
 
@@ -476,6 +477,7 @@ protected:
 };
 
 struct Fixture {
+    openswd3::test::LegacyBattleSamplesFixture audio;
     Fixture() : action_updater(action_streams), raster(framebuffer.geometry()) {
         port.battle_victory_reward_state().committed_money_word = 0x8000U;
     }
@@ -484,6 +486,7 @@ struct Fixture {
     bindings() {
         return {
             .resource_diagnostics = port,
+            .samples = audio.samples,
             .state = state,
             .startup = startup,
             .final_actor = final_actor,

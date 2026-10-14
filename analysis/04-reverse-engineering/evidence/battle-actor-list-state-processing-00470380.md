@@ -1,36 +1,83 @@
-# 战斗角色链表状态处理 `0x00470380`
+# 战斗角色列表状态处理 `0x00470380`
 
-状态：`platform_adapted`。完整LST、typed实现、定向测试、AddressSanitizer、Linux完整门与inventory双生成均已关闭。
+本批状态：状态处理及唯一菜单调用方的协议移除已通过定向验证。
+所属`CHAIN-e0f6819f24dc`整链仍未验收，不勾选。原版联合动态差分仍为
+`blocked_runtime_oracle`；完整SDL战斗帧接线和真实交互未验收。
 
-## 本批资源链头发布
+## 删除范围与实际借用
 
-3eda365b将47045F改为实际资源链头发布，删除rebuild计数和嵌套寄存器回包。
-required写入先于发布；后继缺资源保持该前缀。索引、消息及其余父协议仍pending。
-本批门禁与边界见[链头发布](battle-actor-resource-list-commit-00470900.md)。
-首段及以下全量门禁是历史还原记录，不作为本批验收。
+删除`LegacyBattleActorListStateRequest`、`LegacyBattleActorListStateCallReply`、
+`LegacyBattleActorListStatePort`及结果中的寄存器、索引回包和诊断计数。
+结果只保留状态与`available`。匹配序号是算法所需局部变量，不是调用计数。
+删除菜单`validate_primary_action`操作编号及参数包调用，改为真实函数调用。
 
-## 1. 完整权威范围
+主游标借用`action.group_a_action_execution`，列表和配置借用同一角色的
+`party.actor_list/configuration`。消息使用实际文本队列与共享消息头；音频使用
+`LegacySampleManager`。音频引用沿coordinator、input/message、entry、refresh
+传递，所有调用方和测试同时更新；不新增状态转发Adapter。
 
-权威LST主体为`0x00470380..0x004705B7`，proc至endp共284行、164条实际指令、8个call、30个跳转、18个局部标签、4个返回点，没有外部`FUNCTION CHUNK`。callee为索引提交两次、资源链头发布一次、消息发布三次和sample播放两次。
+## 权威范围与逐块追溯
 
-## 2. 主链与字段发布
+LST主体`00470380..004705B7`，proc至endp共284行；唯一caller为`00462C2D`。
+完整函数及caller已重新逐块核对，映射如下：
 
-category选择器映射仍为0到`0x10`、1到`0x0C`、2到`0x1001`、其他保持。occurrence为零时在首次索引提交前返回0。否则提交索引，从主链按next顺序筛选mode byte与`0x05`、category flags与mask以及type 27至30；匹配计数先增后比，第N项未找到返回0。
+- `470380..4703B1`：category 0/1/2映射10/C/1001，其余保持原mask。
+- `4703B1..4703BF`：occurrence零先返回；非零才发布主current=next。
+- `4703C4..4703F8`：先推进并发布current，再检查零及节点；mode&5、
+  category&mask、无符号type 1B..1E共同筛选，第N项命中停止。
+- `4703FA..47043E`：bit15清selected并写低15位primary；bit14清selected并
+  写低14位secondary。未命中位不清另一阈值。
+- `47043E..47045F`：bit11最后用低11位覆盖primary，再发布实际资源链头。
+- `470464..470483`：先推进并发布资源current，再匹配resource id。
+- `4704B6..4704EF`：比较资源+8/+A两个signed WORD，任一大于零则发布selected
+  并成功；+6不参与。本分支不执行第二次主链提交。
+- `4704F2..470521`：第二次主链提交；非零primary与配置记录+6的signed WORD
+  比较，required零扩展，容量足够立即成功。
+- `470521..470552`：head为空才入队主容量提示，返回后读取混音并播放140。
+- `470555..47057D`：消息及音频返回后重读secondary、配置记录+8及head；
+  容量足够立即成功。
+- `470485..4704B1`、`4704C4..4704DB`、`47057D..4705AE`：资源或次容量
+  不足时执行同一消息及音频顺序；已有head抑制两者。
+- `4705B1..4705B7`：没有可用条件时返回false。
 
-命中节点value word的bit15清零selected resource并把低15位写primary required；bit14清零selected resource并把低14位写secondary required。两项可同时发布，均不先清除另一阈值。
+消息入队参数为`118/A/14/文字/40000002`。资源、主容量、次容量文字分别为
+`4A7CD0/4A7CC0/4A7CB0`。调用实际`enqueue_legacy_battle_text_message`后
+读取共享混音，再调用`play_legacy_sample`；原版未检查音频返回值，保持该顺序。
+普通容量分别从配置DWORD[1]高WORD、DWORD[2]低WORD读取并符号扩展，
+不再使用Request中的容量快照。
 
-## 3. bit11资源分支
+## 调用方及失败前缀
 
-bit11命中时以低11位覆盖primary required，直接发布实际next资源链头到current，然后从resource head按next扫描resource id。未找到，或找到但两项signed quantity均不大于零时，仅在共享message token为空时发布缺资源消息与sample，最终返回0。任一quantity大于零时发布selected resource token并返回1。此分支不执行第二次索引提交。
+`462BD7..462C2D`保留输入门、候选门、非零候选及角色条件。
+`462C32..462C73`不可用立即退出；可用后重读角色、候选和类别，再执行后续
+4705C0资料应用。该资料应用协议留在后续批次，未用本批替代。
 
-## 4. 普通容量分支
+宿主owner/node缺失在对应实际访问处保留既有typed-stop方式，游标和阈值的
+已发生写入不回滚。文本子函数分配或测量失败向上传播并保留其失败前缀，
+不继续播放音频；这不是原版异常等价或新完成状态。
 
-bit11未命中时再次调用typed索引提交。primary required非零时，将live actor signed primary capacity与零扩展required做signed比较；容量不小于required立即返回1，否则按共享message latch发布主容量不足消息与sample。随后对secondary required和live signed secondary capacity执行同样流程。两required都为零或均不足时返回0；首条消息若发布了token，会抑制同调用后续消息。
+文本分配内部协议、资料应用、资源生产及完整SDL主循环仍pending。
+本批新增音频借用的编译通过，不代表已在真实游戏中到达该路径。
 
-## 5. owner、stop与caller
+## 本批验证
 
-主链、资源链、阈值与selected token均扩展在第188项唯一owner中，actor索引继续复用第186项。缺失任一owner或节点时在首次访问处typed-stop并保留此前提交、字段写和消息副作用。资源链头直接发布到实际共享列表；消息与sample使用语义窄边界。唯一caller位于已关闭目标选择刷新函数，现有边界尚未暴露链表物化owner，本包不复制第二份状态；生产源码无旧地址调用。
+- core `battle.legacy_battle_setup`：1/1，11.93秒。
+- ASan同一定向测试：1/1，19.65秒。
+- Linux SDL app构建成功；未运行app测试或游戏。
+- 21份源码、测试及构建配置SHA256身份核验通过，`git diff --check`通过。
+- 已删除状态类型和`validate_primary_action`在include/src/tests中零命中。
+- 独立向量覆盖分类、mode、type上下界、序号、组合阈值、signed容量、资源
+  +8/+A正负零、+6无关、消息抑制、失败前缀与callback后重读。
+- 合成SND经实际加载器和sample manager验证：消息发布先于sound 140，消息
+  callback后的混音5产生音量58，居中pan63，播放一次；音频callback修改的
+  次容量及阈值在返回后可见。这是UT资源验证，不是真实声卡或原版动态差分。
 
-## 6. 验证状态
+日志和身份清单：`build/tmp/runtime/actor-list-state-final-{core,asan,sdl,identities}.log`
+及`actor-list-state-source.sha256`。独立分析与双向映射保存在同目录
+`actor-list-state-lst-analysis.md`和`actor-list-state-bidirectional-review.md`。
 
-测试覆盖零occurrence早退、双索引提交、相等容量成功、bit11资源选择、缺资源消息/sample及共享message token发布。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`190/422 = 181 platform_adapted + 9 assembly_exact + 232 pending_audit`，SHA256为`b470baa980d0fc1b5e3eb51745929f1e24f82750a59b551f46171a6174837bd7`。动态差分因原版两条链、live容量、消息/sample与caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+首次运行暴露输入测试栈溢出，SND索引已改为夹具堆所有权；新增音频向量的
+短载荷被实际加载器拒绝，修正为48字节后以上门禁重新通过。
+
+历史资源链头发布`3eda365b`见[链头证据](battle-actor-resource-list-commit-00470900.md)。
+历史全量测试及旧workpack计数不作为本批验证；B10仍保持315/422、316待审计。
