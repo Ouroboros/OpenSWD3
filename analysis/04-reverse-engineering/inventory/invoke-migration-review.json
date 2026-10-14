@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline": "c4af1f8ca10c4d083e2ba7a0a45050f4b6dcb566",
   "scope_exhaustiveness_verified": false,
-  "last_reviewed_source_revision": "2de716db6e9812d1c9ab80e960238b1705e283c3",
+  "last_reviewed_source_revision": "df52c985534796ca313410ee5f05f39d12082ef8",
   "unit_aliases": {
     "battle/legacy_battle_actor_frame_decoder_commands": "battle/legacy_battle_actor_frame_presentation",
     "battle/legacy_battle_actor_frame_decoder_heap_stats": "battle/legacy_battle_actor_frame_presentation",
@@ -312,9 +312,9 @@
     },
     "battle/legacy_battle_actor_list_query": {
       "status": "pending",
-      "last_reviewed_commit": "2de716db",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-count-004702e0.md",
-      "reason": "计数删除CountRequest/Result、索引及寄存器回包、输出副本和诊断次数；直接递增共享BYTE并实时推进游标，保留回绕、节点起点、别名和失败前缀。core/ASan、SDL及12源身份通过；既有行查询与资料迁移保留，资源生产、消息协议及完整SDL接线仍pending"
+      "last_reviewed_commit": "df52c985",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-action-00470820.md",
+      "reason": "行动消耗删除ActionRequest、Refresh/ActionResult、actor token/寄存器参数与回包及写入/清理/调用计数；直接扣除实际记录WORD，保留回绕、signed夹零、资源消耗和失败前缀。core/ASan定向、SDL及6源身份通过；既有行查询、计数和资料迁移保留，资源生产、消息内部协议及完整SDL仍pending"
     },
     "battle/legacy_battle_grid_frame": {
       "status": "pending",
@@ -342,13 +342,13 @@
     },
     "battle/legacy_battle_action_dispatch": {
       "status": "pending",
-      "last_reviewed_commit": "5ad2a9aa",
+      "last_reviewed_commit": "df52c985",
       "files": [
         "include/openswd3/battle/legacy_battle_deformation.hpp",
         "src/battle/legacy_battle_deformation.cpp"
       ],
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-resource-consumption-00470e20.md",
-      "reason": "453F5B/45544C直接消费实际party资源的最终WORD，删除资源脚本兼容、操作编号、子寄存器结果和计数。动作3成功发布数值后才清三项选择；动作27保持前继完整返回1才消费，正常零继续，真实失败阻断未执行后缀。40次新动作与12次叶/列表、菜单回归、两core/两ASan、SDL链接及13源身份通过；EBX初稿与测试资格错误保留。既有灵契参数、实际道具分配、攻击顺序和镜像/抑制/步长迁移保持；其它callee编号、参数数组、寄存器回复、计数、Port及actor-ready八槽仍在，整项pending"
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-action-00470820.md",
+      "reason": "首项行动消耗依赖删除父结果内的寄存器回包及调用计数；实际组A调用直接消费party数据，既有资源释放迁移保留。core/ASan定向、SDL及6源身份通过；其他操作、参数包、寄存器、计数、Port及完整父链仍pending"
     },
     "battle/legacy_battle_debug_overlay": {
       "status": "pending",
@@ -440,9 +440,9 @@
     },
     "battle/legacy_battle_group_a_frame": {
       "status": "pending",
-      "last_reviewed_commit": "45f5a77e",
-      "evidence": "analysis/04-reverse-engineering/evidence/battle-party-frame-coordinate-attribute-0047d880.md",
-      "reason": "456844/456859直接读实际BYTE两属性位并写startup.reset真实辅助column2/1，后续精确1及真实攻击顺序插入借同一数组，删除两叶调用/编号/回包和错误角色状态替代；279次新帧、270次真实插入及285次bit0同步覆盖完整辅助块、独立角色门、复制后清行与原最终profile清零，core/ASan actor_frame_316及SDL链接通过。既有五处叠加、显示、availability及高位共享访问继续有效；其它属性父点、actor-ready八槽、共享影子、编号/参数包/寄存器/Port/计数/资源、完整父出口及运行验收仍待迁移，整项保持pending"
+      "last_reviewed_commit": "df52c985",
+      "evidence": "analysis/04-reverse-engineering/evidence/battle-actor-list-action-00470820.md",
+      "reason": "45703D直接借party列表、配置、物品效果和workspace扣除行动消耗，删除actor token入参、子寄存器回包及调用次数；测试改查实际扣除及前置失败保留。core/ASan定向、SDL及6源身份通过；此前共享属性等迁移保留，其他父协议、资源生产及完整SDL仍pending"
     },
     "battle/legacy_battle_group_b_frame": {
       "status": "pending",

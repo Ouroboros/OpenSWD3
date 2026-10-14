@@ -22,7 +22,7 @@
 - Port/Ports定义：345；含Dispatch/Adapter共358个类型定义。
 - 上述数值分别是族、文件和类型的数量，不能相加或作为同一完成率分母。
 - 全项目语义覆盖尚未验收。所有新清单方框保持未勾选。
-- 当前顺序：首项角色行动消耗及唯一组A调用已验证，待发布；随后继续同条目的资源生产协议。
+- 当前顺序：角色行动消耗批次df52c985已推送并核对远端；继续同条目的资源生产协议。
 
 ## 逐项 LIST
 
@@ -36,9 +36,9 @@
   - 本批资料：删除ApplyRequest、寄存器/索引回包、输出副本及计数；两处菜单删除query_primary_target参数包调用，直接加载共享资料并写角色输出。最终core/ASan、SDL构建及7源身份通过，源码5e487db5已推送并核对远端main一致；见[资料应用证据](battle-actor-list-profile-application-004705c0.md)。
   - 本批行查询：删除QueryRequest、寄存器/索引回包、输出副本及计数；两个菜单直连实际列表和MON，名称共享选择区及相邻音乐路径，删除查询/复位通用操作和协调器转发。最终core/ASan、SDL构建及15源身份通过，源码95a3d125已推送并核对远端main；验证与边界见[角色行查询证据](battle-actor-list-query-00470180.md)。
   - 本批计数：删除CountRequest/Result、寄存器及索引回包、输出副本和调用计数；两个菜单直接累计共享BYTE行上限，删除初始化通用操作与协调器转发。最终core/ASan、SDL构建及12源身份通过，源码2de716db已推送并核对远端main；见[计数证据](battle-actor-list-count-004702e0.md)。
-  - 本批行动消耗：删除ActionRequest、Refresh/ActionResult、actor token/寄存器参数与回包、写入/清理/调用计数；组A帧直接借实际party数据并检查处理状态。core/ASan定向、SDL构建及6源身份通过，待提交推送；见[行动消耗证据](battle-actor-list-action-00470820.md#6-行动消耗父协议迁移)。
+  - 本批行动消耗：删除ActionRequest、Refresh/ActionResult、actor token/寄存器参数与回包、写入/清理/调用计数；组A帧直接借实际party数据并检查处理状态。core/ASan定向、SDL构建及6源身份通过，源码df52c985已推送并核对远端；见[行动消耗证据](battle-actor-list-action-00470820.md#6-行动消耗父协议迁移)。
   - 剩余：资源生产、消息内部协议及完整SDL接线；整链未验收，不勾选。
-  - 当前残留信号：counter, interface, register。
+  - 当前残留信号：interface；下方行号保留建表快照，不作为当前完成依据。
   - 历史状态：`pending`；本快照：待复核。
   - 文件：[include/openswd3/battle/legacy_battle_actor_list_query.hpp](../../../include/openswd3/battle/legacy_battle_actor_list_query.hpp)；[src/battle/legacy_battle_actor_list_query.cpp](../../../src/battle/legacy_battle_actor_list_query.cpp)。
   - 类型：[PORT-e7050ee9a7d7](invoke-removal-ports.md#port-e7050ee9a7d7), [PORT-395776ccb4e9](invoke-removal-ports.md#port-395776ccb4e9)。
