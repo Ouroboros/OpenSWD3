@@ -54,4 +54,4 @@ loader返回后，函数必须重新读取actor `+0x0C`资源token，不能复�
 
 目标选择、控制面板、输入分发、选择帧和frame coordinator集成测试覆盖唯一owner注入、三个主选项完整`EAX`门、旧opaque槽零调用、定义/文字窄端口透传及typed-stop后缀阻断。战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`和Linux app`194/194`全部通过；最终日志无OpenSWD3源码warning、测试失败或sanitizer finding。新增文件全量及历史文件本包触碰行均通过clang-format Werror门。
 
-当前缺少原版组Bactor、动态资源三处定义word、`0x00476DB0`真实定义加载副作用、内嵌定义名称、`lstrcpyA`逐字节访问、共享输出目标和两个caller寄存器的联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。该限制不影响完整静态闭环和Linux验证。
+当前缺少原版组Bactor、动态资源三处定义word、`0x00476DB0`真实定义加载副作用、内嵌定义名称、`lstrcpyA`逐字节访问、共享输出目标和两个caller寄存器的联合捕获后端，因此`original_diff_verified`登记为`pending`。该限制不影响完整静态闭环和Linux验证。

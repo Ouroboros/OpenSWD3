@@ -324,7 +324,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 - case 7攻击顺序移除直连、一过尾源读取stop传播及旧地址调用清零；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版18个角色对象、剩余callee共享副作用、目标动作就绪的真实ACT/TSW/粒子/音频/绘制联合状态、攻击顺序与相邻强度效果动态记录、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版18个角色对象、剩余callee共享副作用、目标动作就绪的真实ACT/TSW/粒子/音频/绘制联合状态、攻击顺序与相邻强度效果动态记录、全部数值/AI表、消息文本、输入bit、DirectDraw framebuffer、deformation allocator与SEH联合捕获后端，`original_diff_verified`为`pending`。
 
 ## 19. 动作目标word查询两处caller直连
 
@@ -332,7 +332,7 @@ bit75未置且message gate bit0为1时，播放固定消息、再次清动作rec
 
 实现直接组合`0x004786E0` typed leaf，不增加generic端口调用。动作目标字段或RET停止保留已完成的状态指示器与case前缀，抑制目标准备、扫描、发布和公共场景后缀。首个存活目标经待审`0x00478A70`发布时，同步写Group-A首角色唯一canonical动作目标；全局选择值保持独立状态。定向测试覆盖两处返回地址、EAX高word、ECX/EDX、比较flags、目标符号扩展、发布写入和typed-stop后缀抑制；生产`0x004786E0` raw调用为零。
 
-当前缺少原版完整Group-A/Group-B actor、状态指示器与case 22剩余callee共享副作用，以及两处caller联合寄存器、flags和SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版完整Group-A/Group-B actor、状态指示器与case 22剩余callee共享副作用，以及两处caller联合寄存器、flags和SEH捕获后端，`original_diff_verified`为`pending`。
 
 ## 20. Workpack 316 caller 的 case7 FLAGS 局部审查
 

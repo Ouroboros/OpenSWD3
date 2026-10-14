@@ -66,4 +66,4 @@ target-ready gate不等于1、当前queued角色code为0，或message非零且�
 
 定向测试覆盖：四个入口门、group-B差值清message、message 110两种边界、dialog非空、ready刷新、active query完成、group-A一过前停止、sample、current-coordinate完成与Y读取停止后的X scratch前缀、旧input-dispatch坐标槽零调用、输出token高字进入动作刷新、动作刷新普通与typed-stop、五项扫描与可见数、group-B index 8前缀停止、逐帧输入普通直连和typed-stop传播，以及物理owner/reset交叉回归。
 
-当前缺少原版两组角色对象、动作刷新内三个角色查询及其余未关闭callee共享副作用、动态dialog head token、三处AI caller输入、两处输出word、已关闭刷新函数的动态状态/callee轨迹及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、动作刷新内三个角色查询及其余未关闭callee共享副作用、动态dialog head token、三处AI caller输入、两处输出word、已关闭刷新函数的动态状态/callee轨迹及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

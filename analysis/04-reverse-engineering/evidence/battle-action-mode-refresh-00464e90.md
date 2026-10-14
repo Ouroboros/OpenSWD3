@@ -49,6 +49,6 @@ code仅在unsigned `[0x15,0x32)`内登记。每个命中项按旧count先写权�
 
 `0x004A75C8`起的物理映射已收敛为启动状态中的单一十dword视图：启动与逐帧输入路径保持前四项边界，选择帧复用同一视图并保留后六项相邻数据，不再维护第二份标签数组。option source对象token与动作code由启动状态提供单一typed存储。
 
-定向测试覆盖初始化写集、EDX高word、code范围两侧、两项普通动作、固定动作、21项静态与8项live相邻查找、三次对象寄存器形状、两类权限裁剪、最终回退/保持/越界、映射/source/object停点、逐帧输入live权限、两个已关闭caller普通与typed-stop传播，以及reserved槽零调用。定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过；源码零warning，app仅保留既有ALSA开发库CMake warning。工作包连续双跑逐字节一致，稳定为`129/422 = 124 platform_adapted + 5 assembly_exact + 293 pending_audit`，SHA256为`f0bc8129c6aff3c5b88836eb909085558c2a9f2eeffde7bd998016a7f9f0c071`。
+定向测试覆盖初始化写集、EDX高word、code范围两侧、两项普通动作、固定动作、21项静态与8项live相邻查找、三次对象寄存器形状、两类权限裁剪、最终回退/保持/越界、映射/source/object停点、逐帧输入live权限、两个已关闭caller普通与typed-stop传播，以及reserved槽零调用。定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194全部通过；源码零warning，app仅保留既有ALSA开发库CMake warning。工作包连续双跑逐字节一致，稳定为`0/422 = 124 platform_adapted + 5 assembly_exact + 293 pending_audit`，SHA256为`f0bc8129c6aff3c5b88836eb909085558c2a9f2eeffde7bd998016a7f9f0c071`。
 
-当前缺少原版四组option对象、三个角色查询callee共享副作用及EAX/ECX/EDX联合动态捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版四组option对象、三个角色查询callee共享副作用及EAX/ECX/EDX联合动态捕获后端，`original_diff_verified`为`pending`。

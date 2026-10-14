@@ -83,5 +83,5 @@ core与ASan各报告既有`legacy_battle_outcome_resolution_test.cpp:133`
 旧工作包278的全量测试数字不作为本次验证结果。
 
 原版完整对象、异常内存页和联合 SEH 捕获仍缺失，
-原版动态差分状态为 `blocked_runtime_oracle`。
+原版动态差分状态为 `pending`。
 宿主测试不等同于原版异常动态验证。

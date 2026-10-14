@@ -88,4 +88,4 @@ SDL的`LegacyBattleMonTextRuntime`将动态guest reservation与实际存储登�
 
 此前资源接线批次取得过MON定义、战斗setup、世界物品生命周期及剧情VM的定向core/ASan通过和SDL链接通过；这些结果不覆盖当前接口迁移。新增向量覆盖说明STOSD/STOSB停止边界、真实文件解析对分配存储的写入、解析停止后的存储保留、显式释放与重复释放、独立说明复制。读档物品重建另有core/ASan及SDL链接验证。部分日志含既有编译警告，不宣称零warning。剧情新建节点失败保留也已通过core/ASan及SDL链接验证。完整敌方初始化、重复进入及实际续玩尚未完成；本批不能据上述局部门禁发布为完整行为。
 
-当前缺少原版文件句柄、相对seek返回值、堆token、陈旧短读、说明块计数、全部caller及callee寄存器联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整LST静态闭环、typed故障隔离、真实资产只读验证和Linux构建验证。
+当前缺少原版文件句柄、相对seek返回值、堆token、陈旧短读、说明块计数、全部caller及callee寄存器联合捕获后端，`original_diff_verified`登记为`pending`。该阻塞不影响完整LST静态闭环、typed故障隔离、真实资产只读验证和Linux构建验证。

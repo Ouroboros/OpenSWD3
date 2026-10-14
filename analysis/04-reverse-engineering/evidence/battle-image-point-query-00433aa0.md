@@ -175,4 +175,4 @@ C++到LST：
 
 ## 9. 动态差分
 
-当前没有可用原版战斗像素命中捕获后端，`original_diff_verified`仍为`blocked_runtime_oracle`。该阻塞不改变完整LST、typed实现、合成边界和真实TSW资产已经收敛的结论。
+当前没有可用原版战斗像素命中捕获后端，`original_diff_verified`仍为`pending`。该阻塞不改变完整LST、typed实现、合成边界和真实TSW资产已经收敛的结论。

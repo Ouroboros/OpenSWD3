@@ -14,4 +14,4 @@
 
 定向测试覆盖首写typed-stop、前置副作用保留、十个profile dword、四个pre-effect dword、十一个显式word、重叠owner同步、`+0x2F1A`保留、无资源快路径、正数量递减、零数量不递减、CX高半继承、资源节点故障点、八处caller的旧地址零调用及上层寄存器/序列回归。
 
-验证：定向测试通过；独立AddressSanitizer通过且零finding；Linux core `188/188`与Linux app `194/194`全部通过，源码零warning。inventory连续双生成逐字节一致，稳定为`232/422 = 223 platform_adapted + 9 assembly_exact + 190 pending_audit`，SHA256为`8efdb823624eec1dbbfff179321885871b1e17dc052420e7ce5e01dd47a15f05`。动态差分因原版十个group-A行动者完整对象、`+0x2EC8/+0x2ED0`资源链、八处caller前后寄存器及重叠物理字段联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+验证：定向测试通过；独立AddressSanitizer通过且零finding；Linux core `188/188`与Linux app `194/194`全部通过，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 223 platform_adapted + 9 assembly_exact + 190 pending_audit`，SHA256为`8efdb823624eec1dbbfff179321885871b1e17dc052420e7ce5e01dd47a15f05`。动态差分因原版十个group-A行动者完整对象、`+0x2EC8/+0x2ED0`资源链、八处caller前后寄存器及重叠物理字段联合捕获后端缺失而登记为`pending`。

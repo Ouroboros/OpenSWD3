@@ -117,4 +117,4 @@ core与ASan的setup、actor_frame_316各1/1通过，SDL应用编译链接通过�
 最终五个日志均无告警或错误；写序修正前的日志仅保留为历史。
 未启动游戏。帧资源提供接口、角色上层通用协议及`0047C1F0`仍待迁移。
 
-当前没有原版十位共享状态、帧记录和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整137行LST、关闭callee直连和固定状态验证已经闭环。
+当前没有原版十位共享状态、帧记录和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整137行LST、关闭callee直连和固定状态验证已经闭环。

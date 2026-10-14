@@ -71,7 +71,7 @@ LST 的角色布局使用 35 个连续 word 槽 `actor+0x29C4..actor+0x2A08`，c
 原程序用裸 actor 指针和无边界下标直接读写。现代 C++ 没有可合法表达的相邻任意内存，
 因此仅在原参数读取、cursor 读取、目标写入和返回地址读取点执行 typed-stop。cursor
 `0..34` 保持原写入；cursor `>=35` 不夹值、不回滚前缀，也不创造扩展存储。这是本工作包
-登记为 `platform_adapted` 的唯一 leaf 级差异。
+登记为 `pending` 的唯一 leaf 级差异。
 
 相邻 `0x0047CEC0` 是 cursor/完成状态的独立更新者。每次已恢复 caller 在原调用时点
 同步 canonical cursor：参数完整等于 `1` 时执行 u16 加一并在大于 34 时 clamp 到 34；
@@ -163,7 +163,7 @@ LST 到 C++ 追溯覆盖 25 字节完整边界、word 参数读取、部分 EDX�
 - 十轮 core 日志无 OpenSWD3 源码 warning、测试失败、sanitizer finding 或 runtime
   error；
 - inventory 生成器连续双跑逐字节一致，最终计数为
-  `302/422 = 292 platform_adapted + 10 assembly_exact + 120 pending_audit`，
+  `0/422 = 292 platform_adapted + 10 assembly_exact + 120 pending_audit`，
   SHA-256 为
   `adeeb9eba674ec671ec51253acfda91f35d43be15135826a004f574400fab93e`；
 - TMP 终检发现的三个历史 OpenSWD3 instance-lock 已迁入

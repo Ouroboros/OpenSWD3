@@ -175,4 +175,4 @@ Sleep 阻塞整个游戏主线程；在此期间没有主帧输入、剧情、�
 
 `LegacyFrameClockState` 及纯门控逻辑由 `input_time_rng` 所有，`app` 只保留原帧内编排位置。`0x0040DD20/0x0040DD30`、阈值等号、拒绝帧仍刷新共享毫秒样本、接受后直接保存 `now`、`u32` 回绕、零间隔和独立输入 delta 均有固定 UT。
 
-Windows LLVM `core` 与 `app` 均完成构建并通过 37/37 CTest；SDL3 应用完成最终链接。当前验证等级为 `assembly_exact`，原程序动态捕获仍为 `blocked_runtime_oracle`，没有升级为 `original_diff_verified`。
+Windows LLVM `core` 与 `app` 均完成构建并通过 37/37 CTest；SDL3 应用完成最终链接。当前验证等级为 `pending`，原程序动态捕获仍为 `pending`，没有升级为 `original_diff_verified`。

@@ -58,4 +58,4 @@ C++参数化双层协调器只共享已经逐项证明相同的查询、绘制�
 
 通用双层协调测试已覆盖严格零门、负宽调用和两层typed-stop前缀。battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版双层帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整70行LST、关闭callee组合和固定状态验证已经闭环。
+当前没有原版双层帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整70行LST、关闭callee组合和固定状态验证已经闭环。

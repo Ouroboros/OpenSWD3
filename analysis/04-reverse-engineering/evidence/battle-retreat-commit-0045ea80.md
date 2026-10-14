@@ -61,4 +61,4 @@ battle mode与调试重置门继续由唯一调试快捷键state port持有。�
 
 定向测试覆盖u32索引回绕、首callee返回0/1/2、mode bit阻断、固定CP950文字入链与五参数、文字typed-stop阻断样本、live signed混音等级、样本尾寄存器、成功九项写序/宽度、CL陈旧高位、callee后mode动态重读、全局重置别名，以及动作3 caller直连和旧地址调用清零。
 
-当前缺少原版两类角色对象查询、文字渲染、样本管理器、九项共享全局轨迹及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两类角色对象查询、文字渲染、样本管理器、九项共享全局轨迹及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

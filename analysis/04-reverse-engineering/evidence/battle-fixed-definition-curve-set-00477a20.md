@@ -108,6 +108,6 @@ x87模拟或访问计数。本批旧callee编号仅保留在出处注释中。
 
 叶函数回归覆盖零count根命中、动态节点锁位、缺键分配与五dword清零、低word键/count截断、inclusive夹限、百分比截零、maximum零integer indefinite、说明分配/释放及累计字节残留、MON正常打开失败后继续、loader typed-stop，以及根、链、分配记录各原访问停止点。Dialog回归覆盖新增与直接修改两个物理caller、真实MON fixture、共享根`0x004B8A00`、第二分类typed-stop和与前后分类的严格顺序。
 
-最终定向测试`2/2`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、changed-range clang-format和release审计全部通过；最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。生成器连续双跑逐字节一致，工作包为`272/422 = 262 platform_adapted + 10 assembly_exact + 150 pending_audit`，SHA256为`9065cdef0726c810d287228c25a22635f06eab4db80d96dd105b62db667e0c46`。验证期间未启动原版或OpenSWD3游戏程序。
+最终定向测试`2/2`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、changed-range clang-format和release审计全部通过；最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。生成器连续双跑逐字节一致，工作包为`0/422 = 262 platform_adapted + 10 assembly_exact + 150 pending_audit`，SHA256为`9065cdef0726c810d287228c25a22635f06eab4db80d96dd105b62db667e0c46`。验证期间未启动原版或OpenSWD3游戏程序。
 
-当前缺少原版MON文件/说明堆、固定定义曲线链、allocator、x87 control/status word、Dialog记录/局部槽及两个callsite联合寄存器捕获后端，动态差分登记为`blocked_runtime_oracle`；这不阻止完整LST静态闭合、原位置typed-stop和Linux门禁。
+当前缺少原版MON文件/说明堆、固定定义曲线链、allocator、x87 control/status word、Dialog记录/局部槽及两个callsite联合寄存器捕获后端，动态差分登记为`pending`；这不阻止完整LST静态闭合、原位置typed-stop和Linux门禁。

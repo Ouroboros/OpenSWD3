@@ -50,7 +50,7 @@
 
 单体效果帧与群体效果帧保存最后一次完整`LegacyBattleEffectShiftResult`，分别区分Group-A/Group-B容量typed-stop与坐标publication typed-stop。父caller由startup传入的canonical owner解析真实Group-A/Group-B actor，不创建平行数组。
 
-REVIEW 1完成时caller回收计数为`caller_reclaimed:4/19`。Workpack 287仍保持`pending_audit`，inventory不在REVIEW 1提前关闭。
+REVIEW 1完成时caller回收计数为`caller_reclaimed:4/19`。Workpack 287仍保持`pending`，inventory不在REVIEW 1提前关闭。
 
 ## 5. REVIEW 2脚本分派caller回收
 
@@ -65,7 +65,7 @@ REVIEW 1完成时caller回收计数为`caller_reclaimed:4/19`。Workpack 287仍�
 - case 45按Group-B后Group-A遍历，对完整packed X/Y dword执行`640-packed`，保留32-bit SUB flags；只有Group-A publication成功后才提交对应`624-mirror_x`后缀；
 - case 50保留首个Group-B actor查询、目标actor地址寄存器和入口ESI/EDI；case 68保留直接脚本X/Y、Group-A入口EDX高word或Group-B地址EDX及SI第二参数残值。
 
-publication typed-stop保存精确leaf结果与累计调用数，保留当前leaf的坐标和复制前缀，并阻断当前index推进、剩余actor/group、cursor、临时值清零、mirror提交、actor metrics、frame及frame-gate后缀。此前成功actor保持已提交。REVIEW 2完成时caller回收计数为`caller_reclaimed:17/19`，row 287继续保持`pending_audit`。
+publication typed-stop保存精确leaf结果与累计调用数，保留当前leaf的坐标和复制前缀，并阻断当前index推进、剩余actor/group、cursor、临时值清零、mirror提交、actor metrics、frame及frame-gate后缀。此前成功actor保持已提交。REVIEW 2完成时caller回收计数为`caller_reclaimed:17/19`，row 287继续保持`pending`。
 
 ## 6. REVIEW 3回合门与行动十七caller回收
 
@@ -87,4 +87,4 @@ REVIEW 3测试覆盖turn gate的无调整、正十六与负十六分支，action
 
 三个REVIEW最终门禁均为战斗定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`和Linux app `205/205`。REVIEW 3另通过连续十轮core `199/199`、changed-range格式、inventory双生成、TMP分类与发布审计；最终构建与测试日志无源码warning、失败或runtime sanitizer诊断，stderr为空。
 
-原版动态差分仍为`blocked_runtime_oracle`：缺少完整Group-A/Group-B actor、异常栈与内存页、DF/寄存器/SEH及十九处caller的联合捕获后端。该阻塞不削弱当前静态LST边界、typed实现或单元测试结论。
+原版动态差分仍为`pending`：缺少完整Group-A/Group-B actor、异常栈与内存页、DF/寄存器/SEH及十九处caller的联合捕获后端。该阻塞不削弱当前静态LST边界、typed实现或单元测试结论。

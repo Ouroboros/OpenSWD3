@@ -57,4 +57,4 @@ opcode71不替换`0xFFF0`，但共享lookup仍支持`0xFFFE`受控角色。slot�
 
 ## 分类
 
-分类：`platform_adapted`。原版裸HeadSgn地址以legacy u32 token表示；有效域selector、slot算术、分阶段读取、IP、previous与yield保持汇编语义。
+分类：`pending`。原版裸HeadSgn地址以legacy u32 token表示；有效域selector、slot算术、分阶段读取、IP、previous与yield保持汇编语义。

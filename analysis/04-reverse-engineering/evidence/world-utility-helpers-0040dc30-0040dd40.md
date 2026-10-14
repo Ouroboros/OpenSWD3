@@ -1,7 +1,7 @@
 # 世界事件、移动步长与对象槽 helper 闭环
 
 状态：`pending`。
-`platform_adapted`，原程序动态差分仍为 `blocked_runtime_oracle`。
+`pending`，原程序动态差分仍为 `pending`。
 
 唯一行为依据是 `swd3.exe.lst`。本轮先从 `0x0040DC30..0x0040DD50` 独立恢复三个
 函数，再逐一反查所有汇编调用点和现代 C++ 消费点；实现后重新按基本块和副作用反向
@@ -16,7 +16,7 @@
 现代 `LegacyWorldMapEvent` 的 `field_04` 对应节点 `+0x04`，事件数组保持原链表顺序。
 `find_legacy_world_map_event` 因此返回 span 中第一个 `field_04 == event_code` 的对象，空
 span 和 miss 均返回空指针。受检 span 不复刻悬空指针和环形链故障，故容器边界登记为
-`platform_adapted`；有效有序链的比较、首命中和返回行为精确一致。
+`pending`；有效有序链的比较、首命中和返回行为精确一致。
 
 三个汇编调用者分别位于 `sub_402F80`、`sub_413FE0`、`sub_427300`。现代碰撞 Talk、
 调试叠层和鼠标地图事件三条路径均已统一调用同一 helper，没有残留独立查询实现。

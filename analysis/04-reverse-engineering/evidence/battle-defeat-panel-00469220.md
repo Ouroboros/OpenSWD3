@@ -30,4 +30,4 @@
 
 定向测试覆盖入口动作寄存器、live stage矩形与次层底边、两次ECX资源高字链、CP950“戰鬥失敗”与“隊伍全滅!!”、标题/详情坐标、stage商零两侧、字体17→16、首层与次层九宫格stop、消息103调试旁路/普通直连/旧槽零调用/面板先于timer/子stop传播及主帧四服务映射。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
-当前缺少原版真实framebuffer/字体/边框资源、动作/矩形/九宫格/文字返回和EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版真实framebuffer/字体/边框资源、动作/矩形/九宫格/文字返回和EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

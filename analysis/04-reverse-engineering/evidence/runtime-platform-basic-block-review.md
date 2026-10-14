@@ -52,8 +52,8 @@ accepted idle frame
 - `app.runtime_platform_integration` 组合覆盖正常启动门、两次独立播种、活动空闲帧、宿主关闭、50 项总销毁、COM 反初始化和退出消息顺序。
 - Windows LLVM/CMake/Ninja 已分别完成最新源码的 `core` 与 `app` 构建，两套配置的 CTest 均为 23/23。
 - SDL3 边界使用真实 SDL 3.4.12 构建；RGB565 texture 创建已接入平台后端初始化的显示请求和失败销毁路径。实际 EXE 已创建标题为 `OpenSWD3` 的窗口，并在关闭请求后以退出码零结束。
-- 原程序动态差分仍为 `blocked_runtime_oracle`，不能标为 `original_diff_verified`。
+- 原程序动态差分仍为 `pending`，不能标为 `original_diff_verified`。
 
 ## 5. B1 状态
 
-七个根地址的 B1.4 静态逐块复核已经完成；映射表显式包含 17 个游戏自有函数和 `0x0048A740` 外部 CRT 根边界。后续所属模块端口已逐项登记，不再作为 B1 顶层映射缺口。规定的 Windows LLVM 与真实 SDL3 验收已经通过；B1 只剩已登记的原程序动态差分阻塞，状态为 `module_closed_pending_oracle`，可以移交 B2。
+七个根地址的 B1.4 静态逐块复核已经完成；映射表显式包含 17 个游戏自有函数和 `0x0048A740` 外部 CRT 根边界。后续所属模块端口已逐项登记，不再作为 B1 顶层映射缺口。规定的 Windows LLVM 与真实 SDL3 验收已经通过；B1 只剩已登记的原程序动态差分阻塞，状态为 `pending`，可以移交 B2。

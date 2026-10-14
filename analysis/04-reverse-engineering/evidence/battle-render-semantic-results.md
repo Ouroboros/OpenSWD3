@@ -49,4 +49,4 @@ core及ASan仅保留既有outcome-resolution测试第133行整数窄化警告。
 完整源码差异已对照LST及调用方复核，`git diff --check`通过。
 
 绘图接口族保持pending，分配接口和非空辅助缓冲生产来源仍待复核。
-原版动态差分仍为`blocked_runtime_oracle`，B11及WP316验收不变。
+原版动态差分仍为`pending`，B11及WP316验收不变。

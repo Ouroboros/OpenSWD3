@@ -35,6 +35,6 @@ search_record_count = signed_i32(tail_size - 1) / 16
 
 ## 3. 现代安全边界与验证
 
-`legacy_lmf_lookup_map` 接受显式归档路径，复用 `LegacyFile` 的 `OPEN_EXISTING + read` 后端，并保留整尾读取、减一计数、首个匹配和完整 dword 比较。原函数不检查首双字短读、尾部读取结果或越界 `index_offset`；现代实现分别返回 `header_read_failed`、`tail_read_failed` 和 `index_offset_out_of_range`，防止未初始化内存和越界分配参与查找，这些损坏文件路径标记为 `platform_adapted`。
+`legacy_lmf_lookup_map` 接受显式归档路径，复用 `LegacyFile` 的 `OPEN_EXISTING + read` 后端，并保留整尾读取、减一计数、首个匹配和完整 dword 比较。原函数不检查首双字短读、尾部读取结果或越界 `index_offset`；现代实现分别返回 `header_read_failed`、`tail_read_failed` 和 `index_offset_out_of_range`，防止未初始化内存和越界分配参与查找，这些损坏文件路径标记为 `pending`。
 
-合成 UT 覆盖缺文件、短头、越界索引、完整 32 位地图号、首个重复项、正常哨兵排除和额外尾字节使哨兵可查。当前 472,447,346 字节 `huge.lmf` 还验证了地图 22、24、500 的偏移分别为 `0x00000004`、`0x026698A3`、`0x1C16E962`，地图号零不命中。Windows LLVM `core`/`app` 的 33/33 CTest 均已通过；原程序动态轨迹仍登记为 `blocked_runtime_oracle`。
+合成 UT 覆盖缺文件、短头、越界索引、完整 32 位地图号、首个重复项、正常哨兵排除和额外尾字节使哨兵可查。当前 472,447,346 字节 `huge.lmf` 还验证了地图 22、24、500 的偏移分别为 `0x00000004`、`0x026698A3`、`0x1C16E962`，地图号零不命中。Windows LLVM `core`/`app` 的 33/33 CTest 均已通过；原程序动态轨迹仍登记为 `pending`。

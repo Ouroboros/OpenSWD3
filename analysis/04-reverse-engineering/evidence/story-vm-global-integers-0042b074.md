@@ -104,7 +104,7 @@ u32(variable) <= u32(sign_extend_s16(threshold))
 
 这不是把机器门控改成无符号比较：`index >=64` 仍严格保留原机“不推进、发布 previous opcode、audio service、yield/retry”的独立行为。负 index checked boundary 仅覆盖原始未定义内存访问；真实资产审计证明当前四个 TALK 文件没有负 index。
 
-因此本 handler 分类为 `platform_adapted`，而不是把负 index 伪报为 assembly-safe。
+因此本 handler 分类为 `pending`，而不是把负 index 伪报为 assembly-safe。
 
 ## 真实资产审计
 

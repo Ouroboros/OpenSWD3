@@ -56,4 +56,4 @@ callee返回后按原顺序：
 
 定向测试覆盖：零奖励/零数量、两项奖励、入口与前一callee陈旧EAX高word、第一callee后第二奖励live重读、固定`0x0300`奖励、signed负数量、callee放大动态数量、三项尾store顺序、玩家奖励/组B奖励分配停止、未知玩家链节点停止、启动数量owner回收、全局重置完成word别名、组A/组B两处caller和逐帧阻断传播。
 
-当前缺少原版两项奖励轨迹、组B动态数量、玩家道具链、分配器/定义初始化副作用、音频返回寄存器、双侧结果状态和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两项奖励轨迹、组B动态数量、玩家道具链、分配器/定义初始化副作用、音频返回寄存器、双侧结果状态和寄存器联合捕获后端，`original_diff_verified`为`pending`。

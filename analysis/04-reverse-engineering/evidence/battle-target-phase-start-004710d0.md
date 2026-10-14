@@ -34,4 +34,4 @@ Workpack 289 REVIEW 3只回收`0x00484020`前缀中的`0x0048402F`帧资源calle
 
 Group-B按坐标查询、对应`0x58` phase清零、资源对象读取的顺序执行；正常emitter常量为lifetime divisor `0x28`、spawn divisor `0x3C`、remaining batches=`height/2`。解码callee入口为`EAX=local_4`、`ECX=source共享资源token`、`EDX=资源对象首dword`；属性callee入口为`EAX=5`、`ECX=target token`，EDX保留source垂直调整值高word并以`height/2`替换低word。host-surface成功后直接epilogue，不执行Group-A尾部清零；返回`EAX=height`、`ECX=0x0051DF80`、`EDX=width`，flags来自`add esp,10h`。外层随后以target ECX调用`0x004787F0`，再调用`0x0047D870`。leaf、坐标、资源对象或host-surface typed-stop保留已提交前缀并阻断外层action 6全部后缀。
 
-Workpack 289最终定向`1/1`、Linux core `199/199`、AddressSanitizer/UBSan `199/199`、Linux app `205/205`及连续十轮core `10/10`均通过；全部正式stderr为空，changed-range格式检查通过。动态差分因原版Group-A/Group-B资源对象、图像解码分配、坐标/属性callee和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+Workpack 289最终定向`1/1`、Linux core `199/199`、AddressSanitizer/UBSan `199/199`、Linux app `205/205`及连续十轮core `10/10`均通过；全部正式stderr为空，changed-range格式检查通过。动态差分因原版Group-A/Group-B资源对象、图像解码分配、坐标/属性callee和caller寄存器联合捕获后端缺失而登记为`pending`。

@@ -137,5 +137,5 @@ draw_y = y - signed(action.draw_offset_y) - camera_y
 
 真实 variant 0 framebuffer 的 FNV-1a64 为 `0xE216591950463029`。Linux `core`
 100/100、Windows LLVM `app` 104/104 CTest 通过。最终原程序 framebuffer/状态差分仍按
-工程规则登记为 `blocked_runtime_oracle`；需要时只准备 Frida spawn 工具并等待用户执行，
+工程规则登记为 `pending`；需要时只准备 Frida spawn 工具并等待用户执行，
 不由 OpenSWD3 开发流程自行启动原版。

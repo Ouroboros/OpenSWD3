@@ -101,7 +101,7 @@ C++到LST：
 删除初始化函数的随机测试Port、寄存器断言、调用及写入计数。startup按角色索引保存
 语义结果，不再用调用次数作为数组索引或向外汇总次数。
 
-当前缺少原版第二套RNG动态状态、完整组A对象、异常内存页及唯一callsite寄存器/SEH联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。原版动态验证边界没有因此扩大；本批证据为静态LST、实际状态测试及modern caller组合。
+当前缺少原版第二套RNG动态状态、完整组A对象、异常内存页及唯一callsite寄存器/SEH联合捕获后端，`original_diff_verified`登记为`pending`。原版动态验证边界没有因此扩大；本批证据为静态LST、实际状态测试及modern caller组合。
 
 本批6并发core与ASan定向setup测试各1/1通过，SDL应用链接通过，完整差异复核及
 `git diff --check`通过。保留既有`legacy_battle_outcome_resolution_test.cpp:133`窄化警告，

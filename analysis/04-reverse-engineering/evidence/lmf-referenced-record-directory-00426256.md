@@ -24,4 +24,4 @@ field_position = map_offset + relative_offset + 0x0C
 
 `legacy_lmf_read_referenced_record_directory` 保留计数、表项顺序、32 位位置加法、带符号 seek 和 `+0x0C` 精确读取。它同时要求目录仍位于 B2.16 的实际固定窗口内，并把失败 seek、短读和失控计数隔离为确定状态，属于 `platform_adapted` 损坏文件边界。零计数直接成功返回空目录，不调用旧文件包装器所拒绝的零字节读取。
 
-合成 UT 覆盖三条不同目标、精确 `+0x0C` 字段、零目录、固定窗口越界和负向 seek。真实 `huge.lmf` 中 273 张地图目录非空、36 张为空，共 5,376 个引用；单图最多 168 个，所有目标均位于对应地图物理跨度内。按尾索引顺序对每个 `{relative_offset, field_0c}` 的小端字节计算 FNV-1a64，结果为 `0xCCEF13F8B2CB5BC7`。Windows LLVM `core` 的 33/33 CTest 与显式真实档案测试均通过；原程序动态轨迹仍登记为 `blocked_runtime_oracle`。
+合成 UT 覆盖三条不同目标、精确 `+0x0C` 字段、零目录、固定窗口越界和负向 seek。真实 `huge.lmf` 中 273 张地图目录非空、36 张为空，共 5,376 个引用；单图最多 168 个，所有目标均位于对应地图物理跨度内。按尾索引顺序对每个 `{relative_offset, field_0c}` 的小端字节计算 FNV-1a64，结果为 `0xCCEF13F8B2CB5BC7`。Windows LLVM `core` 的 33/33 CTest 与显式真实档案测试均通过；原程序动态轨迹仍登记为 `pending`。

@@ -68,4 +68,4 @@ HUD第二处虽在`0x00459F7F`压入完整EAX，下游`0x00450688..0045068E`将�
 完整差异复核与`git diff --check`通过。最终日志为
 `build/tmp/runtime/actor-progress-width-semantic-final-{core,asan,sdl}.log`。
 
-当前缺少原版组A/组B完整对象、动态`0x004A74CC`、x87控制字异常掩码及四callsite寄存器联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+当前缺少原版组A/组B完整对象、动态`0x004A74CC`、x87控制字异常掩码及四callsite寄存器联合捕获后端，`original_diff_verified`登记为`pending`。

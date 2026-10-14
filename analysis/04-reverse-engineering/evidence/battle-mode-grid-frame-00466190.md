@@ -106,4 +106,4 @@ selected cell按完整dword与cell精确比较。匹配时先直连矩形`x-4, y
 
 定向测试覆盖queued零EDX保留、动作更新失败继续、矩形/两处九宫格stop、EAX/EDX两段资源高word、固定标题、非法组A code、首/次组查询与两次不对称刷新、两列五行、首组复用、次组signed容量、CP950“無”三字节复制和旧尾保留、选中双绘制、矩形发布门、page/group目标修正、首组零减一、最终row-limit加法/ECX及唯一caller正常/stop传播。定向测试、AddressSanitizer、Linux core 188/188和Linux app 194/194全部通过；源码构建零warning，app仅保留既有ALSA开发库CMake warning。
 
-当前缺少原版组A对象、首组/次组/总量callee联合状态、字体/文字surface、面板/矩形/九宫格framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A对象、首组/次组/总量callee联合状态、字体/文字surface、面板/矩形/九宫格framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

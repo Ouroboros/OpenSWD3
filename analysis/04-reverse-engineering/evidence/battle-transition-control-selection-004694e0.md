@@ -26,4 +26,4 @@
 
 定向测试覆盖高word短路、首个低半word、奇数高半word、跨行扁平索引、邻接半word保留、四十项全零、陈旧低word保留、精确EAX/ECX/EDX、动作13共享前四行/后六行tail/缺owner真实访问stop、消息99空表/已完成角色/完整道具链/动态trace及主帧stop传播。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
-本函数纯粹执行固定宽度整数、半word表访问和确定性控制流，不需要平台替代。原版动态oracle仍缺少共享表/pair与caller寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+本函数纯粹执行固定宽度整数、半word表访问和确定性控制流，不需要平台替代。原版动态oracle仍缺少共享表/pair与caller寄存器联合捕获后端，`original_diff_verified`为`pending`。

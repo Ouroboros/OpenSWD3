@@ -27,7 +27,7 @@ story_flags[2] |= 0x08
 
 因此只把共享剧情位19置一。已经置位时幂等；同byte和其余`0x400`字节的所有位均保持。helper末尾AL值未被handler消费。
 
-现代直接复用剧情VM进程状态中的共享`flags` owner及既有`set_legacy_world_story_flag`。固定索引19处于合法范围，无裸越界、nullable owner、外部模块或平台后端差异，因此本handler分类为`assembly_exact`。
+现代直接复用剧情VM进程状态中的共享`flags` owner及既有`set_legacy_world_story_flag`。固定索引19处于合法范围，无裸越界、nullable owner、外部模块或平台后端差异，因此本handler分类为`pending`。
 
 ## 2. IP、previous、audio与yield
 

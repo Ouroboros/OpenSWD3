@@ -1,7 +1,6 @@
 # MAPS 四条队伍属性模板物化
 
 状态：`pending`。
-`blocked_runtime_oracle`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x0040DD60..0x0040DE41` 及调用点
 `0x0040E76D..0x0040E7B2`。IDA 为 `sub_40DD60` 标出的两参数原型只用于导航；调用者

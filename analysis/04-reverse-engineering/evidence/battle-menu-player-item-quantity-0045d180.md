@@ -4,7 +4,7 @@
 
 实现源码`52e53a9b`。回收462FBC、463ACC、463B60三处45D180调用，
 删除误名为stop_effect_sample的通用操作，直接借用共享库存和既有MON数据库。
-状态为`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+状态为`pending`。
 完整菜单父和数量接口族保持`pending`，不标`assembly_exact`。
 
 ## 1. 权威范围

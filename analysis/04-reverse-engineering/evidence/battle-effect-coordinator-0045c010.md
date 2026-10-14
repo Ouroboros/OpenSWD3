@@ -72,7 +72,7 @@ B11按机器地址分开画面BF94/BF98双门与反馈53AF68抑制。
 
 定向测试覆盖双UI入口门、单体/群体18槽共享与第19槽停点、当前组A/B越界、组A单目标双side、组A staged与group-wide路径、组B单目标双side、组B群体固定组A不对称、组B staged与group-wide路径、动态组B第9项停点、三处双对象数值转场caller直连、完整framebuffer填充、组A发起计数、组B自目标不发布dirty、初始化actor发布槽物理别名、全局重置物理别名及主帧caller直连。
 
-定向`1/1`、独立AddressSanitizer `1/1`、Linux core `188/188`和Linux app `194/194`通过。当前缺少原版两组完整角色对象、九个剩余callee共享副作用、动态数量与scan limit修改、反馈数组、framebuffer地址、Rect与寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+定向`1/1`、独立AddressSanitizer `1/1`、Linux core `188/188`和Linux app `194/194`通过。当前缺少原版两组完整角色对象、九个剩余callee共享副作用、动态数量与scan limit修改、反馈数组、framebuffer地址、Rect与寄存器联合捕获后端，`original_diff_verified`为`pending`。
 
 ## 7. 动作目标word八处物理caller直连
 
@@ -82,4 +82,4 @@ B11按机器地址分开画面BF94/BF98双门与反馈53AF68抑制。
 
 typed-stop保留当前首读、子效果或奖励复制前缀，阻断对应发布、反馈、framebuffer写、奖励后缀、剩余扫描和公共尾。测试逐项覆盖八个真实返回地址、三类owner别名、目标符号扩展/哨兵分支、EAX高word、EDX和flags线程，以及停止前缀/后缀；生产`0x004786E0` raw调用为零。
 
-当前缺少原版完整Group-A/Group-B actor、两类效果工作区和八处caller联合寄存器、flags与SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版完整Group-A/Group-B actor、两类效果工作区和八处caller联合寄存器、flags与SEH捕获后端，`original_diff_verified`为`pending`。

@@ -10,7 +10,7 @@ ABI为thiscall：ECX是全局战斗绘制owner；无栈参数；正常出口在E
 
 唯一直接caller是`0x004518B0`。该caller把全局owner地址写入ECX后直接尾跳本函数；它本身由全局构造入口`0x004518A0`调用。caller及其外部析构chunk属于后续独立函数关闭，不从本项继承完成状态。
 
-三个直接battle callee均已关闭：
+三个直接battle callee状态均为`pending`：
 
 - `0x00433E20`：主行偏移表重建；
 - `0x00433E90`：surface行偏移表重建；
@@ -212,4 +212,4 @@ C++到LST：
 
 本函数不消费物理游戏资产。定向battle聚合测试与零warning目标构建通过。
 
-当前没有可用原版全局构造后owner行表、720项方向数组与分配失败联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。独立x87序列固定了本函数唯一浮点派生数据，但不冒充原版进程动态联合捕获。
+当前没有可用原版全局构造后owner行表、720项方向数组与分配失败联合捕获后端，`original_diff_verified`为`pending`。独立x87序列固定了本函数唯一浮点派生数据，但不冒充原版进程动态联合捕获。

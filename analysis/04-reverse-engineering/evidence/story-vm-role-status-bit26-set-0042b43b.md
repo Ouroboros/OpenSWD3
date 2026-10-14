@@ -51,4 +51,4 @@ TALK4.DAT@0x000059CC  selector 0x0001
 
 四条真实记录均命中live角色并在精确尾完成bit26写入。Story VM synthetic、real及initial-session三项通过；共享role lookup依赖回归通过。未启动原版或OpenSWD3游戏EXE。
 
-分类：`assembly_exact`。operand读取、FFF0/FFFE语义、GUID lookup、u32 OR、missing静默、推进、previous与same-call均可由现有typed owner逐项直接复现。
+分类：`pending`。operand读取、FFF0/FFFE语义、GUID lookup、u32 OR、missing静默、推进、previous与same-call均可由现有typed owner逐项直接复现。

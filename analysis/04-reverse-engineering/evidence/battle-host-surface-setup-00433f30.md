@@ -153,4 +153,4 @@ C++到LST：
 
 ## 10. 动态差分
 
-当前没有可用原版战斗绘制对象与系统尺寸联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。该阻塞不改变完整LST、两个已关闭callee的直接回收、失败前缀、typed-stop传播和固定状态已经闭环的结论。
+当前没有可用原版战斗绘制对象与系统尺寸联合捕获后端，`original_diff_verified`为`pending`。该阻塞不改变完整LST、两个已关闭callee的直接回收、失败前缀、typed-stop传播和固定状态已经闭环的结论。

@@ -60,4 +60,4 @@ sample播放返回后只以当前actor索引替换AL，保留EAX高24位；索�
 
 定向测试覆盖非正数量、双字段精确1跳过、live数量尾重读、等级阈值、signed经验不足、真实需求输出、LEVEL零分配故障前缀、两次直接profile调用与共享一次open、第一profile部分复制stop传播、完整56-byte快照、三组current/limit、八个u16差值、等级/field20替换、尾11 byte保留、最终音频寄存器、首成功早退、初始标签越界、第十一对象以及消息101正常直连与子stop传播。最终完整门结果见本轮工作包总证据。
 
-当前缺少原版组A对象、需求查询与双模板callee联合状态、三份物理scratch动态内容、角色记录加载后端、sample对象及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A对象、需求查询与双模板callee联合状态、三份物理scratch动态内容、角色记录加载后端、sample对象及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

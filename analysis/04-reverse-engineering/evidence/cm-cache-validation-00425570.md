@@ -40,4 +40,4 @@ swd3.exe.lst sha256 = 701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4b
 
 无论是否重建，所有路径最后都调用 `0x00425A70`，重新统计重置后的 `0.cm..23.cm` 总字节数并返回。因此成功截断全部已存在槽时返回零；单个槽打开或截断失败时，其剩余长度仍参与结果。
 
-`legacy_cm_cache_validate_session_marker` 和 `legacy_cm_cache_validate_pixel_masks` 保留上述两条调用路径。UT 覆盖环境文件缺失、干净/活动标记、标记清零时点、RGB mask 相等/变化、完整 32 位比较与低 16 位写回、精确 24 槽、槽 24 不受影响、缺失文件不创建、384 字节目录记录和重置后的返回值。Windows LLVM `core`/`app` 的 32/32 CTest 均已通过，`openswd3.exe` 已重新链接；原程序动态差分仍登记为 `blocked_runtime_oracle`。
+`legacy_cm_cache_validate_session_marker` 和 `legacy_cm_cache_validate_pixel_masks` 保留上述两条调用路径。UT 覆盖环境文件缺失、干净/活动标记、标记清零时点、RGB mask 相等/变化、完整 32 位比较与低 16 位写回、精确 24 槽、槽 24 不受影响、缺失文件不创建、384 字节目录记录和重置后的返回值。Windows LLVM `core`/`app` 的 32/32 CTest 均已通过，`openswd3.exe` 已重新链接；原程序动态差分仍登记为 `pending`。

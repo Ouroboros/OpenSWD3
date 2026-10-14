@@ -68,4 +68,4 @@ real Story VM回放：
 
 独立backend门：`asset_runtime.legacy_ani_archive`、`legacy_ani_archive_real`、`legacy_ani_activity`为3/3；real archive测试实际打开并校验`expv.Ani`和`memory.Ani`等资产。Story VM三项为3/3，linux-app integration编译通过。
 
-分类：`platform_adapted`。记录长度/prefix/flags、frame interval先行、消费点、audio/preflight分支、open失败common join、无人工scene staged读取、previous/yield和实际ANI state保持；Win32 CD/路径、unchecked分配、无界扫描、DirectDraw surface与裸文件对象由配置root、case-insensitive resolver、bounded scan和`LegacyAniActivity` typed owner替代。
+分类：`pending`。记录长度/prefix/flags、frame interval先行、消费点、audio/preflight分支、open失败common join、无人工scene staged读取、previous/yield和实际ANI state保持；Win32 CD/路径、unchecked分配、无界扫描、DirectDraw surface与裸文件对象由配置root、case-insensitive resolver、bounded scan和`LegacyAniActivity` typed owner替代。

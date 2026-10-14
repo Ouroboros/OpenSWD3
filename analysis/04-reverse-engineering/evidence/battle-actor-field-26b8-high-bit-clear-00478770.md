@@ -103,5 +103,5 @@ setup和actor_frame_316在core与ASan下均各1/1通过，SDL实际链接通过�
 该文件未修改；没有测试失败或sanitizer错误。
 
 原版异常内存页、异常栈页及 SEH 联合捕获仍缺失，
-动态差分状态为 `blocked_runtime_oracle`。
+动态差分状态为 `pending`。
 静态 LST 追溯和宿主测试不等于原版异常动态差分，也不证明整个父调用链已迁移。

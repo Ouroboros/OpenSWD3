@@ -61,7 +61,7 @@ EAX保持来源地址，ECX为剩余次数，EDX保持placement地址。
 原完整初始化与续玩目标保持不变，不以本批替代其验收。
 
 `0046E730`继续为`platform_adapted`；inventory既有证据引用仍有效。
-B10仍为`315/422`，Workpack316保持`pending_audit`。
+B10仍为`0/422`，Workpack316保持`pending`。
 UT、真实存档解析及SDL链接不等于实际续玩或原版动态差分。
 
 ## 验证记录

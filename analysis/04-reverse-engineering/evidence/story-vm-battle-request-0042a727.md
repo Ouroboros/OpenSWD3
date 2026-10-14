@@ -73,4 +73,4 @@ real CTest独立回放：
 
 synthetic覆盖四raw alias、四个signed边界、两个释放owner的分阶段失败、释放后operand截断、battle owner缺失和移动链保留。剧情VM三项为3/3。
 
-分类：`platform_adapted`。合法owner域的释放顺序、两条且仅两条链、signed request、IP、previous和yield保持；固定裸全局/手工释放及越界operand由typed list owner和确定性失败替代。战斗消费端未在VM层伪造成功。
+分类：`pending`。合法owner域的释放顺序、两条且仅两条链、signed request、IP、previous和yield保持；固定裸全局/手工释放及越界operand由typed list owner和确定性失败替代。战斗消费端未在VM层伪造成功。

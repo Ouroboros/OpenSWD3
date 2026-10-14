@@ -77,4 +77,4 @@ message、双方数量、七dword优先记录、输入cache/文字门、目标�
 
 定向测试覆盖入口双门、switch域、十三项有效消息、组A坐标sign-extension、双方live循环及第九/第十一个对象边界、消息99三种早退和完整道具路径、18条记录与七dword记录、workspace/50-dword表、profile高24位、各组A对象地址乘法的预调用EAX/ECX/EDX、道具typed组合、101/110分配差异、110成长面板直连、111成长标题直连/timer回绕/子stop阻断、旧槽零调用、112成长角色选择直连/派生节点/子stop阻断及成长完成标题直连/variant寄存器/sample门/timer阻断、113成长结果选择直连/AX门/首成功/标题边界/子stop阻断及sample差异/法宝提示框/字体恢复/timer后置、102战利品清单直连/阈值顺序/十项表/格式边界/子stop阻断、103战败面板直连/调试旁路/ECX资源链/字体恢复/子stop阻断、98炼符结果直连/双资源链/live结果byte/成功失败文字/格式边界/子stop阻断、99过渡控制高word短路/四十项扫描/清槽/陈旧低word/寄存器链/旧槽零调用、102–104 signed阈值、目标选择子stop、动态调用trace超过40项、全局重置owner与唯一caller正常/stop传播。第155项验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
-当前缺少原版两组角色对象、11类未审业务callee共享副作用、显示/profile内容、真实道具链与成长定义、成长结果profile链、战利品名称/查询/字体/格式、战败查询/字体、炼符结果查询/格式/字体、法宝提示查询/字体、音效与目标选择联合状态、过渡控制表/pair动态联合状态、动态链门及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、11类未审业务callee共享副作用、显示/profile内容、真实道具链与成长定义、成长结果profile链、战利品名称/查询/字体/格式、战败查询/字体、炼符结果查询/格式/字体、法宝提示查询/字体、音效与目标选择联合状态、过渡控制表/pair动态联合状态、动态链门及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

@@ -2,7 +2,7 @@
 
 状态：`pending`。
 `0x0040C100` 为 `assembly_exact`，`0x0040C060` 的无效索引分支为
-`platform_adapted`；原程序动态差分仍为 `blocked_runtime_oracle`
+`pending`；原程序动态差分仍为 `pending`
 
 来源：`swd3.exe.lst` 完整汇编。汇编是唯一行为真值。
 

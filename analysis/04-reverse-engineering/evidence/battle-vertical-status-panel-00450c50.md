@@ -152,4 +152,4 @@ C++到LST反向追溯覆盖全部四个动作阶段、四组寄存器高字、�
 
 battle聚合目标零warning构建、定向测试和独立ASan通过。
 
-当前没有原版四次动作更新后寄存器、共享计数、x87结果、clip状态、四组frame record、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整363行LST、三个caller和五类callee已完成固定状态闭环。
+当前没有原版四次动作更新后寄存器、共享计数、x87结果、clip状态、四组frame record、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整363行LST、三个caller和五类callee已完成固定状态闭环。

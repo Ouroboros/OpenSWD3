@@ -82,4 +82,4 @@ core/ASan的setup和actor-frame两个定向目标分别1/1，SDL链接通过；
 [battle-attack-order-remove-0045efb0.md](battle-attack-order-remove-0045efb0.md)。
 本节不把父函数整体通用调用迁移、B11或WP316记为完成。
 
-当前缺少原版两组角色对象、两类剩余callee、18槽顺序/ready/publication/攻击顺序、物理相邻强度效果记录、动态callee改写及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、两类剩余callee、18槽顺序/ready/publication/攻击顺序、物理相邻强度效果记录、动态callee改写及寄存器联合捕获后端，`original_diff_verified`为`pending`。

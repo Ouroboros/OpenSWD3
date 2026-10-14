@@ -70,4 +70,4 @@ real CTest独立回放：
 
 synthetic覆盖四raw alias、new action ID实际变化、same-call下一指令、完整32位node key比较、空链、ID miss、三段operand截断、new-ID已写的部分副作用和typed owner缺失。剧情VM三项为3/3。
 
-分类：`platform_adapted`。合法owner域的节点顺序、32位比较、u16零扩展、首匹配、staged访问、部分写入、IP、previous和same-call均按汇编保持；仅固定裸全局/哨兵与越界访问由typed list owner和确定性失败替代。
+分类：`pending`。合法owner域的节点顺序、32位比较、u16零扩展、首匹配、staged访问、部分写入、IP、previous和same-call均按汇编保持；仅固定裸全局/哨兵与越界访问由typed list owner和确定性失败替代。

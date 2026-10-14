@@ -93,4 +93,4 @@
 
 战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`和Linux app `194/194`全部通过；最终日志零OpenSWD3源码warning、测试失败和sanitizer finding。ASan曾因战斗聚合测试单函数帧逼近默认8MiB而暴露栈耗尽；一个原本独立的测试块已改为聚合二进制的独立入口，没有禁用sanitizer或缩减断言。
 
-当前缺少原版动态文件句柄、分配token、短读陈旧栈内容、全部caller及callee寄存器联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整LST静态闭环、typed访问隔离、真实资产只读验证和跨平台构建验证。
+当前缺少原版动态文件句柄、分配token、短读陈旧栈内容、全部caller及callee寄存器联合捕获后端，`original_diff_verified`登记为`pending`。该阻塞不影响完整LST静态闭环、typed访问隔离、真实资产只读验证和跨平台构建验证。

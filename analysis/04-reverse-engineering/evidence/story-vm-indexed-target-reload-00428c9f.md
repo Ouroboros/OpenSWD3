@@ -97,7 +97,7 @@ modern复用`load_same_file_story_window`：先`service_audio`，发布target/IP
 
 原版超界selector的格式化输出只进入`nullsub_1`，无业务consumer；modern保留index-0回退而省略纯诊断。selector和target均保持完整u32，不能截成u16。
 
-同文件typed loader新增可报告I/O失败，且借用世界交互owner取代裸全局；因此本handler分类为`platform_adapted`。
+同文件typed loader新增可报告I/O失败，且借用世界交互owner取代裸全局；因此本handler分类为`pending`。
 
 ## 真实资产审计
 

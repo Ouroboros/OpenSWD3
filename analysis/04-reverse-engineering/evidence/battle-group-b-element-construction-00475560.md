@@ -62,4 +62,4 @@
 当前分配、登记及真实地址耗尽验证见
 [构造资源登记](battle-actor-construction-resource-registration.md)。
 
-当前没有原版八个组B完整对象、公共基础构造字节、真实分配地址、全局数组、析构回滚与MSVC向量EH联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整16条指令的静态闭环和Linux验证。
+当前没有原版八个组B完整对象、公共基础构造字节、真实分配地址、全局数组、析构回滚与MSVC向量EH联合捕获后端，`original_diff_verified`登记为`pending`。该阻塞不影响完整16条指令的静态闭环和Linux验证。

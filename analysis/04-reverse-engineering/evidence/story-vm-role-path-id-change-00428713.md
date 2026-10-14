@@ -14,7 +14,7 @@
 
 该 handler 不把 `0xFFF0` 替换为当前剧情来源角色。角色存在时，它先释放旧 Path 动态载荷并协调至多一个匹配的 active object，再写入新 Path id；角色不存在时，它只向 MAPS source 提交 Path id 与 `0x1000` flag patch。两支都经 `0x0042BEE9` 推进 6 字节，以 `ESI=0` 发布 previous opcode，执行 `_AIL_serve`，并跨帧让出。
 
-现代实现以 typed payload owner、surface owner、spatial index 和 MAPS patch port 复现有效域行为；原程序在损坏方向、不可达对齐或断裂空间链上的越界/死循环风险改为显式 checked failure，因此闭环分类为 `platform_adapted`。
+现代实现以 typed payload owner、surface owner、spatial index 和 MAPS patch port 复现有效域行为；原程序在损坏方向、不可达对齐或断裂空间链上的越界/死循环风险改为显式 checked failure，因此闭环分类为 `pending`。
 
 ## Handler 边界与 staged operand 读取
 

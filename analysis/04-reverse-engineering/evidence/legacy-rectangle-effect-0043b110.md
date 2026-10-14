@@ -159,4 +159,4 @@ UT 固定以下汇编可区分行为：
 - 模式 5 上下对称、奇数中央行双写及负定点向零截断；
 - 四边裁剪、空矩形、未知模式和模式 0 宽度 1 的安全状态。
 
-当前证据等级：正常可寻址输入为 `assembly_exact`；尚未取得原程序 framebuffer 输出，动态差分为 `blocked_runtime_oracle`。
+当前证据等级：正常可寻址输入为 `pending`；尚未取得原程序 framebuffer 输出，动态差分为 `pending`。

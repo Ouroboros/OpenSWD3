@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-分类保持`platform_adapted`。本置位及全部三处实际caller的语义迁移已验证。
+分类保持`pending`。本置位及全部三处实际caller的语义迁移已验证。
 动作及双方帧的其他协议仍待迁移，不能据此升级父链验收。
 
 ## 1. 完整物理范围与写入顺序
@@ -114,7 +114,7 @@ callers-asan,sdl}.log`。仅ASan setup含既有结算测试133行WORD转BYTE
 测试输入，生产分支保持。没有启动原版或OpenSWD3游戏程序。
 
 Workpack312旧寄存器合同、199/199、205/205及十轮验证已归档在Git历史，
-不代替当前语义接口和实际caller门禁。分类仍为`platform_adapted`，
-原版动态差分仍为`blocked_runtime_oracle`：没有原版异常字段/栈页及三个
+不代替当前语义接口和实际caller门禁。分类仍为`pending`，
+原版动态差分仍为`pending`：没有原版异常字段/栈页及三个
 caller的联合寄存器、flags与SEH捕获后端。B10游标、Workpack316/318、
 B11实际续玩及全项目通用调用清理均未升级。

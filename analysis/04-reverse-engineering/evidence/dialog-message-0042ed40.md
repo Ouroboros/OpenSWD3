@@ -123,5 +123,5 @@ UT 覆盖物理布局、四种几何路径、role/分离锚点、回绕、全部
 持久 action 以及 role owner 清理。Linux Clang `core` 164/164、Windows LLVM `app`
 168/168 CTest 通过；Windows 应用成功链接，未启动任何 EXE。
 
-当前函数 owner 与普通世界调用槽验证等级为 `assembly_exact`；剧情 VM 消息生产接线不在
-本函数范围，原程序像素动态差分仍为 `blocked_runtime_oracle`。
+当前函数 owner 与普通世界调用槽验证等级为 `pending`；剧情 VM 消息生产接线不在
+本函数范围，原程序像素动态差分仍为 `pending`。

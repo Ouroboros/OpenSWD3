@@ -3,7 +3,7 @@
 状态：`pending`。
 
 源码dd7ae08f回收462F5F、4633D1、463A03三处菜单通用资源调用。
-状态为`platform_adapted`、`unit_tested`、`fixed_state_tested`。
+状态为`pending`。
 完整菜单父与资源列表接口族继续`pending`，不标`assembly_exact`。
 
 ## 1. 权威范围和返回消费

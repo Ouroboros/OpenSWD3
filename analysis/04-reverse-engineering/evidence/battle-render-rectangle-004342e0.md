@@ -134,4 +134,4 @@ LST独立测试覆盖：
 
 ## 11. 动态差分
 
-当前没有可用原版战斗绘制对象捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。该阻塞不改变完整叶子LST、回绕边界、typed实现和固定caller状态已经闭环的结论。
+当前没有可用原版战斗绘制对象捕获后端，`original_diff_verified`为`pending`。该阻塞不改变完整叶子LST、回绕边界、typed实现和固定caller状态已经闭环的结论。

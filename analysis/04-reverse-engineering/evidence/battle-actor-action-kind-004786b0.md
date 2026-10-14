@@ -88,7 +88,7 @@ setup注册leaf与调试测试，actor-frame注册双方动作测试。
 
 ## 验收边界
 
-保持`platform_adapted`。原版完整内存别名、异常页/SEH及联合动态捕获
+保持`pending`。原版完整内存别名、异常页/SEH及联合动态捕获
 仍缺少后端，差分继续`blocked_runtime_oracle`。
 父级操作编号、参数包、寄存器接口、Port及资源继续pending；
 本切片不提升B10整体、B11或WP316/317/318的验收状态。

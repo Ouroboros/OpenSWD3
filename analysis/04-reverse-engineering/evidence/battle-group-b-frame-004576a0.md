@@ -275,7 +275,7 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 - pending effect及final actor成功尾；
 - profile真实访问typed-stop。
 
-当前缺少原版组A/B对象、其余待审callee（含profile loader）共享副作用、攻击顺序动态记录、随机状态、AI/packed-status表、completion表、文本、资源surface及空闲状态/陈旧寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A/B对象、其余待审callee（含profile loader）共享副作用、攻击顺序动态记录、随机状态、AI/packed-status表、completion表、文本、资源surface及空闲状态/陈旧寄存器联合捕获后端，`original_diff_verified`为`pending`。
 
 ## 13. 动作目标word查询两处caller直连
 
@@ -283,4 +283,4 @@ pending effect ID非全1时调用pending step `(source,shared_argument,index)`�
 
 两处直接读取startup Group-B lifecycle action-execution的canonical动作目标，只增加typed调用计数。待审`0x00478A70`的选择发布和`0x00478B20`的动作清除均同步当前lifecycle actor字段。字段或RET停止保留动作启动或嵌套分派前缀，抑制post-call符号扩展、选择清理、完成扫描和公共尾；生产`0x004786E0` raw调用为零。
 
-当前缺少原版完整Group-A/Group-B actor、对手动作分派剩余callee共享副作用，以及两处caller联合寄存器、flags和SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版完整Group-A/Group-B actor、对手动作分派剩余callee共享副作用，以及两处caller联合寄存器、flags和SEH捕获后端，`original_diff_verified`为`pending`。

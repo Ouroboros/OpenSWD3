@@ -24,4 +24,4 @@
 
 ## 4. 验证状态
 
-单元测试覆盖零动作早退、模式替换转场、普通清零与actor record派生、双资料加载、bit5缓冲flag、零profile返回以及actor record typed-stop前缀。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`187/422 = 178 platform_adapted + 9 assembly_exact + 235 pending_audit`，SHA256为`e57b6e6a64cbc3b2353a7baa7d2f2537263a2e330aa4de26211644361f163c2d`。动态差分因原版actor、live资料记录、物品callee、随机callee、资料加载与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+单元测试覆盖零动作早退、模式替换转场、普通清零与actor record派生、双资料加载、bit5缓冲flag、零profile返回以及actor record typed-stop前缀。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 178 platform_adapted + 9 assembly_exact + 235 pending_audit`，SHA256为`e57b6e6a64cbc3b2353a7baa7d2f2537263a2e330aa4de26211644361f163c2d`。动态差分因原版actor、live资料记录、物品callee、随机callee、资料加载与caller寄存器联合捕获后端缺失而登记为`pending`。

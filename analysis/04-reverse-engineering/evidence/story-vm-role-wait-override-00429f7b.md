@@ -57,4 +57,4 @@ lookup失败进入诊断路径，但没有给局部`var_40`赋值；尾部仍用
 
 ## 分类
 
-分类：`platform_adapted`。成功域selector、字段宽度、刷新、固定IP、previous与same-call行为均与汇编一致；missing selector的陈旧栈宽度推进改为typed stop。
+分类：`pending`。成功域selector、字段宽度、刷新、固定IP、previous与same-call行为均与汇编一致；missing selector的陈旧栈宽度推进改为typed stop。

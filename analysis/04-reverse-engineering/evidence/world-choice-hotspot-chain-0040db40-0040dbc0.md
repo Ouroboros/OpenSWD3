@@ -1,7 +1,7 @@
 # 世界对话选择热点链 helper 闭环
 
 状态：`pending`。
-仍为 `blocked_runtime_oracle`。
+仍为 `pending`。
 
 唯一行为依据是 `swd3.exe.lst`。本轮先不看既有 C++，独立恢复
 `0x0040DB40..0x0040DBFF`，再从 LST 到 C++、从 C++ 回到 LST 反复逐分支追溯，直到
@@ -14,7 +14,7 @@
 
 现代 owner 用保持顺序的 `std::span<LegacyWorldInteractionHotspot>` 表示同一组节点，
 `count_legacy_world_choice_hotspots` 返回 span 数量。损坏链的环路和 32 位计数回绕不会被
-现代容器复刻，因此本项登记为 `platform_adapted`。
+现代容器复刻，因此本项登记为 `pending`。
 
 ## `sub_40DB60`
 

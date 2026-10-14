@@ -1,7 +1,7 @@
 # 世界角色地表占用：`0x0040AE20/0x0040AEC0`
 
 状态：`pending`。
-`assembly_exact`，原程序动态差分仍为 `blocked_runtime_oracle`
+`pending`，原程序动态差分仍为 `pending`
 
 来源：`swd3.exe.lst` 完整汇编。汇编是唯一行为真值。
 

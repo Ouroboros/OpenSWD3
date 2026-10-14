@@ -80,7 +80,7 @@ return 1
 目标 TALK4.DAT   1
 ```
 
-全部90个目录项和目标物理偏移有效，全部目标窗口的首opcode都是特殊值1026。该特殊runtime path仍按其独立工作包保持`pending_audit`，不从本handler继承关闭结论。
+全部90个目录项和目标物理偏移有效，全部目标窗口的首opcode都是特殊值1026。该特殊runtime path仍按其独立工作包保持`pending`，不从本handler继承关闭结论。
 
 真实回放使用`TALK1.DAT@0x00007505`：raw `A1 00 F5 07`传入story id 2037，选择`TALK2.DAT`目录index37和data offset `0x00006CE9`；目标以`1026 -> opcode59(sound 193)`开头。解释器在同次调用执行三条指令并由opcode59让出。
 
@@ -101,6 +101,6 @@ synthetic固定：
 
 ## 6. 分类与验证
 
-合法资产域的operand位宽、u32文件/目录选择、四次audio、窗口尾、IP0、previous与same-call均已完成LST→C++→LST双向收敛。文件owner、原同步宿主退出、陈旧物理指针失败域和内部I/O夹点由上述最小资源边界承接，因此分类为`platform_adapted`。
+合法资产域的operand位宽、u32文件/目录选择、四次audio、窗口尾、IP0、previous与same-call均已完成LST→C++→LST双向收敛。文件owner、原同步宿主退出、陈旧物理指针失败域和内部I/O夹点由上述最小资源边界承接，因此分类为`pending`。
 
 Story VM synthetic、real、initial-session-real三项定向CTest 3/3通过。workpack双生成稳定为`127/146 = 20 assembly_exact + 107 platform_adapted + 19 pending_audit`，hash为`963960243d29c9674623319eff54bd274344218463faf2cf17c0323bdc8c2052`。Linux完整门core 186/186、app 192/192通过。未经许可未启动原版或OpenSWD3游戏EXE。

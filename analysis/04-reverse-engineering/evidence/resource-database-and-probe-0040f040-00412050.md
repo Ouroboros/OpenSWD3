@@ -21,7 +21,7 @@ Win32 文件名匹配不区分 ASCII 大小写；当前资产名为大写。非 
 
 该函数只调用一次 `CreateFileA`：访问权限为零、共享模式为零、创建方式为 `OPEN_EXISTING`，标志 `0x10000080` 为普通文件加随机访问。失败时把系统错误格式化到全局 128 字节缓冲并返回零；成功时立即关闭句柄并返回一。它不读取文件内容，也不创建文件。
 
-对应实现为 `legacy_exclusive_file_probe`。Windows 后端保留上述 `CreateFileW` 参数，并在失败时按原 `FORMAT_MESSAGE_FROM_SYSTEM` 合同最多写 128 字节错误文本；调用者提供的缓冲对应原全局缓冲边界。非 Windows 后端只提供“现有文件可打开”的兼容探测和宿主错误文本，无法表达 Win32 share mode，因此标记为 `platform_adapted`。原调用者属于媒体获取流程，已移交 `audio_video`，但通用探测函数仍由 B2 交付。
+对应实现为 `legacy_exclusive_file_probe`。Windows 后端保留上述 `CreateFileW` 参数，并在失败时按原 `FORMAT_MESSAGE_FROM_SYSTEM` 合同最多写 128 字节错误文本；调用者提供的缓冲对应原全局缓冲边界。非 Windows 后端只提供“现有文件可打开”的兼容探测和宿主错误文本，无法表达 Win32 share mode，因此标记为 `pending`。原调用者属于媒体获取流程，已移交 `audio_video`，但通用探测函数仍由 B2 交付。
 
 ## 3. 验证
 
@@ -36,4 +36,4 @@ TALK1.DAT size=371450  sha256=e85520a8158ec9d01364f3b00dde7965f3dd07c5d34829f380
 PATH prefix=4D 5A 4A 00
 ```
 
-Windows LLVM `core` 与 `app` 均通过 34/34 CTest；真实三数据库打开和完整 path 视图验证通过。原程序错误弹窗、同步 `WM_DESTROY` 与全局对象地址的动态差分仍为 `blocked_runtime_oracle`。
+Windows LLVM `core` 与 `app` 均通过 34/34 CTest；真实三数据库打开和完整 path 视图验证通过。原程序错误弹窗、同步 `WM_DESTROY` 与全局对象地址的动态差分仍为 `pending`。

@@ -71,6 +71,6 @@ profile mode不等于1时，函数先调用次记录准备callee，再按上述�
 
 定向测试覆盖入口start gate、caller入口EAX/EDX陈旧值、profile-bit8第二callee失败与early latch、主记录准备、bit1记录转移、runtime bit14及`mov ax`高半继承、首段负效果与u32累计、次段正效果与成功发布、效果提交EAX/EDX、七word颜色初始化、刷新与直接效果、资源首次访问stop、第一条资源绘制不访问render-source、第二条render-source首次访问stop及故障寄存器、非direct motion减4、special mode净零、五记录与工作区无条件物化清理、四个全一target槽、bound 120随机完成延迟、返回0/1，以及对手动作1的组A/组B target caller、旧opaque零调用和typed-stop传播。
 
-最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`242/422 = 233 platform_adapted + 9 assembly_exact + 180 pending_audit`，SHA256为`f47b368d0fd12ac6b17afd257f6dacd01a38c5fc53282b1603b264956a57f8ad`。
+最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`0/422 = 233 platform_adapted + 9 assembly_exact + 180 pending_audit`，SHA256为`f47b368d0fd12ac6b17afd257f6dacd01a38c5fc53282b1603b264956a57f8ad`。
 
-当前缺少原版八个组B完整actor、组A/组B target、动作/profile/资源/render-source物理布局、16个未审callee、共享累计/颜色/framebuffer/RNG状态及两处caller寄存器联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。
+当前缺少原版八个组B完整actor、组A/组B target、动作/profile/资源/render-source物理布局、16个未审callee、共享累计/颜色/framebuffer/RNG状态及两处caller寄存器联合捕获后端，因此`original_diff_verified`登记为`pending`。

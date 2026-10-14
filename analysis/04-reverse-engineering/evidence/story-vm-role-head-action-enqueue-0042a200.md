@@ -59,4 +59,4 @@ real CTest回放`TALK1.DAT@0x000060D2`（target560/Y460，默认current760）与
 
 覆盖四alias精确尾、signed X=320/321/-1、bit15特殊路径、前插/same-call、四截断点、owner缺失及两条真实记录。剧情VM synthetic/real/initial-session-real为3/3。
 
-分类：`platform_adapted`。合法域字段、signed/low15/bit15语义、链接时点、+10、previous和same-call保持；仅将unchecked裸分配、固定全局与裸链指针收敛为typed list owner。
+分类：`pending`。合法域字段、signed/low15/bit15语义、链接时点、+10、previous和same-call保持；仅将unchecked裸分配、固定全局与裸链指针收敛为typed list owner。

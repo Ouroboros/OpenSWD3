@@ -79,4 +79,4 @@ UT 逐项比较全部 21 个地址及五类合同字段，并固定 `18/2/1` REC
 通过。Windows OpenSWD3 实进程将窗口调整为 `1000×750` 后完成最小化与恢复，
 恢复尺寸仍为 `1000×750`，随后正常关闭并以零退出；未启动原程序。
 
-当前证据等级：21 项静态合同、稳定分支请求位置和 `sub_45E7D0` 等尺寸关系为 `assembly_exact`；primary 合成与 SDL3 上传为 `platform_adapted`；快照/临时 source 的业务接入及原程序 framebuffer/DirectDraw RECT 差分仍为 `blocked_runtime_oracle`。
+当前证据等级：21 项静态合同、稳定分支请求位置和 `sub_45E7D0` 等尺寸关系为 `pending`；primary 合成与 SDL3 上传为 `pending`；快照/临时 source 的业务接入及原程序 framebuffer/DirectDraw RECT 差分仍为 `pending`。

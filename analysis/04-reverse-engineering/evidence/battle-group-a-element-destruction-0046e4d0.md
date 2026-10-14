@@ -55,4 +55,4 @@ LST中本函数地址传给构造迭代器的异常回滚参数及析构迭代�
 数组析构迁移的当前验证记录见队伍数组析构文档；其他退出协议与完整
 资源生命周期仍属当前Goal，不以compiler边界排除。
 
-原版`0x004885A0`allocator副作用、全局组A对象字节、说明堆、MSVC SEH与vector迭代器缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+原版`0x004885A0`allocator副作用、全局组A对象字节、说明堆、MSVC SEH与vector迭代器缺少联合捕获后端，`original_diff_verified`登记为`pending`。

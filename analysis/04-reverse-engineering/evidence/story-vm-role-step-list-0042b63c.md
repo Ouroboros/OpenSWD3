@@ -28,7 +28,7 @@ handler先零扩展读取count，再从`+4`开始逐项处理。每项严格按�
 
 handler不把`0xFFF0`替换为当前Talk来源；它仍是普通GUID字面量。`0xFFFE`继续由`sub_40C0D0`按受控角色selector处理。
 
-现代实现复用已闭环的`query_legacy_world_story_path`。该typed owner保留未找到type-2槽、准备下一步和已到达三类副作用；运行时、槽、cursor、direction或surface损坏在原危险点明确停止，因此整体分类为`platform_adapted`。
+现代实现复用已闭环的`query_legacy_world_story_path`。该typed owner保留未找到type-2槽、准备下一步和已到达三类副作用；运行时、槽、cursor、direction或surface损坏在原危险点明确停止，因此整体分类为`pending`。
 
 ## 2. 长度、previous与让出
 

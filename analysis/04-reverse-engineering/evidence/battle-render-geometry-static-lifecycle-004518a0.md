@@ -55,4 +55,4 @@ core及ASan保留既有outcome-resolution测试第133行整数窄化警告。
 [绑定初始化](battle-render-geometry-binding-object-initialization-0045f0f0.md)
 已直接写入共享对象；其余绘图返回字段、分配接口及非空辅助缓冲的
 生产分配来源仍待复核。本批不验收整个绘图接口族、B11、WP316或实际游戏流程。
-原版联合捕获缺失，`original_diff_verified`仍为`blocked_runtime_oracle`。
+原版联合捕获缺失，`original_diff_verified`仍为`pending`。

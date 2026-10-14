@@ -34,4 +34,4 @@ retn
 
 case58回归断言组B路径返回1、cursor推进4字节、EDX保持固定getter token、无窄端口调用且攻击顺序记录不变。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning。
 
-inventory生成器连续双跑逐字节一致，正式计数为`163/422 = 154 platform_adapted + 9 assembly_exact + 259 pending_audit`，SHA256为`af7a8f6f695cd1a78feaa4bb3ad950c6615bcdeb3a40edc7069faecd3340072f`。本函数不被调用，`original_diff_verified`由完整两指令LST、静态不可达控制流和caller EDX token回归证明关闭。
+inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 154 platform_adapted + 9 assembly_exact + 259 pending_audit`，SHA256为`af7a8f6f695cd1a78feaa4bb3ad950c6615bcdeb3a40edc7069faecd3340072f`。本函数不被调用，`original_diff_verified`由完整两指令LST、静态不可达控制流和caller EDX token回归证明关闭。

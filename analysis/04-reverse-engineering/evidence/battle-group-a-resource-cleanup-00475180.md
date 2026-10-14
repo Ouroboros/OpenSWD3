@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-历史分类保持`platform_adapted`，不升级原版动态差分等级。
+历史分类保持`pending`，不升级原版动态差分等级。
 
 ## LST与调用方
 
@@ -54,5 +54,5 @@ SDL仍没有显式调用完整静态元素析构；本批不升级该生产生�
 日志为`build/tmp/runtime/group-a-release-{core,asan,sdl}.log`。
 旧队伍释放类型、方法及请求在`include/src/tests`扫描为零，源码和测试差异已逐项复核。
 历史工作包的core `188/188`、app `194/194`不作为当前批次验证结果。
-原版联合堆与异常捕获仍缺失，`original_diff_verified`保持`blocked_runtime_oracle`。
+原版联合堆与异常捕获仍缺失，`original_diff_verified`保持`pending`。
 全项目协议清理仍未完成；B11/WP316状态不变。

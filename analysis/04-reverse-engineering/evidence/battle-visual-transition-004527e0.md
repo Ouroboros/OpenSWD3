@@ -243,4 +243,4 @@ C++到LST反向追溯覆盖1002行、74个静态call站点、37个标签、四�
 - 十行短raw缓冲在第十一行停止，不unlock、不cleanup、active保持1；
 - battle聚合目标零warning，普通定向与独立ASan定向均`1/1`通过。
 
-当前没有原版DirectDraw surface、allocator、图像转换、音乐后端、剩余callee联合寄存器、攻击顺序动态轨迹与角色状态捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。角色、场景、blend和消息callee均按各自后续工作包保留typed端口。
+当前没有原版DirectDraw surface、allocator、图像转换、音乐后端、剩余callee联合寄存器、攻击顺序动态轨迹与角色状态捕获后端，`original_diff_verified`为`pending`。角色、场景、blend和消息callee均按各自后续工作包保留typed端口。

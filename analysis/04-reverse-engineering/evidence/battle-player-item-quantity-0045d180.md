@@ -3,7 +3,7 @@
 状态：`pending`。
 
 源码：`f597100a`。本批删除新增物品数量链的通用分配请求，实际节点由共享物品容器拥有。
-状态为`platform_adapted`、`unit_tested`、`fixed_state_tested`；整条接口族继续`pending`。
+状态为`pending`；整条接口族继续`pending`。
 返回payload身份、父级诊断和通用端口仍在，不能据局部接线算作整项完成。
 
 ## 1. 完整LST与调用边界

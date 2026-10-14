@@ -37,7 +37,7 @@ velocity_y = 0
 
 六个机器全局由`0x00416B30`共同消费：当前X/Y、目标X/Y、X/Y速度。现有`asset_runtime::LegacyAniFollowerState`已经完整承接同一owner和初始化值；普通世界每帧ANI follower也直接消费该对象。剧情VM通过runtime借用`LegacyWorldFrameRuntimeState::follower`，不建立镜像。
 
-原程序全局恒存在。现代缺binding时在读取`+2`后的第一项全局写点返回`runtime_unavailable`，不读取`+4`，也不推进IP或发布previous。合法binding路径无行为差异；该typed-stop使handler分类为`platform_adapted`。
+原程序全局恒存在。现代缺binding时在读取`+2`后的第一项全局写点返回`runtime_unavailable`，不读取`+4`，也不推进IP或发布previous。合法binding路径无行为差异；该typed-stop使handler分类为`pending`。
 
 ## 3. IP、previous、audio与yield
 

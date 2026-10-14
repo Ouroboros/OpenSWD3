@@ -36,4 +36,4 @@
 
 定向测试覆盖动作更新失败继续、动作记录不预清、固定矩形/双九宫格/标题、EAX与标题EDX两段资源高word、选框先行及stop、数量0/1/2、高位数量零扩展、无现代循环上限、组A尾段索引、字体18/16、名称查询三寄存器、行几何、文字call寄存器、“無”精确条件、非法组A index typed-stop及唯一caller正常/stop传播。定向测试、AddressSanitizer、Linux core 188/188和Linux app 194/194完整门全部通过；源码构建零warning，app仅有既有ALSA开发库CMake warning。
 
-当前缺少原版组A对象、名称查询callee联合状态、字体/文字surface、面板/矩形/九宫格framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A对象、名称查询callee联合状态、字体/文字surface、面板/矩形/九宫格framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

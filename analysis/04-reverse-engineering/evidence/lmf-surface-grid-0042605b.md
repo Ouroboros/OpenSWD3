@@ -57,4 +57,4 @@ surface_grid_bytes = width * height * 4
 
 `legacy_lmf_read_surface_grid` 保留名称后定位、三维原样表长度、低 word 压紧、`MSFp/MSF2` 分支、`compressed_size + 4` 读取及尾随双字分离。尺寸乘加溢出、短读、失败 seek 和损坏压缩流返回确定状态，隔离原程序可能发生的越界访问或未初始化数据使用，属于 `platform_adapted` 损坏文件边界；合法输入仍服从汇编顺序和 32 位字段合同。
 
-合成 UT 分别覆盖 `MSFp` 和 `MSF2`，锁定原样项低 word、旧负载跳过、八字节地表输出及尾随记录数，并覆盖无效头、尺寸溢出和损坏压缩流。真实验证沿尾索引逐一读取 309 张地图：309/309 地表流成功，压紧项数均等于 `width * height * layers`，输出均等于 `width * height * 4`，总输出为 9,830,932 字节。Windows LLVM `core` 的 33/33 CTest 与显式真实档案测试均通过；原程序动态轨迹仍登记为 `blocked_runtime_oracle`。
+合成 UT 分别覆盖 `MSFp` 和 `MSF2`，锁定原样项低 word、旧负载跳过、八字节地表输出及尾随记录数，并覆盖无效头、尺寸溢出和损坏压缩流。真实验证沿尾索引逐一读取 309 张地图：309/309 地表流成功，压紧项数均等于 `width * height * layers`，输出均等于 `width * height * 4`，总输出为 9,830,932 字节。Windows LLVM `core` 的 33/33 CTest 与显式真实档案测试均通过；原程序动态轨迹仍登记为 `pending`。

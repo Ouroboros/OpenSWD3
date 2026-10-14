@@ -113,4 +113,4 @@ C++到LST：
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版持久动作槽、帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整66行LST、三个callee直接组合与固定状态验证已经闭环。
+当前没有原版持久动作槽、帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整66行LST、三个callee直接组合与固定状态验证已经闭环。

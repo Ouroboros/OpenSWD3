@@ -127,7 +127,7 @@ C++到LST反向追溯覆盖164行全部基本块、三个callee、两个更新ca
 `battle-rotation-six-slots-{core,asan,sdl}.log`确认core/ASan各1/1通过，
 SDL链接通过；仅既有结果测试窄化警告。Windows和实机未验证。
 
-当前没有原版动作更新后record、六owner/frame/mutable image、局部槽、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。背景初始化已借实际ACT updater；完整SDL画面效果消费仍待接入。
+当前没有原版动作更新后record、六owner/frame/mutable image、局部槽、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。背景初始化已借实际ACT updater；完整SDL画面效果消费仍待接入。
 
 ## 10. B11两个播放站点共用实际缓存
 

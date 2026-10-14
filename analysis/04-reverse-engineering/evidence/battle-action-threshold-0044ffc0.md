@@ -78,4 +78,4 @@ SDL入战已从TOML速度配置调用该函数，借用同一timing状态；配�
 
 定向测试覆盖原默认、设置11、20、0、21以及`INT_MIN`、`INT_MAX`，同时锁定typed字段与返回值相同。battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版战斗速度设置、阈值全局与对象计时字段的联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整15行LST、typed实现和固定状态已经闭环。
+当前没有原版战斗速度设置、阈值全局与对象计时字段的联合捕获后端，`original_diff_verified`为`pending`。完整15行LST、typed实现和固定状态已经闭环。

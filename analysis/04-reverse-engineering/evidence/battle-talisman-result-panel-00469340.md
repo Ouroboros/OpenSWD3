@@ -32,4 +32,4 @@ stage商为零、返回EAX精确1时，函数重新读取live结果byte并只覆
 
 定向测试覆盖64-byte初始化后的动作寄存器、ECX高度、EDX/ECX资源高字链、固定stage实参、商非零、商零后live结果byte重读、成功/失败精确分支、四段CP950文字、首项完整32-bit名称token、格式/详情寄存器链、双九宫格stop、格式边界、消息98 cache先行/旧槽零调用/子stop传播及主帧六服务映射。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
-当前缺少原版真实seed、framebuffer/字体/边框资源、名称指针/格式化、动态栈、动作/画面/文字返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版真实seed、framebuffer/字体/边框资源、名称指针/格式化、动态栈、动作/画面/文字返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

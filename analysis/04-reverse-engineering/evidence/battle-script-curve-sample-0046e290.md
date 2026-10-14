@@ -35,4 +35,4 @@ caller在曲线返回后把ECX/EDX恢复为两个物理输出owner的`compat::u3
 
 纯函数测试以四点`(0,0),(0,0),(60,-60),(60,-60)`验证帧0/10/20分别得到`(10,-10)/(30,-30)/(50,-50)`，并验证返回值是Y转换低dword。case39回归从live actor坐标构造路径，确认第一帧直接写typed曲线结果、旧reserved槽零调用且坐标服务调用一次。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning；app只有既有ALSA白名单提示。
 
-inventory生成器连续双跑逐字节一致，正式计数为`167/422 = 158 platform_adapted + 9 assembly_exact + 255 pending_audit`，SHA256为`479882f5b376d12d09248f571e0ae3127d3e016f27cef80530fd3f18da50f24a`。原版x87扩展精度、动态局部栈、两个输出指针token和caller联合寄存器缺少捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 158 platform_adapted + 9 assembly_exact + 255 pending_audit`，SHA256为`479882f5b376d12d09248f571e0ae3127d3e016f27cef80530fd3f18da50f24a`。原版x87扩展精度、动态局部栈、两个输出指针token和caller联合寄存器缺少捕获后端，`original_diff_verified`登记为`pending`。

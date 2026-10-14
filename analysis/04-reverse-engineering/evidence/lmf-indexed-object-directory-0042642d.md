@@ -62,4 +62,4 @@ u32 relative_object_offset[object_count]
 - 全部解压输出 FNV-1a64：`0xC2843348C085C2A2`；
 - 既有逐字节 SHA-256：`51579e32f7b6ddb009231290f1f4dabc8e12720448714a01d2aa3757b2b062b8`。
 
-Windows LLVM `core` 的 33/33 CTest 与显式真实档案测试均通过；原程序动态轨迹仍登记为 `blocked_runtime_oracle`。
+Windows LLVM `core` 的 33/33 CTest 与显式真实档案测试均通过；原程序动态轨迹仍登记为 `pending`。

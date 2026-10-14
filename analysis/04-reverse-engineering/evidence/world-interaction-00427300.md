@@ -1,7 +1,7 @@
 # 普通世界鼠标交互与 Talk 触发汇编证据：0x00427300
 
 状态：`pending`。
-`sdl_runtime_integrated`；原程序动态差分待统一 oracle。
+`pending`；原程序动态差分待统一 oracle。
 
 唯一行为来源：`swd3.exe.lst` 完整汇编。IDA 原型、旧证据和既有 C++ 只用于导航。
 

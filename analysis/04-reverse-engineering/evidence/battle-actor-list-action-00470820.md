@@ -25,7 +25,7 @@ mode byte复用第180项物品效果owner；selected token与primary required复
 
 ## 4. 验证状态
 
-以下为历史验证，不覆盖本次协议删除：测试曾覆盖mode关闭仍刷新、selected资源释放双零参数、释放寄存器传递、primary减法回绕、signed负值夹零、两个字段清零与startup reset。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`193/422 = 184 platform_adapted + 9 assembly_exact + 229 pending_audit`，SHA256为`36295238c0aedabbca297b2da0fdc67bbd65a102d8ec27e40eec44a434a4dcfb`。动态差分因原版actor记录、两个callee、selected resource与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+以下为历史验证，不覆盖本次协议删除：测试曾覆盖mode关闭仍刷新、selected资源释放双零参数、释放寄存器传递、primary减法回绕、signed负值夹零、两个字段清零与startup reset。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 184 platform_adapted + 9 assembly_exact + 229 pending_audit`，SHA256为`36295238c0aedabbca297b2da0fdc67bbd65a102d8ec27e40eec44a434a4dcfb`。动态差分因原版actor记录、两个callee、selected resource与caller寄存器联合捕获后端缺失而登记为`pending`。
 
 ## 5. 释放子协议回收
 

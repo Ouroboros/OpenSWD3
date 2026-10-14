@@ -23,7 +23,7 @@ entry  = payload + table
 
 表项固定8字节，以entry key `u16(+0) == 0`终止。扫描从首项开始，每次不匹配时先读取下一项key，再推进8字节；只处理第一个匹配项，不追加记录，不修改终止项。
 
-现代实现直接借用既有`LegacyResourceDatabases` mutable MAPS payload。固定裸指针、三层相对链、表扫描和两次目标写入分别在原访问点增加typed bounds stop；合法payload中的地址回绕、顺序和写入不变，故分类为`platform_adapted`。
+现代实现直接借用既有`LegacyResourceDatabases` mutable MAPS payload。固定裸指针、三层相对链、表扫描和两次目标写入分别在原访问点增加typed bounds stop；合法payload中的地址回绕、顺序和写入不变，故分类为`pending`。
 
 ## 2. 非对称分阶段写入
 

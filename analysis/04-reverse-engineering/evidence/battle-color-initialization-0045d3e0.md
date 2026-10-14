@@ -62,4 +62,4 @@ countdown为0时保留masked x87结果：正delta为正无穷，负delta为负�
 
 定向测试覆盖固定逐帧参数、signed参数发布、float舍入后再取整、32位delta回绕、正负与零countdown、正负无穷和indefinite NaN位形、EAX/ECX/EDX尾值、三处已关闭caller直连、i16符号扩展、共享门0/1发布，以及全局重置保持门值。
 
-当前缺少原版九float、signed countdown、七个caller记录、共享门和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版九float、signed countdown、七个caller记录、共享门和寄存器联合捕获后端，`original_diff_verified`为`pending`。

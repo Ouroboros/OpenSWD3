@@ -59,4 +59,4 @@ Typed组合上下文持有同一组B帧状态、其内嵌的唯一组A共享状�
 
 定向测试覆盖和为0、signed负和、u32回绕零、固定正迭代、signed负角色码、group A减8、每槽动态数量比较、跳过不调用、缺失上下文在真实call点停止、第19次角色顺序读取、两个转场调用点、真实组B/组Atyped帧直连、逐帧成功与typed-stop传播。
 
-当前缺少原版动态两组数量、18槽角色顺序表、两类角色帧callee共享副作用及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版动态两组数量、18槽角色顺序表、两类角色帧callee共享副作用及寄存器联合捕获后端，`original_diff_verified`为`pending`。

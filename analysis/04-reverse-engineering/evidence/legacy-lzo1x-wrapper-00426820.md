@@ -61,4 +61,4 @@ UT 固定了两条包装行为：
 - `all_map2.tsw`：`79c8f249ce2fb2a17e677f05078f88b70736ada3b554eec05bc5c8a4e453f1f8`
 - `all_sys.tsw`：`45a68c036ed196e91414502c24b1ea12f826832c0a25e98929f7bb8628a27c17`
 
-这些哈希逐项等于既有汇编安全转写登记值。Windows LLVM `core` 当前为 25/25 CTest 通过；原程序动态差分仍登记为 `blocked_runtime_oracle`。
+这些哈希逐项等于既有汇编安全转写登记值。Windows LLVM `core` 当前为 25/25 CTest 通过；原程序动态差分仍登记为 `pending`。

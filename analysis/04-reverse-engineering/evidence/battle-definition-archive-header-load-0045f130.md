@@ -56,4 +56,4 @@ Windows只读属性用例保留，未在Linux执行该分支。
 
 本批完整调用链、寿命与最终验证记录见
 [实际文件所有权迁移](battle-definition-archive-owned-files.md)。
-原版动态差分保持`blocked_runtime_oracle`，不升级B11或WP316验收。
+原版动态差分保持`pending`，不升级B11或WP316验收。

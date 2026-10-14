@@ -54,4 +54,4 @@ opcode154无任何线性TALK记录，使用`asset_absence_verified`，不把raw 
 
 synthetic覆盖两个变体各四个raw alias、主/副链选择、相等等待、严格大于完成、空selected链、threshold 256、operand先于runtime owner、缺runtime typed-stop和精确尾；opcode106四库真实记录另作回放。Story VM synthetic、real及initial-session三项通过。未启动原版或OpenSWD3游戏EXE。
 
-分类：`platform_adapted`。有效链的选择、首节点偏移、u8/u16位宽、比较、推进、previous和same-call/yield逐项一致；仅以typed list owner替代裸父对象/链指针，并在缺binding时收敛原访问点。
+分类：`pending`。有效链的选择、首节点偏移、u8/u16位宽、比较、推进、previous和same-call/yield逐项一致；仅以typed list owner替代裸父对象/链指针，并在缺binding时收敛原访问点。

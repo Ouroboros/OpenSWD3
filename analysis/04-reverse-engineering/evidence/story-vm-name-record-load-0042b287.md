@@ -71,4 +71,4 @@ real CTest在初始化resource DB前预读TALK记录，避免Windows共享模式
 
 synthetic覆盖91/162四raw alias、FFF0→source且record0合法、selector11/12、非法selector、zero dynamic index、u32目录回绕、目录越界、copy后缺terminator、first/second prefix替换、staged publication和精确尾。Linux Story VM三项为3/3。
 
-分类：`platform_adapted`。合法域的入口分流、索引位宽、目录回绕、32-byte copy、首个terminator、固定buffer替换、IP、previous和same-call保持；无界MAPS/terminator访问、短replacement跨全局读取及debug-only格式化由bounded/typed行为替代。
+分类：`pending`。合法域的入口分流、索引位宽、目录回绕、32-byte copy、首个terminator、固定buffer替换、IP、previous和same-call保持；无界MAPS/terminator访问、短replacement跨全局读取及debug-only格式化由bounded/typed行为替代。

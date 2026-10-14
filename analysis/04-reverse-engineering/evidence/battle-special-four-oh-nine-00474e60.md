@@ -12,4 +12,4 @@
 
 动作dispatch的动作409 production caller已改为typed直连，旧`0x00474E60`整函数opaque调用删除。测试覆盖入口寄存器清零、gate零主记录更新、gate一variant与canonical坐标传递、坐标owner缺失时INC flags/寄存器和后缀阻断、gate二mode bit和返回一门、主记录完成清理与gate递增、field5a到共享bit15发布、同帧三级联、共享flags最终门、signed gate比较、typed-stop副作用，以及production caller零旧地址调用。
 
-验证：定向测试通过；独立AddressSanitizer通过且零finding；Linux core `188/188`与Linux app `194/194`全部通过，源码零warning。inventory连续双生成逐字节一致，稳定为`230/422 = 221 platform_adapted + 9 assembly_exact + 192 pending_audit`，SHA256为`0cc03fb3dea71c05aef606c1dadbb43d79921904905afebdaac83e922720d37c`。动态差分因原版行动者主记录、目标坐标、直接效果、共享完成flags、四个callee和唯一caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+验证：定向测试通过；独立AddressSanitizer通过且零finding；Linux core `188/188`与Linux app `194/194`全部通过，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 221 platform_adapted + 9 assembly_exact + 192 pending_audit`，SHA256为`0cc03fb3dea71c05aef606c1dadbb43d79921904905afebdaac83e922720d37c`。动态差分因原版行动者主记录、目标坐标、直接效果、共享完成flags、四个callee和唯一caller寄存器联合捕获后端缺失而登记为`pending`。

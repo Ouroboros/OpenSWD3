@@ -1,7 +1,7 @@
 # 普通世界开发调试叠层（`0x00413FE0..0x00414567`）
 
 状态：`pending`。
-`sdl_runtime_integrated`；尚未 `original_diff_verified`
+`pending`；尚未 `pending`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。IDA 已把函数原型识别为
 `int __cdecl sub_413FE0(int, int)`，逐条指令也只访问 `[esp+arg_0]` 与

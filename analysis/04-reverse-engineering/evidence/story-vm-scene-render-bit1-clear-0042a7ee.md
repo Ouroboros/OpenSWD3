@@ -46,4 +46,4 @@ real CTest预读`TALK1.DAT@0x00004A22`并放到精确窗口尾；scene flags `A7
 
 synthetic独立覆盖四raw alias、精确尾、bit已清时`A5→A5`、其他低位保持、typed owner失败。Linux Story VM三项为3/3。
 
-分类：`platform_adapted`。AND `FFFFFFFD`、两字节长度、IP、previous与yield保持；原dword全局映射到已集成u8低位owner，owner缺失在原读取点typed-stop。
+分类：`pending`。AND `FFFFFFFD`、两字节长度、IP、previous与yield保持；原dword全局映射到已集成u8低位owner，owner缺失在原读取点typed-stop。

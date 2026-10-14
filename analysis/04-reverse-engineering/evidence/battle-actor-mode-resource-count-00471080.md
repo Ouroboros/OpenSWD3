@@ -101,4 +101,4 @@ LST摘录、独立推导、双向review、production/tests及staged差异都在�
 未运行全量、Windows、真实MON、游戏或原版联合差分；动态原版资源链、输出WORD和
 寄存器联合捕获缺口继续为`blocked_runtime_oracle`。
 完整列表查询、字体、父参数包/寄存器/计数/Port、真实资源生产和SDL生命周期仍pending。
-全项目scope仍未穷尽，不增加验收数，不前移B10 315/422、Workpack316、B11或实际续玩。
+全项目scope仍未穷尽，不增加验收数，不前移B10 0/422、Workpack316、B11或实际续玩。

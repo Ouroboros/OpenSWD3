@@ -54,4 +54,4 @@
 
 定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
-原版动态链节点、字体/文字surface、释放器、动作/矩形/九宫格/渐变framebuffer、live冻结门变化及主帧联合寄存器捕获后端尚不可用，`original_diff_verified`为`blocked_runtime_oracle`。
+原版动态链节点、字体/文字surface、释放器、动作/矩形/九宫格/渐变framebuffer、live冻结门变化及主帧联合寄存器捕获后端尚不可用，`original_diff_verified`为`pending`。

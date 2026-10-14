@@ -62,4 +62,4 @@ B11的SDL入口现通过`order_legacy_battle_startup_items`复用核心的两步
 
 定向测试覆盖空链、单节点早退、已排序尾节点不清、逆序交换、每次交换从head重扫、稳定相等值、物理link与host顺序同步、未知head首访问停点、未知next在selected count清零后的停点，以及startup直连成功与typed-stop阻断第二全局阶段。
 
-当前缺少原版真实玩家道具链、相邻全局、寄存器与战斗启动联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版真实玩家道具链、相邻全局、寄存器与战斗启动联合捕获后端，`original_diff_verified`为`pending`。

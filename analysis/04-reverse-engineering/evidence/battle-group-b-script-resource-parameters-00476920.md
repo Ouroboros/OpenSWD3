@@ -67,4 +67,4 @@ caller集成测试覆盖完整case 74、脚本截断后前三项保留、缺失a
 
 战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`和Linux app `194/194`全部通过；最终日志零OpenSWD3源码warning、测试失败和sanitizer finding。
 
-当前缺少原版组Bactor完整对象、动态资源token、资源`+0x92..+0x9A`九个byte、原始脚本载荷地址和唯一caller寄存器联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+当前缺少原版组Bactor完整对象、动态资源token、资源`+0x92..+0x9A`九个byte、原始脚本载荷地址和唯一caller寄存器联合捕获后端，`original_diff_verified`登记为`pending`。

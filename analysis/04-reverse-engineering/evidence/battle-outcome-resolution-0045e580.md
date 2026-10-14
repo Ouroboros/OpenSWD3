@@ -121,4 +121,4 @@ difference = zero_extend(low_byte) - zero_extend(byte_2)
 - 全局重置低word/byte宽度、phase高word/packed byte2/channel delta/奖励ID保留及完成双word清零；
 - 唯一逐帧caller直连且旧opaque slot不调用。
 
-当前缺少原版两组计数、七项结果状态、完整framebuffer、暗化callee寄存器、音频stream、奖励ID、玩家道具链及结果整理寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组计数、七项结果状态、完整framebuffer、暗化callee寄存器、音频stream、奖励ID、玩家道具链及结果整理寄存器联合捕获后端，`original_diff_verified`为`pending`。

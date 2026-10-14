@@ -98,4 +98,4 @@ role indices仍由post state权威持有。live槽owner缺失时，共享helper�
 
 REVIEW发现并修正一处SDL集成差异：只写`world.role_post_materialization.party_object_slots`会遗漏live `world_frame_state_.party_object_slots`；现已按对象槽后count的顺序同步。再次从VM case、共享helper、SDL owner和测试反向映射到LST后，未发现剩余有效域差异。
 
-分类：`platform_adapted`。适配仅限nullable MAPS owner、checked helper失败和post/live owner同步；有效域selector、helper顺序、队伍状态、IP、previous与yield保持原版语义。
+分类：`pending`。适配仅限nullable MAPS owner、checked helper失败和post/live owner同步；有效域selector、helper顺序、队伍状态、IP、previous与yield保持原版语义。

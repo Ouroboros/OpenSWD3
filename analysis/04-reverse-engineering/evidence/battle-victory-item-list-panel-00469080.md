@@ -34,4 +34,4 @@
 
 定向测试覆盖64-byte局部seed、u16入口数量、动态底边与stage尺寸、动作记录、矩形和两次EAX资源高字链、CP950标题、stage商零两侧、商零但live零数量、名称dword、数量零扩展、格式参数、20像素行距、live数量缩短、十项物理边界、64-byte格式边界、首层九宫格stop、消息102零数量/阈值/直连/旧槽零调用/子stop传播及主帧五服务映射。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
-当前缺少原版局部seed、真实framebuffer/字体/边框资源、名称指针及格式化联合状态、动态栈地址、动作/矩形/九宫格/文字返回和EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版局部seed、真实framebuffer/字体/边框资源、名称指针及格式化联合状态、动态栈地址、动作/矩形/九宫格/文字返回和EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

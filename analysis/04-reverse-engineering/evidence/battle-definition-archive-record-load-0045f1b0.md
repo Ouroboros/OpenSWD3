@@ -69,5 +69,5 @@ Linux描述符检查验证集合销毁实际关闭保留资源，以及系统关
 记录及访问越界阻断后缀。真实battle.ffd作独立物理逐字节比较。
 
 最终构建与测试记录见所有权迁移文档。原版联合动态捕获仍缺失，
-`original_diff_verified`保持`blocked_runtime_oracle`。不把此接口
+`original_diff_verified`保持`pending`。不把此接口
 迁移提升为B11、WP316或实机战斗验收。

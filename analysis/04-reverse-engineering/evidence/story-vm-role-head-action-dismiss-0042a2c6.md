@@ -57,4 +57,4 @@ TALK4.DAT 662
 
 覆盖四alias、首匹配、第二重复节点不变、bit15→10000、signed X左右分支、same-call、空链不读operand、ID miss不读variant、variant截断、owner缺失和真实记录。剧情VM三项为3/3。
 
-分类：`platform_adapted`。合法域遍历顺序、分阶段读取、motion位语义、+6、previous与same-call保持；固定全局owner改为typed nullable list。
+分类：`pending`。合法域遍历顺序、分阶段读取、motion位语义、+6、previous与same-call保持；固定全局owner改为typed nullable list。

@@ -55,4 +55,4 @@ Workpack 297最终定向`1/1`、AddressSanitizer/UBSan `199/199`、Linux core `1
 
 ## 6. 动态oracle缺口
 
-原版动态差分登记为`blocked_runtime_oracle`：当前缺少完整Group-A actor前部物理内存、异常destination/栈页、DF、前序callee残值以及唯一caller联合寄存器、flags与SEH捕获后端。该缺口不影响完整LST、静态地址序列、typed部分提交、canonical owner或固定状态测试结论。
+原版动态差分登记为`pending`：当前缺少完整Group-A actor前部物理内存、异常destination/栈页、DF、前序callee残值以及唯一caller联合寄存器、flags与SEH捕获后端。该缺口不影响完整LST、静态地址序列、typed部分提交、canonical owner或固定状态测试结论。

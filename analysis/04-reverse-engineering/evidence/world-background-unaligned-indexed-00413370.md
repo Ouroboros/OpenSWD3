@@ -1,7 +1,7 @@
 # 8 位索引未对齐世界底图入口（`sub_413370`）
 
 状态：`pending`。
-`sdl_runtime_integrated`；原程序动态差分仍为 `blocked_runtime_oracle`
+`pending`；原程序动态差分仍为 `pending`
 
 本文只以 `swd3.exe.lst` 的 `0x00413370..0x0041386E` 为行为真值，并独立追入
 `sub_4170E0`、`sub_4175B0`、`sub_417650`。IDA 伪码只用于导航，不参与裁决；相邻的

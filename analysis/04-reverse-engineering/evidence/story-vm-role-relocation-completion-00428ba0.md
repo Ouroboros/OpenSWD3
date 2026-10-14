@@ -139,7 +139,7 @@ MAPS fallback保存的是脚本tile单位，不执行live path的`<<4`。复用`
 
 `complete_legacy_world_story_path`保留`sub_42D920`的type-2槽完成与普通路径恢复语义。测试用无saved path的type-2槽证明该槽被释放，同时`action.wait_remaining`保持不变，排除误用额外清wait的release wrapper。
 
-以上typed owner、checked invalid-domain边界与MAPS port使本handler分类为`platform_adapted`。
+以上typed owner、checked invalid-domain边界与MAPS port使本handler分类为`pending`。
 
 ## 真实资产审计
 

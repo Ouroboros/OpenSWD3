@@ -42,6 +42,6 @@ callee可在EAX非一时直接发布phase。若第一次callee把phase改为一�
 
 独立回归覆盖动作更新失败、帧typed-stop、共享owner typed-stop、零行动者首访问stop、完整双阶段、第一阶段未完成、正负声像、mirror高24位、负一/负六运动、事件门关闭、入口phase一/二、高位canonical目标坐标`movsx`、Y故障时X部分写入/寄存器/flags及粒子后缀阻断、两组九参数、两个默认adapter第九参数、callee直接发布phase、陈旧sequence、各pending call入口寄存器、双记录清理顺序与终端ECX。action-dispatch回归覆盖case 33直接typed组合、零目标后缀stop及旧opaque地址零调用。
 
-最终定向测试`1/1`、AddressSanitizer `1/1`、Linux core `188/188`、Linux app `194/194`全部通过；八份最终日志均为零warning、零error、零sanitizer finding。工作包双生成逐字节一致，为`235/422 = 226 platform_adapted + 9 assembly_exact + 187 pending_audit`，SHA256为`1e48d0179a8d157c653d0d68acb3bfaa42156ab311a4a277d547760b9ba35043`。
+最终定向测试`1/1`、AddressSanitizer `1/1`、Linux core `188/188`、Linux app `194/194`全部通过；八份最终日志均为零warning、零error、零sanitizer finding。工作包双生成逐字节一致，为`0/422 = 226 platform_adapted + 9 assembly_exact + 187 pending_audit`，SHA256为`1e48d0179a8d157c653d0d68acb3bfaa42156ab311a4a277d547760b9ba35043`。
 
-动态差分登记为`blocked_runtime_oracle`：当前缺少原版group-A完整行动者、真实ACT/TSW frame、音频/软件绘制、目标坐标、粒子列表、两次`0x0047FC40`副作用、target refresh与caller寄存器的联合捕获后端。该阻塞不影响完整LST静态闭环、typed实现与Linux验证。
+动态差分登记为`pending`：当前缺少原版group-A完整行动者、真实ACT/TSW frame、音频/软件绘制、目标坐标、粒子列表、两次`0x0047FC40`副作用、target refresh与caller寄存器的联合捕获后端。该阻塞不影响完整LST静态闭环、typed实现与Linux验证。

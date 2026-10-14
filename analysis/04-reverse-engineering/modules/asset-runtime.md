@@ -242,7 +242,7 @@ asset_runtime sound request  → audio_video port
     原 78 地址候选完成逐项审计，59 项 B6 自有映射与 19 项跨模块转交记录在
     `asset-runtime-closure.tsv`；真实 ACT→TSW→blitter 哈希为
     `0xE216591950463029`，Linux `core` 102/102、Windows LLVM `app` 106/106
-    CTest 通过。B6 状态为 `module_closed_pending_oracle`，不再继续扩张。
+    CTest 通过。B6 状态为 `pending`，不再继续扩张。
 
 只有当前一项占执行位。每一项达到可独立验证边界就实现，不等待后面各项全部逆向。
 
@@ -284,7 +284,7 @@ asset_runtime sound request  → audio_video port
 - 原程序差分：需要时准备 Frida spawn 工具，由用户运行；OpenSWD3 不自行启动原 EXE。
 
 当前不需要新的原程序动态捕获即可开始缓存策略、TSW/ACT 有效资产路径和动作状态机实现。
-最终 framebuffer/时序差分保留为 `blocked_runtime_oracle`，不冒充 UT 或资产哈希已完成。
+最终 framebuffer/时序差分保留为 `pending`，不冒充 UT 或资产哈希已完成。
 
 ## 6. 证据
 

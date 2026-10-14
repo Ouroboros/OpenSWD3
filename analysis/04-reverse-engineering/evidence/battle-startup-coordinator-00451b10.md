@@ -367,4 +367,4 @@ core与ASan只有既有结果测试第137行窄化警告；SDL没有warning/erro
 - 第九名敌人在前八名副作用后typed-stop；
 - battle聚合目标零warning，普通定向与独立ASan定向均`1/1`通过。
 
-`battle.ffd`头部与definition记录读取现分别由`audit_order=107/108`关闭并从caller直连，高层archive/definition加载端口已全部删除；角色、AI和其余全局阶段callee仍各有后续工作包。原版Windows文件handle、完整归档对象与raw记录、全部共享表、18个角色对象及其首双token、异常栈/字段页、窗口surface、随机状态与后续状态联合捕获后端缺失，`original_diff_verified`为`blocked_runtime_oracle`。
+`battle.ffd`头部与definition记录读取现分别由`audit_order=107/108`关闭并从caller直连，高层archive/definition加载端口已全部删除；角色、AI和其余全局阶段callee仍各有后续工作包。原版Windows文件handle、完整归档对象与raw记录、全部共享表、18个角色对象及其首双token、异常栈/字段页、窗口surface、随机状态与后续状态联合捕获后端缺失，`original_diff_verified`为`pending`。

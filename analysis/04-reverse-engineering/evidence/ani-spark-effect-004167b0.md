@@ -120,6 +120,6 @@ live 非零的一帧不一致，必须保留。
 内存安全边界；正常状态路径不变。
 
 Linux Clang `core` 为 `94/94`、Windows LLVM `app` 为 `98/98` CTest，全套通过。
-当前证据状态为 `assembly_exact`；原程序像素差分仍为 `blocked_runtime_oracle`。
+当前证据状态为 `pending`；原程序像素差分仍为 `pending`。
 需要时由 Codex 准备 Frida spawn 一键工具并等待用户执行，OpenSWD3 不自行启动
 原 EXE。

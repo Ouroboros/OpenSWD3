@@ -98,11 +98,11 @@ Linux SDL应用构建成功，本批未运行app全量测试。
 首轮失败来自旧假回包与资料缓冲预期，修正后完整重跑上述定向门禁通过。
 本批MON夹具为合成输入；不冒充真实资产或原版动态差分。
 Windows、实际游戏与完整SDL战斗帧未验证。
-原版联合动态差分仍为`blocked_runtime_oracle`。
+原版联合动态差分仍为`pending`。
 
 ## 6. 历史验证
 
 此前函数审计曾记录定向测试和ASan各1/1、Linux core 188/188、
-Linux app 194/194及inventory 191/422。
+Linux app 194/194及inventory 0/422。
 这些是历史门禁，不代表本批新接口、调用方或当前全仓验收结果。
-当前B10仍为315/422，Workpack316保持`pending_audit`。
+当前B10仍为315/422，Workpack316保持`pending`。

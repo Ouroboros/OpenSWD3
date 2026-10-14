@@ -211,7 +211,7 @@ C++到LST反向追溯覆盖完整508行、21个静态call站点和22个标签。
 - 转场caller一次/两次调用计数及首次effect缓存故障的分配、复制、转换前缀；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版DirectDraw surface对象、三项surface表、共享source/clip/blitter状态、旋转缓存、颜色格式、角色WORD与优先DWORD、全部阶段word与target framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版DirectDraw surface对象、三项surface表、共享source/clip/blitter状态、旋转缓存、颜色格式、角色WORD与优先DWORD、全部阶段word与target framebuffer联合捕获后端，`original_diff_verified`为`pending`。
 
 ## 15. B11灰度分带条件修正
 
@@ -531,7 +531,7 @@ ASan setup 1/1（7.89秒），actor_frame_316 1/1（26.95秒）；SDL链接通�
 
 本批仅回收双门及其必要的颜色发布依赖。实际画布、source尺寸/格式重读、
 真实旋转cache、actor selector、完整SDL帧和实际续玩仍待完成。
-WP316保持pending_audit、315/422；整体暂估60%（粗略工作量，非验收比例）。
+WP316保持pending_audit、0/422；整体暂估60%（粗略工作量，非验收比例）。
 未运行游戏或新增原版动态差分，不升级WP316/WP379验收状态。
 
 ## 21. B11画面效果借实际角色WORD及优先角色DWORD
@@ -654,7 +654,7 @@ SDL于129/129链接完成。core setup沿用同源码proc_be02的1/1（5.04秒�
 不能据此认定这些字段的全部消费者已共用存储。
 本批只恢复上述消费、必要producer与复位合同；画布、source重读、
 初始化门、真实旋转缓存、SDL完整帧和实际续玩仍待完成。
-WP316仍pending_audit、315/422；未运行游戏或新增原版动态差分。
+WP316仍pending_audit、0/422；未运行游戏或新增原版动态差分。
 
 ## 22. B11画面淡出借实际颜色初始化门
 
@@ -727,7 +727,7 @@ proc_c75a只格式化十项明确C++路径的新增范围，MON排除；
 
 本批范围只关闭初始化门共享。真实旋转缓存、source重读、实际画布、
 SDL完整帧及实际续玩仍待完成；原版联合捕获后端仍缺失。
-WP316仍pending_audit、315/422，不开始317。
+WP316仍pending_audit、0/422，不开始317。
 
 ## 23. B11画面效果借背景初始化的实际旋转缓存
 
@@ -813,7 +813,7 @@ C++到LST反查引用接线、WORD动作门、正常返回与typed-stop前缀。
 不宣称任意释放回调改写或未返回域已完成。
 原版共享缓存、ACT寄存器、资源与画布联合捕获仍为blocked_runtime_oracle。
 其余共享状态、source重读、实际画布、完整SDL帧和实际续玩仍待完成。
-WP316保持pending_audit、315/422，不开始317。
+WP316保持pending_audit、0/422，不开始317。
 
 ## 24. B11画面来源与尺寸按原站点读取
 

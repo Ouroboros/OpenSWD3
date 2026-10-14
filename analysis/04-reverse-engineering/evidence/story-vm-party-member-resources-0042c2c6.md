@@ -69,7 +69,7 @@ first的等零条件与后二项严格负条件不相同。所有比较都使用
 
 下一word改写发生在first写零之后、second/third下界和transient清理之前。若完整10字节记录恰好结束于`0x8000`且first非正，原版会向窗口外写下一word；现代在该原始危险点返回`operand_out_of_range`，保留三项上界处理与first清零，不执行后续下界、transient、IP或previous。
 
-成功改写后common same-call会立即以新IP执行opcode144。该独立handler在`0x0042C79D`根据下一byte请求特殊模式4/5并清若干模式状态；它仍按workpack顺序保持`pending_audit`。当前测试只证明opcode134已发布previous并same-call抵达未实现的144，不提前实现或继承其模式副作用。
+成功改写后common same-call会立即以新IP执行opcode144。该独立handler在`0x0042C79D`根据下一byte请求特殊模式4/5并清若干模式状态；它仍按workpack顺序保持`pending`。当前测试只证明opcode134已发布previous并same-call抵达未实现的144，不提前实现或继承其模式副作用。
 
 ## 4. 控制流
 

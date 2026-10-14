@@ -59,7 +59,7 @@ audio service
 - 255/256字节文本分别在suffix第二/第一字节越界。
 - 缺少terminator会继续跨窗口读并最终越界。
 
-现代实现只在原script u16读、buffer byte写和分配点增加typed-stop。失败保留已追加且已零填充的节点、此前copy、已提交IP及已写suffix；不发布previous，不service audio。合法文本、terminator、IP和yield行为不变，故分类为`platform_adapted`。
+现代实现只在原script u16读、buffer byte写和分配点增加typed-stop。失败保留已追加且已零填充的节点、此前copy、已提交IP及已写suffix；不发布previous，不service audio。合法文本、terminator、IP和yield行为不变，故分类为`pending`。
 
 ## 4. 资产锁与验证
 

@@ -39,4 +39,4 @@ index 2 -> 0x004FF2EE，第二项玩家奖励ID
 
 定向测试覆盖索引0/1/2三项物理地址与写入别名、入口EAX高字、第二参数高字不读取、ECX索引、EDX保持、索引3首个相邻全局停止、全1索引地址回绕、不修改owner，以及写入奖励被已关闭结果奖励整理直接消费并按原尾store清零。
 
-该叶函数合法三word域由完整LST、固定状态与逐字节owner验证；原版相邻全局内存、三个caller输入轨迹及寄存器联合捕获后端缺失，越界域只能在真实store隔离，`original_diff_verified`为`blocked_runtime_oracle`。
+该叶函数合法三word域由完整LST、固定状态与逐字节owner验证；原版相邻全局内存、三个caller输入轨迹及寄存器联合捕获后端缺失，越界域只能在真实store隔离，`original_diff_verified`为`pending`。

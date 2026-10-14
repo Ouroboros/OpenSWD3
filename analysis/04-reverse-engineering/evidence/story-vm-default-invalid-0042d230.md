@@ -86,7 +86,7 @@ return
 
 `state.previous_opcode` 是原 32 位 `[0x004CF6D8]` owner，默认初始化为零；`sub_40E0B0` 没有该全局 xref，所以 `initialize_legacy_world_story_vm` 不重置它。SDL beep 保持与现有平台 beep owner 一致的 no-op 适配；`service_audio()` 复用实际 `LegacyAudioMaintenancePorts`，对应原直接 `_AIL_serve`。
 
-现代受检 0x8000-byte window 在取指前隔离越界；合法域内的 handler 顺序、IP 不推进、previous 写回和 audio service 不变，因此分类为 `platform_adapted`。
+现代受检 0x8000-byte window 在取指前隔离越界；合法域内的 handler 顺序、IP 不推进、previous 写回和 audio service 不变，因此分类为 `pending`。
 
 ## 5. 测试向量
 

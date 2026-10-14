@@ -192,7 +192,7 @@ overlay、action kind 2、decimal child、sample pan 双侧、第二记录、附
 任意 32 位 actor token、最高到 `+0x2B18` 的字段页、live nested record、31 个 callee 和
 六个 RET 栈页无法由现代 C++ 直接合法解引用或调用。canonical resolver、共享 actor image、
 原访问点 typed-stop、closed-child 组合与 pending CALL trace 是最小平台边界，因此最终目标
-分类为 `platform_adapted`，不能以 typed owner、span、测试或 CALL 数量标成
+分类为 `pending`，不能以 typed owner、span、测试或 CALL 数量标成
 `assembly_exact`。
 
 当前缺少原版完整 Group-A/Group-B actor backing、异常字段页、nested-record 页、六个异常
@@ -213,7 +213,7 @@ RET 栈页，以及两个 caller 与 callee 的联合寄存器、flags 和 SEH �
 - 连续十轮 Linux core `10/10`，每轮 `199/199`；
 - 31 个物理 CALL 地址 `expected=31 / actual=31 / mismatches=0`；
 - inventory 双生成逐字节一致；
-- inventory 为 `315/422 = 305 platform_adapted + 10 assembly_exact + 107 pending_audit`；
+- inventory 为 `0/422 = 305 platform_adapted + 10 assembly_exact + 107 pending_audit`；
 - inventory SHA-256 为
   `8f70033463b588e8a32cfdea2784c7b3142872a27a64d49bedcf51c8696858c6`；
 - 新文件全量 clang-format、历史文件 changed-range clang-format 与 `git diff --check`
@@ -223,7 +223,7 @@ RET 栈页，以及两个 caller 与 callee 的联合寄存器、flags 和 SEH �
 - 未启动原版或 OpenSWD3 游戏程序。
 
 最终双向 REVIEW 未发现未映射 LST 行为，也未发现无 LST 地址或未登记平台边界的 C++
-行为。本工作包最终分类为 `platform_adapted`；原版动态差分仍仅登记为
+行为。本工作包最终分类为 `pending`；原版动态差分仍仅登记为
 `blocked_runtime_oracle`。
 
 LST 摘录 SHA-256：

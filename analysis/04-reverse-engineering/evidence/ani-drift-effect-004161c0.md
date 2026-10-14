@@ -1,7 +1,6 @@
 # ANI 四槽漂移动作效果（`0x004161C0`）
 
 状态：`pending`。
-`blocked_runtime_oracle`。
 
 唯一行为真值：`swd3.exe.lst`。本文只使用 LST 指令、物理全局地址和已闭环的
 ACT/TSW/动作记录实现；IDA 函数签名与伪码不作为行为依据。

@@ -52,4 +52,4 @@ repeat record_count:
 - 相对位置和五个物理 word 的 FNV-1a64：`0x850EBBDFD6772EF6`；
 - 包含终止 NUL 的原始名称 FNV-1a64：`0x4AD20ABEAA5E0C02`。
 
-Windows LLVM `core` 与 `app` 均通过 33/33 CTest，两套构建产物对真实 `huge.lmf` 的显式全量测试均以零退出；原程序动态轨迹仍登记为 `blocked_runtime_oracle`。
+Windows LLVM `core` 与 `app` 均通过 33/33 CTest，两套构建产物对真实 `huge.lmf` 的显式全量测试均以零退出；原程序动态轨迹仍登记为 `pending`。

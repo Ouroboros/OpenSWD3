@@ -107,5 +107,5 @@ framebuffer FNV-1a64 为 `0x5889E0547682E179`。
 
 Linux Clang `core` 185/185、Linux Clang `app` 190/190、Windows LLVM `app` 190/190
 CTest 均通过。原程序逐帧
-framebuffer、音频调用和 jitter 差分仍为 `blocked_runtime_oracle`；需要时只准备 Frida
+framebuffer、音频调用和 jitter 差分仍为 `pending`；需要时只准备 Frida
 spawn 工具并等待用户执行，不由开发流程启动原版。

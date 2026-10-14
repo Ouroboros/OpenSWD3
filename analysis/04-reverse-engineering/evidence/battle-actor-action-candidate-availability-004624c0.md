@@ -32,4 +32,4 @@ count非零时才装载参数与十槽actor order起始token。扫描从索引0�
 
 定向测试覆盖count 0、固定count无匹配、零查询归一为1、非零查询归一为0、角色调用前EAX/ECX/EDX、十槽一过尾以及code 7回绕角色停点。
 
-当前缺少原版十槽角色队列、group-A对象、角色查询callee共享副作用及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版十槽角色队列、group-A对象、角色查询callee共享副作用及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

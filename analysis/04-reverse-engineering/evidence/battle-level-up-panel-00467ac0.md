@@ -38,4 +38,4 @@
 
 定向测试覆盖底板普通/跳过/模式1强制门、固定CP950标题、矩形与双九宫格几何、矩形和标题返回EDX高word链、公共stage商零门、推进后actor读取、i8负索引、标签缩放停止寄存器、等级读取独立byte、格式token与寄存器、64-byte溢出停止、上下九宫格停止前缀、消息100正常直连与子stop传播。验证：定向测试、AddressSanitizer、Linux core `188/188`、Linux app `194/194`全部通过。源码构建零warning；app仅保留既有ALSA开发库CMake warning。
 
-当前缺少原版动作/画面/字体surface、角色名称与等级联合状态、动态栈地址、`wsprintfA`返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版动作/画面/字体surface、角色名称与等级联合状态、动态栈地址、`wsprintfA`返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

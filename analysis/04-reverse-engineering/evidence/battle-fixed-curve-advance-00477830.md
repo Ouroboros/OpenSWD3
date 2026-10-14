@@ -112,6 +112,6 @@ SDL应用构建通过，未启动游戏。
 
 叶函数UT覆盖已有根命中、动态节点、递增后inclusive夹限、word回绕、缺键分配、五字清零、`1/3`双截零、scale高word保留、maximum零x87 indefinite、已有count/scale访问stop，以及分配`+0x08`前maximum阶段和`+0x0C`前ratio阶段。caller测试覆盖fixed owner真实曲线输出、mode-one skip、signed motion累计、9999夹限、负一抑制、caller count访问stop及全部旧地址零调用。
 
-验证：battle聚合定向通过并连续实际执行10次；Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`及changed-range clang-format Werror全部通过。最终日志零源码warning、测试失败、sanitizer finding或runtime error；验证期间未启动原版或OpenSWD3游戏程序。inventory连续双生成逐字节一致，稳定为`269/422 = 259 platform_adapted + 10 assembly_exact + 153 pending_audit`，SHA256为`95514d8b21ac60676fb2395a4deffbff78803f691dfce0d7661cf44c06a0a9e5`。
+验证：battle聚合定向通过并连续实际执行10次；Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`及changed-range clang-format Werror全部通过。最终日志零源码warning、测试失败、sanitizer finding或runtime error；验证期间未启动原版或OpenSWD3游戏程序。inventory连续双生成逐字节一致，稳定为`0/422 = 259 platform_adapted + 10 assembly_exact + 153 pending_audit`，SHA256为`95514d8b21ac60676fb2395a4deffbff78803f691dfce0d7661cf44c06a0a9e5`。
 
-当前缺少原版固定曲线链、allocator堆、x87 control/status word、行动者曲线字段以及`0x00474FF3`联合寄存器捕获后端，动态差分登记为`blocked_runtime_oracle`；这不阻止完整LST静态闭合、原位置typed-stop和Linux门禁。
+当前缺少原版固定曲线链、allocator堆、x87 control/status word、行动者曲线字段以及`0x00474FF3`联合寄存器捕获后端，动态差分登记为`pending`；这不阻止完整LST静态闭合、原位置typed-stop和Linux门禁。

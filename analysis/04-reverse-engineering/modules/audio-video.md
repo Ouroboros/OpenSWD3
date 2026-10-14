@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-当前单元：无；B5媒体实现已完成并让出执行位
+当前单元：`pending`。
 
 ## 1. 范围与移交
 
@@ -102,7 +102,7 @@ FFmpeg、Miles、Bink 或 SDL 类型。
 - sample/sequence/stream：以 fake backend 记录每个 call、user-data、status、volume、
   pan、loop、链表移动和 buffer 引用，逐基本块比较事件序列。
 - 视频：以 fake decoder 固定 wait/帧号/尺寸/失败结果，比较 framebuffer hash、居中和
-  present 请求；原版 Bink/DirectDraw RECT 差分保持 `blocked_runtime_oracle`，需要时只
+  present 请求；原版 Bink/DirectDraw RECT 差分保持 `pending`，需要时只
   准备 Frida 工具并等待用户运行原版。
 - 平台输出：比较解码后的 PCM 与请求时序，不以不同宿主音频设备的模拟波形作为核心
   判定。

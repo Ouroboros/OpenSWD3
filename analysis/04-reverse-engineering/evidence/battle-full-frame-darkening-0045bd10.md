@@ -39,4 +39,4 @@
 
 定向`1/1`、独立AddressSanitizer`1/1`、Linux core`188/188`与Linux app`194/194`全部通过。
 
-当前缺少原版完整framebuffer、三项颜色偏移、共享delta、像素mask与caller状态机联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版完整framebuffer、三项颜色偏移、共享delta、像素mask与caller状态机联合捕获后端，`original_diff_verified`为`pending`。

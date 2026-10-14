@@ -1,7 +1,6 @@
 # 世界碰撞回退与 Talk 构造：0x00403AD7..0x00403DB6
 
 状态：`pending`。
-`blocked_runtime_oracle`
 
 来源：`swd3.exe.lst`，SHA-256
 `701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b`。

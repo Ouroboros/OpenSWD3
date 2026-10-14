@@ -35,6 +35,6 @@ starting code不在主表时，扫描结束时ESI为4、EAX为`0x004A7970`。函
 
 定向测试覆盖下一逆向候选、四次失败、四条合法起点完整轨迹、无效起点`2/11/8/9`、相邻候选首次对象访问停止、winning callee寄存器、反向动作caller直连、逐帧输入两个caller、子typed-stop传播和reserved槽零调用。
 
-验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码零warning；app仅保留既有ALSA开发库CMake warning。工作包稳定为`128/422 = 123 platform_adapted + 5 assembly_exact + 294 pending_audit`，连续双跑逐字节一致，SHA256为`14933e3422080906cbb8a67432b800e9ada693d5be9affc512e64beb3ff4827b`。
+验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码零warning；app仅保留既有ALSA开发库CMake warning。工作包稳定为`0/422 = 123 platform_adapted + 5 assembly_exact + 294 pending_audit`，连续双跑逐字节一致，SHA256为`14933e3422080906cbb8a67432b800e9ada693d5be9affc512e64beb3ff4827b`。
 
-当前缺少原版actor order、group-A对象查询共享副作用及EAX/ECX/EDX联合动态捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版actor order、group-A对象查询共享副作用及EAX/ECX/EDX联合动态捕获后端，`original_diff_verified`为`pending`。

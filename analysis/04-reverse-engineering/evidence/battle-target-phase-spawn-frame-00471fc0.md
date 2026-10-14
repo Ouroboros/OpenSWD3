@@ -8,4 +8,4 @@
 
 物理状态复用target-phase五槽action-record数组、spawn counters和line-raster块，以及group-A action-execution、shared frame-source owner。已关闭动作更新、frame provider和line-raster直接typed调用；音频和软件绘制复用共享窄port。frame与shared typed-stop均位于原始访问点并保留此前slot记录、更新和frame副作用。
 
-五个`0x00471270` caller全部改为typed直连，并按原tick阈值与坐标顺序短路传播typed-stop。测试覆盖槽越界、frame/shared原访问点、零迭代、signed循环、counter高半sample、非完成绘制、完成边界、record保留、五槽variant及旧地址零调用。定向测试与独立AddressSanitizer均通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`213/422 = 204 platform_adapted + 9 assembly_exact + 209 pending_audit`，SHA256为`c75dfbed50b46c8a9b12fc3eee511f8c6323bdcb0dbb402e147f402163ed6ba2`。动态差分因原版五槽记录、动作流、frame、音频、绘制与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+五个`0x00471270` caller全部改为typed直连，并按原tick阈值与坐标顺序短路传播typed-stop。测试覆盖槽越界、frame/shared原访问点、零迭代、signed循环、counter高半sample、非完成绘制、完成边界、record保留、五槽variant及旧地址零调用。定向测试与独立AddressSanitizer均通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 204 platform_adapted + 9 assembly_exact + 209 pending_audit`，SHA256为`c75dfbed50b46c8a9b12fc3eee511f8c6323bdcb0dbb402e147f402163ed6ba2`。动态差分因原版五槽记录、动作流、frame、音频、绘制与caller寄存器联合捕获后端缺失而登记为`pending`。

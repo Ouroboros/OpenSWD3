@@ -1,8 +1,8 @@
 # 随机遇敌数据、选择与战斗切入汇编证据
 
 状态：`pending`。
-`platform_adapted`；另有 `implemented`、`unit_tested`、`real_asset_verified`、
-`blocked_runtime_oracle`
+`pending`；另有 `pending`、
+`pending`
 
 唯一行为真值：`swd3.exe.lst`。
 
@@ -185,7 +185,7 @@ map view 失败以及从角色一开始的 flags 清理。真实资产测试使�
 现代实现用反序 `vector` 代替 24 字节裸分配链，并把全局地图号、玩家坐标和表指针改成
 显式输入；同时隔离缺失终止符、短记录、无效表号、候选偏移越界和候选数为零。原程序
 对这些状态会无界扫描、越界读取或整数除零，所以两个矩阵项最终均归类为
-`platform_adapted`，有效游戏数据路径仍为 `assembly_exact`。
+`platform_adapted`，有效游戏数据路径仍为 `pending`。
 
 - 定向 Linux 测试与真实 `MAPS.DAT` 回归：通过；
 - 原程序动态差分：`blocked_runtime_oracle`；

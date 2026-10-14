@@ -144,4 +144,4 @@ C++到LST：
 
 ## 10. 动态差分
 
-当前没有可用原版战斗surface行表捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。该阻塞不改变独立完整LST、owner差异、回绕域、typed实现和固定caller状态已经闭环的结论。
+当前没有可用原版战斗surface行表捕获后端，`original_diff_verified`为`pending`。该阻塞不改变独立完整LST、owner差异、回绕域、typed实现和固定caller状态已经闭环的结论。

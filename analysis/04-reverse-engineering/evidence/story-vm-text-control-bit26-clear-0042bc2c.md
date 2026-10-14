@@ -22,7 +22,7 @@ jmp 0x00427E7E
 
 掩码只清bit26；其他31位完整保留。目标位已清时结果幂等。handler不读取opcode后的任何字节，不service audio，不yield。
 
-现代实现直接映射`LegacyWorldStoryVmState::text_control_flags`完整u32 owner。该owner同时由共享dialog生产读取：bit26清零时新消息flags置bit1。无裸指针、宿主API或平台替代，分类为`assembly_exact`。
+现代实现直接映射`LegacyWorldStoryVmState::text_control_flags`完整u32 owner。该owner同时由共享dialog生产读取：bit26清零时新消息flags置bit1。无裸指针、宿主API或平台替代，分类为`pending`。
 
 完整两字节记录位于窗口`0x7FFE`时，先清bit、推进IP到`0x8000`并发布previous，再由下一fetch返回窗口越界。
 

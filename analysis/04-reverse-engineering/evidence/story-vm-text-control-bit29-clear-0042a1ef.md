@@ -59,4 +59,4 @@ TALK4.DAT 687
 
 synthetic、real、initial-session-real三项定向CTest为3/3。Linux core 186/186与Linux app 192/192在提交前执行；未启动原版或OpenSWD3游戏EXE。
 
-分类：`assembly_exact`。合法域内32位owner、掩码、写回、IP、common join publication与same-call均直接对应原指令，不含平台适配。
+分类：`pending`。合法域内32位owner、掩码、写回、IP、common join publication与same-call均直接对应原指令，不含平台适配。

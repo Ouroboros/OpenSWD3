@@ -68,4 +68,4 @@ TALK4.DAT@0x00001987  selector 0x0011  threshold 8
 
 四条真实记录均放置在`0x7FFA`精确尾，以typed角色action高/低字节同时等于threshold驱动完成；结果先推进至`0x8000`并发布previous107，下一fetch才返回越界。Story VM synthetic、real及initial-session三项通过。未启动原版或OpenSWD3游戏EXE。
 
-分类：`assembly_exact`。
+分类：`pending`。

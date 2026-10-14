@@ -126,5 +126,5 @@ position 和 close：
 - 七个 wrapper 的 ID 100、固定返回、signed 缩放以及 mode 0/1/2/3/16 过渡结果。
 
 Linux Clang core 为 71/71，Linux Clang app 与 Windows LLVM app 均为 75/75 CTest
-通过。原程序动态 stream 状态差分仍为 `blocked_runtime_oracle`；需要时只准备 Frida
+通过。原程序动态 stream 状态差分仍为 `pending`；需要时只准备 Frida
 工具并等待用户运行原版。

@@ -84,4 +84,4 @@ caller集成测试覆盖：
 
 Linux core `188/188`、完整core AddressSanitizer `188/188`和Linux app `194/194`全部通过；最终日志零OpenSWD3源码warning、测试失败和sanitizer finding。app仅有既有ALSA/JACK开发库环境提示。
 
-当前缺少原版组B actor完整对象、40-byte profile尾部、两个真实共享输出地址和唯一caller寄存器联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+当前缺少原版组B actor完整对象、40-byte profile尾部、两个真实共享输出地址和唯一caller寄存器联合捕获后端，`original_diff_verified`登记为`pending`。

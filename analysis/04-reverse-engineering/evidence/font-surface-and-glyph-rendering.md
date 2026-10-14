@@ -234,7 +234,7 @@ mask。该运行使用 Windows 11 台湾繁体中文语言环境、CP950 与经�
 key 域。这样 Windows、Linux 和 macOS 共用同一份 mask，GDI 不成为运行时硬
 依赖，SDL3 路线也不改为 DirectX 路线。
 
-该门已完成：`analysis/tools/probe_gdi_glyph_oracle.cpp` 在 RGB555、
+该门状态：`pending`。`analysis/tools/probe_gdi_glyph_oracle.cpp` 在 RGB555、
 RGB565 和 BGRA32 三种输出上均对动态基准达到 `157/157`
 逐字节匹配。157 是原版运行样本数，不是 atlas 字符数。生成的
 `assets/fonts/legacy-glyph-atlas.bin` 长 3,816,016 字节，SHA-256 为

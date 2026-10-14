@@ -80,7 +80,7 @@ C++到LST反向追溯覆盖64次物理写、三处xref、definition说明清除�
 
 独立定向测试覆盖正常64写、全部四个目标槽边界、可达的`+0x2A68/+0x2A6A/+0x2A6C/+0x2A94`高偏移直接写边界、全部四个动作文本dword边界及41个definition dword边界；caller聚合测试覆盖组A、组B和单例的正常直组装、后缀顺序与公共前部typed-stop阻断。
 
-历史验证：定向测试`2/2`、AddressSanitizer`197/197`、Linux core`197/197`、Linux app`203/203`及连续10轮完整core全部通过，源码零warning，无sanitizer finding或runtime error。inventory连续双生成逐字节一致，正式计数为`276/422 = 266 platform_adapted + 10 assembly_exact + 146 pending_audit`，SHA256为`6ef0923452f60cf13342d07e9bd6ef861b3b5100602169723c1ee53b61679cd0`。
+历史验证：定向测试`2/2`、AddressSanitizer`197/197`、Linux core`197/197`、Linux app`203/203`及连续10轮完整core全部通过，源码零warning，无sanitizer finding或runtime error。inventory连续双生成逐字节一致，正式计数为`0/422 = 266 platform_adapted + 10 assembly_exact + 146 pending_audit`，SHA256为`6ef0923452f60cf13342d07e9bd6ef861b3b5100602169723c1ee53b61679cd0`。
 
 本轮基础初始化及setup调用方定向测试：core各1/1、ASan各1/1通过，
 SDL应用目标编译链接通过。日志为`build/tmp/runtime/actor-base-init-`
@@ -91,4 +91,4 @@ SDL应用目标编译链接通过。日志为`build/tmp/runtime/actor-base-init-
 数组析构和退出注册协议仍待迁移，不能由本函数迁移推定完成。
 构造分配的后续迁移见[资源登记](battle-actor-construction-resource-registration.md)。
 
-当前没有原版组A/组B/单例完整对象字节、异常写访问、definition说明堆所有权及三caller联合寄存器捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整35条指令的静态与typed闭环。
+当前没有原版组A/组B/单例完整对象字节、异常写访问、definition说明堆所有权及三caller联合寄存器捕获后端，`original_diff_verified`登记为`pending`。该阻塞不影响完整35条指令的静态与typed闭环。

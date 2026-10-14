@@ -50,4 +50,4 @@
 
 定向`1/1`、独立AddressSanitizer `1/1`、Linux core `188/188`与Linux app `194/194`通过。battle聚合源码零warning；app仅保留SDL上游缺少ALSA开发库的既有CMake环境提示。
 
-当前缺少原版八槽计数、共享XY、三处caller输入与寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版八槽计数、共享XY、三处caller输入与寄存器联合捕获后端，`original_diff_verified`为`pending`。

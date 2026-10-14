@@ -50,4 +50,4 @@ transition mode/stage、actor、动作标签、动作记录和framebuffer均复�
 
 定向测试覆盖mode精确1门、actor FF负索引、四byte CP950名称、双格式/双长度、动态矩形和九宫格宽度、stage商非零、两行颜色与位置、24-byte源缺NUL、名称/详情缓冲边界、消息111直连/旧槽零调用/timer回绕/子stop阻断和主帧四类generic映射。补齐全局重置末尾写对该typed owner的同步后，定向测试、AddressSanitizer、Linux core 188/188和Linux app 194/194全部重新通过；最终重跑无warning/error/failure。首轮app配置仅出现既有ALSA开发库缺失白名单提示。
 
-当前缺少原版动作/矩形/九宫格/字体surface、完整角色名称表与共享标题联合状态、动态栈地址、`wsprintfA/lstrlenA`返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版动作/矩形/九宫格/字体surface、完整角色名称表与共享标题联合状态、动态栈地址、`wsprintfA/lstrlenA`返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

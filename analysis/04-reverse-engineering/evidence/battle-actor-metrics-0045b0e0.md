@@ -69,7 +69,7 @@ callee返回后仍按LST重新读取共享group B数量，再执行store与循�
 
 定向测试覆盖双表固定清零、caller ECX双word别名、两组token与步长、primary/alternate坐标、i16符号扩展、跨角色保留、组A加8回绕、路径相关EAX/ECX/EDX与最终flags、首个group B `test`的未定义AF标记、首个group A及后续循环`cmp`入口flags、第二源读取停止后的第一次部分写入、缺失owner、第九个组B actor停止、第19次store时机、跨动作/启动端口的单一物理状态及七处已关闭caller回收。全部direct路径的`port_calls`为零，并独立记录`coordinate_query_calls`。
 
-当前缺少原版两组完整角色对象、metric与角色顺序两张物理表、栈地址和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组完整角色对象、metric与角色顺序两张物理表、栈地址和寄存器联合捕获后端，`original_diff_verified`为`pending`。
 
 ## B11每帧指标接线：业务数据与诊断输入分离
 

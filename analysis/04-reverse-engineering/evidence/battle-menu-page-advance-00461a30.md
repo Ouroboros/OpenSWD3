@@ -38,4 +38,4 @@ current equipment索引仅在两次真实数组store处检查。首项停止保�
 
 定向测试覆盖：默认寄存器；消息2的i8早退、CL局部写、128负byte、selection归一、普通页、上界夹取和u32绕回负页；消息4的归一共享副作用、普通缓存发布、短网格夹取和首store typed-stop；消息27的归一共享副作用、上界夹取和负ECX；interaction mode 4与record8两处caller直连及typed-stop传播；第113项sample mix预调用EAX。
 
-当前缺少原版菜单/分页全局、样本后端、两处caller输入记录与EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版菜单/分页全局、样本后端、两处caller输入记录与EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

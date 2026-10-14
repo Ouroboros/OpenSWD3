@@ -1,7 +1,6 @@
 # 角色头顶动作链（`0x00414CE0..0x00414E40`）
 
 状态：`pending`。
-`original_diff_verified`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。它替代早期不保留完整动作记录和
 节点偏移的中性精灵视图；同为 `0xB4` 只能证明物理宽度相同，不能把本链与
@@ -84,5 +83,5 @@ FNV-1a64 为 `0x3EAF7C3143994E65`。
 Linux Clang `core` 为 157/157、Windows LLVM `app` 为 161/161 CTest；Windows app
 成功链接，本轮没有启动新版或原版 EXE。
 
-原程序逐帧 framebuffer 与节点状态差分仍为 `blocked_runtime_oracle`。需要动态验证时只
+原程序逐帧 framebuffer 与节点状态差分仍为 `pending`。需要动态验证时只
 准备 Frida spawn 工具并等待用户执行，不由开发流程启动原版。

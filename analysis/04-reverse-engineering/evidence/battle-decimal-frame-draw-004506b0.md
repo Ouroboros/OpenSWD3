@@ -89,4 +89,4 @@ C++ state/result字段均对应上述共享槽、局部数组、真实调用计�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版数字共享槽、帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整122行LST、关闭callee组合和固定状态验证已经闭环。
+当前没有原版数字共享槽、帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整122行LST、关闭callee组合和固定状态验证已经闭环。

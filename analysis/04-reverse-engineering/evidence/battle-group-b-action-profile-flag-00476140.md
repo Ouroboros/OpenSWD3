@@ -28,6 +28,6 @@ modern caller显式线程上述EAX/EDX来源，再直连typed标记判定。返�
 
 纯函数测试覆盖首次actor访问stop的EAX/ECX/EDX、主bit优先、fallback bit12、组B profile唯一owner、无关位返回0，以及正常ECX/EDX保持。frame测试覆盖主bit返回1后的side/自身索引发布、状态序列非1时actor stop保留callee EAX并阻断后缀，以及状态序列为1时保留清状态、latch、首次actor索引和文字token陈旧EAX。所有caller测试同时验证旧opaque调用次数为零。
 
-最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`244/422 = 235 platform_adapted + 9 assembly_exact + 178 pending_audit`，SHA256为`d83e15d36d75d20d8e0f2c64e897df347e511b7a820fd48baac6a1863fd4dc6e`。
+最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`0/422 = 235 platform_adapted + 9 assembly_exact + 178 pending_audit`，SHA256为`d83e15d36d75d20d8e0f2c64e897df347e511b7a820fd48baac6a1863fd4dc6e`。
 
-当前缺少原版八个组B完整actor、动态40-byte profile、状态序列/特殊行动/文字callee及唯一caller寄存器联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。
+当前缺少原版八个组B完整actor、动态40-byte profile、状态序列/特殊行动/文字callee及唯一caller寄存器联合捕获后端，因此`original_diff_verified`登记为`pending`。

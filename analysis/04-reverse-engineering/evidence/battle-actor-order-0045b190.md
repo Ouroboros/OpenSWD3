@@ -68,7 +68,7 @@ metric为零时按短路顺序不读取mask。mask只有精确值1表示已选�
 
 定向测试覆盖总数零与u32加法回绕、完整mask清零、signed最小值稳定顺序、组B再组A比较、后续零metric非对称、mask精确值1、索引18的metric读取、超大组B在mask先读处停止、异常路径不清mask、路径相关EDX、前项角色顺序表物理别名及九处caller回归。
 
-当前缺少原版两组数量、18槽metric表、18槽mask、18槽角色顺序表、调用链共享状态和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组数量、18槽metric表、18槽mask、18槽角色顺序表、调用链共享状态和寄存器联合捕获后端，`original_diff_verified`为`pending`。
 
 ## 8. B11每帧排序接线
 

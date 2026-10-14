@@ -113,8 +113,8 @@ LST到C++追溯覆盖唯一word读、EAX局部寄存器写、普通RET、5处字
 - `./build.sh core --test`：`199/199`。
 - `./build.sh app --test`：`205/205`。
 - 连续10轮`./build.sh core --test`：每轮`199/199`。
-- inventory双生成稳定：`296/422 = 286 platform_adapted + 10 assembly_exact + 126 pending_audit`，SHA-256为`394486f01599ad2d0a0f3051079e8bcae840da84bf7cb21c24c814a2f9e2dcb8`。
+- inventory双生成稳定：`0/422 = 286 platform_adapted + 10 assembly_exact + 126 pending_audit`，SHA-256为`394486f01599ad2d0a0f3051079e8bcae840da84bf7cb21c24c814a2f9e2dcb8`。
 
 ## 8. 动态差分状态
 
-当前缺少原版完整Group-A/Group-B及调试特殊actor、异常字段/栈内存页，以及20处caller的联合寄存器、flags与SEH捕获后端，原版动态差分登记为`blocked_runtime_oracle`。该阻塞不改变8字节leaf、5处字段访问和20处静态caller的LST闭环。
+当前缺少原版完整Group-A/Group-B及调试特殊actor、异常字段/栈内存页，以及20处caller的联合寄存器、flags与SEH捕获后端，原版动态差分登记为`pending`。该阻塞不改变8字节leaf、5处字段访问和20处静态caller的LST闭环。

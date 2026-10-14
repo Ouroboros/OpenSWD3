@@ -102,7 +102,7 @@ C++到LST反向追溯覆盖103行完整函数、五参数、四个closed callee�
 
 真实资产测试读取`all_map2.tsw`物理槽1，完成真实palette/命令流转换和640×400图像shift 160循环右移；该CTest加入`legacy_real_assets`全局锁。普通定向与独立ASan定向均`1/1`通过。
 
-当前没有原版路径缓冲、TSW loader、共享图像token、记录门、动作缓存与framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。上述验证针对callee，不证明启动caller参数或SDL完整初始化正确。
+当前没有原版路径缓冲、TSW loader、共享图像token、记录门、动作缓存与framebuffer联合捕获后端，`original_diff_verified`为`pending`。上述验证针对callee，不证明启动caller参数或SDL完整初始化正确。
 
 ## 10. B11 启动参数与SDL接线修正
 

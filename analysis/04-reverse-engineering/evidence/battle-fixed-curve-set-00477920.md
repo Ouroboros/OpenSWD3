@@ -107,4 +107,4 @@ SDL应用构建通过，未启动游戏。日志为`build/tmp/runtime/`下
 
 最终Linux core`194/194`、AddressSanitizer`194/194`与Linux app`200/200`全部通过，battle/special_modes两项聚合测试随完整core连续复跑10轮均通过；最终日志无OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。`99471b16`代码范围通过changed-range clang-format与diff检查，inventory连续双生成逐字节稳定；验证期间未启动原版或OpenSWD3游戏程序。
 
-当前缺少原版固定曲线链、allocator堆、x87 control/status word、Dialog记录/局部槽及两个callsite联合寄存器捕获后端，动态差分登记为`blocked_runtime_oracle`；这不阻止完整LST静态闭合、原位置typed-stop和Linux门禁。
+当前缺少原版固定曲线链、allocator堆、x87 control/status word、Dialog记录/局部槽及两个callsite联合寄存器捕获后端，动态差分登记为`pending`；这不阻止完整LST静态闭合、原位置typed-stop和Linux门禁。

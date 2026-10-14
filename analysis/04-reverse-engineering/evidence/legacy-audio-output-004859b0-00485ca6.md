@@ -3,7 +3,6 @@
 最后更新：2026-08-09
 
 状态：`pending`。
-`platform_adapted`、`asset_verified`
 
 完整 LST 是唯一行为真值；IDA 伪码只用于定位。平台实现没有启动原版 EXE。
 
@@ -83,7 +82,7 @@ channels/sample-rate/byte-rate/block-align/bits 组合都能转换；ID 506/507 
 该分支状态为 `unreachable_current_assets`，不能据此从兼容核心删除。
 
 Miles 内部重采样器、混音饱和和 pan 曲线不在 EXE 汇编内。SDL3 的线性声像与格式转换
-明确标记为 `platform_adapted`；核心测试只锁定传入参数、调用顺序和 PCM 边界，不把不同
+明确标记为 `pending`；核心测试只锁定传入参数、调用顺序和 PCM 边界，不把不同
 宿主设备的模拟波形冒充 `original_diff_verified`。
 
 ## 5. 验证

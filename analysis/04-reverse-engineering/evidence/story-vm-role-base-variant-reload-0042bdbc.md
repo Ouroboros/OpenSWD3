@@ -30,7 +30,7 @@ sub_40D560(temporary_role, selector)
 
 `sub_40D560`从mutable MAPS role source物化GUID、动作三字段、坐标、Talk、Path及flags。handler忽略其返回值，只保存`temporary_role+0x48`，即完整u32 `action.base_variant`。临时角色在分支或顺序路径完成后、进入common previous join前释放。
 
-若MAPS source也缺失，`sub_40D560`返回`0xFFFFFFFF`且不写临时buffer，原handler仍读取未初始化heap `+0x48`。现代实现不伪造陈旧值，在该原危险读点返回`role_not_found`；临时分配由RAII释放。unchecked malloc、缺少现代MAPS binding及损坏source owner同样只在原访问阶段typed-stop，故整体分类为`platform_adapted`。
+若MAPS source也缺失，`sub_40D560`返回`0xFFFFFFFF`且不写临时buffer，原handler仍读取未初始化heap `+0x48`。现代实现不伪造陈旧值，在该原危险读点返回`role_not_found`；临时分配由RAII释放。unchecked malloc、缺少现代MAPS binding及损坏source owner同样只在原访问阶段typed-stop，故整体分类为`pending`。
 
 ## 2. 两个互反谓词
 

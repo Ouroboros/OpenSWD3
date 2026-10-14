@@ -294,4 +294,4 @@ C++到LST：
 
 ## 17. 动态差分
 
-当前没有可用原版战斗粒子owner、time/CRT状态、节点链、源图与surface联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。该阻塞不改变完整719行LST、两个battle callee直接回收、全部像素/链非对称、typed实现和固定状态已经闭环的结论。
+当前没有可用原版战斗粒子owner、time/CRT状态、节点链、源图与surface联合捕获后端，`original_diff_verified`为`pending`。该阻塞不改变完整719行LST、两个battle callee直接回收、全部像素/链非对称、typed实现和固定状态已经闭环的结论。

@@ -95,4 +95,4 @@ LST到C++追溯覆盖10字节完整边界、完整dword读取、`SHR 31`、CF/PF
 
 ## 7. 动态差分状态
 
-当前缺少原版完整Group-A actor、`actor+0x26B8`异常内存页、RET异常栈页，以及唯一caller联合寄存器、flags与SEH捕获后端，原版动态差分登记为`blocked_runtime_oracle`。该阻塞不改变10字节leaf和唯一静态caller的LST闭环。
+当前缺少原版完整Group-A actor、`actor+0x26B8`异常内存页、RET异常栈页，以及唯一caller联合寄存器、flags与SEH捕获后端，原版动态差分登记为`pending`。该阻塞不改变10字节leaf和唯一静态caller的LST闭环。

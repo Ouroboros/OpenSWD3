@@ -1,7 +1,7 @@
 # 世界全局初始化闭环
 
 状态：`pending`。
-`asset_verified`；原程序动态差分仍为 `blocked_runtime_oracle`。
+`pending`；原程序动态差分仍为 `pending`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x0040E0B0..0x0040EB53`。该函数同时重建多个
 模块的进程期状态，不能按 IDA 推断出的单一返回类型理解。两个调用点

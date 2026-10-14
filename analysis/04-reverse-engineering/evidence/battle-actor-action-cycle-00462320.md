@@ -40,4 +40,4 @@ code 8、9、10、11分别经四项跳表选择动作起点11、8、9、10。第
 
 定向测试覆盖code 7与12默认返回、code 8..11四项起点、四候选扫描到typed队列提交的寄存器传递、候选与提交typed-stop传播、记录2短按和长按陈旧3、记录4普通直连与前置typed-stop阻断、记录5菜单上下文直连与typed-stop阻断，以及四个reserved槽零调用。
 
-当前缺少原版当前角色、角色队列及group-A对象查询共享副作用、三个caller输入记录及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版当前角色、角色队列及group-A对象查询共享副作用、三个caller输入记录及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

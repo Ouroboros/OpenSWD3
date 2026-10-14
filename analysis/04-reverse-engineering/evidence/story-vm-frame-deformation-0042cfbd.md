@@ -59,7 +59,7 @@ strength = script strength
 - 零、负、乘法回绕或过大的field geometry；
 - 随后由无效尺寸形成的工作场索引和framebuffer采样。
 
-分配返回空时机器仍以null this调用注入；内部buffer分配也无空检查。现代用`unique_ptr/vector`承接所有权：分配异常返回`frame_deformation_allocation_failed`；构造storage不可用或注入检查失败返回`frame_deformation_injection_failed`。两者都销毁未发布临时节点并保留链、IP、previous和CRT RNG。缺actual list/RNG binding返回`runtime_unavailable`。这些隔离只覆盖原内存破坏域，合法geometry的构造、注入、头插和控制流不变，因此分类为`platform_adapted`。
+分配返回空时机器仍以null this调用注入；内部buffer分配也无空检查。现代用`unique_ptr/vector`承接所有权：分配异常返回`frame_deformation_allocation_failed`；构造storage不可用或注入检查失败返回`frame_deformation_injection_failed`。两者都销毁未发布临时节点并保留链、IP、previous和CRT RNG。缺actual list/RNG binding返回`runtime_unavailable`。这些隔离只覆盖原内存破坏域，合法geometry的构造、注入、头插和控制流不变，因此分类为`pending`。
 
 ## 4. 资产锁与验证
 

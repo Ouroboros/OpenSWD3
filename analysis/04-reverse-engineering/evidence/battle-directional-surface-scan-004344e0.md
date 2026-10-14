@@ -279,5 +279,5 @@ C++到LST：
 ## 15. 动态差分
 
 当前没有可用原版战斗图块记录、方向表和surface像素联合捕获后端，
-`original_diff_verified`为`blocked_runtime_oracle`。该阻塞不改变完整LST、两个callee直接回收、
+`original_diff_verified`为`pending`。该阻塞不改变完整LST、两个callee直接回收、
 全部循环与故障前缀、typed实现和固定状态已经闭环的结论。

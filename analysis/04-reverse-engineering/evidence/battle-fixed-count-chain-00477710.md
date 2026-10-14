@@ -107,4 +107,4 @@ SDL应用构建通过，未启动游戏。
 
 两个caller聚合测试验证旧`0x00477710`端口调用为零、仅缺键调用一次`0x00487C10`、共享节点内容和后缀执行/阻断顺序。完整Linux与AddressSanitizer门见模块记录。
 
-当前缺少原版20字节动态键链、allocator堆状态、两个caller剩余callee副作用及EAX/ECX/EDX联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`；该缺口不阻止完整LST静态闭合和Linux门禁。
+当前缺少原版20字节动态键链、allocator堆状态、两个caller剩余callee副作用及EAX/ECX/EDX联合捕获后端，`original_diff_verified`登记为`pending`；该缺口不阻止完整LST静态闭合和Linux门禁。

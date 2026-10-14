@@ -52,4 +52,4 @@ group B = 0x00525508 + index * 0x2B28
 - 全1 actor index的token和陈旧EAX低32位回绕；
 - 待执行动作caller两处直接组合及ready成功/失败后的不同EDX传递。
 
-当前缺少原版组A/B对象和ready callee共享副作用及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A/B对象和ready callee共享副作用及寄存器联合捕获后端，`original_diff_verified`为`pending`。

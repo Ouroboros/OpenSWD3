@@ -89,4 +89,4 @@ C++到LST反向追溯覆盖专用持久记录、两项入口写、更新失败�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版更新后ECX/EDX、独立持久动作记录、帧record、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整51行LST、唯一caller和三个关闭callee已完成固定状态闭环。
+当前没有原版更新后ECX/EDX、独立持久动作记录、帧record、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整51行LST、唯一caller和三个关闭callee已完成固定状态闭环。

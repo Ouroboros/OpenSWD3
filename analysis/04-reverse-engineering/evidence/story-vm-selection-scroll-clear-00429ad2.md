@@ -76,4 +76,4 @@ owner缺失则不推进、不发布previous。
 
 实现逐指令对应`mov ECX`、`mov EAX`、固定64-word fill与共享`+2`尾；C++→LST REVIEW未发现额外状态写入、错误yield或边界差异。
 
-分类：`platform_adapted`。适配仅为原版进程全局的typed owner与缺失owner失败隔离；有效域行为为固定128字节清表、状态保留和same-call continuation。
+分类：`pending`。适配仅为原版进程全局的typed owner与缺失owner失败隔离；有效域行为为固定128字节清表、状态保留和same-call continuation。

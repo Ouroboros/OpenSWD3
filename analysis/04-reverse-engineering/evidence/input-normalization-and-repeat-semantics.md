@@ -195,7 +195,7 @@ DirectInput 初始化返回值、设备失败时未检查 HRESULT 等旧错误�
 
 `LegacyInputRecord` 以四个 32 位字段直接保持 0x10 字节布局，`update_input_record` 按 `0x004053C0` 的分支顺序实现。UT 覆盖八类转移、严格 `>150`、释放时钟回绕、按住计数回绕，以及全零记录首帧已按下时 multiplicity 仍为零的原始异常。
 
-Windows LLVM `core` 与 `app` 均完成构建并通过 38/38 CTest。当前状态为 `assembly_exact`、`blocked_runtime_oracle`；整帧 20 条组合尚属 B3.7，未以单记录测试冒充完成。
+Windows LLVM `core` 与 `app` 均完成构建并通过 38/38 CTest。当前状态为 `pending`；整帧 20 条组合尚属 B3.7，未以单记录测试冒充完成。
 
 ## B3.5 实现验证
 
@@ -203,7 +203,7 @@ Windows LLVM `core` 与 `app` 均完成构建并通过 38/38 CTest。当前状�
 
 SDL3 平台层以显式物理 scancode 表生成 DIK 域快照，不使用字符键码或 SDL repeat；标准 PC 键、当前 16 个默认绑定、扩展键和部分国际键有固定映射测试。无法对应 DirectInput DIK 的 SDL 专用键保持未映射，属于 `platform_adapted`，不向核心虚构新键值。
 
-Windows LLVM `core` 完成 38/38 CTest，`app` 完成 39/39 CTest 和最终 EXE 链接。原程序运行时键盘轨迹仍为 `blocked_runtime_oracle`。
+Windows LLVM `core` 完成 38/38 CTest，`app` 完成 39/39 CTest 和最终 EXE 链接。原程序运行时键盘轨迹仍为 `pending`。
 
 ## B3.6 实现验证
 
@@ -213,7 +213,7 @@ Windows LLVM `core` 完成 38/38 CTest，`app` 完成 39/39 CTest 和最终 EXE 
 
 SDL3 平台层累加相对鼠标位移，先通过 renderer 将宿主窗口位移换算到 640×480 逻辑域，再向兼容核心提供绝对轴样本；可拉伸窗口只影响这个平台映射。启动仍按原顺序设置 `2.0` 灵敏度并 rebase 到 `(480,360)`。
 
-Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 链接。兼容核心状态为 `assembly_exact`，SDL3 坐标转换为 `platform_adapted`，原程序运行时鼠标轨迹仍为 `blocked_runtime_oracle`。
+Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 链接。兼容核心状态为 `pending`，SDL3 坐标转换为 `platform_adapted`，原程序运行时鼠标轨迹仍为 `pending`。
 
 ## B3.7 实现验证
 
@@ -223,4 +223,4 @@ Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 
 
 UT 逐个验证 16 个键盘绑定到记录的映射、两条保留记录、鼠标左右键、两帧抑制、450/451 严格边界、按钮/坐标活动重置、前帧坐标更新和 `u32` 回绕。启动与非空命令行接口中残留的 `initialize_float_conversion` 旧 FLIRT 误名已纠正为 `initialize_default_key_bindings`，两条路径均连接到同一运行时绑定块。
 
-Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 链接。整帧兼容核心为 `assembly_exact`，原程序输入轨迹仍为 `blocked_runtime_oracle`。
+Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 链接。整帧兼容核心为 `assembly_exact`，原程序输入轨迹仍为 `pending`。

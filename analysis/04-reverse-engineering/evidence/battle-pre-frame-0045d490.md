@@ -101,7 +101,7 @@ D490涉及的active、secondary、published、action execution、auxiliary、事
 
 工作包278关闭`0x0045D51C`、`0x0045D5BB`、`0x0045D647`三处物理call，参数依次为完整dword `1`、`1`、`0`。三处均在按actor code定位组A对象后直连共享availability owner；第一处EDX保留入口流程刚读取的source actor code，第二处保留组A通知callee返回EDX，第三处EDX是重新读取的secondary actor code。写停止时EAX已装参数、ECX为实际组Atoken，并阻断各自后续配置、记录、workspace及terminal尾部。
 
-当前缺少原版角色对象、三类剩余callee、完整共享全局、动态数量修改和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版角色对象、三类剩余callee、完整共享全局、动态数量修改和寄存器联合捕获后端，`original_diff_verified`为`pending`。
 
 ## 10. Workpack 316 的SDL实际入口前缀
 

@@ -444,7 +444,7 @@ case51、case12、case14和case100的既有角色帧停止前缀断言已改为�
 六槽外已知相邻dword写先保留，未知栈访问才停止。新增全六帧、重复第六帧、
 加载后改帧号及跨界前缀测试；`battle-rotation-six-slots-{core,asan,sdl}.log`
 确认战斗core/ASan各1/1与SDL链接通过，仅既有结果测试警告。
-对应inventory仍为`platform_adapted`，B10进度不变，不能替代完整SDL初始化证据。
+对应inventory仍为`pending`，B10进度不变，不能替代完整SDL初始化证据。
 
 动作加载现已区分正常NULL与宿主停止：`LegacyActActionStreamProvider`保留runtime
 及物理状态，更新器在`stream_load_stopped`时保留原命令流指针和此前键重置写入。
@@ -512,4 +512,4 @@ SDL构建通过。范围及历史单次测试失败的调查记录见
 
 ## 下一步
 
-继续真实初始化资源端口与完整帧上下文接线。完整SDL生命周期、实机续玩和B11最终验收均未完成。B10继续保持315/422，Workpack316仍为`pending_audit`。
+继续真实初始化资源端口与完整帧上下文接线。完整SDL生命周期、实机续玩和B11最终验收均未完成。B10继续保持315/422，Workpack316仍为`pending`。

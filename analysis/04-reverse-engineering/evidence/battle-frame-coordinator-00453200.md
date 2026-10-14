@@ -361,4 +361,4 @@ B11来源共享：453322删除独立frame_effect_source接口，直接借startup
 
 上一阶段限定修正上述帧条件、调用顺序和两个现有输入callee的十处共享门写入，不包含SDL完整战斗绑定或全部共享状态回收。当时工作树经`./build.sh core --test`、`./build-asan.sh --test`、`./build.sh app --test`验证，依次205/205、205/205、211/211通过，无编译warning/error；日志为`build/tmp/runtime/battle-existing-publication-{core,asan,app}.log`。源码、测试和证据差异已重新完整审查。本轮未重建Windows，也不证明实机战斗生命周期通过。
 
-当前没有原版剩余战斗callee、攻击顺序出队角色查询与无界相邻内存轨迹、共享选择/队列/对话/倒计时状态、调试叠加字体/文字/角色查询状态、结果判定计数/音频/整理状态、上下文提示计数/鼠标/动作帧状态、九float与计数、DirectDraw target surface、内部bit表、寄存器snapshot与BMP文件联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版剩余战斗callee、攻击顺序出队角色查询与无界相邻内存轨迹、共享选择/队列/对话/倒计时状态、调试叠加字体/文字/角色查询状态、结果判定计数/音频/整理状态、上下文提示计数/鼠标/动作帧状态、九float与计数、DirectDraw target surface、内部bit表、寄存器snapshot与BMP文件联合捕获后端，`original_diff_verified`为`pending`。

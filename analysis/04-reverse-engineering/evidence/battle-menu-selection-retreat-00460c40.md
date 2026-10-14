@@ -81,4 +81,4 @@ remaining小于4时每轮都先从共享action kind重装ECX再减1，signed小�
 
 定向测试覆盖：消息0寄存器；权限前缀wrap与EDX半字；权限typed-stop；列表scroll；equipment双数组写序与typed-stop；消息5/7/8/27/30；组B逆向选择；组A小组一基cursor；组A actor order typed-stop；组A大组order、候选/snapshot/配置预调用寄存器、code10 snapshot一过尾停止、固定十对象重置、marker清零及一基selected code10映射第十对象；三处snapshot成功的动作更新、frame lookup、frame-token提交、共享四dword输出与reserved端口零调用；正常早退保留初始局部块；provider失败、Y输出写停止及X完整dword部分提交抑制选择配置和gate；输入分派三处caller直连、snapshot透传与typed-stop阻断；pointer activity/mouse action物理分离；全局reset别名。
 
-当前缺少原版权限相邻内存、两组角色对象、四类角色callee、样本后端、菜单/目标全局及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版权限相邻内存、两组角色对象、四类角色callee、样本后端、菜单/目标全局及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

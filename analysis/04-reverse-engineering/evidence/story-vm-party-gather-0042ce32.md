@@ -53,7 +53,7 @@ matching_count + 1 == live_party_role_count
 
 左侧加一计入受控玩家。相等时清脚本raw bit15并推进2；不等时保留raw bit15与原IP。两路随后都previous、audio一次并yield。
 
-缺少live party count owner时，modern在原global读取点typed-stop；此前所有匹配角色的bit26和wait override已经逐项清除并保持，脚本raw/IP/previous/audio尚未改变。两个nullable owner及typed failure代替原裸global必达域，因此分类为`platform_adapted`；owner存在的合法业务域逐项`assembly_exact`。
+缺少live party count owner时，modern在原global读取点typed-stop；此前所有匹配角色的bit26和wait override已经逐项清除并保持，脚本raw/IP/previous/audio尚未改变。两个nullable owner及typed failure代替原裸global必达域，因此分类为`pending`；owner存在的合法业务域逐项`assembly_exact`。
 
 ## 4. 资产锁与验证
 

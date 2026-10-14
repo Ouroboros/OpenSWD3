@@ -90,6 +90,6 @@ REVIEW 1在格式化后的最新代码上通过：
 
 REVIEW 2在最新代码上再次通过定向`1/1`、Linux core `199/199`、AddressSanitizer `199/199`和Linux app `205/205`，最终四份stderr为空；changed-range格式与`git diff --check`通过。
 
-REVIEW 3在changed-range格式后的最终代码上通过定向`1/1`、Linux core `199/199`、AddressSanitizer `199/199`和Linux app `205/205`，四份正式stderr为空；随后连续10轮完整core均为`199/199`且stderr为空。inventory由生成器连续双跑逐字节一致，关闭为`284/422 = 274 platform_adapted + 10 assembly_exact + 138 pending_audit`，SHA-256为`e945ecc6cf0c24204114f7eff9006d5d8ddbf4d0822403e40a426e459af38601`。系统TMP迁移dry-run为selected `0`、unselected suspicious `0`，14项全部识别为受管runtime。
+REVIEW 3在changed-range格式后的最终代码上通过定向`1/1`、Linux core `199/199`、AddressSanitizer `199/199`和Linux app `205/205`，四份正式stderr为空；随后连续10轮完整core均为`199/199`且stderr为空。inventory由生成器连续双跑逐字节一致，关闭为`0/422 = 274 platform_adapted + 10 assembly_exact + 138 pending_audit`，SHA-256为`e945ecc6cf0c24204114f7eff9006d5d8ddbf4d0822403e40a426e459af38601`。系统TMP迁移dry-run为selected `0`、unselected suspicious `0`，14项全部识别为受管runtime。
 
-未启动原版游戏或OpenSWD3应用程序。当前缺少原版完整Group-A/Group-B actor对象、异常内存页以及9处物理callsite联合寄存器/SEH捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+未启动原版游戏或OpenSWD3应用程序。当前缺少原版完整Group-A/Group-B actor对象、异常内存页以及9处物理callsite联合寄存器/SEH捕获后端，`original_diff_verified`登记为`pending`。

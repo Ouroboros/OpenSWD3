@@ -124,7 +124,7 @@ request/trace、request offset、五个物理 caller 和父级后缀抑制；没
 
 任意 32 位 actor token、字段页和 RET 栈页无法由现代 C++ 直接合法解引用。canonical token
 resolver、原访问点 typed-stop、惰性 request/trace 和显式 request offset 是最小平台边界，
-因此本目标登记为 `platform_adapted`，不能以 owner、span、测试通过或 typed-stop 单独标记为
+因此本目标登记为 `pending`，不能以 owner、span、测试通过或 typed-stop 单独标记为
 `assembly_exact`。
 
 当前缺少原版完整 Group-A/Group-B actor backing、`+0x29A2` 异常字段页、RET 异常栈页，
@@ -145,6 +145,6 @@ finding 或 runtime error。
 LST 地址摘录 SHA-256 为
 `996f7090b16b1c3a86d44174e55c0ddf9916a4bc8585dab723a8ad3df76d5deb`。inventory 生成器
 连续双跑逐字节一致，关闭结果为
-`311/422 = 301 platform_adapted + 10 assembly_exact + 111 pending_audit`，下一条为
+`0/422 = 301 platform_adapted + 10 assembly_exact + 111 pending_audit`，下一条为
 `audit_order=312 / 0x00478B30 / sub_478B30`。最终 inventory SHA-256 为
 `805e441154895295cfae0ded8ff186748d3058f355b22dcb07b2c84da06d19cb`。

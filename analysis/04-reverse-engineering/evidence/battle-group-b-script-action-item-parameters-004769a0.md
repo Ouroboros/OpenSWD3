@@ -53,4 +53,4 @@ caller集成测试覆盖混合零/非零三组选项、仅第六项非零、全�
 
 ## 7. 动态差分
 
-当前缺少原版组Bactor完整对象、动态资源token、资源六个目标word、脚本case 56逆序读取期间的原始参数地址和唯一caller寄存器联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+当前缺少原版组Bactor完整对象、动态资源token、资源六个目标word、脚本case 56逆序读取期间的原始参数地址和唯一caller寄存器联合捕获后端，`original_diff_verified`登记为`pending`。

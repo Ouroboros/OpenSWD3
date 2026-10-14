@@ -64,4 +64,4 @@ TALK4.DAT 661
 
 real CTest还回放`TALK1.DAT@0x00006147`的op0和`@0x00009697`的op1，验证`0x2005/0x1001`写回、+6、previous与精确尾。synthetic覆盖operation2首匹配释放、重复ID、same-call、四alias和全部staged失败路径。剧情VM三项为3/3。
 
-分类：`platform_adapted`。合法operation 0/1/2的查找、位写、释放、IP、previous与same-call保持；固定全局owner改为typed list，非法陈旧局部路径改为确定性失败。
+分类：`pending`。合法operation 0/1/2的查找、位写、释放、IP、previous与same-call保持；固定全局owner改为typed list，非法陈旧局部路径改为确定性失败。

@@ -106,4 +106,4 @@ C++ typed实现逐项保留上述bit pattern、共享顺序和失败前缀；十
 `build/tmp/runtime/decimal-semantic-{core,callers-core,asan,callers-asan,sdl}.log`。
 未启动游戏。角色上层其他通用协议、帧资源提供接口及`0047C1F0`仍待迁移。
 
-当前没有原版单位置位共享状态、帧record和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整99行LST、关闭callee直连和固定状态验证已经闭环。
+当前没有原版单位置位共享状态、帧record和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整99行LST、关闭callee直连和固定状态验证已经闭环。

@@ -44,4 +44,4 @@ provider失败时空记录已发布，源在原`[eax]`读取点前保持入口sn
 
 定向测试覆盖资源/帧参数、4×3 indexed8帧的palette实际像素、记录宽高、目标坐标、正常公共后缀和帧缺失前缀。battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整37行LST、两个callee直接组合和固定状态验证已经闭环。
+当前没有原版帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整37行LST、两个callee直接组合和固定状态验证已经闭环。

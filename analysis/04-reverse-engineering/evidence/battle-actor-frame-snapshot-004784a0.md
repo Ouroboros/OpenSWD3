@@ -101,4 +101,4 @@ frame-input caller测试已覆盖三个物理路径：Group-B逆序命中、Grou
 
 目标刷新与选择帧测试已补齐最后六处生产路径：覆盖两条目标刷新snapshot入口寄存器、正常早退继续、typed-stop后缀抑制；覆盖Group-B遍历标记Y输出故障时仅X槽提交、Group-A遍历标记输出token装入EAX、当前Group-B `0x565/0x159`与当前Group-A `0xBCD/共享输出token`入口算术、共享四dword输出、snapshot中心、signed render offset、reset顺序、动作6可用性、prepared-action绘制和reserved槽零调用。
 
-当前缺少原版完整Group-A/Group-B actor对象、动作资源、frame provider、异常内存页以及15处物理callsite联合寄存器/SEH捕获后端。原版动态差分预登记为`blocked_runtime_oracle`；该限制不阻止modern typed实现，也不能由静态测试冒充`original_diff_verified`。
+当前缺少原版完整Group-A/Group-B actor对象、动作资源、frame provider、异常内存页以及15处物理callsite联合寄存器/SEH捕获后端。原版动态差分预登记为`pending`；该限制不阻止modern typed实现，也不能由静态测试冒充`original_diff_verified`。

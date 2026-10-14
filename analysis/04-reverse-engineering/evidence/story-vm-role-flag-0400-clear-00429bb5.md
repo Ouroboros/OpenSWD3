@@ -95,4 +95,4 @@ helper只执行源flags AND `0xFBFF`。GUID缺失时helper自身diagnostic并返
 
 实现从selector替换、lookup、CH位掩码、MAPS十一参数、共享+4尾到previous/yield逐项反向映射，未发现剩余有效域差异。
 
-分类：`platform_adapted`。适配仅为角色lookup/owner和MAPS窄端口的checked隔离；有效域位宽、fallback GUID、参数、IP、previous与yield保持原版。
+分类：`pending`。适配仅为角色lookup/owner和MAPS窄端口的checked隔离；有效域位宽、fallback GUID、参数、IP、previous与yield保持原版。

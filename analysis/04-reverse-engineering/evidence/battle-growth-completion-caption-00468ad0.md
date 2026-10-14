@@ -50,4 +50,4 @@ transition mode/stage/actor、sample mix、动作标签、动作记录、framebu
 
 定向测试覆盖mode精确1门、live seed请求、stage零/非零sample门、sample前寄存器、sample后负一actor停止、CP950名称、五个variant generic调用寄存器、动态矩形/九宫格、stage商非零、双行文字、消息112直连/旧槽零调用/timer及主帧sample映射。组合战斗Debug测试已有多个单函数栈帧超过1MB；仅Windows该测试目标以`/STACK:8388608`锁定8MB PE栈保留，生产目标不变。修正后Windows定向测试连续三次通过；Linux定向、AddressSanitizer、Linux core `188/188`和Windows app `194/194`全部通过，源码构建零warning。
 
-当前缺少原版入口seed全局、sample对象、动作/矩形/九宫格/字体surface、完整名称与共享标题联合状态、动态栈、格式/长度及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版入口seed全局、sample对象、动作/矩形/九宫格/字体surface、完整名称与共享标题联合状态、动态栈、格式/长度及寄存器联合捕获后端，`original_diff_verified`为`pending`。

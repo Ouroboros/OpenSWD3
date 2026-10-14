@@ -64,7 +64,7 @@ leaf成功或早退完成后才把返回EAX写入Group-A source action-execution
 
 每个Group-B source按Group-A target索引持有唯一`0x58` phase槽；相邻source和target严格隔离。source `actor+0x255C`由lifecycle `action_execution.target_phase_resource_token`唯一持有，phase只借用；target的动作记录与`turn_frame_token`来自startup Group-A canonical owner。坐标查询后先清零对应`0x58` phase，再读取资源对象；可用时按Group-B常量发布emitter：lifetime divisor `0x28`、spawn divisor `0x3C`、remaining batches=`height/2`。解码`0x004019A0`入口保持`EAX=local_4`、`ECX=source共享资源token`、`EDX=资源对象首dword`；属性`0x0047CE70`入口保持`EAX=5`、`ECX=Group-A target token`，EDX高word继承source垂直调整值且低word为`height/2`。host-surface后直接恢复EDI/ESI/EBP/EBX、执行`add esp,10h`并`retn 8`，不执行Group-A尾部清零；正常残值为`EAX=surface_height`、`ECX=0x0051DF80`、`EDX=surface_width`。外层`0x0045645D`随后以这三项残值和target ECX调用真实`0x004787F0`，再以该callee返回残值和同一target ECX调用`0x0047D870`。
 
-leaf或parent typed-stop保留已完成的target动作记录、target `turn_frame_token`、source共享token、坐标低word及phase清零前缀，并阻断set-target-mode、clear-mode、attack-order移除、暗化、刷新、phase/input word和`0x004841B0`完成阶段。生产路径对`0x00478620`与`0x00484020`均为零opaque调用；后者自身inventory row 419仍保持`pending_audit`，本轮只回收其前缀中的callee caller。
+leaf或parent typed-stop保留已完成的target动作记录、target `turn_frame_token`、source共享token、坐标低word及phase清零前缀，并阻断set-target-mode、clear-mode、attack-order移除、暗化、刷新、phase/input word和`0x004841B0`完成阶段。生产路径对`0x00478620`与`0x00484020`均为零opaque调用；后者自身inventory row 419仍保持`pending`，本轮只回收其前缀中的callee caller。
 
 ## 9. 测试与当前门禁
 
@@ -76,4 +76,4 @@ Workpack 289最终注入式定向`1/1`、Linux core `199/199`、AddressSanitizer
 
 ## 10. 动态oracle缺口
 
-原版动态差分仍为`blocked_runtime_oracle`：缺少完整Group-A/Group-B actor十八槽动作记录、重叠与异常source/destination/resource/栈内存页、两个callee寄存器与flags、DF、SEH及五处caller联合捕获后端。该缺口不影响完整LST、静态访问顺序、typed部分提交或固定状态测试结论。
+原版动态差分仍为`pending`：缺少完整Group-A/Group-B actor十八槽动作记录、重叠与异常source/destination/resource/栈内存页、两个callee寄存器与flags、DF、SEH及五处caller联合捕获后端。该缺口不影响完整LST、静态访问顺序、typed部分提交或固定状态测试结论。

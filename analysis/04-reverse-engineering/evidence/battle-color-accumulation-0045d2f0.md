@@ -56,4 +56,4 @@
 
 定向测试覆盖step零、负零、三项NaN早退与混合NaN继续，正计数递减累加，零计数先减后替换，参数0不减，负计数不减，float向零转换、低dword回绕、invalid低dword零、精确`0x3C000`前缀、逐帧caller顺序，以及全局重置十个dword同址清零。
 
-当前缺少原版九float、signed计数、完整framebuffer、像素mask与逐帧状态联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版九float、signed计数、完整framebuffer、像素mask与逐帧状态联合捕获后端，`original_diff_verified`为`pending`。

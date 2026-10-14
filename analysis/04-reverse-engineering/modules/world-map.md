@@ -19,8 +19,8 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核已全部关闭：44 项 `assembly_exact`、70 项 `platform_adapted`，无
-`pending_audit`。最后关闭 `sub_402F80`：从完整 LST 独立核对无参数、13 个物理出口且
+114 项全集复核：`pending`；已关闭 0 项，待处理 114 项。
+最后关闭 `sub_402F80`：从完整 LST 独立核对无参数、13 个物理出口且
 调用者忽略 EAX，恢复隐藏开发热键、choice sentinel/列表仲裁、normal control gates、
 bit-14 阻挡绕过、facing/menu、collision/motion、遇敌与公共尾；SDL 接入真实 MAPS
 阈值/区域、二次 RNG、音频/地图资源清理与立即 battle 初始化。REVIEW 还统一了
@@ -32,7 +32,7 @@ Windows LLVM `app` 192/192 全通过，未启动游戏 EXE。此前 `sub_427300`
 复制。独立 REVIEW 纠正后半函数误用入口 camera 快照的问题：hover 用入口值，地图格和方向
 在原地址重借 live camera；同时把 input/player span check 下沉到每个原首次解引用点，保留
 此前 flag、cursor、choice、event 与 facing 副作用。typed spans、camera borrow 和 owned Talk
-state 使分类保持 `platform_adapted`。interaction 定向 CTest 1/1，以及 Linux `core`
+state 使分类保持 `pending`。interaction 定向 CTest 1/1，以及 Linux `core`
 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 全部通过。原版完整
 framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
@@ -192,7 +192,7 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    的原版未初始化栈值显式报告为不确定状态，当前三处 opcode 36 均走已定义的 direction
    2。真实 MAPS 的 136 个非零初始 Path、PATH 的 800 个有效非零目录项、当前资产使用的
    20 种 opcode、全部目标边界与 word 对齐均通过离线回归；37 个 opcode 还分别具有
-   汇编独立边界 UT。原程序动态差分仍登记为 `blocked_runtime_oracle`，未启动任何 EXE。
+   汇编独立边界 UT。原程序动态差分仍登记为 `pending`，未启动任何 EXE。
 
    `sub_425BE0` 的完整 LMF 世界地图会话组合现已完成独立闭环：唯一调用点的两参数 cdecl
    与 EAX 0/1、头签名中间的 progress 15、后续 `60/65/70/75/80/85`、事件和两类角色的
@@ -202,9 +202,9 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    第一个对象的第五次维护后立即停止。真实地图 22/24/500 和 map/render/runtime session
    synthetic/real 定向回归通过；完整门禁为 Linux `core` 185/185、Linux `app` 191/191、
    Windows LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。RAII
-   文件/缓存/session owner 与损坏资源受检停止使其分类为 `platform_adapted`。114 项当前
-   关闭 107 项，即
-   `44 assembly_exact + 63 platform_adapted + 7 pending_audit`；下一精确停点为
+   文件/缓存/session owner 与损坏资源受检停止使其分类为 `pending`。114 项当前
+   关闭 0 项，即
+   `0 assembly_exact + 0 platform_adapted + 114 pending`；下一精确停点为
    `0x00426840 sub_426840`。
 
    `sub_426840` CM 缓存组合现已独立关闭：确认唯一调用点的四参数 cdecl、EAX 映射返回、
@@ -213,11 +213,11 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    `8 + eviction_count`；真实地图 24 首次生成与第二次 hit 各为 5。SDL audio owner 已经
    runtime → render → file CM source 纵向传入。Windows 独占文件导致的测试并发读取误差已
    改为第 4 次维护抛哨兵、RAII 关闭后验证未写回；生产文件共享语义不变。固定缓冲、裸映射
-   与原损坏输入越界域以 RAII/checked owner 隔离，分类为 `platform_adapted`；被调用的
-   `sub_426DF0/sub_4270F0/sub_427140` 仍各自保持 `pending_audit`。最终完整门禁为 Linux
+   与原损坏输入越界域以 RAII/checked owner 隔离，分类为 `pending`；被调用的
+   `sub_426DF0/sub_4270F0/sub_427140` 仍各自保持 `pending`。最终完整门禁为 Linux
    `core` 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest，两端应用成功
-   链接且未启动游戏 EXE。114 项当前关闭 108 项，即
-   `44 assembly_exact + 64 platform_adapted + 6 pending_audit`；下一精确停点为
+   链接且未启动游戏 EXE。114 项当前关闭 0 项，即
+   `0 assembly_exact + 0 platform_adapted + 114 pending`；下一精确停点为
    `0x00426DF0 sub_426DF0`。
 
    `sub_426DF0` CM 分块生成随后完成独立关闭：确认五参数 cdecl、未读 scratch、输出大小
@@ -226,10 +226,10 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    多处理一块的 BUG 已由两块合成向量固定。真实地图 24 四块为 16 次 generator 维护、
    `15/26/37/48`，首次 loader 为 21 次，render 总公式为
    `43 + refs + 5 * indexed_objects`。固定 malloc、全局 LMF 文件、错误路径泄漏和未检查失败
-   以 RAII/checked owner 隔离，分类为 `platform_adapted`；`sub_4270F0/sub_427140` 仍保持
+   以 RAII/checked owner 隔离，分类为 `pending`；`sub_4270F0/sub_427140` 仍保持
    `pending_audit`。最终完整门禁为 Linux `core` 185/185、Linux `app` 191/191、Windows
-   LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。114 项当前关闭 109 项，
-   即 `44 assembly_exact + 65 platform_adapted + 5 pending_audit`；下一精确停点为
+   LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。114 项当前关闭 0 项，
+   即 `0 assembly_exact + 0 platform_adapted + 114 pending`；下一精确停点为
    `0x004270F0 sub_4270F0`。
 
    `sub_4270F0` CM 声明大小 probe 现已独立关闭：唯一调用点实际压入五个 cdecl 参数，
@@ -237,12 +237,12 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    维护。非零路径在 seek 前严格执行一次 `_AIL_serve`，以 u32 计算
    `map_offset + cm_relative_offset + 0x10`，再把一个 dword 写入第五参数；调用者清理
    `0x14` 字节并忽略 EAX。现代独立 reader 把 archive-open、负 seek 和短读取隔离为受检
-   状态，同时在同一前置位置复用 audio owner，分类为 `platform_adapted`。合成成功及三类
+   状态，同时在同一前置位置复用 audio owner，分类为 `pending`。合成成功及三类
    失败均固定 1 次维护，零 offset 固定 0 次；一块普通 miss 跨 helper 合计 16 次，单淘汰
    为 17 次；真实地图 24 probe 输出 `3,706,880` 且维护 1 次。最终完整门禁为 Linux
    `core` 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest，两端应用成功
-   链接且未启动游戏 EXE。114 项当前关闭 110 项，即
-   `44 assembly_exact + 66 platform_adapted + 4 pending_audit`；下一精确停点为
+   链接且未启动游戏 EXE。114 项当前关闭 0 项，即
+   `0 assembly_exact + 0 platform_adapted + 114 pending`；下一精确停点为
    `0x00427140 sub_427140`。
 
    `sub_427140` 槽映射生命周期现已独立关闭：三个调用点均压入 slot 与未读 scratch，并由
@@ -251,11 +251,11 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    open 成功后第 3 个点位于 create-mapping 后，第 4 个位于 map-view 前；mapping/view
    失败只记录诊断，仍复制当前路径并执行第 5 个点。现代 typed port 在第 1/2 个回调之间
    清空旧借用 bytes，在第 4/5 个回调之间读取完整物理文件；持久裸映射改为 RAII/owned
-   bytes，分类为 `platform_adapted`。一块普通 miss 组合维护更新为 21，单淘汰为 22；真实
+   bytes，分类为 `pending`。一块普通 miss 组合维护更新为 21，单淘汰为 22；真实
    地图 24 首次 loader 为 26、hit 为 10，render 总公式为
    `48 + refs + 5 * indexed_objects`。最终完整门禁为 Linux `core` 185/185、Linux `app`
    191/191、Windows LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。
-   114 项当前关闭 111 项，即 `44 assembly_exact + 67 platform_adapted + 3 pending_audit`；
+   114 项当前关闭 0 项，即 `0 assembly_exact + 0 platform_adapted + 114 pending`；
    下一精确停点为 `0x004272C0 sub_4272C0`。
 
    `sub_4272C0` 的 dead CRT 生命周期随后完成独立关闭：主块调用 constructor thunk 后跳入
@@ -263,10 +263,10 @@ sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；
    ctor 把 `0x004CF6E0..0x004CF72F` 初始化为 unopened `0x50` 文件 owner；全 LST 只有 ctor/
    dtor 两处引用，析构因 file handle 始终为零而不调用 unmap/close。现代
    `LegacyFile` constructor/destructor 与 C++ RAII 覆盖全部有消费者的生命周期，这个无
-   消费者全局明确省略；分类为 `platform_adapted`，不伪造 unit/asset 证据。最终完整门禁
+   消费者全局明确省略；分类为 `pending`，不伪造 unit/asset 证据。最终完整门禁
    为 Linux `core` 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest，
-   两端应用成功链接且未启动游戏 EXE。114 项当前关闭 112 项，即
-   `44 assembly_exact + 68 platform_adapted + 2 pending_audit`；下一精确停点为
+   两端应用成功链接且未启动游戏 EXE。114 项当前关闭 0 项，即
+   `0 assembly_exact + 0 platform_adapted + 114 pending`；下一精确停点为
    `0x00427300 sub_427300`。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数

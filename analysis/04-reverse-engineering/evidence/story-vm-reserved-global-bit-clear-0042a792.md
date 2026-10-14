@@ -46,4 +46,4 @@ TALK4: 005D=5,  405D=0, 805D=0, C05D=3
 
 synthetic独立覆盖四raw alias精确尾、selector0/1/4/5、最后owned selector8162、首个越界8163、FFFF、operand截断、只清单bit、IP/previous和same-call。Linux Story VM三项为3/3。
 
-分类：`platform_adapted`。owned域的u16零扩展、u32 dec/add回绕、invalid-safe继续清、`FF-mask`、+4、previous和same-call均保持；原版owner外裸read/write以原访问点typed-stop隔离，debug-only `nullsub_1`不建模。
+分类：`pending`。owned域的u16零扩展、u32 dec/add回绕、invalid-safe继续清、`FF-mask`、+4、previous和same-call均保持；原版owner外裸read/write以原访问点typed-stop隔离，debug-only `nullsub_1`不建模。

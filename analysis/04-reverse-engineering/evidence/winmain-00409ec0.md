@@ -174,7 +174,7 @@ P1.7 下游复核已经确认：`0x00484950` 是 Bink 视频解码、拷贝与 D
 
 ## 7. OpenSWD3 平台接线
 
-平台无关的两个早退顺序由 `run_process_startup_gates` 保留。现代窗口不再具有原 Win32 类名和 Big5 标题，所以跨平台端口用进程生命周期锁替代 `FindWindowExA`：Windows 使用 `Local\\OpenSWD3` 命名 mutex，POSIX 使用临时目录中的 advisory file lock。它只改变旧窗口探测机制，不改变“已有实例先于命令行处理并返回零”的调用者结果，登记为 `platform_adapted`。
+平台无关的两个早退顺序由 `run_process_startup_gates` 保留。现代窗口不再具有原 Win32 类名和 Big5 标题，所以跨平台端口用进程生命周期锁替代 `FindWindowExA`：Windows 使用 `Local\\OpenSWD3` 命名 mutex，POSIX 使用临时目录中的 advisory file lock。它只改变旧窗口探测机制，不改变“已有实例先于命令行处理并返回零”的调用者结果，登记为 `pending`。
 
 Windows 后端直接从 `GetCommandLineA` 去掉首个可执行文件 token，保留后续原始字节尾；非 Windows 的 `argv` 已被宿主解析，无法恢复被引号和转义区分的原始字节，只能用单个空格连接 `argv[1..]`。后者是明确的平台信息损失，不作为 `assembly_exact`。
 

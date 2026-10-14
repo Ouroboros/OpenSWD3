@@ -68,4 +68,4 @@ stage商零后，函数从上一升级提交保存的完整56-byte角色快照�
 
 定向测试覆盖actor FF早退、底板/双九宫格/名称、七条CP950基线、阶段0与29/30/100、九项差值、最后两项只计算不显示、前三signed与后四unsigned比较、两条串行动画队列、sample寄存器、阶段29角色资源越界、格式缓冲边界、第十一actor、消息110直连/旧槽零调用/子stop传播和主帧四类generic映射。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。app配置仅出现白名单ALSA开发库缺失警告，源码编译零warning。
 
-当前缺少原版动作/矩形/九宫格/字体surface、角色名称与当前记录联合状态、动态栈地址、`wsprintfA`返回、sample对象及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版动作/矩形/九宫格/字体surface、角色名称与当前记录联合状态、动态栈地址、`wsprintfA`返回、sample对象及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

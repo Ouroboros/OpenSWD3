@@ -28,4 +28,4 @@ actor level按unsigned byte，candidate按unsigned word。差值使用32位`leve
 
 唯一caller为group-A frame `0x00456680`的turn-resolution分支。production现在直接调用typed概率门；成功继续原publish-turn-result与negative-turn链，失败执行原全group-A失败发布、消息、sample和门清零。原整函数callee token与测试注入均已删除。candidate为零的既有测试因此纠正为权威LST的确定失败路径，不再依赖opaque默认返回1。
 
-测试覆盖零值不访问owner、candidate高于level的35/36边界、相等直接失败、差值1的70端点、差值8的90端点、差值13直接成功、随机消费次数，以及成功/失败caller集成和整函数port移除。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`206/422 = 197 platform_adapted + 9 assembly_exact + 216 pending_audit`，SHA256为`e98195773f94491f0e042e58db5085c250a5e8682903fc68ab2fc9ea0e7a5e4b`。动态差分因原版first actor指针、secondary RNG状态和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+测试覆盖零值不访问owner、candidate高于level的35/36边界、相等直接失败、差值1的70端点、差值8的90端点、差值13直接成功、随机消费次数，以及成功/失败caller集成和整函数port移除。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 197 platform_adapted + 9 assembly_exact + 216 pending_audit`，SHA256为`e98195773f94491f0e042e58db5085c250a5e8682903fc68ab2fc9ea0e7a5e4b`。动态差分因原版first actor指针、secondary RNG状态和caller寄存器联合捕获后端缺失而登记为`pending`。

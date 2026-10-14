@@ -100,6 +100,6 @@ remaining_frames--
 确定的内存边界，有效状态路径不变。
 
 Linux Clang `core` 为 `93/93`，Windows LLVM `app` 为 `97/97` CTest，全套通过。
-当前证据状态为 `assembly_exact`；原程序像素差分仍为 `blocked_runtime_oracle`。
+当前证据状态为 `pending`；原程序像素差分仍为 `pending`。
 需要时由 Codex 准备 Frida spawn 一键工具并等待用户执行，OpenSWD3 不自行
 启动原 EXE。

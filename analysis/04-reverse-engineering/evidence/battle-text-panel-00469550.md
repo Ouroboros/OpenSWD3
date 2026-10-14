@@ -24,4 +24,4 @@ HUD顶部caller在解析姓名token后直接调用typed helper，入口寄存器
 
 定向测试覆盖共享动作owner、动作记录token、两个caller入口寄存器、矩形与九宫格参数、width高word资源链、显式/双零/单非零三种坐标门、默认分支陈旧EDX、u32负坐标回绕、文字返回寄存器、旧槽零调用、HUD顶部与footer组合路径。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
-原版动作更新、framebuffer、矩形、九宫格、字体/文字与caller寄存器联合捕获后端尚不可用，`original_diff_verified`为`blocked_runtime_oracle`。
+原版动作更新、framebuffer、矩形、九宫格、字体/文字与caller寄存器联合捕获后端尚不可用，`original_diff_verified`为`pending`。

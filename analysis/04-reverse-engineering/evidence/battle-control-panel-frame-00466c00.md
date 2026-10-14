@@ -38,4 +38,4 @@ alternate selection limit与selected index分别复用frame-input和input-dispat
 
 定向测试覆盖双边框几何与stop、固定标题、攻击/释放索引、selected重绘、三次主查询与两次特殊查询、成功/失败压缩、组B寄存器、signed负索引stop、共享24-byte清零、三项主文字、两项CP950特殊格式、transition A/B互斥发布、最终normal style及唯一caller正常/stop传播。验证：定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过。源码构建零warning；app仅有既有ALSA开发库CMake warning。
 
-当前缺少原版组B对象、主/特殊查询、字体/文字、动态栈输出地址、边框/framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组B对象、主/特殊查询、字体/文字、动态栈输出地址、边框/framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-当前单元：已移交 B2；只保留原程序动态差分阻塞
+当前单元：`pending`。
 
 ## 1. 范围与非范围
 
@@ -36,10 +36,10 @@
 
 | 单元 | 内容 | 状态 |
 |---|---|---|
-| B1.1 | 空闲、帧入口、活动分支、剧情门、特殊模式和战斗出口纯函数 | 已实现；Windows LLVM `core`/`app` 验收通过 |
-| B1.2 | SDL3 窗口、640×480 RGB565 owned framebuffer 上传和退出 smoke | 已实现；真实 Windows SDL3 窗口创建/关闭 smoke 通过 |
-| B1.3 | 记录调用序列的启动/总初始化、完整已接受帧、显示停用/恢复和总销毁编排 | B1 编排已实现并通过 23 项 CTest；端口按所有权移交后续模块 |
-| B1.4 | 按上述七个根地址逐基本块复核并完成 B1 集成测试 | 静态复核、Windows LLVM 构建、CTest 与真实 SDL3 smoke 完成 |
+| B1.1 | 空闲、帧入口、活动分支、剧情门、特殊模式和战斗出口纯函数 | `pending` |
+| B1.2 | SDL3 窗口、640×480 RGB565 owned framebuffer 上传和退出 smoke | `pending` |
+| B1.3 | 记录调用序列的启动/总初始化、完整已接受帧、显示停用/恢复和总销毁编排 | `pending` |
+| B1.4 | 按上述七个根地址逐基本块复核并完成 B1 集成测试 | `pending` |
 
 ## 5. 当前 UT 与验证
 
@@ -83,7 +83,7 @@
 - SDL 启动页鼠标事件先转换到 640×480 逻辑渲染坐标，再执行原无符号热区；高 DPI、letterbox、viewport 或 scale 不再让宿主坐标直接污染汇编热区。
 - SDL 初始化之前先执行单实例和命令行两门。单实例以 Windows 命名 mutex / POSIX advisory lock 替换无法跨平台复刻的类名加 Big5 标题搜索；Windows 从原始命令行提取尾部，其他系统只能把已解析 argv 用单空格连接。旧实例优先、两个早退返回零以及非空命令首字节/余串合同不变，具体命令业务仍是占位端口。
 
-Windows LLVM/CMake/Ninja 已分别完成最新源码的 `core` 与 `app` 正式构建，两套配置的 CTest 均为 23/23。`app` 使用真实 SDL 3.4.12 和 Windows 图形后端完成窗口 smoke：进程创建标题为 `OpenSWD3` 的宿主窗口，接收关闭请求后在五秒内以退出码零结束。原程序动态 oracle 仍不可用，因此 B1 状态为 `module_closed_pending_oracle`，不升级为 `original_diff_verified`。
+Windows LLVM/CMake/Ninja 已分别完成最新源码的 `core` 与 `app` 正式构建，两套配置的 CTest 均为 23/23。`app` 使用真实 SDL 3.4.12 和 Windows 图形后端完成窗口 smoke：进程创建标题为 `OpenSWD3` 的宿主窗口，接收关闭请求后在五秒内以退出码零结束。原程序动态 oracle 仍不可用，因此 B1 状态为 `pending`，不升级为 `original_diff_verified`。
 
 ## 6. 平台兼容隔离
 

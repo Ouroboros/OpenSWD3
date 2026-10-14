@@ -183,6 +183,6 @@ finding 或 runtime error。
 LST 地址摘录 SHA-256 为
 `d9ec9988fae8a606bceff6cd056a468aef7bf9f1e6f53d2e46d4c664ce6d2272`。inventory 生成器
 连续双跑逐字节一致，关闭结果为
-`310/422 = 300 platform_adapted + 10 assembly_exact + 112 pending_audit`，下一条为
+`0/422 = 300 platform_adapted + 10 assembly_exact + 112 pending_audit`，下一条为
 `audit_order=311 / 0x00478B20 / sub_478B20`。最终 inventory SHA-256 为
 `5d2cac8cfcd4a4f3475e611b3ebb7ad7ba9fa33ed352b3732676b56929d9c0b2`。

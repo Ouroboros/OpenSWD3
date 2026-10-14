@@ -24,4 +24,4 @@
 
 单元测试覆盖首读取typed-stop、任意32位完整复制、EAX/ECX/EDX及相等值仍写。
 
-验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`186/422 = 177 platform_adapted + 9 assembly_exact + 236 pending_audit`，SHA256为`ff1f2a148d947032f7b568f189054169c61541330ff2c814479697d9db0272b7`。动态差分因原版actor索引状态与九处caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 177 platform_adapted + 9 assembly_exact + 236 pending_audit`，SHA256为`ff1f2a148d947032f7b568f189054169c61541330ff2c814479697d9db0272b7`。动态差分因原版actor索引状态与九处caller联合捕获后端缺失而登记为`pending`。

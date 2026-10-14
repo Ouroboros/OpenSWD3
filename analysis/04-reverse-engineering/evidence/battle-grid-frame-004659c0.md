@@ -80,4 +80,4 @@ value低word按signed i16使用旧`%2d`最小宽度格式化，保留一个前�
 
 定向测试覆盖queued零、五项动作框顺序/位置、面板更新失败继续、陈旧资源高word、面板矩形/九宫格stop、非法组A code、隐藏行无上限扫描、两种颜色与`%2d`、当前行双绘制、第一/第二矩形发布差异、真实共享文字、缺MAPS目录、查询0刷新、七行低word上限、最终寄存器及唯一caller传播。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅保留既有ALSA开发库CMake warning。
 
-当前缺少原版组A对象、三类角色列表callee联合状态、字体/文字surface、动作/矩形/九宫格framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A对象、三类角色列表callee联合状态、字体/文字surface、动作/矩形/九宫格framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

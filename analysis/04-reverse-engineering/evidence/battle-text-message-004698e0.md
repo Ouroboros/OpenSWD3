@@ -46,7 +46,7 @@
 
 定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码构建零warning。
 
-原版动态分配地址、真实CP950文字地址、共享链节点、40个caller联合寄存器及未审caller状态捕获后端尚不可用，`original_diff_verified`为`blocked_runtime_oracle`。
+原版动态分配地址、真实CP950文字地址、共享链节点、40个caller联合寄存器及未审caller状态捕获后端尚不可用，`original_diff_verified`为`pending`。
 
 ## 7. B11未返回调用的停止传播
 

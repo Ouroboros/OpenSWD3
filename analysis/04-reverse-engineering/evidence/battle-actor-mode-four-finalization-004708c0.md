@@ -20,4 +20,4 @@ replacement与latch复用第187项final state，mode和action kind复用第180�
 
 ## 4. 验证状态
 
-测试覆盖mode OR、latch、非零replacement复制、304字节完整清零、寄存器结果及目标选择caller端口调用回收。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`195/422 = 186 platform_adapted + 9 assembly_exact + 227 pending_audit`，SHA256为`bc01de2599a2a2d3436786582e0de1a79c26ab46281f05ba0b236f27b25e8ba6`。动态差分因原版actor四段物理状态、两个caller及寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+测试覆盖mode OR、latch、非零replacement复制、304字节完整清零、寄存器结果及目标选择caller端口调用回收。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 186 platform_adapted + 9 assembly_exact + 227 pending_audit`，SHA256为`bc01de2599a2a2d3436786582e0de1a79c26ab46281f05ba0b236f27b25e8ba6`。动态差分因原版actor四段物理状态、两个caller及寄存器联合捕获后端缺失而登记为`pending`。

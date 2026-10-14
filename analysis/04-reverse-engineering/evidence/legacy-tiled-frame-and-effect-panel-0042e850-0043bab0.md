@@ -117,4 +117,4 @@ UT 固定边框/中心的逐像素布局、查询次序、`0x234A` 第 9 块硬�
 
 回归结果：Linux `core` 50/50、Windows LLVM `app` 52/52 CTest 通过；Windows 构建只执行编译和测试，没有启动 OpenSWD3 或原程序。
 
-当前证据等级：正常可寻址输入为 `assembly_exact`；尚未取得原程序 framebuffer 输出，动态像素差分为 `blocked_runtime_oracle`。
+当前证据等级：正常可寻址输入为 `pending`；尚未取得原程序 framebuffer 输出，动态像素差分为 `pending`。

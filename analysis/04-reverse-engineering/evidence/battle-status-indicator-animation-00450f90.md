@@ -138,4 +138,4 @@ C++到LST反向追溯覆盖所有共享读写、五个callee、两个返回值�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版有界随机表、动作更新后EAX、四个共享计数word、frame record、共享blitter状态、提示音后端和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整170行LST、唯一caller和五个callee已完成固定状态闭环。
+当前没有原版有界随机表、动作更新后EAX、四个共享计数word、frame record、共享blitter状态、提示音后端和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整170行LST、唯一caller和五个callee已完成固定状态闭环。

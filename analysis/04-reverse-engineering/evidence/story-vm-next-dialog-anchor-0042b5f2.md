@@ -41,4 +41,4 @@ synthetic覆盖四个raw alias、`639/640`和`479/480`边界、`0xFFFF`、独立
 
 Story VM synthetic、real及initial-session三项通过。未启动原版或OpenSWD3游戏EXE。
 
-分类：`assembly_exact`。
+分类：`pending`。

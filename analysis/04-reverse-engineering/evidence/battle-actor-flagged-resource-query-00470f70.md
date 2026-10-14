@@ -4,7 +4,7 @@
 
 当前切片：源码`84d3f985`已迁移实际查询与唯一网格消费，定向验证通过。
 完整列表、网格、字体及其它父接口族继续`pending`，不增加整族验收数。
-历史函数还原的`platform_adapted`分类保留，不升级`assembly_exact`。
+历史函数还原的分类为`pending`，不升级`assembly_exact`。
 
 ## 1. 权威范围与业务输入
 
@@ -98,7 +98,7 @@ token，以及共用query枚举和主帧纯转发映射。初始化、字体、�
 3eda365b已删除470F76根发布的叶EAX转发和提交计数，见
 [资源链头发布](battle-actor-resource-list-commit-00470900.md)。
 旧audit_order201的core188/188、app194/194及历史inventory
-`201/422 = 192 platform_adapted + 9 assembly_exact + 221 pending_audit`
+`0/422 = 192 platform_adapted + 9 assembly_exact + 221 pending_audit`
 只属于原还原记录；历史生成SHA256为
 `83d366d03421276e5ce1e0580e59cdce4a115028c0d4493d763a5d12f5afb40a`。
 这些记录不替代本批门禁，不前移315/422、316或B11。

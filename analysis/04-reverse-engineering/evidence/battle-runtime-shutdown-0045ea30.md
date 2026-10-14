@@ -71,4 +71,4 @@ SDL空释放实现已删除；非空缓冲的生产分配来源仍待核对。
 组内与组间循环顺序、固定步长另由源码逐行对照LST，删除旧寄存器观察断言。
 当前定向验证见[队伍双资源清理](battle-group-a-resource-cleanup-00475180.md)。
 
-当前缺少原版10个group-A对象、8个group-B对象、动态164-byte资源、`0x004885A0`allocator释放和完整寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版10个group-A对象、8个group-B对象、动态164-byte资源、`0x004885A0`allocator释放和完整寄存器联合捕获后端，`original_diff_verified`为`pending`。

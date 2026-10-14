@@ -62,7 +62,7 @@ Typed 实现按真实访问顺序区分三个停止点：
 原程序可对任意裸 actor 指针访问 `+0x2AF8`。现代 C++ 只能解析已登记的
 Group-A/Group-B 生命周期 owner；固定 token 非对齐、越界或 owner 不存在时，在
 原字段读点 typed-stop，不提前加 actor-code 范围门、不回滚 caller 已发布前缀，也不
-伪造邻接内存。因此本工作包登记为 `platform_adapted`。
+伪造邻接内存。因此本工作包登记为 `pending`。
 
 ## 5. 两个物理 CALL 与 opcode 29
 
@@ -118,13 +118,13 @@ warning、测试失败、sanitizer finding 或 runtime error；TMP 分类、prod
 调用归零和 unstaged release audit 均通过，未启动原版或 OpenSWD3 游戏程序。
 
 inventory 生成器连续双跑逐字节一致；当前计数为
-`304/422 = 294 platform_adapted + 10 assembly_exact + 118 pending_audit`，
+`0/422 = 294 platform_adapted + 10 assembly_exact + 118 pending_audit`，
 SHA-256 为
 `17532962784376fa50d3dac230c609ed9b30309425db0a7f92628acd75b3bd55`。
 
 ## 7. 动态差分状态
 
 当前缺少原版完整 Group-A/Group-B actor、三个异常内存访问，以及两处 caller 联合
-寄存器、flags 与 SEH 捕获后端。原版动态差分登记为 `blocked_runtime_oracle`，不得
+寄存器、flags 与 SEH 捕获后端。原版动态差分登记为 `pending`，不得
 写成 `original_diff_verified`。该阻塞不改变 20 字节 leaf、两处物理 CALL 身份和
 当前静态收敛结论。

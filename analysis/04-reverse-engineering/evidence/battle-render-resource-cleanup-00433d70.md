@@ -70,4 +70,4 @@ C++到LST：
 
 本函数不消费物理游戏资产。定向battle聚合测试与零warning目标构建通过。
 
-当前没有可用原版退出回调及两条主动清理路径的owner联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整35行LST、已关闭callee回收、typed顺序和固定状态已经闭环。
+当前没有可用原版退出回调及两条主动清理路径的owner联合捕获后端，`original_diff_verified`为`pending`。完整35行LST、已关闭callee回收、typed顺序和固定状态已经闭环。

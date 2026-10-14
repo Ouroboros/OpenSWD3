@@ -159,4 +159,4 @@ C++到LST：
 
 本函数不消费物理游戏资产。定向battle聚合测试与零warning构建通过。
 
-当前没有可用原版战斗literal图像变形联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整378行LST、typed实现与固定状态已经闭环。
+当前没有可用原版战斗literal图像变形联合捕获后端，`original_diff_verified`为`pending`。完整378行LST、typed实现与固定状态已经闭环。

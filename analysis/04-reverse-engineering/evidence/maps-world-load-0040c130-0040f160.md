@@ -2,8 +2,8 @@
 
 状态：`pending`。
 汇编—C++ 双向追溯；文件、内存、宿主退出和损坏数据失败策略在现代 owner 边界隔离）、
-`asset_verified`（当前游戏数据的新游戏路径）、`original_diff_verified`（GUID 248/249
-初始角色绘制状态）；其余原程序动态差分仍为 `blocked_runtime_oracle`。
+`pending`（当前游戏数据的新游戏路径）、`pending`（GUID 248/249
+初始角色绘制状态）；其余原程序动态差分仍为 `pending`。
 
 ## 证据边界
 
@@ -168,7 +168,7 @@ service 5 关闭时零 RNG 调用、零槽写入。生成结果随后按原字�
 `0x0040C32C..0x0040C4E7`、四槽 RNG `0x0040C7D3..0x0040C859`、区域/角色顺序
 `0x0040C88C..0x0040CD28`、逐角色初始化 `0x0040CD61..0x0040CD78` 与
 `0x0040F280..0x0040F33C`。没有剩余 C++ 业务行为找不到汇编依据；平台失败策略均在上表
-单列，故三个入口登记为 `platform_adapted` 而不是把整函数误标成 `assembly_exact`。
+单列，故三个入口登记为 `pending` 而不是把整函数误标成 `assembly_exact`。
 
 ## 相机
 

@@ -55,4 +55,4 @@ loader正常返回后，函数从内嵌定义`+0x20`读取完整dword到`EAX`，
 
 消息99集成测试覆盖真实组B owner、两次随机、旧整函数槽零调用、新loader ABI、道具成功发布、loader typed-stop后缀阻断及完整`EAX`高word非零但低`AX`为零的失败分支。frame协调器测试覆盖新窄调用、参数、寄存器、定义payload和typed-stop透传。战斗聚合定向测试、完整core AddressSanitizer`188/188`、Linux core`188/188`和Linux app`194/194`全部通过，三份最终日志无OpenSWD3源码warning、测试失败或sanitizer finding。
 
-当前缺少原版组B actor、动态资源三组定义word、第二套随机种子/游标、`0x00476DB0`真实定义加载副作用、内嵌定义和消息99调用方寄存器的联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。该限制不影响完整静态闭环和Linux验证。
+当前缺少原版组B actor、动态资源三组定义word、第二套随机种子/游标、`0x00476DB0`真实定义加载副作用、内嵌定义和消息99调用方寄存器的联合捕获后端，因此`original_diff_verified`登记为`pending`。该限制不影响完整静态闭环和Linux验证。

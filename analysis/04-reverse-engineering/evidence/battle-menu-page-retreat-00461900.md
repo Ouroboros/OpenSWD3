@@ -40,4 +40,4 @@ current equipment索引只在两次真实store处typed-stop。第一项越界时
 
 定向测试覆盖：默认消息寄存器；消息2先归一grid、正scroll和负scroll的陈旧ECX；消息27先归一list与负scroll；消息4先归一grid、正常双缓存写、负scroll EDX重载和首store typed-stop；interaction mode 3与record7两处caller直连；typed-stop阻断后续mode 4。
 
-当前缺少原版菜单/分页全局、样本后端、两处caller输入记录与EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版菜单/分页全局、样本后端、两处caller输入记录与EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

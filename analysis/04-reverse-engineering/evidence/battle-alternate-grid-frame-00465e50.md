@@ -89,4 +89,4 @@ iterator按完整DWORD从`scroll_offset+1`开始，每次借live queued所指par
 
 定向测试覆盖queued零、动作更新失败继续、矩形/两处九宫格stop、两次资源陈旧高word、固定标题、三项字体、非法组A code、查询0二次刷新、七行后第八次查询、名称/数值顺序、signed `%2d`、主色高word、当前行重绘、单矩形发布门、最终字体寄存器及唯一caller正常/stop传播。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅保留既有ALSA开发库CMake warning。
 
-当前缺少原版组A对象、固定selector初始化/刷新/替代查询callee联合状态、字体/文字surface、面板/矩形/九宫格framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A对象、固定selector初始化/刷新/替代查询callee联合状态、字体/文字surface、面板/矩形/九宫格framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

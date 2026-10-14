@@ -31,7 +31,7 @@
 
 唯一行为真值为`swd3.exe.lst`。完整主体为`0x00477800..0x00477821`，从proc到endp共26个物理行、12条实际指令、0个call、3个跳转、3个局部/返回标签和1个返回点，没有外部`FUNCTION CHUNK`。
 
-七个静态callsite为`0x00409D34`、`0x00410846`、`0x0041086D`、`0x0043C1BC`、`0x00442D53`、`0x00454670`和`0x00466AD3`。其中`0x00409CE0` Fame载入过程仍为`pending_audit`，不提前修改；其余六个物理站点位于五个已关闭caller，均已回收为typed直连。
+七个静态callsite为`0x00409D34`、`0x00410846`、`0x0041086D`、`0x0043C1BC`、`0x00442D53`、`0x00454670`和`0x00466AD3`。其中`0x00409CE0` Fame载入过程仍为`pending`，不提前修改；其余六个物理站点位于五个已关闭caller，均已回收为typed直连。
 
 ## 2. 链扫描与返回合同
 
@@ -73,4 +73,4 @@
 
 caller回归覆盖Dialog两次覆盖、标准模式500键状态表、guardian slot9完成与故障、动作6阈值与后缀阻断、提示帧阈值与故障寄存器；旧接口名称全仓扫描为零。定向4/4、battle聚合连续10次、Linux core`194/194`、AddressSanitizer`194/194`和Linux app`200/200`全部通过，最终源码零warning、sanitizer finding或runtime error。验证期间未启动原版或OpenSWD3游戏程序。
 
-当前缺少原版固定键链、Fame载入状态及七个callsite的EAX/ECX/EDX联合捕获后端，动态差分登记为`blocked_runtime_oracle`；这不阻止完整LST静态闭合和Linux门禁。
+当前缺少原版固定键链、Fame载入状态及七个callsite的EAX/ECX/EDX联合捕获后端，动态差分登记为`pending`；这不阻止完整LST静态闭合和Linux门禁。

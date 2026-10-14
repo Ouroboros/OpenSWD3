@@ -115,4 +115,4 @@ C++到LST反向追溯覆盖207行全部基本块、动态循环次数、record/s
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版三项阈值、扫描counter、选择/目标状态、frame record、共享clip/blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整207行LST与唯一caller已完成固定状态闭环。
+当前没有原版三项阈值、扫描counter、选择/目标状态、frame record、共享clip/blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整207行LST与唯一caller已完成固定状态闭环。

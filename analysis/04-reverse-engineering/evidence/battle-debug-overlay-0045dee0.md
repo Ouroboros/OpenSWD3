@@ -122,4 +122,4 @@
 
 定向测试覆盖总门关闭字体尾、两组完整文字、CP950字节、固定坐标与格式、生命局部跨角色陈旧继承、低byte/word和signed参数、完整EAX/ECX/EDX尾、解析token发布、`+0x54`读取停点、双方动作与启动WORD实际共享读取、首行/后续行父级失败值、字段/RET停止后缀、十槽Group-A边界、三类动态顺序、callee后数量增长、typed current-coordinate与进度宽度、两类标记旧端口零调用、Y读取停止后的X scratch部分提交、进度读取停点、双行标记、第二行越界前缀、signed缓存除法、frame divisor零点、全局重置别名及逐帧caller阻断。
 
-当前缺少原版字体/文字callee、两组角色对象及查询副作用、共享255字节缓冲、TSW缓存计数、完整叠加全局、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版字体/文字callee、两组角色对象及查询副作用、共享255字节缓冲、TSW缓存计数、完整叠加全局、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`pending`。

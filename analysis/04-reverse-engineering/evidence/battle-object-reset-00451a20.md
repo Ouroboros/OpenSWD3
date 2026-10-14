@@ -87,4 +87,4 @@ C++到LST反向追溯覆盖58行完整函数、22次原callee调用、三个五�
 - 18个actor reply的EAX和EDX逐次线程，ECX在每次调用前被当前token覆盖；
 - 最终EAX、ECX和EDX来自末个组A对象callee。
 
-当前没有原版全局链清理、384字节表、18个角色对象和后续角色callee的联合捕获后端，caller整体`original_diff_verified`仍为`blocked_runtime_oracle`。本次已关闭五字helper不依赖该动态oracle。
+当前没有原版全局链清理、384字节表、18个角色对象和后续角色callee的联合捕获后端，caller整体`original_diff_verified`仍为`pending`。本次已关闭五字helper不依赖该动态oracle。

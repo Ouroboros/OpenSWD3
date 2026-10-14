@@ -1,7 +1,7 @@
 # Packed-row 效果链关闭生命周期闭环
 
 状态：`pending`。
-差分仍为 `blocked_runtime_oracle`。
+差分仍为 `pending`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x0040F500..0x0040F539`。该函数从
 `dword_4BAB9C` 的链首开始，逐节点释放两个内部行数组和节点本体，直到全局链首为空。

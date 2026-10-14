@@ -158,7 +158,7 @@ sanitizer记录；此前两个setup编译仅报告既存的outcome-resolution
 不支持当前源码验收。当前B10仍为315/422，316/317/318保持pending。
 
 C++实际字段及访问描述不能制造原CPU字段页、RET栈页、完整flags或SEH。
-分类保持 `platform_adapted`；联合原版动态差分仍为
+分类保持 `pending`；联合原版动态差分仍为
 `blocked_runtime_oracle`，没有升为 `assembly_exact` 或
 `original_diff_verified`。SDL链接不证明整条角色帧或游戏运行；组A、
 动作及资源父链仍需逐项迁移，整体INVOKE清理尚未完成。

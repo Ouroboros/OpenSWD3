@@ -77,4 +77,4 @@ LST摘录、独立分析、双向审查、首失败、四门日志、源码SHA�
 原196/422阶段曾执行core188/188、app194/194及双生成，历史SHA256为
 `61edff9d9172acbf3fe675a6ca334657d402de59dffe303618b924e2f702b412`。
 这些旧全量结果不作为本次门禁。原版链头与caller联合捕获仍缺失，
-`original_diff_verified`保持`blocked_runtime_oracle`。
+`original_diff_verified`保持`pending`。

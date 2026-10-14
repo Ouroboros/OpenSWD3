@@ -75,7 +75,7 @@ C++到LST反向追溯覆盖57行全部基本块、两个释放callsite、六轮�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版六owner、嵌套image分配与释放回调联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。普通释放的固定状态回归覆盖两个caller，未证明任意回调改写及未返回域。
+当前没有原版六owner、嵌套image分配与释放回调联合捕获后端，`original_diff_verified`为`pending`。普通释放的固定状态回归覆盖两个caller，未证明任意回调改写及未返回域。
 
 ## 8. B11释放后对已绑定效果立即可见
 

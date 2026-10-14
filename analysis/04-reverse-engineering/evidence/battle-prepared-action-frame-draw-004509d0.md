@@ -85,4 +85,4 @@ C++ typed实现直接复用已关闭动作更新器和blitter；没有复制动�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版动作更新后ECX、持久动作槽、帧record、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整59行LST、三个关闭callee直连和固定状态验证已经闭环。
+当前没有原版动作更新后ECX、持久动作槽、帧record、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整59行LST、三个关闭callee直连和固定状态验证已经闭环。

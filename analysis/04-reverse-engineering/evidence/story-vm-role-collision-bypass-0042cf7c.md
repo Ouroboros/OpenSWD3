@@ -42,7 +42,7 @@ lookup miss不写角色、不发MAPS patch、不诊断。成功与miss都进入�
 
 selector截断时modern在原`[script+2]`读取点返回`operand_out_of_range`，无lookup、flags、IP或previous副作用。完整记录从`IP=0x7FFC`开始时，flags、IP=`0x8000`和previous178先提交，再由same-call下一fetch返回`instruction_out_of_range`。
 
-所有合法owner已由现有typed角色span承接，无nullable、I/O、分配或平台失败边界，故分类为`assembly_exact`。
+所有合法owner已由现有typed角色span承接，无nullable、I/O、分配或平台失败边界，故分类为`pending`。
 
 ## 3. 资产锁与验证
 

@@ -1,7 +1,7 @@
 # 世界地图装载进度界面闭环
 
 状态：`pending`。
-仍为 `blocked_runtime_oracle`。
+仍为 `pending`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x0040ED60..0x0040EFCB`。IDA 给出的
 `char __cdecl sub_40ED60(int)` 返回类型不是调用合同：15 个调用点均在调用后直接恢复
@@ -72,7 +72,7 @@ RGB555 为 `0x0DDF`；进度 100 的 `limit` 为 394，共 395 列，末列原�
 最后另行提交表面。现代实现使用 B4 的受控 `LegacyFramebuffer` 和统一 presentation
 端口，保留清屏范围、pitch、像素、绘制顺序及提交时点。小于固定画布或异常进度导致
 写入越界时返回明确安全状态；这两项仅隔离原版无效状态，所有已发现正常调用值保持
-汇编行为，因此登记为 `platform_adapted`。
+汇编行为，因此登记为 `pending`。
 
 ## 5. 实现与验证
 

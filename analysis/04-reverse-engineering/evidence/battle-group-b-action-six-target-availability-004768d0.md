@@ -40,4 +40,4 @@ actor、资源token和164-byte资源继续复用`LegacyBattleStartupState::group
 
 战斗聚合测试、完整core AddressSanitizer`188/188`、Linux core`188/188`和Linux app`194/194`全部通过；最终日志无OpenSWD3源码warning、测试失败或sanitizer finding。新增文件全量及历史文件本包触碰行均通过clang-format Werror门。
 
-当前缺少原版组Bactor、动态资源状态dword、阈值word、两个caller目标发布前缀与EAX/ECX/EDX联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。该限制不影响完整静态闭环和Linux验证。
+当前缺少原版组Bactor、动态资源状态dword、阈值word、两个caller目标发布前缀与EAX/ECX/EDX联合捕获后端，因此`original_diff_verified`登记为`pending`。该限制不影响完整静态闭环和Linux验证。

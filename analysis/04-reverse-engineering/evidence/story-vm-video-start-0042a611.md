@@ -66,4 +66,4 @@ real CTest独立回放：
 
 两条均置于精确尾，验证raw filename、六步side-effect owner、两次audio、IP=`0x8000`、previous85与yield。既有Story100继续端到端经过OPENING视频边界。synthetic还覆盖`.avi`、四alias、CD预检拒绝和缺terminator typed failure。剧情VM三项为3/3。
 
-分类：`platform_adapted`。VM合法域清屏/提交/audio/预检/解析/begin顺序、terminator、IP、previous与yield保持；CD acquisition、固定路径、Bink wrapper和unsafe扫描由配置目录、typed backend与bounded失败替代。
+分类：`pending`。VM合法域清屏/提交/audio/预检/解析/begin顺序、terminator、IP、previous与yield保持；CD acquisition、固定路径、Bink wrapper和unsafe扫描由配置目录、typed backend与bounded失败替代。

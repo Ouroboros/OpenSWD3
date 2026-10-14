@@ -12,4 +12,4 @@
 
 七处production caller全部改为typed直连，旧`0x00474FC0`整函数opaque调用删除；内部`0x00477830`opaque调用也已删除。测试覆盖actor/shared/fixed-curve三个故障域、入口高半保留与三个低word替换、真实固定链计数/百分比/motion、负方向八、mode-one skip、mode-zero完整路径、双signed word相加、pair-primary累计、9999 inclusive夹值、负一先累计后抑制发布、最终寄存器、三类caller及两个旧地址零调用。fixed-curve stop保留调用前清零且不写最终latch。
 
-本页原工作包的定向、AddressSanitizer、Linux core与Linux app门禁均已通过；`0x00477830`回收后再次通过battle聚合定向测试，完整门禁结果记录在对应fixed-curve证据和模块摘要。动态差分因原版行动者曲线字段、固定曲线链、目标对象、共享motion/last-effect、pair-primary累计、其余五个callee和七处caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+本页原工作包的定向、AddressSanitizer、Linux core与Linux app门禁均已通过；`0x00477830`回收后再次通过battle聚合定向测试，完整门禁结果记录在对应fixed-curve证据和模块摘要。动态差分因原版行动者曲线字段、固定曲线链、目标对象、共享motion/last-effect、pair-primary累计、其余五个callee和七处caller寄存器联合捕获后端缺失而登记为`pending`。

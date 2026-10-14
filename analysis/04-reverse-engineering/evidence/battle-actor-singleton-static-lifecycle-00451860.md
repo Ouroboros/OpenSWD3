@@ -65,4 +65,4 @@ chunk执行：
 说明析构验证见[说明所有权迁移](battle-actor-description-owned-release.md)，
 当前构造接口验证见[基础初始化](battle-actor-base-initialization-00478250.md)。
 
-当前没有原版单例对象字节、说明堆、CRT释放与静态初始化表执行、退出注册和尾跳寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版单例对象字节、说明堆、CRT释放与静态初始化表执行、退出注册和尾跳寄存器联合捕获后端，`original_diff_verified`为`pending`。

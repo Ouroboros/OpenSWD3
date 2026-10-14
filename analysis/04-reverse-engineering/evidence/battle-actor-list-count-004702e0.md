@@ -59,7 +59,7 @@ actor_initialization_calls以及协调器对应操作和纯转发分支。
 完整生产与测试差异已经审查，LST到C++及反向逐块追溯未留新的未决项。
 历史workpack的Linux core 188/188、app 194/194不覆盖本次修改。
 这些是固定状态/合成资产验证，不是原版动态差分；未启动游戏。
-原版链表与调用者计数BYTE的联合动态差分仍为`blocked_runtime_oracle`。
+原版链表与调用者计数BYTE的联合动态差分仍为`pending`。
 
 源码提交`2de716db6e9812d1c9ab80e960238b1705e283c3`已推送并核对远端main。
 12份已提交源码/测试与验证身份一致；六个受影响旧台账单元均保持pending。

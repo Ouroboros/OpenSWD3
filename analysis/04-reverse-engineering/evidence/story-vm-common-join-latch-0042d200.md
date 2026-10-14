@@ -46,7 +46,7 @@ handler内部audio不受latch影响。例如opcode135在`0x0042C3ED`的内部aud
 
 ## 3. 非推进无限域与现代边界
 
-若latch后遇到原地等待或默认非法handler，机器会在同一次调用中无限重复该handler：previous持续发布，common audio持续被抑制。现代沿用解释循环既有4096条dispatch guard，以`unsupported_opcode` typed-stop隔离该非终止域；不伪造IP推进、audio或跨帧yield。因此本handler归`platform_adapted`，合法推进链保持汇编行为。
+若latch后遇到原地等待或默认非法handler，机器会在同一次调用中无限重复该handler：previous持续发布，common audio持续被抑制。现代沿用解释循环既有4096条dispatch guard，以`unsupported_opcode` typed-stop隔离该非终止域；不伪造IP推进、audio或跨帧yield。因此本handler归`pending`，合法推进链保持汇编行为。
 
 ## 4. 资产与测试
 

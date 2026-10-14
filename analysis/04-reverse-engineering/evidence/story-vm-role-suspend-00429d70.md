@@ -53,4 +53,4 @@ VM只负责selector解析、调用、IP/previous与same-call协议，不复制he
 
 ## 分类
 
-分类：`platform_adapted`。合法角色域复用`sub_42E5A0`精确等价实现；原版index -1越界和固定全局owner改为typed失败，其余selector、调用顺序、IP、previous与same-call保持汇编语义。
+分类：`pending`。合法角色域复用`sub_42E5A0`精确等价实现；原版index -1越界和固定全局owner改为typed失败，其余selector、调用顺序、IP、previous与same-call保持汇编语义。

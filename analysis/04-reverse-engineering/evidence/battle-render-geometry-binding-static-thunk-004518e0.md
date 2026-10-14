@@ -14,4 +14,4 @@ SDL直接在几何初始化之后初始化现有绑定对象，保留两项的�
 [绑定对象初始化](battle-render-geometry-binding-object-initialization-0045f0f0.md)
 和[固定参数入口](battle-render-geometry-binding-initialization-004518f0.md)。
 不使用旧返回snapshot证明迁移完成；原版动态差分状态仍为
-`blocked_runtime_oracle`。
+`pending`。

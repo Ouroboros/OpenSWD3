@@ -63,4 +63,4 @@ MSVC向量helper自身仍负责八对象前向构造、构造失败逆向回滚�
 本批验证见[说明所有权迁移](battle-actor-description-owned-release.md)。
 向量函数编号和共享堆协议仍是当前Goal待迁移项，不以compiler边界排除。
 
-当前没有原版八个组B完整对象、真实资源/说明堆、CRT释放callee副作用、MSVC SEH链、向量迭代与异常回滚联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+当前没有原版八个组B完整对象、真实资源/说明堆、CRT释放callee副作用、MSVC SEH链、向量迭代与异常回滚联合捕获后端，`original_diff_verified`登记为`pending`。

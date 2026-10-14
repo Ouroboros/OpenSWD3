@@ -1,7 +1,7 @@
 # 角色头顶 action 链关闭生命周期闭环
 
 状态：`pending`。
-差分仍为 `blocked_runtime_oracle`。
+差分仍为 `pending`。
 
 唯一行为依据是 `swd3.exe.lst` 的 `0x0040F570..0x0040F597`。该函数逐头销毁
 `dword_4BA6E0` 的普通单链；节点没有需要单独释放的内部指针。

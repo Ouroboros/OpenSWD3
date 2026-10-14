@@ -124,4 +124,4 @@ else: complete
 
 实现逐项对应`test AH,80h`、两项全局写、自修改OR/AND、`sub`+`jbe`、共享+4尾和共同previous出口。C++→LST REVIEW未发现剩余差异。
 
-分类：`assembly_exact`。运行时使用已确立的accepted-frame clock owner；无平台近似或业务降级。原程序动态差分仍为`blocked_runtime_oracle`，但静态机器语义、真实资产与现代运行时组合已闭环。
+分类：`pending`。运行时使用已确立的accepted-frame clock owner；无平台近似或业务降级。原程序动态差分仍为`pending`，但静态机器语义、真实资产与现代运行时组合已闭环。

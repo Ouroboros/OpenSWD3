@@ -35,4 +35,4 @@ caller随后重建EDX/EAX/ECX，不消费本函数返回寄存器。
 
 定向测试用非零模式填满全部触及范围，验证三段精确清零、十二项显式清零、相邻word保持、各段计数和固定返回寄存器（旧2F0E保持断言错误，当前已修正）；另通过startup组A角色记录直接调用，验证写入的是startup唯一物理视图而非孤立副本。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning；app仅出现既有ALSA开发库CMake提示。
 
-inventory生成器连续双跑逐字节一致，正式计数为`171/422 = 162 platform_adapted + 9 assembly_exact + 251 pending_audit`，SHA256为`d879fea89c0e09f1ae20585691376351145d022eae2143669394d4c03e2c0aa0`。原版完整组A对象、三段物理内存和caller寄存器联合捕获后端缺失，`original_diff_verified`登记为`blocked_runtime_oracle`。
+inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 162 platform_adapted + 9 assembly_exact + 251 pending_audit`，SHA256为`d879fea89c0e09f1ae20585691376351145d022eae2143669394d4c03e2c0aa0`。原版完整组A对象、三段物理内存和caller寄存器联合捕获后端缺失，`original_diff_verified`登记为`pending`。

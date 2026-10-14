@@ -44,4 +44,4 @@ current equipment selection先u32加1并回写；signed结果大于等于4时把
 
 定向测试覆盖未处理message、message 1允许/拒绝/权限越界、message 2回绕与负signed值、message 4缓存恢复与负索引停点、message 30夹值前EAX，以及样本回调依次把message改为2/4/30后同次执行四个分支。caller测试覆盖普通直连、reserved槽零调用与typed-stop阻断动作轮转。
 
-当前缺少原版九字节权限相邻内存、四项装备缓存、样本后端副作用、记录5输入及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版九字节权限相邻内存、四项装备缓存、样本后端副作用、记录5输入及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

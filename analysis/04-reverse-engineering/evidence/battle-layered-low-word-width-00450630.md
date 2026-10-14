@@ -64,4 +64,4 @@ C++包装只参数化已证明相同的双层查询和绘制序列；本地址�
 
 通用双层协调测试继续覆盖首层公共后缀、负宽/零宽边界和逐层typed-stop前缀。battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版宽度种子、双层帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整65行LST、关闭callee组合和固定状态验证已经闭环。
+当前没有原版宽度种子、双层帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整65行LST、关闭callee组合和固定状态验证已经闭环。

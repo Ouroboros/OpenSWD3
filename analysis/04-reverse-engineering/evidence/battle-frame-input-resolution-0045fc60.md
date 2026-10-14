@@ -93,7 +93,7 @@ case 3的三处原点准备先直接组合`query_legacy_battle_actor_frame_snaps
 
 定向测试覆盖：同鼠标早退寄存器；热点首命中；case 0 party映射；case 1 permission与样本；case 2按钮；case 4 signed负held；case 5/8行高与signed byte；case 27独有按钮边界；case 30网格；组B逆向像素命中和selection 6模式；组A大列表actor-order命中、完整64点miss后的下一候选EDI=8、组A小列表直接命中及首marker dword清零；同active不可选时完整64点调用；三处typed frame snapshot与typed帧资源准备、各caller返回地址/EBX/ESI/EDI/ESP、actor-order重算EAX与SUB flags、两次updater/provider、typed返回token解析、surface reply哨兵不污染Group-B首mirror与Group-A次mirror寄存器、Group-B首dword普通未命中、Group-B非零token/object-unreadable在action kind 6可达场景的mirror与action-six前停止、Group-A零token及非零token/object-unreadable保留reset/configure与一次mirror前缀、REP与frame-token fault后缀抑制、共享局部块正常早退、reserved槽零调用、重叠local参数读取停点、provider失败与输出X写typed-stop后缀抑制；actor order、启动模式和图像短源typed-stop；全局重置别名；逐帧caller阻断。
 
-当前缺少原版鼠标/菜单全局、八类未关闭角色callee、两组角色对象、surface记录、TSW命令流、热点链、样本及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版鼠标/菜单全局、八类未关闭角色callee、两组角色对象、surface记录、TSW命令流、热点链、样本及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。
 
 Workpack 316后续审计发现SDL旧`battle_actor_metrics_`在战斗初始化后仍为默认0，尽管启动owner `battle_runtime_.enemy_count/party_count`已由部分`prepare_legacy_battle_setup`发布；这会让case 0的有符号计数门错误走零人分支。现在每次实际`frame`回调前从启动owner把这两项live数值映射到metric视图，保留其他metric字段；该修正定向core 1/1、Linux core／ASan各200/200及Linux／Windows app各206/206通过，仍待新SDL实测。第二次旧SDL日志只证明旧二份状态下的当次输入返回，不能推断修正后的case 0轨迹；后续增加旧默认零人早退与live一敌一人进入party-source的跨视图反例，定向core 1/1、Linux core／ASan各200/200及Linux／Windows app各206/206通过，仍不等于生产回调实测。紧接着将简化setup已计算的四项紧凑来源索引与四对signed阵型锚点映射到共享`battle_runtime_`启动owner，避免live人数门进入扫描时误读默认0；合成三人及真实战斗98资产测试已补，定向core 1/1、Linux core／ASan各200/200及Linux／Windows app各206/206通过；尚无第三次实际SDL运行。启动期额外角色材料化仍未闭合，不能以同步动作证明原版完整启动。
 

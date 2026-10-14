@@ -70,4 +70,4 @@ TALK4.DAT 1
 
 synthetic覆盖四raw alias、精确尾、三目标选择、空表DIV typed-stop、缺sentinel、RNG owner缺失和load失败已提交副作用。secondary RNG模块既有UT另锁定raw stream、two-raw bounded序列、rejection与index wrap。剧情VM三项为3/3。
 
-分类：`platform_adapted`。合法域的表扫描、secondary RNG调用序列、目标读取、audio、窗口替换、previous与same-call保持；无界扫描、CPU DIV fault、裸全局RNG/file owner和unchecked I/O由bounded/typed失败隔离。
+分类：`pending`。合法域的表扫描、secondary RNG调用序列、目标读取、audio、窗口替换、previous与same-call保持；无界扫描、CPU DIV fault、裸全局RNG/file owner和unchecked I/O由bounded/typed失败隔离。

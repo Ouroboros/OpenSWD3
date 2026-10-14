@@ -20,4 +20,4 @@ secondary required复用第188项链表owner，live记录复用startup配置owne
 
 ## 4. 验证状态
 
-测试覆盖required为零早退、16位回绕、signed负值夹零、高word保留、字段清零、EAX/ECX/EDX返回和第193项释放寄存器衔接。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`194/422 = 185 platform_adapted + 9 assembly_exact + 228 pending_audit`，SHA256为`3b36625fb2f7b531968a90e37018c19a31aa7e49dc8c3dc09bfcb200a9ecace6`。动态差分因原版actor记录、secondary required与两个caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+测试覆盖required为零早退、16位回绕、signed负值夹零、高word保留、字段清零、EAX/ECX/EDX返回和第193项释放寄存器衔接。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 185 platform_adapted + 9 assembly_exact + 228 pending_audit`，SHA256为`3b36625fb2f7b531968a90e37018c19a31aa7e49dc8c3dc09bfcb200a9ecace6`。动态差分因原版actor记录、secondary required与两个caller寄存器联合捕获后端缺失而登记为`pending`。

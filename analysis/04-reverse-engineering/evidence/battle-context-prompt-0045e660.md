@@ -97,4 +97,4 @@ callee精确返回1后才把消息辅助值清0；返回其他值不清。callee
 
 定向测试覆盖signed 300帧门、u32回绕、bit31强制继续、七个通用case、case 3门与零/非零资源选择、全部23个表内默认case、范围外默认、active actor两路、i16坐标、镜像selector、callee精确1清辅助值、不可用帧typed-stop前缀、唯一偏移动作状态及逐帧caller阻断。全局重置测试覆盖共享owner清零与写集合外状态保留。
 
-当前缺少原版逐帧计数、30项消息轨迹、输入鼠标、动作持久记录、帧record、framebuffer、callee寄存器和全部共享全局联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版逐帧计数、30项消息轨迹、输入鼠标、动作持久记录、帧record、framebuffer、callee寄存器和全部共享全局联合捕获后端，`original_diff_verified`为`pending`。

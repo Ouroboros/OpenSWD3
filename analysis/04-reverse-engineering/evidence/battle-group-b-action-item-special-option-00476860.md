@@ -42,4 +42,4 @@ loader正常返回后，selector 0把文字目标载入`EAX`，selector 1把文�
 
 目标选择与控制面板集成测试覆盖唯一owner、两处动态定义word、两个完整`EAX`成功门、旧opaque槽生产零调用、定义/文字窄端口透传及typed-stop后缀阻断。战斗聚合测试、完整core AddressSanitizer`188/188`、Linux core`188/188`和Linux app`194/194`全部通过；最终日志无OpenSWD3源码warning、测试失败或sanitizer finding。新增文件全量及历史文件本包触碰行均通过clang-format Werror门。
 
-当前缺少原版组Bactor、动态资源两处定义word、`0x00476DB0`真实定义加载副作用、内嵌定义名称、`lstrcpyA`逐字节访问、共享文字目标和两个caller寄存器的联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。该限制不影响完整静态闭环和Linux验证。
+当前缺少原版组Bactor、动态资源两处定义word、`0x00476DB0`真实定义加载副作用、内嵌定义名称、`lstrcpyA`逐字节访问、共享文字目标和两个caller寄存器的联合捕获后端，因此`original_diff_verified`登记为`pending`。该限制不影响完整静态闭环和Linux验证。

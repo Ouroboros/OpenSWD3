@@ -42,4 +42,4 @@ TALK4.DAT@0x0000169B
 
 synthetic覆盖四个raw alias、其他位保留、same-call successor和精确尾。Story VM synthetic、real及initial-session三项通过。未启动原版或OpenSWD3游戏EXE。
 
-分类：`assembly_exact`。u32 AND、位宽、推进、previous和same-call均由现有typed owner逐项直接复现。
+分类：`pending`。u32 AND、位宽、推进、previous和same-call均由现有typed owner逐项直接复现。

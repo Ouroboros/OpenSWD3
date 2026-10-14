@@ -38,4 +38,4 @@ actor token或两资料owner缺失时在首份item id读取处停止，返回EAX
 
 单元测试覆盖入口寄存器前缀、两资料全零、链头typed-stop、根充分命中、数量不足、阻塞重复后选择下一重复、断链、首资料成功后第二id非零早退、零最大值和第二资料成功。成长结果回归覆盖空资料跳过、直接选择后的定义/描述/标题四调用链、标题typed-stop、共享节点阻塞写回、旧opaque零调用和链断裂向message phase传播。
 
-验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`183/422 = 174 platform_adapted + 9 assembly_exact + 239 pending_audit`，SHA256为`2b1b964c11dbf21fe09f4abaddf3759f2efbb558028bdf5fdca90187dc9749e5`。原版组A动态资料、共享紧凑链token拓扑、成长caller寄存器和后续物品定义加载联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 174 platform_adapted + 9 assembly_exact + 239 pending_audit`，SHA256为`2b1b964c11dbf21fe09f4abaddf3759f2efbb558028bdf5fdca90187dc9749e5`。原版组A动态资料、共享紧凑链token拓扑、成长caller寄存器和后续物品定义加载联合捕获后端缺失，动态差分登记为`pending`。

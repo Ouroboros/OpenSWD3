@@ -40,6 +40,6 @@ modern结果分别记录对象读取次数、释放调用次数、对象写入�
 
 独立leaf回归覆盖零token、非零释放并清零、释放寄存器残值、对象读取typed-stop、释放调用typed-stop和释放后对象写typed-stop。caller回归覆盖13个已关闭站点所属的动作、对手、成长、组A、组B与固定定义曲线路径，并锁定说明token清零、宿主说明释放、调用次数、寄存器线程和待审`0x00480220`隔离不被回收。
 
-验证：定向测试`2/2`、Linux core`196/196`、AddressSanitizer`196/196`、Linux app`202/202`、连续10轮完整core、changed-range clang-format和release审计全部通过；最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。库存生成器连续双跑逐字节一致，工作包为`275/422 = 265 platform_adapted + 10 assembly_exact + 147 pending_audit`，SHA256为`d34db5958221db9cc7ddef777d4fd8b90d076466b2ef8009ce3c2612518da23a`。系统TMP分类没有选中或可疑仓库产物，且未启动原版或OpenSWD3游戏程序。
+验证：定向测试`2/2`、Linux core`196/196`、AddressSanitizer`196/196`、Linux app`202/202`、连续10轮完整core、changed-range clang-format和release审计全部通过；最终日志零OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。库存生成器连续双跑逐字节一致，工作包为`0/422 = 265 platform_adapted + 10 assembly_exact + 147 pending_audit`，SHA256为`d34db5958221db9cc7ddef777d4fd8b90d076466b2ef8009ce3c2612518da23a`。系统TMP分类没有选中或可疑仓库产物，且未启动原版或OpenSWD3游戏程序。
 
-原版定义对象、说明堆、CRT free边界及16个caller/callee联合寄存器捕获后端缺失，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整LST静态闭环、typed故障隔离、13个已关闭caller回收和Linux验证。
+原版定义对象、说明堆、CRT free边界及16个caller/callee联合寄存器捕获后端缺失，`original_diff_verified`登记为`pending`。该阻塞不影响完整LST静态闭环、typed故障隔离、13个已关闭caller回收和Linux验证。

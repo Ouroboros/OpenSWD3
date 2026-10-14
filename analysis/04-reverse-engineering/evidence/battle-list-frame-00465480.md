@@ -61,4 +61,4 @@ EAX返回始终是加2后的未夹值结果，即使共享frame B最终写成7�
 
 定向测试覆盖三项基础几何、当前分类variant与X、四次动作顺序、两次字体寄存器链、共享记录完整清零、面板更新失败仍继续、矩形固定参数、资源陈旧高word、九宫格参数、signed frame回绕、未夹值EAX、动作/矩形/九宫格三类typed-stop，以及唯一caller正常、子stop传播与reserved零调用。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码零warning；app仅保留既有ALSA开发库CMake warning。
 
-当前缺少原版四次动作更新联合状态、字体callee、面板动作更新、矩形/九宫格framebuffer与EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版四次动作更新联合状态、字体callee、面板动作更新、矩形/九宫格framebuffer与EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

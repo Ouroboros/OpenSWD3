@@ -8,4 +8,4 @@
 
 目标资料`+0x86/+0x88`建立为dispatch内每个group-B目标的唯一typed owner，行动者百分比归入既有action-execution actor owner。未审计百分比刷新与旧随机发生器保持窄port；资料指针getter不再作为整函数opaque边界。case 23 caller改为typed调用并继续消费低word执行原消息与物品路径。
 
-测试覆盖零码sentinel早退、非零码actor typed-stop、随机拒绝保留、随机接受清零、百分比100短路、caller消息/物品路径及旧地址零调用。定向测试与独立AddressSanitizer均通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`215/422 = 206 platform_adapted + 9 assembly_exact + 207 pending_audit`，SHA256为`defe4cdd4cf11bc2a2d536d703e48f59f6939f82ec772d5c6ff33ca4743dc4a0`。动态差分因原版目标资料、行动者百分比刷新、随机状态与caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+测试覆盖零码sentinel早退、非零码actor typed-stop、随机拒绝保留、随机接受清零、百分比100短路、caller消息/物品路径及旧地址零调用。定向测试与独立AddressSanitizer均通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 206 platform_adapted + 9 assembly_exact + 207 pending_audit`，SHA256为`defe4cdd4cf11bc2a2d536d703e48f59f6939f82ec772d5c6ff33ca4743dc4a0`。动态差分因原版目标资料、行动者百分比刷新、随机状态与caller寄存器联合捕获后端缺失而登记为`pending`。

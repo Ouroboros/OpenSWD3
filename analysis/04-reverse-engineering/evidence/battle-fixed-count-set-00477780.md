@@ -62,7 +62,7 @@ next为零时以固定大小20调用分配包装器。callee返回后原函数�
 
 ## 6. caller范围
 
-启动caller `0x00409DD0`先分配并清零1024字节，尝试读取`Fame.dat`，然后以键1至500和对应u16槽调用本函数。该caller含文件对象、SEH和外部载入生命周期，当前仍为`pending_audit`；SDL的`load_fame_table()`仍为空，本工作包没有伪造Fame载入、没有提前改写启动流程。
+启动caller `0x00409DD0`先分配并清零1024字节，尝试读取`Fame.dat`，然后以键1至500和对应u16槽调用本函数。该caller含文件对象、SEH和外部载入生命周期，当前仍为`pending`；SDL的`load_fame_table()`仍为空，本工作包没有伪造Fame载入、没有提前改写启动流程。
 
 已关闭Dialog在新增和直接修改命令中各有两处调用：第三分类mask匹配调用一次，记录ID位于1至500时再调用一次，因此两条件同时成立可对同一键重复设置。typed组合保持原参数来源：链键来自解析后的命令参数，低ID重复门读取记录自身ID；两者在低14位查找到带高位记录时不得混同。两次调用直接使用同一键与数量，删除第一次返回ECX到第二次入口ECX的传递。
 
@@ -84,4 +84,4 @@ SDL应用构建通过。未启动游戏程序。
 
 ## 8. 动态差分
 
-当前缺少原版固定键链、`Fame.dat`载入状态、Dialog命令参数、allocator堆状态以及五个caller寄存器联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该缺口不阻止完整LST静态闭合、typed故障前缀和Linux门禁。
+当前缺少原版固定键链、`Fame.dat`载入状态、Dialog命令参数、allocator堆状态以及五个caller寄存器联合捕获后端，`original_diff_verified`登记为`pending`。该缺口不阻止完整LST静态闭合、typed故障前缀和Linux门禁。

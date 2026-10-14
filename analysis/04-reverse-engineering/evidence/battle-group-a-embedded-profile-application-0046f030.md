@@ -64,4 +64,4 @@ core与AddressSanitizer的`battle.legacy_battle_setup`各通过1/1，
 
 纯函数测试覆盖范围外类型、六种状态mask、类型52数量奇数右移、固定10%、附加百分比、资料token高word返回、类型51首个非零扫描、两次低位截断、九项全零、回绕byte、全部真实访问typed-stop和寄存器。属性汇总回归覆盖槽7/8两次直连及共享fixed-object状态；startup回归覆盖角色重置清零、真实固定根/链查询及reserved转发零调用。独立位级脚本对类型51执行102,816组向量、对类型52执行524,288组向量，均与x86高低乘积及符号修正逐项一致。
 
-本轮caller迁移后的定向测试`3/3`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、格式、inventory稳定性和release审计全部通过。原版组A角色对象、动态内嵌资料、固定曲线链与caller寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+本轮caller迁移后的定向测试`3/3`、Linux core`194/194`、AddressSanitizer`194/194`、Linux app`200/200`、连续10轮完整core、格式、inventory稳定性和release审计全部通过。原版组A角色对象、动态内嵌资料、固定曲线链与caller寄存器联合捕获后端缺失，动态差分登记为`pending`。

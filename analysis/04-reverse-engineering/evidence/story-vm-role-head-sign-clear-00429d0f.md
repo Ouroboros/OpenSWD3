@@ -42,4 +42,4 @@ opcode72固定长4字节，原样读取`+2` selector，不替换`0xFFF0`。它�
 
 ## 分类
 
-分类：`assembly_exact`。有效域内lookup、写入、缺失、IP、previous与yield均直接对应汇编，无新增平台替代。
+分类：`pending`。有效域内lookup、写入、缺失、IP、previous与yield均直接对应汇编，无新增平台替代。

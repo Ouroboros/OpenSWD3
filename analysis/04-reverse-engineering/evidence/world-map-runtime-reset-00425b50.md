@@ -1,7 +1,7 @@
 # 世界地图运行状态清理（`0x00425B50`）
 
 状态：`pending`。
-`sdl_runtime_integrated`；尚未 `original_diff_verified`
+`pending`；尚未 `pending`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。`sub_425B50` 的完整物理范围是
 `0x00425B50..0x00425BDA`，无栈参数，保存 `ESI/EDI`，以 plain `retn` 返回。调用点为

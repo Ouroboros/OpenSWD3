@@ -40,7 +40,7 @@ mirror mode完整dword精确等于1时，名称框X=`630-20*字符数-arg_x`；�
 
 定向测试覆盖所有入口门、读后寄存器、五dword越界、signed published范围、第九组B对象、名称长度除2、非镜像/镜像/值2不对称、动作更新失败继续、矩形与九宫格stop、矩形ECX资源高word、字体20/16、名称call寄存器、固定链根/节点命中与typed-stop、指标阈值9/10/15、CP950 signed格式、20-byte首次越界、生命文字两分支寄存器、typed渐变宽0/20、旧宽度端口零调用、进度读取stop、颜色预计算参数、垂直渐变成功/stop、旧fixed-count边界零调用及唯一caller正常/stop传播。第268项定向4/4、AddressSanitizer、Linux core 194/194和Linux app 200/200完整门全部通过；源码构建零warning，app仅有既有ALSA开发库CMake warning。
 
-当前缺少原版组B对象、名称/指标/字体/文字联合状态、动态栈地址、面板/矩形/九宫格/framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组B对象、名称/指标/字体/文字联合状态、动态栈地址、面板/矩形/九宫格/framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。
 
 ## 6. 通用调用迁移补充
 

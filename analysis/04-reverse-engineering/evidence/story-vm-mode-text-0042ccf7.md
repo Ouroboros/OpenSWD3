@@ -78,7 +78,7 @@ parser在共享`FileName` scratch中保留`%Q`前全部bytes并追加NUL。embed
 
 原版`lstrcpyA`不检查52字节目标。首个NUL前长度51以内合法；长度52时先成功写入52个bytes，再在目标索引52写NUL越界。现代在同一危险点以`mode_text_out_of_range`停止，保留此前已提交的IP、旧owner释放、新owner存在、52字节零填/已复制内容和旧flag值；不发布previous、不audio。若`%Q`前总长度超过52但embedded NUL更早，`lstrcpyA`仍安全，现代同样只复制prefix并成功。
 
-裸malloc/free、共享scratch和无界Win32复制由固定typed owner承接，因此分类为`platform_adapted`；合法文本、nullable状态、初始化、flag、IP和yield行为不变。
+裸malloc/free、共享scratch和无界Win32复制由固定typed owner承接，因此分类为`pending`；合法文本、nullable状态、初始化、flag、IP和yield行为不变。
 
 ## 5. 真实TALK资产
 

@@ -60,4 +60,4 @@ code 0或9在首次真实对象查询停止；已提交角色、动作workspace�
 
 工作包278关闭`0x00464D04`唯一物理call。actor code大于7时，caller先把角色写入queued owner，再以EAX构造组A对象地址并把完整dword `1`写入同一对象`+0x2AE4`；该对象直接复用最终角色状态的availability owner。caller在call前没有改写EDX，因此写停止时EAX为1、ECX为角色token、EDX保留函数入口值，并阻断后续组B完成查询循环。选择帧与组A逐角色帧两个上层caller均传播该停止，不制造suffix。
 
-当前缺少原版组A对象、组B对象完成查询callee、两组对象共享副作用及EAX/ECX/EDX联合动态捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A对象、组B对象完成查询callee、两组对象共享副作用及EAX/ECX/EDX联合动态捕获后端，`original_diff_verified`为`pending`。

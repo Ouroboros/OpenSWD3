@@ -52,4 +52,4 @@ stage商零时，以共享字体对象token把字体大小先设为17。该calle
 
 定向测试覆盖局部seed、mode精确1门、CP950完整字节、24-byte标题源边界、64-byte格式边界、两次长度、signed half、动态矩形/九宫格尺寸和资源高word、stage商非零、字体17→16、六处generic寄存器布局、九宫格stop、消息113直连/旧槽零调用/timer后置/子stop传播及主帧五类服务映射。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
-当前缺少原版共享标题与transition联合状态、真实framebuffer/边框资源、字体对象、动态局部栈地址、`wsprintfA/lstrlenA`返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版共享标题与transition联合状态、真实framebuffer/边框资源、字体对象、动态局部栈地址、`wsprintfA/lstrlenA`返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

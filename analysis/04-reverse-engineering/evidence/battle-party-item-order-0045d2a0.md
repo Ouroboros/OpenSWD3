@@ -57,4 +57,4 @@ SDL入口直接借用读档和剧情的`world_item_lists_`，通过与核心相�
 
 定向测试覆盖四空根、第四根单节点EAX、跨根排序、无符号稳定相等值、selected count完全不清、物理link与host顺序同步、首根缺失保留入口EAX、后根缺失保留前缀、未知head、未知next，以及startup成功直连、玩家排序停点阻断和队伍根停点阻断资料绑定。
 
-当前缺少原版四个真实sentinel根、队伍道具链、前后全局状态和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版四个真实sentinel根、队伍道具链、前后全局状态和寄存器联合捕获后端，`original_diff_verified`为`pending`。

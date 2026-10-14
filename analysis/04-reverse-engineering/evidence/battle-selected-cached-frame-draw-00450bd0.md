@@ -95,4 +95,4 @@ C++到LST反向追溯覆盖三个selector域、两种固定资源、frame/source
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版缓存frame record、共享source、模式word、blitter后EAX和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整74行LST、八个caller和两个关闭callee已完成固定状态闭环。
+当前没有原版缓存frame record、共享source、模式word、blitter后EAX和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整74行LST、八个caller和两个关闭callee已完成固定状态闭环。

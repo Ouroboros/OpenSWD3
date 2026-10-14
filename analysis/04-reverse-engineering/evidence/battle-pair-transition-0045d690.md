@@ -8,7 +8,7 @@
 
 静态call分布为：对象kind查询1处、动作标识发布5处、数值发布5处、mode发布5处、三参数提交3处，以及mode 2与mode 4双输出查询各1处。
 
-六个直接caller均已关闭：玩家动作分派2处、对手动作分派1处、效果总协调器3处。caller均不按本函数普通返回值分支。
+六个直接caller状态均为`pending`：玩家动作分派2处、对手动作分派1处、效果总协调器3处。caller均不按本函数普通返回值分支。
 
 ## 2. ABI、入口snapshot与零值早退
 
@@ -82,4 +82,4 @@ kind 1严格按顺序对primary对象：
 
 定向测试覆盖入口零值与陈旧寄存器、未知low word和callee共享副作用、kind 1入口snapshot、kind 2正负delta、未写局部输出、kind 2尾store、kind 4参数顺序、仅高word替换、提交尾寄存器，以及六处caller直连和全局重置单一别名。
 
-当前缺少原版对象kind、双输出查询、动作/数值/mode发布、三参数提交、三项共享全局与寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版对象kind、双输出查询、动作/数值/mode发布、三参数提交、三项共享全局与寄存器联合捕获后端，`original_diff_verified`为`pending`。

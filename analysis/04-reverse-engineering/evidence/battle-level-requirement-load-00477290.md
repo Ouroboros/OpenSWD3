@@ -77,6 +77,6 @@ slot  = 0x70 + 4 * index
 
 独立 loader 测试覆盖 synthetic tag 0/1/2/5、多个 tag 0 最后值覆盖、非零首 word、打开失败、零分配、输出不可访问、目录/流越界、32 位目录回绕、tag 0 部分复制及真实 LEVEL.DAT 双查询。四个 caller 均有分配清零故障回归，固定故障前已提交字段、绘制、命令计数、live 寄存器以及无伪释放。
 
-最终验证为完整Linux core `190/190`、AddressSanitizer `190/190`和Linux app `196/196`全部通过；最终日志没有OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。新增及触碰C++文件通过clang-format `--dry-run --Werror`，`git diff --check`通过。inventory双跑稳定为`262/422 = 253 platform_adapted + 9 assembly_exact + 160 pending_audit`，SHA256为`8c4f0d4aa39562f76f313ca9023206cb8bce026910f1afc8c16f29e25608ba50`。
+最终验证为完整Linux core `190/190`、AddressSanitizer `190/190`和Linux app `196/196`全部通过；最终日志没有OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。新增及触碰C++文件通过clang-format `--dry-run --Werror`，`git diff --check`通过。inventory双跑稳定为`0/422 = 253 platform_adapted + 9 assembly_exact + 160 pending_audit`，SHA256为`8c4f0d4aa39562f76f313ca9023206cb8bce026910f1afc8c16f29e25608ba50`。
 
-当前缺少原版共享文件对象、短读后的真实陈旧缓冲、堆 token、四个 caller 输入和 EAX/ECX/EDX 联合捕获后端；`original_diff_verified` 登记为 `blocked_runtime_oracle`。
+当前缺少原版共享文件对象、短读后的真实陈旧缓冲、堆 token、四个 caller 输入和 EAX/ECX/EDX 联合捕获后端；`original_diff_verified` 登记为 `pending`。

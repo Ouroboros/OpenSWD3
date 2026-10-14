@@ -6,7 +6,7 @@
 
 权威函数为`0x00459D10..0x0045A97C`，从proc到endp完整1363行、51个静态call站点、62个`loc_`标签，无外部FUNCTION CHUNK。24个唯一callee。
 
-三个静态caller均已关闭：画面转场`0x004527E0`内两处、逐帧协调器`0x00453200`内一处。三个call前都额外push一个word高位陈旧参数，但本函数没有参数且以普通`retn`返回；该栈项由caller较后的统一cleanup消费，函数行为不读取它。typed直连不把该假参数引入HUD接口。
+三个静态caller状态均为`pending`：画面转场`0x004527E0`内两处、逐帧协调器`0x00453200`内一处。三个call前都额外push一个word高位陈旧参数，但本函数没有参数且以普通`retn`返回；该栈项由caller较后的统一cleanup消费，函数行为不读取它。typed直连不把该假参数引入HUD接口。
 
 ## 2. 固定字体前缀与返回域
 
@@ -120,4 +120,4 @@ position += delta
 
 定向测试覆盖：空HUD返回、十槽边界、顶部左右位置、x87宽度、typed角色进度owner、进度读取stop前缀、status颜色、top pulse、选中pulse、三次blocked与名字叠绘、actor value typed-stop时机、三组不同平滑、bit27 BUG、零分母x87低dword、footer signed步进、文字面板两种坐标分支与旧槽零调用，以及转场两调用点、逐帧直连和父级typed-stop传播。
 
-当前缺少原版组A十对象、端口callee共享副作用、字体/文本、framebuffer、三组实时数值、映射表、actor内部value指针、x87控制字和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A十对象、端口callee共享副作用、字体/文本、framebuffer、三组实时数值、映射表、actor内部value指针、x87控制字和寄存器联合捕获后端，`original_diff_verified`为`pending`。

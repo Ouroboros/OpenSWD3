@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-历史还原分类为`platform_adapted`。
+历史还原分类为`pending`。
 当前条目计数及两个必要网格调用方的通用协议已回收。
 完整角色列表查询、普通/替代网格、字体及主帧接口族仍`pending`。
 源码提交：`5a60ef7d`。本页固定状态与定向验证不代表原版联合差分。
@@ -134,4 +134,4 @@ source checker首`proc_4663`仅错误要求独立文档的2000带0x前缀；
 
 原版资源链、输出WORD和两个caller联合捕获仍`blocked_runtime_oracle`。
 列表/字体/父通用参数、寄存器、计数与Port继续pending，完整SDL链及续玩未验收。
-不改变B10 315/422、Workpack316 pending_audit、B11或全项目scope=false。
+不改变B10 0/422、Workpack316 pending_audit、B11或全项目scope=false。

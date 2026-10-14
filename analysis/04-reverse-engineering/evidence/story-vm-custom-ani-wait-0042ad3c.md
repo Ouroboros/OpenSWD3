@@ -48,4 +48,4 @@ synthetic覆盖四raw alias的active等待、inactive完成、interval35、两�
 
 依赖门继续运行`asset_runtime.legacy_ani_archive`、`legacy_ani_archive_real`、`legacy_ani_activity`，覆盖真实archive/header/palette/frame与完整reveal/playback/ending/finalize状态机。Story VM三项与Linux core/app完整门共同验证handler和SDL集成；未启动原版或OpenSWD3游戏EXE。
 
-分类：`platform_adapted`。active extent谓词、IP、frame interval35、previous、yield/same-call和真实activity完成均保持；Win32裸全局/DirectDraw递归重绘由typed activity、live owner同步和snapshot reveal替代。
+分类：`pending`。active extent谓词、IP、frame interval35、previous、yield/same-call和真实activity完成均保持；Win32裸全局/DirectDraw递归重绘由typed activity、live owner同步和snapshot reveal替代。

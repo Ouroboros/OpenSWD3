@@ -42,4 +42,4 @@ profile callee正常返回后重新读取资源token，以该token覆盖ECX并�
 
 纯函数回归覆盖actor与资源首次访问stop、资源加载/profile/释放三个callee stop、i16符号扩展、资源`+0x4C`写入、actor`+0x26B4`保持、mode低byte发布、陈旧CL/DX组合、profile与释放ABI及普通终端寄存器。脚本回归覆盖actor乘法地址、入口EDX、三个callee trace、共享八槽owner、cursor加6、正常ECX恢复及callee stop阻断后缀。验证为定向CTest 1/1、完整core AddressSanitizer 188/188、Linux core 188/188和Linux app 194/194全部通过；app只保留SDL上游缺少ALSA开发库的既有环境提示，无OpenSWD3源码warning或sanitizer finding。
 
-原版八个组B完整对象、动态资源字节、profile buffer、三个callee副作用、脚本case 80共享全局及caller寄存器缺少联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。
+原版八个组B完整对象、动态资源字节、profile buffer、三个callee副作用、脚本case 80共享全局及caller寄存器缺少联合捕获后端，因此`original_diff_verified`登记为`pending`。

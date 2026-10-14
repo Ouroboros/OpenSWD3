@@ -198,7 +198,7 @@ case 17逐帧入口内部原`0x0047656D`坐标publication已由typed action17直
 
 ## 10. closed callee与窄端口
 
-直接复用已关闭：
+直接复用单元状态：`pending`。
 
 - deformation typed构造与析构；
 - framebuffer前缀清屏。
@@ -238,7 +238,7 @@ case 17逐帧入口内部原`0x0047656D`坐标publication已由typed action17直
 
 Workpack 289 REVIEW 3最终定向`1/1`、Linux core `199/199`、AddressSanitizer/UBSan `199/199`、Linux app `205/205`及连续十轮core `10/10`均通过；全部正式stderr为空，changed-range格式检查通过。
 
-当前缺少原版组A/B对象、33类剩余callee共享副作用、攻击顺序与相邻强度效果记录、wave scratch与记录、AI表、DirectDraw framebuffer、allocator和SEH联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A/B对象、33类剩余callee共享副作用、攻击顺序与相邻强度效果记录、wave scratch与记录、AI表、DirectDraw framebuffer、allocator和SEH联合捕获后端，`original_diff_verified`为`pending`。
 
 ## 13. Workpack 316 caller 的 case7 FLAGS 局部审查
 

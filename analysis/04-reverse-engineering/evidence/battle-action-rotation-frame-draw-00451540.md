@@ -95,7 +95,7 @@ C++到LST反向追溯覆盖65行全部基本块、两个callee、两次owner访�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版扩展动作状态、更新后record、六owner/frame record、共享水平位移/blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整65行LST与唯一caller已完成固定状态闭环。
+当前没有原版扩展动作状态、更新后record、六owner/frame record、共享水平位移/blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整65行LST与唯一caller已完成固定状态闭环。
 
 ## 10. B11实际缓存借用
 

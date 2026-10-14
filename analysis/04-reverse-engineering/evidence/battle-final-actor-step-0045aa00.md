@@ -20,7 +20,7 @@
 
 权威函数为`0x0045AA00..0x0045ADEC`，从proc到endp完整465行、20个静态call站点、26个`loc_`标签，无外部FUNCTION CHUNK。14个唯一callee。
 
-两个静态caller均已关闭：组A帧`0x00456680`和组B帧`0x004576A0`各一处。两个caller已删除本函数opaque token并直接组合typed最终角色步进。
+两个静态caller状态均为`pending`：组A帧`0x00456680`和组B帧`0x004576A0`各一处。两个caller已删除本函数opaque token并直接组合typed最终角色步进。
 
 ## 2. 分支与对象token
 
@@ -136,4 +136,4 @@ single-instance 测试失败，创建目录重跑
 
 工作包278关闭本函数`0x0045AC54`唯一物理call。组A continuation查询精确返回1后，caller先发布`active+1`与secondary角色，再把完整dword `1`写入当前组A角色`+0x2AE4`；typed实现直接复用`LegacyBattleFinalActorStepState::group_a_availability_blocks`。leaf入口EDX是刚发布的actor code，ECX是组A角色token；写停止时EAX已为1，action-execution、workspace及五dword运行记录均不写。正常完成才继续原零写与门发布。旧`0x00478330`端口调用已删除。
 
-当前缺少原版两组角色对象、组B动态坐标资源、其余父协议的共享副作用、攻击顺序与相邻强度效果记录、角色工作区、描述符对象和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、组B动态坐标资源、其余父协议的共享副作用、攻击顺序与相邻强度效果记录、角色工作区、描述符对象和寄存器联合捕获后端，`original_diff_verified`为`pending`。

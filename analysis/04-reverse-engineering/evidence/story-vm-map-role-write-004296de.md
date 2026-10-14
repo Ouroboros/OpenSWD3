@@ -6,7 +6,7 @@
 
 `sub_427920` 的 opcode62 是一条固定 18 字节的 MAPS 角色源记录写入指令。它先按角色选择器清理现有运行角色，再调用 `sub_40D460` 修改 22 字节 MAPS 角色源；仅当修改后的目标地图等于当前地图时，才即时物化、替换或追加一个 `0xD8` 字节运行角色。完成路径推进 18 字节、令 `ESI=1`，经共同出口发布归一化 previous 后在同一次解释器调用继续取指。
 
-现代实现分类为 `platform_adapted`：MAPS payload、MAPS 数据库、角色 vector、空间索引、地表网格与四槽角色粒子 effect 都由 typed owner 代替原版进程全局和裸指针；有效域的字段宽度、回绕、顺序、同调用继续与原版四槽全填 bug 保持不变。
+现代实现分类为 `pending`：MAPS payload、MAPS 数据库、角色 vector、空间索引、地表网格与四槽角色粒子 effect 都由 typed owner 代替原版进程全局和裸指针；有效域的字段宽度、回绕、顺序、同调用继续与原版四槽全填 bug 保持不变。
 
 唯一行为依据是 `swd3.exe.lst` 的机器码和指令。现有 C++、旧语义表与相邻 handler 只用于 REVIEW，不作为本 handler 的完成依据。
 
@@ -135,4 +135,4 @@ same-call fetch
 
 LST→实现 REVIEW 修正了一处初版差异：opcode62不得直接 yield，必须设置同调用继续。修正后再次逐段对照 `0x004296DE..0x00429A16`、`sub_40D460`、`sub_40D560`、`sub_40F280`、空间 helper 与四槽 emitter 布局，未发现剩余有效域差异。
 
-分类：`platform_adapted`。原版可运行动态差分仍为 `blocked_runtime_oracle`；静态 LST、typed owner、真实资产和现代运行时测试已闭环。
+分类：`pending`。原版可运行动态差分仍为 `pending`；静态 LST、typed owner、真实资产和现代运行时测试已闭环。

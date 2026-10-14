@@ -44,7 +44,7 @@ same-call fetch successor
 
 记录位于`IP=0x7FFE`时，flags写、IP=`0x8000`和previous175先提交，再由same-call下一fetch返回`instruction_out_of_range`；此前副作用不回滚。
 
-owner已由实际ANI runtime承接，固定bit合法，无nullable、分配、I/O或平台失败边界，故分类为`assembly_exact`。
+owner已由实际ANI runtime承接，固定bit合法，无nullable、分配、I/O或平台失败边界，故分类为`pending`。
 
 ## 3. 资产absence与验证
 

@@ -44,4 +44,4 @@ opcode74固定长2字节、无操作数。它按顺序把颜色过渡的red/gree
 
 ## 分类
 
-分类：`platform_adapted`。有效owner域内四写顺序、保留字段、IP、previous与same-call行为与汇编一致；仅固定全局改为nullable typed owner。
+分类：`pending`。有效owner域内四写顺序、保留字段、IP、previous与same-call行为与汇编一致；仅固定全局改为nullable typed owner。

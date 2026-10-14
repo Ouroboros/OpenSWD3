@@ -42,7 +42,7 @@ SDL生产runtime把`packed_row_effects`绑定到实际`world_frame_effects_.pack
 - packed-row链非空时，不要求role-head owner存在；
 - packed-row链为空而role-head owner缺失时，才在第二次链头访问点停止。
 
-owner缺失不推进IP、不发布previous且不service audio。该失败域只隔离原固定全局/裸链所有权，因此整体分类为`platform_adapted`；有效绑定域的短路、位宽、顺序与副作用为`assembly_exact`。
+owner缺失不推进IP、不发布previous且不service audio。该失败域只隔离原固定全局/裸链所有权，因此整体分类为`pending`；有效绑定域的短路、位宽、顺序与副作用为`assembly_exact`。
 
 ## 4. 资产锁
 

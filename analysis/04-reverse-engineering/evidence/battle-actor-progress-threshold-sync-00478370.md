@@ -102,4 +102,4 @@ C++到LST：
 `build/tmp/runtime/actor-threshold-sync-semantic-{core,asan,sdl}.log`。
 历史版本的全量验证记录为core/ASan各199/199、app205/205，不作为本批验证结果。
 
-当前缺少原版动态`0x004A74CC`、组A完整对象、异常内存页和三callsite联合寄存器/SEH捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。本批证据为静态LST、实际状态测试和三个modern caller；不宣称完成原版动态差分。
+当前缺少原版动态`0x004A74CC`、组A完整对象、异常内存页和三callsite联合寄存器/SEH捕获后端，`original_diff_verified`登记为`pending`。本批证据为静态LST、实际状态测试和三个modern caller；不宣称完成原版动态差分。

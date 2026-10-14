@@ -1,7 +1,7 @@
 # 世界移动方向修正汇编证据：0x004040B0
 
 状态：`pending`。
-追溯；`assembly_exact`，原程序动态差分仍为 `blocked_runtime_oracle`
+追溯；`assembly_exact`，原程序动态差分仍为 `pending`
 
 来源：`swd3.exe.lst` 完整汇编
 

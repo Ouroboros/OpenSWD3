@@ -35,4 +35,4 @@
 
 定向测试覆盖零/负数量、两项精确1跳过、完成查询精确1、live数量重读、`AX`零而高word非零、完整32-bit定义编号、五处参数和寄存器链、说明释放、首成功早退、24-byte标题边界、第十一个物理角色访问、消息113直连/旧槽零调用/子stop后置阻断及主帧五服务映射。验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
-当前缺少原版组A对象、完成查询callee、成长结果profile链及选择callee共享副作用、真实MON定义加载/说明释放、共享scratch/标题/transition联合状态、`lstrcpyA`返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A对象、完成查询callee、成长结果profile链及选择callee共享副作用、真实MON定义加载/说明释放、共享scratch/标题/transition联合状态、`lstrcpyA`返回及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

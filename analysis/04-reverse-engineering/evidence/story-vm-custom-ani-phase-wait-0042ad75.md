@@ -52,4 +52,4 @@ TALK4.DAT@0x0001484C  threshold 11
 
 每条先以phase等于threshold验证原地等待，再以phase大一验证精确尾完成。Story VM synthetic、real及initial-session三项共同通过；依赖门覆盖`LegacyAniActivity`的start/update/finalize phase状态机。未启动原版或OpenSWD3游戏EXE。
 
-分类：`platform_adapted`。signed比较、严格阈值、读取顺序、IP、previous及yield/same-call协议保持；Win32裸全局映射为已集成typed activity live owner。
+分类：`pending`。signed比较、严格阈值、读取顺序、IP、previous及yield/same-call协议保持；Win32裸全局映射为已集成typed activity live owner。

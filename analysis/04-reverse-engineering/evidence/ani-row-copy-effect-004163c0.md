@@ -61,5 +61,5 @@ framebuffer。启用后借用 `0x00439070` 的第二套无偏 RNG：
   FNV-1a 64 为 `0x8ED9811DCD93C1F1`。
 
 Linux Clang `core` 为 `90/90`，Windows LLVM `app` 为 `94/94` CTest，全套通过。
-当前证据状态为 `assembly_exact`；尚未对原程序 framebuffer 做动态差分，保留
+当前证据状态为 `pending`；尚未对原程序 framebuffer 做动态差分，保留
 `blocked_runtime_oracle`，需要时由 Codex 准备 Frida spawn 工具并等待用户执行。

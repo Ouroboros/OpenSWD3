@@ -62,4 +62,4 @@ TALK4.DAT@0x0000488B  selector 0x0252  Talk 6421
 
 四条真实记录均在missing-role路径提交Talk-only MAPS patch并完成精确尾。Story VM synthetic、real及initial-session三项通过；`legacy_world_map_business`、`legacy_maps_world_database`与real database依赖3/3通过。未启动原版或OpenSWD3游戏EXE。
 
-分类：`platform_adapted`。operand顺序、selector语义、live字段、fallback参数、推进、previous和same-call均保持；Win32裸role-source全局映射为typed MAPS database owner。
+分类：`pending`。operand顺序、selector语义、live字段、fallback参数、推进、previous和same-call均保持；Win32裸role-source全局映射为typed MAPS database owner。

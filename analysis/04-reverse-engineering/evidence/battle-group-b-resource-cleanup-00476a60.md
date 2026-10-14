@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-历史分类保持`platform_adapted`，本批不升级原版动态差分等级。
+历史分类保持`pending`，本批不升级原版动态差分等级。
 
 ## LST依据
 

@@ -1,7 +1,7 @@
 # 16 位对齐世界底图入口（`sub_412BE0`）
 
 状态：`pending`。
-`sdl_runtime_integrated`；原程序动态差分仍为 `blocked_runtime_oracle`
+`pending`；原程序动态差分仍为 `pending`
 
 本文只以 `swd3.exe.lst` 的 `0x00412BE0..0x00412D29` 为行为真值。IDA 伪码仅用于
 辅助定位，不用于裁决。`sub_412D30`、`sub_413220`、`sub_413370` 仍按各自范围独立审计，

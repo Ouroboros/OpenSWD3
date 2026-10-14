@@ -97,7 +97,7 @@ EAX/ECX/EDX、ESP/EIP、flags 及其 known 状态。
 原程序允许裸 actor 指针、任意 `actor+0x04` token 和异常内存页。现代 C++ 只能对
 已解析的 Group-A/Group-B owner 和已登记 live record 执行合法访问，因此固定 token
 解析失败或访问不可达时，只在对应原访问点 typed-stop；不前移门、不回滚已提交前缀、
-不伪造相邻内存。这是本工作包登记为 `platform_adapted` 的差异。
+不伪造相邻内存。这是本工作包登记为 `pending` 的差异。
 
 ## 5. 七个物理 CALL
 
@@ -152,7 +152,7 @@ LST 到 C++ 追溯覆盖完整 62 字节、完整 dword 参数与字段比较、
 - 连续十轮 Linux core 均通过 `199/199`；
 - 新文件全量和历史文件 changed-range clang-format 通过；
 - inventory 生成器连续双跑逐字节一致，最终为
-  `303/422 = 293 platform_adapted + 10 assembly_exact + 119 pending_audit`，
+  `0/422 = 293 platform_adapted + 10 assembly_exact + 119 pending_audit`，
   SHA-256 为
   `5f746280df63b04b8f04a04b139170ee47fb6fc9f25e5e46aa5f89c6dea699cd`；
 - 未启动原版或 OpenSWD3 游戏程序。

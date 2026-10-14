@@ -58,4 +58,4 @@ opcode79此前没有C++ case。现代实现使用`LegacyMovingActionList`和既�
 
 ## 分类
 
-分类：`platform_adapted`。合法域节点布局、operand宽度、16/32位wrapping、x87中间顺序、链接时点、IP、previous与same-call均保持；裸分配/链指针与固定全局改为typed容器所有权。
+分类：`pending`。合法域节点布局、operand宽度、16/32位wrapping、x87中间顺序、链接时点、IP、previous与same-call均保持；裸分配/链指针与固定全局改为typed容器所有权。

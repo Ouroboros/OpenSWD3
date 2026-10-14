@@ -53,4 +53,4 @@ iterator从`scroll_offset+1`开始，row counter从0开始。每轮行查询直�
 
 历史workpack曾通过定向测试、AddressSanitizer、Linux core 188/188和Linux app 194/194；这些完整门不覆盖本次修改。本批以真实列表和合成MON代替行回包夹具，覆盖负/普通值、帧号、七行上限、链尾复位、逐行清值、共享名称及音乐路径覆盖；最新门禁见[行查询证据](battle-actor-list-query-00470180.md)。计数批次的新增夹具检查真实行上限及缺失节点前缀，当前验证状态见[计数证据](battle-actor-list-count-004702e0.md)。LIST整链仍pending，其他解析、字体与文字协议未关闭。
 
-当前缺少原版组A对象、五类角色列表callee联合状态、字体/文字surface以及完整EAX/ECX/EDX捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A对象、五类角色列表callee联合状态、字体/文字surface以及完整EAX/ECX/EDX捕获后端，`original_diff_verified`为`pending`。

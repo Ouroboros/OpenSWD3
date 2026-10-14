@@ -1,7 +1,6 @@
 # 世界移动动作链（`0x00414B60..0x00414CDF`）
 
 状态：`pending`。
-`original_diff_verified`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。它替代早期只覆盖消费者字段的
 简化语义视图；IDA 伪码和既有命名不覆盖节点宽度、字段偏移或执行顺序。
@@ -72,5 +71,5 @@ framebuffer FNV-1a64 为 `0x990CD049E2EE092A`。
 Linux Clang `core` 为 156/156、Windows LLVM `app` 为 160/160 CTest；Windows app
 成功链接，本轮没有启动新版或原版 EXE。
 
-原程序逐帧 framebuffer 与动作状态差分仍为 `blocked_runtime_oracle`。需要动态验证时只
+原程序逐帧 framebuffer 与动作状态差分仍为 `pending`。需要动态验证时只
 准备 Frida spawn 工具并等待用户执行，不由开发流程启动原版。

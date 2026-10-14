@@ -40,7 +40,7 @@ yield并返回
 
 现代port写发生在context IP和previous更新前；audio发生在IP、previous和flags全部提交后。记录位于`IP=0x7FFE`时，flags写、IP=`0x8000`、previous176和audio一次全部完成并yield，不因窗口尾执行下一fetch。
 
-owner已由实际ANI runtime承接，固定bit合法，无nullable、分配、I/O或平台失败边界，故分类为`assembly_exact`。
+owner已由实际ANI runtime承接，固定bit合法，无nullable、分配、I/O或平台失败边界，故分类为`pending`。
 
 ## 3. 资产absence与验证
 

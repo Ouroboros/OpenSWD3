@@ -60,4 +60,4 @@ startup按LST先reset actor、清41 dword scratch，再只写记录`+0x14/+0x16/
 
 纯函数回归覆盖source与资源首次访问stop、两次32-byte复制、`+0x16/+0x18`坐标布局、两份坐标视图同步、后续资源typed-stop前的复制前缀保留、未知前缀、u16加法回绕、i16符号扩展、资源action与source fallback、三callee完整ABI、profile/释放typed-stop、普通终端寄存器及action `0x001C/0x002E`非对称终端。startup回归覆盖共享记录、mirror低word、定义参数陈旧高word、三callee直连、旧opaque零调用与资源加载stop；对手动作15回归覆盖共享前缀、双wave坐标、callee EAX高word、profile stop、旧opaque零调用和第九项停止。历史关闭时定向CTest `1/1`、AddressSanitizer/UndefinedBehaviorSanitizer定向CTest `1/1`、Linux core `188/188`和Linux app `194/194`全部通过；Workpack 287 REVIEW 1迁移canonical record owner后，战斗定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`和Linux app `205/205`全部通过，日志零源码warning与sanitizer诊断且stderr为空。
 
-原版八个组B完整对象、记录表、动态资源字节、profile buffer、三个callee副作用、startup与动作15的scratch及两个caller寄存器缺少联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。
+原版八个组B完整对象、记录表、动态资源字节、profile buffer、三个callee副作用、startup与动作15的scratch及两个caller寄存器缺少联合捕获后端，因此`original_diff_verified`登记为`pending`。

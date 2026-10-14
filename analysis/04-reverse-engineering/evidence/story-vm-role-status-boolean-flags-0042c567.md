@@ -90,4 +90,4 @@ TALK2.DAT@0x00011366  opcode146 selector 00E6 value1
 
 synthetic覆盖8种mask、每种四raw alias、zero与任意非零、FFF0 index-as-GUID、FFFE controlled、bit28 skip首匹配、两种missing mask、missing FFF0、成功/失败lookup后的缺boolean、owner缺失、partial surface failure及精确尾。Story VM三项通过；surface occupancy与MAPS database/real三项依赖通过。未启动原版或OpenSWD3游戏EXE。
 
-分类：`platform_adapted`。内部mask、operand/lookup顺序、u32 live位运算、双surface helper、missing低16位mask、推进、previous与same-call均保持；仅把裸全局surface/MAPS owner的unsafe访问收敛为原访问点typed状态。
+分类：`pending`。内部mask、operand/lookup顺序、u32 live位运算、双surface helper、missing低16位mask、推进、previous与same-call均保持；仅把裸全局surface/MAPS owner的unsafe访问收敛为原访问点typed状态。

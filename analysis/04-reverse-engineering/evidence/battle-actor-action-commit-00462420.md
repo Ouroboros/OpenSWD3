@@ -42,4 +42,4 @@
 
 定向测试覆盖消息/option组合门、count 1、无匹配扫描、查询完成、查询失败交换、两次匹配与live EDX、十槽一过尾、code 7角色停点、record15普通交换与typed-stop、正向/反向轮转typed提交及逐帧caller传播，三个reserved槽均为零调用。
 
-当前缺少原版十槽角色队列、group-A对象、角色查询callee共享副作用、九个caller联合轨迹及EAX/ECX/EDX捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版十槽角色队列、group-A对象、角色查询callee共享副作用、九个caller联合轨迹及EAX/ECX/EDX捕获后端，`original_diff_verified`为`pending`。

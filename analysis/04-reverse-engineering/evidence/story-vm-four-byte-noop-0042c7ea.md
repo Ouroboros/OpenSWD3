@@ -45,4 +45,4 @@ TALK3.DAT@0x0000CFD2  payload 0x0001
 
 三条记录均在`0x7FFC`精确尾回放，验证IP=`0x8000`、previous98和yield。Story VM synthetic、real及initial-session三项共同通过；未启动原版或OpenSWD3游戏EXE。
 
-分类：`assembly_exact`。该handler没有需要替换的Win32、裸owner或外部依赖；现代实现逐项保持推进宽度、未读payload、previous publication和yield协议。
+分类：`pending`。该handler没有需要替换的Win32、裸owner或外部依赖；现代实现逐项保持推进宽度、未读payload、previous publication和yield协议。

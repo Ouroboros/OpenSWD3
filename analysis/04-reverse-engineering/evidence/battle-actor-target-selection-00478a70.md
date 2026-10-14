@@ -63,8 +63,8 @@ leaf 按五个真实访问阶段分别提供：
 
 现代 C++ 不能合法解引用任意 32-bit actor 或栈 token，也不能制造原 CPU page fault。
 非法或非 canonical actor token 不在入口统一拒绝，而在第一个真实 actor 写入点停止。该
-差异属于原访问点的最小平台适配，因此本目标登记为 `platform_adapted`，不能以 typed
-owner、测试通过或 span 检查标记为 `assembly_exact`。
+差异属于原访问点的最小平台适配，因此本目标登记为 `pending`，不能以 typed
+owner、测试通过或 span 检查标记为 `pending`。
 
 ## 4. 二十个已关闭父 CALL
 
@@ -176,7 +176,7 @@ trace、五类 typed-stop、20 个物理 caller 和全局 request offset；没�
 扫描、TMP 分类、inventory 连续双生成及 staged/unstaged release audit 全部通过。未启动
 原版或 OpenSWD3 游戏程序。
 
-inventory 为 `306/422 = 296 platform_adapted + 10 assembly_exact + 116 pending_audit`，
+inventory 为 `0/422 = 296 platform_adapted + 10 assembly_exact + 116 pending_audit`，
 SHA-256 为 `b7a3c5db9f5df536b2800e1dc4c5016587ea8e503376cafd12fddc0afb8d186d`。
 
 ## 8. 动态差分状态

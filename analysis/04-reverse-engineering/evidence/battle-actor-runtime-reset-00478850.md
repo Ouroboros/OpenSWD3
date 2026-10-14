@@ -124,7 +124,7 @@ MOVSD 的源读与目标写是两个不同停止点；STOSD 失败时当前 dwor
 现代 C++ 不能合法解引用任意 32-bit actor/stack token，也不能制造真实 CPU page
 fault。非法、非对齐或越界 actor token 不在函数入口提前拒绝；prologue 栈写仍先执行，
 随后在第一个真实 actor 访问点停止。该差异属于原访问点的最小平台适配，因此本工作包
-登记为 `platform_adapted`，不能以 owner、span 或测试通过标记为 `assembly_exact`。
+登记为 `pending`，不能以 owner、span 或测试通过标记为 `assembly_exact`。
 
 ## 6. 17 个已关闭父 CALL
 
@@ -203,7 +203,7 @@ OpenSWD3 源码 warning、测试失败、sanitizer finding 或 runtime error。�
 OpenSWD3 游戏程序。
 
 inventory 生成器连续双跑逐字节一致；当前计数为
-`305/422 = 295 platform_adapted + 10 assembly_exact + 117 pending_audit`，
+`0/422 = 295 platform_adapted + 10 assembly_exact + 117 pending_audit`，
 SHA-256 为
 `6d2e8fc6ef51963ba50ab33c8d439dd34f0eb1f29f8e62fa9e782e098feec353`。
 

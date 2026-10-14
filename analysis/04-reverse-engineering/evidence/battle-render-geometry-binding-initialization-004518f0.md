@@ -20,4 +20,4 @@
 
 完整算法、生产接线、验证与剩余范围见
 [绑定对象初始化](battle-render-geometry-binding-object-initialization-0045f0f0.md)。
-原版联合捕获仍缺失，`original_diff_verified`保持`blocked_runtime_oracle`。
+原版联合捕获仍缺失，`original_diff_verified`保持`pending`。

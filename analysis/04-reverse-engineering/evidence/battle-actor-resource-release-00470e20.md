@@ -28,7 +28,7 @@ secondary与tertiary均为零时，即使primary仍非零也销毁selected节点
 
 原typed工作包的六处静态caller位于动作dispatch两处、目标选择刷新三处、链表动作执行一处。production当时直接使用party typed状态；脚本化port测试曾以显式compat flag保留，默认关闭。后续dd7ae08f删除菜单资源compat，直接借startup.party；该时点其它caller和叶寄存器接口继续待迁移，后续回收见第6节。第199项两处固定category caller同时按权威地址纠正到message 27与message 30，而不是动作枚举槽。
 
-测试覆盖selected零的AX半寄存器行为、低byte门控先行递减、secondary优先、primary独立递减、bit13返回抑制、中间节点销毁、循环次数回放重链，以及动作dispatch、目标选择和链表动作caller集成。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`200/422 = 191 platform_adapted + 9 assembly_exact + 222 pending_audit`，SHA256为`981dcf48b591865cb3d92a84f30a9eacc849fbcf677e7758c87e6a2de80ad2ad`。动态差分因原版资源链节点、allocator释放和六处caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+测试覆盖selected零的AX半寄存器行为、低byte门控先行递减、secondary优先、primary独立递减、bit13返回抑制、中间节点销毁、循环次数回放重链，以及动作dispatch、目标选择和链表动作caller集成。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 191 platform_adapted + 9 assembly_exact + 222 pending_audit`，SHA256为`981dcf48b591865cb3d92a84f30a9eacc849fbcf677e7758c87e6a2de80ad2ad`。动态差分因原版资源链节点、allocator释放和六处caller寄存器联合捕获后端缺失而登记为`pending`。
 
 ## 5. 菜单三站的实际资源消费
 

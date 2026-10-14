@@ -60,9 +60,9 @@ B9拥有菜单、商店、模式内输入/绘制/状态机、模式专用资源�
 
 ## 5. 开始与完成条件
 
-开始条件已满足：候选全集、四个入口族、顶层分派、跨模块owner和测试策略均已锁定。
+开始条件：`pending`。候选全集、四个入口族、顶层分派、跨模块owner和测试策略均已锁定。
 
-逐函数workpack已稳定为`227/227`；最终SHA256为`9c615f83dfc7698511da6bd7e60f3bf53d1549ba62aa27f3c28d04c00b860633`。Linux core/app完整门与定向ASan已通过；按当前阶段约束不运行Windows BUILD，Windows LLVM app门归最终统一验收。
+逐函数workpack：`pending`，已关闭`0/227`；最终SHA256为`9c615f83dfc7698511da6bd7e60f3bf53d1549ba62aa27f3c28d04c00b860633`。Linux core/app完整门与定向ASan已通过；按当前阶段约束不运行Windows BUILD，Windows LLVM app门归最终统一验收。
 
 模块只有在以下条件全部满足后关闭：
 
@@ -74,4 +74,4 @@ B9拥有菜单、商店、模式内输入/绘制/状态机、模式专用资源�
 
 ## 6. B10 typed边界同步
 
-B9函数关闭计数保持`227/227`。B10 `audit_order=273`关闭`0x00477B40`后，既有队伍对话页`0x00410730`、护驾属性摘要`0x00442CA0`和角色属性重算`0x0044AB00`已经删除旧pair/scale opaque端口，直接借用B10唯一固定对象与MON definition owner。三处typed-stop均停在原调用位置并保留此前B9副作用，不改变B9的函数归属或关闭计数。
+B9函数关闭计数为`0/227`，227项均为`pending`。B10 `audit_order=273`关闭`0x00477B40`后，既有队伍对话页`0x00410730`、护驾属性摘要`0x00442CA0`和角色属性重算`0x0044AB00`已经删除旧pair/scale opaque端口，直接借用B10唯一固定对象与MON definition owner。三处typed-stop均停在原调用位置并保留此前B9副作用，不改变B9的函数归属或关闭计数。

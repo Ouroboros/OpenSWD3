@@ -28,4 +28,4 @@ startup与SDL在每个角色属性完成后重读source，直接取实际队伍�
 
 纯函数测试覆盖两项非零旧值被同一完整dword按序替换、固定EAX/ECX、source索引EDX直传，以及零角色token在首次写停止且不改任一字段。startup回归验证两名初始角色直连、完整party value双写、source索引依次为0/1并进入资源pair、旧value槽零调用且后续绑定继续。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning；app仅出现既有ALSA开发库CMake提示。
 
-inventory生成器连续双跑逐字节一致，正式计数为`174/422 = 165 platform_adapted + 9 assembly_exact + 248 pending_audit`，SHA256为`87a1424ffba3d06e6b76fb4cbe99b5841dd4d41e8d34dc8468419fdd2ff441be`。原版组A对象、party value表和caller相邻callee寄存器联合捕获后端缺失，`original_diff_verified`登记为`blocked_runtime_oracle`。
+inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 165 platform_adapted + 9 assembly_exact + 248 pending_audit`，SHA256为`87a1424ffba3d06e6b76fb4cbe99b5841dd4d41e8d34dc8468419fdd2ff441be`。原版组A对象、party value表和caller相邻callee寄存器联合捕获后端缺失，`original_diff_verified`登记为`pending`。

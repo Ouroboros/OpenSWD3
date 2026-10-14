@@ -34,7 +34,7 @@ return yielded
 
 该路径不读取后继，也不在同一VM调用继续。完整记录位于`IP=0x7FFE`时，gate、IP=`0x8000`、previous180和audio全部完成后直接yield，不触发下一fetch。
 
-modern缺actual owner binding时在原`dword_4CC2AC`写点返回`runtime_unavailable`：保留IP、previous和gate，不service audio。该nullable binding只隔离现代接线失败，正常SDL路径始终绑定actual process owner，因此分类为`platform_adapted`。
+modern缺actual owner binding时在原`dword_4CC2AC`写点返回`runtime_unavailable`：保留IP、previous和gate，不service audio。该nullable binding只隔离现代接线失败，正常SDL路径始终绑定actual process owner，因此分类为`pending`。
 
 ## 3. 资产锁与验证
 

@@ -29,4 +29,4 @@ caller继续在返回EAX精确等于1时进入文字/明细路径。因共享sta
 
 定向测试覆盖正商、负商、向零截断、非零余数、商零返回、双减法与共享加法回绕、除零及`INT_MIN / -1`停点寄存器和写回时机，并覆盖十个caller的固定目标、动态战利品目标、共享stage连续消费、reserved槽零调用及后续文字门。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码构建零warning；app仅有既有ALSA开发库CMake提示。
 
-原版共享stage与十个caller寄存器联合捕获后端尚不可用，`original_diff_verified`为`blocked_runtime_oracle`。
+原版共享stage与十个caller寄存器联合捕获后端尚不可用，`original_diff_verified`为`pending`。

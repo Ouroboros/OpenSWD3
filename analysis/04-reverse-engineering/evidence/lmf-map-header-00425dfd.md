@@ -54,4 +54,4 @@ raw_table_offset = 0x96 + name_byte_count_including_NUL
 
 `legacy_lmf_read_map_header` 保留固定 0x2000 读取、两种签名、32 位 seek 加法、`+0x8E` 门、五个零扩展字和包含 NUL 的名称字节。短头、失败 seek 和在固定读取窗口内找不到 NUL 分别返回确定状态，隔离原程序的未初始化读取与越界复制，属于 `platform_adapted` 损坏文件边界。
 
-合成 UT 覆盖 `MSFp/MSF2`、全部直接字段、NUL 包含关系、未知签名、短头、负向 seek、`+0x8E` 非零和无终止名称。真实验证先关闭独立索引读取句柄以服从 `LegacyFile` 的共享模式零合同，再逐一对 309 条有效索引执行地图号查找和固定头读取；309/309 偏移一致、格式均为 `MSF2`、名称均终止且原样表起点均落在 `0x98..0xA5`。Windows LLVM `core`/`app` 的 33/33 CTest 均已通过；原程序动态轨迹仍登记为 `blocked_runtime_oracle`。
+合成 UT 覆盖 `MSFp/MSF2`、全部直接字段、NUL 包含关系、未知签名、短头、负向 seek、`+0x8E` 非零和无终止名称。真实验证先关闭独立索引读取句柄以服从 `LegacyFile` 的共享模式零合同，再逐一对 309 条有效索引执行地图号查找和固定头读取；309/309 偏移一致、格式均为 `MSF2`、名称均终止且原样表起点均落在 `0x98..0xA5`。Windows LLVM `core`/`app` 的 33/33 CTest 均已通过；原程序动态轨迹仍登记为 `pending`。

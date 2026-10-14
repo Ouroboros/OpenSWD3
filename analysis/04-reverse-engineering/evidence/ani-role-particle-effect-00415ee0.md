@@ -144,4 +144,4 @@ UT 固定覆盖：
 - 被忽略的 blitter 失败，以及 ACT、TSW、角色索引和损坏 token 的现代隔离门；
 - 真实 ACT `0x232B/59`、TSW 和软件 blitter，固定 framebuffer FNV-1a64 为 `0xFA22737232A60CF6`。
 
-Linux `core` 98/98、Windows LLVM `app` 102/102 CTest 均通过，其中包括合成与真实资产路径。最终原程序 framebuffer/状态差分仍按工程规则登记为 `blocked_runtime_oracle`；需要时只准备 Frida spawn 工具并等待用户执行，不由 OpenSWD3 开发流程自行启动原版。
+Linux `core` 98/98、Windows LLVM `app` 102/102 CTest 均通过，其中包括合成与真实资产路径。最终原程序 framebuffer/状态差分仍按工程规则登记为 `pending`；需要时只准备 Frida spawn 工具并等待用户执行，不由 OpenSWD3 开发流程自行启动原版。

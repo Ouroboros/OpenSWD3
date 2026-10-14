@@ -53,6 +53,6 @@ synthetic覆盖四raw alias、mode2短路、mode1/current非零等待、mode1/cu
 
 LST→C++：mode短路、current gate、唯一IP写点、共同previous/audio/yield均逐块映射。
 
-C++→LST：没有读取pending、调用backend、修改音乐状态、把mode截成低word、完成same-call或省略audio。零平台差异，归`assembly_exact`。
+C++→LST：没有读取pending、调用backend、修改音乐状态、把mode截成低word、完成same-call或省略audio。零平台差异，归`pending`。
 
 Story VM synthetic/real/initial-session 3/3、SDL app编译、Linux core 186/186与app 192/192完整门全部通过。workpack双生成稳定hash为`af1adc822dd7e246382ef33b72d0017ffbb5e501758d4bd4d8653d576dc8fe89`。接入192后，opcode134 synthetic的固定unsupported后继由数值192改为既有`OP_1025`，其134行为断言不变。未启动原版或OpenSWD3游戏EXE。

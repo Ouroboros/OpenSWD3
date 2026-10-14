@@ -42,4 +42,4 @@
 
 新x87实现与第181项已验证helper逐字一致；另以真实内联x87对固定12的全部65,535个非零最大值、六条全u16网格及零分母共458,751组联合核对，全部一致。
 
-验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`182/422 = 173 platform_adapted + 9 assembly_exact + 240 pending_audit`，SHA256为`b840953fb5739e4319c08f7e2affa12b7ae9e00364597c72c557dd1601464816`。原版组A动态资料、组B目标记录、共享紧凑链token拓扑、分配器、x87控制字和四处caller寄存器联合捕获后端缺失，动态差分登记为`blocked_runtime_oracle`。
+验证结果：定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning，app仅有既有ALSA提示。inventory连续双生成逐字节一致，稳定为`0/422 = 173 platform_adapted + 9 assembly_exact + 240 pending_audit`，SHA256为`b840953fb5739e4319c08f7e2affa12b7ae9e00364597c72c557dd1601464816`。原版组A动态资料、组B目标记录、共享紧凑链token拓扑、分配器、x87控制字和四处caller寄存器联合捕获后端缺失，动态差分登记为`pending`。

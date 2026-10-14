@@ -1,7 +1,7 @@
 # 倒计时绘制与初始化 `0x004308C0–0x00430B60`
 
 状态：`pending`。
-`assembly_exact`、`world_runtime_integrated`，缺失或损坏动作帧由显式安全状态隔离。
+`pending`，缺失或损坏动作帧由显式安全状态隔离。
 
 ## 证据范围
 

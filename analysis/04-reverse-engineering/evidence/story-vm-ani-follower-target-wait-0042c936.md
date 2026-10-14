@@ -38,7 +38,7 @@ X不等直接跳`loc_42B0AE`。X相等后，Y比较结果原样进入`loc_42D1BE
 
 四项读取直接复用`asset_runtime::LegacyAniFollowerState`，与opcode150/151及普通世界`0x00416B30`共享唯一owner。SDL剧情runtime借用`LegacyWorldFrameEffectState::follower`。
 
-原程序全局恒存在。现代缺binding时在第一项状态读取前返回`runtime_unavailable`，不发布previous、不service audio。合法binding路径无行为差异；该typed-stop使handler分类为`platform_adapted`。
+原程序全局恒存在。现代缺binding时在第一项状态读取前返回`runtime_unavailable`，不发布previous、不service audio。合法binding路径无行为差异；该typed-stop使handler分类为`pending`。
 
 ## 4. 资产与验证
 

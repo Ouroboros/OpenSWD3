@@ -26,4 +26,4 @@ particle frame未完成且remaining-batches为零时直接返回0。非零时无
 
 唯一caller为action dispatch `0x004539B0`的action 6公共推进点。production现在直接调用typed推进器；返回1才进入原后续完成提交、计数、attack-order移除、阶段word与物品发布路径，返回0保持原普通返回。整函数地址port已删除。
 
-测试覆盖tick前缀、五档参数、tick 40重复五次、signed回绕只留第一档、particle完成资源释放与精确清零范围、`+0x2BC8`保留、既有action 6物品发布，以及action dispatch不再调用整函数地址。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`205/422 = 196 platform_adapted + 9 assembly_exact + 217 pending_audit`，SHA256为`874eb006550504b7b8ff044e090b29cbdd3fef4f47b5d871d133720ea842ea32`。动态差分因原版decoded buffer、粒子槽callee、CRT seed和caller寄存器联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+测试覆盖tick前缀、五档参数、tick 40重复五次、signed回绕只留第一档、particle完成资源释放与精确清零范围、`+0x2BC8`保留、既有action 6物品发布，以及action dispatch不再调用整函数地址。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 196 platform_adapted + 9 assembly_exact + 217 pending_audit`，SHA256为`874eb006550504b7b8ff044e090b29cbdd3fef4f47b5d871d133720ea842ea32`。动态差分因原版decoded buffer、粒子槽callee、CRT seed和caller寄存器联合捕获后端缺失而登记为`pending`。

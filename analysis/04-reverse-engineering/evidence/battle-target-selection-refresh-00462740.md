@@ -151,4 +151,4 @@ dd7ae08f这批只回收三个菜单站，当时保留的叶协议和另三caller
 见[诊断证据](battle-resource-selection-diagnostic-00431150.md)。
 完整菜单父协议、SDL帧接线及实际交互仍pending。
 
-当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、22类callee共享副作用、动态栈scratch地址、target map/效果workspace完整动态内容、transition动画后端及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

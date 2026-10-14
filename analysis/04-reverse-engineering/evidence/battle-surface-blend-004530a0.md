@@ -134,4 +134,4 @@ C++到LST反向追溯覆盖完整171行、12个静态call站点和6个标签。
 - caller以超出约定的`random(3)`结果仍完成blend，后置随机超出约定时按原比较域返回；
 - battle聚合目标零warning，普通定向通过。
 
-当前没有原版GetSystemMetrics、DirectDraw screen/temporary surface、虚操作、CRT随机状态与释放EAX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前没有原版GetSystemMetrics、DirectDraw screen/temporary surface、虚操作、CRT随机状态与释放EAX联合捕获后端，`original_diff_verified`为`pending`。

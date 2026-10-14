@@ -94,7 +94,7 @@ modern复用已经按`0x0040C020/0x0040C0D0`锁定的`resolve_role_index`，不�
 
 modern保留该顺序：先检查/读取selector并lookup，再检查/读取value，最后在首次unsafe action访问点返回`role_not_found`。因此missing selector同时缺value时优先返回`operand_out_of_range`，而不是提前返回`role_not_found`。没有MAPS fallback，也不推进IP、发布previous或调用action update。
 
-原版裸窗口和角色数组始终存在。modern在`+2`或`+4`读取点分别报告`operand_out_of_range`；public VM session在opcode fetch前验证受控角色owner，因此无效controlled index保持opcode/count/IP/previous为原值。`sub_4321E0`通过typed action port接入，零返回只记录诊断。以上均隔离原始越界/裸owner域，有效域行为精确，故分类为`platform_adapted`。
+原版裸窗口和角色数组始终存在。modern在`+2`或`+4`读取点分别报告`operand_out_of_range`；public VM session在opcode fetch前验证受控角色owner，因此无效controlled index保持opcode/count/IP/previous为原值。`sub_4321E0`通过typed action port接入，零返回只记录诊断。以上均隔离原始越界/裸owner域，有效域行为精确，故分类为`pending`。
 
 完整6-byte记录可恰好结束于0x8000-byte窗口：位于`0x7FFA`时先执行两次写、一次refresh、IP推进和previous发布；随后下一次fetch才返回`instruction_out_of_range`。
 

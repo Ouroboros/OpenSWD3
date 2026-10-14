@@ -58,4 +58,4 @@ C++组合的首层资源帧接口对应前半段；第二层显式宽度接口�
 
 battle聚合目标零warning构建及定向测试通过。
 
-当前没有原版双层帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。完整68行LST、关闭callee组合和固定状态验证已经闭环。
+当前没有原版双层帧记录、共享blitter状态和framebuffer联合捕获后端，`original_diff_verified`为`pending`。完整68行LST、关闭callee组合和固定状态验证已经闭环。

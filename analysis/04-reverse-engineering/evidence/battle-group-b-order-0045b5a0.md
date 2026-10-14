@@ -46,4 +46,4 @@ ECX为实际复制数量；EDX为八槽输出表起点加`4 * copied`。ESI与ED
 
 定向测试覆盖signed过滤、源顺序稳定复制、达到固定数量立即返回、跳过项不推进游标、请求数量大于可复制项、数量0不早退、负dword可复制、第九次真实store停点、异常前缀保留、输出尾不清零、路径相关EAX/ECX/EDX、共享八槽物理表以及五处已关闭caller回归。
 
-当前缺少原版动态group B数量、18槽角色顺序表、八槽组B顺序表及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版动态group B数量、18槽角色顺序表、八槽组B顺序表及寄存器联合捕获后端，`original_diff_verified`为`pending`。

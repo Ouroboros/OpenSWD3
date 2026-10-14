@@ -47,6 +47,6 @@ profile loader返回值不作为成功门；其对40-byte目标的写入保留�
 
 纯函数测试覆盖actor首次访问、非零selector bit 1清零、profile word零扩展、固定mode 2、资源首次访问、40-byte清零顺序、profile loader ABI与typed-stop前缀、资源`+0x56/+0x60`、派生word发布、固定mode 1以及EAX/ECX/EDX线程。组Bframe集成测试覆盖成功路径、旧opaque零调用、actor typed-stop和loader typed-stop的caller前缀/后缀边界。AddressSanitizer首次复验揭示历史frame-coordinator巨型测试函数的栈帧膨胀；仅将其29个`Fixture`测试夹具改为`unique_ptr`堆分配，生产实现与断言不变。
 
-最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`246/422 = 237 platform_adapted + 9 assembly_exact + 176 pending_audit`，SHA256为`3ccf2b08608febd8a863f7fc31f1fd702e7978fc0250eefa6f0b7982bd8e9020`。
+最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`0/422 = 237 platform_adapted + 9 assembly_exact + 176 pending_audit`，SHA256为`3ccf2b08608febd8a863f7fc31f1fd702e7978fc0250eefa6f0b7982bd8e9020`。
 
-当前缺少原版八个组B完整actor、动态164-byte资源、40-byte profile、真实profile loader及唯一caller共享状态/寄存器联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。
+当前缺少原版八个组B完整actor、动态164-byte资源、40-byte profile、真实profile loader及唯一caller共享状态/寄存器联合捕获后端，因此`original_diff_verified`登记为`pending`。

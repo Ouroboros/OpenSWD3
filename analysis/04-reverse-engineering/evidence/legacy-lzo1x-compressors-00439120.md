@@ -120,7 +120,7 @@ original_hash15=0xf03d1f408737ac46
 recompressed_hash15=0xf03d1f408737ac46
 ```
 
-Windows LLVM `core-debug` 与 `app-debug` 均完成构建并通过 34/34 CTest。原程序动态输入捕获后端仍不可用，因此没有把汇编逐块复核、历史原流逐字节差分和真实存档验证升级为运行时 `original_diff_verified`；该项继续登记为 `blocked_runtime_oracle`。
+Windows LLVM `core-debug` 与 `app-debug` 均完成构建并通过 34/34 CTest。原程序动态输入捕获后端仍不可用，因此没有把汇编逐块复核、历史原流逐字节差分和真实存档验证升级为运行时 `original_diff_verified`；该项继续登记为 `pending`。
 
 ## 7. 1:1 重写约束
 

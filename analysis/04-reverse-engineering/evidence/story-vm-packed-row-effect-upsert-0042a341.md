@@ -77,4 +77,4 @@ TALK4.DAT 661
 
 synthetic还覆盖三mode、odd清位、全部同ID删除、invalid-ID早消费、四种矩形失败、非正尺寸、owner缺失和same-call。剧情VM三项为3/3。
 
-分类：`platform_adapted`。合法域删除/读取/分配/初始化/链接顺序、字段位宽、+16、previous和same-call保持；裸节点/数组/全局链改为typed list/vector owner，并对unchecked分配和负height巨大分配做typed收敛。
+分类：`pending`。合法域删除/读取/分配/初始化/链接顺序、字段位宽、+16、previous和same-call保持；裸节点/数组/全局链改为typed list/vector owner，并对unchecked分配和负height巨大分配做typed收敛。

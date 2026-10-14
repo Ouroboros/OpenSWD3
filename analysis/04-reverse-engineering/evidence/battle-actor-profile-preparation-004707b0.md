@@ -20,4 +20,4 @@ profile buffer复用第187项final owner，mode byte复用第180项物品效果o
 
 ## 4. 验证状态
 
-测试覆盖完整三callee顺序、输出word、profile id、buffer token、fallback写入、非零profile word抑制、最终mode flag与首actor读取typed-stop前缀。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`192/422 = 183 platform_adapted + 9 assembly_exact + 230 pending_audit`，SHA256为`2d26ed039dc48da07c0929878f47fe1489c3539ee0fe943220454b5b5429cfbc`。动态差分因原版局部记录、三个callee、actor profile buffer与caller联合捕获后端缺失而登记为`blocked_runtime_oracle`。
+测试覆盖完整三callee顺序、输出word、profile id、buffer token、fallback写入、非零profile word抑制、最终mode flag与首actor读取typed-stop前缀。定向测试与独立AddressSanitizer均为`1/1`通过；Linux core为`188/188`，Linux app为`194/194`，源码零warning。inventory连续双生成逐字节一致，稳定为`0/422 = 183 platform_adapted + 9 assembly_exact + 230 pending_audit`，SHA256为`2d26ed039dc48da07c0929878f47fe1489c3539ee0fe943220454b5b5429cfbc`。动态差分因原版局部记录、三个callee、actor profile buffer与caller联合捕获后端缺失而登记为`pending`。

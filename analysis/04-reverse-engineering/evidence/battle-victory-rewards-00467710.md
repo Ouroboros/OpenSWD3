@@ -72,4 +72,4 @@ profile、计数或动作标签只在原首次真实访问停止；此前callee�
 
 定向测试覆盖双面板几何与画面停止前缀、固定CP950标题、奖励位15幂等门、音乐渐隐→sample全停→播放顺序、mix level预调用EAX、组B资源道具零值不消费RNG、固定上界20、无符号阈值与相等拒绝、signed live循环和第九对象、旧query零调用、十槽命中/新增/第十一槽停止顺序、玩家道具子stop、组A两字段精确1门、第十一对象、profile阈值、奖励/准备寄存器、组B数量3双计数、共享银币owner、三行CP950格式、全局重置物理范围、消息100正常直连与子stop传播。验证：战斗聚合定向测试、完整core AddressSanitizer `188/188`、Linux core `188/188`、Linux app `194/194`全部通过。源码构建零warning；app仅保留既有ALSA开发库环境提示。
 
-当前缺少原版两组角色对象、组B动态资源与secondary RNG游标、其余未审业务callee联合状态、动作/画面/字体surface、动态栈地址、音频对象及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、组B动态资源与secondary RNG游标、其余未审业务callee联合状态、动作/画面/字体surface、动态栈地址、音频对象及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

@@ -63,4 +63,4 @@ leaf测试覆盖参数零/非零、两项token零/非零、互斥字段读取、
 
 最终注入式战斗定向`1/1`、Linux core `199/199`、AddressSanitizer/UBSan `199/199`、Linux app `205/205`及连续十轮完整core `10/10`均通过；四份正式有效stderr和十轮core stderr全部为空。新文件全量clang-format及旧文件changed-range apply/`--dry-run --Werror`通过，源码warning、测试失败、sanitizer finding和runtime error扫描无命中。inventory由权威生成器连续双跑逐字节一致，SHA-256为`6e832b90dd4b17830f2b63f7c1ca2ce7b98b7e534ad12f1b92e895f761bc6386`；TMP审计为`confirmed_entries=0`、`errors=[]`。未启动原版或OpenSWD3游戏程序。
 
-原版动态差分登记为`blocked_runtime_oracle`：缺少完整Group-A actor首双token、参数/字段/返回地址异常内存页、四处caller EAX/ECX/EDX/ESP/flags与SEH联合捕获后端。该缺口不影响完整LST、静态访问顺序、typed部分提交或固定状态测试结论。
+原版动态差分登记为`pending`：缺少完整Group-A actor首双token、参数/字段/返回地址异常内存页、四处caller EAX/ECX/EDX/ESP/flags与SEH联合捕获后端。该缺口不影响完整LST、静态访问顺序、typed部分提交或固定状态测试结论。

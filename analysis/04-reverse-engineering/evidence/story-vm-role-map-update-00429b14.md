@@ -135,4 +135,4 @@ yield
 
 从七项push顺序、`sub_40D790`两条主路径、diagnostic返回、party移位、共同出口到现代helper/result分类逐段双向REVIEW，未发现剩余有效域差异。
 
-分类：`platform_adapted`。适配限于checked helper状态、missing-role临时party owner和post/live同步；有效域参数、状态、副作用、diagnostic消费、IP、previous与yield保持原版。
+分类：`pending`。适配限于checked helper状态、missing-role临时party owner和post/live同步；有效域参数、状态、副作用、diagnostic消费、IP、previous与yield保持原版。

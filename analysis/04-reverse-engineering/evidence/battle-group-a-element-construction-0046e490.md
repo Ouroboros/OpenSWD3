@@ -48,4 +48,4 @@ configuration.actor_record提供。逐DWORD短目标与首派生字段写失败�
 分配协议迁移及真实地址耗尽验证见
 [构造资源登记](battle-actor-construction-resource-registration.md)。
 
-历史inventory生成器连续双跑逐字节一致，正式计数为`168/422 = 159 platform_adapted + 9 assembly_exact + 254 pending_audit`，SHA256为`ecc7299e3826e585f760568696ce83324239e2784feb5466b7dccafa10552141`。原版基础构造副作用、动态分配地址、全局对象字节和MSVC向量异常回滚缺少联合捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。
+历史inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 159 platform_adapted + 9 assembly_exact + 254 pending_audit`，SHA256为`ecc7299e3826e585f760568696ce83324239e2784feb5466b7dccafa10552141`。原版基础构造副作用、动态分配地址、全局对象字节和MSVC向量异常回滚缺少联合捕获后端，`original_diff_verified`登记为`pending`。

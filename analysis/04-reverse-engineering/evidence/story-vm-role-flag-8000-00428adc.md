@@ -119,7 +119,7 @@ logical_map_id   = preserve
 
 live path中flag write先于surface访问。若surface owner不存在，modern checked failure保留已写flag而不写两个one-shot字段。若footprint首cell有效、后续cell越界，已经完成的cell mask也保留，然后在原始surface unsafe点返回`role_surface_failed`；两个one-shot字段、IP与previous仍不发布。
 
-ordinary selector miss才进入MAPS fallback。以上typed surface、MAPS port及checked invalid-domain边界使本handler分类为`platform_adapted`。
+ordinary selector miss才进入MAPS fallback。以上typed surface、MAPS port及checked invalid-domain边界使本handler分类为`pending`。
 
 ## 真实资产审计
 

@@ -34,6 +34,6 @@
 
 纯函数测试覆盖actor/output真实故障点、三个callee typed-stop、文字边界前缀、`lstrcpyA`目标EAX、陈旧ECX高word、profile EAX高word、派生word回绕、固定mode 2及三callee ABI。动作case 25与脚本case 23集成测试分别覆盖成功路径、旧opaque零调用和文字copy停止时的前缀保留/后缀阻断。新增caller用例独立注册，避免扩大历史battle聚合巨型测试函数的ASan栈帧。
 
-最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`245/422 = 236 platform_adapted + 9 assembly_exact + 177 pending_audit`，SHA256为`487e433f3e903148309c0fed9d1b330af42c3d851b0e0c8c95f6e7e658b8db4c`。
+最终`./build-asan.sh`、`./build.sh core`和`./build.sh app`分别完成AddressSanitizer core `188/188`、Linux core `188/188`与Linux app `194/194`；零OpenSWD3源码warning、sanitizer finding或测试失败。inventory生成器连续双跑逐字节一致，关闭进度为`0/422 = 236 platform_adapted + 9 assembly_exact + 177 pending_audit`，SHA256为`487e433f3e903148309c0fed9d1b330af42c3d851b0e0c8c95f6e7e658b8db4c`。
 
-当前缺少原版八个组B完整actor、内嵌164-byte资料、40-byte profile、三个callee、文字复制及两个caller寄存器联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。
+当前缺少原版八个组B完整actor、内嵌164-byte资料、40-byte profile、三个callee、文字复制及两个caller寄存器联合捕获后端，因此`original_diff_verified`登记为`pending`。

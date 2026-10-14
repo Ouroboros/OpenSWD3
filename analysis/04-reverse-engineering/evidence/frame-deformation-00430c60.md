@@ -80,5 +80,5 @@
 - 哨兵头插、连续删除两个已完成节点、保留非零节点和显式清链。
 
 Linux Clang `core` 为 `89/89`，Windows LLVM `app` 为 `93/93` CTest，全套通过。
-当前证据状态为 `assembly_exact`；尚未对原程序 framebuffer 做动态差分，保留
+当前证据状态为 `pending`；尚未对原程序 framebuffer 做动态差分，保留
 `blocked_runtime_oracle`，需要时仍由 Codex 准备 Frida spawn 工具并等待用户执行。

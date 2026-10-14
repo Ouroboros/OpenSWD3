@@ -122,4 +122,4 @@ Group-A startup record新增的是同一角色对象的绘制偏移状态，不�
 - 动作十三/十四的mixed-zero fallback、覆盖与镜像变换、frame-source EDX、行动者ESI、caller flags、X后Y部分提交及raster/audio/render后缀抑制；
 - 生产三个效果、选择框及动作实现均不再调用opaque `0x00478400`边界。
 
-验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过；对应stderr为空，未发现sanitizer finding。当前缺少原版完整Group-A/Group-B对象、render source异常内存页、八处caller联合寄存器与SEH捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。该限制不以静态实现或modern单元测试冒充动态差分。
+验证：定向测试、AddressSanitizer、Linux core 199/199、Linux app 205/205 全部通过；对应stderr为空，未发现sanitizer finding。当前缺少原版完整Group-A/Group-B对象、render source异常内存页、八处caller联合寄存器与SEH捕获后端，`original_diff_verified`为`pending`。该限制不以静态实现或modern单元测试冒充动态差分。

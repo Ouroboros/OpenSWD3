@@ -64,7 +64,7 @@
 | `81 01 00` | 2 |
 | `FE FF 00` | 2 |
 
-因此兼容步进固定为：NUL 不前进；`0x81..0xFE` 且下一字节非 NUL 时前进 2；其他非 NUL 字节前进 1。它只认 lead byte，不验证 trail byte 是否属于合法 Big5。实现显式复制该 CP950 规则，登记为 `platform_adapted`；不得改成 UTF-8 解码、Unicode code point 数或严格 Big5 校验。B3.8 复用同一规则实现 next offset，并从缓冲起点扫描得到 `CharPrevA` 等价的 previous offset，避免前后光标使用两套字符边界。
+因此兼容步进固定为：NUL 不前进；`0x81..0xFE` 且下一字节非 NUL 时前进 2；其他非 NUL 字节前进 1。它只认 lead byte，不验证 trail byte 是否属于合法 Big5。实现显式复制该 CP950 规则，登记为 `pending`；不得改成 UTF-8 解码、Unicode code point 数或严格 Big5 校验。B3.8 复用同一规则实现 next offset，并从缓冲起点扫描得到 `CharPrevA` 等价的 previous offset，避免前后光标使用两套字符边界。
 
 ## 4. 导出合同
 

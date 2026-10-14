@@ -43,4 +43,4 @@ B11核心和SDL现共用入战排序与进度入口，读取实际资料和实�
 
 纯函数回归覆盖bit14早退、frame-started一/非一完成尾、资源读取typed-stop寄存器、delay bit6、参数一增强、bit29正向、bit27+bit31负向、EDX资源token陈旧值和进度高word保留。startup回归覆盖窄资源发布、随机循环typed直连、迭代结果、旧opaque槽零调用和缺资源停止；组B帧回归覆盖直接完成、攻击顺序、资源停止前opponent更新及旧opaque地址零调用。
 
-定向CTest `1/1`、AddressSanitizer定向CTest `1/1`、Linux core `188/188`和Linux app `194/194`全部通过；四份构建日志与四份测试日志均无编译warning、sanitizer finding、runtime error或失败项。原版八个组B完整对象、动态资源`+0x5A`、全局阈值、delay flags、startup随机callee、组B更新callee及两个caller寄存器缺少联合捕获后端，因此`original_diff_verified`登记为`blocked_runtime_oracle`。
+定向CTest `1/1`、AddressSanitizer定向CTest `1/1`、Linux core `188/188`和Linux app `194/194`全部通过；四份构建日志与四份测试日志均无编译warning、sanitizer finding、runtime error或失败项。原版八个组B完整对象、动态资源`+0x5A`、全局阈值、delay flags、startup随机callee、组B更新callee及两个caller寄存器缺少联合捕获后端，因此`original_diff_verified`登记为`pending`。

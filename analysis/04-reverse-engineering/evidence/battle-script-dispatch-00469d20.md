@@ -600,7 +600,7 @@ cursor前进2，设置独立脚本门为1，发布cursor后调用完整战斗帧
 
 ## 16. 验证与动态差分
 
-定向`battle.legacy_battle_setup`、独立AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过；新源码与SDL app目标零warning编译。inventory生成器连续双跑逐字节一致，正式计数为`161/422 = 154 platform_adapted + 7 assembly_exact + 261 pending_audit`，SHA256为`1ab13a95a22a4175d6663b6a2c0e5c185632078aed386bcd51c1763d664373ce`。
+定向`battle.legacy_battle_setup`、独立AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过；新源码与SDL app目标零warning编译。inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 154 platform_adapted + 7 assembly_exact + 261 pending_audit`，SHA256为`1ab13a95a22a4175d6663b6a2c0e5c185632078aed386bcd51c1763d664373ce`。
 
 ## 17. `0x00478330`三条脚本分支直连
 
@@ -614,7 +614,7 @@ cursor前进2，设置独立脚本门为1，发布cursor后调用完整战斗帧
 
 坐标owner直接复用startup的10个组A角色和8槽组B生命周期，不建立脚本平行角色数组。缺失组B owner在已完成case 44文字格式化/提交后停于selector首次读取；case 2停止会阻断首轮角色清理与文字格式化；case 59第二坐标停止保留首字写入并阻断锚点、清理、格式化和共同后缀。正常路径把成功坐标写入动态命令`+0x1E/+0x20`，再由共同后缀按原顺序清理并只清共享坐标。共同组B后缀恢复为10个物理地址，末项为`0x0053D970`，循环端点为`0x00540498`；坐标后的首轮组B清理仍为8项并以`0x0053AE48`为端点。
 
-本REVIEW的定向`battle.legacy_battle_setup`覆盖三类case的组A/组B正常路径、primary/alternate坐标、地址token、寄存器残值、flags、动态命令坐标消费、共同清零、各自调用顺序、缺失owner、gate/X/Y停止、首字部分写入与未到达后缀抑制。工作包282在REVIEW 4前继续保持`pending_audit`。
+本REVIEW的定向`battle.legacy_battle_setup`覆盖三类case的组A/组B正常路径、primary/alternate坐标、地址token、寄存器残值、flags、动态命令坐标消费、共同清零、各自调用顺序、缺失owner、gate/X/Y停止、首字部分写入与未到达后缀抑制。工作包282在REVIEW 4前继续保持`pending`。
 
 ## 19. `0x00478470`两处脚本基准坐标直连
 
@@ -624,9 +624,9 @@ Group-A在当前坐标查询后形成`EAX=1007*(actor-8)`与actor ECX，保留�
 
 成功路径保留原共享槽不对称：当前坐标X继续位于`pair_x`，基准X覆盖`position_x`，基准Y覆盖`pair_y`；文字格式化与动态命令只消费当前X和基准Y。base X读取停止分别证明Group-A沿用前一查询EDX而Group-B重算EDX；Y减数停止证明基准X已提交且当前坐标槽仍保持。所有typed-stop只保留分配和已完成查询前缀，阻断角色清理、格式化、finalize、动态命令坐标发布和message写入。
 
-定向`battle.legacy_battle_setup`为`1/1`，Linux core与AddressSanitizer为`199/199`，Linux app为`205/205`，四份stderr为空；changed-range格式及`git diff --check`通过。inventory按计划仍为`283/422 = 273 platform_adapted + 10 assembly_exact + 139 pending_audit`，待工作包284 REVIEW 3回收其余3个现代callsite后关闭。
+定向`battle.legacy_battle_setup`为`1/1`，Linux core与AddressSanitizer为`199/199`，Linux app为`205/205`，四份stderr为空；changed-range格式及`git diff --check`通过。inventory按计划仍为`0/422 = 273 platform_adapted + 10 assembly_exact + 139 pending_audit`，待工作包284 REVIEW 3回收其余3个现代callsite后关闭。
 
-原版138项共享状态、动态对象地址、CRT随机序列、69个callee副作用、framebuffer/音频/文件服务及EAX/ECX/EDX联合捕获后端尚不可同时获得，因此`original_diff_verified`登记为`blocked_runtime_oracle`；这不改变完整LST静态审计、typed实现和现代侧门禁结论。
+原版138项共享状态、动态对象地址、CRT随机序列、69个callee副作用、framebuffer/音频/文件服务及EAX/ECX/EDX联合捕获后端尚不可同时获得，因此`original_diff_verified`登记为`pending`；这不改变完整LST静态审计、typed实现和现代侧门禁结论。
 
 ## 20. `0x004785C0`十三处脚本坐标发布直连
 
@@ -636,7 +636,7 @@ Group-A在当前坐标查询后形成`EAX=1007*(actor-8)`与actor ECX，保留�
 
 正常路径保存最后一次完整publication结果与累计调用数；leaf成功返回的ECX为0，EAX/EDX来自低word替换后的真实caller寄存器。两组循环均只在publication成功后推进index并重读live count。typed-stop映射为独立`actor_coordinate_publication_typed_stop`，保留当前坐标写、当前source read和此前复制前缀，同时阻断当前index推进、剩余actor/group、cursor、共享坐标与临时值清零、Group-A mirror提交、actor metrics、frame和frame-gate后缀；此前成功actor不回滚。
 
-定向`battle.legacy_battle_setup`覆盖十三个物理站点的成功路径、canonical source/destination记录、两组次序、动态count重载、EAX/EDX/ESI/EDI高低word、32-bit/16-bit ADD与SUB flags及各case代表性source/destination fault，并验证Group-B publication后的下一次getter读取canonical新坐标而非平行action-record。REVIEW 2通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`与Linux app `205/205`，日志无warning、失败或sanitizer诊断且stderr为空。Workpack 287的caller回收达到`17/19`，inventory继续保持row 287 `pending_audit`，等待REVIEW 3回收turn gate与Group-B action17两处caller。原版联合动态差分继续登记为`blocked_runtime_oracle`。
+定向`battle.legacy_battle_setup`覆盖十三个物理站点的成功路径、canonical source/destination记录、两组次序、动态count重载、EAX/EDX/ESI/EDI高低word、32-bit/16-bit ADD与SUB flags及各case代表性source/destination fault，并验证Group-B publication后的下一次getter读取canonical新坐标而非平行action-record。REVIEW 2通过定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`与Linux app `205/205`，日志无warning、失败或sanitizer诊断且stderr为空。Workpack 287的caller回收达到`17/19`，inventory继续保持row 287 `pending_audit`，等待REVIEW 3回收turn gate与Group-B action17两处caller。原版联合动态差分继续登记为`pending`。
 
 ## 21. `0x00478600`十三处脚本当前坐标查询直连
 
@@ -648,7 +648,7 @@ case 5、13与40入口按脚本token的`<=7/>7`分支分别保留`0x00525508 + t
 
 六类停止分别覆盖第一输出指针读取、X读取、X写入、Y读取、第二输出指针读取与Y写入。任一停止都映射为`actor_current_coordinate_typed_stop`并阻断当前站点第一条后缀、publication、index/count推进、剩余轮次、cursor、mirror、frame与共享清理；Y读取及其后的停止保留X低字提交，dword高字和未写Y保持。第一参数读取前EDX保留caller入口值、读取后变为out-X；第二参数读取前ECX保留actor token、读取后变为out-Y，dispatcher最终返回与leaf停止点一致。case 45/50的前置共享字段写入、case 39的高位actor标记、case 40/73的前置步长状态以及循环中此前完成的查询和publication均不回滚。
 
-定向`battle.legacy_battle_setup`覆盖十三个地址的正常trace、token 7/8边界、case 40的0/16可达边界、case 39高位掩码、两套scratch、callee残值、EAX高word、ECX/EDX、flags、zero/first/multi-round、八个物理循环站点回边、首轮后live count缩短与扩展、十三乘六typed-stop、X部分提交、前轮保留、正常后缀和reserved零调用。current-coordinate leaf自身的输出互相alias、输出覆盖actor字段及第二访问观察首写语义继续由actor-coordinate定向测试覆盖。工作包288的caller回收达到`19/21`，inventory row 288继续保持`pending_audit`，等待REVIEW 3回收turn gate与Group-B action17。原版联合动态差分继续登记为`blocked_runtime_oracle`。
+定向`battle.legacy_battle_setup`覆盖十三个地址的正常trace、token 7/8边界、case 40的0/16可达边界、case 39高位掩码、两套scratch、callee残值、EAX高word、ECX/EDX、flags、zero/first/multi-round、八个物理循环站点回边、首轮后live count缩短与扩展、十三乘六typed-stop、X部分提交、前轮保留、正常后缀和reserved零调用。current-coordinate leaf自身的输出互相alias、输出覆盖actor字段及第二访问观察首写语义继续由actor-coordinate定向测试覆盖。工作包288的caller回收达到`19/21`，inventory row 288继续保持`pending`，等待REVIEW 3回收turn gate与Group-B action17。原版联合动态差分继续登记为`pending`。
 
 ## 脚本53增加道具的实际共享库存
 

@@ -53,4 +53,4 @@ TALK4.DAT@0x00002273  20, -75
 
 synthetic覆盖四个raw alias、i16最小/最大、bit28单独清除、第一/第二operand分阶段缺失、已提交副作用和精确尾。Story VM synthetic、real及initial-session三项通过。未启动原版或OpenSWD3游戏EXE。
 
-分类：`platform_adapted`。有效记录的bit运算、signed扩展、写入顺序、推进、previous与same-call逐项一致；仅把两个原始越界读取收敛为各自访问点的typed状态，并保留此前副作用。
+分类：`pending`。有效记录的bit运算、signed扩展、写入顺序、推进、previous与same-call逐项一致；仅把两个原始越界读取收敛为各自访问点的typed状态，并保留此前副作用。

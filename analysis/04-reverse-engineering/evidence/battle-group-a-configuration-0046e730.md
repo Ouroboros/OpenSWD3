@@ -42,4 +42,4 @@ startup唯一caller不再调用`configure_party_actor`旧业务槽；原枚举�
 
 纯函数测试覆盖非零placement双复制、14-dword先复制后源夹值、负i16保留、内部word复制、特殊bit、正常返回寄存器、零placement诊断时序/参数/陈旧EDX高word及三类首次访问typed-stop。startup回归覆盖双角色直连、旧槽零调用、源token、镜像后placement、工作区直接组合、夹值不污染角色副本和零角色诊断转发。定向测试、AddressSanitizer、Linux core `188/188`和Linux app `194/194`全部通过，源码零warning；app仅出现既有ALSA开发库CMake提示。
 
-inventory生成器连续双跑逐字节一致，正式计数为`172/422 = 163 platform_adapted + 9 assembly_exact + 250 pending_audit`，SHA256为`1e8eb49e2803ef138da7b3b4a23e16e85967aa751360dfbf5056e41f9b9d5ac0`。原版完整组A对象、源/placement记录、窗口、诊断callee和caller寄存器联合捕获后端缺失，`original_diff_verified`登记为`blocked_runtime_oracle`。
+inventory生成器连续双跑逐字节一致，正式计数为`0/422 = 163 platform_adapted + 9 assembly_exact + 250 pending_audit`，SHA256为`1e8eb49e2803ef138da7b3b4a23e16e85967aa751360dfbf5056e41f9b9d5ac0`。原版完整组A对象、源/placement记录、窗口、诊断callee和caller寄存器联合捕获后端缺失，`original_diff_verified`登记为`pending`。

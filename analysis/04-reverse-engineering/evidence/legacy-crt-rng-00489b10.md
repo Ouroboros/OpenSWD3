@@ -50,4 +50,4 @@ time(NULL) -> 250-word secondary seed
 
 `LegacyCrtRng::seed` 和 `LegacyCrtRng::next` 分别映射两个函数；对象保留 32 位状态，默认值为镜像中的 1。UT 固定两组十项输出和最终状态；既有 app 测试固定两次独立时间采样及播种顺序。
 
-Windows LLVM `core` 与 `app` 均完成构建并通过 36/36 CTest，SDL3 EXE 已链接真实两套 RNG。64 位 `time_t` 到 32 位种子的截断属于显式 `platform_adapted` 边界。原程序运行时随机调用轨迹仍为 `blocked_runtime_oracle`；后续回放必须记录 seed、流 ID、调用序号、上界和返回值。
+Windows LLVM `core` 与 `app` 均完成构建并通过 36/36 CTest，SDL3 EXE 已链接真实两套 RNG。64 位 `time_t` 到 32 位种子的截断属于显式 `platform_adapted` 边界。原程序运行时随机调用轨迹仍为 `pending`；后续回放必须记录 seed、流 ID、调用序号、上界和返回值。

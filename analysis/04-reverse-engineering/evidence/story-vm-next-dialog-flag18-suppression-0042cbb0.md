@@ -81,6 +81,6 @@ synthetic固定：
 
 ## 6. 分类与验证
 
-handler只写VM已有完整`u32`owner并执行解释器内固定控制流，没有平台替代或不安全内存边界，分类为`assembly_exact`。
+handler只写VM已有完整`u32`owner并执行解释器内固定控制流，没有平台替代或不安全内存边界，分类为`pending`。
 
 Story VM synthetic、real、initial-session-real三项定向CTest 3/3通过。Linux core 186/186与app 192/192完整门均以exit 0通过。workpack双生成稳定为`126/146 = 20 assembly_exact + 106 platform_adapted + 20 pending_audit`，hash为`cf60317b840a18c4c554d27f63587c42102d3cab33149f0f3989834ad7d2e007`。未经许可未启动原版或OpenSWD3游戏EXE。

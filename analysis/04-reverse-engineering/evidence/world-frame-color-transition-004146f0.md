@@ -1,7 +1,7 @@
 # 世界帧颜色过渡（`0x004146F0`）
 
 状态：`pending`。
-`sdl_runtime_integrated`；尚未 `original_diff_verified`
+`pending`；尚未 `pending`
 
 本证据只以 `swd3.exe.lst` 为行为真值。`sub_4146F0` 的完整物理范围是
 `0x004146F0..0x004147DE`，唯一调用点 `sub_412930:0x00412BCB` 固定传入一并清理四字节，

@@ -54,4 +54,4 @@
 
 历史workpack的定向测试、AddressSanitizer、Linux core 188/188及Linux app 194/194不覆盖本次修改。本批夹具改为真实列表及MON，覆盖节点过滤、命中序号、七行上限、链尾复位、长名称与音乐路径覆盖、完整名称绘制、两处文字和矩形前缀。最新验证见[行查询证据](battle-actor-list-query-00470180.md)。计数批次另加真实行上限与失败前缀检查，当前验证状态见[计数证据](battle-actor-list-count-004702e0.md)。LIST整链仍pending，绘制与父协议未关闭。
 
-当前缺少原版组A对象、窄列表初始化/刷新/查询callee联合状态、字体/文字surface、面板/矩形/九宫格framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A对象、窄列表初始化/刷新/查询callee联合状态、字体/文字surface、面板/矩形/九宫格framebuffer及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

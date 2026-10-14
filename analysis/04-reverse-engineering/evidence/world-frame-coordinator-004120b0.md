@@ -1,7 +1,7 @@
 # 普通世界帧外层协调器（`0x004120B0`）
 
 状态：`pending`。
-`sdl_runtime_integrated`；原程序动态差分仍为 `blocked_runtime_oracle`
+`pending`；原程序动态差分仍为 `pending`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。它恢复的是普通世界唯一主帧函数
 `sub_4120B0` 的外层控制顺序；`0x00412930` 内部画面组合的证据和实现仍由
@@ -12,22 +12,22 @@
 
 | LST 范围 | OpenSWD3 责任 | 当前状态 |
 |---|---|---|
-| `0x004120B7..0x004120F7` | [倒序维护八个 HeadSgn 动作记录](world-head-sign-actions-004120b7-004120f7.md) | 已接入真实 action updater |
-| `0x004120F9..0x00412197` | 玩家与相机按四个 transition 和步长移动 | 已接入真实 helper |
-| `0x004121A1..0x004124D1` | [地图角色动作/路径账本](world-map-role-paths-004121a1-004124d1.md) | 已接入真实 owner |
-| `0x004124DC..0x00412681` | [队伍角色动作账本](world-party-role-actions-004124dc-00412681.md) | 已接入真实 owner |
-| `0x0041268C` | [`sub_414570` 脚本相机逐帧平移](world-camera-pan-00414570.md) | 已接入真实状态机 |
-| `0x00412691` | `sub_4148F0` 选择序列临时滚动 | 已接入真实状态机 |
-| `0x00412696` | 第一次 `AIL_serve` | audio port 原槽调用 |
-| `0x004126A2..0x004126B3` | 锁定并绑定软件 source surface | 由传入 framebuffer 表达 |
-| `0x004126B8` | `sub_412930` 世界画面组合 | 已接入真实 runtime vertical slice |
-| `0x004126C7` | [`sub_4308C0(400, 8, 0)` 倒计时绘制](legacy-countdown-004308c0-00430b60.md) | 已接入真实 action/TSW/blit 路径 |
-| `0x004126CC..0x004126E8` | [开发工具总门与 `sub_413FE0(left, top)` 调试叠层](world-debug-overlay-00413fe0.md) | 已接入真实 owner |
-| `0x004126F0` | 第二次 `AIL_serve` | audio port 原槽调用 |
-| `0x004126FF..0x00412716` | 普通世界唯一一次 `Blt` | world presentation port |
-| `0x00412719..0x0041287C` | [玩家格指针、transition、快照与动作校验](world-player-post-frame-00412719-0041287c.md) | 已接入真实 helper |
-| `0x0041287F..0x004128DA` | tile 层折返动画和 layer offset | 已接入真实状态机 |
-| `0x004128DF..0x0041291D` | 条件恢复选择滚动前视口 | 已接入真实状态机 |
+| `0x004120B7..0x004120F7` | [倒序维护八个 HeadSgn 动作记录](world-head-sign-actions-004120b7-004120f7.md) | `pending` |
+| `0x004120F9..0x00412197` | 玩家与相机按四个 transition 和步长移动 | `pending` |
+| `0x004121A1..0x004124D1` | [地图角色动作/路径账本](world-map-role-paths-004121a1-004124d1.md) | `pending` |
+| `0x004124DC..0x00412681` | [队伍角色动作账本](world-party-role-actions-004124dc-00412681.md) | `pending` |
+| `0x0041268C` | [`sub_414570` 脚本相机逐帧平移](world-camera-pan-00414570.md) | `pending` |
+| `0x00412691` | `sub_4148F0` 选择序列临时滚动 | `pending` |
+| `0x00412696` | 第一次 `AIL_serve` | `pending` |
+| `0x004126A2..0x004126B3` | 锁定并绑定软件 source surface | `pending` |
+| `0x004126B8` | `sub_412930` 世界画面组合 | `pending` |
+| `0x004126C7` | [`sub_4308C0(400, 8, 0)` 倒计时绘制](legacy-countdown-004308c0-00430b60.md) | `pending` |
+| `0x004126CC..0x004126E8` | [开发工具总门与 `sub_413FE0(left, top)` 调试叠层](world-debug-overlay-00413fe0.md) | `pending` |
+| `0x004126F0` | 第二次 `AIL_serve` | `pending` |
+| `0x004126FF..0x00412716` | 普通世界唯一一次 `Blt` | `pending` |
+| `0x00412719..0x0041287C` | [玩家格指针、transition、快照与动作校验](world-player-post-frame-00412719-0041287c.md) | `pending` |
+| `0x0041287F..0x004128DA` | tile 层折返动画和 layer offset | `pending` |
+| `0x004128DF..0x0041291D` | 条件恢复选择滚动前视口 | `pending` |
 
 `run_legacy_world_frame` 因此不是第二套 renderer。它只拥有外层顺序，并在原始
 `0x004126B8` 槽调用已有 `compose_legacy_world_runtime_frame`；呈现没有被挪到通用帧尾。

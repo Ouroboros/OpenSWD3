@@ -69,4 +69,4 @@ acceptance_limit = floor(0xFFFF / upper_bound) * upper_bound
 
 UT 固定初始化状态哈希、四个种子的首项、前十个 raw 输出、249 到 0 的索引回绕、bound 1、bound 100 和产生三次拒绝的 bound 32768。Windows LLVM `core` 与 `app` 均完成构建并通过 35/35 CTest。
 
-原程序动态状态捕获后端仍为 `blocked_runtime_oracle`。后续集成测试必须把 seed、每次上界、返回值和累计调用序号写入回放记录；只比较最终结果不足以发现随机调用顺序漂移。
+原程序动态状态捕获后端仍为 `pending`。后续集成测试必须把 seed、每次上界、返回值和累计调用序号写入回放记录；只比较最终结果不足以发现随机调用顺序漂移。

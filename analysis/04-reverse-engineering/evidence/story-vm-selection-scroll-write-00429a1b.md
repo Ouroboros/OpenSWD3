@@ -109,4 +109,4 @@ handler 不修改选择滚动 cursor。64-word 表最多写 56 项，因此成�
 
 LST→实现 REVIEW 发现并修正了一处初版差异：脚本 terminator 必须是 `0xFF00`，不能误用目标表空值 `0xCFCF`。真实资产测试在自洽的合成测试之外发现该问题；修正后合成、真实与初始会话三项测试重新全部通过。
 
-分类：`platform_adapted`。适配仅限无界扫描的窗口检查、原版进程全局的 typed owner 与对应失败隔离；有效域的复制切点、计时字段、视口顺序、IP、previous、same-call/yield行为保持汇编语义。
+分类：`pending`。适配仅限无界扫描的窗口检查、原版进程全局的 typed owner 与对应失败隔离；有效域的复制切点、计时字段、视口顺序、IP、previous、same-call/yield行为保持汇编语义。

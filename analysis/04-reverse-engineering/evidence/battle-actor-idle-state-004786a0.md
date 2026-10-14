@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-状态保持`platform_adapted`，原版差分为`blocked_runtime_oracle`。
+状态保持`pending`，原版差分为`blocked_runtime_oracle`。
 本批迁移查询及全部七处调用；双方完整帧父项仍待迁移。
 
 ## 1. 独立汇编依据

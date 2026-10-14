@@ -60,4 +60,4 @@ B11另按461E3D恢复动作种类2的primary抑制门清零，删除input的
 
 定向测试覆盖：selected group-B正常与code-zero停止；message 1/2及active一过前停止；message 3完整两组角色循环、匹配/回退action、group-B count 9前缀；message 4/5/7/8/27/30与默认跳表；caller普通与停止传播；全局reset新增owner同步。
 
-当前缺少原版两组角色对象、两类角色callee、message/selection全局、record0 caller与EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、两类角色callee、message/selection全局、record0 caller与EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

@@ -71,4 +71,4 @@ LST到C++：两个低word参数读取、X后Y两次word RMW、callee清栈、寄
 
 单元测试覆盖正负增量、word环绕、X/Y别名、四个typed-stop阶段、Y故障时X部分提交、入口与两次ADD flags、EAX/ECX/EDX残值、访问计数、调试总门、Group-A后Group-B顺序、后续迭代CMP flags、双键恢复、delta提交边界、P后缀抑制和reserved opaque槽零调用。发布门另覆盖Linux core、AddressSanitizer、Linux app、连续十轮core、changed-range格式、inventory双生成、TMP与staged/unstaged审计。
 
-当前缺少原版完整Group-A/Group-B actor、可写与异常内存页以及四处caller联合寄存器/SEH捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`；不以静态结果冒充动态差分。
+当前缺少原版完整Group-A/Group-B actor、可写与异常内存页以及四处caller联合寄存器/SEH捕获后端，`original_diff_verified`登记为`pending`；不以静态结果冒充动态差分。

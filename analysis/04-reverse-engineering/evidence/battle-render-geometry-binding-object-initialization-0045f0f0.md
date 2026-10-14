@@ -59,4 +59,4 @@ ASan保留既有outcome-resolution测试第133行整数窄化警告。
 源码双向复核确认实际写入、未写区域、固定循环边界及SDL调用顺序；
 删除的返回字段没有业务消费者，`git diff --check`通过。
 
-当前缺少原版完整绑定对象内存、后续资源文件读入、几何owner共享状态和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版完整绑定对象内存、后续资源文件读入、几何owner共享状态和寄存器联合捕获后端，`original_diff_verified`为`pending`。

@@ -61,4 +61,4 @@
 
 首次定向`battle.legacy_battle_setup`通过，日志`build/tmp/runtime/battle-shared-selection-single-owner-directed.log`。完整core首次204/205，唯一失败是组A行动测试错误地要求函数最终返回时门仍为零。LST明确在`0x00457579`清零后，经`0x0045766F`调用最终角色处理；此样本命中`0x0045AC14`再次置1并发布message 103。测试现检查移除数1、message 103与最终门1，保留此前随机和调用次数断言；没有改变生产代码来迎合旧断言。失败日志保留为`battle-shared-selection-single-owner-core-red.log`。重新运行的`./build.sh core --test`、`./build-asan.sh --test`、`./build.sh app --test`分别205/205、205/205、211/211通过；三个日志为`build/tmp/runtime/battle-shared-selection-single-owner-{core,asan,app}.log`，无编译warning/error。最终生产与测试diff已完整审查，并以字节比较确认与审查版本一致。本轮未执行Windows门禁或游戏EXE，不升级原版动态差分状态。
 
-本轮同时观察到相邻`0x0053BFC4`在最终角色、结果协调和菜单等状态中仍有重复建模；不在此单地址REVIEW内改写。完整战斗的其他共享状态、SDL绑定与实机续玩仍未验收。Workpack 316保持`pending_audit`、315/422。
+本轮同时观察到相邻`0x0053BFC4`在最终角色、结果协调和菜单等状态中仍有重复建模；不在此单地址REVIEW内改写。完整战斗的其他共享状态、SDL绑定与实机续玩仍未验收。Workpack 316保持`pending`、0/422。

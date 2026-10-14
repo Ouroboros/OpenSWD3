@@ -145,7 +145,7 @@ modern按原始访问点隔离裸窗口：
 - missing完整记录位于`0x7FFA`时不执行lookahead，先patch、推进和发布previous，下一次fetch才返回`instruction_out_of_range`；
 - public VM session在opcode fetch前验证受控角色owner，无效owner保持opcode/count/IP/previous不变。
 
-以上checked边界只隔离原版裸内存与owner域；有效domain的字段宽度、回调次数、lookahead顺序和same-call continuation不变，故分类为`platform_adapted`。
+以上checked边界只隔离原版裸内存与owner域；有效domain的字段宽度、回调次数、lookahead顺序和same-call continuation不变，故分类为`pending`。
 
 ## 真实资产审计
 

@@ -45,4 +45,4 @@ mode3和6先调用`0x00431960`，清四个`0x98`字节动作记录，再将主va
 - input清mode时跳过draw；draw清mode时保留本次draw；两者均在尾部清transient bit1。
 - 表外mode仍消费bit31并执行公共尾，但不伪造mode初始化。
 
-Linux core定向与完整门、Linux app完整门和Windows LLVM app完整门通过后，工作包只关闭`0x00439FD0`。workpack连续两轮生成均为`1/227`，SHA256均为`2f654cc75235148ab08330efc25ff9a072b75f4233adaa45bb5ce45aa800c167`。`0x0043A2A0`、`0x0043A470`、`0x0043A610`、`0x0043BA40`及各mode子图保持`pending_audit`。
+Linux core定向与完整门、Linux app完整门和Windows LLVM app完整门通过后，工作包只关闭`0x00439FD0`。workpack连续两轮生成均为`1/227`，SHA256均为`2f654cc75235148ab08330efc25ff9a072b75f4233adaa45bb5ce45aa800c167`。`0x0043A2A0`、`0x0043A470`、`0x0043A610`、`0x0043BA40`及各mode子图保持`pending`。

@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-状态保持`platform_adapted`；原版差分为`blocked_runtime_oracle`。
+状态保持`pending`；原版差分为`blocked_runtime_oracle`。
 本批迁移查询及三处实际调用，完整双方帧父项仍待迁移。
 
 ## 1. 独立LST依据
@@ -94,6 +94,6 @@ ASan setup仅有既存outcome测试第133行窄化warning；无新增警告、
 ## 5. 未完成范围
 
 双方父项其它操作编号、参数包、寄存器接口、Port、计数和资源仍待迁移。
-本批不提升B10 315/422、Workpack316/317/318 pending_audit或B11状态。
+本批不提升B10 0/422、Workpack316/317/318 pending_audit或B11状态。
 原版差分仍缺少字段、异常页、三处调用机器状态与SEH联合捕获。
 本地测试不冒充原版/Windows动态验证；未启动游戏程序。

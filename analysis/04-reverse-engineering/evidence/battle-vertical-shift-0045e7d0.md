@@ -82,4 +82,4 @@ battle mode的`0x100`置位时，phase写`(signed)(phase+1) % 2`的原位形；�
 
 定向测试覆盖全部16项表值、偶/奇首尾矩形、两个surface token与等待标志、1280字节行清零、phase动态重读、第一/第二表越界、两次surface零token、dword清零边界、live节拍/上限/mode重读、0/1切换、phase 10返回后清门、全局重置别名，以及逐帧普通提交、mode强制位移和typed-stop阻断截图。
 
-当前缺少原版phase/节拍轨迹、DirectDraw矩形Blt、surface对象、共享framebuffer地址、模式位与寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版phase/节拍轨迹、DirectDraw矩形Blt、surface对象、共享framebuffer地址、模式位与寄存器联合捕获后端，`original_diff_verified`为`pending`。

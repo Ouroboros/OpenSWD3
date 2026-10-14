@@ -45,7 +45,7 @@ opcode：`118` / `OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID`
 
 原handler在match后另检查raw index是否为`0xFFFD`，仅该值跳过角色gate清零。但正常256项角色表中，`0xFFFD`在更早的`sub_40C060` GUID读取已经越界；不能把该后置检查伪装成安全的detached-message路径。synthetic以一个先行合法match再遇`0xFFFD`锁定此分阶段停止合同。
 
-受检role span与owned消息链替代固定角色表、裸predecessor和手工free，故分类为`platform_adapted`；全部合法index路径保持机器行为。
+受检role span与owned消息链替代固定角色表、裸predecessor和手工free，故分类为`pending`；全部合法index路径保持机器行为。
 
 ## 4. counter、IP与same-call
 

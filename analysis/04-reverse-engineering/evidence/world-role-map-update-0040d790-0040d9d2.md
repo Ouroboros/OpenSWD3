@@ -1,8 +1,8 @@
 # 世界角色移出队伍与 MAPS 更新
 
 状态：`pending`。
-`platform_adapted`；另有 `implemented`、`unit_tested`、`asset_verified`、
-`blocked_runtime_oracle`。
+`pending`；另有 `pending`、
+`pending`。
 
 唯一行为真值：`swd3.exe.lst` 的 `0x0040D790..0x0040D9D2`。IDA 名称和伪码只用于
 导航。本函数由剧情 opcode 66 的 `0x00429B14..0x00429B5D` 调用，但本文只关闭共享的
@@ -77,7 +77,7 @@ MAPS patch 的返回值也不被原调用者观察；现代 owner 即使报告 p
 
 现代边界显式隔离受控索引越界、零或大于八的逻辑人数、方向表越界、零步长导致的原版
 无限循环、表面越界、损坏空间链和 MAPS 目录缺失。这些状态不属于当前合法资产，故本项
-登记为 `platform_adapted`。
+登记为 `pending`。
 
 实现后进行了三轮反向核对：
 

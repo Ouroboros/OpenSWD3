@@ -89,7 +89,7 @@ opcode 42 在 helper 返回后先跳 `loc_42D1E6` 恢复被调用约定破坏的
 
 原版 opcode 42 用裸 `dword_4AB378` 计算角色地址；无有效角色时会形成越界地址。modern VM 的 public session boundary 在抓取 opcode 前验证受控角色 owner，因此无效 index 返回 `role_not_found`，opcode/count、lock、IP 和 previous 均保持。opcode 43 在机器内部不读角色，但同样受该既有 typed session 前置条件约束；测试分别锁定两个 opcode 的边界，不能从相邻 handler 继承。
 
-原版 `sub_4321E0` 是进程内 action runtime。modern 通过 `LegacyWorldStoryVmPorts::update_action` 接入；返回零只计入诊断，不改变 continuation。世界交互的共享 owner 用 typed pointer 替代裸进程全局。上述差异均隔离原始裸 owner/地址域，有效 runtime 域中的位宽、顺序、callback 次数、IP、previous 与 same-call 行为保持一致，因此共享 handler 分类为 `platform_adapted`。
+原版 `sub_4321E0` 是进程内 action runtime。modern 通过 `LegacyWorldStoryVmPorts::update_action` 接入；返回零只计入诊断，不改变 continuation。世界交互的共享 owner 用 typed pointer 替代裸进程全局。上述差异均隔离原始裸 owner/地址域，有效 runtime 域中的位宽、顺序、callback 次数、IP、previous 与 same-call 行为保持一致，因此共享 handler 分类为 `pending`。
 
 两条指令只需当前 opcode word。位于 `0x7FFE` 的完整记录会先完成全部 side effect、推进到 `0x8000`并发布 previous；随后下一次 fetch 才返回 `instruction_out_of_range`。42/43 各自具有独立窗口尾测试。
 

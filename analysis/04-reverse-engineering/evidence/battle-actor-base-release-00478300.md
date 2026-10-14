@@ -2,7 +2,7 @@
 
 状态：`pending`。
 
-历史分类：`platform_adapted`。当前实现直接释放MON文本所有权，已删除基础释放Port、寄存器合同和访问计数。
+历史分类：`pending`。当前实现直接释放MON文本所有权，已删除基础释放Port、寄存器合同和访问计数。
 本批范围及验证见[说明所有权迁移](battle-actor-description-owned-release.md)。
 
 ## 1. 完整权威范围
@@ -81,6 +81,6 @@ C++保留唯一对象读写、零/非零分支、正常与展开到达点及释�
 聚合生命周期测试检查组A/B与单例的释放顺序、异常展开和基础异常不重复释放。
 当前SDL尚未显式调用这些完整元素析构入口，不将core测试冒充生产退出覆盖。
 
-历史工作包验证曾通过定向测试`2/2`、Linux core`198/198`、AddressSanitizer`198/198`、Linux app`204/204`及连续10轮完整core，源码零warning，无sanitizer finding或runtime error。inventory连续双生成逐字节一致，正式计数为`277/422 = 267 platform_adapted + 10 assembly_exact + 145 pending_audit`，SHA256为`1c69ea1c505789e9aca8f17d3312c303745d05abaf767ba4189b04a372e043c9`；release审计全部通过。
+历史工作包验证曾通过定向测试`2/2`、Linux core`198/198`、AddressSanitizer`198/198`、Linux app`204/204`及连续10轮完整core，源码零warning，无sanitizer finding或runtime error。inventory连续双生成逐字节一致，正式计数为`0/422 = 267 platform_adapted + 10 assembly_exact + 145 pending_audit`，SHA256为`1c69ea1c505789e9aca8f17d3312c303745d05abaf767ba4189b04a372e043c9`；release审计全部通过。
 
-当前没有原版组A/组B/单例完整对象、说明堆、CRT释放边界、异常访问及五处caller联合寄存器/SEH捕获后端，`original_diff_verified`登记为`blocked_runtime_oracle`。该阻塞不影响完整11条指令、五处到达点与typed所有权的静态闭环。
+当前没有原版组A/组B/单例完整对象、说明堆、CRT释放边界、异常访问及五处caller联合寄存器/SEH捕获后端，`original_diff_verified`登记为`pending`。该阻塞不影响完整11条指令、五处到达点与typed所有权的静态闭环。

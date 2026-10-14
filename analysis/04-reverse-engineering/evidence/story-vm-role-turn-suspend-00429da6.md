@@ -53,4 +53,4 @@ opcode76固定长6字节。它分阶段读取两个selector：第一selector在`
 
 ## 分类
 
-分类：`platform_adapted`。合法域中心点、朝向、action刷新、挂起、IP、previous和same-call均与汇编一致；原版两处index -1越界和固定全局owner改为typed失败。
+分类：`pending`。合法域中心点、朝向、action刷新、挂起、IP、previous和same-call均与汇编一致；原版两处index -1越界和固定全局owner改为typed失败。

@@ -6,7 +6,7 @@
 
 权威函数为`0x0045BD90..0x0045C00C`，从proc到endp完整299行、8个静态call站点、19个条件或无条件分支与17个局部标签，无外部FUNCTION CHUNK。
 
-三个静态caller均已关闭：单体效果帧`0x004582B0`一处，群体效果帧`0x00458DE0`两处。三个caller全部删除`0x0045BD90`地址token并直连typed实现。
+三个静态caller状态均为`pending`：单体效果帧`0x004582B0`一处，群体效果帧`0x00458DE0`两处。三个caller全部删除`0x0045BD90`地址token并直连typed实现。
 
 ## 2. 入口phase推进
 
@@ -70,4 +70,4 @@ arg0与scratch跨组A、组B及所有角色持续携带，不按角色重置。�
 
 历史关闭门为定向`1/1`、独立AddressSanitizer`1/1`、Linux core`188/188`和Linux app`194/194`。Workpack 287 REVIEW 1接入typed publication并回收四处物理setter后，最终门为战斗定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`和Linux app `205/205`，日志零源码warning与sanitizer诊断且stderr为空。
 
-当前缺少原版两组角色对象、异常栈与坐标内存页、DF/寄存器/SEH、getter共享副作用、动态数量、phase/累计/threshold/latch与四个publication caller联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版两组角色对象、异常栈与坐标内存页、DF/寄存器/SEH、getter共享副作用、动态数量、phase/累计/threshold/latch与四个publication caller联合捕获后端，`original_diff_verified`为`pending`。

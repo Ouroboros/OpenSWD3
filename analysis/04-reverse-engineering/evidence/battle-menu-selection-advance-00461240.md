@@ -71,4 +71,4 @@ remaining小于4时，每次循环都从共享action kind重新装载ECX，再�
 
 定向测试覆盖：消息0；权限上界与typed-stop；消息2 signed byte边界、有样本推进和无样本夹值；消息4写后置gate与equipment typed-stop；消息5/7/8/27/30；组B回绕、预调用乘法寄存器、第九次配置停止及snapshot成功；组A大组回绕、live拒绝推进、actor order寄存器停止、候选/snapshot/配置预调用寄存器、code10 snapshot一过尾停止、固定十对象重置和一基selected code10映射第十对象；组A小组callee拒绝后cursor重装与snapshot成功；三处snapshot的动作更新、frame lookup、frame-token提交、共享四dword输出和reserved端口零调用；provider失败、width输出写停止及X/Y完整dword部分提交抑制选择配置和gate；输入分派三处caller直连、snapshot透传和typed-stop阻断；后退函数对应cursor与对象寄存器回归。
 
-当前缺少原版权限相邻内存、两组角色对象、四类角色callee、样本后端、菜单/目标全局及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版权限相邻内存、两组角色对象、四类角色callee、样本后端、菜单/目标全局及EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

@@ -94,4 +94,4 @@ caller回归以source为0、secondary含非零高word，证明子函数零调用
 - 三项signed强度发布、u8减4、render EDX返回和零resource释放；
 - 唯一caller直连及final gate陈旧高word。
 
-当前缺少原版八槽强度record、强度byte数组、3类剩余callee共享副作用、resource owner、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版八槽强度record、强度byte数组、3类剩余callee共享副作用、resource owner、framebuffer和寄存器联合捕获后端，`original_diff_verified`为`pending`。

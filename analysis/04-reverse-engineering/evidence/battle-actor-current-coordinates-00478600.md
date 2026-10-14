@@ -59,6 +59,6 @@ Group-A caller优先解析`LegacyBattleStartupState::party[index]`；没有start
 
 leaf测试覆盖正常返回、六个访问停止、输出同址、输出覆盖actor字段、X部分提交、EAX高word、ECX/EDX和flags。caller测试覆盖二十一个地址的canonical owner、两套脚本scratch、循环回边与live count、turn gate无调整及正负十六、action17正负二十五、栈局部完整位形、六类停止矩阵、reserved ordinal/空adapter槽、生产零调用和所有后缀抑制。Group-A父级另以不同的startup party与action-execution坐标验证查询来源，并在startup Y读取停止时验证X局部前缀和父级后缀抑制。Group-B opponent父级从唯一action dispatch状态显式透传action17两个未初始化dword栈局部residue；成功用例验证两个非零高word参与完整32-bit `-0x19`及publication flags，Y读取停止用例验证X低word前缀、两个高word和全部父级后缀抑制。
 
-最终门禁通过changed-range格式、战斗定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`、连续十轮core、inventory双生成、TMP分类与完整unstaged/staged发布审计，fresh reviewer最终返回PASS；四份正式stderr为空，日志无OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。inventory为`288/422 = 278 platform_adapted + 10 assembly_exact + 134 pending_audit`，SHA-256为`23c9d965fd4b9c964bc2803605411e7d9a7b50dbfbc94dc2993d603d7bc65ed7`。
+最终门禁通过changed-range格式、战斗定向`1/1`、Linux core `199/199`、ASan/UBSan `199/199`、Linux app `205/205`、连续十轮core、inventory双生成、TMP分类与完整unstaged/staged发布审计，fresh reviewer最终返回PASS；四份正式stderr为空，日志无OpenSWD3源码warning、测试失败、sanitizer finding或runtime error。inventory为`0/422 = 278 platform_adapted + 10 assembly_exact + 134 pending_audit`，SHA-256为`23c9d965fd4b9c964bc2803605411e7d9a7b50dbfbc94dc2993d603d7bc65ed7`。
 
-原版动态差分仍为`blocked_runtime_oracle`：缺少完整Group-A/Group-B actor、异常栈与输出内存页、寄存器/flags/SEH及二十一处caller联合捕获后端。该阻塞不削弱完整LST、typed访问顺序、caller回收或固定状态测试结论。
+原版动态差分仍为`pending`：缺少完整Group-A/Group-B actor、异常栈与输出内存页、寄存器/flags/SEH及二十一处caller联合捕获后端。该阻塞不削弱完整LST、typed访问顺序、caller回收或固定状态测试结论。

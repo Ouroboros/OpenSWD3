@@ -27,7 +27,7 @@ velocity_y = sign_extend_i16(+8)
 
 四项写入直接复用`asset_runtime::LegacyAniFollowerState`；普通世界`0x00416B30`每帧以同一六字段owner绘制并推进当前位置。SDL剧情runtime借用`LegacyWorldFrameEffectState::follower`，不建立第二份状态。
 
-原程序全局恒存在。现代缺binding时在读取`+2`后的第一项全局写点返回`runtime_unavailable`，不读取`+4`，也不推进IP或发布previous。合法binding路径无行为差异；该typed-stop使handler分类为`platform_adapted`。
+原程序全局恒存在。现代缺binding时在读取`+2`后的第一项全局写点返回`runtime_unavailable`，不读取`+4`，也不推进IP或发布previous。合法binding路径无行为差异；该typed-stop使handler分类为`pending`。
 
 ## 3. IP、previous、audio与yield
 

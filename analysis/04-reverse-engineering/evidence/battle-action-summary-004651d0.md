@@ -65,4 +65,4 @@ B11调试外部调用批次删除原合成的profile token/kind缓存。引用�
 
 验证：定向测试、AddressSanitizer、Linux core 188/188、Linux app 194/194 全部通过。源码零warning；app仅保留既有ALSA开发库CMake warning。
 
-当前缺少原版组A profile内容、五类callee共享副作用、字体状态、文字surface和EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版组A profile内容、五类callee共享副作用、字体状态、文字surface和EAX/ECX/EDX联合捕获后端，`original_diff_verified`为`pending`。

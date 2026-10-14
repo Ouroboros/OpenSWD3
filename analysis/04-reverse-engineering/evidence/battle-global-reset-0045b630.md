@@ -107,4 +107,4 @@ B11将53BF36/38/3A当前颜色和53BF94/98双门映射到实际画面控制状�
 
 定向测试覆盖显示surface零/非零槽、旋转缓存嵌套释放、渲染资源释放、条件分配token零与非零、九阶段call顺序、234项写序散列、3300次物理写、13106字节、标量宽度、重复写、尾部6 dword、little-endian字节像、mapped地址排除、未触及字节保留、metric及待执行动作latch、颜色值清零与初始化门保留、角色预处理标量与工作区分段别名、双对象转场primary清零及secondary/打包高word保留、调试快捷键、调试叠加、结果判定、奖励槽写入、结果整理、撤退提交、上下文提示与纵向位移共享状态、完整18条启动记录、攻击顺序插入双尾门、移除相邻强度记录与出队七dword输出、最终角色/动作同址门、effect-shift与effect-coordinator typed别名同步、记录默认值差异、group B行动记录清零而资源owner保留、group B顺序表不清零、共享message无同址副本、消息阶段双门清零与入口链门保留、胜利奖励十项payload和局部物理前缀清零、pre-frame同址owner唯一性、尾部callee之后的24-byte成长标题owner清零及固定返回0。
 
-当前缺少原版全部全局内存、九类callee共享副作用、旧分配器、音频对象及寄存器联合捕获后端，`original_diff_verified`为`blocked_runtime_oracle`。
+当前缺少原版全部全局内存、九类callee共享副作用、旧分配器、音频对象及寄存器联合捕获后端，`original_diff_verified`为`pending`。
